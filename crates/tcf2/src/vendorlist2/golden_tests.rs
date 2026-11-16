@@ -69,11 +69,16 @@ fn record_case(case: &Value) -> Result<Value, TestError> {
     Ok(Value::Object(record))
 }
 
-/// Replays every `part`-th of `PARTS` cases, so the replay runs on several test threads.
-fn replay(part: usize) -> TestResult {
+/// Replays every `part`-th of `PARTS` cases of `file`, so the replay runs on several test
+/// threads.
+fn replay(file: &str, min_cases: usize, part: usize) -> TestResult {
     const PARTS: usize = 4;
-    let cases = load_cases("vendorlist_goldens.json")?;
-    check!(cases.len() > 2800, "only {} vendor list cases", cases.len());
+    let cases = load_cases(file)?;
+    check!(
+        cases.len() > min_cases,
+        "only {} cases in {file}",
+        cases.len()
+    );
     for case in cases.iter().skip(part).step_by(PARTS) {
         let actual = record_case(case)?;
         if &actual != case {
@@ -85,20 +90,45 @@ fn replay(part: usize) -> TestResult {
 
 #[test]
 fn go_goldens_part0() -> TestResult {
-    replay(0)
+    replay("vendorlist_goldens.json", 2800, 0)
 }
 
 #[test]
 fn go_goldens_part1() -> TestResult {
-    replay(1)
+    replay("vendorlist_goldens.json", 2800, 1)
 }
 
 #[test]
 fn go_goldens_part2() -> TestResult {
-    replay(2)
+    replay("vendorlist_goldens.json", 2800, 2)
 }
 
 #[test]
 fn go_goldens_part3() -> TestResult {
-    replay(3)
+    replay("vendorlist_goldens.json", 2800, 3)
+}
+
+// `testdata/vendorlist_fuzz_goldens.json` (written by `testdata/go/fuzz.go`): grammar-generated
+// documents that stay valid JSON while varying value types, nulls, duplicate keys, key spelling
+// and escapes, plus single-byte edits of them. Documents whose Go result depends on map iteration
+// order are left out by the generator.
+
+#[test]
+fn go_fuzz_goldens_part0() -> TestResult {
+    replay("vendorlist_fuzz_goldens.json", 2000, 0)
+}
+
+#[test]
+fn go_fuzz_goldens_part1() -> TestResult {
+    replay("vendorlist_fuzz_goldens.json", 2000, 1)
+}
+
+#[test]
+fn go_fuzz_goldens_part2() -> TestResult {
+    replay("vendorlist_fuzz_goldens.json", 2000, 2)
+}
+
+#[test]
+fn go_fuzz_goldens_part3() -> TestResult {
+    replay("vendorlist_fuzz_goldens.json", 2000, 3)
 }

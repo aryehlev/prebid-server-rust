@@ -51,6 +51,8 @@ func main() {
 	writeCases(filepath.Join(*out, "bitutils_goldens.json"), hdr, buildBitutilsCases())
 	writeCases(filepath.Join(*out, "base64_goldens.json"), hdr, buildBase64Cases())
 	writeCases(filepath.Join(*out, "vendorlist_goldens.json"), hdr, buildVendorListCases())
+	writeCases(filepath.Join(*out, "consent_fuzz_goldens.json"), hdr, buildFuzzConsentCases())
+	writeCases(filepath.Join(*out, "vendorlist_fuzz_goldens.json"), hdr, buildFuzzVendorListCases())
 }
 
 func goGDPRVersion() string {
