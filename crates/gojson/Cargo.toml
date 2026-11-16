@@ -1,0 +1,17 @@
+[package]
+name = "pbs-gojson"
+description = "Go encoding/json and json-iterator compatible JSON encoding and decoding for Prebid Server"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+readme.workspace = true
+keywords.workspace = true
+publish.workspace = true
+categories = ["encoding", "parser-implementations"]
+
+[lints]
+workspace = true
+
+[dependencies]

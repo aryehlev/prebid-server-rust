@@ -1,0 +1,17 @@
+[package]
+name = "pbs-errortypes"
+description = "Prebid Server error types, codes and severities matching the Go errortypes package"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+readme.workspace = true
+keywords.workspace = true
+publish.workspace = true
+categories.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]

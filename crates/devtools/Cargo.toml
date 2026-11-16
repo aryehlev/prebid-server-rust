@@ -1,0 +1,21 @@
+[package]
+name = "pbs-devtools"
+description = "Developer tools for the Prebid Server Rust port: Go fixture manifests and parity utilities"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+readme.workspace = true
+keywords.workspace = true
+publish.workspace = true
+categories = ["development-tools"]
+
+[[bin]]
+name = "pbs-devtools"
+path = "src/main.rs"
+
+[lints]
+workspace = true
+
+[dependencies]

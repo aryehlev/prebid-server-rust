@@ -1,0 +1,17 @@
+[package]
+name = "pbs-tcf2"
+description = "IAB TCF v2 consent string and global vendor list parsing compatible with prebid/go-gdpr"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+readme.workspace = true
+keywords.workspace = true
+publish.workspace = true
+categories = ["parser-implementations"]
+
+[lints]
+workspace = true
+
+[dependencies]

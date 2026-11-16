@@ -1,10 +1,17 @@
 [package]
 name = "pbs-metrics"
-version = "0.1.0"
-edition = "2021"
+description = "Prebid Server metrics engine with Go-identical metric names and labels"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+readme.workspace = true
+keywords.workspace = true
+publish.workspace = true
+categories.workspace = true
+
+[lints]
+workspace = true
 
 [dependencies]
-serde = { workspace = true }
-prometheus = { workspace = true }
-thiserror = { workspace = true }
-once_cell = { workspace = true }

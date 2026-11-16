@@ -1,47 +1,149 @@
 [workspace]
+resolver = "3"
+# Workspace membership is owned by the orchestrator. Work units never edit this file;
+# a unit that needs a new crate or a workspace-level change reports it instead.
 members = [
-    "crates/openrtb",
-    "crates/openrtb-ext",
-    "crates/config",
-    "crates/util",
-    "crates/adapters",
+    "crates/bidder-params",
     "crates/currency",
+    "crates/devtools",
+    "crates/errortypes",
+    "crates/gocompat",
+    "crates/gojson",
+    "crates/gojson-derive",
+    "crates/gpp",
     "crates/metrics",
-    "crates/exchange",
-    "crates/endpoints",
-    "crates/server",
-    "crates/cache",
+    "crates/tcf2",
 ]
-resolver = "2"
 
-[workspace.dependencies]
-axum = { version = "0.7", features = ["macros"] }
-tokio = { version = "1", features = ["full"] }
-tower = "0.4"
-tower-http = { version = "0.5", features = ["cors", "compression-gzip", "trace", "timeout"] }
-reqwest = { version = "0.12", features = ["json", "gzip", "rustls-tls"] }
-serde = { version = "1", features = ["derive"] }
-serde_json = "1"
-serde_yaml = "0.9"
-config = "0.14"
-prometheus = { version = "0.13", features = ["process"] }
-moka = { version = "0.12", features = ["future"] }
-uuid = { version = "1", features = ["v4"] }
-jsonschema = "0.17"
-json-patch = "1"
-tracing = "0.1"
-tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
-thiserror = "1"
-anyhow = "1"
-bytes = "1"
-http = "1"
-chrono = { version = "0.4", features = ["serde"] }
-regex = "1"
-once_cell = "1"
-dashmap = "5"
-async-trait = "0.1"
-futures = "0.3"
-base64 = "0.22"
-flate2 = "1.0"
-rand = "0.8"
-toml = "0.8"
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.100"
+license = "Apache-2.0"
+repository = "https://github.com/aryehlev/prebid-server-rust"
+readme = "README.md"
+keywords = ["prebid", "openrtb", "header-bidding", "adtech"]
+categories = ["web-programming::http-server"]
+publish = false
+
+# Lint policy. Every crate opts in with `[lints] workspace = true`.
+# Suppressing a lint is forbidden everywhere: no #[allow], #![allow], #[expect],
+# cfg_attr(..., allow(...)), or "allow" levels in any [lints] table. Fix the code instead.
+# Levels are "warn" while the port is in progress; CI runs with -D warnings and the
+# final lint stage raises everything to "deny".
+[workspace.lints.rust]
+unsafe_code = "forbid"
+non_ascii_idents = "forbid"
+missing_docs = "warn"
+missing_debug_implementations = "warn"
+missing_copy_implementations = "warn"
+unreachable_pub = "warn"
+unused_results = "warn"
+unused_qualifications = "warn"
+unused_import_braces = "warn"
+unused_lifetimes = "warn"
+unused_macro_rules = "warn"
+trivial_casts = "warn"
+trivial_numeric_casts = "warn"
+single_use_lifetimes = "warn"
+let_underscore_drop = "warn"
+meta_variable_misuse = "warn"
+redundant_lifetimes = "warn"
+unit_bindings = "warn"
+unnameable_types = "warn"
+variant_size_differences = "warn"
+explicit_outlives_requirements = "warn"
+macro_use_extern_crate = "warn"
+keyword_idents = { level = "warn", priority = -1 }
+rust_2018_idioms = { level = "warn", priority = -1 }
+future_incompatible = { level = "warn", priority = -1 }
+nonstandard_style = { level = "warn", priority = -1 }
+unused = { level = "warn", priority = -1 }
+
+[workspace.lints.clippy]
+all = { level = "warn", priority = -1 }
+pedantic = { level = "warn", priority = -1 }
+nursery = { level = "warn", priority = -1 }
+cargo = { level = "warn", priority = -1 }
+# Selected restriction lints (the full restriction group contains mutually
+# contradictory lints, so it cannot be enabled wholesale without suppressions).
+absolute_paths = "warn"
+allow_attributes = "warn"
+allow_attributes_without_reason = "warn"
+assertions_on_result_states = "warn"
+as_underscore = "warn"
+cfg_not_test = "warn"
+clone_on_ref_ptr = "warn"
+create_dir = "warn"
+dbg_macro = "warn"
+default_union_representation = "warn"
+deref_by_slicing = "warn"
+disallowed_script_idents = "warn"
+empty_drop = "warn"
+empty_enum_variants_with_brackets = "warn"
+empty_structs_with_brackets = "warn"
+error_impl_error = "warn"
+exit = "warn"
+expect_used = "warn"
+filetype_is_file = "warn"
+float_cmp_const = "warn"
+fn_to_numeric_cast_any = "warn"
+format_push_string = "warn"
+get_unwrap = "warn"
+if_then_some_else_none = "warn"
+impl_trait_in_params = "warn"
+indexing_slicing = "warn"
+infinite_loop = "warn"
+iter_over_hash_type = "warn"
+large_include_file = "warn"
+let_underscore_must_use = "warn"
+lossy_float_literal = "warn"
+map_err_ignore = "warn"
+mem_forget = "warn"
+missing_assert_message = "warn"
+missing_asserts_for_indexing = "warn"
+mixed_read_write_in_expression = "warn"
+multiple_inherent_impl = "warn"
+mutex_atomic = "warn"
+mutex_integer = "warn"
+needless_raw_strings = "warn"
+panic = "warn"
+panic_in_result_fn = "warn"
+partial_pub_fields = "warn"
+pathbuf_init_then_push = "warn"
+print_stderr = "warn"
+print_stdout = "warn"
+rc_buffer = "warn"
+rc_mutex = "warn"
+redundant_type_annotations = "warn"
+renamed_function_params = "warn"
+rest_pat_in_fully_bound_structs = "warn"
+same_name_method = "warn"
+self_named_module_files = "warn"
+shadow_unrelated = "warn"
+str_to_string = "warn"
+string_lit_chars_any = "warn"
+string_slice = "warn"
+suspicious_xor_used_as_pow = "warn"
+tests_outside_test_module = "warn"
+todo = "warn"
+try_err = "warn"
+undocumented_unsafe_blocks = "warn"
+unimplemented = "warn"
+unnecessary_safety_comment = "warn"
+unnecessary_safety_doc = "warn"
+unnecessary_self_imports = "warn"
+unneeded_field_pattern = "warn"
+unreachable = "warn"
+unused_result_ok = "warn"
+unused_trait_names = "warn"
+unwrap_in_result = "warn"
+unwrap_used = "warn"
+verbose_file_reads = "warn"
+wildcard_enum_match_arm = "warn"
+
+[profile.dev]
+debug = "line-tables-only"
+
+[profile.test]
+debug = "line-tables-only"

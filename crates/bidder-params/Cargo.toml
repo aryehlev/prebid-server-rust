@@ -1,0 +1,17 @@
+[package]
+name = "pbs-bidder-params"
+description = "JSON Schema validation of bidder params with gojsonschema-compatible error text"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+readme.workspace = true
+keywords.workspace = true
+publish.workspace = true
+categories = ["parser-implementations"]
+
+[lints]
+workspace = true
+
+[dependencies]
