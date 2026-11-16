@@ -151,6 +151,24 @@ atomic load per hook:
 if s := trace.Current(); s != nil { s.Record(parity.StageBidderRequest, bidder, req) }
 ```
 
+**Exchange stage payloads.** The `json` member of stages 13 to 36
+(`hooks.processed_auction` to `exchange.response`) has the shape of the types in
+`parity/stagedata`, which are the shared contract for those stages. Their field
+comments give each member's meaning, null and empty rules, and the sort key of
+every list Go builds from map iteration. Every entry carries `errors` and
+`warnings` lists, `[]` when there are none. A `bidder#call` key counts the
+`MakeRequests` output from 0 in order, then the bidder's stored bid responses in
+ascending imp ID order. Three stages leave out part of what `stages.json`
+lists, because capturing it would break the observer-effect rule:
+
+* `hooks.processed_auction` records only `{rejected}`. The request after that
+  hook stage shows up in `floors.enrich` and `bidder.request`, both of which
+  snapshot a request the code rebuilt itself.
+* `privacy.bidder` takes its activity results from re-running the pure
+  `ActivityControl.Allow` on the same inputs.
+* `floors.enforce.enforced` is the `floors.enforce` decision value: false when
+  the decision was not reached.
+
 ## Decision points
 
 `schema/decisions.json` lists every place where Go draws a random number on the
@@ -172,12 +190,15 @@ When the envelope has no value, the implementation draws from its own random
 source and records `source: "rng"`. An out-of-domain value is ignored and the
 decision carries a note. A decision is recorded only when the site is reached.
 For example, `floors.skip` is not consulted when every skip rate is 0. In Go,
-the helpers are `Session.Decide`, `Session.Intn` and `Session.DecideString`
-(`trace/decide.go`).
+the helpers are `Session.Decide`, `Session.DecideBool`, `Session.Intn` and
+`Session.DecideString` (`trace/decide.go`). With no case in flight, each helper
+runs the original random draw unchanged.
 
 `randomizeList`, which sets the bidder fan-out order, is deliberately not a
 decision point: any order is Go-compatible, so `seatbid` order is normalized
-instead.
+instead. Bidder throttling is not a decision point either, because parity
+profiles disable it. If a case does reach the throttle draw, Go adds a trace
+note.
 
 ## Deterministic fakes
 
@@ -330,6 +351,14 @@ is a no-op and `/__parity/*` is ordinary application traffic.
 | `adapters/{adnuntius,appnexus,flipp}` Builders | inject `fakes.Active()` into the existing time, random and UUID seams |
 | `adapters/{cadent_aperture_mx,huaweiads,tappx,yieldlab}` | `time.Now()` replaced by `fakes.Now()` |
 | `adapters/eplanning` | `rand.Int()` replaced by `fakes.Int()` |
+| `exchange/exchange.go` | `HoldAuction` wraps `holdAuction` (`exchange.response`); stage hooks after the processed-auction hook stage, floors enrichment, setup, FPD, `cleanOpenRTBRequests`, `floors.Enforce`, category mapping, events, the all-processed-bid-responses hook stage, winners, targeting, `setSeatNonBid` and each bidder goroutine; `category.dedupe` in `randomDeduplicateBidBooleanGenerator.Generate` |
+| `exchange/bidder.go` | `requestBid` tracer `pt` (`hooks.bidder_request`, `adapter.requests`, `adapter.requests_final`, `adapter.bids` through `pt.makeBids`, `hooks.raw_bidder_response`, `bids.adjusted`); bidder context for the transport; `doRequest` short-circuit for `mock.level = bidder_response`; throttle note |
+| `exchange/utils.go` | `privacy.bidder` in the `cleanOpenRTBRequests` loop |
+| `exchange/auction.go` | `cache.result` at the end of `doCache` |
+| `exchange/price_granularity.go` | `pricegranularity.timesplit` |
+| `exchange/parity_stages.go` | the exchange recorders (harness code living in package `exchange`) |
+| `floors/{floors,rule,enforce}.go`, `floors/parity.go` | `floors.enrich` after `updateFloorsInRequest` rebuilds the request; the four `floors.*` decisions |
+| `usersync/shuffler.go` | `usersync.shuffle` |
 
 ### Linking the `/__parity/*` routes (PH-07)
 

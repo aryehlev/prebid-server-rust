@@ -17,6 +17,12 @@ var binaryDecisions = map[parity.DecisionID]bool{
 	parity.DecisionPriceGranularityTimesplit: true,
 }
 
+// enumDecisions lists the allowed envelope values of the enum decision points
+// (decisions.json "enum" domain).
+var enumDecisions = map[parity.DecisionID][]string{
+	parity.DecisionUsersyncShuffle: {parity.UsersyncShuffleIdentity},
+}
+
 // Intn is the index-valued decision point: it returns the envelope override for
 // point when it is an integer in [0, n), otherwise def(n). The outcome and its
 // source are recorded. A nil session simply returns def(n).
@@ -62,19 +68,74 @@ func (s *Session) Decide(point parity.DecisionID, def func() int) int {
 	return got
 }
 
+// DecideBool is Decide for the binary decision points whose Go site computes a
+// boolean: draw is the original random computation and true maps to the
+// decision value 1. A nil session simply returns draw().
+func (s *Session) DecideBool(point parity.DecisionID, draw func() bool) bool {
+	if s == nil {
+		return draw()
+	}
+	return s.Decide(point, func() int { return boolValue(draw()) }) == 1
+}
+
 // DecideString is the string-valued decision point (usersync.shuffle). It
-// returns the envelope override when present, otherwise def().
+// returns the envelope override when it is one of the point's enum values,
+// otherwise def() (an out-of-domain override is noted and ignored).
 func (s *Session) DecideString(point parity.DecisionID, def func() string) string {
 	if s == nil {
 		return def()
 	}
 	if v, ok := s.env.DecisionString(point); ok {
-		s.recordDecision(point, quote(v), parity.DecisionSourceEnvelope, nil)
-		return v
+		if inEnum(point, v) {
+			s.recordDecision(point, quote(v), parity.DecisionSourceEnvelope, nil)
+			return v
+		}
+		got := def()
+		s.recordDecision(point, quote(got), parity.DecisionSourceRNG,
+			[]string{"envelope override " + quote(v) + " is not an allowed value"})
+		return got
 	}
 	got := def()
 	s.recordDecision(point, quote(got), parity.DecisionSourceRNG, nil)
 	return got
+}
+
+// inEnum reports whether v is an allowed envelope value of point. Points
+// without a registered enum accept any value.
+func inEnum(point parity.DecisionID, v string) bool {
+	allowed, ok := enumDecisions[point]
+	if !ok {
+		return true
+	}
+	for _, a := range allowed {
+		if a == v {
+			return true
+		}
+	}
+	return false
+}
+
+func boolValue(b bool) int {
+	if b {
+		return 1
+	}
+	return 0
+}
+
+// LastDecision returns the value most recently recorded for point, and false
+// when the point was not reached in this case (or for a nil session).
+func (s *Session) LastDecision(point parity.DecisionID) (json.RawMessage, bool) {
+	if s == nil {
+		return nil, false
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for i := len(s.decisions) - 1; i >= 0; i-- {
+		if s.decisions[i].Point == point {
+			return append(json.RawMessage(nil), s.decisions[i].Value...), true
+		}
+	}
+	return nil, false
 }
 
 func (s *Session) recordDecision(point parity.DecisionID, rawValue, source string, notes []string) {
