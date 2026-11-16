@@ -1,0 +1,70 @@
+{
+  "description": "responsetimemillis values are wall-clock (exchange.go:786) and auctiontimestamp is the start time (exchange.go:1257): their values are not compared, but a missing bidder key is.",
+  "case": {
+    "case_id": "golden/responsetimemillis_key_set",
+    "fixture_path": "parity/testdata/diff/responsetimemillis_key_set.json",
+    "endpoint": "/openrtb2/auction",
+    "profile": "default"
+  },
+  "go": {
+    "case_id": "golden",
+    "endpoint": "/openrtb2/auction",
+    "stages": {},
+    "stage_status": {},
+    "http_out": [],
+    "decisions": [],
+    "metrics_delta": [],
+    "analytics": [],
+    "notes": [],
+    "http_response": {
+      "status": 200,
+      "headers": [
+        [
+          "Content-Type",
+          "application/json"
+        ]
+      ],
+      "body": {
+        "text": "{\"id\":\"r1\",\"cur\":\"USD\",\"ext\":{\"responsetimemillis\":{\"appnexus\":12,\"rubicon\":30},\"prebid\":{\"auctiontimestamp\":1629473330823}}}\n"
+      }
+    },
+    "schema": "pbs-parity-trace/1",
+    "schema_version": "1.0.0",
+    "impl": "go"
+  },
+  "rust": {
+    "case_id": "golden",
+    "endpoint": "/openrtb2/auction",
+    "stages": {},
+    "stage_status": {},
+    "http_out": [],
+    "decisions": [],
+    "metrics_delta": [],
+    "analytics": [],
+    "notes": [],
+    "http_response": {
+      "status": 200,
+      "headers": [
+        [
+          "Content-Type",
+          "application/json"
+        ]
+      ],
+      "body": {
+        "text": "{\"id\":\"r1\",\"cur\":\"USD\",\"ext\":{\"responsetimemillis\":{\"appnexus\":99},\"prebid\":{\"auctiontimestamp\":1700000000000}}}\n"
+      }
+    },
+    "schema": "pbs-parity-trace/1",
+    "schema_version": "1.0.0",
+    "impl": "rust"
+  },
+  "want": [
+    {
+      "stage": "http.response",
+      "key": "_",
+      "kind": "missing_in_rust",
+      "json_path": "$.ext.responsetimemillis.rubicon",
+      "primary": true
+    }
+  ]
+}

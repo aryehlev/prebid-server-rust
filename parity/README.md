@@ -25,6 +25,8 @@ them, and `go test ./parity/schema/...` keeps the two in sync.
 | `transport/` | Parity `http.RoundTripper`: oracle-proxy and inline modes, `X-Parity-Meta`. |
 | `fakes/` | Deterministic clock, random and UUID sources for the 8 nondeterministic adapters. |
 | `wiring/` | Bootstrap glue used by `main.go` and `router/router.go`; everything is a no-op unless `parity.enabled`. |
+| `diff/` | The differ: normalization by the allowlist, semantic, lexical and wire comparison, attribution and clustering. Harness-only. |
+| `testdata/diff/` | Golden differ cases: a Go trace, a Rust trace and the exact mismatches expected. |
 
 ## Versioning
 
@@ -247,6 +249,47 @@ Kinds: `value`, `type`, `missing_in_rust`, `extra_in_rust`, `order`, `lexical`,
 kind gates parity. CI ratchets the total against `parity/baseline.json`, which
 may only go down; the goal is zero.
 
+## Differ
+
+`diff.New()` loads `stages.json` and `normalization.json`, and
+`Engine.CompareTraces` turns a Go trace and a Rust trace into a
+`pbs-parity-diff/1` document. `CompareAdapterRequests`, `CompareAdapterBids`,
+`CompareConfig` and `CompareBidders` do the same for the other documents.
+
+* **Allowlist only.** The differ implements each rule by ID. Loading fails when
+  the file lists a rule the differ does not implement, or when a rule's action,
+  keys, drop list, stages, shape or target disagree with the implementation. It
+  also fails when a rule lacks a Go source or a justification. Removing a rule
+  from the file re-enables the difference it hid.
+* **UUID placeholders** apply only to v4 UUIDs that appear at a rule's
+  positions and not in the case inputs (the envelope and `Case.KnownInputs`).
+  Cache UUIDs are the exception and may be any version. They are numbered
+  `<uuid#n>` by first appearance in a canonical traversal, so "one tid for
+  every bidder" and "one tid per bidder" still differ.
+* **Semantic comparison** matches members by name and numbers by exact value.
+  Arrays are compared by position after LCS alignment. A pure permutation is
+  one `order` record.
+* **Lexical comparison** runs only on values that both sides recorded as exact
+  bytes: stage `raw` or `raw_b64`, and body `text` or `b64`. Values recorded as
+  `json` only are compared semantically, and the result carries a note.
+* **Paths** are relative to the compared value. Parts that are not in the value
+  use `@` members: `$['@errors'][0].message`, `$['@headers']['Content-Type']`,
+  `$['@status']`, `$[0].request.headers['X-Prebid']`.
+* **First divergence** is decided per causal plane. Lexical differences cannot
+  cause semantic ones, because servers parse what they read. In the semantic
+  plane and in the lexical plane, the records of the lowest-ordered diverging
+  stage are primary. Later records in the same plane are `consequential_of` the
+  first primary signature. Wire records, and `stage_missing` records for stages
+  Rust reports as `unimplemented`, are always primary.
+* **Attribution** takes the domain from the stage. It is refined by the
+  outbound call kind for `http.out` (cache, floors, currency, vendor list,
+  stored data), and then by JSON path: `ext.prebid.modules`, `prebid.cache`,
+  `hb_cache_id*`, floors, eids, `regs`, consent and device identifiers.
+  Config, metrics and analytics stages keep their domain.
+* **Clusters** (`BuildClusters`) group records by signature across cases. They
+  are ordered by primary count, then case count, then record count.
+  `PrimarySignatures` is what a minimizer must keep reproducing.
+
 ## Outbound transport
 
 Every outbound client is wrapped in parity mode:
@@ -370,7 +413,7 @@ Until that import exists, an authorized `/__parity/*` request answers `501`.
 
 ```sh
 go test ./parity/...                 # schemas, examples, registries, contract conformance
-go test -race ./parity/trace/... ./parity/transport/...
+go test -race ./parity/trace/... ./parity/transport/... ./parity/diff/...
 go test ./config ./router ./server ./exchange
 ```
 
@@ -385,3 +428,14 @@ go test ./config ./router ./server ./exchange
 * `fakes.json` matches `fakes.Defaults()`;
 * a trace produced by the real Go recorders validates against
   `trace.schema.json`.
+
+`parity/diff` checks the following:
+
+* the golden cases in `testdata/diff` produce exactly their expected records;
+* every allowlist rule is implemented, and every implementation is allowlisted;
+* removing each rule re-enables the difference it covers;
+* the seeded-bug canary: a Rust side that drops `X-Prebid`, under every kind of
+  allowlisted noise, yields exactly one primary cluster, at
+  `adapter.requests_final`;
+* noise alone (A/A) yields no records;
+* every diff document validates against `mismatch.schema.json`.

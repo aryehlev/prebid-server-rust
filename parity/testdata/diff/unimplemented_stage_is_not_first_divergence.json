@@ -1,0 +1,139 @@
+{
+  "description": "Rust reports hooks.entrypoint as unimplemented: a stage_missing record that is always primary but does not make the real divergence (request.validated) consequential.",
+  "case": {
+    "case_id": "golden/unimplemented_stage_is_not_first_divergence",
+    "fixture_path": "parity/testdata/diff/unimplemented_stage_is_not_first_divergence.json",
+    "endpoint": "/openrtb2/auction",
+    "profile": "default"
+  },
+  "go": {
+    "case_id": "golden",
+    "endpoint": "/openrtb2/auction",
+    "stages": {
+      "hooks.entrypoint": {
+        "_": {
+          "seq": 1,
+          "writes": 1,
+          "json": {
+            "id": "r1"
+          },
+          "raw": "{\"id\":\"r1\"}",
+          "errors": [],
+          "warnings": []
+        }
+      },
+      "request.validated": {
+        "_": {
+          "seq": 1,
+          "writes": 1,
+          "json": {
+            "id": "r1",
+            "imp": [
+              {
+                "id": "i1"
+              }
+            ],
+            "tmax": 500
+          },
+          "raw": "{\"id\":\"r1\",\"imp\":[{\"id\":\"i1\"}],\"tmax\":500}",
+          "errors": [],
+          "warnings": []
+        }
+      }
+    },
+    "stage_status": {},
+    "http_out": [],
+    "decisions": [],
+    "metrics_delta": [],
+    "analytics": [],
+    "notes": [],
+    "http_response": {
+      "status": 200,
+      "headers": [
+        [
+          "Content-Type",
+          "application/json"
+        ]
+      ],
+      "body": {
+        "text": "{\"id\":\"r1\",\"cur\":\"USD\"}\n"
+      }
+    },
+    "schema": "pbs-parity-trace/1",
+    "schema_version": "1.0.0",
+    "impl": "go"
+  },
+  "rust": {
+    "case_id": "golden",
+    "endpoint": "/openrtb2/auction",
+    "stages": {
+      "request.validated": {
+        "_": {
+          "seq": 1,
+          "writes": 1,
+          "json": {
+            "id": "r1",
+            "imp": [
+              {
+                "id": "i1"
+              }
+            ],
+            "tmax": 1000
+          },
+          "raw": "{\"id\":\"r1\",\"imp\":[{\"id\":\"i1\"}],\"tmax\":1000}",
+          "errors": [],
+          "warnings": []
+        }
+      }
+    },
+    "stage_status": {
+      "hooks.entrypoint": "unimplemented"
+    },
+    "http_out": [],
+    "decisions": [],
+    "metrics_delta": [],
+    "analytics": [],
+    "notes": [],
+    "http_response": {
+      "status": 200,
+      "headers": [
+        [
+          "Content-Type",
+          "application/json"
+        ]
+      ],
+      "body": {
+        "text": "{\"id\":\"r1\",\"cur\":\"EUR\"}\n"
+      }
+    },
+    "schema": "pbs-parity-trace/1",
+    "schema_version": "1.0.0",
+    "impl": "rust"
+  },
+  "want": [
+    {
+      "stage": "hooks.entrypoint",
+      "key": "_",
+      "kind": "stage_missing",
+      "json_path": "$",
+      "primary": true,
+      "domain": "hooks_modules",
+      "requirement": "MODL-01"
+    },
+    {
+      "stage": "request.validated",
+      "key": "_",
+      "kind": "value",
+      "json_path": "$.tmax",
+      "primary": true
+    },
+    {
+      "stage": "http.response",
+      "key": "_",
+      "kind": "value",
+      "json_path": "$.cur",
+      "primary": false,
+      "consequential_of_stage": "request.validated"
+    }
+  ]
+}

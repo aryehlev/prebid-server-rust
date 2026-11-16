@@ -1,0 +1,122 @@
+{
+  "description": "Go's jsonutil.Marshal escapes & as \\u0026 in the recorded request; the response encoder does not escape (SetEscapeHTML(false)) while the other side does. Semantically equal, so only kind lexical class html_escape is reported.",
+  "case": {
+    "case_id": "golden/html_escape_is_lexical",
+    "fixture_path": "parity/testdata/diff/html_escape_is_lexical.json",
+    "endpoint": "/openrtb2/auction",
+    "profile": "default"
+  },
+  "go": {
+    "case_id": "golden",
+    "endpoint": "/openrtb2/auction",
+    "stages": {
+      "request.validated": {
+        "_": {
+          "seq": 1,
+          "writes": 1,
+          "json": {
+            "id": "r1",
+            "imp": [
+              {
+                "id": "i1"
+              }
+            ],
+            "site": {
+              "page": "https://pub.example/?a=1&b=2"
+            }
+          },
+          "raw": "{\"id\":\"r1\",\"imp\":[{\"id\":\"i1\"}],\"site\":{\"page\":\"https://pub.example/?a=1\\u0026b=2\"}}",
+          "errors": [],
+          "warnings": []
+        }
+      }
+    },
+    "stage_status": {},
+    "http_out": [],
+    "decisions": [],
+    "metrics_delta": [],
+    "analytics": [],
+    "notes": [],
+    "http_response": {
+      "status": 200,
+      "headers": [
+        [
+          "Content-Type",
+          "application/json"
+        ]
+      ],
+      "body": {
+        "text": "{\"id\":\"r1\",\"seatbid\":[{\"bid\":[{\"id\":\"b1\",\"impid\":\"i1\",\"price\":1,\"adm\":\"<div>ad</div>\"}],\"seat\":\"appnexus\"}],\"cur\":\"USD\"}\n"
+      }
+    },
+    "schema": "pbs-parity-trace/1",
+    "schema_version": "1.0.0",
+    "impl": "go"
+  },
+  "rust": {
+    "case_id": "golden",
+    "endpoint": "/openrtb2/auction",
+    "stages": {
+      "request.validated": {
+        "_": {
+          "seq": 1,
+          "writes": 1,
+          "json": {
+            "id": "r1",
+            "imp": [
+              {
+                "id": "i1"
+              }
+            ],
+            "site": {
+              "page": "https://pub.example/?a=1&b=2"
+            }
+          },
+          "raw": "{\"id\":\"r1\",\"imp\":[{\"id\":\"i1\"}],\"site\":{\"page\":\"https://pub.example/?a=1&b=2\"}}",
+          "errors": [],
+          "warnings": []
+        }
+      }
+    },
+    "stage_status": {},
+    "http_out": [],
+    "decisions": [],
+    "metrics_delta": [],
+    "analytics": [],
+    "notes": [],
+    "http_response": {
+      "status": 200,
+      "headers": [
+        [
+          "Content-Type",
+          "application/json"
+        ]
+      ],
+      "body": {
+        "text": "{\"id\":\"r1\",\"seatbid\":[{\"bid\":[{\"id\":\"b1\",\"impid\":\"i1\",\"price\":1,\"adm\":\"\\u003cdiv\\u003ead\\u003c/div\\u003e\"}],\"seat\":\"appnexus\"}],\"cur\":\"USD\"}\n"
+      }
+    },
+    "schema": "pbs-parity-trace/1",
+    "schema_version": "1.0.0",
+    "impl": "rust"
+  },
+  "want": [
+    {
+      "stage": "request.validated",
+      "key": "_",
+      "kind": "lexical",
+      "class": "html_escape",
+      "json_path": "$.site.page",
+      "primary": true
+    },
+    {
+      "stage": "http.response",
+      "key": "_",
+      "kind": "lexical",
+      "class": "html_escape",
+      "json_path": "$.seatbid[0].bid[0].adm",
+      "primary": false,
+      "consequential_of_stage": "request.validated"
+    }
+  ]
+}

@@ -1,0 +1,89 @@
+{
+  "description": "1 and 1.0 are the same number: semantic equality, lexical number_format. The bidfloor path refines the domain to policy_privacy_identity / AUCT-03.",
+  "case": {
+    "case_id": "golden/number_format_is_lexical",
+    "fixture_path": "parity/testdata/diff/number_format_is_lexical.json",
+    "endpoint": "/openrtb2/auction",
+    "profile": "default"
+  },
+  "go": {
+    "case_id": "golden",
+    "endpoint": "/openrtb2/auction",
+    "stages": {
+      "request.validated": {
+        "_": {
+          "seq": 1,
+          "writes": 1,
+          "json": {
+            "id": "r1",
+            "imp": [
+              {
+                "id": "i1",
+                "bidfloor": 1,
+                "bidfloorcur": "USD"
+              }
+            ]
+          },
+          "raw": "{\"id\":\"r1\",\"imp\":[{\"id\":\"i1\",\"bidfloor\":1,\"bidfloorcur\":\"USD\"}]}",
+          "errors": [],
+          "warnings": []
+        }
+      }
+    },
+    "stage_status": {},
+    "http_out": [],
+    "decisions": [],
+    "metrics_delta": [],
+    "analytics": [],
+    "notes": [],
+    "schema": "pbs-parity-trace/1",
+    "schema_version": "1.0.0",
+    "impl": "go"
+  },
+  "rust": {
+    "case_id": "golden",
+    "endpoint": "/openrtb2/auction",
+    "stages": {
+      "request.validated": {
+        "_": {
+          "seq": 1,
+          "writes": 1,
+          "json": {
+            "id": "r1",
+            "imp": [
+              {
+                "id": "i1",
+                "bidfloor": 1.0,
+                "bidfloorcur": "USD"
+              }
+            ]
+          },
+          "raw": "{\"id\":\"r1\",\"imp\":[{\"id\":\"i1\",\"bidfloor\":1.0,\"bidfloorcur\":\"USD\"}]}",
+          "errors": [],
+          "warnings": []
+        }
+      }
+    },
+    "stage_status": {},
+    "http_out": [],
+    "decisions": [],
+    "metrics_delta": [],
+    "analytics": [],
+    "notes": [],
+    "schema": "pbs-parity-trace/1",
+    "schema_version": "1.0.0",
+    "impl": "rust"
+  },
+  "want": [
+    {
+      "stage": "request.validated",
+      "key": "_",
+      "kind": "lexical",
+      "class": "number_format",
+      "json_path": "$.imp[0].bidfloor",
+      "primary": true,
+      "domain": "policy_privacy_identity",
+      "requirement": "AUCT-03"
+    }
+  ]
+}

@@ -1,0 +1,152 @@
+{
+  "description": "The written response is a wire capture: name spelling (header_case), name order (header_order), framing (Content-Length vs Transfer-Encoding) and a server default (Server) are kind wire and never normalized; Date is ignored (date_header, server clock); a missing CORS header is kind header.",
+  "case": {
+    "case_id": "golden/wire_response_headers",
+    "fixture_path": "parity/testdata/diff/wire_response_headers.json",
+    "endpoint": "/openrtb2/auction",
+    "profile": "default"
+  },
+  "go": {
+    "case_id": "golden",
+    "endpoint": "/openrtb2/auction",
+    "stages": {},
+    "stage_status": {},
+    "http_out": [],
+    "decisions": [],
+    "metrics_delta": [],
+    "analytics": [],
+    "notes": [],
+    "http_response": {
+      "status": 200,
+      "headers": [
+        [
+          "Content-Type",
+          "application/json"
+        ],
+        [
+          "Vary",
+          "Origin"
+        ],
+        [
+          "Access-Control-Allow-Origin",
+          "https://pub.example"
+        ],
+        [
+          "Date",
+          "Mon, 01 Jan 2024 00:00:00 GMT"
+        ],
+        [
+          "Content-Length",
+          "12"
+        ]
+      ],
+      "body": {
+        "text": "{\"id\":\"r1\"}\n"
+      }
+    },
+    "schema": "pbs-parity-trace/1",
+    "schema_version": "1.0.0",
+    "impl": "go"
+  },
+  "rust": {
+    "case_id": "golden",
+    "endpoint": "/openrtb2/auction",
+    "stages": {},
+    "stage_status": {},
+    "http_out": [],
+    "decisions": [],
+    "metrics_delta": [],
+    "analytics": [],
+    "notes": [],
+    "http_response": {
+      "status": 200,
+      "headers": [
+        [
+          "vary",
+          "Origin"
+        ],
+        [
+          "content-type",
+          "application/json"
+        ],
+        [
+          "date",
+          "Tue, 02 Jan 2024 00:00:00 GMT"
+        ],
+        [
+          "server",
+          "pbs"
+        ],
+        [
+          "transfer-encoding",
+          "chunked"
+        ]
+      ],
+      "body": {
+        "text": "{\"id\":\"r1\"}\n"
+      }
+    },
+    "schema": "pbs-parity-trace/1",
+    "schema_version": "1.0.0",
+    "impl": "rust"
+  },
+  "want": [
+    {
+      "stage": "http.response",
+      "key": "_",
+      "kind": "wire",
+      "class": "header_order",
+      "json_path": "$['@headers']",
+      "primary": true
+    },
+    {
+      "stage": "http.response",
+      "key": "_",
+      "kind": "header",
+      "json_path": "$['@headers']['Access-Control-Allow-Origin']",
+      "primary": true,
+      "domain": "endpoints",
+      "requirement": "ENDP-01"
+    },
+    {
+      "stage": "http.response",
+      "key": "_",
+      "kind": "wire",
+      "class": "content_length",
+      "json_path": "$['@headers']['Content-Length']",
+      "primary": true
+    },
+    {
+      "stage": "http.response",
+      "key": "_",
+      "kind": "wire",
+      "class": "header_case",
+      "json_path": "$['@headers']['Content-Type']",
+      "primary": true
+    },
+    {
+      "stage": "http.response",
+      "key": "_",
+      "kind": "wire",
+      "class": "default_header",
+      "json_path": "$['@headers'].Server",
+      "primary": true
+    },
+    {
+      "stage": "http.response",
+      "key": "_",
+      "kind": "wire",
+      "class": "transfer_encoding",
+      "json_path": "$['@headers']['Transfer-Encoding']",
+      "primary": true
+    },
+    {
+      "stage": "http.response",
+      "key": "_",
+      "kind": "wire",
+      "class": "header_case",
+      "json_path": "$['@headers'].Vary",
+      "primary": true
+    }
+  ]
+}

@@ -1,0 +1,85 @@
+{
+  "description": "Go omits test when it is 0 (omitempty); a Rust Option<i8> that re-emits 0 is a semantic difference, not a normalization.",
+  "case": {
+    "case_id": "golden/test_zero_is_extra_in_rust",
+    "fixture_path": "parity/testdata/diff/test_zero_is_extra_in_rust.json",
+    "endpoint": "/openrtb2/auction",
+    "profile": "default"
+  },
+  "go": {
+    "case_id": "golden",
+    "endpoint": "/openrtb2/auction",
+    "stages": {
+      "request.validated": {
+        "_": {
+          "seq": 1,
+          "writes": 1,
+          "json": {
+            "id": "r1",
+            "imp": [
+              {
+                "id": "i1"
+              }
+            ]
+          },
+          "raw": "{\"id\":\"r1\",\"imp\":[{\"id\":\"i1\"}]}",
+          "errors": [],
+          "warnings": []
+        }
+      }
+    },
+    "stage_status": {},
+    "http_out": [],
+    "decisions": [],
+    "metrics_delta": [],
+    "analytics": [],
+    "notes": [],
+    "schema": "pbs-parity-trace/1",
+    "schema_version": "1.0.0",
+    "impl": "go"
+  },
+  "rust": {
+    "case_id": "golden",
+    "endpoint": "/openrtb2/auction",
+    "stages": {
+      "request.validated": {
+        "_": {
+          "seq": 1,
+          "writes": 1,
+          "json": {
+            "id": "r1",
+            "imp": [
+              {
+                "id": "i1"
+              }
+            ],
+            "test": 0
+          },
+          "raw": "{\"id\":\"r1\",\"imp\":[{\"id\":\"i1\"}],\"test\":0}",
+          "errors": [],
+          "warnings": []
+        }
+      }
+    },
+    "stage_status": {},
+    "http_out": [],
+    "decisions": [],
+    "metrics_delta": [],
+    "analytics": [],
+    "notes": [],
+    "schema": "pbs-parity-trace/1",
+    "schema_version": "1.0.0",
+    "impl": "rust"
+  },
+  "want": [
+    {
+      "stage": "request.validated",
+      "key": "_",
+      "kind": "extra_in_rust",
+      "json_path": "$.test",
+      "primary": true,
+      "domain": "auction_lifecycle",
+      "requirement": "AUCT-01"
+    }
+  ]
+}

@@ -1,0 +1,220 @@
+{
+  "description": "The bidder request already differs (banner.w 300 vs 320). Later differences in http.out and adapter.bids follow from it: they are consequential_of the bidder.request signature.",
+  "case": {
+    "case_id": "golden/first_divergence_marks_consequential",
+    "fixture_path": "parity/testdata/diff/first_divergence_marks_consequential.json",
+    "endpoint": "/openrtb2/auction",
+    "profile": "default"
+  },
+  "go": {
+    "case_id": "golden",
+    "endpoint": "/openrtb2/auction",
+    "stages": {
+      "bidder.request": {
+        "appnexus": {
+          "seq": 1,
+          "writes": 1,
+          "json": {
+            "id": "r1",
+            "imp": [
+              {
+                "id": "i1",
+                "banner": {
+                  "w": 300,
+                  "h": 250
+                }
+              }
+            ]
+          },
+          "raw": "{\"id\":\"r1\",\"imp\":[{\"id\":\"i1\",\"banner\":{\"w\":300,\"h\":250}}]}",
+          "errors": [],
+          "warnings": []
+        }
+      },
+      "adapter.bids": {
+        "appnexus#0": {
+          "seq": 1,
+          "writes": 1,
+          "json": {
+            "bidder_response": {
+              "currency": "USD",
+              "bids": [
+                {
+                  "bid": {
+                    "id": "b1",
+                    "impid": "i1",
+                    "price": 1.2,
+                    "w": 300,
+                    "h": 250
+                  },
+                  "type": "banner"
+                }
+              ]
+            }
+          },
+          "raw": "{\"bidder_response\":{\"currency\":\"USD\",\"bids\":[{\"bid\":{\"id\":\"b1\",\"impid\":\"i1\",\"price\":1.2,\"w\":300,\"h\":250},\"type\":\"banner\"}]}}",
+          "errors": [],
+          "warnings": []
+        }
+      }
+    },
+    "stage_status": {},
+    "http_out": [
+      {
+        "seq": 4,
+        "kind": "bidder",
+        "bidder": "appnexus",
+        "orig_url": "https://ib.adnxs.com/openrtb2",
+        "request": {
+          "method": "POST",
+          "url": "https://ib.adnxs.com/openrtb2",
+          "headers": [
+            [
+              "Content-Type",
+              "application/json"
+            ]
+          ],
+          "body": {
+            "text": "{\"id\":\"r1\",\"imp\":[{\"id\":\"i1\",\"banner\":{\"w\":300,\"h\":250}}]}"
+          }
+        },
+        "wire": false,
+        "mock": {
+          "source": "inline",
+          "id": "bidders.appnexus"
+        },
+        "response": {
+          "status": 204,
+          "headers": [],
+          "body": null
+        },
+        "error": null
+      }
+    ],
+    "decisions": [],
+    "metrics_delta": [],
+    "analytics": [],
+    "notes": [],
+    "schema": "pbs-parity-trace/1",
+    "schema_version": "1.0.0",
+    "impl": "go"
+  },
+  "rust": {
+    "case_id": "golden",
+    "endpoint": "/openrtb2/auction",
+    "stages": {
+      "bidder.request": {
+        "appnexus": {
+          "seq": 1,
+          "writes": 1,
+          "json": {
+            "id": "r1",
+            "imp": [
+              {
+                "id": "i1",
+                "banner": {
+                  "w": 320,
+                  "h": 250
+                }
+              }
+            ]
+          },
+          "raw": "{\"id\":\"r1\",\"imp\":[{\"id\":\"i1\",\"banner\":{\"w\":320,\"h\":250}}]}",
+          "errors": [],
+          "warnings": []
+        }
+      },
+      "adapter.bids": {
+        "appnexus#0": {
+          "seq": 1,
+          "writes": 1,
+          "json": {
+            "bidder_response": {
+              "currency": "USD",
+              "bids": [
+                {
+                  "bid": {
+                    "id": "b1",
+                    "impid": "i1",
+                    "price": 1.2,
+                    "w": 320,
+                    "h": 250
+                  },
+                  "type": "banner"
+                }
+              ]
+            }
+          },
+          "raw": "{\"bidder_response\":{\"currency\":\"USD\",\"bids\":[{\"bid\":{\"id\":\"b1\",\"impid\":\"i1\",\"price\":1.2,\"w\":320,\"h\":250},\"type\":\"banner\"}]}}",
+          "errors": [],
+          "warnings": []
+        }
+      }
+    },
+    "stage_status": {},
+    "http_out": [
+      {
+        "seq": 9,
+        "kind": "bidder",
+        "bidder": "appnexus",
+        "orig_url": "https://ib.adnxs.com/openrtb2",
+        "request": {
+          "method": "POST",
+          "url": "https://ib.adnxs.com/openrtb2",
+          "headers": [
+            [
+              "Content-Type",
+              "application/json"
+            ]
+          ],
+          "body": {
+            "text": "{\"id\":\"r1\",\"imp\":[{\"id\":\"i1\",\"banner\":{\"w\":320,\"h\":250}}]}"
+          }
+        },
+        "wire": false,
+        "mock": {
+          "source": "inline",
+          "id": "bidders.appnexus"
+        },
+        "response": {
+          "status": 204,
+          "headers": [],
+          "body": null
+        },
+        "error": null
+      }
+    ],
+    "decisions": [],
+    "metrics_delta": [],
+    "analytics": [],
+    "notes": [],
+    "schema": "pbs-parity-trace/1",
+    "schema_version": "1.0.0",
+    "impl": "rust"
+  },
+  "want": [
+    {
+      "stage": "bidder.request",
+      "key": "appnexus",
+      "kind": "value",
+      "json_path": "$.imp[0].banner.w",
+      "primary": true
+    },
+    {
+      "stage": "http.out",
+      "key": "_",
+      "kind": "value",
+      "json_path": "$[0].request.body.imp[0].banner.w",
+      "primary": false,
+      "consequential_of_stage": "bidder.request"
+    },
+    {
+      "stage": "adapter.bids",
+      "key": "appnexus#0",
+      "kind": "value",
+      "json_path": "$.bidder_response.bids[0].bid.w",
+      "primary": false,
+      "consequential_of_stage": "bidder.request"
+    }
+  ]
+}

@@ -1,0 +1,147 @@
+{
+  "description": "Stage errors compare as records: a different message is kind error_text, a different code kind error_code.",
+  "case": {
+    "case_id": "golden/error_text_and_code",
+    "fixture_path": "parity/testdata/diff/error_text_and_code.json",
+    "endpoint": "/openrtb2/auction",
+    "profile": "default"
+  },
+  "go": {
+    "case_id": "golden",
+    "endpoint": "/openrtb2/auction",
+    "stages": {
+      "request.validated": {
+        "_": {
+          "seq": 1,
+          "writes": 1,
+          "json": {
+            "id": "r1",
+            "imp": [
+              {
+                "id": "i1"
+              }
+            ]
+          },
+          "raw": "{\"id\":\"r1\",\"imp\":[{\"id\":\"i1\"}]}",
+          "errors": [
+            {
+              "code": 999,
+              "kind": "BadInput",
+              "message": "request.imp[0] missing",
+              "scope": "request",
+              "severity": "fatal",
+              "fatal": true
+            },
+            {
+              "code": 1,
+              "kind": "BadInput",
+              "message": "a",
+              "scope": "request",
+              "severity": "fatal",
+              "fatal": true
+            }
+          ],
+          "warnings": []
+        }
+      }
+    },
+    "stage_status": {},
+    "http_out": [],
+    "decisions": [],
+    "metrics_delta": [],
+    "analytics": [],
+    "notes": [],
+    "http_response": {
+      "status": 400,
+      "headers": [
+        [
+          "Content-Type",
+          "application/json"
+        ]
+      ],
+      "body": {
+        "text": "{\"id\":\"r1\"}\n"
+      }
+    },
+    "schema": "pbs-parity-trace/1",
+    "schema_version": "1.0.0",
+    "impl": "go"
+  },
+  "rust": {
+    "case_id": "golden",
+    "endpoint": "/openrtb2/auction",
+    "stages": {
+      "request.validated": {
+        "_": {
+          "seq": 1,
+          "writes": 1,
+          "json": {
+            "id": "r1",
+            "imp": [
+              {
+                "id": "i1"
+              }
+            ]
+          },
+          "raw": "{\"id\":\"r1\",\"imp\":[{\"id\":\"i1\"}]}",
+          "errors": [
+            {
+              "code": 999,
+              "kind": "BadInput",
+              "message": "request.imp[0] is missing",
+              "scope": "request",
+              "severity": "fatal",
+              "fatal": true
+            },
+            {
+              "code": 2,
+              "kind": "BadInput",
+              "message": "a",
+              "scope": "request",
+              "severity": "fatal",
+              "fatal": true
+            }
+          ],
+          "warnings": []
+        }
+      }
+    },
+    "stage_status": {},
+    "http_out": [],
+    "decisions": [],
+    "metrics_delta": [],
+    "analytics": [],
+    "notes": [],
+    "http_response": {
+      "status": 400,
+      "headers": [
+        [
+          "Content-Type",
+          "application/json"
+        ]
+      ],
+      "body": {
+        "text": "{\"id\":\"r1\"}\n"
+      }
+    },
+    "schema": "pbs-parity-trace/1",
+    "schema_version": "1.0.0",
+    "impl": "rust"
+  },
+  "want": [
+    {
+      "stage": "request.validated",
+      "key": "_",
+      "kind": "error_text",
+      "json_path": "$['@errors'][0].message",
+      "primary": true
+    },
+    {
+      "stage": "request.validated",
+      "key": "_",
+      "kind": "error_code",
+      "json_path": "$['@errors'][1].code",
+      "primary": true
+    }
+  ]
+}
