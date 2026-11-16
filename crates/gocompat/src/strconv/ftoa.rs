@@ -129,6 +129,12 @@ pub fn format_float(f: f64, fmt: u8, prec: i64, bit_size: i64) -> String {
     String::from_utf8(out).unwrap_or_default()
 }
 
+/// More digits than the exact decimal expansion of any `f64` has (at most 767 significant and
+/// 1074 fractional digits). Formatting with a larger precision only appends zeros, which
+/// [`Decimal`] trims and `format_digits` restores; Rust's formatter also rejects precisions above
+/// `u16::MAX`, which Go accepts.
+const MAX_EXACT_DIGITS: usize = 1100;
+
 fn generic_ftoa(dst: &mut Vec<u8>, val: f64, fmt: u8, prec: i64, b: &Bits, bit_size: i64) {
     let neg = b.neg;
     let mut exp = i64::try_from(b.exp_field).unwrap_or(0);
@@ -193,7 +199,7 @@ fn generic_ftoa(dst: &mut Vec<u8>, val: f64, fmt: u8, prec: i64, b: &Bits, bit_s
     }
     let mut fixed_prec = prec;
     let digs = if fmt == b'f' {
-        let p = usize::try_from(prec).unwrap_or(0);
+        let p = usize::try_from(prec).unwrap_or(0).min(MAX_EXACT_DIGITS);
         if bit_size == 32 {
             Decimal::from_rust_fixed(&format!("{abs32:.p$}"))
         } else {
@@ -207,7 +213,9 @@ fn generic_ftoa(dst: &mut Vec<u8>, val: f64, fmt: u8, prec: i64, b: &Bits, bit_s
             fixed_prec = prec.max(1);
             fixed_prec
         };
-        let p = usize::try_from(significant - 1).unwrap_or(0);
+        let p = usize::try_from(significant - 1)
+            .unwrap_or(0)
+            .min(MAX_EXACT_DIGITS);
         if bit_size == 32 {
             Decimal::from_rust_exp(&format!("{abs32:.p$e}"))
         } else {
