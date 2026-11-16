@@ -52,8 +52,9 @@ mod tests {
     use crate::{
         errors::{ConversionNotFoundError, RateError},
         golden::{
-            TestResult, check, check_eq, check_outcome, conversion_rates, rates_from_json,
-            read_golden, render_rate,
+            RATE_CORPORA, TestResult, check, check_eq, check_outcome, check_random_corpus,
+            conversion_rates, fetch_rates, random_rate_cases, rates_from_json, read_golden,
+            render_rate,
         },
         iso4217::parse_iso,
         rate_converter::Conversions as _,
@@ -198,5 +199,27 @@ mod tests {
             checked > 900,
             "the golden must hold the AggregateConversions cases",
         )
+    }
+
+    #[tokio::test]
+    async fn go_random_aggregate_conversions() -> TestResult {
+        // The random tables of rates::tests::go_random_get_rate, the first as the request
+        // rates and the second as the server's: precedence when both have a rate, fallback
+        // only on a missing rate (not on "rates are nil" or a bad code).
+        for corpus in RATE_CORPORA {
+            let mut outcomes = Vec::new();
+            for case in random_rate_cases(corpus) {
+                let aggregate = AggregateConversions::new(
+                    Arc::new(fetch_rates(&case.custom).await?),
+                    Arc::new(fetch_rates(&case.server).await?),
+                );
+                outcomes.push((
+                    case.input,
+                    render_rate(aggregate.get_rate(case.from, case.to)),
+                ));
+            }
+            check_random_corpus(&format!("{}-agg", corpus.name), &outcomes)?;
+        }
+        Ok(())
     }
 }

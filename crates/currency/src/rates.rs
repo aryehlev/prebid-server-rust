@@ -106,8 +106,9 @@ mod tests {
     use crate::{
         errors::RateError,
         golden::{
-            TestResult, check, check_eq, check_outcome, conversion_rates, hex_decode,
-            rates_from_json, read_golden, render_rate,
+            RATE_CORPORA, TestResult, check, check_eq, check_outcome, check_random_corpus,
+            conversion_rates, fetch_rates, hex_decode, random_rate_cases, rates_from_json,
+            read_golden, render_rate,
         },
         iso4217::parse_iso,
         rate_converter::Conversions as _,
@@ -280,6 +281,23 @@ mod tests {
             }
         }
         check(checked > 1000, "the golden must hold the GetRate cases")
+    }
+
+    #[tokio::test]
+    async fn go_random_get_rate() -> TestResult {
+        // Random tables (testdata/go/random.go) with lower- and mixed-case keys, XXX, XTS and
+        // historic codes, zero, negative zero and subnormal rates, and rates with up to 17
+        // decimals, so reverse and intermediate rates round. The pivot corpus uses few codes,
+        // so several pivots often hold both currencies.
+        for corpus in RATE_CORPORA {
+            let mut outcomes = Vec::new();
+            for case in random_rate_cases(corpus) {
+                let custom = fetch_rates(&case.custom).await?;
+                outcomes.push((case.input, render_rate(custom.get_rate(case.from, case.to))));
+            }
+            check_random_corpus(&format!("{}-rate", corpus.name), &outcomes)?;
+        }
+        Ok(())
     }
 
     #[test]

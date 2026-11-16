@@ -6,7 +6,8 @@
 //
 //	go run ./rust/crates/currency/testdata/go
 //
-// The output files are written next to this directory, under ../golden.
+// The output files are written next to this directory, under ../golden. random.golden holds
+// digests of random corpora that the Rust tests regenerate; see random.go.
 package main
 
 import (
@@ -654,4 +655,5 @@ func main() {
 	writeJSON(dir)
 	writeRates(dir)
 	writeValidation(dir)
+	writeRandom(dir)
 }

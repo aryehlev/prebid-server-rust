@@ -59,8 +59,8 @@ mod tests {
     use super::{InvalidCurrencyCodeError, validate_custom_rates};
     use crate::{
         golden::{
-            TestResult, check, check_outcome, conversion_rates, hex_decode, rates_from_json,
-            read_golden,
+            CodeSource, SplitMix64, TestResult, check, check_outcome, check_random_corpus,
+            conversion_rates, fetch_rates, hex_decode, random_table, rates_from_json, read_golden,
         },
         rates::ConversionRates,
     };
@@ -138,6 +138,24 @@ mod tests {
             }
         }
         check(checked == 10, "the golden must hold the validation cases")
+    }
+
+    #[tokio::test]
+    async fn go_random_validation() -> TestResult {
+        // Random request rates (testdata/go/random.go) where one key in 16 is malformed,
+        // unknown to CLDR 32 or not ASCII, in either position.
+        let mut s = SplitMix64::new(20_240_902);
+        let mut outcomes = Vec::new();
+        for _ in 0..5_000 {
+            let json = random_table(&mut s, CodeSource::Validation);
+            let rates = fetch_rates(&json).await?;
+            let outcome = match validate_custom_rates(rates.conversions.as_ref()) {
+                Ok(()) => "ok".to_owned(),
+                Err(err) => format!("err:{err}"),
+            };
+            outcomes.push((json, outcome));
+        }
+        check_random_corpus("val", &outcomes)
     }
 
     #[test]

@@ -47,8 +47,12 @@ pub type ResponseFuture<'a> =
 ///
 /// The converter applies the fetch timeout to both futures, like Go's request context does,
 /// so an implementation needs no timeout of its own. Go returns the `*url.Error` of
-/// `http.Client.Do` unchanged (for example `Get "invalidurl": unsupported protocol scheme ""`),
-/// so an implementation that should match Go's log lines formats its errors the same way.
+/// `http.Client.Do` unchanged (for example `Get "invalidurl": unsupported protocol scheme ""`,
+/// with the URL as `url.URL.String()` prints it and any password shown as `***`), and a URL
+/// that does not parse fails earlier, in `http.NewRequestWithContext`, as
+/// `parse "http://[::1": missing ']' in host`. An implementation that should match Go's log
+/// lines formats its errors the same way; checks that Go makes before waiting (scheme, host)
+/// should fail without waiting, because Go reports them even when the timeout is zero.
 pub trait HttpClient: Send + Sync + fmt::Debug {
     /// Sends `GET url` and resolves once the status line and headers have arrived.
     fn get<'a>(&'a self, url: &'a str) -> ResponseFuture<'a>;
@@ -396,7 +400,7 @@ fn i64_to_f64(value: i64) -> f64 {
 #[cfg(test)]
 mod tests {
     use std::{
-        error::Error as _,
+        error::Error,
         future,
         sync::{
             Arc, Mutex, PoisonError,
@@ -409,11 +413,11 @@ mod tests {
 
     use super::{
         BoxError, Clock, FetchError, HttpClient, HttpResponse, RateConverter, ResponseFuture,
-        go_seconds, go_sub,
+        go_seconds, go_sub, write,
     };
     use crate::{
         currency_mock::MockCurrencyRatesHttpClient,
-        golden::{TestResult, check, check_eq, conversion_rates},
+        golden::{SplitMix64, TestResult, check, check_eq, check_random_corpus, conversion_rates},
         rates::Rates,
         ticker_task::TickerTask,
     };
@@ -921,6 +925,85 @@ mod tests {
             &9_223_372_036.854_776,
             "max duration",
         )
+    }
+
+    /// Go: `time.Unix(sec, nsec)`: the normalized seconds and nanoseconds and the instant.
+    fn go_unix(sec: i64, nsec: i64) -> Result<(i64, u32, SystemTime), Box<dyn Error>> {
+        const NANOS: i64 = 1_000_000_000;
+        let (mut whole, mut nanos) = (sec, nsec);
+        if !(0..NANOS).contains(&nanos) {
+            let carry = nanos / NANOS;
+            whole += carry;
+            nanos -= carry * NANOS;
+            if nanos < 0 {
+                nanos += NANOS;
+                whole -= 1;
+            }
+        }
+        let nanos = u32::try_from(nanos)?;
+        let seconds = Duration::from_secs(whole.unsigned_abs());
+        let at_second = if whole >= 0 {
+            SystemTime::UNIX_EPOCH.checked_add(seconds)
+        } else {
+            SystemTime::UNIX_EPOCH.checked_sub(seconds)
+        };
+        let instant = at_second
+            .and_then(|time| time.checked_add(Duration::from_nanos(u64::from(nanos))))
+            .ok_or("time out of range")?;
+        Ok((whole, nanos, instant))
+    }
+
+    #[test]
+    fn go_random_staleness() -> TestResult {
+        // Go: checkStaleRates on random last-update times, current times and thresholds
+        // (testdata/go/random.go): nanosecond boundaries, whole seconds, Time.Sub saturating
+        // beyond 292 years, and thresholds near Go's longest duration, where the float64
+        // seconds comparison no longer sees nanoseconds.
+        const NANOS: i64 = 1_000_000_000;
+        let mut s = SplitMix64::new(20_240_903);
+        let mut outcomes = Vec::new();
+        for _ in 0..10_000 {
+            // Go's time.Unix arguments: seconds and nanoseconds, the latter unnormalized.
+            let updated_seconds = i64::try_from(s.next_u64() % (1 << 34))?;
+            let updated_fraction = i64::try_from(s.below(1_000_000_000))?;
+            let (threshold, current_seconds, current_fraction) = match s.below(4) {
+                0 => {
+                    let threshold = i64::try_from(s.next_u64() % (1 << 62))?;
+                    let delta = threshold + i64::try_from(s.below(2001))? - 1000;
+                    let seconds = updated_seconds + delta / NANOS;
+                    (threshold, seconds, updated_fraction + delta % NANOS)
+                }
+                1 => {
+                    let threshold = i64::try_from(s.below(1_000_000))? * NANOS;
+                    let delta = threshold + i64::try_from(s.below(3))? - 1;
+                    let seconds = updated_seconds + delta / NANOS;
+                    (threshold, seconds, updated_fraction + delta % NANOS)
+                }
+                2 => {
+                    let threshold = i64::try_from(s.next_u64() >> 1)?;
+                    let seconds = i64::try_from(s.next_u64() % (1 << 34))?;
+                    let fraction = i64::try_from(s.below(1_000_000_000))?;
+                    (threshold, seconds, fraction)
+                }
+                _ => {
+                    let threshold = i64::MAX - i64::try_from(s.next_u64() % (1 << 40))?;
+                    let delta = i64::MAX - i64::try_from(s.next_u64() % (1 << 40))?;
+                    let seconds = updated_seconds + delta / NANOS;
+                    (threshold, seconds, updated_fraction + delta % NANOS)
+                }
+            };
+            let (last_unix, last_nanos, last_updated) = go_unix(updated_seconds, updated_fraction)?;
+            let (now_unix, now_nanos, now) = go_unix(current_seconds, current_fraction)?;
+            let client = Arc::new(ScriptedClient::new(Vec::new()));
+            let stale = Duration::from_nanos(u64::try_from(threshold)?);
+            let (converter, _clock) = converter(client, stale, now);
+            *write(&converter.last_updated) = Some(last_updated);
+            outcomes.push((
+                format!("{last_unix}.{last_nanos:09}\t{now_unix}.{now_nanos:09}\t{threshold}"),
+                converter.check_stale_rates().to_string(),
+            ));
+        }
+        check_random_corpus("stale", &outcomes)
     }
 
     #[test]
