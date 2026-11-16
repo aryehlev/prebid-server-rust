@@ -1,0 +1,201 @@
+{
+  "schema": "pbs-parity-trace/1",
+  "schema_version": "1.0.0",
+  "impl": "go",
+  "build": {"git_sha": "482787ba", "version": "parity"},
+  "case_id": "gen:42:7:drop(imp[0].banner)+timeout(appnexus)",
+  "endpoint": "/openrtb2/auction",
+  "http_in": {
+    "method": "POST",
+    "path": "/openrtb2/auction",
+    "query": "debug=1",
+    "headers": [["Content-Type", "application/json"], ["Sec-GPC", "1"]],
+    "body": {"text": "{\"id\":\"r1\",\"imp\":[{\"id\":\"i1\"}]}", "json": {"id": "r1", "imp": [{"id": "i1"}]}}
+  },
+  "http_response": {
+    "status": 200,
+    "headers": [["Content-Type", "application/json"], ["Vary", "Accept-Encoding"], ["Date", "Fri, 20 Aug 2021 15:28:50 GMT"]],
+    "body": {
+      "text": "{\"id\":\"r1\",\"seatbid\":[{\"bid\":[{\"id\":\"b1\",\"impid\":\"i1\",\"price\":1.25,\"adm\":\"<VAST version=\\\"3.0\\\"></VAST>\",\"crid\":\"c1\",\"w\":640,\"h\":480}],\"seat\":\"rubicon\"}],\"cur\":\"USD\",\"ext\":{\"responsetimemillis\":{\"appnexus\":500,\"rubicon\":3},\"tmaxrequest\":500,\"prebid\":{\"auctiontimestamp\":1629473330823}}}\n",
+      "json": {
+        "id": "r1",
+        "seatbid": [{"bid": [{"id": "b1", "impid": "i1", "price": 1.25, "adm": "<VAST version=\"3.0\"></VAST>", "crid": "c1", "w": 640, "h": 480}], "seat": "rubicon"}],
+        "cur": "USD",
+        "ext": {"responsetimemillis": {"appnexus": 500, "rubicon": 3}, "tmaxrequest": 500, "prebid": {"auctiontimestamp": 1629473330823}}
+      }
+    }
+  },
+  "stages": {
+    "request.validated": {
+      "_": {
+        "seq": 3,
+        "writes": 1,
+        "json": {"id": "r1", "imp": [{"id": "i1", "video": {"mimes": ["video/mp4"], "w": 640, "h": 480}}], "tmax": 500},
+        "raw": "{\"id\":\"r1\",\"imp\":[{\"id\":\"i1\",\"video\":{\"mimes\":[\"video/mp4\"],\"w\":640,\"h\":480}}],\"tmax\":500}",
+        "errors": [],
+        "warnings": [
+          {"code": 10001, "kind": "InvalidPrivacyConsentWarning", "message": "regs.ext.gdpr must be either 0 or 1", "scope": "general", "severity": "warning", "fatal": false}
+        ]
+      }
+    },
+    "adapter.requests": {
+      "appnexus": {
+        "seq": 5,
+        "writes": 1,
+        "json": {"requests": [{"method": "POST", "uri": "https://ib.adnxs.com/openrtb2/prebid", "headers": [["Content-Type", "application/json;charset=utf-8"]], "body": {"text": "{}", "json": {}}, "imp_ids": ["i1"]}]},
+        "raw": "{\"requests\":[{\"method\":\"POST\",\"uri\":\"https://ib.adnxs.com/openrtb2/prebid\",\"headers\":[[\"Content-Type\",\"application/json;charset=utf-8\"]],\"body\":{\"text\":\"{}\",\"json\":{}},\"imp_ids\":[\"i1\"]}]}",
+        "errors": [],
+        "warnings": []
+      }
+    },
+    "adapter.bids": {
+      "rubicon#0": {
+        "seq": 9,
+        "writes": 1,
+        "json": {"bidder_response": {"currency": "USD", "bids": [{"bid": {"id": "b1", "impid": "i1", "price": 1.25, "adm": "<VAST version=\"3.0\"></VAST>", "crid": "c1", "w": 640, "h": 480}, "type": "video"}]}},
+        "raw": "{\"bidder_response\":{\"currency\":\"USD\",\"bids\":[{\"bid\":{\"id\":\"b1\",\"impid\":\"i1\",\"price\":1.25,\"adm\":\"\\u003cVAST version=\\\"3.0\\\"\\u003e\\u003c/VAST\\u003e\",\"crid\":\"c1\",\"w\":640,\"h\":480},\"type\":\"video\"}]}}",
+        "errors": [],
+        "warnings": []
+      }
+    },
+    "bidder.result": {
+      "appnexus": {
+        "seq": 10,
+        "writes": 1,
+        "json": {"seat_bids": []},
+        "raw": "{\"seat_bids\":[]}",
+        "errors": [
+          {"code": 1, "kind": "Timeout", "message": "context deadline exceeded", "scope": "general", "severity": "fatal", "fatal": true}
+        ],
+        "warnings": []
+      }
+    },
+    "stored.fetch": {
+      "_": {
+        "seq": 1,
+        "writes": 1,
+        "json": {"stored_request_id": "", "requests": {}, "imps": {}},
+        "raw": "{\"stored_request_id\":\"\",\"requests\":{},\"imps\":{}}",
+        "errors": null,
+        "warnings": null,
+        "notes": ["no stored request referenced"]
+      }
+    }
+  },
+  "stage_status": {
+    "config.resolved": "not_reached",
+    "bidders.resolved": "not_reached",
+    "http.in": "captured",
+    "hooks.entrypoint": "not_reached",
+    "stored.fetch": "captured",
+    "account.resolved": "not_reached",
+    "hooks.raw_auction": "not_reached",
+    "request.merged": "not_reached",
+    "request.normalized": "not_reached",
+    "stored.responses": "not_reached",
+    "request.validated": "captured",
+    "gdpr.context": "not_reached",
+    "hooks.processed_auction": "not_reached",
+    "auction.setup": "not_reached",
+    "floors.enrich": "not_reached",
+    "fpd.resolved": "not_reached",
+    "privacy.labels": "not_reached",
+    "privacy.bidder": "not_reached",
+    "bidder.request": "not_reached",
+    "hooks.bidder_request": "not_reached",
+    "adapter.requests": "captured",
+    "adapter.requests_final": "not_reached",
+    "http.out": "captured",
+    "adapter.bids": "captured",
+    "hooks.raw_bidder_response": "not_reached",
+    "bids.adjusted": "not_reached",
+    "bidder.result": "captured",
+    "floors.enforce": "not_reached",
+    "category.mapping": "not_reached",
+    "events.tracking": "not_reached",
+    "hooks.all_processed_bid_responses": "not_reached",
+    "auction.winners": "not_reached",
+    "cache.result": "not_reached",
+    "targeting": "not_reached",
+    "seat_non_bids": "not_reached",
+    "exchange.response": "not_reached",
+    "video.pods": "not_reached",
+    "video.cache": "not_reached",
+    "amp.targeting_response": "not_reached",
+    "hooks.auction_response": "not_reached",
+    "hooks.exitpoint": "not_reached",
+    "hook_outcomes": "not_reached",
+    "analytics": "captured",
+    "metrics_delta": "captured",
+    "http.response": "captured"
+  },
+  "http_out": [
+    {
+      "seq": 6,
+      "impl": "go",
+      "kind": "bidder",
+      "bidder": "appnexus",
+      "orig_url": "https://ib.adnxs.com/openrtb2/prebid",
+      "request": {
+        "method": "POST",
+        "url": "https://ib.adnxs.com/openrtb2/prebid",
+        "proto": "HTTP/1.1",
+        "headers": [["Content-Type", "application/json;charset=utf-8"], ["Sec-Gpc", "1"], ["X-Prebid", "pbs-go/unknown"]],
+        "body": {"text": "{}", "json": {}}
+      },
+      "wire": false,
+      "mock": {"source": "rule", "id": "appnexus-timeout"},
+      "response": null,
+      "error": "timeout"
+    },
+    {
+      "seq": 7,
+      "impl": "go",
+      "kind": "bidder",
+      "bidder": "rubicon",
+      "orig_url": "https://prebid-server.rubiconproject.com/openrtb2/auction",
+      "request": {
+        "method": "POST",
+        "url": "https://prebid-server.rubiconproject.com/openrtb2/auction",
+        "proto": "HTTP/1.1",
+        "headers": [["Accept", "application/json"], ["Content-Type", "application/json;charset=utf-8"]],
+        "body": {"b64": "H4sIAAAAAAAC/6tWSlSyMqwFAK+sG1YHAAAA", "json": {"a": 1}, "content_encoding": "gzip"}
+      },
+      "wire": false,
+      "mock": {"source": "inline", "id": "bidders.rubicon"},
+      "response": {
+        "status": 200,
+        "headers": [["Content-Type", "application/json"]],
+        "body": {"text": "{\"cur\":\"USD\"}", "json": {"cur": "USD"}},
+        "delay_ms": 3
+      },
+      "error": null,
+      "notes": ["rules[2]: invalid uri_regex: error parsing regexp: missing closing ): `(`"]
+    }
+  ],
+  "decisions": [
+    {"point": "category.dedupe", "value": 1, "source": "envelope"},
+    {"point": "pricegranularity.timesplit", "value": 1, "source": "rng"},
+    {"point": "usersync.shuffle", "value": "identity", "source": "envelope"}
+  ],
+  "metrics_delta": [
+    {"name": "adapter_requests", "type": "counter", "labels": {"adapter": "rubicon", "cookie": "unknown", "hasBids": "true"}, "delta": 1, "count_delta": null, "bucket_deltas": null},
+    {"name": "request_time_seconds", "type": "histogram", "labels": {"request_type": "openrtb2-web", "request_status": "ok"}, "delta": 0.503, "count_delta": 1, "bucket_deltas": {"0.6": 1, "0.8": 1, "1": 1, "+Inf": 1}}
+  ],
+  "analytics": [
+    {
+      "kind": "auction",
+      "object": {
+        "status": 200,
+        "errors": [],
+        "request": {"id": "r1"},
+        "response": {"id": "r1", "cur": "USD"},
+        "account_id": "acct",
+        "start_time_set": true,
+        "hook_outcomes": [],
+        "seat_non_bid": null
+      }
+    }
+  ],
+  "notes": []
+}

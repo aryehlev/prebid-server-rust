@@ -1,0 +1,81 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://prebid.org/pbs-parity/schema/v1/mismatch.schema.json",
+  "title": "pbs-parity-diff/1",
+  "description": "Per-case diff.json: every attributed Go-vs-Rust difference of one case after the normalization allowlist (normalization.json) was applied. Every mismatch kind gates parity; CI ratchets the count against parity/baseline.json.",
+  "type": "object",
+  "required": ["schema", "schema_version", "case_id", "fixture_path", "endpoint", "profile", "mismatches"],
+  "properties": {
+    "schema": {"const": "pbs-parity-diff/1"},
+    "schema_version": {"$ref": "common.schema.json#/definitions/SchemaVersion"},
+    "case_id": {"type": "string"},
+    "fixture_path": {"type": "string"},
+    "endpoint": {"type": "string"},
+    "profile": {"type": "string"},
+    "mismatches": {"type": "array", "items": {"$ref": "#/definitions/MismatchRecord"}}
+  },
+  "additionalProperties": false,
+  "definitions": {
+    "MismatchKind": {
+      "description": "value: semantic JSON value differs. type: JSON type differs. missing_in_rust / extra_in_rust: member or element present on one side only. order: array order differs where no normalization rule applies. lexical: semantically equal JSON with different bytes (class names the difference). status: HTTP status differs. header: header presence or values differ (names compared case-insensitively, value order within a name kept). wire: transport-level difference on the HTTP wire (class names it). stage_missing / stage_extra: a stage is captured on Go only / Rust only (Rust 'unimplemented' maps to stage_missing). error_code / error_text: ErrorRecord code or message differs. metric: a Prometheus (name, labels) delta differs or exists on one side only. timing: categorical timeout outcome differs. decision: a decision point was consulted on one side only or with a different value. unexpected_outbound: an outbound call reached the oracle without any mock.",
+      "type": "string",
+      "enum": [
+        "value", "type", "missing_in_rust", "extra_in_rust", "order", "lexical",
+        "status", "header", "wire", "stage_missing", "stage_extra", "error_code",
+        "error_text", "metric", "timing", "decision", "unexpected_outbound"
+      ]
+    },
+    "LexicalClass": {
+      "type": "string",
+      "enum": ["html_escape", "unicode_escape", "number_format", "trailing_newline", "whitespace", "member_order", "other"]
+    },
+    "WireClass": {
+      "type": "string",
+      "enum": ["header_case", "header_order", "default_header", "http_version", "content_length", "transfer_encoding", "other"]
+    },
+    "MismatchRecord": {
+      "type": "object",
+      "required": [
+        "case_id", "fixture_path", "endpoint", "profile", "stage", "key", "domain",
+        "requirement", "kind", "json_path", "go", "rust", "primary",
+        "consequential_of", "signature"
+      ],
+      "properties": {
+        "case_id": {"type": "string"},
+        "fixture_path": {"type": "string"},
+        "endpoint": {"type": "string"},
+        "profile": {"type": "string"},
+        "stage": {"$ref": "common.schema.json#/definitions/StageID"},
+        "key": {"type": "string", "description": "Stage key ('_' when unkeyed)."},
+        "domain": {"$ref": "common.schema.json#/definitions/Domain"},
+        "requirement": {"type": "string", "pattern": "^[A-Z]{4}-[0-9]{2}$"},
+        "kind": {"$ref": "#/definitions/MismatchKind"},
+        "class": {
+          "description": "Required for lexical (LexicalClass) and wire (WireClass) kinds.",
+          "type": "string"
+        },
+        "json_path": {"type": "string", "pattern": "^\\$"},
+        "go": {"description": "Go-side value at json_path (null when absent)."},
+        "rust": {"description": "Rust-side value at json_path (null when absent)."},
+        "primary": {"type": "boolean", "description": "True for mismatches at the case's first diverging stage."},
+        "consequential_of": {"type": ["string", "null"], "description": "Signature of the primary mismatch this one follows from."},
+        "signature": {"type": "string", "pattern": "^[0-9a-f]{40}$", "description": "sha1(stage|domain|json_path with indices replaced by [*]|kind), lowercase hex."}
+      },
+      "allOf": [
+        {
+          "if": {"properties": {"kind": {"const": "lexical"}}},
+          "then": {"required": ["class"], "properties": {"class": {"$ref": "#/definitions/LexicalClass"}}}
+        },
+        {
+          "if": {"properties": {"kind": {"const": "wire"}}},
+          "then": {"required": ["class"], "properties": {"class": {"$ref": "#/definitions/WireClass"}}}
+        },
+        {
+          "if": {"properties": {"primary": {"const": true}}},
+          "then": {"properties": {"consequential_of": {"type": "null"}}}
+        }
+      ],
+      "additionalProperties": false
+    }
+  }
+}

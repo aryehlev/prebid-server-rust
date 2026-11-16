@@ -1,0 +1,223 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://prebid.org/pbs-parity/schema/v1/registries.schema.json",
+  "title": "pbs-parity registries",
+  "description": "Shape of the registry files stages.json, decisions.json, normalization.json, fakes.json and error_codes.json. Both implementations and the runner read them; the Go tests keep them in sync with the Go constants.",
+  "oneOf": [
+    {"$ref": "#/definitions/Stages"},
+    {"$ref": "#/definitions/Decisions"},
+    {"$ref": "#/definitions/Normalization"},
+    {"$ref": "#/definitions/Fakes"},
+    {"$ref": "#/definitions/ErrorCodes"}
+  ],
+  "definitions": {
+    "Requirement": {"type": "string", "pattern": "^[A-Z]{4}-[0-9]{2}$"},
+    "Stages": {
+      "type": "object",
+      "required": ["schema", "schema_version", "description", "domains", "stages"],
+      "properties": {
+        "schema": {"const": "pbs-parity-stages/1"},
+        "schema_version": {"$ref": "common.schema.json#/definitions/SchemaVersion"},
+        "description": {"type": "string"},
+        "domains": {
+          "type": "array",
+          "minItems": 9,
+          "maxItems": 9,
+          "items": {
+            "type": "object",
+            "required": ["id", "order", "requirements", "description"],
+            "properties": {
+              "id": {"$ref": "common.schema.json#/definitions/Domain"},
+              "order": {"type": "integer", "minimum": 1},
+              "requirements": {"type": "array", "minItems": 1, "items": {"$ref": "#/definitions/Requirement"}},
+              "description": {"type": "string"}
+            },
+            "additionalProperties": false
+          }
+        },
+        "stages": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": ["id", "order", "domain", "requirements", "keyed_by", "trace_field", "endpoints", "go_capture", "captures"],
+            "properties": {
+              "id": {"$ref": "common.schema.json#/definitions/StageID"},
+              "order": {"type": "integer", "minimum": 1},
+              "domain": {"$ref": "common.schema.json#/definitions/Domain"},
+              "requirements": {"type": "array", "minItems": 1, "items": {"$ref": "#/definitions/Requirement"}},
+              "keyed_by": {"enum": ["_", "bidder", "seat", "bidder#call"]},
+              "trace_field": {"enum": ["stages", "http_in", "http_response", "http_out", "analytics", "metrics_delta", "introspection"]},
+              "endpoints": {"type": "array", "minItems": 1, "items": {"type": "string"}},
+              "go_capture": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}},
+              "captures": {"type": "string", "minLength": 1}
+            },
+            "additionalProperties": false
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "Decisions": {
+      "type": "object",
+      "required": ["schema", "schema_version", "description", "decisions", "not_decisions"],
+      "properties": {
+        "schema": {"const": "pbs-parity-decisions/1"},
+        "schema_version": {"$ref": "common.schema.json#/definitions/SchemaVersion"},
+        "description": {"type": "string"},
+        "decisions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "domain", "values", "go_site", "consulted_when", "rng_equivalent"],
+            "properties": {
+              "id": {"$ref": "common.schema.json#/definitions/DecisionID"},
+              "domain": {"enum": ["binary", "index", "enum"]},
+              "values": {"type": "object", "minProperties": 1, "additionalProperties": {"type": "string"}},
+              "go_site": {"type": "string", "minLength": 1},
+              "consulted_when": {"type": "string", "minLength": 1},
+              "rng_equivalent": {"type": "string", "minLength": 1}
+            },
+            "additionalProperties": false
+          }
+        },
+        "not_decisions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["site", "policy"],
+            "properties": {"site": {"type": "string"}, "policy": {"type": "string"}},
+            "additionalProperties": false
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "Normalization": {
+      "type": "object",
+      "required": ["schema", "schema_version", "description", "actions", "rules", "not_normalized"],
+      "properties": {
+        "schema": {"const": "pbs-parity-normalization/1"},
+        "schema_version": {"$ref": "common.schema.json#/definitions/SchemaVersion"},
+        "description": {"type": "string"},
+        "actions": {"type": "object", "additionalProperties": {"type": "string"}},
+        "rules": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "applies_to", "target", "action", "justification", "go_source"],
+            "properties": {
+              "id": {"type": "string", "pattern": "^[a-z0-9_]+$"},
+              "applies_to": {
+                "type": "array",
+                "minItems": 1,
+                "items": {"anyOf": [{"const": "*"}, {"$ref": "common.schema.json#/definitions/StageID"}]}
+              },
+              "target": {"type": "string", "minLength": 1},
+              "action": {"enum": ["sort", "drop", "key_set", "shape", "uuid_placeholder", "count_only", "ignore", "case_insensitive_names"]},
+              "keys": {"type": "array", "items": {"type": "string"}},
+              "drop": {"type": "array", "items": {"type": "string"}},
+              "shape": {"type": "object"},
+              "justification": {"type": "string", "minLength": 1},
+              "go_source": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}}
+            },
+            "additionalProperties": false
+          }
+        },
+        "not_normalized": {
+          "type": "object",
+          "required": ["description", "wire", "lexical", "adapter_fakes"],
+          "properties": {
+            "description": {"type": "string"},
+            "wire": {"$ref": "#/definitions/ClassPolicy"},
+            "lexical": {"$ref": "#/definitions/ClassPolicy"},
+            "adapter_fakes": {
+              "type": "object",
+              "required": ["description", "adapters"],
+              "properties": {
+                "description": {"type": "string"},
+                "adapters": {"type": "array", "items": {"type": "string"}}
+              },
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "ClassPolicy": {
+      "type": "object",
+      "required": ["kind", "classes"],
+      "properties": {
+        "kind": {"$ref": "mismatch.schema.json#/definitions/MismatchKind"},
+        "classes": {"type": "object", "minProperties": 1, "additionalProperties": {"type": "string"}}
+      },
+      "additionalProperties": false
+    },
+    "Fakes": {
+      "type": "object",
+      "required": ["schema", "schema_version", "description", "defaults", "derived", "provenance", "adapters"],
+      "properties": {
+        "schema": {"const": "pbs-parity-fakes/1"},
+        "schema_version": {"$ref": "common.schema.json#/definitions/SchemaVersion"},
+        "description": {"type": "string"},
+        "defaults": {
+          "allOf": [
+            {"$ref": "common.schema.json#/definitions/FakeValues"},
+            {"required": ["now_unix_ms", "int63", "uuid"]}
+          ]
+        },
+        "derived": {
+          "type": "object",
+          "required": ["now_rfc3339", "now_unix_seconds", "now_iso_week"],
+          "properties": {
+            "now_rfc3339": {"type": "string"},
+            "now_unix_seconds": {"type": "integer"},
+            "now_iso_week": {"type": "integer", "minimum": 1, "maximum": 53}
+          },
+          "additionalProperties": false
+        },
+        "provenance": {"type": "object", "additionalProperties": {"type": "string"}},
+        "adapters": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["bidder", "value", "use", "go_seam", "go_site"],
+            "properties": {
+              "bidder": {"type": "string"},
+              "value": {"enum": ["now_unix_ms", "int63", "uuid"]},
+              "use": {"type": "string"},
+              "go_seam": {"type": "string"},
+              "go_site": {"type": "string"}
+            },
+            "additionalProperties": false
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "ErrorCodes": {
+      "type": "object",
+      "required": ["schema", "schema_version", "description", "errors", "warnings"],
+      "properties": {
+        "schema": {"const": "pbs-parity-error-codes/1"},
+        "schema_version": {"$ref": "common.schema.json#/definitions/SchemaVersion"},
+        "description": {"type": "string"},
+        "errors": {"type": "array", "items": {"$ref": "#/definitions/ErrorCode"}},
+        "warnings": {"type": "array", "items": {"$ref": "#/definitions/ErrorCode"}}
+      },
+      "additionalProperties": false
+    },
+    "ErrorCode": {
+      "type": "object",
+      "required": ["code", "kind", "go_constant"],
+      "properties": {
+        "code": {"type": "integer"},
+        "kind": {"type": "string", "pattern": "^[A-Za-z]+$"},
+        "go_constant": {"type": "string", "pattern": "^errortypes\\.[A-Za-z]+$"}
+      },
+      "additionalProperties": false
+    }
+  }
+}
