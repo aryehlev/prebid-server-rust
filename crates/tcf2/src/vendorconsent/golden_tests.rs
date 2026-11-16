@@ -22,7 +22,7 @@ use crate::{
     api::VendorConsents,
     base64::RAW_URL_ENCODING,
     consentconstants::Purpose,
-    test_support::{TestError, TestResult, hex_encode, input_bytes, load_cases},
+    test_support::{TestError, TestResult, hex_encode, input_bytes, load_cases, put},
 };
 
 /// Go: `wrapPurposes`, `wrapTypes` and `wrapVendorSamples` in `consent.go`.
@@ -32,11 +32,6 @@ const WRAP_VENDOR_SAMPLES: usize = 4;
 
 /// Go: `defaultPubSamples` in `consent.go`.
 const DEFAULT_PUB_SAMPLES: [u16; 8] = [0, 1, 2, 3, 32766, 32767, 32768, 65535];
-
-/// Inserts `key`, like Go assigning a struct field (no key is set twice).
-fn put(map: &mut Map<String, Value>, key: String, value: Value) {
-    let _previous = map.insert(key, value);
-}
 
 const fn bit(value: bool) -> char {
     if value { '1' } else { '0' }

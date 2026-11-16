@@ -27,6 +27,11 @@ pub enum ConsentError {
     /// bounds check that only covered two bytes. In prebid-server the panic unwinds the request
     /// goroutine and `net/http` drops the connection without a response. Callers that need exact
     /// parity must reproduce that at the call site; see [`ConsentError::is_go_panic`].
+    ///
+    /// The TCF 1 [`checked_purpose_allowed`][checked] returns it too, for the purpose ids whose
+    /// bit lies past the end of the data (Go's `PurposeAllowed` panics there).
+    ///
+    /// [checked]: crate::vendorconsent::tcf1::Consent::checked_purpose_allowed
     IndexOutOfRange {
         /// The byte index Go tried to read.
         index: usize,

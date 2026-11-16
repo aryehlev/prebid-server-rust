@@ -68,6 +68,7 @@ pub mod bitutils;
 pub mod consentconstants;
 mod error;
 pub mod vendorconsent;
+pub mod vendorlist2;
 
 pub use error::ConsentError;
 

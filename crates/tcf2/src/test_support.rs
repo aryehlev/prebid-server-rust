@@ -6,7 +6,7 @@
 
 use std::{error::Error, fs, path::Path, str};
 
-use serde_json::Value;
+use serde_json::{Map, Value};
 
 /// The error type of every test in this crate.
 pub(crate) type TestError = Box<dyn Error>;
@@ -34,6 +34,11 @@ pub(crate) fn load_cases(name: &str) -> Result<Vec<Value>, TestError> {
 /// The string field `key` of `value`, if present.
 pub(crate) fn str_field<'a>(value: &'a Value, key: &str) -> Option<&'a str> {
     value.get(key).and_then(Value::as_str)
+}
+
+/// Sets field `key` of a record being built, like Go assigning a struct field.
+pub(crate) fn put<K: Into<String>>(record: &mut Map<String, Value>, key: K, value: Value) {
+    let _previous = record.insert(key.into(), value);
 }
 
 /// Decodes lowercase or uppercase hex.
