@@ -29,6 +29,7 @@ func main() {
 	outDir = os.Args[1]
 	genHTTP()
 	genStrconv()
+	genURL()
 }
 
 // table accumulates golden rows for one file.
@@ -47,7 +48,12 @@ func (t *table) row(fields ...string) {
 }
 
 func (t *table) write(name string) {
-	if err := os.WriteFile(filepath.Join(outDir, name), []byte(t.b.String()), 0o644); err != nil {
+	check(os.WriteFile(filepath.Join(outDir, name), []byte(t.b.String()), 0o644))
+}
+
+// check aborts the generator on an unexpected error.
+func check(err error) {
+	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}

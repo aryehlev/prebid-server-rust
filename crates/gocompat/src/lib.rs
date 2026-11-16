@@ -1,9 +1,15 @@
 //! Go standard library behaviour that Prebid Server's observable output depends on.
 //!
 //! Each module mirrors one Go package, or the part of it that Prebid uses, and reproduces its
-//! results byte for byte, error texts included. The reference is Go 1.26 (the behaviour below
-//! has been stable since Go 1.21). Tests replay golden files written by the real Go toolchain:
-//! the generators live under `testdata/go/` and document how to rerun them.
+//! results byte for byte, error texts included. The reference is Go 1.26.2, the toolchain the
+//! `Dockerfile` builds with, under the GODEBUG defaults that the repository's `go.mod`
+//! (`go 1.25.0`) selects. Tests replay golden files written by that toolchain: the generators
+//! live under `testdata/go/` and document how to rerun them.
+//!
+//! Go strings are bytes while Rust strings are UTF-8. Functions that can produce invalid UTF-8
+//! in Go (unescaping, unquoting) have `_bytes` forms with Go's exact bytes; their `String` forms
+//! replace each invalid byte with `U+FFFD` ([`utf8::lossy_string`]), the same text Go's JSON
+//! encoder writes for such strings.
 //!
 //! # Modules
 //!
@@ -21,6 +27,13 @@
 //!   `*_pair` variants also return the value Go returns alongside an error.
 //! - [`math`]: the Go `math` functions and conversions whose Rust counterparts differ: NaN bits,
 //!   `Max`/`Min` special cases, `float32(x)` and `int64(x)`.
+//! - [`url`]: Go `net/url`. `QueryEscape`/`PathEscape` and their inverses with
+//!   [`url::EscapeError`] texts; [`url::Url`] with `Parse`, `ParseRequestURI`, `String`,
+//!   `Query`, `Hostname`, `Port`, `RequestURI`, `EscapedPath` and Go's error texts
+//!   (`parse "http://[::1": missing ']' in host`), including the `netip.ParseAddr` messages for
+//!   bracketed hosts; [`url::Values`] with `Get`/`Set`/`Add`/`Del`/`Has` and the key-sorted
+//!   `Encode`; [`url::parse_query`] with the semicolon and 10000-parameter rules.
+//! - [`utf8`]: Go's rune decoding of byte strings that are not valid UTF-8.
 //! - [`unicode`]: Go `unicode` predicates and case mapping (`IsLetter`, `IsDigit`, `IsSpace`,
 //!   `IsPrint`, `IsGraphic`, `ToLower`, `ToUpper`, `ToTitle`, `SimpleFold`) from tables generated
 //!   from Go's own tables, which can lag or lead Rust's Unicode version.
@@ -50,3 +63,5 @@ pub mod strconv;
 #[cfg(test)]
 pub mod testutil;
 pub mod unicode;
+pub mod url;
+pub mod utf8;

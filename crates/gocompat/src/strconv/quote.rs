@@ -5,7 +5,7 @@
 
 use std::{error::Error as StdError, fmt};
 
-use crate::unicode;
+use crate::{unicode, utf8::lossy_string};
 
 const LOWERHEX: &[u8; 16] = b"0123456789abcdef";
 
@@ -332,12 +332,12 @@ pub fn unquote_bytes(s: &str) -> Result<Vec<u8>, UnquoteError> {
 
 /// Go: `strconv.Unquote`.
 ///
-/// When Go's result is not valid UTF-8 (`"\xff"`), the invalid bytes are replaced with U+FFFD;
-/// use [`unquote_bytes`] to keep them.
+/// When Go's result is not valid UTF-8 (`"\xff"`), each invalid byte is replaced with U+FFFD
+/// ([`lossy_string`]); use [`unquote_bytes`] to keep them.
 ///
 /// # Errors
 ///
 /// [`UnquoteError`] when `s` is not a single complete Go string, rune or raw-string literal.
 pub fn unquote(s: &str) -> Result<String, UnquoteError> {
-    unquote_bytes(s).map(|bytes| String::from_utf8_lossy(&bytes).into_owned())
+    unquote_bytes(s).map(|bytes| lossy_string(&bytes))
 }
