@@ -7,8 +7,14 @@
 //!
 //! # Modules
 //!
-//! - [`strconv`]: Go `strconv`. `FormatFloat` (formats `e E f g G b x X`, any precision, 32 and
-//!   64 bit), `ParseFloat` (decimal, hex, `inf`/`nan`, underscores), `FormatInt`/`FormatUint`/
+//! - [`http`]: Go `net/http` header semantics. [`http::canonical_mime_header_key`] (the `textproto`
+//!   rule, including leaving keys with non-token bytes untouched), and [`http::Header`]:
+//!   `Add`/`Set`/`Get`/`Values`/`Del` canonicalize, while the `*_raw` methods act on the map
+//!   directly as a Go `http.Header{"key": ...}` literal does. [`http::Header::write`] produces
+//!   `Header.Write`'s wire form: keys sorted, invalid names dropped, CR/LF replaced and values
+//!   trimmed.
+//! - [`strconv`]: Go `strconv`. `FormatFloat` (formats `e E f g G b x X`, any precision, 32 and 64
+//!   bit), `ParseFloat` (decimal, hex, `inf`/`nan`, underscores), `FormatInt`, `FormatUint`,
 //!   `Itoa`, `ParseInt`/`ParseUint`/`Atoi` (base prefixes, underscores, bit sizes),
 //!   `ParseBool`/`FormatBool`, the `Quote` family and `Unquote`/`UnquoteChar`. Errors are
 //!   [`strconv::NumError`] with Go's text (`strconv.ParseInt: parsing "x": invalid syntax`); the
@@ -16,15 +22,18 @@
 //! - [`math`]: the Go `math` functions and conversions whose Rust counterparts differ: NaN bits,
 //!   `Max`/`Min` special cases, `float32(x)` and `int64(x)`.
 //! - [`unicode`]: Go `unicode` predicates and case mapping (`IsLetter`, `IsDigit`, `IsSpace`,
-//!   `IsPrint`, `IsGraphic`, `ToLower`, `ToUpper`, `ToTitle`, `SimpleFold`) from tables
-//!   generated from Go's own tables, which can lag or lead Rust's Unicode version.
+//!   `IsPrint`, `IsGraphic`, `ToLower`, `ToUpper`, `ToTitle`, `SimpleFold`) from tables generated
+//!   from Go's own tables, which can lag or lead Rust's Unicode version.
 //!
 //! # Example
 //!
 //! ```
 //! use pbs_gocompat::strconv;
 //!
-//! assert_eq!(strconv::format_float(0.1 + 0.2, b'f', -1, 64), "0.30000000000000004");
+//! assert_eq!(
+//!     strconv::format_float(0.1 + 0.2, b'f', -1, 64),
+//!     "0.30000000000000004"
+//! );
 //! assert_eq!(strconv::format_float(1.005, b'f', 2, 64), "1.00");
 //! assert_eq!(
 //!     strconv::atoi("12a").map_err(|e| e.to_string()),
@@ -35,6 +44,7 @@
 
 #[cfg(test)]
 pub mod golden;
+pub mod http;
 pub mod math;
 pub mod strconv;
 #[cfg(test)]

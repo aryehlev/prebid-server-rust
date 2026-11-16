@@ -160,11 +160,7 @@ mod tests {
         assert_eq!(int64(-1e19), i64::MIN, "underflow");
         assert_eq!(int64(-2.9), -2, "truncates toward zero");
         assert_eq!(int64(2.9), 2, "truncates toward zero");
-        assert_eq!(
-            int64(-(2_f64.powi(63))),
-            i64::MIN,
-            "MinInt64 is exact"
-        );
+        assert_eq!(int64(-(2_f64.powi(63))), i64::MIN, "MinInt64 is exact");
         assert_eq!(
             int64(4_503_599_627_370_497.0),
             4_503_599_627_370_497,
@@ -179,10 +175,6 @@ mod tests {
         assert_eq!(float32(1e-46).to_bits(), 0, "underflow");
         assert_eq!(float32(-0.0).to_bits(), 0x8000_0000, "negative zero");
         // 1 + 2^-24 is exactly halfway between 1 and the next float32: ties to even (1).
-        assert_eq!(
-            float32(1.0 + 2_f64.powi(-24)).to_bits(),
-            0x3F80_0000,
-            "tie"
-        );
+        assert_eq!(float32(1.0 + 2_f64.powi(-24)).to_bits(), 0x3F80_0000, "tie");
     }
 }

@@ -27,6 +27,7 @@ func main() {
 		os.Exit(2)
 	}
 	outDir = os.Args[1]
+	genHTTP()
 	genStrconv()
 }
 
