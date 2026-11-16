@@ -58,6 +58,8 @@ pub mod sections;
 pub mod util;
 
 #[cfg(test)]
+mod golden_tests;
+#[cfg(test)]
 mod parse_tests;
 
 pub use encode::encode;
