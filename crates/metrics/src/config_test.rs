@@ -112,6 +112,28 @@ fn prometheus_metrics_engine() -> TestResult {
     Ok(())
 }
 
+/// Go selects the Prometheus engine for any `metrics.prometheus.port` other than 0
+/// (`metrics/config/metrics.go`: `Port != 0`), while `PrometheusMetrics.validate` only checks a
+/// positive port (`Port > 0`): a negative port builds the engine and passes validation even with
+/// a zero timeout.
+#[test]
+fn negative_prometheus_port_selects_the_engine() -> TestResult {
+    let mut cfg = options::Metrics::default();
+    cfg.prometheus.port = -1;
+    let engine = new_metrics_engine(&cfg, &[], &syncer_keys(), &modules_stages())?;
+    ensure!(
+        engine.prometheus_metrics.is_some(),
+        "a negative port builds the Prometheus engine"
+    );
+    let mut errs = Vec::new();
+    cfg.validate(&mut errs);
+    ensure!(
+        errs.is_empty(),
+        "a negative port is not validated: {errs:?}"
+    );
+    Ok(())
+}
+
 /// An invalid Prometheus namespace is the Go `MustRegister` panic, as an error.
 #[test]
 fn prometheus_registration_error() -> TestResult {
