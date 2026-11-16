@@ -1,0 +1,116 @@
+{
+  "description": "A lexical difference upstream (1 vs 1.0) cannot cause a semantic one downstream, because servers parse what earlier stages produced: the response currency difference is primary too.",
+  "case": {
+    "case_id": "golden/lexical_does_not_cause_semantic",
+    "fixture_path": "parity/testdata/diff/lexical_does_not_cause_semantic.json",
+    "endpoint": "/openrtb2/auction",
+    "profile": "default"
+  },
+  "go": {
+    "case_id": "golden",
+    "endpoint": "/openrtb2/auction",
+    "stages": {
+      "request.validated": {
+        "_": {
+          "seq": 1,
+          "writes": 1,
+          "json": {
+            "id": "r1",
+            "imp": [
+              {
+                "id": "i1",
+                "bidfloor": 1
+              }
+            ]
+          },
+          "raw": "{\"id\":\"r1\",\"imp\":[{\"id\":\"i1\",\"bidfloor\":1}]}",
+          "errors": [],
+          "warnings": []
+        }
+      }
+    },
+    "stage_status": {},
+    "http_out": [],
+    "decisions": [],
+    "metrics_delta": [],
+    "analytics": [],
+    "notes": [],
+    "http_response": {
+      "status": 200,
+      "headers": [
+        [
+          "Content-Type",
+          "application/json"
+        ]
+      ],
+      "body": {
+        "text": "{\"id\":\"r1\",\"cur\":\"USD\"}\n"
+      }
+    },
+    "schema": "pbs-parity-trace/1",
+    "schema_version": "1.0.0",
+    "impl": "go"
+  },
+  "rust": {
+    "case_id": "golden",
+    "endpoint": "/openrtb2/auction",
+    "stages": {
+      "request.validated": {
+        "_": {
+          "seq": 1,
+          "writes": 1,
+          "json": {
+            "id": "r1",
+            "imp": [
+              {
+                "id": "i1",
+                "bidfloor": 1.0
+              }
+            ]
+          },
+          "raw": "{\"id\":\"r1\",\"imp\":[{\"id\":\"i1\",\"bidfloor\":1.0}]}",
+          "errors": [],
+          "warnings": []
+        }
+      }
+    },
+    "stage_status": {},
+    "http_out": [],
+    "decisions": [],
+    "metrics_delta": [],
+    "analytics": [],
+    "notes": [],
+    "http_response": {
+      "status": 200,
+      "headers": [
+        [
+          "Content-Type",
+          "application/json"
+        ]
+      ],
+      "body": {
+        "text": "{\"id\":\"r1\",\"cur\":\"EUR\"}\n"
+      }
+    },
+    "schema": "pbs-parity-trace/1",
+    "schema_version": "1.0.0",
+    "impl": "rust"
+  },
+  "want": [
+    {
+      "stage": "request.validated",
+      "key": "_",
+      "kind": "lexical",
+      "class": "number_format",
+      "json_path": "$.imp[0].bidfloor",
+      "primary": true
+    },
+    {
+      "stage": "http.response",
+      "key": "_",
+      "kind": "value",
+      "json_path": "$.cur",
+      "primary": true
+    }
+  ]
+}

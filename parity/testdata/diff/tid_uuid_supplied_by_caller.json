@@ -1,0 +1,109 @@
+{
+  "description": "The caller supplied source.tid, so Go keeps it and the value is compared exactly: a Rust side that regenerates it is a mismatch.",
+  "case": {
+    "case_id": "golden/tid_uuid_supplied_by_caller",
+    "fixture_path": "parity/testdata/diff/tid_uuid_supplied_by_caller.json",
+    "endpoint": "/openrtb2/auction",
+    "profile": "default"
+  },
+  "go": {
+    "case_id": "golden",
+    "endpoint": "/openrtb2/auction",
+    "stages": {
+      "request.validated": {
+        "_": {
+          "seq": 1,
+          "writes": 1,
+          "json": {
+            "id": "r1",
+            "imp": [
+              {
+                "id": "i1"
+              }
+            ],
+            "source": {
+              "tid": "f0e1d2c3-b4a5-4968-b7a6-958473625140"
+            }
+          },
+          "raw": "{\"id\":\"r1\",\"imp\":[{\"id\":\"i1\"}],\"source\":{\"tid\":\"f0e1d2c3-b4a5-4968-b7a6-958473625140\"}}",
+          "errors": [],
+          "warnings": []
+        }
+      }
+    },
+    "stage_status": {},
+    "http_out": [],
+    "decisions": [],
+    "metrics_delta": [],
+    "analytics": [],
+    "notes": [],
+    "schema": "pbs-parity-trace/1",
+    "schema_version": "1.0.0",
+    "impl": "go"
+  },
+  "rust": {
+    "case_id": "golden",
+    "endpoint": "/openrtb2/auction",
+    "stages": {
+      "request.validated": {
+        "_": {
+          "seq": 1,
+          "writes": 1,
+          "json": {
+            "id": "r1",
+            "imp": [
+              {
+                "id": "i1"
+              }
+            ],
+            "source": {
+              "tid": "7d9e0a1b-2c3d-4e5f-8a6b-7c8d9e0f1a2b"
+            }
+          },
+          "raw": "{\"id\":\"r1\",\"imp\":[{\"id\":\"i1\"}],\"source\":{\"tid\":\"7d9e0a1b-2c3d-4e5f-8a6b-7c8d9e0f1a2b\"}}",
+          "errors": [],
+          "warnings": []
+        }
+      }
+    },
+    "stage_status": {},
+    "http_out": [],
+    "decisions": [],
+    "metrics_delta": [],
+    "analytics": [],
+    "notes": [],
+    "schema": "pbs-parity-trace/1",
+    "schema_version": "1.0.0",
+    "impl": "rust"
+  },
+  "want": [
+    {
+      "stage": "request.validated",
+      "key": "_",
+      "kind": "value",
+      "json_path": "$.source.tid",
+      "primary": true
+    }
+  ],
+  "envelope": {
+    "schema": "pbs-parity-envelope/1",
+    "schema_version": "1.0.0",
+    "case_id": "golden/tid",
+    "request": {
+      "method": "POST",
+      "path": "/openrtb2/auction",
+      "query": "",
+      "headers": [
+        [
+          "Content-Type",
+          "application/json"
+        ]
+      ],
+      "body": {
+        "text": "{\"id\":\"r1\",\"imp\":[{\"id\":\"i1\"}],\"source\":{\"tid\":\"f0e1d2c3-b4a5-4968-b7a6-958473625140\"}}"
+      }
+    },
+    "mock": {},
+    "capture": {}
+  }
+}

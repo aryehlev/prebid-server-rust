@@ -1,0 +1,70 @@
+{
+  "description": "After seatbid/bid sorting a real price difference is still reported, at the sorted position.",
+  "case": {
+    "case_id": "golden/order_normalization_keeps_value_diffs",
+    "fixture_path": "parity/testdata/diff/order_normalization_keeps_value_diffs.json",
+    "endpoint": "/openrtb2/auction",
+    "profile": "default"
+  },
+  "go": {
+    "case_id": "golden",
+    "endpoint": "/openrtb2/auction",
+    "stages": {},
+    "stage_status": {},
+    "http_out": [],
+    "decisions": [],
+    "metrics_delta": [],
+    "analytics": [],
+    "notes": [],
+    "http_response": {
+      "status": 200,
+      "headers": [
+        [
+          "Content-Type",
+          "application/json"
+        ]
+      ],
+      "body": {
+        "text": "{\"id\":\"r1\",\"seatbid\":[{\"bid\":[{\"id\":\"b2\",\"impid\":\"i2\",\"price\":1.5},{\"id\":\"b1\",\"impid\":\"i1\",\"price\":2}],\"seat\":\"rubicon\"},{\"bid\":[{\"id\":\"a1\",\"impid\":\"i1\",\"price\":3}],\"seat\":\"appnexus\"}],\"cur\":\"USD\",\"ext\":{\"warnings\":{\"appnexus\":[{\"code\":10002,\"message\":\"w2\"},{\"code\":10001,\"message\":\"w1\"}]},\"errors\":{\"rubicon\":[{\"code\":1,\"message\":\"timeout b\"},{\"code\":1,\"message\":\"timeout a\"}]},\"prebid\":{\"seatnonbid\":[{\"seat\":\"pubmatic\",\"nonbid\":[{\"impid\":\"i2\",\"statuscode\":301},{\"impid\":\"i1\",\"statuscode\":300}]},{\"seat\":\"openx\",\"nonbid\":[{\"impid\":\"i1\",\"statuscode\":101}]}]}}}\n"
+      }
+    },
+    "schema": "pbs-parity-trace/1",
+    "schema_version": "1.0.0",
+    "impl": "go"
+  },
+  "rust": {
+    "case_id": "golden",
+    "endpoint": "/openrtb2/auction",
+    "stages": {},
+    "stage_status": {},
+    "http_out": [],
+    "decisions": [],
+    "metrics_delta": [],
+    "analytics": [],
+    "notes": [],
+    "http_response": {
+      "status": 200,
+      "headers": [
+        [
+          "Content-Type",
+          "application/json"
+        ]
+      ],
+      "body": {
+        "text": "{\"id\":\"r1\",\"seatbid\":[{\"bid\":[{\"id\":\"a1\",\"impid\":\"i1\",\"price\":3.5}],\"seat\":\"appnexus\"},{\"bid\":[{\"id\":\"b1\",\"impid\":\"i1\",\"price\":2},{\"id\":\"b2\",\"impid\":\"i2\",\"price\":1.5}],\"seat\":\"rubicon\"}],\"cur\":\"USD\",\"ext\":{\"warnings\":{\"appnexus\":[{\"code\":10001,\"message\":\"w1\"},{\"code\":10002,\"message\":\"w2\"}]},\"errors\":{\"rubicon\":[{\"code\":1,\"message\":\"timeout a\"},{\"code\":1,\"message\":\"timeout b\"}]},\"prebid\":{\"seatnonbid\":[{\"seat\":\"openx\",\"nonbid\":[{\"impid\":\"i1\",\"statuscode\":101}]},{\"seat\":\"pubmatic\",\"nonbid\":[{\"impid\":\"i1\",\"statuscode\":300},{\"impid\":\"i2\",\"statuscode\":301}]}]}}}\n"
+      }
+    },
+    "schema": "pbs-parity-trace/1",
+    "schema_version": "1.0.0",
+    "impl": "rust"
+  },
+  "want": [
+    {
+      "stage": "http.response",
+      "key": "_",
+      "kind": "value",
+      "json_path": "$.seatbid[0].bid[0].price",
+      "primary": true
+    }
+  ]
+}

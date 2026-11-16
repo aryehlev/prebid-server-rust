@@ -1,0 +1,139 @@
+{
+  "description": "Go did not reach video.pods but Rust did (stage_extra). The floors.skip decision consulted a different value (decision, attributed to floors.enrich). A timing histogram compares its count only (timing_histograms) while a counter delta is compared exactly (metric).",
+  "case": {
+    "case_id": "golden/stage_presence_decisions_metrics",
+    "fixture_path": "parity/testdata/diff/stage_presence_decisions_metrics.json",
+    "endpoint": "/openrtb2/auction",
+    "profile": "default"
+  },
+  "go": {
+    "case_id": "golden",
+    "endpoint": "/openrtb2/auction",
+    "stages": {},
+    "stage_status": {},
+    "http_out": [],
+    "decisions": [
+      {
+        "point": "floors.skip",
+        "value": false,
+        "source": "envelope"
+      }
+    ],
+    "metrics_delta": [
+      {
+        "name": "pbs_request_time_seconds",
+        "type": "histogram",
+        "labels": {
+          "request_type": "openrtb2-web"
+        },
+        "delta": 0.012,
+        "count_delta": 1,
+        "bucket_deltas": {
+          "0.05": 1
+        }
+      },
+      {
+        "name": "pbs_requests",
+        "type": "counter",
+        "labels": {
+          "request_status": "ok",
+          "request_type": "openrtb2-web"
+        },
+        "delta": 1,
+        "count_delta": null,
+        "bucket_deltas": null
+      }
+    ],
+    "analytics": [],
+    "notes": [],
+    "schema": "pbs-parity-trace/1",
+    "schema_version": "1.0.0",
+    "impl": "go"
+  },
+  "rust": {
+    "case_id": "golden",
+    "endpoint": "/openrtb2/auction",
+    "stages": {
+      "video.pods": {
+        "_": {
+          "seq": 1,
+          "writes": 1,
+          "json": {
+            "pods": []
+          },
+          "raw": "{\"pods\":[]}",
+          "errors": [],
+          "warnings": []
+        }
+      }
+    },
+    "stage_status": {},
+    "http_out": [],
+    "decisions": [
+      {
+        "point": "floors.skip",
+        "value": true,
+        "source": "envelope"
+      }
+    ],
+    "metrics_delta": [
+      {
+        "name": "pbs_request_time_seconds",
+        "type": "histogram",
+        "labels": {
+          "request_type": "openrtb2-web"
+        },
+        "delta": 0.4,
+        "count_delta": 1,
+        "bucket_deltas": {
+          "0.5": 1
+        }
+      },
+      {
+        "name": "pbs_requests",
+        "type": "counter",
+        "labels": {
+          "request_status": "ok",
+          "request_type": "openrtb2-web"
+        },
+        "delta": 2,
+        "count_delta": null,
+        "bucket_deltas": null
+      }
+    ],
+    "analytics": [],
+    "notes": [],
+    "schema": "pbs-parity-trace/1",
+    "schema_version": "1.0.0",
+    "impl": "rust"
+  },
+  "want": [
+    {
+      "stage": "floors.enrich",
+      "key": "_",
+      "kind": "decision",
+      "json_path": "$['floors.skip']",
+      "primary": true,
+      "domain": "policy_privacy_identity",
+      "requirement": "AUCT-03"
+    },
+    {
+      "stage": "video.pods",
+      "key": "_",
+      "kind": "stage_extra",
+      "json_path": "$",
+      "primary": false,
+      "consequential_of_stage": "floors.enrich"
+    },
+    {
+      "stage": "metrics_delta",
+      "key": "_",
+      "kind": "metric",
+      "json_path": "$.pbs_requests",
+      "primary": false,
+      "consequential_of_stage": "floors.enrich",
+      "domain": "cutover_proof",
+      "requirement": "OPER-01"
+    }
+  ]
+}

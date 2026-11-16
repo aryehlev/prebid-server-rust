@@ -1,0 +1,80 @@
+{
+  "description": "json.Encoder.Encode adds a trailing newline (auction.go:394) that a serializer without it lacks: lexical trailing_newline. A different HTTP status is kind status.",
+  "case": {
+    "case_id": "golden/trailing_newline_and_status",
+    "fixture_path": "parity/testdata/diff/trailing_newline_and_status.json",
+    "endpoint": "/openrtb2/auction",
+    "profile": "default"
+  },
+  "go": {
+    "case_id": "golden",
+    "endpoint": "/openrtb2/auction",
+    "stages": {},
+    "stage_status": {},
+    "http_out": [],
+    "decisions": [],
+    "metrics_delta": [],
+    "analytics": [],
+    "notes": [],
+    "http_response": {
+      "status": 200,
+      "headers": [
+        [
+          "Content-Type",
+          "application/json"
+        ]
+      ],
+      "body": {
+        "text": "{\"id\":\"r1\"}\n"
+      }
+    },
+    "schema": "pbs-parity-trace/1",
+    "schema_version": "1.0.0",
+    "impl": "go"
+  },
+  "rust": {
+    "case_id": "golden",
+    "endpoint": "/openrtb2/auction",
+    "stages": {},
+    "stage_status": {},
+    "http_out": [],
+    "decisions": [],
+    "metrics_delta": [],
+    "analytics": [],
+    "notes": [],
+    "http_response": {
+      "status": 400,
+      "headers": [
+        [
+          "Content-Type",
+          "application/json"
+        ]
+      ],
+      "body": {
+        "text": "{\"id\":\"r1\"}"
+      }
+    },
+    "schema": "pbs-parity-trace/1",
+    "schema_version": "1.0.0",
+    "impl": "rust"
+  },
+  "want": [
+    {
+      "stage": "http.response",
+      "key": "_",
+      "kind": "lexical",
+      "class": "trailing_newline",
+      "json_path": "$",
+      "primary": true
+    },
+    {
+      "stage": "http.response",
+      "key": "_",
+      "kind": "status",
+      "json_path": "$['@status']",
+      "primary": true,
+      "domain": "endpoints",
+      "requirement": "ENDP-01"
+    }
+  ]
+}

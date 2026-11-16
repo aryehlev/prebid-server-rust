@@ -1,0 +1,158 @@
+{
+  "description": "Go's bidder call timed out (the oracle delayed past tmax) while Rust's got the 204: the categorical error difference is kind timing. Rust also made a cache call that matched no mock: extra_in_rust plus unexpected_outbound, attributed to cache_support_flows by the outbound kind. Seq differences are ignored (http_out_order).",
+  "case": {
+    "case_id": "golden/outbound_timeout_and_unexpected_call",
+    "fixture_path": "parity/testdata/diff/outbound_timeout_and_unexpected_call.json",
+    "endpoint": "/openrtb2/auction",
+    "profile": "default"
+  },
+  "go": {
+    "case_id": "golden",
+    "endpoint": "/openrtb2/auction",
+    "stages": {},
+    "stage_status": {},
+    "http_out": [
+      {
+        "seq": 4,
+        "kind": "bidder",
+        "bidder": "appnexus",
+        "orig_url": "https://ib.adnxs.com/openrtb2",
+        "request": {
+          "method": "POST",
+          "url": "https://ib.adnxs.com/openrtb2",
+          "headers": [
+            [
+              "Content-Type",
+              "application/json"
+            ]
+          ],
+          "body": {
+            "text": "{\"id\":\"r1\",\"imp\":[{\"id\":\"i1\",\"banner\":{\"w\":300,\"h\":250}}]}"
+          }
+        },
+        "wire": false,
+        "mock": {
+          "source": "inline",
+          "id": "bidders.appnexus"
+        },
+        "response": null,
+        "error": "timeout"
+      }
+    ],
+    "decisions": [],
+    "metrics_delta": [],
+    "analytics": [],
+    "notes": [],
+    "schema": "pbs-parity-trace/1",
+    "schema_version": "1.0.0",
+    "impl": "go"
+  },
+  "rust": {
+    "case_id": "golden",
+    "endpoint": "/openrtb2/auction",
+    "stages": {},
+    "stage_status": {},
+    "http_out": [
+      {
+        "seq": 7,
+        "kind": "bidder",
+        "bidder": "appnexus",
+        "orig_url": "https://ib.adnxs.com/openrtb2",
+        "request": {
+          "method": "POST",
+          "url": "https://ib.adnxs.com/openrtb2",
+          "headers": [
+            [
+              "Content-Type",
+              "application/json"
+            ]
+          ],
+          "body": {
+            "text": "{\"id\":\"r1\",\"imp\":[{\"id\":\"i1\",\"banner\":{\"w\":300,\"h\":250}}]}"
+          }
+        },
+        "wire": false,
+        "mock": {
+          "source": "inline",
+          "id": "bidders.appnexus"
+        },
+        "response": {
+          "status": 204,
+          "headers": [],
+          "body": null
+        },
+        "error": null
+      },
+      {
+        "seq": 8,
+        "kind": "cache",
+        "bidder": "",
+        "orig_url": "http://cache.example/cache",
+        "request": {
+          "method": "POST",
+          "url": "http://cache.example/cache",
+          "headers": [
+            [
+              "Content-Type",
+              "application/json"
+            ]
+          ],
+          "body": {
+            "text": "{\"puts\":[]}"
+          }
+        },
+        "wire": true,
+        "mock": null,
+        "response": {
+          "status": 404,
+          "headers": [],
+          "body": null
+        },
+        "error": null
+      }
+    ],
+    "decisions": [],
+    "metrics_delta": [],
+    "analytics": [],
+    "notes": [],
+    "schema": "pbs-parity-trace/1",
+    "schema_version": "1.0.0",
+    "impl": "rust"
+  },
+  "want": [
+    {
+      "stage": "http.out",
+      "key": "_",
+      "kind": "timing",
+      "json_path": "$[0].error",
+      "primary": true,
+      "domain": "bidders_adapters",
+      "requirement": "BIDD-01"
+    },
+    {
+      "stage": "http.out",
+      "key": "_",
+      "kind": "extra_in_rust",
+      "json_path": "$[0].response",
+      "primary": true
+    },
+    {
+      "stage": "http.out",
+      "key": "_",
+      "kind": "extra_in_rust",
+      "json_path": "$[1]",
+      "primary": true,
+      "domain": "cache_support_flows",
+      "requirement": "CACH-01"
+    },
+    {
+      "stage": "http.out",
+      "key": "_",
+      "kind": "unexpected_outbound",
+      "json_path": "$[1]",
+      "primary": true,
+      "domain": "cache_support_flows",
+      "requirement": "CACH-01"
+    }
+  ]
+}
