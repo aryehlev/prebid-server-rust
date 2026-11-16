@@ -38,6 +38,7 @@ func TestNilSessionIsNoOp(t *testing.T) {
 		{name: "Intn", run: func() any { return s.Intn(parity.DecisionFloorsModelGroup, 5, func(int) int { return 3 }) }, want: 3},
 		{name: "Decide", run: func() any { return s.Decide(parity.DecisionFloorsSkip, func() int { return 1 }) }, want: 1},
 		{name: "DecideString", run: func() any { return s.DecideString(parity.DecisionUsersyncShuffle, func() string { return "rng" }) }, want: "rng"},
+		{name: "DecideBool", run: func() any { return s.DecideBool(parity.DecisionFloorsEnforce, func() bool { return true }) }, want: true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -293,6 +294,29 @@ func TestDecisions(t *testing.T) {
 				return s.DecideString(parity.DecisionUsersyncShuffle, func() string { return "rng" })
 			},
 			want: "rng", wantValue: `"rng"`, wantSource: parity.DecisionSourceRNG,
+		},
+		{
+			name:      "string override out of domain falls back",
+			decisions: map[string]json.RawMessage{string(parity.DecisionUsersyncShuffle): json.RawMessage(`"reverse"`)},
+			run: func(s *Session) any {
+				return s.DecideString(parity.DecisionUsersyncShuffle, func() string { return "rng" })
+			},
+			want: "rng", wantValue: `"rng"`, wantSource: parity.DecisionSourceRNG, wantNote: true,
+		},
+		{
+			name:      "bool override honoured",
+			decisions: map[string]json.RawMessage{string(parity.DecisionFloorsEnforce): json.RawMessage(`0`)},
+			run: func(s *Session) any {
+				return s.DecideBool(parity.DecisionFloorsEnforce, func() bool { return true })
+			},
+			want: false, wantValue: "0", wantSource: parity.DecisionSourceEnvelope,
+		},
+		{
+			name: "bool without override uses draw",
+			run: func(s *Session) any {
+				return s.DecideBool(parity.DecisionFloorsDataRate, func() bool { return true })
+			},
+			want: true, wantValue: "1", wantSource: parity.DecisionSourceRNG,
 		},
 	}
 	for _, tt := range tests {
