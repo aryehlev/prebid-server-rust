@@ -167,9 +167,14 @@ impl Value {
         }
     }
 
+    /// Go's `internal/fmtsort` order of map keys (see [`compare`]).
+    pub(crate) fn sort_cmp(&self, other: &Self) -> Ordering {
+        compare(self, other)
+    }
+
     /// The value with [`Value::Named`] and [`Value::Method`] wrappers removed: what Go's
     /// `reflect.Value.Kind` dispatches on.
-    pub(super) fn underlying(&self) -> &Self {
+    pub(crate) fn underlying(&self) -> &Self {
         match self {
             Self::Named { value, .. } | Self::Method { value, .. } => value.underlying(),
             other @ (Self::Nil

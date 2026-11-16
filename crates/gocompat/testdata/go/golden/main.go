@@ -33,6 +33,7 @@ func main() {
 	genStrings()
 	genBase64()
 	genFmt()
+	genTemplate()
 }
 
 // table accumulates golden rows for one file.

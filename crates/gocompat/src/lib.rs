@@ -38,6 +38,14 @@
 //! - [`strings`]: the Go `strings` functions whose Rust counterparts differ: `ToLower`/`ToUpper`
 //!   (simple per-rune case mapping), `EqualFold`, `TrimSpace`/`Fields` (`unicode.IsSpace`),
 //!   `Split`/`SplitN`/`SplitAfter`/`SplitAfterN` (`n` and empty-separator rules) and `NewReplacer`.
+//! - [`template`]: Go `text/template` as `macros.ResolveMacros` uses it.
+//!   [`template::Template::parse`] is `template.New(name).Parse(text)` with Go's complete grammar
+//!   and parse errors (`template: endpointTemplate:1: function "Host" not defined`);
+//!   [`template::Template::execute`] runs field and map lookups, `Error`/`String` methods,
+//!   variables, `if`/`with`/`range`/`break`/`continue`, `define`/`block`/`template` and prints as
+//!   `fmt.Fprint`, with Go's exec errors (`template: t:1:2: executing "t" at <.Foo>: can't evaluate
+//!   field Foo in type macros.UserSyncPrivacy`). Builtin functions parse but are not executed
+//!   ([`template::TemplateError::Unsupported`]).
 //! - [`math`]: the Go `math` functions and conversions whose Rust counterparts differ: NaN bits,
 //!   `Max`/`Min` special cases, `float32(x)` and `int64(x)`.
 //! - [`url`]: Go `net/url`. `QueryEscape`/`PathEscape` and their inverses with
@@ -76,6 +84,7 @@ pub mod http;
 pub mod math;
 pub mod strconv;
 pub mod strings;
+pub mod template;
 #[cfg(test)]
 pub mod testutil;
 pub mod unicode;
