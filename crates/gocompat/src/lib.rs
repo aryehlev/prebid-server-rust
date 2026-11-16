@@ -13,6 +13,9 @@
 //!
 //! # Modules
 //!
+//! - [`base64`]: Go `encoding/base64` (`StdEncoding`, `URLEncoding`, `RawStdEncoding`,
+//!   `RawURLEncoding`) with Go's lenient decoder (newlines skipped, non-zero trailing bits
+//!   accepted) and `illegal base64 data at input byte N` errors.
 //! - [`http`]: Go `net/http` header semantics. [`http::canonical_mime_header_key`] (the `textproto`
 //!   rule, including leaving keys with non-token bytes untouched), and [`http::Header`]:
 //!   `Add`/`Set`/`Get`/`Values`/`Del` canonicalize, while the `*_raw` methods act on the map
@@ -25,6 +28,9 @@
 //!   `ParseBool`/`FormatBool`, the `Quote` family and `Unquote`/`UnquoteChar`. Errors are
 //!   [`strconv::NumError`] with Go's text (`strconv.ParseInt: parsing "x": invalid syntax`); the
 //!   `*_pair` variants also return the value Go returns alongside an error.
+//! - [`strings`]: the Go `strings` functions whose Rust counterparts differ: `ToLower`/`ToUpper`
+//!   (simple per-rune case mapping), `EqualFold`, `TrimSpace`/`Fields` (`unicode.IsSpace`),
+//!   `Split`/`SplitN`/`SplitAfter`/`SplitAfterN` (`n` and empty-separator rules) and `NewReplacer`.
 //! - [`math`]: the Go `math` functions and conversions whose Rust counterparts differ: NaN bits,
 //!   `Max`/`Min` special cases, `float32(x)` and `int64(x)`.
 //! - [`url`]: Go `net/url`. `QueryEscape`/`PathEscape` and their inverses with
@@ -55,11 +61,13 @@
 //! assert_eq!(strconv::quote("tab\there"), r#""tab\there""#);
 //! ```
 
+pub mod base64;
 #[cfg(test)]
 pub mod golden;
 pub mod http;
 pub mod math;
 pub mod strconv;
+pub mod strings;
 #[cfg(test)]
 pub mod testutil;
 pub mod unicode;

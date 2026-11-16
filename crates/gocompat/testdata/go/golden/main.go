@@ -30,6 +30,8 @@ func main() {
 	genHTTP()
 	genStrconv()
 	genURL()
+	genStrings()
+	genBase64()
 }
 
 // table accumulates golden rows for one file.
