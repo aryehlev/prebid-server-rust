@@ -216,6 +216,31 @@ mod tests {
     }
 
     #[test]
+    fn long_codes_wrap_like_go_uint16() {
+        // `length - 2` zero bits then "11": the value is fib(length) in uint16. Values recorded
+        // from go-gpp v0.2.0's ReadFibonacciInt (the 60-bit read takes Go about a second).
+        let cases: [(usize, u16); 8] = [
+            (40, 32459),
+            (44, 42461),
+            (48, 2624),
+            (52, 41443),
+            (54, 44104),
+            (56, 25333),
+            (58, 31895),
+            (60, 4816),
+        ];
+        for (length, want) in cases {
+            let mut data = vec![0u8; length.div_ceil(8) + 1];
+            for bit in [length - 2, length - 1] {
+                if let Some(byte) = data.get_mut(bit / 8) {
+                    *byte |= 0x80 >> (bit % 8);
+                }
+            }
+            assert_eq!(read_at(&data, 0), Ok(want), "{length} bits");
+        }
+    }
+
+    #[test]
     fn unterminated_integer_in_huge_stream_fails_instead_of_looping() {
         // Go would spin forever: reads never fail (>= 8192 bytes) and no "11" exists.
         let mut bs = BitStream::new(vec![0; 8192]);

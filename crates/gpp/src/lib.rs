@@ -39,8 +39,11 @@
 //!
 //! Go strings may hold arbitrary bytes, Rust `&str` must be UTF-8. Convert raw bytes with
 //! `String::from_utf8_lossy` first: every non-ASCII byte is an illegal base64 character, the first
-//! one is reported at the same offset either way, and `~`/`.` splitting is unaffected, so all
-//! error messages stay identical; only undecoded section values can differ.
+//! one is reported at the same offset either way, and `~`/`.` splitting is unaffected, so section
+//! IDs, decoded fields and all error messages stay identical. Only section values (`value()`) can
+//! differ, with U+FFFD in place of the invalid bytes: those of undecoded sections (including the
+//! TCF EU v2 and US Privacy strings Prebid Server reads), and those of GPC-bearing US sections
+//! whose invalid bytes sit after the second `.` (Go's `CreateBitStreams` never decodes that part).
 //!
 //! # Divergences from Go
 //!

@@ -306,6 +306,79 @@ fn infinite_go_loops_are_header_errors() {
     assert_eq!(parsed.map(|(gpp, _)| gpp.version), Ok(1), "version kept");
 }
 
+/// Header "DBADAxVFBagSgsA": three single entries with Fibonacci offsets 13, 65530 and 65536.
+/// Go adds them in uint16, so the IDs are 13, then 7 (13 + 65530 wraps, the maximum stays 13),
+/// then 13 again (65536 wraps to 0). Expected values recorded from go-gpp v0.2.0.
+const WRAPPING_IDS_HEADER: &str = "DBADAxVFBagSgsA";
+
+#[test]
+fn wrapping_offsets_give_backwards_and_repeated_ids() {
+    let (gpp, errs) = parse(&format!(
+        "{WRAPPING_IDS_HEADER}~thirteen~BVQqAAAAAgA.QA~again"
+    ));
+    assert_eq!(messages(&errs), Vec::<&str>::new(), "no errors");
+    assert_eq!(gpp.section_types, ids(&[13, 7, 13]), "types");
+    let got: Vec<(SectionId, &str)> = gpp.sections.iter().map(|s| (s.id(), s.value())).collect();
+    assert_eq!(
+        got,
+        [
+            (SectionId(13), "thirteen"),
+            (SectionId(7), "BVQqAAAAAgA.QA"),
+            (SectionId(13), "again"),
+        ],
+        "sections"
+    );
+    assert!(
+        matches!(gpp.sections.get(1), Some(Section::Uspnat(_))),
+        "uspnat decoded"
+    );
+    let mut sections = gpp.sections;
+    assert_eq!(
+        crate::encode(&mut sections).map_err(|e| e.to_string()),
+        Err("duplicated sections".to_owned()),
+        "encode"
+    );
+}
+
+#[test]
+fn stale_error_after_backwards_id() {
+    let (gpp, errs) = parse(&format!("{WRAPPING_IDS_HEADER}~thirteen~!~again"));
+    let base = "illegal base64 data at input byte 0";
+    assert_eq!(
+        messages(&errs),
+        [
+            format!("error parsing uspnat consent string: {base}"),
+            format!("error parsing unsupported (section 13) consent string: {base}"),
+        ],
+        "errors"
+    );
+    let got: Vec<(SectionId, &str)> = gpp.sections.iter().map(|s| (s.id(), s.value())).collect();
+    assert_eq!(
+        got,
+        [
+            (SectionId(13), "thirteen"),
+            (SectionId(0), ""),
+            (SectionId(13), "again"),
+        ],
+        "sections"
+    );
+    let mut sections = gpp.sections;
+    assert_eq!(
+        crate::encode(&mut sections).map_err(|e| e.to_string()),
+        Err("section ID out of range".to_owned()),
+        "encode sees the zero-value section"
+    );
+}
+
+#[test]
+fn offset_wrapping_to_zero_is_section_id_zero() {
+    // "DBABUCUFgA": one entry whose Fibonacci offset is 65536, which go-gpp reads as 0.
+    let (gpp, errs) = parse("DBABUCUFgA~zero");
+    assert!(errs.is_empty(), "no errors: {errs:?}");
+    assert_eq!(gpp.section_types, ids(&[0]), "types");
+    assert_eq!(gpp.sections, [generic(0, "zero")], "generic section 0");
+}
+
 #[test]
 fn zero_sections() {
     // "DBA" pads to "DBAA": a 3-byte header with an empty range and no sections.
