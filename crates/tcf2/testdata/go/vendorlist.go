@@ -329,6 +329,9 @@ func buildVendorListCases() []vendorListCase {
 	for _, c := range vendorListQuirks {
 		add(c[0], c[1])
 	}
+	for _, c := range escapeCases() {
+		add(c[0], c[1])
+	}
 
 	deep := func(n int) string { return strings.Repeat("[", n) + strings.Repeat("]", n) }
 	add("nesting depth 10000", `{"vendorListVersion":1,"x":`+deep(9999)+`}`)
@@ -498,6 +501,25 @@ var vendorListQuirks = [][2]string{
 	{"comment", `{"vendorListVersion":7 /* c */}`},
 	{"nan", `{"vendorListVersion":NaN}`},
 	{"many vendors", manyVendors()},
+}
+
+// escapeCases cover JSON escapes of code units in keys, map keys and base64 strings. u("0070")
+// is the six bytes backslash, 'u', "0070"; the escapes are assembled at run time so that no
+// editing tool can turn them into the characters they stand for.
+func escapeCases() [][2]string {
+	u := func(hex string) string { return `\` + "u" + hex }
+	return [][2]string{
+		{"escaped field names", `{"` + u("0076") + `endorListVersion":7,"vendors":{"` + u("0035") + `":{"` + u("0069") + `d":5,"` + u("0070") + `urposes":[1],"` + u("017f") + `pecialFeatures":[2],"specialPurpose` + u("0053") + `":[3]}}}`},
+		{"escaped strings", `{"vendorListVersion":7,"x":"` + u("0000") + u("d800") + u("dc00") + u("d800") + "x" + u("00e9") + u("dc00") + u("d83d") + u("0041") + u("D83D") + u("DE00") + `\/"}`},
+		{"escaped base64", `{"vendorListVersion":7,"vendors":{"1":{"id":1,"purposes":"` + u("0041") + "Q" + u("003d") + `=","legIntPurposes":"A` + u("000a") + `g=="}}}`},
+		{"escaped base64 surrogate", `{"vendorListVersion":7,"vendors":{"1":{"id":1,"purposes":"AQ` + u("d800") + `"}}}`},
+		{"escaped vendor keys collide", `{"vendorListVersion":7,"vendors":{"` + u("d800") + `":{"id":1},"` + u("dfff") + `":{"id":2},"` + u("fffd") + `":{"id":3,"purposes":[1]}}}`},
+		{"escaped key surrogate pair", `{"vendorListVersion":7,"vendors":{"1":{"id":1,"purposes":[1],"` + u("d835") + u("dc29") + `d":2}}}`},
+		{"escaped vendor key repeated", `{"vendorListVersion":7,"vendors":{"` + u("0039") + `":{"id":9,"purposes":[1]},"9":{"id":9,"purposes":[2]}}}`},
+		{"escaped long s key", `{"vendorListVersion":7,"vendors":{"1":{"id":1,"purpo` + u("017F") + `es":[4]}}}`},
+		{"escape invalid hex in key", `{"vendorListVersion":7,"` + u("00g0") + `":1}`},
+		{"escape truncated", `{"vendorListVersion":7,"x":"` + u("00e") + `"}`},
+	}
 }
 
 func manyVendors() string {
