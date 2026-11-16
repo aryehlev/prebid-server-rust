@@ -25,6 +25,12 @@ them, and `go test ./parity/schema/...` keeps the two in sync.
 | `transport/` | Parity `http.RoundTripper`: oracle-proxy and inline modes, `X-Parity-Meta`. |
 | `fakes/` | Deterministic clock, random and UUID sources for the 8 nondeterministic adapters. |
 | `wiring/` | Bootstrap glue used by `main.go` and `router/router.go`; everything is a no-op unless `parity.enabled`. |
+| `endpointtrace/` | One-line endpoint-stage hooks for `/openrtb2/auction`, `/openrtb2/amp` and `/openrtb2/video`; its package doc lists each endpoint stage payload. |
+| `shadow/` | Independent deep copies of a `RequestWrapper` for request snapshots, so hooks never rebuild the live wrapper. |
+| `stagedata/` | Payload types of the exchange stages (`hooks.processed_auction` to `exchange.response`). |
+| `corpus/` | Case loaders: adapter fixtures, sample requests, exchangetest, bidder params, stored data, seeds, and the `go/ast` builder-config extractor. Harness-only. |
+| `oracle/` | Mock oracle: loopback forward proxy, per-case plans, fixture replay, templates, content-addressed cache UUIDs, static currency and GVL. Harness-only. |
+| `fixtures/` | Static oracle data: `currency/latest.json` and the `gvl/v2`, `gvl/v3` vendor lists. |
 | `diff/` | The differ: normalization by the allowlist, semantic, lexical and wire comparison, attribution and clustering. Harness-only. |
 | `testdata/diff/` | Golden differ cases: a Go trace, a Rust trace and the exact mismatches expected. |
 
@@ -158,7 +164,9 @@ if s := trace.Current(); s != nil { s.Record(parity.StageBidderRequest, bidder, 
 `parity/stagedata`, which are the shared contract for those stages. Their field
 comments give each member's meaning, null and empty rules, and the sort key of
 every list Go builds from map iteration. Every entry carries `errors` and
-`warnings` lists, `[]` when there are none. A `bidder#call` key counts the
+`warnings` lists, `[]` when there are none. The `exchange.response` lists hold
+the error HoldAuction returned; the endpoint that called it attaches them, so
+the error appears once. A `bidder#call` key counts the
 `MakeRequests` output from 0 in order, then the bidder's stored bid responses in
 ascending imp ID order. Three stages leave out part of what `stages.json`
 lists, because capturing it would break the observer-effect rule:
@@ -394,6 +402,7 @@ is a no-op and `/__parity/*` is ordinary application traffic.
 | `adapters/{adnuntius,appnexus,flipp}` Builders | inject `fakes.Active()` into the existing time, random and UUID seams |
 | `adapters/{cadent_aperture_mx,huaweiads,tappx,yieldlab}` | `time.Now()` replaced by `fakes.Now()` |
 | `adapters/eplanning` | `rand.Int()` replaced by `fakes.Int()` |
+| `endpoints/openrtb2/{auction,amp_auction,video_auction}.go` | `endpointtrace.*` one-liners at the endpoint stages: entrypoint, stored fetch, account, raw auction, merge, normalize, stored responses, validate, GDPR, the HoldAuction and seat-non-bid errors, auction response, AMP targeting, exitpoint, hook outcomes, video pods and cache |
 | `exchange/exchange.go` | `HoldAuction` wraps `holdAuction` (`exchange.response`); stage hooks after the processed-auction hook stage, floors enrichment, setup, FPD, `cleanOpenRTBRequests`, `floors.Enforce`, category mapping, events, the all-processed-bid-responses hook stage, winners, targeting, `setSeatNonBid` and each bidder goroutine; `category.dedupe` in `randomDeduplicateBidBooleanGenerator.Generate` |
 | `exchange/bidder.go` | `requestBid` tracer `pt` (`hooks.bidder_request`, `adapter.requests`, `adapter.requests_final`, `adapter.bids` through `pt.makeBids`, `hooks.raw_bidder_response`, `bids.adjusted`); bidder context for the transport; `doRequest` short-circuit for `mock.level = bidder_response`; throttle note |
 | `exchange/utils.go` | `privacy.bidder` in the `cleanOpenRTBRequests` loop |

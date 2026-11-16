@@ -421,7 +421,8 @@ type TargetedBid struct {
 type SeatNonBids map[string][]openrtb_ext.NonBid
 
 // ExchangeResponse is the payload of exchange.response: what HoldAuction
-// returned. A HoldAuction error is the entry's error list.
+// returned. A HoldAuction error is the entry's error list, attached once by the
+// endpoint that called HoldAuction.
 type ExchangeResponse struct {
 	BidResponse    *openrtb2.BidResponse       `json:"bid_response"`
 	ExtBidResponse *openrtb_ext.ExtBidResponse `json:"ext_bid_response"`
