@@ -5,22 +5,29 @@
 // through the same promhttp handler server/prometheus.go uses, and writes the exposition text.
 // The Rust tests replay the same script and compare byte for byte.
 //
-// Run from the repository root:
+// Run from the repository root (the generated script is rewritten first, then every script is
+// replayed):
 //
 //	go run ./rust/crates/metrics/testdata/go \
-//	  -script rust/crates/metrics/testdata/scenarios.txt \
+//	  -gen rust/crates/metrics/testdata/scenarios_generated.txt
+//	go run ./rust/crates/metrics/testdata/go \
+//	  -script rust/crates/metrics/testdata/scenarios.txt,rust/crates/metrics/testdata/scenarios_generated.txt \
 //	  -out rust/crates/metrics/testdata/golden
 //
 // Script format (one directive per line, tokens separated by single spaces, every token value
 // percent-decoded with url.PathUnescape, '#' starts a comment line):
 //
 //	scenario <name>                start a new scenario
+//	digest_only                    pin only the digest of the scrape (no <scenario>.prom)
 //	namespace <value>              config.PrometheusMetrics.Namespace
 //	subsystem <value>              config.PrometheusMetrics.Subsystem
 //	disabled <flag>=<bool>...      config.DisabledMetrics fields by mapstructure key
 //	syncer <key>...                syncer keys passed to NewMetrics
 //	module <name> <stage>...       one moduleStageNames entry
 //	Record<Method> <key>=<value>...  one MetricsEngine call
+//
+// When NewMetrics panics (MustRegister rejects a family), the scrape is replaced by the line
+// "panic: <message>" and no call is replayed.
 //
 // The Go collector (go_* families) reports Go runtime state and is removed from the output.
 // Outputs written to -out:
@@ -30,6 +37,9 @@
 //	content_type.txt       the Content-Type the promhttp handler answers with
 //	core_bidder_names.txt  openrtb_ext.CoreBidderNames(), one per line
 //	float_g.txt            strconv.FormatFloat(f, 'g', -1, 64) table
+//	to_lower.txt           "<rune hex> <lower hex>" for every rune strings.ToLower changes
+//	quote_ranges.txt       "<lo hex> <hi hex>" runs of runes strconv.Quote escapes
+//	quote_samples.txt      "<rune hex> <strconv.Quote>" for sampled runes
 package main
 
 import (
@@ -47,6 +57,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/prebid/prebid-server/v4/config"
 	"github.com/prebid/prebid-server/v4/metrics"
@@ -56,12 +67,13 @@ import (
 )
 
 type scenario struct {
-	name     string
-	cfg      config.PrometheusMetrics
-	disabled config.DisabledMetrics
-	syncers  []string
-	modules  map[string][]string
-	calls    []call
+	name       string
+	digestOnly bool
+	cfg        config.PrometheusMetrics
+	disabled   config.DisabledMetrics
+	syncers    []string
+	modules    map[string][]string
+	calls      []call
 }
 
 type call struct {
@@ -70,16 +82,27 @@ type call struct {
 }
 
 func main() {
-	scriptPath := flag.String("script", "", "scenario script")
+	scriptPaths := flag.String("script", "", "comma-separated scenario scripts")
 	outDir := flag.String("out", "", "output directory")
+	genPath := flag.String("gen", "", "write the generated scenario script to this path and exit")
 	flag.Parse()
-	if *scriptPath == "" || *outDir == "" {
+	if *genPath != "" {
+		if err := os.WriteFile(*genPath, []byte(generateScenarios()), 0o644); err != nil {
+			log.Fatal(err)
+		}
+		return
+	}
+	if *scriptPaths == "" || *outDir == "" {
 		log.Fatal("both -script and -out are required")
 	}
 
-	scenarios, err := parseScript(*scriptPath)
-	if err != nil {
-		log.Fatal(err)
+	var scenarios []*scenario
+	for _, path := range strings.Split(*scriptPaths, ",") {
+		s, err := parseScript(path)
+		if err != nil {
+			log.Fatal(err)
+		}
+		scenarios = append(scenarios, s...)
 	}
 	if err := os.MkdirAll(*outDir, 0o755); err != nil {
 		log.Fatal(err)
@@ -90,11 +113,15 @@ func main() {
 		if err != nil {
 			log.Fatalf("scenario %s: %v", s.name, err)
 		}
-		if err := os.WriteFile(filepath.Join(*outDir, s.name+".prom"), []byte(keepSampleAdapters(body)), 0o644); err != nil {
-			log.Fatal(err)
+		if !s.digestOnly {
+			if err := os.WriteFile(filepath.Join(*outDir, s.name+".prom"), []byte(keepSampleAdapters(body)), 0o644); err != nil {
+				log.Fatal(err)
+			}
 		}
-		if err := os.WriteFile(filepath.Join(*outDir, "content_type.txt"), []byte(contentType+"\n"), 0o644); err != nil {
-			log.Fatal(err)
+		if contentType != "" {
+			if err := os.WriteFile(filepath.Join(*outDir, "content_type.txt"), []byte(contentType+"\n"), 0o644); err != nil {
+				log.Fatal(err)
+			}
 		}
 		h := fnv.New64a()
 		h.Write([]byte(body))
@@ -107,6 +134,12 @@ func main() {
 		log.Fatal(err)
 	}
 	if err := writeFloatTable(filepath.Join(*outDir, "float_g.txt")); err != nil {
+		log.Fatal(err)
+	}
+	if err := writeToLowerTable(filepath.Join(*outDir, "to_lower.txt")); err != nil {
+		log.Fatal(err)
+	}
+	if err := writeQuoteTables(filepath.Join(*outDir, "quote_ranges.txt"), filepath.Join(*outDir, "quote_samples.txt")); err != nil {
 		log.Fatal(err)
 	}
 }
@@ -152,6 +185,8 @@ func parseScript(path string) ([]*scenario, error) {
 			return nil, fmt.Errorf("line %d: directive before scenario", lineNo)
 		}
 		switch tokens[0] {
+		case "digest_only":
+			cur.digestOnly = true
 		case "namespace":
 			cur.cfg.Namespace = oneValue(tokens)
 		case "subsystem":
@@ -218,9 +253,23 @@ func setDisabled(d *config.DisabledMetrics, key string, v bool) error {
 	return nil
 }
 
+// newMetrics calls NewMetrics and returns the message of the panic MustRegister raises for a
+// family it rejects.
+func newMetrics(s *scenario) (m *prometheusmetrics.Metrics, panicked string) {
+	defer func() {
+		if r := recover(); r != nil {
+			panicked = fmt.Sprint(r)
+		}
+	}()
+	return prometheusmetrics.NewMetrics(s.cfg, s.disabled, s.syncers, s.modules), ""
+}
+
 func run(s *scenario) (string, string, error) {
 	s.cfg.Port = 8080
-	m := prometheusmetrics.NewMetrics(s.cfg, s.disabled, s.syncers, s.modules)
+	m, panicked := newMetrics(s)
+	if m == nil {
+		return "panic: " + panicked + "\n", "", nil
+	}
 	for _, c := range s.calls {
 		if err := replay(m, c); err != nil {
 			return "", "", fmt.Errorf("line %d: %v", c.line, err)
@@ -622,4 +671,360 @@ func writeFloatTable(path string) error {
 		fmt.Fprintf(&b, "%016x %s\n", math.Float64bits(v), strconv.FormatFloat(v, 'g', -1, 64))
 	}
 	return os.WriteFile(path, []byte(b.String()), 0o644)
+}
+
+// writeToLowerTable writes every rune that strings.ToLower (unicode.ToLower, rune by rune)
+// changes, with its lower case; every other rune maps to itself. The adapter label of every
+// adapter family is strings.ToLower of the bidder name.
+func writeToLowerTable(path string) error {
+	var b strings.Builder
+	for r := rune(0); r <= utf8.MaxRune; r++ {
+		if !utf8.ValidRune(r) {
+			continue
+		}
+		lower := []rune(strings.ToLower(string(r)))
+		if len(lower) != 1 {
+			return fmt.Errorf("strings.ToLower(%U) has %d runes", r, len(lower))
+		}
+		if lower[0] != r {
+			fmt.Fprintf(&b, "%x %x\n", r, lower[0])
+		}
+	}
+	return os.WriteFile(path, []byte(b.String()), 0o644)
+}
+
+// writeQuoteTables writes the runs of runes that strconv.Quote (the %q verb of the registration
+// error texts) escapes, and the exact quoting of every rune below 0x100, every run boundary and
+// a random sample.
+func writeQuoteTables(rangesPath, samplesPath string) error {
+	escaped := func(r rune) bool { return strconv.Quote(string(r)) != `"`+string(r)+`"` }
+	var runs [][2]rune
+	for r := rune(0); r <= utf8.MaxRune; r++ {
+		if !utf8.ValidRune(r) || !escaped(r) {
+			continue
+		}
+		if n := len(runs); n > 0 && runs[n-1][1] == r-1 {
+			runs[n-1][1] = r
+		} else {
+			runs = append(runs, [2]rune{r, r})
+		}
+	}
+	var ranges, samples strings.Builder
+	sample := func(r rune) {
+		if utf8.ValidRune(r) {
+			fmt.Fprintf(&samples, "%x %s\n", r, strconv.Quote(string(r)))
+		}
+	}
+	for r := rune(0); r < 0x100; r++ {
+		sample(r)
+	}
+	for _, run := range runs {
+		fmt.Fprintf(&ranges, "%x %x\n", run[0], run[1])
+		sample(run[0] - 1)
+		sample(run[0])
+		sample(run[1])
+		sample(run[1] + 1)
+	}
+	rnd := rand.New(rand.NewSource(20261117))
+	for i := 0; i < 3000; i++ {
+		sample(rune(rnd.Int63n(utf8.MaxRune + 1)))
+	}
+	if err := os.WriteFile(rangesPath, []byte(ranges.String()), 0o644); err != nil {
+		return err
+	}
+	return os.WriteFile(samplesPath, []byte(samples.String()), 0o644)
+}
+
+// generateScenarios returns the machine-generated script: every combination of the
+// registration toggles, namespace, subsystem and module names that NewMetrics accepts or
+// rejects, and a long randomized call sequence.
+func generateScenarios() string {
+	var b strings.Builder
+	b.WriteString("# Generated by testdata/go/main.go -gen; regenerate instead of editing.\n")
+	writeDisabledCombos(&b)
+	writePrefixCases(&b)
+	writeRandomCalls(&b, 1500)
+	return b.String()
+}
+
+func esc(s string) string { return url.PathEscape(s) }
+
+// writeDisabledCombos writes 32 scenarios: bits 0-3 toggle the four flags that decide which
+// families NewMetrics registers, bit 4 and the low bits toggle the account flags that decide
+// what is recorded. The dial calls are made only when Go registers the dial families (Go's only
+// caller, exchange/bidder.go, makes them only then; otherwise Go dereferences nil).
+func writeDisabledCombos(b *strings.Builder) {
+	bit := func(i, n int) bool { return i>>n&1 == 1 }
+	for i := 0; i < 32; i++ {
+		conn, dial := bit(i, 0), bit(i, 1)
+		fmt.Fprintf(b, "\nscenario disabled_combo_%02d\ndigest_only\nnamespace pbs\nsubsystem dc\n", i)
+		fmt.Fprintf(b, "disabled adapter_connections_metrics=%t adapter_connections_dial_metrics=%t adapter_buyeruid_scrubbed=%t adapter_gdpr_request_blocked=%t account_adapter_details=%t account_debug=%t account_stored_responses=%t account_modules_metrics=%t\n",
+			conn, dial, bit(i, 2), bit(i, 3), bit(i, 4), bit(i, 0) != bit(i, 4), bit(i, 1) != bit(i, 4), bit(i, 2))
+		b.WriteString("syncer adnxs\nmodule mod_a entrypoint\n")
+		b.WriteString(`RecordRequest rtype=openrtb2-web pub=acct status=ok cookie=no size=500
+RecordDebugRequest enabled=true pub=acct
+RecordDebugRequest enabled=true pub=unknown
+RecordStoredResponse pub=acct
+RecordStoredResponse pub=unknown
+RecordAdapterConnections adapter=AppNexus reused=true d=1000
+RecordAdapterConnections adapter=NotCore reused=false d=2000000
+RecordAdapterBuyerUIDScrubbed adapter=AppNexus
+RecordAdapterGDPRRequestBlocked adapter=PubMatic
+RecordBidValidationCreativeSizeError adapter=AppNexus account=acct
+RecordBidValidationCreativeSizeWarn adapter=AppNexus account=unknown
+RecordBidValidationSecureMarkupError adapter=Rubicon account=acct
+RecordBidValidationSecureMarkupWarn adapter=Rubicon account=acct
+RecordModuleCalled module=mod_a stage=entrypoint d=1000000
+`)
+		if !conn && !dial {
+			b.WriteString("RecordAdapterConnectionDialError adapter=AppNexus\nRecordAdapterConnectionDialTime adapter=AppNexus d=3000000000\n")
+		}
+	}
+}
+
+// writePrefixCases writes namespaces, subsystems and module names that make valid family names
+// (pinned by digest) and names MustRegister rejects (pinned by the panic text, whose %q quoting
+// escapes non-printable runes).
+func writePrefixCases(b *strings.Builder) {
+	type prefixCase struct {
+		ns, sub string
+		modules []string
+	}
+	cases := []prefixCase{
+		{ns: "a:b", sub: "c:d"},
+		{ns: "_", sub: "_"},
+		{ns: ":"},
+		{ns: "Ns9", sub: "1"},
+		{sub: "sub_9", modules: []string{""}},
+		{ns: "1x"},
+		{sub: "9"},
+		{ns: "x-y", sub: "sub"},
+		{ns: "é"},
+		{ns: "a b"},
+		{ns: "q\"uote", sub: "back\\slash"},
+		{ns: "tab\t"},
+		{ns: "nl\n"},
+		{ns: "del\x7f"},
+		{ns: "c1\u0085"},
+		{ns: "soft­hyphen"},
+		{ns: "nbsp "},
+		{ns: "unassigned͸"},
+		{ns: "newᲉcase"},
+		{ns: "ok", modules: []string{"bad-name"}},
+		{ns: "ok", modules: []string{"fine", "bad.name"}},
+		{ns: "ok", modules: []string{"é"}},
+		{ns: "ok", modules: []string{"zero​width"}},
+		{ns: "ok", modules: []string{"emoji\U0001f600"}},
+		{ns: "ok", modules: []string{"tag\U000e0001"}},
+		{ns: "ok", modules: []string{"private\U000f0000"}},
+	}
+	for i, c := range cases {
+		fmt.Fprintf(b, "\nscenario prefix_%02d\n", i)
+		if c.ns != "" {
+			fmt.Fprintf(b, "namespace %s\n", esc(c.ns))
+		}
+		if c.sub != "" {
+			fmt.Fprintf(b, "subsystem %s\n", esc(c.sub))
+		}
+		for _, m := range c.modules {
+			fmt.Fprintf(b, "module %s stage%%20one\n", esc(m))
+		}
+		// A valid configuration is pinned by its digest only; a rejected one is one line.
+		valid := true
+		func() {
+			defer func() {
+				if recover() != nil {
+					valid = false
+				}
+			}()
+			modules := map[string][]string{}
+			for _, m := range c.modules {
+				modules[m] = []string{"stage one"}
+			}
+			prometheusmetrics.NewMetrics(config.PrometheusMetrics{Namespace: c.ns, Subsystem: c.sub}, config.DisabledMetrics{}, nil, modules)
+		}()
+		if valid {
+			b.WriteString("digest_only\nRecordRequest rtype=amp pub=p status=ok\n")
+			for _, m := range c.modules {
+				fmt.Fprintf(b, "RecordModuleCalled module=%s stage=stage%%20one d=5\n", esc(m))
+			}
+		}
+	}
+}
+
+// writeRandomCalls writes one scenario with n random calls spread over every method, with label
+// values that need escaping or Unicode case mapping and values that exercise float formatting.
+func writeRandomCalls(b *strings.Builder, n int) {
+	r := rand.New(rand.NewSource(20261117))
+	pick := func(values ...string) string { return values[r.Intn(len(values))] }
+	adapters := []string{
+		"AppNexus", "APPNEXUS", "pubmatic", "PubMatic", "Rubicon", "33ACROSS", "ZmatiCoo",
+		"AdkernelADN", "NotCore", "Àccent", "Ᲊnew", "ΣIGMA", "İstanbul",
+		"Straße", "Ⱟglagolitic", "q\"uote\\bidder", "new\nline", "\U00010d50garay",
+	}
+	accounts := []string{"acct1", "acct2", "unknown", "", "spécial", "q\"uote", "\U0001f600"}
+	syncers := []string{"adnxs", "rubicon", "pubmatic", "unknown-syncer", "sp ace"}
+	stages := []string{"entrypoint", "raw_auction_request", "new_stage"}
+	modules := []string{"mod_a", "mod_b"}
+	rtypes := []string{"", "openrtb2-web", "openrtb2-app", "openrtb2-dooh", "amp", "video"}
+	statuses := []string{"", "ok", "badinput", "err", "networkerr", "blockedapp", "queuetimeout", "acctconfigerr"}
+	cookies := []string{"", "exists", "no", "unknown"}
+	sources := []string{"", "web", "app", "dooh", "unknown"}
+	adapterErrors := []string{"badinput", "badserverresponse", "timeout", "failedtorequestbid", "validation", "tmaxtimeout", "unknown_error"}
+	storedTypes := []string{"", "account", "amp", "category", "request", "video", "response"}
+	boolean := func() string { return strconv.FormatBool(r.Intn(2) == 1) }
+	duration := func() string {
+		switch r.Intn(10) {
+		case 0:
+			return strconv.FormatInt(r.Int63n(400_000_000_000), 10)
+		case 1:
+			return strconv.FormatInt(-r.Int63n(5_000_000_000), 10)
+		case 2:
+			return strconv.FormatInt(r.Int63n(1000), 10)
+		default:
+			return strconv.FormatInt(r.Int63n(3_000_000_000), 10)
+		}
+	}
+	cpm := func() string {
+		var f float64
+		switch r.Intn(6) {
+		case 0:
+			f = float64(r.Intn(9)+1) * 500
+		case 1:
+			f = r.Float64() * 1e-3
+		case 2:
+			f = float64(r.Intn(100000)) / 100
+		default:
+			f = r.Float64() * 5000
+		}
+		return strconv.FormatFloat(f, 'g', -1, 64)
+	}
+	adapterLabels := func() string {
+		s := fmt.Sprintf("adapter=%s cookie=%s bids=%s source=%s rtype=%s pub=%s",
+			esc(pick(adapters...)), pick(cookies...), pick("", "bid", "nobid"), pick(sources...), pick(rtypes...), esc(pick(accounts...)))
+		if r.Intn(3) == 0 {
+			var errs []string
+			for _, e := range adapterErrors {
+				if r.Intn(3) == 0 {
+					errs = append(errs, e)
+				}
+			}
+			if len(errs) > 0 {
+				s += " errors=" + strings.Join(errs, ",")
+			}
+		}
+		return s
+	}
+	calls := []func() string{
+		func() string { return "RecordConnectionAccept success=" + boolean() },
+		func() string { return "RecordConnectionClose success=" + boolean() },
+		func() string { return "RecordTMaxTimeout" },
+		func() string {
+			return fmt.Sprintf("RecordRequest source=%s rtype=%s pub=%s cookie=%s status=%s size=%d",
+				pick(sources...), pick(rtypes...), esc(pick(accounts...)), pick(cookies...), pick(statuses...), r.Intn(200000))
+		},
+		func() string {
+			return fmt.Sprintf("RecordImps banner=%s video=%s audio=%s native=%s", boolean(), boolean(), boolean(), boolean())
+		},
+		func() string {
+			return fmt.Sprintf("RecordRequestTime rtype=%s status=%s d=%s", pick(rtypes...), pick(statuses...), duration())
+		},
+		func() string {
+			return fmt.Sprintf("RecordOverheadTime type=%s d=%s", pick("", "pre-bidder", "make-auction-response", "make-bidder-requests"), duration())
+		},
+		func() string { return "RecordAdapterRequest " + adapterLabels() },
+		func() string {
+			return fmt.Sprintf("RecordAdapterConnections adapter=%s reused=%s d=%s", esc(pick(adapters...)), boolean(), duration())
+		},
+		func() string { return "RecordDNSTime d=" + duration() },
+		func() string { return "RecordTLSHandshakeTime d=" + duration() },
+		func() string { return "RecordBidderServerResponseTime d=" + duration() },
+		func() string { return "RecordAdapterPanic " + adapterLabels() },
+		func() string {
+			return fmt.Sprintf("RecordAdapterBidReceived %s bidtype=%s adm=%s", adapterLabels(), pick("banner", "video", "native", "audio"), boolean())
+		},
+		func() string { return fmt.Sprintf("RecordAdapterPrice %s cpm=%s", adapterLabels(), cpm()) },
+		func() string { return fmt.Sprintf("RecordAdapterTime %s d=%s", adapterLabels(), duration()) },
+		func() string {
+			return "RecordCookieSync status=" + pick("ok", "bad_request", "opt_out", "gdpr_blocked_host_cookie", "acct_blocked", "acct_config_malformed", "acct_invalid")
+		},
+		func() string {
+			return fmt.Sprintf("RecordSyncerRequest key=%s status=%s", esc(pick(syncers...)), pick("ok", "privacy_blocked", "already_synced", "rejected_by_filter"))
+		},
+		func() string {
+			return "RecordSetUid status=" + pick("ok", "bad_request", "opt_out", "gdpr_blocked_host_cookie", "acct_blocked", "acct_config_malformed", "acct_invalid", "syncer_unknown")
+		},
+		func() string {
+			return fmt.Sprintf("RecordSyncerSet key=%s status=%s", esc(pick(syncers...)), pick("ok", "cleared"))
+		},
+		func() string {
+			return fmt.Sprintf("RecordStoredReqCacheResult result=%s inc=%d", pick("hit", "miss"), r.Intn(100000))
+		},
+		func() string {
+			return fmt.Sprintf("RecordStoredImpCacheResult result=%s inc=%d", pick("hit", "miss"), r.Intn(100000))
+		},
+		func() string {
+			return fmt.Sprintf("RecordAccountCacheResult result=%s inc=%d", pick("hit", "miss"), r.Intn(100000))
+		},
+		func() string {
+			return fmt.Sprintf("RecordStoredDataFetchTime type=%s fetch=%s d=%s", pick(storedTypes...), pick("", "all", "delta"), duration())
+		},
+		func() string {
+			return fmt.Sprintf("RecordStoredDataError type=%s error=%s", pick(storedTypes...), pick("", "network", "undefined"))
+		},
+		func() string {
+			return fmt.Sprintf("RecordFetcherResult subsystem=%s result=%s", esc(pick("account", "stored_request", "sp ace")), pick("hit", "miss", "negative"))
+		},
+		func() string {
+			return fmt.Sprintf("RecordFetcherBackendFetch subsystem=%s operation=%s result=%s d=%s",
+				esc(pick("account", "stored_request")), pick("get", "start", "background_refresh"), pick("ok", "notfound", "error"), duration())
+		},
+		func() string {
+			return fmt.Sprintf("RecordPrebidCacheRequestTime success=%s d=%s", boolean(), duration())
+		},
+		func() string {
+			return fmt.Sprintf("RecordRequestQueueTime success=%s rtype=%s d=%s", boolean(), pick(rtypes...), duration())
+		},
+		func() string { return "RecordTimeoutNotice success=" + boolean() },
+		func() string {
+			return fmt.Sprintf("RecordRequestPrivacy ccpa_enforced=%s ccpa_provided=%s coppa=%s gdpr=%s tcf=%s lmt=%s",
+				boolean(), boolean(), boolean(), boolean(), pick("", "err", "v2"), boolean())
+		},
+		func() string { return "RecordAdapterBuyerUIDScrubbed adapter=" + esc(pick(adapters...)) },
+		func() string { return "RecordAdapterGDPRRequestBlocked adapter=" + esc(pick(adapters...)) },
+		func() string {
+			return fmt.Sprintf("RecordDebugRequest enabled=%s pub=%s", boolean(), esc(pick(accounts...)))
+		},
+		func() string { return "RecordStoredResponse pub=" + esc(pick(accounts...)) },
+		func() string { return "RecordGvlListRequest" },
+		func() string { return "RecordLiveGVLFetch success=" + boolean() },
+		func() string { return "RecordAdsCertReq success=" + boolean() },
+		func() string { return "RecordAdsCertSignTime d=" + duration() },
+		func() string {
+			return fmt.Sprintf("%s adapter=%s account=%s",
+				pick("RecordBidValidationCreativeSizeError", "RecordBidValidationCreativeSizeWarn", "RecordBidValidationSecureMarkupError", "RecordBidValidationSecureMarkupWarn"),
+				esc(pick(adapters...)), esc(pick(accounts...)))
+		},
+		func() string {
+			return fmt.Sprintf("RecordModuleCalled module=%s stage=%s account=%s d=%s", pick(modules...), pick(stages...), esc(pick(accounts...)), duration())
+		},
+		func() string {
+			return fmt.Sprintf("%s module=%s stage=%s",
+				pick("RecordModuleFailed", "RecordModuleSuccessNooped", "RecordModuleSuccessUpdated", "RecordModuleSuccessRejected", "RecordModuleExecutionError", "RecordModuleTimeout"),
+				pick(modules...), pick(stages...))
+		},
+		func() string { return "RecordAdapterThrottled adapter=" + esc(pick(adapters...)) },
+		func() string { return "RecordAdapterConnectionDialError adapter=" + esc(pick(adapters...)) },
+		func() string {
+			return fmt.Sprintf("RecordAdapterConnectionDialTime adapter=%s d=%s", esc(pick(adapters...)), duration())
+		},
+	}
+	b.WriteString("\nscenario random_calls\nnamespace rnd\n")
+	b.WriteString("disabled account_adapter_details=false account_debug=false account_stored_responses=false adapter_connections_metrics=false adapter_connections_dial_metrics=false adapter_buyeruid_scrubbed=false adapter_gdpr_request_blocked=false\n")
+	b.WriteString("syncer adnxs rubicon pubmatic sp%20ace\n")
+	b.WriteString("module mod_a entrypoint raw_auction_request\nmodule mod_b entrypoint\n")
+	for i := 0; i < n; i++ {
+		b.WriteString(calls[r.Intn(len(calls))]())
+		b.WriteByte('\n')
+	}
 }

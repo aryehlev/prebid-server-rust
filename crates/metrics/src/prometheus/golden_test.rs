@@ -1,10 +1,13 @@
-//! The differential test against Go: replays `testdata/scenarios.txt` through the Rust engine and
+//! The differential test against Go: replays `testdata/scenarios.txt` and the generated
+//! `testdata/scenarios_generated.txt` (written by `testdata/go -gen`) through the Rust engine and
 //! compares the scrape with the output of the Go engine written by `testdata/go` to
 //! `testdata/golden/`.
 //!
 //! The committed `<scenario>.prom` files hold the scrape reduced to a few sample core bidders (the
 //! full scrape repeats every adapter family for all core bidders); `digests.txt` pins the length
 //! and FNV-1a 64 hash of every complete scrape, so the full Rust scrape is compared too.
+//! `digest_only` scenarios have no `.prom` file. Where Go's `NewMetrics` panics, the scrape is the
+//! line `panic: <message>`, compared with the Rust registration error.
 
 use std::{
     collections::{BTreeMap, BTreeSet},
@@ -39,6 +42,8 @@ const SAMPLE_ADAPTERS: [&str; 6] = [
 #[derive(Debug, Default)]
 struct Scenario {
     name: String,
+    /// Go: `digestOnly` — only the digest of the full scrape is pinned.
+    digest_only: bool,
     cfg: PrometheusMetrics,
     disabled: DisabledMetrics,
     syncers: Vec<String>,
@@ -110,6 +115,7 @@ fn parse_script(text: &str) -> Result<Vec<Scenario>, Box<dyn Error>> {
             .ok_or_else(|| format!("line {line_no}: directive before scenario"))?;
         let first = args.first().cloned().unwrap_or_default();
         match directive {
+            "digest_only" => cur.digest_only = true,
             "namespace" => cur.cfg.namespace = first,
             "subsystem" => cur.cfg.subsystem = first,
             "disabled" => {
@@ -522,9 +528,38 @@ fn first_difference(expected: &str, actual: &str) -> String {
     "no line differs".to_owned()
 }
 
+/// The scrape of one scenario, or `panic: <message>` when Go's `NewMetrics` panics (the Rust
+/// engine returns the registration error instead) and no call is replayed.
+fn scrape(s: &Scenario, core_bidder_names: &[String]) -> Result<String, Box<dyn Error>> {
+    let cfg = PrometheusMetrics {
+        port: 8080,
+        ..s.cfg.clone()
+    };
+    let m = match Metrics::new(&cfg, s.disabled, &s.syncers, &s.modules, core_bidder_names) {
+        Ok(m) => m,
+        Err(err) => return Ok(format!("panic: {err}\n")),
+    };
+    for (line_no, tokens) in &s.calls {
+        replay(&m, tokens).map_err(|e| format!("{}: line {line_no}: {e}", s.name))?;
+    }
+    Ok(m.text_exposition())
+}
+
+/// The hand-written script followed by the one `testdata/go -gen` writes (Go: the `-script`
+/// list of the generator).
+fn all_scenarios() -> Result<Vec<Scenario>, Box<dyn Error>> {
+    let mut scenarios = Vec::new();
+    for script in ["scenarios.txt", "scenarios_generated.txt"] {
+        scenarios.extend(parse_script(&fs::read_to_string(format!(
+            "{TESTDATA}/{script}"
+        ))?)?);
+    }
+    Ok(scenarios)
+}
+
 #[test]
 fn scrapes_match_go_byte_for_byte() -> TestResult {
-    let scenarios = parse_script(&fs::read_to_string(format!("{TESTDATA}/scenarios.txt"))?)?;
+    let scenarios = all_scenarios()?;
     let digests_text = fs::read_to_string(format!("{TESTDATA}/golden/digests.txt"))?;
     let mut digests = BTreeMap::new();
     for line in digests_text.lines() {
@@ -543,40 +578,44 @@ fn scrapes_match_go_byte_for_byte() -> TestResult {
     let core: BTreeSet<String> = core_bidder_names.iter().map(|n| to_lower(n)).collect();
 
     ensure!(
-        scenarios.len() >= 6,
-        "the script has {} scenarios",
+        scenarios.len() >= 60,
+        "the scripts have {} scenarios",
         scenarios.len()
     );
     ensure_eq!(digests.len(), scenarios.len(), "one digest per scenario");
+    let mut failures = Vec::new();
     for s in &scenarios {
-        let cfg = PrometheusMetrics {
-            port: 8080,
-            ..s.cfg.clone()
-        };
-        let m = Metrics::new(&cfg, s.disabled, &s.syncers, &s.modules, &core_bidder_names)?;
-        for (line_no, tokens) in &s.calls {
-            replay(&m, tokens).map_err(|e| format!("{}: line {line_no}: {e}", s.name))?;
-        }
-        let body = m.text_exposition();
+        let body = scrape(s, &core_bidder_names)?;
 
-        let golden = fs::read_to_string(format!("{TESTDATA}/golden/{}.prom", s.name))?;
-        let filtered = keep_sample_adapters(&body, &core);
-        ensure!(
-            filtered == golden,
-            "{}: the sample scrape differs from Go: {}",
-            s.name,
-            first_difference(&golden, &filtered)
-        );
+        if !s.digest_only {
+            let golden = fs::read_to_string(format!("{TESTDATA}/golden/{}.prom", s.name))?;
+            let filtered = keep_sample_adapters(&body, &core);
+            if filtered != golden {
+                failures.push(format!(
+                    "{}: the sample scrape differs from Go: {}",
+                    s.name,
+                    first_difference(&golden, &filtered)
+                ));
+                continue;
+            }
+        }
 
         let (len, hash) = digests.get(&s.name).copied().ok_or("missing digest")?;
-        ensure_eq!(body.len(), len, "{}: full scrape length", s.name);
-        ensure_eq!(
-            fnv1a64(body.as_bytes()),
-            hash,
-            "{}: full scrape FNV-1a",
-            s.name
-        );
+        let actual = (body.len(), fnv1a64(body.as_bytes()));
+        if actual != (len, hash) {
+            failures.push(format!(
+                "{}: full scrape (length, FNV-1a) {actual:?}, Go ({len}, {hash})",
+                s.name
+            ));
+        }
     }
+    ensure!(
+        failures.is_empty(),
+        "{} of {} scenarios differ from Go:\n{}",
+        failures.len(),
+        scenarios.len(),
+        failures.join("\n")
+    );
     Ok(())
 }
 

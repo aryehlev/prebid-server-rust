@@ -161,19 +161,50 @@ fn fmt_f(out: &mut String, digits: &[u8], nd: i64, dp: i64) {
 }
 
 /// Go: `strings.ToLower`, which maps every rune with `unicode.ToLower` (the simple, one-rune
-/// case mapping; it is the first rune of the full mapping).
+/// case mapping) with Go's Unicode tables, not the toolchain's (`goconv_tables.rs`).
 #[must_use]
 pub fn to_lower(s: &str) -> String {
     if s.is_ascii() {
         return s.to_ascii_lowercase();
     }
-    s.chars()
-        .map(|c| c.to_lowercase().next().unwrap_or(c))
-        .collect()
+    s.chars().map(to_lower_rune).collect()
 }
 
-/// Go: `strconv.Quote`, as `fmt`'s `%q` verb prints a string. Exact for ASCII; non-ASCII
-/// characters other than control characters are kept as they are.
+/// Go: `unicode.ToLower`.
+fn to_lower_rune(c: char) -> char {
+    if c.is_ascii() {
+        return c.to_ascii_lowercase();
+    }
+    let r = u32::from(c);
+    let (runs, _) = tables::LOWER_RUNS.as_chunks::<4>();
+    let index = runs.partition_point(|&[_, last, _, _]| last < r);
+    match runs.get(index) {
+        Some(&[first, _, step, first_lower])
+            if first <= r && (r - first).checked_rem(step) == Some(0) =>
+        {
+            char::from_u32(first_lower + (r - first)).unwrap_or(c)
+        }
+        _ => c,
+    }
+}
+
+/// Go: `strconv.IsPrint` (letters, marks, numbers, punctuation, symbols and the ASCII space),
+/// with Go's Unicode tables.
+fn is_print(c: char) -> bool {
+    if c.is_ascii() {
+        return c == ' ' || c.is_ascii_graphic();
+    }
+    let r = u32::from(c);
+    let (runs, _) = tables::NOT_PRINTABLE.as_chunks::<2>();
+    let index = runs.partition_point(|&[_, last]| last < r);
+    runs.get(index).is_none_or(|&[first, _]| first > r)
+}
+
+/// Go: `strconv.Quote`, as `fmt`'s `%q` verb prints a string.
+///
+/// `"` and `\` are backslashed, printable runes (Go's `strconv.IsPrint`) are kept, and every
+/// other rune is escaped (`\a`, `\b`, `\f`, `\n`, `\r`, `\t`, `\v`, `\xXX` below U+0020 and for
+/// DEL, `\uXXXX`, `\UXXXXXXXX`), as `strconv/quote.go` `appendEscapedRune` does.
 #[must_use]
 pub fn quote(s: &str) -> String {
     let mut out = String::with_capacity(s.len() + 2);
@@ -182,6 +213,7 @@ pub fn quote(s: &str) -> String {
         match c {
             '"' => out.push_str("\\\""),
             '\\' => out.push_str("\\\\"),
+            c if is_print(c) => out.push(c),
             '\u{7}' => out.push_str("\\a"),
             '\u{8}' => out.push_str("\\b"),
             '\u{c}' => out.push_str("\\f"),
@@ -189,12 +221,9 @@ pub fn quote(s: &str) -> String {
             '\r' => out.push_str("\\r"),
             '\t' => out.push_str("\\t"),
             '\u{b}' => out.push_str("\\v"),
-            c if c.is_ascii_control() => push_hex_escape(&mut out, "\\x", u32::from(c), 2),
-            c if c.is_control() && u32::from(c) > 0xFFFF => {
-                push_hex_escape(&mut out, "\\U", u32::from(c), 8);
-            }
-            c if c.is_control() => push_hex_escape(&mut out, "\\u", u32::from(c), 4),
-            c => out.push(c),
+            c if c < ' ' || c == '\u{7f}' => push_hex_escape(&mut out, "\\x", u32::from(c), 2),
+            c if u32::from(c) < 0x1_0000 => push_hex_escape(&mut out, "\\u", u32::from(c), 4),
+            c => push_hex_escape(&mut out, "\\U", u32::from(c), 8),
         }
     }
     out.push('"');
@@ -209,6 +238,9 @@ fn push_hex_escape(out: &mut String, prefix: &str, value: u32, width: u32) {
         out.push(char::from_digit(nibble, 16).unwrap_or('0'));
     }
 }
+
+#[path = "goconv_tables.rs"]
+mod tables;
 
 #[cfg(test)]
 #[path = "goconv_test.rs"]

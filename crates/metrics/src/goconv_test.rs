@@ -1,4 +1,4 @@
-use std::{error::Error, fs};
+use std::{collections::BTreeMap, error::Error, fs};
 
 use super::{f64_to_u64_exact, format_float_g, i64_to_f64, quote, to_lower, u64_to_f64};
 
@@ -81,6 +81,89 @@ fn to_lower_uses_simple_case_mapping() -> TestResult {
         "\u{3c3}\u{3c3}",
         "no final sigma rule"
     );
+    Ok(())
+}
+
+const GOLDEN: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/testdata/golden");
+
+/// Parses the `<hex> <hex>` lines of a Go golden.
+fn hex_pairs(name: &str) -> Result<Vec<(u32, u32)>, Box<dyn Error>> {
+    let text = fs::read_to_string(format!("{GOLDEN}/{name}"))?;
+    text.lines()
+        .map(|line| {
+            let (a, b) = line.split_once(' ').ok_or("malformed line")?;
+            Ok((u32::from_str_radix(a, 16)?, u32::from_str_radix(b, 16)?))
+        })
+        .collect()
+}
+
+/// Every code point against `testdata/golden/to_lower.txt`, Go's `strings.ToLower` of every
+/// rune it changes. Rust's own lowercase tables (a newer Unicode version) lower 75 runes Go
+/// keeps, such as U+1C89 and the Garay capitals U+10D50..U+10D65.
+#[test]
+fn to_lower_matches_go_for_every_rune() -> TestResult {
+    let go: BTreeMap<u32, u32> = hex_pairs("to_lower.txt")?.into_iter().collect();
+    ensure!(go.len() > 1400, "the table has {} runes", go.len());
+    let mut mapped = 0_usize;
+    for c in (0..=0x10_FFFF_u32).filter_map(char::from_u32) {
+        let expected = go
+            .get(&u32::from(c))
+            .copied()
+            .map_or(Some(c), char::from_u32)
+            .ok_or("invalid lower case")?;
+        let actual = to_lower(c.encode_utf8(&mut [0; 4]));
+        ensure_eq!(
+            actual,
+            expected.to_string(),
+            "strings.ToLower({:?}) (U+{:04X})",
+            c,
+            u32::from(c)
+        );
+        mapped += usize::from(expected != c);
+    }
+    ensure_eq!(mapped, go.len(), "runes Go lowers");
+    ensure_eq!(
+        to_lower("\u{1C89}\u{10D50}AbC\u{C0}"),
+        "\u{1C89}\u{10D50}abc\u{E0}",
+        "runes added after Unicode 15 stay unchanged"
+    );
+    Ok(())
+}
+
+/// Every code point against `testdata/golden/quote_ranges.txt`, the runs of runes Go's
+/// `strconv.Quote` escapes, and `testdata/golden/quote_samples.txt`, the exact quoting of the run
+/// boundaries, Latin-1 and random runes.
+#[test]
+fn quote_matches_go_for_every_rune() -> TestResult {
+    let ranges = hex_pairs("quote_ranges.txt")?;
+    ensure!(ranges.len() > 700, "{} escaped runs", ranges.len());
+    let escaped_by_go = |r: u32| {
+        let index = ranges.partition_point(|(_, hi)| *hi < r);
+        ranges.get(index).is_some_and(|(lo, _)| *lo <= r)
+    };
+    for c in (0..=0x10_FFFF_u32).filter_map(char::from_u32) {
+        let raw = format!("\"{c}\"");
+        ensure_eq!(
+            quote(c.encode_utf8(&mut [0; 4])) != raw,
+            escaped_by_go(u32::from(c)),
+            "whether strconv.Quote escapes U+{:04X}",
+            u32::from(c)
+        );
+    }
+
+    let samples = fs::read_to_string(format!("{GOLDEN}/quote_samples.txt"))?;
+    let mut checked = 0_usize;
+    for line in samples.lines() {
+        let (rune, expected) = line.split_once(' ').ok_or("malformed sample")?;
+        let c = char::from_u32(u32::from_str_radix(rune, 16)?).ok_or("invalid rune")?;
+        ensure_eq!(
+            quote(c.encode_utf8(&mut [0; 4])),
+            expected,
+            "strconv.Quote(U+{rune})"
+        );
+        checked += 1;
+    }
+    ensure!(checked > 5000, "{checked} samples");
     Ok(())
 }
 
