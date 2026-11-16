@@ -669,5 +669,19 @@ func buildFuzzVendorListCases() []vendorListCase {
 	for i := 0; i < 500; i++ {
 		add(fmt.Sprintf("fuzz edited doc #%d", i), edited)
 	}
+	// Go struct field names instead of the json tags: a tagged field is matched by its tag only,
+	// so "Version" and "LegitimateInterests" are unknown keys while "Vendors" and "ID" fold to
+	// their tags.
+	for _, c := range [][2]string{
+		{"go field name Version", `{"Version":5,"vendorListVersion":0}`},
+		{"go field name Version only", `{"Version":5}`},
+		{"go field names contract", `{"GVLSpecificationVersion":3,"vendorListVersion":4,"Vendors":{"1":{"ID":1,"Purposes":[1],"LegitimateInterests":[2],"FlexiblePurposes":[3],"SpecialPurposes":[1],"SpecialFeatures":[2]}}}`},
+		{"go field name LegitimateInterests type", `{"vendorListVersion":4,"vendors":{"1":{"id":1,"LegitimateInterests":true,"legIntPurposes":[5]}}}`},
+		{"folded key error context", `{"vendorListVersion":4,"vendors":{"1":{"id":1,"PURPOSES":true}}}`},
+		{"folded contract key error context", `{"VENDORLISTVERSION":"4"}`},
+	} {
+		doc := c[1]
+		add("fuzz "+c[0], func() string { return doc })
+	}
 	return out
 }
