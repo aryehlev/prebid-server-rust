@@ -51,6 +51,8 @@ func main() {
 	write(*out, "base64.txt", base64Golden(r))
 	write(*out, "write.txt", writeGolden(r))
 	write(*out, "encode.txt", encodeGolden(r))
+	// edge.txt has its own random source so that adding to it never changes the files above.
+	write(*out, "edge.txt", edgeGolden(rand.New(rand.NewSource(edgeSeed))))
 }
 
 func write(dir, name string, lines []string) {
@@ -114,6 +116,11 @@ func parseGolden(r *rand.Rand) []string {
 }
 
 func dumpParse(s string) string {
+	return dumpParseQ(s, esc)
+}
+
+// dumpParseQ is dumpParse with every string written through q.
+func dumpParseQ(s string, q func(string) string) string {
 	container, errs := gpp.Parse(s)
 	var b strings.Builder
 	fmt.Fprintf(&b, "v=%d t=[", container.Version)
@@ -128,27 +135,27 @@ func dumpParse(s string) string {
 		if i > 0 {
 			b.WriteByte(';')
 		}
-		b.WriteString(dumpSection(sec))
+		b.WriteString(dumpSection(sec, q))
 	}
 	b.WriteString("] e=[")
 	for i, err := range errs {
 		if i > 0 {
 			b.WriteByte(',')
 		}
-		b.WriteString(esc(err.Error()))
+		b.WriteString(q(err.Error()))
 	}
 	b.WriteString("] x=")
 	// Encode sorts the slice in place, so it runs after the sections were dumped.
 	encoded, err := gpp.Encode(container.Sections)
 	if err != nil {
-		b.WriteString("!" + esc(err.Error()))
+		b.WriteString("!" + q(err.Error()))
 	} else {
-		b.WriteString(esc(encoded))
+		b.WriteString(q(encoded))
 	}
 	return b.String()
 }
 
-func dumpSection(sec gpp.Section) string {
+func dumpSection(sec gpp.Section, q func(string) string) string {
 	var kind string
 	var fields []string
 	var gpc *sections.CommonUSGPCSegment
@@ -186,13 +193,13 @@ func dumpSection(sec gpp.Section) string {
 	case uspct.USPCT:
 		kind, gpc, fields = "ct", &v.GPCSegment, common(v.CoreSegment)
 	default:
-		return fmt.Sprintf("g:%d:%s", int(sec.GetID()), esc(sec.GetValue()))
+		return fmt.Sprintf("g:%d:%s", int(sec.GetID()), q(sec.GetValue()))
 	}
 	if gpc != nil {
 		fields = append(fields, fmt.Sprintf("gpc=%d/%t", gpc.SubsectionType, gpc.Gpc))
 	}
-	return fmt.Sprintf("%s:%d:%s:%s:%s:%s", kind, int(sec.GetID()), esc(sec.GetValue()),
-		strings.Join(fields, ","), esc(string(sec.Encode(true))), esc(string(sec.Encode(false))))
+	return fmt.Sprintf("%s:%d:%s:%s:%s:%s", kind, int(sec.GetID()), q(sec.GetValue()),
+		strings.Join(fields, ","), q(string(sec.Encode(true))), q(string(sec.Encode(false))))
 }
 
 func common(c sections.CommonUSCoreSegment) []string {

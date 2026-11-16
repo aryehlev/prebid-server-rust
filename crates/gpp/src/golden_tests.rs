@@ -243,11 +243,15 @@ fn ut_fields(c: &UsputCoreSegment) -> Vec<String> {
     f
 }
 
+/// How a dump quotes strings: the generator's `esc` or `short`.
+type Quote = fn(&[u8]) -> String;
+
 fn typed(
     kind: &str,
     sec: &Section,
     mut f: Vec<String>,
     gpc: Option<&CommonUsGpcSegment>,
+    q: Quote,
 ) -> String {
     if let Some(g) = gpc {
         f.push(format!("gpc={}/{}", g.subsection_type, g.gpc));
@@ -255,38 +259,47 @@ fn typed(
     format!(
         "{kind}:{}:{}:{}:{}:{}",
         sec.id().0,
-        esc(sec.value().as_bytes()),
+        q(sec.value().as_bytes()),
         f.join(","),
-        esc(&sec.encode(true)),
-        esc(&sec.encode(false))
+        q(&sec.encode(true)),
+        q(&sec.encode(false))
     )
 }
 
 /// The generator's `dumpSection`.
-fn dump_section(sec: &Section) -> String {
+fn dump_section(sec: &Section, q: Quote) -> String {
     match sec {
         Section::Uspnat(s) => typed(
             "nat",
             sec,
             nat_fields(&s.core_segment),
             Some(&s.gpc_segment),
+            q,
         ),
-        Section::Uspca(s) => typed("ca", sec, ca_fields(&s.core_segment), Some(&s.gpc_segment)),
-        Section::Uspva(s) => typed("va", sec, common_fields(&s.core_segment), None),
+        Section::Uspca(s) => typed(
+            "ca",
+            sec,
+            ca_fields(&s.core_segment),
+            Some(&s.gpc_segment),
+            q,
+        ),
+        Section::Uspva(s) => typed("va", sec, common_fields(&s.core_segment), None, q),
         Section::Uspco(s) => typed(
             "co",
             sec,
             common_fields(&s.core_segment),
             Some(&s.gpc_segment),
+            q,
         ),
-        Section::Usput(s) => typed("ut", sec, ut_fields(&s.core_segment), None),
+        Section::Usput(s) => typed("ut", sec, ut_fields(&s.core_segment), None, q),
         Section::Uspct(s) => typed(
             "ct",
             sec,
             common_fields(&s.core_segment),
             Some(&s.gpc_segment),
+            q,
         ),
-        Section::Generic(g) => format!("g:{}:{}", g.id().0, esc(g.value().as_bytes())),
+        Section::Generic(g) => format!("g:{}:{}", g.id().0, q(g.value().as_bytes())),
     }
 }
 
@@ -294,20 +307,25 @@ fn dump_types(types: &[SectionId]) -> String {
     format!("t=[{}]", joined(types, ",", |id| id.0.to_string()))
 }
 
-fn dump_errors(errs: &[GppError]) -> String {
-    format!("e=[{}]", joined(errs, ",", |e| esc(e.message().as_bytes())))
+fn dump_errors(errs: &[GppError], q: Quote) -> String {
+    format!("e=[{}]", joined(errs, ",", |e| q(e.message().as_bytes())))
 }
 
 /// The generator's `dumpParse`.
 fn dump_parse(input: &str) -> String {
+    dump_parse_q(input, esc)
+}
+
+/// The generator's `dumpParseQ`: `dumpParse` with every string written through `q`.
+fn dump_parse_q(input: &str, q: Quote) -> String {
     let (mut container, errs) = parse(input);
     let types = dump_types(&container.section_types);
-    let sections = joined(&container.sections, ";", dump_section);
-    let errors = dump_errors(&errs);
+    let sections = joined(&container.sections, ";", |s| dump_section(s, q));
+    let errors = dump_errors(&errs, q);
     // Encode sorts in place, so it runs after the sections were dumped.
     let encoded = match encode(&mut container.sections) {
-        Ok(s) => esc(s.as_bytes()),
-        Err(e) => err_text(&e),
+        Ok(s) => q(s.as_bytes()),
+        Err(e) => format!("!{}", q(e.message().as_bytes())),
     };
     format!(
         "v={} {types} s=[{sections}] {errors} x={encoded}",
@@ -334,7 +352,7 @@ fn parse_bytes_case(line: &str) -> Result<(), String> {
     let got = format!(
         "{} {}",
         dump_types(&container.section_types),
-        dump_errors(&errs)
+        dump_errors(&errs, esc)
     );
     compare(input, want, &got)
 }
@@ -735,4 +753,79 @@ fn esc_round_trips() {
     let raw = b"a\\b\"c\x00\x7f\xff~\t";
     assert_eq!(unesc(&esc(raw)), Ok(raw.to_vec()), "esc/unesc");
     assert_eq!(unhex(&hex(raw)), Ok(raw.to_vec()), "hex/unhex");
+}
+
+// ---------------------------------------------------------------------------------------------
+// edge.txt (testdata/go/edge.go): long Fibonacci codes, wrapping and repeated section IDs,
+// inputs of 8 to 128 KiB, every GPC sub-segment shape, and tens of thousands of sections.
+
+/// The generator's `fnvHash`: `#<length>:<FNV-1a 64 hex>`.
+fn fnv_hash(s: &[u8]) -> String {
+    let mut h: u64 = 0xCBF2_9CE4_8422_2325;
+    for &b in s {
+        h ^= u64::from(b);
+        h = h.wrapping_mul(0x0000_0100_0000_01B3);
+    }
+    format!("#{}:{h:016x}", s.len())
+}
+
+/// The generator's `short`.
+fn short(s: &[u8]) -> String {
+    if s.len() <= 200 { esc(s) } else { fnv_hash(s) }
+}
+
+/// The generator's `capped`.
+fn capped(s: String) -> String {
+    if s.len() <= 4096 {
+        s
+    } else {
+        fnv_hash(s.as_bytes())
+    }
+}
+
+/// `prefix + unit * count + suffix`.
+fn recipe(prefix: &[u8], count: &str, unit: &[u8], suffix: &[u8]) -> Result<Vec<u8>, String> {
+    let count = count
+        .parse::<usize>()
+        .map_err(|e| format!("{count}: {e}"))?;
+    let mut out = prefix.to_vec();
+    out.extend_from_slice(&unit.repeat(count));
+    out.extend_from_slice(suffix);
+    Ok(out)
+}
+
+fn edge_case(line: &str) -> Result<(), String> {
+    let f = fields(line);
+    match f.as_slice() {
+        ["P", prefix, count, unit, suffix, want] => {
+            let input = recipe(&unesc(prefix)?, count, &unesc(unit)?, &unesc(suffix)?)?;
+            let text = String::from_utf8(input).map_err(|e| e.to_string())?;
+            let shown = format!("{prefix} + {count} * {unit} + {suffix}");
+            compare(&shown, want, &capped(dump_parse_q(&text, short)))
+        }
+        ["B", op, prefix, count, unit, suffix, offset, want] => {
+            let data = recipe(&unhex(prefix)?, count, &unhex(unit)?, &unhex(suffix)?)?;
+            let mut bs = BitStream::new(data);
+            bs.set_position(offset.parse::<u16>().map_err(|e| e.to_string())?);
+            let got = match run_op(op, &mut bs)? {
+                Ok(v) => format!("={v}@{}", bs.position()),
+                Err(e) => err_text(&e),
+            };
+            let shown = format!("{op} {prefix} + {count} * {unit} + {suffix} at {offset}");
+            compare(&shown, want, &capped(got))
+        }
+        _ => Err(format!("bad line {line}")),
+    }
+}
+
+#[test]
+fn edge_cases_match_go() -> Result<(), String> {
+    replay("edge.txt", edge_case, 7000)
+}
+
+#[test]
+fn fnv_hash_matches_go() {
+    // Go: fmt.Sprintf("#%d:%016x", 3, fnv.New64a() of "abc").
+    assert_eq!(fnv_hash(b"abc"), "#3:e71fa2190541574b", "fnv-1a 64");
+    assert_eq!(fnv_hash(b""), "#0:cbf29ce484222325", "empty");
 }
