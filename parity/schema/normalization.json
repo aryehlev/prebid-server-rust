@@ -1,0 +1,218 @@
+{
+  "schema": "pbs-parity-normalization/1",
+  "schema_version": "1.0.0",
+  "description": "The complete normalization allowlist. The differ applies these rules, and only these rules, to both the Go and the Rust side before comparing. Every rule cites the Go source of a nondeterminism: Go itself produces different values for the same input, so no exact Go-vs-Rust comparison is possible there. A new rule must cite a Go nondeterminism source, must turn a Go-vs-Go (A/A) self-test diff into zero, and must never hide a Go-vs-Rust difference. Everything not listed here is a mismatch, including everything in not_normalized.",
+  "actions": {
+    "sort": "Sort the array at target by the listed keys (stable, ascending, lexical on the JSON text of each key) before comparing.",
+    "drop": "Remove the member at target on both sides.",
+    "key_set": "Compare only the set of member names of the object at target, not the values.",
+    "shape": "Compare only presence and JSON type (and, for strings, the pattern) of the value at target.",
+    "uuid_placeholder": "Replace each UUID value at target with <uuid#n>, numbered by first appearance after all sort rules ran, so equal UUIDs stay equal and cross-references are still checked.",
+    "count_only": "Compare only the count member of a timing value (histogram _count, observation count); ignore sum and buckets.",
+    "ignore": "Ignore the value at target entirely.",
+    "case_insensitive_names": "Compare header names case-insensitively and ignore order across different names; the order of values within one name is kept."
+  },
+  "rules": [
+    {
+      "id": "seatbid_order",
+      "applies_to": ["http.response", "exchange.response", "hooks.auction_response", "hooks.exitpoint", "analytics"],
+      "target": "$.seatbid[*] by (seat); $.seatbid[*].bid[*] by (impid, id)",
+      "action": "sort",
+      "keys": ["seat", "impid", "id"],
+      "justification": "Go shuffles the bidder fan-out order and fills per-bidder results from map iteration, so seatbid order differs between two Go runs.",
+      "go_source": ["exchange/exchange.go:1487 randomizeList(liveAdapters)", "exchange/utils.go:898 randomizeList", "exchange/utils.go:155 for bidder, imps := range impsByBidder"]
+    },
+    {
+      "id": "warnings_errors_order",
+      "applies_to": ["http.response", "exchange.response", "analytics"],
+      "target": "$.ext.warnings.*[*]; $.ext.errors.*[*]",
+      "action": "sort",
+      "keys": ["code", "message"],
+      "justification": "Bidder goroutines append errors and warnings concurrently; Go's own endpoint tests compare them order-insensitively.",
+      "go_source": ["exchange/exchange.go:777-807 getAllBids goroutines", "endpoints/openrtb2/auction_test.go:247 compareWarnings"]
+    },
+    {
+      "id": "httpcalls_order",
+      "applies_to": ["http.response", "exchange.response"],
+      "target": "$.ext.debug.httpcalls.*[*]",
+      "action": "sort",
+      "keys": ["uri", "requestbody", "status"],
+      "justification": "A bidder with several requests sends them from concurrent goroutines and collects results in completion order.",
+      "go_source": ["exchange/bidder.go:249-253 go func(data *adapters.RequestData)"]
+    },
+    {
+      "id": "http_out_order",
+      "applies_to": ["http.out"],
+      "target": "$[*] (trace.http_out) by (kind, bidder, orig_url, sha256(request body)); drop $[*].seq",
+      "action": "sort",
+      "keys": ["kind", "bidder", "orig_url", "request.body"],
+      "drop": ["seq"],
+      "justification": "Outbound calls of different bidders and of one bidder with several requests run concurrently, so the global sequence number and arrival order vary between Go runs.",
+      "go_source": ["exchange/exchange.go:777-807 getAllBids goroutines", "exchange/bidder.go:249-253 concurrent doRequest"]
+    },
+    {
+      "id": "adapter_bids_call_key",
+      "applies_to": ["adapter.bids", "hooks.raw_bidder_response"],
+      "target": "stage keys bidder#call",
+      "action": "sort",
+      "keys": ["request_data.uri", "request_data.body"],
+      "justification": "MakeBids runs in response-arrival order for a bidder with several requests, so the call index is re-derived from the request each response belongs to.",
+      "go_source": ["exchange/bidder.go:249-306 responseChannel loop"]
+    },
+    {
+      "id": "seatnonbid_order",
+      "applies_to": ["http.response", "exchange.response", "seat_non_bids", "analytics"],
+      "target": "$.ext.prebid.seatnonbid[*] by (seat); $.ext.prebid.seatnonbid[*].nonbid[*] by (impid, statuscode)",
+      "action": "sort",
+      "keys": ["seat", "impid", "statuscode"],
+      "justification": "SeatNonBidBuilder is a map keyed by seat; its Slice() order follows map iteration.",
+      "go_source": ["exchange/seat_non_bids.go:8 type SeatNonBidBuilder map[string][]openrtb_ext.NonBid", "exchange/exchange.go:1643 seatNonBidBuilder.Slice()"]
+    },
+    {
+      "id": "responsetimemillis",
+      "applies_to": ["http.response", "exchange.response", "analytics"],
+      "target": "$.ext.responsetimemillis",
+      "action": "key_set",
+      "justification": "Values are wall-clock elapsed times of each bidder call.",
+      "go_source": ["exchange/exchange.go:781-786 elapsed := time.Since(start)", "exchange/exchange.go:1281"]
+    },
+    {
+      "id": "auctiontimestamp",
+      "applies_to": ["http.response", "exchange.response", "events.tracking", "analytics"],
+      "target": "$.ext.prebid.auctiontimestamp",
+      "action": "shape",
+      "shape": {"type": "integer"},
+      "justification": "Set from the request start time in milliseconds.",
+      "go_source": ["exchange/exchange.go:1248-1257 auctionTimestamp = r.StartTime.UnixMilli()"]
+    },
+    {
+      "id": "events_ts_param",
+      "applies_to": ["http.response", "exchange.response", "events.tracking", "cache.result", "http.out"],
+      "target": "query parameter ts= of every event URL (bid.ext.prebid.events.*, VAST impression trackers, cached VAST)",
+      "action": "shape",
+      "shape": {"type": "string", "pattern": "^[0-9]+$"},
+      "justification": "Event URLs carry the auction timestamp in milliseconds.",
+      "go_source": ["exchange/events.go:33 auctionTimestampMs: ts.UnixNano() / 1e+6", "endpoints/events/event.go:36 TimestampParameter = \"ts\""]
+    },
+    {
+      "id": "analytics_start_time",
+      "applies_to": ["analytics"],
+      "target": "$[*].object.start_time_set",
+      "action": "shape",
+      "shape": {"type": "boolean"},
+      "justification": "AuctionObject.StartTime is time.Now() at request start; the analytics projection reports only whether it was set.",
+      "go_source": ["endpoints/openrtb2/auction.go ao.StartTime = start", "parity/wiring/analytics.go auctionRecord.StartTimeSet"]
+    },
+    {
+      "id": "request_id_uuid",
+      "applies_to": ["*"],
+      "target": "$.id of the request and of everything derived from it, only when the input request id was {{UUID}} or generate_request_id applied",
+      "action": "uuid_placeholder",
+      "justification": "Go generates a random v4 UUID for the request id.",
+      "go_source": ["endpoints/openrtb2/auction.go:1706 bidRequestID == \"{{UUID}}\"", "endpoints/openrtb2/auction.go:2025 uuidGenerator.Generate()"]
+    },
+    {
+      "id": "tid_uuid",
+      "applies_to": ["*"],
+      "target": "$.source.tid and $.imp[*].ext.tid, only when absent or {{UUID}} in the input (or generate_request_id applied)",
+      "action": "uuid_placeholder",
+      "justification": "Go fills missing transaction ids with random v4 UUIDs.",
+      "go_source": ["endpoints/openrtb2/auction.go:948-953 uuid.NewV4() for source.tid", "endpoints/openrtb2/auction.go:958 imp ext tid"]
+    },
+    {
+      "id": "generated_bid_id",
+      "applies_to": ["*"],
+      "target": "$.seatbid[*].bid[*].ext.prebid.bidid and every reference to it (event URLs bidid=, targeting, cache keys)",
+      "action": "uuid_placeholder",
+      "justification": "With generate_bid_id enabled Go assigns random v4 UUIDs to bids.",
+      "go_source": ["exchange/exchange.go:124 uuid.NewV4() in bidIDGenerator.New", "exchange/exchange.go:448 GeneratedBidID"]
+    },
+    {
+      "id": "cache_uuid",
+      "applies_to": ["*"],
+      "target": "UUIDs returned by the (mock) Prebid Cache and their references (hb_cache_id, hb_uuid, cache.bids.cacheId, cache URLs)",
+      "action": "uuid_placeholder",
+      "justification": "Cache keys come from the cache service response; with oracle templates they may be generated per call.",
+      "go_source": ["exchange/auction.go:305 doCache", "prebid_cache_client/client.go PutJson"]
+    },
+    {
+      "id": "hook_execution_time",
+      "applies_to": ["hook_outcomes", "http.response", "analytics"],
+      "target": "every execution_time_millis / ExecutionTimeMillis member of hook outcomes ($.ext.prebid.modules.trace..)",
+      "action": "drop",
+      "justification": "Wall-clock duration of hook execution.",
+      "go_source": ["hooks/hookexecution/execution.go:128 res.ExecutionTime = time.Since(startTime)", "hooks/hookexecution/execution.go:167"]
+    },
+    {
+      "id": "timing_histograms",
+      "applies_to": ["metrics_delta"],
+      "target": "histogram/summary series whose name ends in _time, _time_seconds, _duration or _duration_seconds, or that record request/adapter/overhead/hook/cache/stored-data timing",
+      "action": "count_only",
+      "justification": "Observed values are wall-clock durations; only the number of observations is deterministic.",
+      "go_source": ["metrics/prometheus/prometheus.go RecordRequestTime, RecordAdapterTime, RecordOverheadTime, RecordStoredDataFetchTime, RecordPrebidCacheRequestTime, RecordModuleDuration", "exchange/exchange.go:791 RecordAdapterTime(elapsed)"]
+    },
+    {
+      "id": "header_names",
+      "applies_to": ["http.response", "http.out", "adapter.requests", "adapter.requests_final", "http.in"],
+      "target": "headers (semantic header comparison only)",
+      "action": "case_insensitive_names",
+      "justification": "Go's http.Header canonicalizes names and has no order across names; the semantic header comparison follows RFC 9110 5.1. Wire-level case and order differences are still reported as kind 'wire' (not_normalized).",
+      "go_source": ["net/http Header (textproto.CanonicalMIMEHeaderKey)", "exchange/bidder.go:223 Headers.Add"]
+    },
+    {
+      "id": "date_header",
+      "applies_to": ["http.response", "http.out"],
+      "target": "response header Date",
+      "action": "ignore",
+      "justification": "net/http writes the current time into every response.",
+      "go_source": ["net/http server.go (*response).WriteHeader Date"]
+    },
+    {
+      "id": "json_member_order",
+      "applies_to": ["*"],
+      "target": "object member order (semantic JSON comparison only)",
+      "action": "ignore",
+      "justification": "JSON objects are unordered (RFC 8259); Go sorts map keys and Rust HashMap does not. The lexical comparison of raw bytes still reports member order as kind 'lexical' class 'member_order' (not_normalized).",
+      "go_source": ["encoding/json and jsoniter sort map keys", "util/jsonutil Marshal"]
+    },
+    {
+      "id": "stage_entry_seq",
+      "applies_to": ["*"],
+      "target": "trace.stages.*.*.seq",
+      "action": "drop",
+      "justification": "Session-wide sequence numbers depend on goroutine scheduling across bidders.",
+      "go_source": ["parity/trace/session.go NextSeq (bidder goroutines record concurrently)"]
+    }
+  ],
+  "not_normalized": {
+    "description": "Differences that are never normalized and always gate parity (orchestrator decision). They are reported with their own mismatch kind and class so they can be triaged, but they count against parity/baseline.json like every other mismatch.",
+    "wire": {
+      "kind": "wire",
+      "classes": {
+        "header_case": "Header name spelling on the wire differs (Go writes canonical case; HTTP/1.1 Go clients send e.g. 'Content-Type').",
+        "header_order": "Order of different header names on the wire differs.",
+        "default_header": "A client/server default header differs or is present on one side only (User-Agent Go-http-client/1.1, Accept-Encoding gzip added by Go's transport, Content-Length vs chunked).",
+        "http_version": "Request or response protocol version differs.",
+        "content_length": "Content-Length differs or is present on one side only.",
+        "transfer_encoding": "Transfer-Encoding differs.",
+        "other": "Any other wire-level difference."
+      }
+    },
+    "lexical": {
+      "kind": "lexical",
+      "classes": {
+        "html_escape": "Go's json.Marshal/jsoniter escape <, > and & as \\u003c, \\u003e, \\u0026 (EscapeHTML true) except where Go disables it (endpoints/openrtb2/auction.go:384 SetEscapeHTML(false)).",
+        "unicode_escape": "Other string escapes differ (\\u2028, \\u2029, invalid UTF-8 replacement, \\/).",
+        "number_format": "Number spelling differs (1 vs 1.0, exponent form, float formatting).",
+        "trailing_newline": "Encoder.Encode adds a trailing newline that json.Marshal does not (endpoints/openrtb2/auction.go:383-394).",
+        "whitespace": "Insignificant whitespace differs.",
+        "member_order": "Object member order differs in the raw bytes.",
+        "other": "Any other byte-level difference between semantically equal JSON."
+      }
+    },
+    "adapter_fakes": {
+      "description": "The 8 adapters with internal randomness or wall-clock reads get deterministic fakes (fakes.json) through branch-only seams; their outputs are compared exactly, never normalized.",
+      "adapters": ["adnuntius", "appnexus", "cadent_aperture_mx", "eplanning", "flipp", "huaweiads", "tappx", "yieldlab"]
+    }
+  }
+}

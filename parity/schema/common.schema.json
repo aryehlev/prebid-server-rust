@@ -1,0 +1,253 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://prebid.org/pbs-parity/schema/v1/common.schema.json",
+  "title": "pbs-parity common definitions",
+  "description": "Definitions shared by every pbs-parity document. Schema version 1.0.0.",
+  "definitions": {
+    "SchemaVersion": {
+      "description": "Semantic version of the parity contract. Minor bumps add optional fields; major bumps change every document's schema name.",
+      "type": "string",
+      "pattern": "^1\\.[0-9]+\\.[0-9]+$"
+    },
+    "Impl": {
+      "description": "Implementation that produced the document.",
+      "type": "string",
+      "enum": ["go", "rust"]
+    },
+    "Domain": {
+      "description": "One of the nine locked parity matrix domains, in matrix row order.",
+      "type": "string",
+      "enum": [
+        "endpoints",
+        "config_bootstrap",
+        "stored_data",
+        "auction_lifecycle",
+        "policy_privacy_identity",
+        "bidders_adapters",
+        "hooks_modules",
+        "cache_support_flows",
+        "cutover_proof"
+      ]
+    },
+    "StageID": {
+      "description": "A capture-point identifier registered in stages.json.",
+      "type": "string",
+      "enum": [
+        "config.resolved",
+        "bidders.resolved",
+        "http.in",
+        "hooks.entrypoint",
+        "stored.fetch",
+        "account.resolved",
+        "hooks.raw_auction",
+        "request.merged",
+        "request.normalized",
+        "stored.responses",
+        "request.validated",
+        "gdpr.context",
+        "hooks.processed_auction",
+        "auction.setup",
+        "floors.enrich",
+        "fpd.resolved",
+        "privacy.labels",
+        "privacy.bidder",
+        "bidder.request",
+        "hooks.bidder_request",
+        "adapter.requests",
+        "adapter.requests_final",
+        "http.out",
+        "adapter.bids",
+        "hooks.raw_bidder_response",
+        "bids.adjusted",
+        "bidder.result",
+        "floors.enforce",
+        "category.mapping",
+        "events.tracking",
+        "hooks.all_processed_bid_responses",
+        "auction.winners",
+        "cache.result",
+        "targeting",
+        "seat_non_bids",
+        "exchange.response",
+        "video.pods",
+        "video.cache",
+        "amp.targeting_response",
+        "hooks.auction_response",
+        "hooks.exitpoint",
+        "hook_outcomes",
+        "analytics",
+        "metrics_delta",
+        "http.response"
+      ]
+    },
+    "DecisionID": {
+      "description": "A decision point registered in decisions.json.",
+      "type": "string",
+      "enum": [
+        "floors.skip",
+        "floors.data_rate",
+        "floors.modelgroup",
+        "floors.enforce",
+        "category.dedupe",
+        "pricegranularity.timesplit",
+        "usersync.shuffle"
+      ]
+    },
+    "OutboundKind": {
+      "description": "Kind of an outbound call. A call made with a bidder in its context is 'bidder'; otherwise the label of the client it was sent with ('cache', 'floors', 'currency', 'general', 'default' for http.DefaultClient users), with 'general' refined by URL prefix to 'vendorlist' or 'stored'. 'module' is reserved for module clients that label themselves.",
+      "type": "string",
+      "enum": ["bidder", "cache", "floors", "currency", "vendorlist", "stored", "module", "general", "default"]
+    },
+    "HeaderList": {
+      "description": "Ordered [name, value] pairs. Names keep their original case; repeated names keep relative order (multi-value headers).",
+      "type": "array",
+      "items": {
+        "type": "array",
+        "items": {"type": "string"},
+        "minItems": 2,
+        "maxItems": 2
+      }
+    },
+    "Body": {
+      "description": "An HTTP body. b64 is always the exact wire bytes; text is the exact wire bytes when content_encoding is empty; json is the semantic JSON of the decoded content. Recorders emit text for valid UTF-8 identity bodies, b64 otherwise (always b64 for content-encoded bodies), plus json when the decoded content parses. On input documents text/json may be combined with content_encoding and the receiver encodes them. null means no body.",
+      "type": ["object", "null"],
+      "properties": {
+        "text": {"type": "string"},
+        "b64": {"type": "string", "contentEncoding": "base64"},
+        "json": {},
+        "content_encoding": {"type": "string"}
+      },
+      "additionalProperties": false
+    },
+    "ErrorRecord": {
+      "description": "Language-neutral error. code uses Go's errortypes numeric codes (error_codes.json); kind is the canonical name of the code; fatal follows errortypes.FatalOnly (errors without a code are fatal).",
+      "type": "object",
+      "required": ["code", "kind", "message", "scope", "severity", "fatal"],
+      "properties": {
+        "code": {"type": "integer"},
+        "kind": {"type": "string"},
+        "message": {"type": "string"},
+        "scope": {"type": "string", "enum": ["general", "debug"]},
+        "severity": {"type": "string", "enum": ["fatal", "warning", "unknown"]},
+        "fatal": {"type": "boolean"}
+      },
+      "additionalProperties": false
+    },
+    "ErrorRecordList": {
+      "type": "array",
+      "items": {"$ref": "#/definitions/ErrorRecord"}
+    },
+    "ErrorSpec": {
+      "description": "An error to inject, identified by Go errortypes code.",
+      "type": "object",
+      "required": ["code", "message"],
+      "properties": {
+        "code": {"type": "integer"},
+        "message": {"type": "string"}
+      },
+      "additionalProperties": false
+    },
+    "BuildInfo": {
+      "type": "object",
+      "required": ["git_sha", "version"],
+      "properties": {
+        "git_sha": {"type": "string"},
+        "version": {"type": "string"}
+      },
+      "additionalProperties": false
+    },
+    "FakeValues": {
+      "description": "Deterministic replacements for wall-clock and random values (fakes.json). Omitted or zero fields take the fakes.json defaults.",
+      "type": "object",
+      "properties": {
+        "now_unix_ms": {"type": "integer"},
+        "int63": {"type": "integer", "minimum": 0},
+        "uuid": {"type": "string"}
+      },
+      "additionalProperties": false
+    },
+    "TypedBid": {
+      "description": "Mirror of adapters.TypedBid.",
+      "type": "object",
+      "required": ["bid", "type"],
+      "properties": {
+        "bid": {"type": "object", "description": "OpenRTB 2.x Bid."},
+        "type": {"type": "string", "enum": ["banner", "video", "audio", "native"]},
+        "seat": {"type": "string"},
+        "video": {"type": ["object", "null"], "description": "openrtb_ext.ExtBidPrebidVideo"},
+        "meta": {"type": ["object", "null"], "description": "openrtb_ext.ExtBidPrebidMeta"},
+        "deal_priority": {"type": "integer"}
+      },
+      "additionalProperties": false
+    },
+    "MockRef": {
+      "type": "object",
+      "required": ["source", "id"],
+      "properties": {
+        "source": {"type": "string", "enum": ["inline", "rule", "fixture_replay", "template", "default", "static"]},
+        "id": {"type": "string"}
+      },
+      "additionalProperties": false
+    },
+    "OutboundCall": {
+      "description": "One outbound HTTP exchange. wire=false: recorded by the server in inline mode (client view; headers sorted by canonical name because the client API is a map). wire=true: recorded by the oracle (exact wire order, case and bytes; X-Parity-Meta stripped).",
+      "type": "object",
+      "required": ["seq", "kind", "bidder", "orig_url", "request", "wire", "mock", "response", "error"],
+      "properties": {
+        "seq": {"type": "integer", "minimum": 0},
+        "impl": {"$ref": "#/definitions/Impl"},
+        "kind": {"$ref": "#/definitions/OutboundKind"},
+        "bidder": {"type": "string"},
+        "orig_url": {"type": "string", "description": "URL before the https->http oracle rewrite."},
+        "request": {
+          "type": "object",
+          "required": ["method", "url", "headers", "body"],
+          "properties": {
+            "method": {"type": "string"},
+            "url": {"type": "string"},
+            "proto": {"type": "string"},
+            "headers": {"$ref": "#/definitions/HeaderList"},
+            "body": {"$ref": "#/definitions/Body"}
+          },
+          "additionalProperties": false
+        },
+        "wire": {"type": "boolean"},
+        "mock": {"oneOf": [{"type": "null"}, {"$ref": "#/definitions/MockRef"}]},
+        "response": {
+          "oneOf": [
+            {"type": "null"},
+            {
+              "type": "object",
+              "required": ["status", "headers", "body"],
+              "properties": {
+                "status": {"type": "integer"},
+                "headers": {"$ref": "#/definitions/HeaderList"},
+                "body": {"$ref": "#/definitions/Body"},
+                "delay_ms": {"type": "integer", "minimum": 0}
+              },
+              "additionalProperties": false
+            }
+          ]
+        },
+        "error": {"type": ["string", "null"], "enum": [null, "timeout", "refused", "reset", "network_disabled", "error"]},
+        "notes": {"type": "array", "items": {"type": "string"}}
+      },
+      "additionalProperties": false
+    },
+    "OutboundMeta": {
+      "description": "Payload of the X-Parity-Meta request header (standard base64 with padding of this JSON) added to every request sent to the oracle.",
+      "type": "object",
+      "required": ["v", "case", "impl", "kind", "bidder", "orig_url", "seq"],
+      "properties": {
+        "v": {"const": 1},
+        "case": {"type": "string", "description": "Case ID, or empty for calls made while no case is in flight."},
+        "impl": {"$ref": "#/definitions/Impl"},
+        "kind": {"$ref": "#/definitions/OutboundKind"},
+        "bidder": {"type": "string"},
+        "orig_url": {"type": "string"},
+        "seq": {"type": "integer", "minimum": 0}
+      },
+      "additionalProperties": false
+    }
+  }
+}

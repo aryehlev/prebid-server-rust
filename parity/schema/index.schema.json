@@ -1,0 +1,33 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://prebid.org/pbs-parity/schema/v1/index.schema.json",
+  "title": "pbs-parity-index/1",
+  "description": "parity/out/<run>/index.json: one entry per executed case. The seven required entry fields are the Phase-1 AuctionIndex contract; stage, cluster and primary_domain are optional additions. Entries reference artifacts by path and never embed payloads.",
+  "type": "object",
+  "required": ["schema", "schema_version", "cases"],
+  "properties": {
+    "schema": {"const": "pbs-parity-index/1"},
+    "schema_version": {"$ref": "common.schema.json#/definitions/SchemaVersion"},
+    "cases": {"type": "array", "items": {"$ref": "#/definitions/Entry"}}
+  },
+  "additionalProperties": false,
+  "definitions": {
+    "Entry": {
+      "type": "object",
+      "required": ["case_id", "fixture_path", "endpoint", "domains", "mismatch_kinds", "summary_path", "artifact_path"],
+      "properties": {
+        "case_id": {"type": "string", "minLength": 1},
+        "fixture_path": {"type": "string"},
+        "endpoint": {"type": "string"},
+        "domains": {"type": "array", "items": {"$ref": "common.schema.json#/definitions/Domain"}, "uniqueItems": true},
+        "mismatch_kinds": {"type": "array", "items": {"$ref": "mismatch.schema.json#/definitions/MismatchKind"}, "uniqueItems": true},
+        "summary_path": {"type": "string"},
+        "artifact_path": {"type": "string"},
+        "stage": {"$ref": "common.schema.json#/definitions/StageID"},
+        "cluster": {"type": "string"},
+        "primary_domain": {"$ref": "common.schema.json#/definitions/Domain"}
+      },
+      "additionalProperties": false
+    }
+  }
+}

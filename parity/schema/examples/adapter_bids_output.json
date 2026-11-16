@@ -1,0 +1,20 @@
+{
+  "schema": "pbs-parity-adapter-bids-output/1",
+  "schema_version": "1.0.0",
+  "impl": "rust",
+  "case_id": "adapters/appnexus/appnexustest/exemplary/simple-banner.json#bids",
+  "bidder": "appnexus",
+  "bidder_response": {
+    "currency": "USD",
+    "bids": [
+      {
+        "bid": {"id": "7706636740145184841", "impid": "test-imp-id", "price": 0.5, "adm": "some-test-ad", "crid": "29681110", "w": 300, "h": 250, "cat": ["IAB1-1"], "ext": {"appnexus": {"brand_id": 1, "auction_id": 8189378542222915032, "bidder_id": 2, "bid_ad_type": 0}}},
+        "type": "banner",
+        "meta": {"advertiserId": 1, "brandId": 1}
+      }
+    ]
+  },
+  "errors": [
+    {"code": 2, "kind": "BadInput", "message": "Unrecognized bid_ad_type in response from appnexus: 9", "scope": "general", "severity": "fatal", "fatal": true}
+  ]
+}

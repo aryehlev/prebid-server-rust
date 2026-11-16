@@ -1,0 +1,78 @@
+{
+  "schema": "pbs-parity-fakes/1",
+  "schema_version": "1.0.0",
+  "description": "Deterministic values parity mode injects into the adapters that read the wall clock or a random source. They are installed process-wide at startup when parity.enabled is true (Go: parity/fakes.Install from parity/wiring.Bootstrap) and set per case from envelope.fakes (omitted or zero fields take these defaults). Outside parity mode every seam behaves exactly like the original code. The clock is a fixed instant whose location is UTC; code that explicitly converts to local time (huaweiads getClientTime .Local()) depends on the process time zone, so the runner starts both servers with TZ=UTC. The Rust server must inject the same values at the same sites.",
+  "defaults": {
+    "now_unix_ms": 1629473330823,
+    "int63": 10,
+    "uuid": "30470a14-2949-4110-abce-b62d57304ad5"
+  },
+  "derived": {
+    "now_rfc3339": "2021-08-20T15:28:50.823Z",
+    "now_unix_seconds": 1629473330,
+    "now_iso_week": 33
+  },
+  "provenance": {
+    "now_unix_ms": "adapters/huaweiads/huaweiadstest fixtures nonce=1629473330823; ISO week 33 like the yieldlab test week generator",
+    "int63": "adapters/appnexus FakeRandomNumberGenerator (adpod_id \"10\")",
+    "uuid": "adapters/flipp test UUID generator"
+  },
+  "adapters": [
+    {
+      "bidder": "adnuntius",
+      "value": "now_unix_ms",
+      "use": "time zone offset of the clock (tzo= query parameter); UTC clock gives tzo=0",
+      "go_seam": "adapters/adnuntius/adnuntius.go Builder: bidder.time = fakes.Active() (timeutil.Time)",
+      "go_site": "adapters/adnuntius/adnuntius_utils.go:67 a.time.Now().Zone()"
+    },
+    {
+      "bidder": "appnexus",
+      "value": "int63",
+      "use": "request.ext.appnexus.adpod_id for video ad pods",
+      "go_seam": "adapters/appnexus/appnexus.go Builder: bidder.randomGenerator = fakes.Active() (randomutil.RandomGenerator)",
+      "go_site": "adapters/appnexus/appnexus.go:504 a.randomGenerator.GenerateInt63()"
+    },
+    {
+      "bidder": "cadent_aperture_mx",
+      "value": "now_unix_ms",
+      "use": "ts= endpoint query parameter in Unix seconds",
+      "go_seam": "adapters/cadent_aperture_mx/cadentaperturemx.go buildEndpoint: fakes.Now().Unix()",
+      "go_site": "adapters/cadent_aperture_mx/cadentaperturemx.go:35"
+    },
+    {
+      "bidder": "eplanning",
+      "value": "int63",
+      "use": "t= cache-buster query parameter (rand.Int())",
+      "go_seam": "adapters/eplanning/eplanning.go: fakes.Int()",
+      "go_site": "adapters/eplanning/eplanning.go:177"
+    },
+    {
+      "bidder": "flipp",
+      "value": "uuid",
+      "use": "user key when no user id is available",
+      "go_seam": "adapters/flipp/flipp.go Builder: bidder.uuidGenerator = fakes.Active() (uuidutil.UUIDGenerator)",
+      "go_site": "adapters/flipp/flipp.go:149 a.uuidGenerator.Generate()"
+    },
+    {
+      "bidder": "huaweiads",
+      "value": "now_unix_ms",
+      "use": "clientTime (format 2006-01-02 15:04:05.000 plus the local zone) and the digest-auth nonce in Unix milliseconds",
+      "go_seam": "adapters/huaweiads/huaweiads.go getClientTime and getDigestAuthorization: fakes.Now()",
+      "go_site": "adapters/huaweiads/huaweiads.go:743-757, :1629"
+    },
+    {
+      "bidder": "tappx",
+      "value": "now_unix_ms",
+      "use": "ts= endpoint query parameter in Unix milliseconds",
+      "go_seam": "adapters/tappx/tappx.go buildEndpointURL: fakes.Now()",
+      "go_site": "adapters/tappx/tappx.go:187"
+    },
+    {
+      "bidder": "yieldlab",
+      "value": "now_unix_ms",
+      "use": "ts= cache buster in Unix seconds and the ISO week number in the targeting/creative ids",
+      "go_seam": "adapters/yieldlab/types.go defaultCacheBuster and defaultWeekGenerator: fakes.Now()",
+      "go_site": "adapters/yieldlab/types.go:66-74"
+    }
+  ]
+}
