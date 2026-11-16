@@ -1,0 +1,5991 @@
+{
+ "gvlSpecificationVersion": 2,
+ "vendorListVersion": 160,
+ "tcfPolicyVersion": 2,
+ "lastUpdated": "2024-01-01T00:00:00Z",
+ "vendors": {
+  "0": {
+   "id": 0,
+   "name": "parity vendor 0",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "1": {
+   "id": 1,
+   "name": "parity vendor 1",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "10": {
+   "id": 10,
+   "name": "parity vendor 10",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "13": {
+   "id": 13,
+   "name": "parity vendor 13",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "14": {
+   "id": 14,
+   "name": "parity vendor 14",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "16": {
+   "id": 16,
+   "name": "parity vendor 16",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "21": {
+   "id": 21,
+   "name": "parity vendor 21",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "24": {
+   "id": 24,
+   "name": "parity vendor 24",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "25": {
+   "id": 25,
+   "name": "parity vendor 25",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "28": {
+   "id": 28,
+   "name": "parity vendor 28",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "30": {
+   "id": 30,
+   "name": "parity vendor 30",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "31": {
+   "id": 31,
+   "name": "parity vendor 31",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "32": {
+   "id": 32,
+   "name": "parity vendor 32",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "36": {
+   "id": 36,
+   "name": "parity vendor 36",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "42": {
+   "id": 42,
+   "name": "parity vendor 42",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "45": {
+   "id": 45,
+   "name": "parity vendor 45",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "50": {
+   "id": 50,
+   "name": "parity vendor 50",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "52": {
+   "id": 52,
+   "name": "parity vendor 52",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "58": {
+   "id": 58,
+   "name": "parity vendor 58",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "61": {
+   "id": 61,
+   "name": "parity vendor 61",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "63": {
+   "id": 63,
+   "name": "parity vendor 63",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "69": {
+   "id": 69,
+   "name": "parity vendor 69",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "70": {
+   "id": 70,
+   "name": "parity vendor 70",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "76": {
+   "id": 76,
+   "name": "parity vendor 76",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "80": {
+   "id": 80,
+   "name": "parity vendor 80",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "81": {
+   "id": 81,
+   "name": "parity vendor 81",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "82": {
+   "id": 82,
+   "name": "parity vendor 82",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "90": {
+   "id": 90,
+   "name": "parity vendor 90",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "91": {
+   "id": 91,
+   "name": "parity vendor 91",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "94": {
+   "id": 94,
+   "name": "parity vendor 94",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "104": {
+   "id": 104,
+   "name": "parity vendor 104",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "108": {
+   "id": 108,
+   "name": "parity vendor 108",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "109": {
+   "id": 109,
+   "name": "parity vendor 109",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "111": {
+   "id": 111,
+   "name": "parity vendor 111",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "115": {
+   "id": 115,
+   "name": "parity vendor 115",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "132": {
+   "id": 132,
+   "name": "parity vendor 132",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "136": {
+   "id": 136,
+   "name": "parity vendor 136",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "138": {
+   "id": 138,
+   "name": "parity vendor 138",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "142": {
+   "id": 142,
+   "name": "parity vendor 142",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "143": {
+   "id": 143,
+   "name": "parity vendor 143",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "144": {
+   "id": 144,
+   "name": "parity vendor 144",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "149": {
+   "id": 149,
+   "name": "parity vendor 149",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "153": {
+   "id": 153,
+   "name": "parity vendor 153",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "154": {
+   "id": 154,
+   "name": "parity vendor 154",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "157": {
+   "id": 157,
+   "name": "parity vendor 157",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "164": {
+   "id": 164,
+   "name": "parity vendor 164",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "173": {
+   "id": 173,
+   "name": "parity vendor 173",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "183": {
+   "id": 183,
+   "name": "parity vendor 183",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "196": {
+   "id": 196,
+   "name": "parity vendor 196",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "202": {
+   "id": 202,
+   "name": "parity vendor 202",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "203": {
+   "id": 203,
+   "name": "parity vendor 203",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "206": {
+   "id": 206,
+   "name": "parity vendor 206",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "213": {
+   "id": 213,
+   "name": "parity vendor 213",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "231": {
+   "id": 231,
+   "name": "parity vendor 231",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "238": {
+   "id": 238,
+   "name": "parity vendor 238",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "241": {
+   "id": 241,
+   "name": "parity vendor 241",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "253": {
+   "id": 253,
+   "name": "parity vendor 253",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "259": {
+   "id": 259,
+   "name": "parity vendor 259",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "263": {
+   "id": 263,
+   "name": "parity vendor 263",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "272": {
+   "id": 272,
+   "name": "parity vendor 272",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "280": {
+   "id": 280,
+   "name": "parity vendor 280",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "285": {
+   "id": 285,
+   "name": "parity vendor 285",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "290": {
+   "id": 290,
+   "name": "parity vendor 290",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "333": {
+   "id": 333,
+   "name": "parity vendor 333",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "335": {
+   "id": 335,
+   "name": "parity vendor 335",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "347": {
+   "id": 347,
+   "name": "parity vendor 347",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "354": {
+   "id": 354,
+   "name": "parity vendor 354",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "358": {
+   "id": 358,
+   "name": "parity vendor 358",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "371": {
+   "id": 371,
+   "name": "parity vendor 371",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "377": {
+   "id": 377,
+   "name": "parity vendor 377",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "380": {
+   "id": 380,
+   "name": "parity vendor 380",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "410": {
+   "id": 410,
+   "name": "parity vendor 410",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "418": {
+   "id": 418,
+   "name": "parity vendor 418",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "436": {
+   "id": 436,
+   "name": "parity vendor 436",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "444": {
+   "id": 444,
+   "name": "parity vendor 444",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "462": {
+   "id": 462,
+   "name": "parity vendor 462",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "501": {
+   "id": 501,
+   "name": "parity vendor 501",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "511": {
+   "id": 511,
+   "name": "parity vendor 511",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "512": {
+   "id": 512,
+   "name": "parity vendor 512",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "528": {
+   "id": 528,
+   "name": "parity vendor 528",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "534": {
+   "id": 534,
+   "name": "parity vendor 534",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "540": {
+   "id": 540,
+   "name": "parity vendor 540",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "541": {
+   "id": 541,
+   "name": "parity vendor 541",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "553": {
+   "id": 553,
+   "name": "parity vendor 553",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "556": {
+   "id": 556,
+   "name": "parity vendor 556",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "559": {
+   "id": 559,
+   "name": "parity vendor 559",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "580": {
+   "id": 580,
+   "name": "parity vendor 580",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "591": {
+   "id": 591,
+   "name": "parity vendor 591",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "606": {
+   "id": 606,
+   "name": "parity vendor 606",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "607": {
+   "id": 607,
+   "name": "parity vendor 607",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "617": {
+   "id": 617,
+   "name": "parity vendor 617",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "618": {
+   "id": 618,
+   "name": "parity vendor 618",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "620": {
+   "id": 620,
+   "name": "parity vendor 620",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "628": {
+   "id": 628,
+   "name": "parity vendor 628",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "639": {
+   "id": 639,
+   "name": "parity vendor 639",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "644": {
+   "id": 644,
+   "name": "parity vendor 644",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "647": {
+   "id": 647,
+   "name": "parity vendor 647",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "658": {
+   "id": 658,
+   "name": "parity vendor 658",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "666": {
+   "id": 666,
+   "name": "parity vendor 666",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "676": {
+   "id": 676,
+   "name": "parity vendor 676",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "677": {
+   "id": 677,
+   "name": "parity vendor 677",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "678": {
+   "id": 678,
+   "name": "parity vendor 678",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "682": {
+   "id": 682,
+   "name": "parity vendor 682",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "686": {
+   "id": 686,
+   "name": "parity vendor 686",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "687": {
+   "id": 687,
+   "name": "parity vendor 687",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "706": {
+   "id": 706,
+   "name": "parity vendor 706",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "720": {
+   "id": 720,
+   "name": "parity vendor 720",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "724": {
+   "id": 724,
+   "name": "parity vendor 724",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "736": {
+   "id": 736,
+   "name": "parity vendor 736",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "737": {
+   "id": 737,
+   "name": "parity vendor 737",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "744": {
+   "id": 744,
+   "name": "parity vendor 744",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "773": {
+   "id": 773,
+   "name": "parity vendor 773",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "775": {
+   "id": 775,
+   "name": "parity vendor 775",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "776": {
+   "id": 776,
+   "name": "parity vendor 776",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "779": {
+   "id": 779,
+   "name": "parity vendor 779",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "781": {
+   "id": 781,
+   "name": "parity vendor 781",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "786": {
+   "id": 786,
+   "name": "parity vendor 786",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "791": {
+   "id": 791,
+   "name": "parity vendor 791",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "793": {
+   "id": 793,
+   "name": "parity vendor 793",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "799": {
+   "id": 799,
+   "name": "parity vendor 799",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "814": {
+   "id": 814,
+   "name": "parity vendor 814",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "816": {
+   "id": 816,
+   "name": "parity vendor 816",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "833": {
+   "id": 833,
+   "name": "parity vendor 833",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "839": {
+   "id": 839,
+   "name": "parity vendor 839",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "842": {
+   "id": 842,
+   "name": "parity vendor 842",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "849": {
+   "id": 849,
+   "name": "parity vendor 849",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "855": {
+   "id": 855,
+   "name": "parity vendor 855",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "856": {
+   "id": 856,
+   "name": "parity vendor 856",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "869": {
+   "id": 869,
+   "name": "parity vendor 869",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "879": {
+   "id": 879,
+   "name": "parity vendor 879",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "883": {
+   "id": 883,
+   "name": "parity vendor 883",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "885": {
+   "id": 885,
+   "name": "parity vendor 885",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "898": {
+   "id": 898,
+   "name": "parity vendor 898",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "902": {
+   "id": 902,
+   "name": "parity vendor 902",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "909": {
+   "id": 909,
+   "name": "parity vendor 909",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "910": {
+   "id": 910,
+   "name": "parity vendor 910",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "915": {
+   "id": 915,
+   "name": "parity vendor 915",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "918": {
+   "id": 918,
+   "name": "parity vendor 918",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "924": {
+   "id": 924,
+   "name": "parity vendor 924",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "957": {
+   "id": 957,
+   "name": "parity vendor 957",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "965": {
+   "id": 965,
+   "name": "parity vendor 965",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "972": {
+   "id": 972,
+   "name": "parity vendor 972",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "998": {
+   "id": 998,
+   "name": "parity vendor 998",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "1011": {
+   "id": 1011,
+   "name": "parity vendor 1011",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "1020": {
+   "id": 1020,
+   "name": "parity vendor 1020",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "1022": {
+   "id": 1022,
+   "name": "parity vendor 1022",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "1028": {
+   "id": 1028,
+   "name": "parity vendor 1028",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "1039": {
+   "id": 1039,
+   "name": "parity vendor 1039",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "1043": {
+   "id": 1043,
+   "name": "parity vendor 1043",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "1060": {
+   "id": 1060,
+   "name": "parity vendor 1060",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "1072": {
+   "id": 1072,
+   "name": "parity vendor 1072",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "1081": {
+   "id": 1081,
+   "name": "parity vendor 1081",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "1097": {
+   "id": 1097,
+   "name": "parity vendor 1097",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "1100": {
+   "id": 1100,
+   "name": "parity vendor 1100",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "1107": {
+   "id": 1107,
+   "name": "parity vendor 1107",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "1111": {
+   "id": 1111,
+   "name": "parity vendor 1111",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "1133": {
+   "id": 1133,
+   "name": "parity vendor 1133",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "1134": {
+   "id": 1134,
+   "name": "parity vendor 1134",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "1162": {
+   "id": 1162,
+   "name": "parity vendor 1162",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "1165": {
+   "id": 1165,
+   "name": "parity vendor 1165",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "1169": {
+   "id": 1169,
+   "name": "parity vendor 1169",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "1176": {
+   "id": 1176,
+   "name": "parity vendor 1176",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "1202": {
+   "id": 1202,
+   "name": "parity vendor 1202",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "1212": {
+   "id": 1212,
+   "name": "parity vendor 1212",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "1216": {
+   "id": 1216,
+   "name": "parity vendor 1216",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "1272": {
+   "id": 1272,
+   "name": "parity vendor 1272",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "1281": {
+   "id": 1281,
+   "name": "parity vendor 1281",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "1283": {
+   "id": 1283,
+   "name": "parity vendor 1283",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "1288": {
+   "id": 1288,
+   "name": "parity vendor 1288",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "1294": {
+   "id": 1294,
+   "name": "parity vendor 1294",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "1301": {
+   "id": 1301,
+   "name": "parity vendor 1301",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "1302": {
+   "id": 1302,
+   "name": "parity vendor 1302",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "1317": {
+   "id": 1317,
+   "name": "parity vendor 1317",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "1320": {
+   "id": 1320,
+   "name": "parity vendor 1320",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "1331": {
+   "id": 1331,
+   "name": "parity vendor 1331",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "1344": {
+   "id": 1344,
+   "name": "parity vendor 1344",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "1353": {
+   "id": 1353,
+   "name": "parity vendor 1353",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "1356": {
+   "id": 1356,
+   "name": "parity vendor 1356",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "1358": {
+   "id": 1358,
+   "name": "parity vendor 1358",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "1378": {
+   "id": 1378,
+   "name": "parity vendor 1378",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "1406": {
+   "id": 1406,
+   "name": "parity vendor 1406",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "1409": {
+   "id": 1409,
+   "name": "parity vendor 1409",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "1450": {
+   "id": 1450,
+   "name": "parity vendor 1450",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "1456": {
+   "id": 1456,
+   "name": "parity vendor 1456",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "1463": {
+   "id": 1463,
+   "name": "parity vendor 1463",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "1471": {
+   "id": 1471,
+   "name": "parity vendor 1471",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "1473": {
+   "id": 1473,
+   "name": "parity vendor 1473",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "1527": {
+   "id": 1527,
+   "name": "parity vendor 1527",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "1542": {
+   "id": 1542,
+   "name": "parity vendor 1542",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "1554": {
+   "id": 1554,
+   "name": "parity vendor 1554",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "1575": {
+   "id": 1575,
+   "name": "parity vendor 1575",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "1609": {
+   "id": 1609,
+   "name": "parity vendor 1609",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  },
+  "1619": {
+   "id": 1619,
+   "name": "parity vendor 1619",
+   "purposes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "legIntPurposes": [],
+   "flexiblePurposes": [],
+   "specialPurposes": [
+    1,
+    2
+   ],
+   "features": [
+    1,
+    2,
+    3
+   ],
+   "specialFeatures": [
+    1,
+    2
+   ]
+  }
+ }
+}
