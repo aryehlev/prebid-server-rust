@@ -27,9 +27,9 @@ pub use atoi::{atoi, atoi_pair, parse_int, parse_int_pair, parse_uint, parse_uin
 pub use ftoa::format_float;
 pub use itoa::{format_int, format_uint, itoa};
 pub use quote::{
-    UnquoteError, can_backquote, is_graphic, is_print, quote, quote_bytes, quote_rune,
-    quote_rune_to_ascii, quote_rune_to_graphic, quote_to_ascii, quote_to_graphic, unquote,
-    unquote_bytes, unquote_char,
+    UnquoteError, can_backquote, can_backquote_bytes, is_graphic, is_print, quote, quote_bytes,
+    quote_rune, quote_rune_to_ascii, quote_rune_to_graphic, quote_to_ascii, quote_to_ascii_bytes,
+    quote_to_graphic, unquote, unquote_bytes, unquote_char,
 };
 
 /// Go: `strconv.IntSize`.

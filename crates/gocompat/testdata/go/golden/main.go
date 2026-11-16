@@ -32,6 +32,7 @@ func main() {
 	genURL()
 	genStrings()
 	genBase64()
+	genFmt()
 }
 
 // table accumulates golden rows for one file.

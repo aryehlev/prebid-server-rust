@@ -127,6 +127,12 @@ pub fn quote_to_ascii(s: &str) -> String {
     quote_with(s.as_bytes(), b'"', true, false)
 }
 
+/// Go: `strconv.QuoteToASCII(string(b))` for bytes that may not be valid UTF-8.
+#[must_use]
+pub fn quote_to_ascii_bytes(s: &[u8]) -> String {
+    quote_with(s, b'"', true, false)
+}
+
 /// Go: `strconv.QuoteToGraphic`: like [`quote`] but leaves graphic runes (such as U+00A0)
 /// unescaped.
 #[must_use]
@@ -169,6 +175,12 @@ pub fn can_backquote(s: &str) -> bool {
         }
         !((r < ' ' && r != '\t') || r == '`' || r == '\u{7F}')
     })
+}
+
+/// Go: `strconv.CanBackquote(string(b))`: false for bytes that are not valid UTF-8.
+#[must_use]
+pub fn can_backquote_bytes(s: &[u8]) -> bool {
+    str::from_utf8(s).is_ok_and(can_backquote)
 }
 
 const fn unhex(b: u8) -> Option<u32> {

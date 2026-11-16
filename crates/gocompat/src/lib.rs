@@ -16,6 +16,13 @@
 //! - [`base64`]: Go `encoding/base64` (`StdEncoding`, `URLEncoding`, `RawStdEncoding`,
 //!   `RawURLEncoding`) with Go's lenient decoder (newlines skipped, non-zero trailing bits
 //!   accepted) and `illegal base64 data at input byte N` errors.
+//! - [`fmt`]: Go `fmt`. [`fmt::sprintf`], [`fmt::errorf`] (the text of `fmt.Errorf`, where `%w`
+//!   prints an error), [`fmt::sprint`] and [`fmt::sprintln`] over [`fmt::Value`], a model of the Go
+//!   operand as `reflect` sees it: basic types, `[]byte`, defined types, slices, arrays, maps
+//!   (printed in Go's sorted key order), structs (unexported fields included), pointers, nil
+//!   interfaces, and values with `Error`/`String` methods. All verbs, flags, widths, precisions,
+//!   argument indexes and error forms (`%!d(string=x)`, `%!v(MISSING)`, `%!(EXTRA int=1)`) match
+//!   Go.
 //! - [`http`]: Go `net/http` header semantics. [`http::canonical_mime_header_key`] (the `textproto`
 //!   rule, including leaving keys with non-token bytes untouched), and [`http::Header`]:
 //!   `Add`/`Set`/`Get`/`Values`/`Del` canonicalize, while the `*_raw` methods act on the map
@@ -62,6 +69,7 @@
 //! ```
 
 pub mod base64;
+pub mod fmt;
 #[cfg(test)]
 pub mod golden;
 pub mod http;
