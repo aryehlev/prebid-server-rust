@@ -103,6 +103,9 @@ func newMainHandler(static string) http.Handler {
 		r.Handle(m, "/t/req/*rest", echoRequest)
 	}
 	r.GET("/t/remote", remoteAddr)
+	r.GET("/t/plan/:spec", func(w http.ResponseWriter, _ *http.Request, ps httprouter.Params) {
+		runPlan(w, ps.ByName("spec"))
+	})
 	return router.NoCache{Handler: router.SupportCORS(r)}
 }
 
@@ -117,6 +120,10 @@ func newAdminHandler() http.Handler {
 	mux.HandleFunc("/debug/pprof/trace", adminEcho("trace"))
 	mux.HandleFunc("/currency/rates", adminEcho("rates"))
 	mux.HandleFunc("/version", endpoints.NewVersionEndpoint("", ""))
+	// Not one of Prebid's: the admin server is where HEAD requests reach a handler.
+	mux.HandleFunc("/t/plan/", func(w http.ResponseWriter, r *http.Request) {
+		runPlan(w, strings.TrimPrefix(r.URL.Path, "/t/plan/"))
+	})
 	return mux
 }
 
@@ -487,6 +494,54 @@ func echoRequest(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	fmt.Fprintf(w, "proto=%s %d.%d\nclose=%v\ncl=%d\nte=%s\nrest=%s\nheader:%s\n",
 		r.Proto, r.ProtoMajor, r.ProtoMinor, r.Close, r.ContentLength,
 		strings.Join(r.TransferEncoding, ","), ps.ByName("rest"), formatHeader(r.Header))
+}
+
+// planBodies are the bodies of a plan's b steps.
+var planBodies = map[string]string{
+	"json": `{"a":1}`, "html": "<html>", "htmlws": " \t\r\n<!DOCTYPE HTML>", "htmlopen": "<html",
+	"bin": "\x00\x01\x02", "xml": `<?xml version="1.0"?>`, "text": "hello", "pdf": "%PDF-1.4",
+	"bom": "\xEF\xBB\xBFx", "gif": "GIF89a", "lt": "<", "ws": " \t\r\n", "empty": "",
+	"ht": "<ht", "ml": "ml>",
+}
+
+// runPlan runs the dot-separated steps of spec: wN writes N pattern bytes, xN does the same and
+// then writes that write's result, bNAME writes planBodies[NAME], f flushes, sN writes the
+// status code N, tX sets the Content-Type (to nil for "nil", to "" for "empty", else to
+// "application/X"), lX sets the Content-Length and cX the Connection header.
+func runPlan(w http.ResponseWriter, spec string) {
+	h := w.Header()
+	for _, op := range strings.Split(spec, ".") {
+		if op == "" {
+			continue
+		}
+		arg := op[1:]
+		switch op[0] {
+		case 'w':
+			w.Write(pattern(atoi(arg)))
+		case 'x':
+			n, err := w.Write(pattern(atoi(arg)))
+			fmt.Fprintf(w, "[n=%d err=%v]", n, err)
+		case 'b':
+			w.Write([]byte(planBodies[arg]))
+		case 'f':
+			w.(http.Flusher).Flush()
+		case 's':
+			w.WriteHeader(atoi(arg))
+		case 't':
+			switch arg {
+			case "nil":
+				h["Content-Type"] = nil
+			case "empty":
+				h.Set("Content-Type", "")
+			default:
+				h.Set("Content-Type", "application/"+arg)
+			}
+		case 'l':
+			h.Set("Content-Length", arg)
+		case 'c':
+			h.Set("Connection", arg)
+		}
+	}
 }
 
 func remoteAddr(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {

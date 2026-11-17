@@ -115,6 +115,16 @@ func allCases() []wireCase {
 	short(c)
 	unix(c)
 	plain(c)
+	genRoutes(c)
+	genAdmin(c)
+	genPlanCases(c)
+	genBytes(c)
+	genFolds(c)
+	genRequestLines(c)
+	genExpect(c)
+	genCORS(c)
+	genPipelines(c)
+	genBodies(c)
 	return c.cases
 }
 

@@ -239,6 +239,7 @@ fn main_handler(static_root: &Path) -> Result<Arc<dyn Handler>, String> {
         route(r.handle(m, "/t/req/*rest", HandleFunc(echo_request)))?;
     }
     route(r.get("/t/remote", HandleFunc(remote_addr)))?;
+    route(r.get("/t/plan/:spec", HandleFunc(plan)))?;
     Ok(Arc::new(NoCache {
         handler: support_cors(r),
     }))
@@ -247,7 +248,7 @@ fn main_handler(static_root: &Path) -> Result<Arc<dyn Handler>, String> {
 /// Go: `newAdminHandler`.
 fn admin_handler() -> Result<Arc<dyn Handler>, String> {
     let mut mux = ServeMux::new();
-    let routes: [(&str, Arc<dyn Handler>); 7] = [
+    let routes: [(&str, Arc<dyn Handler>); 8] = [
         ("/debug/pprof/", Arc::new(AdminEcho("index"))),
         ("/debug/pprof/cmdline", Arc::new(AdminEcho("cmdline"))),
         ("/debug/pprof/profile", Arc::new(AdminEcho("profile"))),
@@ -255,6 +256,7 @@ fn admin_handler() -> Result<Arc<dyn Handler>, String> {
         ("/debug/pprof/trace", Arc::new(AdminEcho("trace"))),
         ("/currency/rates", Arc::new(AdminEcho("rates"))),
         ("/version", Arc::new(HandlerFunc(version))),
+        ("/t/plan/", Arc::new(HandlerFunc(admin_plan))),
     ];
     for (pattern, handler) in routes {
         mux.handle(pattern, handler).map_err(|e| e.to_string())?;
@@ -594,6 +596,77 @@ fn status_code<'a>(
         if ps.by_name("body") == "y" {
             write_str(w, "body").await;
         }
+    })
+}
+
+/// Go: `planBodies`.
+fn plan_body(name: &str) -> &'static [u8] {
+    match name {
+        "json" => b"{\"a\":1}",
+        "html" => b"<html>",
+        "htmlws" => b" \t\r\n<!DOCTYPE HTML>",
+        "htmlopen" => b"<html",
+        "bin" => b"\x00\x01\x02",
+        "xml" => b"<?xml version=\"1.0\"?>",
+        "text" => b"hello",
+        "pdf" => b"%PDF-1.4",
+        "bom" => b"\xEF\xBB\xBFx",
+        "gif" => b"GIF89a",
+        "lt" => b"<",
+        "ws" => b" \t\r\n",
+        "ht" => b"<ht",
+        "ml" => b"ml>",
+        _ => b"",
+    }
+}
+
+/// Go: `runPlan`.
+async fn run_plan(w: &mut dyn ResponseWriter, spec: &str) {
+    for op in spec.split('.') {
+        let Some(kind) = op.bytes().next() else {
+            continue;
+        };
+        let arg = op.get(1..).unwrap_or_default();
+        match kind {
+            b'w' => {
+                let _written = w.write(&pattern(count(arg))).await;
+            }
+            b'x' => {
+                let (n, err) = match w.write(&pattern(count(arg))).await {
+                    Ok(n) => (n, None),
+                    Err(e) => (0, Some(e)),
+                };
+                write_str(w, &format!("[n={n} err={}]", err_text(err))).await;
+            }
+            b'b' => {
+                let _written = w.write(plan_body(arg)).await;
+            }
+            b'f' => {
+                let _flushed = w.flush().await;
+            }
+            b's' => w.write_header(code(arg)),
+            b't' => match arg {
+                "nil" => w.header().insert_raw("Content-Type", Vec::new()),
+                "empty" => w.header().set("Content-Type", ""),
+                _ => w.header().set("Content-Type", format!("application/{arg}")),
+            },
+            b'l' => w.header().set("Content-Length", arg),
+            b'c' => w.header().set("Connection", arg),
+            _ => {}
+        }
+    }
+}
+
+/// Go: the main server's `/t/plan/:spec` handler.
+fn plan<'a>(w: &'a mut dyn ResponseWriter, _r: &'a mut Request, ps: Params) -> BoxFuture<'a, ()> {
+    Box::pin(async move { run_plan(w, ps.by_name("spec")).await })
+}
+
+/// Go: the admin server's `/t/plan/` handler.
+fn admin_plan<'a>(w: &'a mut dyn ResponseWriter, r: &'a mut Request) -> BoxFuture<'a, ()> {
+    Box::pin(async move {
+        let spec = r.url.path.strip_prefix("/t/plan/").unwrap_or(&r.url.path);
+        run_plan(w, spec).await;
     })
 }
 
