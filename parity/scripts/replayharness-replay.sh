@@ -31,10 +31,16 @@
 # Ctrl-C.
 #
 # Usage: parity/scripts/replayharness-replay.sh [--baseline] [--record] [--serve]
-#            [--profile NAME] [--out DIR]
+#            [--profile NAME] [--out DIR] [--keep-state]
 #   REPLAYHARNESS  the ReplayHarness CLI (default: replayharness on PATH)
 #   --profile      the parity base profile (default: default)
 #   --out          where to keep the reports (default: a new temporary directory)
+#   --keep-state   keep the state directory after the run, for debugging
+#
+# The state directory, a new temporary directory, holds the parity token
+# file, rhtool serve's state.env, outbound log and server logs, the raw
+# recording and the rhtool build. It is deleted on every exit, unless
+# --keep-state is given; the script never prints the token.
 set -euo pipefail
 
 script_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
@@ -49,8 +55,10 @@ record=0
 serve_only=0
 profile=default
 out=""
+keep_state=0
 while (($# > 0)); do
   case "$1" in
+    --keep-state) keep_state=1 ;;
     --baseline) baseline=1 ;;
     --record) record=1 ;;
     --serve) serve_only=1 ;;
@@ -63,7 +71,7 @@ while (($# > 0)); do
       shift
       ;;
     *)
-      echo "usage: $0 [--baseline] [--record] [--serve] [--profile NAME] [--out DIR]" >&2
+      echo "usage: $0 [--baseline] [--record] [--serve] [--profile NAME] [--out DIR] [--keep-state]" >&2
       exit 2
       ;;
   esac
@@ -72,18 +80,16 @@ done
 
 say() { echo "replayharness-replay: $*" >&2; }
 
-state=$(mktemp -d "${TMPDIR:-/tmp}/replayharness-replay.XXXXXX")
-if [[ -z "$out" ]]; then
-  out="$state/out"
-fi
-mkdir -p "$out"
-
+state=""
 serve_pid=""
 proxy_pid=""
 watch_pid=""
 
+# cleanup stops the servers and deletes the state directory, or with
+# --keep-state only the builds in it. It runs on every exit.
 cleanup() {
   local status=$?
+  set +e
   if [[ -n "$watch_pid" ]]; then
     kill "$watch_pid" 2>/dev/null || true
     wait "$watch_pid" 2>/dev/null || true
@@ -96,13 +102,28 @@ cleanup() {
     kill -INT "$serve_pid" 2>/dev/null || true
     wait "$serve_pid" 2>/dev/null || true
   fi
-  # Keep the logs and reports; drop the binaries.
-  rm -f "$state/rhtool" "$state/stack/pbs-go"
-  say "logs and reports in $state"
+  if [[ -n "$state" ]]; then
+    if ((keep_state)); then
+      rm -f "${state:?}/rhtool" "${state:?}/stack/pbs-go"
+      say "state kept in $state; it holds the parity token file, so delete it when done"
+    else
+      rm -rf "${state:?}"
+    fi
+  fi
+  if [[ -n "$out" ]]; then
+    say "reports in $out"
+  fi
   exit "$status"
 }
 trap cleanup EXIT
 trap 'exit 130' INT TERM
+trap 'exit 129' HUP
+
+state=$(mktemp -d "${TMPDIR:-/tmp}/replayharness-replay.XXXXXX")
+if [[ -z "$out" ]]; then
+  out=$(mktemp -d "${TMPDIR:-/tmp}/replayharness-replay-out.XXXXXX")
+fi
+mkdir -p "$out"
 
 # Every process this script starts gets the proxy guard; requests to
 # 127.0.0.1 never use a proxy.
@@ -197,7 +218,7 @@ check_breach() {
 
 say "Go server on $target${baseline_url:+, baseline Go server on $baseline_url}"
 if ((serve_only)); then
-  say "serving until Ctrl-C; the token is in $token_file"
+  say "serving until Ctrl-C; the token is in $token_file, which goes when the script exits"
   wait "$serve_pid"
   exit 0
 fi

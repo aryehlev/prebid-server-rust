@@ -35,15 +35,23 @@
 #   record-saved  record Go's answers to the replay steps that save a value
 #                 into parity/replayharness/saved.jsonl (rhtool saved), which
 #                 the corpus loader builds the steps that use the value from.
-#   cli           build the pinned ReplayHarness CLI and print its path.
+#   cli           build the pinned ReplayHarness CLI into the reports
+#                 directory and print its path.
 #
 # Usage: parity/scripts/replayharness.sh COMMAND [--bin-b FILE] [--impl-b go|rust]
-#            [--profile NAME] [--out DIR] [-- PARITY-RUN-FLAGS...]
-#   --bin-b    side B's server binary (default: the Go server)
-#   --impl-b   what side B runs: go or rust (default: go)
-#   --profile  the parity base profile (default: default)
-#   --out      where to keep the reports (default: a new temporary directory)
-#   -- ...     more flags for parity run (the parity command)
+#            [--profile NAME] [--out DIR] [--keep-state] [-- PARITY-RUN-FLAGS...]
+#   --bin-b       side B's server binary (default: the Go server)
+#   --impl-b      what side B runs: go or rust (default: go)
+#   --profile     the parity base profile (default: default)
+#   --out         where to keep the reports (default: a new temporary
+#                 directory)
+#   --keep-state  keep the state directory after the run, for debugging
+#   -- ...        more flags for parity run (the parity command)
+#
+# The state directory, a new temporary directory, holds the parity token
+# file, rhtool serve's state.env, outbound log and server logs, and the
+# builds. It is deleted on every exit, unless --keep-state is given; the
+# script never prints the token.
 #
 # Environment:
 #   REPLAYHARNESS      a ReplayHarness CLI to use instead of building the pin;
@@ -53,8 +61,8 @@
 #                      https://github.com/aryehlev/ReplayHarness.git)
 #
 # The CLI is built from commit $rh_commit, the one parity/replayharness was
-# recorded against (parity/replayharness/rhreplay.PinnedCommit), in a new
-# temporary directory, and the build must record that commit, unmodified, in
+# recorded against (parity/replayharness/rhreplay.PinnedCommit), in the state
+# directory, and the build must record that commit, unmodified, in
 # its Go build info. Builds happen before the proxy guard is set, so they may
 # fetch modules; nothing after them may leave loopback.
 set -euo pipefail
@@ -70,7 +78,7 @@ saved="$repo/parity/replayharness/saved.jsonl"
 
 usage() {
   echo "usage: $0 baseline|parity|selftest|canary|record-saved|cli [--bin-b FILE] [--impl-b go|rust]" \
-    "[--profile NAME] [--out DIR] [-- PARITY-RUN-FLAGS...]" >&2
+    "[--profile NAME] [--out DIR] [--keep-state] [-- PARITY-RUN-FLAGS...]" >&2
   exit 2
 }
 
@@ -86,9 +94,11 @@ bin_b=""
 impl_b=go
 profile=default
 out=""
+keep_state=0
 parity_flags=()
 while (($# > 0)); do
   case "$1" in
+    --keep-state) keep_state=1 ;;
     --bin-b)
       bin_b=${2:?--bin-b needs a file}
       shift
@@ -141,27 +151,13 @@ die() {
   exit 1
 }
 
-state=$(mktemp -d "${TMPDIR:-/tmp}/replayharness.XXXXXX")
-if [[ -z "$out" ]]; then
-  out="$state/out"
-fi
-mkdir -p "$out"
-out=$(cd "$out" && pwd)
-
-# roots lists the processes the script starts; the watchdog checks them and
-# every process under them. seen lists each process the watchdog saw, with
-# its start time, so the cleanup can kill what is left without killing a
-# process that reused a pid.
-roots_file="$state/roots"
-seen_file="$state/seen"
-: >"$roots_file"
-: >"$seen_file"
-
+state=""
+roots_file=""
+seen_file=""
 serve_pid=""
 proxy_pid=""
 runner_pid=""
 watch_pid=""
-keep_cli=0
 cli=""
 
 stop_pid() {
@@ -184,6 +180,7 @@ descendants() {
 # still runs with the start time it was seen with.
 sweep() {
   local pid started now
+  [[ -n "$seen_file" && -f "$seen_file" ]] || return 0
   while IFS=$'\t' read -r pid started; do
     now=$(ps -o lstart= -p "$pid" 2>/dev/null || true)
     if [[ -n "$now" && "$now" == "$started" ]]; then
@@ -192,25 +189,47 @@ sweep() {
   done <"$seen_file"
 }
 
+# cleanup stops what the script started and deletes the state directory,
+# or with --keep-state only the builds in it. It runs on every exit.
 cleanup() {
   local status=$?
+  set +e
   stop_pid "$watch_pid" TERM
   stop_pid "$proxy_pid" INT
   stop_pid "$runner_pid" INT
   stop_pid "$serve_pid" INT
   sweep KILL
-  # Keep the logs and reports; drop the binaries.
-  rm -rf "${state:?}/bin" "${state:?}/canary"
-  if ((keep_cli == 0)); then
-    rm -rf "${state:?}/replayharness"
-  else
-    rm -rf "${state:?}/replayharness/src"
+  if [[ -n "$state" ]]; then
+    if ((keep_state)); then
+      rm -rf "${state:?}/bin" "${state:?}/canary" "${state:?}/replayharness"
+      say "state kept in $state; it holds the parity token file, so delete it when done"
+    else
+      rm -rf "${state:?}"
+    fi
   fi
-  say "logs and reports in $out"
+  if [[ -n "$out" ]]; then
+    say "reports in $out"
+  fi
   exit "$status"
 }
 trap cleanup EXIT
 trap 'exit 130' INT TERM
+trap 'exit 129' HUP
+
+state=$(mktemp -d "${TMPDIR:-/tmp}/replayharness.XXXXXX")
+# roots lists the processes the script starts; the watchdog checks them and
+# every process under them. seen lists each process the watchdog saw, with
+# its start time, so the cleanup can kill what is left without killing a
+# process that reused a pid.
+roots_file="$state/roots"
+seen_file="$state/seen"
+: >"$roots_file"
+: >"$seen_file"
+if [[ -z "$out" ]]; then
+  out=$(mktemp -d "${TMPDIR:-/tmp}/replayharness-out.XXXXXX")
+fi
+mkdir -p "$out"
+out=$(cd "$out" && pwd)
 
 # off_loopback prints the sockets of pid whose local or remote address is
 # not 127.0.0.0/8 or ::1, one per line. lsof -F n prints one n<name> line
@@ -527,8 +546,12 @@ parity_status=0
 
 case "$command" in
   cli)
-    keep_cli=1
     replayharness_cli
+    if [[ "$cli" == "$state/"* ]]; then
+      # The state directory goes on exit; the CLI stays with the reports.
+      mv "$cli" "$out/replayharness"
+      cli="$out/replayharness"
+    fi
     echo "$cli"
     ;;
   baseline)

@@ -932,7 +932,7 @@ or handler changes, update `api.yaml` and run the script again.
 
 ```sh
 REPLAYHARNESS=/path/to/replayharness parity/scripts/replayharness-replay.sh \
-    [--baseline] [--record] [--serve] [--profile NAME] [--out DIR]
+    [--baseline] [--record] [--serve] [--profile NAME] [--out DIR] [--keep-state]
 ```
 
 The script starts the Go server with `rhtool serve`
@@ -977,8 +977,15 @@ The steps, in order:
    --mutate` through the same proxy. `rhtool traffic` then writes
    `parity/replayharness/traffic.jsonl` (see below).
 
-`--serve` only starts the stack, prints the URLs and waits for Ctrl-C. The
-reports and logs stay in the state directory; the binaries are deleted.
+`--serve` only starts the stack, prints the URLs and waits for Ctrl-C.
+
+The state directory holds the token file, `rhtool serve`'s `state.env`,
+outbound log and server logs, the raw recording and the `rhtool` build. The
+script deletes it on every exit: on success, on failure, and on `INT`,
+`TERM` or `HUP`. With `--keep-state`, it keeps the directory without the
+builds and prints its path. The reports go to `--out`, or to a new temporary
+directory outside the state directory, which is kept. The script never prints
+the token.
 
 Requests sent straight to the main port carry no parity case. The exchange
 therefore labels bidder calls as general calls, and the oracle answers them
@@ -1228,7 +1235,8 @@ the other paths to the router, which answers them 404 or with a redirect.
 
 ```sh
 parity/scripts/replayharness.sh baseline|parity|selftest|canary|record-saved|cli \
-    [--bin-b FILE] [--impl-b go|rust] [--profile NAME] [--out DIR] [-- PARITY-RUN-FLAGS...]
+    [--bin-b FILE] [--impl-b go|rust] [--profile NAME] [--out DIR] [--keep-state] \
+    [-- PARITY-RUN-FLAGS...]
 ```
 
 | Command | What it does |
@@ -1238,15 +1246,15 @@ parity/scripts/replayharness.sh baseline|parity|selftest|canary|record-saved|cli
 | `selftest` | An A/A run: `parity selftest --corpus replayharness`, then `baseline` with Go on both sides. Neither may find a difference. |
 | `canary` | Builds a Go side B with two seeded bugs, through a build overlay, so the checkout does not change. The first bug drops the `X-Prebid` header from `/openrtb2/auction`. The second renames `status` to `state` in `/info/bidders/{name}`. Both `parity` and `baseline` must fail. |
 | `record-saved` | Writes `parity/replayharness/saved.jsonl` (see above). |
-| `cli` | Builds the pinned ReplayHarness CLI and prints its path. |
+| `cli` | Builds the pinned ReplayHarness CLI into the reports directory and prints its path. |
 
 The script builds the ReplayHarness CLI at commit
 `f61ab1997f27b0044eeb801caea62810d75e2d76`. That is `rhreplay.PinnedCommit`,
 and a corpus test checks that the two agree. The build works like this:
 
 1. It clones `REPLAYHARNESS_SRC` (by default
-   `https://github.com/aryehlev/ReplayHarness.git`) into a new temporary
-   directory.
+   `https://github.com/aryehlev/ReplayHarness.git`) into the state directory
+   (see below).
 2. It checks out the pinned commit and builds it with `go build -trimpath`.
 3. It checks the build: the Go build info must record that commit,
    unmodified.
@@ -1254,9 +1262,19 @@ and a corpus test checks that the two agree. The build works like this:
 Set `REPLAYHARNESS=/path/to/replayharness` to use a CLI that is already
 built. The script warns when that CLI is not the pinned build.
 
-The Go server, `rhtool`, the runner and the canary are built into the state
-directory. The script writes nothing in the checkout except `saved.jsonl`,
-and only `record-saved` writes that.
+The Go server, `rhtool`, the runner, the canary and the ReplayHarness CLI are
+built into the state directory, a new temporary directory. It also holds the
+parity token file and, for each stack `rhtool serve` starts, the
+`state.env`, the outbound log and the server logs. The script deletes it on
+every exit: on success, on failure, and on `INT`, `TERM` or `HUP`. With
+`--keep-state`, it keeps the directory without the builds and prints its
+path. The reports go to `--out`, or to a new temporary directory outside the
+state directory, which is kept. The script never prints the token.
+`parity/scripts/state_test.go` checks this with stubs for `go` and the CLI:
+for this script on success (`cli`), on a failed build, on `TERM` and with
+`--keep-state`, and for `replayharness-replay.sh` in the last three cases.
+The script writes nothing in the checkout except `saved.jsonl`, and only
+`record-saved` writes that.
 
 The builds run first, and they may fetch modules. After the builds, the
 script guards every process:
@@ -1403,7 +1421,9 @@ consent, an event, a path traversal under `/static` and a redirect. No
 process opened a socket off loopback, the sandbox denied no IP connection,
 and the oracle answered every outbound call. The parity token appears only
 in its 0600 file in the state directory: not in `traffic.jsonl`, the cases,
-the reports, the server logs or any command line.
+the reports, the server logs or any command line. The scripts used to leave
+that directory behind, with the token file in it; they now delete it on
+every exit unless `--keep-state` is given.
 
 **Fidelity.** `TestReplayHarnessRoundTrip` sends requests as ReplayHarness
 does, records them the way the pinned recorder does, loads the recording as
