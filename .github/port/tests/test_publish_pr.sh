@@ -67,6 +67,33 @@ publish
 calls=$(cat "${shim}/calls.log")
 t_has "red update: back to draft" "${calls}" "pr ready 7 --repo test/fork --undo"
 
+# Agents that never reported (a session that failed or did not run): the port log records the
+# commit as blocked, so the pull request is labelled partial and the commit becomes parity debt,
+# although the gates are green and no agent result exists.
+: > "${shim}/calls.log"
+rm -f "${shim}"/body-*.md
+printf 'pass' > "${result}/final-status"
+: > "${result}/port-result.json"
+: > "${result}/fix-result.json"
+jq -n -c '{upstream: "dddddddddddddddddddddddddddddddddddddddd", subject: "New Adapter: Bar ~~~ @someone",
+  status: "blocked", not_ported: [], notes: "the agent reported no result for this commit"}' > "${result}/port-log.jsonl"
+jq -n -c '{upstream: "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee", subject: "docs: readme", status: "no_change_needed",
+  not_ported: [], notes: ""}' >> "${result}/port-log.jsonl"
+printf '{"labels": [], "isDraft": true}\n' > "${shim}/pr_view.json"
+publish
+calls=$(cat "${shim}/calls.log")
+t_has "silent agents: partial label although the gates are green" "${calls}" \
+  "pr edit 7 --repo test/fork --add-label upstream-port,port:green,port:partial --remove-label port:red"
+comment=$(cat "${shim}/body-2.md")
+t_has "silent agents: the comment gives the derived status" "${comment}" "agent status **blocked**"
+t_has "silent agents: the comment counts the commits" "${comment}" "1 upstream commit(s) are not fully ported"
+debt=$(cat "${shim}/body-3.md")
+t_has "silent agents: the blocked commit is parity debt" "${debt}" \
+  "- upstream dddddddddddd New Adapter: Bar ~ ~ ~ @someone: blocked (the agent reported no result for this commit)"
+t_lacks "silent agents: a handled commit is not debt" "${debt}" "eeeeeeeeeeee"
+t_has "silent agents: debt is fenced" "${debt}" "~~~text"
+rm -f "${result}/port-log.jsonl"
+
 : > "${shim}/calls.log"
 t_run_in "${T_ROOT}" env PR_NUMBER=7 REASON="CI is still red" RUN_URL=https://example.invalid/runs/8 \
   "${T_SCRIPTS}/publish-pr.sh" --escalate

@@ -338,6 +338,10 @@ jobs:
               cp "${CTX}/${file}" "${out}/${file}"
             fi
           done
+          if [[ "${ACTION}" == advance ]]; then
+            count=$(jq -r '.commits | length' "${CTX}/plan.json")
+            tail -n "${count}" rust/upstream-port-log.jsonl > "${out}/port-log.jsonl"
+          fi
           printf '%s' "${PORT_JSON:-}" > "${out}/port-result.json"
           printf '%s' "${REVIEW_JSON:-}" > "${out}/review-result.json"
           printf '%s' "${FIX_JSON:-}" > "${out}/fix-result.json"

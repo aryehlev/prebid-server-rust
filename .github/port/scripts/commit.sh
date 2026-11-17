@@ -89,6 +89,12 @@ message="${ctx}/commit-message.txt"
 first_subject=$(jq -r '.commits[0].subject // ""' "${plan}" | port_sanitize)
 count=$(jq -r '.commits | length' "${plan}")
 statuses=$(tail -n "${count}" rust/upstream-port-log.jsonl 2> /dev/null || true)
+# Commits of this run that the log does not record as handled: an agent that reported them partial
+# or blocked, or that never reported (its session failed or did not run).
+unported=0
+if [[ "${action}" == advance && -n "${statuses}" ]]; then
+  unported=$(jq -s '[.[] | select(.status == "partial" or .status == "blocked")] | length' <<< "${statuses}")
+fi
 if [[ "${action}" == repair ]]; then
   failing=$(jq -r '[.failed[]?] | join(", ")' "${ctx}/gates-before.json" 2> /dev/null || true)
   if [[ "${#empty[@]}" -gt 0 ]]; then
@@ -102,6 +108,9 @@ if [[ "${action}" == repair ]]; then
   fi
 elif [[ "${run_mode}" == merge-only ]]; then
   printf 'port: record upstream %s..%s as merged, not ported\n\n' "${base:0:12}" "${target:0:12}" > "${message}"
+elif [[ -z "${code_changes}" && "${unported}" -gt 0 ]]; then
+  printf 'port: advance upstream marker to %s (no Rust changes; %s commit(s) not ported)\n\n' \
+    "${target:0:12}" "${unported}" > "${message}"
 elif [[ -z "${code_changes}" ]]; then
   printf 'port: advance upstream marker to %s (no Rust changes needed)\n\n' "${target:0:12}" > "${message}"
 elif [[ "${count}" -gt 1 ]]; then

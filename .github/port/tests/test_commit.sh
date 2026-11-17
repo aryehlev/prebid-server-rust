@@ -92,6 +92,9 @@ jq -n --arg s3 "${s3}" '{commits: [{sha: $s3, subject: "foo: change", classes: [
 run silent ACTION=advance RUN_MODE=auto PORT_JSON='not json'
 status=$(log_field 1 '[.status, .notes]')
 t_eq "silent agent: blocked with a note" '["blocked","the agent reported no result for this commit"]' "${status}"
+subject=$(git -C "${repo}" log -1 --format=%s)
+t_eq "silent agent: the subject does not claim that nothing was needed" \
+  "port: advance upstream marker to bbbbbbbbbbbb (no Rust changes; 1 commit(s) not ported)" "${subject}"
 
 # Merge-only runs record the commits but keep the marker.
 before_marker=$(cat "${repo}/rust/UPSTREAM_SYNC")
