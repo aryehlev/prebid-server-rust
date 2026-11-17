@@ -36,6 +36,9 @@ pub type BidderNameNormalizer = fn(&str) -> Option<BidderName>;
 struct Registry {
     /// Go: `coreBidderNames`: the core bidders, then every alias in registration order.
     core_bidder_names: Vec<BidderName>,
+    /// The set of `core_bidder_names`, which [`build_bidder_name_hash_set`] copies (Go builds
+    /// the set again on every call, which prebid-server makes for every auction).
+    bidder_name_set: HashSet<BidderName>,
     /// Go: `aliasBidderToParent`.
     alias_bidder_to_parent: BTreeMap<BidderName, BidderName>,
     /// Go: `bidderNameLookup`: the lower-case name to the exact name.
@@ -50,8 +53,10 @@ static REGISTRY: LazyLock<RwLock<Registry>> = LazyLock::new(|| {
         .iter()
         .map(|name| (strings::to_lower(name.as_str()), name.clone()))
         .collect();
+    let bidder_name_set = core_bidder_names.iter().cloned().collect();
     RwLock::new(Registry {
         core_bidder_names,
+        bidder_name_set,
         alias_bidder_to_parent: BTreeMap::new(),
         bidder_name_lookup,
     })
@@ -97,6 +102,7 @@ pub fn set_alias_bidder_name(
     let lower = strings::to_lower(alias_bidder_name);
     let mut reg = registry_mut();
     reg.core_bidder_names.push(alias_bidder.clone());
+    let _new = reg.bidder_name_set.insert(alias_bidder.clone());
     drop(
         reg.alias_bidder_to_parent
             .insert(alias_bidder.clone(), parent_bidder_name),
@@ -165,14 +171,14 @@ pub fn build_bidder_string_slice() -> Vec<String> {
         .collect()
 }
 
-/// Go: `BuildBidderNameHashSet()`: the set of [`core_bidder_names`].
+/// Go: `BuildBidderNameHashSet()`: the set of [`core_bidder_names`] (Go's
+/// `map[string]struct{}`), which the caller may add to.
+///
+/// It is a copy of a set the registry keeps: no name is allocated or hashed again, and a
+/// `&str` looks a name up (`BidderName` borrows as `str`).
 #[must_use]
-pub fn build_bidder_name_hash_set() -> HashSet<String> {
-    registry()
-        .core_bidder_names
-        .iter()
-        .map(|name| name.as_str().to_owned())
-        .collect()
+pub fn build_bidder_name_hash_set() -> HashSet<BidderName> {
+    registry().bidder_name_set.clone()
 }
 
 /// Go: `NormalizeBidderName(name)`: the exact name of the core bidder or alias that `name`

@@ -127,7 +127,10 @@ mod tests {
         let want_map: BTreeMap<String, String> =
             core.iter().map(|n| (n.clone(), n.clone())).collect();
         ensure_eq(&map, &want_map, "BuildBidderMap()")?;
-        let set: BTreeSet<String> = build_bidder_name_hash_set().into_iter().collect();
+        let set: BTreeSet<String> = build_bidder_name_hash_set()
+            .iter()
+            .map(|name| name.as_str().to_owned())
+            .collect();
         let want_set: BTreeSet<String> = core.iter().cloned().collect();
         ensure_eq(&set, &want_set, "BuildBidderNameHashSet()")?;
         let in_core: BTreeSet<String> = core.iter().cloned().collect();
@@ -179,6 +182,19 @@ mod tests {
             &strings(golden, "alias_names_appended_sorted")?,
             "the names SetAliasBidderName appends to CoreBidderNames()",
         )?;
+        // The registry's copy of the set follows every alias (Go builds it from
+        // CoreBidderNames on each call).
+        let set: BTreeSet<String> = build_bidder_name_hash_set()
+            .iter()
+            .map(|name| name.as_str().to_owned())
+            .collect();
+        let want_set: BTreeSet<String> = after.iter().cloned().collect();
+        ensure_eq(&set, &want_set, "BuildBidderNameHashSet() with aliases")?;
+        for alias in aliases.keys() {
+            if !build_bidder_name_hash_set().contains(alias.as_str()) {
+                return Err(format!("BuildBidderNameHashSet() lacks the alias {alias}"));
+            }
+        }
         let parents: BTreeMap<String, String> = get_alias_bidder_to_parent()
             .into_iter()
             .map(|(a, p)| (a.as_str().to_owned(), p.as_str().to_owned()))

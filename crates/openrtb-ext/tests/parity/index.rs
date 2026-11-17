@@ -2032,7 +2032,7 @@ const _: fn() -> BTreeMap<String, openrtb_ext::BidderName> = openrtb_ext::build_
 // BuildBidderStringSlice
 const _: fn() -> Vec<String> = openrtb_ext::build_bidder_string_slice;
 // BuildBidderNameHashSet
-const _: fn() -> HashSet<String> = openrtb_ext::build_bidder_name_hash_set;
+const _: fn() -> HashSet<openrtb_ext::BidderName> = openrtb_ext::build_bidder_name_hash_set;
 // NormalizeBidderName
 const _: fn(&str) -> Option<openrtb_ext::BidderName> = openrtb_ext::normalize_bidder_name;
 // NormalizeBidderNameOrUnchanged

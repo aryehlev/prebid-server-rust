@@ -1498,7 +1498,7 @@
         "BuildBidderStringSlice": {"rust": "build_bidder_string_slice", "signature": "fn() -> Vec<String>"},
         "BuildBidderNameHashSet": {
           "rust": "build_bidder_name_hash_set",
-          "signature": "fn() -> std::collections::HashSet<String>"
+          "signature": "fn() -> std::collections::HashSet<openrtb_ext::BidderName>"
         },
         "NormalizeBidderName": {
           "rust": "normalize_bidder_name",
