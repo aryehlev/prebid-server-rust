@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"math/rand"
+	"sort"
 	"strings"
 	"time"
 
@@ -183,13 +184,19 @@ func deepPut(m map[string]interface{}, path []string, value interface{}) {
 }
 
 // recaseTree writes each key of a tree in a random case (each key once, so that no two keys
-// of a map differ only in case).
+// of a map differ only in case). Keys are visited in sorted order, so that a seed always gives
+// the same tree.
 func recaseTree(r *rand.Rand, v interface{}) interface{} {
 	switch t := v.(type) {
 	case map[string]interface{}:
+		keys := make([]string, 0, len(t))
+		for k := range t {
+			keys = append(keys, k)
+		}
+		sort.Strings(keys)
 		out := map[string]interface{}{}
-		for k, item := range t {
-			out[recase(r, k)] = recaseTree(r, item)
+		for _, k := range keys {
+			out[recase(r, k)] = recaseTree(r, t[k])
 		}
 		return out
 	case []interface{}:

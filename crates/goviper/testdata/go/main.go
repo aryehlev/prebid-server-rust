@@ -51,8 +51,9 @@ func init() {
 	time.Local = time.UTC
 }
 
-// runs is how many times each scenario runs.
-const runs = 6
+// runs is how many times each scenario runs (enough that a random scenario whose outcome
+// depends on Go's map order is very unlikely to look stable).
+const runs = 24
 
 func main() {
 	out := flag.String("out", "rust/crates/goviper/testdata/golden", "golden directory")
@@ -64,6 +65,7 @@ func main() {
 	scenarios := append(handScenarios(), randomScenarios(20261117, 64)...)
 	writeScenarios(filepath.Join(*out, "scenarios.jsonl"), scenarios)
 	writeScenarios(filepath.Join(*out, "prebid.jsonl"), prebidScenarios(*defaults))
+	writeScenarios(filepath.Join(*out, "review.jsonl"), reviewScenarios())
 }
 
 // Scenario is one golden case.

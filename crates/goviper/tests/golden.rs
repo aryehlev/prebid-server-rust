@@ -813,4 +813,14 @@ mod golden {
     fn prebid_setup_viper() -> Result<(), String> {
         replay("prebid.jsonl", 7_500)
     }
+
+    /// The adversarial review's cases (`testdata/go/review.go`): `IsSet` of default-only,
+    /// environment-only and parent keys, nested keys overridden by the environment, `BindEnv`
+    /// with several names, replacers for keys with dashes, string slices and booleans from the
+    /// environment, maps merged across sources, key case in `AllSettings`, the file search's
+    /// precedence, empty variables, odd keys and typed defaults read from the environment.
+    #[test]
+    fn review() -> Result<(), String> {
+        replay("review.jsonl", 3_000)
+    }
 }
