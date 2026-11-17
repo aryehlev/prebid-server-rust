@@ -34,14 +34,10 @@ fn decode_unicode_escape(input: &[u8]) -> Option<(u32, usize)> {
     if r2 < 0xDC00 {
         return None;
     }
-    // utf16.DecodeRune: U+FFFD unless a high surrogate is followed by a low one.
-    let pair = (0xD800..0xDC00).contains(&r) && (0xDC00..0xE000).contains(&r2);
-    let rune = if pair {
-        ((r - 0xD800) << 10 | (r2 - 0xDC00)) + 0x10000
-    } else {
-        0xFFFD
-    };
-    Some((rune, 12))
+    // Go: combineUTF16Surrogates is plain arithmetic: neither unit is checked to be the right
+    // surrogate, so `\uD800\uE000` is U+10400. utf8.EncodeRune later writes U+FFFD for a result
+    // past U+10FFFF (a leading low surrogate, or a large second unit).
+    Some((0x10000 + ((r - 0xD800) << 10) + (r2 - 0xDC00), 12))
 }
 
 /// `utf8.EncodeRune`: invalid runes become U+FFFD.
@@ -81,23 +77,35 @@ fn unescape_to_utf8(input: &[u8], out: &mut Vec<u8>) -> Option<usize> {
 /// replaced (borrowed when there are none).
 ///
 /// Unlike `encoding/json`, it copies other bytes as they are (invalid UTF-8 and control
-/// characters included), does not check the second `\u` of a surrogate pair, and writes
-/// U+FFFD for a pair that combines to no valid rune.
+/// characters included). A `\u` escape of a surrogate (U+D800 to U+DFFF) must be followed by
+/// four hex digits of at least `DC00` (their `\u` is not checked) and is combined with them
+/// arithmetically, whether or not they are a low surrogate: `\uD800\uE000` is U+10400, and a
+/// result past U+10FFFF is written as U+FFFD.
 ///
 /// # Errors
 ///
 /// [`ParserError::MalformedStringEscape`] for an unknown escape or a bad `\u` sequence.
 pub fn unescape(input: &[u8]) -> Result<Cow<'_, [u8]>, ParserError> {
+    if !input.contains(&b'\\') {
+        return Ok(Cow::Borrowed(input));
+    }
+    let mut out = Vec::with_capacity(input.len());
+    unescape_into(input, &mut out)?;
+    Ok(Cow::Owned(out))
+}
+
+/// `Unescape`'s loop, appending to `out` as Go writes its output buffer: on a bad escape,
+/// what was written before it stays.
+fn unescape_into(input: &[u8], out: &mut Vec<u8>) -> Result<(), ParserError> {
     // Go: buger/jsonparser escape.go Unescape
     let Some(first) = input.iter().position(|&c| c == b'\\') else {
-        return Ok(Cow::Borrowed(input));
+        out.extend_from_slice(input);
+        return Ok(());
     };
-    let mut out = Vec::with_capacity(input.len());
     out.extend_from_slice(input.get(..first).unwrap_or_default());
     let mut rest = input.get(first..).unwrap_or_default();
     while !rest.is_empty() {
-        let consumed =
-            unescape_to_utf8(rest, &mut out).ok_or(ParserError::MalformedStringEscape)?;
+        let consumed = unescape_to_utf8(rest, out).ok_or(ParserError::MalformedStringEscape)?;
         rest = rest.get(consumed..).unwrap_or_default();
         match rest.iter().position(|&c| c == b'\\') {
             None => {
@@ -110,7 +118,43 @@ pub fn unescape(input: &[u8]) -> Result<Cow<'_, [u8]>, ParserError> {
             }
         }
     }
-    Ok(Cow::Owned(out))
+    Ok(())
+}
+
+/// Go's `unescapeStackBufSize`: the size of the stack buffer jsonparser unescapes keys into.
+pub(super) const STACK_BUF_SIZE: usize = 64;
+
+/// Where `Unescape(in, stackbuf[:])` put its result.
+pub(super) enum InStack<'a> {
+    /// `in` itself: it has no escapes.
+    Input(&'a [u8]),
+    /// The first `n` bytes of the stack buffer.
+    Stack(usize),
+    /// A new allocation: `in` is longer than the buffer.
+    Heap(Vec<u8>),
+}
+
+/// `Unescape(in, stackbuf[:])` with Go's side effect on the caller's buffer: when `in` has an
+/// escape and fits, the result is built in `stack`, and a bad escape leaves the bytes written
+/// before it there.
+pub(super) fn unescape_in_stack<'a>(
+    input: &'a [u8],
+    stack: &mut [u8; STACK_BUF_SIZE],
+) -> Result<InStack<'a>, ParserError> {
+    // Go: buger/jsonparser escape.go Unescape (`if cap(out) < len(in) { out = make(...) }`)
+    if !input.contains(&b'\\') {
+        return Ok(InStack::Input(input));
+    }
+    let mut out = Vec::with_capacity(input.len());
+    let res = unescape_into(input, &mut out);
+    if input.len() > STACK_BUF_SIZE {
+        return res.map(|()| InStack::Heap(out));
+    }
+    // The output is never longer than the input.
+    if let Some(dst) = stack.get_mut(..out.len()) {
+        dst.copy_from_slice(&out);
+    }
+    res.map(|()| InStack::Stack(out.len()))
 }
 
 /// The outcome of jsonparser's `parseInt` when it fails.

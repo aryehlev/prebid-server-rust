@@ -70,7 +70,7 @@ use core::{error, fmt};
 use std::borrow::Cow;
 
 pub use escape::unescape;
-use escape::{IntError, parse_int as raw_parse_int};
+use escape::{InStack, IntError, STACK_BUF_SIZE, parse_int as raw_parse_int, unescape_in_stack};
 
 use crate::gostring::GoString;
 
@@ -383,8 +383,21 @@ fn index_digits(step: &[u8]) -> &[u8] {
         .unwrap_or_default()
 }
 
+/// The key `findKeyStart` compares against.
+enum SearchKey<'a> {
+    /// A string of its own.
+    Fixed(Cow<'a, [u8]>),
+    /// The first `n` bytes of the shared stack buffer, which later unescapes overwrite.
+    Stack(usize),
+}
+
 /// `findKeyStart`: the offset of the opening quote of `key` among the top-level keys of the
 /// object (or array) at the start of `data`.
+///
+/// Go unescapes `key` into a 64-byte stack buffer and every escaped key of `data` into the same
+/// buffer, and an unescaped `key` that lives there is a view of it, so it changes as keys are
+/// read: once a short escaped key was unescaped, the next escaped key of the same unescaped
+/// length matches. Only a `key` with a backslash is affected.
 fn find_key_start(data: &[u8], key: &[u8]) -> Option<usize> {
     // Go: buger/jsonparser parser.go findKeyStart
     let mut i = next_token(data)?;
@@ -392,7 +405,12 @@ fn find_key_start(data: &[u8], key: &[u8]) -> Option<usize> {
     if ln > 0 && matches!(data.get(i), Some(b'{' | b'[')) {
         i += 1;
     }
-    let key = unescape(key).unwrap_or(Cow::Borrowed(key));
+    let mut stack = [0_u8; STACK_BUF_SIZE];
+    let key = match unescape_in_stack(key, &mut stack) {
+        Ok(InStack::Stack(len)) => SearchKey::Stack(len),
+        Ok(InStack::Heap(owned)) => SearchKey::Fixed(Cow::Owned(owned)),
+        Ok(InStack::Input(_)) | Err(_) => SearchKey::Fixed(Cow::Borrowed(key)),
+    };
     while let Some(&c) = data.get(i) {
         match c {
             b'"' => 'string: {
@@ -409,15 +427,25 @@ fn find_key_start(data: &[u8], key: &[u8]) -> Option<usize> {
                 };
                 i += value_offset;
                 let raw = data.get(key_begin..key_end).unwrap_or_default();
-                let k = if key_escaped {
-                    match unescape(raw) {
-                        Ok(k) => k,
+                let heap: Vec<u8>;
+                let k: &[u8] = if key_escaped {
+                    match unescape_in_stack(raw, &mut stack) {
+                        Ok(InStack::Stack(len)) => stack.get(..len).unwrap_or_default(),
+                        Ok(InStack::Heap(owned)) => {
+                            heap = owned;
+                            &heap
+                        }
+                        Ok(InStack::Input(raw)) => raw,
                         Err(_) => break 'string,
                     }
                 } else {
-                    Cow::Borrowed(raw)
+                    raw
                 };
-                if data.get(i) == Some(&b':') && *k == *key {
+                let key_now: &[u8] = match &key {
+                    SearchKey::Fixed(fixed) => fixed,
+                    SearchKey::Stack(len) => stack.get(..*len).unwrap_or_default(),
+                };
+                if data.get(i) == Some(&b':') && k == key_now {
                     return Some(key_begin - 1);
                 }
             }

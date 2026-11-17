@@ -220,7 +220,7 @@ fn key_depth() -> Result<(), String> {
 fn unescape_cases() -> Result<(), String> {
     // Go: escape_test.go unescapeTests, plus the surrogate cases of multiUnicodeEscapeTests
     // (`~` stands for a backslash).
-    let cases: [(&str, Option<&str>); 32] = [
+    let cases: [(&str, Option<&str>); 36] = [
         ("", Some("")),
         ("a", Some("a")),
         ("abcde", Some("abcde")),
@@ -250,9 +250,15 @@ fn unescape_cases() -> Result<(), String> {
         ("~uD800~uDC", None),
         ("~uD800~uDBFF", None),
         ("~uD800~uDC00", Some("\u{10000}")),
-        // utf16.DecodeRune: a pair that is not high-then-low becomes U+FFFD.
+        // combineUTF16Surrogates is plain arithmetic on any second unit of at least DC00 (not
+        // utf16.DecodeRune): a result past U+10FFFF is written as U+FFFD by utf8.EncodeRune,
+        // anything else is kept, even when neither unit is the right surrogate.
         ("~uDC00~uDC00", Some("\u{fffd}")),
-        ("~uD800~uE000", Some("\u{fffd}")),
+        ("~uDBFF~uFFFF", Some("\u{fffd}")),
+        ("~uD800~uE000", Some("\u{10400}")),
+        ("~uD800~uFFFD", Some("\u{123fd}")),
+        ("~uDBFF~uDFFF", Some("\u{10ffff}")),
+        ("~uDBFF~uE000", Some("\u{fffd}")),
         // The second escape's `\u` is not checked.
         ("~uD83DxxDE03", Some("\u{1f603}")),
         ("~u123X", None),
@@ -449,6 +455,28 @@ fn set_and_delete() -> Result<(), String> {
     ];
     for (data, keys, want) in delete_cases {
         check!(&*delete(data, keys), want, text(data))?;
+    }
+    Ok(())
+}
+
+#[test]
+fn delete_escaped_key_shares_go_stack_buffer() -> Result<(), String> {
+    // Go: findKeyStart unescapes the search key into a 64-byte stack buffer and then every
+    // escaped key of the data into the same buffer, so an escaped search key is overwritten by
+    // the data keys it is compared with. Delete takes the start of the member from findKeyStart
+    // and its end from searchKeys, which compares the key as given. Outputs of Go 1.25,
+    // buger/jsonparser v1.1.2.
+    let cases: [(&[u8], &str, &[u8]); 4] = [
+        // `a\"b` unescapes to `a"b`, which `x<TAB>y` overwrites: findKeyStart stops at the
+        // first member, searchKeys at the second.
+        (br#"{"x\ty":1,"a\\\"b":2}"#, "a\\\"b", b"{}"),
+        (br#"{"\\":1,"x\ty":5,"a\\\"b":2}"#, "a\\\"b", br#"{"\\":1}"#),
+        // An unescaped search key is not in the buffer.
+        (br#"{"x\ty":1,"a\"b":2}"#, "a\"b", br#"{"x\ty":1}"#),
+        (br#"{"x\ty":1,"a\"b":2}"#, "x\ty", br#"{"a\"b":2}"#),
+    ];
+    for (data, key, want) in cases {
+        check!(&*delete(data, &[key]), want, text(data))?;
     }
     Ok(())
 }
