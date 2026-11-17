@@ -344,6 +344,7 @@ Every outbound client is wrapped in parity mode:
 | floors fetcher client | `floors` |
 | currency client | `currency` |
 | `http.DefaultTransport` (DefaultClient users) | `default` |
+| per-call transports built by product code (`/optout` recaptcha check) | `general`, through `transport.WrapProcess` |
 
 The general-client classifier rules are `wiring.GeneralClassifierRules`. The
 vendor-list prefix comes first, then every configured stored-data HTTP and
@@ -423,8 +424,9 @@ is a no-op and `/__parity/*` is ordinary application traffic.
 | `exchange/auction.go` | `cache.result` at the end of `doCache` |
 | `exchange/price_granularity.go` | `pricegranularity.timesplit` |
 | `exchange/parity_stages.go` | the exchange recorders (harness code living in package `exchange`) |
-| `floors/{floors,rule,enforce}.go`, `floors/parity.go` | `floors.enrich` after `updateFloorsInRequest` rebuilds the request; the four `floors.*` decisions |
+| `floors/{floors,rule,enforce}.go`, `floors/parity.go` | `floors.enrich` after `updateFloorsInRequest` rebuilds the request; the four `floors.*` decisions (the rate-driven ones honour the envelope only where the rate leaves the outcome to chance) |
 | `usersync/shuffler.go` | `usersync.shuffle` |
+| `pbs/usersync.go` | `transport.WrapProcess` on the transport `VerifyRecaptcha` builds per call |
 
 ### The `/__parity/*` routes (PH-07)
 
