@@ -990,7 +990,7 @@ loaded next to it. All IDs start with `rh-`.
 
 ### The replays
 
-`parity/replayharness/replays` holds 162 replays in the ReplayHarness format
+`parity/replayharness/replays` holds 174 replays in the ReplayHarness format
 (`agents/replayharness-replay.md` in the ReplayHarness repository). Each one
 states what Go does, and its `why` cites the Go code.
 
@@ -1008,6 +1008,7 @@ states what Go does, and its `why` cites the Go code.
 | `limits.yaml` | 6 | bodies at, one byte over and two bytes over `max_request_size` |
 | `info.yaml` | 12 | `/info/bidders`, `/bidders/params`, `/status`, `/version`, `/` and `/static` |
 | `router.yaml` | 8 | 404, 405, redirects, OPTIONS, the CORS preflight, admin-only routes |
+| `fields.yaml` | 12 | inputs nothing else sent: the `uids` cookie in the auction and AMP, Sec-GPC on the bidder request, True-Client-IP, X-Real-IP and Referer in AMP, Sec-Cookie-Deprecation, DOOH, the OpenRTB fields Go passes through, `passthrough`, `is_rewarded_inventory`, `adunitcode`, a client `ext.prebid.server` |
 
 Things to know when editing them:
 
@@ -1039,6 +1040,11 @@ It fails when a line holds the parity token or a credential header, or when
 the result is over 5 MB. The recorder already leaves out Cookie,
 Set-Cookie and Authorization. The last run read 4704 exchanges and kept 2523
 on 278 endpoints, in 4172393 bytes.
+
+A later run recorded the 12 replays of `replays/fields.yaml` with the
+pinned recorder, sending the `User-Agent` that the other lines carry, and
+`rhtool traffic` merged them in. The 2523 lines are unchanged; the file
+holds 2535 exchanges on the same 278 endpoints, in 4201172 bytes.
 
 To send the same requests to any server that the parity runner started:
 
@@ -1127,6 +1133,19 @@ Each distinct request is one case:
   * `X-Parity-Token`.
 
   The case's notes name each header left out.
+* Two of those headers are put back as Go's HTTP client writes them, because
+  the Go server received them and a compression layer reads one of them
+  (`clientHeaders`):
+  * `Content-Length`, for a body and for an empty POST, PUT or PATCH;
+  * `Accept-Encoding: gzip`, on every request but a HEAD or a Range request.
+    ReplayHarness's transport asks for gzip itself, and so does the
+    recorder's when it forwards a request.
+
+  The case's notes name them too. Without them, no case asked for a
+  compressed answer. A server that gzips whatever
+  `compression.response.enable_gzip` says showed only in the `Vary` header
+  that the gzip handler adds to every answer; with them, 55 cases also
+  differ in `Content-Encoding` (see "Review: what the two tools catch").
 * Identical requests are one case. Its notes list every source, such as
   `from traffic.jsonl:12` or `from replays/auction.yaml: replay "...", step 1`.
 * The case ID is `parity/replayharness#<method>:<path>:<hash>`. The path is
@@ -1173,7 +1192,7 @@ The corpus drops nothing recorded or replayed without an entry in that list.
 | `truncated_body` | A body that the recorder cut at 1 MiB. | 0 |
 | `not_rebuilt` | A replay step that cannot be rebuilt offline. | 0 |
 
-The last run had 2480 cases and 64 requests not compared.
+The last run had 2495 cases and 64 requests not compared.
 
 The runner reports 944 of those cases as not-yet-instrumented
 (`exec cannot dispatch to <path>`). Its check matches a case's path exactly
@@ -1317,6 +1336,100 @@ The two tools caught different bugs:
   `/info/bidders/{bidderName}` is among the not-yet-instrumented cases.
 
 So the final gate needs both.
+
+### What the corpus does not exercise
+
+A review listed what each handler reads (query parameters, headers, cookies
+and body members) and checked which of them some case sends.
+`replays/fields.yaml` covers the gaps it found first. These inputs are still
+never sent:
+
+* `POST /openrtb2/auction`: most of `ext.prebid`: `adservertargeting`,
+  `aliasgvlids`, `alternatebiddercodes`, `analytics`, `bidadjustments`,
+  `biddercontrols`, `bidderconfig`, `bidderparams`, `currency`, `data`,
+  `events`, `experiment`, `floors`, `macros`, `multibid`, `nosale`,
+  `schains`, `sdk`, `supportdeals` and `trace`. Also
+  `imp[].ext.prebid.options`, `imp[].ext.prebid.floors`,
+  `imp[].ext.prebid.imp` and `wlangb`.
+* `GET /openrtb2/amp`: `True-Client-IP`, `Sec-Cookie-Deprecation` and
+  `Sec-Browsing-Topics`. The auction cases send the first two.
+* `POST /vtrack`: `puts[].key`.
+* `GET /setuid`: `gdpr_consent`.
+* `GET` and `POST /optout`: the `uids` cookie.
+
+`POST /openrtb2/video` reads many inputs that no case sends, but Go answers
+every video request in the traffic 501 (`The video endpoint is deprecated
+and will be removed in 5.0.`).
+
+The recorder leaves out `Cookie`, so the lines that the cookie replays left
+in `traffic.jsonl` carry no cookie. The cases built from those replays' steps
+do.
+
+### Review: what the two tools catch
+
+A review of the corpus, the script and the two gates checked isolation,
+fidelity, determinism, and what a Rust-style bug looks like to each tool.
+
+**Isolation.** Every server ran under a `sandbox-exec` profile that allows
+network traffic on loopback only, and `lsof` checked every process four
+times a second. One run sent requests meant to reach other hosts: bidders
+that build their host from request parameters (`relevantdigital`'s
+`pbsHost`, `acuityads`'s `host`), the cache, the vendor list through GDPR
+consent, an event, a path traversal under `/static` and a redirect. No
+process opened a socket off loopback, the sandbox denied no IP connection,
+and the oracle answered every outbound call. The parity token appears only
+in its 0600 file in the state directory: not in `traffic.jsonl`, the cases,
+the reports, the server logs or any command line.
+
+**Fidelity.** `TestReplayHarnessRoundTrip` sends requests as ReplayHarness
+does, records them the way the pinned recorder does, loads the recording as
+cases and dispatches them through `/__parity/exec`. The handler receives the
+same method, request URI, escaped path, raw query, headers and body bytes
+both times; only `Host` differs. The requests cover an odd raw query,
+encoded path bytes, a gzip body, a body that is not UTF-8, empty and
+non-empty POST, PUT and PATCH bodies, DELETE, OPTIONS, HEAD and a Range
+request. Before the loader put back `Content-Length` and `Accept-Encoding`,
+10 of the 12 requests reached the handler differently. ReplayHarness never
+sends a header twice (it uses `Header.Set`), and the recorder joins repeated
+values with `, `, so a case sends one header line. A recording has no header
+order; a case sends its headers sorted by name, the same way to both sides.
+
+**Determinism.** Three A/A runs of the runner, with `-shards 1`, `2` and
+`4`, gave the same status and summary for every case. Only the order of some
+cases' notes changed (14 and 15 cases): `parity/diff/view.go` builds them by
+ranging over a map.
+
+**Detection.** Each bug below was seeded into a Go side B with a build
+overlay, as the canary is, and run through `parity` and `baseline`:
+
+| Bug | Parity runner | Baseline probes | Replays |
+| --- | --- | --- | --- |
+| `/status` answers 200 instead of 204 | 10 cases (status) | 4 divergences | 1 failed |
+| `/cookie_sync` writes `type` before `url` in `usersync` | 84 cases (member order) | nothing | nothing |
+| Bidder requests always carry `Content-Type: application/json` | 99 cases | nothing | nothing |
+| `Sec-GPC` is not forwarded to bidders | 1 case (the AMP one) | nothing | 1 failed |
+| `/cookie_sync` answers 422 instead of 400 to a bad body | 95 cases (status) | 173 divergences, none counted | 2 failed |
+| Responses are gzipped whatever `enable_gzip` says | 1551 cases (`Vary`; 55 also `Content-Encoding`) | nothing | nothing |
+| `/info/bidders/{name}` renames `status` to `state` | nothing (not yet instrumented) | 4 divergences (the canary) | 2 failed (the canary) |
+
+What the table shows:
+
+* Neither tool catches every bug. The runner misses what happens on the
+  not-yet-instrumented paths; the baseline misses headers, member order and
+  values.
+* The baseline's gate counts nothing on `POST /cookie_sync`, not even a
+  status divergence, which map order cannot cause. Only the replays caught
+  the 422.
+* The `Sec-GPC` bug reached one case only. `fields.yaml` now also checks
+  `Sec-GPC` on an auction's bidder request.
+
+**Provenance.** The `User-Agent` of the lines in `traffic.jsonl` names a
+modified build of the pinned commit
+(`ReplayHarness/0.1.1-0.20261116212744-f61ab1997f27+dirty`); `saved.jsonl`
+came from the clean pinned build, which the script requires. The offline
+rebuild test shows that the replay steps in the file are what the pinned
+build sends; nothing checks the probes and the mutated replays. Record the
+file again with the pinned build to remove the doubt.
 
 ### The Go-vs-Rust gate
 

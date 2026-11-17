@@ -1,0 +1,257 @@
+# Inputs the other replays and the probes never sent, found by listing what
+# each handler reads (parity/README.md, "What the corpus does not exercise"):
+# the uids cookie in the auction and AMP, True-Client-IP, X-Real-IP and
+# Referer in AMP, Sec-Cookie-Deprecation, a DOOH request, the OpenRTB fields
+# Go passes through, passthrough, is_rewarded_inventory, adunitcode and a
+# client-sent ext.prebid.server.
+#
+# The cookie replays call appnexus for real, so ext.debug.httpcalls shows the
+# bidder request: sent straight to the main port, the call goes to the mock
+# oracle, which answers 404. The others use the rh-seatbid-banner stored
+# auction response, so no bidder is called, and test 1 so
+# ext.debug.resolvedrequest shows what Go filled in.
+replays:
+  - name: the uids cookie gives the auction's bidder its buyeruid
+    why: the auction reads the uids cookie (endpoints/openrtb2/auction.go:229) and the exchange puts the live uid of the bidder's syncer in user.buyeruid of its request (exchange/utils.go:188-189, 779-803)
+    steps:
+      - method: POST
+        path: /openrtb2/auction
+        headers: {Cookie: "uids=eyJ0ZW1wVUlEcyI6eyJhZG54cyI6eyJ1aWQiOiJyaC1hZG54cy11aWQiLCJleHBpcmVzIjoiMjA5OS0wMS0wMVQwMDowMDowMFoifX19"}
+        json:
+          id: rh-cookie-auction
+          test: 1
+          tmax: 500
+          site: {page: "https://parity.test/"}
+          imp: [{id: i, banner: {format: [{w: 300, h: 250}]}, ext: {prebid: {bidder: {appnexus: {placementId: 1}}}}}]
+        expect:
+          status: 200
+          json: {$.ext.debug.httpcalls.appnexus.length: 1}
+          contains: ['\"user\":{\"buyeruid\":\"rh-adnxs-uid\"}']
+
+  - name: an opted-out uids cookie gives no buyeruid
+    why: an opt-out drops every uid, so the bidder request has no user (usersync/cookie.go:170-177)
+    steps:
+      - method: POST
+        path: /openrtb2/auction
+        headers: {Cookie: "uids=eyJvcHRvdXQiOnRydWV9"}
+        json:
+          id: rh-cookie-optout
+          test: 1
+          tmax: 500
+          site: {page: "https://parity.test/"}
+          imp: [{id: i, banner: {format: [{w: 300, h: 250}]}, ext: {prebid: {bidder: {appnexus: {placementId: 1}}}}}]
+        expect:
+          status: 200
+          json: {$.ext.debug.httpcalls.appnexus.length: 1}
+          not_contains: [buyeruid]
+
+  - name: Sec-GPC is forwarded to the auction's bidder
+    why: Sec-GPC 1 sets regs.ext.gpc and goes on every bidder request as a header (endpoints/openrtb2/auction.go:1579-1598, exchange/bidder.go:229-231); headers.yaml checks only regs, with a stored auction response
+    steps:
+      - method: POST
+        path: /openrtb2/auction
+        headers: {Sec-GPC: "1"}
+        json:
+          id: rh-gpc-bidder
+          test: 1
+          tmax: 500
+          site: {page: "https://parity.test/"}
+          imp: [{id: i, banner: {format: [{w: 300, h: 250}]}, ext: {prebid: {bidder: {appnexus: {placementId: 1}}}}}]
+        expect:
+          status: 200
+          json:
+            $.ext.debug.resolvedrequest.regs.ext.gpc: "1"
+            $.ext.debug.httpcalls.appnexus[0].requestheaders.Sec-Gpc[0]: "1"
+            $.ext.debug.httpcalls.appnexus[0].requestheaders.X-Prebid[0]: pbs-go/unknown
+
+  - name: the uids cookie, X-Real-IP and Referer in AMP
+    why: AMP reads the uids cookie (endpoints/openrtb2/amp_auction.go:193) and fills the request from the headers like the auction does (amp_auction.go:236, auction.go:1564-1648); the Referer's host fills the empty site.domain
+    steps:
+      - method: GET
+        path: /openrtb2/amp
+        query: {tag_id: rh-amp-banner, debug: "1"}
+        headers:
+          Cookie: "uids=eyJ0ZW1wVUlEcyI6eyJhZG54cyI6eyJ1aWQiOiJyaC1hZG54cy11aWQiLCJleHBpcmVzIjoiMjA5OS0wMS0wMVQwMDowMDowMFoifX19"
+          X-Real-IP: 203.0.113.10
+          Referer: "https://amp.parity.test/story"
+        expect:
+          status: 200
+          json:
+            $.ortb2.ext.debug.resolvedrequest.device.ip: 203.0.113.10
+            $.ortb2.ext.debug.resolvedrequest.site.domain: amp.parity.test
+            $.ortb2.ext.debug.resolvedrequest.site.page: "https://parity.test/amp"
+          contains: ['\"user\":{\"buyeruid\":\"rh-adnxs-uid\"}']
+
+  - name: X-Real-IP and Referer in AMP without the cookie
+    why: the same headers without a cookie, so the recording holds the request (the recorder leaves out Cookie)
+    steps:
+      - method: GET
+        path: /openrtb2/amp
+        query: {tag_id: rh-amp-stored-bid, debug: "1"}
+        headers: {X-Real-IP: 203.0.113.10, Referer: "https://amp.parity.test/story"}
+        expect:
+          status: 200
+          json:
+            $.ortb2.ext.debug.resolvedrequest.device.ip: 203.0.113.10
+            $.ortb2.ext.debug.resolvedrequest.site.domain: amp.parity.test
+
+  - name: True-Client-IP fills device.ip and Sec-Cookie-Deprecation device.ext.cdep
+    why: FindIP reads True-Client-IP first (util/httputil/httputil.go:28-71), and an account with privacysandbox.cookiedeprecation enabled copies the header into device.ext.cdep (endpoints/openrtb2/auction.go:1431-1458)
+    steps:
+      - method: POST
+        path: /openrtb2/auction
+        headers: {True-Client-IP: 203.0.113.9, Sec-Cookie-Deprecation: label_only_1}
+        json:
+          id: rh-sandbox-headers
+          test: 1
+          site: {page: "https://parity.test/", publisher: {id: rh-sandbox-account}}
+          imp: [{id: i, banner: {format: [{w: 300, h: 250}]}, ext: {prebid: {bidder: {appnexus: {placementId: 1}}, storedauctionresponse: {id: rh-seatbid-banner}}}}]
+        expect:
+          status: 200
+          json:
+            $.ext.debug.resolvedrequest.device.ip: 203.0.113.9
+            $.ext.debug.resolvedrequest.device.ext.cdep: label_only_1
+
+  - name: Sec-Cookie-Deprecation over 100 characters is a warning
+    why: a value longer than 100 characters is not copied and gets warning 10011 (endpoints/openrtb2/auction.go:1449-1454)
+    steps:
+      - method: POST
+        path: /openrtb2/auction
+        headers: {Sec-Cookie-Deprecation: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx}
+        json:
+          id: rh-sandbox-long
+          test: 1
+          site: {page: "https://parity.test/", publisher: {id: rh-sandbox-account}}
+          imp: [{id: i, banner: {format: [{w: 300, h: 250}]}, ext: {prebid: {bidder: {appnexus: {placementId: 1}}, storedauctionresponse: {id: rh-seatbid-banner}}}}]
+        expect:
+          status: 200
+          json:
+            $.ext.warnings.general[0].code: 10011
+            $.ext.warnings.general[0].message: request.device.ext.cdep must not exceed 100 characters
+            $.ext.debug.resolvedrequest.device.ext: <absent>
+
+  - name: Sec-Cookie-Deprecation is ignored for an account without cookie deprecation
+    why: the header is only read when the account enables privacysandbox.cookiedeprecation (endpoints/openrtb2/auction.go:1431-1434)
+    steps:
+      - method: POST
+        path: /openrtb2/auction
+        headers: {Sec-Cookie-Deprecation: label_only_1}
+        json:
+          id: rh-sandbox-off
+          test: 1
+          site: {page: "https://parity.test/", publisher: {id: parity-account}}
+          imp: [{id: i, banner: {format: [{w: 300, h: 250}]}, ext: {prebid: {bidder: {appnexus: {placementId: 1}}, storedauctionresponse: {id: rh-seatbid-banner}}}}]
+        expect:
+          status: 200
+          json: {$.ext.debug.resolvedrequest.device.ext: <absent>, $.ext.warnings: <absent>}
+
+  - name: a DOOH request without site or app
+    why: dooh is the request's one inventory type, so no site is filled in (endpoints/openrtb2/auction.go:1546-1551, 1460-1480)
+    steps:
+      - method: POST
+        path: /openrtb2/auction
+        json:
+          id: rh-dooh
+          test: 1
+          dooh: {id: screen-1, venuetype: [transit], publisher: {id: rh-dooh-pub}}
+          imp: [{id: i, banner: {format: [{w: 300, h: 250}]}, ext: {prebid: {bidder: {appnexus: {placementId: 1}}, storedauctionresponse: {id: rh-seatbid-banner}}}}]
+        expect:
+          status: 200
+          json:
+            $.ext.debug.resolvedrequest.dooh.id: screen-1
+            $.ext.debug.resolvedrequest.dooh.venuetype[0]: transit
+            $.ext.debug.resolvedrequest.site: <absent>
+            $.seatbid[0].bid[0].id: rh-seatbid-bid
+
+  - name: site and dooh together are rejected
+    why: validateExactlyOneInventoryType allows one of site, app and dooh (endpoints/openrtb2/auction.go:1460-1480)
+    steps:
+      - method: POST
+        path: /openrtb2/auction
+        json:
+          id: rh-dooh-site
+          site: {page: "https://parity.test/"}
+          dooh: {id: screen-1}
+          imp: [{id: i, banner: {format: [{w: 300, h: 250}]}, ext: {prebid: {bidder: {appnexus: {placementId: 1}}, storedauctionresponse: {id: rh-seatbid-banner}}}}]
+        expect:
+          status: 400
+          contains: ["Invalid request: No more than one of request.site or request.app or request.dooh can be defined"]
+
+  - name: OpenRTB fields Go passes through unchanged
+    why: at, allimps, cur, wseat, bseat, wlang, bcat, badv, bapp, cattax and source.fd and pchain are kept as sent; only an at of 0 becomes 1 and source gets a tid (endpoints/openrtb2/auction.go:1572-1577)
+    steps:
+      - method: POST
+        path: /openrtb2/auction
+        json:
+          id: rh-ortb-fields
+          test: 1
+          at: 2
+          allimps: 1
+          cur: [USD]
+          wseat: [appnexus]
+          bseat: [rh-blocked]
+          wlang: [en]
+          bcat: [IAB25]
+          badv: [blocked.example]
+          bapp: [com.blocked]
+          cattax: 1
+          source: {fd: 1, pchain: rh}
+          site: {page: "https://parity.test/"}
+          imp: [{id: i, banner: {format: [{w: 300, h: 250}]}, ext: {prebid: {bidder: {appnexus: {placementId: 1}}, storedauctionresponse: {id: rh-seatbid-banner}}}}]
+        expect:
+          status: 200
+          json:
+            $.ext.debug.resolvedrequest.at: 2
+            $.ext.debug.resolvedrequest.allimps: 1
+            $.ext.debug.resolvedrequest.cur[0]: USD
+            $.ext.debug.resolvedrequest.wseat[0]: appnexus
+            $.ext.debug.resolvedrequest.bseat[0]: rh-blocked
+            $.ext.debug.resolvedrequest.wlang[0]: en
+            $.ext.debug.resolvedrequest.bcat[0]: IAB25
+            $.ext.debug.resolvedrequest.badv[0]: blocked.example
+            $.ext.debug.resolvedrequest.bapp[0]: com.blocked
+            $.ext.debug.resolvedrequest.cattax: 1
+            $.ext.debug.resolvedrequest.source.fd: 1
+            $.ext.debug.resolvedrequest.source.pchain: rh
+            $.ext.debug.resolvedrequest.source.tid: <string>
+
+  - name: passthrough, is_rewarded_inventory, adunitcode and a client ext.prebid.server
+    why: ext.prebid.passthrough comes back in the response ext and imp passthrough in the bid ext; is_rewarded_inventory moves to imp.rwdd (openrtb_ext/convert_up.go:165-180); adunitcode is kept; the host's ext.prebid.server replaces the client's (exchange/exchange.go:271-277)
+    steps:
+      - method: POST
+        path: /openrtb2/auction
+        json:
+          id: rh-prebid-fields
+          test: 1
+          site: {page: "https://parity.test/"}
+          imp:
+            - id: i
+              banner: {format: [{w: 300, h: 250}]}
+              ext:
+                prebid:
+                  bidder: {appnexus: {placementId: 1}}
+                  storedauctionresponse: {id: rh-seatbid-banner}
+                  passthrough: {imp: pt}
+                  adunitcode: rh-adunit
+                  is_rewarded_inventory: 1
+          ext:
+            prebid:
+              passthrough: {req: pt}
+              returnallbidstatus: true
+              integration: rh-integration
+              debug: true
+              targeting: {}
+              server: {externalurl: "https://spoofed.example", gvlid: 7, datacenter: dc}
+        expect:
+          status: 200
+          json:
+            $.ext.prebid.passthrough.req: pt
+            $.seatbid[0].bid[0].ext.prebid.passthrough.imp: pt
+            $.seatbid[0].bid[0].ext.prebid.targeting.hb_pb: "1.20"
+            $.ext.debug.resolvedrequest.imp[0].rwdd: 1
+            $.ext.debug.resolvedrequest.imp[0].ext.prebid.is_rewarded_inventory: <absent>
+            $.ext.debug.resolvedrequest.imp[0].ext.prebid.adunitcode: rh-adunit
+            $.ext.debug.resolvedrequest.ext.prebid.integration: rh-integration
+            $.ext.debug.resolvedrequest.ext.prebid.returnallbidstatus: true
+            $.ext.debug.resolvedrequest.ext.prebid.server.externalurl: "http://localhost:8000"
+            $.ext.debug.resolvedrequest.ext.prebid.server.gvlid: 0

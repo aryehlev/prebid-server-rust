@@ -14,6 +14,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -121,9 +122,11 @@ func ReplayHarnessCases(repo *Repo) ([]Case, []error) {
 // Each distinct request becomes one case, whatever recorded or replayed it:
 // its method, path, query, headers and body bytes are kept exactly, except
 // the hop-by-hop headers ReplayHarness's recorder also leaves out and the
-// parity token header. Replay steps are rebuilt the way ReplayHarness sends
-// them (package rhreplay), with the User-Agent of the build that recorded
-// traffic.jsonl, so a step and its recording are one case. A step that sends
+// parity token header, and the Content-Length and Accept-Encoding that Go's
+// HTTP client writes are put back (clientHeaders). Replay steps are rebuilt
+// the way ReplayHarness sends them (package rhreplay), with the User-Agent of
+// the build that recorded traffic.jsonl, so a step and its recording are one
+// case. A step that sends
 // a value an earlier step saved takes the value Go answered in saved.jsonl.
 // The envelope leaves the host and remote address to the exec defaults
 // (127.0.0.1 and 127.0.0.1:0), pins every decision point, and the case
@@ -287,6 +290,8 @@ type rhRequest struct {
 	body    []byte
 	// dropped are the hop-by-hop and parity token headers left out.
 	dropped []string
+	// added are the headers Go's HTTP client writes (clientHeaders).
+	added parity.HeaderList
 }
 
 // rhStatus is what one source says about Go's status for a request.
@@ -453,7 +458,8 @@ func requestFromRecording(r rhreplay.Request) rhRequest {
 
 // newRHRequest canonicalizes header names, trims header values as net/http's
 // server does, sorts headers and leaves out the hop-by-hop headers and the
-// parity token.
+// parity token. It then adds the headers Go's HTTP client writes on its own
+// (clientHeaders), so the request is the one the Go server received.
 func newRHRequest(method, reqPath, query string, header map[string]string, body []byte) rhRequest {
 	drop := map[string]bool{http.CanonicalHeaderKey(parity.TokenHeader): true}
 	for _, h := range rhreplay.HopHeaders() {
@@ -473,9 +479,38 @@ func newRHRequest(method, reqPath, query string, header map[string]string, body 
 		r.headers = append(r.headers, [2]string{ck, strings.Trim(header[k], " \t")})
 	}
 
+	r.added = clientHeaders(method, r.headers, body)
+	r.headers = append(r.headers, r.added...)
+
 	sort.SliceStable(r.headers, func(i, j int) bool { return r.headers[i][0] < r.headers[j][0] })
 
 	return r
+}
+
+// clientHeaders are the headers Go's HTTP client writes itself, which the
+// recorder leaves out with the hop-by-hop headers (rhreplay.HopHeaders) but
+// the Go server received from ReplayHarness, and which a handler or a
+// compression layer may read:
+//   - Content-Length, whenever net/http sends one: for a body, and for an
+//     empty POST, PUT or PATCH (net/http/transfer.go,
+//     shouldSendContentLength);
+//   - Accept-Encoding: gzip, which the transport of ReplayHarness's client
+//     (DisableCompression off) asks for on every request but a HEAD or a
+//     Range request (net/http/transport.go). The recorder's own transport
+//     does the same on the requests it forwards.
+func clientHeaders(method string, headers parity.HeaderList, body []byte) parity.HeaderList {
+	var out parity.HeaderList
+
+	if len(body) > 0 || method == http.MethodPost || method == http.MethodPut || method == http.MethodPatch {
+		out = append(out, [2]string{"Content-Length", strconv.Itoa(len(body))})
+	}
+
+	ranged := slices.ContainsFunc(headers, func(kv [2]string) bool { return kv[0] == "Range" })
+	if method != http.MethodHead && !ranged {
+		out = append(out, [2]string{"Accept-Encoding", "gzip"})
+	}
+
+	return out
 }
 
 // requestKey is the hash every source of one request shares.
@@ -575,6 +610,15 @@ func (l *rhLoader) newCase(id string, e *rhEntry) Case {
 	if len(e.req.dropped) > 0 {
 		notes = append(notes, "left out as the recorder does (hop-by-hop) or as secret (the parity token): "+
 			strings.Join(e.req.dropped, ", "))
+	}
+
+	if len(e.req.added) > 0 {
+		added := make([]string, 0, len(e.req.added))
+		for _, kv := range e.req.added {
+			added = append(added, kv[0]+": "+kv[1])
+		}
+
+		notes = append(notes, "added as Go's HTTP client writes them: "+strings.Join(added, ", "))
 	}
 
 	if ep, ok := l.route(e.req); ok && sidePortRule(ep) != "" {

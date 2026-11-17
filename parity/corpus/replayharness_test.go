@@ -231,12 +231,23 @@ func TestReplayHarnessKeepsRequestsExactly(t *testing.T) {
 	}
 
 	info := rhFind(t, rh, "GET", rhInfo)
-	if got := fmt.Sprint(info.Envelope.Request.Headers); got != "[[User-Agent "+rhUA+"] ["+rhCustom+" v]]" || info.Envelope.Request.Query != "x=1" {
+	if got := fmt.Sprint(info.Envelope.Request.Headers); got != "[[Accept-Encoding gzip] [User-Agent "+rhUA+"] ["+rhCustom+" v]]" ||
+		info.Envelope.Request.Query != "x=1" {
 		t.Errorf("the /info/bidders case sends %s ? %s", got, info.Envelope.Request.Query)
 	}
 
-	if !strings.Contains(strings.Join(info.Notes, "\n"), "Accept-Encoding, Connection, "+parity.TokenHeader) {
+	notes := strings.Join(info.Notes, "\n")
+	if !strings.Contains(notes, "Accept-Encoding, Connection, "+parity.TokenHeader) {
 		t.Errorf("the /info/bidders case does not note the headers it leaves out: %v", info.Notes)
+	}
+
+	if !strings.Contains(notes, "added as Go's HTTP client writes them: Accept-Encoding: gzip") {
+		t.Errorf("the /info/bidders case does not note the headers it adds: %v", info.Notes)
+	}
+
+	// A body gets the Content-Length net/http sends with it.
+	if got := rhFind(t, rh, "POST", "/event").Envelope.Request.Headers; !slices.Contains(got, [2]string{"Content-Length", "2"}) {
+		t.Errorf("the /event case sends %v, without the Content-Length of its body", got)
 	}
 }
 
