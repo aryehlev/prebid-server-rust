@@ -1,0 +1,456 @@
+# CI for the fork: fork invariants, the Rust workspace at full strictness, the conformance ratchet,
+# the fork's own scripts, configuration and Go code, and (on the parity-harness branch) the parity
+# harness. Every check always runs at full strictness; there are no toggles. Make `ci-ok` the only
+# required status check on main (see .github/README.md).
+name: CI
+
+on:
+  pull_request:
+    branches: [main, parity-harness]
+  push:
+    branches: [main, parity-harness]
+  merge_group:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+defaults:
+  run:
+    shell: bash
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: "0"
+  RUST_BACKTRACE: "1"
+  UPSTREAM_URL: https://github.com/prebid/prebid-server.git
+  UPSTREAM_BRANCH: master
+  BASE_BRANCH: main
+  PORT_BRANCH: port/upstream-sync
+  HARNESS_BRANCH: parity-harness
+  PORT_GIT_EMAIL: ${{ vars.PORT_GIT_EMAIL || '41898282+github-actions[bot]@users.noreply.github.com' }}
+  GOTOOLCHAIN: local
+  GOFLAGS: -mod=readonly
+
+jobs:
+  changes:
+    name: Detect changes
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    outputs:
+      base: ${{ steps.diff.outputs.base }}
+      head: ${{ steps.diff.outputs.head }}
+      adapter_dirs: ${{ steps.diff.outputs.adapter_dirs }}
+      port_pr: ${{ steps.diff.outputs.port_pr }}
+      parity_harness: ${{ steps.diff.outputs.parity_harness }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Compare
+        id: diff
+        env:
+          EVENT: ${{ github.event_name }}
+          REF: ${{ github.ref }}
+          REPOSITORY: ${{ github.repository }}
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
+          PR_HEAD: ${{ github.event.pull_request.head.sha }}
+          PR_HEAD_REF: ${{ github.event.pull_request.head.ref }}
+          PR_HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
+          PUSH_BEFORE: ${{ github.event.before }}
+          MG_BASE: ${{ github.event.merge_group.base_sha }}
+          MG_HEAD: ${{ github.event.merge_group.head_sha }}
+        run: .github/port/scripts/ci-changes.sh
+
+  guard:
+    name: Fork invariants
+    needs: changes
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Fetch upstream
+        run: git fetch --no-tags "${UPSTREAM_URL}" "+refs/heads/${UPSTREAM_BRANCH}:refs/remotes/upstream/${UPSTREAM_BRANCH}"
+      - name: Check the fork invariants
+        env:
+          BASE: ${{ needs.changes.outputs.base }}
+          HEAD_SHA: ${{ needs.changes.outputs.head }}
+          ADAPTER_DIRS: ${{ needs.changes.outputs.adapter_dirs }}
+          PORT_PR: ${{ needs.changes.outputs.port_pr }}
+          PARITY_HARNESS: ${{ needs.changes.outputs.parity_harness }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: |
+          printf '%s\n%s\n' "${PR_TITLE:-}" "${PR_BODY:-}" > "${RUNNER_TEMP}/pr-text.txt"
+          args=(--ref "${HEAD_SHA}" --base "${BASE}" --strict-dirs "${ADAPTER_DIRS}" --pr-text "${RUNNER_TEMP}/pr-text.txt")
+          if [[ "${PORT_PR}" == true ]]; then
+            args+=(--bot --allow-human)
+          fi
+          if [[ "${PARITY_HARNESS}" == true ]]; then
+            args+=(--parity-harness)
+          fi
+          .github/port/scripts/guard.sh "${args[@]}"
+
+  rust-fmt:
+    name: rustfmt
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: rust
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install the pinned nightly rustfmt
+        run: |
+          toolchain=$(scripts/rustfmt-toolchain.sh)
+          rustup toolchain install "${toolchain}" --profile minimal --component rustfmt
+          printf 'RUSTFMT_TOOLCHAIN=%s\n' "${toolchain}" >> "${GITHUB_ENV}"
+      - name: cargo fmt
+        run: cargo "+${RUSTFMT_TOOLCHAIN}" fmt --all -- --check
+
+  rust-clippy:
+    name: clippy
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    defaults:
+      run:
+        working-directory: rust
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install the toolchain from rust-toolchain.toml
+        run: rustup toolchain install
+      - name: Cache
+        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        with:
+          workspaces: rust -> target
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+      - name: cargo clippy
+        run: cargo clippy --workspace --all-targets --locked -- -D warnings
+
+  rust-doc:
+    name: rustdoc
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: rust
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install the toolchain from rust-toolchain.toml
+        run: rustup toolchain install
+      - name: Cache
+        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        with:
+          workspaces: rust -> target
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+      - name: cargo doc
+        env:
+          RUSTDOCFLAGS: -D warnings
+        run: cargo doc --workspace --no-deps --locked
+
+  rust-test:
+    name: cargo test
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    defaults:
+      run:
+        working-directory: rust
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install the toolchain from rust-toolchain.toml
+        run: rustup toolchain install
+      - name: Cache
+        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        with:
+          workspaces: rust -> target
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+      - name: cargo test
+        env:
+          PBS_GO_ROOT: ${{ github.workspace }}
+        run: cargo test --workspace --locked
+
+  conformance:
+    name: Go fixture conformance
+    needs: changes
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install the toolchain from rust-toolchain.toml
+        working-directory: rust
+        run: rustup toolchain install
+      - name: Cache
+        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        with:
+          workspaces: rust -> target
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+      - name: Replay the Go adapter fixtures against Rust
+        env:
+          PBS_GO_ROOT: ${{ github.workspace }}
+          STRICT_DIRS: ${{ needs.changes.outputs.adapter_dirs }}
+          CONFORMANCE_REQUIRED: ${{ vars.CONFORMANCE_REQUIRED == 'true' }}
+        run: |
+          .github/port/scripts/conformance.sh --strict-dirs "${STRICT_DIRS}" \
+            --out "${RUNNER_TEMP}/conformance.json" --summary "${GITHUB_STEP_SUMMARY}"
+      - name: Upload the conformance summary
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: conformance
+          path: ${{ runner.temp }}/conformance.json
+          retention-days: 14
+          if-no-files-found: ignore
+
+  devtools:
+    name: Generated files match Go
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: rust
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Go version of the upstream Dockerfile
+        id: go
+        run: '"${GITHUB_WORKSPACE}/.github/port/scripts/go-version.sh"'
+      - name: Install Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: ${{ steps.go.outputs.version }}
+          cache-dependency-path: go.sum
+      - name: Install the toolchain from rust-toolchain.toml
+        run: rustup toolchain install
+      - name: Cache
+        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        with:
+          workspaces: rust -> target
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+      - name: pbs-devtools all --check
+        run: cargo run -p pbs-devtools --locked -- all --check
+
+  lint-policy:
+    name: No lint suppression
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install taplo
+        uses: taiki-e/install-action@ab49d3c64680143e184118bed66a46419fc15519 # v2.90.5
+        with:
+          tool: taplo@0.10.0
+      - name: Scan for suppressions
+        run: rust/scripts/check-no-lint-suppression.sh
+      - name: Scanner self-tests
+        run: rust/scripts/tests/run.sh
+
+  lint-config:
+    name: Workflows, scripts and TOML
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Go version of the upstream Dockerfile
+        id: go
+        run: '"${GITHUB_WORKSPACE}/.github/port/scripts/go-version.sh"'
+      - name: Install Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: ${{ steps.go.outputs.version }}
+          cache: false
+      - name: Install shellcheck and taplo
+        uses: taiki-e/install-action@ab49d3c64680143e184118bed66a46419fc15519 # v2.90.5
+        with:
+          tool: shellcheck@0.11.0,taplo@0.10.0
+      - name: Install actionlint
+        env:
+          GOTOOLCHAIN: auto
+          GOFLAGS: ""
+        run: go install github.com/rhysd/actionlint/cmd/actionlint@v1.7.12
+      - name: taplo fmt --check
+        working-directory: rust
+        run: taplo fmt --check --config taplo.toml
+      - name: shellcheck (every optional check, style severity)
+        run: rust/scripts/lint-shell.sh
+      - name: actionlint (with shellcheck at the same strictness)
+        env:
+          SHELLCHECK_OPTS: --enable=all --severity=style
+        run: |
+          gopath=$(go env GOPATH)
+          "${gopath}/bin/actionlint" -color
+
+  port-tests:
+    name: Port tooling tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Run the tests
+        run: .github/port/tests/run-all.sh
+
+  deny:
+    name: cargo-deny
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: rust
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install the toolchain from rust-toolchain.toml
+        run: rustup toolchain install
+      - name: Install cargo-deny
+        uses: taiki-e/install-action@ab49d3c64680143e184118bed66a46419fc15519 # v2.90.5
+        with:
+          tool: cargo-deny@0.20.2
+      - name: cargo deny (advisories, bans, licenses, sources)
+        run: cargo deny --locked check --deny warnings
+
+  machete:
+    name: Unused dependencies
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: rust
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install the toolchain from rust-toolchain.toml
+        run: rustup toolchain install
+      - name: Install cargo-machete
+        uses: taiki-e/install-action@ab49d3c64680143e184118bed66a46419fc15519 # v2.90.5
+        with:
+          tool: cargo-machete@0.9.2
+      - name: cargo machete
+        run: scripts/cargo-machete.sh
+
+  go-lint:
+    name: Fork-authored Go
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Go version of the upstream Dockerfile
+        id: go
+        run: '"${GITHUB_WORKSPACE}/.github/port/scripts/go-version.sh"'
+      - name: Install Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: ${{ steps.go.outputs.version }}
+          cache-dependency-path: go.sum
+      - name: Install golangci-lint
+        uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a # v9.3.0
+        with:
+          version: v2.15.0
+          install-only: true
+      - name: gofmt -s, go vet and golangci-lint (every linter, no exclusions)
+        run: rust/scripts/lint-go.sh
+
+  parity:
+    name: Parity harness
+    needs: changes
+    if: needs.changes.outputs.parity_harness == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Go version of the upstream Dockerfile
+        id: go
+        run: '"${GITHUB_WORKSPACE}/.github/port/scripts/go-version.sh"'
+      - name: Install Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: ${{ steps.go.outputs.version }}
+          cache-dependency-path: go.sum
+      - name: Install the toolchain from rust-toolchain.toml
+        working-directory: rust
+        run: rustup toolchain install
+      - name: Cache
+        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        with:
+          workspaces: rust -> target
+          save-if: false
+      - name: Run the parity harness
+        env:
+          GOFLAGS: ""
+        run: .github/port/scripts/ci-parity.sh
+      - name: Upload parity artifacts
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: parity-out
+          path: parity/out
+          retention-days: 14
+          if-no-files-found: ignore
+
+  ci-ok:
+    name: ci-ok
+    if: always()
+    needs: [changes, guard, rust-fmt, rust-clippy, rust-doc, rust-test, conformance, devtools, lint-policy, lint-config, port-tests, deny, machete, go-lint, parity]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Every job passed
+        env:
+          NEEDS: ${{ toJSON(needs) }}
+        run: |
+          failed=$(jq -r 'to_entries[]
+            | select(.value.result != "success" and (.key != "parity" or .value.result != "skipped"))
+            | "\(.key): \(.value.result)"' <<< "${NEEDS}")
+          if [[ -n "${failed}" ]]; then
+            printf '::error::jobs that did not pass:\n%s\n' "${failed}"
+            exit 1
+          fi
+          printf 'every job passed\n'

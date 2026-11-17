@@ -1,0 +1,73 @@
+# Daily: merge main into the parity-harness branch, so the harness keeps testing the current port.
+# The harness patches upstream Go on purpose, so the merge can conflict; then nothing is pushed and
+# the "parity-harness: merging main conflicts" issue is opened or commented (see .github/README.md).
+name: Parity harness sync
+
+on:
+  schedule:
+    - cron: "47 6 * * *"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Only report what would happen"
+        type: boolean
+        default: false
+
+permissions: {}
+
+concurrency:
+  group: parity-harness-sync
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  sync:
+    name: Merge main into parity-harness
+    if: vars.PARITY_SYNC_ENABLED != 'false'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    env:
+      BASE_BRANCH: main
+      HARNESS_BRANCH: parity-harness
+      DRY_RUN: ${{ inputs.dry_run || false }}
+      RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+      GIT_AUTHOR_NAME: ${{ vars.PORT_GIT_NAME || 'github-actions[bot]' }}
+      GIT_AUTHOR_EMAIL: ${{ vars.PORT_GIT_EMAIL || '41898282+github-actions[bot]@users.noreply.github.com' }}
+      GIT_COMMITTER_NAME: ${{ vars.PORT_GIT_NAME || 'github-actions[bot]' }}
+      GIT_COMMITTER_EMAIL: ${{ vars.PORT_GIT_EMAIL || '41898282+github-actions[bot]@users.noreply.github.com' }}
+      HAS_APP_KEY: ${{ secrets.PORT_APP_PRIVATE_KEY != '' }}
+      HAS_PUSH_TOKEN: ${{ secrets.PORT_PUSH_TOKEN != '' }}
+    steps:
+      - name: Mint a GitHub App installation token
+        id: app
+        if: (vars.PORT_APP_ID != '' || vars.PORT_APP_CLIENT_ID != '') && env.HAS_APP_KEY == 'true'
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          client-id: ${{ vars.PORT_APP_CLIENT_ID || vars.PORT_APP_ID }}
+          private-key: ${{ secrets.PORT_APP_PRIVATE_KEY }}
+          permission-contents: write
+          permission-issues: write
+          permission-workflows: write
+      - name: Require a push credential
+        env:
+          HAS_APP_TOKEN: ${{ steps.app.outputs.token != '' }}
+        run: |
+          if [[ "${HAS_APP_TOKEN}" != true && "${HAS_PUSH_TOKEN}" != true ]]; then
+            printf '::error::configure a GitHub App (vars.PORT_APP_ID and secrets.PORT_APP_PRIVATE_KEY) or secrets.PORT_PUSH_TOKEN; pushes made with GITHUB_TOKEN do not trigger CI on parity-harness\n'
+            exit 1
+          fi
+      - name: Checkout the default branch (trusted tooling, push credential; all branches are fetched)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: main
+          fetch-depth: 0
+          token: ${{ steps.app.outputs.token || secrets.PORT_PUSH_TOKEN }}
+      - name: Merge and push, or report the conflict
+        env:
+          GH_TOKEN: ${{ steps.app.outputs.token || secrets.PORT_PUSH_TOKEN }}
+        run: .github/port/scripts/sync-parity-harness.sh
