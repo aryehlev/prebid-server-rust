@@ -37,9 +37,17 @@ Use these crates instead of re-implementing Go semantics locally:
 |---|---|
 | `pbs-gojson` (+ `pbs-gojson-derive`) | Go JSON: the three encoder flavours (`jsonutil.Marshal`, `encoding/json.Marshal`, `Encoder` with HTML escaping off), Go float formatting, `RawJson` (exact bytes, absent vs `null`), and jsoniter/`encoding/json` decoding semantics with byte-identical error text. |
 | `pbs-errortypes` | Go `errortypes` codes, severities, and error kinds. |
-| `pbs-gocompat` | Go `net/http` header semantics, `net/url` escaping and `Values.Encode`, `strconv` formatting/parsing, `fmt` verbs, and the `text/template` subset Prebid uses. |
+| `pbs-gocompat` | Go `net/http` header semantics, `net/url` escaping and `Values.Encode`, `strconv` formatting/parsing, `fmt` verbs, the `text/template` subset Prebid uses, `time` Format/Parse/JSON and `Duration`/`ParseDuration` (Local treated as UTC), `strings` case/split/`Replacer`, `encoding/base64`, `unicode` tables, and `math` conversions. |
 
 Each of these crates documents its API in its `lib.rs` crate docs. Read them before porting.
+
+- Never enable `serde_json`'s `preserve_order` or `arbitrary_precision` features anywhere in the
+  workspace: `pbs-gojson` relies on `serde_json::Map` being sorted (Go's map-key order) and on
+  `Value` numbers behaving as Go `float64`/ints, and Cargo feature unification would silently change
+  encoded bytes.
+- A few Tier 0 crates still keep private copies of Go helpers that now live in the shared crates
+  (`pbs-metrics` float formatting, `pbs-tcf2` `encoding/json` scanner and base64, `pbs-currency`
+  rates JSON). Do not copy those; use the shared crates.
 
 ## 4. Testing against Go
 
