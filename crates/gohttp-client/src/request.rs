@@ -253,6 +253,21 @@ impl Request {
         tw: &TransferWriter,
         out: &mut Vec<u8>,
     ) -> Result<(), HttpError> {
+        self.write_start(using_proxy, out)?;
+        self.write_fields(extra, tw, out)
+    }
+
+    /// Go: the first `Request.write` steps, which run before the transfer writer is built: the
+    /// request line, `Host` and `User-Agent`.
+    ///
+    /// # Errors
+    ///
+    /// As [`Request::write_head`], except the trailer-key errors.
+    pub(crate) fn write_start(
+        &self,
+        using_proxy: bool,
+        out: &mut Vec<u8>,
+    ) -> Result<(), HttpError> {
         let host = if self.host.is_empty() {
             self.url.host.as_str()
         } else {
@@ -303,6 +318,21 @@ impl Request {
             out.extend_from_slice(trim_string(&ua).as_bytes());
             out.extend_from_slice(b"\r\n");
         }
+        Ok(())
+    }
+
+    /// Go: the `Request.write` steps after [`Request::write_start`]: the framing headers, the
+    /// header map and `extra`, then the blank line.
+    ///
+    /// # Errors
+    ///
+    /// Go's `invalid Trailer key` errors.
+    pub(crate) fn write_fields(
+        &self,
+        extra: &Header,
+        tw: &TransferWriter,
+        out: &mut Vec<u8>,
+    ) -> Result<(), HttpError> {
         tw.write_header(out)?;
         out.extend_from_slice(self.header.write_subset(&REQUEST_WRITE_EXCLUDE).as_bytes());
         out.extend_from_slice(extra.write().as_bytes());

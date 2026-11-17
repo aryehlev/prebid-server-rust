@@ -1161,15 +1161,34 @@ struct WriteOptions<'a> {
 }
 
 impl ReqWriter {
-    /// Go: `Request.write` up to the body, and the body's framing.
-    fn new(req: &mut Request, o: WriteOptions<'_>) -> Result<Self, HttpError> {
+    /// Go: `Request.write` before the body: the head bytes and the transfer writer, in Go's
+    /// order (the request line, `Host` and `User-Agent` are checked before the framing).
+    fn head(req: &Request, o: &WriteOptions<'_>) -> Result<(Vec<u8>, TransferWriter), HttpError> {
+        let mut out = Vec::with_capacity(512);
+        req.write_start(o.using_proxy, &mut out)?;
         let mut tw = TransferWriter::for_request(req)?;
         if let Some(p) = &o.probe {
             tw.after_probe(p);
         }
         tw.sanitize();
-        let mut out = Vec::with_capacity(512);
-        req.write_head(o.using_proxy, o.extra, &tw, &mut out)?;
+        req.write_fields(o.extra, &tw, &mut out)?;
+        Ok((out, tw))
+    }
+
+    /// Go: `Request.write` up to the body, and the body's framing.
+    fn new(req: &mut Request, o: WriteOptions<'_>) -> Result<Self, HttpError> {
+        let (out, tw) = match Self::head(req, &o) {
+            Ok(head) => head,
+            Err(e) => {
+                // Go: Request.write reports WroteRequest for every error it returns.
+                if let Some(t) = &o.trace {
+                    t.wrote_request(&WroteRequestInfo {
+                        err: Some(e.clone()),
+                    });
+                }
+                return Err(e);
+            }
+        };
         if let Some(t) = &o.trace {
             t.wrote_headers();
         }
@@ -1374,6 +1393,16 @@ impl ReqWriter {
                     self.flush_to = self.out.len();
                 }
             }
+        }
+    }
+
+    /// Go: the write loop when the round trip fails before the write is done. A write that has
+    /// flushed its head and waits for `100 Continue` sees the connection close
+    /// (`waitForContinue` returns false) and reports `WroteRequest` without an error.
+    fn abandon(&mut self) {
+        let waiting = self.continue_timer.is_some() && self.deferred.is_some();
+        if !self.done && waiting && self.pos >= self.flush_to {
+            let _skipped = self.finish(Ok(()));
         }
     }
 
@@ -1691,6 +1720,7 @@ impl Transport {
             Ok(r) => r,
             Err(f) => {
                 let err = map_failure(&mut pc, f, start_nwrite, &treq);
+                writer.abandon();
                 return Err(Box::new((err, req)));
             }
         };
