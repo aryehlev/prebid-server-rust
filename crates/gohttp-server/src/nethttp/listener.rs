@@ -236,14 +236,35 @@ impl Listener {
         result
     }
 
+    /// Go: the `Accept` that fails because `Shutdown` closed the listener under it (or before
+    /// it). Its error, `accept tcp [::]:8000: use of closed network connection`, is logged and
+    /// recorded as a failed accept by Prebid's `monitorableListener`; `Serve` then returns
+    /// `http.ErrServerClosed`.
+    pub(super) fn accept_closed(&self) {
+        if let Some(m) = &self.metrics {
+            let text = format!(
+                "accept {} {}: use of closed network connection",
+                self.network_name(),
+                self.addr
+            );
+            pbs_logger::errorf!("Error accepting connection: %v", text.as_str());
+            m.record_connection_accept(false);
+        }
+    }
+
+    /// Go: `ln.Addr().Network()`.
+    const fn network_name(&self) -> &'static str {
+        match self.network {
+            Network::Tcp => "tcp",
+            Network::Unix => "unix",
+        }
+    }
+
     async fn accept_raw(&self) -> Result<Accepted, AcceptError> {
         let accept_err = |e: &io::Error| AcceptError {
             text: format!(
                 "accept {} {}: {}",
-                match self.network {
-                    Network::Tcp => "tcp",
-                    Network::Unix => "unix",
-                },
+                self.network_name(),
                 self.addr,
                 syscall_text("accept", e)
             ),

@@ -785,7 +785,10 @@ impl Server {
         loop {
             let accepted = tokio::select! {
                 biased;
-                () = self.inner.wait_shutdown() => return Err(ServeError::ServerClosed),
+                () = self.inner.wait_shutdown() => {
+                    listener.accept_closed();
+                    return Err(ServeError::ServerClosed);
+                }
                 r = listener.accept() => r,
             };
             match accepted {
