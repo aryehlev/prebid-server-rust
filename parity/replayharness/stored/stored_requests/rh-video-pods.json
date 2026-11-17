@@ -1,0 +1,48 @@
+{
+  "podconfig": {
+    "durationrangesec": [
+      15,
+      30
+    ],
+    "requireexactduration": false,
+    "pods": [
+      {
+        "podid": 1,
+        "adpoddurationsec": 30,
+        "configid": "rh-imp-video-live"
+      },
+      {
+        "podid": 2,
+        "adpoddurationsec": 15,
+        "configid": "rh-imp-nope"
+      }
+    ]
+  },
+  "site": {
+    "page": "https://parity.test/video",
+    "publisher": {
+      "id": "parity-account"
+    }
+  },
+  "video": {
+    "mimes": [
+      "video/mp4"
+    ],
+    "protocols": [
+      2,
+      3
+    ],
+    "w": 640,
+    "h": 480
+  },
+  "pricegranularity": {
+    "precision": 2,
+    "ranges": [
+      {
+        "min": 0,
+        "max": 20,
+        "increment": 0.5
+      }
+    ]
+  }
+}

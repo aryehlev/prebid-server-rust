@@ -1,0 +1,102 @@
+# The host cookie (profile.json): host_cookie names the cookie rh_host, whose
+# value is the uid of the syncer key adnxs (appnexus), the opt-out cookie
+# rh_optout=1, the cookie domain parity.test and a 30 day TTL. The default
+# profile sets none of them, so no other case reaches this code.
+#
+# Cookies used below (base64 JSON):
+#   uids=eyJ0ZW1wVUlEcyI6eyJhZG54cyI6eyJ1aWQiOiJyaC1hZG54cy11aWQiLCJleHBpcmVzIjoiMjA5OS0wMS0wMVQwMDowMDowMFoifX19
+#     {"tempUIDs":{"adnxs":{"uid":"rh-adnxs-uid","expires":"2099-01-01T00:00:00Z"}}}
+replays:
+  - name: the host cookie fills the family's uid unless the uids cookie has one
+    why: SyncHostCookie syncs the rh_host value under host_cookie.family only when the cookie has no uid for it (usersync/cookie.go:135-142, endpoints/getuids.go:19-28)
+    steps:
+      - method: GET
+        path: /getuids
+        headers: {Cookie: "rh_host=rh-host-uid"}
+        expect: {status: 200, contains: ["{\"buyeruids\":{\"adnxs\":\"rh-host-uid\"}}\n"]}
+      - method: GET
+        path: /getuids
+        headers: {Cookie: "uids=eyJ0ZW1wVUlEcyI6eyJhZG54cyI6eyJ1aWQiOiJyaC1hZG54cy11aWQiLCJleHBpcmVzIjoiMjA5OS0wMS0wMVQwMDowMDowMFoifX19; rh_host=rh-host-uid"}
+        expect: {status: 200, contains: ["{\"buyeruids\":{\"adnxs\":\"rh-adnxs-uid\"}}\n"]}
+
+  - name: the host opt-out cookie opts the user out only with its value
+    why: checkHostCookieOptOut returns an opted-out cookie when rh_optout has host_cookie.optout_cookie.value, whatever the uids cookie says (usersync/cookie.go:45-57, 144-155)
+    steps:
+      - method: GET
+        path: /getuids
+        headers: {Cookie: "uids=eyJ0ZW1wVUlEcyI6eyJhZG54cyI6eyJ1aWQiOiJyaC1hZG54cy11aWQiLCJleHBpcmVzIjoiMjA5OS0wMS0wMVQwMDowMDowMFoifX19; rh_optout=1"}
+        expect: {status: 200, contains: ["{}\n"], not_contains: [buyeruids]}
+      - method: GET
+        path: /getuids
+        headers: {Cookie: "uids=eyJ0ZW1wVUlEcyI6eyJhZG54cyI6eyJ1aWQiOiJyaC1hZG54cy11aWQiLCJleHBpcmVzIjoiMjA5OS0wMS0wMVQwMDowMDowMFoifX19; rh_optout=0"}
+        expect: {status: 200, contains: ["{\"buyeruids\":{\"adnxs\":\"rh-adnxs-uid\"}}\n"]}
+      - method: GET
+        path: /setuid?bidder=pubmatic&uid=rh-pm
+        headers: {Cookie: "rh_optout=1"}
+        expect: {status: 401, headers: {Content-Length: "0", Set-Cookie: <absent>}}
+      - method: POST
+        path: /cookie_sync
+        headers: {Cookie: "rh_optout=1"}
+        json: {bidders: [appnexus]}
+        expect: {status: 401, contains: ["User has opted out\n"]}
+
+  - name: setuid writes the host cookie's uid, the cookie domain and the TTL
+    why: setuid syncs the host cookie before the bidder's uid, and WriteCookie sets Domain from host_cookie.domain and Expires ttl_days after the parity clock, 2021-08-20T15:28:50.823Z; each uid expires 14 days after it (endpoints/setuid.go:52-57, 166-178, usersync/cookie.go:94-133)
+    steps:
+      - method: GET
+        path: /setuid?bidder=pubmatic&uid=rh-pm
+        headers: {Cookie: "rh_host=rh-host-uid"}
+        expect:
+          status: 200
+          headers:
+            Set-Cookie: "uids=eyJ0ZW1wVUlEcyI6eyJhZG54cyI6eyJ1aWQiOiJyaC1ob3N0LXVpZCIsImV4cGlyZXMiOiIyMDIxLTA5LTAzVDE1OjI4OjUwLjgyM1oifSwicHVibWF0aWMiOnsidWlkIjoicmgtcG0iLCJleHBpcmVzIjoiMjAyMS0wOS0wM1QxNToyODo1MC44MjNaIn19fQ==; Path=/; Domain=parity.test; Expires=Sun, 19 Sep 2021 15:28:50 GMT"
+
+  - name: cookie_sync counts the host cookie's uid as in sync
+    why: cookie_sync reads the cookie and syncs the host cookie before choosing the bidders, so appnexus, whose syncer key is adnxs, is already in sync (endpoints/cookie_sync.go:112-113)
+    steps:
+      - method: POST
+        path: /cookie_sync
+        headers: {Cookie: "rh_host=rh-host-uid"}
+        json: {bidders: [appnexus, pubmatic], debug: true}
+        expect:
+          status: 200
+          json:
+            $.bidder_status[0].bidder: pubmatic
+            $.bidder_status.length: 1
+            $.debug[0].bidder: appnexus
+            $.debug[0].error: Already in sync
+
+  - name: the auction and AMP send the host cookie's uid as the buyeruid
+    why: the auction and AMP read the cookie with the host cookie config and sync the host cookie, so appnexus gets user.buyeruid, and the host opt-out cookie leaves it out (endpoints/openrtb2/auction.go:229-230, endpoints/openrtb2/amp_auction.go:193-194)
+    steps:
+      - method: POST
+        path: /openrtb2/auction
+        headers: {Cookie: "rh_host=rh-host-uid"}
+        json:
+          id: rh-host-cookie-auction
+          test: 1
+          site: {page: "https://parity.test/page", publisher: {id: parity-account}}
+          imp: [{id: imp-1, banner: {format: [{w: 300, h: 250}]}, ext: {prebid: {bidder: {appnexus: {placementId: 12883451}}}}}]
+        expect:
+          status: 200
+          contains: ['\"user\":{\"buyeruid\":\"rh-host-uid\"}']
+      - method: POST
+        path: /openrtb2/auction
+        headers: {Cookie: "uids=eyJ0ZW1wVUlEcyI6eyJhZG54cyI6eyJ1aWQiOiJyaC1hZG54cy11aWQiLCJleHBpcmVzIjoiMjA5OS0wMS0wMVQwMDowMDowMFoifX19; rh_optout=1"}
+        json:
+          id: rh-host-cookie-optout
+          test: 1
+          site: {page: "https://parity.test/page", publisher: {id: parity-account}}
+          imp: [{id: imp-1, banner: {format: [{w: 300, h: 250}]}, ext: {prebid: {bidder: {appnexus: {placementId: 12883451}}}}}]
+        expect:
+          status: 200
+          json:
+            $.ext.debug.httpcalls.appnexus[0].uri: "http://ib.adnxs.com/openrtb2"
+          not_contains: [buyeruid]
+      - method: GET
+        path: /openrtb2/amp
+        query: {tag_id: rh-amp-banner, debug: "1"}
+        headers: {Cookie: "rh_host=rh-host-uid"}
+        expect:
+          status: 200
+          contains: ['\"user\":{\"buyeruid\":\"rh-host-uid\"}']

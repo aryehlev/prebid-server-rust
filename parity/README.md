@@ -46,6 +46,7 @@ them, and `go test ./parity/schema/...` keeps the two in sync.
 | `fixtures/stored/` | Stored requests, imps, responses and accounts copied into every run's stored-data tree. |
 | `replayharness/api.yaml` | The ReplayHarness API map of the Go server (see "ReplayHarness"). |
 | `replayharness/replays/` | Replays in the ReplayHarness format that pin what Go answers; each one's `why` cites the Go code. |
+| `replayharness/profiles/` | Case profiles: per directory, a `profile.json` of host settings no base profile has and the replays that state what Go answers under it (see "Case profiles"). |
 | `replayharness/stored/` | The stored data the replays use (IDs `rh-*`), in the `fixtures/stored` layout and loaded next to it. |
 | `replayharness/traffic.jsonl` | The probes, replays and mutated requests ReplayHarness sent Go, with Go's answers, compacted by `rhtool traffic`. |
 | `replayharness/saved.jsonl` | Go's answers to the replay steps that save a value, such as the `uids` cookie, for the steps that send it. |

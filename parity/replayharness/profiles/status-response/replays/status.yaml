@@ -1,0 +1,21 @@
+# GET /status with status_response set (profile.json): the default profile
+# leaves it empty, so every other case sees the empty 204.
+replays:
+  - name: a status_response answers GET /status 200 with that body
+    why: with status_response set, NewStatusEndpoint writes it as the body and net/http sniffs text/plain; an empty one is a 204 with no body (endpoints/status.go:10-22, router/router.go:300, config/config.go:956)
+    steps:
+      - method: GET
+        path: /status
+        expect:
+          status: 200
+          headers: {Content-Type: text/plain; charset=utf-8, Content-Length: "2"}
+          contains: [ok]
+          not_contains: ["\n"]
+      - method: GET
+        path: /status?ready=1
+        headers: {Accept: application/json}
+        expect: {status: 200, headers: {Content-Type: text/plain; charset=utf-8}, contains: [ok]}
+      - method: POST
+        path: /status
+        json: {}
+        expect: {status: 405, headers: {Allow: "GET, OPTIONS"}, contains: ["Method Not Allowed\n"]}
