@@ -25,6 +25,7 @@ them, and `go test ./parity/schema/...` keeps the two in sync.
 | `transport/` | Parity `http.RoundTripper`: oracle-proxy and inline modes, `X-Parity-Meta`. |
 | `fakes/` | Deterministic clock, random and UUID sources for the 8 nondeterministic adapters. |
 | `wiring/` | Bootstrap glue used by `main.go` and `router/router.go`; everything is a no-op unless `parity.enabled`. |
+| `server/` | The Go server's `/__parity/*` routes: exec and its aliases, the adapter endpoints, config, bidders, reset and health. Linked into the binary by a blank import in `main.go`. |
 | `endpointtrace/` | One-line endpoint-stage hooks for `/openrtb2/auction`, `/openrtb2/amp` and `/openrtb2/video`; its package doc lists each endpoint stage payload. |
 | `shadow/` | Independent deep copies of a `RequestWrapper` for request snapshots, so hooks never rebuild the live wrapper. |
 | `stagedata/` | Payload types of the exchange stages (`hooks.processed_auction` to `exchange.response`). |
@@ -395,7 +396,7 @@ is a no-op and `/__parity/*` is ordinary application traffic.
 |---|---|
 | `config/config.go` | `Parity ParityConfig` field, `SetDefault("parity.*")`, `cfg.Parity.validate` |
 | `config/structlog.go` | fields tagged `log:"redact"` are logged as `<REDACTED>` |
-| `main.go` | `wiring.Bootstrap(cfg)`; currency client `wiring.WrapClient`; `wiring.Mount` around `NoCache{SupportCORS(r)}` when enabled |
+| `main.go` | blank import of `parity/server`; `wiring.Bootstrap(cfg)`; currency client `wiring.WrapClient`; `wiring.Mount` around `NoCache{SupportCORS(r)}` when enabled |
 | `router/router.go` | `wiring.WrapClient` on the general, cache and floors clients; `wiring.WrapAnalytics`; `Router.ParityDeps` |
 | `server/server.go` | exported `WrapCompression` |
 | `exchange/parity_export.go` | `BuildParityBidder`, `ParityAdapterConfig`, `ParityServerConfig`, `ParityMockBidderResponse`, `ConvertParityBidderResponse`, `ParityError` |
@@ -412,24 +413,87 @@ is a no-op and `/__parity/*` is ordinary application traffic.
 | `floors/{floors,rule,enforce}.go`, `floors/parity.go` | `floors.enrich` after `updateFloorsInRequest` rebuilds the request; the four `floors.*` decisions |
 | `usersync/shuffler.go` | `usersync.shuffle` |
 
-### Linking the `/__parity/*` routes (PH-07)
+### The `/__parity/*` routes (PH-07)
 
-`parity/server` implements the routes and registers them from `init`:
-
-```go
-func init() { wiring.RegisterRoutes(New) } // New(deps wiring.Deps, dispatch, app http.Handler) http.Handler
-```
-
-`dispatch` is the exact handler the main listener serves, compression
-included. `app` is the same chain without compression. `deps` carries the
-resolved config, the Prometheus gatherer and the bidder infos. The binary links
-the routes with a blank import in `main.go`:
+`parity/server` implements the routes and registers them from `init`
+(`wiring.RegisterRoutes(New)`). `main.go` links them with a blank import:
 
 ```go
 import _ "github.com/prebid/prebid-server/v4/parity/server"
 ```
 
-Until that import exists, an authorized `/__parity/*` request answers `501`.
+`wiring.Mount` serves them only when `parity.enabled` is true, after the
+loopback and token checks. A binary built without the import answers `501` to
+every authorized `/__parity/*` request. `New(deps, dispatch, app)` receives
+`dispatch`, the exact handler the main listener serves (compression included),
+and `deps`, which carries the resolved config, the Prometheus gatherer and the
+bidder infos.
+
+| Route | Method | In | Out |
+|---|---|---|---|
+| `/__parity/health` | GET | | `pbs-parity/1` |
+| `/__parity/exec` | POST | `pbs-parity-envelope/1` | `pbs-parity-trace/1` |
+| `/__parity/auction`, `/__parity/video` | POST | envelope with `request.method` and `request.path` optional | `pbs-parity-trace/1` |
+| `/__parity/amp` | POST | same as above, fixed to `GET /openrtb2/amp` | `pbs-parity-trace/1` |
+| `/__parity/amp?<query>` | GET | the call's query, `Host` and headers (without `X-Parity-Token`) | `pbs-parity-trace/1` |
+| `/__parity/adapter/{bidder}/requests` | POST | `pbs-parity-adapter-requests-input/1` | `pbs-parity-adapter-requests-output/1` |
+| `/__parity/adapter/{bidder}/bids` | POST | `pbs-parity-adapter-bids-input/1` | `pbs-parity-adapter-bids-output/1` |
+| `/__parity/config` | GET | | `pbs-parity-config/1` |
+| `/__parity/bidders` | GET | | `pbs-parity-bidders/1` |
+| `/__parity/reset` | POST | | `pbs-parity-reset/1` |
+
+The routes answer with these statuses:
+
+* `200` for every document the route produced. A case whose handler failed is
+  still `200`: the failure is in the trace.
+* `400` for an input document that is not valid. That covers unknown members,
+  a wrong `schema`, an unknown major version, an unknown stage, decision point,
+  mock mode, level or outbound kind, a header name that is not a token, a header
+  value with CR, LF or NUL, and a `Content-Length` that differs from the body.
+  It also covers a route bidder that is not `build.bidder`, and a bidder that
+  has no bidder info.
+* `404` for an unknown route.
+* `405` with `Allow` for a wrong method.
+* `413` for a document over 64 MiB.
+* `500` for a bidder panic on the adapter routes, and for a config dump
+  without a resolved configuration.
+* `503` when the caller gives up while waiting for the exec lock.
+
+The routes behave as follows:
+
+* **Inbound request.** Exec rebuilds the request with `RemoteAddr`
+  `127.0.0.1:0` and host `127.0.0.1` unless `remote_addr`, `host` or a `Host`
+  header says otherwise. A chunked `Transfer-Encoding` moves to
+  `Request.TransferEncoding`, as `net/http` does. Any other
+  `Transfer-Encoding` is rejected.
+* **`http_in`.** This stage echoes the envelope request and its wire bytes.
+* **`http_response`.** This stage is the handler chain's response as the
+  `net/http` server would send it, minus the connection framing (`Date`,
+  `Content-Length`, `Transfer-Encoding`). The header is snapshotted at
+  `WriteHeader`. `Content-Type` is sniffed like `net/http`. No body is
+  recorded for 1xx, 204 and 304 responses or for `HEAD`. A handler panic or an
+  invalid status code records status 500, no headers and no body, plus a
+  `panic: ...` note.
+* **`metrics_delta`.** Without a Prometheus registry
+  (`metrics.prometheus.port` 0), this stage stays `not_reached` and the trace
+  carries a note.
+* **Adapter routes.** These routes build the bidder with
+  `exchange.BuildParityBidder`. An omitted `adapter_config` or `server`
+  defaults to what `BuildAdapters` derives from the bidder info and host
+  config. The routes hold the exec lock, set `fakes` for the call and reset
+  them afterwards. `errors` keeps the adapter's order. Header names keep their
+  case in both directions.
+* **Config dump.** `GET /__parity/config` is `mapstructure.Decode` of the
+  resolved configuration, without `adapters` and `parity`. Other secrets stay
+  in the dump, because the route sits behind the token and the loopback
+  check.
+* **Reset.** `POST /__parity/reset` waits for the in-flight case and restores
+  the default fakes. It reports router-internal caches from the configuration.
+  A cache that the configuration disables is clean. An enabled stored-data
+  in-memory cache, the Fetchers 2.0 account cache, the floors fetcher and
+  bidder health throttling are reported in `not_reset`, with the config key
+  that disables them. The GVL vendor lists and the currency rates are always
+  `not_reset`. Parity profiles should disable these caches.
 
 ## Implementing the contract in Rust
 
@@ -450,7 +514,7 @@ Until that import exists, an authorized `/__parity/*` request answers `501`.
 ## Tests
 
 ```sh
-go test ./parity/...                 # schemas, examples, registries, contract conformance
+go test ./parity/...                 # schemas, examples, registries, contract conformance, /__parity/* routes
 go test -race ./parity/trace/... ./parity/transport/... ./parity/diff/...
 go test ./config ./router ./server ./exchange
 ```
@@ -477,3 +541,24 @@ go test ./config ./router ./server ./exchange
   `adapter.requests_final`;
 * noise alone (A/A) yields no records;
 * every diff document validates against `mismatch.schema.json`.
+
+`parity/server` checks the following:
+
+* exec over a minimal router returns the status, headers and body a real
+  `net/http` server sends, and the status and body of a direct `ServeHTTP`.
+  The cases cover JSON, gzip, sniffing, late headers, 204, 304, flush, HEAD,
+  router 404 and router 405;
+* the inbound request is rebuilt exactly: query, header order, host, remote
+  address, byte-exact b64 and content-encoded bodies, and chunked framing;
+* stages, inline `http_out`, decisions, fakes and `metrics_delta` reach the
+  trace, and `capture` limits them;
+* invalid envelopes are rejected, and the aliases check their fixed method and
+  path;
+* the adapter routes replay appnexus, rubicon, ix, openx, pubmatic and adagio
+  fixtures and match each fixture's own expectations with `adapterstest`
+  semantics;
+* the config dump contains `tmax_default`, `gdpr.default_value` and
+  `cache.scheme`, and contains neither `adapters`, `parity` nor the token;
+* the bidders dump, health and reset documents are correct;
+* the token and loopback guards apply to the routes registered from `init`;
+* every response validates against its schema.
