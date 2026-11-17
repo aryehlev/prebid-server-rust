@@ -1,0 +1,1541 @@
+# HELP prebid_server_account_cache_performance Count of account cache lookups by hits or miss.
+# TYPE prebid_server_account_cache_performance counter
+prebid_server_account_cache_performance{cache_result="hit"} 37
+prebid_server_account_cache_performance{cache_result="miss"} 92
+# HELP prebid_server_account_debug_requests Count of total requests to Prebid Server that have debug enabled labled by account
+# TYPE prebid_server_account_debug_requests counter
+prebid_server_account_debug_requests{account=""} 1
+prebid_server_account_debug_requests{account="acct-id"} 1
+# HELP prebid_server_account_requests Count of total requests to Prebid Server labeled by account.
+# TYPE prebid_server_account_requests counter
+prebid_server_account_requests{account=""} 1
+prebid_server_account_requests{account="acct1"} 2
+prebid_server_account_requests{account="acct2"} 2
+prebid_server_account_requests{account="quote\"back\\slash\nnewline"} 1
+prebid_server_account_requests{account="été space=equals%pct"} 1
+# HELP prebid_server_account_response_validation_secure_err Count that tracks number of bids removed from bid response that had a invalid bidAdm labeled by account (enforce) 
+# TYPE prebid_server_account_response_validation_secure_err counter
+prebid_server_account_response_validation_secure_err{account="acct-id",success="success"} 1
+# HELP prebid_server_account_response_validation_secure_warn Count that tracks number of bids removed from bid response that had a invalid bidAdm labeled by account (warn)
+# TYPE prebid_server_account_response_validation_secure_warn counter
+prebid_server_account_response_validation_secure_warn{account="",success="success"} 1
+# HELP prebid_server_account_response_validation_size_err Count that tracks number of bids removed from bid response that had a creative size greater than maxWidth/maxHeight labeled by account (enforce) 
+# TYPE prebid_server_account_response_validation_size_err counter
+prebid_server_account_response_validation_size_err{account="acct-id",success="success"} 1
+# HELP prebid_server_account_response_validation_size_warn Count that tracks number of bids removed from bid response that had a creative size greater than maxWidth/maxHeight labeled by account (warn)
+# TYPE prebid_server_account_response_validation_size_warn counter
+prebid_server_account_response_validation_size_warn{account="acct-id",success="success"} 1
+# HELP prebid_server_account_stored_responses Count of total requests to Prebid Server that have stored responses labled by account
+# TYPE prebid_server_account_stored_responses counter
+prebid_server_account_stored_responses{account="acct-id"} 1
+# HELP prebid_server_adapter_bids Count of bids labeled by adapter and markup delivery type (adm or nurl).
+# TYPE prebid_server_adapter_bids counter
+prebid_server_adapter_bids{adapter="33across",delivery="adm"} 0
+prebid_server_adapter_bids{adapter="33across",delivery="nurl"} 0
+prebid_server_adapter_bids{adapter="adkerneladn",delivery="adm"} 0
+prebid_server_adapter_bids{adapter="adkerneladn",delivery="nurl"} 0
+prebid_server_adapter_bids{adapter="appnexus",delivery="adm"} 1
+prebid_server_adapter_bids{adapter="appnexus",delivery="nurl"} 1
+prebid_server_adapter_bids{adapter="other",delivery="adm"} 1
+prebid_server_adapter_bids{adapter="pubmatic",delivery="adm"} 0
+prebid_server_adapter_bids{adapter="pubmatic",delivery="nurl"} 0
+prebid_server_adapter_bids{adapter="rubicon",delivery="adm"} 0
+prebid_server_adapter_bids{adapter="rubicon",delivery="nurl"} 0
+prebid_server_adapter_bids{adapter="zmaticoo",delivery="adm"} 0
+prebid_server_adapter_bids{adapter="zmaticoo",delivery="nurl"} 0
+# HELP prebid_server_adapter_buyeruids_scrubbed Count of total bidder requests with a scrubbed buyeruid due to a privacy policy
+# TYPE prebid_server_adapter_buyeruids_scrubbed counter
+prebid_server_adapter_buyeruids_scrubbed{adapter="33across"} 0
+prebid_server_adapter_buyeruids_scrubbed{adapter="adkerneladn"} 0
+prebid_server_adapter_buyeruids_scrubbed{adapter="anyname"} 1
+prebid_server_adapter_buyeruids_scrubbed{adapter="appnexus"} 1
+prebid_server_adapter_buyeruids_scrubbed{adapter="pubmatic"} 0
+prebid_server_adapter_buyeruids_scrubbed{adapter="rubicon"} 0
+prebid_server_adapter_buyeruids_scrubbed{adapter="zmaticoo"} 0
+# HELP prebid_server_adapter_connection_created Count that keeps track of new connections when contacting adapter bidder endpoints.
+# TYPE prebid_server_adapter_connection_created counter
+prebid_server_adapter_connection_created{adapter="33across"} 0
+prebid_server_adapter_connection_created{adapter="adkerneladn"} 0
+prebid_server_adapter_connection_created{adapter="appnexus"} 1
+prebid_server_adapter_connection_created{adapter="newone"} 1
+prebid_server_adapter_connection_created{adapter="pubmatic"} 0
+prebid_server_adapter_connection_created{adapter="rubicon"} 0
+prebid_server_adapter_connection_created{adapter="zmaticoo"} 0
+# HELP prebid_server_adapter_connection_dial_errors Count when a connection dial returns an error.
+# TYPE prebid_server_adapter_connection_dial_errors counter
+prebid_server_adapter_connection_dial_errors{adapter="33across"} 0
+prebid_server_adapter_connection_dial_errors{adapter="adkerneladn"} 0
+prebid_server_adapter_connection_dial_errors{adapter="appnexus"} 1
+prebid_server_adapter_connection_dial_errors{adapter="dialer"} 1
+prebid_server_adapter_connection_dial_errors{adapter="pubmatic"} 0
+prebid_server_adapter_connection_dial_errors{adapter="rubicon"} 0
+prebid_server_adapter_connection_dial_errors{adapter="zmaticoo"} 0
+# HELP prebid_server_adapter_connection_dial_time Seconds adapter bidder connection dial lasted
+# TYPE prebid_server_adapter_connection_dial_time histogram
+prebid_server_adapter_connection_dial_time_bucket{adapter="33across",le="0.005"} 0
+prebid_server_adapter_connection_dial_time_bucket{adapter="33across",le="0.01"} 0
+prebid_server_adapter_connection_dial_time_bucket{adapter="33across",le="0.025"} 0
+prebid_server_adapter_connection_dial_time_bucket{adapter="33across",le="0.05"} 0
+prebid_server_adapter_connection_dial_time_bucket{adapter="33across",le="0.1"} 0
+prebid_server_adapter_connection_dial_time_bucket{adapter="33across",le="0.25"} 0
+prebid_server_adapter_connection_dial_time_bucket{adapter="33across",le="0.5"} 0
+prebid_server_adapter_connection_dial_time_bucket{adapter="33across",le="1"} 0
+prebid_server_adapter_connection_dial_time_bucket{adapter="33across",le="2.5"} 0
+prebid_server_adapter_connection_dial_time_bucket{adapter="33across",le="5"} 0
+prebid_server_adapter_connection_dial_time_bucket{adapter="33across",le="10"} 0
+prebid_server_adapter_connection_dial_time_bucket{adapter="33across",le="15"} 0
+prebid_server_adapter_connection_dial_time_bucket{adapter="33across",le="30"} 0
+prebid_server_adapter_connection_dial_time_bucket{adapter="33across",le="+Inf"} 0
+prebid_server_adapter_connection_dial_time_sum{adapter="33across"} 0
+prebid_server_adapter_connection_dial_time_count{adapter="33across"} 0
+prebid_server_adapter_connection_dial_time_bucket{adapter="adkerneladn",le="0.005"} 0
+prebid_server_adapter_connection_dial_time_bucket{adapter="adkerneladn",le="0.01"} 0
+prebid_server_adapter_connection_dial_time_bucket{adapter="adkerneladn",le="0.025"} 0
+prebid_server_adapter_connection_dial_time_bucket{adapter="adkerneladn",le="0.05"} 0
+prebid_server_adapter_connection_dial_time_bucket{adapter="adkerneladn",le="0.1"} 0
+prebid_server_adapter_connection_dial_time_bucket{adapter="adkerneladn",le="0.25"} 0
+prebid_server_adapter_connection_dial_time_bucket{adapter="adkerneladn",le="0.5"} 0
+prebid_server_adapter_connection_dial_time_bucket{adapter="adkerneladn",le="1"} 0
+prebid_server_adapter_connection_dial_time_bucket{adapter="adkerneladn",le="2.5"} 0
+prebid_server_adapter_connection_dial_time_bucket{adapter="adkerneladn",le="5"} 0
+prebid_server_adapter_connection_dial_time_bucket{adapter="adkerneladn",le="10"} 0
+prebid_server_adapter_connection_dial_time_bucket{adapter="adkerneladn",le="15"} 0
+prebid_server_adapter_connection_dial_time_bucket{adapter="adkerneladn",le="30"} 0
+prebid_server_adapter_connection_dial_time_bucket{adapter="adkerneladn",le="+Inf"} 0
+prebid_server_adapter_connection_dial_time_sum{adapter="adkerneladn"} 0
+prebid_server_adapter_connection_dial_time_count{adapter="adkerneladn"} 0
+prebid_server_adapter_connection_dial_time_bucket{adapter="appnexus",le="0.005"} 0
+prebid_server_adapter_connection_dial_time_bucket{adapter="appnexus",le="0.01"} 0
+prebid_server_adapter_connection_dial_time_bucket{adapter="appnexus",le="0.025"} 0
+prebid_server_adapter_connection_dial_time_bucket{adapter="appnexus",le="0.05"} 0
+prebid_server_adapter_connection_dial_time_bucket{adapter="appnexus",le="0.1"} 0
+prebid_server_adapter_connection_dial_time_bucket{adapter="appnexus",le="0.25"} 0
+prebid_server_adapter_connection_dial_time_bucket{adapter="appnexus",le="0.5"} 0
+prebid_server_adapter_connection_dial_time_bucket{adapter="appnexus",le="1"} 1
+prebid_server_adapter_connection_dial_time_bucket{adapter="appnexus",le="2.5"} 1
+prebid_server_adapter_connection_dial_time_bucket{adapter="appnexus",le="5"} 1
+prebid_server_adapter_connection_dial_time_bucket{adapter="appnexus",le="10"} 1
+prebid_server_adapter_connection_dial_time_bucket{adapter="appnexus",le="15"} 2
+prebid_server_adapter_connection_dial_time_bucket{adapter="appnexus",le="30"} 2
+prebid_server_adapter_connection_dial_time_bucket{adapter="appnexus",le="+Inf"} 3
+prebid_server_adapter_connection_dial_time_sum{adapter="appnexus"} 58
+prebid_server_adapter_connection_dial_time_count{adapter="appnexus"} 3
+prebid_server_adapter_connection_dial_time_bucket{adapter="pubmatic",le="0.005"} 0
+prebid_server_adapter_connection_dial_time_bucket{adapter="pubmatic",le="0.01"} 0
+prebid_server_adapter_connection_dial_time_bucket{adapter="pubmatic",le="0.025"} 0
+prebid_server_adapter_connection_dial_time_bucket{adapter="pubmatic",le="0.05"} 0
+prebid_server_adapter_connection_dial_time_bucket{adapter="pubmatic",le="0.1"} 0
+prebid_server_adapter_connection_dial_time_bucket{adapter="pubmatic",le="0.25"} 0
+prebid_server_adapter_connection_dial_time_bucket{adapter="pubmatic",le="0.5"} 0
+prebid_server_adapter_connection_dial_time_bucket{adapter="pubmatic",le="1"} 0
+prebid_server_adapter_connection_dial_time_bucket{adapter="pubmatic",le="2.5"} 0
+prebid_server_adapter_connection_dial_time_bucket{adapter="pubmatic",le="5"} 0
+prebid_server_adapter_connection_dial_time_bucket{adapter="pubmatic",le="10"} 0
+prebid_server_adapter_connection_dial_time_bucket{adapter="pubmatic",le="15"} 0
+prebid_server_adapter_connection_dial_time_bucket{adapter="pubmatic",le="30"} 0
+prebid_server_adapter_connection_dial_time_bucket{adapter="pubmatic",le="+Inf"} 0
+prebid_server_adapter_connection_dial_time_sum{adapter="pubmatic"} 0
+prebid_server_adapter_connection_dial_time_count{adapter="pubmatic"} 0
+prebid_server_adapter_connection_dial_time_bucket{adapter="rubicon",le="0.005"} 0
+prebid_server_adapter_connection_dial_time_bucket{adapter="rubicon",le="0.01"} 0
+prebid_server_adapter_connection_dial_time_bucket{adapter="rubicon",le="0.025"} 0
+prebid_server_adapter_connection_dial_time_bucket{adapter="rubicon",le="0.05"} 0
+prebid_server_adapter_connection_dial_time_bucket{adapter="rubicon",le="0.1"} 0
+prebid_server_adapter_connection_dial_time_bucket{adapter="rubicon",le="0.25"} 0
+prebid_server_adapter_connection_dial_time_bucket{adapter="rubicon",le="0.5"} 0
+prebid_server_adapter_connection_dial_time_bucket{adapter="rubicon",le="1"} 0
+prebid_server_adapter_connection_dial_time_bucket{adapter="rubicon",le="2.5"} 0
+prebid_server_adapter_connection_dial_time_bucket{adapter="rubicon",le="5"} 0
+prebid_server_adapter_connection_dial_time_bucket{adapter="rubicon",le="10"} 0
+prebid_server_adapter_connection_dial_time_bucket{adapter="rubicon",le="15"} 0
+prebid_server_adapter_connection_dial_time_bucket{adapter="rubicon",le="30"} 0
+prebid_server_adapter_connection_dial_time_bucket{adapter="rubicon",le="+Inf"} 0
+prebid_server_adapter_connection_dial_time_sum{adapter="rubicon"} 0
+prebid_server_adapter_connection_dial_time_count{adapter="rubicon"} 0
+prebid_server_adapter_connection_dial_time_bucket{adapter="zmaticoo",le="0.005"} 0
+prebid_server_adapter_connection_dial_time_bucket{adapter="zmaticoo",le="0.01"} 0
+prebid_server_adapter_connection_dial_time_bucket{adapter="zmaticoo",le="0.025"} 0
+prebid_server_adapter_connection_dial_time_bucket{adapter="zmaticoo",le="0.05"} 0
+prebid_server_adapter_connection_dial_time_bucket{adapter="zmaticoo",le="0.1"} 0
+prebid_server_adapter_connection_dial_time_bucket{adapter="zmaticoo",le="0.25"} 0
+prebid_server_adapter_connection_dial_time_bucket{adapter="zmaticoo",le="0.5"} 0
+prebid_server_adapter_connection_dial_time_bucket{adapter="zmaticoo",le="1"} 0
+prebid_server_adapter_connection_dial_time_bucket{adapter="zmaticoo",le="2.5"} 0
+prebid_server_adapter_connection_dial_time_bucket{adapter="zmaticoo",le="5"} 0
+prebid_server_adapter_connection_dial_time_bucket{adapter="zmaticoo",le="10"} 0
+prebid_server_adapter_connection_dial_time_bucket{adapter="zmaticoo",le="15"} 0
+prebid_server_adapter_connection_dial_time_bucket{adapter="zmaticoo",le="30"} 0
+prebid_server_adapter_connection_dial_time_bucket{adapter="zmaticoo",le="+Inf"} 0
+prebid_server_adapter_connection_dial_time_sum{adapter="zmaticoo"} 0
+prebid_server_adapter_connection_dial_time_count{adapter="zmaticoo"} 0
+# HELP prebid_server_adapter_connection_reused Count that keeps track of reused connections when contacting adapter bidder endpoints.
+# TYPE prebid_server_adapter_connection_reused counter
+prebid_server_adapter_connection_reused{adapter="33across"} 0
+prebid_server_adapter_connection_reused{adapter="adkerneladn"} 0
+prebid_server_adapter_connection_reused{adapter="appnexus"} 1
+prebid_server_adapter_connection_reused{adapter="pubmatic"} 0
+prebid_server_adapter_connection_reused{adapter="rubicon"} 0
+prebid_server_adapter_connection_reused{adapter="zmaticoo"} 0
+# HELP prebid_server_adapter_connection_wait Seconds from when the connection was requested until it is either created or reused
+# TYPE prebid_server_adapter_connection_wait histogram
+prebid_server_adapter_connection_wait_bucket{adapter="33across",le="0.05"} 0
+prebid_server_adapter_connection_wait_bucket{adapter="33across",le="0.1"} 0
+prebid_server_adapter_connection_wait_bucket{adapter="33across",le="0.15"} 0
+prebid_server_adapter_connection_wait_bucket{adapter="33across",le="0.2"} 0
+prebid_server_adapter_connection_wait_bucket{adapter="33across",le="0.25"} 0
+prebid_server_adapter_connection_wait_bucket{adapter="33across",le="0.3"} 0
+prebid_server_adapter_connection_wait_bucket{adapter="33across",le="0.4"} 0
+prebid_server_adapter_connection_wait_bucket{adapter="33across",le="0.5"} 0
+prebid_server_adapter_connection_wait_bucket{adapter="33across",le="0.75"} 0
+prebid_server_adapter_connection_wait_bucket{adapter="33across",le="1"} 0
+prebid_server_adapter_connection_wait_bucket{adapter="33across",le="+Inf"} 0
+prebid_server_adapter_connection_wait_sum{adapter="33across"} 0
+prebid_server_adapter_connection_wait_count{adapter="33across"} 0
+prebid_server_adapter_connection_wait_bucket{adapter="adkerneladn",le="0.05"} 0
+prebid_server_adapter_connection_wait_bucket{adapter="adkerneladn",le="0.1"} 0
+prebid_server_adapter_connection_wait_bucket{adapter="adkerneladn",le="0.15"} 0
+prebid_server_adapter_connection_wait_bucket{adapter="adkerneladn",le="0.2"} 0
+prebid_server_adapter_connection_wait_bucket{adapter="adkerneladn",le="0.25"} 0
+prebid_server_adapter_connection_wait_bucket{adapter="adkerneladn",le="0.3"} 0
+prebid_server_adapter_connection_wait_bucket{adapter="adkerneladn",le="0.4"} 0
+prebid_server_adapter_connection_wait_bucket{adapter="adkerneladn",le="0.5"} 0
+prebid_server_adapter_connection_wait_bucket{adapter="adkerneladn",le="0.75"} 0
+prebid_server_adapter_connection_wait_bucket{adapter="adkerneladn",le="1"} 0
+prebid_server_adapter_connection_wait_bucket{adapter="adkerneladn",le="+Inf"} 0
+prebid_server_adapter_connection_wait_sum{adapter="adkerneladn"} 0
+prebid_server_adapter_connection_wait_count{adapter="adkerneladn"} 0
+prebid_server_adapter_connection_wait_bucket{adapter="appnexus",le="0.05"} 1
+prebid_server_adapter_connection_wait_bucket{adapter="appnexus",le="0.1"} 1
+prebid_server_adapter_connection_wait_bucket{adapter="appnexus",le="0.15"} 1
+prebid_server_adapter_connection_wait_bucket{adapter="appnexus",le="0.2"} 1
+prebid_server_adapter_connection_wait_bucket{adapter="appnexus",le="0.25"} 1
+prebid_server_adapter_connection_wait_bucket{adapter="appnexus",le="0.3"} 1
+prebid_server_adapter_connection_wait_bucket{adapter="appnexus",le="0.4"} 1
+prebid_server_adapter_connection_wait_bucket{adapter="appnexus",le="0.5"} 1
+prebid_server_adapter_connection_wait_bucket{adapter="appnexus",le="0.75"} 1
+prebid_server_adapter_connection_wait_bucket{adapter="appnexus",le="1"} 1
+prebid_server_adapter_connection_wait_bucket{adapter="appnexus",le="+Inf"} 2
+prebid_server_adapter_connection_wait_sum{adapter="appnexus"} 5.000001
+prebid_server_adapter_connection_wait_count{adapter="appnexus"} 2
+prebid_server_adapter_connection_wait_bucket{adapter="newone",le="0.05"} 0
+prebid_server_adapter_connection_wait_bucket{adapter="newone",le="0.1"} 1
+prebid_server_adapter_connection_wait_bucket{adapter="newone",le="0.15"} 1
+prebid_server_adapter_connection_wait_bucket{adapter="newone",le="0.2"} 1
+prebid_server_adapter_connection_wait_bucket{adapter="newone",le="0.25"} 1
+prebid_server_adapter_connection_wait_bucket{adapter="newone",le="0.3"} 1
+prebid_server_adapter_connection_wait_bucket{adapter="newone",le="0.4"} 1
+prebid_server_adapter_connection_wait_bucket{adapter="newone",le="0.5"} 1
+prebid_server_adapter_connection_wait_bucket{adapter="newone",le="0.75"} 1
+prebid_server_adapter_connection_wait_bucket{adapter="newone",le="1"} 1
+prebid_server_adapter_connection_wait_bucket{adapter="newone",le="+Inf"} 1
+prebid_server_adapter_connection_wait_sum{adapter="newone"} 0.1
+prebid_server_adapter_connection_wait_count{adapter="newone"} 1
+prebid_server_adapter_connection_wait_bucket{adapter="pubmatic",le="0.05"} 0
+prebid_server_adapter_connection_wait_bucket{adapter="pubmatic",le="0.1"} 0
+prebid_server_adapter_connection_wait_bucket{adapter="pubmatic",le="0.15"} 0
+prebid_server_adapter_connection_wait_bucket{adapter="pubmatic",le="0.2"} 0
+prebid_server_adapter_connection_wait_bucket{adapter="pubmatic",le="0.25"} 0
+prebid_server_adapter_connection_wait_bucket{adapter="pubmatic",le="0.3"} 0
+prebid_server_adapter_connection_wait_bucket{adapter="pubmatic",le="0.4"} 0
+prebid_server_adapter_connection_wait_bucket{adapter="pubmatic",le="0.5"} 0
+prebid_server_adapter_connection_wait_bucket{adapter="pubmatic",le="0.75"} 0
+prebid_server_adapter_connection_wait_bucket{adapter="pubmatic",le="1"} 0
+prebid_server_adapter_connection_wait_bucket{adapter="pubmatic",le="+Inf"} 0
+prebid_server_adapter_connection_wait_sum{adapter="pubmatic"} 0
+prebid_server_adapter_connection_wait_count{adapter="pubmatic"} 0
+prebid_server_adapter_connection_wait_bucket{adapter="rubicon",le="0.05"} 0
+prebid_server_adapter_connection_wait_bucket{adapter="rubicon",le="0.1"} 0
+prebid_server_adapter_connection_wait_bucket{adapter="rubicon",le="0.15"} 0
+prebid_server_adapter_connection_wait_bucket{adapter="rubicon",le="0.2"} 0
+prebid_server_adapter_connection_wait_bucket{adapter="rubicon",le="0.25"} 0
+prebid_server_adapter_connection_wait_bucket{adapter="rubicon",le="0.3"} 0
+prebid_server_adapter_connection_wait_bucket{adapter="rubicon",le="0.4"} 0
+prebid_server_adapter_connection_wait_bucket{adapter="rubicon",le="0.5"} 0
+prebid_server_adapter_connection_wait_bucket{adapter="rubicon",le="0.75"} 0
+prebid_server_adapter_connection_wait_bucket{adapter="rubicon",le="1"} 0
+prebid_server_adapter_connection_wait_bucket{adapter="rubicon",le="+Inf"} 0
+prebid_server_adapter_connection_wait_sum{adapter="rubicon"} 0
+prebid_server_adapter_connection_wait_count{adapter="rubicon"} 0
+prebid_server_adapter_connection_wait_bucket{adapter="zmaticoo",le="0.05"} 0
+prebid_server_adapter_connection_wait_bucket{adapter="zmaticoo",le="0.1"} 0
+prebid_server_adapter_connection_wait_bucket{adapter="zmaticoo",le="0.15"} 0
+prebid_server_adapter_connection_wait_bucket{adapter="zmaticoo",le="0.2"} 0
+prebid_server_adapter_connection_wait_bucket{adapter="zmaticoo",le="0.25"} 0
+prebid_server_adapter_connection_wait_bucket{adapter="zmaticoo",le="0.3"} 0
+prebid_server_adapter_connection_wait_bucket{adapter="zmaticoo",le="0.4"} 0
+prebid_server_adapter_connection_wait_bucket{adapter="zmaticoo",le="0.5"} 0
+prebid_server_adapter_connection_wait_bucket{adapter="zmaticoo",le="0.75"} 0
+prebid_server_adapter_connection_wait_bucket{adapter="zmaticoo",le="1"} 0
+prebid_server_adapter_connection_wait_bucket{adapter="zmaticoo",le="+Inf"} 0
+prebid_server_adapter_connection_wait_sum{adapter="zmaticoo"} 0
+prebid_server_adapter_connection_wait_count{adapter="zmaticoo"} 0
+# HELP prebid_server_adapter_errors Count of errors labeled by adapter and error type.
+# TYPE prebid_server_adapter_errors counter
+prebid_server_adapter_errors{adapter="33across",adapter_error="badinput"} 0
+prebid_server_adapter_errors{adapter="33across",adapter_error="badserverresponse"} 0
+prebid_server_adapter_errors{adapter="33across",adapter_error="failedtorequestbid"} 1
+prebid_server_adapter_errors{adapter="33across",adapter_error="timeout"} 0
+prebid_server_adapter_errors{adapter="33across",adapter_error="tmaxtimeout"} 1
+prebid_server_adapter_errors{adapter="33across",adapter_error="unknown_error"} 1
+prebid_server_adapter_errors{adapter="33across",adapter_error="validation"} 1
+prebid_server_adapter_errors{adapter="adkerneladn",adapter_error="badinput"} 0
+prebid_server_adapter_errors{adapter="adkerneladn",adapter_error="badserverresponse"} 0
+prebid_server_adapter_errors{adapter="adkerneladn",adapter_error="failedtorequestbid"} 0
+prebid_server_adapter_errors{adapter="adkerneladn",adapter_error="timeout"} 0
+prebid_server_adapter_errors{adapter="adkerneladn",adapter_error="tmaxtimeout"} 0
+prebid_server_adapter_errors{adapter="adkerneladn",adapter_error="unknown_error"} 0
+prebid_server_adapter_errors{adapter="adkerneladn",adapter_error="validation"} 0
+prebid_server_adapter_errors{adapter="appnexus",adapter_error="badinput"} 1
+prebid_server_adapter_errors{adapter="appnexus",adapter_error="badserverresponse"} 0
+prebid_server_adapter_errors{adapter="appnexus",adapter_error="failedtorequestbid"} 0
+prebid_server_adapter_errors{adapter="appnexus",adapter_error="timeout"} 1
+prebid_server_adapter_errors{adapter="appnexus",adapter_error="tmaxtimeout"} 0
+prebid_server_adapter_errors{adapter="appnexus",adapter_error="unknown_error"} 0
+prebid_server_adapter_errors{adapter="appnexus",adapter_error="validation"} 0
+prebid_server_adapter_errors{adapter="pubmatic",adapter_error="badinput"} 0
+prebid_server_adapter_errors{adapter="pubmatic",adapter_error="badserverresponse"} 1
+prebid_server_adapter_errors{adapter="pubmatic",adapter_error="failedtorequestbid"} 0
+prebid_server_adapter_errors{adapter="pubmatic",adapter_error="timeout"} 0
+prebid_server_adapter_errors{adapter="pubmatic",adapter_error="tmaxtimeout"} 0
+prebid_server_adapter_errors{adapter="pubmatic",adapter_error="unknown_error"} 0
+prebid_server_adapter_errors{adapter="pubmatic",adapter_error="validation"} 0
+prebid_server_adapter_errors{adapter="rubicon",adapter_error="badinput"} 0
+prebid_server_adapter_errors{adapter="rubicon",adapter_error="badserverresponse"} 0
+prebid_server_adapter_errors{adapter="rubicon",adapter_error="failedtorequestbid"} 0
+prebid_server_adapter_errors{adapter="rubicon",adapter_error="timeout"} 0
+prebid_server_adapter_errors{adapter="rubicon",adapter_error="tmaxtimeout"} 0
+prebid_server_adapter_errors{adapter="rubicon",adapter_error="unknown_error"} 0
+prebid_server_adapter_errors{adapter="rubicon",adapter_error="validation"} 0
+prebid_server_adapter_errors{adapter="zmaticoo",adapter_error="badinput"} 0
+prebid_server_adapter_errors{adapter="zmaticoo",adapter_error="badserverresponse"} 0
+prebid_server_adapter_errors{adapter="zmaticoo",adapter_error="failedtorequestbid"} 0
+prebid_server_adapter_errors{adapter="zmaticoo",adapter_error="timeout"} 0
+prebid_server_adapter_errors{adapter="zmaticoo",adapter_error="tmaxtimeout"} 0
+prebid_server_adapter_errors{adapter="zmaticoo",adapter_error="unknown_error"} 0
+prebid_server_adapter_errors{adapter="zmaticoo",adapter_error="validation"} 0
+# HELP prebid_server_adapter_gdpr_requests_blocked Count of total bidder requests blocked due to unsatisfied GDPR purpose 2 legal basis
+# TYPE prebid_server_adapter_gdpr_requests_blocked counter
+prebid_server_adapter_gdpr_requests_blocked{adapter="33across"} 0
+prebid_server_adapter_gdpr_requests_blocked{adapter="adkerneladn"} 0
+prebid_server_adapter_gdpr_requests_blocked{adapter="anyname"} 1
+prebid_server_adapter_gdpr_requests_blocked{adapter="appnexus"} 0
+prebid_server_adapter_gdpr_requests_blocked{adapter="pubmatic"} 0
+prebid_server_adapter_gdpr_requests_blocked{adapter="rubicon"} 0
+prebid_server_adapter_gdpr_requests_blocked{adapter="zmaticoo"} 0
+# HELP prebid_server_adapter_panics Count of panics labeled by adapter.
+# TYPE prebid_server_adapter_panics counter
+prebid_server_adapter_panics{adapter="33across"} 0
+prebid_server_adapter_panics{adapter="adkerneladn"} 0
+prebid_server_adapter_panics{adapter="appnexus"} 0
+prebid_server_adapter_panics{adapter="pubmatic"} 0
+prebid_server_adapter_panics{adapter="rubicon"} 2
+prebid_server_adapter_panics{adapter="zmaticoo"} 0
+# HELP prebid_server_adapter_prices Monetary value of the bids labeled by adapter.
+# TYPE prebid_server_adapter_prices histogram
+prebid_server_adapter_prices_bucket{adapter="33across",le="250"} 0
+prebid_server_adapter_prices_bucket{adapter="33across",le="500"} 0
+prebid_server_adapter_prices_bucket{adapter="33across",le="750"} 0
+prebid_server_adapter_prices_bucket{adapter="33across",le="1000"} 0
+prebid_server_adapter_prices_bucket{adapter="33across",le="1500"} 0
+prebid_server_adapter_prices_bucket{adapter="33across",le="2000"} 0
+prebid_server_adapter_prices_bucket{adapter="33across",le="2500"} 0
+prebid_server_adapter_prices_bucket{adapter="33across",le="3000"} 0
+prebid_server_adapter_prices_bucket{adapter="33across",le="3500"} 0
+prebid_server_adapter_prices_bucket{adapter="33across",le="4000"} 0
+prebid_server_adapter_prices_bucket{adapter="33across",le="+Inf"} 0
+prebid_server_adapter_prices_sum{adapter="33across"} 0
+prebid_server_adapter_prices_count{adapter="33across"} 0
+prebid_server_adapter_prices_bucket{adapter="adkerneladn",le="250"} 0
+prebid_server_adapter_prices_bucket{adapter="adkerneladn",le="500"} 0
+prebid_server_adapter_prices_bucket{adapter="adkerneladn",le="750"} 0
+prebid_server_adapter_prices_bucket{adapter="adkerneladn",le="1000"} 0
+prebid_server_adapter_prices_bucket{adapter="adkerneladn",le="1500"} 0
+prebid_server_adapter_prices_bucket{adapter="adkerneladn",le="2000"} 0
+prebid_server_adapter_prices_bucket{adapter="adkerneladn",le="2500"} 0
+prebid_server_adapter_prices_bucket{adapter="adkerneladn",le="3000"} 0
+prebid_server_adapter_prices_bucket{adapter="adkerneladn",le="3500"} 0
+prebid_server_adapter_prices_bucket{adapter="adkerneladn",le="4000"} 0
+prebid_server_adapter_prices_bucket{adapter="adkerneladn",le="+Inf"} 0
+prebid_server_adapter_prices_sum{adapter="adkerneladn"} 0
+prebid_server_adapter_prices_count{adapter="adkerneladn"} 0
+prebid_server_adapter_prices_bucket{adapter="appnexus",le="250"} 2
+prebid_server_adapter_prices_bucket{adapter="appnexus",le="500"} 3
+prebid_server_adapter_prices_bucket{adapter="appnexus",le="750"} 3
+prebid_server_adapter_prices_bucket{adapter="appnexus",le="1000"} 3
+prebid_server_adapter_prices_bucket{adapter="appnexus",le="1500"} 3
+prebid_server_adapter_prices_bucket{adapter="appnexus",le="2000"} 3
+prebid_server_adapter_prices_bucket{adapter="appnexus",le="2500"} 3
+prebid_server_adapter_prices_bucket{adapter="appnexus",le="3000"} 3
+prebid_server_adapter_prices_bucket{adapter="appnexus",le="3500"} 3
+prebid_server_adapter_prices_bucket{adapter="appnexus",le="4000"} 4
+prebid_server_adapter_prices_bucket{adapter="appnexus",le="+Inf"} 5
+prebid_server_adapter_prices_sum{adapter="appnexus"} 8542.5
+prebid_server_adapter_prices_count{adapter="appnexus"} 5
+prebid_server_adapter_prices_bucket{adapter="bigprice",le="250"} 0
+prebid_server_adapter_prices_bucket{adapter="bigprice",le="500"} 0
+prebid_server_adapter_prices_bucket{adapter="bigprice",le="750"} 0
+prebid_server_adapter_prices_bucket{adapter="bigprice",le="1000"} 0
+prebid_server_adapter_prices_bucket{adapter="bigprice",le="1500"} 0
+prebid_server_adapter_prices_bucket{adapter="bigprice",le="2000"} 0
+prebid_server_adapter_prices_bucket{adapter="bigprice",le="2500"} 0
+prebid_server_adapter_prices_bucket{adapter="bigprice",le="3000"} 0
+prebid_server_adapter_prices_bucket{adapter="bigprice",le="3500"} 0
+prebid_server_adapter_prices_bucket{adapter="bigprice",le="4000"} 0
+prebid_server_adapter_prices_bucket{adapter="bigprice",le="+Inf"} 2
+prebid_server_adapter_prices_sum{adapter="bigprice"} 1.0000000000001235e+21
+prebid_server_adapter_prices_count{adapter="bigprice"} 2
+prebid_server_adapter_prices_bucket{adapter="infprice",le="250"} 0
+prebid_server_adapter_prices_bucket{adapter="infprice",le="500"} 0
+prebid_server_adapter_prices_bucket{adapter="infprice",le="750"} 0
+prebid_server_adapter_prices_bucket{adapter="infprice",le="1000"} 0
+prebid_server_adapter_prices_bucket{adapter="infprice",le="1500"} 0
+prebid_server_adapter_prices_bucket{adapter="infprice",le="2000"} 0
+prebid_server_adapter_prices_bucket{adapter="infprice",le="2500"} 0
+prebid_server_adapter_prices_bucket{adapter="infprice",le="3000"} 0
+prebid_server_adapter_prices_bucket{adapter="infprice",le="3500"} 0
+prebid_server_adapter_prices_bucket{adapter="infprice",le="4000"} 0
+prebid_server_adapter_prices_bucket{adapter="infprice",le="+Inf"} 1
+prebid_server_adapter_prices_sum{adapter="infprice"} +Inf
+prebid_server_adapter_prices_count{adapter="infprice"} 1
+prebid_server_adapter_prices_bucket{adapter="nanprice",le="250"} 0
+prebid_server_adapter_prices_bucket{adapter="nanprice",le="500"} 0
+prebid_server_adapter_prices_bucket{adapter="nanprice",le="750"} 0
+prebid_server_adapter_prices_bucket{adapter="nanprice",le="1000"} 0
+prebid_server_adapter_prices_bucket{adapter="nanprice",le="1500"} 0
+prebid_server_adapter_prices_bucket{adapter="nanprice",le="2000"} 0
+prebid_server_adapter_prices_bucket{adapter="nanprice",le="2500"} 0
+prebid_server_adapter_prices_bucket{adapter="nanprice",le="3000"} 0
+prebid_server_adapter_prices_bucket{adapter="nanprice",le="3500"} 0
+prebid_server_adapter_prices_bucket{adapter="nanprice",le="4000"} 0
+prebid_server_adapter_prices_bucket{adapter="nanprice",le="+Inf"} 1
+prebid_server_adapter_prices_sum{adapter="nanprice"} NaN
+prebid_server_adapter_prices_count{adapter="nanprice"} 1
+prebid_server_adapter_prices_bucket{adapter="neginfprice",le="250"} 1
+prebid_server_adapter_prices_bucket{adapter="neginfprice",le="500"} 1
+prebid_server_adapter_prices_bucket{adapter="neginfprice",le="750"} 1
+prebid_server_adapter_prices_bucket{adapter="neginfprice",le="1000"} 1
+prebid_server_adapter_prices_bucket{adapter="neginfprice",le="1500"} 1
+prebid_server_adapter_prices_bucket{adapter="neginfprice",le="2000"} 1
+prebid_server_adapter_prices_bucket{adapter="neginfprice",le="2500"} 1
+prebid_server_adapter_prices_bucket{adapter="neginfprice",le="3000"} 1
+prebid_server_adapter_prices_bucket{adapter="neginfprice",le="3500"} 1
+prebid_server_adapter_prices_bucket{adapter="neginfprice",le="4000"} 1
+prebid_server_adapter_prices_bucket{adapter="neginfprice",le="+Inf"} 1
+prebid_server_adapter_prices_sum{adapter="neginfprice"} -Inf
+prebid_server_adapter_prices_count{adapter="neginfprice"} 1
+prebid_server_adapter_prices_bucket{adapter="negprice",le="250"} 2
+prebid_server_adapter_prices_bucket{adapter="negprice",le="500"} 2
+prebid_server_adapter_prices_bucket{adapter="negprice",le="750"} 2
+prebid_server_adapter_prices_bucket{adapter="negprice",le="1000"} 2
+prebid_server_adapter_prices_bucket{adapter="negprice",le="1500"} 2
+prebid_server_adapter_prices_bucket{adapter="negprice",le="2000"} 2
+prebid_server_adapter_prices_bucket{adapter="negprice",le="2500"} 2
+prebid_server_adapter_prices_bucket{adapter="negprice",le="3000"} 2
+prebid_server_adapter_prices_bucket{adapter="negprice",le="3500"} 2
+prebid_server_adapter_prices_bucket{adapter="negprice",le="4000"} 2
+prebid_server_adapter_prices_bucket{adapter="negprice",le="+Inf"} 2
+prebid_server_adapter_prices_sum{adapter="negprice"} -1.5
+prebid_server_adapter_prices_count{adapter="negprice"} 2
+prebid_server_adapter_prices_bucket{adapter="pubmatic",le="250"} 10
+prebid_server_adapter_prices_bucket{adapter="pubmatic",le="500"} 10
+prebid_server_adapter_prices_bucket{adapter="pubmatic",le="750"} 10
+prebid_server_adapter_prices_bucket{adapter="pubmatic",le="1000"} 10
+prebid_server_adapter_prices_bucket{adapter="pubmatic",le="1500"} 10
+prebid_server_adapter_prices_bucket{adapter="pubmatic",le="2000"} 10
+prebid_server_adapter_prices_bucket{adapter="pubmatic",le="2500"} 10
+prebid_server_adapter_prices_bucket{adapter="pubmatic",le="3000"} 10
+prebid_server_adapter_prices_bucket{adapter="pubmatic",le="3500"} 10
+prebid_server_adapter_prices_bucket{adapter="pubmatic",le="4000"} 10
+prebid_server_adapter_prices_bucket{adapter="pubmatic",le="+Inf"} 10
+prebid_server_adapter_prices_sum{adapter="pubmatic"} 0.9999999999999999
+prebid_server_adapter_prices_count{adapter="pubmatic"} 10
+prebid_server_adapter_prices_bucket{adapter="rubicon",le="250"} 0
+prebid_server_adapter_prices_bucket{adapter="rubicon",le="500"} 0
+prebid_server_adapter_prices_bucket{adapter="rubicon",le="750"} 0
+prebid_server_adapter_prices_bucket{adapter="rubicon",le="1000"} 0
+prebid_server_adapter_prices_bucket{adapter="rubicon",le="1500"} 0
+prebid_server_adapter_prices_bucket{adapter="rubicon",le="2000"} 0
+prebid_server_adapter_prices_bucket{adapter="rubicon",le="2500"} 0
+prebid_server_adapter_prices_bucket{adapter="rubicon",le="3000"} 0
+prebid_server_adapter_prices_bucket{adapter="rubicon",le="3500"} 0
+prebid_server_adapter_prices_bucket{adapter="rubicon",le="4000"} 0
+prebid_server_adapter_prices_bucket{adapter="rubicon",le="+Inf"} 0
+prebid_server_adapter_prices_sum{adapter="rubicon"} 0
+prebid_server_adapter_prices_count{adapter="rubicon"} 0
+prebid_server_adapter_prices_bucket{adapter="tinyprice",le="250"} 2
+prebid_server_adapter_prices_bucket{adapter="tinyprice",le="500"} 2
+prebid_server_adapter_prices_bucket{adapter="tinyprice",le="750"} 2
+prebid_server_adapter_prices_bucket{adapter="tinyprice",le="1000"} 2
+prebid_server_adapter_prices_bucket{adapter="tinyprice",le="1500"} 2
+prebid_server_adapter_prices_bucket{adapter="tinyprice",le="2000"} 2
+prebid_server_adapter_prices_bucket{adapter="tinyprice",le="2500"} 2
+prebid_server_adapter_prices_bucket{adapter="tinyprice",le="3000"} 2
+prebid_server_adapter_prices_bucket{adapter="tinyprice",le="3500"} 2
+prebid_server_adapter_prices_bucket{adapter="tinyprice",le="4000"} 2
+prebid_server_adapter_prices_bucket{adapter="tinyprice",le="+Inf"} 2
+prebid_server_adapter_prices_sum{adapter="tinyprice"} 0.0001201
+prebid_server_adapter_prices_count{adapter="tinyprice"} 2
+prebid_server_adapter_prices_bucket{adapter="zmaticoo",le="250"} 0
+prebid_server_adapter_prices_bucket{adapter="zmaticoo",le="500"} 0
+prebid_server_adapter_prices_bucket{adapter="zmaticoo",le="750"} 0
+prebid_server_adapter_prices_bucket{adapter="zmaticoo",le="1000"} 0
+prebid_server_adapter_prices_bucket{adapter="zmaticoo",le="1500"} 0
+prebid_server_adapter_prices_bucket{adapter="zmaticoo",le="2000"} 0
+prebid_server_adapter_prices_bucket{adapter="zmaticoo",le="2500"} 0
+prebid_server_adapter_prices_bucket{adapter="zmaticoo",le="3000"} 0
+prebid_server_adapter_prices_bucket{adapter="zmaticoo",le="3500"} 0
+prebid_server_adapter_prices_bucket{adapter="zmaticoo",le="4000"} 0
+prebid_server_adapter_prices_bucket{adapter="zmaticoo",le="+Inf"} 0
+prebid_server_adapter_prices_sum{adapter="zmaticoo"} 0
+prebid_server_adapter_prices_count{adapter="zmaticoo"} 0
+# HELP prebid_server_adapter_request_time_seconds Seconds to resolve each successful request labeled by adapter.
+# TYPE prebid_server_adapter_request_time_seconds histogram
+prebid_server_adapter_request_time_seconds_bucket{adapter="33across",le="0.05"} 0
+prebid_server_adapter_request_time_seconds_bucket{adapter="33across",le="0.1"} 0
+prebid_server_adapter_request_time_seconds_bucket{adapter="33across",le="0.15"} 0
+prebid_server_adapter_request_time_seconds_bucket{adapter="33across",le="0.2"} 0
+prebid_server_adapter_request_time_seconds_bucket{adapter="33across",le="0.25"} 0
+prebid_server_adapter_request_time_seconds_bucket{adapter="33across",le="0.3"} 0
+prebid_server_adapter_request_time_seconds_bucket{adapter="33across",le="0.4"} 0
+prebid_server_adapter_request_time_seconds_bucket{adapter="33across",le="0.5"} 0
+prebid_server_adapter_request_time_seconds_bucket{adapter="33across",le="0.75"} 0
+prebid_server_adapter_request_time_seconds_bucket{adapter="33across",le="1"} 0
+prebid_server_adapter_request_time_seconds_bucket{adapter="33across",le="+Inf"} 0
+prebid_server_adapter_request_time_seconds_sum{adapter="33across"} 0
+prebid_server_adapter_request_time_seconds_count{adapter="33across"} 0
+prebid_server_adapter_request_time_seconds_bucket{adapter="adkerneladn",le="0.05"} 0
+prebid_server_adapter_request_time_seconds_bucket{adapter="adkerneladn",le="0.1"} 0
+prebid_server_adapter_request_time_seconds_bucket{adapter="adkerneladn",le="0.15"} 0
+prebid_server_adapter_request_time_seconds_bucket{adapter="adkerneladn",le="0.2"} 0
+prebid_server_adapter_request_time_seconds_bucket{adapter="adkerneladn",le="0.25"} 0
+prebid_server_adapter_request_time_seconds_bucket{adapter="adkerneladn",le="0.3"} 0
+prebid_server_adapter_request_time_seconds_bucket{adapter="adkerneladn",le="0.4"} 0
+prebid_server_adapter_request_time_seconds_bucket{adapter="adkerneladn",le="0.5"} 0
+prebid_server_adapter_request_time_seconds_bucket{adapter="adkerneladn",le="0.75"} 0
+prebid_server_adapter_request_time_seconds_bucket{adapter="adkerneladn",le="1"} 0
+prebid_server_adapter_request_time_seconds_bucket{adapter="adkerneladn",le="+Inf"} 0
+prebid_server_adapter_request_time_seconds_sum{adapter="adkerneladn"} 0
+prebid_server_adapter_request_time_seconds_count{adapter="adkerneladn"} 0
+prebid_server_adapter_request_time_seconds_bucket{adapter="appnexus",le="0.05"} 0
+prebid_server_adapter_request_time_seconds_bucket{adapter="appnexus",le="0.1"} 0
+prebid_server_adapter_request_time_seconds_bucket{adapter="appnexus",le="0.15"} 0
+prebid_server_adapter_request_time_seconds_bucket{adapter="appnexus",le="0.2"} 0
+prebid_server_adapter_request_time_seconds_bucket{adapter="appnexus",le="0.25"} 0
+prebid_server_adapter_request_time_seconds_bucket{adapter="appnexus",le="0.3"} 0
+prebid_server_adapter_request_time_seconds_bucket{adapter="appnexus",le="0.4"} 0
+prebid_server_adapter_request_time_seconds_bucket{adapter="appnexus",le="0.5"} 1
+prebid_server_adapter_request_time_seconds_bucket{adapter="appnexus",le="0.75"} 1
+prebid_server_adapter_request_time_seconds_bucket{adapter="appnexus",le="1"} 1
+prebid_server_adapter_request_time_seconds_bucket{adapter="appnexus",le="+Inf"} 1
+prebid_server_adapter_request_time_seconds_sum{adapter="appnexus"} 0.5
+prebid_server_adapter_request_time_seconds_count{adapter="appnexus"} 1
+prebid_server_adapter_request_time_seconds_bucket{adapter="brand_new",le="0.05"} 0
+prebid_server_adapter_request_time_seconds_bucket{adapter="brand_new",le="0.1"} 1
+prebid_server_adapter_request_time_seconds_bucket{adapter="brand_new",le="0.15"} 1
+prebid_server_adapter_request_time_seconds_bucket{adapter="brand_new",le="0.2"} 1
+prebid_server_adapter_request_time_seconds_bucket{adapter="brand_new",le="0.25"} 1
+prebid_server_adapter_request_time_seconds_bucket{adapter="brand_new",le="0.3"} 1
+prebid_server_adapter_request_time_seconds_bucket{adapter="brand_new",le="0.4"} 1
+prebid_server_adapter_request_time_seconds_bucket{adapter="brand_new",le="0.5"} 1
+prebid_server_adapter_request_time_seconds_bucket{adapter="brand_new",le="0.75"} 1
+prebid_server_adapter_request_time_seconds_bucket{adapter="brand_new",le="1"} 1
+prebid_server_adapter_request_time_seconds_bucket{adapter="brand_new",le="+Inf"} 1
+prebid_server_adapter_request_time_seconds_sum{adapter="brand_new"} 0.075
+prebid_server_adapter_request_time_seconds_count{adapter="brand_new"} 1
+prebid_server_adapter_request_time_seconds_bucket{adapter="pubmatic",le="0.05"} 0
+prebid_server_adapter_request_time_seconds_bucket{adapter="pubmatic",le="0.1"} 0
+prebid_server_adapter_request_time_seconds_bucket{adapter="pubmatic",le="0.15"} 0
+prebid_server_adapter_request_time_seconds_bucket{adapter="pubmatic",le="0.2"} 0
+prebid_server_adapter_request_time_seconds_bucket{adapter="pubmatic",le="0.25"} 0
+prebid_server_adapter_request_time_seconds_bucket{adapter="pubmatic",le="0.3"} 0
+prebid_server_adapter_request_time_seconds_bucket{adapter="pubmatic",le="0.4"} 0
+prebid_server_adapter_request_time_seconds_bucket{adapter="pubmatic",le="0.5"} 0
+prebid_server_adapter_request_time_seconds_bucket{adapter="pubmatic",le="0.75"} 0
+prebid_server_adapter_request_time_seconds_bucket{adapter="pubmatic",le="1"} 0
+prebid_server_adapter_request_time_seconds_bucket{adapter="pubmatic",le="+Inf"} 0
+prebid_server_adapter_request_time_seconds_sum{adapter="pubmatic"} 0
+prebid_server_adapter_request_time_seconds_count{adapter="pubmatic"} 0
+prebid_server_adapter_request_time_seconds_bucket{adapter="rubicon",le="0.05"} 0
+prebid_server_adapter_request_time_seconds_bucket{adapter="rubicon",le="0.1"} 0
+prebid_server_adapter_request_time_seconds_bucket{adapter="rubicon",le="0.15"} 0
+prebid_server_adapter_request_time_seconds_bucket{adapter="rubicon",le="0.2"} 0
+prebid_server_adapter_request_time_seconds_bucket{adapter="rubicon",le="0.25"} 0
+prebid_server_adapter_request_time_seconds_bucket{adapter="rubicon",le="0.3"} 0
+prebid_server_adapter_request_time_seconds_bucket{adapter="rubicon",le="0.4"} 0
+prebid_server_adapter_request_time_seconds_bucket{adapter="rubicon",le="0.5"} 0
+prebid_server_adapter_request_time_seconds_bucket{adapter="rubicon",le="0.75"} 0
+prebid_server_adapter_request_time_seconds_bucket{adapter="rubicon",le="1"} 0
+prebid_server_adapter_request_time_seconds_bucket{adapter="rubicon",le="+Inf"} 0
+prebid_server_adapter_request_time_seconds_sum{adapter="rubicon"} 0
+prebid_server_adapter_request_time_seconds_count{adapter="rubicon"} 0
+prebid_server_adapter_request_time_seconds_bucket{adapter="zmaticoo",le="0.05"} 0
+prebid_server_adapter_request_time_seconds_bucket{adapter="zmaticoo",le="0.1"} 0
+prebid_server_adapter_request_time_seconds_bucket{adapter="zmaticoo",le="0.15"} 0
+prebid_server_adapter_request_time_seconds_bucket{adapter="zmaticoo",le="0.2"} 0
+prebid_server_adapter_request_time_seconds_bucket{adapter="zmaticoo",le="0.25"} 0
+prebid_server_adapter_request_time_seconds_bucket{adapter="zmaticoo",le="0.3"} 0
+prebid_server_adapter_request_time_seconds_bucket{adapter="zmaticoo",le="0.4"} 0
+prebid_server_adapter_request_time_seconds_bucket{adapter="zmaticoo",le="0.5"} 0
+prebid_server_adapter_request_time_seconds_bucket{adapter="zmaticoo",le="0.75"} 0
+prebid_server_adapter_request_time_seconds_bucket{adapter="zmaticoo",le="1"} 0
+prebid_server_adapter_request_time_seconds_bucket{adapter="zmaticoo",le="+Inf"} 0
+prebid_server_adapter_request_time_seconds_sum{adapter="zmaticoo"} 0
+prebid_server_adapter_request_time_seconds_count{adapter="zmaticoo"} 0
+# HELP prebid_server_adapter_requests Count of requests labeled by adapter, if has a cookie, and if it resulted in bids.
+# TYPE prebid_server_adapter_requests counter
+prebid_server_adapter_requests{adapter="33across",cookie="",has_bids="false"} 1
+prebid_server_adapter_requests{adapter="33across",cookie="exists",has_bids="false"} 0
+prebid_server_adapter_requests{adapter="33across",cookie="exists",has_bids="true"} 0
+prebid_server_adapter_requests{adapter="33across",cookie="no",has_bids="false"} 0
+prebid_server_adapter_requests{adapter="33across",cookie="no",has_bids="true"} 0
+prebid_server_adapter_requests{adapter="33across",cookie="unknown",has_bids="false"} 0
+prebid_server_adapter_requests{adapter="33across",cookie="unknown",has_bids="true"} 0
+prebid_server_adapter_requests{adapter="adkerneladn",cookie="exists",has_bids="false"} 0
+prebid_server_adapter_requests{adapter="adkerneladn",cookie="exists",has_bids="true"} 0
+prebid_server_adapter_requests{adapter="adkerneladn",cookie="no",has_bids="false"} 0
+prebid_server_adapter_requests{adapter="adkerneladn",cookie="no",has_bids="true"} 0
+prebid_server_adapter_requests{adapter="adkerneladn",cookie="unknown",has_bids="false"} 0
+prebid_server_adapter_requests{adapter="adkerneladn",cookie="unknown",has_bids="true"} 0
+prebid_server_adapter_requests{adapter="appnexus",cookie="exists",has_bids="false"} 0
+prebid_server_adapter_requests{adapter="appnexus",cookie="exists",has_bids="true"} 1
+prebid_server_adapter_requests{adapter="appnexus",cookie="no",has_bids="false"} 1
+prebid_server_adapter_requests{adapter="appnexus",cookie="no",has_bids="true"} 0
+prebid_server_adapter_requests{adapter="appnexus",cookie="unknown",has_bids="false"} 0
+prebid_server_adapter_requests{adapter="appnexus",cookie="unknown",has_bids="true"} 0
+prebid_server_adapter_requests{adapter="notacorebidder",cookie="exists",has_bids="true"} 1
+prebid_server_adapter_requests{adapter="pubmatic",cookie="exists",has_bids="false"} 0
+prebid_server_adapter_requests{adapter="pubmatic",cookie="exists",has_bids="true"} 0
+prebid_server_adapter_requests{adapter="pubmatic",cookie="no",has_bids="false"} 0
+prebid_server_adapter_requests{adapter="pubmatic",cookie="no",has_bids="true"} 0
+prebid_server_adapter_requests{adapter="pubmatic",cookie="unknown",has_bids="false"} 0
+prebid_server_adapter_requests{adapter="pubmatic",cookie="unknown",has_bids="true"} 1
+prebid_server_adapter_requests{adapter="rubicon",cookie="exists",has_bids="false"} 0
+prebid_server_adapter_requests{adapter="rubicon",cookie="exists",has_bids="true"} 0
+prebid_server_adapter_requests{adapter="rubicon",cookie="no",has_bids="false"} 0
+prebid_server_adapter_requests{adapter="rubicon",cookie="no",has_bids="true"} 0
+prebid_server_adapter_requests{adapter="rubicon",cookie="unknown",has_bids="false"} 0
+prebid_server_adapter_requests{adapter="rubicon",cookie="unknown",has_bids="true"} 0
+prebid_server_adapter_requests{adapter="zmaticoo",cookie="exists",has_bids="false"} 0
+prebid_server_adapter_requests{adapter="zmaticoo",cookie="exists",has_bids="true"} 0
+prebid_server_adapter_requests{adapter="zmaticoo",cookie="no",has_bids="false"} 0
+prebid_server_adapter_requests{adapter="zmaticoo",cookie="no",has_bids="true"} 0
+prebid_server_adapter_requests{adapter="zmaticoo",cookie="unknown",has_bids="false"} 0
+prebid_server_adapter_requests{adapter="zmaticoo",cookie="unknown",has_bids="true"} 0
+# HELP prebid_server_adapter_response_validation_secure_err Count that tracks number of bids removed from bid response that had a invalid bidAdm
+# TYPE prebid_server_adapter_response_validation_secure_err counter
+prebid_server_adapter_response_validation_secure_err{adapter="33across",success="false"} 0
+prebid_server_adapter_response_validation_secure_err{adapter="33across",success="true"} 0
+prebid_server_adapter_response_validation_secure_err{adapter="adkerneladn",success="false"} 0
+prebid_server_adapter_response_validation_secure_err{adapter="adkerneladn",success="true"} 0
+prebid_server_adapter_response_validation_secure_err{adapter="anyname",success="success"} 1
+prebid_server_adapter_response_validation_secure_err{adapter="appnexus",success="false"} 0
+prebid_server_adapter_response_validation_secure_err{adapter="appnexus",success="true"} 0
+prebid_server_adapter_response_validation_secure_err{adapter="pubmatic",success="false"} 0
+prebid_server_adapter_response_validation_secure_err{adapter="pubmatic",success="true"} 0
+prebid_server_adapter_response_validation_secure_err{adapter="rubicon",success="false"} 0
+prebid_server_adapter_response_validation_secure_err{adapter="rubicon",success="true"} 0
+prebid_server_adapter_response_validation_secure_err{adapter="zmaticoo",success="false"} 0
+prebid_server_adapter_response_validation_secure_err{adapter="zmaticoo",success="true"} 0
+# HELP prebid_server_adapter_response_validation_secure_warn Count that tracks number of bids removed from bid response that had a invalid bidAdm (warn)
+# TYPE prebid_server_adapter_response_validation_secure_warn counter
+prebid_server_adapter_response_validation_secure_warn{adapter="33across",success="false"} 0
+prebid_server_adapter_response_validation_secure_warn{adapter="33across",success="true"} 0
+prebid_server_adapter_response_validation_secure_warn{adapter="adkerneladn",success="false"} 0
+prebid_server_adapter_response_validation_secure_warn{adapter="adkerneladn",success="true"} 0
+prebid_server_adapter_response_validation_secure_warn{adapter="anyname",success="success"} 1
+prebid_server_adapter_response_validation_secure_warn{adapter="appnexus",success="false"} 0
+prebid_server_adapter_response_validation_secure_warn{adapter="appnexus",success="true"} 0
+prebid_server_adapter_response_validation_secure_warn{adapter="pubmatic",success="false"} 0
+prebid_server_adapter_response_validation_secure_warn{adapter="pubmatic",success="true"} 0
+prebid_server_adapter_response_validation_secure_warn{adapter="rubicon",success="false"} 0
+prebid_server_adapter_response_validation_secure_warn{adapter="rubicon",success="true"} 0
+prebid_server_adapter_response_validation_secure_warn{adapter="zmaticoo",success="false"} 0
+prebid_server_adapter_response_validation_secure_warn{adapter="zmaticoo",success="true"} 0
+# HELP prebid_server_adapter_response_validation_size_err Count that tracks number of bids removed from bid response that had a creative size greater than maxWidth/maxHeight
+# TYPE prebid_server_adapter_response_validation_size_err counter
+prebid_server_adapter_response_validation_size_err{adapter="33across",success="false"} 0
+prebid_server_adapter_response_validation_size_err{adapter="33across",success="true"} 0
+prebid_server_adapter_response_validation_size_err{adapter="adkerneladn",success="false"} 0
+prebid_server_adapter_response_validation_size_err{adapter="adkerneladn",success="true"} 0
+prebid_server_adapter_response_validation_size_err{adapter="anyname",success="success"} 2
+prebid_server_adapter_response_validation_size_err{adapter="appnexus",success="false"} 0
+prebid_server_adapter_response_validation_size_err{adapter="appnexus",success="true"} 0
+prebid_server_adapter_response_validation_size_err{adapter="pubmatic",success="false"} 0
+prebid_server_adapter_response_validation_size_err{adapter="pubmatic",success="true"} 0
+prebid_server_adapter_response_validation_size_err{adapter="rubicon",success="false"} 0
+prebid_server_adapter_response_validation_size_err{adapter="rubicon",success="true"} 0
+prebid_server_adapter_response_validation_size_err{adapter="zmaticoo",success="false"} 0
+prebid_server_adapter_response_validation_size_err{adapter="zmaticoo",success="true"} 0
+# HELP prebid_server_adapter_response_validation_size_warn Count that tracks number of bids removed from bid response that had a creative size greater than maxWidth/maxHeight (warn)
+# TYPE prebid_server_adapter_response_validation_size_warn counter
+prebid_server_adapter_response_validation_size_warn{adapter="33across",success="false"} 0
+prebid_server_adapter_response_validation_size_warn{adapter="33across",success="true"} 0
+prebid_server_adapter_response_validation_size_warn{adapter="adkerneladn",success="false"} 0
+prebid_server_adapter_response_validation_size_warn{adapter="adkerneladn",success="true"} 0
+prebid_server_adapter_response_validation_size_warn{adapter="appnexus",success="false"} 0
+prebid_server_adapter_response_validation_size_warn{adapter="appnexus",success="success"} 1
+prebid_server_adapter_response_validation_size_warn{adapter="appnexus",success="true"} 0
+prebid_server_adapter_response_validation_size_warn{adapter="pubmatic",success="false"} 0
+prebid_server_adapter_response_validation_size_warn{adapter="pubmatic",success="true"} 0
+prebid_server_adapter_response_validation_size_warn{adapter="rubicon",success="false"} 0
+prebid_server_adapter_response_validation_size_warn{adapter="rubicon",success="true"} 0
+prebid_server_adapter_response_validation_size_warn{adapter="zmaticoo",success="false"} 0
+prebid_server_adapter_response_validation_size_warn{adapter="zmaticoo",success="true"} 0
+# HELP prebid_server_adapter_throttled Count of requests throttled labeled by adapter.
+# TYPE prebid_server_adapter_throttled counter
+prebid_server_adapter_throttled{adapter="appnexus"} 1
+prebid_server_adapter_throttled{adapter="throttled"} 1
+# HELP prebid_server_ads_cert_requests Count of AdsCert request, and if they were successfully sent.
+# TYPE prebid_server_ads_cert_requests counter
+prebid_server_ads_cert_requests{success="failed"} 2
+prebid_server_ads_cert_requests{success="false"} 0
+prebid_server_ads_cert_requests{success="ok"} 1
+prebid_server_ads_cert_requests{success="true"} 0
+# HELP prebid_server_ads_cert_sign_time Seconds to generate an AdsCert header
+# TYPE prebid_server_ads_cert_sign_time histogram
+prebid_server_ads_cert_sign_time_bucket{le="0.05"} 2
+prebid_server_ads_cert_sign_time_bucket{le="0.1"} 2
+prebid_server_ads_cert_sign_time_bucket{le="0.15"} 2
+prebid_server_ads_cert_sign_time_bucket{le="0.2"} 2
+prebid_server_ads_cert_sign_time_bucket{le="0.25"} 2
+prebid_server_ads_cert_sign_time_bucket{le="0.3"} 2
+prebid_server_ads_cert_sign_time_bucket{le="0.4"} 2
+prebid_server_ads_cert_sign_time_bucket{le="0.5"} 2
+prebid_server_ads_cert_sign_time_bucket{le="0.75"} 2
+prebid_server_ads_cert_sign_time_bucket{le="1"} 2
+prebid_server_ads_cert_sign_time_bucket{le="+Inf"} 3
+prebid_server_ads_cert_sign_time_sum 5.005
+prebid_server_ads_cert_sign_time_count 3
+# HELP prebid_server_bidder_server_response_time_seconds Duration needed to send HTTP request and receive response back from bidder server.
+# TYPE prebid_server_bidder_server_response_time_seconds histogram
+prebid_server_bidder_server_response_time_seconds_bucket{le="0.05"} 0
+prebid_server_bidder_server_response_time_seconds_bucket{le="0.1"} 0
+prebid_server_bidder_server_response_time_seconds_bucket{le="0.15"} 0
+prebid_server_bidder_server_response_time_seconds_bucket{le="0.2"} 0
+prebid_server_bidder_server_response_time_seconds_bucket{le="0.25"} 0
+prebid_server_bidder_server_response_time_seconds_bucket{le="0.3"} 0
+prebid_server_bidder_server_response_time_seconds_bucket{le="0.4"} 1
+prebid_server_bidder_server_response_time_seconds_bucket{le="0.5"} 2
+prebid_server_bidder_server_response_time_seconds_bucket{le="0.75"} 2
+prebid_server_bidder_server_response_time_seconds_bucket{le="1"} 2
+prebid_server_bidder_server_response_time_seconds_bucket{le="+Inf"} 2
+prebid_server_bidder_server_response_time_seconds_sum 0.9
+prebid_server_bidder_server_response_time_seconds_count 2
+# HELP prebid_server_connections_closed Count of successful connections closed to Prebid Server.
+# TYPE prebid_server_connections_closed counter
+prebid_server_connections_closed 1
+# HELP prebid_server_connections_error Count of errors for connection open and close attempts to Prebid Server labeled by type.
+# TYPE prebid_server_connections_error counter
+prebid_server_connections_error{connection_error="accept"} 1
+prebid_server_connections_error{connection_error="close"} 2
+# HELP prebid_server_connections_opened Count of successful connections opened to Prebid Server.
+# TYPE prebid_server_connections_opened counter
+prebid_server_connections_opened 2
+# HELP prebid_server_cookie_sync_requests Count of cookie sync requests to Prebid Server.
+# TYPE prebid_server_cookie_sync_requests counter
+prebid_server_cookie_sync_requests{status="acct_blocked"} 1
+prebid_server_cookie_sync_requests{status="acct_config_malformed"} 1
+prebid_server_cookie_sync_requests{status="acct_invalid"} 1
+prebid_server_cookie_sync_requests{status="bad_request"} 1
+prebid_server_cookie_sync_requests{status="gdpr_blocked_host_cookie"} 1
+prebid_server_cookie_sync_requests{status="ok"} 2
+prebid_server_cookie_sync_requests{status="opt_out"} 1
+# HELP prebid_server_debug_requests Count of total requests to Prebid Server that have debug enabled
+# TYPE prebid_server_debug_requests counter
+prebid_server_debug_requests 3
+# HELP prebid_server_dns_lookup_time Seconds to resolve DNS
+# TYPE prebid_server_dns_lookup_time histogram
+prebid_server_dns_lookup_time_bucket{le="0.05"} 1
+prebid_server_dns_lookup_time_bucket{le="0.1"} 1
+prebid_server_dns_lookup_time_bucket{le="0.15"} 1
+prebid_server_dns_lookup_time_bucket{le="0.2"} 1
+prebid_server_dns_lookup_time_bucket{le="0.25"} 1
+prebid_server_dns_lookup_time_bucket{le="0.3"} 1
+prebid_server_dns_lookup_time_bucket{le="0.4"} 1
+prebid_server_dns_lookup_time_bucket{le="0.5"} 1
+prebid_server_dns_lookup_time_bucket{le="0.75"} 1
+prebid_server_dns_lookup_time_bucket{le="1"} 1
+prebid_server_dns_lookup_time_bucket{le="+Inf"} 2
+prebid_server_dns_lookup_time_sum 5
+prebid_server_dns_lookup_time_count 2
+# HELP prebid_server_fetcher_backend_fetch Count of Fetchers 2.0 backend fetches labeled by subsystem, operation and result (ok, notfound, error).
+# TYPE prebid_server_fetcher_backend_fetch counter
+prebid_server_fetcher_backend_fetch{operation="background_refresh",result="error",subsystem="account"} 1
+prebid_server_fetcher_backend_fetch{operation="get",result="ok",subsystem="account"} 2
+prebid_server_fetcher_backend_fetch{operation="start",result="notfound",subsystem="account"} 1
+# HELP prebid_server_fetcher_backend_fetch_duration_seconds Seconds to fetch a value from a Fetchers 2.0 backend source, labeled by subsystem and operation.
+# TYPE prebid_server_fetcher_backend_fetch_duration_seconds histogram
+prebid_server_fetcher_backend_fetch_duration_seconds_bucket{operation="background_refresh",subsystem="account",le="0.05"} 0
+prebid_server_fetcher_backend_fetch_duration_seconds_bucket{operation="background_refresh",subsystem="account",le="0.1"} 0
+prebid_server_fetcher_backend_fetch_duration_seconds_bucket{operation="background_refresh",subsystem="account",le="0.15"} 0
+prebid_server_fetcher_backend_fetch_duration_seconds_bucket{operation="background_refresh",subsystem="account",le="0.2"} 0
+prebid_server_fetcher_backend_fetch_duration_seconds_bucket{operation="background_refresh",subsystem="account",le="0.25"} 0
+prebid_server_fetcher_backend_fetch_duration_seconds_bucket{operation="background_refresh",subsystem="account",le="0.3"} 0
+prebid_server_fetcher_backend_fetch_duration_seconds_bucket{operation="background_refresh",subsystem="account",le="0.4"} 0
+prebid_server_fetcher_backend_fetch_duration_seconds_bucket{operation="background_refresh",subsystem="account",le="0.5"} 0
+prebid_server_fetcher_backend_fetch_duration_seconds_bucket{operation="background_refresh",subsystem="account",le="0.75"} 0
+prebid_server_fetcher_backend_fetch_duration_seconds_bucket{operation="background_refresh",subsystem="account",le="1"} 0
+prebid_server_fetcher_backend_fetch_duration_seconds_bucket{operation="background_refresh",subsystem="account",le="+Inf"} 1
+prebid_server_fetcher_backend_fetch_duration_seconds_sum{operation="background_refresh",subsystem="account"} 2
+prebid_server_fetcher_backend_fetch_duration_seconds_count{operation="background_refresh",subsystem="account"} 1
+prebid_server_fetcher_backend_fetch_duration_seconds_bucket{operation="get",subsystem="account",le="0.05"} 1
+prebid_server_fetcher_backend_fetch_duration_seconds_bucket{operation="get",subsystem="account",le="0.1"} 2
+prebid_server_fetcher_backend_fetch_duration_seconds_bucket{operation="get",subsystem="account",le="0.15"} 2
+prebid_server_fetcher_backend_fetch_duration_seconds_bucket{operation="get",subsystem="account",le="0.2"} 2
+prebid_server_fetcher_backend_fetch_duration_seconds_bucket{operation="get",subsystem="account",le="0.25"} 2
+prebid_server_fetcher_backend_fetch_duration_seconds_bucket{operation="get",subsystem="account",le="0.3"} 2
+prebid_server_fetcher_backend_fetch_duration_seconds_bucket{operation="get",subsystem="account",le="0.4"} 2
+prebid_server_fetcher_backend_fetch_duration_seconds_bucket{operation="get",subsystem="account",le="0.5"} 2
+prebid_server_fetcher_backend_fetch_duration_seconds_bucket{operation="get",subsystem="account",le="0.75"} 2
+prebid_server_fetcher_backend_fetch_duration_seconds_bucket{operation="get",subsystem="account",le="1"} 2
+prebid_server_fetcher_backend_fetch_duration_seconds_bucket{operation="get",subsystem="account",le="+Inf"} 2
+prebid_server_fetcher_backend_fetch_duration_seconds_sum{operation="get",subsystem="account"} 0.061
+prebid_server_fetcher_backend_fetch_duration_seconds_count{operation="get",subsystem="account"} 2
+prebid_server_fetcher_backend_fetch_duration_seconds_bucket{operation="start",subsystem="account",le="0.05"} 1
+prebid_server_fetcher_backend_fetch_duration_seconds_bucket{operation="start",subsystem="account",le="0.1"} 1
+prebid_server_fetcher_backend_fetch_duration_seconds_bucket{operation="start",subsystem="account",le="0.15"} 1
+prebid_server_fetcher_backend_fetch_duration_seconds_bucket{operation="start",subsystem="account",le="0.2"} 1
+prebid_server_fetcher_backend_fetch_duration_seconds_bucket{operation="start",subsystem="account",le="0.25"} 1
+prebid_server_fetcher_backend_fetch_duration_seconds_bucket{operation="start",subsystem="account",le="0.3"} 1
+prebid_server_fetcher_backend_fetch_duration_seconds_bucket{operation="start",subsystem="account",le="0.4"} 1
+prebid_server_fetcher_backend_fetch_duration_seconds_bucket{operation="start",subsystem="account",le="0.5"} 1
+prebid_server_fetcher_backend_fetch_duration_seconds_bucket{operation="start",subsystem="account",le="0.75"} 1
+prebid_server_fetcher_backend_fetch_duration_seconds_bucket{operation="start",subsystem="account",le="1"} 1
+prebid_server_fetcher_backend_fetch_duration_seconds_bucket{operation="start",subsystem="account",le="+Inf"} 1
+prebid_server_fetcher_backend_fetch_duration_seconds_sum{operation="start",subsystem="account"} 0.001
+prebid_server_fetcher_backend_fetch_duration_seconds_count{operation="start",subsystem="account"} 1
+# HELP prebid_server_fetcher_cache_result Count of Fetchers 2.0 cache lookups labeled by subsystem and result (hit, miss, negative).
+# TYPE prebid_server_fetcher_cache_result counter
+prebid_server_fetcher_cache_result{result="hit",subsystem="account"} 2
+prebid_server_fetcher_cache_result{result="hit",subsystem="stored_request"} 1
+prebid_server_fetcher_cache_result{result="miss",subsystem="account"} 1
+prebid_server_fetcher_cache_result{result="negative",subsystem="account"} 1
+# HELP prebid_server_gvl_requests Count number of times GVL list is fetched
+# TYPE prebid_server_gvl_requests counter
+prebid_server_gvl_requests 1
+# HELP prebid_server_impressions_requests Count of requested impressions to Prebid Server labeled by type.
+# TYPE prebid_server_impressions_requests counter
+prebid_server_impressions_requests{audio="false",banner="false",native="false",video="false"} 1
+prebid_server_impressions_requests{audio="false",banner="false",native="false",video="true"} 0
+prebid_server_impressions_requests{audio="false",banner="false",native="true",video="false"} 1
+prebid_server_impressions_requests{audio="false",banner="false",native="true",video="true"} 0
+prebid_server_impressions_requests{audio="false",banner="true",native="false",video="false"} 1
+prebid_server_impressions_requests{audio="false",banner="true",native="false",video="true"} 0
+prebid_server_impressions_requests{audio="false",banner="true",native="true",video="false"} 0
+prebid_server_impressions_requests{audio="false",banner="true",native="true",video="true"} 0
+prebid_server_impressions_requests{audio="true",banner="false",native="false",video="false"} 0
+prebid_server_impressions_requests{audio="true",banner="false",native="false",video="true"} 1
+prebid_server_impressions_requests{audio="true",banner="false",native="true",video="false"} 0
+prebid_server_impressions_requests{audio="true",banner="false",native="true",video="true"} 0
+prebid_server_impressions_requests{audio="true",banner="true",native="false",video="false"} 0
+prebid_server_impressions_requests{audio="true",banner="true",native="false",video="true"} 0
+prebid_server_impressions_requests{audio="true",banner="true",native="true",video="false"} 0
+prebid_server_impressions_requests{audio="true",banner="true",native="true",video="true"} 1
+# HELP prebid_server_live_gvl_fetch Count of live GVL vendor ID fetches labeled by success or failure.
+# TYPE prebid_server_live_gvl_fetch counter
+prebid_server_live_gvl_fetch{success="failed"} 1
+prebid_server_live_gvl_fetch{success="ok"} 2
+# HELP prebid_server_modules_another_module_called Count of module calls labeled by stage name.
+# TYPE prebid_server_modules_another_module_called counter
+prebid_server_modules_another_module_called{stage="auction"} 1
+prebid_server_modules_another_module_called{stage="new_stage"} 1
+prebid_server_modules_another_module_called{stage="raw"} 0
+# HELP prebid_server_modules_another_module_duration Amount of seconds a module processed a hook labeled by stage name.
+# TYPE prebid_server_modules_another_module_duration histogram
+prebid_server_modules_another_module_duration_bucket{stage="auction",le="0.05"} 0
+prebid_server_modules_another_module_duration_bucket{stage="auction",le="0.1"} 0
+prebid_server_modules_another_module_duration_bucket{stage="auction",le="0.15"} 0
+prebid_server_modules_another_module_duration_bucket{stage="auction",le="0.2"} 0
+prebid_server_modules_another_module_duration_bucket{stage="auction",le="0.25"} 0
+prebid_server_modules_another_module_duration_bucket{stage="auction",le="0.3"} 0
+prebid_server_modules_another_module_duration_bucket{stage="auction",le="0.4"} 0
+prebid_server_modules_another_module_duration_bucket{stage="auction",le="0.5"} 0
+prebid_server_modules_another_module_duration_bucket{stage="auction",le="0.75"} 0
+prebid_server_modules_another_module_duration_bucket{stage="auction",le="1"} 0
+prebid_server_modules_another_module_duration_bucket{stage="auction",le="+Inf"} 1
+prebid_server_modules_another_module_duration_sum{stage="auction"} 2
+prebid_server_modules_another_module_duration_count{stage="auction"} 1
+prebid_server_modules_another_module_duration_bucket{stage="new_stage",le="0.05"} 1
+prebid_server_modules_another_module_duration_bucket{stage="new_stage",le="0.1"} 1
+prebid_server_modules_another_module_duration_bucket{stage="new_stage",le="0.15"} 1
+prebid_server_modules_another_module_duration_bucket{stage="new_stage",le="0.2"} 1
+prebid_server_modules_another_module_duration_bucket{stage="new_stage",le="0.25"} 1
+prebid_server_modules_another_module_duration_bucket{stage="new_stage",le="0.3"} 1
+prebid_server_modules_another_module_duration_bucket{stage="new_stage",le="0.4"} 1
+prebid_server_modules_another_module_duration_bucket{stage="new_stage",le="0.5"} 1
+prebid_server_modules_another_module_duration_bucket{stage="new_stage",le="0.75"} 1
+prebid_server_modules_another_module_duration_bucket{stage="new_stage",le="1"} 1
+prebid_server_modules_another_module_duration_bucket{stage="new_stage",le="+Inf"} 1
+prebid_server_modules_another_module_duration_sum{stage="new_stage"} 1e-09
+prebid_server_modules_another_module_duration_count{stage="new_stage"} 1
+prebid_server_modules_another_module_duration_bucket{stage="raw",le="0.05"} 0
+prebid_server_modules_another_module_duration_bucket{stage="raw",le="0.1"} 0
+prebid_server_modules_another_module_duration_bucket{stage="raw",le="0.15"} 0
+prebid_server_modules_another_module_duration_bucket{stage="raw",le="0.2"} 0
+prebid_server_modules_another_module_duration_bucket{stage="raw",le="0.25"} 0
+prebid_server_modules_another_module_duration_bucket{stage="raw",le="0.3"} 0
+prebid_server_modules_another_module_duration_bucket{stage="raw",le="0.4"} 0
+prebid_server_modules_another_module_duration_bucket{stage="raw",le="0.5"} 0
+prebid_server_modules_another_module_duration_bucket{stage="raw",le="0.75"} 0
+prebid_server_modules_another_module_duration_bucket{stage="raw",le="1"} 0
+prebid_server_modules_another_module_duration_bucket{stage="raw",le="+Inf"} 0
+prebid_server_modules_another_module_duration_sum{stage="raw"} 0
+prebid_server_modules_another_module_duration_count{stage="raw"} 0
+# HELP prebid_server_modules_another_module_execution_errors Count of module execution errors labeled by stage name.
+# TYPE prebid_server_modules_another_module_execution_errors counter
+prebid_server_modules_another_module_execution_errors{stage="auction"} 0
+prebid_server_modules_another_module_execution_errors{stage="raw"} 0
+# HELP prebid_server_modules_another_module_failed Count of module fails labeled by stage name.
+# TYPE prebid_server_modules_another_module_failed counter
+prebid_server_modules_another_module_failed{stage="auction"} 0
+prebid_server_modules_another_module_failed{stage="raw"} 0
+# HELP prebid_server_modules_another_module_success_noops Count of module successful noops labeled by stage name.
+# TYPE prebid_server_modules_another_module_success_noops counter
+prebid_server_modules_another_module_success_noops{stage="auction"} 0
+prebid_server_modules_another_module_success_noops{stage="raw"} 0
+# HELP prebid_server_modules_another_module_success_rejects Count of module successful rejects labeled by stage name.
+# TYPE prebid_server_modules_another_module_success_rejects counter
+prebid_server_modules_another_module_success_rejects{stage="auction"} 1
+prebid_server_modules_another_module_success_rejects{stage="raw"} 0
+# HELP prebid_server_modules_another_module_success_updates Count of module successful updates labeled by stage name.
+# TYPE prebid_server_modules_another_module_success_updates counter
+prebid_server_modules_another_module_success_updates{stage="auction"} 0
+prebid_server_modules_another_module_success_updates{stage="raw"} 1
+# HELP prebid_server_modules_another_module_timeouts Count of module timeouts labeled by stage name.
+# TYPE prebid_server_modules_another_module_timeouts counter
+prebid_server_modules_another_module_timeouts{stage="auction"} 0
+prebid_server_modules_another_module_timeouts{stage="raw"} 2
+# HELP prebid_server_modules_foobar_called Count of module calls labeled by stage name.
+# TYPE prebid_server_modules_foobar_called counter
+prebid_server_modules_foobar_called{stage="entry"} 1
+prebid_server_modules_foobar_called{stage="raw"} 1
+# HELP prebid_server_modules_foobar_duration Amount of seconds a module processed a hook labeled by stage name.
+# TYPE prebid_server_modules_foobar_duration histogram
+prebid_server_modules_foobar_duration_bucket{stage="entry",le="0.05"} 1
+prebid_server_modules_foobar_duration_bucket{stage="entry",le="0.1"} 1
+prebid_server_modules_foobar_duration_bucket{stage="entry",le="0.15"} 1
+prebid_server_modules_foobar_duration_bucket{stage="entry",le="0.2"} 1
+prebid_server_modules_foobar_duration_bucket{stage="entry",le="0.25"} 1
+prebid_server_modules_foobar_duration_bucket{stage="entry",le="0.3"} 1
+prebid_server_modules_foobar_duration_bucket{stage="entry",le="0.4"} 1
+prebid_server_modules_foobar_duration_bucket{stage="entry",le="0.5"} 1
+prebid_server_modules_foobar_duration_bucket{stage="entry",le="0.75"} 1
+prebid_server_modules_foobar_duration_bucket{stage="entry",le="1"} 1
+prebid_server_modules_foobar_duration_bucket{stage="entry",le="+Inf"} 1
+prebid_server_modules_foobar_duration_sum{stage="entry"} 0.001
+prebid_server_modules_foobar_duration_count{stage="entry"} 1
+prebid_server_modules_foobar_duration_bucket{stage="raw",le="0.05"} 0
+prebid_server_modules_foobar_duration_bucket{stage="raw",le="0.1"} 0
+prebid_server_modules_foobar_duration_bucket{stage="raw",le="0.15"} 0
+prebid_server_modules_foobar_duration_bucket{stage="raw",le="0.2"} 0
+prebid_server_modules_foobar_duration_bucket{stage="raw",le="0.25"} 1
+prebid_server_modules_foobar_duration_bucket{stage="raw",le="0.3"} 1
+prebid_server_modules_foobar_duration_bucket{stage="raw",le="0.4"} 1
+prebid_server_modules_foobar_duration_bucket{stage="raw",le="0.5"} 1
+prebid_server_modules_foobar_duration_bucket{stage="raw",le="0.75"} 1
+prebid_server_modules_foobar_duration_bucket{stage="raw",le="1"} 1
+prebid_server_modules_foobar_duration_bucket{stage="raw",le="+Inf"} 1
+prebid_server_modules_foobar_duration_sum{stage="raw"} 0.25
+prebid_server_modules_foobar_duration_count{stage="raw"} 1
+# HELP prebid_server_modules_foobar_execution_errors Count of module execution errors labeled by stage name.
+# TYPE prebid_server_modules_foobar_execution_errors counter
+prebid_server_modules_foobar_execution_errors{stage="entry"} 1
+prebid_server_modules_foobar_execution_errors{stage="raw"} 0
+# HELP prebid_server_modules_foobar_failed Count of module fails labeled by stage name.
+# TYPE prebid_server_modules_foobar_failed counter
+prebid_server_modules_foobar_failed{stage="entry"} 1
+prebid_server_modules_foobar_failed{stage="raw"} 0
+# HELP prebid_server_modules_foobar_success_noops Count of module successful noops labeled by stage name.
+# TYPE prebid_server_modules_foobar_success_noops counter
+prebid_server_modules_foobar_success_noops{stage="entry"} 0
+prebid_server_modules_foobar_success_noops{stage="raw"} 1
+# HELP prebid_server_modules_foobar_success_rejects Count of module successful rejects labeled by stage name.
+# TYPE prebid_server_modules_foobar_success_rejects counter
+prebid_server_modules_foobar_success_rejects{stage="entry"} 0
+prebid_server_modules_foobar_success_rejects{stage="raw"} 0
+# HELP prebid_server_modules_foobar_success_updates Count of module successful updates labeled by stage name.
+# TYPE prebid_server_modules_foobar_success_updates counter
+prebid_server_modules_foobar_success_updates{stage="entry"} 0
+prebid_server_modules_foobar_success_updates{stage="raw"} 0
+# HELP prebid_server_modules_foobar_timeouts Count of module timeouts labeled by stage name.
+# TYPE prebid_server_modules_foobar_timeouts counter
+prebid_server_modules_foobar_timeouts{stage="entry"} 0
+prebid_server_modules_foobar_timeouts{stage="raw"} 0
+# HELP prebid_server_overhead_time_seconds Seconds to prepare adapter request or resolve adapter response
+# TYPE prebid_server_overhead_time_seconds histogram
+prebid_server_overhead_time_seconds_bucket{overhead_type="make-auction-response",le="0.05"} 0
+prebid_server_overhead_time_seconds_bucket{overhead_type="make-auction-response",le="0.06"} 1
+prebid_server_overhead_time_seconds_bucket{overhead_type="make-auction-response",le="0.07"} 1
+prebid_server_overhead_time_seconds_bucket{overhead_type="make-auction-response",le="0.08"} 1
+prebid_server_overhead_time_seconds_bucket{overhead_type="make-auction-response",le="0.09"} 1
+prebid_server_overhead_time_seconds_bucket{overhead_type="make-auction-response",le="0.1"} 1
+prebid_server_overhead_time_seconds_bucket{overhead_type="make-auction-response",le="0.2"} 1
+prebid_server_overhead_time_seconds_bucket{overhead_type="make-auction-response",le="0.3"} 1
+prebid_server_overhead_time_seconds_bucket{overhead_type="make-auction-response",le="0.4"} 1
+prebid_server_overhead_time_seconds_bucket{overhead_type="make-auction-response",le="0.5"} 1
+prebid_server_overhead_time_seconds_bucket{overhead_type="make-auction-response",le="0.6"} 1
+prebid_server_overhead_time_seconds_bucket{overhead_type="make-auction-response",le="0.7"} 1
+prebid_server_overhead_time_seconds_bucket{overhead_type="make-auction-response",le="0.8"} 1
+prebid_server_overhead_time_seconds_bucket{overhead_type="make-auction-response",le="0.9"} 1
+prebid_server_overhead_time_seconds_bucket{overhead_type="make-auction-response",le="1"} 1
+prebid_server_overhead_time_seconds_bucket{overhead_type="make-auction-response",le="+Inf"} 1
+prebid_server_overhead_time_seconds_sum{overhead_type="make-auction-response"} 0.06
+prebid_server_overhead_time_seconds_count{overhead_type="make-auction-response"} 1
+prebid_server_overhead_time_seconds_bucket{overhead_type="make-bidder-requests",le="0.05"} 0
+prebid_server_overhead_time_seconds_bucket{overhead_type="make-bidder-requests",le="0.06"} 0
+prebid_server_overhead_time_seconds_bucket{overhead_type="make-bidder-requests",le="0.07"} 0
+prebid_server_overhead_time_seconds_bucket{overhead_type="make-bidder-requests",le="0.08"} 0
+prebid_server_overhead_time_seconds_bucket{overhead_type="make-bidder-requests",le="0.09"} 0
+prebid_server_overhead_time_seconds_bucket{overhead_type="make-bidder-requests",le="0.1"} 0
+prebid_server_overhead_time_seconds_bucket{overhead_type="make-bidder-requests",le="0.2"} 0
+prebid_server_overhead_time_seconds_bucket{overhead_type="make-bidder-requests",le="0.3"} 0
+prebid_server_overhead_time_seconds_bucket{overhead_type="make-bidder-requests",le="0.4"} 0
+prebid_server_overhead_time_seconds_bucket{overhead_type="make-bidder-requests",le="0.5"} 0
+prebid_server_overhead_time_seconds_bucket{overhead_type="make-bidder-requests",le="0.6"} 0
+prebid_server_overhead_time_seconds_bucket{overhead_type="make-bidder-requests",le="0.7"} 0
+prebid_server_overhead_time_seconds_bucket{overhead_type="make-bidder-requests",le="0.8"} 0
+prebid_server_overhead_time_seconds_bucket{overhead_type="make-bidder-requests",le="0.9"} 0
+prebid_server_overhead_time_seconds_bucket{overhead_type="make-bidder-requests",le="1"} 0
+prebid_server_overhead_time_seconds_bucket{overhead_type="make-bidder-requests",le="+Inf"} 1
+prebid_server_overhead_time_seconds_sum{overhead_type="make-bidder-requests"} 2
+prebid_server_overhead_time_seconds_count{overhead_type="make-bidder-requests"} 1
+prebid_server_overhead_time_seconds_bucket{overhead_type="pre-bidder",le="0.05"} 0
+prebid_server_overhead_time_seconds_bucket{overhead_type="pre-bidder",le="0.06"} 0
+prebid_server_overhead_time_seconds_bucket{overhead_type="pre-bidder",le="0.07"} 0
+prebid_server_overhead_time_seconds_bucket{overhead_type="pre-bidder",le="0.08"} 0
+prebid_server_overhead_time_seconds_bucket{overhead_type="pre-bidder",le="0.09"} 0
+prebid_server_overhead_time_seconds_bucket{overhead_type="pre-bidder",le="0.1"} 0
+prebid_server_overhead_time_seconds_bucket{overhead_type="pre-bidder",le="0.2"} 0
+prebid_server_overhead_time_seconds_bucket{overhead_type="pre-bidder",le="0.3"} 0
+prebid_server_overhead_time_seconds_bucket{overhead_type="pre-bidder",le="0.4"} 1
+prebid_server_overhead_time_seconds_bucket{overhead_type="pre-bidder",le="0.5"} 2
+prebid_server_overhead_time_seconds_bucket{overhead_type="pre-bidder",le="0.6"} 2
+prebid_server_overhead_time_seconds_bucket{overhead_type="pre-bidder",le="0.7"} 2
+prebid_server_overhead_time_seconds_bucket{overhead_type="pre-bidder",le="0.8"} 2
+prebid_server_overhead_time_seconds_bucket{overhead_type="pre-bidder",le="0.9"} 2
+prebid_server_overhead_time_seconds_bucket{overhead_type="pre-bidder",le="1"} 2
+prebid_server_overhead_time_seconds_bucket{overhead_type="pre-bidder",le="+Inf"} 2
+prebid_server_overhead_time_seconds_sum{overhead_type="pre-bidder"} 0.9
+prebid_server_overhead_time_seconds_count{overhead_type="pre-bidder"} 2
+# HELP prebid_server_prebidcache_write_time_seconds Seconds to write to Prebid Cache labeled by success or failure. Failure timing is limited by Prebid Server enforced timeouts.
+# TYPE prebid_server_prebidcache_write_time_seconds histogram
+prebid_server_prebidcache_write_time_seconds_bucket{success="false",le="0.001"} 0
+prebid_server_prebidcache_write_time_seconds_bucket{success="false",le="0.002"} 0
+prebid_server_prebidcache_write_time_seconds_bucket{success="false",le="0.005"} 0
+prebid_server_prebidcache_write_time_seconds_bucket{success="false",le="0.01"} 0
+prebid_server_prebidcache_write_time_seconds_bucket{success="false",le="0.025"} 0
+prebid_server_prebidcache_write_time_seconds_bucket{success="false",le="0.05"} 0
+prebid_server_prebidcache_write_time_seconds_bucket{success="false",le="0.1"} 0
+prebid_server_prebidcache_write_time_seconds_bucket{success="false",le="0.2"} 1
+prebid_server_prebidcache_write_time_seconds_bucket{success="false",le="0.3"} 1
+prebid_server_prebidcache_write_time_seconds_bucket{success="false",le="0.4"} 1
+prebid_server_prebidcache_write_time_seconds_bucket{success="false",le="0.5"} 1
+prebid_server_prebidcache_write_time_seconds_bucket{success="false",le="1"} 1
+prebid_server_prebidcache_write_time_seconds_bucket{success="false",le="+Inf"} 1
+prebid_server_prebidcache_write_time_seconds_sum{success="false"} 0.2
+prebid_server_prebidcache_write_time_seconds_count{success="false"} 1
+prebid_server_prebidcache_write_time_seconds_bucket{success="true",le="0.001"} 1
+prebid_server_prebidcache_write_time_seconds_bucket{success="true",le="0.002"} 1
+prebid_server_prebidcache_write_time_seconds_bucket{success="true",le="0.005"} 1
+prebid_server_prebidcache_write_time_seconds_bucket{success="true",le="0.01"} 1
+prebid_server_prebidcache_write_time_seconds_bucket{success="true",le="0.025"} 1
+prebid_server_prebidcache_write_time_seconds_bucket{success="true",le="0.05"} 1
+prebid_server_prebidcache_write_time_seconds_bucket{success="true",le="0.1"} 2
+prebid_server_prebidcache_write_time_seconds_bucket{success="true",le="0.2"} 2
+prebid_server_prebidcache_write_time_seconds_bucket{success="true",le="0.3"} 2
+prebid_server_prebidcache_write_time_seconds_bucket{success="true",le="0.4"} 2
+prebid_server_prebidcache_write_time_seconds_bucket{success="true",le="0.5"} 2
+prebid_server_prebidcache_write_time_seconds_bucket{success="true",le="1"} 2
+prebid_server_prebidcache_write_time_seconds_bucket{success="true",le="+Inf"} 2
+prebid_server_prebidcache_write_time_seconds_sum{success="true"} 0.100001
+prebid_server_prebidcache_write_time_seconds_count{success="true"} 2
+# HELP prebid_server_privacy_ccpa Count of total requests to Prebid Server where CCPA was provided by source and opt-out .
+# TYPE prebid_server_privacy_ccpa counter
+prebid_server_privacy_ccpa{opt_out="false",source="request"} 1
+prebid_server_privacy_ccpa{opt_out="true",source="request"} 2
+# HELP prebid_server_privacy_coppa Count of total requests to Prebid Server where the COPPA flag was set by source
+# TYPE prebid_server_privacy_coppa counter
+prebid_server_privacy_coppa{source="request"} 2
+# HELP prebid_server_privacy_lmt Count of total requests to Prebid Server where the LMT flag was set by source
+# TYPE prebid_server_privacy_lmt counter
+prebid_server_privacy_lmt{source="request"} 2
+# HELP prebid_server_privacy_tcf Count of TCF versions for requests where GDPR was enforced by source and version.
+# TYPE prebid_server_privacy_tcf counter
+prebid_server_privacy_tcf{source="request",version=""} 1
+prebid_server_privacy_tcf{source="request",version="err"} 1
+prebid_server_privacy_tcf{source="request",version="v2"} 2
+# HELP prebid_server_request_queue_time Seconds request was waiting in queue
+# TYPE prebid_server_request_queue_time histogram
+prebid_server_request_queue_time_bucket{request_status="requestAcceptedLabel",request_type="amp",le="0"} 0
+prebid_server_request_queue_time_bucket{request_status="requestAcceptedLabel",request_type="amp",le="1"} 0
+prebid_server_request_queue_time_bucket{request_status="requestAcceptedLabel",request_type="amp",le="5"} 0
+prebid_server_request_queue_time_bucket{request_status="requestAcceptedLabel",request_type="amp",le="30"} 0
+prebid_server_request_queue_time_bucket{request_status="requestAcceptedLabel",request_type="amp",le="60"} 0
+prebid_server_request_queue_time_bucket{request_status="requestAcceptedLabel",request_type="amp",le="120"} 0
+prebid_server_request_queue_time_bucket{request_status="requestAcceptedLabel",request_type="amp",le="180"} 0
+prebid_server_request_queue_time_bucket{request_status="requestAcceptedLabel",request_type="amp",le="240"} 0
+prebid_server_request_queue_time_bucket{request_status="requestAcceptedLabel",request_type="amp",le="300"} 0
+prebid_server_request_queue_time_bucket{request_status="requestAcceptedLabel",request_type="amp",le="+Inf"} 1
+prebid_server_request_queue_time_sum{request_status="requestAcceptedLabel",request_type="amp"} 400
+prebid_server_request_queue_time_count{request_status="requestAcceptedLabel",request_type="amp"} 1
+prebid_server_request_queue_time_bucket{request_status="requestAcceptedLabel",request_type="openrtb2-web",le="0"} 1
+prebid_server_request_queue_time_bucket{request_status="requestAcceptedLabel",request_type="openrtb2-web",le="1"} 1
+prebid_server_request_queue_time_bucket{request_status="requestAcceptedLabel",request_type="openrtb2-web",le="5"} 1
+prebid_server_request_queue_time_bucket{request_status="requestAcceptedLabel",request_type="openrtb2-web",le="30"} 1
+prebid_server_request_queue_time_bucket{request_status="requestAcceptedLabel",request_type="openrtb2-web",le="60"} 1
+prebid_server_request_queue_time_bucket{request_status="requestAcceptedLabel",request_type="openrtb2-web",le="120"} 1
+prebid_server_request_queue_time_bucket{request_status="requestAcceptedLabel",request_type="openrtb2-web",le="180"} 1
+prebid_server_request_queue_time_bucket{request_status="requestAcceptedLabel",request_type="openrtb2-web",le="240"} 1
+prebid_server_request_queue_time_bucket{request_status="requestAcceptedLabel",request_type="openrtb2-web",le="300"} 1
+prebid_server_request_queue_time_bucket{request_status="requestAcceptedLabel",request_type="openrtb2-web",le="+Inf"} 1
+prebid_server_request_queue_time_sum{request_status="requestAcceptedLabel",request_type="openrtb2-web"} -5
+prebid_server_request_queue_time_count{request_status="requestAcceptedLabel",request_type="openrtb2-web"} 1
+prebid_server_request_queue_time_bucket{request_status="requestAcceptedLabel",request_type="video",le="0"} 0
+prebid_server_request_queue_time_bucket{request_status="requestAcceptedLabel",request_type="video",le="1"} 0
+prebid_server_request_queue_time_bucket{request_status="requestAcceptedLabel",request_type="video",le="5"} 1
+prebid_server_request_queue_time_bucket{request_status="requestAcceptedLabel",request_type="video",le="30"} 1
+prebid_server_request_queue_time_bucket{request_status="requestAcceptedLabel",request_type="video",le="60"} 1
+prebid_server_request_queue_time_bucket{request_status="requestAcceptedLabel",request_type="video",le="120"} 1
+prebid_server_request_queue_time_bucket{request_status="requestAcceptedLabel",request_type="video",le="180"} 1
+prebid_server_request_queue_time_bucket{request_status="requestAcceptedLabel",request_type="video",le="240"} 1
+prebid_server_request_queue_time_bucket{request_status="requestAcceptedLabel",request_type="video",le="300"} 1
+prebid_server_request_queue_time_bucket{request_status="requestAcceptedLabel",request_type="video",le="+Inf"} 1
+prebid_server_request_queue_time_sum{request_status="requestAcceptedLabel",request_type="video"} 2
+prebid_server_request_queue_time_count{request_status="requestAcceptedLabel",request_type="video"} 1
+prebid_server_request_queue_time_bucket{request_status="requestRejectedLabel",request_type="video",le="0"} 0
+prebid_server_request_queue_time_bucket{request_status="requestRejectedLabel",request_type="video",le="1"} 1
+prebid_server_request_queue_time_bucket{request_status="requestRejectedLabel",request_type="video",le="5"} 1
+prebid_server_request_queue_time_bucket{request_status="requestRejectedLabel",request_type="video",le="30"} 1
+prebid_server_request_queue_time_bucket{request_status="requestRejectedLabel",request_type="video",le="60"} 2
+prebid_server_request_queue_time_bucket{request_status="requestRejectedLabel",request_type="video",le="120"} 2
+prebid_server_request_queue_time_bucket{request_status="requestRejectedLabel",request_type="video",le="180"} 2
+prebid_server_request_queue_time_bucket{request_status="requestRejectedLabel",request_type="video",le="240"} 2
+prebid_server_request_queue_time_bucket{request_status="requestRejectedLabel",request_type="video",le="300"} 2
+prebid_server_request_queue_time_bucket{request_status="requestRejectedLabel",request_type="video",le="+Inf"} 2
+prebid_server_request_queue_time_sum{request_status="requestRejectedLabel",request_type="video"} 50.000000001
+prebid_server_request_queue_time_count{request_status="requestRejectedLabel",request_type="video"} 2
+# HELP prebid_server_request_size_bytes Count that keeps track of incoming request size in bytes labeled by endpoint.
+# TYPE prebid_server_request_size_bytes histogram
+prebid_server_request_size_bytes_bucket{request_size="",le="100"} 1
+prebid_server_request_size_bytes_bucket{request_size="",le="500"} 1
+prebid_server_request_size_bytes_bucket{request_size="",le="750"} 1
+prebid_server_request_size_bytes_bucket{request_size="",le="1000"} 1
+prebid_server_request_size_bytes_bucket{request_size="",le="2000"} 1
+prebid_server_request_size_bytes_bucket{request_size="",le="4000"} 1
+prebid_server_request_size_bytes_bucket{request_size="",le="7000"} 1
+prebid_server_request_size_bytes_bucket{request_size="",le="10000"} 1
+prebid_server_request_size_bytes_bucket{request_size="",le="15000"} 1
+prebid_server_request_size_bytes_bucket{request_size="",le="20000"} 1
+prebid_server_request_size_bytes_bucket{request_size="",le="50000"} 1
+prebid_server_request_size_bytes_bucket{request_size="",le="75000"} 1
+prebid_server_request_size_bytes_bucket{request_size="",le="+Inf"} 1
+prebid_server_request_size_bytes_sum{request_size=""} 99
+prebid_server_request_size_bytes_count{request_size=""} 1
+prebid_server_request_size_bytes_bucket{request_size="auction",le="100"} 1
+prebid_server_request_size_bytes_bucket{request_size="auction",le="500"} 1
+prebid_server_request_size_bytes_bucket{request_size="auction",le="750"} 1
+prebid_server_request_size_bytes_bucket{request_size="auction",le="1000"} 1
+prebid_server_request_size_bytes_bucket{request_size="auction",le="2000"} 2
+prebid_server_request_size_bytes_bucket{request_size="auction",le="4000"} 2
+prebid_server_request_size_bytes_bucket{request_size="auction",le="7000"} 2
+prebid_server_request_size_bytes_bucket{request_size="auction",le="10000"} 2
+prebid_server_request_size_bytes_bucket{request_size="auction",le="15000"} 2
+prebid_server_request_size_bytes_bucket{request_size="auction",le="20000"} 2
+prebid_server_request_size_bytes_bucket{request_size="auction",le="50000"} 2
+prebid_server_request_size_bytes_bucket{request_size="auction",le="75000"} 3
+prebid_server_request_size_bytes_bucket{request_size="auction",le="+Inf"} 4
+prebid_server_request_size_bytes_sum{request_size="auction"} 1.000076124e+09
+prebid_server_request_size_bytes_count{request_size="auction"} 4
+prebid_server_request_size_bytes_bucket{request_size="video",le="100"} 1
+prebid_server_request_size_bytes_bucket{request_size="video",le="500"} 1
+prebid_server_request_size_bytes_bucket{request_size="video",le="750"} 1
+prebid_server_request_size_bytes_bucket{request_size="video",le="1000"} 1
+prebid_server_request_size_bytes_bucket{request_size="video",le="2000"} 1
+prebid_server_request_size_bytes_bucket{request_size="video",le="4000"} 1
+prebid_server_request_size_bytes_bucket{request_size="video",le="7000"} 1
+prebid_server_request_size_bytes_bucket{request_size="video",le="10000"} 1
+prebid_server_request_size_bytes_bucket{request_size="video",le="15000"} 1
+prebid_server_request_size_bytes_bucket{request_size="video",le="20000"} 1
+prebid_server_request_size_bytes_bucket{request_size="video",le="50000"} 1
+prebid_server_request_size_bytes_bucket{request_size="video",le="75000"} 1
+prebid_server_request_size_bytes_bucket{request_size="video",le="+Inf"} 2
+prebid_server_request_size_bytes_sum{request_size="video"} 75002
+prebid_server_request_size_bytes_count{request_size="video"} 2
+# HELP prebid_server_request_time_seconds Seconds to resolve successful Prebid Server requests labeled by type.
+# TYPE prebid_server_request_time_seconds histogram
+prebid_server_request_time_seconds_bucket{request_type="",le="0.05"} 1
+prebid_server_request_time_seconds_bucket{request_type="",le="0.1"} 1
+prebid_server_request_time_seconds_bucket{request_type="",le="0.15"} 1
+prebid_server_request_time_seconds_bucket{request_type="",le="0.2"} 1
+prebid_server_request_time_seconds_bucket{request_type="",le="0.25"} 1
+prebid_server_request_time_seconds_bucket{request_type="",le="0.3"} 1
+prebid_server_request_time_seconds_bucket{request_type="",le="0.4"} 1
+prebid_server_request_time_seconds_bucket{request_type="",le="0.5"} 1
+prebid_server_request_time_seconds_bucket{request_type="",le="0.75"} 1
+prebid_server_request_time_seconds_bucket{request_type="",le="1"} 1
+prebid_server_request_time_seconds_bucket{request_type="",le="+Inf"} 1
+prebid_server_request_time_seconds_sum{request_type=""} 3e-09
+prebid_server_request_time_seconds_count{request_type=""} 1
+prebid_server_request_time_seconds_bucket{request_type="amp",le="0.05"} 0
+prebid_server_request_time_seconds_bucket{request_type="amp",le="0.1"} 0
+prebid_server_request_time_seconds_bucket{request_type="amp",le="0.15"} 0
+prebid_server_request_time_seconds_bucket{request_type="amp",le="0.2"} 0
+prebid_server_request_time_seconds_bucket{request_type="amp",le="0.25"} 0
+prebid_server_request_time_seconds_bucket{request_type="amp",le="0.3"} 0
+prebid_server_request_time_seconds_bucket{request_type="amp",le="0.4"} 0
+prebid_server_request_time_seconds_bucket{request_type="amp",le="0.5"} 0
+prebid_server_request_time_seconds_bucket{request_type="amp",le="0.75"} 0
+prebid_server_request_time_seconds_bucket{request_type="amp",le="1"} 1
+prebid_server_request_time_seconds_bucket{request_type="amp",le="+Inf"} 1
+prebid_server_request_time_seconds_sum{request_type="amp"} 1
+prebid_server_request_time_seconds_count{request_type="amp"} 1
+prebid_server_request_time_seconds_bucket{request_type="openrtb2-app",le="0.05"} 1
+prebid_server_request_time_seconds_bucket{request_type="openrtb2-app",le="0.1"} 1
+prebid_server_request_time_seconds_bucket{request_type="openrtb2-app",le="0.15"} 1
+prebid_server_request_time_seconds_bucket{request_type="openrtb2-app",le="0.2"} 1
+prebid_server_request_time_seconds_bucket{request_type="openrtb2-app",le="0.25"} 1
+prebid_server_request_time_seconds_bucket{request_type="openrtb2-app",le="0.3"} 1
+prebid_server_request_time_seconds_bucket{request_type="openrtb2-app",le="0.4"} 1
+prebid_server_request_time_seconds_bucket{request_type="openrtb2-app",le="0.5"} 1
+prebid_server_request_time_seconds_bucket{request_type="openrtb2-app",le="0.75"} 1
+prebid_server_request_time_seconds_bucket{request_type="openrtb2-app",le="1"} 1
+prebid_server_request_time_seconds_bucket{request_type="openrtb2-app",le="+Inf"} 1
+prebid_server_request_time_seconds_sum{request_type="openrtb2-app"} 0
+prebid_server_request_time_seconds_count{request_type="openrtb2-app"} 1
+prebid_server_request_time_seconds_bucket{request_type="openrtb2-dooh",le="0.05"} 0
+prebid_server_request_time_seconds_bucket{request_type="openrtb2-dooh",le="0.1"} 0
+prebid_server_request_time_seconds_bucket{request_type="openrtb2-dooh",le="0.15"} 0
+prebid_server_request_time_seconds_bucket{request_type="openrtb2-dooh",le="0.2"} 0
+prebid_server_request_time_seconds_bucket{request_type="openrtb2-dooh",le="0.25"} 0
+prebid_server_request_time_seconds_bucket{request_type="openrtb2-dooh",le="0.3"} 0
+prebid_server_request_time_seconds_bucket{request_type="openrtb2-dooh",le="0.4"} 0
+prebid_server_request_time_seconds_bucket{request_type="openrtb2-dooh",le="0.5"} 0
+prebid_server_request_time_seconds_bucket{request_type="openrtb2-dooh",le="0.75"} 0
+prebid_server_request_time_seconds_bucket{request_type="openrtb2-dooh",le="1"} 0
+prebid_server_request_time_seconds_bucket{request_type="openrtb2-dooh",le="+Inf"} 0
+prebid_server_request_time_seconds_sum{request_type="openrtb2-dooh"} 0
+prebid_server_request_time_seconds_count{request_type="openrtb2-dooh"} 0
+prebid_server_request_time_seconds_bucket{request_type="openrtb2-web",le="0.05"} 1
+prebid_server_request_time_seconds_bucket{request_type="openrtb2-web",le="0.1"} 1
+prebid_server_request_time_seconds_bucket{request_type="openrtb2-web",le="0.15"} 1
+prebid_server_request_time_seconds_bucket{request_type="openrtb2-web",le="0.2"} 1
+prebid_server_request_time_seconds_bucket{request_type="openrtb2-web",le="0.25"} 1
+prebid_server_request_time_seconds_bucket{request_type="openrtb2-web",le="0.3"} 1
+prebid_server_request_time_seconds_bucket{request_type="openrtb2-web",le="0.4"} 1
+prebid_server_request_time_seconds_bucket{request_type="openrtb2-web",le="0.5"} 2
+prebid_server_request_time_seconds_bucket{request_type="openrtb2-web",le="0.75"} 2
+prebid_server_request_time_seconds_bucket{request_type="openrtb2-web",le="1"} 2
+prebid_server_request_time_seconds_bucket{request_type="openrtb2-web",le="+Inf"} 2
+prebid_server_request_time_seconds_sum{request_type="openrtb2-web"} 0.55
+prebid_server_request_time_seconds_count{request_type="openrtb2-web"} 2
+prebid_server_request_time_seconds_bucket{request_type="video",le="0.05"} 0
+prebid_server_request_time_seconds_bucket{request_type="video",le="0.1"} 0
+prebid_server_request_time_seconds_bucket{request_type="video",le="0.15"} 0
+prebid_server_request_time_seconds_bucket{request_type="video",le="0.2"} 0
+prebid_server_request_time_seconds_bucket{request_type="video",le="0.25"} 0
+prebid_server_request_time_seconds_bucket{request_type="video",le="0.3"} 0
+prebid_server_request_time_seconds_bucket{request_type="video",le="0.4"} 0
+prebid_server_request_time_seconds_bucket{request_type="video",le="0.5"} 0
+prebid_server_request_time_seconds_bucket{request_type="video",le="0.75"} 0
+prebid_server_request_time_seconds_bucket{request_type="video",le="1"} 0
+prebid_server_request_time_seconds_bucket{request_type="video",le="+Inf"} 1
+prebid_server_request_time_seconds_sum{request_type="video"} 1.000000001
+prebid_server_request_time_seconds_count{request_type="video"} 1
+# HELP prebid_server_requests Count of total requests to Prebid Server labeled by type and status.
+# TYPE prebid_server_requests counter
+prebid_server_requests{request_status="acctconfigerr",request_type=""} 1
+prebid_server_requests{request_status="acctconfigerr",request_type="amp"} 0
+prebid_server_requests{request_status="acctconfigerr",request_type="openrtb2-app"} 0
+prebid_server_requests{request_status="acctconfigerr",request_type="openrtb2-dooh"} 0
+prebid_server_requests{request_status="acctconfigerr",request_type="openrtb2-web"} 0
+prebid_server_requests{request_status="acctconfigerr",request_type="video"} 0
+prebid_server_requests{request_status="badinput",request_type="amp"} 0
+prebid_server_requests{request_status="badinput",request_type="openrtb2-app"} 1
+prebid_server_requests{request_status="badinput",request_type="openrtb2-dooh"} 0
+prebid_server_requests{request_status="badinput",request_type="openrtb2-web"} 0
+prebid_server_requests{request_status="badinput",request_type="video"} 0
+prebid_server_requests{request_status="blockedapp",request_type="amp"} 1
+prebid_server_requests{request_status="blockedapp",request_type="openrtb2-app"} 0
+prebid_server_requests{request_status="blockedapp",request_type="openrtb2-dooh"} 0
+prebid_server_requests{request_status="blockedapp",request_type="openrtb2-web"} 0
+prebid_server_requests{request_status="blockedapp",request_type="video"} 0
+prebid_server_requests{request_status="err",request_type="amp"} 0
+prebid_server_requests{request_status="err",request_type="openrtb2-app"} 0
+prebid_server_requests{request_status="err",request_type="openrtb2-dooh"} 1
+prebid_server_requests{request_status="err",request_type="openrtb2-web"} 0
+prebid_server_requests{request_status="err",request_type="video"} 0
+prebid_server_requests{request_status="networkerr",request_type="amp"} 0
+prebid_server_requests{request_status="networkerr",request_type="openrtb2-app"} 0
+prebid_server_requests{request_status="networkerr",request_type="openrtb2-dooh"} 0
+prebid_server_requests{request_status="networkerr",request_type="openrtb2-web"} 0
+prebid_server_requests{request_status="networkerr",request_type="video"} 1
+prebid_server_requests{request_status="ok",request_type="amp"} 0
+prebid_server_requests{request_status="ok",request_type="openrtb2-app"} 0
+prebid_server_requests{request_status="ok",request_type="openrtb2-dooh"} 0
+prebid_server_requests{request_status="ok",request_type="openrtb2-web"} 3
+prebid_server_requests{request_status="ok",request_type="video"} 0
+prebid_server_requests{request_status="queuetimeout",request_type="amp"} 0
+prebid_server_requests{request_status="queuetimeout",request_type="openrtb2-app"} 0
+prebid_server_requests{request_status="queuetimeout",request_type="openrtb2-dooh"} 0
+prebid_server_requests{request_status="queuetimeout",request_type="openrtb2-web"} 0
+prebid_server_requests{request_status="queuetimeout",request_type="video"} 1
+# HELP prebid_server_requests_without_cookie Count of total requests to Prebid Server without a cookie labeled by type.
+# TYPE prebid_server_requests_without_cookie counter
+prebid_server_requests_without_cookie{request_type="amp"} 1
+prebid_server_requests_without_cookie{request_type="openrtb2-app"} 1
+prebid_server_requests_without_cookie{request_type="openrtb2-dooh"} 0
+prebid_server_requests_without_cookie{request_type="openrtb2-web"} 1
+prebid_server_requests_without_cookie{request_type="video"} 1
+# HELP prebid_server_setuid_requests Count of set uid requests to Prebid Server.
+# TYPE prebid_server_setuid_requests counter
+prebid_server_setuid_requests{status="acct_blocked"} 1
+prebid_server_setuid_requests{status="acct_config_malformed"} 1
+prebid_server_setuid_requests{status="acct_invalid"} 1
+prebid_server_setuid_requests{status="bad_request"} 1
+prebid_server_setuid_requests{status="gdpr_blocked_host_cookie"} 1
+prebid_server_setuid_requests{status="ok"} 1
+prebid_server_setuid_requests{status="opt_out"} 1
+prebid_server_setuid_requests{status="syncer_unknown"} 1
+# HELP prebid_server_stored_account_errors Count of stored account errors by error type
+# TYPE prebid_server_stored_account_errors counter
+prebid_server_stored_account_errors{stored_data_error="network"} 1
+prebid_server_stored_account_errors{stored_data_error="undefined"} 0
+# HELP prebid_server_stored_account_fetch_time_seconds Seconds to fetch stored accounts labeled by fetch type
+# TYPE prebid_server_stored_account_fetch_time_seconds histogram
+prebid_server_stored_account_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="0.05"} 0
+prebid_server_stored_account_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="0.1"} 0
+prebid_server_stored_account_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="0.15"} 0
+prebid_server_stored_account_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="0.2"} 0
+prebid_server_stored_account_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="0.25"} 0
+prebid_server_stored_account_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="0.3"} 0
+prebid_server_stored_account_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="0.4"} 0
+prebid_server_stored_account_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="0.5"} 1
+prebid_server_stored_account_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="0.75"} 1
+prebid_server_stored_account_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="1"} 1
+prebid_server_stored_account_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="+Inf"} 1
+prebid_server_stored_account_fetch_time_seconds_sum{stored_data_fetch_type="all"} 0.5
+prebid_server_stored_account_fetch_time_seconds_count{stored_data_fetch_type="all"} 1
+prebid_server_stored_account_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="0.05"} 0
+prebid_server_stored_account_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="0.1"} 0
+prebid_server_stored_account_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="0.15"} 0
+prebid_server_stored_account_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="0.2"} 0
+prebid_server_stored_account_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="0.25"} 0
+prebid_server_stored_account_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="0.3"} 0
+prebid_server_stored_account_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="0.4"} 0
+prebid_server_stored_account_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="0.5"} 0
+prebid_server_stored_account_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="0.75"} 0
+prebid_server_stored_account_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="1"} 0
+prebid_server_stored_account_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="+Inf"} 0
+prebid_server_stored_account_fetch_time_seconds_sum{stored_data_fetch_type="delta"} 0
+prebid_server_stored_account_fetch_time_seconds_count{stored_data_fetch_type="delta"} 0
+# HELP prebid_server_stored_amp_errors Count of stored AMP errors by error type
+# TYPE prebid_server_stored_amp_errors counter
+prebid_server_stored_amp_errors{stored_data_error="network"} 0
+prebid_server_stored_amp_errors{stored_data_error="undefined"} 1
+# HELP prebid_server_stored_amp_fetch_time_seconds Seconds to fetch stored AMP requests labeled by fetch type
+# TYPE prebid_server_stored_amp_fetch_time_seconds histogram
+prebid_server_stored_amp_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="0.05"} 0
+prebid_server_stored_amp_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="0.1"} 0
+prebid_server_stored_amp_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="0.15"} 0
+prebid_server_stored_amp_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="0.2"} 0
+prebid_server_stored_amp_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="0.25"} 0
+prebid_server_stored_amp_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="0.3"} 0
+prebid_server_stored_amp_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="0.4"} 0
+prebid_server_stored_amp_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="0.5"} 0
+prebid_server_stored_amp_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="0.75"} 0
+prebid_server_stored_amp_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="1"} 0
+prebid_server_stored_amp_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="+Inf"} 0
+prebid_server_stored_amp_fetch_time_seconds_sum{stored_data_fetch_type="all"} 0
+prebid_server_stored_amp_fetch_time_seconds_count{stored_data_fetch_type="all"} 0
+prebid_server_stored_amp_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="0.05"} 0
+prebid_server_stored_amp_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="0.1"} 1
+prebid_server_stored_amp_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="0.15"} 1
+prebid_server_stored_amp_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="0.2"} 1
+prebid_server_stored_amp_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="0.25"} 1
+prebid_server_stored_amp_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="0.3"} 1
+prebid_server_stored_amp_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="0.4"} 1
+prebid_server_stored_amp_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="0.5"} 1
+prebid_server_stored_amp_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="0.75"} 1
+prebid_server_stored_amp_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="1"} 1
+prebid_server_stored_amp_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="+Inf"} 1
+prebid_server_stored_amp_fetch_time_seconds_sum{stored_data_fetch_type="delta"} 0.1
+prebid_server_stored_amp_fetch_time_seconds_count{stored_data_fetch_type="delta"} 1
+# HELP prebid_server_stored_category_errors Count of stored category errors by error type
+# TYPE prebid_server_stored_category_errors counter
+prebid_server_stored_category_errors{stored_data_error="network"} 1
+prebid_server_stored_category_errors{stored_data_error="undefined"} 0
+# HELP prebid_server_stored_category_fetch_time_seconds Seconds to fetch stored categories labeled by fetch type
+# TYPE prebid_server_stored_category_fetch_time_seconds histogram
+prebid_server_stored_category_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="0.05"} 0
+prebid_server_stored_category_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="0.1"} 0
+prebid_server_stored_category_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="0.15"} 0
+prebid_server_stored_category_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="0.2"} 0
+prebid_server_stored_category_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="0.25"} 1
+prebid_server_stored_category_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="0.3"} 1
+prebid_server_stored_category_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="0.4"} 1
+prebid_server_stored_category_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="0.5"} 1
+prebid_server_stored_category_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="0.75"} 1
+prebid_server_stored_category_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="1"} 1
+prebid_server_stored_category_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="+Inf"} 1
+prebid_server_stored_category_fetch_time_seconds_sum{stored_data_fetch_type="all"} 0.25
+prebid_server_stored_category_fetch_time_seconds_count{stored_data_fetch_type="all"} 1
+prebid_server_stored_category_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="0.05"} 0
+prebid_server_stored_category_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="0.1"} 0
+prebid_server_stored_category_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="0.15"} 0
+prebid_server_stored_category_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="0.2"} 0
+prebid_server_stored_category_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="0.25"} 0
+prebid_server_stored_category_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="0.3"} 0
+prebid_server_stored_category_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="0.4"} 0
+prebid_server_stored_category_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="0.5"} 0
+prebid_server_stored_category_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="0.75"} 0
+prebid_server_stored_category_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="1"} 0
+prebid_server_stored_category_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="+Inf"} 0
+prebid_server_stored_category_fetch_time_seconds_sum{stored_data_fetch_type="delta"} 0
+prebid_server_stored_category_fetch_time_seconds_count{stored_data_fetch_type="delta"} 0
+# HELP prebid_server_stored_impressions_cache_performance Count of stored impression cache requests attempts by hits or miss.
+# TYPE prebid_server_stored_impressions_cache_performance counter
+prebid_server_stored_impressions_cache_performance{cache_result="hit"} 41
+prebid_server_stored_impressions_cache_performance{cache_result="miss"} 107
+# HELP prebid_server_stored_request_cache_performance Count of stored request cache requests attempts by hits or miss.
+# TYPE prebid_server_stored_request_cache_performance counter
+prebid_server_stored_request_cache_performance{cache_result="hit"} 42
+prebid_server_stored_request_cache_performance{cache_result="miss"} 108
+# HELP prebid_server_stored_request_errors Count of stored request errors by error type
+# TYPE prebid_server_stored_request_errors counter
+prebid_server_stored_request_errors{stored_data_error="network"} 0
+prebid_server_stored_request_errors{stored_data_error="undefined"} 1
+# HELP prebid_server_stored_request_fetch_time_seconds Seconds to fetch stored requests labeled by fetch type
+# TYPE prebid_server_stored_request_fetch_time_seconds histogram
+prebid_server_stored_request_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="0.05"} 0
+prebid_server_stored_request_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="0.1"} 0
+prebid_server_stored_request_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="0.15"} 0
+prebid_server_stored_request_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="0.2"} 0
+prebid_server_stored_request_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="0.25"} 0
+prebid_server_stored_request_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="0.3"} 0
+prebid_server_stored_request_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="0.4"} 0
+prebid_server_stored_request_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="0.5"} 0
+prebid_server_stored_request_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="0.75"} 0
+prebid_server_stored_request_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="1"} 0
+prebid_server_stored_request_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="+Inf"} 0
+prebid_server_stored_request_fetch_time_seconds_sum{stored_data_fetch_type="all"} 0
+prebid_server_stored_request_fetch_time_seconds_count{stored_data_fetch_type="all"} 0
+prebid_server_stored_request_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="0.05"} 1
+prebid_server_stored_request_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="0.1"} 1
+prebid_server_stored_request_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="0.15"} 1
+prebid_server_stored_request_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="0.2"} 1
+prebid_server_stored_request_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="0.25"} 1
+prebid_server_stored_request_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="0.3"} 1
+prebid_server_stored_request_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="0.4"} 1
+prebid_server_stored_request_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="0.5"} 1
+prebid_server_stored_request_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="0.75"} 1
+prebid_server_stored_request_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="1"} 1
+prebid_server_stored_request_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="+Inf"} 1
+prebid_server_stored_request_fetch_time_seconds_sum{stored_data_fetch_type="delta"} 1e-09
+prebid_server_stored_request_fetch_time_seconds_count{stored_data_fetch_type="delta"} 1
+# HELP prebid_server_stored_response_errors Count of stored video errors by error type
+# TYPE prebid_server_stored_response_errors counter
+prebid_server_stored_response_errors{stored_data_error="network"} 1
+prebid_server_stored_response_errors{stored_data_error="undefined"} 0
+# HELP prebid_server_stored_response_fetch_time_seconds Seconds to fetch stored responses labeled by fetch type
+# TYPE prebid_server_stored_response_fetch_time_seconds histogram
+prebid_server_stored_response_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="0.05"} 0
+prebid_server_stored_response_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="0.1"} 0
+prebid_server_stored_response_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="0.15"} 0
+prebid_server_stored_response_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="0.2"} 0
+prebid_server_stored_response_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="0.25"} 0
+prebid_server_stored_response_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="0.3"} 0
+prebid_server_stored_response_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="0.4"} 0
+prebid_server_stored_response_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="0.5"} 0
+prebid_server_stored_response_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="0.75"} 0
+prebid_server_stored_response_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="1"} 0
+prebid_server_stored_response_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="+Inf"} 0
+prebid_server_stored_response_fetch_time_seconds_sum{stored_data_fetch_type="all"} 0
+prebid_server_stored_response_fetch_time_seconds_count{stored_data_fetch_type="all"} 0
+prebid_server_stored_response_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="0.05"} 0
+prebid_server_stored_response_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="0.1"} 0
+prebid_server_stored_response_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="0.15"} 0
+prebid_server_stored_response_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="0.2"} 0
+prebid_server_stored_response_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="0.25"} 0
+prebid_server_stored_response_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="0.3"} 1
+prebid_server_stored_response_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="0.4"} 1
+prebid_server_stored_response_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="0.5"} 1
+prebid_server_stored_response_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="0.75"} 1
+prebid_server_stored_response_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="1"} 1
+prebid_server_stored_response_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="+Inf"} 1
+prebid_server_stored_response_fetch_time_seconds_sum{stored_data_fetch_type="delta"} 0.3
+prebid_server_stored_response_fetch_time_seconds_count{stored_data_fetch_type="delta"} 1
+# HELP prebid_server_stored_responses Count of total requests to Prebid Server that have stored responses
+# TYPE prebid_server_stored_responses counter
+prebid_server_stored_responses 2
+# HELP prebid_server_stored_video_errors Count of stored video errors by error type
+# TYPE prebid_server_stored_video_errors counter
+prebid_server_stored_video_errors{stored_data_error="network"} 1
+prebid_server_stored_video_errors{stored_data_error="undefined"} 0
+# HELP prebid_server_stored_video_fetch_time_seconds Seconds to fetch stored video labeled by fetch type
+# TYPE prebid_server_stored_video_fetch_time_seconds histogram
+prebid_server_stored_video_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="0.05"} 0
+prebid_server_stored_video_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="0.1"} 0
+prebid_server_stored_video_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="0.15"} 0
+prebid_server_stored_video_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="0.2"} 0
+prebid_server_stored_video_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="0.25"} 0
+prebid_server_stored_video_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="0.3"} 0
+prebid_server_stored_video_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="0.4"} 0
+prebid_server_stored_video_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="0.5"} 0
+prebid_server_stored_video_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="0.75"} 0
+prebid_server_stored_video_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="1"} 0
+prebid_server_stored_video_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="+Inf"} 1
+prebid_server_stored_video_fetch_time_seconds_sum{stored_data_fetch_type="all"} 10
+prebid_server_stored_video_fetch_time_seconds_count{stored_data_fetch_type="all"} 1
+prebid_server_stored_video_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="0.05"} 0
+prebid_server_stored_video_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="0.1"} 0
+prebid_server_stored_video_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="0.15"} 0
+prebid_server_stored_video_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="0.2"} 0
+prebid_server_stored_video_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="0.25"} 0
+prebid_server_stored_video_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="0.3"} 0
+prebid_server_stored_video_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="0.4"} 0
+prebid_server_stored_video_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="0.5"} 0
+prebid_server_stored_video_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="0.75"} 0
+prebid_server_stored_video_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="1"} 0
+prebid_server_stored_video_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="+Inf"} 0
+prebid_server_stored_video_fetch_time_seconds_sum{stored_data_fetch_type="delta"} 0
+prebid_server_stored_video_fetch_time_seconds_count{stored_data_fetch_type="delta"} 0
+# HELP prebid_server_syncer_requests Count of cookie sync requests where a syncer is a candidate to be synced labeled by syncer key and status.
+# TYPE prebid_server_syncer_requests counter
+prebid_server_syncer_requests{status="already_synced",syncer="keyA"} 0
+prebid_server_syncer_requests{status="already_synced",syncer="keyB"} 1
+prebid_server_syncer_requests{status="ok",syncer="keyA"} 1
+prebid_server_syncer_requests{status="ok",syncer="keyB"} 0
+prebid_server_syncer_requests{status="privacy_blocked",syncer="keyA"} 1
+prebid_server_syncer_requests{status="privacy_blocked",syncer="keyB"} 0
+prebid_server_syncer_requests{status="rejected_by_filter",syncer="keyA"} 0
+prebid_server_syncer_requests{status="rejected_by_filter",syncer="keyB"} 0
+prebid_server_syncer_requests{status="rejected_by_filter",syncer="keyC"} 1
+# HELP prebid_server_syncer_sets Count of setuid set requests for a syncer labeled by syncer key and status.
+# TYPE prebid_server_syncer_sets counter
+prebid_server_syncer_sets{status="cleared",syncer="keyA"} 0
+prebid_server_syncer_sets{status="cleared",syncer="keyB"} 1
+prebid_server_syncer_sets{status="ok",syncer="Other Key"} 1
+prebid_server_syncer_sets{status="ok",syncer="keyA"} 1
+prebid_server_syncer_sets{status="ok",syncer="keyB"} 0
+# HELP prebid_server_timeout_notification Count of timeout notifications triggered, and if they were successfully sent.
+# TYPE prebid_server_timeout_notification counter
+prebid_server_timeout_notification{success="failed"} 1
+prebid_server_timeout_notification{success="ok"} 2
+# HELP prebid_server_tls_handshake_time Seconds to perform TLS Handshake
+# TYPE prebid_server_tls_handshake_time histogram
+prebid_server_tls_handshake_time_bucket{le="0.05"} 0
+prebid_server_tls_handshake_time_bucket{le="0.1"} 0
+prebid_server_tls_handshake_time_bucket{le="0.15"} 1
+prebid_server_tls_handshake_time_bucket{le="0.2"} 1
+prebid_server_tls_handshake_time_bucket{le="0.25"} 1
+prebid_server_tls_handshake_time_bucket{le="0.3"} 1
+prebid_server_tls_handshake_time_bucket{le="0.4"} 1
+prebid_server_tls_handshake_time_bucket{le="0.5"} 1
+prebid_server_tls_handshake_time_bucket{le="0.75"} 1
+prebid_server_tls_handshake_time_bucket{le="1"} 1
+prebid_server_tls_handshake_time_bucket{le="+Inf"} 1
+prebid_server_tls_handshake_time_sum 0.15
+prebid_server_tls_handshake_time_count 1
+# HELP prebid_server_tmax_timeout Count of requests rejected due to Tmax timeout exceed.
+# TYPE prebid_server_tmax_timeout counter
+prebid_server_tmax_timeout 2

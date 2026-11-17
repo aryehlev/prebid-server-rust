@@ -1,0 +1,1 @@
+panic: descriptor Desc{fqName: "nl\n_connections_closed", help: "Count of successful connections closed to Prebid Server.", constLabels: {}, variableLabels: []} is invalid: "nl\n_connections_closed" is not a valid metric name

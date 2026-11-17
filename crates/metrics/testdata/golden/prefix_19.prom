@@ -1,0 +1,1 @@
+panic: descriptor Desc{fqName: "ok_modules_bad-name_duration", help: "Amount of seconds a module processed a hook labeled by stage name.", constLabels: {}, variableLabels: [stage]} is invalid: "ok_modules_bad-name_duration" is not a valid metric name
