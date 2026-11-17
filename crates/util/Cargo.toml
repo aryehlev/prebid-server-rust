@@ -15,3 +15,9 @@ categories.workspace = true
 workspace = true
 
 [dependencies]
+pbs-gocompat = { path = "../gocompat", version = "0.1.0" }
+serde_json = { version = "1.0.154", default-features = false, features = ["std"] }
+tokio = { version = "1.50.0", default-features = false, features = ["macros", "rt", "sync", "time"] }
+
+[dev-dependencies]
+tokio = { version = "1.50.0", default-features = false, features = ["macros", "rt", "rt-multi-thread", "sync", "test-util", "time"] }
