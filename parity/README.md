@@ -958,10 +958,12 @@ The steps, in order:
 2. **Replays.** `replayharness replay parity/replayharness/replays`. Every
    replay must pass.
 3. **`--baseline`.** The probes against two Go servers. Any divergence fails
-   the run, except on `POST /cookie_sync`: Go shuffles the syncers it
-   evaluates (`usersync/chooser.go`, `usersync/shuffler.go`), so with a limit
-   or without a bidder list two runs pick different bidders and `debug` comes
-   and goes. That divergence is printed but does not fail.
+   the run, except a shape divergence on `POST /cookie_sync`: Go shuffles the
+   syncers it evaluates (`usersync/chooser.go`, `usersync/shuffler.go`), so
+   with a limit or without a bidder list two runs pick different bidders and
+   `debug` comes and goes, which changes the shape of the body. That
+   divergence is printed but does not fail. A status divergence there fails
+   the run, as it does on any other endpoint.
 4. **`--record`.** `replayharness record` on a spare loopback port, the probes
    and the replays through it, then `replayharness replay <recording>
    --mutate` through the same proxy. `rhtool traffic` then writes
@@ -1282,9 +1284,17 @@ with side A's probe run:
 * A finding that only one side draws on a probe fails the run. This check
   ignores `divergence`, `slow`, `timeout` and `connection` findings, which
   depend on the run, not on the server.
-* `POST /cookie_sync` is not compared, because Go answers it
-  nondeterministically (see `map_order`). Its divergences are printed with
-  that reason and not counted.
+* On `POST /cookie_sync`, a shape divergence is printed with its reason and
+  not counted. Go evaluates the syncers in an order it draws (see
+  `map_order`), so two Go servers sync different bidders and `debug` comes
+  and goes. That order changes the shape of the body, never the status, so
+  everything else on that endpoint counts: a status divergence, a probe side
+  B does not answer, and a finding only one side draws. At the pinned commit
+  ReplayHarness reports a status divergence at severity `error` and a shape
+  divergence at severity `warning` with the message `response shape differs
+  from the baseline` (`internal/check/check.go`, func `baseline`). The gate
+  leaves a divergence out only when both the severity and the message say
+  it is a shape divergence.
 * The run is incomplete (exit 3) if any of these holds:
   * the report has no baseline;
   * the run was interrupted or has no results;
@@ -1316,8 +1326,8 @@ sides. Two runs gave the same results:
 * `baseline`, Go against Go:
   * 1199 probes: 0 divergences, 0 findings drawn by only one side, and 465
     findings drawn by both;
-  * one or two `POST /cookie_sync` differences, printed and not counted (the
-    number changes from run to run, as `map_order` explains);
+  * one or two `POST /cookie_sync` shape divergences, printed and not
+    counted (the number changes from run to run, as `map_order` explains);
   * 162 of 162 replays passed.
 
 The canary is `parity/scripts/replayharness.sh canary`. Both tools caught it:
@@ -1408,7 +1418,7 @@ overlay, as the canary is, and run through `parity` and `baseline`:
 | `/cookie_sync` writes `type` before `url` in `usersync` | 84 cases (member order) | nothing | nothing |
 | Bidder requests always carry `Content-Type: application/json` | 99 cases | nothing | nothing |
 | `Sec-GPC` is not forwarded to bidders | 1 case (the AMP one) | nothing | 1 failed |
-| `/cookie_sync` answers 422 instead of 400 to a bad body | 95 cases (status) | 173 divergences, none counted | 2 failed |
+| `/cookie_sync` answers 422 instead of 400 to a bad body | 95 cases (status) | 86 status divergences and 86 findings only side B draws, all counted | 2 failed |
 | Responses are gzipped whatever `enable_gzip` says | 1551 cases (`Vary`; 55 also `Content-Encoding`) | nothing | nothing |
 | `/info/bidders/{name}` renames `status` to `state` | nothing (not yet instrumented) | 4 divergences (the canary) | 2 failed (the canary) |
 
@@ -1417,9 +1427,12 @@ What the table shows:
 * Neither tool catches every bug. The runner misses what happens on the
   not-yet-instrumented paths; the baseline misses headers, member order and
   values.
-* The baseline's gate counts nothing on `POST /cookie_sync`, not even a
-  status divergence, which map order cannot cause. Only the replays caught
-  the 422.
+* The baseline's gate used to count nothing on `POST /cookie_sync`, not
+  even a status divergence, which map order cannot cause: it printed 173
+  differences for the 422 bug and counted none, so only the replays caught
+  it. It now leaves out only the shape divergences there, and the same bug
+  fails the gate with 86 status divergences and 86 `undocumented-status`
+  findings only side B draws.
 * The `Sec-GPC` bug reached one case only. `fields.yaml` now also checks
   `Sec-GPC` on an auction's bidder request.
 

@@ -5,13 +5,15 @@
 // ReplayHarness compares each answer of B with A's answer to the same probe
 // on the status and on the shape of a JSON body, nothing else
 // (internal/check/check.go, func baseline, at rhreplay.PinnedCommit): a
-// mismatch is a "divergence" finding. Judge counts those, and the probes B
-// did not answer while A did, which ReplayHarness reports as connection or
-// timeout findings instead. Given the report of the same probes run on A
-// alone, Judge also compares the findings each side draws, so a difference
-// the probes see in headers or bodies of the same shape (a Content-Type, a
-// leaked stack trace) fails the gate too. Byte-for-byte equality is the
-// parity runner's job (parity run --corpus replayharness).
+// mismatch is a "divergence" finding, of severity error when the statuses
+// differ, warning when only the shape of the body does, and info when A
+// did not answer. Judge counts those, and the probes B did not answer while
+// A did, which ReplayHarness reports as connection or timeout findings
+// instead. Given the report of the same probes run on A alone, Judge also
+// compares the findings each side draws, so a difference the probes see in
+// headers or bodies of the same shape (a Content-Type, a leaked stack trace)
+// fails the gate too. Byte-for-byte equality is the parity runner's job
+// (parity run --corpus replayharness).
 package rhgate
 
 import (
@@ -31,16 +33,24 @@ const (
 	checkTimeout    = "timeout"
 	checkConnection = "connection"
 	reportTool      = "replayharness"
+	// sevShape and shapePrefix mark a divergence in the shape of the body
+	// alone, when both sides answered with the same status (func baseline).
+	// A divergence that does not match both counts, whatever the endpoint.
+	sevShape    = "warning"
+	shapePrefix = "response shape differs from the baseline"
 )
 
-// CookieSync is the endpoint whose divergences the gate does not count.
+// CookieSync is the endpoint whose shape divergences the gate does not count.
 const CookieSync = "POST /cookie_sync"
 
-// cookieSyncReason is why CookieSync is not compared.
+// cookieSyncReason is why the shape divergences of CookieSync are not
+// counted. Only the body depends on the syncer order, so its status
+// divergences, and the findings one side draws, still count.
 const cookieSyncReason = "Go answers it nondeterministically: without a bidder list, or with coopSync, it takes the " +
 	"syncers from ranging over a map (usersync/chooser.go) and shuffles them (usersync/shuffler.go), so two " +
-	"Go servers sync different bidders and the debug list comes and goes; the parity runner compares the " +
-	"cookie_sync requests that list their bidders"
+	"Go servers sync different bidders and the debug list comes and goes; that order changes the shape of the " +
+	"body, never the status, so a status divergence still counts; the parity runner compares the cookie_sync " +
+	"requests that list their bidders"
 
 // ErrBadReport is a file that is not a ReplayHarness JSON report.
 var ErrBadReport = errors.New("rhgate: not a ReplayHarness JSON report")
@@ -99,9 +109,10 @@ func Read(r io.Reader) (*Report, error) {
 	return &rep, nil
 }
 
-// NotComparedReason returns why the gate does not count the divergences of
-// an endpoint ("METHOD /path"), or "".
-func NotComparedReason(endpoint string) string {
+// ShapeNotComparedReason returns why the gate does not count the shape
+// divergences of an endpoint ("METHOD /path"), or "". Every other difference
+// on that endpoint counts.
+func ShapeNotComparedReason(endpoint string) string {
 	if endpoint == CookieSync {
 		return cookieSyncReason
 	}
@@ -132,8 +143,8 @@ func Judge(base, ref *Report) *Verdict {
 	}
 
 	for _, r := range base.Results {
-		for _, what := range divergences(r) {
-			v.add(&v.Divergences, r, what)
+		for _, d := range divergences(r) {
+			v.add(&v.Divergences, r, d.what, d.shape)
 		}
 	}
 
@@ -158,7 +169,8 @@ type Verdict struct {
 	Divergences []Item   `json:"divergences,omitempty"`
 	OnlyB       []Item   `json:"only_b,omitempty"`
 	OnlyA       []Item   `json:"only_a,omitempty"`
-	// NotCompared are the differences on endpoints NotComparedReason names.
+	// NotCompared are the shape divergences on the endpoints
+	// ShapeNotComparedReason names: printed, not counted.
 	NotCompared []Item `json:"not_compared,omitempty"`
 	// Shared counts the findings both sides draw: A is the reference, so
 	// they are not failures here.
@@ -193,7 +205,7 @@ func (v *Verdict) Write(w io.Writer) error {
 	}
 
 	if len(v.NotCompared) > 0 {
-		fmt.Fprintf(&b, "%d differences on endpoints not compared, reported and not counted:\n", len(v.NotCompared))
+		fmt.Fprintf(&b, "%d shape divergences on endpoints whose shape is not compared, reported and not counted:\n", len(v.NotCompared))
 
 		reasons := map[string]bool{}
 
@@ -202,7 +214,7 @@ func (v *Verdict) Write(w io.Writer) error {
 
 			if !reasons[it.Endpoint] {
 				reasons[it.Endpoint] = true
-				fmt.Fprintf(&b, "    not compared: %s\n", NotComparedReason(it.Endpoint))
+				fmt.Fprintf(&b, "    shape not compared: %s\n", ShapeNotComparedReason(it.Endpoint))
 			}
 		}
 	}
@@ -218,10 +230,11 @@ func (v *Verdict) Write(w io.Writer) error {
 	return nil
 }
 
-// add files a difference under list, or under NotCompared.
-func (v *Verdict) add(list *[]Item, r Result, what string) {
+// add files a difference under list, or, when it is a shape divergence on
+// an endpoint whose shape is not compared, under NotCompared.
+func (v *Verdict) add(list *[]Item, r Result, what string, shape bool) {
 	item := Item{Endpoint: r.Scenario.Endpoint, Scenario: r.Scenario.ID, Name: r.Scenario.Name, What: what}
-	if NotComparedReason(r.Scenario.Endpoint) != "" {
+	if shape && ShapeNotComparedReason(r.Scenario.Endpoint) != "" {
 		v.NotCompared = append(v.NotCompared, item)
 
 		return
@@ -264,12 +277,12 @@ func (v *Verdict) compareFindings(base, ref *Report) {
 				continue
 			}
 
-			v.add(&v.OnlyB, r, "only side B: "+key)
+			v.add(&v.OnlyB, r, "only side B: "+key, false)
 		}
 
 		for key := range fa {
 			if !fb[key] {
-				v.add(&v.OnlyA, r, "only side A: "+key)
+				v.add(&v.OnlyA, r, "only side A: "+key, false)
 			}
 		}
 	}
@@ -279,26 +292,34 @@ func (v *Verdict) compareFindings(base, ref *Report) {
 	}
 }
 
+// divergence is one difference between the sides' answers to a probe.
+type divergence struct {
+	what string
+	// shape marks a divergence in the shape of the body alone.
+	shape bool
+}
+
 // divergences returns what differs between the sides on one probe.
-func divergences(r Result) []string {
+func divergences(r Result) []divergence {
 	if len(r.Observed) == 0 {
-		return []string{"side B has no answer in the report"}
+		return []divergence{{what: "side B has no answer in the report"}}
 	}
 
 	if r.Baseline == nil {
-		return []string{"side A has no answer in the report"}
+		return []divergence{{what: "side A has no answer in the report"}}
 	}
 
-	var out []string
+	var out []divergence
 
 	for _, f := range r.Findings {
 		if f.Check == CheckDivergence {
-			out = append(out, f.String())
+			shape := f.Severity == sevShape && strings.HasPrefix(f.Message, shapePrefix)
+			out = append(out, divergence{what: f.String(), shape: shape})
 		}
 	}
 
 	if b, a := r.Observed[0], r.Baseline; b.Status == 0 && a.Status != 0 {
-		out = append(out, fmt.Sprintf("side B did not answer (%s); side A answered %d", b.Error, a.Status))
+		out = append(out, divergence{what: fmt.Sprintf("side B did not answer (%s); side A answered %d", b.Error, a.Status)})
 	}
 
 	return out

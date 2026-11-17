@@ -16,8 +16,9 @@
 #      (informational: Go is the reference, so a finding is not a failure);
 #   2. the replays in parity/replayharness/replays, which must all pass;
 #   3. with --baseline, the probes against two Go servers with
-#      `replayharness run --baseline`; a divergence fails, except on
-#      /cookie_sync, which Go answers nondeterministically (see below);
+#      `replayharness run --baseline`; a divergence fails, except a shape
+#      divergence on /cookie_sync, which Go answers nondeterministically
+#      (see below);
 #   4. with --record, the probes and the replays again through
 #      `replayharness record`, then the recording replayed with --mutate
 #      through the same proxy, and the result compacted into
@@ -219,18 +220,20 @@ check_breach
 
 # Cookie sync shuffles the syncers it evaluates (usersync/chooser.go,
 # usersync/shuffler.go), so with a limit, or with no bidder list, two Go
-# servers pick different bidders and the debug list comes and goes. Those
-# divergences are printed but do not fail the run; any other one does.
+# servers pick different bidders and the debug list comes and goes. That
+# changes the shape of the body, never the status: its shape divergences
+# (severity warning) are printed but do not fail the run; any other
+# divergence does, a status divergence (severity error) there included.
 nondeterministic='^POST /cookie_sync$'
 
 # divergences prints the divergence findings of the baseline report, each
-# with its endpoint, that are (known) or are not (unexpected) on an endpoint
-# matching $nondeterministic.
+# with its endpoint, that are (known) or are not (unexpected) shape
+# divergences on an endpoint matching $nondeterministic.
 divergences() {
   awk -v skip="$nondeterministic" -v want="$1" '
     /^[A-Z]+ \// { section = $0; next }
     /^ +[^ ]+ (error|warning) +divergence / {
-      known = (section ~ skip) ? "known" : "unexpected"
+      known = (section ~ skip && $2 == "warning") ? "known" : "unexpected"
       if (known == want) { print section ":" $0; getline; print }
     }' "$out/baseline.txt"
 }
