@@ -511,6 +511,7 @@ The routes behave as follows:
 ```sh
 go run ./parity/cmd/parity selftest --corpus sample-requests,adapters,exchangetest
 go run ./parity/cmd/parity run --impl-b rust --bin-b rust/target/release/pbs-server --baseline parity/baseline.json
+go run ./parity/cmd/parity run --corpus all --gen 5000 --seed 42 --shards 4
 go run ./parity/cmd/parity minimize --run parity/out/<run-id>
 go run ./parity/cmd/parity report --run parity/out/<run-id> --baseline parity/baseline.json
 go run ./parity/cmd/parity matrix --run parity/out/<run-id>
@@ -534,6 +535,9 @@ Exit codes:
 ### Batches and processes
 
 1. The runner selects cases by `--corpus`, `--kinds`, `--match` and `--limit`.
+   * `--gen N --seed S` first adds N cases drawn by `parity/gen` (corpus
+     `gen`). Their IDs regenerate them exactly. A `--corpus` list that names
+     neither `all` nor `gen` gets `gen` added.
    * Every case runs under every `--profiles` base profile. A case ID gets the
      suffix `@<profile>` when the base profile is not `default`.
    * Adapter cases run once, under the first base profile.

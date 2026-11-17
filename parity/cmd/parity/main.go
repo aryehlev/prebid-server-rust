@@ -1,7 +1,7 @@
 // Command parity drives the Go-vs-Rust live differential parity harness.
 //
 //	parity corpus    [--json]                       corpus statistics
-//	parity run       [flags]                        run A against B and write parity/out/<run>
+//	parity run       [flags] [--gen N --seed S]     run A against B and write parity/out/<run>
 //	parity selftest  [flags]                        A/A self-test plus the adapter fixture self-test
 //	parity minimize  --run <dir> [--cluster sig]... minimize clusters on live servers
 //	parity report    --run <dir> [--baseline f]     rebuild reports, check the CI ratchet
@@ -23,11 +23,14 @@ import (
 	"os/signal"
 	"path/filepath"
 	"regexp"
+	"slices"
+	"sort"
 	"strings"
 	"time"
 
 	"github.com/prebid/prebid-server/v4/parity"
 	"github.com/prebid/prebid-server/v4/parity/corpus"
+	"github.com/prebid/prebid-server/v4/parity/gen"
 	"github.com/prebid/prebid-server/v4/parity/matrix"
 	"github.com/prebid/prebid-server/v4/parity/report"
 	"github.com/prebid/prebid-server/v4/parity/runner"
@@ -149,7 +152,8 @@ type runFlags struct {
 	out, runID, implA, binA, implB, binB string
 	profiles, profilesDir, storedDir     string
 	corpora, kinds, match                string
-	limit, shards                        int
+	limit, shards, gen                   int
+	seed                                 uint64
 	budget, caseTimeout, startTimeout    time.Duration
 	fixtures, noBuild                    bool
 	baseline                             string
@@ -168,7 +172,9 @@ func (f *runFlags) register(fs *flag.FlagSet, withB bool) {
 	fs.StringVar(&f.profiles, "profiles", runner.DefaultProfile, "comma-separated base profiles (parity/fixtures/profiles)")
 	fs.StringVar(&f.profilesDir, "profiles-dir", "", "profile fixtures directory")
 	fs.StringVar(&f.storedDir, "stored-dir", "", "stored data fixtures directory")
-	fs.StringVar(&f.corpora, "corpus", "all", "comma-separated corpora: adapters, sample-requests, exchangetest, bidder-params, introspection, all")
+	fs.StringVar(&f.corpora, "corpus", "all", "comma-separated corpora: adapters, sample-requests, exchangetest, bidder-params, introspection, gen, all")
+	fs.IntVar(&f.gen, "gen", 0, "generated cases (corpus gen, parity/gen) to add to the corpus")
+	fs.Uint64Var(&f.seed, "seed", 1, "seed the --gen cases are drawn with")
 	fs.StringVar(&f.kinds, "kinds", "", "comma-separated case kinds (adapter, lifted_auction, endpoint, exchange, bidder_params, introspection)")
 	fs.StringVar(&f.match, "match", "", "regular expression on case IDs")
 	fs.IntVar(&f.limit, "limit", 0, "maximum cases per base profile (0: no limit)")
@@ -200,6 +206,15 @@ func (f *runFlags) options(ctx context.Context, stderr io.Writer) (runner.Option
 			return opts, fmt.Errorf("--match: %w", err)
 		}
 	}
+	if f.gen < 0 {
+		return opts, fmt.Errorf("--gen %d: must not be negative", f.gen)
+	}
+	if f.gen > 0 {
+		if opts.Corpus, err = generatedCorpus(root, f.seed, f.gen); err != nil {
+			return opts, err
+		}
+		opts.Selection.Corpora = withGenerated(opts.Selection.Corpora)
+	}
 	if opts.A, err = f.impl(ctx, root, f.implA, f.binA); err != nil {
 		return opts, err
 	}
@@ -209,6 +224,44 @@ func (f *runFlags) options(ctx context.Context, stderr io.Writer) (runner.Option
 		}
 	}
 	return opts, nil
+}
+
+// generatedCorpus loads every corpus of the repository at root and adds n
+// cases drawn by parity/gen with seed, keeping Cases sorted by ID. Each added
+// case's ID regenerates it exactly (gen.Generator.Regenerate).
+func generatedCorpus(root string, seed uint64, n int) (*corpus.Corpus, error) {
+	repo, err := corpus.OpenRepo(root)
+	if err != nil {
+		return nil, err
+	}
+	c, err := corpus.LoadAll(repo)
+	if err != nil {
+		return nil, err
+	}
+	g, err := gen.New(repo, c, gen.Options{})
+	if err != nil {
+		return nil, err
+	}
+	generated := make([]corpus.Case, 0, n)
+	for i := 0; i < n; i++ {
+		cs, err := g.Case(seed, uint64(i))
+		if err != nil {
+			return nil, fmt.Errorf("--gen: case %d of seed %d: %w", i, seed, err)
+		}
+		generated = append(generated, cs)
+	}
+	c.Cases = append(c.Cases, generated...)
+	sort.SliceStable(c.Cases, func(i, j int) bool { return c.Cases[i].ID < c.Cases[j].ID })
+	return c, nil
+}
+
+// withGenerated keeps the generated cases in a corpus selection that names
+// corpora but neither all nor gen, so --gen is never silently filtered out.
+func withGenerated(corpora []string) []string {
+	if len(corpora) == 0 || slices.Contains(corpora, "all") || slices.Contains(corpora, gen.CorpusGenerated) {
+		return corpora
+	}
+	return append(corpora, gen.CorpusGenerated)
 }
 
 // impl resolves one implementation's binary: given, the Go build, or the
