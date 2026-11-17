@@ -12,8 +12,10 @@
 //!
 //! `testdata/golden/shutdown.golden`, from the same program, holds the shutdown scenarios: what
 //! idle, active, pipelined, half-read and new connections see while `Server.Shutdown` drains
-//! the server, whether later dials are refused, what `Serve` and `Shutdown` return (also when
-//! the shutdown deadline passes), and whether a Unix socket file is removed.
+//! the server (including connections that have been silent for over 5 seconds), whether later
+//! dials are refused, what `Serve` and `Shutdown` return (also when the shutdown deadline
+//! passes), whether a Unix socket file is removed, and the connection metrics Prebid's
+//! `monitorableListener` records.
 
 #[cfg(test)]
 mod tests;
