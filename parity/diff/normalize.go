@@ -80,7 +80,7 @@ var implementations = map[string]implementation{
 	RuleAdapterBidsCallKey:   {action: actionSort, keys: []string{"request_data.uri", "request_data.body"}, mentions: []string{"bidder#call"}},
 	RuleSeatNonBidOrder:      {action: actionSort, keys: []string{"seat", "impid", "statuscode"}, mentions: []string{"$.ext.prebid.seatnonbid[*]", "nonbid[*]"}},
 	RuleCachePutsOrder:       {action: actionSort, keys: []string{"type", "value"}, mentions: []string{"$.puts[*]", "$.responses[*]"}},
-	RuleBidArrivalOrder:      {action: actionSort, keys: bidArrivalKeys, mentions: []string{"$.bids[*]", "$.seat_bids[*].bids[*]", "$.*.bids[*]", "$.bids.*[*]", "the entry's errors"}},
+	RuleBidArrivalOrder:      {action: actionSort, keys: bidArrivalKeys, mentions: []string{"$.bids[*]", "$.seat_bids[*].bids[*]", "$.*.bids[*]", "$.bids.*[*]", "$.conversion_errors[*]", "the entry's errors"}},
 	RuleAdapterRequestsOrder: {action: actionSort, keys: adapterRequestKeys, mentions: []string{"$.requests[*]"}},
 	RuleResponseTimeMillis:   {action: actionKeySet, mentions: []string{"$.ext.responsetimemillis"}},
 	RuleAuctionTimestamp:     {action: actionShape, shape: true, mentions: []string{"$.ext.prebid.auctiontimestamp"}},
@@ -401,7 +401,7 @@ var (
 	// bidListSelectors are the per-seat bid lists that Go fills in response
 	// arrival order (bid_arrival_order rule).
 	bidListSelectors = map[parity.StageID][]string{
-		parity.StageBidsAdjusted:                  {"bids"},
+		parity.StageBidsAdjusted:                  {"bids", "conversion_errors"},
 		parity.StageBidderResult:                  {"seat_bids[*].bids"},
 		parity.StageHooksAllProcessedBidResponses: {"*.bids"},
 		parity.StageEventsTracking:                {"bids.*"},

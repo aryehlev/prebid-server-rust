@@ -71,7 +71,7 @@
     {
       "id": "bid_arrival_order",
       "applies_to": ["bids.adjusted", "bidder.result", "events.tracking", "hooks.all_processed_bid_responses"],
-      "target": "per-seat bid lists: bids.adjusted $.bids[*] by (imp_id, bid_id); bidder.result $.seat_bids[*].bids[*] and hooks.all_processed_bid_responses $.*.bids[*] by (bid.impid, bid.id); events.tracking $.bids.*[*] by (bid_id); bidder.result: the entry's errors and warnings by (code, message)",
+      "target": "per-seat bid lists: bids.adjusted $.bids[*] by (imp_id, bid_id); bidder.result $.seat_bids[*].bids[*] and hooks.all_processed_bid_responses $.*.bids[*] by (bid.impid, bid.id); events.tracking $.bids.*[*] by (bid_id); bids.adjusted $.conversion_errors[*] by content (call first); bidder.result: the entry's errors and warnings by (code, message)",
       "action": "sort",
       "keys": ["imp_id", "bid_id", "bid.impid", "bid.id"],
       "justification": "A bidder with several requests sends them from concurrent goroutines and appends each response's bids, and the errors its MakeBids returns, in completion order, so the order of one seat's bids and of the bidder's errors differs between Go runs. The final response's bids are sorted by (impid, id) already (seatbid_order).",
