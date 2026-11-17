@@ -1,7 +1,6 @@
 package server
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"io"
@@ -196,6 +195,9 @@ func splitHost(list parity.HeaderList) (http.Header, string) {
 	return header, host
 }
 
+// setBody gives the request its body as net/http's server does: http.NoBody
+// when there is none, and otherwise a reader that ends like the server's
+// body of a request with a Content-Length (wireBody).
 func setBody(req *http.Request, wire []byte) {
 	req.GetBody = nil
 	req.ContentLength = int64(len(wire))
@@ -203,7 +205,40 @@ func setBody(req *http.Request, wire []byte) {
 		req.Body = http.NoBody
 		return
 	}
-	req.Body = io.NopCloser(bytes.NewReader(wire))
+	req.Body = &wireBody{rest: wire}
+}
+
+// wireBody reads like the body net/http's server hands a handler for a
+// request with a Content-Length (net/http transfer.go, body.readLocked over
+// an io.LimitedReader): the read that returns the last bytes also returns
+// io.EOF, where a bytes.Reader returns it only on the next read, and a read
+// after Close fails with http.ErrBodyReadAfterClose. A handler that reads
+// through an io.LimitedReader and then reads one more byte to see whether
+// the body ended (the max_request_size check of endpoints/openrtb2/auction.go)
+// takes the branch it takes on the main port.
+type wireBody struct {
+	rest   []byte
+	closed bool
+}
+
+func (b *wireBody) Read(p []byte) (int, error) {
+	if b.closed {
+		return 0, http.ErrBodyReadAfterClose
+	}
+	if len(b.rest) == 0 {
+		return 0, io.EOF
+	}
+	n := copy(p, b.rest)
+	b.rest = b.rest[n:]
+	if len(b.rest) == 0 {
+		return n, io.EOF
+	}
+	return n, nil
+}
+
+func (b *wireBody) Close() error {
+	b.closed = true
+	return nil
 }
 
 // applyFraming applies the framing headers like net/http's server: a chunked
