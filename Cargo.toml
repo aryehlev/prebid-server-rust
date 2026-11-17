@@ -10,9 +10,15 @@ members = [
     "crates/gocompat",
     "crates/gojson",
     "crates/gojson-derive",
+    "crates/goviper",
+    "crates/goyaml",
+    "crates/goyaml-derive",
     "crates/gpp",
+    "crates/logger",
     "crates/metrics",
+    "crates/openrtb",
     "crates/tcf2",
+    "crates/util",
 ]
 
 [workspace.package]

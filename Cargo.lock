@@ -139,11 +139,31 @@ dependencies = [
 ]
 
 [[package]]
+name = "pbs-goviper"
+version = "0.1.0"
+
+[[package]]
+name = "pbs-goyaml"
+version = "0.1.0"
+
+[[package]]
+name = "pbs-goyaml-derive"
+version = "0.1.0"
+
+[[package]]
 name = "pbs-gpp"
 version = "0.1.0"
 
 [[package]]
+name = "pbs-logger"
+version = "0.1.0"
+
+[[package]]
 name = "pbs-metrics"
+version = "0.1.0"
+
+[[package]]
+name = "pbs-openrtb"
 version = "0.1.0"
 
 [[package]]
@@ -152,6 +172,10 @@ version = "0.1.0"
 dependencies = [
  "serde_json",
 ]
+
+[[package]]
+name = "pbs-util"
+version = "0.1.0"
 
 [[package]]
 name = "pin-project-lite"
