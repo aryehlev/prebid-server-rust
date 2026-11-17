@@ -11,9 +11,7 @@ import (
 	"io/fs"
 	"net/http"
 	"net/url"
-	"os"
 	"path"
-	"path/filepath"
 	"slices"
 	"sort"
 	"strconv"
@@ -164,21 +162,21 @@ type rhAPIEndpoint struct {
 	Rules  []any  `yaml:"rules"`
 }
 
-// readReplayHarness reads the corpus files through an os.Root, so no file
-// outside RootReplayHarness is read. A missing directory reads as empty.
+// readReplayHarness reads the corpus files through Repo.FS, so every read
+// goes through Repo.Resolve, as every other loader's does: nothing outside the
+// approved corpus roots is read, whatever symlinks the directory holds. A
+// missing directory reads as empty.
 func readReplayHarness(repo *Repo) (*rhInput, error) {
-	root, err := os.OpenRoot(filepath.Join(repo.Root(), filepath.FromSlash(RootReplayHarness)))
-	if errors.Is(err, fs.ErrNotExist) {
-		return &rhInput{}, nil
-	}
+	_, err := repo.Resolve(RootReplayHarness)
 
-	if err != nil {
+	switch {
+	case errors.Is(err, fs.ErrNotExist):
+		return &rhInput{}, nil
+	case err != nil:
 		return nil, fmt.Errorf("%w: %w", errReplayHarness, err)
 	}
 
-	in, readErr := readRHFiles(root.FS())
-
-	return in, errors.Join(readErr, root.Close())
+	return readRHFiles(repo.FS(RootReplayHarness))
 }
 
 func readRHFiles(fsys fs.FS) (*rhInput, error) {

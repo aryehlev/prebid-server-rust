@@ -1112,6 +1112,12 @@ compares both sides on those requests. It is part of `--corpus all`. The
 intro above, written before this corpus existed, says that nothing does this;
 that is no longer true.
 
+`parity/replayharness` is one of the approved corpus roots
+(`corpus.ApprovedRoots`), and the corpus reads it through `Repo.FS`, so every
+read goes through `Repo.Resolve`, as every other loader's does. A file whose
+symlink leaves the approved roots is refused with `ErrOutsideCorpus`, not
+read.
+
 The corpus takes its requests from two sources:
 
 * every exchange in `traffic.jsonl`;

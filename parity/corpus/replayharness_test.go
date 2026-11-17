@@ -3,6 +3,7 @@ package corpus_test
 import (
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"maps"
 	"os"
@@ -12,6 +13,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"testing/fstest"
 
 	"github.com/prebid/prebid-server/v4/parity"
 	"github.com/prebid/prebid-server/v4/parity/corpus"
@@ -314,6 +316,66 @@ func TestReplayHarnessWithoutRecordingsIsEmpty(t *testing.T) {
 
 	if rh := corpus.LoadReplayHarness(repo); len(rh.Cases)+len(rh.NotCompared)+len(rh.Errors) != 0 {
 		t.Errorf("corpus %+v", rh)
+	}
+}
+
+// TestReplayHarnessReadsThroughTheRepo: the corpus directory is an approved
+// root, and the loader reads it through Repo.FS, as every other loader reads
+// through Repo: a file whose symlink leaves the approved roots is refused
+// with ErrOutsideCorpus, not read.
+func TestReplayHarnessReadsThroughTheRepo(t *testing.T) {
+	t.Parallel()
+
+	if !slices.Contains(corpus.ApprovedRoots(), corpus.RootReplayHarness) {
+		t.Fatalf("ApprovedRoots() = %v, want %s in it", corpus.ApprovedRoots(), corpus.RootReplayHarness)
+	}
+
+	files := []string{rhTraffic, "saved.jsonl", "replays/flow.yaml", "api.yaml", "stored/accounts/rh-sandbox.json"}
+	if err := fstest.TestFS(rhRepo(t, "fs").FS(corpus.RootReplayHarness), files...); err != nil {
+		t.Fatal(err)
+	}
+
+	for _, name := range append(files, "replays/escape.yaml", "stored/accounts/escape.json") {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			repo := rhRepo(t, "escape")
+			file := filepath.Join(repo.Root(), filepath.FromSlash(corpus.RootReplayHarness), filepath.FromSlash(name))
+
+			data, err := os.ReadFile(file)
+			if err != nil && !errors.Is(err, os.ErrNotExist) {
+				t.Fatal(err)
+			}
+
+			if data == nil {
+				data = []byte(rhSandbox)
+				if filepath.Ext(name) == ".yaml" {
+					data = []byte(rhReplays)
+				}
+			}
+
+			outside := filepath.Join(t.TempDir(), filepath.Base(name))
+			if err := os.WriteFile(outside, data, 0o600); err != nil {
+				t.Fatal(err)
+			}
+
+			if err := os.Remove(file); err != nil && !errors.Is(err, os.ErrNotExist) {
+				t.Fatal(err)
+			}
+
+			if err := os.Symlink(outside, file); err != nil {
+				t.Skipf("symlinks unsupported: %v", err)
+			}
+
+			rh := corpus.LoadReplayHarness(repo)
+			if len(rh.Errors) != 1 || !errors.Is(rh.Errors[0], corpus.ErrOutsideCorpus) {
+				t.Fatalf("errors %v, want one that wraps %v", rh.Errors, corpus.ErrOutsideCorpus)
+			}
+
+			if len(rh.Cases)+len(rh.NotCompared) != 0 {
+				t.Errorf("%d cases and %d requests not compared from a corpus that could not be read", len(rh.Cases), len(rh.NotCompared))
+			}
+		})
 	}
 }
 
