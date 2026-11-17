@@ -1,0 +1,79 @@
+# golangci-lint v2 configuration for the Go code this fork authors: the differential test programs
+# under rust/**/testdata/go/, the dump tools under rust/crates/devtools/go/ and the parity harness
+# under parity/. Upstream Go is never linted with it. Run it through rust/scripts/lint-go.sh.
+#
+# Policy: every linter golangci-lint ships is enabled, and nothing is excluded. There are no
+# exclusion rules, no path or text exceptions, no `//nolint` comments (rust/scripts/
+# check-no-lint-suppression.sh rejects them, and this file's exclusion keys), and test files are
+# linted. The only linters turned off are listed below, each because it is deprecated in favour of
+# an enabled replacement, or because it contradicts the Go style guides or the external formats
+# these programs must reproduce byte for byte.
+version: "2"
+
+run:
+  tests: true
+  modules-download-mode: readonly
+  relative-path-mode: gitroot
+
+linters:
+  default: all
+  disable:
+    # Deprecated; their replacements gomodguard_v2 and wsl_v5 are enabled.
+    - exhaustruct
+    - gomodguard
+    - wsl
+    # Demands every field in every struct literal, standard library types included, which
+    # contradicts Effective Go's "make the zero value useful": http.Client{Timeout: t} and
+    # json.Decoder options rely on documented zero-value defaults.
+    - exhaustruct_v5
+    # "Variable names in Go should be short rather than long" (Go Code Review Comments): single
+    # letter receivers, indices and readers are idiomatic, which varnamelen forbids.
+    - varnamelen
+    # Go has no line length limit ("There is no fixed line length for Go source code", Go Style
+    # Decisions); gofmt and gofumpt decide layout.
+    - lll
+    # Forbids `if err := f(); err != nil`, the form Effective Go recommends because it keeps err
+    # scoped to the check.
+    - noinlineerr
+    # The JSON and YAML field names in these programs are fixed by the formats they reproduce
+    # (OpenRTB, upstream fixture files, bidder-info YAML, the parity schemas), which mix
+    # camelCase, snake_case and lower case, so no single tag case rule can hold.
+    - tagliatelle
+    # Differential test programs are tables of literal inputs (code points, bit widths, offsets,
+    # status codes); naming each literal would hide the vectors under test.
+    - mnd
+  settings:
+    depguard:
+      rules:
+        main:
+          list-mode: strict
+          allow:
+            - $gostd
+            - github.com/prebid/prebid-server/v4
+            - github.com/prebid/openrtb/v20
+            - github.com/prebid/go-gdpr
+            - github.com/prebid/go-gpp
+            - github.com/json-iterator/go
+            - github.com/buger/jsonparser
+            - github.com/prometheus/client_golang
+            - github.com/prometheus/client_model
+            - github.com/spf13/viper
+            - github.com/mitchellh/mapstructure
+            - github.com/xeipuuv/gojsonschema
+            - github.com/julienschmidt/httprouter
+            - github.com/stretchr/testify
+            - gopkg.in/yaml.v3
+            - golang.org/x/text
+
+formatters:
+  enable:
+    - gofmt
+    - gofumpt
+    - goimports
+  settings:
+    gofmt:
+      simplify: true
+
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0
