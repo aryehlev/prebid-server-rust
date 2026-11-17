@@ -331,6 +331,17 @@ func eventAdm(ts string) string {
 	return `{"id":"r1","cur":"USD","seatbid":[{"seat":"a","bid":[{"id":"b","impid":"i","price":1,"adm":"<img src='https://pbs.example/event?t=imp&b=b&ts=` + ts + `'>"}]}]}`
 }
 
+// ampFloorWarnings is an AMP response whose ortb2.ext carries one floor
+// rejection warning per bidder, in the given order (floors/enforce.go ranges
+// over the seat bid map).
+func ampFloorWarnings(bidders ...string) string {
+	warnings := make([]string, 0, len(bidders))
+	for _, b := range bidders {
+		warnings = append(warnings, `{"code":10009,"message":"`+b+` bid id b1 rejected - bid price 1.0000 USD is less than bid floor 500.0000 USD for imp imp-1"}`)
+	}
+	return `{"targeting":{},"ortb2":{"ext":{"errors":{"prebid":[]},"warnings":{"prebid":[` + strings.Join(warnings, ",") + `]}}}}`
+}
+
 func hookOutcomes(ms int) string {
 	return `{"stages":[{"stage":"entrypoint","outcomes":[{"groups":[{"invocation_results":[{"hook_id":{"module_code":"m"},"status":"success","execution_time_millis":` +
 		strings.Repeat("1", ms) + `}]}],"execution_time_millis":` + strings.Repeat("2", ms) + `}]}]}`
@@ -402,6 +413,12 @@ func TestRemovingRuleReenablesDiff(t *testing.T) {
 			"$.ext.warnings.general"},
 		{RuleWarningsErrorsOrder, validatedWarningsPair, "$['@warnings']"},
 		{RuleWarningsErrorsOrder, privacyWarningsPair, "$['@warnings']"},
+		{RuleWarningsErrorsOrder, entryPair(parity.StageAMPTargetingResponse, parity.UnkeyedStage,
+			ampFloorWarnings("pwbid", "nuclion"), ampFloorWarnings("nuclion", "pwbid")), "$.ortb2.ext.warnings.prebid"},
+		{RuleWarningsErrorsOrder, entryPair(parity.StageHooksExitpoint, parity.UnkeyedStage,
+			ampFloorWarnings("pwbid", "nuclion"), ampFloorWarnings("nuclion", "pwbid")), "$.ortb2.ext.warnings.prebid"},
+		{RuleWarningsErrorsOrder, responsePair(ampFloorWarnings("pwbid", "nuclion"), ampFloorWarnings("nuclion", "pwbid"), nil, nil),
+			"$.ortb2.ext.warnings.prebid"},
 		{RuleBidArrivalOrder, entryPair(parity.StageBidsAdjusted, "adtrgtme",
 			`{"bids":[{"call":"adtrgtme#1","imp_id":"i2","bid_id":"b"},{"call":"adtrgtme#0","imp_id":"i1","bid_id":"b"}]}`,
 			`{"bids":[{"call":"adtrgtme#0","imp_id":"i1","bid_id":"b"},{"call":"adtrgtme#1","imp_id":"i2","bid_id":"b"}]}`), "$.bids"},
@@ -498,6 +515,22 @@ func TestJSONMemberOrderRule(t *testing.T) {
 				t.Fatalf("got %v, want %v", got, tt.want)
 			}
 		})
+	}
+}
+
+// TestAMPResponseExtKeepsValueDiffs: the warnings in an AMP response's
+// ortb2.ext are sorted like those in a BidResponse's ext, so only their order
+// is normalized; a warning whose text differs is still reported, as error
+// text at the sorted position.
+func TestAMPResponseExtKeepsValueDiffs(t *testing.T) {
+	e := newTestEngine(t)
+	g := ampFloorWarnings("pwbid", "nuclion")
+	r := strings.Replace(ampFloorWarnings("nuclion", "pwbid"), "500.0000", "50.0000", 1)
+	want := []brief{{parity.KindErrorText, "", "$.ortb2.ext.warnings.prebid[0].message"}}
+	for _, stage := range []parity.StageID{parity.StageAMPTargetingResponse, parity.StageHooksExitpoint} {
+		if got := briefs(diffEntries(t, e, stage, g, r)); !equalBriefs(got, want) {
+			t.Fatalf("%s: got %v, want %v", stage, got, want)
+		}
 	}
 }
 

@@ -316,7 +316,8 @@ source of the nondeterminism it removes:
 
 * seatbid, warning, httpcalls and seatnonbid order, including a bidder's
   `bidder.result` http calls and non-bids, and the http calls the hook stages
-  and analytics record;
+  and analytics record. The rules also apply to the response ext the AMP
+  endpoint returns as `ortb2.ext`;
 * the order of one seat's bids, and of a bidder's `bidder.result` errors, in
   the exchange stages, which Go fills in response arrival order;
 * the order of a bidder's `MakeRequests` output, and of each request's imp

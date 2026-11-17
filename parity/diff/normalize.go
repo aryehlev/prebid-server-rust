@@ -451,10 +451,14 @@ var (
 	}
 	// responseExtAnchors are where a stage records a response's ext
 	// (openrtb_ext.ExtBidResponse) beside the BidResponse instead of inside
-	// it (stagedata.ExchangeResponse). Rules whose targets start at $.ext
-	// apply there too.
+	// it (stagedata.ExchangeResponse), or inside another response shape: the
+	// AMP response carries it as ortb2.ext (endpoints/openrtb2/amp_auction.go
+	// getExtBidResponse). Rules whose targets start at $.ext apply there too.
 	responseExtAnchors = map[parity.StageID][]string{
-		parity.StageExchangeResponse: {"ext_bid_response"},
+		parity.StageExchangeResponse:     {"ext_bid_response"},
+		parity.StageHTTPResponse:         {"ortb2.ext"},
+		parity.StageHooksExitpoint:       {"ortb2.ext"},
+		parity.StageAMPTargetingResponse: {"ortb2.ext"},
 	}
 	// bidListSelectors are the per-seat bid lists that Go fills in response
 	// arrival order (bid_arrival_order rule).

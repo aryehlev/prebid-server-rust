@@ -25,17 +25,17 @@
     },
     {
       "id": "warnings_errors_order",
-      "applies_to": ["http.response", "exchange.response", "request.validated", "privacy.labels", "hooks.auction_response", "hooks.exitpoint", "analytics"],
-      "target": "$.ext.warnings.*[*]; $.ext.errors.*[*] (exchange.response: $.ext_bid_response.warnings and errors); request.validated and privacy.labels: the entry's own warnings",
+      "applies_to": ["http.response", "exchange.response", "request.validated", "privacy.labels", "hooks.auction_response", "hooks.exitpoint", "amp.targeting_response", "analytics"],
+      "target": "$.ext.warnings.*[*]; $.ext.errors.*[*] (exchange.response: $.ext_bid_response.warnings and errors; the AMP response in http.response, hooks.exitpoint and amp.targeting_response: $.ortb2.ext.warnings and errors); request.validated and privacy.labels: the entry's own warnings",
       "action": "sort",
       "keys": ["code", "message"],
-      "justification": "Bidder goroutines append errors and warnings concurrently, and imp ext validation and the per-bidder privacy split append one warning per disabled, unknown or privacy-blocked bidder while ranging over a map; Go's own endpoint tests compare them order-insensitively.",
-      "go_source": ["exchange/exchange.go:792-867 getAllBids goroutines", "ortb/request_validator.go:127 the loop over the prebid.Bidder map (fakes.MapKeys on this branch: map order outside parity mode)", "exchange/utils.go:156 for bidder, imps := range impsByBidder", "endpoints/openrtb2/auction_test.go:247 compareWarnings"]
+      "justification": "Bidder goroutines append errors and warnings concurrently, floor enforcement appends one rejection warning per bid while ranging over the seat bid map, and imp ext validation and the per-bidder privacy split append one warning per disabled, unknown or privacy-blocked bidder while ranging over a map; Go's own endpoint tests compare them order-insensitively. The AMP endpoint copies the response ext's warnings and errors into ortb2.ext unchanged.",
+      "go_source": ["exchange/exchange.go:792-867 getAllBids goroutines", "floors/enforce.go:117 for bidderName, seatBid := range seatBids", "ortb/request_validator.go:127 the loop over the prebid.Bidder map (fakes.MapKeys on this branch: map order outside parity mode)", "exchange/utils.go:156 for bidder, imps := range impsByBidder", "endpoints/openrtb2/amp_auction.go:476-479 extBidResponse Errors and Warnings", "endpoints/openrtb2/auction_test.go:247 compareWarnings"]
     },
     {
       "id": "httpcalls_order",
       "applies_to": ["http.response", "exchange.response", "bidder.result", "hooks.all_processed_bid_responses", "hooks.auction_response", "hooks.exitpoint", "analytics"],
-      "target": "$.ext.debug.httpcalls.*[*] (analytics: $[*].object.response.ext.debug.httpcalls.*[*]); bidder.result: $.seat_bids[*].http_calls[*]; hooks.all_processed_bid_responses: $.*.http_calls[*]",
+      "target": "$.ext.debug.httpcalls.*[*] (analytics: $[*].object.response.ext.debug.httpcalls.*[*]; the AMP response in http.response and hooks.exitpoint: $.ortb2.ext.debug.httpcalls.*[*]); bidder.result: $.seat_bids[*].http_calls[*]; hooks.all_processed_bid_responses: $.*.http_calls[*]",
       "action": "sort",
       "keys": ["uri", "requestbody", "status"],
       "justification": "A bidder with several requests sends them from concurrent goroutines and collects results in completion order. In parity mode the results are collected in call order (fakes.json orders bidder_response_order), but adapters that group imps in a map (ownadx among others) make their requests in map order, so the call order itself differs between Go runs. Every stage that records a bidder's http calls carries that order.",
@@ -63,7 +63,7 @@
     {
       "id": "seatnonbid_order",
       "applies_to": ["http.response", "exchange.response", "seat_non_bids", "analytics", "bidder.result"],
-      "target": "$.ext.prebid.seatnonbid[*] by (seat); $.ext.prebid.seatnonbid[*].nonbid[*] by (impid, statuscode); seat_non_bids: each seat's list $.*[*] by (impid, statuscode); bidder.result: each seat's list $.nonbids.*[*] by (impid, statuscode)",
+      "target": "$.ext.prebid.seatnonbid[*] by (seat); $.ext.prebid.seatnonbid[*].nonbid[*] by (impid, statuscode) (the AMP response in http.response: $.ortb2.ext.prebid.seatnonbid); seat_non_bids: each seat's list $.*[*] by (impid, statuscode); bidder.result: each seat's list $.nonbids.*[*] by (impid, statuscode)",
       "action": "sort",
       "keys": ["seat", "impid", "statuscode"],
       "justification": "SeatNonBidBuilder is a map keyed by seat; its Slice() order follows map iteration.",
