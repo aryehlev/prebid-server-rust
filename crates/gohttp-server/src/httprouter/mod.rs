@@ -9,6 +9,8 @@
 //! Go. After an error the router holds whatever Go's would hold after recovering that panic.
 
 mod path;
+#[cfg(test)]
+mod tests;
 mod tree;
 
 use core::{error::Error, fmt, mem};

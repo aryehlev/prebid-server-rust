@@ -743,25 +743,4 @@ enum RuneStep<'n> {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::{decode_rune, equal_fold};
-
-    #[test]
-    fn equal_fold_like_go() -> Result<(), String> {
-        for (s, t, want) in [
-            (&b"abc"[..], &b"ABC"[..], true),
-            (b"\xc3\xa9", b"\xc3\x89", true),
-            (b"\xa9", b"\xa8", true),
-            (b"a", b"ab", false),
-            (b"k", "\u{212a}".as_bytes(), true),
-        ] {
-            if equal_fold(s, t) != want {
-                return Err(format!("EqualFold({s:?}, {t:?}) != {want}"));
-            }
-        }
-        if decode_rune(b"\xe2\x82") != (char::REPLACEMENT_CHARACTER, 1) {
-            return Err("truncated sequence".to_owned());
-        }
-        Ok(())
-    }
-}
+mod tests;
