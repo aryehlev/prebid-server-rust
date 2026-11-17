@@ -18,7 +18,7 @@ import (
 )
 
 // The files of the static directory the router serves under /static/, all with modification
-// time staticModTime. tests/go_wire.rs writes the same tree.
+// time staticModTime. tests/go_wire writes the same tree.
 var staticFiles = []struct{ name, body string }{
 	{"index.html", "<html><body>Prebid Server</body></html>\n"},
 	{"a.txt", "hello, static\n"},
@@ -118,6 +118,15 @@ func newAdminHandler() http.Handler {
 	mux.HandleFunc("/currency/rates", adminEcho("rates"))
 	mux.HandleFunc("/version", endpoints.NewVersionEndpoint("", ""))
 	return mux
+}
+
+// newDrainHandler serves the shutdown scenarios (drain.go): Prebid's wrapping of the public
+// router (NoCache over SupportCORS) around /status and /hold/:ms.
+func newDrainHandler() http.Handler {
+	r := httprouter.New()
+	r.GET("/status", endpoints.NewStatusEndpoint(""))
+	r.GET("/hold/:ms", hold)
+	return router.NoCache{Handler: router.SupportCORS(r)}
 }
 
 // newShortHandler serves the server with short timeouts.
@@ -493,6 +502,12 @@ func adminEcho(name string) http.HandlerFunc {
 func sleepMS(w http.ResponseWriter, _ *http.Request, ps httprouter.Params) {
 	time.Sleep(time.Duration(atoi(ps.ByName("ms"))) * time.Millisecond)
 	w.Write([]byte("late"))
+}
+
+// hold replies "held" after ms milliseconds.
+func hold(w http.ResponseWriter, _ *http.Request, ps httprouter.Params) {
+	time.Sleep(time.Duration(atoi(ps.ByName("ms"))) * time.Millisecond)
+	w.Write([]byte("held"))
 }
 
 func slowBody(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {

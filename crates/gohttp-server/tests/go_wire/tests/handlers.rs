@@ -107,7 +107,7 @@ pub(super) enum Target {
 
 /// Prebid's `monitorableListener` needs a metrics engine; these tests record nothing.
 #[derive(Debug, Clone, Copy)]
-struct NoMetrics;
+pub(super) struct NoMetrics;
 
 impl ConnMetrics for NoMetrics {
     fn record_connection_accept(&self, _success: bool) {}
@@ -145,7 +145,7 @@ impl Servers {
     }
 }
 
-fn quiet(mut cfg: ServerConfig) -> ServerConfig {
+pub(super) fn quiet(mut cfg: ServerConfig) -> ServerConfig {
     let log: ErrorLog = Arc::new(|_line: &str| {});
     cfg.error_log = Some(log);
     cfg
@@ -263,6 +263,16 @@ fn admin_handler() -> Result<Arc<dyn Handler>, String> {
 }
 
 /// Go: `newShortHandler`.
+/// Go: `newDrainHandler`.
+pub(super) fn drain_handler() -> Result<Arc<dyn Handler>, String> {
+    let mut r = Router::new();
+    route(r.get("/status", HandleFunc(status)))?;
+    route(r.get("/hold/:ms", HandleFunc(hold)))?;
+    Ok(Arc::new(NoCache {
+        handler: support_cors(r),
+    }))
+}
+
 fn short_handler() -> Result<Arc<dyn Handler>, String> {
     let mut r = Router::new();
     route(r.get("/t/sleep/:ms", HandleFunc(sleep_ms)))?;
@@ -919,6 +929,15 @@ fn sleep_ms<'a>(
         let ms = u64::try_from(atoi_or_zero(ps.by_name("ms"))).unwrap_or(0);
         sleep(Duration::from_millis(ms)).await;
         write_str(w, "late").await;
+    })
+}
+
+/// Go: `hold`.
+fn hold<'a>(w: &'a mut dyn ResponseWriter, _r: &'a mut Request, ps: Params) -> BoxFuture<'a, ()> {
+    Box::pin(async move {
+        let ms = u64::try_from(atoi_or_zero(ps.by_name("ms"))).unwrap_or(0);
+        sleep(Duration::from_millis(ms)).await;
+        write_str(w, "held").await;
     })
 }
 

@@ -9,6 +9,11 @@
 //! `router/admin.go`, and the listener settings of `server/server.go`. `handlers.rs` mirrors its
 //! handlers one for one. `Date` values and multipart boundaries are normalized on both sides;
 //! everything else must match, including how the connection ended.
+//!
+//! `testdata/golden/shutdown.golden`, from the same program, holds the shutdown scenarios: what
+//! idle, active, pipelined, half-read and new connections see while `Server.Shutdown` drains
+//! the server, whether later dials are refused, what `Serve` and `Shutdown` return (also when
+//! the shutdown deadline passes), and whether a Unix socket file is removed.
 
 #[cfg(test)]
 mod tests;

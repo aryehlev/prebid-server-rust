@@ -86,7 +86,7 @@ pub(super) async fn run_all(
 }
 
 /// Go: `runCase`.
-async fn run_case(target: &Target, case: &Case) -> Outcome {
+pub(super) async fn run_case(target: &Target, case: &Case) -> Outcome {
     match target {
         Target::Tcp(addr) => match TcpStream::connect(addr.as_str()).await {
             Ok(stream) => {

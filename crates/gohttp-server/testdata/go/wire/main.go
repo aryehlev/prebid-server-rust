@@ -2,11 +2,13 @@
 // net/http server sends back for a generated corpus of raw HTTP/1.x requests (cases.go), with
 // github.com/julienschmidt/httprouter and github.com/rs/cors wrapped the way Prebid Server's
 // main.go, router/router.go, router/admin.go and server/server.go configure them (handlers.go).
+// It also writes testdata/golden/shutdown.golden: what connections in every state see when
+// Server.Shutdown runs, and what Serve and Shutdown return (drain.go).
 // Run it from the repository root with the toolchain of the production Dockerfile:
 //
 //	GOTOOLCHAIN=go1.26.2 go run ./rust/crates/gohttp-server/testdata/go/wire
 //
-// tests/go_wire.rs replays every case against pbs-gohttp-server serving the same handlers and
+// tests/go_wire replays every case against pbs-gohttp-server serving the same handlers and
 // compares the bytes. Date header values and multipart boundaries are normalized; everything else
 // is compared exactly, together with how the connection ended: "eof" (the server closed it),
 // "reset", or "open" (still open after the case's quiet period). The corpus is run twice and the
@@ -45,20 +47,21 @@ type result struct {
 }
 
 func main() {
-	out := flag.String("out", defaultOut(), "golden file to write")
+	out := flag.String("out", defaultOut("wire.golden"), "wire golden file to write")
+	drainOut := flag.String("shutdown-out", defaultOut("shutdown.golden"), "shutdown golden file to write")
 	flag.Parse()
-	if err := run(*out); err != nil {
+	if err := run(*out, *drainOut); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
 }
 
-func defaultOut() string {
+func defaultOut(name string) string {
 	_, file, _, _ := runtime.Caller(0)
-	return filepath.Join(filepath.Dir(file), "..", "..", "golden", "wire.golden")
+	return filepath.Join(filepath.Dir(file), "..", "..", "golden", name)
 }
 
-func run(out string) error {
+func run(out, drainOut string) error {
 	dir, err := os.MkdirTemp("", "gohttp-wire")
 	if err != nil {
 		return err
@@ -83,7 +86,23 @@ func run(out string) error {
 				first[i].response, first[i].end, second[i].response, second[i].end)
 		}
 	}
-	return writeGolden(out, cases, first)
+	if err := writeGolden(out, cases, first); err != nil {
+		return err
+	}
+
+	scenarios := drainScenarios()
+	drained, err := runDrainScenarios(dir, scenarios)
+	if err != nil {
+		return err
+	}
+	again, err := runDrainScenarios(dir, scenarios)
+	if err != nil {
+		return err
+	}
+	if err := sameDrainResults(drained, again); err != nil {
+		return err
+	}
+	return writeDrainGolden(drainOut, scenarios, drained)
 }
 
 // monitoredListener stands for server/listener.go's monitorableListener: its connections

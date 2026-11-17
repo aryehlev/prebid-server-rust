@@ -1,12 +1,14 @@
 //! The test: parses the golden, starts the servers, replays the cases and compares.
 
 mod client;
+mod drain;
 mod handlers;
 
 use core::fmt::Write as _;
 use std::{collections::BTreeSet, fs, sync::Arc};
 
 use pbs_gocompat::strconv::{quote_bytes, unquote_bytes};
+use tokio::sync::Mutex;
 
 use self::{
     client::{Case, Outcome, Step, run_all},
@@ -14,6 +16,10 @@ use self::{
 };
 
 const GOLDEN: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/testdata/golden/wire.golden");
+
+/// Runs the tests one at a time: the shutdown scenarios are timed, and the wire corpus keeps
+/// many connections busy.
+static SERIAL: Mutex<()> = Mutex::const_new(());
 
 /// Cases whose replies differ from Go's, each a documented gap of the port. The test fails
 /// when one of them starts to match, so the list stays exact.
@@ -133,6 +139,7 @@ fn compare(cases: &[Case], outcomes: &[Outcome]) -> Option<String> {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 8)]
 async fn wire_bytes_match_go() -> Result<(), String> {
+    let _serial = SERIAL.lock().await;
     let text = fs::read_to_string(GOLDEN).map_err(|e| format!("{GOLDEN}: {e}"))?;
     let cases = parse_golden(&text)?;
     if cases.len() < 1000 {
@@ -147,4 +154,24 @@ async fn wire_bytes_match_go() -> Result<(), String> {
     let outcomes = run_all(targets, Arc::clone(&cases)).await;
     servers.stop().await;
     compare(&cases, &outcomes).map_or(Ok(()), Err)
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 8)]
+async fn shutdown_matches_go() -> Result<(), String> {
+    let _serial = SERIAL.lock().await;
+    let text = fs::read_to_string(drain::GOLDEN).map_err(|e| format!("{}: {e}", drain::GOLDEN))?;
+    let scenarios = drain::parse_golden(&text)?;
+    if scenarios.len() < 3 {
+        return Err(format!(
+            "only {} scenarios in {}",
+            scenarios.len(),
+            drain::GOLDEN
+        ));
+    }
+    let dir = TempDir::create().map_err(|e| format!("temp dir: {e}"))?;
+    let mut observed = Vec::with_capacity(scenarios.len());
+    for sc in &scenarios {
+        observed.push(drain::run(sc, &dir.path).await?);
+    }
+    drain::compare(&scenarios, &observed).map_or(Ok(()), Err)
 }
