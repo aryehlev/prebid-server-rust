@@ -10,13 +10,24 @@
 //!   vendored under `contract/`;
 //! - the documents the servers exchange with the runner, with Go's exact JSON ([`envelope`],
 //!   [`tracedoc`], [`body`], [`adapterio`], [`errorcodes`]), encoded as the Go server writes them
-//!   ([`encode_document`]).
+//!   ([`encode_document`]);
+//! - the deterministic clock, random and UUID sources and the map orders of parity mode
+//!   ([`fakes`]).
+//!
+//! # The `trace` feature
+//!
+//! Parity mode is the Cargo feature `trace`, off by default. Product crates call the seams
+//! unconditionally; without the feature [`fakes::active`] is a `const fn` returning `None`, so
+//! [`fakes::now`], [`fakes::int`], [`fakes::map_keys`] and [`fakes::new_v4`] are the production
+//! clock, random source, map order and UUIDs. With it, the parity bootstrap installs the fakes
+//! (`fakes::install`, which exists only with the feature).
 
 pub mod adapterio;
 pub mod body;
 pub mod contracts;
 pub mod envelope;
 pub mod errorcodes;
+pub mod fakes;
 pub mod ids;
 pub mod tracedoc;
 

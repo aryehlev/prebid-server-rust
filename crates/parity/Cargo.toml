@@ -14,10 +14,18 @@ categories.workspace = true
 [lints]
 workspace = true
 
+[features]
+# Parity mode: the deterministic fakes can be installed. Off by default; without it every seam is
+# the production behavior.
+trace = []
+
 [dependencies]
 pbs-errortypes = { path = "../errortypes", version = "0.1.0" }
 pbs-gocompat = { path = "../gocompat", version = "0.1.0" }
 pbs-gojson = { path = "../gojson", version = "0.1.0" }
+pbs-util = { path = "../util", version = "0.1.0" }
+sha2 = "0.10.9"
 
 [dev-dependencies]
 serde_json = { version = "1.0.154", default-features = false, features = ["std"] }
+tokio = { version = "1.50.0", default-features = false, features = ["sync"] }

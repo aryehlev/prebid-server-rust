@@ -1,9 +1,11 @@
-//! Test support: checks and the vendored contract files.
+//! Test support: checks, the vendored contract files, and the lock that serializes the tests
+//! touching process-wide state.
 
 use core::fmt::Debug;
 use std::{fs, path::PathBuf};
 
 use serde_json::Value;
+use tokio::sync::{Mutex, MutexGuard};
 
 /// The result of a test: the first failed check.
 pub(super) type TestResult = Result<(), String>;
@@ -45,6 +47,14 @@ pub(super) fn read_file(rel: &str) -> Result<Vec<u8>, String> {
 /// A vendored contract file (`contract/<name>`), parsed.
 pub(super) fn contract_json(name: &str) -> Result<Json, String> {
     Json::parse(&read_file(&format!("contract/{name}"))?, name)
+}
+
+/// The lock that serializes the tests touching process-wide state (the installed fakes).
+static GLOBAL: Mutex<()> = Mutex::const_new(());
+
+/// Takes [`GLOBAL`] from a test that runs outside a runtime.
+pub(super) fn global_lock_blocking() -> MutexGuard<'static, ()> {
+    GLOBAL.blocking_lock()
 }
 
 /// A parsed JSON value with checked accessors.
