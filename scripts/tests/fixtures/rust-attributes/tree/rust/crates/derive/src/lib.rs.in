@@ -1,0 +1,8 @@
+//! A derive that builds suppressions from strings; "allow" in a comment is fine.
+fn attribute(span: proc_macro2::Span) -> proc_macro2::Ident {
+    proc_macro2::Ident::new("expect", span)
+}
+fn parsed() -> syn::Attribute {
+    syn::parse_str("#[allow(dead_code)]").unwrap_or_else(|_| unreachable!())
+}
+const OPTIONS: [&str; 3] = ["skip", "rename", "omitempty"];

@@ -23,3 +23,21 @@ rust/crates/bad/src/lib.rs:45: [rust-lint-attr]
 rust/crates/bad/src/lib.rs:47: [rust-lint-attr]
 rust/crates/bad/src/lib.rs:49: [rustfmt-skip]
 rust/crates/bad/src/lib.rs:53: [rust-macro-attr]
+# Laundering through macros: a repetition as the attribute, a metavariable in a cfg_attr list, a
+# name that another macro of the file captures whole (each macro arm is judged on its own), and
+# quote! interpolation; forwarding a whole caller-written attribute (#[$x:meta], #[$($t:tt)*],
+# and from an enclosing macro) is not flagged.
+rust/crates/bad/src/lib.rs:65: [rust-macro-attr]
+rust/crates/bad/src/lib.rs:71: [rust-macro-attr]
+rust/crates/bad/src/lib.rs:83: [rust-macro-attr]
+rust/crates/bad/src/lib.rs:104: [rust-macro-attr]
+rust/crates/bad/src/lib.rs:107: [rust-macro-attr]
+rust/crates/bad/src/lib.rs:109: [rust-clippy-msrv]
+rust/crates/bad/src/lib.rs:111: [rust-auto-derived]
+# Code from OUT_DIR or from a file that is not .rs; .rs files named by a literal are fine.
+rust/crates/bad/src/lib.rs:113: [rust-include]
+rust/crates/bad/src/lib.rs:114: [rust-include]
+rust/crates/bad/src/lib.rs:115: [rust-include]
+# A proc macro that names or spells a suppressing attribute in a string.
+rust/crates/derive/src/lib.rs:3: [rust-macro-string]
+rust/crates/derive/src/lib.rs:6: [rust-macro-string]

@@ -8,6 +8,9 @@
 parity/diff/diff.go:3: [go-nolint]
 rust/.golangci.yml:1: [golangci-config]
 rust/crates/devtools/go/dump/dump.go:4: [go-nolint]
+# Build constraints keep a file out of the lint run.
+rust/crates/devtools/go/dump/gen.go:1: [go-build-tag]
+rust/crates/devtools/go/dump/gen.go:2: [go-build-tag]
 rust/crates/x/testdata/go/main.go:3: [go-nolint]
 rust/crates/x/testdata/go/main.go:4: [go-nolint]
 rust/crates/x/testdata/go/main.go:5: [go-nolint]

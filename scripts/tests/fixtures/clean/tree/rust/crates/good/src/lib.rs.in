@@ -46,3 +46,24 @@ pub fn lifetimes<'a>(s: &'a str) -> &'a str {
 macro_rules! passthrough {
     ($($t:tt)*) => { $($t)* };
 }
+
+// Forwarding whole caller-written attributes, a fixed attribute with a macro argument, $crate,
+// a .rs module path and include, and "allow" as a value outside proc-macro crates.
+macro_rules! forwarding {
+    ($(#[$m:meta])* $name:ident, $doc:expr) => {
+        $(#[$m])*
+        #[doc = $doc]
+        #[cfg_attr(test, derive(Debug))]
+        pub struct $name;
+    };
+    (#[$($t:tt)*] $name:ident) => {
+        #[$($t)*]
+        pub struct $name($crate::Parser);
+    };
+}
+
+#[path = "extra.rs"]
+mod extra;
+include!("table.rs");
+
+pub const ACTIVITY: &str = "allow";

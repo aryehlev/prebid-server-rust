@@ -20,16 +20,32 @@
 #     rustfmt-skip          rustfmt::skip in any form (raw identifiers too), and the old rustfmt_skip
 #     rust-cfg-tool         cfg(..)/cfg_attr(..)/cfg!(..) predicates on clippy or rustfmt
 #     rust-include-legacy   #[path] or include!() that pulls rust/legacy/ code into a crate
-#     rust-macro-attr       #[$x] / #![$x] in a macro body applying a caller-supplied attribute name
-#                           (not one captured whole as #[$x:meta]): launders a lint suppression that
-#                           neither the literal scan above nor clippy's allow_attributes lint sees
+#     rust-include          include!() or #[path] naming anything but a .rs file by a plain string
+#                           literal (generated code in OUT_DIR, other extensions): code no scan reads
+#     rust-macro-attr       an attribute a macro assembles from its input, which launders a lint
+#                           suppression past the literal scan above and clippy's allow_attributes
+#                           lint (neither sees inside macro expansions): #[$x] / #![$x] with a
+#                           metavariable the macro arm does not capture whole as #[$x:meta],
+#                           #[$(..)*], a metavariable as an attribute of cfg_attr(pred, $x), and
+#                           quote! interpolation #[#x] / cfg_attr(pred, #x) in proc macros
+#     rust-macro-string     a string literal in a proc-macro crate that names or spells a
+#                           suppressing attribute (Ident::new("expect", ..), parse_str("#[allow(..)]"))
+#     rust-clippy-msrv      #[clippy::msrv]: a lower Rust version turns off the lints that suggest
+#                           newer features
+#     rust-auto-derived     #[automatically_derived], which makes rustc and clippy skip lints
 #   Cargo.toml (parsed with taplo, so every TOML spelling is covered)
 #     lint-level            any [lints] or [workspace.lints] level other than warn, deny or forbid
 #     crate-lints           a package whose [lints] is not exactly `workspace = true`
 #     machete-ignore        package.metadata/workspace.metadata cargo-machete `ignored` lists
+#     rust-version          a package rust-version that is not `workspace = true`, or a workspace
+#                           rust-version other than the rust/rust-toolchain.toml channel (clippy
+#                           takes it as the MSRV and turns off the lints for newer features)
 #   other configuration
 #     toml-parse            a TOML file the checks above cannot parse
-#     clippy-config         allow-* / allowed-* options in clippy.toml or .clippy.toml
+#     clippy-config         clippy configs other than rust/clippy.toml (a nested one replaces it for
+#                           the crates below it), and allow-* / *-allowed-* and msrv options
+#     rust-toolchain        toolchain files other than rust/rust-toolchain.toml (a legacy
+#                           rust/rust-toolchain wins over it and can pick a toolchain without lints)
 #     rustfmt-config        rustfmt configs other than rust/rustfmt.toml, and options that skip files
 #     deny-config           cargo-deny configs other than rust/deny.toml, and ignore/skip/exception lists
 #     cargo-config          rustflags, rustc / rustc-wrapper / rustc-workspace-wrapper / runner
@@ -37,6 +53,8 @@
 #                           warnings and lint-command aliases in .cargo/config and .cargo/config.toml
 #   Go code we author
 #     go-nolint             nolint, lint:ignore, lint:file-ignore, nosec and revive:disable comments
+#     go-build-tag          //go:build and // +build constraints, which keep a file out of the
+#                           golangci-lint and go vet runs
 #     golangci-config       golangci-lint configs other than .github/linters/golangci.yml, and
 #                           exclusion settings, test-file skipping or a non-`all` default in it
 #   shell scripts, workflow files and other .github YAML
@@ -65,7 +83,7 @@ while [[ $# -gt 0 ]]; do
       shift 2
       ;;
     -h | --help)
-      sed -n '2,52p' "${BASH_SOURCE[0]}"
+      sed -n '2,/^# Requires/p' "${BASH_SOURCE[0]}"
       exit 0
       ;;
     *)
@@ -114,6 +132,7 @@ perl -0 -ne '
   elsif ($base eq "clippy.toml" || $base eq ".clippy.toml")   { $kind = "clippy" }
   elsif ($base eq "rustfmt.toml" || $base eq ".rustfmt.toml") { $kind = "rustfmt" }
   elsif ($base eq "deny.toml")                                { $kind = "deny" }
+  elsif ($base eq "rust-toolchain" || $base eq "rust-toolchain.toml") { $kind = "toolchain" }
   elsif ($p =~ m{(?:\A|/)\.cargo/config(?:\.toml)?\z})        { $kind = "cargoconfig" }
   elsif ($p =~ /\.go\z/)                                      { $kind = "go" }
   elsif ($base =~ /\A\.?golangci\.(?:ya?ml|toml|json)\z/)     { $kind = "golangci" }
@@ -152,9 +171,10 @@ sub blank {
 }
 
 # Rust source with comments, string literals and char literals replaced by spaces. Newlines are
-# kept, so offsets and line numbers are unchanged.
+# kept, so offsets and line numbers are unchanged. The string literals are pushed to the optional
+# array reference, each as [offset, literal].
 sub rust_code_only {
-  my ($s) = @_;
+  my ($s, $strings) = @_;
   my $len = length $s;
   my $out = "";
   pos($s) = 0;
@@ -174,11 +194,16 @@ sub rust_code_only {
       my $close = "\"" . $1;
       my $end = index($s, $close, pos($s));
       $end = $end < 0 ? $len : $end + length($close);
+      push @{$strings}, [$start, substr($s, $start, $end - $start)] if $strings;
       $out .= blank(substr($s, $start, $end - $start));
       pos($s) = $end;
       next;
     }
-    if ($s =~ m{\G"(?:[^"\\]|\\.)*"?}gcs) { $out .= blank($&); next; }
+    if ($s =~ m{\G"(?:[^"\\]|\\.)*"?}gcs) {
+      push @{$strings}, [$-[0], $&] if $strings;
+      $out .= blank($&);
+      next;
+    }
     if ($s =~ m{\G\x27(?:\\(?:x[0-9A-Fa-f]{2}|u\{[0-9A-Fa-f]{1,6}\}|.)|[^\\\x27\n])\x27}gcs) {
       $out .= blank($&);
       next;
@@ -189,10 +214,54 @@ sub rust_code_only {
 }
 
 my $balanced = qr{(\((?:[^()]++|(?-1))*\))};
+# A token tree of code without comments and literals: (..), [..] or {..}, nested. Patterns use it
+# as (?&tt) and end with $tt_def.
+my $tt_def = qr{(?(DEFINE)(?<tt>\((?:[^()\[\]{}]++|(?&tt))*+\)|\[(?:[^()\[\]{}]++|(?&tt))*+\]|\{(?:[^()\[\]{}]++|(?&tt))*+\}))};
+
+# The arms of every macro_rules! definition, nested ones too: the offsets of the matcher and of the
+# transcriber, the metavariables the matcher binds, and those it binds as a whole attribute the
+# caller writes with #[..]: #[$x:meta], or #[$($x:tt)*].
+sub macro_arms {
+  my ($code) = @_;
+  my @arms;
+  while ($code =~ m{\bmacro_rules\s*!\s*(?:r\#)?\w+\s*(?=((?&tt)))$tt_def}g) {
+    my ($body, $base) = ($1, $-[1] + 1);
+    my $inner = substr($body, 1, -1);
+    while ($inner =~ m{\G\s*((?&tt))\s*=>\s*((?&tt))\s*;?$tt_def}gc) {
+      my ($matcher, $mfrom, $mto, $from, $to) = ($1, $base + $-[1], $base + $+[1], $base + $-[2], $base + $+[2]);
+      my (%bound, %whole);
+      $bound{$1} = 1 while $matcher =~ m{\$(\w+)\s*:\s*\w}g;
+      $whole{$1} = 1 while $matcher =~ m{\#\s*\[\s*\$(\w+)\s*:}g;
+      $whole{$1} = 1 while $matcher =~ m{\#\s*\[\s*\$\s*\(\s*\$(\w+)\s*:}g;
+      push @arms, {mfrom => $mfrom, mto => $mto, from => $from, to => $to, bound => \%bound, whole => \%whole};
+    }
+  }
+  return \@arms;
+}
+
+# Whether offset $at is inside a macro matcher, where #[$x:meta] captures instead of applying.
+sub in_matcher {
+  my ($arms, $at) = @_;
+  return scalar grep { $_->{mfrom} <= $at && $at < $_->{mto} } @{$arms};
+}
+
+# Whether metavariable $name at offset $at stands for a whole attribute the caller wrote with
+# #[..] (which the literal scan sees at the call site): the innermost macro arm around $at that
+# binds $name binds it as #[$name:meta].
+sub whole_attribute {
+  my ($arms, $at, $name) = @_;
+  my @around = sort { ($a->{to} - $a->{from}) <=> ($b->{to} - $b->{from}) }
+    grep { $_->{from} <= $at && $at < $_->{to} } @{$arms};
+  for my $arm (@around) {
+    return $arm->{whole}{$name} ? 1 : 0 if $arm->{bound}{$name};
+  }
+  return 0;
+}
 
 sub check_rust {
-  my ($path, $src) = @_;
-  my $code = rust_code_only($src);
+  my ($path, $src, $proc_macro) = @_;
+  my @strings;
+  my $code = rust_code_only($src, \@strings);
   # The optional r\# catches raw identifiers: #[r#allow(..)] and #[r#expect(..)] suppress a lint
   # exactly like #[allow(..)]/#[expect(..)], and the clippy allow_attributes lint does not flag
   # them, so the text scan is the only backstop.
@@ -229,21 +298,77 @@ sub check_rust {
       finding($path, line_at($code, $at), "rust-include-legacy", "rust/legacy/ is not linted and must not be compiled into a crate");
     }
   }
-  # A macro that applies a caller-supplied attribute name, #[$x] or #![$x], launders a suppression:
-  # the caller passes allow(..)/expect(..) as a bare :meta fragment and the macro wraps it in #[..],
-  # which neither the literal scan above nor the clippy allow_attributes lint sees. The legitimate
-  # form forwards a whole attribute the caller already wrote with #[..], captured in the matcher as
-  # #[$x:meta]; flag only a metavariable that is never captured inside #[..], and never $crate (the
-  # defining crate path, which no caller controls).
-  my %wrapped;
-  while ($code =~ m{\#\s*\[\s*\$(\w+)\s*:}g) {
-    $wrapped{$1} = 1;
+  # include! and #[path] may only name a .rs file with a plain literal: anything else (generated
+  # code in OUT_DIR, a file with another extension) is compiled but never scanned.
+  while ($code =~ m{\binclude\s*!\s*\(}g) {
+    my ($at, $rest) = ($-[0], substr($src, $+[0]));
+    if ($rest !~ m{\A\s*(?:r\#*)?"[^"\n]*\.rs"\#*\s*,?\s*\)}) {
+      finding($path, line_at($code, $at), "rust-include", "include! of anything but a .rs file named by a string literal compiles code this scan never reads");
+    }
   }
+  while ($code =~ m{\#\s*!?\s*\[\s*path\s*=}g) {
+    my ($at, $rest) = ($-[0], substr($src, $+[0]));
+    if ($rest !~ m{\A\s*(?:r\#*)?"[^"\n]*\.rs"\#*\s*\]}) {
+      finding($path, line_at($code, $at), "rust-include", "#[path] to anything but a .rs file compiles code this scan never reads");
+    }
+  }
+  while ($code =~ m{\bclippy\s*::\s*msrv\b}g) {
+    finding($path, line_at($code, $-[0]), "rust-clippy-msrv", "#[clippy::msrv] lowers the Rust version clippy assumes, which turns off the lints that suggest newer features");
+  }
+  while ($code =~ m{\bautomatically_derived\b}g) {
+    finding($path, line_at($code, $-[0]), "rust-auto-derived", "#[automatically_derived] makes rustc and clippy skip lints on this code");
+  }
+  # An attribute a macro assembles from its input launders a suppression: the caller passes
+  # allow(..)/expect(..) as bare tokens and the macro wraps them in #[..], which neither the literal
+  # scan above nor clippy (it does not lint attributes from macro expansions) sees. The legitimate
+  # form forwards a whole attribute the caller already wrote with #[..], captured by the same macro
+  # arm as #[$x:meta]; anything else is flagged, except $crate (the defining crate, which no caller
+  # controls).
+  my $arms = macro_arms($code);
+  my $why = "so a lint suppression can be laundered through it; capture a whole attribute as #[\$x:meta] or write a fixed attribute";
   while ($code =~ m{\#\s*!?\s*\[\s*\$(\w+)\b}g) {
     my ($name, $at) = ($1, $-[0]);
-    next if $name eq "crate" || $wrapped{$name};
-    finding($path, line_at($code, $at), "rust-macro-attr",
-      "#[\$$name] applies a caller-supplied attribute name; capture a whole attribute as #[\$$name:meta] or inline a fixed attribute so a lint suppression cannot be laundered through it");
+    next if $name eq "crate" || in_matcher($arms, $at) || whole_attribute($arms, $at, $name);
+    finding($path, line_at($code, $at), "rust-macro-attr", "#[\$$name] applies a caller-supplied attribute name, $why");
+  }
+  while ($code =~ m{\#\s*!?\s*\[\s*\$\s*\(\s*(?:\$(\w+))?}g) {
+    my ($name, $at) = ($1, $-[0]);
+    next if in_matcher($arms, $at) || (defined $name && whole_attribute($arms, $at, $name));
+    finding($path, line_at($code, $at), "rust-macro-attr", "#[\$(..)] assembles an attribute from caller tokens, $why");
+  }
+  while ($code =~ m{\#\s*!?\s*\[\s*\#}g) {
+    finding($path, line_at($code, $-[0]), "rust-macro-attr", "#[#..] interpolates the attribute of generated code, which no scan sees; write a fixed attribute");
+  }
+  while ($code =~ m{\bcfg_attr\s*(?=$balanced)}g) {
+    my ($args, $at) = ($1, $-[0]);
+    next if in_matcher($arms, $at);
+    my $inner = substr($args, 1, -1);
+    my @items;
+    while ($inner =~ m{\G\s*((?:[^(),]++|$balanced)*+)(?:,|\z)}gc) {
+      push @items, $1;
+      last if pos($inner) >= length($inner);
+    }
+    shift @items;
+    for my $item (@items) {
+      if ($item =~ m{\A\s*\$(\w+)}) {
+        my $name = $1;
+        next if $name eq "crate" || whole_attribute($arms, $at, $name);
+        finding($path, line_at($code, $at), "rust-macro-attr", "cfg_attr(.., \$$name) applies a caller-supplied attribute, $why");
+      } elsif ($item =~ m{\A\s*[\$\#]}) {
+        finding($path, line_at($code, $at), "rust-macro-attr", "cfg_attr(.., ..) applies an attribute assembled from macro input, $why");
+      }
+    }
+  }
+  # A proc macro can build the attribute from strings instead: Ident::new("expect", ..),
+  # format_ident!("allow"), syn::parse_str("#[allow(..)]").
+  if ($proc_macro) {
+    for my $literal (@strings) {
+      my ($at, $text) = @{$literal};
+      if ($text =~ m{\A[bc]?r?\#*"\s*(?:allow|expect|automatically_derived|rustfmt|msrv|cfg_attr)\s*"\#*\z}
+          || $text =~ m{\b(?:allow|expect)\s*\(|\brustfmt\s*::\s*skip\b|\bclippy\s*::\s*msrv\b|\bautomatically_derived\b}) {
+        finding($path, line_at($code, $at), "rust-macro-string", "a string literal that names a suppressing attribute lets a proc macro generate it where no scan sees; write a fixed attribute");
+      }
+    }
   }
 }
 
@@ -254,6 +379,9 @@ sub check_go {
     $n++;
     if ($line =~ m{//\s*nolint\b|//\s*lint:(?:ignore|file-ignore)\b|//[^\n]*\#nosec\b|//\s*nosec\b|//\s*revive:disable}) {
       finding($path, $n, "go-nolint", "linter suppression directive; fix the finding instead");
+    }
+    if ($line =~ m{\A\s*//\s*(?:go:build|\+build)\b}) {
+      finding($path, $n, "go-build-tag", "a build constraint keeps this file out of the golangci-lint and go vet runs");
     }
   }
 }
@@ -336,18 +464,45 @@ sub check_actionlint_config {
   }
 }
 
-while (my $entry = <STDIN>) {
-  chomp $entry;
-  my ($kind, $path) = split /\t/, $entry, 2;
-  next unless $kind =~ m{\A(?:rust|go|golangci|shell|shellcheckrc|yaml|actionlint)\z};
-  my $file = "$root/$path";
-  next unless -f $file;
+sub read_file {
+  my ($file) = @_;
   open(my $fh, "<:raw", $file) or die "cannot read $file: $!";
   local $/;
   my $src = <$fh>;
   close $fh;
-  $src = "" unless defined $src;
-  if    ($kind eq "rust")         { check_rust($path, $src); }
+  return defined $src ? $src : "";
+}
+
+my @entries = map { chomp; [split /\t/, $_, 2] } <STDIN>;
+# The directories of proc-macro crates, whose string literals can become generated attributes.
+my @proc_macro_dirs;
+for my $entry (@entries) {
+  my ($kind, $path) = @{$entry};
+  next unless $kind eq "cargo" && -f "$root/$path";
+  my $manifest = read_file("$root/$path");
+  $manifest =~ s/\#[^\n]*//g;
+  if ($manifest =~ m{\bproc[-_]macro\s*=\s*true\b}) {
+    (my $dir = $path) =~ s{/?Cargo\.toml\z}{};
+    push @proc_macro_dirs, $dir;
+  }
+}
+
+for my $entry (@entries) {
+  my ($kind, $path) = @{$entry};
+  if ($kind eq "toolchain") {
+    if ($path ne "rust/rust-toolchain.toml") {
+      finding($path, 1, "rust-toolchain", "only rust/rust-toolchain.toml may pick the toolchain");
+    }
+    next;
+  }
+  next unless $kind =~ m{\A(?:rust|go|golangci|shell|shellcheckrc|yaml|actionlint)\z};
+  my $file = "$root/$path";
+  next unless -f $file;
+  my $src = read_file($file);
+  if ($kind eq "rust") {
+    my $proc_macro = grep { $_ eq "" || index($path, "$_/") == 0 } @proc_macro_dirs;
+    check_rust($path, $src, $proc_macro);
+  }
   elsif ($kind eq "go")           { check_go($path, $src); }
   elsif ($kind eq "golangci")     { check_golangci($path, $src); }
   elsif ($kind eq "shellcheckrc") { check_shellcheckrc($path, $src); }
@@ -367,9 +522,10 @@ toml_rules() {
       >> "${work}/findings"
     return 0
   fi
-  jq -r --arg kind "${kind}" --arg path "${path}" '
+  jq -r --arg kind "${kind}" --arg path "${path}" --arg channel "${channel}" '
     def level: if type == "string" then . elif type == "object" then (.level // "") else "" end;
     def nonempty: . != null and . != [] and . != {} and . != "";
+    def minor: ([tostring | capture("^(?<v>[0-9]+[.][0-9]+)") | .v][0]) // "";
     def lint_findings($prefix):
       to_entries[]
       | select(.key != "workspace")
@@ -386,9 +542,17 @@ toml_rules() {
       else empty end),
       (if (.package.metadata["cargo-machete"].ignored | nonempty) or (.workspace.metadata["cargo-machete"].ignored | nonempty) then
         "machete-ignore\tcargo-machete `ignored` hides unused dependencies"
-      else empty end)
+      else empty end),
+      (if (.package // {} | has("rust-version")) and .package["rust-version"] != {"workspace": true} then
+        "rust-version\tpackage.rust-version must be `workspace = true`: clippy takes it as the MSRV and turns off the lints for newer features"
+      else empty end),
+      (.workspace.package["rust-version"] // null | select(. != null) as $msrv
+        | select(($channel | minor) != "" and ($msrv | minor) != ($channel | minor))
+        | "rust-version\tworkspace.package.rust-version \($msrv | tostring) is not the rust/rust-toolchain.toml channel \($channel): clippy takes it as the MSRV and turns off the lints for newer features")
     elif $kind == "clippy" then
-      keys[] | select(test("^allow")) | "clippy-config\t`\(.)` relaxes clippy lints"
+      (if $path != "rust/clippy.toml" then "clippy-config\tonly rust/clippy.toml may configure clippy; a nested config replaces it for the crates below it" else empty end),
+      (keys[] | select(test("(^|-)allow")) | "clippy-config\t`\(.)` relaxes clippy lints"),
+      (keys[] | select(test("msrv")) | "clippy-config\t`\(.)` lowers the Rust version clippy assumes, which turns off the lints that suggest newer features")
     elif $kind == "rustfmt" then
       (if $path != "rust/rustfmt.toml" then "rustfmt-config\tonly rust/rustfmt.toml may configure rustfmt" else empty end),
       (if .disable_all_formatting == true then "rustfmt-config\tdisable_all_formatting turns rustfmt off" else empty end),
@@ -420,6 +584,12 @@ toml_rules() {
     | split("\t") | "\($path):1: [\(.[0])] \(.[1])"
   ' <<< "${json}" >> "${work}/findings"
 }
+
+# The pinned toolchain channel, which the workspace rust-version (the MSRV clippy assumes) must match.
+channel=""
+if [[ -f "${root}/rust/rust-toolchain.toml" ]]; then
+  channel=$(taplo get -f "${root}/rust/rust-toolchain.toml" toolchain.channel 2> /dev/null) || channel=""
+fi
 
 while IFS=$'\t' read -r kind path; do
   case "${kind}" in

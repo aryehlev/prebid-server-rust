@@ -60,3 +60,60 @@ macro_rules! forward_attrs {
         fn forwarded() {}
     };
 }
+macro_rules! repetition {
+    ($($a:tt)*) => {
+        #[$($a)*]
+        fn repeated() {}
+    };
+}
+macro_rules! cfg_attr_meta {
+    ($a:meta) => {
+        #[cfg_attr(all(), $a)]
+        fn cfg_attr_laundered() {}
+    };
+}
+macro_rules! forwards_one {
+    (#[$a:meta]) => {
+        #[$a]
+        fn forwarded_one() {}
+    };
+}
+macro_rules! launders_same_name {
+    ($a:meta) => {
+        #[$a]
+        fn laundered_same_name() {}
+    };
+}
+macro_rules! forwards_tokens {
+    (#[$($t:tt)*]) => {
+        #[$($t)*]
+        fn forwarded_tokens() {}
+    };
+}
+macro_rules! outer {
+    ($(#[$m:meta])*) => {
+        macro_rules! inner {
+            () => {
+                $(#[$m])*
+                fn nested_forward() {}
+            };
+        }
+    };
+}
+fn generated() -> proc_macro2::TokenStream {
+    quote::quote! { #[#lint(dead_code)] fn quoted() {} }
+}
+fn generated_cfg() -> proc_macro2::TokenStream {
+    quote::quote! { #[cfg_attr(test, #lint(unused))] fn quoted_cfg() {} }
+}
+#[clippy::msrv = "1.0"]
+fn old_msrv() {}
+#[automatically_derived]
+impl Clone for Thing {}
+include!(concat!(env!("OUT_DIR"), "/generated.rs"));
+include!("generated.txt");
+#[path = "module.txt"]
+mod renamed;
+#[path = "ok.rs"]
+mod fine;
+include!("fine.rs");
