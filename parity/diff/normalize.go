@@ -625,9 +625,11 @@ func (rs *Rules) sortRules(stage parity.StageID, root *node, rewrite func(string
 
 // entryWarningStages are the stages whose entry warnings Go builds from map
 // iteration: ortb/request_validator.go ranges over imp.ext.prebid.bidder and
-// appends one warning per disabled or unknown bidder (request.validated). A
-// fatal validation error returns at once, so entry errors keep their order.
-var entryWarningStages = map[parity.StageID]bool{parity.StageRequestValidated: true}
+// appends one warning per disabled or unknown bidder (request.validated), and
+// exchange/utils.go ranges over impsByBidder and appends one warning per
+// bidder blocked by privacy settings (privacy.labels). A fatal validation
+// error returns at once, so entry errors keep their order.
+var entryWarningStages = map[parity.StageID]bool{parity.StageRequestValidated: true, parity.StagePrivacyLabels: true}
 
 // entryArrivalStages are the stages whose entry errors and warnings Go appends
 // per bidder response in completion order (exchange/bidder.go reads the

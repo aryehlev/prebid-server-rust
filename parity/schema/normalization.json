@@ -24,12 +24,12 @@
     },
     {
       "id": "warnings_errors_order",
-      "applies_to": ["http.response", "exchange.response", "request.validated", "hooks.auction_response", "hooks.exitpoint", "analytics"],
-      "target": "$.ext.warnings.*[*]; $.ext.errors.*[*] (exchange.response: $.ext_bid_response.warnings and errors); request.validated: the entry's own warnings",
+      "applies_to": ["http.response", "exchange.response", "request.validated", "privacy.labels", "hooks.auction_response", "hooks.exitpoint", "analytics"],
+      "target": "$.ext.warnings.*[*]; $.ext.errors.*[*] (exchange.response: $.ext_bid_response.warnings and errors); request.validated and privacy.labels: the entry's own warnings",
       "action": "sort",
       "keys": ["code", "message"],
-      "justification": "Bidder goroutines append errors and warnings concurrently, and imp ext validation appends one warning per disabled or unknown bidder while ranging over a map; Go's own endpoint tests compare them order-insensitively.",
-      "go_source": ["exchange/exchange.go:777-807 getAllBids goroutines", "ortb/request_validator.go:125 for bidder, val := range prebid.Bidder", "endpoints/openrtb2/auction_test.go:247 compareWarnings"]
+      "justification": "Bidder goroutines append errors and warnings concurrently, and imp ext validation and the per-bidder privacy split append one warning per disabled, unknown or privacy-blocked bidder while ranging over a map; Go's own endpoint tests compare them order-insensitively.",
+      "go_source": ["exchange/exchange.go:777-807 getAllBids goroutines", "ortb/request_validator.go:125 for bidder, val := range prebid.Bidder", "exchange/utils.go:156 for bidder, imps := range impsByBidder", "endpoints/openrtb2/auction_test.go:247 compareWarnings"]
     },
     {
       "id": "httpcalls_order",

@@ -225,6 +225,22 @@ func validatedWarningsPair() (Case, *parity.Trace, *parity.Trace) {
 	return Case{CaseID: "rule"}, g, r
 }
 
+// privacyWarningsPair holds privacy.labels entries whose blocked-bidder
+// warnings come in map order.
+func privacyWarningsPair() (Case, *parity.Trace, *parity.Trace) {
+	g, r := newTrace(parity.ImplGo), newTrace(parity.ImplRust)
+	labels := `{"gdpr_enforced":true}`
+	put(g, parity.StagePrivacyLabels, parity.UnkeyedStage, labels)
+	put(r, parity.StagePrivacyLabels, parity.UnkeyedStage, labels)
+	a := parity.ErrorRecord{Code: 10017, Kind: "BidderBlockedByPrivacySettings", Message: `bidder "adsmovil" blocked by privacy settings`, Scope: "general", Severity: "warning"}
+	b := parity.ErrorRecord{Code: 10017, Kind: "BidderBlockedByPrivacySettings", Message: `bidder "bidgency" blocked by privacy settings`, Scope: "general", Severity: "warning"}
+	ge, re := g.Stages[parity.StagePrivacyLabels][parity.UnkeyedStage], r.Stages[parity.StagePrivacyLabels][parity.UnkeyedStage]
+	ge.Warnings, re.Warnings = []parity.ErrorRecord{a, b}, []parity.ErrorRecord{b, a}
+	g.Stages[parity.StagePrivacyLabels][parity.UnkeyedStage] = ge
+	r.Stages[parity.StagePrivacyLabels][parity.UnkeyedStage] = re
+	return Case{CaseID: "rule"}, g, r
+}
+
 // bidderResultErrorsPair holds bidder.result entries whose MakeBids errors
 // arrive in another order (one error per concurrently answered request).
 func bidderResultErrorsPair() (Case, *parity.Trace, *parity.Trace) {
@@ -360,6 +376,7 @@ func TestRemovingRuleReenablesDiff(t *testing.T) {
 			`{"id":"r1","ext":{"warnings":{"general":[{"code":6,"message":"b"},{"code":6,"message":"a"}]}}}`),
 			"$.ext.warnings.general"},
 		{RuleWarningsErrorsOrder, validatedWarningsPair, "$['@warnings']"},
+		{RuleWarningsErrorsOrder, privacyWarningsPair, "$['@warnings']"},
 		{RuleBidArrivalOrder, entryPair(parity.StageBidsAdjusted, "adtrgtme",
 			`{"bids":[{"call":"adtrgtme#1","imp_id":"i2","bid_id":"b"},{"call":"adtrgtme#0","imp_id":"i1","bid_id":"b"}]}`,
 			`{"bids":[{"call":"adtrgtme#0","imp_id":"i1","bid_id":"b"},{"call":"adtrgtme#1","imp_id":"i2","bid_id":"b"}]}`), "$.bids"},
