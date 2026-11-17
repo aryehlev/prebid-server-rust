@@ -238,7 +238,18 @@ mod regressions {
             &json(&yaml_value("[[.nan], {a: 1}]\n")?),
             &"[]interface {}: []interface {}: unsupported value: NaN".to_owned(),
             "NaN without a nil key",
-        )
+        )?;
+        // The same []interface {} as a Rust Vec, whose encoder is not Value's.
+        let items = vec![Value::Float64(f64::NAN), yaml_value("{~: 1}\n")?];
+        let got = jsonutil::marshal(&items).map_or_else(
+            |e| e.message.to_string_lossy(),
+            |json| String::from_utf8_lossy(&json).into_owned(),
+        );
+        if got.ends_with(PANIC) {
+            Ok(())
+        } else {
+            Err(format!("Vec<Value>: {got:?}"))
+        }
     }
 
     /// `jsonutil.Marshal(v)`: the JSON, or the error text.

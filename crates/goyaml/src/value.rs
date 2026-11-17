@@ -614,16 +614,18 @@ impl GoType for Value {
 /// unsupported type); a nil key, on which jsoniter panics (a nil pointer dereference), is
 /// reported as an error with the panic's text. jsoniter reaches every value whatever it failed
 /// on before, and the panic ends the encoding, so a tree with such a key anywhere encodes to that
-/// error when it is encoded on its own (an `interface{}` value inside another Go type reports
-/// it once reached, and keeps it, unless a sub-stream error of an enclosing map hides it).
+/// error, whatever else fails in it. Inside a value of another Go type, the panic also wins over
+/// an error recorded before it, but for one recorded outside a map that the tree is an element
+/// of (`pbs_gojson` encodes map elements into a sub-stream, which keeps the first error).
 impl GoEncode for Value {
     fn go_encode(&self, enc: &mut Encoder) {
         if enc.is_jsoniter() {
-            if enc.is_empty() && has_nil_key(self) {
-                enc.set_error(NIL_KEY_PANIC.as_bytes().to_vec());
+            if panicked(enc) {
                 return;
             }
-            if panicked(enc) {
+            // Scan the tree where an encoding starts, and where an error could hide the panic.
+            if (enc.is_empty() || enc.has_error()) && has_nil_key(self) {
+                enc.set_error(NIL_KEY_PANIC.as_bytes().to_vec());
                 return;
             }
         }
