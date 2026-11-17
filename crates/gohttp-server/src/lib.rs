@@ -16,6 +16,7 @@
 //! - [`error`], [`not_found`], [`redirect`], [`StripPrefix`], [`ServeMux`], [`FileServer`],
 //!   [`serve_file`], [`max_bytes_reader`]: the `net/http` helpers Prebid uses.
 //! - [`httprouter`]: the router of Prebid's public endpoints.
+//! - [`cors`]: the CORS handler Prebid wraps the router in.
 //!
 //! ```no_run
 //! use std::sync::Arc;
@@ -38,6 +39,7 @@
 //! # }
 //! ```
 
+pub mod cors;
 pub mod httprouter;
 mod nethttp;
 
