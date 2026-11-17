@@ -77,6 +77,7 @@ end dial error
 serve http: Server closed
 result <nil>
 socket -
+metrics accepted 8 accept_failed 1 closed 8 close_failed 2
 
 scenario deadline
 network tcp
@@ -105,6 +106,7 @@ end dial error
 serve http: Server closed
 result context deadline exceeded
 socket -
+metrics accepted 2 accept_failed 1 closed 2 close_failed 1
 
 scenario unix
 network unix
@@ -133,3 +135,34 @@ end dial error
 serve http: Server closed
 result <nil>
 socket removed
+metrics accepted 2 accept_failed 1 closed 2 close_failed 1
+
+scenario stale new connections
+network tcp
+shutdown 6100 0
+
+case silent
+at 0
+wait 6400
+response ""
+end eof
+
+case partial first request
+at 0
+wait 6400
+send "GET /status HTTP/1.1\r\nHost: x\r\n"
+response ""
+end eof
+
+case young
+at 3000
+wait 400
+pause 3300
+send "GET /status HTTP/1.1\r\nHost: example.com\r\n\r\n"
+response ""
+end eof
+
+serve http: Server closed
+result <nil>
+socket -
+metrics accepted 3 accept_failed 1 closed 3 close_failed 2

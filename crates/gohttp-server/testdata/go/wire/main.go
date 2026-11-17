@@ -30,6 +30,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"syscall"
 	"time"
 )
@@ -107,16 +108,61 @@ func run(out, drainOut string) error {
 
 // monitoredListener stands for server/listener.go's monitorableListener: its connections
 // embed net.Conn only, so the server cannot CloseWrite them (closeWriteAndWait just waits).
-type monitoredListener struct{ net.Listener }
+// With counts, it counts the RecordConnectionAccept and RecordConnectionClose calls
+// monitorableListener makes.
+type monitoredListener struct {
+	net.Listener
+	counts *connCounts
+}
 
-type monitoredConn struct{ net.Conn }
+type monitoredConn struct {
+	net.Conn
+	counts *connCounts
+}
 
 func (l monitoredListener) Accept() (net.Conn, error) {
 	c, err := l.Listener.Accept()
+	l.counts.recordAccept(err == nil)
 	if err != nil {
 		return c, err
 	}
-	return &monitoredConn{c}, nil
+	return &monitoredConn{c, l.counts}, nil
+}
+
+func (c *monitoredConn) Close() error {
+	err := c.Conn.Close()
+	c.counts.recordClose(err == nil)
+	return err
+}
+
+// connCounts counts the metrics calls of a monitoredListener by their success argument.
+type connCounts struct {
+	accepted, acceptFailed, closed, closeFailed atomic.Int64
+}
+
+func (c *connCounts) recordAccept(success bool) {
+	switch {
+	case c == nil:
+	case success:
+		c.accepted.Add(1)
+	default:
+		c.acceptFailed.Add(1)
+	}
+}
+
+func (c *connCounts) recordClose(success bool) {
+	switch {
+	case c == nil:
+	case success:
+		c.closed.Add(1)
+	default:
+		c.closeFailed.Add(1)
+	}
+}
+
+func (c *connCounts) String() string {
+	return fmt.Sprintf("accepted %d accept_failed %d closed %d close_failed %d",
+		c.accepted.Load(), c.acceptFailed.Load(), c.closed.Load(), c.closeFailed.Load())
 }
 
 // startServers starts Prebid's listeners: the main server (15s read and write timeouts, as
@@ -155,7 +201,7 @@ func startServers(static, socket string) (map[string]target, func(), error) {
 		}
 		targets[s.name] = target{network: s.network, address: l.Addr().String()}
 		if s.monitored {
-			l = monitoredListener{l}
+			l = monitoredListener{Listener: l}
 		}
 		started = append(started, s.srv)
 		go s.srv.Serve(l)

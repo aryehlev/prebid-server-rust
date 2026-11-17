@@ -107,7 +107,7 @@ pub(super) enum Target {
 
 /// Prebid's `monitorableListener` needs a metrics engine; these tests record nothing.
 #[derive(Debug, Clone, Copy)]
-pub(super) struct NoMetrics;
+struct NoMetrics;
 
 impl ConnMetrics for NoMetrics {
     fn record_connection_accept(&self, _success: bool) {}

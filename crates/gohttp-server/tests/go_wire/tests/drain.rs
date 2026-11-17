@@ -1,18 +1,22 @@
 //! The shutdown scenarios of `testdata/go/wire/drain.go`, replayed against [`Server::shutdown`]:
 //! each scenario starts a fresh server with the main server's settings, dials its connections
-//! on schedule, starts the shutdown, and compares what every connection saw and what `serve`
-//! and `shutdown` returned with Go's.
+//! on schedule, starts the shutdown, and compares what every connection saw, what `serve` and
+//! `shutdown` returned, and the connection metrics the listener recorded, with Go's.
 
-use core::{fmt::Write as _, time::Duration};
+use core::{
+    fmt::Write as _,
+    sync::atomic::{AtomicU64, Ordering},
+    time::Duration,
+};
 use std::{path::Path, sync::Arc};
 
 use pbs_gocompat::strconv::unquote_bytes;
-use pbs_gohttp_server::{Listener, Server, prebid::main_server};
-use tokio::time::{Instant, sleep_until};
+use pbs_gohttp_server::{ConnMetrics, Listener, Server, prebid::main_server};
+use tokio::time::{Instant, sleep, sleep_until};
 
 use super::{
     client::{Case, Outcome, Step, run_case},
-    handlers::{NoMetrics, Target, drain_handler, quiet},
+    handlers::{Target, drain_handler, quiet},
     parse_send, shorten,
 };
 
@@ -39,6 +43,7 @@ pub(super) struct Scenario {
     serve: String,
     result: String,
     socket: String,
+    metrics: String,
 }
 
 /// What a scenario observed (Go: `drainResult`).
@@ -48,6 +53,49 @@ pub(super) struct Observed {
     serve: String,
     result: String,
     socket: String,
+    metrics: String,
+}
+
+/// Counts the [`ConnMetrics`] calls by their `success` argument (Go: `connCounts`).
+#[derive(Debug, Default)]
+struct Counts {
+    accepted: AtomicU64,
+    accept_failed: AtomicU64,
+    closed: AtomicU64,
+    close_failed: AtomicU64,
+}
+
+impl ConnMetrics for Counts {
+    fn record_connection_accept(&self, success: bool) {
+        let n = if success {
+            &self.accepted
+        } else {
+            &self.accept_failed
+        };
+        let _previous = n.fetch_add(1, Ordering::SeqCst);
+    }
+
+    fn record_connection_close(&self, success: bool) {
+        let n = if success {
+            &self.closed
+        } else {
+            &self.close_failed
+        };
+        let _previous = n.fetch_add(1, Ordering::SeqCst);
+    }
+}
+
+impl Counts {
+    /// Go: `connCounts.String`.
+    fn render(&self) -> String {
+        format!(
+            "accepted {} accept_failed {} closed {} close_failed {}",
+            self.accepted.load(Ordering::SeqCst),
+            self.accept_failed.load(Ordering::SeqCst),
+            self.closed.load(Ordering::SeqCst),
+            self.close_failed.load(Ordering::SeqCst)
+        )
+    }
 }
 
 /// Applies one line that belongs to the last connection of `sc`.
@@ -105,6 +153,7 @@ pub(super) fn parse_golden(text: &str) -> Result<Vec<Scenario>, String> {
             "serve" => rest.clone_into(&mut sc.serve),
             "result" => rest.clone_into(&mut sc.result),
             "socket" => rest.clone_into(&mut sc.socket),
+            "metrics" => rest.clone_into(&mut sc.metrics),
             _ => conn_line(sc, key, rest).map_err(|e| bad(&e))?,
         }
     }
@@ -112,14 +161,18 @@ pub(super) fn parse_golden(text: &str) -> Result<Vec<Scenario>, String> {
 }
 
 /// Go: the listener of `runDrainScenario`, with Prebid's connection metrics.
-async fn listen(sc: &Scenario, dir: &Path) -> Result<(Listener, Target), String> {
+async fn listen(
+    sc: &Scenario,
+    dir: &Path,
+    metrics: Arc<dyn ConnMetrics>,
+) -> Result<(Listener, Target), String> {
     match sc.network.as_str() {
         "tcp" => {
             let l = Listener::bind_tcp("127.0.0.1:0")
                 .await
                 .map_err(|e| e.to_string())?;
             let addr = l.addr().to_owned();
-            Ok((l.with_metrics(Arc::new(NoMetrics)), Target::Tcp(addr)))
+            Ok((l.with_metrics(metrics), Target::Tcp(addr)))
         }
         "unix" => {
             let path = dir
@@ -127,7 +180,7 @@ async fn listen(sc: &Scenario, dir: &Path) -> Result<(Listener, Target), String>
                 .to_string_lossy()
                 .into_owned();
             let l = Listener::bind_unix(&path).map_err(|e| e.to_string())?;
-            Ok((l.with_metrics(Arc::new(NoMetrics)), Target::Unix(path)))
+            Ok((l.with_metrics(metrics), Target::Unix(path)))
         }
         other => Err(format!("unknown network {other}")),
     }
@@ -135,7 +188,8 @@ async fn listen(sc: &Scenario, dir: &Path) -> Result<(Listener, Target), String>
 
 /// Go: `runDrainScenario`.
 pub(super) async fn run(sc: &Scenario, dir: &Path) -> Result<Observed, String> {
-    let (listener, target) = listen(sc, dir).await?;
+    let counts = Arc::new(Counts::default());
+    let (listener, target) = listen(sc, dir, Arc::<Counts>::clone(&counts)).await?;
     let addr = listener.addr().to_owned();
     let server = Arc::new(Server::new(quiet(main_server(&addr, drain_handler()?))));
     let serving = Arc::clone(&server);
@@ -167,6 +221,8 @@ pub(super) async fn run(sc: &Scenario, dir: &Path) -> Result<Observed, String> {
     for t in conns {
         outcomes.push(t.await.map_err(|e| format!("connection task: {e}"))?);
     }
+    // Go: a connection is counted as closed just after its client sees the end.
+    sleep(Duration::from_millis(100)).await;
     let socket = match &target {
         Target::Tcp(_) => "-",
         Target::Unix(path) if Path::new(path).exists() => "kept",
@@ -177,6 +233,7 @@ pub(super) async fn run(sc: &Scenario, dir: &Path) -> Result<Observed, String> {
         serve,
         result,
         socket: socket.to_owned(),
+        metrics: counts.render(),
     })
 }
 
@@ -202,6 +259,7 @@ pub(super) fn compare(scenarios: &[Scenario], observed: &[Observed]) -> Option<S
             ("serve", &sc.serve, &got.serve),
             ("shutdown", &sc.result, &got.result),
             ("socket", &sc.socket, &got.socket),
+            ("metrics", &sc.metrics, &got.metrics),
         ] {
             if want != have {
                 let _ok = write!(

@@ -36,12 +36,14 @@ type drainConn struct {
 }
 
 // drainResult is what a scenario observed: each connection, what Serve and Shutdown returned,
-// and, on a Unix socket, whether the socket file was left behind.
+// on a Unix socket whether the socket file was left behind, and the connection metrics
+// monitorableListener recorded.
 type drainResult struct {
 	conns    []result
 	serve    string
 	shutdown string
 	socket   string
+	metrics  string
 }
 
 func drainScenarios() []drainScenario {
@@ -90,6 +92,17 @@ func drainScenarios() []drainScenario {
 				conn("late dial", 250, 100),
 			},
 		},
+		{
+			name: "stale new connections", network: "tcp", shutdownAt: 6100,
+			conns: []drainConn{
+				// 5 seconds without a first request make a new connection count as idle:
+				// Shutdown closes it at once, even with half a request read.
+				conn("silent", 0, 6400),
+				conn("partial first request", 0, 6400, send("GET /status HTTP/1.1\r\nHost: x\r\n")),
+				// Younger than that: Shutdown waits for it, and drops the request it then sends.
+				conn("young", 3000, 400, pause(3300), send(status)),
+			},
+		},
 	}
 }
 
@@ -117,8 +130,9 @@ func runDrainScenario(dir string, sc drainScenario) (drainResult, error) {
 	t := target{network: sc.network, address: l.Addr().String()}
 	srv := &http.Server{Handler: newDrainHandler(), ReadTimeout: 15 * time.Second, WriteTimeout: 15 * time.Second, ErrorLog: log.New(io.Discard, "", 0)}
 	defer srv.Close()
+	counts := &connCounts{}
 	served := make(chan error, 1)
-	go func() { served <- srv.Serve(monitoredListener{l}) }()
+	go func() { served <- srv.Serve(monitoredListener{l, counts}) }()
 
 	start := time.Now()
 	res := drainResult{conns: make([]result, len(sc.conns)), socket: "-"}
@@ -141,6 +155,9 @@ func runDrainScenario(dir string, sc drainScenario) (drainResult, error) {
 	cancel()
 	res.serve = errText(<-served)
 	wg.Wait()
+	// A connection is counted as closed just after its client sees the end.
+	time.Sleep(100 * time.Millisecond)
+	res.metrics = counts.String()
 	if sc.network == "unix" {
 		res.socket = "kept"
 		if _, err := os.Stat(address); errors.Is(err, os.ErrNotExist) {
@@ -159,7 +176,7 @@ func errText(err error) string {
 
 func sameDrainResults(a, b []drainResult) error {
 	for i := range a {
-		if a[i].serve != b[i].serve || a[i].shutdown != b[i].shutdown || a[i].socket != b[i].socket {
+		if a[i].serve != b[i].serve || a[i].shutdown != b[i].shutdown || a[i].socket != b[i].socket || a[i].metrics != b[i].metrics {
 			return fmt.Errorf("drain scenario %d is not deterministic: %+v %+v", i, a[i], b[i])
 		}
 		for j := range a[i].conns {
@@ -190,7 +207,7 @@ func writeDrainGolden(path string, scenarios []drainScenario, results []drainRes
 			}
 			fmt.Fprintf(&b, "response %s\nend %s\n", strconv.Quote(string(r.conns[j].response)), r.conns[j].end)
 		}
-		fmt.Fprintf(&b, "\nserve %s\nresult %s\nsocket %s\n", r.serve, r.shutdown, r.socket)
+		fmt.Fprintf(&b, "\nserve %s\nresult %s\nsocket %s\nmetrics %s\n", r.serve, r.shutdown, r.socket, r.metrics)
 	}
 	return os.WriteFile(path, []byte(b.String()), 0o644)
 }
