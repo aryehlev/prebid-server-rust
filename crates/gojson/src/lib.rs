@@ -514,6 +514,10 @@
 //! `DropElement` and `MergeClone`) has its own generator: `go run
 //! ./rust/crates/gojson/testdata/go/toolkit` writes `testdata/go/toolkit/*.txt` from the Go
 //! packages' own test tables and seeded random corpora, and `tests/toolkit.rs` replays them.
+//! `go run ./rust/crates/gojson/testdata/go/toolkit_review` writes adversarial corpora for the
+//! same packages (escaped keys, every array index spelling, `Set`/`Delete` layouts, `Unescape`
+//! over every surrogate pair class, `MergeClone` over every existing shape), which
+//! `tests/toolkit_review.rs` replays.
 //!
 //! Other crates can follow the same pattern with a generator under their own `testdata/go`.
 //!
