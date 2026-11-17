@@ -189,6 +189,17 @@ if [[ -n "${pr}" ]]; then
         fi
         ;;
       fail | cancel)
+        # A failed ci-ok is no verdict while CI still runs on the same head: the concurrency group
+        # cancels a run when a newer one starts (the publish job's push and edit start two), and
+        # the cancelled run's ci-ok still runs (always()) and fails before the newer run reports.
+        running=$(gh run list --repo "${repo}" --workflow ci.yml --branch "${port_branch}" --limit 20 \
+          --json headSha,status \
+          --jq "[.[] | select(.headSha == \"${port_branch_sha}\" and .status != \"completed\")] | length")
+        if [[ "${running}" =~ ^[0-9]+$ && "${running}" -gt 0 ]]; then
+          action=none
+          reason="ci-ok on pull request #${pr} is '${ci}', but CI is still running on ${port_branch_sha:0:12}; waiting"
+          finish
+        fi
         main_ci=$(gh run list --repo "${repo}" --workflow ci.yml --branch "${base_branch}" --event push \
           --limit 1 --json conclusion --jq '.[0].conclusion // "unknown"')
         subjects=$(git log --first-parent --format=%s "${main}..${branch_ref}")
@@ -242,8 +253,12 @@ if [[ "${action}" == repair ]]; then
     fi
   done <<< "${range}"
   target=${base}
-  run_id=$(gh run list --repo "${repo}" --workflow ci.yml --branch "${port_branch}" --limit 1 \
-    --json databaseId --jq '.[0].databaseId // empty')
+  # The log of the newest failed CI run on the branch head (else its newest finished run): the
+  # newest run of the branch can be one on an older head, or one that was cancelled.
+  run_id=$(gh run list --repo "${repo}" --workflow ci.yml --branch "${port_branch}" --limit 20 \
+    --json databaseId,headSha,status,conclusion \
+    --jq "[.[] | select(.headSha == \"${port_branch_sha}\" and .status == \"completed\")]
+      | ((map(select(.conclusion == \"failure\")) + .)[0].databaseId) // empty")
   if [[ "${run_id}" =~ ^[0-9]+$ ]]; then
     log=$(gh run view "${run_id}" --repo "${repo}" --log-failed 2> /dev/null) || log=""
     printf '%s\n' "${log}" | tail -c 200000 > "${out_dir}/ci-failures.log"

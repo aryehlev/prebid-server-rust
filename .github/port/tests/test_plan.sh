@@ -177,7 +177,10 @@ expect nochecks action none
 gh_state checks.json '[{"name": "ci-ok", "bucket": "fail"}]'
 gh_state checks_rc 1
 gh_state runs_main.json '[{"conclusion": "success"}]'
-gh_state runs_port_upstream-sync.json '[{"databaseId": 42}]'
+# The newest run is on an older head, then a cancelled run and the failed one on the head.
+gh_state runs_port_upstream-sync.json "[{\"databaseId\": 44, \"headSha\": \"${u1}\", \"status\": \"in_progress\"},
+  {\"databaseId\": 43, \"headSha\": \"${port}\", \"status\": \"completed\", \"conclusion\": \"cancelled\"},
+  {\"databaseId\": 42, \"headSha\": \"${port}\", \"status\": \"completed\", \"conclusion\": \"failure\"}]"
 gh_state run_log.txt 'error: clippy failed on rust/crates/x'
 plan red
 expect red action repair
@@ -186,6 +189,16 @@ expect red target_sha "${u3}"
 expect red budget_class repair
 failures=$(cat "${T_ROOT}/plan-red/ci-failures.log")
 t_has "red: the failing CI log is kept" "${failures}" "clippy failed"
+viewed=$(grep 'run view' "${shim}/calls.log" | tail -n 1)
+t_has "red: the log is the failed run's on the branch head" "${viewed}" "run view 42 "
+# ci-ok of a run that the concurrency group cancelled fails while the newer run on the same head
+# still runs: no verdict yet.
+gh_state runs_port_upstream-sync.json "[{\"databaseId\": 45, \"headSha\": \"${port}\", \"status\": \"in_progress\"},
+  {\"databaseId\": 43, \"headSha\": \"${port}\", \"status\": \"completed\", \"conclusion\": \"cancelled\"}]"
+plan rerunning
+expect rerunning action none
+expect_has rerunning reason "CI is still running on ${port:0:12}"
+gh_state runs_port_upstream-sync.json "[{\"databaseId\": 42, \"headSha\": \"${port}\", \"status\": \"completed\", \"conclusion\": \"failure\"}]"
 plan forced RUN_MODE=advance
 expect forced action advance
 plan repairmode RUN_MODE=repair
