@@ -90,7 +90,7 @@ var implementations = map[string]implementation{
 	RuleTIDUUID:              {action: actionUUIDPlaceholder, mentions: []string{"$.source.tid", "$.imp[*].ext.tid"}},
 	RuleGeneratedBidID:       {action: actionUUIDPlaceholder, mentions: []string{"$.seatbid[*].bid[*].ext.prebid.bidid"}},
 	RuleCacheUUID:            {action: actionUUIDPlaceholder, mentions: []string{"hb_cache_id", "hb_uuid", "cacheId"}},
-	RuleHookExecutionTime:    {action: actionDrop, mentions: []string{"execution_time_millis", "ExecutionTimeMillis", "$.ext.prebid.modules.trace"}},
+	RuleHookExecutionTime:    {action: actionShape, shape: true, mentions: []string{"execution_time_millis", "ExecutionTimeMillis", "$.ext.prebid.modules.trace"}},
 	RuleTimingHistograms:     {action: actionCountOnly, mentions: []string{"_time", "_time_seconds", "_duration", "_duration_seconds"}},
 	RuleGoRuntimeMetrics:     {action: actionIgnore, mentions: []string{goRuntimeMetricPrefix}},
 	RuleHeaderNames:          {action: actionCaseInsensitive, mentions: []string{"headers"}},
@@ -248,13 +248,25 @@ func (rs *Rules) Active(id string, stage parity.StageID) bool {
 	return rs.Rule(id).AppliesTo(stage)
 }
 
-// shapeCheck is the file-given shape of a shape rule.
+// shapeCheck is the file-given shape of a shape rule. A shape is as narrow as
+// the Go value it stands for (a millisecond timestamp, a non-negative
+// duration), so a Rust value of the right JSON type but the wrong unit or sign
+// is still reported.
 type shapeCheck struct {
-	typ     string
-	pattern *regexp.Regexp
+	typ      string
+	pattern  *regexp.Regexp
+	min, max *big.Rat
 }
 
+// shapeMembers are the members a shape may have.
+var shapeMembers = map[string]bool{"type": true, "pattern": true, "minimum": true, "maximum": true}
+
 func newShapeCheck(shape map[string]any) (*shapeCheck, error) {
+	for k := range shape {
+		if !shapeMembers[k] {
+			return nil, fmt.Errorf("shape member %q is not one of type, pattern, minimum, maximum", k)
+		}
+	}
 	typ, _ := shape["type"].(string)
 	switch typ {
 	case "integer", "number", "string", "boolean":
@@ -269,21 +281,52 @@ func newShapeCheck(shape map[string]any) (*shapeCheck, error) {
 		}
 		sc.pattern = re
 	}
+	var err error
+	if sc.min, err = shapeBound(shape, "minimum", typ); err != nil {
+		return nil, err
+	}
+	if sc.max, err = shapeBound(shape, "maximum", typ); err != nil {
+		return nil, err
+	}
 	return sc, nil
+}
+
+// shapeBound reads an optional numeric bound of an integer or number shape.
+func shapeBound(shape map[string]any, name, typ string) (*big.Rat, error) {
+	v, ok := shape[name]
+	if !ok {
+		return nil, nil
+	}
+	if typ != "integer" && typ != "number" {
+		return nil, fmt.Errorf("shape %s applies to integer and number shapes only", name)
+	}
+	f, ok := v.(float64)
+	if !ok {
+		return nil, fmt.Errorf("shape %s %v is not a number", name, v)
+	}
+	r := new(big.Rat)
+	if r.SetFloat64(f) == nil {
+		return nil, fmt.Errorf("shape %s %v is not finite", name, v)
+	}
+	return r, nil
 }
 
 // matches reports whether n has the shape.
 func (s *shapeCheck) matches(n *node) bool {
 	switch s.typ {
 	case "integer":
-		return n.kind == kindNumber && n.num.IsInt()
+		return n.kind == kindNumber && n.num.IsInt() && s.inBounds(n.num)
 	case "number":
-		return n.kind == kindNumber
+		return n.kind == kindNumber && s.inBounds(n.num)
 	case "boolean":
 		return n.kind == kindBool
 	default:
 		return n.kind == kindString && s.matchesString(n.str)
 	}
+}
+
+func (s *shapeCheck) inBounds(v *big.Rat) bool {
+	return (s.min == nil || v.Cmp(s.min) >= 0) && (s.max == nil || v.Cmp(s.max) <= 0)
 }
 
 func (s *shapeCheck) matchesString(v string) bool {
@@ -471,7 +514,9 @@ func (rs *Rules) structural(stage parity.StageID, root *node) {
 		for _, n := range selectResponseExt(root, stage, "responsetimemillis") {
 			if n.kind == kindObject {
 				for _, m := range n.members {
-					mask(m.val, "key_set:"+RuleResponseTimeMillis)
+					if isMillis(m.val) {
+						mask(m.val, "key_set:"+RuleResponseTimeMillis)
+					}
 				}
 			}
 		}
@@ -489,9 +534,9 @@ func (rs *Rules) structural(stage parity.StageID, root *node) {
 	if rule := rs.Rule(RuleEventsTSParam); rule.AppliesTo(stage) {
 		maskEventTimestamps(rule, root)
 	}
-	if rs.Active(RuleHookExecutionTime, stage) {
+	if rule := rs.Rule(RuleHookExecutionTime); rule.AppliesTo(stage) {
 		for _, n := range anchorsOf(root, hookTraceRoots[stage]) {
-			dropMembers(n, hookTimeMembers)
+			maskMemberShapes(rule, n, hookTimeMembers)
 		}
 	}
 	if rs.Active(RuleHeaderNames, stage) {
@@ -561,15 +606,26 @@ func replaceEventTimestamps(rule *Rule, s string) string {
 	})
 }
 
-// dropMembers removes every member named in names anywhere below n.
-func dropMembers(n *node, names []string) {
+// maskMemberShapes masks the value of every member named in names anywhere
+// below n when it has the rule's shape. The member itself stays, so a side
+// that leaves it out, or writes a value of another shape, is still reported.
+func maskMemberShapes(rule *Rule, n *node, names []string) {
 	walk(n, func(v *node) {
-		if v.kind == kindObject {
-			for _, name := range names {
-				v.remove(name)
+		if v.kind != kindObject {
+			return
+		}
+		for _, name := range names {
+			if m := v.get(name); m != nil && rule.shape.matches(m) {
+				mask(m, "shape:"+rule.Spec.ID)
 			}
 		}
 	})
+}
+
+// isMillis reports whether n is a non-negative integer, the only value Go
+// writes for an elapsed time in milliseconds.
+func isMillis(n *node) bool {
+	return n != nil && n.kind == kindNumber && n.num.IsInt() && n.num.Sign() >= 0
 }
 
 // sortRules applies the ordering rules. rewrite masks generated UUIDs so the
@@ -764,10 +820,18 @@ func isTimingMetric(name, typ string) bool {
 // (metrics/prometheus/prometheus.go), so the prefix may follow "<ns>_<sub>_".
 const goRuntimeMetricPrefix = "go_"
 
+// goRuntimeMetric matches the series of the Go runtime collector: go_
+// followed by one of the collector's metric families (the memstats collector
+// and its runtime/metrics names), optionally after the configured
+// "<namespace>_<subsystem>_" prefix. A product metric that merely contains
+// "_go_" is not ignored.
+var goRuntimeMetric = regexp.MustCompile(`^(?:[A-Za-z0-9_:]*_)?` + goRuntimeMetricPrefix +
+	`(?:cgo|config|cpu|gc|godebug|goroutines|info|memory|memstats|sched|sync|threads)(?:_|$)`)
+
 // isGoRuntimeMetric reports whether a series comes from the Go runtime
 // collector (go_runtime_metrics rule).
 func isGoRuntimeMetric(name string) bool {
-	return strings.HasPrefix(name, goRuntimeMetricPrefix) || strings.Contains(name, "_"+goRuntimeMetricPrefix)
+	return goRuntimeMetric.MatchString(name)
 }
 
 // bidArrivalKeys sort the bid lists of bid_arrival_order: bids.adjusted
