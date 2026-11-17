@@ -56,14 +56,15 @@ const (
 var errNotParity = errors.New("the server did not answer /__parity/health as a parity server")
 
 type serveOptions struct {
-	repo       string
-	bin        string
-	binB       string
-	implB      string
-	dir        string
-	profile    string
-	servers    int
-	sparePorts int
+	repo        string
+	bin         string
+	binB        string
+	implB       string
+	dir         string
+	profile     string
+	caseProfile string
+	servers     int
+	sparePorts  int
 }
 
 func parseServe(args []string, stderr io.Writer) (serveOptions, error) {
@@ -77,6 +78,7 @@ func parseServe(args []string, stderr io.Writer) (serveOptions, error) {
 	fs.StringVar(&o.implB, "impl-b", parity.ImplGo, "with -servers 2: the implementation side B runs: go or rust")
 	fs.StringVar(&o.dir, "dir", "", "directory for the state, token, logs, work directory and outbound log (required)")
 	fs.StringVar(&o.profile, "profile", runner.DefaultProfile, "parity base profile (parity/fixtures/profiles)")
+	fs.StringVar(&o.caseProfile, "case-profile", "", "a case profile applied over the base profile, as parity/replayharness/profiles/NAME/profile.json (default: none)")
 	fs.IntVar(&o.servers, "servers", 1, "servers to start: 1, or 2 for a ReplayHarness --baseline pair (side A, then side B)")
 	fs.IntVar(&o.sparePorts, "spare-ports", 1, "extra free loopback ports to reserve for the caller (the recording proxy)")
 
@@ -253,6 +255,25 @@ func (s *stack) binary(ctx context.Context, opts serveOptions) (string, error) {
 	return out, nil
 }
 
+// readCaseProfile reads -case-profile; "" is no case profile.
+func readCaseProfile(name string) (corpus.Profile, error) {
+	if name == "" {
+		return corpus.Profile{}, nil
+	}
+
+	raw, err := os.ReadFile(name)
+	if err != nil {
+		return corpus.Profile{}, fmt.Errorf("reading -case-profile: %w", err)
+	}
+
+	p, err := corpus.ReadReplayHarnessProfile(raw)
+	if err != nil {
+		return corpus.Profile{}, fmt.Errorf("-case-profile %s: %w", name, err)
+	}
+
+	return p, nil
+}
+
 // prepare starts the oracle and writes the work directory, as the parity
 // runner does for one batch (parity/runner/run.go, prepareWorkdir).
 func (s *stack) prepare(opts serveOptions) (string, error) {
@@ -271,11 +292,16 @@ func (s *stack) prepare(opts serveOptions) (string, error) {
 		return "", fmt.Errorf("resolving profile %s: %w", opts.profile, err)
 	}
 
+	caseProfile, err := readCaseProfile(opts.caseProfile)
+	if err != nil {
+		return "", err
+	}
+
 	if err := s.startOracle(repo); err != nil {
 		return "", err
 	}
 
-	cfg, err := runner.BuildConfig(base, corpus.Profile{}, runner.HostConfig{OracleURL: s.oracle.URL(), CurrencyPath: oracle.CurrencyPath})
+	cfg, err := runner.BuildConfig(base, caseProfile, runner.HostConfig{OracleURL: s.oracle.URL(), CurrencyPath: oracle.CurrencyPath})
 	if err != nil {
 		return "", fmt.Errorf("building pbs.yaml: %w", err)
 	}

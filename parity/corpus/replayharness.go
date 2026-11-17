@@ -24,8 +24,9 @@ import (
 )
 
 // CorpusReplayHarness is the corpus of the requests ReplayHarness sends to
-// the Go server: every exchange of parity/replayharness/traffic.jsonl and
-// every step of the replays in parity/replayharness/replays.
+// the Go server: every exchange of parity/replayharness/traffic.jsonl, every
+// step of the replays in parity/replayharness/replays and, under its case
+// profile, every step of the replays in parity/replayharness/profiles.
 const CorpusReplayHarness = "replayharness"
 
 // RootReplayHarness is the directory the replayharness corpus is read from.
@@ -119,8 +120,11 @@ func newNotCompared(id, endpoint, request, tag, reason string, sources ...string
 // HTTP client writes are put back (clientHeaders). Replay steps are rebuilt
 // the way ReplayHarness sends them (package rhreplay), with the User-Agent of
 // the build that recorded traffic.jsonl, so a step and its recording are one
-// case. A step that sends
-// a value an earlier step saved takes the value Go answered in saved.jsonl.
+// case. A step that sends a value an earlier step saved takes the value Go
+// answered in saved.jsonl. The steps of profiles/<name>/replays are cases of
+// the case profile profiles/<name>/profile.json (ReadReplayHarnessProfile),
+// whose IDs hash the profile name with the request; they are not recorded,
+// and send no saved value.
 // The envelope leaves the host and remote address to the exec defaults
 // (127.0.0.1 and 127.0.0.1:0), pins every decision point, and the case
 // carries the stored data of parity/replayharness/stored.
@@ -132,6 +136,7 @@ func LoadReplayHarness(repo *Repo) *ReplayHarness {
 
 	l := newRHLoader(in)
 	l.addReplays()
+	l.addProfileReplays()
 	l.addTraffic()
 
 	return l.result()
@@ -139,11 +144,12 @@ func LoadReplayHarness(repo *Repo) *ReplayHarness {
 
 // rhInput is what the corpus reads from RootReplayHarness.
 type rhInput struct {
-	traffic []rhreplay.Exchange
-	saved   []rhreplay.Exchange
-	replays []rhreplay.Replay
-	stored  Stored
-	api     rhAPI
+	traffic  []rhreplay.Exchange
+	saved    []rhreplay.Exchange
+	replays  []rhreplay.Replay
+	profiles []rhProfile
+	stored   Stored
+	api      rhAPI
 }
 
 // rhAPI is the part of api.yaml the corpus uses.
@@ -188,6 +194,10 @@ func readRHFiles(fsys fs.FS) (*rhInput, error) {
 
 	if in.replays, err = rhreplay.LoadDir(fsys, rhReplayDir); err != nil && !errors.Is(err, fs.ErrNotExist) {
 		return nil, fmt.Errorf("%w: %s: %w", errReplayHarness, rhReplayDir, err)
+	}
+
+	if in.profiles, err = readRHProfiles(fsys); err != nil {
+		return nil, err
 	}
 
 	if in.stored, err = readRHStored(fsys); err != nil {
@@ -291,6 +301,7 @@ type rhRequest struct {
 type rhEntry struct {
 	key       string
 	req       rhRequest
+	profile   *rhProfile
 	sources   []string
 	truncated bool
 }
@@ -353,18 +364,24 @@ func (l *rhLoader) addReplays() {
 		return resp, ok
 	}
 
-	for _, b := range rhreplay.BuildAll(l.in.replays, l.userAgent, lookup) {
-		r := &l.in.replays[b.Replay]
+	l.addSteps(nil, l.in.replays, rhReplayDir, lookup)
+}
+
+// addSteps adds the steps of replays, read from dir, under profile p (nil:
+// the default profile).
+func (l *rhLoader) addSteps(p *rhProfile, replays []rhreplay.Replay, dir string, answers rhreplay.Answers) {
+	for _, b := range rhreplay.BuildAll(replays, l.userAgent, answers) {
+		r := &replays[b.Replay]
 		st := r.Steps[b.Step]
-		source := fmt.Sprintf("%s/%s: replay %q, step %d", rhReplayDir, r.File, r.Name, b.Step+1)
+		source := fmt.Sprintf("%s/%s: replay %q, step %d", dir, r.File, r.Name, b.Step+1)
 
 		if b.NotSent != "" {
-			l.skipStep(st, source, b.NotSent)
+			l.skipStep(p, st, source, b.NotSent)
 
 			continue
 		}
 
-		l.add(requestFromWire(b.Wire), source, false)
+		l.add(p, requestFromWire(b.Wire), source, false)
 	}
 }
 
@@ -373,16 +390,16 @@ func (l *rhLoader) addTraffic() {
 	for _, ex := range l.in.traffic {
 		req := requestFromRecording(ex.Request)
 		source := fmt.Sprintf("%s:%d", rhTrafficFile, ex.Line)
-		l.add(req, source, len(req.body) >= rhreplay.RecorderBodyLimit)
+		l.add(nil, req, source, len(req.body) >= rhreplay.RecorderBodyLimit)
 	}
 }
 
-func (l *rhLoader) add(req rhRequest, source string, truncated bool) {
-	key := requestKey(req)
+func (l *rhLoader) add(p *rhProfile, req rhRequest, source string, truncated bool) {
+	key := profileKey(p, requestKey(req))
 
 	e, ok := l.entries[key]
 	if !ok {
-		e = &rhEntry{key: key, req: req}
+		e = &rhEntry{key: key, req: req, profile: p}
 		l.entries[key] = e
 	}
 
@@ -391,14 +408,14 @@ func (l *rhLoader) add(req rhRequest, source string, truncated bool) {
 }
 
 // skipStep records a replay step that is not rebuilt. Its ID is the hash of
-// the step, so the same step in two replays is one entry.
-func (l *rhLoader) skipStep(st rhreplay.Step, source, reason string) {
+// the step and profile, so the same step in two replays is one entry.
+func (l *rhLoader) skipStep(p *rhProfile, st rhreplay.Step, source, reason string) {
 	raw, err := json.Marshal(st)
 	if err != nil {
 		raw = []byte(st.Method + " " + st.Path)
 	}
 
-	id := RootReplayHarness + "#step:" + hashHex(raw)[:16]
+	id := RootReplayHarness + "#step:" + profileKey(p, hashHex(raw))[:16]
 
 	nc, ok := l.skipped[id]
 	if !ok {
@@ -566,12 +583,17 @@ func (l *rhLoader) newCase(id string, e *rhEntry) Case {
 		req.Body = wireBody(e.req.body)
 	}
 
-	env := newEnvelope(id, RootReplayHarness, DefaultProfile, req)
+	profile := e.caseProfile()
+	env := newEnvelope(id, RootReplayHarness, profile.Name(), req)
 	env.Decisions = pinnedDecisions()
 
-	notes := make([]string, 0, len(e.sources)+2)
+	notes := make([]string, 0, len(e.sources)+3)
 	for _, s := range e.sources {
 		notes = append(notes, "from "+s)
+	}
+
+	if e.profile != nil {
+		notes = append(notes, "under the case profile of "+path.Join(RootReplayHarness, rhProfilesDir, e.profile.name, rhProfileFile))
 	}
 
 	if len(e.req.dropped) > 0 {
@@ -599,6 +621,7 @@ func (l *rhLoader) newCase(id string, e *rhEntry) Case {
 		FixturePath: RootReplayHarness,
 		Description: shown(e.req.line()) + " (" + e.sources[0] + ")",
 		Endpoint:    l.endpoint(e.req),
+		Profile:     profile,
 		Envelope:    env,
 		Mocks:       MockPlan{ImpIDs: l.mockImpIDs(e.req)},
 		Stored:      copyStored(l.in.stored),

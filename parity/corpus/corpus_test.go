@@ -847,6 +847,14 @@ func TestProfileOverrides(t *testing.T) {
 			},
 		},
 		{"ortb version", Profile{ORTBVersions: map[string]string{"pubmatic": "2.6"}}, map[string]any{"adapters.pubmatic.openrtb.version": "2.6"}},
+		{
+			"handler switches",
+			Profile{VideoEndpoint: true, StatusResponse: "ok", HostCookie: json.RawMessage(`{"cookie_name":"rh","ttl_days":7}`)},
+			map[string]any{
+				"video.enable_deprecated_endpoint": true, "status_response": "ok",
+				"host_cookie": map[string]any{"cookie_name": "rh", "ttl_days": json.Number("7")},
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -867,6 +875,8 @@ func TestProfileName(t *testing.T) {
 	assert.Equal(t, a.Name(), Profile{AccountRequired: true}.Name(), "equal settings share a name")
 	assert.NotEqual(t, a.Name(), b.Name())
 	assert.True(t, strings.HasPrefix(b.Name(), "account-required+blocked-apps-"))
+	switches := Profile{VideoEndpoint: true, StatusResponse: "ok", HostCookie: json.RawMessage(`{}`)}
+	assert.Equal(t, []string{"video", "status", "host-cookie"}, switches.Tokens())
 }
 
 func TestMergeStored(t *testing.T) {

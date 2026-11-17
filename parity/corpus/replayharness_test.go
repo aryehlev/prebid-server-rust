@@ -118,6 +118,13 @@ func rhTrafficLines(custom string) []rhLine {
 func rhRepo(t *testing.T, custom string) *corpus.Repo {
 	t.Helper()
 
+	return rhRepoWith(t, custom, nil)
+}
+
+// rhRepoWith is rhRepo with more files, keyed by slash path.
+func rhRepoWith(t *testing.T, custom string, extra map[string]string) *corpus.Repo {
+	t.Helper()
+
 	saved := rhReq("GET", rhSetUID, "bidder=appnexus&uid=rh", "", map[string]string{"User-Agent": "ReplayHarness/other"})
 	saved.Response.Headers = map[string]string{"Set-Cookie": "uids=abc; Path=/"}
 
@@ -130,6 +137,7 @@ func rhRepo(t *testing.T, custom string) *corpus.Repo {
 		"parity/replayharness/api.yaml":                        rhAPI,
 		"parity/replayharness/stored/accounts/rh-sandbox.json": rhSandbox,
 	}
+	maps.Copy(files, extra)
 
 	for rel, data := range files {
 		p := filepath.Join(root, filepath.FromSlash(rel))
@@ -214,6 +222,87 @@ func TestReplayHarnessSortsOutTheRequests(t *testing.T) {
 	}
 
 	t.Error("no case sends the auction body of max_request_size + 1 bytes")
+}
+
+func TestReplayHarnessProfileCases(t *testing.T) {
+	t.Parallel()
+
+	const profileJSON = "parity/replayharness/profiles/status/profile.json"
+
+	rh := rhLoad(t, rhRepoWith(t, " v ", map[string]string{
+		profileJSON: `{"status_response":"ok"}`,
+		"parity/replayharness/profiles/status/replays/status.yaml": `replays:
+  - name: status
+    steps:
+      - {method: GET, path: /status}
+      - {method: GET, path: /getuids, headers: {Cookie: "{{cookie}}"}}
+`,
+	}))
+
+	var plain, profiled []corpus.Case
+
+	for _, cs := range rh.Cases {
+		switch {
+		case cs.Envelope.Request.Path != rhStatus:
+		case cs.Profile.IsDefault():
+			plain = append(plain, cs)
+		default:
+			profiled = append(profiled, cs)
+		}
+	}
+
+	if len(plain) != 1 || len(profiled) != 1 {
+		t.Fatalf("%d default and %d profile cases of GET /status, want 1 and 1", len(plain), len(profiled))
+	}
+
+	cs := profiled[0]
+	if cs.Profile.StatusResponse != "ok" || cs.Envelope.Profile != cs.Profile.Name() || !rhCaseID.MatchString(cs.ID) ||
+		cs.ID == plain[0].ID || !slices.Contains(cs.Notes, "under the case profile of "+profileJSON) {
+		t.Errorf("profile case %s: profile %+v, envelope profile %q, notes %q", cs.ID, cs.Profile, cs.Envelope.Profile, cs.Notes)
+	}
+
+	// saved.jsonl holds the default profile's answers, so the step that
+	// sends the saved cookie is not rebuilt under the profile.
+	var skipped int
+
+	for _, nc := range rh.NotCompared {
+		if nc.Tag == corpus.RHNotRebuilt && len(nc.Sources) == 1 &&
+			strings.HasPrefix(nc.Sources[0], "profiles/status/replays/status.yaml: replay \"status\", step 2") {
+			skipped++
+		}
+	}
+
+	if skipped != 1 {
+		t.Errorf("%d not-rebuilt entries for the profile step with a saved value, want 1", skipped)
+	}
+}
+
+func TestReplayHarnessProfileFiles(t *testing.T) {
+	t.Parallel()
+
+	if _, err := corpus.ReadReplayHarnessProfile([]byte(`{"video_endpoint":true,"host_cookie":{"cookie_name":"rh"}}`)); err != nil {
+		t.Errorf("a valid profile: %v", err)
+	}
+
+	for name, raw := range map[string]string{
+		"unknown member": `{"status_respons":"ok"}`,
+		"nothing set":    `{}`,
+		"currency":       `{"currency_rates":{"USD":{"EUR":1}}}`,
+		"trailing data":  `{"status_response":"ok"} {}`,
+		"not an object":  `[]`,
+	} {
+		if _, err := corpus.ReadReplayHarnessProfile([]byte(raw)); err == nil {
+			t.Errorf("%s: no error", name)
+		}
+	}
+
+	rh := corpus.LoadReplayHarness(rhRepoWith(t, " v ", map[string]string{
+		"parity/replayharness/profiles/bad/profile.json":   `{}`,
+		"parity/replayharness/profiles/bad/replays/x.yaml": "replays: []\n",
+	}))
+	if len(rh.Errors) != 1 || len(rh.Cases) != 0 {
+		t.Errorf("a profile that sets nothing: %d errors, %d cases; want 1 error and no case", len(rh.Errors), len(rh.Cases))
+	}
 }
 
 func TestReplayHarnessCaseEnvelopes(t *testing.T) {

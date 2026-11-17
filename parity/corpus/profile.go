@@ -75,6 +75,12 @@ type Profile struct {
 	DataCenter string `json:"datacenter,omitempty"`
 	// ORTBVersions -> adapters.<bidder>.openrtb.version.
 	ORTBVersions map[string]string `json:"ortb_versions,omitempty"`
+	// VideoEndpoint -> video.enable_deprecated_endpoint.
+	VideoEndpoint bool `json:"video_endpoint,omitempty"`
+	// StatusResponse -> status_response.
+	StatusResponse string `json:"status_response,omitempty"`
+	// HostCookie -> host_cookie.
+	HostCookie json.RawMessage `json:"host_cookie,omitempty"`
 }
 
 // profileFeature pairs a name token with a presence test.
@@ -103,6 +109,9 @@ var profileFeatures = []profileFeature{
 	{"multibid", func(p *Profile) bool { return p.AccountDefaultBidLimit != 0 }},
 	{"privacy", func(p *Profile) bool { return len(p.AccountPrivacy) > 0 }},
 	{"server", func(p *Profile) bool { return p.ExternalURL != "" || p.HostVendorID != 0 || p.DataCenter != "" }},
+	{"video", func(p *Profile) bool { return p.VideoEndpoint }},
+	{"status", func(p *Profile) bool { return p.StatusResponse != "" }},
+	{"host-cookie", func(p *Profile) bool { return len(p.HostCookie) > 0 }},
 }
 
 // Tokens returns the feature tokens of the settings p carries, in a fixed order.
@@ -167,6 +176,8 @@ func (p Profile) Overrides() (map[string]any, error) {
 	setIf(p.ExternalURL != "", "external_url", p.ExternalURL)
 	setIf(p.HostVendorID != 0, "gdpr.host_vendor_id", p.HostVendorID)
 	setIf(p.DataCenter != "", "datacenter", p.DataCenter)
+	setIf(p.VideoEndpoint, "video.enable_deprecated_endpoint", true)
+	setIf(p.StatusResponse != "", "status_response", p.StatusResponse)
 	for _, b := range sortedKeys(p.ORTBVersions) {
 		if p.ORTBVersions[b] != "" {
 			out["adapters."+strings.ToLower(b)+".openrtb.version"] = p.ORTBVersions[b]
@@ -181,6 +192,7 @@ func (p Profile) Overrides() (map[string]any, error) {
 		{"validations", p.HostValidations},
 		{"account_defaults.validations", p.AccountValidations},
 		{"account_defaults.privacy", p.AccountPrivacy},
+		{"host_cookie", p.HostCookie},
 	}
 	for _, jv := range jsonValued {
 		if len(jv.raw) == 0 {

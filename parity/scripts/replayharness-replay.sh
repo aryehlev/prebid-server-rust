@@ -27,12 +27,18 @@
 #      the same endpoint are dropped; a secret fails it, and so does a result
 #      over 5 MB.
 # With --serve it only starts the servers, prints their URLs and waits for
-# Ctrl-C.
+# Ctrl-C. With --case-profile NAME the server also takes the case profile
+# parity/replayharness/profiles/NAME/profile.json over the base profile
+# (rhtool serve -case-profile), and the script runs only the replays of
+# parity/replayharness/profiles/NAME/replays: the probes run under no case
+# profile, and a case profile's replays are not recorded (the corpus builds
+# their cases from the steps), so --baseline and --record do not go with it.
 #
 # Usage: parity/scripts/replayharness-replay.sh [--baseline] [--record] [--serve]
-#            [--profile NAME] [--out DIR] [--keep-state]
+#            [--profile NAME] [--case-profile NAME] [--out DIR] [--keep-state]
 #   REPLAYHARNESS  the ReplayHarness CLI (default: replayharness on PATH)
 #   --profile      the parity base profile (default: default)
+#   --case-profile a case profile of parity/replayharness/profiles (default: none)
 #   --out          where to keep the reports (default: a new temporary directory)
 #   --keep-state   keep the state directory after the run, for debugging
 #
@@ -53,6 +59,7 @@ baseline=0
 record=0
 serve_only=0
 profile=default
+case_profile=""
 out=""
 keep_state=0
 while (($# > 0)); do
@@ -65,17 +72,37 @@ while (($# > 0)); do
       profile=${2:?--profile needs a name}
       shift
       ;;
+    --case-profile)
+      case_profile=${2:?--case-profile needs a name}
+      shift
+      ;;
     --out)
       out=${2:?--out needs a directory}
       shift
       ;;
     *)
-      echo "usage: $0 [--baseline] [--record] [--serve] [--profile NAME] [--out DIR] [--keep-state]" >&2
+      echo "usage: $0 [--baseline] [--record] [--serve] [--profile NAME] [--case-profile NAME] [--out DIR]" \
+        "[--keep-state]" >&2
       exit 2
       ;;
   esac
   shift
 done
+
+serve_args=()
+if [[ -n "$case_profile" ]]; then
+  if ((baseline || record)); then
+    echo "$0: --baseline and --record do not go with --case-profile" >&2
+    exit 2
+  fi
+  case_dir="$repo/parity/replayharness/profiles/$case_profile"
+  if [[ ! -f "$case_dir/profile.json" ]]; then
+    echo "$0: no case profile $case_dir/profile.json" >&2
+    exit 2
+  fi
+  replays="$case_dir/replays"
+  serve_args=(-case-profile "$case_dir/profile.json")
+fi
 
 say() { echo "replayharness-replay: $*" >&2; }
 
@@ -136,9 +163,10 @@ servers=1
 if ((baseline)); then
   servers=2
 fi
-say "starting $servers Go server(s) with profile $profile (the first start builds the server)"
+say "starting $servers Go server(s) with profile $profile${case_profile:+ and case profile $case_profile}" \
+  "(the first start builds the server)"
 "$state/rhtool" serve -repo "$repo" -dir "$state/stack" -profile "$profile" -servers "$servers" -spare-ports 1 \
-  >"$state/serve.log" 2>&1 &
+  ${serve_args[@]+"${serve_args[@]}"} >"$state/serve.log" 2>&1 &
 serve_pid=$!
 
 for _ in $(seq 1 600); do
@@ -224,10 +252,12 @@ fi
 
 status=0
 
-say "probes on $target"
-"$cli" run "$map" --target "$target" --fail-on never --no-color --json "$out/probes.json" >"$out/probes.txt"
-tail -n 2 "$out/probes.txt" >&2
-check_breach
+if [[ -z "$case_profile" ]]; then
+  say "probes on $target"
+  "$cli" run "$map" --target "$target" --fail-on never --no-color --json "$out/probes.json" >"$out/probes.txt"
+  tail -n 2 "$out/probes.txt" >&2
+  check_breach
+fi
 
 say "replays on $target"
 if "$cli" replay "$replays" --target "$target" --no-color --junit "$out/replays.junit.xml" >"$out/replays.txt"; then

@@ -19,7 +19,10 @@
 #                   1. the probes of parity/replayharness/api.yaml on A alone;
 #                   2. the probes on B against A: replayharness run --target B
 #                      --baseline A --fail-on warning --junit --json;
-#                   3. the replays of parity/replayharness/replays on B.
+#                   3. the replays of parity/replayharness/replays on B;
+#                   4. for each case profile parity/replayharness/profiles/NAME,
+#                      its replays on a side B started with NAME/profile.json
+#                      over the base profile (rhtool serve -case-profile).
 #                 It fails when B diverges from A on a compared probe, or draws
 #                 a finding A does not (rhtool gate), or a replay fails.
 #   parity        run the parity runner on the replayharness corpus
@@ -74,6 +77,7 @@ script_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 repo=$(cd "$script_dir/../.." && pwd)
 map="$repo/parity/replayharness/api.yaml"
 replays="$repo/parity/replayharness/replays"
+profiles="$repo/parity/replayharness/profiles"
 saved="$repo/parity/replayharness/saved.jsonl"
 
 usage() {
@@ -349,11 +353,12 @@ replayharness_cli() {
 }
 
 # start_stack starts rhtool serve with $1 servers into the stack directory
-# $2 and waits for its state file.
+# $2, with any further arguments, and waits for its state file.
 start_stack() {
   local servers=$1 stack=$2
+  shift 2
   local args=(serve -repo "$repo" -dir "$stack" -bin "$state/bin/pbs-go" -profile "$profile"
-    -servers "$servers" -spare-ports 1)
+    -servers "$servers" -spare-ports 1 "$@")
   if ((servers == 2)); then
     args+=(-impl-b "$impl_b")
     if [[ -n "$bin_b" ]]; then
@@ -425,6 +430,8 @@ run_baseline() {
   stop_stack
   check_breach
 
+  run_profile_replays "$label" || replay_status=$?
+
   "$state/bin/rhtool" gate -report "$dir/baseline.json" -reference "$dir/probes-a.json" \
     -json "$dir/gate.json" >"$dir/gate.txt" || gate_status=$?
   sed "s/^/replayharness: $label: /" "$dir/gate.txt" >&2
@@ -438,6 +445,32 @@ run_baseline() {
     baseline_status=1
   fi
   say "$label: $(verdict "$baseline_status")"
+}
+
+# run_profile_replays runs the replays of every case profile on a side B
+# started with it, into $out/$1/replays-NAME.txt. It returns 1 when one fails.
+run_profile_replays() {
+  local label=$1
+  local dir="$out/$label" p name stack b failed=0
+  for p in "$profiles"/*; do
+    [[ -f "$p/profile.json" ]] || continue
+    name=$(basename "$p")
+    stack="$state/stack-$label-$name"
+    say "$label: replays of the case profile $name on side B"
+    start_stack 2 "$stack" -case-profile "$p/profile.json"
+    b=$(value RH_SIDE_B "$stack")
+    if "$cli" replay "$p/replays" --target "$b" --no-color --junit "$dir/replays-$name.junit.xml" \
+      >"$dir/replays-$name.txt"; then
+      tail -n 1 "$dir/replays-$name.txt" >&2
+    else
+      grep -v '^✓' "$dir/replays-$name.txt" >&2 || true
+      failed=1
+    fi
+    check_breach
+    stop_stack
+    check_breach
+  done
+  return "$failed"
 }
 
 # run_parity runs parity $2 (run or selftest) on the replayharness corpus
