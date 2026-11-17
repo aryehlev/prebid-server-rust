@@ -1,0 +1,2022 @@
+{
+  "crate": "pbs_openrtb_ext",
+  "go_index": {
+    "out": "testdata/go/ported_types_gen.go",
+    "package": "main"
+  },
+  "extern_types": {
+    "github.com/prebid/prebid-server/v4/util/jsonutil.StringInt": {
+      "rust": "jsonutil::StringInt",
+      "use": "pbs_gojson::jsonutil",
+      "copy": true,
+      "eq": true
+    },
+    "github.com/prebid/prebid-server/v4/util/jsonutil.IntString": {
+      "rust": "jsonutil::IntString",
+      "use": "pbs_gojson::jsonutil",
+      "eq": true
+    },
+    "github.com/prebid/prebid-server/v4/openrtb_ext.stringOrStringArray": {
+      "rust": "StringOrStringArray",
+      "use": "super::StringOrStringArray",
+      "eq": true
+    },
+    "github.com/prebid/prebid-server/v4/openrtb_ext.rubiconVideoParams": {
+      "rust": "RubiconVideoParams",
+      "use": "super::RubiconVideoParams",
+      "eq": true,
+      "is_struct": true
+    },
+    "github.com/prebid/prebid-server/v4/openrtb_ext.impExtRubiconDebug": {
+      "rust": "ImpExtRubiconDebug",
+      "use": "super::ImpExtRubiconDebug",
+      "copy": true,
+      "is_struct": true
+    }
+  },
+  "packages": [
+    {
+      "go": "github.com/prebid/prebid-server/v4/openrtb_ext",
+      "rust": "openrtb_ext",
+      "out": "src/generated.rs",
+      "field_names": "go",
+      "overrides": {
+        "RequestWrapper": {
+          "reason": "Hand-written with the port of request_wrapper.go (it holds unexported state and lazily parsed extensions).",
+          "skip": true
+        },
+        "ImpWrapper": {
+          "reason": "Hand-written with the port of request_wrapper.go (it holds unexported state and lazily parsed extensions).",
+          "skip": true
+        },
+        "UserExt": {
+          "reason": "Hand-written with the port of request_wrapper.go (it holds unexported state and lazily parsed extensions).",
+          "skip": true
+        },
+        "RequestExt": {
+          "reason": "Hand-written with the port of request_wrapper.go (it holds unexported state and lazily parsed extensions).",
+          "skip": true
+        },
+        "DeviceExt": {
+          "reason": "Hand-written with the port of request_wrapper.go (it holds unexported state and lazily parsed extensions).",
+          "skip": true
+        },
+        "AppExt": {
+          "reason": "Hand-written with the port of request_wrapper.go (it holds unexported state and lazily parsed extensions).",
+          "skip": true
+        },
+        "DOOHExt": {
+          "reason": "Hand-written with the port of request_wrapper.go (it holds unexported state and lazily parsed extensions).",
+          "skip": true
+        },
+        "RegExt": {
+          "reason": "Hand-written with the port of request_wrapper.go (it holds unexported state and lazily parsed extensions).",
+          "skip": true
+        },
+        "SiteExt": {
+          "reason": "Hand-written with the port of request_wrapper.go (it holds unexported state and lazily parsed extensions).",
+          "skip": true
+        },
+        "SourceExt": {
+          "reason": "Hand-written with the port of request_wrapper.go (it holds unexported state and lazily parsed extensions).",
+          "skip": true
+        },
+        "ImpExt": {
+          "reason": "Hand-written with the port of request_wrapper.go (it holds unexported state and lazily parsed extensions).",
+          "skip": true
+        },
+        "BidderName": {
+          "reason": "Hand-written over Cow<'static, str> so that its Go constants are Rust constants (a String newtype cannot be built in a const).",
+          "skip": true,
+          "implements": ["Eq"]
+        },
+        "BidType": {
+          "reason": "Hand-written over Cow<'static, str> so that its Go constants are Rust constants (a String newtype cannot be built in a const).",
+          "skip": true,
+          "implements": ["Eq"]
+        },
+        "TargetingKey": {
+          "reason": "Hand-written over Cow<'static, str> so that its Go constants are Rust constants (a String newtype cannot be built in a const).",
+          "skip": true,
+          "implements": ["Eq"]
+        },
+        "CookieStatus": {
+          "reason": "Hand-written over Cow<'static, str> so that its Go constants are Rust constants (a String newtype cannot be built in a const).",
+          "skip": true,
+          "implements": ["Eq"]
+        },
+        "UserSyncType": {
+          "reason": "Hand-written over Cow<'static, str> so that its Go constants are Rust constants (a String newtype cannot be built in a const).",
+          "skip": true,
+          "implements": ["Eq"]
+        },
+        "BidderNameNormalizer": {"reason": "A Go function type: hand-written as a Rust fn pointer type.", "skip": true},
+        "BidderParamValidator": {
+          "reason": "A Go interface: re-exported from pbs-bidder-params, which implements it.",
+          "skip": true
+        },
+        "PriceGranularity": {
+          "reason": "Has an UnmarshalJSON method (legacy string IDs or the custom model): hand-written with the unmarshaler.",
+          "skip": true
+        },
+        "ExtDeviceInt": {
+          "reason": "Has an UnmarshalJSON method (jsonparser-based validation): hand-written with the unmarshaler.",
+          "skip": true,
+          "implements": ["Copy", "Eq"]
+        },
+        "ExtSite": {
+          "reason": "Has an UnmarshalJSON method (jsonparser-based amp validation): hand-written with the unmarshaler.",
+          "skip": true,
+          "implements": ["Copy", "Eq"]
+        },
+        "ExtImpAppnexusKeywords": {
+          "reason": "Has an UnmarshalJSON method (object, array or string keywords): hand-written with the unmarshaler.",
+          "skip": true,
+          "implements": ["Eq"]
+        },
+        "AdjustmentsByDealID": {
+          "reason": "A named map type: hand-written (named_map!) so that encoding/json errors name it. Typegen would also take its Eq from its underlying type before it settles the structs', and Adjustment (a float64 field) is not Eq.",
+          "skip": true
+        },
+        "DealTierBidderMap": {
+          "reason": "A named map type: hand-written (named_map!) so that encoding/json errors name it.",
+          "skip": true,
+          "implements": ["Eq"]
+        },
+        "PreferredMediaType": {
+          "reason": "A named map type: hand-written (named_map!) so that encoding/json errors name it.",
+          "skip": true,
+          "implements": ["Eq"]
+        },
+        "ImpExtAdnunitus.Targeting": {
+          "reason": "An unnamed struct type in Go: hand-written as an anonymous GoJson struct.",
+          "rust_type": "ImpExtAdnunitusTargeting",
+          "uses": ["super::ImpExtAdnunitusTargeting"],
+          "implements": ["Eq"]
+        },
+        "ExtImpAdUnitCode.Prebid": {
+          "reason": "An unnamed struct type in Go: hand-written as an anonymous GoJson struct.",
+          "rust_type": "ExtImpAdUnitCodePrebid",
+          "uses": ["super::ExtImpAdUnitCodePrebid"],
+          "implements": ["Eq"]
+        },
+        "ExtResponseDebug.HttpCalls": {
+          "reason": "map[BidderName][]*ExtHttpCall spelled out is too complex a type for clippy; the per-bidder calls are named by a hand-written alias.",
+          "rust_type": "Option<BTreeMap<BidderName, ExtHttpCalls>>",
+          "uses": ["std::collections::BTreeMap", "super::BidderName", "super::ExtHttpCalls"],
+          "implements": ["Eq"]
+        },
+        "ImpExtConcert.Sizes": {
+          "reason": "A pointer to a slice (*[][]int): a nil pointer, a pointer to a nil slice and a pointer to a slice all differ in Go, and so do nil and empty inner slices.",
+          "rust_type": "Option<Option<Vec<Option<Vec<isize>>>>>",
+          "implements": ["Eq"]
+        },
+        "ImpExtTaboola.TagId": {
+          "reason": "TagId and TagID both snake-case to tag_id; TagId (JSON tagid) is named after its JSON key.",
+          "rust_name": "tagid"
+        },
+        "BidTypeBanner": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidTypeVideo": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidTypeAudio": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidTypeNative": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "PbKey": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "EnvKey": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "CacheHostKey": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "CachePathKey": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderKey": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "SizeKey": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "DealKey": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "FormatKey": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "CacheKey": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "VastCacheKey": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "CategoryDurationKey": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "StoredRequestAttributes": {"reason": "Untyped in Go; every use is as a string.", "go_type": "string"},
+        "OriginalBidCpmKey": {"reason": "Untyped in Go; every use is as a string.", "go_type": "string"},
+        "OriginalBidCurKey": {"reason": "Untyped in Go; every use is as a string.", "go_type": "string"},
+        "Passthrough": {"reason": "Untyped in Go; every use is as a string.", "go_type": "string"},
+        "BidderReservedAll": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderReservedContext": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderReservedData": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderReservedGeneral": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderReservedGPID": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderReservedPrebid": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderReservedSKAdN": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderReservedTID": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderReservedAE": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderReservedIGS": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "Bidder33Across": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderAax": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderAceex": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderAcuityAds": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderAdagio": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderAdelement": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderAdf": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderAdgeneration": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderAdhese": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderAdkernel": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderAdkernelAdn": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderAdman": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderAdmatic": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderAdmixer": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderAdnuntius": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderAdot": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderAdpone": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderAdprime": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderAdquery": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderAdrino": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderAdtarget": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderAdtrgtme": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderAdTonos": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderAdtelligent": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderAdUpTech": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderAdvangelists": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderAdverxo": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderAdView": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderAdxcg": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderAdyoulike": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderAfront": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderAidem": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderAJA": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderAkcelo": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderAlgorix": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderAlkimi": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderAllianceGravity": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderAMX": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderApacdex": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderAppnexus": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderAppush": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderAps": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderAso": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderAudienceNetwork": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderAutomatad": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderAvocet": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderAxis": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderAxonix": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderBeachfront": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderBeintoo": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderBematterfull": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderBeop": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderBetween": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderBeyondMedia": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderBidmachine": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderBidmatic": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderBidmyadz": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderBidsCube": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderBidstack": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderBidtheatre": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderBigoAd": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderBlasto": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderBliink": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderBlis": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderBlue": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderBluesea": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderBmtm": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderBoldwin": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderBoldwinRapid": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderBrave": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderBWX": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderCadentApertureMX": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderCcx": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderClydo": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderCointraffic": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderCoinzilla": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderColossus": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderCompass": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderConcert": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderConnatix": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderConnectAd": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderConsumable": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderContxtful": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderConversant": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderCopper6ssp": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderCpmstar": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderCriteo": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderCWire": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderDatablocks": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderDecenterAds": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderDeepintent": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderDefinemedia": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderDianomi": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderDisplayio": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderEdge226": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderDmx": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderDriftPixel": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderElementalTV": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderEmtv": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderEmxDigital": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderEPlanning": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderEpom": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderEscalax": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderEskimi": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderExco": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderEVolution": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderEzoic": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderFeedAd": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderFerio": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderFlatads": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderFlipp": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderFloxis": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderFreewheelSSP": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderFWSSP": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderFRVRAdNetwork": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderGamma": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderGamoshi": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderGlobalsun": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderGoldbach": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderGrid": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderGumGum": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderHuaweiAds": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderImds": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderImpactify": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderImprovedigital": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderInfyTV": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderInMobi": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderInsticator": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderIntenze": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderInteractiveoffers": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderInvibes": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderIQX": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderIQZone": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderIx": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderJixie": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderKargo": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderKayzen": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderKidoz": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderKiviads": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderLmKiviads": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderKobler": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderKrushmedia": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderKueezRTB": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderLemmadigital": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderLimelightDigital": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderLockerDome": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderLogan": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderLogicad": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderLoopme": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderLoyal": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderLunaMedia": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderMabidder": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderMadSense": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderMadvertise": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderMarsmedia": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderMatterfullRTB": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderMediafuse": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderMediaGo": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderMedianet": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderMediasquare": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderMeloZen": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderMetaX": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderMgid": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderMgidX": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderMicrosoft": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderMinuteMedia": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderMissena": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderMobfoxpb": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderMobileFuse": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderMobkoi": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderMotorik": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderNativery": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderNativo": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderNextMillennium": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderNexx360": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderNoBid": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderOdeeo": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderOgury": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderOms": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderOneTag": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderOpenWeb": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderOpenx": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderOperaads": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderOptidigital": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderOraki": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderOrbidder": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderOutbrain": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderOwnAdx": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderPangle": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderPanxo": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderPeak226": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderPGAMSsp": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderPixfuture": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderPlaydigo": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderProxistore": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderPubmatic": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderPubrise": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderPubnative": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderPulsepoint": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderPWBid": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderQT": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderReadpeak": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderRediads": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderRelevantDigital": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderResetDigital": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderRevcontent": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderRichaudience": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderRise": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderRoulax": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderRTBHouse": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderRTBStack": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderRubicon": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderSeedingAlliance": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderSeedtag": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderSaLunaMedia": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderScalibur": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderSharethrough": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderShowheroes": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderSilverMob": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderSilverPush": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderSmaato": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderSmartAdserver": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderSmartHub": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderSmartRTB": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderSmartx": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderSmartyAds": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderSmileWanted": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderSmoot": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderSmrtconnect": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderSonobi": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderSovrn": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderSovrnXsp": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderSparteo": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderSspBC": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderStackAdapt": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderStartIO": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderStroeerCore": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderSuperEdge": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderSynapseHX": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderTaboola": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderTAdvertisingBlis": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderTappx": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderTargetVideo": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderTeads": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderTeal": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderTelaria": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderTeqBlaze": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderTheadx": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderTheTradeDesk": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderTpmn": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderTradPlus": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderTrafficGate": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderTriplelift": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderTripleliftNative": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderTrustedstack": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderTrustX": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderTunnl": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderUcfunnel": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderUndertone": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderUnicorn": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderUnruly": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderViant": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderVidazoo": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderVideoByte": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderVideoHeroes": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderVidoomy": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderVisibleMeasures": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderVisx": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderVox": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderVrtcal": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderVungle": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderXeworks": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderYahooAds": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderYandex": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderYeahmobi": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderYieldlab": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderYieldmo": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderYieldone": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderZentotem": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderZeroClickFraud": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderZetaGlobalSsp": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "BidderZmaticoo": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "PrebidExtKey": {"reason": "Untyped in Go; every use is as a string.", "go_type": "string"},
+        "PrebidExtBidderKey": {"reason": "Untyped in Go; every use is as a string.", "go_type": "string"},
+        "FetchSuccess": {"reason": "Untyped in Go; every use is as a string.", "go_type": "string"},
+        "FetchTimeout": {"reason": "Untyped in Go; every use is as a string.", "go_type": "string"},
+        "FetchError": {"reason": "Untyped in Go; every use is as a string.", "go_type": "string"},
+        "FetchInprogress": {"reason": "Untyped in Go; every use is as a string.", "go_type": "string"},
+        "FetchNone": {"reason": "Untyped in Go; every use is as a string.", "go_type": "string"},
+        "NoDataLocation": {"reason": "Untyped in Go; every use is as a string.", "go_type": "string"},
+        "RequestLocation": {"reason": "Untyped in Go; every use is as a string.", "go_type": "string"},
+        "FetchLocation": {"reason": "Untyped in Go; every use is as a string.", "go_type": "string"},
+        "IsRewardedInventoryKey": {"reason": "Untyped in Go; every use is as a string.", "go_type": "string"},
+        "OptionsKey": {"reason": "Untyped in Go; every use is as a string.", "go_type": "string"},
+        "DefaultBidLimit": {
+          "reason": "Untyped in Go; prebid-server compares it with *int maxbids values, so it is an int.",
+          "go_type": "int"
+        },
+        "MaxBidLimit": {
+          "reason": "Untyped in Go; prebid-server compares it with *int maxbids values, so it is an int.",
+          "go_type": "int"
+        },
+        "FirstPartyDataExtKey": {"reason": "Untyped in Go; every use is as a string.", "go_type": "string"},
+        "FirstPartyDataContextExtKey": {"reason": "Untyped in Go; every use is as a string.", "go_type": "string"},
+        "SKAdNExtKey": {"reason": "Untyped in Go; every use is as a string.", "go_type": "string"},
+        "GPIDKey": {"reason": "Untyped in Go; every use is as a string.", "go_type": "string"},
+        "TIDKey": {"reason": "Untyped in Go; every use is as a string.", "go_type": "string"},
+        "NativeExchangeSpecificLowerBound": {
+          "reason": "Untyped in Go; prebid-server compares it with the int64 native1 enumerations (ContextType, PlacementType, EventType, ...), so it is an int64.",
+          "go_type": "int64"
+        },
+        "CookieNone": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "CookieExpired": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "CookieAvailable": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "UserSyncIframe": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        },
+        "UserSyncPixel": {
+          "reason": "Constant of a hand-written named string type: written by hand next to it.",
+          "skip": true
+        }
+      },
+      "functions": {
+        "ExtAlternateBidderCodes.IsValidBidderCode": {
+          "rust": "ExtAlternateBidderCodes::is_valid_bidder_code",
+          "signature": "fn(&openrtb_ext::ExtAlternateBidderCodes, &str, &str) -> Result<(), pbs_errortypes::GoError>"
+        },
+        "ExtAlternateBidderCodes.IsBidderInAlternateBidderCodes": {
+          "rust": "ExtAlternateBidderCodes::is_bidder_in_alternate_bidder_codes",
+          "signature": "for<'a> fn(&'a openrtb_ext::ExtAlternateBidderCodes, &str) -> Option<&'a openrtb_ext::ExtAdapterAlternateBidderCodes>"
+        },
+        "BidTypes": {"rust": "bid_types", "signature": "fn() -> Vec<openrtb_ext::BidType>"},
+        "ParseBidType": {
+          "rust": "parse_bid_type",
+          "signature": "fn(&str) -> Result<openrtb_ext::BidType, pbs_errortypes::GoError>"
+        },
+        "TargetingKey.BidderKey": {
+          "rust": "TargetingKey::bidder_key",
+          "signature": "fn(&openrtb_ext::TargetingKey, &str, &openrtb_ext::BidderName, isize) -> String"
+        },
+        "TargetingKey.TruncateKey": {
+          "rust": "TargetingKey::truncate_key",
+          "signature": "fn(&openrtb_ext::TargetingKey, &str, isize) -> String"
+        },
+        "GetAliasBidderToParent": {
+          "rust": "get_alias_bidder_to_parent",
+          "signature": "fn() -> std::collections::BTreeMap<openrtb_ext::BidderName, openrtb_ext::BidderName>"
+        },
+        "SetAliasBidderName": {
+          "rust": "set_alias_bidder_name",
+          "signature": "fn(&str, openrtb_ext::BidderName) -> Result<(), pbs_errortypes::GoError>"
+        },
+        "BidderName.String": {"rust": "BidderName::as_str", "signature": "fn(&openrtb_ext::BidderName) -> &str"},
+        "IsBidderNameReserved": {"rust": "is_bidder_name_reserved", "signature": "fn(&str) -> bool"},
+        "IsPotentialBidder": {"rust": "is_potential_bidder", "signature": "fn(&str) -> bool"},
+        "CoreBidderNames": {"rust": "core_bidder_names", "signature": "fn() -> Vec<openrtb_ext::BidderName>"},
+        "BuildBidderMap": {
+          "rust": "build_bidder_map",
+          "signature": "fn() -> std::collections::BTreeMap<String, openrtb_ext::BidderName>"
+        },
+        "BuildBidderStringSlice": {"rust": "build_bidder_string_slice", "signature": "fn() -> Vec<String>"},
+        "BuildBidderNameHashSet": {
+          "rust": "build_bidder_name_hash_set",
+          "signature": "fn() -> std::collections::HashSet<openrtb_ext::BidderName>"
+        },
+        "NormalizeBidderName": {
+          "rust": "normalize_bidder_name",
+          "signature": "fn(&str) -> Option<openrtb_ext::BidderName>"
+        },
+        "NormalizeBidderNameOrUnchanged": {
+          "rust": "normalize_bidder_name_or_unchanged",
+          "signature": "fn(&str) -> openrtb_ext::BidderName"
+        },
+        "NewBidderParamsValidator": {
+          "rust": "new_bidder_params_validator",
+          "signature": "fn(&str) -> Result<pbs_bidder_params::StandardBidderParamValidator, pbs_bidder_params::LoadError>"
+        },
+        "bidderParamValidator.Validate": {
+          "rust": "StandardBidderParamValidator::validate",
+          "signature": "fn(&pbs_bidder_params::StandardBidderParamValidator, &str, &[u8]) -> Result<(), pbs_bidder_params::ParamsError>"
+        },
+        "bidderParamValidator.Schema": {
+          "rust": "StandardBidderParamValidator::schema",
+          "signature": "for<'a> fn(&'a pbs_bidder_params::StandardBidderParamValidator, &str) -> &'a str"
+        },
+        "ReadDealTiersFromImp": {
+          "rust": "read_deal_tiers_from_imp",
+          "signature": "fn(&pbs_openrtb::openrtb2::Imp) -> Result<openrtb_ext::DealTierBidderMap, pbs_errortypes::GoError>"
+        },
+        "IsKnownIOSAppTrackingStatus": {"rust": "is_known_ios_app_tracking_status", "signature": "fn(i64) -> bool"},
+        "ExtDeviceInt.UnmarshalJSON": {
+          "rust": "ExtDeviceInt::unmarshal_json",
+          "signature": "fn(&mut openrtb_ext::ExtDeviceInt, &[u8]) -> Result<(), pbs_gojson::JsonError>"
+        },
+        "ParseDeviceExtATTS": {
+          "rust": "parse_device_ext_atts",
+          "signature": "fn(&[u8]) -> Result<Option<openrtb_ext::IOSAppTrackingStatus>, pbs_errortypes::GoError>"
+        },
+        "PriceFloorRules.GetEnforcePBS": {
+          "rust": "PriceFloorRules::get_enforce_pbs",
+          "signature": "fn(Option<&openrtb_ext::PriceFloorRules>) -> bool"
+        },
+        "PriceFloorRules.GetFloorsSkippedFlag": {
+          "rust": "PriceFloorRules::get_floors_skipped_flag",
+          "signature": "fn(Option<&openrtb_ext::PriceFloorRules>) -> bool"
+        },
+        "PriceFloorRules.GetEnforceRate": {
+          "rust": "PriceFloorRules::get_enforce_rate",
+          "signature": "fn(Option<&openrtb_ext::PriceFloorRules>) -> isize"
+        },
+        "PriceFloorRules.GetEnforceDealsFlag": {
+          "rust": "PriceFloorRules::get_enforce_deals_flag",
+          "signature": "fn(Option<&openrtb_ext::PriceFloorRules>) -> bool"
+        },
+        "PriceFloorRules.GetEnabled": {
+          "rust": "PriceFloorRules::get_enabled",
+          "signature": "fn(Option<&openrtb_ext::PriceFloorRules>) -> bool"
+        },
+        "PriceFloorModelGroup.Copy": {
+          "rust": "PriceFloorModelGroup::copy",
+          "signature": "fn(&openrtb_ext::PriceFloorModelGroup) -> openrtb_ext::PriceFloorModelGroup"
+        },
+        "PriceFloorRules.DeepCopy": {
+          "rust": "PriceFloorRules::deep_copy",
+          "signature": "fn(&openrtb_ext::PriceFloorRules) -> openrtb_ext::PriceFloorRules"
+        },
+        "PriceFloorData.DeepCopy": {
+          "rust": "PriceFloorData::deep_copy",
+          "signature": "fn(&openrtb_ext::PriceFloorData) -> openrtb_ext::PriceFloorData"
+        },
+        "PriceFloorEnforcement.DeepCopy": {
+          "rust": "PriceFloorEnforcement::deep_copy",
+          "signature": "fn(&openrtb_ext::PriceFloorEnforcement) -> openrtb_ext::PriceFloorEnforcement"
+        },
+        "GetImpIDs": {"rust": "get_imp_ids", "signature": "fn(&[pbs_openrtb::openrtb2::Imp]) -> Vec<String>"},
+        "ExtImpAppnexusKeywords.UnmarshalJSON": {
+          "rust": "ExtImpAppnexusKeywords::unmarshal_json",
+          "signature": "fn(&mut openrtb_ext::ExtImpAppnexusKeywords, &[u8]) -> Result<(), pbs_gojson::JsonError>"
+        },
+        "ExtImpAppnexusKeywords.String": {
+          "rust": "ExtImpAppnexusKeywords::as_str",
+          "signature": "fn(&openrtb_ext::ExtImpAppnexusKeywords) -> &str"
+        },
+        "stringOrStringArray.UnmarshalJSON": {
+          "rust": "StringOrStringArray::unmarshal_json",
+          "signature": "fn(&mut openrtb_ext::StringOrStringArray, &[u8]) -> Result<(), pbs_gojson::JsonError>"
+        },
+        "ValidateAndBuildExtMultiBid": {
+          "rust": "validate_and_build_ext_multi_bid",
+          "signature": "fn(Option<&mut openrtb_ext::ExtRequestPrebid>) -> (Option<Vec<openrtb_ext::ExtMultiBid>>, Vec<pbs_errortypes::GoError>)"
+        },
+        "ExtRegsDSA.Clone": {
+          "rust": "ExtRegsDSA::clone",
+          "signature": "fn(&openrtb_ext::ExtRegsDSA) -> openrtb_ext::ExtRegsDSA"
+        },
+        "PriceGranularity.UnmarshalJSON": {
+          "rust": "PriceGranularity::unmarshal_json",
+          "signature": "fn(&mut openrtb_ext::PriceGranularity, &[u8]) -> Result<(), pbs_gojson::JsonError>"
+        },
+        "NewPriceGranularityDefault": {
+          "rust": "new_price_granularity_default",
+          "signature": "fn() -> openrtb_ext::PriceGranularity"
+        },
+        "NewPriceGranularityFromLegacyID": {
+          "rust": "new_price_granularity_from_legacy_id",
+          "signature": "fn(&str) -> Option<openrtb_ext::PriceGranularity>"
+        },
+        "ExtMultiBid.String": {"rust": "ExtMultiBid::string", "signature": "fn(&openrtb_ext::ExtMultiBid) -> String"},
+        "ExtRequestPrebid.Clone": {
+          "rust": "ExtRequestPrebid::clone_go",
+          "signature": "fn(&openrtb_ext::ExtRequestPrebid) -> openrtb_ext::ExtRequestPrebid"
+        },
+        "ExtSite.UnmarshalJSON": {
+          "rust": "ExtSite::unmarshal_json",
+          "signature": "fn(&mut openrtb_ext::ExtSite, &[u8]) -> Result<(), pbs_gojson::JsonError>"
+        },
+        "ParseConsentedProvidersString": {"rust": "parse_consented_providers_string", "signature": "fn(&str) -> Option<Vec<isize>>"},
+        "ConvertDownTo25": {
+          "rust": "convert_down_to25",
+          "signature": "TBD by the request_wrapper.go and convert_*.go port"
+        },
+        "Clear26Fields": {
+          "rust": "clear26_fields",
+          "signature": "TBD by the request_wrapper.go and convert_*.go port"
+        },
+        "Clear202211Fields": {
+          "rust": "clear202211_fields",
+          "signature": "TBD by the request_wrapper.go and convert_*.go port"
+        },
+        "Clear202303Fields": {
+          "rust": "clear202303_fields",
+          "signature": "TBD by the request_wrapper.go and convert_*.go port"
+        },
+        "Clear202309Fields": {
+          "rust": "clear202309_fields",
+          "signature": "TBD by the request_wrapper.go and convert_*.go port"
+        },
+        "Clear202402Fields": {
+          "rust": "clear202402_fields",
+          "signature": "TBD by the request_wrapper.go and convert_*.go port"
+        },
+        "Clear202409Fields": {
+          "rust": "clear202409_fields",
+          "signature": "TBD by the request_wrapper.go and convert_*.go port"
+        },
+        "ConvertUpTo26": {
+          "rust": "convert_up_to26",
+          "signature": "TBD by the request_wrapper.go and convert_*.go port"
+        },
+        "RequestWrapper.LenImp": {
+          "rust": "RequestWrapper::len_imp",
+          "signature": "TBD by the request_wrapper.go and convert_*.go port"
+        },
+        "RequestWrapper.GetImp": {
+          "rust": "RequestWrapper::get_imp",
+          "signature": "TBD by the request_wrapper.go and convert_*.go port"
+        },
+        "RequestWrapper.SetImp": {
+          "rust": "RequestWrapper::set_imp",
+          "signature": "TBD by the request_wrapper.go and convert_*.go port"
+        },
+        "RequestWrapper.GetUserExt": {
+          "rust": "RequestWrapper::get_user_ext",
+          "signature": "TBD by the request_wrapper.go and convert_*.go port"
+        },
+        "RequestWrapper.GetDeviceExt": {
+          "rust": "RequestWrapper::get_device_ext",
+          "signature": "TBD by the request_wrapper.go and convert_*.go port"
+        },
+        "RequestWrapper.GetRequestExt": {
+          "rust": "RequestWrapper::get_request_ext",
+          "signature": "TBD by the request_wrapper.go and convert_*.go port"
+        },
+        "RequestWrapper.GetAppExt": {
+          "rust": "RequestWrapper::get_app_ext",
+          "signature": "TBD by the request_wrapper.go and convert_*.go port"
+        },
+        "RequestWrapper.GetRegExt": {
+          "rust": "RequestWrapper::get_reg_ext",
+          "signature": "TBD by the request_wrapper.go and convert_*.go port"
+        },
+        "RequestWrapper.GetSiteExt": {
+          "rust": "RequestWrapper::get_site_ext",
+          "signature": "TBD by the request_wrapper.go and convert_*.go port"
+        },
+        "RequestWrapper.GetDOOHExt": {
+          "rust": "RequestWrapper::get_dooh_ext",
+          "signature": "TBD by the request_wrapper.go and convert_*.go port"
+        },
+        "RequestWrapper.GetSourceExt": {
+          "rust": "RequestWrapper::get_source_ext",
+          "signature": "TBD by the request_wrapper.go and convert_*.go port"
+        },
+        "RequestWrapper.RebuildRequest": {
+          "rust": "RequestWrapper::rebuild_request",
+          "signature": "TBD by the request_wrapper.go and convert_*.go port"
+        },
+        "RequestWrapper.Clone": {
+          "rust": "RequestWrapper::clone",
+          "signature": "TBD by the request_wrapper.go and convert_*.go port"
+        },
+        "RequestWrapper.CloneAndClearImpWrappers": {
+          "rust": "RequestWrapper::clone_and_clear_imp_wrappers",
+          "signature": "TBD by the request_wrapper.go and convert_*.go port"
+        },
+        "UserExt.Dirty": {
+          "rust": "UserExt::dirty",
+          "signature": "TBD by the request_wrapper.go and convert_*.go port"
+        },
+        "UserExt.GetExt": {
+          "rust": "UserExt::get_ext",
+          "signature": "TBD by the request_wrapper.go and convert_*.go port"
+        },
+        "UserExt.SetExt": {
+          "rust": "UserExt::set_ext",
+          "signature": "TBD by the request_wrapper.go and convert_*.go port"
+        },
+        "UserExt.GetConsent": {
+          "rust": "UserExt::get_consent",
+          "signature": "TBD by the request_wrapper.go and convert_*.go port"
+        },
+        "UserExt.SetConsent": {
+          "rust": "UserExt::set_consent",
+          "signature": "TBD by the request_wrapper.go and convert_*.go port"
+        },
+        "UserExt.GetConsentedProvidersSettingsIn": {
+          "rust": "UserExt::get_consented_providers_settings_in",
+          "signature": "TBD by the request_wrapper.go and convert_*.go port"
+        },
+        "UserExt.SetConsentedProvidersSettingsIn": {
+          "rust": "UserExt::set_consented_providers_settings_in",
+          "signature": "TBD by the request_wrapper.go and convert_*.go port"
+        },
+        "UserExt.GetConsentedProvidersSettingsOut": {
+          "rust": "UserExt::get_consented_providers_settings_out",
+          "signature": "TBD by the request_wrapper.go and convert_*.go port"
+        },
+        "UserExt.SetConsentedProvidersSettingsOut": {
+          "rust": "UserExt::set_consented_providers_settings_out",
+          "signature": "TBD by the request_wrapper.go and convert_*.go port"
+        },
+        "UserExt.GetPrebid": {
+          "rust": "UserExt::get_prebid",
+          "signature": "TBD by the request_wrapper.go and convert_*.go port"
+        },
+        "UserExt.SetPrebid": {
+          "rust": "UserExt::set_prebid",
+          "signature": "TBD by the request_wrapper.go and convert_*.go port"
+        },
+        "UserExt.GetEid": {
+          "rust": "UserExt::get_eid",
+          "signature": "TBD by the request_wrapper.go and convert_*.go port"
+        },
+        "UserExt.SetEid": {
+          "rust": "UserExt::set_eid",
+          "signature": "TBD by the request_wrapper.go and convert_*.go port"
+        },
+        "UserExt.Clone": {
+          "rust": "UserExt::clone",
+          "signature": "TBD by the request_wrapper.go and convert_*.go port"
+        },
+        "RequestExt.Dirty": {
+          "rust": "RequestExt::dirty",
+          "signature": "TBD by the request_wrapper.go and convert_*.go port"
+        },
+        "RequestExt.GetExt": {
+          "rust": "RequestExt::get_ext",
+          "signature": "TBD by the request_wrapper.go and convert_*.go port"
+        },
+        "RequestExt.SetExt": {
+          "rust": "RequestExt::set_ext",
+          "signature": "TBD by the request_wrapper.go and convert_*.go port"
+        },
+        "RequestExt.GetPrebid": {
+          "rust": "RequestExt::get_prebid",
+          "signature": "TBD by the request_wrapper.go and convert_*.go port"
+        },
+        "RequestExt.SetPrebid": {
+          "rust": "RequestExt::set_prebid",
+          "signature": "TBD by the request_wrapper.go and convert_*.go port"
+        },
+        "RequestExt.GetSChain": {
+          "rust": "RequestExt::get_s_chain",
+          "signature": "TBD by the request_wrapper.go and convert_*.go port"
+        },
+        "RequestExt.SetSChain": {
+          "rust": "RequestExt::set_s_chain",
+          "signature": "TBD by the request_wrapper.go and convert_*.go port"
+        },
+        "RequestExt.Clone": {
+          "rust": "RequestExt::clone",
+          "signature": "TBD by the request_wrapper.go and convert_*.go port"
+        },
+        "DeviceExt.Dirty": {
+          "rust": "DeviceExt::dirty",
+          "signature": "TBD by the request_wrapper.go and convert_*.go port"
+        },
+        "DeviceExt.GetExt": {
+          "rust": "DeviceExt::get_ext",
+          "signature": "TBD by the request_wrapper.go and convert_*.go port"
+        },
+        "DeviceExt.SetExt": {
+          "rust": "DeviceExt::set_ext",
+          "signature": "TBD by the request_wrapper.go and convert_*.go port"
+        },
+        "DeviceExt.GetPrebid": {
+          "rust": "DeviceExt::get_prebid",
+          "signature": "TBD by the request_wrapper.go and convert_*.go port"
+        },
+        "DeviceExt.SetPrebid": {
+          "rust": "DeviceExt::set_prebid",
+          "signature": "TBD by the request_wrapper.go and convert_*.go port"
+        },
+        "DeviceExt.GetCDep": {
+          "rust": "DeviceExt::get_c_dep",
+          "signature": "TBD by the request_wrapper.go and convert_*.go port"
+        },
+        "DeviceExt.SetCDep": {
+          "rust": "DeviceExt::set_c_dep",
+          "signature": "TBD by the request_wrapper.go and convert_*.go port"
+        },
+        "DeviceExt.Clone": {
+          "rust": "DeviceExt::clone",
+          "signature": "TBD by the request_wrapper.go and convert_*.go port"
+        },
+        "AppExt.Dirty": {
+          "rust": "AppExt::dirty",
+          "signature": "TBD by the request_wrapper.go and convert_*.go port"
+        },
+        "AppExt.GetExt": {
+          "rust": "AppExt::get_ext",
+          "signature": "TBD by the request_wrapper.go and convert_*.go port"
+        },
+        "AppExt.SetExt": {
+          "rust": "AppExt::set_ext",
+          "signature": "TBD by the request_wrapper.go and convert_*.go port"
+        },
+        "AppExt.GetPrebid": {
+          "rust": "AppExt::get_prebid",
+          "signature": "TBD by the request_wrapper.go and convert_*.go port"
+        },
+        "AppExt.SetPrebid": {
+          "rust": "AppExt::set_prebid",
+          "signature": "TBD by the request_wrapper.go and convert_*.go port"
+        },
+        "AppExt.Clone": {
+          "rust": "AppExt::clone",
+          "signature": "TBD by the request_wrapper.go and convert_*.go port"
+        },
+        "DOOHExt.Dirty": {
+          "rust": "DOOHExt::dirty",
+          "signature": "TBD by the request_wrapper.go and convert_*.go port"
+        },
+        "DOOHExt.GetExt": {
+          "rust": "DOOHExt::get_ext",
+          "signature": "TBD by the request_wrapper.go and convert_*.go port"
+        },
+        "DOOHExt.SetExt": {
+          "rust": "DOOHExt::set_ext",
+          "signature": "TBD by the request_wrapper.go and convert_*.go port"
+        },
+        "DOOHExt.Clone": {
+          "rust": "DOOHExt::clone",
+          "signature": "TBD by the request_wrapper.go and convert_*.go port"
+        },
+        "RegExt.Dirty": {
+          "rust": "RegExt::dirty",
+          "signature": "TBD by the request_wrapper.go and convert_*.go port"
+        },
+        "RegExt.GetExt": {
+          "rust": "RegExt::get_ext",
+          "signature": "TBD by the request_wrapper.go and convert_*.go port"
+        },
+        "RegExt.SetExt": {
+          "rust": "RegExt::set_ext",
+          "signature": "TBD by the request_wrapper.go and convert_*.go port"
+        },
+        "RegExt.GetDSA": {
+          "rust": "RegExt::get_dsa",
+          "signature": "TBD by the request_wrapper.go and convert_*.go port"
+        },
+        "RegExt.SetDSA": {
+          "rust": "RegExt::set_dsa",
+          "signature": "TBD by the request_wrapper.go and convert_*.go port"
+        },
+        "RegExt.GetGDPR": {
+          "rust": "RegExt::get_gdpr",
+          "signature": "TBD by the request_wrapper.go and convert_*.go port"
+        },
+        "RegExt.SetGDPR": {
+          "rust": "RegExt::set_gdpr",
+          "signature": "TBD by the request_wrapper.go and convert_*.go port"
+        },
+        "RegExt.GetGPC": {
+          "rust": "RegExt::get_gpc",
+          "signature": "TBD by the request_wrapper.go and convert_*.go port"
+        },
+        "RegExt.SetGPC": {
+          "rust": "RegExt::set_gpc",
+          "signature": "TBD by the request_wrapper.go and convert_*.go port"
+        },
+        "RegExt.GetUSPrivacy": {
+          "rust": "RegExt::get_us_privacy",
+          "signature": "TBD by the request_wrapper.go and convert_*.go port"
+        },
+        "RegExt.SetUSPrivacy": {
+          "rust": "RegExt::set_us_privacy",
+          "signature": "TBD by the request_wrapper.go and convert_*.go port"
+        },
+        "RegExt.Clone": {
+          "rust": "RegExt::clone",
+          "signature": "TBD by the request_wrapper.go and convert_*.go port"
+        },
+        "SiteExt.Dirty": {
+          "rust": "SiteExt::dirty",
+          "signature": "TBD by the request_wrapper.go and convert_*.go port"
+        },
+        "SiteExt.GetExt": {
+          "rust": "SiteExt::get_ext",
+          "signature": "TBD by the request_wrapper.go and convert_*.go port"
+        },
+        "SiteExt.SetExt": {
+          "rust": "SiteExt::set_ext",
+          "signature": "TBD by the request_wrapper.go and convert_*.go port"
+        },
+        "SiteExt.GetAmp": {
+          "rust": "SiteExt::get_amp",
+          "signature": "TBD by the request_wrapper.go and convert_*.go port"
+        },
+        "SiteExt.SetAmp": {
+          "rust": "SiteExt::set_amp",
+          "signature": "TBD by the request_wrapper.go and convert_*.go port"
+        },
+        "SiteExt.Clone": {
+          "rust": "SiteExt::clone",
+          "signature": "TBD by the request_wrapper.go and convert_*.go port"
+        },
+        "SourceExt.Dirty": {
+          "rust": "SourceExt::dirty",
+          "signature": "TBD by the request_wrapper.go and convert_*.go port"
+        },
+        "SourceExt.GetExt": {
+          "rust": "SourceExt::get_ext",
+          "signature": "TBD by the request_wrapper.go and convert_*.go port"
+        },
+        "SourceExt.SetExt": {
+          "rust": "SourceExt::set_ext",
+          "signature": "TBD by the request_wrapper.go and convert_*.go port"
+        },
+        "SourceExt.GetSChain": {
+          "rust": "SourceExt::get_s_chain",
+          "signature": "TBD by the request_wrapper.go and convert_*.go port"
+        },
+        "SourceExt.SetSChain": {
+          "rust": "SourceExt::set_s_chain",
+          "signature": "TBD by the request_wrapper.go and convert_*.go port"
+        },
+        "SourceExt.Clone": {
+          "rust": "SourceExt::clone",
+          "signature": "TBD by the request_wrapper.go and convert_*.go port"
+        },
+        "ImpWrapper.GetImpExt": {
+          "rust": "ImpWrapper::get_imp_ext",
+          "signature": "TBD by the request_wrapper.go and convert_*.go port"
+        },
+        "ImpWrapper.RebuildImp": {
+          "rust": "ImpWrapper::rebuild_imp",
+          "signature": "TBD by the request_wrapper.go and convert_*.go port"
+        },
+        "ImpWrapper.Clone": {
+          "rust": "ImpWrapper::clone",
+          "signature": "TBD by the request_wrapper.go and convert_*.go port"
+        },
+        "ImpExt.Dirty": {
+          "rust": "ImpExt::dirty",
+          "signature": "TBD by the request_wrapper.go and convert_*.go port"
+        },
+        "ImpExt.GetExt": {
+          "rust": "ImpExt::get_ext",
+          "signature": "TBD by the request_wrapper.go and convert_*.go port"
+        },
+        "ImpExt.SetExt": {
+          "rust": "ImpExt::set_ext",
+          "signature": "TBD by the request_wrapper.go and convert_*.go port"
+        },
+        "ImpExt.GetPrebid": {
+          "rust": "ImpExt::get_prebid",
+          "signature": "TBD by the request_wrapper.go and convert_*.go port"
+        },
+        "ImpExt.GetOrCreatePrebid": {
+          "rust": "ImpExt::get_or_create_prebid",
+          "signature": "TBD by the request_wrapper.go and convert_*.go port"
+        },
+        "ImpExt.SetPrebid": {
+          "rust": "ImpExt::set_prebid",
+          "signature": "TBD by the request_wrapper.go and convert_*.go port"
+        },
+        "ImpExt.GetData": {
+          "rust": "ImpExt::get_data",
+          "signature": "TBD by the request_wrapper.go and convert_*.go port"
+        },
+        "ImpExt.GetTid": {
+          "rust": "ImpExt::get_tid",
+          "signature": "TBD by the request_wrapper.go and convert_*.go port"
+        },
+        "ImpExt.SetTid": {
+          "rust": "ImpExt::set_tid",
+          "signature": "TBD by the request_wrapper.go and convert_*.go port"
+        },
+        "ImpExt.GetGpId": {
+          "rust": "ImpExt::get_gp_id",
+          "signature": "TBD by the request_wrapper.go and convert_*.go port"
+        },
+        "CreateImpExtForTesting": {
+          "rust": "create_imp_ext_for_testing",
+          "signature": "TBD by the request_wrapper.go and convert_*.go port"
+        },
+        "ImpExt.Clone": {
+          "rust": "ImpExt::clone",
+          "signature": "TBD by the request_wrapper.go and convert_*.go port"
+        }
+      }
+    }
+  ]
+}
