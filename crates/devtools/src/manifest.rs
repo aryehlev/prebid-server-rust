@@ -24,7 +24,8 @@ use sha2::{Digest as _, Sha256};
 use crate::{
     error::{Result, ToolError},
     fixtures,
-    goparse::{Expr, File, Func, StmtKind, render},
+    golex::Token,
+    goparse::{Expr, File, Func, IfParts, StmtKind, render},
     hooks::{HOOKS_PATH, Hooks, HooksFile, RunHooks},
     repo::Repo,
 };
@@ -194,16 +195,6 @@ pub fn generate(repo: &Repo, go_commit: &str) -> Result<Manifest> {
     for dir in &dirs {
         let pkg = Package::load(repo, dir)?;
         pkg.runs(&consts, &mut runs, &mut errors);
-    }
-
-    let mut seen = BTreeSet::new();
-    for run in &runs {
-        if !seen.insert((run.go_pkg.clone(), run.go_test.clone())) {
-            errors.push(format!(
-                "{}/{}: more than one RunJSONBidderTest call",
-                run.go_pkg, run.go_test
-            ));
-        }
     }
 
     let mut executed = BTreeSet::new();
@@ -412,9 +403,103 @@ fn read_go_files(repo: &Repo, rel_dir: &str, include_tests: bool) -> Result<Vec<
     for name in names {
         let path = dir.join(&name);
         let src = fs::read_to_string(&path).map_err(|e| ToolError::io(&path, &e))?;
-        files.push(File::parse(&format!("{rel_dir}/{name}"), src)?);
+        files.push(parse_go_file(&format!("{rel_dir}/{name}"), src)?);
     }
     Ok(files)
+}
+
+/// Parses one Go file (`rel` is its repository-relative path), refusing files with build
+/// constraints: the generator reads every file, so one `go test` may skip would make the manifest
+/// depend on the build environment.
+fn parse_go_file(rel: &str, src: String) -> Result<File> {
+    let name = rel.rsplit('/').next().unwrap_or(rel);
+    if let Some(why) = build_constraint(name, &src) {
+        return Err(ToolError::new(format!(
+            "{rel}: has a build constraint ({why}), which the generator does not evaluate"
+        )));
+    }
+    File::parse(rel, src)
+}
+
+// Go: go/build/syslist.go knownOS and knownArch.
+const KNOWN_OS: &[&str] = &[
+    "aix",
+    "android",
+    "darwin",
+    "dragonfly",
+    "freebsd",
+    "hurd",
+    "illumos",
+    "ios",
+    "js",
+    "linux",
+    "nacl",
+    "netbsd",
+    "openbsd",
+    "plan9",
+    "solaris",
+    "wasip1",
+    "windows",
+    "zos",
+];
+const KNOWN_ARCH: &[&str] = &[
+    "386",
+    "amd64",
+    "amd64p32",
+    "arm",
+    "armbe",
+    "arm64",
+    "arm64be",
+    "loong64",
+    "mips",
+    "mipsle",
+    "mips64",
+    "mips64le",
+    "mips64p32",
+    "mips64p32le",
+    "ppc",
+    "ppc64",
+    "ppc64le",
+    "riscv",
+    "riscv64",
+    "s390",
+    "s390x",
+    "sparc",
+    "sparc64",
+    "wasm",
+];
+
+/// Why `go/build` would match the file against the build environment, if it would: a
+/// `//go:build` or `// +build` line in the header before the package clause, or a `_GOOS`,
+/// `_GOARCH` or `_GOOS_GOARCH` file-name suffix.
+fn build_constraint(name: &str, src: &str) -> Option<String> {
+    // Go: go/build/build.go goodOSArchFile.
+    let stem = name.split('.').next().unwrap_or_default();
+    if let Some((_, after_first)) = stem.split_once('_') {
+        let mut parts: Vec<&str> = after_first.split('_').collect();
+        if parts.last() == Some(&"test") {
+            let _ = parts.pop();
+        }
+        let os_arch = match parts.as_slice() {
+            [.., os, arch] if KNOWN_OS.contains(os) && KNOWN_ARCH.contains(arch) => true,
+            [.., last] => KNOWN_OS.contains(last) || KNOWN_ARCH.contains(last),
+            [] => false,
+        };
+        if os_arch {
+            return Some("a GOOS/GOARCH file-name suffix".to_owned());
+        }
+    }
+    // Go: go/build/build.go shouldBuild reads constraints from the leading comments only.
+    for line in src.lines() {
+        let line = line.trim();
+        if line.starts_with("//go:build") || line.starts_with("// +build") {
+            return Some(format!("`{line}`"));
+        }
+        if line.starts_with("package") {
+            break;
+        }
+    }
+    None
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -453,14 +538,19 @@ impl Package {
         })
     }
 
-    fn value(&self, name: &str) -> Option<(usize, &Expr)> {
+    /// The package-level declaration of `name`: its file, its value, and whether it is a `var`.
+    fn value(&self, name: &str) -> Option<(usize, &Expr, bool)> {
         self.files.iter().enumerate().find_map(|(i, f)| {
             f.values
                 .iter()
                 .find(|v| v.name == name)
-                .and_then(|v| v.value.as_ref())
-                .map(|e| (i, e))
+                .and_then(|v| v.value.as_ref().map(|e| (i, e, !v.is_const)))
         })
+    }
+
+    /// Whether some function or initializer of the package assigns `name`.
+    fn is_assigned(&self, name: &str) -> bool {
+        self.files.iter().any(|f| f.assigned.contains(name))
     }
 
     fn runs(
@@ -469,20 +559,28 @@ impl Package {
         runs: &mut Vec<Run>,
         errors: &mut Vec<String>,
     ) {
+        let first_run = runs.len();
         for (fi, file) in self.files.iter().enumerate() {
-            if !file.path.ends_with("_test.go") {
-                continue;
-            }
+            let is_test_file = file.path.ends_with("_test.go");
+            let total = count_run_refs(file.toks(0..file.tokens.len()));
+            let mut followed = 0;
             for func in &file.funcs {
                 for (si, stmt) in func.body.iter().enumerate() {
-                    let mentions = file
-                        .toks(stmt.tokens.clone())
-                        .iter()
-                        .any(|t| t.text == "RunJSONBidderTest");
-                    if !mentions {
+                    let mentions = count_run_refs(file.toks(stmt.tokens.clone()));
+                    if mentions == 0 || !is_test_file {
                         continue;
                     }
+                    followed += mentions;
                     let ctx = format!("{}:{}", file.path, func.name);
+                    if !func.is_go_test {
+                        // A helper or a function `go test` does not run: the run (if any) belongs
+                        // to its callers, which the generator does not trace.
+                        errors.push(format!(
+                            "{ctx}: RunJSONBidderTest is called from a function that is not a Go \
+                             test (func TestXxx(t *testing.T)); the generator does not follow it"
+                        ));
+                        continue;
+                    }
                     match call_site(file, func, si) {
                         Some((scope, call_index, args)) => {
                             let mut ev = Eval::new(self, consts);
@@ -494,13 +592,45 @@ impl Package {
                         None => errors.push(format!(
                             "{ctx}: RunJSONBidderTest is called in a form the generator does not \
                              follow (only a plain statement, or a statement in the then-block of \
-                             an if)"
+                             `if x, err := f(...); err == nil {{ ... }}`)"
                         )),
                     }
                 }
             }
+            if total != followed {
+                errors.push(format!(
+                    "{}: RunJSONBidderTest is referenced {} time(s) outside the statements of a \
+                     top-level test function (a method, function literal, package-level \
+                     declaration or non-test file); the generator does not follow it",
+                    file.path,
+                    total - followed
+                ));
+            }
+        }
+        let mut seen = BTreeSet::new();
+        for run in runs.get(first_run..).unwrap_or_default() {
+            if !seen.insert(run.go_test.clone()) {
+                errors.push(format!(
+                    "{}:{}: more than one RunJSONBidderTest call",
+                    run.go_test_file, run.go_test
+                ));
+            }
         }
     }
+}
+
+/// Identifier tokens referring to `RunJSONBidderTest` (its declaration in `adapterstest` is not a
+/// reference).
+fn count_run_refs(toks: &[Token]) -> usize {
+    let mut prev: Option<&Token> = None;
+    let mut n = 0;
+    for t in toks {
+        if t.is_ident() && t.text == "RunJSONBidderTest" && !prev.is_some_and(|p| p.is("func")) {
+            n += 1;
+        }
+        prev = Some(t);
+    }
+    n
 }
 
 /// Finds the `RunJSONBidderTest` call in statement `si` of `func` and returns the scope it runs
@@ -508,15 +638,27 @@ impl Package {
 /// that body, and its arguments.
 ///
 /// Two forms are followed: a plain call statement, and a call statement in the then-block of
-/// `if init; cond { ... }` (`if bidder, err := Builder(...); err == nil { ... }`), whose init
-/// statement is then in scope.
+/// `if x, err := f(...); err == nil { ... }` (`if bidder, err := Builder(...); err == nil`),
+/// whose init statement is then in scope. The condition must be `<name> == nil` for a name the
+/// init binds, so the then-block runs exactly when construction succeeds; any other `if` could
+/// skip the call at run time and is not followed.
 fn call_site(file: &File, func: &Func, si: usize) -> Option<(Func, usize, Vec<Expr>)> {
     let stmt = func.body.get(si)?;
     let prefix = func.body.get(..si)?.to_vec();
     let (body, args) = match &stmt.kind {
         StmtKind::Expr(e) => (prefix, run_call_args(e)?),
         StmtKind::If => {
-            let (init, then) = file.if_parts(stmt.tokens.clone())?;
+            let IfParts { init, cond, then } = file.if_parts(stmt.tokens.clone())?;
+            let bound = match init.as_ref().map(|s| &s.kind) {
+                Some(StmtKind::Bind { names, values, .. }) if values.len() == 1 => names,
+                _ => return None,
+            };
+            let checks_bound_error = matches!(file.toks(cond), [x, eq, nil]
+                if x.is_ident() && eq.is("==") && nil.text == "nil"
+                    && bound.iter().skip(1).any(|n| *n == x.text));
+            if !checks_bound_error {
+                return None;
+            }
             let pos = then
                 .iter()
                 .position(|s| matches!(&s.kind, StmtKind::Expr(e) if run_call_args(e).is_some()))?;
@@ -537,6 +679,7 @@ fn call_site(file: &File, func: &Func, si: usize) -> Option<(Func, usize, Vec<Ex
             name: func.name.clone(),
             params: func.params.clone(),
             body,
+            is_go_test: func.is_go_test,
         },
         index,
         args,
@@ -611,6 +754,8 @@ struct Eval<'a> {
     used: BTreeSet<(usize, String, usize)>,
     /// Function frames entered (the test function first), for setup detection.
     frames: Vec<Frame<'a>>,
+    /// Package variables read through their declaration although some function assigns them.
+    mutable_vars: BTreeSet<String>,
     depth: usize,
 }
 
@@ -632,6 +777,7 @@ impl<'a> Eval<'a> {
             consts,
             used: BTreeSet::new(),
             frames: Vec::new(),
+            mutable_vars: BTreeSet::new(),
             depth: 0,
         }
     }
@@ -653,6 +799,14 @@ impl<'a> Eval<'a> {
         let dir = string(self.eval(dir, &frame), "fixture directory")?;
         let bidder = self.eval(bidder, &frame);
         let built = self.construct(bidder, &frame, 0)?;
+        if !self.mutable_vars.is_empty() {
+            return Err(ToolError::new(format!(
+                "the construction reads package variable(s) {:?} that a function or initializer \
+                 of the package assigns, so the value when the test runs may not be the \
+                 declaration",
+                self.mutable_vars
+            )));
+        }
         let file = self
             .pkg
             .files
@@ -836,7 +990,7 @@ impl<'a> Eval<'a> {
         if let Some(func) = frame.func {
             let scope = func.body.get(..frame.upto).unwrap_or_default();
             for (si, stmt) in scope.iter().enumerate().rev() {
-                let StmtKind::Bind { names, values } = &stmt.kind else {
+                let StmtKind::Bind { names, values, .. } = &stmt.kind else {
                     continue;
                 };
                 let Some(k) = names.iter().position(|n| n == name) else {
@@ -861,7 +1015,11 @@ impl<'a> Eval<'a> {
                 return v.clone();
             }
         }
-        if let Some((fi, value)) = self.pkg.value(name) {
+        if let Some((fi, value, is_var)) = self.pkg.value(name) {
+            if is_var && self.pkg.is_assigned(name) {
+                // Another test, init() or helper may have changed it before this test runs.
+                let _ = self.mutable_vars.insert(name.to_owned());
+            }
             let pf = Frame {
                 file: fi,
                 func: None,
@@ -885,6 +1043,7 @@ impl<'a> Eval<'a> {
             for (si, stmt) in func.body.iter().enumerate().take(frame.upto) {
                 if self.used.contains(&(frame.file, func.name.clone(), si))
                     || is_benign(file, &stmt.kind, stmt.tokens.clone())
+                    || binds_unread_local(file, func, si)
                 {
                     continue;
                 }
@@ -996,9 +1155,11 @@ fn clean_rel(dir: &str) -> Result<String> {
 }
 
 /// Error checks and assertions that do not change the bidder.
+///
+/// A `return` is never benign: frames stop before their single top-level `return`, so a
+/// `return` among the statements before the call means the call is unreachable.
 fn is_benign(file: &File, kind: &StmtKind, range: Range<usize>) -> bool {
     match kind {
-        StmtKind::Return(_) => true,
         StmtKind::Expr(Expr::Call { func, .. }) => matches!(
             render(func).as_str(),
             "assert.NoError"
@@ -1010,7 +1171,61 @@ fn is_benign(file: &File, kind: &StmtKind, range: Range<usize>) -> bool {
                 | "t.Helper"
         ),
         StmtKind::If => is_err_check(file, range),
-        StmtKind::Bind { .. } | StmtKind::Expr(_) | StmtKind::Other => false,
+        StmtKind::Return(_) | StmtKind::Bind { .. } | StmtKind::Expr(_) | StmtKind::Other => false,
+    }
+}
+
+/// Whether statement `si` of `func` only binds locals to values without side effects, so when
+/// evaluation does not read it, it cannot reach the bidder: `x := <pure>`, `var x = <pure>`, or
+/// `x = <pure>` where `x` is a parameter or was declared by an earlier top-level `:=` or `var`
+/// (a later declaration or reassignment replaces such a value, as in `x := "a"; x = "b"`).
+/// At the top level of a function, `:=` and `var` never assign package variables. A name whose
+/// address the function takes (`&x`) is excluded: a pointer would see the new value while
+/// evaluation, which copies values, would not.
+fn binds_unread_local(file: &File, func: &Func, si: usize) -> bool {
+    let Some(StmtKind::Bind {
+        names,
+        values,
+        define,
+    }) = func.body.get(si).map(|s| &s.kind)
+    else {
+        return false;
+    };
+    let declared = |name: &String| {
+        *define
+            || func.params.contains(name)
+            || func.body.iter().take(si).any(|s| {
+                matches!(&s.kind, StmtKind::Bind { names: earlier, define: true, .. }
+                    if earlier.contains(name))
+            })
+    };
+    let addressed = |name: &String| {
+        func.body.iter().any(|s| {
+            file.toks(s.tokens.clone())
+                .windows(2)
+                .any(|w| matches!(w, [amp, id] if amp.is("&") && id.is_ident() && id.text == *name))
+        })
+    };
+    values.iter().all(is_pure)
+        && names
+            .iter()
+            .all(|n| n == "_" || (declared(n) && !addressed(n)))
+}
+
+/// Whether evaluating `e` has no effect besides its value: literals, names, selectors, `+`,
+/// `&`, composite literals of such, and `Builder` calls with such arguments (adapter builders
+/// only construct; a `Builder` error that would stop the test fails the Go tree's own tests).
+fn is_pure(e: &Expr) -> bool {
+    match e {
+        Expr::Str(_) | Expr::Int(_) | Expr::Ident(_) => true,
+        Expr::Selector(x, _) => is_pure(x),
+        Expr::Unary { op, expr } => op == "&" && is_pure(expr),
+        Expr::Binary { op, lhs, rhs } => op == "+" && is_pure(lhs) && is_pure(rhs),
+        Expr::Composite { elems, .. } => elems
+            .iter()
+            .all(|el| el.key.as_ref().is_none_or(is_pure) && is_pure(&el.value)),
+        Expr::Call { func, args } => is_builder(&render(func)) && args.iter().all(is_pure),
+        Expr::Other(_) => false,
     }
 }
 
@@ -1040,7 +1255,7 @@ fn calls_method_of_t(kind: &StmtKind) -> bool {
 mod tests {
     use std::collections::BTreeMap;
 
-    use super::{Construct, Package};
+    use super::{Construct, Package, Run, parse_go_file};
     use crate::{
         error::{Result, ToolError},
         goparse::File,
@@ -1142,6 +1357,413 @@ var host = "h"
         check(
             errors.first().is_some_and(|e| e.contains("TestElse")),
             "the error names the test",
+        )
+    }
+
+    /// Evaluates one test file of package `demo`.
+    fn evaluate(name: &str, body: &str) -> Result<(Vec<Run>, Vec<String>)> {
+        let src = format!("package demo\n\n{body}");
+        let pkg = Package {
+            dir: "demo".to_owned(),
+            files: vec![parse_go_file(&format!("adapters/demo/{name}"), src)?],
+        };
+        let consts = BTreeMap::from([("BidderDemo".to_owned(), "demo".to_owned())]);
+        let (mut runs, mut errors) = (Vec::new(), Vec::new());
+        pkg.runs(&consts, &mut runs, &mut errors);
+        Ok((runs, errors))
+    }
+
+    const BUILD: &str = "bidder, _ := Builder(openrtb_ext.BidderDemo, \
+                         config.Adapter{Endpoint: ep}, config.Server{})";
+    const RUN: &str = "adapterstest.RunJSONBidderTest(t, \"demotest\", bidder)";
+
+    // Each source is a pattern under which `go test` makes no run, a different run, or a run the
+    // source alone does not determine; the generator must refuse each one.
+    #[test]
+    fn refuses_calls_it_cannot_follow() -> Result<()> {
+        let cases = [
+            (
+                "if-init checking err != nil",
+                format!(
+                    "func TestA(t *testing.T) {{\n\tep := \"a\"\n\tif bidder, err := \
+                     Builder(openrtb_ext.BidderDemo, config.Adapter{{Endpoint: ep}}, \
+                     config.Server{{}}); err != nil {{\n\t\t{RUN}\n\t}}\n}}\n"
+                ),
+                "demo_test.go:TestA: RunJSONBidderTest is called in a form",
+            ),
+            (
+                "if-init with another condition",
+                format!(
+                    "func TestA(t *testing.T) {{\n\tep := \"a\"\n\tif n := len(ep); n == 2 \
+                     {{\n\t\t{BUILD}\n\t\t{RUN}\n\t}}\n}}\n"
+                ),
+                "demo_test.go:TestA: RunJSONBidderTest is called in a form",
+            ),
+            (
+                "method",
+                format!(
+                    "type suite struct{{}}\n\nfunc (suite) run(t *testing.T) {{\n\tep := \"a\"\n\t\
+                     {BUILD}\n\t{RUN}\n}}\n"
+                ),
+                "demo_test.go: RunJSONBidderTest is referenced 1 time(s) outside",
+            ),
+            (
+                "package-level function literal",
+                format!("var run = func(t *testing.T) {{\n\tep := \"a\"\n\t{BUILD}\n\t{RUN}\n}}\n"),
+                "demo_test.go: RunJSONBidderTest is referenced 1 time(s) outside",
+            ),
+            (
+                "helper that is not a test",
+                format!("func run(t *testing.T) {{\n\tep := \"a\"\n\t{BUILD}\n\t{RUN}\n}}\n"),
+                "demo_test.go:run: RunJSONBidderTest is called from a function that is not",
+            ),
+            (
+                "Test followed by a lower-case letter",
+                format!("func Testlower(t *testing.T) {{\n\tep := \"a\"\n\t{BUILD}\n\t{RUN}\n}}\n"),
+                "demo_test.go:Testlower: RunJSONBidderTest is called from a function that is not",
+            ),
+            (
+                "package variable assigned by init",
+                format!(
+                    "var ep = \"a\"\n\nfunc init() {{\n\tep = \"b\"\n}}\n\nfunc TestA(t \
+                     *testing.T) {{\n\t{BUILD}\n\t{RUN}\n}}\n"
+                ),
+                "demo_test.go:TestA: the construction reads package variable(s) {\"ep\"}",
+            ),
+            (
+                "package variable assigned by another test",
+                format!(
+                    "var ep = \"a\"\n\nfunc TestA(t *testing.T) {{\n\tep = \"b\"\n}}\n\nfunc \
+                     TestB(t *testing.T) {{\n\t{BUILD}\n\t{RUN}\n}}\n"
+                ),
+                "demo_test.go:TestB: the construction reads package variable(s) {\"ep\"}",
+            ),
+            (
+                "two calls",
+                format!(
+                    "func TestA(t *testing.T) {{\n\tep := \"a\"\n\t{BUILD}\n\t{RUN}\n\t{RUN}\n}}\n"
+                ),
+                "demo_test.go:TestA: more than one RunJSONBidderTest call",
+            ),
+        ];
+        for (what, src, want) in &cases {
+            // Any error fails generation, so the runs recorded next to it never reach a manifest.
+            let (runs, errors) = evaluate("demo_test.go", src)?;
+            check(
+                errors
+                    .iter()
+                    .any(|e| e.starts_with(&format!("adapters/demo/{want}"))),
+                &format!(
+                    "{what}: refused with {want:?}; got errors {errors:?}, runs {}",
+                    runs.len()
+                ),
+            )?;
+        }
+        Ok(())
+    }
+
+    // Statements before the call that change what `go test` runs are setup, never ignored.
+    #[test]
+    fn reports_statements_that_change_the_run() -> Result<()> {
+        let cases = [
+            (
+                "return",
+                format!("\tep := \"a\"\n\t{BUILD}\n\treturn\n"),
+                "return",
+            ),
+            (
+                "t.Skip",
+                format!("\tep := \"a\"\n\t{BUILD}\n\tt.Skip()\n"),
+                "t.Skip()",
+            ),
+            (
+                "pointer to a reassigned local",
+                "\tep := \"a\"\n\td := directAdapter{Endpoint: ep}\n\tbidder := &d\n\td = \
+                 directAdapter{Endpoint: \"b\"}\n"
+                    .to_owned(),
+                "d = directAdapter{Endpoint: \"b\"}",
+            ),
+            (
+                "pointer to a redeclared local",
+                "\tep := \"a\"\n\td := directAdapter{Endpoint: ep}\n\tbidder := &d\n\td, n := \
+                 directAdapter{Endpoint: \"b\"}, 1\n\t_ = n\n"
+                    .to_owned(),
+                "d, n := directAdapter{Endpoint: \"b\"}, 1",
+            ),
+            (
+                "field assignment",
+                "\tcfg := config.Adapter{Endpoint: \"a\"}\n\tcfg.Endpoint = \"b\"\n\tbidder, _ := \
+                 Builder(openrtb_ext.BidderDemo, cfg, config.Server{})\n"
+                    .to_owned(),
+                "cfg.Endpoint = \"b\"",
+            ),
+            (
+                "assignment to a package variable",
+                format!("\tep := \"a\"\n\tshared = ep\n\t{BUILD}\n"),
+                "shared = ep",
+            ),
+        ];
+        for (what, pre, want) in &cases {
+            let src =
+                format!("var shared = \"\"\n\nfunc TestA(t *testing.T) {{\n{pre}\t{RUN}\n}}\n");
+            let (runs, errors) = evaluate("demo_test.go", &src)?;
+            let setup: Vec<&[String]> = runs.iter().map(|r| r.setup.as_slice()).collect();
+            check(
+                errors.is_empty() && setup == [&[(*want).to_owned()][..]],
+                &format!("{what}: setup {setup:?}, errors {errors:?}"),
+            )?;
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn ignores_unread_local_rebinds() -> Result<()> {
+        let src = "func TestA(t *testing.T) {\n\
+            \tep := \"a\"\n\
+            \tep = ep + \"b\"\n\
+            \tbidder, err := Builder(openrtb_ext.BidderDemo, config.Adapter{Endpoint: \"x\"},\n\
+            \t\tconfig.Server{})\n\
+            \tbidder, err = Builder(openrtb_ext.BidderDemo, config.Adapter{Endpoint: ep},\n\
+            \t\tconfig.Server{})\n\
+            \tif err != nil {\n\
+            \t\tt.Fatalf(\"x\")\n\
+            \t}\n\
+            \t_ = err\n\
+            \tadapterstest.RunJSONBidderTest(t, \"demotest\", bidder)\n\
+            }\n";
+        let (runs, errors) = evaluate("demo_test.go", src)?;
+        check(errors.is_empty(), &format!("errors {errors:?}"))?;
+        let [run] = runs.as_slice() else {
+            return Err(ToolError::new(format!("{} runs", runs.len())));
+        };
+        check(run.setup.is_empty(), &format!("setup {:?}", run.setup))?;
+        check_eq(
+            &run.adapter.as_ref().map(|a| a.endpoint.as_str()),
+            &Some("ab"),
+            "the last binding is the one in effect",
+        )
+    }
+
+    #[test]
+    fn refuses_build_constrained_files() -> Result<()> {
+        let body = format!("func TestA(t *testing.T) {{\n\tep := \"a\"\n\t{BUILD}\n\t{RUN}\n}}\n");
+        for name in [
+            "demo_linux_test.go",
+            "demo_arm64_test.go",
+            "demo_windows_amd64_test.go",
+        ] {
+            check(
+                evaluate(name, &body).is_err(),
+                &format!("{name} is refused"),
+            )?;
+        }
+        for header in ["//go:build ignore\n\n", "// +build linux\n\n"] {
+            let src = format!("{header}package demo\n\n{body}");
+            check(
+                parse_go_file("adapters/demo/demo_test.go", src).is_err(),
+                &format!("{header:?} is refused"),
+            )?;
+        }
+        // Not constraints: an unknown suffix, a `_test` suffix alone, a comment after `package`.
+        for name in ["demo_linuxish_test.go", "linux_test.go", "demo_test.go"] {
+            check(evaluate(name, &body).is_ok(), &format!("{name} is read"))?;
+        }
+        let late = format!("package demo\n\n//go:build ignore\n\n{body}");
+        check(
+            parse_go_file("adapters/demo/demo_test.go", late).is_ok(),
+            "a //go:build line after the package clause is a plain comment",
+        )
+    }
+}
+
+/// Replays `testdata/manifest_synth.json` (generated by `testdata/go/manifestsynth`, which runs
+/// the generated tests with `go test`): the evaluator reproduces Go exactly where it claims to,
+/// and refuses loudly everywhere else.
+#[cfg(test)]
+mod synth {
+    use std::{collections::BTreeMap, fs, path::Path};
+
+    use serde::Deserialize;
+
+    use super::{Construct, Package, Run, parse_go_file};
+    use crate::{
+        error::{Result, ToolError},
+        testutil::check,
+    };
+
+    #[derive(Deserialize)]
+    struct Golden {
+        package: String,
+        consts: BTreeMap<String, String>,
+        files: Vec<SourceFile>,
+        cases: Vec<Case>,
+        observations: Vec<Observation>,
+    }
+
+    #[derive(Deserialize)]
+    struct SourceFile {
+        name: String,
+        src: String,
+    }
+
+    #[derive(Deserialize)]
+    struct Case {
+        test: String,
+        expect: String,
+        blame: String,
+        note: String,
+    }
+
+    #[derive(Deserialize, Debug, PartialEq, Eq)]
+    struct Observation {
+        test: String,
+        root: String,
+        bidder_name: Option<String>,
+        adapter: Option<BTreeMap<String, String>>,
+        server: Option<ObservedServer>,
+        direct: Option<BTreeMap<String, String>>,
+    }
+
+    #[derive(Deserialize, Debug, PartialEq, Eq)]
+    struct ObservedServer {
+        external_url: String,
+        gvl_id: i64,
+        datacenter: String,
+    }
+
+    /// What the Go fake would have recorded for `run`.
+    fn observation(run: &Run, test: &str) -> Observation {
+        let direct = run.direct.as_ref().map(|d| {
+            ["Endpoint", "Extra"]
+                .into_iter()
+                .map(|k| (k.to_owned(), d.fields.get(k).cloned().unwrap_or_default()))
+                .collect::<BTreeMap<_, _>>()
+        });
+        Observation {
+            test: test.to_owned(),
+            root: run.fixture_root.clone(),
+            bidder_name: run.bidder_name.clone(),
+            adapter: run.adapter.as_ref().map(|a| {
+                BTreeMap::from([
+                    ("app_secret".to_owned(), a.app_secret.clone()),
+                    ("endpoint".to_owned(), a.endpoint.clone()),
+                    ("extra_info".to_owned(), a.extra_info.clone()),
+                    ("platform_id".to_owned(), a.platform_id.clone()),
+                    ("xapi_password".to_owned(), a.xapi.password.clone()),
+                    ("xapi_tracker".to_owned(), a.xapi.tracker.clone()),
+                    ("xapi_username".to_owned(), a.xapi.username.clone()),
+                ])
+            }),
+            server: run.server.as_ref().map(|s| ObservedServer {
+                external_url: s.external_url.clone(),
+                gvl_id: s.gvl_id,
+                datacenter: s.datacenter.clone(),
+            }),
+            direct,
+        }
+    }
+
+    #[test]
+    fn evaluator_matches_go_or_refuses() -> Result<()> {
+        let path = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("testdata")
+            .join("manifest_synth.json");
+        let golden: Golden = serde_json::from_slice(&fs::read(&path)?)?;
+        let mut errors = Vec::new();
+        let mut files = Vec::new();
+        for f in &golden.files {
+            let rel = format!("adapters/{}/{}", golden.package, f.name);
+            match parse_go_file(&rel, f.src.clone()) {
+                Ok(file) => files.push(file),
+                Err(e) => errors.push(e.to_string()),
+            }
+        }
+        let pkg = Package {
+            dir: golden.package.clone(),
+            files,
+        };
+        let mut runs = Vec::new();
+        pkg.runs(&golden.consts, &mut runs, &mut errors);
+
+        let (mut matched, mut refused) = (0, 0);
+        let mut failures = Vec::new();
+        for case in &golden.cases {
+            // Subtests report `Test/sub`; they belong to the top-level test.
+            let observed: Vec<&Observation> = golden
+                .observations
+                .iter()
+                .filter(|o| o.test.split('/').next() == Some(case.test.as_str()))
+                .collect();
+            let mine: Vec<&Run> = runs.iter().filter(|r| r.go_test == case.test).collect();
+            let blamed = errors
+                .iter()
+                .any(|e| e.starts_with(&format!("{}:", case.blame)));
+            let loud = blamed
+                || mine.iter().any(|r| {
+                    !r.setup.is_empty()
+                        || r.direct
+                            .as_ref()
+                            .is_some_and(|d| !d.opaque_fields.is_empty())
+                });
+            let evaluated: Vec<Observation> =
+                mine.iter().map(|r| observation(r, &case.test)).collect();
+            let describe = || {
+                format!(
+                    "{} ({}): go observed {observed:?}; rust evaluated {evaluated:?}; blamed \
+                     {blamed}",
+                    case.test, case.note,
+                )
+            };
+            match case.expect.as_str() {
+                "match" => {
+                    let ok = !loud
+                        && observed.len() == 1
+                        && evaluated.len() == 1
+                        && observed.iter().zip(&evaluated).all(|(o, e)| *o == e);
+                    if ok {
+                        matched += 1;
+                    } else {
+                        failures.push(format!("match: {}", describe()));
+                    }
+                }
+                "loud" => {
+                    if loud {
+                        refused += 1;
+                    } else {
+                        failures.push(format!("not refused: {}", describe()));
+                    }
+                }
+                "none" => {
+                    if !observed.is_empty() || !mine.is_empty() {
+                        failures.push(format!("expected no run: {}", describe()));
+                    }
+                }
+                other => failures.push(format!("{}: unknown expectation {other}", case.test)),
+            }
+        }
+        // Every clean run the evaluator produced is a case that matched.
+        for run in &runs {
+            if !golden.cases.iter().any(|c| c.test == run.go_test) {
+                failures.push(format!("{}: a run for no case", run.go_test));
+            }
+        }
+        check(
+            runs.iter()
+                .all(|r| r.construct == Construct::Builder || r.direct.is_some()),
+            "direct runs carry their literal",
+        )?;
+        if !failures.is_empty() {
+            return Err(ToolError::new(format!(
+                "{} of {} synthetic cases diverge from Go:\n  {}\nerrors:\n  {}",
+                failures.len(),
+                golden.cases.len(),
+                failures.join("\n  "),
+                errors.join("\n  ")
+            )));
+        }
+        check(
+            matched >= 200 && refused >= 20,
+            &format!("coverage: {matched} matched, {refused} refused"),
         )
     }
 }

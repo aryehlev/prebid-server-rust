@@ -34,6 +34,17 @@
 //! unresolved run, an unmatched statement, a changed test file or a changed total fails
 //! generation with a message saying what to review.
 //!
+//! Generation also refuses what it cannot follow: a call outside the statements of a function
+//! `go test` runs (methods, function literals, helpers, `Testlower`), a call guarded by anything
+//! but `err == nil` on the error its init statement binds, more than one call per test, a file
+//! with a build constraint, and a construction that reads a package variable some function or
+//! initializer of the package assigns or takes the address of. A `return` before the call is
+//! setup. `testdata/manifest_synth.json` is the evidence: `testdata/go/manifestsynth` generates a
+//! few hundred adapter tests, runs them under `go test` against a fake `adapterstest`, and records
+//! what Go passed; the crate's tests require an exact match or a refusal for every one.
+//! Regenerate it with `go run ./rust/crates/devtools/testdata/go/manifestsynth` from the
+//! repository root.
+//!
 //! The typed [`manifest::Manifest`] can be deserialized by other crates' test harnesses.
 //!
 //! # `go-dump`

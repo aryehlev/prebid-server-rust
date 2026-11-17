@@ -5,7 +5,7 @@
 //! calls, composite literals, `&`, `+`). Anything else parses as [`Expr::Other`] carrying its
 //! source text, so callers can report exactly what they could not evaluate.
 
-use std::ops::Range;
+use std::{collections::BTreeSet, ops::Range};
 
 use crate::{
     error::{Result, ToolError},
@@ -27,6 +27,11 @@ pub struct File {
     pub funcs: Vec<Func>,
     /// Top-level `const` and `var` specs, in source order.
     pub values: Vec<ValueSpec>,
+    /// Identifiers assigned (`x = ...`, `x += ...`, `x++`, ...) anywhere in a function or method
+    /// body or a package-level initializer, so a package variable's value at run time may not be
+    /// its declaration. Local `var` declarations are excluded; any other local with the same name
+    /// as a package variable is included, which errs on the side of reporting.
+    pub assigned: BTreeSet<String>,
 }
 
 /// A top-level function declaration.
@@ -38,6 +43,31 @@ pub struct Func {
     pub params: Vec<String>,
     /// The statements of the body.
     pub body: Vec<Stmt>,
+    /// Whether `go test` runs the function as a test (see [`is_go_test`]).
+    pub is_go_test: bool,
+}
+
+/// Whether `go test` runs the top-level function `name` with the signature tokens `sig`.
+///
+/// `sig` is everything between the name and the body. The name must be `Test` followed by
+/// nothing or by a character that is not a lower-case letter, and the signature `(*testing.T)`
+/// or `(name *testing.T)`, with no type parameters and no results.
+#[must_use]
+pub fn is_go_test(name: &str, sig: &[Token]) -> bool {
+    // Go: testing/match.go isTest; cmd/go/internal/load/test.go checkTestFunc rejects any other
+    // signature.
+    let Some(rest) = name.strip_prefix("Test") else {
+        return false;
+    };
+    if rest.chars().next().is_some_and(char::is_lowercase) {
+        return false;
+    }
+    let ty = match sig {
+        [open, param, ty @ .., close] if open.is("(") && close.is(")") && param.is_ident() => ty,
+        [open, ty @ .., close] if open.is("(") && close.is(")") => ty,
+        _ => return false,
+    };
+    matches!(ty, [star, pkg, dot, t] if star.is("*") && pkg.text == "testing" && dot.is(".") && t.text == "T")
 }
 
 /// One name of a top-level `const` or `var` spec.
@@ -51,6 +81,17 @@ pub struct ValueSpec {
     pub ty: String,
     /// The value expression; `None` when the spec has no value or repeats an earlier one.
     pub value: Option<Expr>,
+}
+
+/// The parts of an `if` statement ([`File::if_parts`]).
+#[derive(Debug, Clone)]
+pub struct IfParts {
+    /// The init statement of `if init; cond {`.
+    pub init: Option<Stmt>,
+    /// Token range of the condition.
+    pub cond: Range<usize>,
+    /// The statements of the `then` block.
+    pub then: Vec<Stmt>,
 }
 
 /// One statement of a function body.
@@ -71,6 +112,8 @@ pub enum StmtKind {
         names: Vec<String>,
         /// The right-hand side expressions.
         values: Vec<Expr>,
+        /// Whether it declares (`:=` or `var`) rather than assigns (`=`).
+        define: bool,
     },
     /// `return x, ...`.
     Return(Vec<Expr>),
@@ -151,6 +194,7 @@ impl File {
             package: String::new(),
             funcs: Vec::new(),
             values: Vec::new(),
+            assigned: BTreeSet::new(),
         };
         file.parse_top_level()
             .map_err(|e| ToolError::new(format!("{path}: {e}")))?;
@@ -179,10 +223,10 @@ impl File {
         Some((self.statements(open + 1..close), close))
     }
 
-    /// For `if init; cond { then } [else ...]` at `range`: the init statement (if any) and the
-    /// statements of the `then` block.
+    /// For `if init; cond { then } [else ...]` at `range`: the init statement (if any), the
+    /// condition's token range, and the statements of the `then` block.
     #[must_use]
-    pub fn if_parts(&self, range: Range<usize>) -> Option<(Option<Stmt>, Vec<Stmt>)> {
+    pub fn if_parts(&self, range: Range<usize>) -> Option<IfParts> {
         if !self.tok(range.start)?.is("if") {
             return None;
         }
@@ -191,15 +235,19 @@ impl File {
             i = matching(&self.tokens, i).map_or(i + 1, |m| m + 1);
         }
         let header = split(&self.tokens, range.start + 1..i, Kind::Semi, "");
-        let init = match header.as_slice() {
-            [init, _cond] => Some(Stmt {
-                kind: self.classify(init.clone()),
-                tokens: init.clone(),
-            }),
-            _ => None,
+        let (init, cond) = match header.as_slice() {
+            [init, cond] => (
+                Some(Stmt {
+                    kind: self.classify(init.clone()),
+                    tokens: init.clone(),
+                }),
+                cond.clone(),
+            ),
+            [cond] => (None, cond.clone()),
+            _ => return None,
         };
         let (then, _) = self.block(i)?;
-        Some((init, then))
+        Some(IfParts { init, cond, then })
     }
 
     fn tok(&self, i: usize) -> Option<&Token> {
@@ -257,6 +305,7 @@ impl File {
             return Err(ToolError::new(format!("func without a name at token {i}")));
         };
         i += 1;
+        let sig_start = i;
         if self.tok(i).is_some_and(|t| t.is("[")) {
             i = after_group(&self.tokens, i)?;
         }
@@ -286,8 +335,16 @@ impl File {
         }
         let body_end = after_group(&self.tokens, i)?;
         let body = self.statements(i + 1..body_end - 1);
+        let assigned = assigned_names(self.toks(i + 1..body_end - 1));
+        self.assigned.extend(assigned);
         if !is_method {
-            self.funcs.push(Func { name, params, body });
+            let is_go_test = is_go_test(&name, self.toks(sig_start..i));
+            self.funcs.push(Func {
+                name,
+                params,
+                body,
+                is_go_test,
+            });
         }
         Ok(self.statement_end(body_end))
     }
@@ -337,6 +394,11 @@ impl File {
         });
         let ty_end = eq.unwrap_or(toks.len()).max(names_end);
         let ty = self.text(spec.start + names_end..spec.start + ty_end);
+        if let Some(eq) = eq {
+            // Function literals in initializers (`var run = func() { x = ... }`).
+            let assigned = assigned_names(self.toks(spec.start + eq + 1..spec.end));
+            self.assigned.extend(assigned);
+        }
         for (k, name) in names.into_iter().enumerate() {
             let value = values.get(k).cloned();
             self.values.push(ValueSpec {
@@ -508,6 +570,7 @@ impl File {
             return name.map_or(StmtKind::Other, |name| StmtKind::Bind {
                 names: vec![name],
                 values: vec![parse_expr(&self.src, &self.tokens, r.start + eq + 1..r.end)],
+                define: true,
             });
         }
         if is_keyword_start(first) {
@@ -531,12 +594,109 @@ impl File {
             .into_iter()
             .map(|v| parse_expr(&self.src, &self.tokens, v))
             .collect();
-        StmtKind::Bind { names, values }
+        let define = toks.get(assign).is_some_and(|t| t.is(":="));
+        StmtKind::Bind {
+            names,
+            values,
+            define,
+        }
     }
 }
 
 fn is_keyword_start(t: &Token) -> bool {
     t.kind == Kind::Ident && !t.is_ident()
+}
+
+/// Identifiers a statement in `toks` may change: the variable at the root of each operand on the
+/// left of `=`, an operator assignment or `++`/`--` (`a`, `b` and `c` in `a, b.f, c[i] = ...`),
+/// and every identifier whose address is taken (`&x`), since a pointer can change it later.
+/// Names a `var` or `const` declaration introduces are excluded; `:=` never assigns a package
+/// variable. Changes through a method with a pointer receiver, or through a copy of a map, slice
+/// or pointer held in another variable, are not seen.
+fn assigned_names(toks: &[Token]) -> Vec<String> {
+    const ASSIGN: &[&str] = &[
+        "=", "+=", "-=", "*=", "/=", "%=", "&=", "|=", "^=", "<<=", ">>=", "&^=", "++", "--",
+    ];
+    // Keywords before the left-hand side of a simple statement (`for i = 0; ...`, `case v = <-c:`).
+    const LEADING: &[&str] = &["for", "if", "switch", "select", "case"];
+    struct Level {
+        // Where the current statement at this bracket depth starts.
+        start: usize,
+        // Whether the bracket opens a `var (` or `const (` group.
+        decl_group: bool,
+    }
+    let mut out = Vec::new();
+    let mut levels = vec![Level {
+        start: 0,
+        decl_group: false,
+    }];
+    for (k, t) in toks.iter().enumerate() {
+        if t.kind == Kind::Semi {
+            if let Some(level) = levels.last_mut() {
+                level.start = k + 1;
+            }
+            continue;
+        }
+        if t.kind != Kind::Op {
+            continue;
+        }
+        match t.text.as_str() {
+            "(" | "[" | "{" => {
+                let after_decl = k
+                    .checked_sub(1)
+                    .and_then(|p| toks.get(p))
+                    .is_some_and(|p| p.is("var") || p.is("const"));
+                levels.push(Level {
+                    start: k + 1,
+                    decl_group: t.is("(") && after_decl,
+                });
+            }
+            ")" | "]" | "}" => {
+                if levels.len() > 1 {
+                    let _ = levels.pop();
+                }
+            }
+            ":" => {
+                // A label or a `case ...:` ends; the statement after it starts here.
+                if let Some(level) = levels.last_mut() {
+                    level.start = k + 1;
+                }
+            }
+            "&" => {
+                if let Some(name) = toks.get(k + 1).filter(|n| n.is_ident()) {
+                    out.push(name.text.clone());
+                }
+            }
+            op if ASSIGN.contains(&op) => {
+                let Some(level) = levels.last() else { continue };
+                let mut from = level.start;
+                if toks
+                    .get(from)
+                    .is_some_and(|f| LEADING.iter().any(|kw| f.is(kw)))
+                {
+                    from += 1;
+                }
+                let declares = level.decl_group
+                    || toks.get(from).is_some_and(|f| f.is("var") || f.is("const"));
+                if declares {
+                    continue;
+                }
+                for operand in split(toks, from..k, Kind::Op, ",") {
+                    let root = toks
+                        .get(operand)
+                        .unwrap_or_default()
+                        .iter()
+                        .find(|n| n.is_ident())
+                        .filter(|n| n.text != "_");
+                    if let Some(root) = root {
+                        out.push(root.text.clone());
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+    out
 }
 
 /// The text of `range` with whitespace runs collapsed.
@@ -1006,7 +1166,7 @@ func TestCompound(t *testing.T) {
             .body
             .first()
             .ok_or_else(|| ToolError::new("no statement"))?;
-        let StmtKind::Bind { names, values } = &first.kind else {
+        let StmtKind::Bind { names, values, .. } = &first.kind else {
             return Err(ToolError::new(format!("not a binding: {:?}", first.kind)));
         };
         check_eq(
@@ -1067,15 +1227,19 @@ func TestCompound(t *testing.T) {
         let f = File::parse("demo_test.go", SRC.to_owned())?;
         let body = &func(&f, "TestCompound")?.body;
         let first = body.first().ok_or_else(|| ToolError::new("no statement"))?;
-        let (init, then) = f
+        let parts = f
             .if_parts(first.tokens.clone())
             .ok_or_else(|| ToolError::new("not an if"))?;
-        let init = init.ok_or_else(|| ToolError::new("no init statement"))?;
+        let init = parts
+            .init
+            .ok_or_else(|| ToolError::new("no init statement"))?;
         check(
             matches!(&init.kind, StmtKind::Bind { names, .. } if names == &["bidder", "err"]),
             "init binds bidder, err",
         )?;
-        let calls: Vec<String> = then
+        check_eq(f.text(parts.cond).as_str(), "err == nil", "condition")?;
+        let calls: Vec<String> = parts
+            .then
             .iter()
             .map(|s| {
                 if let StmtKind::Expr(e) = &s.kind {
@@ -1093,9 +1257,115 @@ func TestCompound(t *testing.T) {
         let plain = body
             .get(4)
             .ok_or_else(|| ToolError::new("no fifth statement"))?;
-        let (no_init, _) = f
+        let no_init = f
             .if_parts(plain.tokens.clone())
             .ok_or_else(|| ToolError::new("not an if"))?;
-        check(no_init.is_none(), "an if without init has none")
+        check(no_init.init.is_none(), "an if without init has none")?;
+        check_eq(
+            f.text(no_init.cond).as_str(),
+            "a < b[1]*c",
+            "plain condition",
+        )
+    }
+
+    // Expected values checked against `go test -vet=off -list .` (Go 1.25), which lists exactly
+    // the functions it runs as tests. TestB, TestTwo, TestResult and TestGeneric fail the test
+    // build ("wrong signature for ..."), so they never run either.
+    #[test]
+    fn recognizes_go_test_functions() -> Result<()> {
+        let src = "package demo\n\
+            func TestA(t *testing.T) {}\n\
+            func Test(t *testing.T) {}\n\
+            func Test_x(t *testing.T) {}\n\
+            func Test1(t *testing.T) {}\n\
+            func TestÉ(t *testing.T) {}\n\
+            func Testé(t *testing.T) {}\n\
+            func Testa(t *testing.T) {}\n\
+            func TestU(*testing.T) {}\n\
+            func TestUnderscore(_ *testing.T) {}\n\
+            func testA(t *testing.T) {}\n\
+            func TestB(t *testing.B) {}\n\
+            func TestTwo(t *testing.T, x int) {}\n\
+            func TestResult(t *testing.T) error { return nil }\n\
+            func TestGeneric[T any](t *testing.T) {}\n\
+            func helper(t *testing.T) {}\n";
+        let f = File::parse("demo_test.go", src.to_owned())?;
+        let tests: Vec<&str> = f
+            .funcs
+            .iter()
+            .filter(|g| g.is_go_test)
+            .map(|g| g.name.as_str())
+            .collect();
+        check_eq(
+            tests.as_slice(),
+            &[
+                "TestA",
+                "Test",
+                "Test_x",
+                "Test1",
+                "TestÉ",
+                "TestU",
+                "TestUnderscore",
+            ][..],
+            "test functions",
+        )
+    }
+
+    #[test]
+    fn collects_assigned_names() -> Result<()> {
+        let src = "package demo\n\
+            var hook = func() { fromLiteral = 1 }\n\
+            var declared = 1\n\
+            func init() { fromInit = \"x\" }\n\
+            func (s *suite) setUp() { fromMethod++; s.field = 2; s.count++ }\n\
+            func helper(q *int) { *q = 1; r := &pointee; _ = r }\n\
+            func TestA(t *testing.T) {\n\
+            \tlocal := 1\n\
+            \tvar typed int = 2\n\
+            \tconst k = 3\n\
+            \ta, b = 1, 2\n\
+            \tp.x, c = 1, 2\n\
+            \tm[k] = 4\n\
+            \td += 1\n\
+            \te <<= 1\n\
+            \tf &^= 1\n\
+            \tif local == typed && local != 0 && local <= 1 { g-- }\n\
+            \tfor h = 0; h < 3; h++ {}\n\
+            \tvar (\n\
+            \t\tgrouped int = 1\n\
+            \t\tsecond = 2\n\
+            \t)\n\
+            \tarr[T{}.k] = 5\n\
+            \tswitch {\n\
+            \tcase local > 0:\n\
+            \t\tlabeled = 1\n\
+            \t}\n\
+            }\n";
+        let f = File::parse("demo_test.go", src.to_owned())?;
+        let got: Vec<&str> = f.assigned.iter().map(String::as_str).collect();
+        check_eq(
+            got.as_slice(),
+            &[
+                "a",
+                "arr",
+                "b",
+                "c",
+                "d",
+                "e",
+                "f",
+                "fromInit",
+                "fromLiteral",
+                "fromMethod",
+                "g",
+                "h",
+                "labeled",
+                "m",
+                "p",
+                "pointee",
+                "q",
+                "s",
+            ][..],
+            "assigned names",
+        )
     }
 }
