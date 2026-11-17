@@ -69,6 +69,15 @@
       "go_source": ["exchange/seat_non_bids.go:8 type SeatNonBidBuilder map[string][]openrtb_ext.NonBid", "exchange/exchange.go:1643 seatNonBidBuilder.Slice()"]
     },
     {
+      "id": "bid_arrival_order",
+      "applies_to": ["bids.adjusted", "bidder.result", "events.tracking", "hooks.all_processed_bid_responses"],
+      "target": "per-seat bid lists: bids.adjusted $.bids[*] by (imp_id, bid_id); bidder.result $.seat_bids[*].bids[*] and hooks.all_processed_bid_responses $.*.bids[*] by (bid.impid, bid.id); events.tracking $.bids.*[*] by (bid_id)",
+      "action": "sort",
+      "keys": ["imp_id", "bid_id", "bid.impid", "bid.id"],
+      "justification": "A bidder with several requests sends them from concurrent goroutines and appends each response's bids in completion order, so the order of one seat's bids differs between Go runs. The final response's bids are sorted by (impid, id) already (seatbid_order).",
+      "go_source": ["exchange/bidder.go:255-258 go func(data *adapters.RequestData)", "exchange/bidder.go:288 httpInfo := <-responseChannel", "exchange/bidder.go:436 seatBidMap[bidderName].Bids = append"]
+    },
+    {
       "id": "cache_puts_order",
       "applies_to": ["http.out"],
       "target": "Prebid Cache calls (kind cache): request body $.puts[*] by (type, value), with the response body $.responses[*] permuted alongside because responses[i] answers puts[i]",

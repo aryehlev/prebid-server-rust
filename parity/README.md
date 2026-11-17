@@ -244,6 +244,8 @@ starts both servers with `TZ=UTC`, because huaweiads formats local time.
 source of the nondeterminism it removes:
 
 * seatbid, warning, httpcalls and seatnonbid order;
+* the order of one seat's bids in the exchange stages, which Go fills in
+  response arrival order;
 * `http_out` order with `seq` dropped, and the order of a Prebid Cache call's
   `puts` (with its `responses` permuted alongside);
 * the `responsetimemillis` key set;

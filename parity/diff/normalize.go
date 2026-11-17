@@ -25,6 +25,7 @@ const (
 	RuleAdapterBidsCallKey  = "adapter_bids_call_key"
 	RuleSeatNonBidOrder     = "seatnonbid_order"
 	RuleCachePutsOrder      = "cache_puts_order"
+	RuleBidArrivalOrder     = "bid_arrival_order"
 	RuleResponseTimeMillis  = "responsetimemillis"
 	RuleAuctionTimestamp    = "auctiontimestamp"
 	RuleEventsTSParam       = "events_ts_param"
@@ -78,6 +79,7 @@ var implementations = map[string]implementation{
 	RuleAdapterBidsCallKey:  {action: actionSort, keys: []string{"request_data.uri", "request_data.body"}, mentions: []string{"bidder#call"}},
 	RuleSeatNonBidOrder:     {action: actionSort, keys: []string{"seat", "impid", "statuscode"}, mentions: []string{"$.ext.prebid.seatnonbid[*]", "nonbid[*]"}},
 	RuleCachePutsOrder:      {action: actionSort, keys: []string{"type", "value"}, mentions: []string{"$.puts[*]", "$.responses[*]"}},
+	RuleBidArrivalOrder:     {action: actionSort, keys: bidArrivalKeys, mentions: []string{"$.bids[*]", "$.seat_bids[*].bids[*]", "$.*.bids[*]", "$.bids.*[*]"}},
 	RuleResponseTimeMillis:  {action: actionKeySet, mentions: []string{"$.ext.responsetimemillis"}},
 	RuleAuctionTimestamp:    {action: actionShape, shape: true, mentions: []string{"$.ext.prebid.auctiontimestamp"}},
 	RuleEventsTSParam:       {action: actionShape, shape: true, mentions: []string{"ts="}},
@@ -394,6 +396,14 @@ var (
 	responseExtAnchors = map[parity.StageID][]string{
 		parity.StageExchangeResponse: {"ext_bid_response"},
 	}
+	// bidListSelectors are the per-seat bid lists that Go fills in response
+	// arrival order (bid_arrival_order rule).
+	bidListSelectors = map[parity.StageID][]string{
+		parity.StageBidsAdjusted:                  {"bids"},
+		parity.StageBidderResult:                  {"seat_bids[*].bids"},
+		parity.StageHooksAllProcessedBidResponses: {"*.bids"},
+		parity.StageEventsTracking:                {"bids.*"},
+	}
 	// seatNonBidLists are SeatNonBid arrays outside a response's ext.
 	seatNonBidLists = map[parity.StageID][]string{
 		parity.StageSeatNonBids: {"", "seatnonbid", "seat_non_bid"},
@@ -577,6 +587,11 @@ func (rs *Rules) sortRules(stage parity.StageID, root *node, rewrite func(string
 			sortArray(list, []string{"uri", "requestbody", "status"}, rewrite)
 		}
 	}
+	if rs.Active(RuleBidArrivalOrder, stage) {
+		for _, list := range anchorsOf(root, bidListSelectors[stage]) {
+			sortArray(list, bidArrivalKeys, rewrite)
+		}
+	}
 	if rs.Active(RuleSeatNonBidOrder, stage) {
 		lists := selectResponseExt(root, stage, "prebid.seatnonbid")
 		lists = append(lists, anchorsOf(root, seatNonBidLists[stage])...)
@@ -720,6 +735,12 @@ const goRuntimeMetricPrefix = "go_"
 func isGoRuntimeMetric(name string) bool {
 	return strings.HasPrefix(name, goRuntimeMetricPrefix) || strings.Contains(name, "_"+goRuntimeMetricPrefix)
 }
+
+// bidArrivalKeys sort the bid lists of bid_arrival_order: bids.adjusted
+// entries carry imp_id and bid_id, bidder.result and
+// hooks.all_processed_bid_responses entries a bid object, and events.tracking
+// entries a bid_id only. Absent keys sort first.
+var bidArrivalKeys = []string{"imp_id", "bid_id", "bid.impid", "bid.id"}
 
 // cachePutsKeys are the sort keys of a Prebid Cache request's puts.
 var cachePutsKeys = []string{"type", "value"}
