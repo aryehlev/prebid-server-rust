@@ -32,6 +32,8 @@
 mod alternatebiddercodes;
 mod bid;
 mod bidders;
+mod convert_down;
+mod convert_up;
 mod cow_str;
 mod deal_tier;
 mod device;
@@ -53,6 +55,8 @@ mod user;
 
 pub use bid::*;
 pub use bidders::*;
+pub use convert_down::*;
+pub use convert_up::*;
 pub use deal_tier::*;
 pub use device::*;
 pub use generated::*;
