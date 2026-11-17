@@ -15,6 +15,7 @@
 //!   (such as a gzip handler) wraps the `&mut dyn ResponseWriter` it is given.
 //! - [`error`], [`not_found`], [`redirect`], [`StripPrefix`], [`ServeMux`], [`FileServer`],
 //!   [`serve_file`], [`max_bytes_reader`]: the `net/http` helpers Prebid uses.
+//! - [`httprouter`]: the router of Prebid's public endpoints.
 //!
 //! ```no_run
 //! use std::sync::Arc;
@@ -37,6 +38,7 @@
 //! # }
 //! ```
 
+pub mod httprouter;
 mod nethttp;
 
 pub use nethttp::*;
