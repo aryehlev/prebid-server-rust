@@ -1,6 +1,6 @@
 [package]
 name = "pbs-gohttp-server"
-description = "Go net/http server, httprouter and rs/cors behaviour on hyper"
+description = "Go net/http server, httprouter and rs/cors behaviour on tokio"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -15,3 +15,10 @@ categories.workspace = true
 workspace = true
 
 [dependencies]
+pbs-gocompat = { path = "../gocompat", version = "0.1.0" }
+pbs-logger = { path = "../logger", version = "0.1.0" }
+socket2 = "0.6.3"
+tokio = { version = "1.54.1", default-features = false, features = ["fs", "io-util", "macros", "net", "rt", "sync", "time"] }
+
+[dev-dependencies]
+tokio = { version = "1.54.1", default-features = false, features = ["fs", "io-util", "macros", "net", "rt", "rt-multi-thread", "sync", "time"] }
