@@ -10,6 +10,7 @@ use crate::{
     godump::{self, Dump},
     manifest::{self, MANIFEST_PATH},
     repo::{self, Mode, Outcome, Repo},
+    typegen,
 };
 
 const USAGE: &str = "\
@@ -19,7 +20,8 @@ commands:
   adapter-manifest   regenerate rust/testdata/go_fixture_manifest.json from adapters/*/*_test.go
   go-dump <what>     run a Go dump program; <what> is struct-meta, config-defaults,
                      bidder-infos, bidder-names or all
-  all                adapter-manifest and go-dump all
+  typegen            regenerate the Rust types of the Go packages in rust/crates/*/typegen.json
+  all                adapter-manifest, go-dump all and typegen
   help               print this text
 
 options:
@@ -33,6 +35,7 @@ options:
 enum Command {
     Manifest,
     GoDump(Vec<Dump>),
+    Typegen,
     All,
     Help,
 }
@@ -86,6 +89,7 @@ fn parse(args: &[String]) -> Result<Options> {
     {
         [] | ["help", ..] => Command::Help,
         ["adapter-manifest"] => Command::Manifest,
+        ["typegen"] => Command::Typegen,
         ["all"] => Command::All,
         ["go-dump", "all"] => Command::GoDump(Dump::ALL.to_vec()),
         ["go-dump", what] => {
@@ -117,11 +121,12 @@ pub fn run(args: &[String]) -> Result<()> {
     }
     let repo = Repo::locate(opts.root.as_deref())?;
     let go_commit = repo.go_commit(opts.go_commit.as_deref())?;
-    let (manifest, dumps) = match opts.command {
-        Command::Manifest => (true, Vec::new()),
-        Command::GoDump(d) => (false, d),
-        Command::All => (true, Dump::ALL.to_vec()),
-        Command::Help => (false, Vec::new()),
+    let (manifest, dumps, types) = match opts.command {
+        Command::Manifest => (true, Vec::new(), false),
+        Command::GoDump(d) => (false, d, false),
+        Command::Typegen => (false, Vec::new(), true),
+        Command::All => (true, Dump::ALL.to_vec(), true),
+        Command::Help => (false, Vec::new(), false),
     };
     let mut stale = Vec::new();
     if manifest {
@@ -132,6 +137,11 @@ pub fn run(args: &[String]) -> Result<()> {
     for dump in dumps {
         let outcome = godump::run(&repo, dump, &go_commit, opts.mode)?;
         report(&mut out, dump.golden(), outcome, &mut stale)?;
+    }
+    if types {
+        for (path, outcome) in typegen::run(&repo, opts.mode)? {
+            report(&mut out, &path, outcome, &mut stale)?;
+        }
     }
     if !stale.is_empty() {
         return Err(ToolError::new(format!(
@@ -185,6 +195,11 @@ mod tests {
         check_eq(&o.command, &Command::Manifest, "manifest")?;
         check_eq(&o.mode, &Mode::Check, "check")?;
         check_eq(&o.root.as_deref(), &Some(Path::new("/x")), "root")?;
+        check_eq(
+            &parse(&args("typegen --check"))?.command,
+            &Command::Typegen,
+            "typegen",
+        )?;
         check_eq(
             &parse(&args("go-dump all"))?.command,
             &Command::GoDump(Dump::ALL.to_vec()),

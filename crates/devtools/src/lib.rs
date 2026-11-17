@@ -12,6 +12,7 @@
 //! cargo run -p pbs-devtools -- go-dump bidder-infos      # rust/testdata/go_bidder_infos.json
 //! cargo run -p pbs-devtools -- go-dump bidder-names      # rust/testdata/go_bidder_names.json
 //! cargo run -p pbs-devtools -- go-dump all               # all four Go dumps
+//! cargo run -p pbs-devtools -- typegen                   # Rust types for */typegen.json
 //! cargo run -p pbs-devtools -- all                       # everything
 //! cargo run -p pbs-devtools -- all --check               # fail if any committed file is stale
 //! ```
@@ -68,6 +69,14 @@
 //! The programs clear `PBS_*` variables (`configdefaults` also clears those un-prefixed
 //! fallbacks), run viper from an empty directory, and route glog to stderr, which is shown only
 //! when a dump fails.
+//!
+//! # `typegen`
+//!
+//! [`typegen`] generates the Rust types of Go packages (every struct, named type, constant and
+//! alias, with `#[derive(GoJson)]` attributes carrying the Go names and JSON tags verbatim, and
+//! Go's doc comments) from each crate's `typegen.json`, using a go/types describer under
+//! `rust/crates/devtools/go/typegen`. It also writes the crate's Rust and Go type indexes for
+//! its parity tests. See the module documentation for the type mapping and the overrides file.
 
 pub mod cli;
 pub mod error;
@@ -82,3 +91,4 @@ pub mod manifest;
 pub mod repo;
 #[cfg(test)]
 pub mod testutil;
+pub mod typegen;
