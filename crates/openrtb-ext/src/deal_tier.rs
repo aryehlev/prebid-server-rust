@@ -1,5 +1,5 @@
-//! Go: `openrtb_ext/deal_tier.go`: reading the bidders' deal tiers of an impression (the types
-//! are generated).
+//! Go: `openrtb_ext/deal_tier.go`: `DealTierBidderMap` and reading the bidders' deal tiers of an
+//! impression (`DealTier` is generated).
 
 use std::collections::BTreeMap;
 
@@ -9,8 +9,20 @@ use pbs_openrtb::openrtb2;
 
 use crate::{
     bidders::{BidderName, normalize_bidder_name},
-    generated::{DealTier, DealTierBidderMap},
+    generated::DealTier,
+    named_map::named_map,
 };
+
+/// `DealTierBidderMap` defines a correlation between bidders and deal tiers.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct DealTierBidderMap(pub Option<BTreeMap<BidderName, DealTier>>);
+
+named_map!(
+    DealTierBidderMap,
+    "openrtb_ext.DealTierBidderMap",
+    BidderName,
+    DealTier
+);
 
 /// The unnamed struct type of `bidder` values in Go's `ReadDealTiersFromImp`.
 #[derive(Clone, Debug, Default, GoJson)]

@@ -5,16 +5,21 @@ use std::collections::BTreeMap;
 
 use pbs_gojson::{GoJson, GoUnmarshaler, JsonError, jsonutil};
 
-use crate::generated::{
-    Adjustment, ExtMultiBid, ExtRequestPrebid, GranularityRange, PriceGranularityRaw,
+use crate::{
+    generated::{Adjustment, ExtMultiBid, ExtRequestPrebid, GranularityRange, PriceGranularityRaw},
+    named_map::named_map,
 };
 
 /// `AdjustmentsByDealID` maps a dealID to a slice of bid adjustments
-///
-/// (Written by hand only because the generator would derive `Eq` for it.)
-#[derive(Clone, Debug, Default, PartialEq, GoJson)]
-#[gojson(go_type = "openrtb_ext.AdjustmentsByDealID")]
+#[derive(Clone, Debug, Default, PartialEq)]
 pub struct AdjustmentsByDealID(pub Option<BTreeMap<String, Option<Vec<Adjustment>>>>);
+
+named_map!(
+    AdjustmentsByDealID,
+    "openrtb_ext.AdjustmentsByDealID",
+    String,
+    Option<Vec<Adjustment>>
+);
 
 /// `PriceGranularity` defines the allowed values for
 /// bidrequest.ext.prebid.targeting.pricegranularity or

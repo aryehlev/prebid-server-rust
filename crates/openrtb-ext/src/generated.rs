@@ -681,11 +681,6 @@ pub struct DealTier {
     pub min_deal_tier: isize,
 }
 
-/// `DealTierBidderMap` defines a correlation between bidders and deal tiers.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
-#[gojson(go_type = "openrtb_ext.DealTierBidderMap")]
-pub struct DealTierBidderMap(pub Option<BTreeMap<BidderName, DealTier>>);
-
 /// Go constant `PrebidExtKey`.
 #[doc(alias = "PrebidExtKey")]
 pub const PREBID_EXT_KEY: &str = "prebid";
@@ -2150,7 +2145,7 @@ pub struct ImpExtConcert {
     pub slot: Option<String>,
     /// Go field `Sizes`.
     #[gojson(go = "Sizes", json = "sizes,omitempty")]
-    pub sizes: Option<Option<Vec<Vec<isize>>>>,
+    pub sizes: Option<Option<Vec<Option<Vec<isize>>>>>,
 }
 
 /// Go type `openrtb_ext.ExtImpConnatix`.
@@ -5197,11 +5192,6 @@ pub const DEFAULT_BID_LIMIT: isize = 1;
 /// Go constant `MaxBidLimit`.
 #[doc(alias = "MaxBidLimit")]
 pub const MAX_BID_LIMIT: isize = 9;
-
-/// Go type `openrtb_ext.PreferredMediaType`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
-#[gojson(go_type = "openrtb_ext.PreferredMediaType")]
-pub struct PreferredMediaType(pub Option<BTreeMap<BidderName, BidType>>);
 
 /// ```text
 /// ExtPublisher defines the contract for ...publisher.ext (found in both bidrequest.site and

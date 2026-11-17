@@ -135,8 +135,18 @@
           "implements": ["Eq"]
         },
         "AdjustmentsByDealID": {
-          "reason": "Hand-written: typegen takes a named type's Eq from its underlying type before it settles the structs', and Adjustment (a float64 field) is not Eq.",
+          "reason": "A named map type: hand-written (named_map!) so that encoding/json errors name it. Typegen would also take its Eq from its underlying type before it settles the structs', and Adjustment (a float64 field) is not Eq.",
           "skip": true
+        },
+        "DealTierBidderMap": {
+          "reason": "A named map type: hand-written (named_map!) so that encoding/json errors name it.",
+          "skip": true,
+          "implements": ["Eq"]
+        },
+        "PreferredMediaType": {
+          "reason": "A named map type: hand-written (named_map!) so that encoding/json errors name it.",
+          "skip": true,
+          "implements": ["Eq"]
         },
         "ImpExtAdnunitus.Targeting": {
           "reason": "An unnamed struct type in Go: hand-written as an anonymous GoJson struct.",
@@ -157,8 +167,8 @@
           "implements": ["Eq"]
         },
         "ImpExtConcert.Sizes": {
-          "reason": "A pointer to a slice (*[][]int): a nil pointer, a pointer to a nil slice and a pointer to a slice all differ in Go.",
-          "rust_type": "Option<Option<Vec<Vec<isize>>>>",
+          "reason": "A pointer to a slice (*[][]int): a nil pointer, a pointer to a nil slice and a pointer to a slice all differ in Go, and so do nil and empty inner slices.",
+          "rust_type": "Option<Option<Vec<Option<Vec<isize>>>>>",
           "implements": ["Eq"]
         },
         "ImpExtTaboola.TagId": {
@@ -1454,7 +1464,7 @@
         },
         "ExtAlternateBidderCodes.IsBidderInAlternateBidderCodes": {
           "rust": "ExtAlternateBidderCodes::is_bidder_in_alternate_bidder_codes",
-          "signature": "fn(&openrtb_ext::ExtAlternateBidderCodes, &str) -> Option<&openrtb_ext::ExtAdapterAlternateBidderCodes>"
+          "signature": "for<'a> fn(&'a openrtb_ext::ExtAlternateBidderCodes, &str) -> Option<&'a openrtb_ext::ExtAdapterAlternateBidderCodes>"
         },
         "BidTypes": {"rust": "bid_types", "signature": "fn() -> Vec<openrtb_ext::BidType>"},
         "ParseBidType": {
@@ -1508,7 +1518,7 @@
         },
         "bidderParamValidator.Schema": {
           "rust": "StandardBidderParamValidator::schema",
-          "signature": "fn(&pbs_bidder_params::StandardBidderParamValidator, &str) -> &str"
+          "signature": "for<'a> fn(&'a pbs_bidder_params::StandardBidderParamValidator, &str) -> &'a str"
         },
         "ReadDealTiersFromImp": {
           "rust": "read_deal_tiers_from_imp",
