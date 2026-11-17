@@ -15,8 +15,8 @@
 //! - expiration uses `uint32` seconds from a [`Timer`]; `get` treats `expireAt <= now` as expired
 //!   while eviction treats `expireAt < now` as expired, as in Go;
 //! - when a segment is full, the oldest entry is dropped if deleted or expired, evicted if its
-//!   access time is at most the segment average, and otherwise moved to the front, with at most
-//!   five moves in a row;
+//!   access time is at most the segment average, and otherwise moved to the front, with at most six
+//!   moves in a row (Go's `consecutiveEvacuate > 5`) before the next entry is evicted regardless;
 //! - the counters ([`Cache::entry_count`], [`Cache::hit_count`], [`Cache::miss_count`],
 //!   [`Cache::evacuate_count`], [`Cache::expired_count`], [`Cache::overwrite_count`],
 //!   [`Cache::touched_count`], [`Cache::average_access_time`]) change exactly when Go's do, and can
@@ -46,7 +46,9 @@
 //!   performs into a nil buffer return nil for an empty value, so an empty result there is Go's
 //!   nil.
 //! - [`Cache::get_fn`] and [`Cache::peek_fn`] return the callback's result instead of propagating a
-//!   Go error from it.
+//!   Go error from it. When the callback panics, Go's `GetFn`/`PeekFn` (which unlock without
+//!   `defer`) leave the segment locked forever; here the lock is released and the segment stays
+//!   usable, with the hit not counted, as in Go.
 //! - `NewCachedTimer` (a timer refreshed by a background goroutine) is not ported; Prebid does not
 //!   use it.
 //! - Paths on which Go panics or loops forever (impossible given the cache's invariants, or a

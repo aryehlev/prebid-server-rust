@@ -5,7 +5,7 @@
 //! tag, index the ring. When the ring is full, [`SegmentState::evacuate`] reclaims the oldest
 //! entry: deleted and expired entries are dropped, entries accessed no later than the segment's
 //! average access time are evicted, and the others are moved to the front of the ring, up to
-//! five in a row before the next one is evicted regardless.
+//! six in a row (Go's `consecutiveEvacuate > 5`) before the next one is evicted regardless.
 
 use std::{
     error, fmt,

@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/cespare/xxhash/v2"
 	"github.com/coocood/freecache"
 )
 
@@ -133,9 +134,57 @@ func scenarioIterator() string {
 	return fmt.Sprintf("n:%d mismatch:%d order:%s", n, mismatches, f.hex())
 }
 
+// segmentZeroKeys returns the first n keys "k0", "k1", ... that hash to segment 0.
+func segmentZeroKeys(n int) [][]byte {
+	var keys [][]byte
+	for i := 0; len(keys) < n; i++ {
+		key := []byte(fmt.Sprintf("k%d", i))
+		if xxhash.Sum64(key)&255 == 0 {
+			keys = append(keys, key)
+		}
+	}
+	return keys
+}
+
+// scenarioSixMoves fills one 2048-byte segment with 15 entries, makes the 7 oldest the most
+// recently used, then writes one more: evacuation moves the 6 oldest to the front and, with
+// consecutiveEvacuate > 5, evicts the 7th although it was recently used.
+func scenarioSixMoves() string {
+	clock := &fakeTimer{now: scenarioClockStart}
+	cache := freecache.NewCacheCustomTimer(512*1024, clock)
+	keys := segmentZeroKeys(16)
+	value := bytes.Repeat([]byte("v"), 100)
+	for _, key := range keys[:15] {
+		if err := cache.Set(key, value, 0); err != nil {
+			panic(err)
+		}
+	}
+	clock.now += 100
+	for _, key := range keys[:7] {
+		if _, err := cache.Get(key); err != nil {
+			panic(err)
+		}
+	}
+	before := fmt.Sprintf("ev:%d e:%d aat:%d", cache.EvacuateCount(), cache.EntryCount(), cache.AverageAccessTime())
+	if err := cache.Set(keys[15], value, 0); err != nil {
+		panic(err)
+	}
+	after := fmt.Sprintf("ev:%d e:%d aat:%d", cache.EvacuateCount(), cache.EntryCount(), cache.AverageAccessTime())
+	var found strings.Builder
+	for _, key := range keys {
+		if _, err := cache.Peek(key); err == nil {
+			found.WriteByte('1')
+		} else {
+			found.WriteByte('0')
+		}
+	}
+	return fmt.Sprintf("before:%s after:%s found:%s", before, after, found.String())
+}
+
 func writeScenarios(g *golden) {
 	defer g.close()
 	g.line("scenario", "TestFreeCache", scenarioFreeCache())
 	g.line("scenario", "TestEvacuateCount", scenarioEvacuateCount())
 	g.line("scenario", "TestIterator", scenarioIterator())
+	g.line("scenario", "SixMoves", scenarioSixMoves())
 }

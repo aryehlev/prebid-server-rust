@@ -17,6 +17,7 @@ use super::{
         FakeCache, FakeTimer, Fnv, SplitMix64, TestResult, bytes_digest, check, check_eq, err_str,
         field, golden_lines, nil_val_str, read_golden,
     },
+    xxhash,
 };
 
 /// Go: `scenarioClockStart`.
@@ -695,6 +696,60 @@ fn expire_seconds_wrap_like_go() -> TestResult {
     )?;
     clock.advance(1);
     check_eq(&cache.ttl(b"b")?, &4, "ttl after a second")
+}
+
+/// Go: `segmentZeroKeys`, the first `n` keys `k0`, `k1`, ... in segment 0.
+fn segment_zero_keys(n: usize) -> Vec<Vec<u8>> {
+    (0_u64..)
+        .map(|i| format!("k{i}").into_bytes())
+        .filter(|key| xxhash::sum64(key).trailing_zeros() >= 8)
+        .take(n)
+        .collect()
+}
+
+/// The evacuate count, entry count and average access time `scenarioSixMoves` records.
+fn move_stats(cache: &FakeCache) -> String {
+    format!(
+        "ev:{} e:{} aat:{}",
+        cache.evacuate_count(),
+        cache.entry_count(),
+        cache.average_access_time()
+    )
+}
+
+/// Go: `scenarioSixMoves`. Evacuation moves recently used entries to the front of the ring at
+/// most six times in a row (`consecutiveEvacuate > 5`); the seventh is evicted even though it
+/// was used recently.
+#[test]
+fn six_consecutive_moves_then_evict() -> TestResult {
+    let (cache, clock) = fake_cache(512 * 1024);
+    let keys = segment_zero_keys(16);
+    let value = [b'v'; 100];
+    for key in keys.iter().take(15) {
+        cache.set(key, &value, 0)?;
+    }
+    clock.advance(100);
+    for key in keys.iter().take(7) {
+        check_eq(&cache.get(key)?, &value, "recently used value")?;
+    }
+    let before = move_stats(&cache);
+    let last = keys.last().ok_or("no keys")?;
+    cache.set(last, &value, 0)?;
+    let after = move_stats(&cache);
+    let found: String = keys
+        .iter()
+        .map(|key| if cache.peek(key).is_ok() { '1' } else { '0' })
+        .collect();
+    check_eq(
+        &(cache.evacuate_count(), found.as_str()),
+        &(7, "1111110111111111"),
+        "six moves, then the seventh entry is evicted",
+    )?;
+    check_eq(
+        &format!("before:{before} after:{after} found:{found}"),
+        &scenario("SixMoves")?,
+        "Go counters",
+    )
 }
 
 /// The cache is built on the heap like Go's `new(Cache)`: boxing a 256-segment array built on
