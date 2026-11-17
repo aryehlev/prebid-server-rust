@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"sort"
+	"strconv"
 	"sync"
 	"sync/atomic"
 	"unicode/utf8"
@@ -242,6 +243,13 @@ func (s *Session) AddAnalytics(kind string, object any) {
 	raw, err := jsonutil.Marshal(object)
 	if err != nil {
 		s.Note("analytics %s: marshal error: %v", kind, err)
+		return
+	}
+	if !json.Valid(raw) {
+		// jsonutil.Marshal writes nothing for a json.RawMessage member that
+		// does not compact, so an invalid regs.ext yields `"ext":}`.
+		// Embedding it would make the whole trace unencodable.
+		s.Note("analytics %s: marshaled object is not valid JSON, not recorded: %s", kind, strconv.Quote(string(raw)))
 		return
 	}
 	s.mu.Lock()

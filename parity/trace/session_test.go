@@ -6,19 +6,29 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"os"
 	"runtime"
 	"sync"
 	"testing"
 	"time"
 
+	jsoniter "github.com/json-iterator/go"
 	"github.com/prebid/prebid-server/v4/errortypes"
 	"github.com/prebid/prebid-server/v4/parity"
 	"github.com/prebid/prebid-server/v4/parity/fakes"
+	"github.com/prebid/prebid-server/v4/util/jsonutil"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/collectors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+// TestMain registers the json.RawMessage encoder main.go installs, so
+// jsonutil.Marshal behaves as it does in the server.
+func TestMain(m *testing.M) {
+	jsoniter.RegisterExtension(&jsonutil.RawMessageExtension{})
+	os.Exit(m.Run())
+}
 
 func newEnv(caseID string) *parity.Envelope {
 	return &parity.Envelope{CaseID: caseID, Request: parity.ExecRequest{Path: "/openrtb2/auction"}}
@@ -206,6 +216,46 @@ func TestCaptureFilter(t *testing.T) {
 	assert.Empty(t, snap.HTTPOut)
 	assert.Empty(t, snap.Analytics)
 	assert.Equal(t, parity.StageNotReached, snap.StageStatus[parity.StageBidderRequest])
+}
+
+// TestAddAnalyticsKeepsTraceEncodable: jsonutil.Marshal writes nothing for a
+// json.RawMessage member that does not compact, leaving `"ext":}` (as for the
+// auction object of a request whose regs.ext Go left invalid); such an object
+// is noted, not embedded.
+func TestAddAnalyticsKeepsTraceEncodable(t *testing.T) {
+	type regs struct {
+		GDPR int             `json:"gdpr"`
+		Ext  json.RawMessage `json:"ext,omitempty"`
+	}
+	type record struct {
+		Regs *regs `json:"regs"`
+	}
+	tests := []struct {
+		name     string
+		object   any
+		recorded bool
+	}{
+		{name: "valid object", object: record{Regs: &regs{GDPR: 1, Ext: json.RawMessage(`{}`)}}, recorded: true},
+		{name: "invalid raw member", object: record{Regs: &regs{GDPR: 1, Ext: json.RawMessage(`{"dsa":`)}}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			s := newSession(newEnv("analytics"))
+			s.AddAnalytics(parity.AnalyticsAuction, tt.object)
+			snap := s.Snapshot()
+
+			_, err := json.Marshal(snap)
+			require.NoError(t, err, "the trace must encode")
+			if tt.recorded {
+				assert.Len(t, snap.Analytics, 1)
+				return
+			}
+			assert.Empty(t, snap.Analytics)
+			require.Len(t, snap.Notes, 1)
+			assert.Contains(t, snap.Notes[0], `not valid JSON`)
+			assert.Contains(t, snap.Notes[0], `\"ext\":}`)
+		})
+	}
 }
 
 func TestSnapshotStageStatus(t *testing.T) {
