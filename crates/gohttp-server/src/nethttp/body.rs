@@ -68,6 +68,22 @@ struct Chunked {
     excess: i64,
 }
 
+/// Go: `beginChunk`'s overhead accounting: `excess` (which held the overhead before this chunk)
+/// plus the chunk-size line of `line_len` bytes and its two CRLFs, less the 16 bytes and twice
+/// the `n` data bytes the chunk is allowed, and at least 0.
+///
+/// The arithmetic is Go's `int64`, which wraps: for a size of 2^62 or more, `2 * int64(n)`
+/// overflows, and some such sizes leave a huge excess (so Go reports too much non-data) where
+/// others leave none.
+fn chunk_excess(excess: i64, line_len: usize, n: u64) -> i64 {
+    let line = i64::try_from(line_len).unwrap_or(i64::MAX);
+    let allowed = 16_i64.wrapping_add(n.cast_signed().wrapping_mul(2));
+    excess
+        .wrapping_add(line.wrapping_add(2))
+        .wrapping_sub(allowed)
+        .max(0)
+}
+
 /// Go: `internal.parseHexUint`.
 fn parse_hex_uint(v: &[u8]) -> Result<u64, ReadErr> {
     if v.is_empty() {
@@ -131,7 +147,6 @@ impl Chunked {
                 return;
             }
         };
-        self.excess += i64::try_from(line.len()).unwrap_or(i64::MAX) + 2;
         let mut end = line.len();
         while end > 0 && matches!(line.get(end - 1), Some(b' ' | b'\t')) {
             end -= 1;
@@ -148,9 +163,7 @@ impl Chunked {
                 return;
             }
         }
-        self.excess -=
-            16_i64.saturating_add(i64::try_from(self.n).unwrap_or(i64::MAX).saturating_mul(2));
-        self.excess = self.excess.max(0);
+        self.excess = chunk_excess(self.excess, line.len(), self.n);
         if self.excess > 16 * 1024 {
             self.err = Some(ReadErr::Protocol(
                 "chunked encoding contains too much non-data".to_owned(),
@@ -946,4 +959,43 @@ pub(super) fn declared_trailer(values: &[String]) -> Result<Option<Header>, Stri
         }
     }
     Ok((!trailer.is_empty()).then_some(trailer))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::chunk_excess;
+
+    /// Go's `excess` after one chunk-size line, from the overhead before it, the line's length
+    /// and the chunk size, computed by Go 1.26.2's `beginChunk` arithmetic.
+    #[test]
+    fn chunk_excess_wraps_like_go() -> Result<(), String> {
+        for (before, line, n, want) in [
+            (0, 1, 0x5, 0),
+            (0, 16, 0x1000_0000_0000_0000, 0),
+            (0, 16, 0x3FFF_FFFF_FFFF_FFFF, 0),
+            (0, 16, 0x4000_0000_0000_0000, 0),
+            (0, 16, 0x4000_0000_0000_0001, 0),
+            (0, 16, 0x4000_0000_0000_0002, 9_223_372_036_854_775_806),
+            (0, 16, 0x6000_0000_0000_0000, 4_611_686_018_427_387_906),
+            (0, 16, 0x7FFF_FFFF_FFFF_E000, 16386),
+            (0, 16, 0x7FFF_FFFF_FFFF_FFFF, 4),
+            (0, 16, 0x8000_0000_0000_0000, 2),
+            (0, 16, 0xC000_0000_0000_0001, 0),
+            (0, 16, 0xC000_0000_0000_0002, 9_223_372_036_854_775_806),
+            (0, 16, 0xFFFF_FFFF_FFFF_E000, 16386),
+            (0, 16, 0xFFFF_FFFF_FFFF_EFFF, 8196),
+            (0, 16, 0xFFFF_FFFF_FFFF_FFFF, 4),
+            (15944, 4002, 0x1, 19930),
+            (12000, 4002, 0x1, 15986),
+            (16000, 402, 0x0, 16388),
+        ] {
+            let got = chunk_excess(before, line, n);
+            if got != want {
+                return Err(format!(
+                    "chunk_excess({before}, {line}, {n:#x}) = {got}, Go: {want}"
+                ));
+            }
+        }
+        Ok(())
+    }
 }
