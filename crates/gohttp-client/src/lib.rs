@@ -57,6 +57,8 @@ pub mod client;
 pub mod context;
 pub mod ctxhttp;
 pub mod error;
+#[cfg(test)]
+mod golden_tests;
 pub mod gzip;
 pub mod httpguts;
 pub mod httpproxy;
