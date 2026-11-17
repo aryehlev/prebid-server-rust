@@ -15,8 +15,8 @@ import (
 
 // RequestDataOf projects one adapter request. Headers are flattened in
 // canonical-name order (http.Header has no wire order) and the body is recorded
-// with the request's own Content-Encoding. A nil request yields an empty
-// projection.
+// with the request's own Content-Encoding (see requestBody). A nil request
+// yields an empty projection.
 func RequestDataOf(req *adapters.RequestData) parity.AdapterRequestData {
 	out := parity.AdapterRequestData{Headers: parity.HeaderList{}, ImpIDs: []string{}}
 	if req == nil {
@@ -25,11 +25,28 @@ func RequestDataOf(req *adapters.RequestData) parity.AdapterRequestData {
 	out.Method = req.Method
 	out.URI = req.Uri
 	out.Headers = transport.HeaderListOf(req.Headers)
-	out.Body = parity.NewBody(req.Body, req.Headers.Get("Content-Encoding"))
+	out.Body = requestBody(req)
 	if req.ImpIDs != nil {
 		out.ImpIDs = append(out.ImpIDs, req.ImpIDs...)
 	}
 	return out
+}
+
+// requestBody records req.Body with its Content-Encoding header, except when
+// that header claims gzip but the body is not gzip data: exchange/bidder.go
+// getRequestBody compresses only the wire copy of the body yet sets
+// "Content-Encoding: gzip" on req.Headers, so once the request was sent
+// (adapter.bids, hooks.raw_bidder_response) the header no longer describes
+// req.Body, which is still the identity content.
+func requestBody(req *adapters.RequestData) *parity.Body {
+	b := parity.NewBody(req.Body, req.Headers.Get("Content-Encoding"))
+	if b == nil || (b.ContentEncoding != "gzip" && b.ContentEncoding != "x-gzip") {
+		return b
+	}
+	if _, err := b.DecodedBytes(); err != nil {
+		return parity.NewBody(req.Body, "")
+	}
+	return b
 }
 
 // RequestsOf projects MakeRequests output in request order.

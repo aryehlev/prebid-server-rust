@@ -61,10 +61,30 @@ func TestRequestDataOf(t *testing.T) {
 }
 
 func TestRequestDataOfGzipBody(t *testing.T) {
-	raw := gzipped(t, `{"a":1}`)
-	got := RequestDataOf(&adapters.RequestData{Body: raw, Headers: http.Header{"Content-Encoding": {"gzip"}}})
-	require.NotNil(t, got.Body)
-	assert.Equal(t, parity.NewBody(raw, "gzip"), got.Body)
+	compressed := gzipped(t, `{"a":1}`)
+	identity := []byte(`{"a":1}`)
+	tests := []struct {
+		name     string
+		body     []byte
+		encoding string
+		want     *parity.Body
+	}{
+		{name: "gzip body", body: compressed, encoding: "gzip", want: parity.NewBody(compressed, "gzip")},
+		{name: "header set by getRequestBody on the identity body", body: identity, encoding: "gzip", want: parity.NewBody(identity, "")},
+		{name: "x-gzip header on the identity body", body: identity, encoding: "x-gzip", want: parity.NewBody(identity, "")},
+		{name: "no header", body: identity, want: parity.NewBody(identity, "")},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			headers := http.Header{}
+			if tt.encoding != "" {
+				headers.Set("Content-Encoding", tt.encoding)
+			}
+			got := RequestDataOf(&adapters.RequestData{Body: tt.body, Headers: headers})
+			require.NotNil(t, got.Body)
+			assert.Equal(t, tt.want, got.Body)
+		})
+	}
 }
 
 func TestBidderResponseOf(t *testing.T) {
