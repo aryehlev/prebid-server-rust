@@ -52,6 +52,7 @@ func TestNilSessionIsNoOp(t *testing.T) {
 		{name: "Decide", run: func() any { return s.Decide(parity.DecisionFloorsSkip, func() int { return 1 }) }, want: 1},
 		{name: "DecideString", run: func() any { return s.DecideString(parity.DecisionUsersyncShuffle, func() string { return "rng" }) }, want: "rng"},
 		{name: "DecideBool", run: func() any { return s.DecideBool(parity.DecisionFloorsEnforce, func() bool { return true }) }, want: true},
+		{name: "DecideChance", run: func() any { return s.DecideChance(parity.DecisionFloorsSkip, true, func() bool { return true }) }, want: true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -370,6 +371,29 @@ func TestDecisions(t *testing.T) {
 				return s.DecideBool(parity.DecisionFloorsDataRate, func() bool { return true })
 			},
 			want: true, wantValue: "1", wantSource: parity.DecisionSourceRNG,
+		},
+		{
+			name:      "chance override honoured when the rate leaves it to chance",
+			decisions: map[string]json.RawMessage{string(parity.DecisionFloorsSkip): json.RawMessage(`0`)},
+			run: func(s *Session) any {
+				return s.DecideChance(parity.DecisionFloorsSkip, true, func() bool { return true })
+			},
+			want: false, wantValue: "0", wantSource: parity.DecisionSourceEnvelope,
+		},
+		{
+			name:      "chance override ignored when the rate fixes the outcome",
+			decisions: map[string]json.RawMessage{string(parity.DecisionFloorsSkip): json.RawMessage(`0`)},
+			run: func(s *Session) any {
+				return s.DecideChance(parity.DecisionFloorsSkip, false, func() bool { return true })
+			},
+			want: true, wantValue: "1", wantSource: parity.DecisionSourceRNG, wantNote: true,
+		},
+		{
+			name: "chance without override and a fixed outcome records the draw",
+			run: func(s *Session) any {
+				return s.DecideChance(parity.DecisionFloorsEnforce, false, func() bool { return false })
+			},
+			want: false, wantValue: "0", wantSource: parity.DecisionSourceRNG,
 		},
 	}
 	for _, tt := range tests {
