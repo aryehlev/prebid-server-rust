@@ -15,3 +15,15 @@ categories.workspace = true
 workspace = true
 
 [dependencies]
+bytes = { version = "1.11.1", default-features = false, features = ["std"] }
+flate2 = { version = "1.1.9", default-features = false, features = ["rust_backend"] }
+pbs-gocompat = { path = "../gocompat", version = "0.1.0" }
+pbs-util = { path = "../util", version = "0.1.0" }
+rustls = { version = "0.23.37", default-features = false, features = ["aws_lc_rs", "prefer-post-quantum", "std", "tls12"] }
+socket2 = { version = "0.6.3", default-features = false, features = ["all"] }
+tokio = { version = "1.50.0", default-features = false, features = ["io-util", "macros", "net", "rt", "sync", "time"] }
+tokio-rustls = { version = "0.26.4", default-features = false, features = ["aws_lc_rs", "tls12"] }
+
+[dev-dependencies]
+serde_json = { version = "1.0.154", default-features = false, features = ["std"] }
+tokio = { version = "1.50.0", default-features = false, features = ["io-util", "macros", "net", "rt", "rt-multi-thread", "sync", "test-util", "time"] }
