@@ -189,7 +189,12 @@ func main() {
 		log.Fatal(err)
 	}
 	g := Golden{ProxyEnv: proxyEnv, CA: p.caPEM, Certs: p.certs}
+	seen := map[string]bool{}
 	for _, c := range cases() {
+		if seen[c.Name] {
+			log.Fatalf("%s: duplicate case name", c.Name)
+		}
+		seen[c.Name] = true
 		if *only != "" && c.Name != *only {
 			continue
 		}

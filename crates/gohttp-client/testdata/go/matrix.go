@@ -287,7 +287,7 @@ func redirectMatrixCases() []Case {
 				body, final = Body{Kind: "none"}, "HTTP/1.1 200 OK\r\nContent-Length: 4\r\n\r\n"
 			}
 			st := withHeader(do(method, "http://{{A}}/from", body), "Content-Type", "text/plain", "X-Keep", "1")
-			out = append(out, one(fmt.Sprintf("redirect_%s_%d", strings.ToLower(method), code), general(),
+			out = append(out, one(fmt.Sprintf("redirect_matrix_%s_%d", strings.ToLower(method), code), general(),
 				[]Server{srv("A", conn(reqOp(), write(redirect(code, "/to")), reqOp(), write(final)))}, st))
 		}
 	}
