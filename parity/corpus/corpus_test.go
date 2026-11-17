@@ -340,11 +340,15 @@ func TestCaseDocumentsValidateAgainstSchemas(t *testing.T) {
 		if statusGap {
 			assertMockStatusGap(t, cs)
 		}
+		outputGap := cs.Adapter != nil && cs.HasTag(TagContractGap)
+		if outputGap {
+			assertBidTypeOutputGap(t, cs)
+		}
 		for name, doc := range docs {
 			raw, err := json.Marshal(doc)
 			require.NoError(t, err, cs.ID)
 			err = schema.Validate(raw)
-			if cs.HasTag(TagContractGap) && !statusGap {
+			if cs.HasTag(TagContractGap) && !statusGap && !outputGap {
 				// The tag must stay honest: the gap is real and is the bid type.
 				assert.ErrorContains(t, err, ".type", cs.ID)
 				continue
@@ -378,6 +382,80 @@ func assertMockStatusGap(t *testing.T, cs Case) {
 		}
 	}
 	assert.True(t, rejected, "%s: no mocked response is outside the schema", cs.ID)
+}
+
+// assertBidTypeOutputGap checks that an adapter case tagged contract_gap
+// expects a bid type that the bids output document really cannot carry, while
+// the same document with a contract type validates.
+func assertBidTypeOutputGap(t *testing.T, cs Case) {
+	t.Helper()
+	bidType, ok := uncontractedBidType(cs.Adapter.Expect.BidResponses)
+	require.True(t, ok, "%s: tagged contract_gap without an uncontracted bid type", cs.ID)
+	output := func(typ string) []byte {
+		raw, err := json.Marshal(parity.AdapterBidsOutput{
+			Schema: parity.SchemaAdapterBidsOutput, SchemaVersion: parity.SchemaVersion, Impl: parity.ImplGo,
+			CaseID: cs.ID, Bidder: "bidder",
+			BidderResponse: &parity.AdapterBidderResponse{Currency: "USD", Bids: []parity.TypedBid{{Bid: json.RawMessage(`{}`), Type: typ}}},
+			Errors:         []parity.ErrorRecord{},
+		})
+		require.NoError(t, err, cs.ID)
+		return raw
+	}
+	require.NoError(t, schema.Validate(output("banner")), cs.ID)
+	assert.ErrorContains(t, schema.Validate(output(bidType)), ".type", cs.ID)
+}
+
+// TestAdapterCasesTagUncontractedBidTypes: a fixture whose expected bid type
+// TypedBid.type cannot carry makes its adapter cases a contract gap, and only
+// those cases; the lifted case still runs.
+func TestAdapterCasesTagUncontractedBidTypes(t *testing.T) {
+	c := loadTestCorpus(t)
+	tests := []struct {
+		id  string
+		gap bool
+	}{
+		{id: caseID("adapters/mabidder/mabiddertest/exemplary/simple-app-banner.json", "adapter:TestJsonSamples"), gap: true},
+		{id: caseID("adapters/richaudience/richaudiencetest/supplemental/bidTypeNotAssigned.json", "adapter:TestJsonSamples"), gap: true},
+		{id: caseID("adapters/richaudience/richaudiencetest/supplemental/bidTypeNotAssigned.json", "adapter:TestGetBuilder"), gap: true},
+		{id: caseID("adapters/richaudience/richaudiencetest/supplemental/bidTypeNotAssigned.json", "lift:auction")},
+		{id: caseID("adapters/richaudience/richaudiencetest/exemplary/single-banner-app.json", "adapter:TestJsonSamples")},
+	}
+	for _, tt := range tests {
+		t.Run(tt.id, func(t *testing.T) {
+			cs, ok := c.Case(tt.id)
+			require.True(t, ok)
+			assert.Equal(t, tt.gap, cs.HasTag(TagContractGap), "%v", cs.Notes)
+		})
+	}
+}
+
+func TestUncontractedBidType(t *testing.T) {
+	bids := func(types ...string) []AdapterBidResponse {
+		r := AdapterBidResponse{}
+		for _, typ := range types {
+			r.Bids = append(r.Bids, AdapterExpectedBid{Type: typ})
+		}
+		return []AdapterBidResponse{r}
+	}
+	tests := []struct {
+		name      string
+		responses []AdapterBidResponse
+		want      string
+		gap       bool
+	}{
+		{name: "no responses"},
+		{name: "contract types", responses: bids("banner", "video", "audio", "native")},
+		{name: "absent type", responses: bids("banner", ""), want: "", gap: true},
+		{name: "free text", responses: bids("no bidtype assigned"), want: "no bidtype assigned", gap: true},
+		{name: "case differs", responses: bids("Banner"), want: "Banner", gap: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, gap := uncontractedBidType(tt.responses)
+			assert.Equal(t, tt.gap, gap)
+			assert.Equal(t, tt.want, got)
+		})
+	}
 }
 
 func TestCaseProvenance(t *testing.T) {

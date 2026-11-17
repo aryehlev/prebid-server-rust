@@ -303,7 +303,29 @@ func adapterCase(f *AdapterFixture, run *AdapterRun) (Case, error) {
 	if f.AllowErrors() {
 		cs.Tags = addTag(cs.Tags, TagAllowErrors)
 	}
+	if bidType, ok := uncontractedBidType(f.Spec.BidResponses); ok {
+		cs.Tags = addTag(cs.Tags, TagContractGap)
+		cs.Notes = append(cs.Notes, fmt.Sprintf("contract gap: the fixture expects bid type %q (Go's BidType is an open string) but common.schema.json TypedBid.type only allows banner, video, audio and native, so the bids output Go returns cannot validate", bidType))
+	}
 	return cs, nil
+}
+
+// contractBidTypes are the values common.schema.json TypedBid.type accepts.
+var contractBidTypes = map[string]bool{"banner": true, "video": true, "audio": true, "native": true}
+
+// uncontractedBidType returns the first expected bid type that TypedBid.type
+// cannot carry. A fixture's expected type is what Go's MakeBids returns, since
+// adapterstest compares the two (mabidder passes an absent media type through
+// as "", richaudience returns a free-text type).
+func uncontractedBidType(responses []AdapterBidResponse) (string, bool) {
+	for _, r := range responses {
+		for _, b := range r.Bids {
+			if !contractBidTypes[b.Type] {
+				return b.Type, true
+			}
+		}
+	}
+	return "", false
 }
 
 // fixtureRequestData is adapterstest httpRequest.ToRequestData: method POST,
