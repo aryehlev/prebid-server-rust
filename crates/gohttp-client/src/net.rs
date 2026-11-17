@@ -18,7 +18,7 @@ use socket2::{SockRef, TcpKeepalive};
 use tokio::{
     io::{AsyncRead, AsyncWrite},
     net::{TcpStream, lookup_host},
-    time::{sleep, timeout_at},
+    time::{sleep, sleep_until, timeout_at},
 };
 
 use crate::{
@@ -264,31 +264,43 @@ impl Dialer {
             });
         }
         let lookup = lookup_host((host.to_owned(), port));
-        let result = match deadline {
-            Some(d) => match timeout_at(d.into(), lookup).await {
-                Ok(r) => r.map_err(|_lookup| ()),
-                Err(_elapsed) => {
-                    let e = HttpError::Dns(Box::new(DnsError {
-                        err: "i/o timeout".to_owned(),
-                        name: host.to_owned(),
-                        server: resolver_server().to_owned(),
-                        is_timeout: true,
-                        is_not_found: false,
-                    }));
-                    if let Some(t) = trace {
-                        t.dns_done(&DnsDoneInfo {
-                            addrs: Vec::new(),
-                            err: Some(e.clone()),
-                            coalesced: false,
-                        });
-                    }
-                    return Err(dial_op_error(None, e));
+        // Go: lookupIPAddr stops waiting when the dial context (ctx under the dialer's
+        // deadline) is done.
+        let given_up = async {
+            if let Some(d) = deadline {
+                tokio::select! {
+                    () = sleep_until(d.into()) => ContextError::DeadlineExceeded,
+                    () = ctx.done() => ctx.err().unwrap_or(ContextError::Canceled),
                 }
-            },
-            None => lookup.await.map_err(|_lookup| ()),
+            } else {
+                ctx.done().await;
+                ctx.err().unwrap_or(ContextError::Canceled)
+            }
+        };
+        let result = tokio::select! {
+            biased;
+            gave_up = given_up => {
+                // Go: newDNSError(mapErr(ctx.Err()), host, ""), which names no server even
+                // where resolv.conf has one.
+                let e = HttpError::Dns(Box::new(DnsError {
+                    err: map_ctx_err(gave_up).to_string(),
+                    name: host.to_owned(),
+                    server: String::new(),
+                    is_timeout: gave_up == ContextError::DeadlineExceeded,
+                    is_not_found: false,
+                }));
+                if let Some(t) = trace {
+                    t.dns_done(&DnsDoneInfo {
+                        addrs: Vec::new(),
+                        err: Some(e.clone()),
+                        coalesced: false,
+                    });
+                }
+                return Err(dial_op_error(None, e));
+            }
+            r = lookup => r.map_err(|_lookup| ()),
         };
         let _ = self;
-        let _ = ctx;
         let addrs: Vec<SocketAddr> = result.map_or_else(|()| Vec::new(), Iterator::collect);
         let err = addrs.is_empty().then(|| {
             HttpError::Dns(Box::new(DnsError {
@@ -474,6 +486,41 @@ mod tests {
             &err,
             &Some(format!("dial tcp {addr}: connect: connection refused")),
             "refused",
+        )
+    }
+
+    #[tokio::test]
+    async fn lookup_gives_up_with_the_dial_context() -> Result<(), String> {
+        // Go: lookupIPAddr returns newDNSError(mapErr(ctx.Err()), host, "") once the dial
+        // context is done: the error names no server, even where resolv.conf names one.
+        let dialer = Dialer::default();
+        let expired = Instant::now()
+            .checked_sub(Duration::from_secs(1))
+            .ok_or_else(|| "no instant a second ago".to_owned())?;
+        let timed_out = dialer
+            .resolve(&Context::background(), "localhost", 80, Some(expired), None)
+            .await
+            .err()
+            .map(|e| (e.to_string(), e.timeout()));
+        ensure_eq(
+            &timed_out,
+            &Some(("dial tcp: lookup localhost: i/o timeout".to_owned(), true)),
+            "dial deadline",
+        )?;
+        let (ctx, cancel) = Context::background().with_cancel();
+        cancel.cancel();
+        let canceled = dialer
+            .resolve(&ctx, "localhost", 80, None, None)
+            .await
+            .err()
+            .map(|e| (e.to_string(), e.timeout()));
+        ensure_eq(
+            &canceled,
+            &Some((
+                "dial tcp: lookup localhost: operation was canceled".to_owned(),
+                false,
+            )),
+            "canceled context",
         )
     }
 }
