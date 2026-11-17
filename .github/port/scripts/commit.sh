@@ -2,9 +2,11 @@
 # commit.sh: record the run on the work branch with the bot identity and no AI attribution.
 #   advance    rust/UPSTREAM_SYNC := TARGET_SHA (not in merge-only mode), one line per planned
 #              upstream commit appended to rust/upstream-port-log.jsonl, and the Rust changes
-#   repair     the Rust changes only
-# Nothing is committed when nothing changed. Only rust/ is staged; check-worktree.sh has already
-# reverted everything else.
+#   repair     the Rust changes only. A repair that changed nothing is still committed (empty):
+#              plan.sh counts port-repair commits to decide when to escalate, and the new head
+#              makes CI run again. Without it a repair that finds nothing would be planned again
+#              every day and never escalate.
+# Only rust/ is staged; check-worktree.sh has already reverted everything else.
 #
 # Env: ACTION RUN_MODE CTX MERGED_SHA BASE_SHA TARGET_SHA RUN_URL, PORT_JSON / FIX_JSON (structured
 #      output of the port and fix sessions, may be empty), and the commit identity in
@@ -73,9 +75,13 @@ if [[ "${action}" == advance ]]; then
 fi
 
 git add -A -- rust
+empty=()
 if git diff --cached --quiet; then
-  printf 'commit: nothing to commit\n'
-  exit 0
+  if [[ "${action}" != repair ]]; then
+    printf 'commit: nothing to commit\n'
+    exit 0
+  fi
+  empty=(--allow-empty)
 fi
 code_changes=$(git diff --cached --name-only -- rust ':(exclude)rust/UPSTREAM_SYNC' ':(exclude)rust/upstream-port-log.jsonl')
 
@@ -85,8 +91,15 @@ count=$(jq -r '.commits | length' "${plan}")
 statuses=$(tail -n "${count}" rust/upstream-port-log.jsonl 2> /dev/null || true)
 if [[ "${action}" == repair ]]; then
   failing=$(jq -r '[.failed[]?] | join(", ")' "${ctx}/gates-before.json" 2> /dev/null || true)
-  printf 'port-repair: fix %s\n\n' "${failing:-CI failures}" > "${message}"
-  printf 'Repairs the port of upstream %s..%s without porting new commits.\n' "${base:0:12}" "${target:0:12}" >> "${message}"
+  if [[ "${#empty[@]}" -gt 0 ]]; then
+    printf 'port-repair: no change found for %s\n\n' "${failing:-the CI failures}" > "${message}"
+    printf 'The repair session of upstream %s..%s changed nothing. This empty commit records the\n' \
+      "${base:0:12}" "${target:0:12}" >> "${message}"
+    printf 'attempt, so the planner escalates after PORT_MAX_REPAIRS attempts, and lets CI run again.\n' >> "${message}"
+  else
+    printf 'port-repair: fix %s\n\n' "${failing:-CI failures}" > "${message}"
+    printf 'Repairs the port of upstream %s..%s without porting new commits.\n' "${base:0:12}" "${target:0:12}" >> "${message}"
+  fi
 elif [[ "${run_mode}" == merge-only ]]; then
   printf 'port: record upstream %s..%s as merged, not ported\n\n' "${base:0:12}" "${target:0:12}" > "${message}"
 elif [[ -z "${code_changes}" ]]; then
@@ -103,6 +116,6 @@ fi
 if [[ -n "${RUN_URL:-}" ]]; then
   printf 'Port-Run: %s\n' "${RUN_URL}" >> "${message}"
 fi
-git -c commit.gpgsign=false commit --no-verify -q --cleanup=whitespace -F "${message}"
+git -c commit.gpgsign=false commit --no-verify -q --cleanup=whitespace "${empty[@]}" -F "${message}"
 new_head=$(git rev-parse HEAD)
 printf 'commit: %s\n' "${new_head:0:12}"

@@ -112,11 +112,30 @@ subject=$(git -C "${repo}" log -1 --format=%s)
 t_eq "repair: subject" "port-repair: fix clippy, test" "${subject}"
 log_after=$(wc -l < "${repo}/rust/upstream-port-log.jsonl")
 t_eq "repair: the port log is unchanged" "${log_lines}" "${log_after}"
+# A repair that changes nothing is recorded anyway: plan.sh counts port-repair commits, so without
+# this commit a repair that finds nothing would be planned every day and never escalate.
 head=$(git -C "${repo}" rev-parse HEAD)
 run nothing ACTION=repair RUN_MODE=auto
-t_has "nothing changed: nothing is committed" "${T_OUT}" "commit: nothing to commit"
+t_eq "repair without changes: exit status" 0 "${T_RC}"
+subject=$(git -C "${repo}" log -1 --format=%s)
+t_eq "repair without changes: an empty commit records the attempt" \
+  "port-repair: no change found for clippy, test" "${subject}"
+parent=$(git -C "${repo}" rev-parse HEAD^)
+t_eq "repair without changes: exactly one new commit" "${head}" "${parent}"
+files=$(git -C "${repo}" show --name-only --format= HEAD)
+t_eq "repair without changes: the commit changes no file" "" "${files}"
+identity=$(git -C "${repo}" log -1 --format='%an <%ae>')
+t_eq "repair without changes: bot identity" "${T_BOT_NAME} <${T_BOT_EMAIL}>" "${identity}"
+
+# An advance run with nothing to record commits nothing.
+cp "${ctx}/plan.json" "${ctx}/plan.saved.json"
+jq -n '{commits: []}' > "${ctx}/plan.json"
+head=$(git -C "${repo}" rev-parse HEAD)
+run emptyplan ACTION=advance RUN_MODE=merge-only
+t_has "advance with nothing to record: nothing is committed" "${T_OUT}" "commit: nothing to commit"
 head_after=$(git -C "${repo}" rev-parse HEAD)
-t_eq "nothing changed: HEAD stays" "${head}" "${head_after}"
+t_eq "advance with nothing to record: HEAD stays" "${head}" "${head_after}"
+mv "${ctx}/plan.saved.json" "${ctx}/plan.json"
 
 # Only rust/ is staged.
 t_put "${repo}" outside.txt 'outside'
