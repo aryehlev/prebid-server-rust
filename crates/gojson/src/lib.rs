@@ -32,7 +32,7 @@
 //! | `jsonparser.Get`, `GetString`, `Set`, `Delete`, `ArrayEach`, ... | [`jsonparser`] |
 //! | `jsonutil.FindElement(ext, names...)` | [`jsonutil::find_element`] |
 //! | `jsonutil.DropElement(ext, names...)` | [`jsonutil::drop_element`] |
-//! | `jsonutil.MergeClone(&ext, data)` for a `json.RawMessage` | [`jsonutil::merge_clone_raw`] |
+//! | `jsonutil.MergeClone(v, data)` | [`jsonutil::merge_clone`] |
 //!
 //! `mergepatch` is the root package of `gopkg.in/evanphx/json-patch.v5` v5.9.0, the map-based
 //! one: a merged document comes out compacted, with object keys sorted, deduplicated and
@@ -519,6 +519,11 @@
 //! over every surrogate pair class, `MergeClone` over every existing shape), which
 //! `tests/toolkit_review.rs` replays.
 //!
+//! `go run ./rust/crates/gojson/testdata/go/mergeclone` writes `jsonutil.MergeClone` goldens
+//! for real openrtb2 values (corpus `Imp`, `Site`, `App`, `User`, `Device` and `BidRequest`
+//! objects merged with first-party data and generated overlays, some over a nil or malformed
+//! `Ext`) and for a struct with every field shape, which `tests/mergeclone.rs` replays.
+//!
 //! Other crates can follow the same pattern with a generator under their own `testdata/go`.
 //!
 //! # Known differences from Go
@@ -545,9 +550,19 @@
 //!   reads through a 512-byte buffer and leaves its position in place at the end of the input, so
 //!   where a decode runs into the end of the input (or the body is longer than 512 bytes) its error
 //!   reports another position and context; both fail.
-//! * `jsonutil.MergeClone` into structs needs the jsoniter decoders to merge `json.RawMessage`
-//!   fields and to reset slices; only the `json.RawMessage` step ([`jsonutil::ext_merge_decode`],
-//!   [`jsonutil::merge_clone_raw`]) is provided.
+//! * [`jsonutil::merge_clone`] does not reset a slice- or map-kind type that has its own
+//!   `UnmarshalJSON` ([`GoUnmarshaler`]): Go's `sliceCloneDecoder` sets such a slice to nil before
+//!   calling the method, and both clone decoders set it to nil on `null` without calling it; here
+//!   the method is called as `jsonutil.Unmarshal` calls it. Prebid's `MergeClone` targets (openrtb2
+//!   values, `config.Account`) have no such field.
+//! * Decoding into an existing slice never revives elements beyond its length. Go keeps the backing
+//!   array: when a slice was shortened (a second decode with fewer elements) and is then decoded
+//!   again with more elements within its capacity, Go decodes the extra elements over the old
+//!   values left in the array (`encoding/json`'s `decodeState.array` grows the length with
+//!   `SetLen`, jsoniter's `sliceDecoder` with `UnsafeGrow`), so fields absent from the new input
+//!   keep the old values. Rust drops truncated elements, so they start from zero values. Only
+//!   repeated decodes into the same value can tell the difference; `MergeClone` resets slices
+//!   first, so it never can.
 //! * Not provided: `json.MarshalIndent`, which only Go tests call.
 
 #[doc(hidden)]

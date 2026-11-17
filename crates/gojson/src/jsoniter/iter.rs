@@ -64,6 +64,8 @@ pub struct Iter<'a> {
     head: usize,
     pub(super) depth: i64,
     error: Option<IterError>,
+    /// Decoding for `jsonutil.MergeClone` (its frozen config's `mergeCloneExtension`).
+    merge_clone: bool,
 }
 
 // Go: json-iterator/go iter_int.go
@@ -221,7 +223,29 @@ impl<'a> Iter<'a> {
             head: 0,
             depth: 0,
             error: None,
+            merge_clone: false,
         }
+    }
+
+    /// An iterator over `buf` for `jsonutil.MergeClone`, whose frozen jsoniter config carries
+    /// the `mergeCloneExtension`: every slice is set to nil before it is decoded (so its
+    /// elements start from zero values) and every `json.RawMessage` is merged into the
+    /// existing one with `jsonpatch.MergePatch` instead of being replaced.
+    ///
+    /// The decoders consult [`Iter::is_merge_clone`]; a `GoUnmarshaler` decodes with its own
+    /// iterator, as Go's `UnmarshalJSON` methods call `jsonutil.Unmarshal`.
+    #[must_use]
+    pub const fn new_merge_clone(buf: &'a [u8]) -> Self {
+        // Go: util/jsonutil/merge.go jsonConfigMergeClone
+        let mut it = Self::new(buf);
+        it.merge_clone = true;
+        it
+    }
+
+    /// Whether the iterator decodes for `jsonutil.MergeClone` ([`Iter::new_merge_clone`]).
+    #[must_use]
+    pub const fn is_merge_clone(&self) -> bool {
+        self.merge_clone
     }
 
     pub(crate) const fn tail(&self) -> usize {

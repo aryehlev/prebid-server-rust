@@ -81,8 +81,28 @@ pub trait JsoniterDecode: GoType {
 /// Returns jsoniter's error text, for example
 /// `openrtb2.Bid.W: readUint64: unexpected character: \xff, error found in #10 byte of ...`.
 pub fn unmarshal<T: JsoniterDecode + ?Sized>(data: &[u8], v: &mut T) -> Result<(), JsonError> {
+    unmarshal_iter(Iter::new(data), v)
+}
+
+/// `Unmarshal(data, v)` with `jsonutil.MergeClone`'s frozen config (see
+/// [`Iter::new_merge_clone`]), returning the raw jsoniter error.
+///
+/// # Errors
+///
+/// Returns jsoniter's error text, as [`unmarshal`].
+pub fn unmarshal_merge_clone<T: JsoniterDecode + ?Sized>(
+    data: &[u8],
+    v: &mut T,
+) -> Result<(), JsonError> {
+    // Go: util/jsonutil/merge.go MergeClone (jsonConfigMergeClone.Unmarshal)
+    unmarshal_iter(Iter::new_merge_clone(data), v)
+}
+
+fn unmarshal_iter<T: JsoniterDecode + ?Sized>(
+    mut it: Iter<'_>,
+    v: &mut T,
+) -> Result<(), JsonError> {
     // Go: json-iterator/go config.go frozenConfig.Unmarshal (+ Iterator.ReadVal)
-    let mut it = Iter::new(data);
     let depth = it.depth;
     v.jsoniter_decode(&mut it);
     if it.depth != depth {
@@ -220,6 +240,10 @@ impl<T: JsoniterDecode + ?Sized> JsoniterDecode for Box<T> {
 /// `null` makes the slice nil and `[]` empty. Elements are decoded into the existing elements
 /// first, as Go's `UnsafeGrow` reuses the backing array; errors are wrapped with the slice
 /// type (`"[]openrtb2.Imp: ..."`).
+///
+/// Under [`Iter::is_merge_clone`] the slice has already been set to nil by `Vec`'s decoder
+/// (Go's `sliceCloneDecoder` wraps every slice decoder); a hand-written slice type calling this
+/// directly must do the same first.
 pub fn decode_slice<N: GoType + ?Sized, T: JsoniterDecode + Default>(
     slot: &mut Option<Vec<T>>,
     it: &mut Iter<'_>,
@@ -273,11 +297,21 @@ fn decode_slice_inner<T: JsoniterDecode + Default>(slot: &mut Option<Vec<T>>, it
 impl<T: JsoniterDecode + Default> JsoniterDecode for Vec<T> {
     fn jsoniter_decode(&mut self, it: &mut Iter<'_>) {
         let mut slot = Some(mem::take(self));
-        T::jsoniter_decode_slice(&mut slot, it);
+        Self::jsoniter_decode_option(&mut slot, it);
         *self = slot.unwrap_or_default();
     }
 
     fn jsoniter_decode_option(slot: &mut Option<Self>, it: &mut Iter<'_>) {
+        if it.is_merge_clone() {
+            // Go: util/jsonutil/merge.go sliceCloneDecoder.Decode: the slice is set to nil
+            // before the slice (or base64) decoder runs, so every element starts from its zero
+            // value, and `null` is consumed here: its error ("expect ull") is not wrapped with
+            // the slice type.
+            *slot = None;
+            if it.read_nil() {
+                return;
+            }
+        }
         T::jsoniter_decode_slice(slot, it);
     }
 }
