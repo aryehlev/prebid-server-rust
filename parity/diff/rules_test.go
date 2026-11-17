@@ -300,6 +300,9 @@ func TestRemovingRuleReenablesDiff(t *testing.T) {
 		{RuleSeatNonBidOrder, entryPair(parity.StageSeatNonBids, parity.UnkeyedStage,
 			`[{"seat":"b","nonbid":[{"impid":"i2","statuscode":301},{"impid":"i1","statuscode":300}]},{"seat":"a","nonbid":[]}]`,
 			`[{"seat":"a","nonbid":[]},{"seat":"b","nonbid":[{"impid":"i1","statuscode":300},{"impid":"i2","statuscode":301}]}]`), "$[0]"},
+		{RuleSeatNonBidOrder, entryPair(parity.StageSeatNonBids, parity.UnkeyedStage,
+			`{"yandex":[{"impid":"i2","statuscode":351},{"impid":"i1","statuscode":351}]}`,
+			`{"yandex":[{"impid":"i1","statuscode":351},{"impid":"i2","statuscode":351}]}`), "$.yandex"},
 		{RuleHTTPCallsOrder, responsePair(
 			`{"id":"r1","ext":{"debug":{"httpcalls":{"appnexus":[{"uri":"u1","requestbody":"a","status":200},{"uri":"u2","requestbody":"b","status":200}]}}}}`,
 			`{"id":"r1","ext":{"debug":{"httpcalls":{"appnexus":[{"uri":"u2","requestbody":"b","status":200},{"uri":"u1","requestbody":"a","status":200}]}}}}`,

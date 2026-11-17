@@ -62,7 +62,7 @@
     {
       "id": "seatnonbid_order",
       "applies_to": ["http.response", "exchange.response", "seat_non_bids", "analytics"],
-      "target": "$.ext.prebid.seatnonbid[*] by (seat); $.ext.prebid.seatnonbid[*].nonbid[*] by (impid, statuscode)",
+      "target": "$.ext.prebid.seatnonbid[*] by (seat); $.ext.prebid.seatnonbid[*].nonbid[*] by (impid, statuscode); seat_non_bids: each seat's list $.*[*] by (impid, statuscode)",
       "action": "sort",
       "keys": ["seat", "impid", "statuscode"],
       "justification": "SeatNonBidBuilder is a map keyed by seat; its Slice() order follows map iteration.",

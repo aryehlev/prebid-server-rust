@@ -404,6 +404,10 @@ var (
 		parity.StageHooksAllProcessedBidResponses: {"*.bids"},
 		parity.StageEventsTracking:                {"bids.*"},
 	}
+	// seatNonBidMaps are NonBid lists keyed by seat (stagedata.SeatNonBids).
+	seatNonBidMaps = map[parity.StageID][]string{
+		parity.StageSeatNonBids: {"*"},
+	}
 	// seatNonBidLists are SeatNonBid arrays outside a response's ext.
 	seatNonBidLists = map[parity.StageID][]string{
 		parity.StageSeatNonBids: {"", "seatnonbid", "seat_non_bid"},
@@ -600,6 +604,9 @@ func (rs *Rules) sortRules(stage parity.StageID, root *node, rewrite func(string
 			for _, nonbids := range selectNodes(list, "[*].nonbid") {
 				sortArray(nonbids, []string{"impid", "statuscode"}, rewrite)
 			}
+		}
+		for _, nonbids := range anchorsOf(root, seatNonBidMaps[stage]) {
+			sortArray(nonbids, []string{"impid", "statuscode"}, rewrite)
 		}
 	}
 }
