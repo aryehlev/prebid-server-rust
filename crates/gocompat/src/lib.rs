@@ -46,6 +46,12 @@
 //!   `fmt.Fprint`, with Go's exec errors (`template: t:1:2: executing "t" at <.Foo>: can't evaluate
 //!   field Foo in type macros.UserSyncPrivacy`). Builtin functions parse but are not executed
 //!   ([`template::TemplateError::Unsupported`]).
+//! - [`time`]: Go `time`. [`time::Time`] with `Format` for every layout element (and the layout
+//!   constants), `Parse` with Go's `ParseError` texts (`parsing time "25:00" as "15:04": cannot
+//!   parse...`, `: hour out of range`), `String`, `MarshalJSON`/`UnmarshalJSON` and Go's calendar
+//!   arithmetic (`Date` normalization, `Unix`, `Add`, `Sub`) over UTC and fixed zones, Go's `Local`
+//!   being UTC in Prebid's container; [`time::Duration`] with `String`, `Seconds` and
+//!   [`time::parse_duration`].
 //! - [`math`]: the Go `math` functions and conversions whose Rust counterparts differ: NaN bits,
 //!   `Max`/`Min` special cases, `float32(x)` and `int64(x)`.
 //! - [`url`]: Go `net/url`. `QueryEscape`/`PathEscape` and their inverses with
@@ -87,6 +93,7 @@ pub mod strings;
 pub mod template;
 #[cfg(test)]
 pub mod testutil;
+pub mod time;
 pub mod unicode;
 pub mod url;
 pub mod utf8;

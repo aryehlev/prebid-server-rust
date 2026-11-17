@@ -34,6 +34,7 @@ func main() {
 	genBase64()
 	genFmt()
 	genTemplate()
+	genTime()
 }
 
 // table accumulates golden rows for one file.
