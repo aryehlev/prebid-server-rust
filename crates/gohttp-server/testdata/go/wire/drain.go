@@ -62,7 +62,8 @@ func drainScenarios() []drainScenario {
 				conn("pipelined", 0, 600, send(hold(400)+status)),
 				conn("http10 keep-alive", 0, 600, send(raw("GET /hold/400 HTTP/1.0", []string{"Connection: keep-alive"}, ""))),
 				conn("cors in flight", 0, 600, send(req("GET", "/hold/400", "Origin: https://pub.example"))),
-				// A new connection is not idle (for 5 seconds): its first request is served.
+				// A new connection does not count as idle for its first 5 seconds, so Shutdown
+				// waits for it, but a request read after Shutdown started is dropped unanswered.
 				conn("silent then request", 0, 400, pause(300), send(status)),
 				conn("partial first request", 0, 400, send("GET /status HTTP/1.1\r\nHost: x\r\n"), pause(300), send("\r\n")),
 				// Between requests a connection is idle, even with half a request read.
