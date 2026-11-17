@@ -1,0 +1,19 @@
+[workspace]
+resolver = "3"
+members = ["crates/a", "crates/b", "crates/c"]
+
+[workspace.lints.rust]
+unsafe_code = "forbid"
+dead_code = "allow"
+
+[workspace.lints.clippy]
+all = { level = "allow", priority = -1 }
+pedantic = { priority = -1, level = "warn" }
+nursery = { priority = -1 }
+
+[workspace.lints.clippy.cast_lossless]
+level = "allow"
+priority = 1
+
+[workspace.metadata.cargo-machete]
+ignored = ["serde"]

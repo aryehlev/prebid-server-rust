@@ -1,0 +1,9 @@
+name: Port
+on: [workflow_dispatch]
+jobs:
+  port:
+    runs-on: ubuntu-latest
+    steps:
+      - name: An agent step may fail without failing the job; only ci.yml is always strict
+        continue-on-error: true
+        run: echo port

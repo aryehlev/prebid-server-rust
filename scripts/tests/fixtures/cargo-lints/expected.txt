@@ -1,0 +1,15 @@
+# "allow" or missing levels in [workspace.lints] and [lints] in every TOML spelling (plain string,
+# inline table, inline table without a level, sub-table, dotted keys), crates that do not inherit
+# the workspace lints exactly (extra lints, or no [lints] at all), and cargo-machete ignore lists.
+# TOML findings report line 1; a line repeats once per finding.
+rust/Cargo.toml:1: [lint-level]
+rust/Cargo.toml:1: [lint-level]
+rust/Cargo.toml:1: [lint-level]
+rust/Cargo.toml:1: [lint-level]
+rust/Cargo.toml:1: [machete-ignore]
+rust/crates/a/Cargo.toml:1: [crate-lints]
+rust/crates/a/Cargo.toml:1: [lint-level]
+rust/crates/b/Cargo.toml:1: [crate-lints]
+rust/crates/b/Cargo.toml:1: [lint-level]
+rust/crates/c/Cargo.toml:1: [crate-lints]
+rust/crates/c/Cargo.toml:1: [machete-ignore]

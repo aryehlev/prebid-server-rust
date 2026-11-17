@@ -1,0 +1,18 @@
+# Go suppression directives in each place we author Go (crate testdata, devtools, parity/), the
+# exclusion settings golangci-lint offers, and a golangci-lint config outside .github/linters/.
+.github/linters/golangci.yml:3: [golangci-config]
+.github/linters/golangci.yml:5: [golangci-config]
+.github/linters/golangci.yml:6: [golangci-config]
+.github/linters/golangci.yml:12: [golangci-config]
+.github/linters/golangci.yml:15: [golangci-config]
+parity/diff/diff.go:3: [go-nolint]
+rust/.golangci.yml:1: [golangci-config]
+rust/crates/devtools/go/dump/dump.go:4: [go-nolint]
+rust/crates/x/testdata/go/main.go:3: [go-nolint]
+rust/crates/x/testdata/go/main.go:4: [go-nolint]
+rust/crates/x/testdata/go/main.go:5: [go-nolint]
+rust/crates/x/testdata/go/main.go:6: [go-nolint]
+rust/crates/x/testdata/go/main.go:7: [go-nolint]
+rust/crates/x/testdata/go/main.go:8: [go-nolint]
+rust/crates/x/testdata/go/main.go:9: [go-nolint]
+rust/crates/x/testdata/go/main.go:10: [go-nolint]

@@ -1,0 +1,20 @@
+[build]
+rustflags = ["-A", "warnings"]
+rustdocflags = ["--cap-lints", "allow"]
+warnings = "allow"
+
+[target.x86_64-unknown-linux-gnu]
+rustflags = ["-Aclippy::all"]
+
+[target.'cfg(all())']
+rustflags = ["-W", "unused"]
+
+[env]
+RUSTFLAGS = "-Awarnings"
+CLIPPY_CONF_DIR = "/tmp"
+PBS_GO_ROOT = "/repo"
+
+[alias]
+clippy = "check"
+lint = "clippy -- -A clippy::pedantic"
+t = "test --workspace"

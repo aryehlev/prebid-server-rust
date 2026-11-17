@@ -1,0 +1,15 @@
+[advisories]
+ignore = ["RUSTSEC-2020-0001"]
+
+[bans]
+multiple-versions = "deny"
+skip = [{ name = "syn" }]
+skip-tree = [{ name = "windows-sys" }]
+
+[licenses]
+allow = ["MIT"]
+exceptions = [{ allow = ["GPL-3.0"], crate = "z" }]
+
+[sources]
+allow-git = ["https://github.com/example/crate"]
+allow-org = { github = ["example"] }

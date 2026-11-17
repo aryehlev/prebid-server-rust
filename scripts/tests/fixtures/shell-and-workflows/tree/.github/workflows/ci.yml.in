@@ -1,0 +1,15 @@
+name: CI
+on: [push]
+env:
+  RUSTFLAGS: -Dwarnings
+  RUSTDOCFLAGS: --cap-lints warn
+  SHELLCHECK_OPTS: -e SC2086
+  CARGO_BUILD_WARNINGS: warn
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - run: |
+          # shellcheck disable=SC2154
+          cargo clippy -- -W clippy::all

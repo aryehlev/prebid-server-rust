@@ -1,0 +1,44 @@
+#![allow(dead_code)]
+#![expect(clippy::pedantic)]
+#[allow(unused)]
+fn a() {}
+#[expect(clippy::unwrap_used, reason = "every form is banned, with or without a reason")]
+fn b() {}
+# [ allow ( clippy::all ) ]
+fn c() {}
+#[
+    allow(dead_code)
+]
+fn d() {}
+#[cfg_attr(test, allow(clippy::unwrap_used))]
+fn e() {}
+#[cfg_attr(
+    all(test, feature = "x"),
+    expect(dead_code)
+)]
+fn f() {}
+#[cfg_attr(test, cfg_attr(unix, allow(unused)))]
+fn g() {}
+#[rustfmt::skip]
+fn h() {}
+#[rustfmt :: skip :: macros(vec)]
+fn i() {}
+#[cfg_attr(rustfmt, rustfmt_skip)]
+fn j() {}
+#[cfg(not(clippy))]
+fn k() {}
+fn l() -> bool {
+    cfg!(clippy)
+}
+#[path = "../../legacy/old.rs"]
+mod m;
+include!("../../../legacy/n.rs");
+fn o() {
+    let s = "a string, then code"; #[allow(unused_variables)] let t = 1;
+}
+macro_rules! quiet {
+    () => {
+        #[allow(dead_code)]
+        fn generated() {}
+    };
+}

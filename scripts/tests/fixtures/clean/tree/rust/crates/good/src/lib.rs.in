@@ -1,0 +1,48 @@
+//! Docs may mention #[allow(dead_code)], #[expect(x)], #[rustfmt::skip] and cfg(clippy).
+/* A block comment: #[allow(x)] /* nested: #[expect(y)] */ still a comment: #[allow(z)] */
+
+/// Example: `#[allow(unused)]` and `#![cfg_attr(test, allow(x))]`.
+pub fn first(x: Option<u8>) -> u8 {
+    x.expect("value present")
+}
+
+pub struct Parser;
+
+impl Parser {
+    fn expect(&self, _c: char) {}
+    fn allow(&self) {}
+}
+
+pub fn calls(p: &Parser) {
+    p.expect('(');
+    p.allow();
+    p.expect(')');
+}
+
+pub const PLAIN: &str = "#[allow(dead_code)] rustfmt::skip cfg(clippy) include!(legacy/x.rs)";
+pub const ESCAPED: &str = "a \" #[allow(x)] \\";
+pub const RAW: &str = r#"#[expect(unused)] "quoted" cfg_attr(test, allow(x))"#;
+pub const RAW_BYTES: &[u8] = br"#[allow(x)]";
+pub const HASH: char = '#';
+pub const QUOTE: char = '"';
+pub const BYTE_QUOTE: u8 = b'"';
+
+#[cfg(doc)]
+pub fn documented() {}
+
+#[cfg_attr(test, derive(Debug))]
+pub struct Derived;
+
+#[warn(clippy::pedantic)]
+pub fn warned() {}
+
+#[deny(unsafe_code)]
+pub mod denied {}
+
+pub fn lifetimes<'a>(s: &'a str) -> &'a str {
+    s
+}
+
+macro_rules! passthrough {
+    ($($t:tt)*) => { $($t)* };
+}
