@@ -24,6 +24,7 @@
 mod draft;
 mod errors;
 mod format_checkers;
+mod go_unicode;
 mod go_url;
 mod json_context;
 mod json_loader;
