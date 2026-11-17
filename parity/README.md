@@ -17,6 +17,7 @@ them, and `go test ./parity/schema/...` keeps the two in sync.
 | Path | What it is |
 |---|---|
 | `contracts.go`, `ids.go`, `envelope.go`, `trace.go`, `body.go`, `adapterio.go`, `errorcodes.go` | Go mirror of the contract (package `parity`, standard library only, safe to import from product code). |
+| `SELFTEST.md` | The A/A self-test runs at scale, and what each mismatch class they found turned out to be. |
 | `schema/*.schema.json` | JSON Schemas (draft-07), `$id` prefix `https://prebid.org/pbs-parity/schema/v1/`. |
 | `schema/{stages,decisions,normalization,fakes,error_codes}.json` | Registries: stage IDs, decision points, normalization allowlist, deterministic fakes, error codes. |
 | `schema/examples/` | Hand-written example of every document; all of them validate. |
@@ -29,9 +30,11 @@ them, and `go test ./parity/schema/...` keeps the two in sync.
 | `endpointtrace/` | One-line endpoint-stage hooks for `/openrtb2/auction`, `/openrtb2/amp` and `/openrtb2/video`; its package doc lists each endpoint stage payload. |
 | `shadow/` | Independent deep copies of a `RequestWrapper` for request snapshots, so hooks never rebuild the live wrapper. |
 | `stagedata/` | Payload types of the exchange stages (`hooks.processed_auction` to `exchange.response`). |
-| `corpus/` | Case loaders: adapter fixtures, sample requests, exchangetest, bidder params, stored data, seeds, and the `go/ast` builder-config extractor. Harness-only. |
+| `corpus/` | Case loaders: adapter fixtures, sample requests, exchangetest, bidder params, stored data, seeds, the ReplayHarness requests, and the `go/ast` builder-config extractor. Harness-only. |
+| `gen/` | The case generator (corpus `gen`, `--gen N --seed S`): schema-aware auction, AMP and video requests, and structured mutations of every corpus case, with case IDs that regenerate each case exactly. Harness-only. |
 | `oracle/` | Mock oracle: loopback forward proxy, per-case plans, fixture replay, templates, content-addressed cache UUIDs, static currency and GVL. Harness-only. |
-| `fixtures/` | Static oracle data: `currency/latest.json` and the `gvl/v2`, `gvl/v3` vendor lists. |
+| `fixtures/currency/`, `fixtures/gvl/` | Static oracle data: `currency/latest.json` and the `gvl/v2`, `gvl/v3` vendor lists. |
+| `fixtures/pools/` | The value pools `gen/` draws from: OpenRTB values, privacy signal strings, and the boundary, unicode and malformed-input catalogs. Harness-only. |
 | `diff/` | The differ: normalization by the allowlist, semantic, lexical and wire comparison, attribution and clustering. Harness-only. |
 | `testdata/diff/` | Golden differ cases: a Go trace, a Rust trace and the exact mismatches expected. |
 | `runner/` | The differential runner: config profiles, server pairs, sharding, case execution, oracle capture merging, the A/A self-test and the adapter fixture self-test, and live minimization. Harness-only. |
@@ -41,6 +44,16 @@ them, and `go test ./parity/schema/...` keeps the two in sync.
 | `cmd/parity/` | The CLI: `corpus`, `run`, `selftest`, `minimize`, `report`, `matrix`. |
 | `fixtures/profiles/` | Base host configurations (`default`, `gdpr-enforced`, `floors`, `account-required`, `events-cache`). |
 | `fixtures/stored/` | Stored requests, imps, responses and accounts copied into every run's stored-data tree. |
+| `replayharness/api.yaml` | The ReplayHarness API map of the Go server (see "ReplayHarness"). |
+| `replayharness/replays/` | Replays in the ReplayHarness format that pin what Go answers; each one's `why` cites the Go code. |
+| `replayharness/stored/` | The stored data the replays use (IDs `rh-*`), in the `fixtures/stored` layout and loaded next to it. |
+| `replayharness/traffic.jsonl` | The probes, replays and mutated requests ReplayHarness sent Go, with Go's answers, compacted by `rhtool traffic`. |
+| `replayharness/saved.jsonl` | Go's answers to the replay steps that save a value, such as the `uids` cookie, for the steps that send it. |
+| `replayharness/rhreplay/` | Reads replay files and recordings and rebuilds the requests ReplayHarness sends for them, byte for byte, at the pinned commit. Harness-only. |
+| `replayharness/traffic/` | Compacts ReplayHarness recordings into `traffic.jsonl`. Harness-only. |
+| `replayharness/rhgate/` | Judges a `replayharness run --baseline` report of side B against side A, the Go server. Harness-only. |
+| `replayharness/rhtool/` | The command the scripts drive: `serve` boots the Go server as the runner does, `traffic` and `saved` keep what ReplayHarness recorded, `cases` lists what the corpus compares and leaves out, and `gate` judges a baseline run. Harness-only. |
+| `scripts/` | `replayharness.sh` (the parity, A/A, baseline and canary runs on the ReplayHarness requests), `replayharness-replay.sh` (the probes and replays against Go, and the recording), `replayharness-context.sh` (checks the API map against the Go source), and the scripts' tests. |
 
 ## Versioning
 
@@ -793,6 +806,10 @@ go test -race ./parity/runner/... ./parity/minimize/... ./parity/report/... ./pa
 go test ./config ./router ./server ./exchange
 ```
 
+Package `parity` checks that the Contents table at the top of this file
+names every directory of `parity/` down to two levels and every file at its
+top level, and that every path the table names exists.
+
 `parity/runner` runs its own test binary as a fake parity server, built on
 `parity/trace`, which makes one oracle call per oracle-mode case. With that
 server it checks the following:
@@ -874,7 +891,8 @@ its value is the requests it generates. Its own `--baseline` comparison only
 checks the status code and the body's shape, so it adds to the byte-exact
 Go-vs-Rust runner and does not replace it. The repository has the API map
 and a check for it, replays that pin what Go answers, and a recording of
-that traffic. Nothing yet turns ReplayHarness requests into parity cases.
+that traffic. The `replayharness` corpus turns those requests into parity
+cases (see "ReplayHarness requests as parity cases").
 
 ### The API map
 
@@ -1143,9 +1161,7 @@ ReplayHarness limits:
 
 The `replayharness` corpus (`parity/corpus/replayharness.go`) turns what
 ReplayHarness sent the Go server into parity cases, so the byte-exact runner
-compares both sides on those requests. It is part of `--corpus all`. The
-intro above, written before this corpus existed, says that nothing does this;
-that is no longer true.
+compares both sides on those requests. It is part of `--corpus all`.
 
 `parity/replayharness` is one of the approved corpus roots
 (`corpus.ApprovedRoots`), and the corpus reads it through `Repo.FS`, so every
