@@ -196,10 +196,18 @@ func newClient(cc Client, env *runEnv) *http.Client {
 	return client
 }
 
-// pieces is a request body of unknown length that returns one piece per Read.
-type pieces struct{ p [][]byte }
+// pieces is a request body of unknown length that returns one piece per Read; its first Read
+// waits for delay.
+type pieces struct {
+	p     [][]byte
+	delay time.Duration
+}
 
 func (r *pieces) Read(b []byte) (int, error) {
+	if r.delay > 0 {
+		time.Sleep(r.delay)
+		r.delay = 0
+	}
 	if len(r.p) == 0 {
 		return 0, io.EOF
 	}
@@ -244,7 +252,7 @@ func runStep(client *http.Client, st Step, env *runEnv) Result {
 	case "bytes":
 		body = bytes.NewReader(st.Req.Body.Data)
 	case "reader":
-		p := &pieces{}
+		p := &pieces{delay: ms(st.Req.Body.DelayMs)}
 		for _, piece := range st.Req.Body.Pieces {
 			p.p = append(p.p, append([]byte{}, piece...))
 		}

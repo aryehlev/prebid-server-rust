@@ -68,6 +68,8 @@ type Body struct {
 	Kind   string  `json:"kind"`
 	Data   Bytes   `json:"data,omitempty"`
 	Pieces []Bytes `json:"pieces,omitempty"`
+	// DelayMs makes a reader's first Read wait that long.
+	DelayMs int `json:"delay_ms,omitempty"`
 }
 
 // Req is a request built with http.NewRequestWithContext.

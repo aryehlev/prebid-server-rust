@@ -23,7 +23,7 @@ use std::{
     path::Path,
     pin::Pin,
     sync::{Arc, Mutex, MutexGuard, PoisonError},
-    task::{Context as TaskContext, Poll},
+    task::{Context as TaskContext, Poll, ready},
     time::Duration,
 };
 
@@ -41,7 +41,7 @@ use tokio::{
     net::{TcpListener, TcpStream},
     sync::oneshot,
     task::JoinHandle,
-    time::{Instant, sleep, timeout_at},
+    time::{Instant, Sleep, sleep, timeout_at},
 };
 use tokio_rustls::{TlsAcceptor, server::TlsStream};
 
@@ -58,7 +58,7 @@ const SLOTS: [&str; 4] = ["A", "B", "C", "P"];
 /// How long a case's server connections may run on after its requests are done.
 const GRACE: Duration = Duration::from_secs(3);
 /// The size of the corpus: a truncated golden file fails the test.
-const MIN_CASES: usize = 367;
+const MIN_CASES: usize = 371;
 /// The number of proxy selections in `proxy.json`.
 const MIN_PROXY_RESULTS: usize = 3395;
 
@@ -758,23 +758,40 @@ impl RunEnv {
 }
 
 /// A request body of unknown length that returns one piece per read (the Go harness's
-/// `pieces`).
-struct Pieces(VecDeque<Vec<u8>>);
+/// `pieces`); its first read waits for `delay`, measured from when that read starts.
+struct PieceReader {
+    pieces: VecDeque<Vec<u8>>,
+    delay: Duration,
+    /// The running wait of the first read: a read dropped mid-wait (the body probe giving up)
+    /// leaves it running, as Go's probe goroutine keeps sleeping.
+    wait: Option<Pin<Box<Sleep>>>,
+}
 
-impl AsyncRead for Pieces {
+impl AsyncRead for PieceReader {
     fn poll_read(
         self: Pin<&mut Self>,
-        _cx: &mut TaskContext<'_>,
+        cx: &mut TaskContext<'_>,
         buf: &mut ReadBuf<'_>,
     ) -> Poll<io::Result<()>> {
         let this = self.get_mut();
-        if let Some(front) = this.0.front_mut() {
+        if !this.delay.is_zero() {
+            let delay = this.delay;
+            ready!(
+                this.wait
+                    .get_or_insert_with(|| Box::pin(sleep(delay)))
+                    .as_mut()
+                    .poll(cx)
+            );
+            this.delay = Duration::ZERO;
+            this.wait = None;
+        }
+        if let Some(front) = this.pieces.front_mut() {
             let n = front.len().min(buf.remaining());
             let rest = front.split_off(n);
             buf.put_slice(front);
             *front = rest;
             if front.is_empty() {
-                let _done = this.0.pop_front();
+                let _done = this.pieces.pop_front();
             }
         }
         Poll::Ready(Ok(()))
@@ -792,7 +809,11 @@ fn parse_body(v: &Value) -> Result<Body, String> {
                 .iter()
                 .map(bytes_of)
                 .collect::<Result<VecDeque<_>, _>>()?;
-            Body::Reader(Box::new(Pieces(pieces)))
+            Body::Reader(Box::new(PieceReader {
+                pieces,
+                delay: millis(v, "delay_ms"),
+                wait: None,
+            }))
         }
         _ => Body::Nil,
     })

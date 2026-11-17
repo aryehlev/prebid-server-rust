@@ -4,27 +4,27 @@
   "HTTP_PROXY": "http://user:pass@{{P}}",
   "NO_PROXY": ""
  },
- "ca": "-----BEGIN CERTIFICATE-----\nMIIBeTCCAR+gAwIBAgIBATAKBggqhkjOPQQDAjAkMSIwIAYDVQQDExlwYnMgZ29o\ndHRwLWNsaWVudCB0ZXN0IENBMB4XDTE5MDEwMTAwMDAwMFoXDTQ2MTExNzEwMjUy\nOVowJDEiMCAGA1UEAxMZcGJzIGdvaHR0cC1jbGllbnQgdGVzdCBDQTBZMBMGByqG\nSM49AgEGCCqGSM49AwEHA0IABCLOeYBNaFpNdRPSXEinDmdkma0gmeMPZ5zByJmT\nocXJxr1VgtBOyzHqheeo7O+Qp6+8vF2MlWWEqz5PB8gCZM2jQjBAMA4GA1UdDwEB\n/wQEAwIChDAPBgNVHRMBAf8EBTADAQH/MB0GA1UdDgQWBBRQfy1tQJbPAsFyPwQY\nSdgWK3atXzAKBggqhkjOPQQDAgNIADBFAiAtJOYrtEmKaAAa92fPCgCyWa/NjJ6B\nBiTr8ACJvhrQ4AIhANaxf9+R02Efz7pEtSuJ/pTCPq6hZktzYLOLKQGScYJu\n-----END CERTIFICATE-----\n",
+ "ca": "-----BEGIN CERTIFICATE-----\nMIIBejCCAR+gAwIBAgIBATAKBggqhkjOPQQDAjAkMSIwIAYDVQQDExlwYnMgZ29o\ndHRwLWNsaWVudCB0ZXN0IENBMB4XDTE5MDEwMTAwMDAwMFoXDTQ2MTExNzEwMzAy\nN1owJDEiMCAGA1UEAxMZcGJzIGdvaHR0cC1jbGllbnQgdGVzdCBDQTBZMBMGByqG\nSM49AgEGCCqGSM49AwEHA0IABJoyvUfL7PbJoEr+2bd/6SHQyOsVn/oHZtW5yIjC\nQwNTSUa+ZI21rydWceHAUlPlVt2dovsORCIqB2e+iRZ5hQCjQjBAMA4GA1UdDwEB\n/wQEAwIChDAPBgNVHRMBAf8EBTADAQH/MB0GA1UdDgQWBBSanIOrOs4eLEMyXzlt\n5vR1DllT7TAKBggqhkjOPQQDAgNJADBGAiEAhWO5sAgPR4CSboEs7plOlYDTxGXA\nKHn5muQ5h2vNsVUCIQC9iRHZpcKqcb90D8RJ2jvqGkAwwzboqYjdzRnmkMa3pA==\n-----END CERTIFICATE-----\n",
  "certs": {
   "dnsonly": {
-   "chain": "-----BEGIN CERTIFICATE-----\nMIIBhDCCASqgAwIBAgIBBDAKBggqhkjOPQQDAjAkMSIwIAYDVQQDExlwYnMgZ29o\ndHRwLWNsaWVudCB0ZXN0IENBMB4XDTI2MTExNjEwMjUyOVoXDTM2MTExNzEwMjUy\nOVowEjEQMA4GA1UEAxMHZG5zb25seTBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IA\nBOv2cOUhLbjhNHIFSpfAtDjrFXBAsPyuzMUmdJaskJUQf1tnGSDgXZPPK0JONp+H\nZB9E3e+l8lPK7N4wY4jhx4SjXzBdMA4GA1UdDwEB/wQEAwIHgDATBgNVHSUEDDAK\nBggrBgEFBQcDATAfBgNVHSMEGDAWgBRQfy1tQJbPAsFyPwQYSdgWK3atXzAVBgNV\nHREEDjAMggpvdGhlci50ZXN0MAoGCCqGSM49BAMCA0gAMEUCIQC+8PYRi+KMPaF3\nLZ1R/jLR+8pohQneibahONcHnYbeEAIgGdxCpLvIxdM7O39DvsyKzJFY/G3V8txS\nVlsvplDgAEY=\n-----END CERTIFICATE-----\n",
-   "key": "-----BEGIN PRIVATE KEY-----\nMIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQgV3kD+01aakTnGsUv\nfU+qzsZop9diYIb3YrziNi7I6AihRANCAATr9nDlIS244TRyBUqXwLQ46xVwQLD8\nrszFJnSWrJCVEH9bZxkg4F2TzytCTjafh2QfRN3vpfJTyuzeMGOI4ceE\n-----END PRIVATE KEY-----\n"
+   "chain": "-----BEGIN CERTIFICATE-----\nMIIBhDCCASqgAwIBAgIBBDAKBggqhkjOPQQDAjAkMSIwIAYDVQQDExlwYnMgZ29o\ndHRwLWNsaWVudCB0ZXN0IENBMB4XDTI2MTExNjEwMzAyN1oXDTM2MTExNzEwMzAy\nN1owEjEQMA4GA1UEAxMHZG5zb25seTBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IA\nBDwBgBp36k9D4vmrHJ36b43ZTxDPjRAdbAfhltCn4H15NOVfR6hy2m2dpa33jeAh\naqIiOkZDsVG6Ldwczg1QHrOjXzBdMA4GA1UdDwEB/wQEAwIHgDATBgNVHSUEDDAK\nBggrBgEFBQcDATAfBgNVHSMEGDAWgBSanIOrOs4eLEMyXzlt5vR1DllT7TAVBgNV\nHREEDjAMggpvdGhlci50ZXN0MAoGCCqGSM49BAMCA0gAMEUCIQCYIoPgpQC8dyDo\ndqabFZtb7rqUsXnxk4fCfwCGApAJSQIgFxl6fYVTpLok6JvbxP0mIIhU2iRLYCCw\ns8r+O3dtq5s=\n-----END CERTIFICATE-----\n",
+   "key": "-----BEGIN PRIVATE KEY-----\nMIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQg5mRk1vg2j+L1/wkj\no2V7Yws8HfGD/En91JJ0BYrYvUOhRANCAAQ8AYAad+pPQ+L5qxyd+m+N2U8Qz40Q\nHWwH4ZbQp+B9eTTlX0eoctptnaWt943gIWqiIjpGQ7FRui3cHM4NUB6z\n-----END PRIVATE KEY-----\n"
   },
   "expired": {
-   "chain": "-----BEGIN CERTIFICATE-----\nMIIBfTCCASSgAwIBAgIBBjAKBggqhkjOPQQDAjAkMSIwIAYDVQQDExlwYnMgZ29o\ndHRwLWNsaWVudCB0ZXN0IENBMB4XDTE5MDEwMTAwMDAwMFoXDTIwMDEwMTAwMDAw\nMFowEjEQMA4GA1UEAxMHZXhwaXJlZDBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IA\nBAyPVJGpgu1B31NJs0mPAouKHHi8Qeg8mK487WK2+Uf/ZK+fIURy2PbJbNfk49zv\nXMjnRhWefnXjilU8nSNrReSjWTBXMA4GA1UdDwEB/wQEAwIHgDATBgNVHSUEDDAK\nBggrBgEFBQcDATAfBgNVHSMEGDAWgBRQfy1tQJbPAsFyPwQYSdgWK3atXzAPBgNV\nHREECDAGhwR/AAABMAoGCCqGSM49BAMCA0cAMEQCICn9aj6qf4P6NC3Tj+AAf1Dx\nLI6PCwXFc05gDxR+ogb7AiBu/6qwz4Ek/7/oN1zX7/PgEcFRKQO7xzmSqHfGFHs6\n6Q==\n-----END CERTIFICATE-----\n",
-   "key": "-----BEGIN PRIVATE KEY-----\nMIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQgxFhDQ8Sr58h1CRKN\njbABVhgaRew6qy+XLa7THEKeTrKhRANCAAQMj1SRqYLtQd9TSbNJjwKLihx4vEHo\nPJiuPO1itvlH/2SvnyFEctj2yWzX5OPc71zI50YVnn5144pVPJ0ja0Xk\n-----END PRIVATE KEY-----\n"
+   "chain": "-----BEGIN CERTIFICATE-----\nMIIBfjCCASSgAwIBAgIBBjAKBggqhkjOPQQDAjAkMSIwIAYDVQQDExlwYnMgZ29o\ndHRwLWNsaWVudCB0ZXN0IENBMB4XDTE5MDEwMTAwMDAwMFoXDTIwMDEwMTAwMDAw\nMFowEjEQMA4GA1UEAxMHZXhwaXJlZDBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IA\nBIma3/4T/YLDXjTugqnV54WISt7ac+bXhv2BY5UCA5NWki5Ofo0rMt+OpJ3onMSX\nBMKHUo/9p9aRwHy6co5a4/+jWTBXMA4GA1UdDwEB/wQEAwIHgDATBgNVHSUEDDAK\nBggrBgEFBQcDATAfBgNVHSMEGDAWgBSanIOrOs4eLEMyXzlt5vR1DllT7TAPBgNV\nHREECDAGhwR/AAABMAoGCCqGSM49BAMCA0gAMEUCIHaOcraSMaeb1EPsL17iZOWR\nLGOTIHLQbKFK8s1dC+SfAiEA0EiA0mFeQJrycwtSAWgrTMjlcipHoc11FywGnLj5\nL6c=\n-----END CERTIFICATE-----\n",
+   "key": "-----BEGIN PRIVATE KEY-----\nMIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQgLrF7boGaDeKtDpyH\nU0Ms1LTG0bwnWD5fNg2rlbqvnvehRANCAASJmt/+E/2Cw1407oKp1eeFiEre2nPm\n14b9gWOVAgOTVpIuTn6NKzLfjqSd6JzElwTCh1KP/afWkcB8unKOWuP/\n-----END PRIVATE KEY-----\n"
   },
   "ip": {
-   "chain": "-----BEGIN CERTIFICATE-----\nMIIBeTCCAR+gAwIBAgIBAjAKBggqhkjOPQQDAjAkMSIwIAYDVQQDExlwYnMgZ29o\ndHRwLWNsaWVudCB0ZXN0IENBMB4XDTI2MTExNjEwMjUyOVoXDTM2MTExNzEwMjUy\nOVowDTELMAkGA1UEAxMCaXAwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAAQO6tiT\nPliwLomm8AAPUnHiQLfN1/6Xb2CBozlJcqioyLooih1Zov/GJg8kdAltxXB438g/\nS3b2iRaFPL2/4Vh1o1kwVzAOBgNVHQ8BAf8EBAMCB4AwEwYDVR0lBAwwCgYIKwYB\nBQUHAwEwHwYDVR0jBBgwFoAUUH8tbUCWzwLBcj8EGEnYFit2rV8wDwYDVR0RBAgw\nBocEfwAAATAKBggqhkjOPQQDAgNIADBFAiEA5uUH/G9ztZfh3aIYDVuCNhcNWQuH\nMd+dw+quIsIaEAACIFqz9FpJJhQDXPvrMusKGRAsaRx+xJLuc6fc/gPXlw0S\n-----END CERTIFICATE-----\n",
-   "key": "-----BEGIN PRIVATE KEY-----\nMIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQgjev0bBqEput8YZCg\n0HG7n9j7sgXQZrez+hrCfpIIZ7ihRANCAAQO6tiTPliwLomm8AAPUnHiQLfN1/6X\nb2CBozlJcqioyLooih1Zov/GJg8kdAltxXB438g/S3b2iRaFPL2/4Vh1\n-----END PRIVATE KEY-----\n"
+   "chain": "-----BEGIN CERTIFICATE-----\nMIIBeTCCAR+gAwIBAgIBAjAKBggqhkjOPQQDAjAkMSIwIAYDVQQDExlwYnMgZ29o\ndHRwLWNsaWVudCB0ZXN0IENBMB4XDTI2MTExNjEwMzAyN1oXDTM2MTExNzEwMzAy\nN1owDTELMAkGA1UEAxMCaXAwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAARymF0P\n43EfdqLyPTN2kf5reEFLl5cgyqnV0TR9k7tIHEcDar0JD5aFlAbo1uSFOSYEdj0Q\n+HD128QNO6Jc/GDTo1kwVzAOBgNVHQ8BAf8EBAMCB4AwEwYDVR0lBAwwCgYIKwYB\nBQUHAwEwHwYDVR0jBBgwFoAUmpyDqzrOHixDMl85beb0dQ5ZU+0wDwYDVR0RBAgw\nBocEfwAAATAKBggqhkjOPQQDAgNIADBFAiEAol6YbcD342hFF0tETXSIbqdg1MQC\nHFvFDj4MBYk+2jsCIDxjpbj8xdX0ebFAk8MXMOm/TzfuLgGQc1aozH1jwnI1\n-----END CERTIFICATE-----\n",
+   "key": "-----BEGIN PRIVATE KEY-----\nMIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQg6e4stMqsvnu+yZKV\nXBaXa39M5S57Aup6sPM1cscgzRahRANCAARymF0P43EfdqLyPTN2kf5reEFLl5cg\nyqnV0TR9k7tIHEcDar0JD5aFlAbo1uSFOSYEdj0Q+HD128QNO6Jc/GDT\n-----END PRIVATE KEY-----\n"
   },
   "origin": {
-   "chain": "-----BEGIN CERTIFICATE-----\nMIIBhTCCASqgAwIBAgIBAzAKBggqhkjOPQQDAjAkMSIwIAYDVQQDExlwYnMgZ29o\ndHRwLWNsaWVudCB0ZXN0IENBMB4XDTI2MTExNjEwMjUyOVoXDTM2MTExNzEwMjUy\nOVowETEPMA0GA1UEAxMGb3JpZ2luMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE\nPmOWyTut6M3HUpce88+sHN3Z8fCGqJz3EnUR4wN8QjyB9INuFItIkrRMp8RqO22x\nDmfbXPZIC9vNUwT5NuJ7d6NgMF4wDgYDVR0PAQH/BAQDAgeAMBMGA1UdJQQMMAoG\nCCsGAQUFBwMBMB8GA1UdIwQYMBaAFFB/LW1Als8CwXI/BBhJ2BYrdq1fMBYGA1Ud\nEQQPMA2CC29yaWdpbi50ZXN0MAoGCCqGSM49BAMCA0kAMEYCIQDNi/wManHjTaSS\nTwqw7hAQcXw5vZ2ywKlAG0G7qq25EQIhAM8D9KZVO6IIqsPP+SjlmebZc/ju7PPz\nFdI/YNseZrVs\n-----END CERTIFICATE-----\n",
-   "key": "-----BEGIN PRIVATE KEY-----\nMIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQgMA4xQoEWBLScYA5q\naEZsRgfVMR9SfNJCdt80y3PlAJ2hRANCAAQ+Y5bJO63ozcdSlx7zz6wc3dnx8Iao\nnPcSdRHjA3xCPIH0g24Ui0iStEynxGo7bbEOZ9tc9kgL281TBPk24nt3\n-----END PRIVATE KEY-----\n"
+   "chain": "-----BEGIN CERTIFICATE-----\nMIIBhTCCASqgAwIBAgIBAzAKBggqhkjOPQQDAjAkMSIwIAYDVQQDExlwYnMgZ29o\ndHRwLWNsaWVudCB0ZXN0IENBMB4XDTI2MTExNjEwMzAyN1oXDTM2MTExNzEwMzAy\nN1owETEPMA0GA1UEAxMGb3JpZ2luMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE\nvYSMEl6orjXafvU12+0sCpNmnim2jBjdxWMUezaiEr11szpyNp+cmVTTzQsqNU+v\nfRD5dA1d0xDhlzg34PhR8KNgMF4wDgYDVR0PAQH/BAQDAgeAMBMGA1UdJQQMMAoG\nCCsGAQUFBwMBMB8GA1UdIwQYMBaAFJqcg6s6zh4sQzJfOW3m9HUOWVPtMBYGA1Ud\nEQQPMA2CC29yaWdpbi50ZXN0MAoGCCqGSM49BAMCA0kAMEYCIQCViBwEurZpODmD\na632Qym87fClnCdkwRdQ97E7NQanvwIhAJvXMD4JQf99xns5hE2l3xok5rte4L8q\n4fJ8N47crQkV\n-----END CERTIFICATE-----\n",
+   "key": "-----BEGIN PRIVATE KEY-----\nMIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQgr6djIbAWP3JROBjl\nNTRR5TJyiyhUwBLi1VefM00m9oGhRANCAAS9hIwSXqiuNdp+9TXb7SwKk2aeKbaM\nGN3FYxR7NqISvXWzOnI2n5yZVNPNCyo1T699EPl0DV3TEOGXODfg+FHw\n-----END PRIVATE KEY-----\n"
   },
   "otherip": {
-   "chain": "-----BEGIN CERTIFICATE-----\nMIIBfzCCASSgAwIBAgIBBTAKBggqhkjOPQQDAjAkMSIwIAYDVQQDExlwYnMgZ29o\ndHRwLWNsaWVudCB0ZXN0IENBMB4XDTI2MTExNjEwMjUyOVoXDTM2MTExNzEwMjUy\nOVowEjEQMA4GA1UEAxMHb3RoZXJpcDBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IA\nBODeOH8Wz+btD/qqHy55EuUowIZQBgk6On2oRda7I1uq4s6KO9s5ky2mFMaH32ms\ni9TlR3iPG5AutS/JTJM4DPSjWTBXMA4GA1UdDwEB/wQEAwIHgDATBgNVHSUEDDAK\nBggrBgEFBQcDATAfBgNVHSMEGDAWgBRQfy1tQJbPAsFyPwQYSdgWK3atXzAPBgNV\nHREECDAGhwQKAAABMAoGCCqGSM49BAMCA0kAMEYCIQDiUr2QcfdWjsDjfV0UzRMs\n+WWVdoJ2J8KKoaNp6zg4rwIhAIQhn1Hly+su7+4q82BAJN9G0uPb9MouDHGvVoym\nQZ1V\n-----END CERTIFICATE-----\n",
-   "key": "-----BEGIN PRIVATE KEY-----\nMIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQg92bJFE3jXd/C5//k\nP81SKImenAWoBwv6ELTRtvffh8ahRANCAATg3jh/Fs/m7Q/6qh8ueRLlKMCGUAYJ\nOjp9qEXWuyNbquLOijvbOZMtphTGh99prIvU5Ud4jxuQLrUvyUyTOAz0\n-----END PRIVATE KEY-----\n"
+   "chain": "-----BEGIN CERTIFICATE-----\nMIIBfTCCASSgAwIBAgIBBTAKBggqhkjOPQQDAjAkMSIwIAYDVQQDExlwYnMgZ29o\ndHRwLWNsaWVudCB0ZXN0IENBMB4XDTI2MTExNjEwMzAyN1oXDTM2MTExNzEwMzAy\nN1owEjEQMA4GA1UEAxMHb3RoZXJpcDBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IA\nBKoMdutirPJJ/VqZQVmeoRdbCwTZUtcMZMmMyQtQ0YdDQv1UHZSntx+kxtXWu5Z6\nSPTlHe8PC2cb5kvu5xMobjijWTBXMA4GA1UdDwEB/wQEAwIHgDATBgNVHSUEDDAK\nBggrBgEFBQcDATAfBgNVHSMEGDAWgBSanIOrOs4eLEMyXzlt5vR1DllT7TAPBgNV\nHREECDAGhwQKAAABMAoGCCqGSM49BAMCA0cAMEQCIHq/N/ldNDa1uCVrhX5lkUcE\n+kTCfi2EC6Edm2lIfXypAiAK7/GbzAy3SKO3SwueA0dUgTDt0eAaFeAT6Sm7EhVJ\neg==\n-----END CERTIFICATE-----\n",
+   "key": "-----BEGIN PRIVATE KEY-----\nMIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQgC+2IWhjgYKdwSeI7\nGaIDf9F3LQK8LPh1EBFBcmlex0qhRANCAASqDHbrYqzySf1amUFZnqEXWwsE2VLX\nDGTJjMkLUNGHQ0L9VB2Up7cfpMbV1ruWekj05R3vDwtnG+ZL7ucTKG44\n-----END PRIVATE KEY-----\n"
   }
  },
  "cases": [
@@ -20580,6 +20580,344 @@
    "captured": {
     "A": [
      "get /f HTTP/1.1\r\nHost: {{A}}\r\nUser-Agent: Go-http-client/1.1\r\nTransfer-Encoding: chunked\r\nAccept-Encoding: gzip\r\n\r\n2\r\nab\r\n1\r\nc\r\n0\r\n\r\n"
+    ]
+   }
+  },
+  {
+   "name": "framing_get_slow_reader",
+   "client": {
+    "profile": "general",
+    "timeout_ms": 0,
+    "dial_timeout_ms": 30000,
+    "keep_alive_ms": 15000,
+    "max_conns_per_host": 0,
+    "max_idle_conns": 400,
+    "max_idle_conns_per_host": 10,
+    "idle_conn_timeout_ms": 60000,
+    "tls_handshake_timeout_ms": 10000,
+    "expect_continue_timeout_ms": 1000,
+    "response_header_timeout_ms": 0,
+    "disable_compression": false,
+    "disable_keep_alives": false,
+    "tls_config": true,
+    "trust_ca": true,
+    "redirect": ""
+   },
+   "servers": [
+    {
+     "name": "A",
+     "conns": [
+      [
+       {
+        "op": "req"
+       },
+       {
+        "op": "write",
+        "data": "HTTP/1.1 200 OK\r\nContent-Length: 0\r\n\r\n"
+       }
+      ]
+     ]
+    }
+   ],
+   "steps": [
+    {
+     "req": {
+      "method": "GET",
+      "url": "http://{{A}}/f",
+      "body": {
+       "kind": "reader",
+       "pieces": [
+        "abc"
+       ],
+       "delay_ms": 400
+      }
+     },
+     "read": "all"
+    }
+   ],
+   "results": [
+    {
+     "err": "",
+     "status": "200 OK",
+     "proto": "HTTP/1.1",
+     "header": "Content-Length: 0\n",
+     "content_length": 0,
+     "transfer_encoding": [],
+     "close": false,
+     "uncompressed": false,
+     "body": "",
+     "body_err": "",
+     "trailer": "\u003cnil\u003e",
+     "url": "http://{{A}}/f",
+     "tls": "",
+     "trace": [
+      "get_conn {{A}}",
+      "connect_start tcp {{A}}",
+      "connect_done tcp {{A}} \u003cnil\u003e",
+      "got_conn reused=false idle=false",
+      "wrote_headers",
+      "wrote_request \u003cnil\u003e",
+      "first_byte",
+      "put_idle \u003cnil\u003e"
+     ]
+    }
+   ],
+   "captured": {
+    "A": [
+     "GET /f HTTP/1.1\r\nHost: {{A}}\r\nUser-Agent: Go-http-client/1.1\r\nTransfer-Encoding: chunked\r\nAccept-Encoding: gzip\r\n\r\n1\r\na\r\n2\r\nbc\r\n0\r\n\r\n"
+    ]
+   }
+  },
+  {
+   "name": "framing_get_slow_reader_pieces",
+   "client": {
+    "profile": "general",
+    "timeout_ms": 0,
+    "dial_timeout_ms": 30000,
+    "keep_alive_ms": 15000,
+    "max_conns_per_host": 0,
+    "max_idle_conns": 400,
+    "max_idle_conns_per_host": 10,
+    "idle_conn_timeout_ms": 60000,
+    "tls_handshake_timeout_ms": 10000,
+    "expect_continue_timeout_ms": 1000,
+    "response_header_timeout_ms": 0,
+    "disable_compression": false,
+    "disable_keep_alives": false,
+    "tls_config": true,
+    "trust_ca": true,
+    "redirect": ""
+   },
+   "servers": [
+    {
+     "name": "A",
+     "conns": [
+      [
+       {
+        "op": "req"
+       },
+       {
+        "op": "write",
+        "data": "HTTP/1.1 200 OK\r\nContent-Length: 0\r\n\r\n"
+       }
+      ]
+     ]
+    }
+   ],
+   "steps": [
+    {
+     "req": {
+      "method": "GET",
+      "url": "http://{{A}}/f",
+      "body": {
+       "kind": "reader",
+       "pieces": [
+        "ab",
+        "cd"
+       ],
+       "delay_ms": 400
+      }
+     },
+     "read": "all"
+    }
+   ],
+   "results": [
+    {
+     "err": "",
+     "status": "200 OK",
+     "proto": "HTTP/1.1",
+     "header": "Content-Length: 0\n",
+     "content_length": 0,
+     "transfer_encoding": [],
+     "close": false,
+     "uncompressed": false,
+     "body": "",
+     "body_err": "",
+     "trailer": "\u003cnil\u003e",
+     "url": "http://{{A}}/f",
+     "tls": "",
+     "trace": [
+      "get_conn {{A}}",
+      "connect_start tcp {{A}}",
+      "connect_done tcp {{A}} \u003cnil\u003e",
+      "got_conn reused=false idle=false",
+      "wrote_headers",
+      "wrote_request \u003cnil\u003e",
+      "first_byte",
+      "put_idle \u003cnil\u003e"
+     ]
+    }
+   ],
+   "captured": {
+    "A": [
+     "GET /f HTTP/1.1\r\nHost: {{A}}\r\nUser-Agent: Go-http-client/1.1\r\nTransfer-Encoding: chunked\r\nAccept-Encoding: gzip\r\n\r\n1\r\na\r\n1\r\nb\r\n2\r\ncd\r\n0\r\n\r\n"
+    ]
+   }
+  },
+  {
+   "name": "framing_get_slow_reader_empty",
+   "client": {
+    "profile": "general",
+    "timeout_ms": 0,
+    "dial_timeout_ms": 30000,
+    "keep_alive_ms": 15000,
+    "max_conns_per_host": 0,
+    "max_idle_conns": 400,
+    "max_idle_conns_per_host": 10,
+    "idle_conn_timeout_ms": 60000,
+    "tls_handshake_timeout_ms": 10000,
+    "expect_continue_timeout_ms": 1000,
+    "response_header_timeout_ms": 0,
+    "disable_compression": false,
+    "disable_keep_alives": false,
+    "tls_config": true,
+    "trust_ca": true,
+    "redirect": ""
+   },
+   "servers": [
+    {
+     "name": "A",
+     "conns": [
+      [
+       {
+        "op": "req"
+       },
+       {
+        "op": "write",
+        "data": "HTTP/1.1 200 OK\r\nContent-Length: 0\r\n\r\n"
+       }
+      ]
+     ]
+    }
+   ],
+   "steps": [
+    {
+     "req": {
+      "method": "GET",
+      "url": "http://{{A}}/f",
+      "body": {
+       "kind": "reader",
+       "delay_ms": 400
+      }
+     },
+     "read": "all"
+    }
+   ],
+   "results": [
+    {
+     "err": "",
+     "status": "200 OK",
+     "proto": "HTTP/1.1",
+     "header": "Content-Length: 0\n",
+     "content_length": 0,
+     "transfer_encoding": [],
+     "close": false,
+     "uncompressed": false,
+     "body": "",
+     "body_err": "",
+     "trailer": "\u003cnil\u003e",
+     "url": "http://{{A}}/f",
+     "tls": "",
+     "trace": [
+      "get_conn {{A}}",
+      "connect_start tcp {{A}}",
+      "connect_done tcp {{A}} \u003cnil\u003e",
+      "got_conn reused=false idle=false",
+      "wrote_headers",
+      "wrote_request \u003cnil\u003e",
+      "first_byte",
+      "put_idle \u003cnil\u003e"
+     ]
+    }
+   ],
+   "captured": {
+    "A": [
+     "GET /f HTTP/1.1\r\nHost: {{A}}\r\nUser-Agent: Go-http-client/1.1\r\nTransfer-Encoding: chunked\r\nAccept-Encoding: gzip\r\n\r\n0\r\n\r\n"
+    ]
+   }
+  },
+  {
+   "name": "framing_post_slow_reader",
+   "client": {
+    "profile": "general",
+    "timeout_ms": 0,
+    "dial_timeout_ms": 30000,
+    "keep_alive_ms": 15000,
+    "max_conns_per_host": 0,
+    "max_idle_conns": 400,
+    "max_idle_conns_per_host": 10,
+    "idle_conn_timeout_ms": 60000,
+    "tls_handshake_timeout_ms": 10000,
+    "expect_continue_timeout_ms": 1000,
+    "response_header_timeout_ms": 0,
+    "disable_compression": false,
+    "disable_keep_alives": false,
+    "tls_config": true,
+    "trust_ca": true,
+    "redirect": ""
+   },
+   "servers": [
+    {
+     "name": "A",
+     "conns": [
+      [
+       {
+        "op": "req"
+       },
+       {
+        "op": "write",
+        "data": "HTTP/1.1 200 OK\r\nContent-Length: 0\r\n\r\n"
+       }
+      ]
+     ]
+    }
+   ],
+   "steps": [
+    {
+     "req": {
+      "method": "POST",
+      "url": "http://{{A}}/f",
+      "body": {
+       "kind": "reader",
+       "pieces": [
+        "abc"
+       ],
+       "delay_ms": 400
+      }
+     },
+     "read": "all"
+    }
+   ],
+   "results": [
+    {
+     "err": "",
+     "status": "200 OK",
+     "proto": "HTTP/1.1",
+     "header": "Content-Length: 0\n",
+     "content_length": 0,
+     "transfer_encoding": [],
+     "close": false,
+     "uncompressed": false,
+     "body": "",
+     "body_err": "",
+     "trailer": "\u003cnil\u003e",
+     "url": "http://{{A}}/f",
+     "tls": "",
+     "trace": [
+      "get_conn {{A}}",
+      "connect_start tcp {{A}}",
+      "connect_done tcp {{A}} \u003cnil\u003e",
+      "got_conn reused=false idle=false",
+      "wrote_headers",
+      "wrote_request \u003cnil\u003e",
+      "first_byte",
+      "put_idle \u003cnil\u003e"
+     ]
+    }
+   ],
+   "captured": {
+    "A": [
+     "POST /f HTTP/1.1\r\nHost: {{A}}\r\nUser-Agent: Go-http-client/1.1\r\nTransfer-Encoding: chunked\r\nAccept-Encoding: gzip\r\n\r\n3\r\nabc\r\n0\r\n\r\n"
     ]
    }
   },

@@ -1147,6 +1147,9 @@ struct StreamBody {
     buf: Box<[u8]>,
     /// A probed first byte to send before the rest.
     first: Option<u8>,
+    /// The probe timed out: its 1-byte read is still the body's first read, and Go's
+    /// `finishAsyncByteRead` sends that byte as a piece of its own.
+    one_byte_first: bool,
 }
 
 /// What [`ReqWriter::new`] needs to know beyond the request.
@@ -1244,6 +1247,7 @@ impl ReqWriter {
                     ncopy: 0,
                     buf: vec![0; 32 * 1024].into_boxed_slice(),
                     first: o.first_byte,
+                    one_byte_first: o.probe == Some(ProbeResult::Slow),
                 });
                 if waits {
                     w.deferred = Some(Deferred::Stream(stream));
@@ -1357,8 +1361,15 @@ impl ReqWriter {
                 self.flush_to = self.out.len();
                 continue;
             }
-            let mut rb = ReadBuf::new(&mut body.buf);
-            match ready!(Pin::new(&mut body.reader).poll_read(cx, &mut rb)) {
+            let want = if body.one_byte_first {
+                1
+            } else {
+                body.buf.len()
+            };
+            let mut rb = ReadBuf::new(body.buf.get_mut(..want).unwrap_or_default());
+            let read = ready!(Pin::new(&mut body.reader).poll_read(cx, &mut rb));
+            body.one_byte_first = false;
+            match read {
                 Err(e) => {
                     self.stream = None;
                     return self.finish(Err((HttpError::Message(e.to_string()), true)));

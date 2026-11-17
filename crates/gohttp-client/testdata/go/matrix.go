@@ -158,7 +158,17 @@ func framingCases() []Case {
 	single := func(name string, st Step) Case {
 		return one(name, general(), []Server{srv("A", conn(reqOp(), write(emptyOK)))}, st)
 	}
+	// slow bodies outlast the 200ms probe of methods that usually lack a body.
+	slow := func(pieces ...string) Body {
+		b := readerBody(pieces...)
+		b.DelayMs = 400
+		return b
+	}
 	return append(out,
+		single("framing_get_slow_reader", do("GET", "http://{{A}}/f", slow("abc"))),
+		single("framing_get_slow_reader_pieces", do("GET", "http://{{A}}/f", slow("ab", "cd"))),
+		single("framing_get_slow_reader_empty", do("GET", "http://{{A}}/f", slow())),
+		single("framing_post_slow_reader", do("POST", "http://{{A}}/f", slow("abc"))),
 		single("framing_post_bytes_te_chunked", teStep("chunked", do("POST", "http://{{A}}/f", bytesBody("abc")))),
 		single("framing_put_bytes_te_identity", teStep("identity", do("PUT", "http://{{A}}/f", bytesBody("abc")))),
 		single("framing_delete_empty_te_identity", teStep("identity", do("DELETE", "http://{{A}}/f", bytesBody("")))),
