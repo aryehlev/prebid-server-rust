@@ -441,7 +441,7 @@ func (e *Engine) sortView(v *view, u *uuidSet) {
 	for stage, keyed := range v.entries {
 		for _, en := range keyed {
 			e.rules.sortRules(stage, en.value, u.maskText)
-			e.rules.sortEntryWarnings(stage, en, u.maskText)
+			e.rules.sortEntryLists(stage, en, u.maskText)
 		}
 	}
 	e.rules.sortRules(parity.StageAnalytics, v.analytics, u.maskText)

@@ -14,9 +14,10 @@ import (
 // identity members (schema, schema_version, impl, case_id) are not compared;
 // everything else is, including null versus [] (the contract requires the
 // lists to be present).
-// Adapter outputs are compared without ordering or UUID rules: MakeRequests
-// and MakeBids are deterministic (the 8 adapters with internal randomness run
-// on the deterministic fakes), so only the header and member-order rules apply.
+// Adapter outputs are compared without UUID rules: the 8 adapters with
+// internal randomness run on the deterministic fakes. Besides the header and
+// member-order rules, only adapter_requests_order applies: adapters that group
+// imps in a map return their requests in map order.
 
 // CompareAdapterRequests compares two outputs of POST /__parity/adapter/{bidder}/requests.
 func (e *Engine) CompareAdapterRequests(c Case, g, r *parity.AdapterRequestsOutput) (Result, error) {
@@ -121,6 +122,7 @@ func (e *Engine) compareDocuments(c Case, stage parity.StageID, key string, g, r
 				}
 			}
 		}
+		e.rules.sortRules(stage, n, nil)
 	}
 	cmp := e.newComparer(stage, key)
 	cmp.value(Root, gn, rn, fieldPlain)

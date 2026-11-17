@@ -225,6 +225,22 @@ func validatedWarningsPair() (Case, *parity.Trace, *parity.Trace) {
 	return Case{CaseID: "rule"}, g, r
 }
 
+// bidderResultErrorsPair holds bidder.result entries whose MakeBids errors
+// arrive in another order (one error per concurrently answered request).
+func bidderResultErrorsPair() (Case, *parity.Trace, *parity.Trace) {
+	g, r := newTrace(parity.ImplGo), newTrace(parity.ImplRust)
+	result := `{"seat_bids":[]}`
+	put(g, parity.StageBidderResult, "beachfront", result)
+	put(r, parity.StageBidderResult, "beachfront", result)
+	a := parity.ErrorRecord{Code: 999, Kind: "UnknownError", Message: `Bid "Imp1" missing creative ID`, Scope: "general", Severity: "unknown", Fatal: true}
+	b := parity.ErrorRecord{Code: 999, Kind: "UnknownError", Message: `Bid "Imp2" missing creative ID`, Scope: "general", Severity: "unknown", Fatal: true}
+	ge, re := g.Stages[parity.StageBidderResult]["beachfront"], r.Stages[parity.StageBidderResult]["beachfront"]
+	ge.Errors, re.Errors = []parity.ErrorRecord{a, b}, []parity.ErrorRecord{b, a}
+	g.Stages[parity.StageBidderResult]["beachfront"] = ge
+	r.Stages[parity.StageBidderResult]["beachfront"] = re
+	return Case{CaseID: "rule"}, g, r
+}
+
 // cachePutsPair holds one Prebid Cache call whose puts arrive in another
 // order, with the content-addressed UUIDs the oracle answers in put order.
 func cachePutsPair() (Case, *parity.Trace, *parity.Trace) {
@@ -356,6 +372,10 @@ func TestRemovingRuleReenablesDiff(t *testing.T) {
 		{RuleBidArrivalOrder, entryPair(parity.StageEventsTracking, parity.UnkeyedStage,
 			`{"bids":{"adtrgtme":[{"bid_id":"b2"},{"bid_id":"b1"}]}}`,
 			`{"bids":{"adtrgtme":[{"bid_id":"b1"},{"bid_id":"b2"}]}}`), "$.bids.adtrgtme"},
+		{RuleBidArrivalOrder, bidderResultErrorsPair, "$['@errors']"},
+		{RuleAdapterRequestsOrder, entryPair(parity.StageAdapterRequestsFinal, "matterfullrtb",
+			`{"requests":[{"method":"POST","uri":"https://x.test/?p=b","imp_ids":["i2"]},{"method":"POST","uri":"https://x.test/?p=a","imp_ids":["i1"]}]}`,
+			`{"requests":[{"method":"POST","uri":"https://x.test/?p=a","imp_ids":["i1"]},{"method":"POST","uri":"https://x.test/?p=b","imp_ids":["i2"]}]}`), "$.requests"},
 		{RuleHeaderNames, outHeadersPair("X-Prebid", "x-prebid"), "$[0].request.headers"},
 		{RuleDateHeader, responsePair(`{"id":"r1"}`, `{"id":"r1"}`,
 			[][2]string{{"Date", "Mon, 01 Jan 2024 00:00:00 GMT"}}, [][2]string{{"Date", "Tue, 02 Jan 2024 00:00:00 GMT"}}), "$['@headers'].Date"},

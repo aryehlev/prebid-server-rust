@@ -71,11 +71,20 @@
     {
       "id": "bid_arrival_order",
       "applies_to": ["bids.adjusted", "bidder.result", "events.tracking", "hooks.all_processed_bid_responses"],
-      "target": "per-seat bid lists: bids.adjusted $.bids[*] by (imp_id, bid_id); bidder.result $.seat_bids[*].bids[*] and hooks.all_processed_bid_responses $.*.bids[*] by (bid.impid, bid.id); events.tracking $.bids.*[*] by (bid_id)",
+      "target": "per-seat bid lists: bids.adjusted $.bids[*] by (imp_id, bid_id); bidder.result $.seat_bids[*].bids[*] and hooks.all_processed_bid_responses $.*.bids[*] by (bid.impid, bid.id); events.tracking $.bids.*[*] by (bid_id); bidder.result: the entry's errors and warnings by (code, message)",
       "action": "sort",
       "keys": ["imp_id", "bid_id", "bid.impid", "bid.id"],
-      "justification": "A bidder with several requests sends them from concurrent goroutines and appends each response's bids in completion order, so the order of one seat's bids differs between Go runs. The final response's bids are sorted by (impid, id) already (seatbid_order).",
+      "justification": "A bidder with several requests sends them from concurrent goroutines and appends each response's bids, and the errors its MakeBids returns, in completion order, so the order of one seat's bids and of the bidder's errors differs between Go runs. The final response's bids are sorted by (impid, id) already (seatbid_order).",
       "go_source": ["exchange/bidder.go:255-258 go func(data *adapters.RequestData)", "exchange/bidder.go:288 httpInfo := <-responseChannel", "exchange/bidder.go:436 seatBidMap[bidderName].Bids = append"]
+    },
+    {
+      "id": "adapter_requests_order",
+      "applies_to": ["adapter.requests", "adapter.requests_final"],
+      "target": "MakeRequests output $.requests[*] by (uri, method, imp_ids, body)",
+      "action": "sort",
+      "keys": ["uri", "method", "imp_ids", "body"],
+      "justification": "Adapters that group imps by a map key (matterfullrtb by publisher hash, among others) return one request per group in map iteration order. The exchange sends the requests concurrently, so their order is not observable downstream, and Go's adapter tests match requests without assuming order.",
+      "go_source": ["adapters/adapterstest/test_json.go:251 try to match expected to actual without assuming order"]
     },
     {
       "id": "cache_puts_order",

@@ -65,6 +65,43 @@ func TestCompareAdapterRequests(t *testing.T) {
 	}
 }
 
+// TestCompareAdapterRequestsOrder: requests grouped by a map key come back in
+// map order; adapter_requests_order sorts them, and without it the order is
+// reported.
+func TestCompareAdapterRequestsOrder(t *testing.T) {
+	ct := parity.HeaderList{{"Content-Type", "application/json;charset=utf-8"}}
+	mk := func(impl string, pubs ...string) *parity.AdapterRequestsOutput {
+		out := requestsOutput(impl, `{}`, ct, []parity.ErrorRecord{})
+		out.Requests = nil
+		for _, pub := range pubs {
+			out.Requests = append(out.Requests, parity.AdapterRequestData{
+				Method: "POST", URI: "https://us.matterfull.co/?uqhash=" + pub, Headers: ct, Body: parity.TextBody(`{"id":"r1"}`), ImpIDs: []string{"imp-" + pub},
+			})
+		}
+		return out
+	}
+	tests := []struct {
+		name string
+		e    *Engine
+		want []brief
+	}{
+		{"with rule", newTestEngine(t), nil},
+		{"without rule", engineWithout(t, RuleAdapterRequestsOrder), []brief{{parity.KindOrder, "", "$.requests"}}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			res, err := tt.e.CompareAdapterRequests(Case{CaseID: "adapter"}, mk(parity.ImplGo, "abc", "def"), mk(parity.ImplRust, "def", "abc"))
+			if err != nil {
+				t.Fatal(err)
+			}
+			validateDiff(t, res.Doc)
+			if got := briefs(res.Doc.Mismatches); !equalBriefs(got, tt.want) {
+				t.Fatalf("got %v\nwant %v", got, tt.want)
+			}
+		})
+	}
+}
+
 func TestCompareAdapterBids(t *testing.T) {
 	e := newTestEngine(t)
 	mk := func(impl string, price string) *parity.AdapterBidsOutput {

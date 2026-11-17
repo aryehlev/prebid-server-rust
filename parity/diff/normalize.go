@@ -18,29 +18,30 @@ import (
 // without an implementation here is a load error, so the file can never claim
 // a normalization the differ does not perform.
 const (
-	RuleSeatbidOrder        = "seatbid_order"
-	RuleWarningsErrorsOrder = "warnings_errors_order"
-	RuleHTTPCallsOrder      = "httpcalls_order"
-	RuleHTTPOutOrder        = "http_out_order"
-	RuleAdapterBidsCallKey  = "adapter_bids_call_key"
-	RuleSeatNonBidOrder     = "seatnonbid_order"
-	RuleCachePutsOrder      = "cache_puts_order"
-	RuleBidArrivalOrder     = "bid_arrival_order"
-	RuleResponseTimeMillis  = "responsetimemillis"
-	RuleAuctionTimestamp    = "auctiontimestamp"
-	RuleEventsTSParam       = "events_ts_param"
-	RuleAnalyticsStartTime  = "analytics_start_time"
-	RuleRequestIDUUID       = "request_id_uuid"
-	RuleTIDUUID             = "tid_uuid"
-	RuleGeneratedBidID      = "generated_bid_id"
-	RuleCacheUUID           = "cache_uuid"
-	RuleHookExecutionTime   = "hook_execution_time"
-	RuleTimingHistograms    = "timing_histograms"
-	RuleGoRuntimeMetrics    = "go_runtime_metrics"
-	RuleHeaderNames         = "header_names"
-	RuleDateHeader          = "date_header"
-	RuleJSONMemberOrder     = "json_member_order"
-	RuleStageEntrySeq       = "stage_entry_seq"
+	RuleSeatbidOrder         = "seatbid_order"
+	RuleWarningsErrorsOrder  = "warnings_errors_order"
+	RuleHTTPCallsOrder       = "httpcalls_order"
+	RuleHTTPOutOrder         = "http_out_order"
+	RuleAdapterBidsCallKey   = "adapter_bids_call_key"
+	RuleSeatNonBidOrder      = "seatnonbid_order"
+	RuleCachePutsOrder       = "cache_puts_order"
+	RuleBidArrivalOrder      = "bid_arrival_order"
+	RuleAdapterRequestsOrder = "adapter_requests_order"
+	RuleResponseTimeMillis   = "responsetimemillis"
+	RuleAuctionTimestamp     = "auctiontimestamp"
+	RuleEventsTSParam        = "events_ts_param"
+	RuleAnalyticsStartTime   = "analytics_start_time"
+	RuleRequestIDUUID        = "request_id_uuid"
+	RuleTIDUUID              = "tid_uuid"
+	RuleGeneratedBidID       = "generated_bid_id"
+	RuleCacheUUID            = "cache_uuid"
+	RuleHookExecutionTime    = "hook_execution_time"
+	RuleTimingHistograms     = "timing_histograms"
+	RuleGoRuntimeMetrics     = "go_runtime_metrics"
+	RuleHeaderNames          = "header_names"
+	RuleDateHeader           = "date_header"
+	RuleJSONMemberOrder      = "json_member_order"
+	RuleStageEntrySeq        = "stage_entry_seq"
 )
 
 // Normalization actions (normalization.json "actions").
@@ -72,29 +73,30 @@ type implementation struct {
 }
 
 var implementations = map[string]implementation{
-	RuleSeatbidOrder:        {action: actionSort, keys: []string{"seat", "impid", "id"}, mentions: []string{"$.seatbid[*]", "$.seatbid[*].bid[*]"}},
-	RuleWarningsErrorsOrder: {action: actionSort, keys: []string{"code", "message"}, mentions: []string{"$.ext.warnings.*[*]", "$.ext.errors.*[*]"}},
-	RuleHTTPCallsOrder:      {action: actionSort, keys: []string{"uri", "requestbody", "status"}, mentions: []string{"$.ext.debug.httpcalls.*[*]"}},
-	RuleHTTPOutOrder:        {action: actionSort, keys: []string{"kind", "bidder", "orig_url", "request.body"}, drop: []string{"seq"}, mentions: []string{"trace.http_out"}},
-	RuleAdapterBidsCallKey:  {action: actionSort, keys: []string{"request_data.uri", "request_data.body"}, mentions: []string{"bidder#call"}},
-	RuleSeatNonBidOrder:     {action: actionSort, keys: []string{"seat", "impid", "statuscode"}, mentions: []string{"$.ext.prebid.seatnonbid[*]", "nonbid[*]"}},
-	RuleCachePutsOrder:      {action: actionSort, keys: []string{"type", "value"}, mentions: []string{"$.puts[*]", "$.responses[*]"}},
-	RuleBidArrivalOrder:     {action: actionSort, keys: bidArrivalKeys, mentions: []string{"$.bids[*]", "$.seat_bids[*].bids[*]", "$.*.bids[*]", "$.bids.*[*]"}},
-	RuleResponseTimeMillis:  {action: actionKeySet, mentions: []string{"$.ext.responsetimemillis"}},
-	RuleAuctionTimestamp:    {action: actionShape, shape: true, mentions: []string{"$.ext.prebid.auctiontimestamp"}},
-	RuleEventsTSParam:       {action: actionShape, shape: true, mentions: []string{"ts="}},
-	RuleAnalyticsStartTime:  {action: actionShape, shape: true, mentions: []string{"start_time_set"}},
-	RuleRequestIDUUID:       {action: actionUUIDPlaceholder, mentions: []string{"$.id", "{{UUID}}"}},
-	RuleTIDUUID:             {action: actionUUIDPlaceholder, mentions: []string{"$.source.tid", "$.imp[*].ext.tid"}},
-	RuleGeneratedBidID:      {action: actionUUIDPlaceholder, mentions: []string{"$.seatbid[*].bid[*].ext.prebid.bidid"}},
-	RuleCacheUUID:           {action: actionUUIDPlaceholder, mentions: []string{"hb_cache_id", "hb_uuid", "cacheId"}},
-	RuleHookExecutionTime:   {action: actionDrop, mentions: []string{"execution_time_millis", "ExecutionTimeMillis", "$.ext.prebid.modules.trace"}},
-	RuleTimingHistograms:    {action: actionCountOnly, mentions: []string{"_time", "_time_seconds", "_duration", "_duration_seconds"}},
-	RuleGoRuntimeMetrics:    {action: actionIgnore, mentions: []string{goRuntimeMetricPrefix}},
-	RuleHeaderNames:         {action: actionCaseInsensitive, mentions: []string{"headers"}},
-	RuleDateHeader:          {action: actionIgnore, mentions: []string{"Date"}},
-	RuleJSONMemberOrder:     {action: actionIgnore, mentions: []string{"member order"}},
-	RuleStageEntrySeq:       {action: actionDrop, mentions: []string{".seq"}},
+	RuleSeatbidOrder:         {action: actionSort, keys: []string{"seat", "impid", "id"}, mentions: []string{"$.seatbid[*]", "$.seatbid[*].bid[*]"}},
+	RuleWarningsErrorsOrder:  {action: actionSort, keys: []string{"code", "message"}, mentions: []string{"$.ext.warnings.*[*]", "$.ext.errors.*[*]"}},
+	RuleHTTPCallsOrder:       {action: actionSort, keys: []string{"uri", "requestbody", "status"}, mentions: []string{"$.ext.debug.httpcalls.*[*]"}},
+	RuleHTTPOutOrder:         {action: actionSort, keys: []string{"kind", "bidder", "orig_url", "request.body"}, drop: []string{"seq"}, mentions: []string{"trace.http_out"}},
+	RuleAdapterBidsCallKey:   {action: actionSort, keys: []string{"request_data.uri", "request_data.body"}, mentions: []string{"bidder#call"}},
+	RuleSeatNonBidOrder:      {action: actionSort, keys: []string{"seat", "impid", "statuscode"}, mentions: []string{"$.ext.prebid.seatnonbid[*]", "nonbid[*]"}},
+	RuleCachePutsOrder:       {action: actionSort, keys: []string{"type", "value"}, mentions: []string{"$.puts[*]", "$.responses[*]"}},
+	RuleBidArrivalOrder:      {action: actionSort, keys: bidArrivalKeys, mentions: []string{"$.bids[*]", "$.seat_bids[*].bids[*]", "$.*.bids[*]", "$.bids.*[*]", "the entry's errors"}},
+	RuleAdapterRequestsOrder: {action: actionSort, keys: adapterRequestKeys, mentions: []string{"$.requests[*]"}},
+	RuleResponseTimeMillis:   {action: actionKeySet, mentions: []string{"$.ext.responsetimemillis"}},
+	RuleAuctionTimestamp:     {action: actionShape, shape: true, mentions: []string{"$.ext.prebid.auctiontimestamp"}},
+	RuleEventsTSParam:        {action: actionShape, shape: true, mentions: []string{"ts="}},
+	RuleAnalyticsStartTime:   {action: actionShape, shape: true, mentions: []string{"start_time_set"}},
+	RuleRequestIDUUID:        {action: actionUUIDPlaceholder, mentions: []string{"$.id", "{{UUID}}"}},
+	RuleTIDUUID:              {action: actionUUIDPlaceholder, mentions: []string{"$.source.tid", "$.imp[*].ext.tid"}},
+	RuleGeneratedBidID:       {action: actionUUIDPlaceholder, mentions: []string{"$.seatbid[*].bid[*].ext.prebid.bidid"}},
+	RuleCacheUUID:            {action: actionUUIDPlaceholder, mentions: []string{"hb_cache_id", "hb_uuid", "cacheId"}},
+	RuleHookExecutionTime:    {action: actionDrop, mentions: []string{"execution_time_millis", "ExecutionTimeMillis", "$.ext.prebid.modules.trace"}},
+	RuleTimingHistograms:     {action: actionCountOnly, mentions: []string{"_time", "_time_seconds", "_duration", "_duration_seconds"}},
+	RuleGoRuntimeMetrics:     {action: actionIgnore, mentions: []string{goRuntimeMetricPrefix}},
+	RuleHeaderNames:          {action: actionCaseInsensitive, mentions: []string{"headers"}},
+	RuleDateHeader:           {action: actionIgnore, mentions: []string{"Date"}},
+	RuleJSONMemberOrder:      {action: actionIgnore, mentions: []string{"member order"}},
+	RuleStageEntrySeq:        {action: actionDrop, mentions: []string{".seq"}},
 }
 
 // ImplementedRules returns the IDs of every rule the differ can apply, sorted.
@@ -404,6 +406,11 @@ var (
 		parity.StageHooksAllProcessedBidResponses: {"*.bids"},
 		parity.StageEventsTracking:                {"bids.*"},
 	}
+	// adapterRequestLists are the MakeRequests outputs (adapter_requests_order).
+	adapterRequestLists = map[parity.StageID][]string{
+		parity.StageAdapterRequests:      {"requests"},
+		parity.StageAdapterRequestsFinal: {"requests"},
+	}
 	// seatNonBidMaps are NonBid lists keyed by seat (stagedata.SeatNonBids).
 	seatNonBidMaps = map[parity.StageID][]string{
 		parity.StageSeatNonBids: {"*"},
@@ -596,6 +603,11 @@ func (rs *Rules) sortRules(stage parity.StageID, root *node, rewrite func(string
 			sortArray(list, bidArrivalKeys, rewrite)
 		}
 	}
+	if rs.Active(RuleAdapterRequestsOrder, stage) {
+		for _, list := range anchorsOf(root, adapterRequestLists[stage]) {
+			sortArray(list, adapterRequestKeys, rewrite)
+		}
+	}
 	if rs.Active(RuleSeatNonBidOrder, stage) {
 		lists := selectResponseExt(root, stage, "prebid.seatnonbid")
 		lists = append(lists, anchorsOf(root, seatNonBidLists[stage])...)
@@ -617,13 +629,26 @@ func (rs *Rules) sortRules(stage parity.StageID, root *node, rewrite func(string
 // fatal validation error returns at once, so entry errors keep their order.
 var entryWarningStages = map[parity.StageID]bool{parity.StageRequestValidated: true}
 
-// sortEntryWarnings sorts a stage entry's warnings by (code, message) where Go
-// builds them from map iteration and warnings_errors_order applies to the stage.
-func (rs *Rules) sortEntryWarnings(stage parity.StageID, en *entry, rewrite func(string) string) {
-	if en == nil || !entryWarningStages[stage] || !rs.Active(RuleWarningsErrorsOrder, stage) {
+// entryArrivalStages are the stages whose entry errors and warnings Go appends
+// per bidder response in completion order (exchange/bidder.go reads the
+// response channel as the calls finish; bid_arrival_order).
+var entryArrivalStages = map[parity.StageID]bool{parity.StageBidderResult: true}
+
+// sortEntryLists sorts a stage entry's error lists by (code, message) where Go
+// builds them from map iteration (warnings_errors_order) or in bidder
+// response arrival order (bid_arrival_order).
+func (rs *Rules) sortEntryLists(stage parity.StageID, en *entry, rewrite func(string) string) {
+	if en == nil {
 		return
 	}
-	sortArray(en.warnings, []string{"code", "message"}, rewrite)
+	keys := []string{"code", "message"}
+	if entryWarningStages[stage] && rs.Active(RuleWarningsErrorsOrder, stage) {
+		sortArray(en.warnings, keys, rewrite)
+	}
+	if entryArrivalStages[stage] && rs.Active(RuleBidArrivalOrder, stage) {
+		sortArray(en.errors, keys, rewrite)
+		sortArray(en.warnings, keys, rewrite)
+	}
 }
 
 // sortArray sorts an array node by the canonical text of each key (dotted
@@ -748,6 +773,9 @@ func isGoRuntimeMetric(name string) bool {
 // hooks.all_processed_bid_responses entries a bid object, and events.tracking
 // entries a bid_id only. Absent keys sort first.
 var bidArrivalKeys = []string{"imp_id", "bid_id", "bid.impid", "bid.id"}
+
+// adapterRequestKeys sort the requests of adapter_requests_order.
+var adapterRequestKeys = []string{"uri", "method", "imp_ids", "body"}
 
 // cachePutsKeys are the sort keys of a Prebid Cache request's puts.
 var cachePutsKeys = []string{"type", "value"}
