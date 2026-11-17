@@ -70,6 +70,8 @@ use crate::{
 };
 
 #[cfg(test)]
+mod golden;
+#[cfg(test)]
 mod tests;
 
 /// Go: `jsonEmptyObjectLength`: the length of `{}`; typed members that encode no longer than this
