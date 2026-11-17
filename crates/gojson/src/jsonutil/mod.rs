@@ -13,7 +13,7 @@ mod merge;
 mod types;
 
 pub use element::{ElementError, FoundElement, drop_element, find_element};
-pub use merge::{ext_merge_decode, merge_clone_raw};
+pub use merge::{ext_merge_decode, merge_clone, merge_clone_raw};
 pub use types::{IntString, StringInt, parse_into_string};
 
 use crate::{

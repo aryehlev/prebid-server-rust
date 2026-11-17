@@ -1,17 +1,9 @@
-//! `jsonutil.MergeClone`'s `json.RawMessage` decoder (`extMergeDecoder`).
-//!
-//! `MergeClone(v, data)` decodes `data` over an existing value with jsoniter, cloning
-//! pointers, slices and maps instead of sharing them, and merging every `json.RawMessage`
-//! field with `jsonpatch.MergePatch` instead of replacing it. Rust values are never shared, so
-//! the cloning is invisible except for slices: Go's `sliceCloneDecoder` nils a slice before
-//! decoding it, so its elements start from zero values instead of being decoded over.
-//!
-//! [`ext_merge_decode`] is the raw-message step, and [`merge_clone_raw`] is `MergeClone` into
-//! a `json.RawMessage`. Decoding a struct this way needs the jsoniter decoders to dispatch to
-//! them, which this crate does not do yet.
+//! `jsonutil.MergeClone` (`util/jsonutil/merge.go`): [`merge_clone`] for any decodable value,
+//! [`merge_clone_raw`] for a `json.RawMessage` and [`ext_merge_decode`], the raw-message step
+//! itself.
 
 use crate::{
-    GoKind, GoType, JsoniterDecode, RawJson,
+    JsoniterDecode, RawJson,
     gostring::GoString,
     jsoniter::{self, Iter},
     jsonutil::{FailedToUnmarshal, try_extract_error_message},
@@ -50,35 +42,99 @@ pub fn ext_merge_decode(existing: &mut RawJson, it: &mut Iter<'_>) {
     }
 }
 
-/// A `json.RawMessage` decoded with [`ext_merge_decode`].
-struct ExtMerge<'r>(&'r mut RawJson);
-
-impl GoType for ExtMerge<'_> {
-    const KIND: GoKind = GoKind::Slice;
-
-    fn go_type_name(out: &mut String) {
-        RawJson::go_type_name(out);
-    }
-}
-
-impl JsoniterDecode for ExtMerge<'_> {
-    fn jsoniter_decode(&mut self, it: &mut Iter<'_>) {
-        ext_merge_decode(self.0, it);
-    }
-}
-
-/// `jsonutil.MergeClone(&ext, data)` for a `json.RawMessage` target: [`ext_merge_decode`]
-/// under jsoniter's `Unmarshal` (trailing bytes are an error).
+/// `jsonutil.MergeClone(v, data)`: decodes `data` over `v` with the merge-clone decoders.
+///
+/// Go decodes with a frozen jsoniter config that carries the `mergeCloneExtension`. Its
+/// decorators clone pointers (`ptrCloneDecoder`), slices (`sliceCloneDecoder`) and maps
+/// (`mapCloneDecoder`) instead of decoding into the shared originals, and its `extMergeDecoder`
+/// merges every `json.RawMessage` with `jsonpatch.MergePatch` instead of replacing it. Rust
+/// values are never shared, so the cloning shows only where it changes the decoded result:
+///
+/// * a slice is set to nil before it is decoded, so its elements start from zero values instead of
+///   being decoded over the existing ones (`[{"tagid":"2"}]` over `[{"id":"1"}]` gives
+///   `[{"tagid":"2"}]`), and a `null` slice is consumed before the slice decoder, so the error of a
+///   malformed `null` is not prefixed with the slice type;
+/// * a `json.RawMessage` keeps its bytes on `null`, takes the incoming value when it is empty, and
+///   is merged with [`merge_patch`] otherwise; a malformed existing message fails with `invalid
+///   json on existing object`;
+/// * a pointer and a map are checked for `null` before their decoder runs, which checks again, as
+///   the decorators do. That changes nothing until an error is recorded; after one, jsoniter's
+///   `unreadByte` does nothing, so each check consumes a byte, and decoding goes on after an error
+///   where Go's does (the decoded fields and the wrapped error text both depend on it).
+///
+/// Everything else decodes as [`jsonutil::unmarshal`] decodes it: a pointer is set to nil by
+/// `null` and decoded over otherwise, and map entries are added to the existing map. The root
+/// value is decoded in place (Go does not clone it), except that a root slice is reset too.
+/// Trailing bytes are an error.
+///
+/// ```
+/// use pbs_gojson::{GoJson, RawJson, jsonutil};
+///
+/// #[derive(Clone, Debug, Default, GoJson)]
+/// #[gojson(go_type = "openrtb2.Imp")]
+/// pub struct Imp {
+///     #[gojson(go = "ID", json = "id")]
+///     pub id: String,
+///     #[gojson(json = "iframebuster,omitempty")]
+///     pub iframe_buster: Option<Vec<String>>,
+///     #[gojson(json = "ext,omitempty")]
+///     pub ext: RawJson,
+/// }
+///
+/// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+/// let mut imp = Imp {
+///     id: "1".to_owned(),
+///     iframe_buster: Some(vec!["a".to_owned(), "b".to_owned()]),
+///     ext: RawJson::from(r#"{"a":1,"b":2}"#),
+/// };
+/// jsonutil::merge_clone(
+///     &mut imp,
+///     br#"{"iframebuster":["c"],"ext":{"b":null,"c":3}}"#,
+/// )?;
+/// assert_eq!(
+///     jsonutil::marshal(&imp)?,
+///     br#"{"id":"1","iframebuster":["c"],"ext":{"a":1,"c":3}}"#
+/// );
+///
+/// let mut bad = Imp {
+///     ext: RawJson::from("malformed"),
+///     ..Imp::default()
+/// };
+/// let err = jsonutil::merge_clone(&mut bad, br#"{"ext":{"a":1}}"#).err();
+/// assert_eq!(
+///     err.map(|e| e.to_string()).as_deref(),
+///     Some("cannot unmarshal openrtb2.Imp.Ext: invalid json on existing object")
+/// );
+/// # Ok(())
+/// # }
+/// ```
+///
+/// [`jsonutil::unmarshal`]: crate::jsonutil::unmarshal
 ///
 /// # Errors
 ///
-/// [`FailedToUnmarshal`] with the cleaned-up message, e.g. `cannot unmarshal :
-/// invalid json on existing object`... exactly as Go words it.
-pub fn merge_clone_raw(existing: &mut RawJson, data: &[u8]) -> Result<(), FailedToUnmarshal> {
+/// [`FailedToUnmarshal`] with the cleaned-up jsoniter message, exactly as Go words it, e.g.
+/// `cannot unmarshal openrtb2.Imp.IframeBuster: expect ull`. `v` keeps what was decoded
+/// before the error.
+pub fn merge_clone<T: JsoniterDecode + ?Sized>(
+    v: &mut T,
+    data: &[u8],
+) -> Result<(), FailedToUnmarshal> {
     // Go: util/jsonutil/merge.go MergeClone
-    jsoniter::unmarshal(data, &mut ExtMerge(existing)).map_err(|err| FailedToUnmarshal {
+    jsoniter::unmarshal_merge_clone(data, v).map_err(|err| FailedToUnmarshal {
         message: GoString::from_bytes(try_extract_error_message(&err.go_text())),
     })
+}
+
+/// `jsonutil.MergeClone(&ext, data)` for a `json.RawMessage` target: [`ext_merge_decode`]
+/// under jsoniter's `Unmarshal` (trailing bytes are an error); the same as [`merge_clone`].
+///
+/// # Errors
+///
+/// [`FailedToUnmarshal`] with the cleaned-up message, e.g. `invalid json on existing object`,
+/// exactly as Go words it.
+pub fn merge_clone_raw(existing: &mut RawJson, data: &[u8]) -> Result<(), FailedToUnmarshal> {
+    merge_clone(existing, data)
 }
 
 #[cfg(test)]

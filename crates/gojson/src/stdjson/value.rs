@@ -5,7 +5,7 @@ use core::mem;
 use serde_json::{Map, Number, Value};
 
 use super::{StdDecoder, Token, unquote};
-use crate::{error::JsonError, strconv::parse_float, unicode::go_lossy};
+use crate::{error::JsonError, strconv::parse_float, unicode::go_lossy, value::drop_value};
 
 /// Go's `convertNumber`: the `float64`, or `None` after saving an `UnmarshalTypeError`.
 pub(crate) fn convert_number(d: &mut StdDecoder<'_>, item: &[u8]) -> Option<Value> {
@@ -82,7 +82,10 @@ pub(crate) fn value_interface(d: &mut StdDecoder<'_>) -> Value {
                     d.array_next()
                 }
                 Value::Object(map) => {
-                    let _replaced = map.insert(mem::take(&mut top.key), done);
+                    // A duplicate key replaces a value that can be as deep as the document.
+                    if let Some(replaced) = map.insert(mem::take(&mut top.key), done) {
+                        drop_value(replaced);
+                    }
                     match d.object_next() {
                         Some(key) => {
                             top.key = go_lossy(&unquote(key).unwrap_or_default());
