@@ -38,10 +38,16 @@ const (
 	RuleHookExecutionTime    = "hook_execution_time"
 	RuleTimingHistograms     = "timing_histograms"
 	RuleGoRuntimeMetrics     = "go_runtime_metrics"
+	RuleListenerConnections  = "listener_connection_metrics"
 	RuleHeaderNames          = "header_names"
 	RuleDateHeader           = "date_header"
 	RuleJSONMemberOrder      = "json_member_order"
 	RuleStageEntrySeq        = "stage_entry_seq"
+	// Message rules (messages.go).
+	RuleBidderParamsErrorOrder = "bidder_params_error_order"
+	RuleStoredAuctionErrorImp  = "stored_auction_error_imp"
+	RuleResponseCurSeat        = "response_cur_seat"
+	RuleAMPTargetingMerge      = "amp_targeting_merge"
 )
 
 // Normalization actions (normalization.json "actions").
@@ -54,6 +60,7 @@ const (
 	actionCountOnly       = "count_only"
 	actionIgnore          = "ignore"
 	actionCaseInsensitive = "case_insensitive_names"
+	actionCandidate       = "candidate_placeholder"
 )
 
 // implementation is the differ's side of one allowlisted rule. LoadRules
@@ -93,10 +100,18 @@ var implementations = map[string]implementation{
 	RuleHookExecutionTime:    {action: actionDrop, mentions: []string{"execution_time_millis", "ExecutionTimeMillis", "$.ext.prebid.modules.trace"}},
 	RuleTimingHistograms:     {action: actionCountOnly, mentions: []string{"_time", "_time_seconds", "_duration", "_duration_seconds"}},
 	RuleGoRuntimeMetrics:     {action: actionIgnore, mentions: []string{goRuntimeMetricPrefix}},
+	RuleListenerConnections:  {action: actionIgnore, mentions: listenerConnectionMetrics},
 	RuleHeaderNames:          {action: actionCaseInsensitive, mentions: []string{"headers"}},
 	RuleDateHeader:           {action: actionIgnore, mentions: []string{"Date"}},
 	RuleJSONMemberOrder:      {action: actionIgnore, mentions: []string{"member order"}},
 	RuleStageEntrySeq:        {action: actionDrop, mentions: []string{".seq"}},
+	RuleBidderParamsErrorOrder: {action: actionSort, keys: []string{"field", "description"},
+		mentions: []string{"failed validation.", "$['@errors'][*].message"}},
+	RuleStoredAuctionErrorImp: {action: actionCandidate,
+		mentions: []string{"Failed to parse bid mediatype for impression", "stored.responses", storedAuctionImpPlaceholder}},
+	RuleResponseCurSeat: {action: actionCandidate, mentions: []string{"$.cur", "bidder.result", "seat_bids[*].currency"}},
+	RuleAMPTargetingMerge: {action: actionCandidate,
+		mentions: []string{"$.targeting", "amp_targeting_values", "exchange.response", ampCacheToken}},
 }
 
 // ImplementedRules returns the IDs of every rule the differ can apply, sorted.
@@ -411,9 +426,23 @@ var (
 		parity.StageAdapterRequests:      {"requests"},
 		parity.StageAdapterRequestsFinal: {"requests"},
 	}
+	// adapterCallRequests are the MakeRequests outputs a MakeBids call
+	// echoes (AdapterBidsInput.request_data); adapter_requests_order sorts
+	// their imp_ids like the requests'.
+	adapterCallRequests = map[parity.StageID][]string{
+		parity.StageAdapterBids:            {"request_data"},
+		parity.StageHooksRawBidderResponse: {"request_data"},
+	}
 	// seatNonBidMaps are NonBid lists keyed by seat (stagedata.SeatNonBids).
 	seatNonBidMaps = map[parity.StageID][]string{
-		parity.StageSeatNonBids: {"*"},
+		parity.StageSeatNonBids:  {"*"},
+		parity.StageBidderResult: {"nonbids.*"},
+	}
+	// httpCallLists are ExtHttpCall lists outside a response's ext.debug
+	// (stagedata.BidderResult seat_bids[].http_calls).
+	httpCallLists = map[parity.StageID][]string{
+		parity.StageBidderResult:                  {"seat_bids[*].http_calls"},
+		parity.StageHooksAllProcessedBidResponses: {"*.http_calls"},
 	}
 	// seatNonBidLists are SeatNonBid arrays outside a response's ext.
 	seatNonBidLists = map[parity.StageID][]string{
@@ -594,7 +623,8 @@ func (rs *Rules) sortRules(stage parity.StageID, root *node, rewrite func(string
 		}
 	}
 	if rs.Active(RuleHTTPCallsOrder, stage) {
-		for _, list := range selectResponseExt(root, stage, "debug.httpcalls.*") {
+		lists := selectResponseExt(root, stage, "debug.httpcalls.*")
+		for _, list := range append(lists, anchorsOf(root, httpCallLists[stage])...) {
 			sortArray(list, []string{"uri", "requestbody", "status"}, rewrite)
 		}
 	}
@@ -604,6 +634,10 @@ func (rs *Rules) sortRules(stage parity.StageID, root *node, rewrite func(string
 		}
 	}
 	if rs.Active(RuleAdapterRequestsOrder, stage) {
+		ids := selectAll(root, adapterRequestLists[stage], "[*].imp_ids")
+		for _, list := range append(ids, selectAll(root, adapterCallRequests[stage], "imp_ids")...) {
+			sortArray(list, nil, rewrite)
+		}
 		for _, list := range anchorsOf(root, adapterRequestLists[stage]) {
 			sortArray(list, adapterRequestKeys, rewrite)
 		}
@@ -768,6 +802,23 @@ const goRuntimeMetricPrefix = "go_"
 // collector (go_runtime_metrics rule).
 func isGoRuntimeMetric(name string) bool {
 	return strings.HasPrefix(name, goRuntimeMetricPrefix) || strings.Contains(name, "_"+goRuntimeMetricPrefix)
+}
+
+// listenerConnectionMetrics are the series the main listener records when it
+// accepts or closes a connection (server/listener.go:24-52,
+// metrics/prometheus/prometheus.go:191-202).
+var listenerConnectionMetrics = []string{"connections_opened", "connections_closed", "connections_error"}
+
+// isListenerConnectionMetric reports whether a series counts main listener
+// connections (listener_connection_metrics rule), after any configured
+// namespace/subsystem prefix.
+func isListenerConnectionMetric(name string) bool {
+	for _, m := range listenerConnectionMetrics {
+		if name == m || strings.HasSuffix(name, "_"+m) {
+			return true
+		}
+	}
+	return false
 }
 
 // bidArrivalKeys sort the bid lists of bid_arrival_order: bids.adjusted

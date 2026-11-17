@@ -2,6 +2,7 @@ package server
 
 import (
 	"net/http"
+	"time"
 
 	"github.com/prebid/prebid-server/v4/parity"
 	"github.com/prebid/prebid-server/v4/parity/trace"
@@ -142,6 +143,10 @@ func (s *Server) run(w http.ResponseWriter, r *http.Request, env *parity.Envelop
 	writeJSON(w, http.StatusOK, s.execute(sess, req, wire))
 }
 
+// settleTimeout bounds the wait for case goroutines (trace.Session.Track) that
+// still update metrics after the handler returned.
+const settleTimeout = 5 * time.Second
+
 // execute dispatches req through the handler chain while sess is current and
 // assembles the trace: the recorded stages plus http_in, http_response and
 // metrics_delta. A handler panic yields status 500 and a "panic: ..." note.
@@ -157,6 +162,9 @@ func (s *Server) execute(sess *trace.Session, req *http.Request, wire []byte) pa
 	} else if rec.invalidCode != 0 {
 		sess.Note("panic: invalid WriteHeader code %d", rec.invalidCode)
 		resp = panicResponse()
+	}
+	if !sess.Settle(settleTimeout) {
+		sess.Note("parity: case goroutines were still running %s after the handler returned; metrics_delta may miss their updates", settleTimeout)
 	}
 	deltas := metrics.end(sess)
 	markCaptured(sess, parity.StageHTTPIn)

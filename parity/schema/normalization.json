@@ -10,7 +10,8 @@
     "uuid_placeholder": "Replace each UUID value at target with <uuid#n>, numbered by first appearance after all sort rules ran, so equal UUIDs stay equal and cross-references are still checked.",
     "count_only": "Compare only the count member of a timing value (histogram _count, observation count); ignore sum and buckets.",
     "ignore": "Ignore the value at target entirely.",
-    "case_insensitive_names": "Compare header names case-insensitively and ignore order across different names; the order of values within one name is kept."
+    "case_insensitive_names": "Compare header names case-insensitively and ignore order across different names; the order of values within one name is kept.",
+    "candidate_placeholder": "Replace a value Go picked by map iteration out of a set of equally valid candidates with a fixed placeholder, only when the value is one of the candidates the trace itself shows and there are at least two of them."
   },
   "rules": [
     {
@@ -20,7 +21,7 @@
       "action": "sort",
       "keys": ["seat", "impid", "id"],
       "justification": "Go shuffles the bidder fan-out order and fills per-bidder results from map iteration, so seatbid order differs between two Go runs.",
-      "go_source": ["exchange/exchange.go:1487 randomizeList(liveAdapters)", "exchange/utils.go:898 randomizeList", "exchange/utils.go:155 for bidder, imps := range impsByBidder"]
+      "go_source": ["exchange/exchange.go:1546 randomizeList(liveAdapters)", "exchange/utils.go:906 randomizeList", "exchange/utils.go:156 for bidder, imps := range impsByBidder"]
     },
     {
       "id": "warnings_errors_order",
@@ -29,16 +30,16 @@
       "action": "sort",
       "keys": ["code", "message"],
       "justification": "Bidder goroutines append errors and warnings concurrently, and imp ext validation and the per-bidder privacy split append one warning per disabled, unknown or privacy-blocked bidder while ranging over a map; Go's own endpoint tests compare them order-insensitively.",
-      "go_source": ["exchange/exchange.go:777-807 getAllBids goroutines", "ortb/request_validator.go:125 for bidder, val := range prebid.Bidder", "exchange/utils.go:156 for bidder, imps := range impsByBidder", "endpoints/openrtb2/auction_test.go:247 compareWarnings"]
+      "go_source": ["exchange/exchange.go:792-867 getAllBids goroutines", "ortb/request_validator.go:127 the loop over the prebid.Bidder map (fakes.MapKeys on this branch: map order outside parity mode)", "exchange/utils.go:156 for bidder, imps := range impsByBidder", "endpoints/openrtb2/auction_test.go:247 compareWarnings"]
     },
     {
       "id": "httpcalls_order",
-      "applies_to": ["http.response", "exchange.response"],
-      "target": "$.ext.debug.httpcalls.*[*]",
+      "applies_to": ["http.response", "exchange.response", "bidder.result", "hooks.all_processed_bid_responses", "hooks.auction_response", "hooks.exitpoint", "analytics"],
+      "target": "$.ext.debug.httpcalls.*[*] (analytics: $[*].object.response.ext.debug.httpcalls.*[*]); bidder.result: $.seat_bids[*].http_calls[*]; hooks.all_processed_bid_responses: $.*.http_calls[*]",
       "action": "sort",
       "keys": ["uri", "requestbody", "status"],
-      "justification": "A bidder with several requests sends them from concurrent goroutines and collects results in completion order.",
-      "go_source": ["exchange/bidder.go:249-253 go func(data *adapters.RequestData)"]
+      "justification": "A bidder with several requests sends them from concurrent goroutines and collects results in completion order. In parity mode the results are collected in call order (fakes.json orders bidder_response_order), but adapters that group imps in a map (ownadx among others) make their requests in map order, so the call order itself differs between Go runs. Every stage that records a bidder's http calls carries that order.",
+      "go_source": ["exchange/bidder.go:255-258 go func(data *adapters.RequestData)", "exchange/bidder.go:296 HttpCalls = append(..., makeExt(httpInfo)) in the response loop", "adapters/ownadx/ownadx.go:102 for k, imps := range extImps"]
     },
     {
       "id": "http_out_order",
@@ -48,25 +49,25 @@
       "keys": ["kind", "bidder", "orig_url", "request.body"],
       "drop": ["seq"],
       "justification": "Outbound calls of different bidders and of one bidder with several requests run concurrently, so the global sequence number and arrival order vary between Go runs.",
-      "go_source": ["exchange/exchange.go:777-807 getAllBids goroutines", "exchange/bidder.go:249-253 concurrent doRequest"]
+      "go_source": ["exchange/exchange.go:792-867 getAllBids goroutines", "exchange/bidder.go:255-258 concurrent doRequest"]
     },
     {
       "id": "adapter_bids_call_key",
-      "applies_to": ["adapter.bids", "hooks.raw_bidder_response"],
-      "target": "stage keys bidder#call",
+      "applies_to": ["adapter.bids", "hooks.raw_bidder_response", "bids.adjusted"],
+      "target": "stage keys bidder#call; bids.adjusted: the $.bids[*].call and $.conversion_errors[*].call members, which name adapter.bids keys and follow them",
       "action": "sort",
       "keys": ["request_data.uri", "request_data.body"],
       "justification": "MakeBids runs in response-arrival order for a bidder with several requests, so the call index is re-derived from the request each response belongs to.",
-      "go_source": ["exchange/bidder.go:249-306 responseChannel loop"]
+      "go_source": ["exchange/bidder.go:249-307 responseChannel loop"]
     },
     {
       "id": "seatnonbid_order",
-      "applies_to": ["http.response", "exchange.response", "seat_non_bids", "analytics"],
-      "target": "$.ext.prebid.seatnonbid[*] by (seat); $.ext.prebid.seatnonbid[*].nonbid[*] by (impid, statuscode); seat_non_bids: each seat's list $.*[*] by (impid, statuscode)",
+      "applies_to": ["http.response", "exchange.response", "seat_non_bids", "analytics", "bidder.result"],
+      "target": "$.ext.prebid.seatnonbid[*] by (seat); $.ext.prebid.seatnonbid[*].nonbid[*] by (impid, statuscode); seat_non_bids: each seat's list $.*[*] by (impid, statuscode); bidder.result: each seat's list $.nonbids.*[*] by (impid, statuscode)",
       "action": "sort",
       "keys": ["seat", "impid", "statuscode"],
       "justification": "SeatNonBidBuilder is a map keyed by seat; its Slice() order follows map iteration.",
-      "go_source": ["exchange/seat_non_bids.go:8 type SeatNonBidBuilder map[string][]openrtb_ext.NonBid", "exchange/exchange.go:1643 seatNonBidBuilder.Slice()"]
+      "go_source": ["exchange/seat_non_bids.go:8 type SeatNonBidBuilder map[string][]openrtb_ext.NonBid", "exchange/exchange.go:1702 seatNonBidBuilder.Slice()", "exchange/bidder.go:458 seatNonBidBuilder.rejectImps in the response loop, which reads the responses as they complete"]
     },
     {
       "id": "bid_arrival_order",
@@ -75,16 +76,20 @@
       "action": "sort",
       "keys": ["imp_id", "bid_id", "bid.impid", "bid.id"],
       "justification": "A bidder with several requests sends them from concurrent goroutines and appends each response's bids, and the errors its MakeBids returns, in completion order, so the order of one seat's bids and of the bidder's errors differs between Go runs. The final response's bids are sorted by (impid, id) already (seatbid_order).",
-      "go_source": ["exchange/bidder.go:255-258 go func(data *adapters.RequestData)", "exchange/bidder.go:288 httpInfo := <-responseChannel", "exchange/bidder.go:436 seatBidMap[bidderName].Bids = append"]
+      "go_source": ["exchange/bidder.go:255-258 go func(data *adapters.RequestData)", "exchange/bidder.go:289 httpInfo := <-responseChannel", "exchange/bidder.go:437 seatBidMap[bidderName].Bids = append"]
     },
     {
       "id": "adapter_requests_order",
-      "applies_to": ["adapter.requests", "adapter.requests_final"],
-      "target": "MakeRequests output $.requests[*] by (uri, method, imp_ids, body)",
+      "applies_to": ["adapter.requests", "adapter.requests_final", "adapter.bids", "hooks.raw_bidder_response"],
+      "target": "MakeRequests output $.requests[*] by (uri, method, imp_ids, body), after each request's $.requests[*].imp_ids[*] is sorted; in adapter.bids and hooks.raw_bidder_response, which echo one request as $.request_data, only $.request_data.imp_ids[*] is sorted",
       "action": "sort",
       "keys": ["uri", "method", "imp_ids", "body"],
       "justification": "Adapters that group imps by a map key (matterfullrtb by publisher hash, among others) return one request per group in map iteration order. The exchange sends the requests concurrently, so their order is not observable downstream, and Go's adapter tests match requests without assuming order.",
-      "go_source": ["adapters/adapterstest/test_json.go:251 try to match expected to actual without assuming order"]
+      "go_source": [
+        "adapters/adapterstest/test_json.go:251 try to match expected to actual without assuming order",
+        "adapters/adapterstest/test_json.go:363-364 ImpIDs compared with cmpopts.SortSlices",
+        "adapters/invibes/invibes.go:342-344 getImpIDs ranges over the BidParams.Properties map"
+      ]
     },
     {
       "id": "cache_puts_order",
@@ -93,7 +98,7 @@
       "action": "sort",
       "keys": ["type", "value"],
       "justification": "doCache builds the cache request by iterating the per-imp and per-bidder bid maps, so the order of puts (and of the returned UUIDs) differs between Go runs.",
-      "go_source": ["exchange/auction.go:229 for impID, topBidsPerImp := range a.allBidsByBidder", "exchange/auction.go:230 for bidderName, topBidsPerBidder := range topBidsPerImp"]
+      "go_source": ["exchange/auction.go:232 for impID, topBidsPerImp := range a.allBidsByBidder", "exchange/auction.go:233 for bidderName, topBidsPerBidder := range topBidsPerImp"]
     },
     {
       "id": "responsetimemillis",
@@ -101,7 +106,7 @@
       "target": "$.ext.responsetimemillis (exchange.response: $.ext_bid_response.responsetimemillis)",
       "action": "key_set",
       "justification": "Values are wall-clock elapsed times of each bidder call.",
-      "go_source": ["exchange/exchange.go:781-786 elapsed := time.Since(start)", "exchange/exchange.go:1281"]
+      "go_source": ["exchange/exchange.go:836 elapsed := time.Since(start)", "exchange/exchange.go:1340 bidResponseExt.ResponseTimeMillis[bidderName] = responseExtra.ResponseTimeMillis"]
     },
     {
       "id": "auctiontimestamp",
@@ -110,11 +115,11 @@
       "action": "shape",
       "shape": {"type": "integer"},
       "justification": "Set from the request start time in milliseconds.",
-      "go_source": ["exchange/exchange.go:1248-1257 auctionTimestamp = r.StartTime.UnixMilli()", "exchange/events.go:33 auctionTimestampMs: ts.UnixNano() / 1e+6"]
+      "go_source": ["exchange/exchange.go:1307-1310 auctionTimestamp = r.StartTime.UnixMilli()", "exchange/events.go:33 auctionTimestampMs: ts.UnixNano() / 1e+6"]
     },
     {
       "id": "events_ts_param",
-      "applies_to": ["http.response", "exchange.response", "events.tracking", "cache.result", "http.out"],
+      "applies_to": ["http.response", "exchange.response", "events.tracking", "cache.result", "http.out", "hooks.all_processed_bid_responses", "hooks.auction_response", "hooks.exitpoint", "analytics"],
       "target": "query parameter ts= of every event URL (bid.ext.prebid.events.*, VAST impression trackers, cached VAST)",
       "action": "shape",
       "shape": {"type": "string", "pattern": "^[0-9]+$"},
@@ -136,7 +141,7 @@
       "target": "$.id of the request and of everything derived from it, only when the input request id was {{UUID}} or generate_request_id applied",
       "action": "uuid_placeholder",
       "justification": "Go generates a random v4 UUID for the request id.",
-      "go_source": ["endpoints/openrtb2/auction.go:1706 bidRequestID == \"{{UUID}}\"", "endpoints/openrtb2/auction.go:2025 uuidGenerator.Generate()"]
+      "go_source": ["endpoints/openrtb2/auction.go:1736 bidRequestID == \"{{UUID}}\"", "endpoints/openrtb2/auction.go:2055 uuidGenerator.Generate()"]
     },
     {
       "id": "tid_uuid",
@@ -144,7 +149,7 @@
       "target": "$.source.tid and $.imp[*].ext.tid, only when absent or {{UUID}} in the input (or generate_request_id applied)",
       "action": "uuid_placeholder",
       "justification": "Go fills missing transaction ids with random v4 UUIDs.",
-      "go_source": ["endpoints/openrtb2/auction.go:948-953 uuid.NewV4() for source.tid", "endpoints/openrtb2/auction.go:958 imp ext tid"]
+      "go_source": ["endpoints/openrtb2/auction.go:975-980 uuid.NewV4() for source.tid", "endpoints/openrtb2/auction.go:986 uuid.NewV4() for imp ext tid"]
     },
     {
       "id": "generated_bid_id",
@@ -152,7 +157,7 @@
       "target": "$.seatbid[*].bid[*].ext.prebid.bidid and every reference to it (event URLs bidid=, targeting, cache keys)",
       "action": "uuid_placeholder",
       "justification": "With generate_bid_id enabled Go assigns random v4 UUIDs to bids.",
-      "go_source": ["exchange/exchange.go:124 uuid.NewV4() in bidIDGenerator.New", "exchange/exchange.go:448 GeneratedBidID"]
+      "go_source": ["exchange/exchange.go:128 uuid.NewV4() in bidIDGenerator.New", "exchange/exchange.go:483 GeneratedBidID"]
     },
     {
       "id": "cache_uuid",
@@ -160,7 +165,7 @@
       "target": "UUIDs returned by the (mock) Prebid Cache and their references (hb_cache_id, hb_uuid, cache.bids.cacheId, cache URLs)",
       "action": "uuid_placeholder",
       "justification": "Cache keys come from the cache service response; with oracle templates they may be generated per call.",
-      "go_source": ["exchange/auction.go:305 doCache", "prebid_cache_client/client.go PutJson"]
+      "go_source": ["exchange/auction.go:309 doCache cache.PutJson", "prebid_cache_client/client.go PutJson"]
     },
     {
       "id": "hook_execution_time",
@@ -176,7 +181,7 @@
       "target": "histogram/summary series whose name ends in _time, _time_seconds, _duration or _duration_seconds, or that record request/adapter/overhead/hook/cache/stored-data timing",
       "action": "count_only",
       "justification": "Observed values are wall-clock durations; only the number of observations is deterministic.",
-      "go_source": ["metrics/prometheus/prometheus.go RecordRequestTime, RecordAdapterTime, RecordOverheadTime, RecordStoredDataFetchTime, RecordPrebidCacheRequestTime, RecordModuleDuration", "exchange/exchange.go:791 RecordAdapterTime(elapsed)"]
+      "go_source": ["metrics/prometheus/prometheus.go RecordRequestTime, RecordAdapterTime, RecordOverheadTime, RecordStoredDataFetchTime, RecordPrebidCacheRequestTime, RecordModuleDuration", "exchange/exchange.go:846 RecordAdapterTime(elapsed)"]
     },
     {
       "id": "go_runtime_metrics",
@@ -187,12 +192,25 @@
       "go_source": ["metrics/prometheus/prometheus.go:585 metrics.Registerer.MustRegister(promCollector.NewGoCollector())"]
     },
     {
+      "id": "listener_connection_metrics",
+      "applies_to": ["metrics_delta"],
+      "target": "the main listener's connection series connections_opened, connections_closed and connections_error (after any configured namespace/subsystem prefix)",
+      "action": "ignore",
+      "justification": "/__parity/exec dispatches the case in process (parity/server/exec.go execute), so no main listener connection belongs to a case. These series count the connections the runner itself holds to the main port, which open on Accept and close when the client or the server's idle timeout (ReadTimeout, no IdleTimeout) ends them, at a moment unrelated to the case: an A/A self-test saw connections_closed move by 1 in about one case in 12000. Connection metrics cannot be compared through exec at all.",
+      "go_source": [
+        "server/listener.go:24-39 monitorableConnection.Close records RecordConnectionClose",
+        "server/listener.go:41-52 monitorableListener.Accept records RecordConnectionAccept",
+        "server/server.go:103-104 ReadTimeout and WriteTimeout 15s, no IdleTimeout",
+        "metrics/prometheus/prometheus.go:191-202 connections_closed, connections_error, connections_opened"
+      ]
+    },
+    {
       "id": "header_names",
       "applies_to": ["http.response", "http.out", "adapter.requests", "adapter.requests_final", "http.in"],
       "target": "headers (semantic header comparison only)",
       "action": "case_insensitive_names",
       "justification": "Go's http.Header canonicalizes names and has no order across names; the semantic header comparison follows RFC 9110 5.1. Wire-level case and order differences are still reported as kind 'wire' (not_normalized).",
-      "go_source": ["net/http Header (textproto.CanonicalMIMEHeaderKey)", "exchange/bidder.go:223 Headers.Add"]
+      "go_source": ["net/http Header (textproto.CanonicalMIMEHeaderKey)", "exchange/bidder.go:228 Headers.Add"]
     },
     {
       "id": "date_header",
@@ -217,6 +235,51 @@
       "action": "drop",
       "justification": "Session-wide sequence numbers depend on goroutine scheduling across bidders.",
       "go_source": ["parity/trace/session.go NextSeq (bidder goroutines record concurrently)"]
+    },
+    {
+      "id": "bidder_params_error_order",
+      "applies_to": ["request.validated", "http.response", "analytics"],
+      "target": "the gojsonschema error items of a bidder-params validation message, \"request.imp[N].ext.prebid.bidder.<bidder> failed validation.\\n\" followed by \"<field>: <description>\" items without a separator: request.validated $['@errors'][*].message, the http.response body text (\"Invalid request: ...\") and the analytics records' error messages. The items are split by the gojsonschema description templates and sorted by (field, description); a list that does not split completely into template items is left as recorded.",
+      "action": "sort",
+      "keys": ["field", "description"],
+      "justification": "gojsonschema validates an object's properties in the order it stored them while parsing the bidder-params schema, and it stores them by ranging over a Go map. PBS parses every schema once at startup, so each process reports the errors of different properties in its own order (two Go processes disagree in about half of the cases with two invalid properties). Which items the message lists, and their text, still compare exactly.",
+      "go_source": [
+        "gojsonschema@v1.2.0 schema.go:1020 for k := range m (parseProperties appends propertiesChildren in map order)",
+        "gojsonschema@v1.2.0 validation.go:206 for _, pSchema := range currentSubSchema.propertiesChildren",
+        "openrtb_ext/bidders.go:865-867 for _, err := range result.Errors() { errBuilder.WriteString(err.String()) }",
+        "ortb/request_validator.go:137 request.imp[%d].ext.prebid.bidder.%s failed validation.\\n%v"
+      ]
+    },
+    {
+      "id": "stored_auction_error_imp",
+      "applies_to": ["exchange.response", "http.response", "analytics"],
+      "target": "the imp ID in \"Failed to parse bid mediatype for impression \\\"<imp>\\\"\" (and the mType variant) in exchange.response $['@errors'][*].message, the http.response body text and the analytics records' error messages. It becomes <stored-auction-imp> only when the side's own stored.responses stage shows at least two imps whose stored auction response holds a bid getMediaTypeForBid rejects (no valid mtype 1-4 and no valid ext.prebid.type), and the reported imp is one of them.",
+      "action": "candidate_placeholder",
+      "justification": "buildStoredAuctionResponse ranges over the stored auction responses by imp ID and returns the first error, so with several failing imps the reported imp is whichever one Go's map iteration reached first. Any of the failing imps is a Go-compatible answer; a reported imp that is not one of them still compares exactly.",
+      "go_source": [
+        "exchange/exchange.go:1560 for impId, storedResp := range storedAuctionResponses",
+        "exchange/exchange.go:1571-1573 bidType, err := getMediaTypeForBid(seat.Bid[i]); if err != nil { return nil, nil, nil, err }",
+        "exchange/utils.go:1151-1199 getMediaTypeForBid / getPrebidMediaTypeForBid"
+      ]
+    },
+    {
+      "id": "response_cur_seat",
+      "applies_to": ["exchange.response", "hooks.auction_response", "hooks.exitpoint", "analytics", "http.response"],
+      "target": "the response $.cur (exchange.response: $.bid_response.cur; analytics: $[*].object.response.cur). It is masked only when the side's own bidder.result entries show seats with bids in two or more currencies (seat_bids[*].currency of seats with a bid), and the cur is one of them.",
+      "action": "candidate_placeholder",
+      "justification": "buildBidResponse sets cur to each seat's currency while ranging over the seat map, so with seats in different currencies the last seat Go's map iteration visits decides it. Any of those currencies is a Go-compatible answer; a cur that is not one of them still compares exactly.",
+      "go_source": ["exchange/exchange.go:1027-1032 for a, adapterSeatBids := range adapterSeatBids { ... bidResponse.Cur = adapterSeatBids.Currency }"]
+    },
+    {
+      "id": "amp_targeting_merge",
+      "applies_to": ["amp.targeting_response", "hooks.exitpoint", "http.response", "analytics"],
+      "target": "the values of the AMP targeting keys ($.targeting.*; analytics: $[*].object.amp_targeting_values.*) that the side's own exchange.response bids whose ext mentions hb_cache_id set to two or more values. They are masked only when some order of those bids, each overwriting the keys of the bids before it, merges into exactly the recorded targeting.",
+      "action": "candidate_placeholder",
+      "justification": "The AMP endpoint merges the targeting of every cached bid in seatbid order, so a later seat overwrites the generic keys an earlier one set, and the seatbid order follows the seat map's iteration. With winners from different seats any merge order is a Go-compatible answer; keys no two bids disagree on, and a targeting no merge order produces, still compare exactly.",
+      "go_source": [
+        "endpoints/openrtb2/amp_auction.go:368-388 for _, seatBids := range response.SeatBid { ... targets[key] = value }",
+        "exchange/exchange.go:1027 for a, adapterSeatBids := range adapterSeatBids (seatbid order)"
+      ]
     }
   ],
   "not_normalized": {
@@ -236,10 +299,10 @@
     "lexical": {
       "kind": "lexical",
       "classes": {
-        "html_escape": "Go's json.Marshal/jsoniter escape <, > and & as \\u003c, \\u003e, \\u0026 (EscapeHTML true) except where Go disables it (endpoints/openrtb2/auction.go:384 SetEscapeHTML(false)).",
+        "html_escape": "Go's json.Marshal/jsoniter escape <, > and & as \\u003c, \\u003e, \\u0026 (EscapeHTML true) except where Go disables it (endpoints/openrtb2/auction.go:386 SetEscapeHTML(false)).",
         "unicode_escape": "Other string escapes differ (\\u2028, \\u2029, invalid UTF-8 replacement, \\/).",
         "number_format": "Number spelling differs (1 vs 1.0, exponent form, float formatting).",
-        "trailing_newline": "Encoder.Encode adds a trailing newline that json.Marshal does not (endpoints/openrtb2/auction.go:383-394).",
+        "trailing_newline": "Encoder.Encode adds a trailing newline that json.Marshal does not (endpoints/openrtb2/auction.go:391-403).",
         "whitespace": "Insignificant whitespace differs.",
         "member_order": "Object member order differs in the raw bytes.",
         "other": "Any other byte-level difference between semantically equal JSON."

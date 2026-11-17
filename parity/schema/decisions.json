@@ -39,7 +39,7 @@
       "id": "category.dedupe",
       "domain": "binary",
       "values": {"0": "keep the earlier (dupe) bid, drop the current one", "1": "drop the earlier (dupe) bid, keep the current one"},
-      "go_site": "exchange/exchange.go:135 randomDeduplicateBidBooleanGenerator.Generate (rand.Intn(100) < 50), used at exchange/exchange.go:1110",
+      "go_site": "exchange/exchange.go:138-139 randomDeduplicateBidBooleanGenerator.Generate (rand.Intn(100) < 50), used at exchange/exchange.go:1169",
       "consulted_when": "two bids map to the same category/duration key with equal price",
       "rng_equivalent": "1 when rand.Intn(100) < 50, else 0"
     },

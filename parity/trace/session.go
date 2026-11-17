@@ -43,6 +43,8 @@ type Session struct {
 	httpOut     []parity.OutboundCall
 	analytics   []parity.AnalyticsRecord
 	notes       []string
+	// pending counts the case goroutines registered with Track.
+	pending sync.WaitGroup
 }
 
 var (

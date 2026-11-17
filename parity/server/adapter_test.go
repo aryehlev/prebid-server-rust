@@ -22,8 +22,10 @@ import (
 // replayFixtures are replayed through the adapter endpoints and checked against
 // their own expectations with adapterstest semantics. Two per design bidder
 // (appnexus fixtures avoid the ad pod ID, the adapter's random field), plus
-// adagio for expected request headers.
+// adagio for expected request headers, and a mediasquare fixture whose
+// "ext": null must reach the adapter as adapterstest decodes it.
 var replayFixtures = []string{
+	"adapters/mediasquare/mediasquaretest/supplemental/no-valid-response.json",
 	"adapters/appnexus/appnexustest/exemplary/simple-banner.json",
 	"adapters/appnexus/appnexustest/supplemental/status-400.json",
 	"adapters/rubicon/rubicontest/exemplary/simple-banner.json",

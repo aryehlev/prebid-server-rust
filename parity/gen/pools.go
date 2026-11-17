@@ -93,8 +93,12 @@ type GPPEntry struct {
 // ValuePools are the edge values of the structural and malformed mutators
 // (values.json).
 type ValuePools struct {
-	BoundaryNumbers  []string `json:"boundary_numbers"`
-	UnicodeStrings   []string `json:"unicode_strings"`
+	BoundaryNumbers []string `json:"boundary_numbers"`
+	UnicodeStrings  []string `json:"unicode_strings"`
+	// TMax are the tmax.edge values. They hold no value below 250ms: with a
+	// tmax shorter than a case takes to reach its mocked bidders, whether a
+	// bidder answers in time depends on scheduling, and two Go processes
+	// disagree on the same case (parity/SELFTEST.md).
 	TMax             []int    `json:"tmax"`
 	ValidTMax        []int    `json:"valid_tmax"`
 	NestingDepths    []int    `json:"nesting_depths"`

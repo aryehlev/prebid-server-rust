@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 
@@ -15,7 +16,6 @@ import (
 	"github.com/prebid/prebid-server/v4/parity"
 	"github.com/prebid/prebid-server/v4/parity/stagedata"
 	"github.com/prebid/prebid-server/v4/parity/trace"
-	"github.com/prebid/prebid-server/v4/util/jsonutil"
 )
 
 // Adapter route operations.
@@ -202,13 +202,17 @@ func adapterConfigOf(in parity.AdapterConfig) config.Adapter {
 	return out
 }
 
-// decodeBidRequest decodes the OpenRTB request with the server's own codec.
+// decodeBidRequest decodes the OpenRTB request the way adapterstest decodes a
+// fixture's mockBidRequest, with encoding/json
+// (adapters/adapterstest/test_json.go:112), so the adapter gets the fixture's
+// inputs exactly: a member spelled null, such as "ext": null, reaches it as
+// json.RawMessage("null"), where jsonutil would leave it empty.
 func decodeBidRequest(raw []byte) (*openrtb2.BidRequest, error) {
 	if len(raw) == 0 || string(raw) == "null" {
 		return nil, badDocument("request is required")
 	}
 	req := &openrtb2.BidRequest{}
-	if err := jsonutil.Unmarshal(raw, req); err != nil {
+	if err := json.Unmarshal(raw, req); err != nil {
 		return nil, badDocument("request: %v", err)
 	}
 	return req, nil

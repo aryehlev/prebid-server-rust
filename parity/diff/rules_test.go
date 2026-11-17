@@ -209,6 +209,21 @@ func runtimeMetricsPair() (Case, *parity.Trace, *parity.Trace) {
 	return Case{CaseID: "rule"}, g, r
 }
 
+// listenerConnectionsPair holds a connection the runner's keep-alive pool lost
+// on one side while the case ran, under a configured namespace on the other
+// series.
+func listenerConnectionsPair() (Case, *parity.Trace, *parity.Trace) {
+	g, r := newTrace(parity.ImplGo), newTrace(parity.ImplRust)
+	requests := parity.MetricDelta{Name: "requests", Type: parity.MetricCounter, Labels: map[string]string{"request_type": "openrtb2-web"}, Delta: 1}
+	g.MetricsDelta = []parity.MetricDelta{
+		{Name: "connections_closed", Type: parity.MetricCounter, Labels: map[string]string{}, Delta: 1},
+		{Name: "pbs_connections_opened", Type: parity.MetricCounter, Labels: map[string]string{}, Delta: 1},
+		requests,
+	}
+	r.MetricsDelta = []parity.MetricDelta{requests}
+	return Case{CaseID: "rule"}, g, r
+}
+
 // validatedWarningsPair holds request.validated entries whose disabled-bidder
 // warnings come in another order, as ranging over imp.ext.prebid.bidder gives.
 func validatedWarningsPair() (Case, *parity.Trace, *parity.Trace) {
@@ -351,6 +366,7 @@ func TestRemovingRuleReenablesDiff(t *testing.T) {
 			"$.stages[0].outcomes[0].execution_time_millis"},
 		{RuleTimingHistograms, metricsPair, "$.pbs_adapter_request_time_seconds"},
 		{RuleGoRuntimeMetrics, runtimeMetricsPair, "$.go_memstats_alloc_bytes"},
+		{RuleListenerConnections, listenerConnectionsPair, "$.connections_closed"},
 		{RuleCachePutsOrder, cachePutsPair, "$[0].request.body.puts"},
 		{RuleResponseTimeMillis, entryPair(parity.StageExchangeResponse, parity.UnkeyedStage,
 			`{"bid_response":{"id":"r1"},"ext_bid_response":{"responsetimemillis":{"appnexus":12}}}`,
@@ -397,6 +413,43 @@ func TestRemovingRuleReenablesDiff(t *testing.T) {
 			`{"requests":[{"method":"POST","uri":"https://x.test/?p=b","imp_ids":["i2"]},{"method":"POST","uri":"https://x.test/?p=a","imp_ids":["i1"]}]}`,
 			`{"requests":[{"method":"POST","uri":"https://x.test/?p=a","imp_ids":["i1"]},{"method":"POST","uri":"https://x.test/?p=b","imp_ids":["i2"]}]}`), "$.requests"},
 		{RuleHeaderNames, outHeadersPair("X-Prebid", "x-prebid"), "$[0].request.headers"},
+		{RuleBidderParamsErrorOrder, responsePair(
+			"Invalid request: "+paramsPrefix+"bidfloor: Invalid type. Expected: number, given: stringappId: Invalid type. Expected: string, given: object\n",
+			"Invalid request: "+paramsPrefix+"appId: Invalid type. Expected: string, given: objectbidfloor: Invalid type. Expected: number, given: string\n",
+			nil, nil), "$"},
+		{RuleStoredAuctionErrorImp, storedAuctionPair("i1", "i2", 2), "$"},
+		{RuleResponseCurSeat, responseCurPair("USD", "EUR"), "$.bid_response.cur"},
+		{RuleAMPTargetingMerge, ampTargetingPair(ampMabidderLast, ampShowheroesLast), "$.targeting.hb_bidder"},
+		{RuleAdapterBidsCallKey, adjustedCallsPair, "$.bids[0].call"},
+		{RuleHTTPCallsOrder, entryPair(parity.StageBidderResult, "yobee",
+			`{"seat_bids":[{"seat":"yobee","http_calls":[{"uri":"u2","requestbody":"b","status":200},{"uri":"u1","requestbody":"a","status":200}]}]}`,
+			`{"seat_bids":[{"seat":"yobee","http_calls":[{"uri":"u1","requestbody":"a","status":200},{"uri":"u2","requestbody":"b","status":200}]}]}`),
+			"$.seat_bids[0].http_calls"},
+		{RuleHTTPCallsOrder, entryPair(parity.StageHooksAllProcessedBidResponses, parity.UnkeyedStage,
+			`{"ownadx":{"bids":[],"http_calls":[{"uri":"u2","requestbody":"b","status":200},{"uri":"u1","requestbody":"a","status":200}]}}`,
+			`{"ownadx":{"bids":[],"http_calls":[{"uri":"u1","requestbody":"a","status":200},{"uri":"u2","requestbody":"b","status":200}]}}`),
+			"$.ownadx.http_calls"},
+		{RuleHTTPCallsOrder, entryPair(parity.StageHooksExitpoint, parity.UnkeyedStage,
+			`{"ext":{"debug":{"httpcalls":{"ownadx":[{"uri":"u2","requestbody":"b","status":200},{"uri":"u1","requestbody":"a","status":200}]}}}}`,
+			`{"ext":{"debug":{"httpcalls":{"ownadx":[{"uri":"u1","requestbody":"a","status":200},{"uri":"u2","requestbody":"b","status":200}]}}}}`),
+			"$.ext.debug.httpcalls.ownadx"},
+		{RuleSeatNonBidOrder, entryPair(parity.StageBidderResult, "omnidex",
+			`{"seat_bids":[],"nonbids":{"omnidex":[{"impid":"i2","statuscode":100},{"impid":"i1","statuscode":100}]}}`,
+			`{"seat_bids":[],"nonbids":{"omnidex":[{"impid":"i1","statuscode":100},{"impid":"i2","statuscode":100}]}}`),
+			"$.nonbids.omnidex"},
+		{RuleAdapterRequestsOrder, entryPair(parity.StageAdapterRequests, "invibes",
+			`{"requests":[{"method":"POST","uri":"https://x.test/","imp_ids":["i2","i1"]}]}`,
+			`{"requests":[{"method":"POST","uri":"https://x.test/","imp_ids":["i1","i2"]}]}`), "$.requests[0].imp_ids"},
+		{RuleAdapterRequestsOrder, entryPair(parity.StageAdapterBids, "invibes#0",
+			`{"request_data":{"method":"POST","uri":"https://x.test/","imp_ids":["i2","i1"]},"bidder_response":null}`,
+			`{"request_data":{"method":"POST","uri":"https://x.test/","imp_ids":["i1","i2"]},"bidder_response":null}`), "$.request_data.imp_ids"},
+		{RuleAdapterRequestsOrder, entryPair(parity.StageHooksRawBidderResponse, "invibes#0",
+			`{"request_data":{"method":"POST","uri":"https://x.test/","imp_ids":["i2","i1"]}}`,
+			`{"request_data":{"method":"POST","uri":"https://x.test/","imp_ids":["i1","i2"]}}`), "$.request_data.imp_ids"},
+		{RuleEventsTSParam, entryPair(parity.StageHooksAllProcessedBidResponses, parity.UnkeyedStage,
+			`{"grid":{"bids":[{"bid":{"id":"b","impid":"i"},"events":{"win":"https://pbs.example/event?t=win&b=b&ts=1794882556108"}}]}}`,
+			`{"grid":{"bids":[{"bid":{"id":"b","impid":"i"},"events":{"win":"https://pbs.example/event?t=win&b=b&ts=1794882556360"}}]}}`),
+			"$.grid.bids[0].events.win"},
 		{RuleDateHeader, responsePair(`{"id":"r1"}`, `{"id":"r1"}`,
 			[][2]string{{"Date", "Mon, 01 Jan 2024 00:00:00 GMT"}}, [][2]string{{"Date", "Tue, 02 Jan 2024 00:00:00 GMT"}}), "$['@headers'].Date"},
 	}

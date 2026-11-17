@@ -110,12 +110,17 @@ Shared definitions (headers, bodies, error records, outbound calls,
    compression, then `NoCache`, then CORS, then the router.
 4. Product code records stages through one-line hooks (see below). Outbound
    calls go through the parity transport.
-5. The server returns the trace:
+5. Before taking the after-snapshot of Prometheus, the server waits up to 5s
+   for the case's bidder goroutines (`trace.Session.Track`/`Settle`). Their
+   deferred metrics, such as `RecordAdapterRequest`, can run after the bidder
+   sent its result, and therefore after the response was written. A case that
+   does not settle in time gets a note.
+6. The server returns the trace:
    * `http_in` and `http_response` hold the exact status, headers and body bytes.
    * `stage_status` covers every registered stage.
    * `metrics_delta` lists the changed series.
    * `analytics`, `decisions` and `notes` complete the document.
-6. In oracle mode the runner merges the oracle's wire captures into `http_out`
+7. In oracle mode the runner merges the oracle's wire captures into `http_out`
    with `wire: true`.
 
 `capture.stages` limits recording to the listed stages; `"*"` or no value means
@@ -238,26 +243,116 @@ Outside parity mode `fakes.Now()` is `time.Now()`, `fakes.Int()` is
 `rand.Int()`, and the Builders keep their production sources. The runner
 starts both servers with `TZ=UTC`, because huaweiads formats local time.
 
+**Generated UUIDs.** Every other v4 UUID the server generates during a case
+comes from a deterministic stream. These are the request ID for `{{UUID}}`,
+`source.tid`, `imp.ext.tid`, the generated bid IDs and the AMP and video
+request IDs (the `go_sites` of `generated_uuids` in `schema/fakes.json`). The
+n-th UUID of a case (n = 1, 2, ...) is `sha256("<fakes.uuid>:<n>")`, truncated
+to 16 bytes with the version 4 and RFC 4122 variant bits set. The counter
+restarts each time the fakes are set: at the start and end of every case and
+adapter call, and on `/__parity/reset`.
+`fakes.Install` wraps `uuid.DefaultGenerator` (gofrs/uuid), so `uuid.NewV4()`
+takes the stream while a parity case runs and stays random otherwise. The
+differ still numbers these values as `<uuid#n>`. The stream exists because a
+random tid changes the gzip-compressed size of a bidder request
+(`endpoint_compression`, `exchange/bidder.go:867-885`), which the never
+normalized `content_length` wire class reports. The first values are listed in
+`fakes.json` for a Rust implementation.
+
+**Deterministic orders.** Some Go outcomes, not just their order, depend on
+response completion order or map iteration. In parity mode the server
+imposes the orders in the `orders` member of `schema/fakes.json`:
+
+* The bidders of one auction build their requests one at a time, in bidder
+  name order (`exchange/parity_turns.go`). A bidder's bidder-request hook
+  stage and `MakeRequests` start after `MakeRequests` of every bidder before
+  it has returned. HTTP calls and `MakeBids` stay concurrent. The order
+  matters because per-bidder requests share objects: gumgum copies `Site` but
+  writes the publisher ID through the shared `Publisher`
+  (`adapters/gumgum/gumgum.go:45-46`). Whether another bidder sends the
+  original ID or gumgum's then depends on scheduling. Name order is one of
+  the schedules Go can take.
+* First party data is resolved for the bidders in name order
+  (`firstpartydata/first_party_data.go:142`). Go appends the errors per
+  bidder in map order, keeps a bidder only while no error has occurred, and
+  joins the messages into one error.
+* A bidder's responses reach `MakeBids` in call order: the `MakeRequests`
+  output order, then the stored bid responses by imp ID
+  (`parityBidderTrace.inCallOrder`, `exchange/bidder.go:287`). The order
+  matters because `requestBid` sets an empty request `cur` to USD after the
+  first `MakeBids` (`exchange/bidder.go:327-329`), which adgeneration reads.
+  It also matters because flipp keeps imp params in a package variable
+  (`adapters/flipp/flipp.go:37`).
+* adtarget, adtelligent, bidmatic, datablocks, trafficgate and
+  zeroclickfraud range over a map of imp groups, and each group writes the
+  shared `request.Imp`, which `MakeBids` reads back. `fakes.MapKeys` returns
+  their groups sorted. adtarget, adtelligent, bidmatic and datablocks sort by
+  `sourceId`, trafficgate by `(placementId, host)` and zeroclickfraud by
+  `(sourceId, host)`.
+* Imp ext validation checks the imp's bidders in name order
+  (`ortb/request_validator.go:127`). Go returns the first bidder whose params
+  fail validation, so with two failing bidders the message names whichever
+  one map iteration reached first. The other request validations that stop
+  at the first failing map entry get the same treatment: the stored bid
+  response bidders (`ortb/request_validator.go:184`), the aliases and the
+  alias GVL IDs (`endpoints/openrtb2/auction.go:1086`, `:1110`) and the bid
+  adjustment factors (`endpoints/openrtb2/auction.go:1000`).
+* The auction picks each imp's winner visiting the seats in bidder name
+  order (`exchange/auction.go:116`). A bid replaces the winner only at a
+  strictly higher price, so of two bids at the same price the first bidder
+  visited wins. Category mapping visits the seats in the same order
+  (`exchange/exchange.go:1092`), so the earlier bid the `category.dedupe`
+  decision keeps or drops is the one from the smaller bidder name.
+
+Outside parity mode `parityTurns` returns the context unchanged,
+`inCallOrder` returns the channel unchanged and `MapKeys` returns the keys in
+map order. `parity/SELFTEST.md` records how the A/A
+self-test found these sites.
+
 ## Normalization and what is never normalized
 
 `schema/normalization.json` is the complete allowlist. Every rule cites the Go
 source of the nondeterminism it removes:
 
-* seatbid, warning, httpcalls and seatnonbid order;
+* seatbid, warning, httpcalls and seatnonbid order, including a bidder's
+  `bidder.result` http calls and non-bids, and the http calls the hook stages
+  and analytics record;
 * the order of one seat's bids, and of a bidder's `bidder.result` errors, in
   the exchange stages, which Go fills in response arrival order;
-* the order of a bidder's `MakeRequests` output, which adapters that group
-  imps in a map return in map order (Go's adapter tests ignore it too);
+* the order of a bidder's `MakeRequests` output, and of each request's imp
+  IDs (also where `adapter.bids` and `hooks.raw_bidder_response` echo the
+  request), which adapters that group imps in a map return in map order (Go's
+  adapter tests ignore both);
+* the `bidder#call` index of `adapter.bids` entries, re-derived from their
+  requests, together with the `bids.adjusted` call members that name them;
 * `http_out` order with `seq` dropped, and the order of a Prebid Cache call's
   `puts` (with its `responses` permuted alongside);
 * the `responsetimemillis` key set;
-* the shape of the auction timestamp and of event `ts`;
+* the shape of the auction timestamp and of event `ts`, wherever an event URL
+  is recorded (responses, hook stages, analytics);
 * UUID placeholders;
 * hook execution times and timing histograms, compared by count only;
-* the Go runtime collector's `go_*` series in `metrics_delta`;
+* the Go runtime collector's `go_*` series in `metrics_delta`, and the main
+  listener's `connections_*` series. Exec dispatches in process, so those
+  series only count the runner's own connections;
 * the `Date` header;
 * semantic JSON member order;
-* the stage entry `seq`.
+* the stage entry `seq`;
+* the order of the gojsonschema items in a bidder-params validation message.
+  The items are split by the library's own description templates, and a list
+  that does not split exactly one way is left as recorded;
+* the imp ID of a stored auction response media type error. It is masked only
+  when the side's own `stored.responses` shows two or more imps whose stored
+  bids Go rejects, and the reported imp is one of them;
+* the response `cur`, which Go takes from the last seat with bids its map
+  iteration visits. It is masked only when the side's own `bidder.result`
+  shows seats with bids in two or more currencies, and the `cur` is one of
+  them;
+* the AMP targeting keys that cached bids from different seats set to
+  different values. The AMP endpoint merges the bids' targeting in seatbid
+  order, and a later seat overwrites an earlier one. A key is masked only
+  when the side's own `exchange.response` bids disagree on it, and some merge
+  order of those bids gives exactly the recorded targeting.
 
 Everything else is a mismatch. The following are **never normalized**, and they
 gate parity like any other mismatch:
@@ -416,13 +511,16 @@ is a no-op and `/__parity/*` is ordinary application traffic.
 | `adapters/{adnuntius,appnexus,flipp}` Builders | inject `fakes.Active()` into the existing time, random and UUID seams |
 | `adapters/{cadent_aperture_mx,huaweiads,tappx,yieldlab}` | `time.Now()` replaced by `fakes.Now()` |
 | `adapters/eplanning` | `rand.Int()` replaced by `fakes.Int()` |
-| `endpoints/openrtb2/{auction,amp_auction,video_auction}.go` | `endpointtrace.*` one-liners at the endpoint stages: entrypoint, stored fetch, account, raw auction, merge, normalize, stored responses, validate, GDPR, the HoldAuction and seat-non-bid errors, auction response, AMP targeting, exitpoint, hook outcomes, video pods and cache |
-| `exchange/exchange.go` | `HoldAuction` wraps `holdAuction` (`exchange.response`); stage hooks after the processed-auction hook stage, floors enrichment, setup, FPD, `cleanOpenRTBRequests`, `floors.Enforce`, category mapping, events, the all-processed-bid-responses hook stage, winners, targeting, `setSeatNonBid` and each bidder goroutine; `category.dedupe` in `randomDeduplicateBidBooleanGenerator.Generate` |
-| `exchange/bidder.go` | `requestBid` tracer `pt` (`hooks.bidder_request`, `adapter.requests`, `adapter.requests_final`, `adapter.bids` through `pt.makeBids`, `hooks.raw_bidder_response`, `bids.adjusted`); bidder context for the transport; `doRequest` short-circuit for `mock.level = bidder_response`; throttle note |
+| `endpoints/openrtb2/{auction,amp_auction,video_auction}.go` | `endpointtrace.*` one-liners at the endpoint stages: entrypoint, stored fetch, account, raw auction, merge, normalize, stored responses, validate, GDPR, the HoldAuction and seat-non-bid errors, auction response, AMP targeting, exitpoint, hook outcomes, video pods and cache; the alias, alias GVL ID and bid adjustment factor validation loops range over `fakes.MapKeys(...)` |
+| `exchange/exchange.go` | `HoldAuction` wraps `holdAuction` (`exchange.response`); stage hooks after the processed-auction hook stage, floors enrichment, setup, FPD, `cleanOpenRTBRequests`, `floors.Enforce`, category mapping, events, the all-processed-bid-responses hook stage, winners, targeting, `setSeatNonBid` and each bidder goroutine; `defer s.Track()()` first in each bidder goroutine, so exec waits for its deferred metrics; `ctx = parityTurns(...)` before the bidder loop and `defer parityTakeTurn(...)()` in each bidder goroutine; `category.dedupe` in `randomDeduplicateBidBooleanGenerator.Generate`; the `applyCategoryMapping` seat loop ranges over `fakes.MapKeys(...)` |
+| `exchange/bidder.go` | `requestBid` tracer `pt` (`hooks.bidder_request`, `adapter.requests`, `adapter.requests_final`, `adapter.bids` through `pt.makeBids`, `hooks.raw_bidder_response`, `bids.adjusted`); `pt.inCallOrder` before the response loop; bidder context for the transport; `doRequest` short-circuit for `mock.level = bidder_response`; throttle note |
+| `adapters/{adtarget,adtelligent,bidmatic,datablocks,trafficgate,zeroclickfraud}` | the imp-group map loop ranges over `fakes.MapKeys(...)` |
+| `ortb/request_validator.go` | the imp ext bidder loop and the stored bid response bidder loop range over `fakes.MapKeys(...)` |
 | `exchange/utils.go` | `privacy.bidder` in the `cleanOpenRTBRequests` loop |
-| `exchange/auction.go` | `cache.result` at the end of `doCache` |
+| `exchange/auction.go` | `cache.result` at the end of `doCache`; the `newAuction` seat loop ranges over `fakes.MapKeys(...)` |
 | `exchange/price_granularity.go` | `pricegranularity.timesplit` |
-| `exchange/parity_stages.go` | the exchange recorders (harness code living in package `exchange`) |
+| `exchange/parity_stages.go`, `exchange/parity_turns.go` | the exchange recorders and the bidder turns (harness code living in package `exchange`) |
+| `firstpartydata/first_party_data.go` | the `ResolveFPD` bidder loop ranges over `fakes.MapKeys(...)` |
 | `floors/{floors,rule,enforce}.go`, `floors/parity.go` | `floors.enrich` after `updateFloorsInRequest` rebuilds the request; the four `floors.*` decisions |
 | `usersync/shuffler.go` | `usersync.shuffle` |
 
@@ -595,7 +693,8 @@ remaining cases are skipped.
 
 * **A/A.** `selftest` runs implementation A against a second process of
   itself. Any mismatch means missing normalization or state leaking between
-  cases in the harness.
+  cases in the harness. `parity/SELFTEST.md` records the runs at scale and
+  what each mismatch class turned out to be.
 * **Adapter fixtures.** `selftest`, or `run --fixtures`, also checks A's
   adapter endpoints against each fixture's own expectations, with the
   `adapterstest` semantics:
@@ -640,7 +739,8 @@ per-endpoint, per-bidder and per-stage tables.
 3. Record every stage in `stages.json` at the equivalent site. Report
    `unimplemented` for stages that have no site yet.
 4. Read `envelope.decisions` at the seven decision sites. Inject the
-   `fakes.json` values into the 8 adapters.
+   `fakes.json` values into the 8 adapters. Generate case UUIDs from the
+   `generated_uuids` stream. Impose the `orders`.
 5. Route every outbound call through an oracle-proxy or inline transport with
    identical kinds, classification and `X-Parity-Meta`.
 6. Produce Go's error codes (`error_codes.json`) and Prometheus names, labels
@@ -676,7 +776,8 @@ encodes a `case.json` for every case of the repository corpus.
   constants;
 * every normalization rule cites a Go source;
 * `error_codes.json` matches `errortypes`;
-* `fakes.json` matches `fakes.Defaults()`;
+* `fakes.json` matches `fakes.Defaults()`, and each of its `orders` names a
+  Go file that holds the seam;
 * a trace produced by the real Go recorders validates against
   `trace.schema.json`.
 
@@ -703,9 +804,11 @@ encodes a `case.json` for every case of the repository corpus.
   trace, and `capture` limits them;
 * invalid envelopes are rejected, and the aliases check their fixed method and
   path;
-* the adapter routes replay appnexus, rubicon, ix, openx, pubmatic and adagio
-  fixtures and match each fixture's own expectations with `adapterstest`
-  semantics;
+* the adapter routes replay appnexus, rubicon, ix, openx, pubmatic, adagio and
+  mediasquare fixtures and match each fixture's own expectations with
+  `adapterstest` semantics. The route decodes the request with
+  `encoding/json`, as `adapterstest` does, so `"ext": null` reaches the
+  adapter as `null`;
 * the config dump contains `tmax_default`, `gdpr.default_value` and
   `cache.scheme`, and contains neither `adapters`, `parity` nor the token;
 * the bidders dump, health and reset documents are correct;

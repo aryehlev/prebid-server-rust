@@ -127,7 +127,33 @@ type FakesRegistry struct {
 	Defaults      parity.FakeValues `json:"defaults"`
 	Derived       FakesDerived      `json:"derived"`
 	Provenance    map[string]string `json:"provenance"`
-	Adapters      []FakeSeam        `json:"adapters"`
+	// GeneratedUUIDs documents the deterministic stream that replaces every
+	// random v4 UUID the server generates in parity mode.
+	GeneratedUUIDs GeneratedUUIDs `json:"generated_uuids"`
+	// Orders are the deterministic orders parity mode imposes where Go's
+	// outcome depends on response completion order or map iteration.
+	Orders   []FakeOrder `json:"orders"`
+	Adapters []FakeSeam  `json:"adapters"`
+}
+
+// FakeOrder is one fakes.json orders entry.
+type FakeOrder struct {
+	Name   string `json:"name"`
+	Order  string `json:"order"`
+	GoSeam string `json:"go_seam"`
+	GoSite string `json:"go_site"`
+}
+
+// GeneratedUUIDs is the fakes.json generated_uuids member.
+type GeneratedUUIDs struct {
+	Description string `json:"description"`
+	Algorithm   string `json:"algorithm"`
+	// Seed names the fake value the stream is seeded with ("uuid").
+	Seed string `json:"seed"`
+	// First are the first values of the stream for the default seed.
+	First   []string `json:"first"`
+	GoSeam  string   `json:"go_seam"`
+	GoSites []string `json:"go_sites"`
 }
 
 // FakesDerived are values computed from the default clock, kept for readers.
