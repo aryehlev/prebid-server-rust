@@ -64,6 +64,14 @@ func main() {
 		{"errors.json", errorsGolden},
 		{"metrics.json", metricsGolden},
 		{"meta.json", metaGolden},
+		{"sessions_fuzz.json", fuzzSessionsGolden},
+		{"documents_fuzz.json", fuzzDocumentsGolden},
+		{"metrics_fuzz.json", fuzzMetricsGolden},
+		{"bodies_fuzz.json", fuzzBodiesGolden},
+		{"meta_fuzz.json", fuzzMetaGolden},
+		// Installs the fakes (and uninstalls them when done), so it runs
+		// after every golden that expects them uninstalled.
+		{"cases.json", casesGolden},
 		{"verdicts.json", func() (any, error) { return verdictsGolden(*documentsDir) }},
 	}
 	if err := os.MkdirAll(*outDir, 0o755); err != nil {
@@ -399,6 +407,46 @@ func typedValue(o op) (any, error) {
 	case "float":
 		var v float64
 		return v, json.Unmarshal(o.Value, &v)
+	case "float_bits":
+		// The IEEE 754 bits in decimal, so every float64 (NaN payloads and
+		// infinities included) reaches both sides exactly.
+		bits, err := strconv.ParseUint(o.Text, 10, 64)
+		return math.Float64frombits(bits), err
+	case "bytes_string":
+		// Arbitrary bytes, invalid UTF-8 included (base64 in the op).
+		raw, err := base64.StdEncoding.DecodeString(o.Text)
+		return string(raw), err
+	case "bytes_map":
+		var pairs [][2]string
+		if err := json.Unmarshal(o.Value, &pairs); err != nil {
+			return nil, err
+		}
+		m := make(map[string]string, len(pairs))
+		for _, kv := range pairs {
+			k, err := base64.StdEncoding.DecodeString(kv[0])
+			if err != nil {
+				return nil, err
+			}
+			v, err := base64.StdEncoding.DecodeString(kv[1])
+			if err != nil {
+				return nil, err
+			}
+			m[string(k)] = string(v)
+		}
+		return m, nil
+	case "bytes_strings":
+		var list []string
+		if err := json.Unmarshal(o.Value, &list); err != nil {
+			return nil, err
+		}
+		for i, s := range list {
+			raw, err := base64.StdEncoding.DecodeString(s)
+			if err != nil {
+				return nil, err
+			}
+			list[i] = string(raw)
+		}
+		return list, nil
 	case "nan":
 		return math.NaN(), nil
 	case "bool":
@@ -669,6 +717,9 @@ func sessionsGolden() (any, error) {
 			"ops":      script.ops,
 			"results":  results,
 			"trace":    doc,
+			// The exact bytes: a JSON string replaces invalid UTF-8 that
+			// a json.RawMessage member passes through.
+			"trace_b64": base64.StdEncoding.EncodeToString([]byte(doc)),
 		})
 	}
 	return cases, nil
@@ -824,6 +875,8 @@ func bodiesGolden() (any, error) {
 		recordedCases = append(recordedCases, map[string]any{
 			"name": r.name, "raw_b64": base64.StdEncoding.EncodeToString(r.raw), "content_encoding": r.enc,
 			"body": body, "gzip": strings.Contains(strings.ToLower(r.enc), "gzip"),
+			// The exact bytes: a json member can pass invalid UTF-8 through.
+			"body_b64": base64.StdEncoding.EncodeToString([]byte(body)),
 		})
 	}
 	inputs := []struct{ name, body string }{

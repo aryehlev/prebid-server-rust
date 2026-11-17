@@ -209,7 +209,12 @@ fn snapshot_of(series: &[Json]) -> Result<MetricsSnapshot, String> {
             .array("buckets")?
             .iter()
             .map(|b| {
-                let le = b.get("le")?.0.as_f64().ok_or("le")?;
+                // A number, or (the generated registries) its exact text.
+                let le = b.get("le")?.0;
+                let le = match le.as_str() {
+                    Some(text) => text.parse().map_err(|e| format!("le {text}: {e}"))?,
+                    None => le.as_f64().ok_or("le")?,
+                };
                 let c = b.get("count")?.0.as_u64().ok_or("bucket count")?;
                 Ok((le, c))
             })
@@ -261,6 +266,28 @@ fn snapshot_of(series: &[Json]) -> Result<MetricsSnapshot, String> {
         snap.insert(s);
     }
     Ok(snap)
+}
+
+// Generated registries (`metricsfuzz.go`): every metric type, metric and label names that prefix
+// each other, label values that need quoting, NaN, infinite and denormal values and random
+// bucket layouts, changed between two gathers.
+#[test]
+fn fuzzed_deltas_match_go() -> TestResult {
+    let cases = golden_json("metrics_fuzz.json")?
+        .get("golden")?
+        .elements()?;
+    check_eq(&cases.len(), &150, "registries")?;
+    for (i, case) in cases.iter().enumerate() {
+        let before = snapshot_of(&case.array("before")?)?;
+        let after = snapshot_of(&case.array("after")?)?;
+        let delta = stdjson::marshal(&before.delta(&after)).map_err(|e| e.to_string())?;
+        check_eq(
+            &String::from_utf8_lossy(&delta).into_owned(),
+            &case.string("delta")?,
+            &format!("registry {i}"),
+        )?;
+    }
+    Ok(())
 }
 
 // The metrics_delta Go computes for a registry with every metric type, NaN sums, an exponent

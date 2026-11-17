@@ -456,6 +456,39 @@ fn outbound_meta_matches_go() -> TestResult {
     Ok(())
 }
 
+// Generated X-Parity-Meta values (`bodyfuzz.go`): damaged base64 of rewritten meta JSON, decoded
+// with Go's messages and each decoded meta encoded again.
+#[test]
+fn fuzzed_outbound_meta_matches_go() -> TestResult {
+    let cases = golden("meta_fuzz.json")?.elements()?;
+    check_eq(&cases.len(), &300, "cases")?;
+    let mut decoded = 0_usize;
+    for (i, case) in cases.iter().enumerate() {
+        let what = format!("header {i}");
+        let header = String::from_utf8(decode_b64(&case.string("header_b64")?)?)
+            .map_err(|e| format!("{what}: {e}"))?;
+        match (OutboundMeta::decode_header(&header), case.opt("error")) {
+            (Ok(meta), None) => {
+                decoded += 1;
+                check_eq(&marshal(&meta)?, &case.string("meta")?, &what)?;
+                check_eq(
+                    &meta.encode_header().map_err(|e| e.to_string())?,
+                    &case.string("header_again")?,
+                    &what,
+                )?;
+            }
+            (Err(err), Some(want)) => check_eq(&err.to_string(), &want.text()?, &what)?,
+            (got, want) => {
+                return Err(format!(
+                    "{what} ({header:?}): got {got:?}, want error {:?}",
+                    want.map(|w| w.0)
+                ));
+            }
+        }
+    }
+    check(decoded > 30, "enough headers decode")
+}
+
 /// The stage filter as the golden program writes it.
 fn filter_json(env: &Envelope) -> Value {
     match env.capture.stage_filter() {
@@ -533,12 +566,12 @@ fn envelopes_match_go() -> TestResult {
 }
 
 /// `body` with its `json` member removed, as text.
-fn without_json(body: &str) -> Result<String, String> {
-    let mut b: Option<Body> = decode(body.as_bytes())?;
+fn without_json(body: &[u8]) -> Result<Vec<u8>, String> {
+    let mut b: Option<Body> = decode(body)?;
     if let Some(b) = b.as_mut() {
         b.json = pbs_gojson::RawJson::nil();
     }
-    marshal(&b)
+    stdjson::marshal(&b).map_err(|e| e.to_string())
 }
 
 /// Compares a Rust body result with the golden's `<what>_b64` / `<what>_error` members; gzip
@@ -571,19 +604,24 @@ fn check_bytes_result(
     }
 }
 
-#[test]
-fn bodies_match_go() -> TestResult {
-    let g = golden("bodies.json")?;
+/// Checks the `recorded` and `inputs` cases of a bodies golden.
+fn check_bodies(g: &Json) -> TestResult {
     for case in g.array("recorded")? {
         let name = case.string("name")?;
         let raw = decode_b64(&case.string("raw_b64")?)?;
-        let got = marshal(&Body::new(&raw, &case.string("content_encoding")?))?;
-        let want = case.string("body")?;
+        let got = stdjson::marshal(&Body::new(&raw, &case.string("content_encoding")?))
+            .map_err(|e| e.to_string())?;
+        // The exact bytes when the golden has them: `body` is a JSON string, which replaces the
+        // invalid UTF-8 a recorded `json` member passes through.
+        let mut want = match case.opt("body_b64") {
+            Some(b64) => decode_b64(&b64.text()?)?,
+            None => case.string("body")?.into_bytes(),
+        };
         if case.boolean("gzip")? {
-            check_eq(&got, &without_json(&want)?, &name)?;
-        } else {
-            check_eq(&got, &want, &name)?;
+            want = without_json(&want)?;
         }
+        check_eq(&lossy(&got), &lossy(&want), &name)?;
+        check_eq(&got, &want, &name)?;
     }
     for case in g.array("inputs")? {
         let name = case.string("name")?;
@@ -591,11 +629,31 @@ fn bodies_match_go() -> TestResult {
         check_bytes_result(body.wire_bytes(), &case, "wire", &name)?;
         check_bytes_result(body.decoded_bytes(), &case, "decoded", &name)?;
     }
+    Ok(())
+}
+
+#[test]
+fn bodies_match_go() -> TestResult {
+    let g = golden("bodies.json")?;
+    check_bodies(&g)?;
     check_eq(
         &marshal(&Body::text_body("a<b"))?,
         &g.string("text_body")?,
         "text body",
     )
+}
+
+// Generated bodies (`bodyfuzz.go`): random wire bytes under Content-Encoding spellings (case,
+// Unicode spaces, the dotted capital I) and random input bodies with damaged base64.
+#[test]
+fn fuzzed_bodies_match_go() -> TestResult {
+    let g = golden("bodies_fuzz.json")?;
+    check_eq(
+        &(g.array("recorded")?.len(), g.array("inputs")?.len()),
+        &(300, 300),
+        "cases",
+    )?;
+    check_bodies(&g)
 }
 
 /// The example `name` decoded with its Rust type and written as the Go server writes documents.
@@ -674,6 +732,55 @@ fn reencode<T: StdDecode + GoEncode + Default>(
     encode_document(&v).map(Ok).map_err(|e| e.to_string())
 }
 
+// Generated documents of every type (`docfuzz.go`): random values (nil, empty and filled lists,
+// maps and pointers) rewritten the ways a runner may send them (member order, whitespace,
+// escapes, key case, unknown, missing, repeated and null members, number forms, short and long
+// header pairs, raw invalid UTF-8, wrong kinds, broken syntax). Each decodes to Go's error, or
+// writes back Go's bytes.
+#[test]
+fn fuzzed_documents_match_go() -> TestResult {
+    let cases = golden("documents_fuzz.json")?.elements()?;
+    check_eq(&cases.len(), &(11 * 120), "documents")?;
+    for (i, case) in cases.iter().enumerate() {
+        let kind = case.string("type")?;
+        let input = decode_b64(&case.string("input_b64")?)?;
+        let got = match kind.as_str() {
+            "envelope" => reencode::<Envelope>(&input)?,
+            "trace" => reencode::<Trace>(&input)?,
+            "adapter_requests_input" => reencode::<AdapterRequestsInput>(&input)?,
+            "adapter_requests_output" => reencode::<AdapterRequestsOutput>(&input)?,
+            "adapter_bids_input" => reencode::<AdapterBidsInput>(&input)?,
+            "adapter_bids_output" => reencode::<AdapterBidsOutput>(&input)?,
+            "health" => reencode::<Health>(&input)?,
+            "config" => reencode::<ConfigDump>(&input)?,
+            "bidders" => reencode::<BiddersDump>(&input)?,
+            "reset" => reencode::<ResetResult>(&input)?,
+            "outbound_meta" => reencode::<OutboundMeta>(&input)?,
+            other => return Err(format!("no Rust type for {other}")),
+        };
+        let want = match case.opt("error") {
+            Some(err) => Err(err.text()?.into_bytes()),
+            None => Ok(decode_b64(&case.string("encoded_b64")?)?),
+        };
+        match (&got, &want) {
+            (Ok(got), Ok(want)) | (Err(got), Err(want)) if got == want => {}
+            (Ok(got), Ok(want)) => {
+                return Err(format!(
+                    "document {i} ({kind}) {}\n  input: {}",
+                    first_difference(got, want),
+                    lossy(&input)
+                ));
+            }
+            _ => check_eq(
+                &got.map(|b| lossy(&b)).map_err(|b| lossy(&b)),
+                &want.map(|b| lossy(&b)).map_err(|b| lossy(&b)),
+                &format!("document {i} ({kind}): {}", lossy(&input)),
+            )?,
+        }
+    }
+    Ok(())
+}
+
 // A nil inner map (Go: `map[string]StageEntry(nil)`, `map[string]float64(nil)`) is written back
 // as null and an empty one as {}, as Go writes them; the Rust types used to write both as {}.
 #[test]
@@ -693,6 +800,18 @@ fn nil_inner_maps_stay_null() -> TestResult {
     check(
         input.contains(r#""conversions":{"EUR":{},"USD":null}"#),
         &input,
+    )
+}
+
+/// Where `got` and `want` first differ, with the bytes around it.
+fn first_difference(got: &[u8], want: &[u8]) -> String {
+    let at = got.iter().zip(want).take_while(|(a, b)| a == b).count();
+    let from = at.saturating_sub(80);
+    let around = |b: &[u8]| lossy(b.get(from..b.len().min(at + 80)).unwrap_or_default());
+    format!(
+        "differ at byte {at}:\n  got:  {}\n  want: {}",
+        around(got),
+        around(want)
     )
 }
 
@@ -850,6 +969,9 @@ mod sessions {
         Str(String),
         Map(BTreeMap<String, String>),
         Strings(Option<Vec<String>>),
+        Bytes(GoString),
+        BytesMap(BTreeMap<GoString, GoString>),
+        BytesList(Option<Vec<GoString>>),
         Raw(RawJson),
         Regs(RegsRecord),
     }
@@ -863,10 +985,18 @@ mod sessions {
                 Typed::Str($v) => $body,
                 Typed::Map($v) => $body,
                 Typed::Strings($v) => $body,
+                Typed::Bytes($v) => $body,
+                Typed::BytesMap($v) => $body,
+                Typed::BytesList($v) => $body,
                 Typed::Raw($v) => $body,
                 Typed::Regs($v) => $body,
             }
         };
+    }
+
+    /// A base64 member of the golden program as the Go string of its bytes.
+    fn go_bytes(b64: &Json) -> Result<GoString, String> {
+        Ok(GoString::from_bytes(decode_b64(&b64.text()?)?))
     }
 
     fn typed(op: &Json) -> Result<Typed, String> {
@@ -880,6 +1010,11 @@ mod sessions {
                     .ok_or("int")?,
             ),
             "float" => Typed::Float(value()?.0.as_f64().ok_or("float")?),
+            "float_bits" => Typed::Float(f64::from_bits(
+                op.string("text")?
+                    .parse()
+                    .map_err(|e| format!("float bits: {e}"))?,
+            )),
             "nan" => Typed::Float(f64::NAN),
             "bool" => Typed::Bool(value()?.0.as_bool().ok_or("bool")?),
             "string" => Typed::Str(value()?.text()?),
@@ -897,7 +1032,37 @@ mod sessions {
                     Some(super::strings(&v)?)
                 })
             }
-            "raw" => Typed::Raw(RawJson::from_slice(op.string("text")?.as_bytes())),
+            "bytes_string" => {
+                Typed::Bytes(GoString::from_bytes(decode_b64(&opt_text(op, "text")?)?))
+            }
+            "bytes_map" => Typed::BytesMap(
+                value()?
+                    .elements()?
+                    .iter()
+                    .map(|pair| {
+                        let kv = pair.elements()?;
+                        match kv.as_slice() {
+                            [k, v] => Ok((go_bytes(k)?, go_bytes(v)?)),
+                            _ => Err(format!("not a pair: {}", pair.0)),
+                        }
+                    })
+                    .collect::<Result<_, String>>()?,
+            ),
+            "bytes_strings" => {
+                let v = value()?;
+                Typed::BytesList(if v.0.is_null() {
+                    None
+                } else {
+                    Some(
+                        v.elements()?
+                            .iter()
+                            .map(go_bytes)
+                            .collect::<Result<_, _>>()?,
+                    )
+                })
+            }
+            // The golden program's op members are omitempty: an empty text is absent.
+            "raw" => Typed::Raw(RawJson::from_slice(opt_text(op, "text")?.as_bytes())),
             "regs_record" => {
                 let v = value()?;
                 let gdpr = isize::try_from(v.int("gdpr")?).map_err(|e| e.to_string())?;
@@ -969,11 +1134,11 @@ mod sessions {
                     StageStatus::from_name(&status).ok_or_else(|| format!("status {status}"))?,
                 );
             }
-            "note" => s.note(op.string("text")?),
-            "note_b64" => s.note(GoString::from_bytes(decode_b64(&op.string("raw_b64")?)?)),
+            "note" => s.note(opt_text(op, "text")?),
+            "note_b64" => s.note(GoString::from_bytes(decode_b64(&opt_text(op, "raw_b64")?)?)),
             "outbound" => s.add_outbound(decode::<OutboundCall>(op.string("call")?.as_bytes())?),
             "analytics" => {
-                let kind = op.string("kind")?;
+                let kind = opt_text(op, "kind")?;
                 with_typed!(typed(op)?, v => s.add_analytics(&kind, &v));
             }
             "next_seq" => return Ok(Value::from(s.next_seq())),
@@ -1023,14 +1188,12 @@ mod sessions {
         Ok((results, trace))
     }
 
-    // The traces Go's trace.Session records for the same calls, byte for byte.
-    #[test]
-    fn sessions_match_go() -> TestResult {
-        let cases = super::golden("sessions.json")?.elements()?;
-        check_eq(&cases.len(), &10, "scripts")?;
+    /// Replays golden scripts: every op result, and the trace byte for byte (`trace_b64`: a
+    /// recorded raw value can carry invalid UTF-8, which a JSON string member would replace).
+    fn replay(cases: &[Json]) -> TestResult {
         for case in cases {
             let name = case.string("name")?;
-            let (results, trace) = run(&case)?;
+            let (results, trace) = run(case)?;
             check_eq(
                 &results,
                 &case
@@ -1041,8 +1204,143 @@ mod sessions {
                     .collect(),
                 &name,
             )?;
-            check_eq(&lossy(&trace), &case.string("trace")?, &name)?;
+            let want = decode_b64(&case.string("trace_b64")?)?;
+            // The readable comparison first, then the exact one.
+            check_eq(&lossy(&trace), &lossy(&want), &name)?;
+            check_eq(&trace, &want, &name)?;
         }
         Ok(())
+    }
+
+    // The traces Go's trace.Session records for the same calls, byte for byte.
+    #[test]
+    fn sessions_match_go() -> TestResult {
+        let cases = super::golden("sessions.json")?.elements()?;
+        check_eq(&cases.len(), &10, "scripts")?;
+        for case in &cases {
+            check_eq(
+                &lossy(&decode_b64(&case.string("trace_b64")?)?),
+                &case.string("trace")?,
+                "trace and trace_b64 agree",
+            )?;
+        }
+        replay(&cases)
+    }
+
+    // Generated scripts (`fuzz.go`): random envelopes (stage filters, flags, decisions of every
+    // JSON kind), keys and values with the characters encoders treat differently, raw bytes that
+    // are not JSON or not UTF-8, every error type, and outbound calls, through every op.
+    #[test]
+    fn fuzzed_sessions_match_go() -> TestResult {
+        let cases = super::golden("sessions_fuzz.json")?.elements()?;
+        check_eq(&cases.len(), &400, "scripts")?;
+        replay(&cases)
+    }
+}
+
+/// The fake values, UUID streams and map orders of `cases.json`: what the installed fakes serve
+/// inside and between a sequence of cases, through every seam Go routes to them.
+#[cfg(feature = "trace")]
+mod cases {
+    use pbs_util::{
+        randomutil::RandomGenerator as _,
+        uuidutil::{UuidGenerator as _, UuidRandomGenerator},
+    };
+    use serde_json::Value;
+
+    use super::{decode, marshal, strings};
+    use crate::{
+        envelope::{Envelope, FakeValues},
+        fakes::{self, ParityUuidGenerator, Source},
+        golden::{Json, TestResult, check, check_eq, global_lock},
+        trace,
+    };
+
+    /// Runs one op of the golden program's `runFakeOp`.
+    fn run_op(src: &Source, op: &Json) -> Result<Value, String> {
+        let n = op.opt("n").and_then(|n| n.0.as_i64()).unwrap_or(0);
+        Ok(match op.string("op")?.as_str() {
+            "new_v4" => Value::from(fakes::new_v4().map_err(|e| e.to_string())?),
+            "uuidutil" => Value::from(
+                ParityUuidGenerator(UuidRandomGenerator)
+                    .generate()
+                    .map_err(|e| e.to_string())?,
+            ),
+            "generate" => Value::from(src.generate().map_err(|e| e.to_string())?),
+            "now" => {
+                let t = fakes::now();
+                serde_json::json!({
+                    "unix_milli": t.unix_milli(),
+                    "unix": t.unix(),
+                    "format": t.format("2006-01-02T15:04:05.999999999Z07:00"),
+                    "huaweiads": t.format("2006-01-02 15:04:05.000"),
+                    "weekday": t.weekday(),
+                    "year_day": t.year_day(),
+                })
+            }
+            "int" => Value::from(fakes::int()),
+            "int63" => Value::from(src.generate_int63()),
+            "intn" => Value::from(src.intn(n).ok_or("intn")?),
+            "map_keys" => {
+                let keys = op.opt("keys").map(|k| strings(&k)).transpose()?;
+                Value::from(fakes::map_keys(keys.unwrap_or_default(), |a, b| a < b))
+            }
+            "set" => {
+                let v: FakeValues = decode(&op.get("set")?.to_bytes())?;
+                src.set(Some(&v));
+                Value::Null
+            }
+            "reset" => {
+                src.set(None);
+                Value::Null
+            }
+            "values" => {
+                serde_json::from_str(&marshal(&src.values())?).map_err(|e| e.to_string())?
+            }
+            other => return Err(format!("unknown fake op {other}")),
+        })
+    }
+
+    async fn replay(src: &Source) -> TestResult {
+        let phases = super::golden("cases.json")?.elements()?;
+        check(phases.len() > 40, "phases")?;
+        for (i, phase) in phases.iter().enumerate() {
+            let what = format!("phase {i}");
+            let case = match phase.opt("envelope") {
+                Some(env) => {
+                    Some(trace::begin_case(decode::<Envelope>(env.text()?.as_bytes())?).await)
+                }
+                None => None,
+            };
+            let results = phase
+                .array("ops")?
+                .iter()
+                .map(|op| run_op(src, op))
+                .collect::<Result<Vec<_>, _>>();
+            drop(case);
+            check_eq(
+                &results?,
+                &phase
+                    .get("results")?
+                    .elements()?
+                    .into_iter()
+                    .map(|r| r.0)
+                    .collect(),
+                &what,
+            )?;
+        }
+        Ok(())
+    }
+
+    // Go installs the fakes once and runs the phases: every case applies its envelope's fakes
+    // (restarting the UUID stream) and every end restores the defaults (restarting it again).
+    #[tokio::test]
+    async fn fake_cases_match_go() -> TestResult {
+        let _lock = global_lock().await;
+        check(fakes::active().is_none(), "the fakes start uninstalled")?;
+        let src = fakes::install();
+        let result = replay(src).await;
+        fakes::uninstall();
+        result
     }
 }

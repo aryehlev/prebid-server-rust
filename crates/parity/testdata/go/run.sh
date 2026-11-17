@@ -7,10 +7,12 @@
 # Usage: rust/crates/parity/testdata/go/run.sh [parity-harness ref]
 #
 # Steps:
-#   1. main.go is built inside a temporary detached worktree of the ref (the
-#      program needs the parity packages, which this branch does not have),
-#      after a gofmt -s and go vet check;
-#   2. it writes testdata/golden, including the scripted sessions the Rust
+#   1. the program (main.go, and the generated cases of fuzz.go, docfuzz.go,
+#      metricsfuzz.go and bodyfuzz.go) is built inside a temporary detached
+#      worktree of the ref (it needs the parity packages, which this branch
+#      does not have), after a gofmt -s and go vet check;
+#   2. it writes testdata/golden, including the scripted and generated
+#      sessions, documents, metric deltas, bodies and fake cases the Rust
 #      crate replays;
 #   3. the Rust golden test rewrites testdata/documents (PBS_PARITY_REGEN=1),
 #      including the traces of those sessions;
@@ -45,7 +47,7 @@ golden() {
 
 git -C "${repo}" worktree add --detach "${tree}" "${sha}" >/dev/null
 mkdir -p "${tree}/parity/cmd/rustgolden"
-cp "${here}/main.go" "${tree}/parity/cmd/rustgolden/main.go"
+cp "${here}"/*.go "${tree}/parity/cmd/rustgolden/"
 unformatted="$(cd "${tree}" && gofmt -s -l parity/cmd/rustgolden)"
 if [ -n "${unformatted}" ]; then
 	echo "gofmt -s: ${unformatted}" >&2

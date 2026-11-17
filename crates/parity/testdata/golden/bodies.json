@@ -110,6 +110,7 @@
     "recorded": [
       {
         "body": "{\"text\":\"{\\\"a\\\":1}\",\"json\":{\"a\":1}}",
+        "body_b64": "eyJ0ZXh0Ijoie1wiYVwiOjF9IiwianNvbiI6eyJhIjoxfX0=",
         "content_encoding": "",
         "gzip": false,
         "name": "json",
@@ -117,6 +118,7 @@
       },
       {
         "body": "{\"text\":\" {\\\"a\\\": [1, 2]}\\n\",\"json\":{\"a\":[1,2]}}",
+        "body_b64": "eyJ0ZXh0IjoiIHtcImFcIjogWzEsIDJdfVxuIiwianNvbiI6eyJhIjpbMSwyXX19",
         "content_encoding": "",
         "gzip": false,
         "name": "json_with_space",
@@ -124,6 +126,7 @@
       },
       {
         "body": "{\"text\":\"hello \\u003cb\\u003e\"}",
+        "body_b64": "eyJ0ZXh0IjoiaGVsbG8gXHUwMDNjYlx1MDAzZSJ9",
         "content_encoding": "",
         "gzip": false,
         "name": "text",
@@ -131,6 +134,7 @@
       },
       {
         "body": "{\"b64\":\"//4=\"}",
+        "body_b64": "eyJiNjQiOiIvLzQ9In0=",
         "content_encoding": "",
         "gzip": false,
         "name": "invalid_utf8",
@@ -138,6 +142,7 @@
       },
       {
         "body": "{\"b64\":\"Iv8i\",\"json\":\"\ufffd\"}",
+        "body_b64": "eyJiNjQiOiJJdjhpIiwianNvbiI6Iv8ifQ==",
         "content_encoding": "",
         "gzip": false,
         "name": "invalid_utf8_json",
@@ -145,6 +150,7 @@
       },
       {
         "body": "null",
+        "body_b64": "bnVsbA==",
         "content_encoding": "",
         "gzip": false,
         "name": "empty",
@@ -152,6 +158,7 @@
       },
       {
         "body": "{\"text\":\"{\\\"a\\\":1}\",\"json\":{\"a\":1}}",
+        "body_b64": "eyJ0ZXh0Ijoie1wiYVwiOjF9IiwianNvbiI6eyJhIjoxfX0=",
         "content_encoding": " IDENTITY ",
         "gzip": false,
         "name": "identity_spelled",
@@ -159,6 +166,7 @@
       },
       {
         "body": "{\"b64\":\"eyJhIjoxfQ==\",\"content_encoding\":\"br\"}",
+        "body_b64": "eyJiNjQiOiJleUpoSWpveGZRPT0iLCJjb250ZW50X2VuY29kaW5nIjoiYnIifQ==",
         "content_encoding": "br",
         "gzip": false,
         "name": "unsupported",
@@ -166,6 +174,7 @@
       },
       {
         "body": "{\"b64\":\"eA==\",\"content_encoding\":\"deflate\"}",
+        "body_b64": "eyJiNjQiOiJlQT09IiwiY29udGVudF9lbmNvZGluZyI6ImRlZmxhdGUifQ==",
         "content_encoding": "Deflate",
         "gzip": false,
         "name": "upper_unsupported",
@@ -173,6 +182,7 @@
       },
       {
         "body": "{\"b64\":\"H4sIAAAAAAAA/6pWSlSyMqwFBAAA//+vrBtWBwAAAA==\",\"json\":{\"a\":1},\"content_encoding\":\"gzip\"}",
+        "body_b64": "eyJiNjQiOiJINHNJQUFBQUFBQUEvNnBXU2xTeU1xd0ZCQUFBLy8rdnJCdFdCd0FBQUE9PSIsImpzb24iOnsiYSI6MX0sImNvbnRlbnRfZW5jb2RpbmciOiJnemlwIn0=",
         "content_encoding": "gzip",
         "gzip": true,
         "name": "gzip",
@@ -180,6 +190,7 @@
       },
       {
         "body": "{\"b64\":\"H4sIAAAAAAAA/8rLL1HIKs7PAwQAAP//ZsuMxggAAAA=\",\"content_encoding\":\"x-gzip\"}",
+        "body_b64": "eyJiNjQiOiJINHNJQUFBQUFBQUEvOHJMTDFISUtzN1BBd1FBQVAvL1pzdU14Z2dBQUFBPSIsImNvbnRlbnRfZW5jb2RpbmciOiJ4LWd6aXAifQ==",
         "content_encoding": "X-GZIP",
         "gzip": true,
         "name": "x_gzip",
@@ -187,6 +198,7 @@
       },
       {
         "body": "{\"b64\":\"eyJhIjoxfQ==\",\"content_encoding\":\"gzip\"}",
+        "body_b64": "eyJiNjQiOiJleUpoSWpveGZRPT0iLCJjb250ZW50X2VuY29kaW5nIjoiZ3ppcCJ9",
         "content_encoding": "gzip",
         "gzip": true,
         "name": "gzip_corrupt",
