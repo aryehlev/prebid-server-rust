@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"sort"
+	"strings"
 	"sync"
 	"time"
 
@@ -187,15 +188,21 @@ func (p *pair) execEnvelope(ctx context.Context, rc *runCase) caseResult {
 	return p.compareTraces(rc, traces, res)
 }
 
-// compareTraces merges captures, validates the traces and diffs them.
+// compareTraces merges captures, validates the traces and diffs them. A trace
+// that breaks its schema makes the case an error: decoding drops members the
+// contract does not know, so such a trace could otherwise compare as passing.
 func (p *pair) compareTraces(rc *runCase, traces [2]sideTrace, res caseResult) caseResult {
 	env := rc.Case.Envelope
+	var invalid []string
 	for i, t := range traces {
-		res.notes = append(res.notes, validationNotes(p.sides[i], t.raw)...)
+		invalid = append(invalid, validationNotes(p.sides[i], t.raw)...)
 		mergeCaptures(t.trace, env, t.caps)
 	}
 	for i, t := range traces {
 		res.files = append(res.files, caseFile{name: traceFileName(p.sides[i]), role: traceRole(i), v: t.trace})
+	}
+	if len(invalid) > 0 {
+		return contractFailure(res, invalid)
 	}
 	dc := diff.Case{CaseID: rc.ID, FixturePath: rc.Case.FixturePath, Endpoint: rc.Case.Endpoint, Profile: p.b.Label(), Envelope: env, KnownInputs: knownInputs(rc.Case)}
 	result, err := p.r.engine.CompareTraces(dc, traces[0].trace, traces[1].trace)
@@ -287,6 +294,14 @@ func validationNotes(s *side, raw []byte) []string {
 		return []string{fmt.Sprintf("%s (%s) document does not validate: %v", s.impl, s.name, err)}
 	}
 	return nil
+}
+
+// contractFailure is the outcome of a case whose documents break their
+// schema: an error that keeps the case's files and notes.
+func contractFailure(res caseResult, invalid []string) caseResult {
+	out := failed("%s", strings.Join(invalid, "; "))
+	out.files, out.notes, out.fixture = res.files, append(res.notes, invalid...), res.fixture
+	return out
 }
 
 func traceFileName(s *side) string { return s.name + "." + s.impl + ".trace.json" }

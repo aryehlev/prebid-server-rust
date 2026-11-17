@@ -60,9 +60,19 @@ func (c *comparer) document(path string, g, r *node) {
 	c.value(path, g, r, fieldPlain)
 }
 
-// roots compares the whitespace before and after two exact document roots.
+// roots compares the whitespace before and after two exact document roots. A
+// root one side recorded as exact bytes and the other only as semantic json
+// is reported as lexical "unrecorded": its byte-level parity, which gates like
+// every lexical difference, cannot be checked.
 func (c *comparer) roots(path string, g, r *node) {
-	if g == nil || r == nil || !g.exact || !r.exact {
+	if g == nil || r == nil {
+		return
+	}
+	if (g.exact && r.unrecorded) || (r.exact && g.unrecorded) {
+		c.add(parity.KindLexical, parity.LexicalUnrecorded, path, recordedForm(g), recordedForm(r))
+		return
+	}
+	if !g.exact || !r.exact {
 		return
 	}
 	if class := trailingClass(g.trail, r.trail); class != "" {
@@ -72,6 +82,14 @@ func (c *comparer) roots(path string, g, r *node) {
 		c.wsReported = true
 		c.add(parity.KindLexical, parity.LexicalWhitespace, path, json.RawMessage(jsonQuote(g.lead)), json.RawMessage(jsonQuote(r.lead)))
 	}
+}
+
+// recordedForm says how a document root was recorded, for unrecorded records.
+func recordedForm(n *node) json.RawMessage {
+	if n.exact {
+		return json.RawMessage(`"exact bytes"`)
+	}
+	return json.RawMessage(`"json only"`)
 }
 
 // bodyDocument compares two decoded HTTP bodies, which may be nested inside a
@@ -117,7 +135,7 @@ func (c *comparer) content(path string, g, r *node, field fieldKind) {
 		c.add(parity.KindMissingInRust, "", path, render(g), json.RawMessage("null"))
 		return
 	case g.kind != r.kind:
-		c.add(parity.KindType, "", path, render(g), render(r))
+		c.add(typeOrValue(g, r), "", path, render(g), render(r))
 		return
 	}
 	switch g.kind {
@@ -159,6 +177,24 @@ func (c *comparer) scalar(path string, g, r *node, field fieldKind) {
 		c.add(parity.KindLexical, class, path,
 			json.RawMessage(jsonQuote(scalarSpelling(g))), json.RawMessage(jsonQuote(scalarSpelling(r))))
 	}
+}
+
+// typeOrValue is the kind of a difference between nodes of different kinds:
+// type when their JSON types differ, value when a rule masked one side and
+// the other has the same JSON type but falls outside the rule's shape (a
+// timestamp in seconds, a fractional duration).
+func typeOrValue(g, r *node) parity.MismatchKind {
+	if jsonType(g) == jsonType(r) {
+		return parity.KindValue
+	}
+	return parity.KindType
+}
+
+func jsonType(n *node) nodeKind {
+	if n.kind == kindMasked {
+		return n.maskedKind
+	}
+	return n.kind
 }
 
 func scalarKind(field fieldKind) parity.MismatchKind {

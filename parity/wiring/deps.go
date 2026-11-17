@@ -41,6 +41,8 @@ func NewDeps(cfg *config.Configuration, me *metricsConf.DetailedMetricsEngine) D
 // logs a warning banner, installs the deterministic adapter fakes and routes
 // http.DefaultTransport (used by http.DefaultClient, for example by analytics
 // modules) through the parity transport so nothing reaches the real network.
+// It also enables transport.WrapProcess for code that builds its own transport
+// per call (the /optout recaptcha check).
 // It is a no-op unless parity is enabled.
 func Bootstrap(cfg *config.Configuration) {
 	if cfg == nil || !cfg.Parity.Enabled {
@@ -49,4 +51,5 @@ func Bootstrap(cfg *config.Configuration) {
 	logger.Warnf("[parity] PARITY MODE ENABLED: /__parity/* is served on the main port, outbound HTTP goes to %q and adapters use deterministic fakes. Never deploy this configuration.", cfg.Parity.OracleURL)
 	fakes.Install()
 	http.DefaultTransport = transport.Wrap(http.DefaultTransport, parity.OutboundDefault, cfg.Parity)
+	transport.SetProcessConfig(&cfg.Parity)
 }

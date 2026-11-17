@@ -40,7 +40,7 @@ func TestNotNormalizedClassesAreKnown(t *testing.T) {
 	}{
 		{reg.NotNormalized.Lexical, parity.KindLexical, []string{
 			parity.LexicalHTMLEscape, parity.LexicalUnicodeEscape, parity.LexicalNumberFormat,
-			parity.LexicalTrailingNewline, parity.LexicalWhitespace, parity.LexicalMemberOrder, parity.LexicalOther,
+			parity.LexicalTrailingNewline, parity.LexicalWhitespace, parity.LexicalMemberOrder, parity.LexicalUnrecorded, parity.LexicalOther,
 		}},
 		{reg.NotNormalized.Wire, parity.KindWire, []string{
 			parity.WireHeaderCase, parity.WireHeaderOrder, parity.WireDefaultHeader, parity.WireHTTPVersion,
@@ -80,6 +80,15 @@ func TestNewRulesRejects(t *testing.T) {
 		{"bad shape pattern", RuleEventsTSParam, func(r *schema.NormalizationRule) {
 			r.Shape = map[string]any{"type": "string", "pattern": "("}
 		}, "shape pattern"},
+		{"unknown shape member", RuleAuctionTimestamp, func(r *schema.NormalizationRule) {
+			r.Shape = map[string]any{"type": "integer", "digits": 13.0}
+		}, "shape member"},
+		{"bound on a string shape", RuleEventsTSParam, func(r *schema.NormalizationRule) {
+			r.Shape = map[string]any{"type": "string", "minimum": 1.0}
+		}, "integer and number shapes only"},
+		{"non-numeric bound", RuleAuctionTimestamp, func(r *schema.NormalizationRule) {
+			r.Shape = map[string]any{"type": "integer", "minimum": "1"}
+		}, "is not a number"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

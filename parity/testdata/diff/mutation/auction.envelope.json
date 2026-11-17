@@ -1,0 +1,30 @@
+{
+  "schema": "pbs-parity-envelope/1",
+  "schema_version": "1.0.0",
+  "case_id": "endpoints/openrtb2/sample-requests/valid-whole/supplementary/req-ext-bidder-params-promotion.json#auction",
+  "fixture_path": "endpoints/openrtb2/sample-requests/valid-whole/supplementary/req-ext-bidder-params-promotion.json",
+  "profile": "default",
+  "request": {
+    "method": "POST",
+    "path": "/openrtb2/auction",
+    "query": "",
+    "host": "example.com",
+    "headers": [
+      [
+        "Content-Type",
+        "application/json"
+      ]
+    ],
+    "remote_addr": "192.0.2.1:1234",
+    "body": {
+      "text": "{\n    \"id\": \"some-request-id\",\n    \"site\": {\n      \"page\": \"test.somepage.com\"\n    },\n    \"imp\": [\n      {\n        \"id\": \"my-imp-id\",\n        \"banner\": {\n          \"format\": [\n            {\n              \"w\": 300,\n              \"h\": 600\n            }\n          ]\n        },\n        \"pmp\": {\n          \"deals\": [\n            {\n              \"id\": \"some-deal-id\"\n            }\n          ]\n        },\n        \"ext\": {\n          \"appnexus\": {\n            \"placementId\": 111111\n          },\n          \"pubmatic\": {\n            \"wrapper\": {\n              \"profile\": 1234\n            }\n          },\n          \"arbitraryObject\": {\n            \"arbitraryField\": 1232\n          }\n        }\n      }\n    ],\n    \"ext\": {\n      \"prebid\": {\n        \"targeting\": {\n          \"pricegranularity\": \"low\"\n        },\n        \"cache\": {\n          \"bids\": {}\n        },\n        \"bidderparams\": {\n          \"appnexus\": {\n            \"placementId\": 222222\n          },\n          \"pubmatic\": {\n            \"publisherId\": \"5678\",\n            \"wrapper\": {\n              \"profile\": 5678,\n              \"version\": 2\n            }\n          }\n        }\n      }\n    }\n  }"
+    }
+  },
+  "mock": {
+    "mode": "oracle",
+    "level": "http"
+  },
+  "capture": {
+    "stages": "*"
+  }
+}

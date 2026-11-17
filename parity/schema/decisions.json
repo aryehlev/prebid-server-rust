@@ -1,14 +1,14 @@
 {
   "schema": "pbs-parity-decisions/1",
   "schema_version": "1.0.0",
-  "description": "Registry of decision points: every place where Go consults a random source on the request path. Both implementations replace the random draw at these exact sites with a lookup of envelope.decisions[id]; when the envelope has no value they draw from their own random source and record source 'rng'. A decision is recorded in trace.decisions only when the site is actually reached (for example floors.skip is not consulted when every skip rate is 0). Value domains: 'binary' is the integer 0 or 1 with the meaning given in 'values'; 'index' is a zero-based integer; 'enum' is one of the listed strings. An out-of-domain envelope value is ignored, the real random source is used, and the decision carries a note.",
+  "description": "Registry of decision points: every place where Go consults a random source on the request path. Both implementations replace the random draw at these exact sites with a lookup of envelope.decisions[id]; when the envelope has no value they draw from their own random source and record source 'rng'. A decision is recorded in trace.decisions only when the site is actually reached (for example floors.skip is not consulted when every skip rate is 0). Value domains: 'binary' is the integer 0 or 1 with the meaning given in 'values'; 'index' is a zero-based integer; 'enum' is one of the listed strings. An out-of-domain envelope value is ignored, the real random source is used, and the decision carries a note. Rate-driven points (floors.skip, floors.data_rate, floors.enforce) honour the envelope only where the configured rates leave the outcome to chance: where a rate of 0 or 100 fixes it (consulted_when), the site computes the fixed outcome, records it with source 'rng' and, when the envelope pinned the point, adds the note 'envelope override ignored: the configured rate fixes the outcome'. Pinning a fixed outcome would make the server behave unlike production (observer effect).",
   "decisions": [
     {
       "id": "floors.skip",
       "domain": "binary",
       "values": {"0": "apply floors", "1": "skip floors (ext.prebid.floors.skipped=true)"},
       "go_site": "floors/floors.go:70 shouldSkipFloors(..., rand.Intn); floors/rule.go:179 skipRate >= f(skipRateMax+1)",
-      "consulted_when": "the selected model group, the floors data or the floors root has a non-zero skipRate",
+      "consulted_when": "the selected model group, the floors data or the floors root has a non-zero skipRate; the envelope is honoured only for a skipRate in 1..99 (100 always skips)",
       "rng_equivalent": "1 when skipRate >= rand.Intn(101), else 0"
     },
     {
@@ -16,7 +16,7 @@
       "domain": "binary",
       "values": {"0": "use request floors data", "1": "use fetched floors data"},
       "go_site": "floors/floors.go:146 useFetchedData: rand.Intn(dataRateMax) < *rate",
-      "consulted_when": "dynamic fetch returned data and usefetchdatarate is set",
+      "consulted_when": "dynamic fetch returned data and usefetchdatarate is set; the envelope is honoured only for a usefetchdatarate in 1..99 (0 never and 100 always uses fetched data)",
       "rng_equivalent": "1 when rand.Intn(100) < usefetchdatarate, else 0"
     },
     {
@@ -32,7 +32,7 @@
       "domain": "binary",
       "values": {"0": "do not enforce floors", "1": "enforce floors"},
       "go_site": "floors/enforce.go:34 isSatisfiedByEnforceRate(..., rand.Intn); floors/enforce.go:212",
-      "consulted_when": "floors are enforced for the request (floors enabled, enforcepbs not false)",
+      "consulted_when": "floors are enforced for the request (floors enabled, enforcepbs not false); the envelope is honoured only when neither enforce rate is negative and at least one is in 1..99 (0 and 100 mean always)",
       "rng_equivalent": "1 when both the request and the account enforce rate are 0 or greater than rand.Intn(100), else 0"
     },
     {

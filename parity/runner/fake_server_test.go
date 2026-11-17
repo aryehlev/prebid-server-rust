@@ -32,6 +32,9 @@ const (
 	fakeGo  = "go"  // a correct parity server
 	fakeBug = "bug" // answers differently when the request body has "trigger"
 	fakeNYI = "nyi" // a server without parity routes (501)
+	// fakeOffContract answers like fakeGo with a trace that has a member the
+	// trace schema does not know (a misspelt http_out), which decoding drops.
+	fakeOffContract = "off_contract"
 	// fakeTrigger is the request member that makes the bug mode diverge.
 	fakeTrigger = `"trigger"`
 )
@@ -200,7 +203,25 @@ func (f *fakeServer) exec(r *http.Request) (any, error) {
 	t.Impl, t.Build = f.impl, parity.BuildInfo{GitSHA: "fake", Version: "fake"}
 	t.HTTPIn = &parity.HTTPRequest{Method: env.Request.Method, Path: env.Request.Path, Query: env.Request.Query, Headers: env.Request.Headers, Body: env.Request.Body}
 	t.HTTPResponse = &parity.HTTPResponse{Status: http.StatusOK, Headers: parity.HeaderList{{"Content-Type", "application/json"}}, Body: parity.NewBody(respBody, "")}
+	if f.mode == fakeOffContract {
+		return offContract(&t)
+	}
 	return t, nil
+}
+
+// offContract returns t as a JSON object with one member the trace schema
+// does not allow.
+func offContract(t *parity.Trace) (map[string]any, error) {
+	raw, err := json.Marshal(t)
+	if err != nil {
+		return nil, err
+	}
+	var doc map[string]any
+	if err := json.Unmarshal(raw, &doc); err != nil {
+		return nil, err
+	}
+	doc["http_outs"] = []any{}
+	return doc, nil
 }
 
 // callOracle makes one general outbound call through the oracle proxy.

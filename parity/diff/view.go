@@ -110,7 +110,7 @@ func (v *view) buildEntry(side string, stage parity.StageID, key string, e parit
 }
 
 // entryValue parses the exact raw bytes when present (so lexical differences
-// survive), else the semantic json member.
+// survive), else the semantic json member, marked unrecorded.
 func (v *view) entryValue(side string, stage parity.StageID, key string, e parity.StageEntry) *node {
 	switch {
 	case e.Raw != nil:
@@ -129,6 +129,7 @@ func (v *view) entryValue(side string, stage parity.StageID, key string, e parit
 			return newString(string(e.JSON))
 		}
 		v.note("%s: stage %s[%s] has no raw bytes; lexical comparison skipped", side, stage, key)
+		n.unrecorded = true
 		return n
 	}
 	return nil
@@ -158,7 +159,8 @@ func (v *view) typedNode(side string, value any) *node {
 }
 
 // bodyNode decodes a recorded body. text and b64 are exact bytes; a body with
-// only json is compared semantically.
+// only json is compared semantically, and marked unrecorded so that a lexical
+// comparison it cannot take part in is reported rather than skipped.
 func (v *view) bodyNode(side, what string, b *parity.Body) *node {
 	if b == nil {
 		return nil
@@ -171,6 +173,7 @@ func (v *view) bodyNode(side, what string, b *parity.Body) *node {
 		n = newString(bodyRepr(b))
 	case b.Text == nil && b.B64 == nil:
 		n = v.semanticOrText(side, what, content)
+		n.unrecorded = true
 	default:
 		n = v.exactOrText(side, what+" body", content)
 	}

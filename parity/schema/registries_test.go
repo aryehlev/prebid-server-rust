@@ -356,7 +356,7 @@ func lexicalClasses() []string {
 	return []string{
 		parity.LexicalHTMLEscape, parity.LexicalUnicodeEscape, parity.LexicalNumberFormat,
 		parity.LexicalTrailingNewline, parity.LexicalWhitespace, parity.LexicalMemberOrder,
-		parity.LexicalOther,
+		parity.LexicalUnrecorded, parity.LexicalOther,
 	}
 }
 

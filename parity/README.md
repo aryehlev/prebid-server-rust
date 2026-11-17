@@ -365,7 +365,11 @@ gate parity like any other mismatch:
   order separately.
 * **Lexical differences** (`kind: lexical`) between semantically equal JSON.
   Classes: `html_escape`, `unicode_escape`, `number_format` (for example `1`
-  vs `1.0`), `trailing_newline`, `whitespace`, `member_order` and `other`.
+  vs `1.0`), `trailing_newline`, `whitespace`, `member_order`, `unrecorded`
+  and `other`. `unrecorded` means one side recorded only the semantic `json`
+  of a value the other side recorded as exact bytes (`raw`, `raw_b64`, `text`
+  or `b64`). None of the other classes can then be checked, so the gap is
+  reported rather than skipped.
 * **The 8 adapters' outputs.** They are compared exactly, thanks to the fakes.
 
 A new normalization rule must cite a Go nondeterminism source, must reduce a
@@ -439,6 +443,7 @@ Every outbound client is wrapped in parity mode:
 | floors fetcher client | `floors` |
 | currency client | `currency` |
 | `http.DefaultTransport` (DefaultClient users) | `default` |
+| per-call transports built by product code (`/optout` recaptcha check) | `general`, through `transport.WrapProcess` |
 
 The general-client classifier rules are `wiring.GeneralClassifierRules`. The
 vendor-list prefix comes first, then every configured stored-data HTTP and
@@ -521,8 +526,9 @@ is a no-op and `/__parity/*` is ordinary application traffic.
 | `exchange/price_granularity.go` | `pricegranularity.timesplit` |
 | `exchange/parity_stages.go`, `exchange/parity_turns.go` | the exchange recorders and the bidder turns (harness code living in package `exchange`) |
 | `firstpartydata/first_party_data.go` | the `ResolveFPD` bidder loop ranges over `fakes.MapKeys(...)` |
-| `floors/{floors,rule,enforce}.go`, `floors/parity.go` | `floors.enrich` after `updateFloorsInRequest` rebuilds the request; the four `floors.*` decisions |
+| `floors/{floors,rule,enforce}.go`, `floors/parity.go` | `floors.enrich` after `updateFloorsInRequest` rebuilds the request; the four `floors.*` decisions (the rate-driven ones honour the envelope only where the rate leaves the outcome to chance) |
 | `usersync/shuffler.go` | `usersync.shuffle` |
+| `pbs/usersync.go` | `transport.WrapProcess` on the transport `VerifyRecaptcha` builds per call |
 
 ### The `/__parity/*` routes (PH-07)
 
@@ -763,7 +769,11 @@ server it checks the following:
 * a seeded bug on side B is a mismatch, and live minimization keeps only the
   triggering member;
 * a server without parity routes, a missing binary, or a wrong `impl` makes
-  every case not-yet-instrumented, and all reports are still written.
+  every case not-yet-instrumented, and all reports are still written;
+* a trace that does not validate against its schema makes the case a harness
+  error, never a passing case. Decoding drops members the contract does not
+  know, so such a trace could otherwise hide differences. The same applies to
+  adapter outputs and introspection dumps.
 
 It also loads every profile's generated `pbs.yaml` through `config.New`, and
 encodes a `case.json` for every case of the repository corpus.
@@ -790,6 +800,14 @@ encodes a `case.json` for every case of the repository corpus.
   allowlisted noise, yields exactly one primary cluster, at
   `adapter.requests_final`;
 * noise alone (A/A) yields no records;
+* the mutation tests seed 41 known differences into the Rust copy of a
+  recorded auction trace (`testdata/diff/mutation`). Each one must be detected
+  with the right primary stage, kind and class. A propagating bug must also
+  leave consequential records downstream. Eight noise mutations must compare
+  equal;
+* the time-valued rules mask only values of Go's shape (13-digit millisecond
+  timestamps, non-negative integer durations), so a value with the wrong unit,
+  sign or presence is still reported;
 * every diff document validates against `mismatch.schema.json`.
 
 `parity/server` checks the following:

@@ -6,7 +6,7 @@
     "sort": "Sort the array at target by the listed keys (stable, ascending, lexical on the JSON text of each key) before comparing.",
     "drop": "Remove the member at target on both sides.",
     "key_set": "Compare only the set of member names of the object at target, not the values.",
-    "shape": "Compare only presence and JSON type (and, for strings, the pattern) of the value at target.",
+    "shape": "Compare only presence and JSON type of the value at target, plus the pattern for strings and the minimum/maximum for numbers; a value outside the shape is compared exactly.",
     "uuid_placeholder": "Replace each UUID value at target with <uuid#n>, numbered by first appearance after all sort rules ran, so equal UUIDs stay equal and cross-references are still checked.",
     "count_only": "Compare only the count member of a timing value (histogram _count, observation count); ignore sum and buckets.",
     "ignore": "Ignore the value at target entirely.",
@@ -103,9 +103,9 @@
     {
       "id": "responsetimemillis",
       "applies_to": ["http.response", "exchange.response", "hooks.auction_response", "hooks.exitpoint", "analytics"],
-      "target": "$.ext.responsetimemillis (exchange.response: $.ext_bid_response.responsetimemillis)",
+      "target": "$.ext.responsetimemillis (exchange.response: $.ext_bid_response.responsetimemillis); only member values that are non-negative integers are masked",
       "action": "key_set",
-      "justification": "Values are wall-clock elapsed times of each bidder call.",
+      "justification": "Values are wall-clock elapsed times of each bidder call. A value that is not a non-negative integer (a string, a fraction, a negative number) is compared exactly, because Go never writes one.",
       "go_source": ["exchange/exchange.go:836 elapsed := time.Since(start)", "exchange/exchange.go:1340 bidResponseExt.ResponseTimeMillis[bidderName] = responseExtra.ResponseTimeMillis"]
     },
     {
@@ -113,8 +113,8 @@
       "applies_to": ["http.response", "exchange.response", "events.tracking", "hooks.auction_response", "hooks.exitpoint", "analytics"],
       "target": "$.ext.prebid.auctiontimestamp (exchange.response: $.ext_bid_response.prebid.auctiontimestamp; events.tracking: $.auction_timestamp_ms)",
       "action": "shape",
-      "shape": {"type": "integer"},
-      "justification": "Set from the request start time in milliseconds.",
+      "shape": {"type": "integer", "minimum": 1000000000000, "maximum": 9999999999999},
+      "justification": "Set from the request start time in milliseconds. The shape is a 13-digit millisecond Unix timestamp, so a value in seconds or microseconds is still reported.",
       "go_source": ["exchange/exchange.go:1307-1310 auctionTimestamp = r.StartTime.UnixMilli()", "exchange/events.go:33 auctionTimestampMs: ts.UnixNano() / 1e+6"]
     },
     {
@@ -122,8 +122,8 @@
       "applies_to": ["http.response", "exchange.response", "events.tracking", "cache.result", "http.out", "hooks.all_processed_bid_responses", "hooks.auction_response", "hooks.exitpoint", "analytics"],
       "target": "query parameter ts= of every event URL (bid.ext.prebid.events.*, VAST impression trackers, cached VAST)",
       "action": "shape",
-      "shape": {"type": "string", "pattern": "^[0-9]+$"},
-      "justification": "Event URLs carry the auction timestamp in milliseconds.",
+      "shape": {"type": "string", "pattern": "^[0-9]{13}$"},
+      "justification": "Event URLs carry the auction timestamp in milliseconds. The pattern is a 13-digit millisecond Unix timestamp, so a value in seconds or microseconds is still reported.",
       "go_source": ["exchange/events.go:33 auctionTimestampMs: ts.UnixNano() / 1e+6", "endpoints/events/event.go:36 TimestampParameter = \"ts\""]
     },
     {
@@ -171,8 +171,9 @@
       "id": "hook_execution_time",
       "applies_to": ["hook_outcomes", "http.response", "analytics"],
       "target": "every execution_time_millis / ExecutionTimeMillis member of hook outcomes ($.ext.prebid.modules.trace..)",
-      "action": "drop",
-      "justification": "Wall-clock duration of hook execution.",
+      "action": "shape",
+      "shape": {"type": "integer", "minimum": 0},
+      "justification": "Wall-clock duration of hook execution. Only the value is masked: a side that omits the member, or writes something other than a non-negative integer, is reported.",
       "go_source": ["hooks/hookexecution/execution.go:128 res.ExecutionTime = time.Since(startTime)", "hooks/hookexecution/execution.go:167"]
     },
     {
@@ -186,7 +187,7 @@
     {
       "id": "go_runtime_metrics",
       "applies_to": ["metrics_delta"],
-      "target": "series of the Go runtime collector: names starting with go_, after any configured namespace/subsystem prefix",
+      "target": "series of the Go runtime collector: go_ followed by one of its families (cgo, config, cpu, gc, godebug, goroutines, info, memory, memstats, sched, sync, threads), after any configured namespace/subsystem prefix",
       "action": "ignore",
       "justification": "The Go runtime collector reports the process's own memory, GC, scheduler and goroutine state, which changes during every case independently of the request; its runtime/metrics histograms also carry NaN sums.",
       "go_source": ["metrics/prometheus/prometheus.go:585 metrics.Registerer.MustRegister(promCollector.NewGoCollector())"]
@@ -305,6 +306,7 @@
         "trailing_newline": "Encoder.Encode adds a trailing newline that json.Marshal does not (endpoints/openrtb2/auction.go:391-403).",
         "whitespace": "Insignificant whitespace differs.",
         "member_order": "Object member order differs in the raw bytes.",
+        "unrecorded": "One side recorded only the semantic json (no raw, raw_b64, text or b64) of a document the other side recorded as exact bytes, so none of the lexical classes could be checked for it.",
         "other": "Any other byte-level difference between semantically equal JSON."
       }
     },

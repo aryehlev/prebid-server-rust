@@ -78,6 +78,30 @@ func (s *Session) DecideBool(point parity.DecisionID, draw func() bool) bool {
 	return s.Decide(point, func() int { return boolValue(draw()) }) == 1
 }
 
+// DecideChance is DecideBool for a binary point whose Go site draws against a
+// configured rate (floors.skip, floors.data_rate, floors.enforce). uncertain
+// reports whether draw can return both outcomes for the configured rates. When
+// it cannot (a rate of 0 or 100 fixes the outcome), the envelope value is
+// ignored: Go never draws differently there, so honouring a pinned value would
+// make parity-mode Go behave unlike production (observer effect). The fixed
+// outcome is then recorded with source rng, plus a note when the envelope had
+// pinned the point. A nil session simply returns draw().
+func (s *Session) DecideChance(point parity.DecisionID, uncertain bool, draw func() bool) bool {
+	if s == nil {
+		return draw()
+	}
+	if uncertain {
+		return s.DecideBool(point, draw)
+	}
+	got := boolValue(draw())
+	var notes []string
+	if _, pinned := s.env.Decisions[string(point)]; pinned {
+		notes = []string{"envelope override ignored: the configured rate fixes the outcome"}
+	}
+	s.recordDecision(point, strconv.Itoa(got), parity.DecisionSourceRNG, notes)
+	return got == 1
+}
+
 // DecideString is the string-valued decision point (usersync.shuffle). It
 // returns the envelope override when it is one of the point's enum values,
 // otherwise def() (an out-of-domain override is noted and ignored).

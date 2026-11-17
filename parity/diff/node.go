@@ -68,11 +68,17 @@ type node struct {
 	ws string
 	// lead and trail are the whitespace around a document root.
 	lead, trail string
+	// maskedKind is the JSON type the value had before it was masked
+	// (kindMasked only).
+	maskedKind nodeKind
 	// mask names the rule that masked this value (kindMasked only).
 	mask string
 	// exact is true when raw, member order and ws are the exact source bytes,
 	// so lexical comparison is meaningful.
 	exact bool
+	// unrecorded marks a document root taken from a semantic json member
+	// because its side recorded no exact bytes for it.
+	unrecorded bool
 	// body marks the decoded content of an HTTP body; encoding is its
 	// Content-Encoding (compared separately from the content).
 	body     bool

@@ -235,19 +235,25 @@ func TestBootstrap(t *testing.T) {
 	t.Cleanup(func() {
 		http.DefaultTransport = originalDefault
 		fakes.Uninstall()
+		transport.SetProcessConfig(nil)
 	})
 	fakes.Uninstall()
+	own := &http.Transport{}
 
 	Bootstrap(&config.Configuration{})
 	Bootstrap(nil)
 	assert.Same(t, originalDefault, http.DefaultTransport, "disabled bootstrap changes nothing")
 	assert.Nil(t, fakes.Active())
+	assert.Same(t, own, transport.WrapProcess(own, parity.OutboundGeneral), "disabled bootstrap leaves per-call transports alone")
 
 	Bootstrap(enabledConfig(""))
 	assert.NotNil(t, fakes.Active(), "fakes are installed in parity mode")
 	pt, ok := http.DefaultTransport.(*transport.Transport)
 	require.True(t, ok)
 	assert.Equal(t, parity.OutboundDefault, pt.Kind())
+	wrapped, ok := transport.WrapProcess(own, parity.OutboundGeneral).(*transport.Transport)
+	require.True(t, ok, "parity bootstrap routes per-call transports through the parity transport")
+	assert.Equal(t, parity.OutboundGeneral, wrapped.Kind())
 }
 
 func TestNewDeps(t *testing.T) {
