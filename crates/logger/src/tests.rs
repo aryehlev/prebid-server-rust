@@ -21,7 +21,7 @@ use crate::{
     uses_default_logger, warnf,
 };
 
-/// A package function such as [`infof`].
+/// A package function such as [`infof()`].
 type PackageFn = fn(&str, &[Value]);
 
 /// A glog function over operands such as [`glog::infoln`].
@@ -143,6 +143,32 @@ fn package_functions_reach_the_installed_logger() -> TestResult {
         &Some(call(special, &[])),
         "special",
     )?;
+
+    // The macros pass the message and their arguments, converted by Value::from, unchanged.
+    crate::debugf!("macro %s %d", "test", 1_i64);
+    crate::infof!("macro %s %d", String::from("test"), 2_isize,);
+    crate::warnf!("macro");
+    crate::errorf!("macro %v %v", Value::Nil, 2.5_f64);
+    crate::fatalf!("macro %t", true);
+    let macro_cases = [
+        (
+            "debug",
+            call("macro %s %d", &[Value::from("test"), Value::Int64(1)]),
+        ),
+        (
+            "info",
+            call("macro %s %d", &[Value::from("test"), Value::Int(2)]),
+        ),
+        ("warn", call("macro", &[])),
+        (
+            "error",
+            call("macro %v %v", &[Value::Nil, Value::Float64(2.5)]),
+        ),
+        ("fatal", call("macro %t", &[Value::Bool(true)])),
+    ];
+    for (level, want) in macro_cases {
+        check_eq(&mock.calls(level).pop(), &Some(want), level)?;
+    }
     reset_logger();
     check(
         uses_default_logger(),
