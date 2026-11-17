@@ -7,9 +7,11 @@
 //!
 //! # TLS stack
 //!
-//! rustls 0.23 with the aws-lc-rs provider performs the handshake, and rustls-webpki verifies the
-//! server against a [`CertPool`] loaded the way Go loads one. The alternatives, weighed against
-//! Go's behaviour, the licence allow list and the workspace's one version per crate:
+//! rustls 0.23 with the aws-lc-rs provider performs the handshake. The server's certificate is
+//! checked by [`crate::x509`]'s verifier: Go's `Certificate.Verify` order and error texts over
+//! rustls-webpki's path building, against a [`CertPool`] loaded the way Go loads one. The
+//! alternatives, weighed against Go's behaviour, the licence allow list and the workspace's one
+//! version per crate:
 //!
 //! - ring has no post-quantum key exchange (Go 1.26, like aws-lc-rs, prefers `X25519MLKEM768`), and
 //!   its newest release, 0.17.14, depends on windows-sys 0.52 where tokio, mio and socket2 use
@@ -45,16 +47,18 @@
 //! no ring feature, so nothing names ring any more.
 
 use std::{
-    env, fmt, fs,
+    env,
+    ffi::OsStr,
+    fmt, fs,
     io::{self, ErrorKind},
-    net::IpAddr,
+    path::{Path, PathBuf},
     pin::Pin,
     sync::{Arc, OnceLock},
     task::{Context as TaskContext, Poll},
 };
 
 use rustls::{
-    CertificateError, ClientConfig, Error as TlsError, RootCertStore,
+    CertificateError, ClientConfig, Error as TlsError,
     client::Resumption,
     crypto::aws_lc_rs,
     pki_types::{CertificateDer, ServerName, pem::PemObject as _},
@@ -67,6 +71,7 @@ use crate::{
     error::HttpError,
     httptrace::ConnectionState,
     net::{Conn, conn_io_error, errno_text},
+    x509::{self, Rejection, Roots, ServerVerifier},
 };
 
 /// Go: `*x509.CertPool`.
@@ -96,9 +101,22 @@ const CERT_FILES: [&str; 6] = [
 /// Go: `x509.certDirectories` (Linux): every file in each is loaded.
 const CERT_DIRECTORIES: [&str; 2] = ["/etc/ssl/certs", "/etc/pki/tls/certs"];
 
-/// Go's `*fs.PathError` text for a failed open.
-fn open_error(path: &str, e: &io::Error) -> String {
-    format!("open {path}: {}", errno_text(e))
+/// Go's `*fs.PathError` text for a failed `op` (`open`, `read`) on `path`.
+fn path_error(op: &str, path: &OsStr, e: &io::Error) -> String {
+    format!("{op} {}: {}", Path::new(path).display(), errno_text(e))
+}
+
+/// Go: `os.ReadFile`: `None` when the error is "not found" (Go: `os.IsNotExist`), else Go's
+/// `*fs.PathError` text, which names the step that failed: `open`, or `read` (a directory opens
+/// but does not read).
+fn read_file(path: &OsStr) -> Result<Vec<u8>, Option<String>> {
+    let failed = |op: &str, e: &io::Error| {
+        (e.kind() != ErrorKind::NotFound).then(|| path_error(op, path, e))
+    };
+    let mut file = fs::File::open(path).map_err(|e| failed("open", &e))?;
+    let mut data = Vec::new();
+    let _len = io::copy(&mut file, &mut data).map_err(|e| failed("read", &e))?;
+    Ok(data)
 }
 
 impl CertPool {
@@ -113,7 +131,7 @@ impl CertPool {
     pub fn append_certs_from_pem(&mut self, pem: &[u8]) -> bool {
         let mut ok = false;
         for cert in CertificateDer::pem_slice_iter(pem).filter_map(Result::ok) {
-            if !webpki_parses(&cert) {
+            if !x509::parses(&cert) {
                 continue;
             }
             ok = true;
@@ -147,35 +165,36 @@ impl CertPool {
     pub fn system() -> Result<Self, HttpError> {
         let mut roots = Self::new();
         let mut first_err: Option<String> = None;
-        let env_file = env::var("SSL_CERT_FILE").ok().filter(|f| !f.is_empty());
-        let files: Vec<String> = env_file.map_or_else(
-            || CERT_FILES.iter().map(|s| (*s).to_owned()).collect(),
-            |f| vec![f],
-        );
-        for file in &files {
-            match fs::read(file) {
+        let env_file = env::var_os("SSL_CERT_FILE").filter(|f| !f.is_empty());
+        let files: Vec<&OsStr> = env_file
+            .as_deref()
+            .map_or_else(|| CERT_FILES.iter().map(OsStr::new).collect(), |f| vec![f]);
+        for file in files {
+            match read_file(file) {
                 Ok(data) => {
                     let _added = roots.append_certs_from_pem(&data);
                     break;
                 }
                 Err(e) => {
-                    if first_err.is_none() && e.kind() != ErrorKind::NotFound {
-                        first_err = Some(open_error(file, &e));
+                    if first_err.is_none() {
+                        first_err = e;
                     }
                 }
             }
         }
-        let env_dir = env::var("SSL_CERT_DIR").ok().filter(|d| !d.is_empty());
-        let dirs: Vec<String> = env_dir.map_or_else(
-            || CERT_DIRECTORIES.iter().map(|s| (*s).to_owned()).collect(),
-            |d| d.split(':').map(str::to_owned).collect(),
+        let env_dir = env::var_os("SSL_CERT_DIR").filter(|d| !d.is_empty());
+        // Go: strings.Split(d, ":"), which split_paths does on the variable's bytes on Unix.
+        let dirs: Vec<PathBuf> = env_dir.map_or_else(
+            || CERT_DIRECTORIES.iter().map(PathBuf::from).collect(),
+            |d| env::split_paths(&d).collect(),
         );
         for dir in &dirs {
             let entries = match fs::read_dir(dir) {
                 Ok(entries) => entries,
                 Err(e) => {
+                    // Go opens directories with O_DIRECTORY, so a file fails to open too.
                     if first_err.is_none() && e.kind() != ErrorKind::NotFound {
-                        first_err = Some(open_error(dir, &e));
+                        first_err = Some(path_error("open", dir.as_os_str(), &e));
                     }
                     continue;
                 }
@@ -185,11 +204,11 @@ impl CertPool {
             for entry in names {
                 // Go: readUniqueDirectoryEntries skips links into the same directory.
                 if let Ok(target) = fs::read_link(entry.path())
-                    && !target.to_string_lossy().contains('/')
+                    && !target.as_os_str().as_encoded_bytes().contains(&b'/')
                 {
                     continue;
                 }
-                if let Ok(data) = fs::read(entry.path()) {
+                if let Ok(data) = read_file(entry.path().as_os_str()) {
                     let _added = roots.append_certs_from_pem(&data);
                 }
             }
@@ -208,13 +227,6 @@ impl CertPool {
     }
 }
 
-/// Whether webpki can use the certificate as a trust anchor (Go skips certificates it cannot
-/// parse).
-fn webpki_parses(cert: &CertificateDer<'_>) -> bool {
-    let mut store = RootCertStore::empty();
-    store.add(cert.clone()).is_ok()
-}
-
 /// Go: `tls.Config`, the fields the transport uses.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct TlsConfig {
@@ -225,25 +237,42 @@ pub struct TlsConfig {
 }
 
 impl TlsConfig {
-    /// Builds the rustls configuration (once per transport).
-    pub(crate) fn client_config(&self) -> Result<Arc<ClientConfig>, HttpError> {
+    /// Builds the rustls configuration and the verifier's root pool (once per transport).
+    pub(crate) fn client(&self) -> Result<TlsClient, HttpError> {
         let pool = self
             .root_cas
             .as_ref()
             .unwrap_or_else(|| CertPool::system_shared());
-        let mut store = RootCertStore::empty();
-        let (_added, _ignored) = store.add_parsable_certificates(pool.certs.iter().cloned());
-        let mut config =
-            ClientConfig::builder_with_provider(Arc::new(aws_lc_rs::default_provider()))
-                .with_protocol_versions(&[&version::TLS13, &version::TLS12])
-                .map_err(|e| HttpError::Message(format!("tls: {e}")))?
-                .with_root_certificates(store)
-                .with_no_client_auth();
+        let provider = aws_lc_rs::default_provider();
+        let roots = Arc::new(Roots::new(
+            &pool.certs,
+            provider.signature_verification_algorithms,
+        ));
+        let mut config = ClientConfig::builder_with_provider(Arc::new(provider))
+            .with_protocol_versions(&[&version::TLS13, &version::TLS12])
+            .map_err(|e| HttpError::Message(format!("tls: {e}")))?
+            .dangerous()
+            .with_custom_certificate_verifier(Arc::new(ServerVerifier::new(
+                Arc::clone(&roots),
+                None,
+            )))
+            .with_no_client_auth();
         config.resumption = Resumption::disabled();
         config.alpn_protocols = Vec::new();
         config.enable_sni = true;
-        Ok(Arc::new(config))
+        Ok(TlsClient {
+            config: Arc::new(config),
+            roots,
+        })
     }
+}
+
+/// A transport's TLS client: the rustls configuration and the root pool its verifier checks
+/// against.
+#[derive(Debug, Clone)]
+pub(crate) struct TlsClient {
+    config: Arc<ClientConfig>,
+    roots: Arc<Roots>,
 }
 
 /// A connection that watches the TLS records it reads: Go reports a first record that is not a
@@ -396,114 +425,13 @@ fn alert_text(code: u8) -> String {
     format!("tls: {text}")
 }
 
-/// Go's `Time.Format(time.RFC3339)` of a UTC Unix time.
-fn rfc3339_utc(secs: u64) -> String {
-    let days = i64::try_from(secs / 86_400).unwrap_or(i64::MAX / 2);
-    let in_day = secs % 86_400;
-    let (hour, minute, second) = (in_day / 3600, in_day % 3600 / 60, in_day % 60);
-    // Howard Hinnant's civil_from_days.
-    let shifted = days + 719_468;
-    let era = shifted.div_euclid(146_097);
-    let day_of_era = shifted.rem_euclid(146_097);
-    let year_of_era =
-        (day_of_era - day_of_era / 1460 + day_of_era / 36_524 - day_of_era / 146_096) / 365;
-    let day_of_year = day_of_era - (365 * year_of_era + year_of_era / 4 - year_of_era / 100);
-    let month_index = (5 * day_of_year + 2) / 153;
-    let day = day_of_year - (153 * month_index + 2) / 5 + 1;
-    let month = if month_index < 10 {
-        month_index + 3
-    } else {
-        month_index - 9
-    };
-    let year = year_of_era + era * 400 + i64::from(month <= 2);
-    format!("{year:04}-{month:02}-{day:02}T{hour:02}:{minute:02}:{second:02}Z")
-}
-
-/// Go's `net.IP.String()` of an IP address name webpki printed.
-fn go_ip_text(webpki: &str) -> String {
-    match webpki.parse::<IpAddr>() {
-        Ok(IpAddr::V6(v6)) => v6
-            .to_ipv4_mapped()
-            .map_or_else(|| v6.to_string(), |v4| v4.to_string()),
-        Ok(IpAddr::V4(v4)) => v4.to_string(),
-        Err(_) => webpki.to_owned(),
-    }
-}
-
-/// Go: `x509.HostnameError.Error()` from the names webpki presents (`DnsName("..")`,
-/// `IpAddress(..)`).
-fn hostname_error(expected: &ServerName<'_>, presented: &[String], host: &str) -> String {
-    if matches!(expected, ServerName::IpAddress(_)) {
-        let ips: Vec<String> = presented
-            .iter()
-            .filter_map(|p| p.strip_prefix("IpAddress(")?.strip_suffix(')'))
-            .map(go_ip_text)
-            .collect();
-        if ips.is_empty() {
-            return format!(
-                "x509: cannot validate certificate for {host} because it doesn't contain any \
-                 IP SANs"
-            );
-        }
-        return format!(
-            "x509: certificate is valid for {}, not {host}",
-            ips.join(", ")
-        );
-    }
-    let names: Vec<&str> = presented
-        .iter()
-        .filter_map(|p| p.strip_prefix("DnsName(\"")?.strip_suffix("\")"))
-        .collect();
-    if names.is_empty() {
-        return format!("x509: certificate is not valid for any names, but wanted to match {host}");
-    }
-    format!(
-        "x509: certificate is valid for {}, not {host}",
-        names.join(", ")
-    )
-}
-
-/// Go's `x509` error text for a certificate verification failure.
-fn verify_detail(e: &CertificateError, host: &str) -> String {
-    const INVALID: &str = "x509: certificate has expired or is not yet valid: ";
-    if let CertificateError::NotValidForNameContext {
-        expected,
-        presented,
-    } = e
-    {
-        return hostname_error(expected, presented, host);
-    }
-    if let CertificateError::ExpiredContext { time, not_after } = e {
-        return format!(
-            "{INVALID}current time {} is after {}",
-            rfc3339_utc(time.as_secs()),
-            rfc3339_utc(not_after.as_secs())
-        );
-    }
-    if let CertificateError::NotValidYetContext { time, not_before } = e {
-        return format!(
-            "{INVALID}current time {} is before {}",
-            rfc3339_utc(time.as_secs()),
-            rfc3339_utc(not_before.as_secs())
-        );
-    }
-    if matches!(e, CertificateError::Expired | CertificateError::NotValidYet) {
-        return INVALID.to_owned();
-    }
-    if matches!(e, CertificateError::NotValidForName) {
-        return format!("x509: certificate is not valid for any names, but wanted to match {host}");
-    }
-    if matches!(
-        e,
-        CertificateError::UnknownIssuer | CertificateError::BadSignature
-    ) {
-        return "x509: certificate signed by unknown authority".to_owned();
-    }
-    format!("x509: {e}")
-}
-
 /// Go's error for a TLS protocol failure.
-fn tls_error(e: &TlsError, host: &str) -> HttpError {
+fn tls_error(e: &TlsError) -> HttpError {
+    if let TlsError::InvalidCertificate(CertificateError::Other(other)) = e
+        && let Some(rejection) = other.0.downcast_ref::<Rejection>()
+    {
+        return HttpError::Message(rejection.to_string());
+    }
     if matches!(
         e,
         TlsError::InvalidCertificate(CertificateError::BadEncoding)
@@ -513,10 +441,7 @@ fn tls_error(e: &TlsError, host: &str) -> HttpError {
         );
     }
     if let TlsError::InvalidCertificate(c) = e {
-        return HttpError::Message(format!(
-            "tls: failed to verify certificate: {}",
-            verify_detail(c, host)
-        ));
+        return HttpError::Message(format!("tls: failed to verify certificate: x509: {c}"));
     }
     if let TlsError::AlertReceived(a) = e {
         let code = u8::from(*a);
@@ -540,7 +465,6 @@ fn tls_error(e: &TlsError, host: &str) -> HttpError {
 /// Maps a handshake failure to Go's error.
 fn handshake_error(
     e: &io::Error,
-    host: &str,
     rec: &RecordingConn,
     local: Option<&String>,
     remote: Option<&String>,
@@ -552,7 +476,7 @@ fn handshake_error(
         .get_ref()
         .and_then(|inner| inner.downcast_ref::<TlsError>())
     {
-        return tls_error(tls, host);
+        return tls_error(tls);
     }
     if e.kind() == ErrorKind::UnexpectedEof {
         // Go accepts a close at a record boundary as EOF.
@@ -571,8 +495,8 @@ fn handshake_error(
 ///
 /// Go's handshake errors (`tls: failed to verify certificate: x509: certificate signed by
 /// unknown authority`, `remote error: tls: handshake failure`, `EOF`, ...).
-pub async fn handshake(
-    config: Arc<ClientConfig>,
+pub(crate) async fn handshake(
+    client: &TlsClient,
     conn: Box<dyn Conn>,
     server_name: &str,
     local: Option<&String>,
@@ -584,7 +508,15 @@ pub async fn handshake(
         .unwrap_or(server_name);
     let name = ServerName::try_from(host.to_owned())
         .map_err(|e| HttpError::Message(format!("tls: {e}")))?;
-    let connector = TlsConnector::from(config);
+    // Go verifies against the name as given; rustls's ServerName drops a trailing dot.
+    let mut config = ClientConfig::clone(&client.config);
+    config
+        .dangerous()
+        .set_certificate_verifier(Arc::new(ServerVerifier::new(
+            Arc::clone(&client.roots),
+            Some(host.to_owned()),
+        )));
+    let connector = TlsConnector::from(Arc::new(config));
     match connector
         .connect(name, RecordingConn::new(conn))
         .into_fallible()
@@ -600,7 +532,7 @@ pub async fn handshake(
             };
             Ok((Box::new(stream), state))
         }
-        Err((e, rec)) => Err(handshake_error(&e, host, &rec, local, remote)),
+        Err((e, rec)) => Err(handshake_error(&e, &rec, local, remote)),
     }
 }
 
@@ -627,21 +559,6 @@ mod tests {
     }
 
     #[test]
-    fn rfc3339() -> Result<(), String> {
-        ensure_eq(rfc3339_utc(0).as_str(), "1970-01-01T00:00:00Z", "epoch")?;
-        ensure_eq(
-            rfc3339_utc(951_782_400).as_str(),
-            "2000-02-29T00:00:00Z",
-            "leap day",
-        )?;
-        ensure_eq(
-            rfc3339_utc(1_767_225_599).as_str(),
-            "2025-12-31T23:59:59Z",
-            "year end",
-        )
-    }
-
-    #[test]
     fn record_tracking() -> Result<(), String> {
         let mut rec = RecordingConn::new(Box::new(empty()));
         rec.track(&[22, 3, 3, 0, 2, 1]);
@@ -660,24 +577,29 @@ mod tests {
         )
     }
 
+    /// Go's `AppendCertsFromPEM` skips blocks `x509.ParseCertificate` rejects.
     #[test]
-    fn hostname_texts() -> Result<(), String> {
-        let dns = ServerName::try_from("example.org").map_err(|e| e.to_string())?;
-        let presented = [
-            "DnsName(\"a.example.com\")".to_owned(),
-            "IpAddress(10.0.0.1)".to_owned(),
-            "DnsName(\"*.example.net\")".to_owned(),
-        ];
+    fn pool_skips_unparsable() -> Result<(), String> {
+        let mut pool = CertPool::new();
+        let junk =
+            b"-----BEGIN CERTIFICATE-----\nbm90IGEgY2VydGlmaWNhdGU=\n-----END CERTIFICATE-----\n";
+        ensure_eq(&pool.append_certs_from_pem(junk), &false, "junk")?;
+        ensure_eq(&pool.len(), &0, "pool size")
+    }
+
+    /// Go's `os.ReadFile` texts: a directory opens but does not read.
+    #[test]
+    fn read_file_texts() -> Result<(), String> {
+        let dir = env!("CARGO_MANIFEST_DIR");
         ensure_eq(
-            hostname_error(&dns, &presented, "example.org").as_str(),
-            "x509: certificate is valid for a.example.com, *.example.net, not example.org",
-            "dns names",
+            &read_file(OsStr::new(dir)),
+            &Err(Some(format!("read {dir}: is a directory"))),
+            "directory",
         )?;
-        let ip = ServerName::try_from("10.0.0.2").map_err(|e| e.to_string())?;
         ensure_eq(
-            hostname_error(&ip, &["DnsName(\"a.example.com\")".to_owned()], "10.0.0.2").as_str(),
-            "x509: cannot validate certificate for 10.0.0.2 because it doesn't contain any IP SANs",
-            "no IP SANs",
+            &read_file(OsStr::new("/nonexistent/pbs-gohttp-client")),
+            &Err(None),
+            "missing file",
         )
     }
 }
