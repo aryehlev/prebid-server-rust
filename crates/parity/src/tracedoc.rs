@@ -43,9 +43,10 @@ pub struct Trace {
     /// The response the handler chain wrote.
     #[gojson(go = "HTTPResponse", json = "http_response")]
     pub http_response: Option<HttpResponse>,
-    /// The recorded stage entries, by stage and key.
+    /// The recorded stage entries, by stage and key. A stage's map is nil-able like Go's
+    /// `map[string]StageEntry` (`None` is written as `null`); a session never writes one.
     #[gojson(json = "stages")]
-    pub stages: Option<BTreeMap<StageId, BTreeMap<String, StageEntry>>>,
+    pub stages: Option<BTreeMap<StageId, Option<BTreeMap<String, StageEntry>>>>,
     /// The status of every registered stage.
     #[gojson(json = "stage_status")]
     pub stage_status: Option<BTreeMap<StageId, StageStatus>>,

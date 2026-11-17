@@ -151,20 +151,39 @@ fn no_case_means_production_defaults() -> TestResult {
     )
 }
 
+// Without the feature no session can exist: `Session` and `Tracked` are uninhabited, so an
+// `Option<Session>` carries nothing, a hook's body is dead code, and `current` and
+// `fakes::active` are constants.
+#[cfg(not(feature = "trace"))]
+#[test]
+fn production_build_has_no_recorder() -> TestResult {
+    use super::{Session, Tracked};
+    use crate::fakes;
+
+    const NO_CASE: bool = current().is_none();
+    const NO_FAKES: bool = fakes::active().is_none();
+    check(NO_CASE, "current is a constant None")?;
+    check(NO_FAKES, "fakes::active is a constant None")?;
+    check_eq(&size_of::<Session>(), &0, "Session")?;
+    check_eq(&size_of::<Option<Session>>(), &0, "Option<Session>")?;
+    check_eq(&size_of::<Tracked>(), &0, "Tracked")?;
+    check_eq(&size_of::<Option<Tracked>>(), &0, "Option<Tracked>")
+}
+
 #[cfg(feature = "trace")]
 mod live {
     use core::time::Duration;
-    use std::{collections::BTreeMap, sync::Arc};
+    use std::{collections::BTreeMap, sync::Arc, thread};
 
     use pbs_errortypes::GoError;
     use pbs_gojson::{GoString, RawJson, stdjson};
     use tokio::{
         sync::{Notify, Semaphore, mpsc},
         task::{self, JoinHandle},
-        time::{sleep, timeout},
+        time::{Instant, sleep, timeout},
     };
 
-    use super::super::{Case, Session, begin_case, current, decide, intn, with};
+    use super::super::{Case, Session, Tracked, begin_case, current, decide, intn, with};
     use crate::{
         envelope::{CaptureSpec, Envelope, ExecRequest, FakeValues},
         fakes::{self, DEFAULT_INT63},
@@ -189,7 +208,7 @@ mod live {
             .stages
             .as_ref()
             .and_then(|stages| stages.get(&stage))
-            .and_then(|keyed| keyed.get(key))
+            .and_then(|keyed| keyed.as_ref()?.get(key))
             .cloned()
             .ok_or_else(|| format!("no entry {}[{key}]", stage.as_str()))
     }
@@ -390,23 +409,26 @@ mod live {
         }
         let snap = s.snapshot();
         let stages = snap.stages.unwrap_or_default();
-        let requests = stages
-            .get(&StageId::BidderRequest)
-            .cloned()
-            .unwrap_or_default();
+        let keyed = |stage: StageId| stages.get(&stage).cloned().flatten().unwrap_or_default();
+        let requests = keyed(StageId::BidderRequest);
+        let results = keyed(StageId::BidderResult);
         check_eq(&requests.len(), &100, "bidder.request entries")?;
-        check_eq(
-            &stages.get(&StageId::BidderResult).map(BTreeMap::len),
-            &Some(100),
-            "bidder.result entries",
-        )?;
-        check_eq(&snap.http_out.map(|c| c.len()), &Some(100), "http_out")?;
+        check_eq(&results.len(), &100, "bidder.result entries")?;
+        let calls = snap.http_out.unwrap_or_default();
+        check_eq(&calls.len(), &100, "http_out")?;
         check_eq(&snap.decisions.map(|d| d.len()), &Some(100), "decisions")?;
         check_eq(&snap.notes.map(|n| n.len()), &Some(100), "notes")?;
-        let mut seqs: Vec<isize> = requests.values().map(|e| e.seq).collect();
+        // Every write took the next value of the one session-wide sequence: the entries'
+        // and the calls' seqs are exactly 1..=300, none shared.
+        let mut seqs: Vec<isize> = requests
+            .values()
+            .chain(results.values())
+            .map(|e| e.seq)
+            .chain(calls.iter().map(|c| c.seq))
+            .collect();
         seqs.sort_unstable();
-        seqs.dedup();
-        check_eq(&seqs.len(), &100, "unique seqs")
+        check_eq(&seqs, &(1..=300).collect::<Vec<isize>>(), "one sequence")?;
+        check_eq(&s.next_seq(), &301, "the sequence continues")
     }
 
     // Go: TestCaptureFilter.
@@ -809,6 +831,61 @@ mod live {
             task.await.map_err(|e| e.to_string())?;
         }
         Ok(())
+    }
+
+    // Settle's limit on the paused clock: with nothing tracked it is settled at once even with
+    // no time left (Go's select between a closed channel and a fired timer is a race there); a
+    // task that outlives the limit makes it report false exactly at the limit; one that
+    // finishes in time ends the wait right then; and the future owns what it waits on, so it
+    // runs on after the session handle is gone.
+    #[tokio::test(start_paused = true)]
+    async fn settle_limits() -> TestResult {
+        let s = Session::new(env("limits"));
+        check(s.settle(Duration::ZERO).await, "nothing tracked, no time")?;
+
+        let done = s.track();
+        check(!s.settle(Duration::ZERO).await, "pending, no time")?;
+        let gave_up = Instant::now();
+        check(!s.settle(Duration::from_millis(250)).await, "outlived")?;
+        check_eq(
+            &gave_up.elapsed(),
+            &Duration::from_millis(250),
+            "gave up at the limit",
+        )?;
+
+        let start = Instant::now();
+        let waiting = tokio::spawn(s.settle(Duration::from_secs(60)));
+        drop(s);
+        sleep(Duration::from_millis(40)).await;
+        drop(done);
+        check(
+            waiting.await.map_err(|e| e.to_string())?,
+            "finished in time",
+        )?;
+        check_eq(
+            &start.elapsed(),
+            &Duration::from_millis(40),
+            "returned when the task finished",
+        )
+    }
+
+    // Guards dropped on another thread wake the waiting settle.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn settle_wakes_across_threads() -> TestResult {
+        let s = Session::new(env("threads"));
+        let guards: Vec<Tracked> = (0..16).map(|_| s.track()).collect();
+        let waiting = tokio::spawn(s.settle(Duration::from_secs(30)));
+        let dropper = thread::spawn(move || {
+            for guard in guards {
+                thread::yield_now();
+                drop(guard);
+            }
+        });
+        check(waiting.await.map_err(|e| e.to_string())?, "settled")?;
+        dropper
+            .join()
+            .map_err(|e| format!("the dropper failed: {e:?}"))?;
+        check(s.settle(Duration::ZERO).await, "still settled")
     }
 
     // Go: TestSettleWaitsForDeferredWork.

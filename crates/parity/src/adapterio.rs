@@ -113,9 +113,10 @@ pub struct ExtraRequestInfo {
 #[derive(Clone, Debug, Default, PartialEq, GoJson)]
 #[gojson(go_type = "parity.CurrencyRates")]
 pub struct CurrencyRates {
-    /// The rates.
+    /// The rates. A currency's map is nil-able like Go's `map[string]float64` (`None` is
+    /// written as `null`).
     #[gojson(json = "conversions")]
-    pub conversions: Option<BTreeMap<String, BTreeMap<String, f64>>>,
+    pub conversions: Option<BTreeMap<String, Option<BTreeMap<String, f64>>>>,
 }
 
 /// The body of `POST /__parity/adapter/{bidder}/requests` (Go: `parity.AdapterRequestsInput`).

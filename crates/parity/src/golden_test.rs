@@ -662,6 +662,40 @@ fn documents_match_go() -> TestResult {
     )
 }
 
+/// `raw` decoded as `T` with `json.Unmarshal` and written back as the Go server writes documents,
+/// or the decode error's text; `Err` only when writing fails.
+fn reencode<T: StdDecode + GoEncode + Default>(
+    raw: &[u8],
+) -> Result<Result<Vec<u8>, Vec<u8>>, String> {
+    let mut v = T::default();
+    if let Err(err) = stdjson::unmarshal(raw, &mut v) {
+        return Ok(Err(err.go_text()));
+    }
+    encode_document(&v).map(Ok).map_err(|e| e.to_string())
+}
+
+// A nil inner map (Go: `map[string]StageEntry(nil)`, `map[string]float64(nil)`) is written back
+// as null and an empty one as {}, as Go writes them; the Rust types used to write both as {}.
+#[test]
+fn nil_inner_maps_stay_null() -> TestResult {
+    let trace = reencode::<Trace>(br#"{"stages":{"http.in":null,"bidder.request":{}}}"#)?
+        .map_err(|e| lossy(&e))?;
+    let trace = lossy(&trace);
+    check(
+        trace.contains(r#""stages":{"bidder.request":{},"http.in":null}"#),
+        &trace,
+    )?;
+    let input = reencode::<AdapterRequestsInput>(
+        br#"{"extra_info":{"currency_rates":{"conversions":{"USD":null,"EUR":{}}}}}"#,
+    )?
+    .map_err(|e| lossy(&e))?;
+    let input = lossy(&input);
+    check(
+        input.contains(r#""conversions":{"EUR":{},"USD":null}"#),
+        &input,
+    )
+}
+
 /// A health document built from this crate's registries.
 fn rust_health() -> Health {
     Health {

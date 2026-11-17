@@ -381,7 +381,12 @@ impl Session {
             endpoint: self.0.env.request.path.clone(),
             http_in: None,
             http_response: None,
-            stages: Some(stages),
+            stages: Some(
+                stages
+                    .into_iter()
+                    .map(|(stage, keyed)| (stage, Some(keyed)))
+                    .collect(),
+            ),
             stage_status: Some(status),
             http_out: Some(http_out),
             decisions: Some(decisions),
