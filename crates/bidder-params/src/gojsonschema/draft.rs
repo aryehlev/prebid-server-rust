@@ -3,6 +3,7 @@
 use super::{
     go_url::parse_reference,
     json_loader::{Document, Node, NodeId},
+    utils::checked_kind,
 };
 
 /// Go: gojsonschema `Draft`. The order matters: Go compares drafts with `>=`.
@@ -36,16 +37,24 @@ fn draft_version(url: &str) -> Option<Draft> {
 /// Go's messages for a root that is neither an object nor a boolean, and for a non-string
 /// `$schema`.
 pub(super) fn parse_schema_url(doc: &Document, root: NodeId) -> Result<Option<Draft>, String> {
+    // Go: `isKind(documentNode, reflect.Bool)` panics on a number big.Rat rejects.
+    let _root_kind = checked_kind(doc, root)?;
     match doc.node(root) {
         Node::Bool(_) => Ok(None),
-        Node::Object(_) => match doc.get(root, "$schema").map(|id| doc.node(id)) {
-            None => Ok(None),
-            // Go: `gojsonreference.NewJsonReference(url)` then `GetDraftVersion(ref.String())`.
-            Some(Node::String(url)) => Ok(parse_reference(url)?.as_deref().and_then(draft_version)),
-            Some(
-                Node::Null | Node::Bool(_) | Node::Number(_) | Node::Array(_) | Node::Object(_),
-            ) => Err("$schema must be of type string".to_owned()),
-        },
+        Node::Object(_) => {
+            let Some(schema) = doc.get(root, "$schema") else {
+                return Ok(None);
+            };
+            let _schema_kind = checked_kind(doc, schema)?;
+            match doc.node(schema) {
+                // Go: `gojsonreference.NewJsonReference(url)` then
+                // `GetDraftVersion(ref.String())`.
+                Node::String(url) => Ok(parse_reference(url)?.as_deref().and_then(draft_version)),
+                Node::Null | Node::Bool(_) | Node::Number(_) | Node::Array(_) | Node::Object(_) => {
+                    Err("$schema must be of type string".to_owned())
+                }
+            }
+        }
         Node::Null | Node::Number(_) | Node::String(_) | Node::Array(_) => {
             Err("schema is invalid".to_owned())
         }

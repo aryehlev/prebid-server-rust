@@ -19,7 +19,7 @@ use super::{
     regexp::GoRegexp,
     schema_type::{TYPE_BOOLEAN, TYPE_INTEGER, TYPE_NUMBER, TYPE_OBJECT, TYPE_STRING},
     sub_schema::{Additional, Dependency, SubId, SubSchema},
-    utils::{Kind, is_kind, must_be_integer, must_be_number},
+    utils::{Kind, checked_kind, is_kind, must_be_integer, must_be_number},
     validation::{GoPanic, ValidateError, validate_document},
 };
 
@@ -84,6 +84,7 @@ impl Schema {
     /// As for [`Schema::new`], minus decoding errors.
     pub fn from_document(doc: &Document) -> Result<Self, String> {
         let draft = parse_schema_url(doc, doc.root())?.unwrap_or(Draft::Hybrid);
+        check_references(doc)?;
         let mut parser = Parser {
             doc,
             subs: Vec::new(),
@@ -126,6 +127,48 @@ impl Schema {
     }
 }
 
+/// Go: `schemaPool.parseReferences`, which walks the whole schema document before it is parsed
+/// (gojsonschema/schemaPool.go). Its errors are swallowed, so for a self-contained schema the
+/// only observable effect is a panic: `isKind` on an `id`/`$id` or `$ref` value that is a
+/// number `big.Rat` rejects. The walk skips `const` and `enum` values and, under `properties`,
+/// `dependencies` and `patternProperties`, descends only into an object's values.
+///
+/// Not ported: Go stops walking an object whose `id` resolves to an id it already saw
+/// ("Reference already exists"), which needs Go's URL resolution; such a subtree is walked here.
+fn check_references(doc: &Document) -> Result<(), String> {
+    let mut stack = vec![doc.root()];
+    while let Some(id) = stack.pop() {
+        match doc.node(id) {
+            Node::Array(items) => stack.extend(items.iter().copied()),
+            Node::Object(entries) => {
+                let key_id = if doc.get(id, "id").is_some() {
+                    "id"
+                } else {
+                    "$id"
+                };
+                for key in [key_id, "$ref"] {
+                    if let Some(value) = doc.get(id, key) {
+                        let _kind = checked_kind(doc, value)?;
+                    }
+                }
+                for (key, value) in entries {
+                    match key.as_str() {
+                        "const" | "enum" => {}
+                        "properties" | "dependencies" | "patternProperties" => {
+                            if let Node::Object(children) = doc.node(*value) {
+                                stack.extend(children.iter().map(|&(_, child)| child));
+                            }
+                        }
+                        _ => stack.push(*value),
+                    }
+                }
+            }
+            Node::Null | Node::Bool(_) | Node::Number(_) | Node::String(_) => {}
+        }
+    }
+    Ok(())
+}
+
 struct Parser<'d> {
     doc: &'d Document,
     subs: Vec<SubSchema>,
@@ -145,8 +188,14 @@ impl<'d> Parser<'d> {
         self.doc.get(obj, key)
     }
 
-    fn is(&self, id: NodeId, kinds: &[Kind]) -> bool {
+    /// Go: `isKind(value, kinds...)`, which panics on a number `big.Rat` rejects.
+    fn is(&self, id: NodeId, kinds: &[Kind]) -> Result<bool, String> {
         is_kind(self.doc, id, kinds)
+    }
+
+    /// The panic of a Go `isKind` call on `id` whose result the caller works out itself.
+    fn check(&self, id: NodeId) -> Result<(), String> {
+        checked_kind(self.doc, id).map(|_| ())
     }
 
     /// Go: `parseSchema(documentNode, currentSchema)` for a new sub-schema found under
@@ -161,6 +210,9 @@ impl<'d> Parser<'d> {
             property: property.to_owned(),
             ..SubSchema::default()
         };
+        // Go: the first isKind on the node (Bool for draft 6 and later, Map otherwise) panics on
+        // a number big.Rat rejects.
+        self.check(node)?;
         // As of draft 6 "true" is equivalent to an empty schema "{}" and false equals
         // {"not":{}}.
         if draft >= Draft::Draft6
@@ -169,7 +221,7 @@ impl<'d> Parser<'d> {
             cur.pass = Some(*b);
             return Ok(self.push(cur));
         }
-        if !self.is(node, &[Kind::Map]) {
+        if !self.is(node, &[Kind::Map])? {
             return Err(format!("Expected: {STRING_SCHEMA}, given: Invalid JSON"));
         }
         self.parse_meta(node, draft)?;
@@ -194,6 +246,7 @@ impl<'d> Parser<'d> {
             Draft::Hybrid | Draft::Draft6 | Draft::Draft7 => "$id",
         };
         if let Some(id) = self.get(node, key_id) {
+            self.check(id)?;
             let Node::String(reference) = self.node(id) else {
                 return Err(invalid_type(TYPE_STRING, key_id));
             };
@@ -201,6 +254,7 @@ impl<'d> Parser<'d> {
             let _reference = parse_reference(reference)?;
         }
         if let Some(defs) = self.get(node, "definitions") {
+            self.check(defs)?;
             let entries = match self.node(defs) {
                 Node::Object(entries) => entries,
                 // Go: a boolean passes the kind check and then fails the map assertion.
@@ -214,7 +268,7 @@ impl<'d> Parser<'d> {
                 }
             };
             for &(_, dv) in entries {
-                if !self.is(dv, MAP_OR_BOOL) {
+                if !self.is(dv, MAP_OR_BOOL)? {
                     return Err(invalid_type(STRING_ARRAY_OF_SCHEMAS, "definitions"));
                 }
                 let _definition = self.parse_schema(dv, "definitions", draft)?;
@@ -222,7 +276,7 @@ impl<'d> Parser<'d> {
         }
         for key in ["title", "description", "$ref"] {
             if let Some(v) = self.get(node, key)
-                && !self.is(v, &[Kind::String])
+                && !self.is(v, &[Kind::String])?
             {
                 return Err(invalid_type(TYPE_STRING, key));
             }
@@ -240,6 +294,7 @@ impl<'d> Parser<'d> {
             return Ok(());
         };
         let bad = || invalid_type(&format!("{TYPE_STRING}/{STRING_ARRAY_OF_STRINGS}"), "type");
+        self.check(t)?;
         match self.node(t) {
             Node::String(s) => cur.types.add(s),
             Node::Array(items) => {
@@ -273,6 +328,7 @@ impl<'d> Parser<'d> {
         cur: &mut SubSchema,
     ) -> Result<(), String> {
         if let Some(props) = self.get(node, "properties") {
+            self.check(props)?;
             let Node::Object(entries) = self.node(props) else {
                 return Err(must_be_of_type("properties", TYPE_OBJECT));
             };
@@ -282,6 +338,7 @@ impl<'d> Parser<'d> {
             }
         }
         if let Some(ap) = self.get(node, "additionalProperties") {
+            self.check(ap)?;
             cur.additional_properties = match self.node(ap) {
                 Node::Bool(b) => Additional::from_bool(*b),
                 Node::Object(_) => {
@@ -296,6 +353,7 @@ impl<'d> Parser<'d> {
             };
         }
         if let Some(pp) = self.get(node, "patternProperties") {
+            self.check(pp)?;
             let Node::Object(entries) = self.node(pp) else {
                 return Err(invalid_type(STRING_SCHEMA, "patternProperties"));
             };
@@ -311,7 +369,7 @@ impl<'d> Parser<'d> {
         if draft >= Draft::Draft6
             && let Some(pn) = self.get(node, "propertyNames")
         {
-            if !self.is(pn, MAP_OR_BOOL) {
+            if !self.is(pn, MAP_OR_BOOL)? {
                 return Err(invalid_type(STRING_SCHEMA, "patternProperties"));
             }
             cur.property_names = Some(self.parse_schema(pn, "propertyNames", draft)?);
@@ -329,15 +387,18 @@ impl<'d> Parser<'d> {
         draft: Draft,
         cur: &mut SubSchema,
     ) -> Result<(), String> {
+        self.check(deps)?;
         let Node::Object(entries) = self.node(deps) else {
             return Err(must_be_of_type("dependencies", TYPE_OBJECT));
         };
         let bad = || must_be_of_type("dependency", STRING_SCHEMA_OR_ARRAY_OF_STRINGS);
         for (k, v) in entries {
+            // Go switches on reflect.ValueOf(v).Kind() here, not isKind: a number never panics.
             match self.node(*v) {
                 Node::Array(values) => {
                     let mut names = Vec::new();
                     for &value in values {
+                        self.check(value)?;
                         let Node::String(name) = self.node(value) else {
                             return Err(bad());
                         };
@@ -374,10 +435,11 @@ impl<'d> Parser<'d> {
             )
         };
         if let Some(items) = self.get(node, "items") {
+            self.check(items)?;
             match self.node(items) {
                 Node::Array(elements) => {
                     for &element in elements {
-                        if !self.is(element, MAP_OR_BOOL) {
+                        if !self.is(element, MAP_OR_BOOL)? {
                             return Err(bad_items());
                         }
                         cur.items_children
@@ -394,6 +456,7 @@ impl<'d> Parser<'d> {
             }
         }
         if let Some(ai) = self.get(node, "additionalItems") {
+            self.check(ai)?;
             cur.additional_items = match self.node(ai) {
                 Node::Bool(b) => Additional::from_bool(*b),
                 Node::Object(_) => {
@@ -463,6 +526,10 @@ impl<'d> Parser<'d> {
                 (Some(value), None)
             })
         };
+        if matches!(draft, Draft::Draft4 | Draft::Hybrid) {
+            // Go: isKind(value, reflect.Bool); drafts 6 and 7 only call isJSONNumber.
+            self.check(e)?;
+        }
         match (draft, self.node(e)) {
             (Draft::Draft4 | Draft::Hybrid, Node::Bool(b)) => boolean(*b, inclusive),
             (Draft::Draft4, _) => Err(invalid_type(TYPE_BOOLEAN, key)),
@@ -497,6 +564,7 @@ impl<'d> Parser<'d> {
             return Err("minLength cannot be greater than maxLength".to_owned());
         }
         if let Some(p) = self.get(node, "pattern") {
+            self.check(p)?;
             let Node::String(source) = self.node(p) else {
                 return Err(must_be_of_a("pattern", TYPE_STRING));
             };
@@ -524,10 +592,12 @@ impl<'d> Parser<'d> {
             return Err("minProperties cannot be greater than maxProperties".to_owned());
         }
         if let Some(r) = self.get(node, "required") {
+            self.check(r)?;
             let Node::Array(values) = self.node(r) else {
                 return Err(must_be_of_an("required", "array"));
             };
             for &value in values {
+                self.check(value)?;
                 let Node::String(name) = self.node(value) else {
                     return Err("required items must be string".to_owned());
                 };
@@ -550,6 +620,7 @@ impl<'d> Parser<'d> {
         cur.min_items = self.non_negative(node, "minItems")?;
         cur.max_items = self.non_negative(node, "maxItems")?;
         if let Some(u) = self.get(node, "uniqueItems") {
+            self.check(u)?;
             let Node::Bool(b) = self.node(u) else {
                 return Err(must_be_of_a("uniqueItems", TYPE_BOOLEAN));
             };
@@ -571,6 +642,7 @@ impl<'d> Parser<'d> {
             cur.const_value = Some(marshal_without_number(self.doc, c)?);
         }
         if let Some(e) = self.get(node, "enum") {
+            self.check(e)?;
             let Node::Array(values) = self.node(e) else {
                 return Err(must_be_of_an("enum", "array"));
             };
@@ -616,6 +688,7 @@ impl<'d> Parser<'d> {
         let Some(list) = self.get(node, key) else {
             return Ok(Vec::new());
         };
+        self.check(list)?;
         let Node::Array(items) = self.node(list) else {
             return Err(must_be_of_an(message_key, "array"));
         };
@@ -636,7 +709,7 @@ impl<'d> Parser<'d> {
         let Some(v) = self.get(node, key) else {
             return Ok(None);
         };
-        if !self.is(v, MAP_OR_BOOL) {
+        if !self.is(v, MAP_OR_BOOL)? {
             return Err(must_be_of_an(key, TYPE_OBJECT));
         }
         Ok(Some(self.parse_schema(v, key, draft)?))
@@ -664,6 +737,63 @@ mod tests {
                 other => {
                     return Err(format!("{}: {other:?}", String::from_utf8_lossy(schema)));
                 }
+            }
+        }
+        Ok(())
+    }
+
+    /// Go's `isKind` dereferences nil on a number `big.Rat` rejects, both while parsing and in
+    /// the `parseReferences` walk over every `id`/`$id`/`$ref` (outside `const` and `enum`).
+    /// Expected outcomes are gojsonschema v1.2.0's under Go 1.26.2.
+    #[test]
+    fn unparsable_numbers_panic_where_go_panics() -> Result<(), String> {
+        let panic = "panic: runtime error: invalid memory address or nil pointer dereference";
+        let float = "json: cannot unmarshal number 1e1000001 into Go value of type float64";
+        let cases: [(&str, Option<&str>); 18] = [
+            (r#"{"title":1e1000001}"#, Some(panic)),
+            (r#"{"type":1e1000001}"#, Some(panic)),
+            (r#"{"x":{"$ref":1e1000001}}"#, Some(panic)),
+            (r#"{"x":[{"id":1e1000001}]}"#, Some(panic)),
+            (r#"{"x":{"$id":1e1000001}}"#, Some(panic)),
+            (r#"{"x":{"id":"a","$id":1e1000001}}"#, None),
+            (r#"{"enum":[{"$ref":1e1000001}]}"#, Some(float)),
+            (r#"{"const":{"id":1e1000001}}"#, Some(float)),
+            (
+                r#"{"properties":{"$ref":{"title":"x"}},"x":{"properties":{"$ref":1e1000001}}}"#,
+                None,
+            ),
+            (
+                r#"{"dependencies":{"a":1e1000001}}"#,
+                Some("dependency must be of type schema or array of strings"),
+            ),
+            (r#"{"exclusiveMinimum":1e1000001}"#, Some(panic)),
+            (
+                concat!(
+                    r#"{"$schema":"http://json-schema.org/draft-07/schema#","#,
+                    r#""exclusiveMinimum":1e1000001}"#
+                ),
+                None,
+            ),
+            (
+                concat!(
+                    r#"{"$schema":"http://json-schema.org/draft-04/schema#","#,
+                    r#""exclusiveMinimum":1e1000001}"#
+                ),
+                Some(panic),
+            ),
+            (r#"{"required":[1e1000001]}"#, Some(panic)),
+            (r#"{"items":[1e1000001]}"#, Some(panic)),
+            ("1e1000001", Some(panic)),
+            (r#"{"$schema":1e1000001}"#, Some(panic)),
+            (
+                r#"{"minimum":1e1000001}"#,
+                Some("minimum must be of a number"),
+            ),
+        ];
+        for (schema, want) in cases {
+            let got = Schema::new(schema.as_bytes()).err();
+            if got.as_deref() != want {
+                return Err(format!("{schema}: got {got:?}, want {want:?}"));
             }
         }
         Ok(())

@@ -35,9 +35,34 @@ pub(super) const fn kind(node: &Node) -> Kind {
     }
 }
 
+/// Go's panic text when `isKind` meets a `json.Number` that `big.Rat` rejects (such as
+/// `1e1000001`): `*mustBeNumber(what)` dereferences nil. Load errors with a `panic: ` prefix
+/// stand for a Go panic.
+pub(super) const IS_KIND_PANIC: &str =
+    "panic: runtime error: invalid memory address or nil pointer dereference";
+
+/// Go: the kind `isKind(what, ...)` computes for `what`.
+///
+/// # Errors
+///
+/// [`IS_KIND_PANIC`] where Go panics: `what` is a number `big.Rat` cannot parse.
+pub(super) fn checked_kind(doc: &Document, id: NodeId) -> Result<Kind, String> {
+    let node = doc.node(id);
+    if let Node::Number(literal) = node
+        && Rat::parse(literal).is_none()
+    {
+        return Err(IS_KIND_PANIC.to_owned());
+    }
+    Ok(kind(node))
+}
+
 /// Go: `isKind(m[key], kinds...)`.
-pub(super) fn is_kind(doc: &Document, id: NodeId, kinds: &[Kind]) -> bool {
-    kinds.contains(&kind(doc.node(id)))
+///
+/// # Errors
+///
+/// [`IS_KIND_PANIC`] where Go panics (see [`checked_kind`]).
+pub(super) fn is_kind(doc: &Document, id: NodeId, kinds: &[Kind]) -> Result<bool, String> {
+    Ok(kinds.contains(&checked_kind(doc, id)?))
 }
 
 /// Go: `checkJSONInteger`.
