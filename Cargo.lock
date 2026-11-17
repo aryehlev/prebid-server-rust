@@ -157,6 +157,10 @@ version = "0.1.0"
 [[package]]
 name = "pbs-logger"
 version = "0.1.0"
+dependencies = [
+ "log",
+ "pbs-gocompat",
+]
 
 [[package]]
 name = "pbs-metrics"
