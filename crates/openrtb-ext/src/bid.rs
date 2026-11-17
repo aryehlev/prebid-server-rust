@@ -7,7 +7,7 @@ use pbs_errortypes::GoError;
 use crate::{bidders::BidderName, cow_str::cow_string_type};
 
 cow_string_type! {
-    /// `BidType` describes the allowed values for bidresponse.seatbid.bid[i].ext.prebid.type
+    /// `BidType` describes the allowed values for `bidresponse.seatbid.bid[i].ext.prebid.type`
     pub struct BidType = "openrtb_ext.BidType";
 }
 

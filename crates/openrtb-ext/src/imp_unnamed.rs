@@ -48,7 +48,7 @@ pub struct ExtImpAdUnitCodePrebid {
 }
 
 /// Go: `rubiconVideoParams` (unexported) defines the contract for
-/// bidrequest.imp[i].ext.prebid.bidder.rubicon.video
+/// `bidrequest.imp[i].ext.prebid.bidder.rubicon.video`
 #[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
 #[gojson(go_type = "openrtb_ext.rubiconVideoParams")]
 pub struct RubiconVideoParams {
@@ -73,7 +73,7 @@ pub struct RubiconVideoParams {
 }
 
 /// Go: `impExtRubiconDebug` (unexported) defines the contract for
-/// bidrequest.imp[i].ext.prebid.bidder.rubicon.debug
+/// `bidrequest.imp[i].ext.prebid.bidder.rubicon.debug`
 #[derive(Clone, Copy, Debug, Default, PartialEq, GoJson)]
 #[gojson(go_type = "openrtb_ext.impExtRubiconDebug")]
 pub struct ImpExtRubiconDebug {

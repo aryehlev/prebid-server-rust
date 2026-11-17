@@ -26,7 +26,7 @@ pub const COOKIE_AVAILABLE: CookieStatus = CookieStatus::from_static("available"
 
 cow_string_type! {
     /// `UserSyncType` describes the allowed values for
-    /// bidresponse.ext.usersync.{bidder}.syncs[i].type
+    /// `bidresponse.ext.usersync.{bidder}.syncs[i].type`
     pub struct UserSyncType = "openrtb_ext.UserSyncType";
 }
 
