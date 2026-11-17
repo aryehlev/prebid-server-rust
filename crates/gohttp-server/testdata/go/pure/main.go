@@ -12,6 +12,8 @@
 //	canonkey     textproto.CanonicalMIMEHeaderKey
 //	mediatype    mime.ParseMediaType, as "<type> <sorted k=quoted-v params> err=<error>"
 //	statustext   http.StatusText (the input is the decimal code)
+//	recorder     an httptest.ResponseRecorder after a handler ran the plan of the input (see
+//	             record): its Code, Flushed, HeaderMap and Body, and its Result()
 package main
 
 import (
@@ -21,6 +23,7 @@ import (
 	"math/rand"
 	"mime"
 	"net/http"
+	"net/http/httptest"
 	"net/textproto"
 	"os"
 	"path"
@@ -56,6 +59,9 @@ func main() {
 	}
 	for code := 0; code <= 1000; code++ {
 		line("statustext", strconv.Itoa(code), http.StatusText(code))
+	}
+	for _, p := range recorderPlans() {
+		line("recorder", p, record(p))
 	}
 	if err := os.WriteFile(*out, []byte(b.String()), 0o644); err != nil {
 		fmt.Fprintln(os.Stderr, err)
@@ -202,6 +208,122 @@ func mediaTypeInputs() []string {
 		}
 	}
 	return in
+}
+
+// recorderOps are the steps the recorder plans combine.
+var recorderOps = []string{"w0", "w5", "w600", "f", "s204", "s404", "tnil", "l3", "bhtml", "x2", "rT", "rX", "rP"}
+
+// recorderPlans are every plan of up to three steps, and a few with other status codes.
+func recorderPlans() []string {
+	plans := []string{""}
+	level := []string{""}
+	for n := 1; n <= 3; n++ {
+		var next []string
+		for _, p := range level {
+			for _, op := range recorderOps {
+				if p == "" {
+					next = append(next, op)
+				} else {
+					next = append(next, p+"."+op)
+				}
+			}
+		}
+		plans = append(plans, next...)
+		level = next
+	}
+	return append(plans, "s103.s200.w5", "s100.w5", "s999.w1", "s200.s404.w1", "s304.x1", "tjson.w1",
+		"tempty.bhtml", "l-1.w1", "l abc.w1", "l 7 .w1", "w5.l3.x1", "rT.rX.s200.rX",
+		"R.w5", "w5.R.w5", "R.s404.w1", "rT.R.rX", "l3.R.l5", "R.R.w1")
+}
+
+// record runs the dot-separated steps of spec as a handler would on a ResponseRecorder: wN
+// writes N pattern bytes, xN does the same and then writes that write's result, bhtml writes
+// "<html>", f flushes, sN writes the status code N, tX sets the Content-Type (to nil for
+// "nil", to "" for "empty", else to "application/X"), lX sets the Content-Length, rT declares
+// trailers, rX sets them, rP sets a TrailerPrefix trailer, and R calls Result.
+func record(spec string) string {
+	rw := httptest.NewRecorder()
+	h := rw.Header()
+	for _, op := range strings.Split(spec, ".") {
+		if op == "" {
+			continue
+		}
+		arg := op[1:]
+		switch op[0] {
+		case 'w':
+			rw.Write(pattern(atoi(arg)))
+		case 'x':
+			n, err := rw.Write(pattern(atoi(arg)))
+			fmt.Fprintf(rw, "[n=%d err=%v]", n, err)
+		case 'b':
+			rw.Write([]byte("<html>"))
+		case 'f':
+			rw.Flush()
+		case 'R':
+			rw.Result()
+		case 's':
+			rw.WriteHeader(atoi(arg))
+		case 't':
+			switch arg {
+			case "nil":
+				h["Content-Type"] = nil
+			case "empty":
+				h.Set("Content-Type", "")
+			default:
+				h.Set("Content-Type", "application/"+arg)
+			}
+		case 'l':
+			h.Set("Content-Length", arg)
+		case 'r':
+			switch arg {
+			case "T":
+				h.Set("Trailer", "X-T1, Content-Type, x-t2")
+			case "X":
+				h.Set("X-T1", "v1")
+				h.Add("X-T2", "v2")
+			case "P":
+				h.Set(http.TrailerPrefix+"x-late", "late")
+			}
+		}
+	}
+	res := rw.Result()
+	return fmt.Sprintf("code=%d flushed=%v status=%s cl=%d header:%s snap:%s trailer:%s body=%s",
+		rw.Code, rw.Flushed, strconv.Quote(res.Status), res.ContentLength, formatHeader(rw.HeaderMap),
+		formatHeader(res.Header), formatHeader(res.Trailer), strconv.Quote(rw.Body.String()))
+}
+
+// pattern is n bytes cycling through the alphabet.
+func pattern(n int) []byte {
+	b := make([]byte, n)
+	for i := range b {
+		b[i] = byte('a' + i%26)
+	}
+	return b
+}
+
+func atoi(s string) int {
+	n, _ := strconv.Atoi(s)
+	return n
+}
+
+// formatHeader lists a header map: sorted keys, one " key=quoted-value" per value, and
+// " key=<none>" for a key without values.
+func formatHeader(h http.Header) string {
+	keys := make([]string, 0, len(h))
+	for k := range h {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	var b strings.Builder
+	for _, k := range keys {
+		if len(h[k]) == 0 {
+			fmt.Fprintf(&b, " %s=<none>", k)
+		}
+		for _, v := range h[k] {
+			fmt.Fprintf(&b, " %s=%s", k, strconv.Quote(v))
+		}
+	}
+	return b.String()
 }
 
 func mediaType(v string) string {
