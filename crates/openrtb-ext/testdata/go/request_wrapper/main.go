@@ -10,7 +10,9 @@
 // (mutations.go), is wrapped in a RequestWrapper and run through scripts of wrapper operations
 // (steps.go): the ext getters, setters and touches (every member set to its own value), rebuilds,
 // ConvertUpTo26, ConvertDownTo25, the Clear* functions, the impression wrappers' operations and
-// the clones. Each script starts from a new decode of the request. After each step the step's
+// the clones. corpus.tsv holds the corpus requests, mutations.tsv the mutations, and review.tsv
+// the review requests and scripts of review.go (the corpus requests run the review's corpus
+// scripts there). Each script starts from a new decode of the request. After each step the step's
 // observation is recorded: its error, the request as jsonutil.Marshal writes it, and what the
 // getters return (each ext's members verbatim, its typed members as jsonutil.Marshal writes them,
 // and its dirty flag).
@@ -88,8 +90,11 @@ func main() {
 	mutationRows := mutations()
 	write(filepath.Join(*out, "mutations.tsv"), nil, nil, mutationRows)
 
-	log.Printf("corpus: %d roots, %d files, %d requests; mutations: %d rows",
-		len(c.roots), len(c.files), len(c.docs), len(mutationRows))
+	reviewRows := reviewRows(c.docs)
+	write(filepath.Join(*out, "review.tsv"), c.roots, c.files, reviewRows)
+
+	log.Printf("corpus: %d roots, %d files, %d requests; mutations: %d rows; review: %d rows",
+		len(c.roots), len(c.files), len(c.docs), len(mutationRows), len(reviewRows))
 }
 
 // doc is one bid request document.

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"math"
 	"sort"
 	"strconv"
 	"strings"
@@ -12,6 +13,7 @@ import (
 	"github.com/prebid/openrtb/v20/openrtb2"
 
 	"github.com/prebid/prebid-server/v4/openrtb_ext"
+	"github.com/prebid/prebid-server/v4/ortb"
 	"github.com/prebid/prebid-server/v4/util/jsonutil"
 )
 
@@ -35,6 +37,20 @@ func each(prefix string) []string {
 //	clear26 ... clear202409 the Clear* function; an empty error and the request
 //	clone, cloneclear       the wrapper is replaced by its Clone or CloneAndClearImpWrappers;
 //	                        LenImp
+//	cloneclearkeep          CloneAndClearImpWrappers, the clone dropped; LenImp of the original
+//	exchangecopy            the wrapper is replaced by exchange/utils.go's per-bidder copy
+//	                        (CloneAndClearImpWrappers with a copy of the request); LenImp
+//	setimprev, setimpdrop   SetImp with the GetImp wrappers reversed, or without the first one;
+//	                        an empty error and the request
+//	setimpnil               SetImp(nil); an empty error and the request
+//	setimpraw=RAW           each GetImp wrapper's Ext set to RAW, then SetImp of them (the pattern
+//	                        of privacy.ScrubTID); an empty error and the request
+//	partialclone            rw.BidRequest = ortb.CloneBidRequestPartial(rw.BidRequest) (the
+//	                        copy of exchange/utils.go's applyPrivacy); an empty error and the request
+//	nilreq                  rw.BidRequest = nil; an empty error and the request
+//	assignlast              rw.Imp = its last impression alone, appended to a nil slice (what
+//	                        exchange/utils.go's removeImpsWithStoredResponses does with a stored
+//	                        response for every other impression); an empty error and the request
 //	lenimp                  LenImp
 //	getimp                  GetImp; the number of wrappers and each wrapper's impression
 //	setimp                  SetImp(GetImp()); an empty error and the request
@@ -45,6 +61,8 @@ func each(prefix string) []string {
 //	set:O.M=JSON            the setter of member M with JSON decoded into its parameter (for
 //	                        each impression wrapper for imp; "&nil" is a pointer to a nil slice);
 //	                        Dirty
+//	special:O.M.V           the setter of member M with the value V that JSON cannot give (see
+//	                        special); Dirty
 //	setext:O=JSON           SetExt with JSON decoded into a map; Dirty
 //	setrawext:O=K=RAW       SetExt with {K: RAW}, RAW not decoded; Dirty
 //	touchext:O              SetExt(GetExt()); Dirty
@@ -251,6 +269,60 @@ func (r *runner) run(step string, o *obs) {
 	case "cloneclear":
 		r.w = w.CloneAndClearImpWrappers()
 		o.int(r.w.LenImp())
+	case "cloneclearkeep":
+		// The clone is dropped: what CloneAndClearImpWrappers does to the original.
+		_ = w.CloneAndClearImpWrappers()
+		o.int(w.LenImp())
+	case "exchangecopy":
+		// exchange/utils.go's per-bidder copy; the original is dropped, so sharing the request's
+		// objects with it cannot be observed.
+		c := w.CloneAndClearImpWrappers()
+		bidRequestCopy := *w.BidRequest
+		c.BidRequest = &bidRequestCopy
+		r.w = c
+		o.int(c.LenImp())
+	case "setimprev":
+		imps := w.GetImp()
+		rev := make([]*openrtb_ext.ImpWrapper, len(imps))
+		for i := range imps {
+			rev[len(imps)-1-i] = imps[i]
+		}
+		w.SetImp(rev)
+		o.request(nil, w)
+	case "setimpdrop":
+		if imps := w.GetImp(); len(imps) > 0 {
+			w.SetImp(imps[1:])
+		}
+		o.request(nil, w)
+	case "setimpnil":
+		w.SetImp(nil)
+		o.request(nil, w)
+	case "setimpraw":
+		// privacy.ScrubTID's pattern: each wrapper's impression ext replaced, then SetImp.
+		imps := w.GetImp()
+		for _, iw := range imps {
+			iw.Ext = json.RawMessage(arg)
+		}
+		w.SetImp(imps)
+		o.request(nil, w)
+	case "partialclone":
+		// exchange/utils.go's applyPrivacy: the request replaced by its partial clone.
+		w.BidRequest = ortb.CloneBidRequestPartial(w.BidRequest)
+		o.request(nil, w)
+	case "nilreq":
+		w.BidRequest = nil
+		o.request(nil, w)
+	case "assignlast":
+		// exchange/utils.go's removeImpsWithStoredResponses, with a stored response for every
+		// impression but the last.
+		imps := w.Imp
+		w.Imp = nil
+		for i, imp := range imps {
+			if i == len(imps)-1 {
+				w.Imp = append(w.Imp, imp)
+			}
+		}
+		o.request(nil, w)
 	case "lenimp":
 		o.int(w.LenImp())
 	case "getimp":
@@ -283,6 +355,8 @@ func (r *runner) run(step string, o *obs) {
 		r.get(target, o)
 	case "set":
 		r.set(target, arg, o)
+	case "special":
+		r.special(target, o)
 	case "setext":
 		var m map[string]json.RawMessage
 		r.decode(arg, &m)
@@ -519,6 +593,34 @@ func (r *runner) set(target, arg string, o *obs) {
 		}
 	default:
 		log.Fatalf("unknown member %s", target)
+	}
+}
+
+// special calls a setter with a value that JSON cannot give: NaN and infinite floats, and raw
+// messages that are invalid or not compact (which jsonutil.Marshal leaves out or compacts).
+func (r *runner) special(target string, o *obs) {
+	w := r.w
+	switch target {
+	case "request.prebid.nan":
+		e, _ := w.GetRequestExt()
+		e.SetPrebid(&openrtb_ext.ExtRequestPrebid{Debug: true, BidAdjustmentFactors: map[string]float64{"a": math.NaN()}})
+		o.bool(e.Dirty())
+	case "imp.prebid.inf":
+		for _, iw := range w.GetImp() {
+			e, _ := iw.GetImpExt()
+			e.SetPrebid(&openrtb_ext.ExtImpPrebid{Floors: &openrtb_ext.ExtImpPrebidFloors{FloorRuleValue: math.Inf(1)}})
+			o.bool(e.Dirty())
+		}
+	case "user.eids.badraw":
+		e, _ := w.GetUserExt()
+		e.SetEid(&[]openrtb2.EID{{Source: "s", Ext: json.RawMessage(`{bad`)}})
+		o.bool(e.Dirty())
+	case "source.schain.spacedraw":
+		e, _ := w.GetSourceExt()
+		e.SetSChain(&openrtb2.SupplyChain{Ver: "1", Ext: json.RawMessage(` { "a" : 1 } `)})
+		o.bool(e.Dirty())
+	default:
+		log.Fatalf("unknown special member %s", target)
 	}
 }
 

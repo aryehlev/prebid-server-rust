@@ -1,7 +1,8 @@
 //! Replays, byte for byte, the differential goldens that `testdata/go/request_wrapper` writes
-//! with Go's `RequestWrapper`: every bid request of prebid-server's test corpora and generated
-//! mutations, run through scripts of wrapper operations (getters, setters, rebuilds, the
-//! conversions, the `Clear*` functions, the impression wrappers and the clones), with the
+//! with Go's `RequestWrapper`: every bid request of prebid-server's test corpora, generated
+//! mutations and the review's requests, run through scripts of wrapper operations (getters,
+//! setters, rebuilds, the conversions, the `Clear*` functions, the impression wrappers, the clones
+//! and the review's sequences, such as exchange/utils.go's per-bidder request), with the
 //! observation of every step.
 //!
 //! An observation is a sequence of parts, each its decimal length, `:` and its bytes. Regenerate
@@ -26,12 +27,12 @@ use pbs_gojson::{GoEncode, JsoniterDecode, RawJson, jsonutil};
 use pbs_openrtb::openrtb2;
 use serde_json::Value;
 
-use super::RequestWrapper;
+use super::{ImpWrapper, ImpWrapperMut, RequestWrapper};
 use crate::{
     ConsentedProvidersSettingsIn, ConsentedProvidersSettingsOut, ExtAppPrebid, ExtDevicePrebid,
-    ExtImpPrebid, ExtRegsDSA, ExtRequestPrebid, ExtUserPrebid, clear26_fields, clear202211_fields,
-    clear202303_fields, clear202309_fields, clear202402_fields, clear202409_fields,
-    convert_down_to25, convert_up_to26,
+    ExtImpPrebid, ExtImpPrebidFloors, ExtRegsDSA, ExtRequestPrebid, ExtUserPrebid, clear26_fields,
+    clear202211_fields, clear202303_fields, clear202309_fields, clear202402_fields,
+    clear202409_fields, convert_down_to25, convert_up_to26,
 };
 
 /// A test result whose error is the failure message.
@@ -420,6 +421,16 @@ fn mutations() -> TestResult {
     Ok(())
 }
 
+/// The review suites: the review requests through the corpus and review scripts, and every
+/// corpus request through the review corpus scripts (see `testdata/go/request_wrapper/review.go`).
+#[test]
+fn review() -> TestResult {
+    let golden = golden("review.tsv")?;
+    check_corpus(&golden)?;
+    let tally = replay(&golden, "review.tsv")?;
+    report("review.tsv", &tally, 5200)
+}
+
 /// An observation: a sequence of parts, each its decimal length, `:` and its bytes.
 #[derive(Debug, Default)]
 struct Obs(Vec<u8>);
@@ -535,6 +546,10 @@ impl Runner {
                 self.set(target, arg, &mut o)?;
                 None
             }
+            "special" => {
+                self.special(target, &mut o)?;
+                None
+            }
             "setext" => {
                 let map: Option<BTreeMap<String, RawJson>> = decode(arg)?;
                 self.set_ext(target, Some(&map), &mut o)?;
@@ -552,6 +567,16 @@ impl Runner {
                 }
                 None
             }
+            "setimpraw" => {
+                for mut iw in self.w.get_imp() {
+                    if let Some(imp) = iw.imp_mut() {
+                        imp.ext = RawJson::from(arg);
+                    }
+                }
+                self.w.set_imp_from_get_imp();
+                o.request(None, &self.w);
+                None
+            }
             "touch" => {
                 for obj in targets(target) {
                     self.touch(obj, &mut o)?;
@@ -563,7 +588,8 @@ impl Runner {
         Ok(panic.map_or(Ok(o.0), Err))
     }
 
-    /// Runs a step on the request or the impression wrappers; `Some` is Go's panic text.
+    /// Runs a step on the request (or, through [`Runner::imp_step`], the impression wrappers);
+    /// `Some` is Go's panic text.
     fn request_step(&mut self, op: &str, o: &mut Obs) -> TestResult<Option<String>> {
         let w = &mut self.w;
         match op {
@@ -596,6 +622,65 @@ impl Runner {
             "cloneclear" => {
                 *w = w.clone_and_clear_imp_wrappers();
                 o.int(w.len_imp());
+            }
+            "cloneclearkeep" => {
+                let _clone = w.clone_and_clear_imp_wrappers();
+                o.int(w.len_imp());
+            }
+            "exchangecopy" => {
+                let bid_request = w.bid_request().cloned().map(Box::new);
+                *w = w.clone_and_clear_imp_wrappers_with(bid_request);
+                o.int(w.len_imp());
+            }
+            "partialclone" => {
+                let bid_request = w.bid_request().cloned().map(Box::new);
+                w.set_bid_request(bid_request);
+                o.request(None, w);
+            }
+            "nilreq" => {
+                w.set_bid_request(None);
+                o.request(None, w);
+            }
+            _ => return self.imp_step(op, o),
+        }
+        Ok(None)
+    }
+
+    /// Runs a step on the impressions or their wrappers; `Some` is Go's panic text.
+    fn imp_step(&mut self, op: &str, o: &mut Obs) -> TestResult<Option<String>> {
+        let w = &mut self.w;
+        match op {
+            "setimprev" => {
+                let rev = w
+                    .get_imp()
+                    .iter()
+                    .rev()
+                    .map(ImpWrapperMut::to_imp_wrapper)
+                    .collect();
+                w.set_imp(Some(rev));
+                o.request(None, w);
+            }
+            "setimpdrop" => {
+                let imps: Vec<ImpWrapper> = w
+                    .get_imp()
+                    .iter()
+                    .map(ImpWrapperMut::to_imp_wrapper)
+                    .collect();
+                if !imps.is_empty() {
+                    w.set_imp(Some(imps.into_iter().skip(1).collect()));
+                }
+                o.request(None, w);
+            }
+            "setimpnil" => {
+                w.set_imp(None);
+                o.request(None, w);
+            }
+            "assignlast" => {
+                let last = w
+                    .bid_request()
+                    .and_then(|req| req.imp.as_ref()?.last().cloned());
+                w.assign_imp(last.map(|imp| vec![imp]));
+                o.request(None, w);
             }
             "lenimp" => o.int(w.len_imp()),
             "getimp" => {
@@ -845,6 +930,56 @@ impl Runner {
                 }
             }
             _ => return Err(format!("unknown member {target}")),
+        }
+        Ok(())
+    }
+
+    /// Calls a setter with a value that JSON cannot give, as the Go generator's `special` does:
+    /// NaN and infinite floats, and raw messages that are invalid or not compact.
+    fn special(&mut self, target: &str, o: &mut Obs) -> TestResult {
+        let w = &mut self.w;
+        match target {
+            "request.prebid.nan" => {
+                let e = w.get_request_ext_pair().0;
+                e.set_prebid(Some(ExtRequestPrebid {
+                    debug: true,
+                    bid_adjustment_factors: Some(BTreeMap::from([("a".to_owned(), f64::NAN)])),
+                    ..ExtRequestPrebid::default()
+                }));
+                o.bool(e.dirty());
+            }
+            "imp.prebid.inf" => {
+                for mut iw in w.get_imp() {
+                    let e = iw.get_imp_ext_pair().0;
+                    e.set_prebid(Some(ExtImpPrebid {
+                        floors: Some(Box::new(ExtImpPrebidFloors {
+                            floor_rule_value: f64::INFINITY,
+                            ..ExtImpPrebidFloors::default()
+                        })),
+                        ..ExtImpPrebid::default()
+                    }));
+                    o.bool(e.dirty());
+                }
+            }
+            "user.eids.badraw" => {
+                let e = w.get_user_ext_pair().0;
+                e.set_eid(Some(Some(vec![openrtb2::EID {
+                    source: "s".to_owned(),
+                    ext: RawJson::from("{bad"),
+                    ..openrtb2::EID::default()
+                }])));
+                o.bool(e.dirty());
+            }
+            "source.schain.spacedraw" => {
+                let e = w.get_source_ext_pair().0;
+                e.set_s_chain(Some(openrtb2::SupplyChain {
+                    ver: "1".to_owned(),
+                    ext: RawJson::from(r#" { "a" : 1 } "#),
+                    ..openrtb2::SupplyChain::default()
+                }));
+                o.bool(e.dirty());
+            }
+            _ => return Err(format!("unknown special member {target}")),
         }
         Ok(())
     }
