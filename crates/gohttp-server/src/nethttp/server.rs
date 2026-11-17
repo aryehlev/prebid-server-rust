@@ -476,13 +476,15 @@ impl Conn {
             Ok(mut rr) => {
                 *last_method_post = rr.req.method == "POST";
                 br.remain = i64::MAX;
-                if let Err(e) = check_request(&mut rr.req) {
-                    Err(ReadFail::Request(e))
-                } else {
-                    if hdr_deadline != whole_deadline {
-                        br.set_deadline(whole_deadline);
+                match check_request(&mut rr.req) {
+                    Err(e) => Err(ReadFail::Request(e)),
+                    Ok(h2_upgrade) => {
+                        rr.h2_upgrade = h2_upgrade;
+                        if hdr_deadline != whole_deadline {
+                            br.set_deadline(whole_deadline);
+                        }
+                        Ok(rr)
                     }
-                    Ok(rr)
                 }
             }
         };
@@ -563,7 +565,11 @@ impl Conn {
 
     /// Serves one request; `None` when the connection may be reused.
     async fn serve_one(&self, rr: ReadRequest) -> Option<End> {
-        let ReadRequest { mut req, framing } = rr;
+        let ReadRequest {
+            mut req,
+            framing,
+            h2_upgrade,
+        } = rr;
         req.remote_addr.clone_from(&self.remote_addr);
         let ctx = self.request_context().await;
         req.ctx = ctx.clone();
@@ -603,7 +609,7 @@ impl Conn {
             swapped,
             Arc::clone(&can_write_continue),
         );
-        if req.is_h2_upgrade() {
+        if h2_upgrade {
             resp.reply.close_after_reply = true;
         }
         if expectation_failed {

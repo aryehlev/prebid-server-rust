@@ -456,6 +456,8 @@ pub(super) struct ReadRequest {
     pub(super) req: Request,
     /// `None` for `http.NoBody`.
     pub(super) framing: Option<Framing>,
+    /// Go: `isH2Upgrade` as `conn.readRequest` evaluates it, before it deletes `Host`.
+    pub(super) h2_upgrade: bool,
 }
 
 /// Percent-encodes the bytes >= 0x80 of a request target that is not UTF-8, so it can be held
@@ -563,11 +565,16 @@ pub(super) async fn read_request(br: &mut BufReader) -> Result<ReadRequest, Requ
         req.content_length = -1;
         req.close = true;
     }
-    Ok(ReadRequest { req, framing })
+    Ok(ReadRequest {
+        req,
+        framing,
+        h2_upgrade: false,
+    })
 }
 
-/// Go: the checks of `conn.readRequest` that follow `setInfiniteReadLimit`.
-pub(super) fn check_request(req: &mut Request) -> Result<(), RequestError> {
+/// Go: the checks of `conn.readRequest` that follow `setInfiniteReadLimit`. Returns whether
+/// the request is the HTTP/2 client preface, evaluated before `Host` leaves the header map.
+pub(super) fn check_request(req: &mut Request) -> Result<bool, RequestError> {
     let hosts = req.header.get_raw("Host");
     let is_h2_upgrade = req.is_h2_upgrade();
     if req.proto_at_least(1, 1)
@@ -591,7 +598,7 @@ pub(super) fn check_request(req: &mut Request) -> Result<(), RequestError> {
         }
     }
     let _host = req.header.remove_raw("Host");
-    Ok(())
+    Ok(is_h2_upgrade)
 }
 
 fn split_once_byte(s: &[u8], b: u8) -> Option<(&[u8], &[u8])> {
