@@ -135,7 +135,7 @@ func (c *comparer) content(path string, g, r *node, field fieldKind) {
 		c.add(parity.KindMissingInRust, "", path, render(g), json.RawMessage("null"))
 		return
 	case g.kind != r.kind:
-		c.add(parity.KindType, "", path, render(g), render(r))
+		c.add(typeOrValue(g, r), "", path, render(g), render(r))
 		return
 	}
 	switch g.kind {
@@ -177,6 +177,24 @@ func (c *comparer) scalar(path string, g, r *node, field fieldKind) {
 		c.add(parity.KindLexical, class, path,
 			json.RawMessage(jsonQuote(scalarSpelling(g))), json.RawMessage(jsonQuote(scalarSpelling(r))))
 	}
+}
+
+// typeOrValue is the kind of a difference between nodes of different kinds:
+// type when their JSON types differ, value when a rule masked one side and
+// the other has the same JSON type but falls outside the rule's shape (a
+// timestamp in seconds, a fractional duration).
+func typeOrValue(g, r *node) parity.MismatchKind {
+	if jsonType(g) == jsonType(r) {
+		return parity.KindValue
+	}
+	return parity.KindType
+}
+
+func jsonType(n *node) nodeKind {
+	if n.kind == kindMasked {
+		return n.maskedKind
+	}
+	return n.kind
 }
 
 func scalarKind(field fieldKind) parity.MismatchKind {

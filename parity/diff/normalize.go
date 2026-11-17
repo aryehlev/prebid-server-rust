@@ -336,8 +336,8 @@ func (s *shapeCheck) matchesString(v string) bool {
 // mask replaces n in place with a masked value that compares equal to any
 // other value masked by the same rule.
 func mask(n *node, label string) {
-	exact := n.exact
-	*n = node{kind: kindMasked, mask: label, exact: exact}
+	exact, kind := n.exact, n.kind
+	*n = node{kind: kindMasked, mask: label, exact: exact, maskedKind: kind}
 }
 
 // selectNodes returns the nodes at a relative selector. Segments are member

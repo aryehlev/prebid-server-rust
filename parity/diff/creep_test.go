@@ -18,28 +18,31 @@ func TestNarrowShapesStillReport(t *testing.T) {
 		name     string
 		pair     ruleCase
 		wantPath string
+		// wantKind is value when only the unit or sign is wrong, type
+		// when the JSON type is.
+		wantKind parity.MismatchKind
 	}{
 		{"auctiontimestamp in seconds", responsePair(
 			`{"id":"r1","ext":{"prebid":{"auctiontimestamp":`+goTS+`}}}`,
-			`{"id":"r1","ext":{"prebid":{"auctiontimestamp":`+secondsTS+`}}}`, nil, nil), "$.ext.prebid.auctiontimestamp"},
+			`{"id":"r1","ext":{"prebid":{"auctiontimestamp":`+secondsTS+`}}}`, nil, nil), "$.ext.prebid.auctiontimestamp", parity.KindValue},
 		{"auctiontimestamp in microseconds", entryPair(parity.StageEventsTracking, parity.UnkeyedStage,
-			`{"auction_timestamp_ms":`+goTS+`}`, `{"auction_timestamp_ms":1700000000000000}`), "$.auction_timestamp_ms"},
-		{"event ts in seconds", responsePair(eventAdm(goTS), eventAdm(secondsTS), nil, nil), "$.seatbid[0].bid[0].adm"},
+			`{"auction_timestamp_ms":`+goTS+`}`, `{"auction_timestamp_ms":1700000000000000}`), "$.auction_timestamp_ms", parity.KindValue},
+		{"event ts in seconds", responsePair(eventAdm(goTS), eventAdm(secondsTS), nil, nil), "$.seatbid[0].bid[0].adm", parity.KindValue},
 		{"responsetimemillis as a string", responsePair(
 			`{"id":"r1","ext":{"responsetimemillis":{"appnexus":12}}}`,
-			`{"id":"r1","ext":{"responsetimemillis":{"appnexus":"12"}}}`, nil, nil), "$.ext.responsetimemillis.appnexus"},
+			`{"id":"r1","ext":{"responsetimemillis":{"appnexus":"12"}}}`, nil, nil), "$.ext.responsetimemillis.appnexus", parity.KindType},
 		{"responsetimemillis as a fraction", responsePair(
 			`{"id":"r1","ext":{"responsetimemillis":{"appnexus":12}}}`,
-			`{"id":"r1","ext":{"responsetimemillis":{"appnexus":12.5}}}`, nil, nil), "$.ext.responsetimemillis.appnexus"},
+			`{"id":"r1","ext":{"responsetimemillis":{"appnexus":12.5}}}`, nil, nil), "$.ext.responsetimemillis.appnexus", parity.KindValue},
 		{"responsetimemillis negative", responsePair(
 			`{"id":"r1","ext":{"responsetimemillis":{"appnexus":12}}}`,
-			`{"id":"r1","ext":{"responsetimemillis":{"appnexus":-1}}}`, nil, nil), "$.ext.responsetimemillis.appnexus"},
+			`{"id":"r1","ext":{"responsetimemillis":{"appnexus":-1}}}`, nil, nil), "$.ext.responsetimemillis.appnexus", parity.KindValue},
 		{"hook execution time missing", entryPair(parity.StageHookOutcomes, parity.UnkeyedStage,
 			`[{"stage":"entrypoint","execution_time_millis":3,"groups":[]}]`,
-			`[{"stage":"entrypoint","groups":[]}]`), "$[0].execution_time_millis"},
+			`[{"stage":"entrypoint","groups":[]}]`), "$[0].execution_time_millis", parity.KindMissingInRust},
 		{"hook execution time as a string", entryPair(parity.StageHookOutcomes, parity.UnkeyedStage,
 			`[{"stage":"entrypoint","execution_time_millis":3,"groups":[]}]`,
-			`[{"stage":"entrypoint","execution_time_millis":"3ms","groups":[]}]`), "$[0].execution_time_millis"},
+			`[{"stage":"entrypoint","execution_time_millis":"3ms","groups":[]}]`), "$[0].execution_time_millis", parity.KindType},
 	}
 	e := newTestEngine(t)
 	for _, tt := range tests {
@@ -47,11 +50,11 @@ func TestNarrowShapesStillReport(t *testing.T) {
 			c, g, r := tt.pair()
 			doc := compareTraces(t, e, c, g, r)
 			for _, m := range doc.Mismatches {
-				if m.JSONPath == tt.wantPath {
+				if m.JSONPath == tt.wantPath && m.Kind == tt.wantKind {
 					return
 				}
 			}
-			t.Fatalf("no mismatch at %s: %v", tt.wantPath, ids(doc))
+			t.Fatalf("no %s mismatch at %s: %v", tt.wantKind, tt.wantPath, ids(doc))
 		})
 	}
 }
