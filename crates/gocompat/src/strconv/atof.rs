@@ -123,7 +123,9 @@ fn read_mantissa(s: &[u8], mut i: usize, base: u64) -> (Mantissa, usize) {
                     m.trunc = true;
                 }
             }
-        } else if base == 16 && lower(c).is_ascii_hexdigit() {
+        } else if base == 16 && (b'a'..=b'f').contains(&lower(c)) {
+            // Go: `'a' <= lower(c) && lower(c) <= 'f'`. Not `is_ascii_hexdigit`: `lower` maps
+            // the control bytes 0x10..=0x19 onto the ASCII digits.
             m.sawdigits = true;
             m.nd += 1;
             if m.nd_mant < max_mant_digits {

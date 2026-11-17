@@ -354,3 +354,42 @@ fn num_error_text() {
         "range"
     );
 }
+
+// Review regression: `testdata/go/review` places every ASCII byte inside hexadecimal and decimal
+// numbers. Bytes 0x10..=0x19 were taken for hex digits (`lower(c)` maps them onto '0'..='9'),
+// which made ParseFloat("0x1\x10p0") overflow a `u8` subtraction instead of failing with Go's
+// syntax error.
+#[test]
+fn review_parse_number_matches_go() -> Result<(), String> {
+    let rows = golden::rows(include_str!(
+        "../../testdata/go/golden/review_parse_number.txt"
+    ))?;
+    ensure_eq(&rows.len(), &6656, "row count")?;
+    for row in rows {
+        match row.first().map(String::as_str) {
+            Some("ParseFloat") => {
+                let [_, input, bit_size, want_bits, want_err] = golden::fields::<5>(&row)?;
+                let (v, err) = parse_float_pair(&input, parse_i64(&bit_size)?);
+                let what = format!("ParseFloat({input:?}, {bit_size})");
+                ensure_eq(
+                    format!("{:016x}", v.to_bits()).as_str(),
+                    want_bits.as_str(),
+                    &what,
+                )?;
+                ensure_eq(
+                    pair_err_text(err.as_ref(), ()).as_str(),
+                    want_err.as_str(),
+                    &what,
+                )?;
+            }
+            Some("ParseInt") => {
+                let [_, input, base, iv, ierr, uv, uerr] = golden::fields::<7>(&row)?;
+                let got = int_fields(&input, parse_i64(&base)?, 64);
+                let want = [input.clone(), base, "64".to_owned(), iv, ierr, uv, uerr];
+                ensure_eq(&got, &want, &input)?;
+            }
+            other => return Err(format!("unknown review row kind {other:?}")),
+        }
+    }
+    Ok(())
+}

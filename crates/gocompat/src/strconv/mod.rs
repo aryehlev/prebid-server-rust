@@ -116,7 +116,8 @@ fn underscore_ok(s: &[u8]) -> bool {
         _ => (b'^', false, s),
     };
     for &c in rest {
-        if c.is_ascii_digit() || (hex && lower(c).is_ascii_hexdigit()) {
+        // Go: `'a' <= lower(s[i]) && lower(s[i]) <= 'f'` (`lower` maps 0x10..=0x19 onto digits).
+        if c.is_ascii_digit() || (hex && (b'a'..=b'f').contains(&lower(c))) {
             saw = b'0';
             continue;
         }
