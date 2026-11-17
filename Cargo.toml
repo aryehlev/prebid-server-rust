@@ -159,3 +159,12 @@ debug = "line-tables-only"
 
 [profile.test]
 debug = "line-tables-only"
+
+# Nothing builds ring: pbs-gohttp-client's rustls uses aws-lc-rs. rustls-webpki's weak `ring?/alloc`
+# feature still keeps ring in Cargo.lock, and clippy's multiple_crate_versions, which reads
+# `cargo metadata`, would count ring's windows-sys 0.52 beside tokio's 0.61. patches/ring is a
+# stand-in without dependencies whose lib.rs is a compile_error!, so the build stops if a crate
+# enables ring (PORTING.md section 2). Remove it once rustls 0.24 and rustls-webpki 0.104 are
+# adopted.
+[patch.crates-io]
+ring = { path = "patches/ring" }

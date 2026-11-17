@@ -13,7 +13,7 @@
 //!
 //! - ring has no post-quantum key exchange (Go 1.26, like aws-lc-rs, prefers `X25519MLKEM768`), and
 //!   its newest release, 0.17.14, depends on windows-sys 0.52 where tokio, mio and socket2 use
-//!   0.61. Only tokio 1.39 to 1.46 use 0.52, and the workspace needs tokio 1.54.
+//!   0.61. Only tokio 1.39 to 1.46 use 0.52 (see below), and the workspace needs tokio 1.54.
 //! - [`CertPool::system`] reads `SSL_CERT_FILE`, `SSL_CERT_DIR` and Go's Linux file and directory
 //!   lists as `x509.SystemCertPool` does. `rustls-native-certs` searches openssl-probe's lists,
 //!   whose entries and order differ from Go's; `webpki-roots` is a bundled Mozilla list under
@@ -26,12 +26,23 @@
 //! aws-lc-sys builds with the `cc` crate, so on Linux and macOS it needs a C compiler but not
 //! `cmake`.
 //!
-//! `Cargo.lock` lists ring although nothing builds it: rustls-webpki's `alloc` feature names
-//! `ring?/alloc`, and Cargo's lock resolution keeps an optional dependency that a weak feature
-//! names. `cargo tree` and `cargo deny` leave ring out, but `cargo metadata`, which clippy's
-//! `multiple_crate_versions` reads, includes it, so that lint sees ring's windows-sys 0.52 next to
-//! tokio's 0.61. rustls 0.24 (pre-release as of 0.24.0-dev.3) moves the providers into crates of
-//! their own and rustls-webpki 0.104 drops its ring feature, which removes the entry.
+//! Nothing builds ring, but `Cargo.lock` would still list it: rustls-webpki's `alloc` feature
+//! names `ring?/alloc`, and Cargo's lock resolution keeps an optional dependency that a weak
+//! feature names. `cargo tree` and `cargo deny` leave ring out, but `cargo metadata`, which
+//! clippy's `multiple_crate_versions` reads, includes it, so that lint would count ring's
+//! windows-sys 0.52 beside tokio's 0.61. `rust/Cargo.toml` therefore patches ring with
+//! `rust/patches/ring`: the same version, with ring's features, no dependencies, and a `lib.rs`
+//! that is only a `compile_error!`. The lock then holds one windows-sys, and a crate that enables
+//! ring stops the build with an error that says what to do. The other way out, tokio 1.46, mio
+//! 1.0.3 and socket2 0.5.10 (the last releases on windows-sys 0.52), is worse: tokio 1.46 is not
+//! a long-term-support line and gets no fixes, its tokio-macros needs `syn` 2 beside the
+//! workspace's `syn` 3 (the same lint again), and pbs-gohttp-server uses
+//! `SocketAddr::as_abstract_name`, which tokio 1.48 added.
+//!
+//! The patch goes once rustls 0.24 and rustls-webpki 0.104 are released and adopted, with a
+//! tokio-rustls built on them (as of 0.24.0-dev.3 and 0.104.0-alpha.8 both are pre-releases):
+//! rustls 0.24 moves the crypto providers into crates of their own, and rustls-webpki 0.104 has
+//! no ring feature, so nothing names ring any more.
 
 use std::{
     env, fmt, fs,
