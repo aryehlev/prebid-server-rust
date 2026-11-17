@@ -290,6 +290,23 @@ func reviewSearch() []*Scenario {
 			configName("pbs"), addConfigPath("."), addConfigPath("@TMP@/etc/config"), readInConfig(),
 			configFileUsed(), get("from"),
 		)},
+		// A dangling pbs.json link and a pbs.json directory are skipped (Stat fails, or it is a
+		// directory); a pbs.toml link to a directory is too.
+		{Name: "review/search/dangling_link", Files: map[string]string{
+			"a/pbs.yaml": "from: a\n",
+		}, Links: map[string]string{"a/pbs.json": "missing.json"}, Ops: ops(
+			configName("pbs"), addConfigPath("@TMP@/a"), readInConfig(), configFileUsed(), get("from"),
+		)},
+		{Name: "review/search/directory_candidate", Files: map[string]string{
+			"b/pbs.json/x": "", "b/pbs.yml": "from: b\n",
+		}, Ops: ops(
+			configName("pbs"), addConfigPath("@TMP@/b"), readInConfig(), configFileUsed(), get("from"),
+		)},
+		{Name: "review/search/link_to_directory", Files: map[string]string{
+			"c/real/x": "", "c/pbs.yaml": "from: c\n",
+		}, Links: map[string]string{"c/pbs.toml": "real"}, Ops: ops(
+			configName("pbs"), addConfigPath("@TMP@/c"), readInConfig(), configFileUsed(), get("from"),
+		)},
 		// viper's TestGetConfigFile and TestReadInConfig, on the OS file system.
 		{Name: "review/search/TestGetConfigFile", Files: map[string]string{
 			"etc/viper/config.yaml": "key: value\n", "etc/config/config.yaml": "key: files_only\n",
