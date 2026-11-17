@@ -1,0 +1,6 @@
+{
+  "id": "rh-ccpa-account",
+  "ccpa": {
+    "enabled": true
+  }
+}

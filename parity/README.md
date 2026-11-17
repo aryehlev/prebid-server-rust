@@ -844,9 +844,9 @@ from its source code and then generates requests from that map: built-in
 probes, replays its agents write, and recorded or mutated traffic. For parity,
 its value is the requests it generates. Its own `--baseline` comparison only
 checks the status code and the body's shape, so it adds to the byte-exact
-Go-vs-Rust runner and does not replace it. So far the repository has the API
-map and a check for it. Nothing yet turns ReplayHarness requests into
-parity cases.
+Go-vs-Rust runner and does not replace it. The repository has the API map
+and a check for it, replays that pin what Go answers, and a recording of
+that traffic. Nothing yet turns ReplayHarness requests into parity cases.
 
 ### The API map
 
@@ -886,7 +886,9 @@ The notes also give the parity facts a replay needs:
 Two parity hazards were found while mapping:
 
 * the `uids` Set-Cookie depends on the wall clock;
-* `/cookie_sync` without `bidders` returns the syncers in map order.
+* `/cookie_sync` without `bidders` returns the syncers in map order. Outside
+  a parity case, which is how ReplayHarness requests arrive, Go shuffles them
+  at random, so with a limit two runs can sync different bidders.
 
 `/__parity/*` is left out on purpose: it is the harness, not the product.
 
@@ -917,3 +919,179 @@ The script reads the repository and sends no requests:
 It exits 0 when there is no drift and every citation is valid, and 1
 otherwise. The optional argument keeps the full context report. After a route
 or handler changes, update `api.yaml` and run the script again.
+
+### Running ReplayHarness against Go
+
+```sh
+REPLAYHARNESS=/path/to/replayharness parity/scripts/replayharness-replay.sh \
+    [--baseline] [--record] [--serve] [--profile NAME] [--out DIR]
+```
+
+The script starts the Go server with `rhtool serve`
+(`parity/replayharness/rhtool`), which uses the runner's own steps:
+
+* `runner.LoadProfiles` and `BuildConfig` with the base profile (`default`
+  unless `--profile` names another) and the oracle's URL;
+* `runner.PrepareWorkdir` with `fixtures/stored` plus
+  `parity/replayharness/stored`;
+* `runner.StartServer` on ports from the free-port helper, in parity mode on
+  127.0.0.1;
+* the mock oracle, started with the adapter corpus's templates, so every
+  bidder, prebid cache, currency, GVL and stored-data call is answered on
+  loopback.
+
+The parity token is random, written to a 0600 file in the state directory,
+and never given to ReplayHarness: `/__parity/*` stays as the harness has it,
+token-gated and loopback-only. `HTTP_PROXY` and `HTTPS_PROXY` point at the
+oracle in the servers, and at `127.0.0.1:9` in every other process the
+script starts. Every second the oracle's captures are appended to
+`outbound.jsonl` in the state directory, and on exit `rhtool serve` prints
+the count by kind. A watchdog runs `lsof` on every server and on the
+recording proxy each second, and kills them all if one has a socket off
+loopback. ReplayHarness only ever targets 127.0.0.1; never pass it
+`--allow-remote`.
+
+The steps, in order:
+
+1. **Probes.** `replayharness run parity/replayharness/api.yaml` against Go.
+   Go is the reference, so findings are only reported.
+2. **Replays.** `replayharness replay parity/replayharness/replays`. Every
+   replay must pass.
+3. **`--baseline`.** The probes against two Go servers. Any divergence fails
+   the run, except on `POST /cookie_sync`: Go shuffles the syncers it
+   evaluates (`usersync/chooser.go`, `usersync/shuffler.go`), so with a limit
+   or without a bidder list two runs pick different bidders and `debug` comes
+   and goes. That divergence is printed but does not fail.
+4. **`--record`.** `replayharness record` on a spare loopback port, the probes
+   and the replays through it, then `replayharness replay <recording>
+   --mutate` through the same proxy. `rhtool traffic` then writes
+   `parity/replayharness/traffic.jsonl` (see below).
+
+`--serve` only starts the stack, prints the URLs and waits for Ctrl-C. The
+reports and logs stay in the state directory; the binaries are deleted.
+
+Requests sent straight to the main port carry no parity case. The exchange
+therefore labels bidder calls as general calls, and the oracle answers them
+404 as unexpected. The only bids are stored bid responses and stored auction
+responses. The oracle derives each cache id from the cached payload, so ids
+are stable unless the payload carries a timestamp.
+
+### Stored data for the replays
+
+`parity/replayharness/stored` uses the `fixtures/stored` layout and is
+loaded next to it. All IDs start with `rh-`.
+
+| Kind | IDs |
+| --- | --- |
+| stored requests | `rh-amp-banner`, `rh-amp-stored-bid`, `rh-amp-two-imps`, `rh-amp-app`, `rh-events-request` |
+| stored imps | `rh-imp-stored-bid`, `rh-imp-video-stored-bid` |
+| stored responses | `rh-appnexus-banner` and `rh-appnexus-video` (appnexus wire bids for stored bid responses), `rh-seatbid-banner` (a seatbid for stored auction responses) |
+| accounts | `rh-events-account` (events on), `rh-no-debug-account` (`debug_allow` false), `rh-ccpa-account` (CCPA enforced), `rh-cookie-sync-account` (limit 1), `rh-sandbox-account` (cookie deprecation on), `rh-malformed-account` (`disabled: "yes"`, which does not parse) |
+
+### The replays
+
+`parity/replayharness/replays` holds 162 replays in the ReplayHarness format
+(`agents/replayharness-replay.md` in the ReplayHarness repository). Each one
+states what Go does, and its `why` cites the Go code.
+
+| File | Replays | Covers |
+| --- | --- | --- |
+| `auction.yaml` | 25 | validation errors, debug and test, aliases, disabled bidders, accounts, currency, Content-Encoding |
+| `stored.yaml` | 15 | stored requests, imps, bid responses and auction responses, targeting, currency conversion, bid adjustment |
+| `amp.yaml` | 15 | tag_id, query overrides, consent types, origin headers, the targeting response |
+| `video.yaml` | 4 | the deprecated endpoint, video validation, ad pod keys |
+| `usersync.yaml` | 18 | setuid to getuids to cookie_sync with the saved cookie, cookie attributes, opt-out, filters, limits, privacy |
+| `events.yaml` | 13 | `/event` parameters and accounts, `/vtrack` validation and cache puts |
+| `privacy.yaml` | 10 | GDPR, CCPA and GPP in the auction |
+| `headers.yaml` | 11 | Referer, User-Agent, X-Forwarded-For, X-Real-IP, DNT, Sec-GPC, Sec-Browsing-Topics, Origin |
+| `json.yaml` | 25 | malformed and borderline JSON bodies |
+| `limits.yaml` | 6 | bodies at, one byte over and two bytes over `max_request_size` |
+| `info.yaml` | 12 | `/info/bidders`, `/bidders/params`, `/status`, `/version`, `/` and `/static` |
+| `router.yaml` | 8 | 404, 405, redirects, OPTIONS, the CORS preflight, admin-only routes |
+
+Things to know when editing them:
+
+* ReplayHarness reads `{{name}}` as a variable. A body that must contain
+  `{{UUID}}` uses JSON escapes, and a check splits the text.
+* `contains` compares raw bytes. Go escapes `&` in some JSON as `&`; in a
+  double-quoted YAML string, write the backslash as `\x5C`.
+* In a YAML flow mapping, a key with `[` must be quoted:
+  `{"$.debug[0].error": ...}`.
+* ReplayHarness treats an empty response header as missing.
+* The `uids` cookie expires by the wall clock. A flow saves `header:Set-Cookie`
+  and sends it back as `Cookie`; Go reads `uids=` and skips the attributes.
+
+### The recorded traffic
+
+`parity/replayharness/traffic.jsonl` is a `replayharness record` file. It
+holds the probes, the replays and the mutated replays of the recording, as
+Go answered them in one `--record` run. `rhtool traffic` keeps each line as
+ReplayHarness wrote it, and drops:
+
+* repeated requests;
+* exchanges whose request body is over 64 KiB. These are size probes: the
+  recorder truncates bodies at 1 MiB, and the replays and probes send them
+  again on every run;
+* repeats of a response body of 64 KiB or more on the same method, path and
+  status, such as `/bidders/params` fetched with an unknown query parameter.
+
+It fails when a line holds the parity token or a credential header, or when
+the result is over 5 MB. The recorder already leaves out Cookie,
+Set-Cookie and Authorization. The last run read 4704 exchanges and kept 2523
+on 278 endpoints, in 4172393 bytes.
+
+To send the same requests to any server that the parity runner started:
+
+```sh
+replayharness replay parity/replayharness/traffic.jsonl --target http://127.0.0.1:PORT [--mutate]
+```
+
+### Go behaviour the replays pin
+
+A port must copy these, even where they look wrong:
+
+* **Errors.**
+  * A JSON error at the end of the body names a NUL byte
+    (`expect { or n, but found \x00`).
+  * A string `tmax` error ends with a raw 0xFF byte.
+  * Account errors that are not 400s still start with `Invalid request:`: a
+    malformed account is 500, a disabled one is 403 in the auction and 503 in
+    `/event` and `/vtrack`.
+  * The size error ends with a period in the auction but not in `/vtrack`.
+* **Size limit.** An auction body exactly one byte over `max_request_size`
+  passes the size check and fails as truncated JSON. net/http returns the
+  last byte together with `io.EOF` (`endpoints/openrtb2/auction.go:448-470`).
+  Two bytes over gets the size error. `/cookie_sync` has no limit.
+* **Responses.**
+  * Every request without test or debug gets warning 10002 (`debug turned off
+    for account`).
+  * Event URLs in bid ext have `&` escaped as `&`.
+  * The AMP response is `text/plain`.
+  * The `/event` pixel's Content-Type is set after `WriteHeader`; net/http
+    sniffs `image/png`.
+* **Request enrichment.** The Referer's host fills `site.domain` even when
+  `site.page` names another host.
+* **`/vtrack`.** Every VAST put it modifies is broken. For a bidder that may
+  modify VAST, which includes unknown bidders by default, a VAST with an
+  Impression tag is put to the cache as unquoted XML
+  (`endpoints/events/vtrack.go:320-333`). The cache answers 400 and
+  `/vtrack` answers 500.
+* **Request ids.** A `{{UUID}}` request id is replaced only when it comes
+  from the stored request (`endpoints/openrtb2/auction.go:1736`). Sent in the
+  body, it is kept.
+* **AMP consent.** `consent_type` 4 (GPP) is not applied; it only warns.
+* **No enforcement.** `imp.bidfloor` is not enforced in the default profile.
+  `setuid` accepts an unparsable GDPR consent, because the host vendor ID is
+  unset.
+* **Static files.** A file name over 255 bytes under `/static` is 500.
+* **Routing.** `httprouter` redirects a POST with a trailing slash with 307.
+* **Stored data.** `fixtures/stored`'s `parity-stored-response` has no mtype,
+  so using it with a bidder fails the auction with 500.
+
+ReplayHarness limits:
+
+* It cannot send a body that is not valid UTF-8 or that is binary, such as
+  gzip.
+* It cannot send a literal `{{...}}`.
+* It cannot tell an empty header from a missing one.
+* Its recorder adds `127.0.0.1` to X-Forwarded-For.

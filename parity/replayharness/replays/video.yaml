@@ -1,0 +1,65 @@
+# Video: the deprecated /openrtb2/video endpoint, and video and ad pod
+# targeting through /openrtb2/auction. The stored video bid response is
+# rh-appnexus-video (a 15 second VAST InLine at 2.50).
+replays:
+  - name: the deprecated video endpoint answers 501
+    why: video.enable_deprecated_endpoint is false by default, so the handler writes the deprecation text without a trailing newline (endpoints/openrtb2/video_auction.go:128)
+    steps:
+      - method: POST
+        path: /openrtb2/video
+        json: {storedrequestid: parity-stored-request, podconfig: {durationrangesec: [15, 30], pods: [{podid: 1, adpoddurationsec: 60, configid: rh-pod}]}}
+        expect:
+          status: 501
+          headers: {Content-Type: text/plain}
+          contains: ["The video endpoint is deprecated and will be removed in 5.0. You may re-enable it via the host configuration setting video.enable_deprecated_endpoint"]
+          not_contains: ["enable_deprecated_endpoint\n"]
+      - method: GET
+        path: /openrtb2/video
+        expect: {status: 405, headers: {Allow: "OPTIONS, POST"}}
+
+  - name: a video imp needs mimes
+    why: ortb video validation rejects an empty mimes list (ortb/request_validator_video.go)
+    steps:
+      - method: POST
+        path: /openrtb2/auction
+        json: {id: rh-video-nomimes, site: {page: "https://parity.test/"}, imp: [{id: v, video: {w: 640, h: 480}, ext: {prebid: {bidder: {appnexus: {placementId: 1}}}}}]}
+        expect: {status: 400, contains: ["Invalid request: request.imp[0].video.mimes must contain at least one supported MIME type\n"]}
+
+  - name: an ad pod gets a price and duration key truncated to 20 characters
+    why: with includebrandcategory and durationrangesec, the 15s bid gets hb_pb_cat_dur 2.50_15s, and the bidder copy of the key is cut to MaxKeyLength 20 (exchange/targeting.go:11, 112)
+    steps:
+      - method: POST
+        path: /openrtb2/auction
+        json:
+          id: rh-pod
+          site: {page: "https://parity.test/"}
+          imp: [{id: imp-v, video: {mimes: [video/mp4], w: 640, h: 480, podid: pod-1, maxduration: 30}, ext: {prebid: {bidder: {appnexus: {placementId: 1}}, storedbidresponse: [{bidder: appnexus, id: rh-appnexus-video}]}}}]
+          ext: {prebid: {targeting: {includebrandcategory: {primaryadserver: 1, publisher: "", withcategory: false}, durationrangesec: [15, 30], pricegranularity: low}, cache: {vastxml: {}}}}
+        expect:
+          status: 200
+          json:
+            $.seatbid[0].bid[0].id: rh-video-bid
+            $.seatbid[0].bid[0].ext.prebid.type: video
+            $.seatbid[0].bid[0].ext.prebid.video.duration: 15
+            $.seatbid[0].bid[0].ext.prebid.targeting.hb_pb: "2.50"
+            $.seatbid[0].bid[0].ext.prebid.targeting.hb_pb_cat_dur: 2.50_15s
+            $.seatbid[0].bid[0].ext.prebid.targeting.hb_pb_cat_dur_appnex: 2.50_15s
+            $.seatbid[0].bid[0].ext.prebid.targeting.hb_uuid: <string>
+            $.seatbid[0].bid[0].ext.prebid.targeting.hb_cache_id: <absent>
+
+  - name: an ad pod that needs a category rejects a bid without one
+    why: withcategory true drops a bid with no cat and reports it as a code 999 prebid error (exchange/exchange.go:1112)
+    steps:
+      - method: POST
+        path: /openrtb2/auction
+        json:
+          id: rh-pod-category
+          site: {page: "https://parity.test/"}
+          imp: [{id: imp-v, video: {mimes: [video/mp4], w: 640, h: 480}, ext: {prebid: {bidder: {appnexus: {placementId: 1}}, storedbidresponse: [{bidder: appnexus, id: rh-appnexus-video}]}}}]
+          ext: {prebid: {targeting: {includebrandcategory: {primaryadserver: 1, publisher: "", withcategory: true}, durationrangesec: [15, 30]}}}
+        expect:
+          status: 200
+          json:
+            $.seatbid: <absent>
+            $.ext.errors.prebid[0].code: 999
+            $.ext.errors.prebid[0].message: "bid rejected [bid ID: rh-video-bid] reason: Bid did not contain a category"

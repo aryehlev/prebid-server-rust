@@ -1,0 +1,208 @@
+# Malformed and borderline JSON bodies for /openrtb2/auction. Go parses the
+# request with jsoniter, so the error texts are jsoniter's, and a failed parse
+# reports the byte where it stopped; at the end of the body that byte is NUL.
+#
+# Every body and expectation is a JSON-quoted YAML string, so a \u escape in
+# it is a YAML escape: the body Go receives holds the character it names, and
+# a JSON escape Go must see is written with an escaped backslash.
+replays:
+  - name: an empty body reports a NUL where the object should start
+    why: "jsoniter reads past the end and prints the zero byte it finds (endpoints/openrtb2/auction.go:557, util/jsonutil)"
+    steps:
+      - method: POST
+        path: /openrtb2/auction
+        headers: {Content-Type: application/json}
+        body: ""
+        expect: {"status": 400, "contains": ["Invalid request: expect { or n, but found \u0000\n"]}
+  - name: a whitespace-only body is the same as an empty one
+    why: leading whitespace is skipped before the same check
+    steps:
+      - method: POST
+        path: /openrtb2/auction
+        headers: {Content-Type: application/json}
+        body: "   "
+        expect: {"status": 400, "contains": ["Invalid request: expect { or n, but found \u0000\n"]}
+  - name: a truncated body names the field being read
+    why: the error carries the struct path where the input ran out
+    steps:
+      - method: POST
+        path: /openrtb2/auction
+        headers: {Content-Type: application/json}
+        body: "{\"id\":\"x\",\"site\":{\"page\":\"https://parity.test/\"},\"imp\":[{\"id\""
+        expect: {"status": 400, "contains": ["Invalid request: cannot unmarshal openrtb2.Imp.ID: expect : after object field, but found \u0000\n"]}
+  - name: a trailing comma is rejected at the closing brace
+    why: jsoniter expects another key
+    steps:
+      - method: POST
+        path: /openrtb2/auction
+        headers: {Content-Type: application/json}
+        body: "{\"id\":\"x\",\"site\":{\"page\":\"https://parity.test/\"},\"imp\":[{\"id\":\"i\",\"banner\":{\"format\":[{\"w\":300,\"h\":250}]},\"ext\":{\"prebid\":{\"bidder\":{\"appnexus\":{\"placementId\":1}},\"storedauctionresponse\":{\"id\":\"rh-seatbid-banner\"}}}}],}"
+        expect: {"status": 400, "contains": ["Invalid request: expects \" or n, but found }\n"]}
+  - name: a top-level array is rejected
+    why: the request must be an object
+    steps:
+      - method: POST
+        path: /openrtb2/auction
+        headers: {Content-Type: application/json}
+        body: "[]"
+        expect: {"status": 400, "contains": ["Invalid request: expect { or n, but found [\n"]}
+  - name: a null body fails on the missing id
+    why: "null decodes to an empty request before validation (endpoints/openrtb2/auction.go:804)"
+    steps:
+      - method: POST
+        path: /openrtb2/auction
+        headers: {Content-Type: application/json}
+        body: "null"
+        expect: {"status": 400, "contains": ["Invalid request: request missing required field: \"id\"\n"]}
+  - name: an empty object fails on the missing id
+    why: "validation runs on the empty request (endpoints/openrtb2/auction.go:804)"
+    steps:
+      - method: POST
+        path: /openrtb2/auction
+        headers: {Content-Type: application/json}
+        body: "{}"
+        expect: {"status": 400, "contains": ["Invalid request: request missing required field: \"id\"\n"]}
+  - name: a string tmax is rejected with the raw byte jsoniter saw
+    why: the message ends with an undecodable byte, so only its prefix is checked
+    steps:
+      - method: POST
+        path: /openrtb2/auction
+        headers: {Content-Type: application/json}
+        body: "{\"id\":\"x\",\"tmax\":\"500\",\"site\":{\"page\":\"https://parity.test/\"},\"imp\":[{\"id\":\"i\",\"banner\":{\"format\":[{\"w\":300,\"h\":250}]},\"ext\":{\"prebid\":{\"bidder\":{\"appnexus\":{\"placementId\":1}},\"storedauctionresponse\":{\"id\":\"rh-seatbid-banner\"}}}}]}"
+        expect: {"status": 400, "contains": ["Invalid request: cannot unmarshal openrtb2.BidRequest.TMax: unexpected character: "]}
+  - name: an exponent tmax stops the parser at the e
+    why: jsoniter reads 1 as an int and then finds e
+    steps:
+      - method: POST
+        path: /openrtb2/auction
+        headers: {Content-Type: application/json}
+        body: "{\"id\":\"x\",\"tmax\":1e3,\"site\":{\"page\":\"https://parity.test/\"},\"imp\":[{\"id\":\"i\",\"banner\":{\"format\":[{\"w\":300,\"h\":250}]},\"ext\":{\"prebid\":{\"bidder\":{\"appnexus\":{\"placementId\":1}},\"storedauctionresponse\":{\"id\":\"rh-seatbid-banner\"}}}}]}"
+        expect: {"status": 400, "contains": ["Invalid request: expect }, but found e\n"]}
+  - name: a float tmax is rejected
+    why: tmax is an int64
+    steps:
+      - method: POST
+        path: /openrtb2/auction
+        headers: {Content-Type: application/json}
+        body: "{\"id\":\"x\",\"tmax\":500.0,\"site\":{\"page\":\"https://parity.test/\"},\"imp\":[{\"id\":\"i\",\"banner\":{\"format\":[{\"w\":300,\"h\":250}]},\"ext\":{\"prebid\":{\"bidder\":{\"appnexus\":{\"placementId\":1}},\"storedauctionresponse\":{\"id\":\"rh-seatbid-banner\"}}}}]}"
+        expect: {"status": 400, "contains": ["Invalid request: cannot unmarshal openrtb2.BidRequest.TMax: can not decode float as int\n"]}
+  - name: an overflowing tmax is rejected
+    why: the value does not fit an int64
+    steps:
+      - method: POST
+        path: /openrtb2/auction
+        headers: {Content-Type: application/json}
+        body: "{\"id\":\"x\",\"tmax\":99999999999999999999,\"site\":{\"page\":\"https://parity.test/\"},\"imp\":[{\"id\":\"i\",\"banner\":{\"format\":[{\"w\":300,\"h\":250}]},\"ext\":{\"prebid\":{\"bidder\":{\"appnexus\":{\"placementId\":1}},\"storedauctionresponse\":{\"id\":\"rh-seatbid-banner\"}}}}]}"
+        expect: {"status": 400, "contains": ["Invalid request: cannot unmarshal openrtb2.BidRequest.TMax: overflow\n"]}
+  - name: a UTF-8 byte order mark is not skipped
+    why: the BOM's first byte is reported where { was expected
+    steps:
+      - method: POST
+        path: /openrtb2/auction
+        headers: {Content-Type: application/json}
+        body: "\ufeff{\"id\":\"x\",\"site\":{\"page\":\"https://parity.test/\"},\"imp\":[{\"id\":\"i\",\"banner\":{\"format\":[{\"w\":300,\"h\":250}]},\"ext\":{\"prebid\":{\"bidder\":{\"appnexus\":{\"placementId\":1}},\"storedauctionresponse\":{\"id\":\"rh-seatbid-banner\"}}}}]}"
+        expect: {"status": 400, "contains": ["Invalid request: expect { or n, but found "], "not_contains": ["seatbid"]}
+  - name: bytes after the object are rejected
+    why: the decoder checks for trailing input
+    steps:
+      - method: POST
+        path: /openrtb2/auction
+        headers: {Content-Type: application/json}
+        body: "{\"id\":\"x\",\"site\":{\"page\":\"https://parity.test/\"},\"imp\":[{\"id\":\"i\",\"banner\":{\"format\":[{\"w\":300,\"h\":250}]},\"ext\":{\"prebid\":{\"bidder\":{\"appnexus\":{\"placementId\":1}},\"storedauctionresponse\":{\"id\":\"rh-seatbid-banner\"}}}}]} xyz"
+        expect: {"status": 400, "contains": ["Invalid request: there are bytes left after unmarshal\n"]}
+  - name: two concatenated objects are rejected
+    why: the second object is trailing input
+    steps:
+      - method: POST
+        path: /openrtb2/auction
+        headers: {Content-Type: application/json}
+        body: "{\"id\":\"x\",\"site\":{\"page\":\"https://parity.test/\"},\"imp\":[{\"id\":\"i\",\"banner\":{\"format\":[{\"w\":300,\"h\":250}]},\"ext\":{\"prebid\":{\"bidder\":{\"appnexus\":{\"placementId\":1}},\"storedauctionresponse\":{\"id\":\"rh-seatbid-banner\"}}}}]}{\"id\":\"y\"}"
+        expect: {"status": 400, "contains": ["Invalid request: there are bytes left after unmarshal\n"]}
+  - name: comments are not JSON
+    why: jsoniter wants a key where the comment starts
+    steps:
+      - method: POST
+        path: /openrtb2/auction
+        headers: {Content-Type: application/json}
+        body: "{\"id\":\"x\", /* c */ \"site\":{\"page\":\"https://parity.test/\"},\"imp\":[{\"id\":\"i\",\"banner\":{\"format\":[{\"w\":300,\"h\":250}]},\"ext\":{\"prebid\":{\"bidder\":{\"appnexus\":{\"placementId\":1}},\"storedauctionresponse\":{\"id\":\"rh-seatbid-banner\"}}}}]}"
+        expect: {"status": 400, "contains": ["Invalid request: expects \" or n, but found /\n"]}
+  - name: imp must be an array
+    why: the slice decoder rejects an object
+    steps:
+      - method: POST
+        path: /openrtb2/auction
+        headers: {Content-Type: application/json}
+        body: "{\"id\":\"x\",\"site\":{\"page\":\"https://parity.test/\"},\"imp\":{}}"
+        expect: {"status": 400, "contains": ["Invalid request: cannot unmarshal openrtb2.BidRequest.Imp: decode slice: expect [ or n, but found {\n"]}
+  - name: a numeric id is rejected
+    why: id is a string
+    steps:
+      - method: POST
+        path: /openrtb2/auction
+        headers: {Content-Type: application/json}
+        body: "{\"id\":5,\"site\":{\"page\":\"https://parity.test/\"},\"imp\":[{\"id\":\"i\",\"banner\":{\"format\":[{\"w\":300,\"h\":250}]},\"ext\":{\"prebid\":{\"bidder\":{\"appnexus\":{\"placementId\":1}},\"storedauctionresponse\":{\"id\":\"rh-seatbid-banner\"}}}}]}"
+        expect: {"status": 400, "contains": ["Invalid request: cannot unmarshal ID: expects \" or n, but found 5\n"]}
+  - name: a string request ext is rejected
+    why: ext must be an object
+    steps:
+      - method: POST
+        path: /openrtb2/auction
+        headers: {Content-Type: application/json}
+        body: "{\"id\":\"x\",\"site\":{\"page\":\"https://parity.test/\"},\"imp\":[{\"id\":\"i\",\"banner\":{\"format\":[{\"w\":300,\"h\":250}]},\"ext\":{\"prebid\":{\"bidder\":{\"appnexus\":{\"placementId\":1}},\"storedauctionresponse\":{\"id\":\"rh-seatbid-banner\"}}}}],\"ext\":\"x\"}"
+        expect: {"status": 400, "contains": ["Invalid request: req.ext is invalid: expect { or n, but found \"\n"]}
+  - name: a duplicate key keeps the last value
+    why: jsoniter overwrites the field on the second key
+    steps:
+      - method: POST
+        path: /openrtb2/auction
+        headers: {Content-Type: application/json}
+        body: "{\"id\":\"first\",\"id\":\"second\",\"site\":{\"page\":\"https://parity.test/\"},\"imp\":[{\"id\":\"i\",\"banner\":{\"format\":[{\"w\":300,\"h\":250}]},\"ext\":{\"prebid\":{\"bidder\":{\"appnexus\":{\"placementId\":1}},\"storedauctionresponse\":{\"id\":\"rh-seatbid-banner\"}}}}]}"
+        expect: {"status": 200, "json": {"$.id": "second"}}
+  - name: an id with HTML is echoed without escaping
+    why: the response encoder does not escape HTML in the id
+    steps:
+      - method: POST
+        path: /openrtb2/auction
+        headers: {Content-Type: application/json}
+        body: "{\"id\":\"<b>&rh</b>\",\"site\":{\"page\":\"https://parity.test/\"},\"imp\":[{\"id\":\"i\",\"banner\":{\"format\":[{\"w\":300,\"h\":250}]},\"ext\":{\"prebid\":{\"bidder\":{\"appnexus\":{\"placementId\":1}},\"storedauctionresponse\":{\"id\":\"rh-seatbid-banner\"}}}}]}"
+        expect: {"status": 200, "contains": ["{\"id\":\"<b>&rh</b>\","]}
+  - name: "an escaped {{UUID}} id is kept as is without a stored request"
+    why: "the id macro is only replaced when it comes from a stored request or generate_request_id is set (endpoints/openrtb2/auction.go:1722-1760); the check is split so ReplayHarness does not read it as a variable"
+    steps:
+      - method: POST
+        path: /openrtb2/auction
+        headers: {Content-Type: application/json}
+        body: "{\"id\":\"\\u007b\\u007bUUID}}\",\"site\":{\"page\":\"https://parity.test/\"},\"imp\":[{\"id\":\"i\",\"banner\":{\"format\":[{\"w\":300,\"h\":250}]},\"ext\":{\"prebid\":{\"bidder\":{\"appnexus\":{\"placementId\":1}},\"storedauctionresponse\":{\"id\":\"rh-seatbid-banner\"}}}}]}"
+        expect: {"status": 200, "contains": ["{\"id\":\"{{UUID", "UUID}}\",\"seatbid\""]}
+  - name: escaped and raw non-ASCII ids come back as UTF-8
+    why: Go writes the decoded characters, not the escapes
+    steps:
+      - method: POST
+        path: /openrtb2/auction
+        headers: {Content-Type: application/json}
+        body: "{\"id\":\"\\u00e9t\\u00e9 \u20ac\",\"site\":{\"page\":\"https://parity.test/\"},\"imp\":[{\"id\":\"i\",\"banner\":{\"format\":[{\"w\":300,\"h\":250}]},\"ext\":{\"prebid\":{\"bidder\":{\"appnexus\":{\"placementId\":1}},\"storedauctionresponse\":{\"id\":\"rh-seatbid-banner\"}}}}]}"
+        expect: {"status": 200, "json": {"$.id": "\u00e9t\u00e9 \u20ac"}}
+  - name: deep nesting in ext is accepted
+    why: 200 levels of arrays stay within jsoniter's limits
+    steps:
+      - method: POST
+        path: /openrtb2/auction
+        headers: {Content-Type: application/json}
+        body: "{\"id\":\"x\",\"site\":{\"page\":\"https://parity.test/\"},\"imp\":[{\"id\":\"i\",\"banner\":{\"format\":[{\"w\":300,\"h\":250}]},\"ext\":{\"prebid\":{\"bidder\":{\"appnexus\":{\"placementId\":1}},\"storedauctionresponse\":{\"id\":\"rh-seatbid-banner\"}}}}],\"ext\":{\"rh\":[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]}}"
+        expect: {"status": 200, "json": {"$.id": "x"}}
+  - name: a null ext.prebid is accepted
+    why: null leaves the prebid extension unset
+    steps:
+      - method: POST
+        path: /openrtb2/auction
+        headers: {Content-Type: application/json}
+        body: "{\"id\":\"x\",\"site\":{\"page\":\"https://parity.test/\"},\"imp\":[{\"id\":\"i\",\"banner\":{\"format\":[{\"w\":300,\"h\":250}]},\"ext\":{\"prebid\":{\"bidder\":{\"appnexus\":{\"placementId\":1}},\"storedauctionresponse\":{\"id\":\"rh-seatbid-banner\"}}}}],\"ext\":{\"prebid\":null}}"
+        expect: {"status": 200, "json": {"$.id": "x", "$.seatbid[0].bid[0].id": "rh-seatbid-bid"}}
+  - name: the Content-Type of an auction is not checked
+    why: the body is parsed as JSON whatever the header says
+    steps:
+      - method: POST
+        path: /openrtb2/auction
+        headers: {Content-Type: text/plain}
+        body: "{\"id\":\"rh-text-plain\",\"site\":{\"page\":\"https://parity.test/\"},\"imp\":[{\"id\":\"i\",\"banner\":{\"format\":[{\"w\":300,\"h\":250}]},\"ext\":{\"prebid\":{\"bidder\":{\"appnexus\":{\"placementId\":1}},\"storedauctionresponse\":{\"id\":\"rh-seatbid-banner\"}}}}]}"
+        expect: {status: 200, json: {$.id: rh-text-plain}}

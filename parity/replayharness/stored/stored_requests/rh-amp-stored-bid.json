@@ -1,0 +1,49 @@
+{
+  "id": "rh-amp-stored-bid",
+  "site": {
+    "page": "https://parity.test/amp",
+    "publisher": {
+      "id": "parity-account"
+    }
+  },
+  "imp": [
+    {
+      "id": "rh-amp-imp",
+      "banner": {
+        "format": [
+          {
+            "w": 300,
+            "h": 250
+          }
+        ]
+      },
+      "ext": {
+        "prebid": {
+          "bidder": {
+            "appnexus": {
+              "placementId": 12883451
+            }
+          },
+          "storedbidresponse": [
+            {
+              "bidder": "appnexus",
+              "id": "rh-appnexus-banner"
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "ext": {
+    "prebid": {
+      "targeting": {
+        "pricegranularity": "medium",
+        "includewinners": true,
+        "includebidderkeys": true
+      },
+      "cache": {
+        "bids": {}
+      }
+    }
+  }
+}

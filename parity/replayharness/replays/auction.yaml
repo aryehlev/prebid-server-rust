@@ -1,0 +1,357 @@
+# POST /openrtb2/auction: validation and the response envelope.
+#
+# Requests sent straight to the main port (not through /__parity/exec) carry
+# no parity case, so the exchange does not label bidder calls and the oracle
+# answers them 404 as unexpected calls. Bids therefore come only from stored
+# responses (auction-stored.yaml); a live bidder shows up as a code 4 error.
+replays:
+  - name: an auction with a live bidder answers 200 and reports the bidder's failure
+    why: the oracle answers the unlabelled appnexus call 404, which the adapter reports as BadServerResponse (code 4) under ext.errors (exchange/bidder.go, adapters/response.go)
+    steps:
+      - method: POST
+        path: /openrtb2/auction
+        json:
+          id: rh-auction-live
+          site: {page: "https://parity.test/page", publisher: {id: parity-account}}
+          imp: [{id: imp-1, banner: {format: [{w: 300, h: 250}]}, ext: {prebid: {bidder: {appnexus: {placementId: 12883451}}}}}]
+          tmax: 500
+        expect:
+          status: 200
+          headers: {Content-Type: application/json, X-Prebid: pbs-go/unknown, Cache-Control: "no-cache, no-store, must-revalidate", Pragma: no-cache, Expires: "0", Vary: Origin}
+          json:
+            $.id: rh-auction-live
+            $.seatbid: <absent>
+            $.ext.errors.appnexus[0].code: 4
+            $.ext.errors.appnexus[0].message: "Server responded with failure status: 404. Set request.test = 1 for debugging info."
+            $.ext.responsetimemillis.appnexus: <integer>
+            $.ext.tmaxrequest: 500
+            $.ext.prebid.auctiontimestamp: <integer>
+
+  - name: a request without test gets the account debug warning
+    why: getDebugInfo leaves accountDebugAllow false unless test or ext.prebid.debug is set, and holdAuction then adds warning 10002 (exchange/exchange.go:563-568)
+    steps:
+      - method: POST
+        path: /openrtb2/auction
+        json:
+          id: rh-auction-nodebug
+          site: {page: "https://parity.test/page"}
+          imp: [{id: imp-1, banner: {format: [{w: 300, h: 250}]}, ext: {prebid: {bidder: {appnexus: {placementId: 12883451}}}}}]
+        expect:
+          status: 200
+          json:
+            $.ext.warnings.general[0].code: 10002
+            $.ext.warnings.general[0].message: debug turned off for account
+            $.ext.debug: <absent>
+
+  - name: test 1 returns the resolved request and the bidder http calls
+    why: with test 1 and an account that allows debug, ext.debug carries resolvedrequest and httpcalls (exchange/exchange.go:301-316)
+    steps:
+      - method: POST
+        path: /openrtb2/auction
+        json:
+          id: rh-auction-debug
+          test: 1
+          site: {page: "https://parity.test/page", publisher: {id: parity-account}}
+          imp: [{id: imp-1, banner: {format: [{w: 300, h: 250}]}, ext: {prebid: {bidder: {appnexus: {placementId: 12883451}}}}}]
+        expect:
+          status: 200
+          json:
+            $.ext.debug.resolvedrequest.id: rh-auction-debug
+            $.ext.debug.resolvedrequest.at: 1
+            $.ext.debug.resolvedrequest.imp[0].secure: 1
+            $.ext.debug.resolvedrequest.imp[0].ext.tid: <string>
+            $.ext.debug.resolvedrequest.site.domain: parity.test
+            $.ext.debug.resolvedrequest.site.publisher.domain: parity.test
+            $.ext.debug.resolvedrequest.site.ext.amp: 0
+            $.ext.debug.resolvedrequest.ext.prebid.server.externalurl: "http://localhost:8000"
+            $.ext.debug.httpcalls.appnexus[0].uri: "http://ib.adnxs.com/openrtb2"
+            $.ext.debug.httpcalls.appnexus[0].status: 0
+            $.ext.warnings: <absent>
+          contains: ['\"placement_id\":12883451', '\"hb_source\":5']
+
+  - name: an account with debug_allow false ignores test 1
+    why: rh-no-debug-account sets debug_allow false, so test 1 gives no ext.debug and the 10002 warning (exchange/exchange.go:301, 563-568)
+    steps:
+      - method: POST
+        path: /openrtb2/auction
+        json:
+          id: rh-auction-nodebug-account
+          test: 1
+          site: {page: "https://parity.test/page", publisher: {id: rh-no-debug-account}}
+          imp: [{id: imp-1, banner: {format: [{w: 300, h: 250}]}, ext: {prebid: {bidder: {appnexus: {placementId: 12883451}}, storedauctionresponse: {id: rh-seatbid-banner}}}}]
+        expect:
+          status: 200
+          json:
+            $.ext.debug: <absent>
+            $.ext.warnings.general[0].message: debug turned off for account
+            $.seatbid[0].bid[0].id: rh-seatbid-bid
+
+  - name: a request without id is rejected
+    why: validateRequest requires id (endpoints/openrtb2/auction.go:804)
+    steps:
+      - method: POST
+        path: /openrtb2/auction
+        json: {imp: [{id: imp-1, banner: {format: [{w: 300, h: 250}]}, ext: {prebid: {bidder: {appnexus: {placementId: 1}}}}}], site: {page: "https://parity.test/"}}
+        expect:
+          status: 400
+          headers: {Content-Type: text/plain, X-Prebid: pbs-go/unknown}
+          contains: ["Invalid request: request missing required field: \"id\"\n"]
+
+  - name: a negative tmax is rejected
+    why: validateRequest rejects tmax < 0 (endpoints/openrtb2/auction.go:808)
+    steps:
+      - method: POST
+        path: /openrtb2/auction
+        json: {id: rh-neg-tmax, tmax: -1, imp: [{id: imp-1, banner: {format: [{w: 300, h: 250}]}, ext: {prebid: {bidder: {appnexus: {placementId: 1}}}}}], site: {page: "https://parity.test/"}}
+        expect:
+          status: 400
+          contains: ["Invalid request: request.tmax must be nonnegative. Got -1\n"]
+
+  - name: an empty imp array is rejected
+    why: validateRequest needs at least one imp (endpoints/openrtb2/auction.go:812)
+    steps:
+      - method: POST
+        path: /openrtb2/auction
+        json: {id: rh-no-imps, imp: [], site: {page: "https://parity.test/"}}
+        expect:
+          status: 400
+          contains: ["Invalid request: request.imp must contain at least one element.\n"]
+
+  - name: imp validation messages name the imp index
+    why: ortb.RequestValidator checks imp id and media type first; an imp without ext is reported as having no bidder, not as missing ext (ortb/request_validator.go:39, 47, 157)
+    steps:
+      - method: POST
+        path: /openrtb2/auction
+        json: {id: rh-imp-noid, imp: [{banner: {format: [{w: 300, h: 250}]}, ext: {prebid: {bidder: {appnexus: {placementId: 1}}}}}], site: {page: "https://parity.test/"}}
+        expect: {status: 400, contains: ["Invalid request: request.imp[0] missing required field: \"id\"\n"]}
+      - method: POST
+        path: /openrtb2/auction
+        json: {id: rh-imp-nomedia, imp: [{id: imp-1, ext: {prebid: {bidder: {appnexus: {placementId: 1}}}}}], site: {page: "https://parity.test/"}}
+        expect: {status: 400, contains: ["Invalid request: request.imp[0] must contain at least one of \"banner\", \"video\", \"audio\", or \"native\"\n"]}
+      - method: POST
+        path: /openrtb2/auction
+        json: {id: rh-imp-noext, imp: [{id: imp-1, banner: {format: [{w: 300, h: 250}]}}], site: {page: "https://parity.test/"}}
+        expect: {status: 400, contains: ["Invalid request: request.imp[0].ext.prebid.bidder must contain at least one bidder\n"]}
+
+  - name: duplicate imp ids are rejected
+    why: validateRequest checks imp id uniqueness (endpoints/openrtb2/auction.go:954)
+    steps:
+      - method: POST
+        path: /openrtb2/auction
+        json:
+          id: rh-dup-imps
+          site: {page: "https://parity.test/"}
+          imp:
+            - {id: same, banner: {format: [{w: 300, h: 250}]}, ext: {prebid: {bidder: {appnexus: {placementId: 1}}}}}
+            - {id: same, banner: {format: [{w: 320, h: 50}]}, ext: {prebid: {bidder: {appnexus: {placementId: 1}}}}}
+        expect:
+          status: 400
+          contains: ["Invalid request: request.imp[0].id and request.imp[1].id are both \"same\". Imp IDs must be unique.\n"]
+
+  - name: banner sizes are validated
+    why: a banner needs w/h or format, and a format entry needs non-zero w and h (ortb/request_validator_banner.go:30-87)
+    steps:
+      - method: POST
+        path: /openrtb2/auction
+        json: {id: rh-banner-nosize, imp: [{id: imp-1, banner: {}, ext: {prebid: {bidder: {appnexus: {placementId: 1}}}}}], site: {page: "https://parity.test/"}}
+        expect: {status: 400, contains: ["Invalid request: request.imp[0].banner has no sizes. Define \"w\" and \"h\", or include \"format\" elements.\n"]}
+      - method: POST
+        path: /openrtb2/auction
+        json: {id: rh-banner-zero, imp: [{id: imp-1, banner: {format: [{w: 0, h: 0}]}, ext: {prebid: {bidder: {appnexus: {placementId: 1}}}}}], site: {page: "https://parity.test/"}}
+        expect: {status: 400, contains: ["Request imp[0].banner.format[0] should define *either* {w, h} (for static size requirements) *or* {wmin, wratio, hratio} (for flexible sizes) to be non-zero.\n"]}
+      - method: POST
+        path: /openrtb2/auction
+        json: {id: rh-banner-wmin, imp: [{id: imp-1, banner: {wmin: 10, format: [{w: 300, h: 250}]}, ext: {prebid: {bidder: {appnexus: {placementId: 1}}}}}], site: {page: "https://parity.test/"}}
+        expect: {status: 400, contains: ["uses unsupported property"]}
+
+  - name: an unknown bidder is rejected with the alias hint
+    why: imp ext bidders must be known or aliased (ortb/request_validator.go:151)
+    steps:
+      - method: POST
+        path: /openrtb2/auction
+        json: {id: rh-unknown-bidder, imp: [{id: imp-1, banner: {format: [{w: 300, h: 250}]}, ext: {prebid: {bidder: {rh-nobody: {}}}}}], site: {page: "https://parity.test/"}}
+        expect:
+          status: 400
+          contains: ["Invalid request: request.imp[0].ext.prebid.bidder contains unknown bidder: rh-nobody. Did you forget an alias in request.ext.prebid.aliases?\n"]
+
+  - name: bidder params are validated against the bidder's JSON schema
+    why: appnexus {} fails static/bidder-params/appnexus.json, and the message carries the gojsonschema errors (ortb/request_validator.go:137)
+    steps:
+      - method: POST
+        path: /openrtb2/auction
+        json: {id: rh-bad-params, imp: [{id: imp-1, banner: {format: [{w: 300, h: 250}]}, ext: {prebid: {bidder: {appnexus: {}}}}}], site: {page: "https://parity.test/"}}
+        expect:
+          status: 400
+          contains: ["Invalid request: request.imp[0].ext.prebid.bidder.appnexus failed validation.\n", "placementId is required"]
+
+  - name: an alias declared in the request is accepted
+    why: ext.prebid.aliases maps a new name to appnexus, which then bids under the alias (endpoints/openrtb2/auction.go:1090-1100)
+    steps:
+      - method: POST
+        path: /openrtb2/auction
+        json:
+          id: rh-alias
+          site: {page: "https://parity.test/page"}
+          imp: [{id: imp-1, banner: {format: [{w: 300, h: 250}]}, ext: {prebid: {bidder: {rhalias: {placementId: 12883451}}}}}]
+          ext: {prebid: {aliases: {rhalias: appnexus}}}
+        expect:
+          status: 200
+          json:
+            $.ext.errors.rhalias[0].code: 4
+            $.ext.responsetimemillis.rhalias: <integer>
+
+  - name: an alias of an unknown bidder is rejected
+    why: alias targets must be core bidders (endpoints/openrtb2/auction.go:1098)
+    steps:
+      - method: POST
+        path: /openrtb2/auction
+        json:
+          id: rh-bad-alias
+          site: {page: "https://parity.test/page"}
+          imp: [{id: imp-1, banner: {format: [{w: 300, h: 250}]}, ext: {prebid: {bidder: {rhalias: {placementId: 1}}}}}]
+          ext: {prebid: {aliases: {rhalias: rh-nobody}}}
+        expect:
+          status: 400
+          contains: ["Invalid request: request.ext.prebid.aliases.rhalias refers to unknown bidder: rh-nobody\n"]
+
+  - name: a disabled bidder alone leaves the imp without bidders
+    why: rubicon is disabled in parity runs, so it is dropped with an error and the imp has no bidder left (exchange/adapter_util.go:149, ortb/request_validator.go:140-158)
+    steps:
+      - method: POST
+        path: /openrtb2/auction
+        json: {id: rh-disabled-only, imp: [{id: imp-1, banner: {format: [{w: 300, h: 250}]}, ext: {prebid: {bidder: {rubicon: {accountId: 1, siteId: 2, zoneId: 3}}}}}], site: {page: "https://parity.test/"}}
+        expect:
+          status: 400
+          contains:
+            - "Invalid request: Bidder \"rubicon\" has been disabled on this instance of Prebid Server. Please work with the PBS host to enable this bidder again.\n"
+            - "Invalid request: request.imp[0].ext.prebid.bidder must contain at least one bidder\n"
+
+  - name: a disabled bidder next to an enabled one is only a warning
+    why: the BidderTemporarilyDisabled error (code 6) is a warning when another bidder remains (ortb/request_validator.go:140-143)
+    steps:
+      - method: POST
+        path: /openrtb2/auction
+        json:
+          id: rh-disabled-plus
+          site: {page: "https://parity.test/"}
+          imp: [{id: imp-1, banner: {format: [{w: 300, h: 250}]}, ext: {prebid: {bidder: {rubicon: {accountId: 1, siteId: 2, zoneId: 3}, appnexus: {placementId: 1}}, storedauctionresponse: {id: rh-seatbid-banner}}}}]
+        expect:
+          status: 200
+          json:
+            $.ext.warnings.general[1].code: 6
+            $.ext.warnings.general[1].message: "Bidder \"rubicon\" has been disabled on this instance of Prebid Server. Please work with the PBS host to enable this bidder again."
+
+  - name: site, app and dooh are exclusive and site needs id or page
+    why: validateRequest allows one distribution channel, and a site without id or page is rejected (endpoints/openrtb2/auction.go:1235, 1477)
+    steps:
+      - method: POST
+        path: /openrtb2/auction
+        json: {id: rh-site-app, site: {page: "https://parity.test/"}, app: {id: rh-app}, imp: [{id: imp-1, banner: {format: [{w: 300, h: 250}]}, ext: {prebid: {bidder: {appnexus: {placementId: 1}}}}}]}
+        expect: {status: 400, contains: ["Invalid request: No more than one of request.site or request.app or request.dooh can be defined\n"]}
+      - method: POST
+        path: /openrtb2/auction
+        json: {id: rh-site-empty, site: {domain: parity.test}, imp: [{id: imp-1, banner: {format: [{w: 300, h: 250}]}, ext: {prebid: {bidder: {appnexus: {placementId: 1}}}}}]}
+        expect: {status: 400, contains: ["Invalid request: request.site should include at least one of request.site.id or request.site.page.\n"]}
+
+  - name: an app request is accepted with app.id
+    why: an app with an id passes channel validation; the bidder failure is reported as usual (endpoints/openrtb2/auction.go:1248-1262)
+    steps:
+      - method: POST
+        path: /openrtb2/auction
+        json:
+          id: rh-app
+          test: 1
+          app: {id: rh-app-id, bundle: test.parity.app, publisher: {id: parity-account}}
+          device: {ifa: rh-ifa, os: android}
+          imp: [{id: imp-1, banner: {format: [{w: 320, h: 50}]}, ext: {prebid: {bidder: {appnexus: {placementId: 12883451}}}}}]
+        expect:
+          status: 200
+          json:
+            $.ext.debug.resolvedrequest.app.id: rh-app-id
+            $.ext.debug.resolvedrequest.site: <absent>
+            $.ext.errors.appnexus[0].code: 4
+
+  - name: a disabled account is refused with 403
+    why: account resolution fails with AccountDisabled, which the auction maps to 403 (account/account.go:87, endpoints/openrtb2/auction.go:1955)
+    steps:
+      - method: POST
+        path: /openrtb2/auction
+        json: {id: rh-disabled-account, site: {page: "https://parity.test/", publisher: {id: parity-disabled-account}}, imp: [{id: imp-1, banner: {format: [{w: 300, h: 250}]}, ext: {prebid: {bidder: {appnexus: {placementId: 1}}}}}]}
+        expect:
+          status: 403
+          contains: ["Invalid request: Prebid-server has disabled Account ID: parity-disabled-account, please reach out to the prebid server host.\n"]
+
+  - name: a malformed stored account fails the auction with 500
+    why: rh-malformed-account has disabled "yes", which does not unmarshal, so GetAccount returns MalformedAcct and the auction answers 500 (account/account.go:68, endpoints/openrtb2/auction.go:1959)
+    steps:
+      - method: POST
+        path: /openrtb2/auction
+        json: {id: rh-malformed-account, site: {page: "https://parity.test/", publisher: {id: rh-malformed-account}}, imp: [{id: imp-1, banner: {format: [{w: 300, h: 250}]}, ext: {prebid: {bidder: {appnexus: {placementId: 1}}}}}]}
+        expect:
+          status: 500
+          contains: ["Invalid request: The prebid-server account config for account id \"rh-malformed-account\" is malformed. Please reach out to the prebid server host.\n"]
+
+  - name: a non-string publisher id is rejected
+    why: the account id is read as a string from site.publisher.id (endpoints/openrtb2/auction.go:2039)
+    steps:
+      - method: POST
+        path: /openrtb2/auction
+        json: {id: rh-pub-number, site: {page: "https://parity.test/", publisher: {id: 7}}, imp: [{id: imp-1, banner: {format: [{w: 300, h: 250}]}, ext: {prebid: {bidder: {appnexus: {placementId: 1}}}}}]}
+        expect:
+          status: 400
+          contains: ["Invalid request: site.publisher.id must be a string\n"]
+
+  - name: an unknown publisher falls back to the account defaults
+    why: an ID with no stored account uses account_defaults and is accepted (account/account.go:43-62)
+    steps:
+      - method: POST
+        path: /openrtb2/auction
+        json:
+          id: rh-unknown-publisher
+          test: 1
+          site: {page: "https://parity.test/", publisher: {id: rh-no-such-account}}
+          imp: [{id: imp-1, banner: {format: [{w: 300, h: 250}]}, ext: {prebid: {bidder: {appnexus: {placementId: 12883451}}}}}]
+        expect:
+          status: 200
+          json:
+            $.ext.debug.resolvedrequest.site.publisher.id: rh-no-such-account
+
+  - name: two currencies keep the first and warn
+    why: only one currency is processed (endpoints/openrtb2/auction.go:817)
+    steps:
+      - method: POST
+        path: /openrtb2/auction
+        json:
+          id: rh-two-cur
+          cur: [EUR, USD]
+          site: {page: "https://parity.test/"}
+          imp: [{id: imp-1, banner: {format: [{w: 300, h: 250}]}, ext: {prebid: {bidder: {appnexus: {placementId: 1}}, storedauctionresponse: {id: rh-seatbid-banner}}}}]
+        expect:
+          status: 200
+          json:
+            $.ext.warnings.general[1].code: 0
+            $.ext.warnings.general[1].message: "A prebid request can only process one currency. Taking the first currency in the list, EUR, as the active currency"
+
+  - name: an empty channel name is rejected
+    why: ext.prebid.channel.name must not be empty (endpoints/openrtb2/auction.go:1494)
+    steps:
+      - method: POST
+        path: /openrtb2/auction
+        json: {id: rh-channel, site: {page: "https://parity.test/"}, ext: {prebid: {channel: {name: ""}}}, imp: [{id: imp-1, banner: {format: [{w: 300, h: 250}]}, ext: {prebid: {bidder: {appnexus: {placementId: 1}}}}}]}
+        expect:
+          status: 400
+          contains: ["Invalid request: ext.prebid.channel.name can't be empty\n"]
+
+  - name: a request with a gzip or deflate Content-Encoding is refused
+    why: the default profile keeps compression.request.enable_gzip false (config/config.go:1282), so any Content-Encoding is rejected before the body is read (endpoints/openrtb2/auction.go:437)
+    steps:
+      - method: POST
+        path: /openrtb2/auction
+        headers: {Content-Type: application/json, Content-Encoding: gzip}
+        body: '{"id":"rh-gzip"}'
+        expect: {status: 400, contains: ["Invalid request: Content-Encoding of type gzip is not supported\n"]}
+      - method: POST
+        path: /openrtb2/auction
+        headers: {Content-Type: application/json, Content-Encoding: deflate}
+        body: '{"id":"rh-deflate"}'
+        expect: {status: 400, contains: ["Invalid request: Content-Encoding of type deflate is not supported\n"]}

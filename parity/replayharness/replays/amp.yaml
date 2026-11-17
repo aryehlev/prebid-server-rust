@@ -1,0 +1,215 @@
+# GET /openrtb2/amp: tag_id resolution, query overrides, consent, origin
+# headers and the targeting response. The rh-amp-* stored requests live in
+# parity/replayharness/stored/stored_requests.
+replays:
+  - name: AMP without tag_id is a 400
+    why: the tag_id query parameter names the stored request (amp/parse.go:161)
+    steps:
+      - method: GET
+        path: /openrtb2/amp
+        expect: {status: 400, headers: {Content-Type: text/plain}, contains: ["Invalid request: AMP requests require an AMP tag_id\n"]}
+
+  - name: AMP stored request problems are 400s
+    why: the tag_id must exist, define exactly one imp and not be an app request (endpoints/openrtb2/amp_auction.go:608, 612, 617)
+    steps:
+      - method: GET
+        path: /openrtb2/amp?tag_id=rh-nope
+        expect: {status: 400, contains: ["Invalid request: Stored Request with ID=\"rh-nope\" not found.\n"]}
+      - method: GET
+        path: /openrtb2/amp?tag_id=parity-stored-request
+        expect: {status: 400, contains: ["Invalid request: data for tag_id='parity-stored-request' does not define the required imp array\n"]}
+      - method: GET
+        path: /openrtb2/amp?tag_id=rh-amp-two-imps
+        expect: {status: 400, contains: ["Invalid request: data for tag_id 'rh-amp-two-imps' includes 2 imp elements. Only one is allowed\n"]}
+      - method: GET
+        path: /openrtb2/amp?tag_id=rh-amp-app
+        expect: {status: 400, contains: ["Invalid request: request.app must not exist in AMP stored requests.\n"]}
+
+  - name: an AMP auction with a live bidder answers empty targeting as text/plain
+    # Go also sends an empty AMP-Access-Control-Allow-Source-Origin here;
+    # ReplayHarness treats an empty header as missing, so it is not checked.
+    why: sendAmpResponse sets Content-Type text/plain on purpose, for compatibility (endpoints/openrtb2/amp_auction.go:419-424)
+    steps:
+      - method: GET
+        path: /openrtb2/amp?tag_id=rh-amp-banner
+        expect:
+          status: 200
+          headers:
+            Content-Type: text/plain; charset=utf-8
+            Access-Control-Expose-Headers: AMP-Access-Control-Allow-Source-Origin
+            X-Prebid: pbs-go/unknown
+          json:
+            $.targeting: {}
+            $.ortb2.ext.errors.appnexus[0].code: 4
+            $.ortb2.ext.warnings.general[0].code: 10002
+
+  - name: an AMP stored bid response fills the targeting map
+    why: rh-amp-stored-bid has a stored bid for its imp, medium price granularity, bidder keys and cache, so the targeting carries hb_env amp and a cache id (endpoints/openrtb2/amp_auction.go:808-842, exchange/targeting.go)
+    steps:
+      - method: GET
+        path: /openrtb2/amp?tag_id=rh-amp-stored-bid
+        expect:
+          status: 200
+          json:
+            $.targeting.hb_bidder: appnexus
+            $.targeting.hb_bidder_appnexus: appnexus
+            $.targeting.hb_pb: "0.70"
+            $.targeting.hb_pb_appnexus: "0.70"
+            $.targeting.hb_size: 300x250
+            $.targeting.hb_env: amp
+            $.targeting.hb_env_appnexus: amp
+            $.targeting.hb_cache_id: 2d813075-558b-84d2-9941-e2eaf3377450
+            $.targeting.hb_cache_id_appnexus: 2d813075-558b-84d2-9941-e2eaf3377450
+            $.ortb2.ext.errors: <absent>
+
+  - name: AMP debug shows the stored bid as an http call and the targeting param as imp data
+    why: debug=1 sets test, the stored bid response is logged with an empty uri, and the targeting query JSON lands in imp.ext.data (endpoints/openrtb2/amp_auction.go:742, exchange/bidder.go)
+    steps:
+      - method: GET
+        path: /openrtb2/amp?tag_id=rh-amp-stored-bid&debug=1&targeting=%7B%22site%22%3A%7B%22keywords%22%3A%22amp%22%7D%7D
+        expect:
+          status: 200
+          json:
+            $.ortb2.ext.debug.httpcalls.appnexus[0].uri: ""
+            $.ortb2.ext.debug.httpcalls.appnexus[0].requestbody: "Stored bid response for impression id: rh-amp-imp"
+            $.ortb2.ext.debug.httpcalls.appnexus[0].status: 200
+            $.ortb2.ext.debug.resolvedrequest.test: 1
+            $.ortb2.ext.debug.resolvedrequest.site.ext.amp: 1
+            $.ortb2.ext.debug.resolvedrequest.ext.prebid.channel.name: amp
+            $.ortb2.ext.debug.resolvedrequest.imp[0].ext.data.site.keywords: amp
+            $.targeting.hb_pb: "0.70"
+
+  - name: AMP query parameters override sizes, slot, page and timeout
+    why: ow/oh come first, then ms; slot becomes tagid, curl becomes site.page and site.domain, timeout becomes tmax (endpoints/openrtb2/amp_auction.go:634-702)
+    steps:
+      - method: GET
+        path: /openrtb2/amp?tag_id=rh-amp-banner&w=320&h=50&ms=300x250,728x90&oh=10&ow=20&slot=%2Frh%2Fslot&curl=https%3A%2F%2Fcanon.parity.test%2Fp&timeout=900&debug=1
+        expect:
+          status: 200
+          json:
+            $.ortb2.ext.debug.resolvedrequest.imp[0].banner.format[0].w: 20
+            $.ortb2.ext.debug.resolvedrequest.imp[0].banner.format[0].h: 10
+            $.ortb2.ext.debug.resolvedrequest.imp[0].banner.format[1].w: 300
+            $.ortb2.ext.debug.resolvedrequest.imp[0].banner.format[2].w: 728
+            $.ortb2.ext.debug.resolvedrequest.imp[0].banner.format.length: 3
+            $.ortb2.ext.debug.resolvedrequest.imp[0].tagid: /rh/slot
+            $.ortb2.ext.debug.resolvedrequest.site.page: "https://canon.parity.test/p"
+            $.ortb2.ext.debug.resolvedrequest.site.domain: canon.parity.test
+            $.ortb2.ext.debug.resolvedrequest.tmax: 900
+
+  - name: AMP rejects unparsable gdpr_applies and timeout
+    why: the query values go through strconv and the raw error text is returned (amp/parse.go:206, 223)
+    steps:
+      - method: GET
+        path: /openrtb2/amp?tag_id=rh-amp-banner&gdpr_applies=yes
+        expect: {status: 400, contains: ["Invalid request: strconv.ParseBool: parsing \"yes\": invalid syntax\n"]}
+      - method: GET
+        path: /openrtb2/amp?tag_id=rh-amp-banner&timeout=-1
+        expect: {status: 400, contains: ["Invalid request: strconv.ParseUint: parsing \"-1\": invalid syntax\n"]}
+
+  - name: AMP for a disabled account is a 403
+    why: the account query parameter selects parity-disabled-account (endpoints/openrtb2/amp_auction.go:857, account/account.go:87)
+    steps:
+      - method: GET
+        path: /openrtb2/amp?tag_id=rh-amp-banner&account=parity-disabled-account
+        expect: {status: 403, contains: ["Invalid request: Prebid-server has disabled Account ID: parity-disabled-account, please reach out to the prebid server host.\n"]}
+
+  - name: the AMP source origin header echoes __amp_source_origin, else Origin
+    why: the handler copies __amp_source_origin, falling back to the Origin header, and the CORS layer echoes Origin with credentials (endpoints/openrtb2/amp_auction.go:146-156, router/router.go)
+    steps:
+      - method: GET
+        path: /openrtb2/amp?tag_id=rh-amp-banner&__amp_source_origin=https%3A%2F%2Fparity.test
+        headers: {Origin: "https://other.test"}
+        expect:
+          status: 200
+          headers:
+            AMP-Access-Control-Allow-Source-Origin: "https://parity.test"
+            Access-Control-Allow-Origin: "https://other.test"
+            Access-Control-Allow-Credentials: "true"
+      - method: GET
+        path: /openrtb2/amp?tag_id=rh-amp-banner
+        headers: {Origin: "https://other.test"}
+        expect:
+          status: 200
+          headers:
+            AMP-Access-Control-Allow-Source-Origin: "https://other.test"
+
+  - name: AMP TCF consent sets user.consent and regs.gdpr
+    why: consent_type 2 is TCF2 and gdpr_applies true sets regs.gdpr 1 (amp/parse.go:72-78, 117-130)
+    steps:
+      - method: GET
+        path: /openrtb2/amp?tag_id=rh-amp-banner&gdpr_applies=true&consent_type=2&consent_string=CPXxRfAPXxRfAAfKABENB-CgAAAAAAAAAAYgAAAAAAAA&debug=1
+        expect:
+          status: 200
+          json:
+            $.ortb2.ext.debug.resolvedrequest.user.consent: CPXxRfAPXxRfAAfKABENB-CgAAAAAAAAAAYgAAAAAAAA
+            $.ortb2.ext.debug.resolvedrequest.regs.gdpr: 1
+
+  - name: AMP consent types other than TCF2 and CCPA only warn
+    why: consent_type 3 is CCPA and becomes regs.us_privacy; consent_type 1 (TCF1) and 4 (GPP) are not applied and give a 10001 warning; GPP falls to the default branch, which only knows CCPA and TCF2 (amp/parse.go:69-71, 91-102)
+    steps:
+      - method: GET
+        path: /openrtb2/amp?tag_id=rh-amp-banner&consent_type=3&consent_string=1YYN&debug=1
+        expect:
+          status: 200
+          json:
+            $.ortb2.ext.debug.resolvedrequest.regs.us_privacy: 1YYN
+      - method: GET
+        path: /openrtb2/amp?tag_id=rh-amp-banner&consent_type=1&consent_string=1YYN&debug=1
+        expect:
+          status: 200
+          json:
+            $.ortb2.ext.debug.resolvedrequest.regs: <absent>
+          contains: ['{"code":10001,"message":"TCF1 consent is deprecated and no longer supported."}']
+      - method: GET
+        path: /openrtb2/amp?tag_id=rh-amp-banner&consent_type=4&consent_string=DBACNYA~CPXxRfAPXxRfAAfKABENB-CgAAAAAAAAAAYgAAAAAAAA~1YNN&gpp_sid=2,6&debug=1
+        expect:
+          status: 200
+          json:
+            $.ortb2.ext.debug.resolvedrequest.regs: <absent>
+          contains: ["is not recognized as one of the supported formats CCPA or TCF2."]
+
+  - name: an invalid AMP TCF consent string is dropped with a warning
+    why: the consent string is checked before it is applied (amp/parse.go:144-150)
+    steps:
+      - method: GET
+        path: /openrtb2/amp?tag_id=rh-amp-banner&consent_type=2&consent_string=garbage
+        expect:
+          status: 200
+          json:
+            $.ortb2.ext.warnings.general[1].code: 10001
+            $.ortb2.ext.warnings.general[1].message: "Consent string 'garbage' is not a valid TCF2 consent string."
+
+  - name: the legacy gdpr_consent parameter still sets the consent
+    why: gdpr_consent is read when consent_string is absent, and with no consent_type a valid TCF2 string is detected, and without gdpr_applies the writer sets regs.gdpr 1 (amp/parse.go:97-98, 117-130, 168, 254-262)
+    steps:
+      - method: GET
+        path: /openrtb2/amp?tag_id=rh-amp-banner&gdpr_consent=CPXxRfAPXxRfAAfKABENB-CgAAAAAAAAAAYgAAAAAAAA&debug=1
+        expect:
+          status: 200
+          json:
+            $.ortb2.ext.debug.resolvedrequest.user.consent: CPXxRfAPXxRfAAfKABENB-CgAAAAAAAAAAYgAAAAAAAA
+            $.ortb2.ext.debug.resolvedrequest.regs.gdpr: 1
+
+  - name: AMP sends Sec-GPC and the AMP X-Prebid version to the bidder
+    why: the AMP endpoint adds amp/unknown to X-Prebid and forwards Sec-GPC in the bidder request headers (exchange/bidder.go)
+    steps:
+      - method: GET
+        path: /openrtb2/amp?tag_id=rh-amp-banner&debug=1
+        headers: {User-Agent: "Mozilla/5.0 (rh-amp)", X-Forwarded-For: 203.0.113.9, DNT: "1", Sec-GPC: "1"}
+        expect:
+          status: 200
+          json:
+            $.ortb2.ext.debug.httpcalls.appnexus[0].requestheaders.X-Prebid[0]: "pbs-go/unknown,amp/unknown"
+            $.ortb2.ext.debug.httpcalls.appnexus[0].requestheaders.Sec-Gpc[0]: "1"
+            $.ortb2.ext.debug.resolvedrequest.device.ua: "Mozilla/5.0 (rh-amp)"
+            $.ortb2.ext.debug.resolvedrequest.device.dnt: 1
+            $.ortb2.ext.debug.resolvedrequest.regs.ext.gpc: "1"
+          contains: ['\"is_amp\":1']
+
+  - name: AMP only accepts GET
+    why: the route is registered for GET; httprouter answers other methods 405 with Allow (router/router.go)
+    steps:
+      - method: POST
+        path: /openrtb2/amp?tag_id=rh-amp-banner
+        expect: {status: 405, headers: {Allow: "GET, OPTIONS"}, contains: ["Method Not Allowed\n"]}

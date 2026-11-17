@@ -1,0 +1,275 @@
+# Stored requests, stored imps, stored bid responses and stored auction
+# responses. The parity fixtures (parity/fixtures/stored) and the
+# ReplayHarness data (parity/replayharness/stored) are both loaded.
+#
+# Cache ids come from the oracle, which derives them from the cached payload,
+# so they are stable when the payload is. A banner bid with events carries a
+# millisecond timestamp in the payload, so its id is only checked for type.
+replays:
+  - name: a stored request fills in what the body leaves out
+    why: the body is merged over parity-stored-request, which brings site and tmax (endpoints/openrtb2/auction.go processStoredRequests)
+    steps:
+      - method: POST
+        path: /openrtb2/auction
+        json:
+          id: rh-stored-merge
+          test: 1
+          imp: [{id: imp-1, banner: {format: [{w: 300, h: 250}]}, ext: {prebid: {bidder: {appnexus: {placementId: 12883451}}}}}]
+          ext: {prebid: {storedrequest: {id: parity-stored-request}}}
+        expect:
+          status: 200
+          json:
+            $.id: rh-stored-merge
+            $.ext.debug.resolvedrequest.site.page: "https://parity.test/page"
+            $.ext.debug.resolvedrequest.site.publisher.id: parity-account
+            $.ext.debug.resolvedrequest.tmax: 500
+            $.ext.debug.resolvedrequest.ext.prebid.targeting.includewinners: true
+            $.ext.debug.resolvedrequest.ext.prebid.targeting.includebidderkeys: true
+            $.ext.debug.resolvedrequest.ext.prebid.targeting.pricegranularity.ranges[0].increment: 0.5
+          contains: ['\"tmax\":500']
+
+  - name: a stored request can supply the required id
+    why: the merge happens before validation, so a body without id takes parity-stored-request's id (endpoints/openrtb2/auction.go:804)
+    steps:
+      - method: POST
+        path: /openrtb2/auction
+        json:
+          imp: [{id: imp-1, banner: {format: [{w: 300, h: 250}]}, ext: {prebid: {bidder: {appnexus: {placementId: 1}}, storedauctionresponse: {id: rh-seatbid-banner}}}}]
+          ext: {prebid: {storedrequest: {id: parity-stored-request}}}
+        expect: {status: 200, json: {$.id: parity-stored-request}}
+
+  - name: an unknown stored request id is a 400
+    why: the fetcher reports NotFound for the id (stored_requests/fetcher.go)
+    steps:
+      - method: POST
+        path: /openrtb2/auction
+        json: {id: rh-stored-missing, imp: [{id: imp-1, banner: {format: [{w: 300, h: 250}]}, ext: {prebid: {bidder: {appnexus: {placementId: 1}}}}}], ext: {prebid: {storedrequest: {id: rh-nope}}}}
+        expect: {status: 400, contains: ["Invalid request: Stored Request with ID=\"rh-nope\" not found.\n"]}
+
+  - name: a numeric stored request id is rejected
+    why: the id is read as a string (endpoints/openrtb2/auction.go:1880)
+    steps:
+      - method: POST
+        path: /openrtb2/auction
+        json: {id: rh-stored-number, imp: [{id: imp-1, banner: {format: [{w: 300, h: 250}]}, ext: {prebid: {bidder: {appnexus: {placementId: 1}}}}}], ext: {prebid: {storedrequest: {id: 5}}}}
+        expect: {status: 400, contains: ["Invalid request: ext.prebid.storedrequest.id must be a string\n"]}
+
+  - name: a stored imp supplies the banner and the bidder params
+    why: the imp body only names parity-stored-imp, which carries the banner and appnexus params; the body's imp id wins
+    steps:
+      - method: POST
+        path: /openrtb2/auction
+        json:
+          id: rh-stored-imp
+          test: 1
+          site: {page: "https://parity.test/"}
+          imp: [{id: imp-1, ext: {prebid: {storedrequest: {id: parity-stored-imp}}}}]
+        expect:
+          status: 200
+          json:
+            $.ext.debug.resolvedrequest.imp[0].id: imp-1
+            $.ext.debug.resolvedrequest.imp[0].banner.format[0].w: 300
+            $.ext.debug.resolvedrequest.imp[0].ext.prebid.bidder.appnexus.placementId: 12883451
+            $.ext.errors.appnexus[0].code: 4
+          contains: ['\"placement_id\":12883451']
+
+  - name: missing stored data lists the request first, then each imp
+    why: the request and the imps are fetched together and every miss is reported in that order
+    steps:
+      - method: POST
+        path: /openrtb2/auction
+        json: {id: rh-stored-imp-missing, site: {page: "https://parity.test/"}, imp: [{id: imp-1, ext: {prebid: {storedrequest: {id: rh-nope}}}}]}
+        expect: {status: 400, contains: ["Invalid request: Stored Imp with ID=\"rh-nope\" not found.\n"]}
+      - method: POST
+        path: /openrtb2/auction
+        json:
+          id: rh-stored-all-missing
+          site: {page: "https://parity.test/"}
+          imp: [{id: imp-1, ext: {prebid: {storedrequest: {id: rh-nope-1}}}}, {id: imp-2, ext: {prebid: {storedrequest: {id: rh-nope-2}}}}]
+          ext: {prebid: {storedrequest: {id: rh-nope-3}}}
+        expect:
+          status: 400
+          contains: ["Invalid request: Stored Request with ID=\"rh-nope-3\" not found.\nInvalid request: Stored Imp with ID=\"rh-nope-1\" not found.\nInvalid request: Stored Imp with ID=\"rh-nope-2\" not found.\n"]
+
+  - name: a stored bid response becomes a cached, targeted banner bid with events
+    why: rh-imp-stored-bid points appnexus at rh-appnexus-banner, and rh-events-request turns on cache, low price granularity and events for rh-events-account (exchange/events.go, exchange/targeting.go)
+    steps:
+      - method: POST
+        path: /openrtb2/auction
+        json:
+          id: rh-stored-bid
+          imp: [{id: imp-1, ext: {prebid: {storedrequest: {id: rh-imp-stored-bid}}}}]
+          ext: {prebid: {storedrequest: {id: rh-events-request}}}
+        expect:
+          status: 200
+          json:
+            $.cur: USD
+            $.seatbid[0].seat: appnexus
+            $.seatbid[0].bid[0].id: rh-banner-bid
+            $.seatbid[0].bid[0].impid: imp-1
+            $.seatbid[0].bid[0].price: 0.75
+            $.seatbid[0].bid[0].ext.origbidcpm: 0.75
+            $.seatbid[0].bid[0].ext.origbidcur: USD
+            $.seatbid[0].bid[0].ext.prebid.type: banner
+            $.seatbid[0].bid[0].ext.prebid.meta.adaptercode: appnexus
+            $.seatbid[0].bid[0].ext.prebid.targeting.hb_pb: "0.50"
+            $.seatbid[0].bid[0].ext.prebid.targeting.hb_pb_appnexus: "0.50"
+            $.seatbid[0].bid[0].ext.prebid.targeting.hb_bidder: appnexus
+            $.seatbid[0].bid[0].ext.prebid.targeting.hb_size: 300x250
+            $.seatbid[0].bid[0].ext.prebid.targeting.hb_cache_id: <string>
+            $.seatbid[0].bid[0].ext.prebid.cache.bids.cacheId: <string>
+            $.seatbid[0].bid[0].ext.prebid.targeting.hb_uuid: <absent>
+            $.ext.responsetimemillis.appnexus: <integer>
+          # Go writes the event URLs with HTML-escaped ampersands; \x5C is a
+          # backslash, so each one matches a backslash-u0026 in the raw body.
+          contains:
+            - "\"win\":\"http://localhost:8000/event?t=win\x5Cu0026b=rh-banner-bid\x5Cu0026a=rh-events-account\x5Cu0026bidder=appnexus\x5Cu0026ts="
+            - "\"imp\":\"http://localhost:8000/event?t=imp\x5Cu0026b=rh-banner-bid\x5Cu0026a=rh-events-account\x5Cu0026bidder=appnexus\x5Cu0026ts="
+
+  - name: a stored video bid is cached as a bid and as VAST, without bid events
+    why: cache.vastxml adds hb_uuid, and makeBidExtEvents skips video bids (exchange/events.go:84, 107)
+    steps:
+      - method: POST
+        path: /openrtb2/auction
+        json:
+          id: rh-stored-video
+          imp: [{id: imp-v, ext: {prebid: {storedrequest: {id: rh-imp-video-stored-bid}}}}]
+          ext: {prebid: {storedrequest: {id: rh-events-request}}}
+        expect:
+          status: 200
+          json:
+            $.seatbid[0].bid[0].id: rh-video-bid
+            $.seatbid[0].bid[0].impid: imp-v
+            $.seatbid[0].bid[0].price: 2.5
+            $.seatbid[0].bid[0].ext.prebid.type: video
+            $.seatbid[0].bid[0].ext.prebid.video.duration: 15
+            $.seatbid[0].bid[0].ext.prebid.video.primary_category: ""
+            $.seatbid[0].bid[0].ext.prebid.events: <absent>
+            $.seatbid[0].bid[0].ext.prebid.targeting.hb_pb: "2.50"
+            $.seatbid[0].bid[0].ext.prebid.targeting.hb_size: 640x480
+            $.seatbid[0].bid[0].ext.prebid.targeting.hb_cache_id: 36c11932-5d7d-8c03-a3ca-48b992ce940b
+            $.seatbid[0].bid[0].ext.prebid.targeting.hb_uuid: 1138441d-97e0-8188-8a46-1e2084aface7
+            $.seatbid[0].bid[0].ext.prebid.targeting.hb_uuid_appnexus: 1138441d-97e0-8188-8a46-1e2084aface7
+          contains: ['"adm":"<VAST version=\"3.0\"><Ad><InLine><AdSystem>rh</AdSystem><Impression></Impression>']
+
+  - name: a stored auction response replaces the bidders entirely
+    why: rh-seatbid-banner is returned as the seatbid without calling appnexus; it has no origbidcur, so origbidcpm is 0 and the response has no cur (stored_responses/stored_responses.go)
+    steps:
+      - method: POST
+        path: /openrtb2/auction
+        json:
+          id: rh-stored-auction
+          site: {page: "https://parity.test/"}
+          imp: [{id: rh-seatbid-imp, banner: {format: [{w: 300, h: 250}]}, ext: {prebid: {bidder: {appnexus: {placementId: 1}}, storedauctionresponse: {id: rh-seatbid-banner}}}}]
+          ext: {prebid: {targeting: {}, cache: {bids: {}}}}
+        expect:
+          status: 200
+          json:
+            $.cur: <absent>
+            $.seatbid[0].seat: appnexus
+            $.seatbid[0].bid[0].id: rh-seatbid-bid
+            $.seatbid[0].bid[0].price: 1.25
+            $.seatbid[0].bid[0].mtype: 1
+            $.seatbid[0].bid[0].ext.origbidcpm: 0
+            $.seatbid[0].bid[0].ext.prebid.meta: {}
+            $.seatbid[0].bid[0].ext.prebid.type: banner
+            $.seatbid[0].bid[0].ext.prebid.targeting.hb_pb: "1.20"
+            $.seatbid[0].bid[0].ext.prebid.targeting.hb_cache_id: ca6d2a10-192c-8a58-b2b2-867ef059734c
+            $.ext.responsetimemillis: <absent>
+
+  - name: stored auction response errors
+    why: the id must exist and be non-empty, and the imp still needs a bidder (stored_responses/stored_responses.go)
+    steps:
+      - method: POST
+        path: /openrtb2/auction
+        json: {id: rh-sar-missing, site: {page: "https://parity.test/"}, imp: [{id: i, banner: {format: [{w: 300, h: 250}]}, ext: {prebid: {bidder: {appnexus: {placementId: 1}}, storedauctionresponse: {id: rh-nope}}}}]}
+        expect: {status: 400, contains: ["Invalid request: Stored Response with ID=\"rh-nope\" not found.\n"]}
+      - method: POST
+        path: /openrtb2/auction
+        json: {id: rh-sar-empty, site: {page: "https://parity.test/"}, imp: [{id: i, banner: {format: [{w: 300, h: 250}]}, ext: {prebid: {bidder: {appnexus: {placementId: 1}}, storedauctionresponse: {id: ""}}}}]}
+        expect: {status: 400, contains: ["Invalid request: request.imp[0] has ext.prebid.storedauctionresponse specified, but \"id\" field is missing \n"]}
+      - method: POST
+        path: /openrtb2/auction
+        json: {id: rh-sar-nobidder, site: {page: "https://parity.test/"}, imp: [{id: i, banner: {format: [{w: 300, h: 250}]}, ext: {prebid: {storedauctionresponse: {id: rh-seatbid-banner}}}}]}
+        expect: {status: 400, contains: ["Invalid request: request.imp[0].ext.prebid.bidder must contain at least one bidder\n"]}
+
+  - name: stored bid response errors
+    why: the stored bid response bidders must match the imp bidders, and the id must exist (stored_responses/stored_responses.go)
+    steps:
+      - method: POST
+        path: /openrtb2/auction
+        json: {id: rh-sbr-mismatch, site: {page: "https://parity.test/"}, imp: [{id: i, banner: {format: [{w: 300, h: 250}]}, ext: {prebid: {bidder: {appnexus: {placementId: 1}}, storedbidresponse: [{bidder: pubmatic, id: rh-appnexus-banner}]}}}]}
+        expect: {status: 400, contains: ["Invalid request: request validation failed. Stored bid responses are specified for imp i. Bidders specified in imp.ext should match with bidders specified in imp.ext.prebid.storedbidresponse\n"]}
+      - method: POST
+        path: /openrtb2/auction
+        json: {id: rh-sbr-missing, site: {page: "https://parity.test/"}, imp: [{id: i, banner: {format: [{w: 300, h: 250}]}, ext: {prebid: {bidder: {appnexus: {placementId: 1}}, storedbidresponse: [{bidder: appnexus, id: rh-nope}]}}}]}
+        expect: {status: 400, contains: ["Invalid request: Stored Response with ID=\"rh-nope\" not found.\n"]}
+
+  - name: targeting without bidder keys keeps only the winner keys
+    why: includebidderkeys false drops the hb_*_appnexus keys, and no cache is asked for (exchange/targeting.go)
+    steps:
+      - method: POST
+        path: /openrtb2/auction
+        json:
+          id: rh-winner-keys
+          site: {page: "https://parity.test/"}
+          imp: [{id: i, banner: {format: [{w: 300, h: 250}]}, ext: {prebid: {bidder: {appnexus: {placementId: 1}}, storedbidresponse: [{bidder: appnexus, id: rh-appnexus-banner}]}}}]
+          ext: {prebid: {targeting: {includebidderkeys: false, includewinners: true}}}
+        expect:
+          status: 200
+          json:
+            $.seatbid[0].bid[0].ext.prebid.targeting.hb_bidder: appnexus
+            $.seatbid[0].bid[0].ext.prebid.targeting.hb_pb: "0.70"
+            $.seatbid[0].bid[0].ext.prebid.targeting.hb_size: 300x250
+            $.seatbid[0].bid[0].ext.prebid.targeting.hb_bidder_appnexus: <absent>
+            $.seatbid[0].bid[0].ext.prebid.targeting.hb_cache_id: <absent>
+            $.seatbid[0].bid[0].ext.prebid.cache: <absent>
+
+  - name: a stored bid is converted to the request currency
+    why: the oracle's rates give USD to EUR 0.8636, so 0.75 USD becomes 0.6477 EUR (currency/rates.go)
+    steps:
+      - method: POST
+        path: /openrtb2/auction
+        json:
+          id: rh-eur
+          cur: [EUR]
+          site: {page: "https://parity.test/"}
+          imp: [{id: i, banner: {format: [{w: 300, h: 250}]}, ext: {prebid: {bidder: {appnexus: {placementId: 1}}, storedbidresponse: [{bidder: appnexus, id: rh-appnexus-banner}]}}}]
+        expect:
+          status: 200
+          json:
+            $.cur: EUR
+            $.seatbid[0].bid[0].price: 0.6477
+            $.seatbid[0].bid[0].ext.origbidcpm: 0.75
+            $.seatbid[0].bid[0].ext.origbidcur: USD
+
+  - name: a bid adjustment factor multiplies the stored bid
+    why: bidadjustmentfactors.appnexus 2 doubles the price and keeps origbidcpm (exchange/bidder.go)
+    steps:
+      - method: POST
+        path: /openrtb2/auction
+        json:
+          id: rh-adjust
+          site: {page: "https://parity.test/"}
+          imp: [{id: i, banner: {format: [{w: 300, h: 250}]}, ext: {prebid: {bidder: {appnexus: {placementId: 1}}, storedbidresponse: [{bidder: appnexus, id: rh-appnexus-banner}]}}}]
+          ext: {prebid: {bidadjustmentfactors: {appnexus: 2}}}
+        expect:
+          status: 200
+          json:
+            $.seatbid[0].bid[0].price: 1.5
+            $.seatbid[0].bid[0].ext.origbidcpm: 0.75
+
+  - name: imp.bidfloor alone does not reject a lower stored bid
+    why: the default profile does not turn on price floors, so imp.bidfloor 5 is passed through but not enforced (config/config.go:1241, 1358)
+    steps:
+      - method: POST
+        path: /openrtb2/auction
+        json:
+          id: rh-floor
+          site: {page: "https://parity.test/"}
+          imp: [{id: i, bidfloor: 5, bidfloorcur: USD, banner: {format: [{w: 300, h: 250}]}, ext: {prebid: {bidder: {appnexus: {placementId: 1}}, storedbidresponse: [{bidder: appnexus, id: rh-appnexus-banner}]}}}]
+        expect:
+          status: 200
+          json:
+            $.seatbid[0].bid[0].price: 0.75
+            $.ext.errors: <absent>

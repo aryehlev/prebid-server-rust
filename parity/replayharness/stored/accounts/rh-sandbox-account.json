@@ -1,0 +1,11 @@
+{
+  "id": "rh-sandbox-account",
+  "privacy": {
+    "privacysandbox": {
+      "cookiedeprecation": {
+        "enabled": true,
+        "ttl_sec": 86400
+      }
+    }
+  }
+}

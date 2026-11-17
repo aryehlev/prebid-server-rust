@@ -1,0 +1,26 @@
+{
+  "id": "rh-imp-stored-bid",
+  "banner": {
+    "format": [
+      {
+        "w": 300,
+        "h": 250
+      }
+    ]
+  },
+  "ext": {
+    "prebid": {
+      "bidder": {
+        "appnexus": {
+          "placementId": 12883451
+        }
+      },
+      "storedbidresponse": [
+        {
+          "bidder": "appnexus",
+          "id": "rh-appnexus-banner"
+        }
+      ]
+    }
+  }
+}
