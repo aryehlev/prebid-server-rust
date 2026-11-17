@@ -1696,7 +1696,14 @@ impl Transport {
         };
         if writer.continue_timer.is_some() {
             // Go: a final response without 100 Continue: send the body unless closing.
-            writer.continue_decision = Some(!(transfer.close || req.close));
+            let send = !(transfer.close || req.close);
+            writer.continue_decision = Some(send);
+            if !send && !writer.done {
+                // Go: waitForContinue returns false and the write goroutine finishes at once
+                // without the body, reporting WroteRequest while the response is handed over;
+                // finish the writer here so the event does not wait for a later body read.
+                let _skipped = poll_fn(|cx| Poll::Ready(writer.poll(cx, &mut pc))).await;
+            }
         }
         pc.read_limit = i64::MAX;
         let has_body = req.method != "HEAD" && transfer.content_length != 0;
