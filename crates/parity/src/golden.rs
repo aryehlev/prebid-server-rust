@@ -76,7 +76,6 @@ pub(super) fn contract_json(name: &str) -> Result<Json, String> {
 }
 
 /// A golden file the Go program wrote (`testdata/golden/<name>`), parsed.
-#[cfg(feature = "trace")]
 pub(super) fn golden_json(name: &str) -> Result<Json, String> {
     Json::parse(&read_file(&format!("testdata/golden/{name}"))?, name)
 }
@@ -117,6 +116,11 @@ impl Json {
             .ok_or_else(|| format!("missing member {key:?} in {}", self.0))
     }
 
+    /// The member `key`, or `None` when it is absent or null.
+    pub(super) fn opt(&self, key: &str) -> Option<Self> {
+        self.0.get(key).filter(|v| !v.is_null()).cloned().map(Self)
+    }
+
     /// The elements of the array member `key`.
     pub(super) fn array(&self, key: &str) -> Result<Vec<Self>, String> {
         self.get(key)?.elements()
@@ -148,5 +152,17 @@ impl Json {
         let v = self.get(key)?;
         v.0.as_i64()
             .ok_or_else(|| format!("member {key:?} is not an integer: {}", v.0))
+    }
+
+    /// The boolean member `key`.
+    pub(super) fn boolean(&self, key: &str) -> Result<bool, String> {
+        let v = self.get(key)?;
+        v.0.as_bool()
+            .ok_or_else(|| format!("member {key:?} is not a boolean: {}", v.0))
+    }
+
+    /// The value as compact JSON bytes.
+    pub(super) fn to_bytes(&self) -> Vec<u8> {
+        self.0.to_string().into_bytes()
     }
 }

@@ -41,10 +41,16 @@
 //! Hooks only snapshot values the code already built. They never rebuild or re-marshal live
 //! request state for tracing purposes and never mutate state (Go: `parity/trace/session.go`).
 //!
-//! # Testing
+//! # Testing against Go
 //!
 //! The unit tests run in both modes (`cargo test -p pbs-parity` and
-//! `cargo test -p pbs-parity --features trace`).
+//! `cargo test -p pbs-parity --features trace`). The goldens under `testdata/golden` are written by
+//! the Go program under `testdata/go`, built against the real `parity` packages of the
+//! `parity-harness` branch (`testdata/go/run.sh` builds it in a temporary worktree): fake
+//! streams, decision records, scripted sessions encoded as traces, envelope and body edge cases,
+//! document round trips through the schema examples, error records and metric deltas, and the
+//! Go schema validator's verdict on every document this crate produces
+//! (`testdata/documents`).
 
 pub mod adapterio;
 pub mod body;
@@ -81,3 +87,6 @@ pub use self::{
 // Public (in test builds only) so that its pub(crate) helpers are not flagged as redundant.
 #[cfg(test)]
 pub mod golden;
+#[cfg(test)]
+#[path = "golden_test.rs"]
+mod golden_tests;
