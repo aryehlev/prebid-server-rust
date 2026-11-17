@@ -279,6 +279,52 @@ func reviewSearch() []*Scenario {
 			configName("b"), readInConfig(), configFileUsed(), get("from"),
 			configType("yaml"), configName("a"), readInConfig(), get("from"),
 		)},
+		// A Kubernetes ConfigMap volume: pbs.yaml -> ..data/pbs.yaml, ..data -> ..<timestamp>.
+		{Name: "review/search/configmap_layout", Files: map[string]string{
+			"etc/config/..2026_11_17_00_00_00.1/pbs.yaml": "from: configmap\n",
+		}, Links: map[string]string{
+			"etc/config/..data":    "..2026_11_17_00_00_00.1",
+			"etc/config/pbs.yaml":  "..data/pbs.yaml",
+			"etc/config/pbs.json~": "..data/pbs.json",
+		}, Ops: ops(
+			configName("pbs"), addConfigPath("."), addConfigPath("@TMP@/etc/config"), readInConfig(),
+			configFileUsed(), get("from"),
+		)},
+		// viper's TestGetConfigFile and TestReadInConfig, on the OS file system.
+		{Name: "review/search/TestGetConfigFile", Files: map[string]string{
+			"etc/viper/config.yaml": "key: value\n", "etc/config/config.yaml": "key: files_only\n",
+			"home/viper/config.zml": "key: zml\n", "etc2/viper/config.bml": "key: bml\n",
+			"var/viper/config.yaml": "key: precedence\n", "dot/.dotfilenoext": "key: dot\n",
+		}, Ops: ops(
+			addConfigPath("@TMP@/etc/viper"), configFile("@TMP@/etc/viper/config.yaml"),
+			readInConfig().is(""), configFileUsed().is("@TMP@/etc/viper/config.yaml"),
+			get("key").is(`<string>"value"`),
+		)},
+		{Name: "review/search/TestGetConfigFile/find_files_only", Files: map[string]string{
+			"etc/config/config.yaml": "key: files_only\n",
+		}, Ops: ops(
+			addConfigPath("@TMP@/etc"), addConfigPath("@TMP@/etc/config"), readInConfig().is(""),
+			configFileUsed().is("@TMP@/etc/config/config.yaml"),
+		)},
+		{Name: "review/search/TestGetConfigFile/precedence", Files: map[string]string{
+			"home/viper/config.zml": "key: zml\n", "etc/viper/config.bml": "key: bml\n",
+			"var/viper/config.yaml": "key: precedence\n",
+		}, Ops: ops(
+			addConfigPath("@TMP@/home/viper"), addConfigPath("@TMP@/etc/viper"),
+			addConfigPath("@TMP@/var/viper"), readInConfig().is(""),
+			configFileUsed().is("@TMP@/var/viper/config.yaml"), get("key"),
+		)},
+		{Name: "review/search/TestGetConfigFile/without_extension", Files: map[string]string{
+			"etc/viper/.dotfilenoext": "key: dot\n",
+		}, Ops: ops(
+			addConfigPath("@TMP@/etc/viper"), configName(".dotfilenoext"), readInConfig(),
+			configFileUsed().is(""), configType("yaml"), readInConfig().is(""),
+			configFileUsed().is("@TMP@/etc/viper/.dotfilenoext"), get("key"),
+		)},
+		// viper's TestDefaultPost.
+		{Name: "review/TestDefaultPost", Ops: ops(
+			get("state").is("nil"), setDefault("state", "NYC"), get("state").is(`<string>"NYC"`),
+		)},
 		{Name: "review/search/empty_and_odd_names", Files: map[string]string{
 			".yaml": "from: dot\n", "pbs.yaml.json": `{"from": "double"}`,
 		}, Ops: ops(
