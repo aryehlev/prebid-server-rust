@@ -1095,3 +1095,248 @@ ReplayHarness limits:
 * It cannot send a literal `{{...}}`.
 * It cannot tell an empty header from a missing one.
 * Its recorder adds `127.0.0.1` to X-Forwarded-For.
+
+### ReplayHarness requests as parity cases
+
+The `replayharness` corpus (`parity/corpus/replayharness.go`) turns what
+ReplayHarness sent the Go server into parity cases, so the byte-exact runner
+compares both sides on those requests. It is part of `--corpus all`. The
+intro above, written before this corpus existed, says that nothing does this;
+that is no longer true.
+
+The corpus takes its requests from two sources:
+
+* every exchange in `traffic.jsonl`;
+* every step of the replays in `replays/`. Package
+  `parity/replayharness/rhreplay` rebuilds each step offline the way the
+  pinned ReplayHarness sends it. That covers the query encoding, `json`
+  bodies written by `json.Marshal`, `{{name}}` values, and the `User-Agent`
+  of the build that recorded `traffic.jsonl`. As a result, a step and its line
+  in the recording are the same request.
+
+Each distinct request is one case:
+
+* The method, path, raw query, headers and body bytes are kept as sent.
+  Header names are put in canonical form. A UTF-8 body is sent as text; any
+  other body is sent as base64.
+* Some headers are left out:
+  * the headers the recorder leaves out (`rhreplay.HopHeaders`: `Connection`,
+    `Keep-Alive`, `Proxy-Connection`, `Transfer-Encoding`, `Upgrade`, `Te`,
+    `Trailer`, `Host`, `Content-Length`, `Accept-Encoding`). The transport
+    writes these, or they describe one connection;
+  * `X-Parity-Token`.
+
+  The case's notes name each header left out.
+* Identical requests are one case. Its notes list every source, such as
+  `from traffic.jsonl:12` or `from replays/auction.yaml: replay "...", step 1`.
+* The case ID is `parity/replayharness#<method>:<path>:<hash>`. The path is
+  cut at 40 bytes. The hash is the first 16 hex digits of a SHA-256 of the
+  request. The ID depends on nothing but the request, so it stays the same
+  across runs and file orders, and changes when the request changes.
+* The envelope:
+  * uses the `default` profile, plus the exec defaults for the host and the
+    remote address (127.0.0.1);
+  * pins every decision point, with `usersync.shuffle` set to identity;
+  * carries `parity/replayharness/stored` as the case's stored data;
+  * names its imp IDs for the oracle, for an auction, AMP or video request.
+
+Some steps send a value an earlier step saved, such as the `uids` cookie
+from `/setuid`. Such a step gets the value Go answered, from `saved.jsonl`.
+`parity/scripts/replayharness.sh record-saved` writes that file:
+
+1. It starts one Go server.
+2. It runs the replays through `replayharness record --keep-secrets`.
+3. For each step that saves a value, `rhtool saved` keeps only three things:
+   the status, the saved headers, and the body when a JSON path is saved.
+   It fails if the parity token would be kept.
+
+The saved `uids` cookie gives its uid an expiry 14 days after the recording
+(`2026-12-01` in the checked-in file). After that, both servers treat the uid
+as expired. The cases still compare, but they no longer test a live uid, so
+run `record-saved` again.
+
+### What the corpus does not compare
+
+Some requests cannot be compared: two correct servers may answer them
+differently, or the envelope cannot carry them as sent. Such a request is not
+a case. `rhtool cases` lists each one with a tag and a reason, and the
+`parity` and `selftest` commands write that list to `not-compared.json`.
+The corpus drops nothing recorded or replayed without an entry in that list.
+
+| Tag | Requests | Last run |
+| --- | --- | --- |
+| `wall_clock` | `GET /setuid` when Go may set the `uids` cookie: its `Expires`, and the per-uid expiry inside it, come from the wall clock (`usersync/cookie.go`). Also `POST /cookie_sync` for an account with cookie deprecation on and no `receive-cookie-deprecation` cookie: Go sets that cookie with an `Expires` from the wall clock (`endpoints/cookie_sync.go`). | 51 |
+| `map_order` | `POST /cookie_sync` without a bidder list, or with `coopSync`. Go evaluates the syncers in map order (`usersync/chooser.go`), and that order differs between two processes. | 5 |
+| `side_port` | An API map endpoint served only on the admin or Prometheus port. `/__parity/exec` dispatches to the main router only. The requests to these paths are still cases, and they check the main port's answer. | 7 |
+| `exec_framing` | An auction body of exactly `max_request_size` + 1 bytes. net/http hands over the last byte with `io.EOF`. `/__parity/exec` reads the body from a `bytes.Reader`, which does not, so the case would test the harness. | 1 |
+| `request_line` | A request the envelope cannot carry as sent: an invalid method, target or header. | 0 |
+| `truncated_body` | A body that the recorder cut at 1 MiB. | 0 |
+| `not_rebuilt` | A replay step that cannot be rebuilt offline. | 0 |
+
+The last run had 2480 cases and 64 requests not compared.
+
+The runner reports 944 of those cases as not-yet-instrumented
+(`exec cannot dispatch to <path>`). Its check matches a case's path exactly
+against the routes in the health document, and those routes are httprouter
+patterns. The 944 break down as follows:
+
+* 293 are concrete paths of `/info/bidders/:bidderName` and
+  `/static/*filepath`;
+* 651 are paths that no route registers as written: unknown paths, trailing
+  slashes, the admin-only paths, and the stored-request event API, which is
+  off in the default profile.
+
+They will be compared once the runner matches the patterns and dispatches
+the other paths to the router, which answers them 404 or with a redirect.
+
+### The ReplayHarness parity script
+
+```sh
+parity/scripts/replayharness.sh baseline|parity|selftest|canary|record-saved|cli \
+    [--bin-b FILE] [--impl-b go|rust] [--profile NAME] [--out DIR] [-- PARITY-RUN-FLAGS...]
+```
+
+| Command | What it does |
+| --- | --- |
+| `baseline` | Starts side A (Go) and side B with `rhtool serve -servers 2`, both under one profile and with the mock oracle. Then it runs three steps: the probes on side A alone; `replayharness run parity/replayharness/api.yaml --target B --baseline A --fail-on warning --junit ... --json ...`; and `replayharness replay parity/replayharness/replays --target B`. `rhtool gate` judges the reports (see below). |
+| `parity` | Runs `parity run --corpus replayharness`, with side B set by `--impl-b` and `--bin-b`. It fails on any mismatch or error, and it lists what the corpus leaves out. Flags after `--` go to `parity run`; with `-baseline`, the ratchet decides the result. |
+| `selftest` | An A/A run: `parity selftest --corpus replayharness`, then `baseline` with Go on both sides. Neither may find a difference. |
+| `canary` | Builds a Go side B with two seeded bugs, through a build overlay, so the checkout does not change. The first bug drops the `X-Prebid` header from `/openrtb2/auction`. The second renames `status` to `state` in `/info/bidders/{name}`. Both `parity` and `baseline` must fail. |
+| `record-saved` | Writes `parity/replayharness/saved.jsonl` (see above). |
+| `cli` | Builds the pinned ReplayHarness CLI and prints its path. |
+
+The script builds the ReplayHarness CLI at commit
+`f61ab1997f27b0044eeb801caea62810d75e2d76`. That is `rhreplay.PinnedCommit`,
+and a corpus test checks that the two agree. The build works like this:
+
+1. It clones `REPLAYHARNESS_SRC` (by default
+   `https://github.com/aryehlev/ReplayHarness.git`) into a new temporary
+   directory.
+2. It checks out the pinned commit and builds it with `go build -trimpath`.
+3. It checks the build: the Go build info must record that commit,
+   unmodified.
+
+Set `REPLAYHARNESS=/path/to/replayharness` to use a CLI that is already
+built. The script warns when that CLI is not the pinned build.
+
+The Go server, `rhtool`, the runner and the canary are built into the state
+directory. The script writes nothing in the checkout except `saved.jsonl`,
+and only `record-saved` writes that.
+
+The builds run first, and they may fetch modules. After the builds, the
+script guards every process:
+
+* `HTTP_PROXY` and `HTTPS_PROXY` point at `127.0.0.1:9`; a server's proxy
+  variables point at the oracle.
+* A watchdog runs `lsof` every second on every process the script started,
+  and on their children. If any of them has a socket off loopback, it kills
+  them all.
+* Every server and proxy is stopped on exit.
+
+Exit codes:
+
+| Code | Meaning |
+| --- | --- |
+| 0 | No difference. |
+| 1 | A difference, an error or a failed replay. |
+| 2 | A usage error. |
+| 3 | Incomplete: nothing could be compared. |
+
+### The baseline gate
+
+With `--baseline`, `replayharness run` sends each probe to both sides. It
+reports a `divergence` finding when the status or the JSON shape differs.
+The shape is the set of members present and their JSON types, not their
+values, and headers are not compared.
+
+With `--fail-on warning`, ReplayHarness exits 1 whenever side B draws an
+error or a warning. Go draws some on its own. In the last run, Go alone drew
+465 findings on the 1199 probes, in 17 error, 21 warning and 20 info groups.
+They include 500s on extreme input (`server-error`), statuses the map does
+not list (`undocumented-status`), and invalid requests accepted or valid ones
+rejected. So that exit status says nothing about parity. The script reports
+it and leaves the verdict to `rhtool gate`, which compares side B's report
+with side A's probe run:
+
+* A divergence on a compared endpoint fails the run. So does a probe that
+  side B does not answer.
+* A finding that only one side draws on a probe fails the run. This check
+  ignores `divergence`, `slow`, `timeout` and `connection` findings, which
+  depend on the run, not on the server.
+* `POST /cookie_sync` is not compared, because Go answers it
+  nondeterministically (see `map_order`). Its divergences are printed with
+  that reason and not counted.
+* The run is incomplete (exit 3) if any of these holds:
+  * the report has no baseline;
+  * the run was interrupted or has no results;
+  * the ReplayHarness versions differ;
+  * a probe is missing from side A's run.
+
+After the gate, every replay must pass on side B.
+
+### Limits of the baseline
+
+* The baseline sees status codes and JSON shapes only. A changed value, a
+  missing header or a reordered member passes it. Byte-exactness comes from
+  the parity runner, and the replays check the values they state.
+* Probes go straight to the main port, outside a parity case. The oracle
+  therefore answers bidder calls 404, and the only bids come from stored
+  responses. Through `/__parity/exec`, a parity case's bidder calls carry
+  the case label, and the oracle answers them from its templates.
+* Neither tool compares the 64 requests listed as not compared.
+* The parity runner does not yet run the 944 not-yet-instrumented cases. On
+  their routes, only the baseline's probes and the replays compare anything.
+
+### Results: A/A run and canary
+
+The A/A run is `parity/scripts/replayharness.sh selftest`, with Go on both
+sides. Two runs gave the same results:
+
+* `parity selftest --corpus replayharness`: 2480 cases, of which 1536 passed,
+  0 mismatched, 944 were not yet instrumented, and 0 errored.
+* `baseline`, Go against Go:
+  * 1199 probes: 0 divergences, 0 findings drawn by only one side, and 465
+    findings drawn by both;
+  * one or two `POST /cookie_sync` differences, printed and not counted (the
+    number changes from run to run, as `map_order` explains);
+  * 162 of 162 replays passed.
+
+The canary is `parity/scripts/replayharness.sh canary`. Both tools caught it:
+
+* The parity run found 257 mismatching cases in one cluster: the `X-Prebid`
+  header of `/openrtb2/auction`.
+* The baseline found 4 divergences, on the shape of
+  `/info/bidders/{bidderName}`.
+* 4 replays failed: two on `X-Prebid` and two on `status`.
+
+The two tools caught different bugs:
+
+* The baseline missed the dropped header, because it does not compare
+  headers.
+* The parity runner missed the renamed member, because
+  `/info/bidders/{bidderName}` is among the not-yet-instrumented cases.
+
+So the final gate needs both.
+
+### The Go-vs-Rust gate
+
+Build the Rust server, then run from the repository root:
+
+```sh
+parity/scripts/replayharness.sh parity   --impl-b rust --bin-b rust/target/release/pbs-server
+parity/scripts/replayharness.sh baseline --impl-b rust --bin-b rust/target/release/pbs-server
+```
+
+On this traffic, Rust can replace Go when both commands exit 0 and the
+following holds:
+
+* `parity`: no mismatch and no error. Before relying on the result, check
+  the not-yet-instrumented count and the not-compared list; a Rust server
+  without `/__parity/exec` passes no case and exits 3.
+* `baseline`: no divergence, no finding drawn by only one side, and every
+  replay passing on Rust.
+
+`baseline` needs `--bin-b` for Rust. It needs only the main port, so it can
+run before the Rust server implements `/__parity/*`. The replays state what
+Go answers under the `default` profile, so run `baseline` under that profile;
+`parity --profile NAME` compares the cases under another base profile.

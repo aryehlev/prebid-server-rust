@@ -14,6 +14,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -57,6 +58,8 @@ var errNotParity = errors.New("the server did not answer /__parity/health as a p
 type serveOptions struct {
 	repo       string
 	bin        string
+	binB       string
+	implB      string
 	dir        string
 	profile    string
 	servers    int
@@ -70,27 +73,49 @@ func parseServe(args []string, stderr io.Writer) (serveOptions, error) {
 	fs.SetOutput(stderr)
 	fs.StringVar(&o.repo, "repo", ".", "repository root, or a directory inside it")
 	fs.StringVar(&o.bin, "bin", "", "the Go server binary (default: build it into -dir)")
+	fs.StringVar(&o.binB, "bin-b", "", "with -servers 2: the binary of the second server, side B (default: the -bin server)")
+	fs.StringVar(&o.implB, "impl-b", parity.ImplGo, "with -servers 2: the implementation side B runs: go or rust")
 	fs.StringVar(&o.dir, "dir", "", "directory for the state, token, logs, work directory and outbound log (required)")
 	fs.StringVar(&o.profile, "profile", runner.DefaultProfile, "parity base profile (parity/fixtures/profiles)")
-	fs.IntVar(&o.servers, "servers", 1, "Go servers to start: 1, or 2 for a ReplayHarness --baseline pair")
+	fs.IntVar(&o.servers, "servers", 1, "servers to start: 1, or 2 for a ReplayHarness --baseline pair (side A, then side B)")
 	fs.IntVar(&o.sparePorts, "spare-ports", 1, "extra free loopback ports to reserve for the caller (the recording proxy)")
 
 	if err := fs.Parse(args); err != nil {
 		return o, fmt.Errorf("parsing flags: %w", err)
 	}
 
-	switch {
-	case fs.NArg() > 0:
+	if fs.NArg() > 0 {
 		return o, usageError{"serve takes no arguments"}
-	case o.dir == "":
-		return o, usageError{"-dir is required"}
-	case o.servers < 1 || o.servers > maxServers:
-		return o, usageError{"-servers must be 1 or 2"}
-	case o.sparePorts < 0:
-		return o, usageError{"-spare-ports must not be negative"}
 	}
 
-	return o, nil
+	return o, o.check()
+}
+
+func (o serveOptions) check() error {
+	switch {
+	case o.dir == "":
+		return usageError{"-dir is required"}
+	case o.servers < 1 || o.servers > maxServers:
+		return usageError{"-servers must be 1 or 2"}
+	case o.sparePorts < 0:
+		return usageError{"-spare-ports must not be negative"}
+	}
+
+	return o.checkSideB()
+}
+
+// checkSideB checks -bin-b and -impl-b.
+func (o serveOptions) checkSideB() error {
+	switch {
+	case o.implB != parity.ImplGo && o.implB != parity.ImplRust:
+		return usageError{"-impl-b must be go or rust"}
+	case (o.binB != "" || o.implB != parity.ImplGo) && o.servers != maxServers:
+		return usageError{"-bin-b and -impl-b need -servers 2"}
+	case o.implB == parity.ImplRust && o.binB == "":
+		return usageError{"-impl-b rust needs -bin-b"}
+	}
+
+	return nil
 }
 
 // cmdServe starts the oracle and the servers, writes the state file and logs
@@ -160,9 +185,39 @@ func (s *stack) start(ctx context.Context, opts serveOptions) error {
 		return err
 	}
 
+	if err := s.startServers(ctx, opts, bin, workdir, token); err != nil {
+		return err
+	}
+
+	if s.spare, err = freePorts(ctx, opts.sparePorts); err != nil {
+		return err
+	}
+
+	return s.writeState(workdir)
+}
+
+// startServers starts side A from bin and, with -servers 2, side B from
+// -bin-b (default bin) as -impl-b.
+func (s *stack) startServers(ctx context.Context, opts serveOptions, bin, workdir, token string) error {
+	binB := bin
+
+	if opts.binB != "" {
+		abs, err := filepath.Abs(opts.binB)
+		if err != nil {
+			return fmt.Errorf("resolving -bin-b: %w", err)
+		}
+
+		binB = abs
+	}
+
 	for i := range opts.servers {
+		impl, binary := parity.ImplGo, bin
+		if i == 1 {
+			impl, binary = opts.implB, binB
+		}
+
 		srv, err := runner.StartServer(ctx, runner.ServerSpec{
-			Impl: parity.ImplGo, Binary: bin, WorkDir: workdir,
+			Impl: impl, Binary: binary, WorkDir: workdir,
 			LogPath: filepath.Join(opts.dir, "server-"+strconv.Itoa(i)+".log"),
 			Token:   token, ExtraEnv: proxyGuard(s.oracle.URL()),
 		})
@@ -176,11 +231,7 @@ func (s *stack) start(ctx context.Context, opts serveOptions) error {
 		}
 	}
 
-	if s.spare, err = freePorts(ctx, opts.sparePorts); err != nil {
-		return err
-	}
-
-	return s.writeState(workdir)
+	return nil
 }
 
 // binary returns -bin, or builds the server from the repository into -dir.
@@ -363,7 +414,10 @@ func (s *stack) writeState(workdir string) error {
 		"RH_SPARE_PORTS=" + joinPorts(s.spare),
 	}
 	if len(s.servers) > 1 {
-		lines = append(lines, "RH_BASELINE="+baseURL(s.servers[1].Ports.Main))
+		// Side A is the first server, the Go reference; side B the second.
+		lines = append(lines, "RH_BASELINE="+baseURL(s.servers[1].Ports.Main),
+			"RH_SIDE_A="+baseURL(s.servers[0].Ports.Main), "RH_SIDE_B="+baseURL(s.servers[1].Ports.Main),
+			"RH_IMPL_B="+s.servers[1].Spec.Impl)
 	}
 
 	tmp := stateFile + ".tmp"
@@ -390,7 +444,7 @@ func (s *stack) mainPorts() string {
 func (s *stack) describe() string {
 	parts := make([]string, 0, len(s.servers)+1)
 	for i, srv := range s.servers {
-		parts = append(parts, fmt.Sprintf("go server %d on %s (admin %d, prometheus %d)", i, baseURL(srv.Ports.Main), srv.Ports.Admin, srv.Ports.Prometheus))
+		parts = append(parts, fmt.Sprintf("%s server %d on %s (admin %d, prometheus %d)", srv.Spec.Impl, i, baseURL(srv.Ports.Main), srv.Ports.Admin, srv.Ports.Prometheus))
 	}
 
 	return strings.Join(append(parts, "oracle on "+s.oracle.URL()), ", ")
@@ -426,10 +480,17 @@ func (s *stack) watch(ctx context.Context) {
 }
 
 // drain logs the captures of the calls made outside any parity case: those
-// with the Go side's meta, and those without meta (a client the parity
-// transport does not wrap).
+// with the meta of a side's implementation, and those without meta (a client
+// the parity transport does not wrap).
 func (s *stack) drain(ctx context.Context) {
-	for _, impl := range []string{parity.ImplGo, ""} {
+	impls := []string{parity.ImplGo, ""}
+	for _, srv := range s.servers {
+		if !slices.Contains(impls, srv.Spec.Impl) {
+			impls = append(impls, srv.Spec.Impl)
+		}
+	}
+
+	for _, impl := range impls {
 		dctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), drainTimeout)
 		caps, _ := s.oracle.Drain(dctx, "", impl)
 

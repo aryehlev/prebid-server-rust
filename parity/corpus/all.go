@@ -63,6 +63,7 @@ func LoadAll(repo *Repo) (*Corpus, error) {
 		return nil, fmt.Errorf("corpus: bidder params: %w", err)
 	}
 	c.addCases(c.Params.Cases(), nil)
+	c.addCases(ReplayHarnessCases(repo))
 
 	c.Seeds, errs = LoadSeeds(repo)
 	c.Errors = append(c.Errors, errs...)

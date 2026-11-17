@@ -8,7 +8,6 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/prebid/prebid-server/v4/parity/replayharness/traffic"
 )
@@ -71,14 +70,9 @@ func cmdTraffic(args []string, stdout, stderr io.Writer) error {
 		return err
 	}
 
-	token, err := os.ReadFile(filepath.Clean(opts.tokenFile))
+	secret, err := readToken(opts.tokenFile)
 	if err != nil {
-		return fmt.Errorf("reading the token: %w", err)
-	}
-
-	secret := strings.TrimSpace(string(token))
-	if secret == "" {
-		return errEmptyToken
+		return err
 	}
 
 	readers := make([]io.Reader, 0, len(opts.inputs))
