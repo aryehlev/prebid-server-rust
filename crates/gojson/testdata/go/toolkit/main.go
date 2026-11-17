@@ -974,6 +974,7 @@ func (g *gen) randomNames(n *node) []string {
 func writeElement(dir string, r *rand.Rand) {
 	g := create(dir, "element.txt", "jsonutil.FindElement: FIND ext names found start end err\njsonutil.DropElement: DROP ext names out isNil err\n(names are encoded as jsonparser paths)")
 	defer g.close()
+
 	repo := moduleDir("github.com/prebid/prebid-server/v4")
 	cases := tableCases(filepath.Join(repo, "util", "jsonutil", "jsonutil_test.go"), "input", "elementToRemove", "")
 	fmt.Printf("TestDropElement cases: %d\n", len(cases))

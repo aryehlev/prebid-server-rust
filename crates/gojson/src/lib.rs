@@ -501,23 +501,22 @@
 //!
 //! When unsure what Go does, run Go. To add a differential case here:
 //!
-//! 1. add the Go type to `testdata/go/types.go` (or use a real one from this repository) and the
-//!    inputs to the tables in `testdata/go/main.go`;
-//! 2. from the repository root, run `go run ./rust/crates/gojson/testdata/go` (keep the program
-//!    `gofmt` and `go vet` clean; it also rewrites `src/unicode/tables.rs`, the Unicode tables of
-//!    the Go version that runs it);
+//! 1. add the Go type to `testdata/go/types.go` (or use a real one from the upstream server) and
+//!    the inputs to the tables in `testdata/go/main.go`;
+//! 2. run `go run .` in `testdata/go`, a Go module that builds against the upstream checkout (keep
+//!    the program `gofmt` and `go vet` clean; it also rewrites `src/unicode/tables.rs`, the Unicode
+//!    tables of the Go version that runs it);
 //! 3. mirror the type in `tests/golden.rs` and register its Go name in `decode_by_name` or
 //!    `encode_by_name`;
 //! 4. run `cargo test -p pbs-gojson`.
 //!
 //! The rest of the toolkit (json-patch, jsonparser, the streaming decoders, `FindElement`,
-//! `DropElement` and `MergeClone`) has its own generator: `go run
-//! ./rust/crates/gojson/testdata/go/toolkit` writes `testdata/go/toolkit/*.txt` from the Go
-//! packages' own test tables and seeded random corpora, and `tests/toolkit.rs` replays them.
-//! `go run ./rust/crates/gojson/testdata/go/toolkit_review` writes adversarial corpora for the
-//! same packages (escaped keys, every array index spelling, `Set`/`Delete` layouts, `Unescape`
-//! over every surrogate pair class, `MergeClone` over every existing shape), which
-//! `tests/toolkit_review.rs` replays.
+//! `DropElement` and `MergeClone`) has its own generator: `go run ./toolkit` in `testdata/go`
+//! writes `testdata/go/toolkit/*.txt` from the Go packages' own test tables and seeded random
+//! corpora, and `tests/toolkit.rs` replays them. `go run ./toolkit_review` in `testdata/go` writes
+//! adversarial corpora for the same packages (escaped keys, every array index spelling,
+//! `Set`/`Delete` layouts, `Unescape` over every surrogate pair class, `MergeClone` over every
+//! existing shape), which `tests/toolkit_review.rs` replays.
 //!
 //! Other crates can follow the same pattern with a generator under their own `testdata/go`.
 //!

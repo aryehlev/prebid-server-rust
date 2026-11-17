@@ -4,8 +4,7 @@
 //! Values are compared through Go's `dump` rendering (`testdata/go/main.go`), which this file
 //! reproduces from the Rust values; the structs below mirror the generator's Go types.
 //!
-//! Regenerate the goldens from the repository root with
-//! `GOARCH=amd64 go run ./rust/crates/goyaml/testdata/go`.
+//! Regenerate the goldens with `GOARCH=amd64 go run .` in `testdata/go`.
 
 #[cfg(test)]
 mod golden {

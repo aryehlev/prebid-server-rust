@@ -3,8 +3,7 @@
 //! `mergepatch`, `jsonparser`, `stream` and `jsonutil`'s element and merge-clone helpers must
 //! match Go byte for byte.
 //!
-//! Regenerate the goldens from the repository root with
-//! `go run ./rust/crates/gojson/testdata/go/toolkit`.
+//! Regenerate the goldens with `go run ./toolkit` in `testdata/go`.
 
 #[cfg(test)]
 mod toolkit {

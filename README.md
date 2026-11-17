@@ -1,27 +1,105 @@
-# Prebid Server — Rust port
+# prebid-server-rust
 
-A Rust implementation of [Prebid Server](https://github.com/prebid/prebid-server) that is meant to
-replace the Go server for production traffic **without changing externally visible behaviour**:
-same HTTP status codes, response bodies, outgoing bidder requests, configuration keys and defaults,
-and metric names.
+A Rust port of [Prebid Server](https://github.com/prebid/prebid-server), the Go server-side header
+bidding service. The goal is exact parity: the Rust server should be able to take the Go server's
+production traffic without anyone noticing. HTTP status codes, response bodies, outgoing bidder
+requests, configuration keys and defaults, environment variables and metric names must all match
+Go. Where Go is awkward, inconsistent or buggy, the port reproduces it.
 
-The Go code at the repository root is the reference implementation and the source of truth. It
-tracks upstream `prebid/prebid-server`; the Rust workspace lives in this `rust/` directory.
+This repository holds only the Rust port and its test tooling. The upstream Go server is the
+reference implementation and is never committed here. Builds and tests check it out at a pinned
+commit.
 
-- `crates/` — the Rust workspace members.
-- `legacy/` — an earlier approximate port kept only as reading material while crates are rewritten
-  against the Go sources. It is not compiled and is deleted once every replacement has landed.
-- `PORTING.md` — the porting contract: parity rules, crate layout, testing against Go's own JSON
-  corpora, lint policy, and commit rules.
+## Status
 
-## Toolchain
+Early. The foundations are ported, but the server itself is not, and nothing serves traffic yet.
 
-`rust-toolchain.toml` pins the compiler. Formatting uses a pinned nightly rustfmt so the stricter
-unstable options in `rustfmt.toml` apply:
+| Area | Crates |
+| --- | --- |
+| Go behaviour the server depends on | `pbs-gojson` (+ derive), `pbs-gocompat`, `pbs-goyaml` (+ derive), `pbs-goviper`, `pbs-gogzip`, `pbs-gohttp-client`, `pbs-gohttp-server`, `pbs-freecache` |
+| Prebid Server packages | `pbs-errortypes`, `pbs-util`, `pbs-logger`, `pbs-metrics`, `pbs-currency`, `pbs-gpp`, `pbs-tcf2`, `pbs-openrtb`, `pbs-openrtb-ext`, `pbs-bidder-params` |
+| Tooling | `pbs-devtools` (ground truth from Go, type generation), `pbs-parity` (parity-harness seams) |
+| Not ported yet | the endpoints, the exchange, the bidder adapters, modules, stored requests, privacy enforcement and the server binary |
+
+## Getting started
+
+You need git and a Rust toolchain installed with rustup (`rust-toolchain.toml` pins the version,
+and rustup installs it on first use). Regenerating or checking goldens also needs Go.
 
 ```sh
-cargo build --workspace
+git clone https://github.com/aryehlev/prebid-server-rust.git
+cd prebid-server-rust
+scripts/fetch-upstream.sh    # check out the pinned upstream Go server into .upstream/
 cargo test --workspace
-cargo clippy --workspace --all-targets -- -D warnings
-cargo +nightly-2026-11-13 fmt --all -- --check
 ```
+
+`UPSTREAM_SYNC` names the upstream commit the port covers. `scripts/fetch-upstream.sh` makes a
+detached checkout of exactly that commit in `.upstream/`, which git ignores. It does nothing when
+the checkout is already there and clean, and it refuses to touch a checkout with local changes.
+
+- `--dir DIR` puts the checkout somewhere else. Point the tests at it with `PBS_GO_ROOT=DIR`.
+- `--sha SHA` checks out another commit.
+- `PBS_UPSTREAM_REFERENCE=/path/to/clone` fetches the commit from a local clone, with no network,
+  when that clone has it. `PBS_UPSTREAM_URL` changes the remote.
+
+Tests and tools read upstream sources, corpora and static files from the *Go root*: `$PBS_GO_ROOT`
+when it is set, else `.upstream/`. They never search for it. If it is missing, they fail and say to
+run the script.
+
+CI runs these checks, all at full strictness:
+
+```sh
+cargo build --workspace --locked
+cargo test --workspace --locked
+cargo clippy --workspace --all-targets --locked -- -D warnings
+RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps
+cargo +nightly-2026-11-13 fmt --all -- --check    # rustfmt.toml uses unstable options
+cargo deny --locked check --deny warnings
+cargo machete
+taplo fmt --check
+cargo run -p pbs-devtools -- all --check           # every golden and generated file is current
+```
+
+No lint is ever suppressed: there is no `#[allow]` or `#[expect]` anywhere. `PORTING.md` has the
+whole policy.
+
+## How parity is tested
+
+The Go code at the pinned commit is the oracle. The Rust tests compare against what it actually
+does, not against a description of it.
+
+- **Differential goldens.** A crate that needs them has a Go program in
+  `crates/<crate>/testdata/go/`. It runs the real Go code (Prebid Server's packages, the standard
+  library, the exact versions of jsoniter, viper, yaml.v3, go-gdpr and the other dependencies)
+  over hand-picked, adversarial and seeded random inputs and writes the results as goldens. The
+  Rust tests replay them byte for byte. Each program is its own Go module. It requires the upstream
+  module at the pinned commit and builds against the Go root. Its doc comment gives the command
+  that regenerates its goldens.
+- **Ground truth from Go.** `pbs-devtools` writes `testdata/`: the adapter test manifest, reflected
+  struct metadata, viper defaults, bidder infos and bidder names. It also generates Rust types from
+  Go packages. `cargo run -p pbs-devtools -- all --check` fails when any of it is stale.
+- **Upstream's own corpora.** The adapter JSON fixtures, sample requests and other test data are
+  read from the Go root and replayed with the comparison rules of the Go harnesses.
+  [`conformance/`](conformance/README.md) holds the ratchet of adapter fixtures that may still fail.
+  That list only shrinks.
+
+[`PORTING.md`](PORTING.md) is the porting contract: parity rules, layout, testing against Go, the
+lint policy and performance rules.
+
+## The daily upstream port
+
+A scheduled workflow, `.github/workflows/upstream-port.yml`, keeps the port in step with upstream.
+It takes the upstream commits after `UPSTREAM_SYNC` and checks them out with
+`scripts/fetch-upstream.sh`. Agents port the behaviour changes and write differential tests for
+them, and the workflow advances the pin. It then opens a pull request, which must pass the same CI.
+`upstream-port-log.jsonl` records every upstream commit the workflow handled and the Go behaviour
+it left unported. Upstream commits are never copied into this repository. `.github/README.md`
+describes the workflows.
+
+## License
+
+Apache License 2.0. See [`LICENSE`](LICENSE) and [`NOTICE`](NOTICE).
+
+This project is a port of Prebid Server, which Prebid.org and its contributors develop at
+[prebid/prebid-server](https://github.com/prebid/prebid-server) under the same license. It is an
+independent project, not affiliated with Prebid.org.

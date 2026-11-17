@@ -6,14 +6,18 @@ Each bidder adapter in the Go server ships JSON test fixtures under
 the same fixtures, read from the same files, with the same semantics. This directory holds the
 contract between that Rust harness, CI and the daily upstream-port workflow.
 
+The fixtures are not in this repository. They are read from the *Go root*: the upstream checkout
+at the commit `UPSTREAM_SYNC` pins, which `scripts/fetch-upstream.sh` puts in `.upstream/`. Every
+fixture and adapter path below is relative to the Go root.
+
 ## Harness
 
 | Item | Contract |
 | --- | --- |
-| Command | `cargo test -p pbs-adapters --test go_fixtures --locked`, run from `rust/` |
-| Fixture set | Every run that `rust/testdata/go_fixture_manifest.json` lists (one per `adapterstest.RunJSONBidderTest` call), with the builder configuration the manifest records |
+| Command | `cargo test -p pbs-adapters --test go_fixtures --locked`, run from the workspace root |
+| Fixture set | Every run that `testdata/go_fixture_manifest.json` lists (one per `adapterstest.RunJSONBidderTest` call), with the builder configuration the manifest records |
 | Semantics | `adapters/adapterstest/test_json.go`: `mockBidRequest`, `httpCalls[].expectedRequest` (`uri`, `body`, `headers`, `impIDs`), `mockResponse`, `expectedBidResponses`, `expectedMakeRequestsErrors`, `expectedMakeBidsErrors` (literal or regex), and the rule that `exemplary` and `video` fixtures expect no errors |
-| `PBS_GO_ROOT` | Absolute repository root, where `adapters/` and `static/` are read from. If unset, the harness finds the root from `CARGO_MANIFEST_DIR`. |
+| `PBS_GO_ROOT` | The Go root, where `adapters/` and `static/` are read from. If unset, `.upstream/` in the workspace. The harness never searches for it: when it is missing, the harness fails and says to run `scripts/fetch-upstream.sh` (`pbs_devtools::repo::go_root`). |
 | `PBS_FIXTURE_DIRS` | Optional comma-separated adapter directories (`adapters/<dir>`). Only those runs execute. Empty or unset means every run. |
 | `PBS_FIXTURE_RESULTS` | Optional path. See "Report mode". |
 
@@ -26,7 +30,7 @@ The harness writes one JSON object per line to that path, one line for every fix
 ```
 
 * `run` names the manifest run: the bidder name, a slash, and the adapter directory.
-* `fixture` is the fixture's path relative to the repository root, for example
+* `fixture` is the fixture's path relative to the Go root, for example
   `adapters/panxo/panxotest/exemplary/banner.json`.
 * `status` is `pass` or `fail`. No other value is allowed.
 * `detail` is empty on a pass. On a failure it is the first difference found, in plain text.
@@ -42,9 +46,9 @@ plain `cargo test --workspace` also enforces conformance.
 
 ## Ratchet: `known_failures.txt`
 
-`known_failures.txt` lists the fixtures that are allowed to fail today: one repository-relative
-fixture path per line, sorted (byte order, `LC_ALL=C`), with no duplicates. Blank lines and lines
-starting with `#` are ignored. Every listed path must exist.
+`known_failures.txt` lists the fixtures that are allowed to fail today: one fixture path per line,
+relative to the Go root, sorted (byte order, `LC_ALL=C`), with no duplicates. Blank lines and lines
+starting with `#` are ignored. Every listed path must exist in the Go root.
 
 A fixture **fails** when any run that uses it fails, and **passes** when every run that uses it
 passes. Given the full report (`.github/port/scripts/conformance.sh` evaluates it), CI fails on

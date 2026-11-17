@@ -8,6 +8,7 @@ package dump
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -50,7 +51,9 @@ func ParseFlags() Options {
 	if opts.GoCommit == "" {
 		Fatalf("missing -go-commit")
 	}
+
 	opts.Root = UpstreamDir(opts.Root)
+
 	return opts
 }
 
@@ -58,28 +61,34 @@ func ParseFlags() Options {
 // target (the workspace's .upstream/ checkout) or the replacement a GOWORK file names. A non-empty
 // root must name that same directory, so that a dump reads the files of the code it runs.
 func UpstreamDir(root string) string {
-	out, err := exec.Command("go", "list", "-m", "-f", "{{.Dir}}", UpstreamModule).Output()
+	out, err := exec.CommandContext(context.Background(), "go", "list", "-m", "-f", "{{.Dir}}", UpstreamModule).Output()
 	if err != nil {
 		Fatalf("go list -m %s: %v", UpstreamModule, err)
 	}
+
 	dir := strings.TrimSpace(string(out))
 	if dir == "" {
 		Fatalf("go list -m %s gave no directory; is the module replaced by a checkout?", UpstreamModule)
 	}
+
 	if root == "" {
 		return dir
 	}
+
 	want, err := os.Stat(root)
 	if err != nil {
 		Fatalf("-root: %v", err)
 	}
+
 	got, err := os.Stat(dir)
 	if err != nil {
 		Fatalf("%s: %v", UpstreamModule, err)
 	}
+
 	if !os.SameFile(want, got) {
 		Fatalf("-root %s is not %s, the checkout of %s this program builds against", root, dir, UpstreamModule)
 	}
+
 	return dir
 }
 

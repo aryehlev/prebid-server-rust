@@ -20,9 +20,11 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"flag"
 	"fmt"
+	"io/fs"
 	"math/rand"
 	"os"
 	"os/exec"
@@ -148,31 +150,13 @@ func fatalf(format string, args ...any) {
 // run writes the package into a throwaway module (see genRel), runs its tests and returns what
 // the fake RunJSONBidderTest recorded, sorted by test name (stable within a test).
 func run(files []sourceFile) []observation {
-	upstream := goOutput("", "list", "-m", "-f", "{{.Dir}}", module)
-	if upstream == "" {
-		fatalf("go list -m %s gave no directory; is the module replaced by a checkout?", module)
-	}
-	goVersion := goOutput("", "list", "-m", "-f", "{{.GoVersion}}")
-	version := goOutput("", "list", "-m", "-f", "{{.Version}}", module)
-	sum, err := os.ReadFile(filepath.Join(upstream, "go.sum"))
-	if err != nil {
-		fatalf("reading the upstream go.sum: %v", err)
-	}
-
 	dir, err := os.MkdirTemp("", "manifestsynth-")
 	if err != nil {
 		fatalf("creating a temporary module: %v", err)
 	}
 	defer os.RemoveAll(dir)
-	goMod := "module " + module + "/" + genRel + "/" + tmpName + "\n\ngo " + goVersion + "\n\n" +
-		"require " + module + " " + version + "\n\nreplace " + module + " => " + upstream + "\n"
-	sources := make([]sourceFile, 0, len(files)+3)
-	sources = append(sources, files...)
-	sources = append(sources,
-		sourceFile{Name: fakeName + "/" + fakeName + ".go", Src: fakeSrc},
-		sourceFile{Name: "go.mod", Src: goMod},
-		sourceFile{Name: "go.sum", Src: string(sum)})
-	for _, f := range sources {
+
+	for _, f := range append(files, moduleFiles()...) {
 		p := filepath.Join(dir, filepath.FromSlash(f.Name))
 		if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
 			fatalf("creating %s: %v", filepath.Dir(p), err)
@@ -181,13 +165,19 @@ func run(files []sourceFile) []observation {
 			fatalf("writing %s: %v", p, err)
 		}
 	}
+
 	// The module requires only upstream; tidy adds the requirements its packages need, at the
 	// versions upstream selects, and drops the go.sum lines they do not.
-	goOutput(dir, "mod", "tidy")
+	tidy := exec.CommandContext(context.Background(), "go", "mod", "tidy")
+	tidy.Dir = dir
+	tidy.Env = outsideWorkspace()
+	commandOutput(tidy)
+
 	rec := filepath.Join(dir, "observations.jsonl")
-	cmd := exec.Command("go", "test", "-vet=off", "-count=1", ".")
+	cmd := exec.CommandContext(context.Background(), "go", "test", "-vet=off", "-count=1", ".")
 	cmd.Dir = dir
-	cmd.Env = append(os.Environ(), "GOWORK=off", "ZZSYNTH_OUT="+rec)
+	cmd.Env = outsideWorkspace("ZZSYNTH_OUT=" + rec)
+
 	if output, err := cmd.CombinedOutput(); err != nil {
 		fatalf("go test failed: %v\n%s", err, output)
 	}
@@ -209,19 +199,51 @@ func run(files []sourceFile) []observation {
 	return obs
 }
 
-// goOutput runs the go command in dir (this module's directory when dir is empty; outside it, with
-// GOWORK=off) and returns its trimmed standard output.
-func goOutput(dir string, args ...string) string {
-	cmd := exec.Command("go", args...)
-	if dir != "" {
-		cmd.Dir = dir
-		cmd.Env = append(os.Environ(), "GOWORK=off")
+// moduleFiles are the files of the throwaway module besides the generated package: the fake
+// adapterstest, and a go.mod and go.sum that build the package against the upstream checkout this
+// module builds against (the go.mod replace target or a GOWORK replacement), with upstream's go
+// version, under the import path the golden records (see genRel).
+func moduleFiles() []sourceFile {
+	listed := commandOutput(exec.CommandContext(context.Background(),
+		"go", "list", "-m", "-f", "{{.Dir}}\t{{.Version}}\t{{.GoVersion}}", module))
+
+	fields := strings.Split(listed, "\t")
+	if len(fields) != 3 || fields[0] == "" {
+		fatalf("go list -m %s gave %q; is the module replaced by a checkout?", module, listed)
 	}
+
+	upstream, version, goVersion := fields[0], fields[1], fields[2]
+
+	sum, err := fs.ReadFile(os.DirFS(upstream), "go.sum")
+	if err != nil {
+		fatalf("reading the upstream go.sum: %v", err)
+	}
+
+	goMod := "module " + module + "/" + genRel + "/" + tmpName + "\n\ngo " + goVersion + "\n\n" +
+		"require " + module + " " + version + "\n\nreplace " + module + " => " + upstream + "\n"
+
+	return []sourceFile{
+		{Name: fakeName + "/" + fakeName + ".go", Src: fakeSrc},
+		{Name: "go.mod", Src: goMod},
+		{Name: "go.sum", Src: string(sum)},
+	}
+}
+
+// outsideWorkspace is the environment, plus extra, of a go command run in the throwaway module,
+// which belongs to no go.work.
+func outsideWorkspace(extra ...string) []string {
+	return append(append(os.Environ(), "GOWORK=off"), extra...)
+}
+
+// commandOutput runs cmd, showing its standard error, and returns its trimmed standard output.
+func commandOutput(cmd *exec.Cmd) string {
 	cmd.Stderr = os.Stderr
+
 	out, err := cmd.Output()
 	if err != nil {
-		fatalf("go %s: %v", strings.Join(args, " "), err)
+		fatalf("%s: %v", cmd, err)
 	}
+
 	return strings.TrimSpace(string(out))
 }
 

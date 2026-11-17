@@ -119,6 +119,7 @@ func runPlan(outDir, root string) {
 	if outDir == "" {
 		dump.Fatalf("-plan needs a directory")
 	}
+
 	outDir, err := filepath.Abs(outDir)
 	if err != nil {
 		dump.Fatalf("resolving -plan: %v", err)
@@ -132,6 +133,7 @@ func runPlan(outDir, root string) {
 		local = append(local, parsePackage(modulePath+"/"+rel, filepath.Join(root, rel)))
 	}
 	var external []pkgDecls
+
 	dirs := goListDirs(append([]string{selfPath}, externalPackages...))
 	for _, path := range externalPackages {
 		external = append(external, parsePackage(path, dirs[path]))

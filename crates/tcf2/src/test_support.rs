@@ -1,8 +1,8 @@
 //! Helpers for the tests that replay the Go-generated goldens under `testdata/`.
 //!
-//! The goldens are written by the Go program in `testdata/go` (run it with
-//! `go run ./rust/crates/tcf2/testdata/go -out rust/crates/tcf2/testdata` from the repository
-//! root). They are read at run time rather than embedded, since they are several megabytes.
+//! The goldens are written by the Go program in `testdata/go` (run `GOTOOLCHAIN=go1.26.2 go run
+//! . -out ..` in that directory). They are read at run time rather than embedded, since they are
+//! several megabytes.
 
 use std::{error::Error, fs, path::Path, str};
 

@@ -791,9 +791,11 @@ func main() {
 	root := flag.String("root", "", "upstream checkout, for adapter fixtures (default: the one this module builds against)")
 	tables := flag.String("tables", "../../src/unicode/tables.rs", "Rust Unicode tables")
 	flag.Parse()
+
 	if *root == "" {
 		*root = upstreamDir()
 	}
+
 	if err := os.MkdirAll(*out, 0o755); err != nil {
 		log.Fatal(err)
 	}

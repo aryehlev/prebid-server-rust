@@ -7,8 +7,7 @@
 //! (`testdata/go/main.go`), which this file reproduces from the Rust values; the structs below
 //! mirror the generator's Go types.
 //!
-//! Regenerate the goldens from the repository root with
-//! `GOARCH=amd64 go run ./rust/crates/goviper/testdata/go`.
+//! Regenerate the goldens with `GOARCH=amd64 go run .` in `testdata/go`.
 
 #[cfg(test)]
 mod golden {
@@ -817,7 +816,7 @@ mod golden {
         replay("scenarios.jsonl", 20_000)
     }
 
-    /// `config.SetupViper`'s operations (rebuilt from `rust/testdata/go_config_defaults.json`,
+    /// `config.SetupViper`'s operations (rebuilt from the workspace's `go_config_defaults.json`,
     /// which the generator checks against `SetupViper` itself, `[]config.AgmaAnalyticsAccount{}`
     /// and `[]openrtb_ext.BidderName{}` defaults standing as `[]interface{}{}`): `main_test.go`'s
     /// `TestViperInit` and `TestViperEnv`, and `main.loadConfig` with no configuration, with a

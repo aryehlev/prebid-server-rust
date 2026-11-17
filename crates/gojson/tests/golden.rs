@@ -1,7 +1,7 @@
 //! Differential replay of the goldens that `testdata/go` writes with Go 1.26.2 and
 //! json-iterator 1.1.12: every output and error must match Go byte for byte.
 //!
-//! Regenerate the goldens from the repository root with `go run ./rust/crates/gojson/testdata/go`.
+//! Regenerate the goldens with `go run .` in `testdata/go`.
 
 #[cfg(test)]
 mod golden {

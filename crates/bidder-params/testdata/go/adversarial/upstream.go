@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"log"
 	"os"
 	"os/exec"
@@ -21,16 +22,20 @@ func enterUpstream(path string) string {
 	if err != nil {
 		log.Fatal(err)
 	}
-	out, err := exec.Command("go", "list", "-m", "-f", "{{.Dir}}", upstreamModule).Output()
+
+	out, err := exec.CommandContext(context.Background(), "go", "list", "-m", "-f", "{{.Dir}}", upstreamModule).Output()
 	if err != nil {
 		log.Fatalf("go list -m %s: %v", upstreamModule, err)
 	}
+
 	dir := strings.TrimSpace(string(out))
 	if dir == "" {
 		log.Fatalf("go list -m %s gave no directory; is the module replaced by a checkout?", upstreamModule)
 	}
+
 	if err := os.Chdir(dir); err != nil {
 		log.Fatal(err)
 	}
+
 	return abs
 }

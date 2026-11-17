@@ -1,9 +1,9 @@
 //! Differential tests against outputs recorded from the real go-gpp v0.2.0.
 //!
-//! The files under `testdata/golden` are written by `testdata/go` (run
-//! `go run ./rust/crates/gpp/testdata/go` from the repository root). Each line is one case with
-//! tab-separated fields; strings are quoted with `esc` (see the generator for the format). Every
-//! test here rebuilds the Go-side dump of a case in Rust and compares the two strings.
+//! The files under `testdata/golden` are written by `testdata/go` (run `go run .` in that
+//! directory). Each line is one case with tab-separated fields; strings are quoted with `esc` (see
+//! the generator for the format). Every test here rebuilds the Go-side dump of a case in Rust and
+//! compares the two strings.
 
 use std::{fs, path::Path};
 

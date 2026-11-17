@@ -3,7 +3,7 @@
 
 **Prebid Server Rust Parity Port**
 
-This project is to finish porting the existing Go Prebid Server codebase to Rust under `rust/`. The goal is a Rust implementation that can replace the Go server for production traffic while preserving the current server's business behavior, configuration shape, and operational expectations. Longer term, this creates an open source Rust Prebid Server base that can later carry client-side code.
+This project is to finish porting the existing Go Prebid Server codebase to Rust. This repository holds only the Rust port; the upstream Go server is the behavior reference, checked out at a pinned commit as test input and never committed. The goal is a Rust implementation that can replace the Go server for production traffic while preserving the current server's business behavior, configuration shape, and operational expectations. Longer term, this creates an open source Rust Prebid Server base that can later carry client-side code.
 
 **Core Value:** The Rust server can replace the Go server for production traffic without changing application behavior.
 
@@ -14,6 +14,15 @@ This project is to finish porting the existing Go Prebid Server codebase to Rust
 - **Scope**: Work should focus on app code and business features first — non-functional tuning happens later
 - **Reference Implementation**: The Go codebase is the source of truth for expected behavior during the port — parity decisions resolve against it
 <!-- GSD:project-end -->
+
+## Repository Layout
+
+This repository holds only the Rust port. The upstream Go server is never committed here, and upstream commits are never copied or rewritten.
+
+- The Cargo workspace is at the root: crates in `crates/`, ground truth from Go in `testdata/`, the adapter fixture ratchet in `conformance/`, and scripts in `scripts/`. `PORTING.md` is the porting contract.
+- `UPSTREAM_SYNC` pins the upstream commit the port covers. `scripts/fetch-upstream.sh` checks it out into `.upstream/`, which git ignores. Tests and tools read the Go root from `$PBS_GO_ROOT` when it is set, else from `.upstream/`, and never search for it.
+- The Go code here is test tooling only: `crates/devtools/go` and every `crates/<crate>/testdata/go`, each a Go module of its own that builds against `.upstream/`.
+- The Go paths in the Technology Stack, Conventions and Architecture sections below (`main.go`, `config/config.go`, `validate.sh` and the rest) describe the upstream server. They are relative to the Go root, not to this repository.
 
 <!-- GSD:stack-start source:codebase/STACK.md -->
 ## Technology Stack

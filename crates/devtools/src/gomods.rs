@@ -216,7 +216,7 @@ fn tooling_modules_follow_upstream() -> Result<()> {
             match upstream.require.get(path) {
                 Some(want) if want == version => {}
                 Some(want) => {
-                    problems.push(format!("{rel}: requires {path} {version}, upstream {want}"))
+                    problems.push(format!("{rel}: requires {path} {version}, upstream {want}"));
                 }
                 None => problems.push(format!(
                     "{rel}: requires {path}, which the upstream module does not"

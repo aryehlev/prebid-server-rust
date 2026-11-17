@@ -169,6 +169,7 @@ func main() {
 	targets := flag.Args()
 	pkgs := goList(targets)
 	desc := description{Generator: "pbs-devtools typegen (crates/devtools/go/typegen)"}
+
 	for _, path := range targets {
 		desc.Packages = append(desc.Packages, describe(pkgs, pkgs[path]))
 	}

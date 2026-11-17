@@ -53,6 +53,7 @@ func main() {
 	if len(os.Args) != 2 {
 		log.Fatal("usage: golden <output directory>")
 	}
+
 	out := enterUpstream(os.Args[1])
 	if err := os.MkdirAll(out, 0o755); err != nil {
 		log.Fatal(err)

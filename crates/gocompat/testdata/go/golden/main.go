@@ -29,6 +29,7 @@ func main() {
 		fmt.Fprintln(os.Stderr, "usage: golden <output dir>")
 		os.Exit(2)
 	}
+
 	outDir = enterUpstream(os.Args[1])
 	genHTTP()
 	genStrconv()

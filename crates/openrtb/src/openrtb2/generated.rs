@@ -2,7 +2,7 @@
 //
 // Source: github.com/prebid/openrtb/v20/openrtb2
 // Module: github.com/prebid/openrtb/v20@v20.3.0
-// Config: rust/crates/openrtb/typegen.json
+// Config: crates/openrtb/typegen.json
 //
 // Regenerate with `cargo run -p pbs-devtools -- typegen`; hand-written code for this
 // package lives in the other files of its module.

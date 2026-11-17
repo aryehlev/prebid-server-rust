@@ -1,7 +1,7 @@
-# cargo-deny policy for the Rust workspace. CI runs, from rust/:
+# cargo-deny policy for the Rust workspace. CI runs, from the workspace root:
 #   cargo deny --locked check --deny warnings
 # There are no exceptions anywhere in this file: no advisory ignores, no skipped duplicate
-# versions, no per-crate license exceptions. rust/scripts/check-no-lint-suppression.sh fails CI
+# versions, no per-crate license exceptions. scripts/check-no-lint-suppression.sh fails CI
 # if one is added, and the upstream-port bot may not change this file at all.
 
 [graph]

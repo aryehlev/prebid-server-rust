@@ -4,8 +4,7 @@
 //! walk, `FindElement`/`DropElement` and `MergeClone` over every shape of existing message. Every
 //! output and error must match Go byte for byte.
 //!
-//! Regenerate the goldens from the repository root with
-//! `go run ./rust/crates/gojson/testdata/go/toolkit_review`.
+//! Regenerate the goldens with `go run ./toolkit_review` in `testdata/go`.
 
 #[cfg(test)]
 mod toolkit_review {

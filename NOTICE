@@ -1,0 +1,11 @@
+prebid-server-rust
+
+This product is a Rust port of Prebid Server (https://github.com/prebid/prebid-server),
+Copyright 2017 PREBID.ORG, INC, licensed under the Apache License, Version 2.0. Its behaviour,
+its tests and the test data generated from the Go code are derived from Prebid Server.
+
+The OpenRTB, AdCOM and Native types in crates/openrtb are generated from the Go packages of
+github.com/prebid/openrtb (https://github.com/prebid/openrtb), licensed under the Apache License,
+Version 2.0, and keep their documentation comments.
+
+This project is independent. It is not affiliated with or endorsed by Prebid.org.

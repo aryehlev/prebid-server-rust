@@ -5,22 +5,31 @@ can port in parallel without diverging from Go or from each other.
 
 ## 1. Parity is the objective
 
-- The Go code at the repository root is the source of truth. Port **behaviour**, not intent: when
-  Go is awkward, inconsistent, or buggy, reproduce it exactly. Externally visible behaviour includes
-  HTTP status codes, header names/values, JSON field presence and spelling, error and warning
-  text, outgoing bidder HTTP requests (method, URI, headers, body), config keys/defaults/env
-  bindings, and metric names/labels.
-- Read the Go code itself. Do not trust names, comments, or the old Rust code in `legacy/` — it
-  was an approximation and is only a reading aid.
+- The upstream Go code at the commit `UPSTREAM_SYNC` pins (the Go root, see §2) is the source of
+  truth. Port **behaviour**, not intent: when Go is awkward, inconsistent, or buggy, reproduce it
+  exactly. Externally visible behaviour includes HTTP status codes, header names/values, JSON
+  field presence and spelling, error and warning text, outgoing bidder HTTP requests (method, URI,
+  headers, body), config keys/defaults/env bindings, and metric names/labels.
+- Read the Go code itself. Do not trust names, comments, or the old Rust code that preceded this
+  port (`rust/legacy/` on the original fork's branches) — it was an approximation and is only a
+  reading aid.
 - Cite the Go origin of non-obvious behaviour in a comment, e.g. `// Go: exchange/utils.go:412`.
 - Do not add behaviour Go does not have (no extra fields, routes, config keys, or "improvements").
   Do not port Go code that is dead in production (only reachable from Go tests).
 
 ## 2. Layout and ownership
 
-- The orchestrator owns `rust/Cargo.toml`, `rust/Cargo.lock` (merges regenerate it),
-  `rust-toolchain.toml`, `rustfmt.toml`, this file, and every crate's `lib.rs` module list unless a
-  work unit is told it owns the whole crate.
+- This repository holds only the Rust port: the Cargo workspace at the root, its crates under
+  `crates/`, the shared goldens in `testdata/`, the conformance ratchet in `conformance/` and the
+  scripts in `scripts/`. Upstream Go is never committed, and upstream commits are never copied or
+  rewritten.
+- `UPSTREAM_SYNC` pins the upstream commit the port covers. `scripts/fetch-upstream.sh` checks it
+  out into `.upstream/`, which git ignores. That checkout is the *Go root*: tests and tools read
+  Go sources, corpora and `static/` from `$PBS_GO_ROOT` when it is set, else from `.upstream/`,
+  and never search for it (`pbs_devtools::repo`). Go paths in these rules are relative to it.
+- The orchestrator owns `Cargo.toml`, `Cargo.lock` (merges regenerate it), `rust-toolchain.toml`,
+  `rustfmt.toml`, this file, and every crate's `lib.rs` module list unless a work unit is told it
+  owns the whole crate.
 - A work unit edits **only the files it owns**. If it needs a change in a shared file (a new
   workspace member, a new pub item in another crate, a fix in another unit's code), it must not make
   it; it reports the exact change in its result and works around it locally if it can.
@@ -55,9 +64,13 @@ Each of these crates documents its API in its `lib.rs` crate docs. Read them bef
 
 - Port the Go unit tests for the code you port, and replay Go's JSON corpora (adapter fixtures under
   `adapters/*/*test/`, `exchange/exchangetest/`, `endpoints/openrtb2/sample-requests/`, and others)
-  through Rust harnesses with the same comparison semantics the Go harness uses.
-- Differential tests are encouraged: a small Go program under `<crate>/testdata/go/` may generate
-  golden outputs from the real Go code, which Rust tests then compare against. Go code you author
+  through Rust harnesses with the same comparison semantics the Go harness uses. Read the corpora
+  from the Go root; never copy them into this repository.
+- Differential tests are encouraged: a small Go program under `crates/<crate>/testdata/go/` may
+  generate golden outputs from the real Go code, which Rust tests then compare against. That
+  directory is a Go module of its own: it requires `github.com/prebid/prebid-server/v4` at the
+  pinned commit's pseudo-version, replaced by `.upstream`, with upstream's `go` version and
+  dependency versions and a tidy `go.sum`, and it runs from its own directory. Go code you author
   must be `gofmt`-clean and pass `go vet`.
 - A unit is done only when its tests pass and it can state which Go corpus/test cases it reproduces.
 
@@ -71,7 +84,7 @@ Each of these crates documents its API in its `lib.rs` crate docs. Read them bef
   suppressing attribute, `#[clippy::msrv]`, `#[automatically_derived]`, and compiler overrides in
   `.cargo/config*` or the environment (`rustflags`, `rustc-wrapper`, `rustc-workspace-wrapper`,
   `runner`, `RUSTC*`, `RUSTFLAGS`). Go code we author may not use `nolint`/`nosec`/build tags.
-  `rust/scripts/check-no-lint-suppression.sh` enforces all of this in CI; its header lists the rules.
+  `scripts/check-no-lint-suppression.sh` enforces all of this in CI; its header lists the rules.
 - No `unsafe`. No `unwrap`/`expect`/`panic!`/`todo!`/`unimplemented!`/indexing that can panic —
   including in tests (tests return `Result` and use `?`).
 - Before finishing, run `cargo clippy -p <crate> --all-targets` and fix every warning in files you
@@ -178,5 +191,6 @@ requires. Optimise only what a benchmark or profile shows, and report the number
   an allocator, because `unsafe` is forbidden.
 - Benchmark dependencies follow §2 and must not add a second version of any crate
   (`clippy::multiple_crate_versions`).
-- A claim against Go needs a paired Go benchmark under `testdata/go/`. Report both, before and after.
+- A claim against Go needs a paired Go benchmark under the crate's `testdata/go/`. Report both,
+  before and after.
 - §5 applies to benchmark code: no suppression, no `unwrap`/`expect`, no panicking indexing.

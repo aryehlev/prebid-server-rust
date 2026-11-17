@@ -49,7 +49,6 @@ import (
 	"io/fs"
 	"log"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"reflect"
 	"runtime"
@@ -77,8 +76,10 @@ func main() {
 	manifest := flag.String("manifest", "../../../../testdata/go_fixture_manifest.json",
 		"the adapter test manifest that pbs-devtools writes from the adapters' *_test.go files")
 	flag.Parse()
-	openrtbDir := moduleDir("github.com/prebid/openrtb/v20")
-	enterUpstream(out, manifest)
+
+	dirs := moduleDirs()
+	enterUpstream(dirs[upstreamModule], out, manifest)
+
 	types := map[string]reflect.Type{}
 	for _, p := range portedTypes {
 		types[p.goType.String()] = p.goType
@@ -95,7 +96,7 @@ func main() {
 	write(filepath.Join(*out, "corpus.tsv"), c.roots, c.files, c.cases)
 
 	m := newCorpus(types)
-	m.module(openrtbDir)
+	m.module(dirs[openrtbModule])
 	write(filepath.Join(*out, "module.tsv"), nil, nil, m.cases)
 
 	var mutations []testCase
@@ -492,22 +493,6 @@ var moduleTests = []struct {
 	{"openrtb2/testdata/bid-response/2.6/native-markup-returned-inline.json", "openrtb2.BidResponse"},
 	{"openrtb3/testdata/request.json", "openrtb3.Body"},
 	{"openrtb3/testdata/response.json", "openrtb3.Body"},
-}
-
-// moduleDir is the directory of module mod in this module's build: the module cache for the
-// openrtb module, the upstream checkout (the go.mod replace target, .upstream/ at the repository
-// root, or the replacement in the go.work file GOWORK names) for the upstream module. It runs the
-// go command in the current directory, so it is called before enterUpstream.
-func moduleDir(mod string) string {
-	out, err := exec.Command("go", "list", "-m", "-f", "{{.Dir}}", mod).Output()
-	if err != nil {
-		log.Fatalf("go list -m %s: %v", mod, err)
-	}
-	dir := strings.TrimSpace(string(out))
-	if dir == "" {
-		log.Fatalf("go list -m %s gave no directory", mod)
-	}
-	return dir
 }
 
 // module records the openrtb module's testdata files, inline, labelled by file; files with the
