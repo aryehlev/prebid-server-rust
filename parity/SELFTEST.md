@@ -28,7 +28,8 @@ and excused 159 in every run.
 
 The 11 skipped cases are tagged `contract_gap`: the parity schemas do not yet
 accept their faithful encoding. The runner never runs them, in A/A or in
-Go-vs-Rust.
+Go-vs-Rust. After `ph/break` was merged there are 14 (see "After merging
+`ph/break`" below).
 
 **Disabled mode.** The full upstream suite, `go test ./...`, passes on this
 branch: 387 packages are `ok` and none fail. Without `parity.enabled` the
@@ -72,6 +73,20 @@ fixes for the run before it.
 | `aa-seed2026` (seed 2026, gen 5000) | 13,448 | 1 | invibes imp IDs echoed in `adapter.bids` (R2) |
 | `aa-seed2026b` | 13,448 | 2 | ownadx http calls in the hook stages (R1); tied auction winner (S6) |
 | `aa-seed2026c` and the final runs | see above | 0 | none |
+
+### After merging `ph/break`
+
+`ph/break` turned schema violations into harness errors and made the
+rate-driven floors decisions honour the envelope only where the rate leaves
+the outcome to chance. On `parity-harness`, after both merges, two classes
+appeared and were fixed there:
+
+| Run | Cases | Mismatch | Error | What it surfaced |
+|---|---|---|---|---|
+| `aa-h4-seed7` (seed 7, gen 5000) | 13,467 | 0 | 3 | Go's own bids output fails `TypedBid.type` for mabidder `simple-app-banner` (`""`) and richaudience `bidTypeNotAssigned` (`"no bidtype assigned"`, two runs). These adapter cases are now tagged `contract_gap`, like the untyped exchangetest bids. |
+| `aa-h4-seed7b` | 13,467 | 1 | 0 | Floor rejection warnings in seat bid map order (`floors/enforce.go:117`) in the AMP response's `ortb2.ext`, now that floors are enforced at enforcerate 100. `warnings_errors_order` and the other response-ext rules now also anchor at `ortb2.ext`. |
+| `aa-h4-seed7c` | 13,467 | 0 | 0 | none (14 skipped `contract_gap`; 3,534 fixtures passing, 159 excused) |
+| `aa-h4-seed42` (seed 42, gen 3000) | 11,446 | 0 | 0 | none |
 
 ## Harness bugs
 
