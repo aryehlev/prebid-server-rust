@@ -1,28 +1,33 @@
-//! Go `crypto/x509` server certificate verification, as `crypto/tls`'s client runs it
-//! (`Conn.verifyServerCertificate`: `Certificate.Verify` with the root pool, the presented
-//! intermediates and `Config.ServerName`).
+//! Go `crypto/x509` server certificate verification, as `crypto/tls`'s client runs it.
 //!
-//! Go's order is kept, so a certificate that fails several checks gets Go's error: every
-//! presented certificate is parsed first (Go's `ParseCertificate`, with its error texts); then the
-//! leaf's critical extensions and validity are checked, then its names (`VerifyHostname`, with
-//! the legacy common name text), and a leaf that is itself in the root pool is a chain of one
-//! (Go: `CertPool.contains`). Only then is a path built: rustls-webpki builds it (signatures,
-//! the intermediates' validity, basic constraints and path lengths, name constraints and its
-//! distrust list) with every extended key usage accepted, and each path it finds is checked the
-//! way Go's `buildChains` and `Verify` check theirs, for what webpki leaves out: each issuer's
-//! key usage (`keyCertSign`), the root's basic constraints, critical extensions, validity and
-//! path length, and the extended key usages nested down the chain (`checkChainForKeyUsage` with
-//! `serverAuth`). When no path verifies, the error is Go's for the paths webpki found, one
-//! rejected only for its extended key usages first (Go checks those on the chains that pass
-//! everything else); without such paths, webpki's error is mapped to Go's text.
+//! The client's `Conn.verifyServerCertificate` parses the presented certificates, runs
+//! `Certificate.Verify` with the root pool, the presented intermediates and `Config.ServerName`,
+//! then checks the leaf's key.
 //!
-//! The differences from Go are listed in the [crate docs](crate#differences-from-go).
+//! This is a port of Go 1.26's verifier, not a wrapper around another one: a chain verifies when
+//! Go's verifier accepts it, and a rejected one gets Go's error, but for the differences the
+//! [crate docs](crate#differences-from-go) list.
+//!
+//! - Every presented certificate is parsed first, with Go's rules and texts (the `cert` module),
+//!   and an RSA key over 8192 bits is refused.
+//! - The leaf's critical extensions and validity are checked, then its names (`VerifyHostname`).
+//! - A leaf in the root pool is a chain of one; otherwise chains are built as `buildChains` builds
+//!   them: candidate issuers by name, ordered by key identifiers, roots before intermediates, Go's
+//!   loop check, its limit of 100 signature checks and its error for a failed search (the last
+//!   candidate error, or the unknown authority error with the first candidate error as its hint).
+//! - Signatures are checked as `checkSignature` checks them, with Go's texts, and verified with
+//!   rustls's aws-lc-rs algorithms.
+//! - Each chain is then checked for its policies (the `policy` module), extended key usages and
+//!   name constraints (the `constraints` module), with Go's error when none passes.
 
 mod cert;
+mod constraints;
+mod ec;
+mod policy;
 #[cfg(test)]
 mod tests;
 
-use std::{borrow::Cow, cell::Cell, error::Error as StdError, fmt, net::IpAddr, ptr, sync::Arc};
+use std::{collections::BTreeMap, error::Error as StdError, fmt, net::IpAddr, slice, sync::Arc};
 
 use pbs_gocompat::{
     strconv::quote,
@@ -32,13 +37,13 @@ use rustls::{
     CertificateError, DigitallySignedStruct, Error as TlsError, OtherError, SignatureScheme,
     client::danger::{HandshakeSignatureValid, ServerCertVerified, ServerCertVerifier},
     crypto::{WebPkiSupportedAlgorithms, verify_tls12_signature, verify_tls13_signature},
-    pki_types::{CertificateDer, ServerName, TrustAnchor, UnixTime},
-};
-use webpki::{
-    EndEntityCert, Error as WebpkiError, ExtendedKeyUsageValidator, KeyPurposeIdIter, VerifiedPath,
+    pki_types::{AlgorithmIdentifier, CertificateDer, ServerName, UnixTime, alg_id},
 };
 
-use self::cert::{Certificate, KEY_USAGE_CERT_SIGN};
+use self::{
+    cert::{Certificate, KEY_USAGE_CERT_SIGN, PublicKey, SignatureAlgorithm},
+    ec::Curve,
+};
 
 const UNKNOWN_AUTHORITY: &str = "x509: certificate signed by unknown authority";
 const EXPIRED: &str = "x509: certificate has expired or is not yet valid: ";
@@ -47,15 +52,25 @@ const UNHANDLED_CRITICAL: &str = "x509: unhandled critical extension";
 const TOO_MANY_INTERMEDIATES: &str = "x509: too many intermediates for path length constraint";
 const NOT_AUTHORIZED_TO_SIGN: &str =
     "x509: certificate is not authorized to sign other certificates";
+/// Go: `CANotAuthorizedForThisName`.
+const NOT_AUTHORIZED_FOR_NAME: &str =
+    "x509: a root or intermediate certificate is not authorized to sign for this name: ";
 /// Go: `ConstraintViolationError`.
 const CONSTRAINT_VIOLATION: &str =
     "x509: invalid signature: parent certificate cannot sign this kind of certificate";
+/// Go: `ErrUnsupportedAlgorithm`.
+const UNSUPPORTED_ALGORITHM: &str = "x509: cannot verify signature: algorithm unimplemented";
+/// Go: `errSignatureLimit`.
 const SIGNATURE_LIMIT: &str =
     "x509: signature check attempts limit reached while verifying certificate chain";
 const LEGACY_COMMON_NAME: &str =
     "x509: certificate relies on legacy Common Name field, use SANs instead";
 /// Go: `HostnameError`'s `maxNamesIncluded`.
 const MAX_NAMES_INCLUDED: usize = 100;
+/// Go: `maxChainSignatureChecks`.
+const MAX_SIGNATURE_CHECKS: usize = 100;
+/// Go: `crypto/tls`'s `checkKeySize` limit for a presented RSA key (`tlsmaxrsasize` unset).
+const MAX_RSA_BITS: usize = 8192;
 
 /// Go's error for a server certificate the TLS client rejects.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -64,6 +79,8 @@ pub(crate) enum Rejection {
     Parse(String),
     /// Go: `*tls.CertificateVerificationError`, `tls: failed to verify certificate: ...`.
     Verify(String),
+    /// A `crypto/tls` error about a presented key, as Go words it.
+    Key(String),
 }
 
 impl fmt::Display for Rejection {
@@ -71,6 +88,7 @@ impl fmt::Display for Rejection {
         match self {
             Self::Parse(e) => write!(f, "tls: failed to parse certificate from server: {e}"),
             Self::Verify(e) => write!(f, "tls: failed to verify certificate: {e}"),
+            Self::Key(e) => f.write_str(e),
         }
     }
 }
@@ -83,304 +101,575 @@ pub(crate) fn parses(der: &[u8]) -> bool {
     cert::parse(der).is_ok()
 }
 
-/// A root pool ready for verification (Go: `VerifyOptions.Roots`).
-#[derive(Debug)]
-pub(crate) struct Roots {
-    /// The pool's certificates that Go parses, with their fields.
-    certs: Vec<(CertificateDer<'static>, Certificate)>,
-    /// The certificates webpki can use as trust anchors (webpki takes version 1 roots and ignores
-    /// the critical extensions it does not know in a root, so these are all of `certs` for the
-    /// Mozilla bundle and macOS's `/etc/ssl/cert.pem`). Another root still counts for Go's
-    /// pooled-leaf rule but anchors no path...
-    anchors: Vec<TrustAnchor<'static>>,
-    /// ...and the index in `certs` of each.
-    anchor_certs: Vec<usize>,
-    algs: WebPkiSupportedAlgorithms,
+/// Go: `CertPool`: certificates in the order they were added, each once (by its bytes), found by
+/// subject.
+#[derive(Debug, Default)]
+struct Pool {
+    certs: Vec<Certificate>,
+    /// Go: `byName`: the indices of the certificates with each `RawSubject`.
+    by_name: BTreeMap<Vec<u8>, Vec<usize>>,
 }
 
-/// The certificates the server presented, raw and parsed.
-#[derive(Debug, Clone, Copy)]
-struct Presented<'a> {
-    leaf: &'a Certificate,
-    /// The intermediates, in the order the server sent them.
-    ders: &'a [CertificateDer<'a>],
-    certs: &'a [Certificate],
-}
+impl Pool {
+    /// Go: `AddCert`.
+    fn add(&mut self, cert: Certificate) {
+        if self.contains(&cert.raw) {
+            return;
+        }
+        self.by_name
+            .entry(cert.subject.clone())
+            .or_default()
+            .push(self.certs.len());
+        self.certs.push(cert);
+    }
 
-impl Presented<'_> {
-    /// Go's candidate for a hint when webpki finds an intermediate that is not a CA: the first
-    /// presented certificate without `cA` that issued the leaf or another presented
-    /// certificate.
-    fn non_ca_issuer(&self) -> Option<&Certificate> {
-        self.certs.iter().find(|c| {
-            !c.basic_constraints.is_some_and(|bc| bc.is_ca)
-                && (self.leaf.issuer == c.subject
-                    || self.certs.iter().any(|other| other.issuer == c.subject))
-        })
+    /// Go: `CertPool.contains`.
+    fn contains(&self, raw: &[u8]) -> bool {
+        self.certs.iter().any(|c| c.raw == raw)
+    }
+
+    /// Go: `findPotentialParents`: the certificates whose subject is `child`'s issuer, those
+    /// whose subject key identifier is `child`'s authority key identifier first, then those
+    /// where only one of the two is present, then the rest.
+    fn potential_parents(&self, child: &Certificate) -> Vec<&Certificate> {
+        let mut matching = Vec::new();
+        let mut one = Vec::new();
+        let mut mismatch = Vec::new();
+        let indices = self
+            .by_name
+            .get(&child.issuer)
+            .map_or(&[][..], Vec::as_slice);
+        for cert in indices.iter().filter_map(|&i| self.certs.get(i)) {
+            if cert.subject_key_id == child.authority_key_id {
+                matching.push(cert);
+            } else if cert.subject_key_id.is_empty() != child.authority_key_id.is_empty() {
+                one.push(cert);
+            } else {
+                mismatch.push(cert);
+            }
+        }
+        matching.extend(one);
+        matching.extend(mismatch);
+        matching
     }
 }
 
-/// Accepts every extended key usage: Go checks them down the whole chain afterwards.
-#[derive(Debug, Clone, Copy)]
-struct AnyUsage;
+/// A root pool ready for verification (Go: `VerifyOptions.Roots`).
+#[derive(Debug)]
+pub(crate) struct Roots {
+    /// The pool's certificates that Go parses.
+    pool: Pool,
+    /// Why the system pool did not load, when this is the system pool (Go: a nil
+    /// `systemRootsPool()`, whose `SystemRootsError` every verification reports).
+    system_error: Option<String>,
+    algs: WebPkiSupportedAlgorithms,
+}
 
-impl ExtendedKeyUsageValidator for AnyUsage {
-    fn validate(&self, _iter: KeyPurposeIdIter<'_, '_>) -> Result<(), WebpkiError> {
-        Ok(())
+/// Go: `leafCertificate`, `intermediateCertificate` and `rootCertificate`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Kind {
+    Leaf,
+    Intermediate,
+    Root,
+}
+
+/// Why `buildChains` built no chain.
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum BuildError {
+    /// Go: `errSignatureLimit`, which stops the search.
+    SignatureLimit,
+    /// Any other error, as Go's text.
+    Other(String),
+}
+
+impl BuildError {
+    fn into_text(self) -> String {
+        match self {
+            Self::SignatureLimit => SIGNATURE_LIMIT.to_owned(),
+            Self::Other(e) => e,
+        }
+    }
+}
+
+/// Go: one `Verify` call's `buildChains` recursion.
+#[derive(Debug)]
+struct Builder<'a> {
+    roots: &'a Pool,
+    intermediates: &'a Pool,
+    algs: &'a WebPkiSupportedAlgorithms,
+    now: &'a Time,
+    /// Go: `sigChecks`, shared by the whole search.
+    sig_checks: usize,
+}
+
+impl<'a> Builder<'a> {
+    /// Go: `buildChains(currentChain)`: every chain from the last certificate of `current` to a
+    /// root, or Go's error. Go's named result `err` is overwritten by each candidate that passes
+    /// the signature check, so the error of a search that finds nothing is the last such
+    /// candidate's (it is invalid, or no chain was found above it), and the unknown authority
+    /// error only when none passed.
+    fn build(
+        &mut self,
+        current: &[&'a Certificate],
+    ) -> Result<Vec<Vec<&'a Certificate>>, BuildError> {
+        let Some(&child) = current.last() else {
+            return Ok(Vec::new());
+        };
+        let (roots, intermediates) = (self.roots, self.intermediates);
+        let mut chains = Vec::new();
+        let mut err: Option<BuildError> = None;
+        let mut hint: Option<(String, &Certificate)> = None;
+        'candidates: for (kind, parents) in [
+            (Kind::Root, roots.potential_parents(child)),
+            (Kind::Intermediate, intermediates.potential_parents(child)),
+        ] {
+            for candidate in parents {
+                self.sig_checks += 1;
+                if self.sig_checks > MAX_SIGNATURE_CHECKS {
+                    err = Some(BuildError::SignatureLimit);
+                    break 'candidates;
+                }
+                if candidate.public_key == PublicKey::Unknown
+                    || already_in_chain(candidate, current)
+                {
+                    continue;
+                }
+                if let Err(e) = check_signature_from(child, candidate, self.algs) {
+                    if hint.is_none() {
+                        hint = Some((e, candidate));
+                    }
+                    continue;
+                }
+                if let Err(e) = is_valid(candidate, kind, current, self.now) {
+                    if hint.is_none() {
+                        hint = Some((e.clone(), candidate));
+                    }
+                    err = Some(BuildError::Other(e));
+                    continue;
+                }
+                err = None;
+                let chain = [current, slice::from_ref(&candidate)].concat();
+                if kind == Kind::Root {
+                    chains.push(chain);
+                    continue;
+                }
+                match self.build(&chain) {
+                    Ok(found) => chains.extend(found),
+                    Err(BuildError::SignatureLimit) => {
+                        err = Some(BuildError::SignatureLimit);
+                        break 'candidates;
+                    }
+                    Err(e) => err = Some(e),
+                }
+            }
+        }
+        if !chains.is_empty() {
+            return Ok(chains);
+        }
+        Err(err.unwrap_or_else(|| BuildError::Other(unknown_authority(hint))))
     }
 }
 
 impl Roots {
     /// Parses the pool once (Go parses each pooled certificate lazily, with the same result).
-    pub(crate) fn new(pool: &[CertificateDer<'static>], algs: WebPkiSupportedAlgorithms) -> Self {
-        let mut certs = Vec::with_capacity(pool.len());
-        let mut anchors = Vec::with_capacity(pool.len());
-        let mut anchor_certs = Vec::with_capacity(pool.len());
-        for der in pool {
-            let Ok(parsed) = cert::parse(der) else {
-                continue;
-            };
-            if let Ok(anchor) = webpki::anchor_from_trusted_cert(der) {
-                anchors.push(anchor.to_owned());
-                anchor_certs.push(certs.len());
-            }
-            certs.push((der.clone(), parsed));
+    /// `system_error` is why the system pool did not load, when the pool stands for it.
+    pub(crate) fn new(
+        pool: &[CertificateDer<'static>],
+        system_error: Option<String>,
+        algs: WebPkiSupportedAlgorithms,
+    ) -> Self {
+        let mut parsed = Pool::default();
+        for cert in pool.iter().filter_map(|der| cert::parse(der).ok()) {
+            parsed.add(cert);
         }
         Self {
-            certs,
-            anchors,
-            anchor_certs,
+            pool: parsed,
+            system_error,
             algs,
         }
     }
 
-    /// Go: `verifyServerCertificate`'s parsing and `Certificate.Verify` for `host` at `now`.
+    /// Go: `verifyServerCertificate` for `host` at `now`: the presented certificates are parsed,
+    /// `Certificate.Verify` runs, and the leaf's key must be one TLS signs with.
     pub(crate) fn verify(
         &self,
         end_entity: &CertificateDer<'_>,
         intermediates: &[CertificateDer<'_>],
         host: &str,
-        now: UnixTime,
+        now: &Time,
     ) -> Result<(), Rejection> {
-        let leaf = cert::parse(end_entity).map_err(Rejection::Parse)?;
-        let certs = intermediates
-            .iter()
-            .map(|der| cert::parse(der))
-            .collect::<Result<Vec<_>, _>>()
-            .map_err(Rejection::Parse)?;
-        let go_now = Time::from_unix(i64::try_from(now.as_secs()).unwrap_or(i64::MAX), 0);
-        check_valid(&leaf, &go_now).map_err(Rejection::Verify)?;
-        verify_hostname(&leaf, host).map_err(Rejection::Verify)?;
-        // Go: `opts.Roots.contains(c)`: a pooled leaf is a chain of one.
-        if self
-            .certs
-            .iter()
-            .any(|(der, _)| der.as_ref() == end_entity.as_ref())
-        {
-            return if leaf.server_auth {
-                Ok(())
-            } else {
-                Err(Rejection::Verify(INCOMPATIBLE_USAGE.to_owned()))
-            };
+        let leaf = parse_presented(end_entity)?;
+        let mut presented = Pool::default();
+        for der in intermediates {
+            presented.add(parse_presented(der)?);
         }
-        let presented = Presented {
-            leaf: &leaf,
-            ders: intermediates,
-            certs: &certs,
+        if let Some(e) = &self.system_error {
+            return Err(Rejection::Verify(format!(
+                "x509: failed to load system roots and no roots provided; {e}"
+            )));
+        }
+        self.verify_chains(&leaf, &presented, host, now)
+            .map_err(Rejection::Verify)?;
+        let key_type = match leaf.public_key {
+            PublicKey::Rsa | PublicKey::Ecdsa(_) | PublicKey::Ed25519 => return Ok(()),
+            PublicKey::Dsa => "*dsa.PublicKey",
+            PublicKey::Unknown => "<nil>",
         };
-        self.build(end_entity, presented, now, &go_now)
-            .map_err(Rejection::Verify)
+        Err(Rejection::Key(format!(
+            "tls: server's certificate contains an unsupported type of public key: {key_type}"
+        )))
     }
 
-    /// Go: `buildChains` and `Verify`'s chain checks, over the paths webpki builds.
-    fn build(
+    /// Go: `Certificate.Verify` from the leaf's checks on.
+    fn verify_chains(
         &self,
-        end_entity: &CertificateDer<'_>,
-        presented: Presented<'_>,
-        now: UnixTime,
-        go_now: &Time,
-    ) -> Result<(), String> {
-        let ee =
-            EndEntityCert::try_from(end_entity).map_err(|e| webpki_text(&e, presented, go_now))?;
-        // Go's error for the paths webpki found and Go rejects. Go checks the extended key usages
-        // only on the chains that pass every other check, so a path rejected for them decides.
-        let rejected: Cell<Option<String>> = Cell::new(None);
-        let check = |path: &VerifiedPath<'_>| {
-            self.check_path(path, presented, go_now).map_err(|text| {
-                let usage = rejected.take().filter(|e| e == INCOMPATIBLE_USAGE);
-                rejected.set(Some(usage.unwrap_or(text)));
-                WebpkiError::UnknownIssuer
-            })
-        };
-        let verified = ee.verify_for_usage(
-            self.algs.all,
-            &self.anchors,
-            presented.ders,
-            now,
-            AnyUsage,
-            None,
-            Some(&check),
-        );
-        match verified {
-            Ok(_path) => Ok(()),
-            Err(e) => Err(rejected
-                .take()
-                .unwrap_or_else(|| webpki_text(&e, presented, go_now))),
-        }
-    }
-
-    /// Go's checks of a path that webpki does not make: `CheckSignatureFrom`'s checks of each
-    /// issuer and `isValid`'s critical extensions, from the leaf up, then the root's validity
-    /// and path length, then the extended key usages down the chain.
-    fn check_path(
-        &self,
-        path: &VerifiedPath<'_>,
-        presented: Presented<'_>,
+        leaf: &Certificate,
+        intermediates: &Pool,
+        host: &str,
         now: &Time,
     ) -> Result<(), String> {
-        let root = self
-            .anchors
-            .iter()
-            .position(|anchor| ptr::eq(anchor, path.anchor()))
-            .and_then(|i| self.anchor_certs.get(i))
-            .and_then(|&i| self.certs.get(i))
-            .map(|(_, cert)| cert)
-            .ok_or(UNKNOWN_AUTHORITY)?;
-        let mut issuers: Vec<&Certificate> = Vec::new();
-        for intermediate in path.intermediate_certificates() {
-            let der = intermediate.der();
-            let cert = presented
-                .ders
-                .iter()
-                .position(|d| d.as_ref() == der.as_ref())
-                .and_then(|i| presented.certs.get(i))
-                .ok_or(UNKNOWN_AUTHORITY)?;
-            issuers.push(cert);
+        is_valid(leaf, Kind::Leaf, &[], now)?;
+        if !host.is_empty() {
+            verify_hostname(leaf, host)?;
         }
-        let intermediates = issuers.len();
-        issuers.push(root);
-        for issuer in &issuers {
-            if !may_sign(issuer) {
-                return Err(hint(CONSTRAINT_VIOLATION, issuer));
+        let candidates = if self.pool.contains(&leaf.raw) {
+            vec![vec![leaf]]
+        } else {
+            let mut builder = Builder {
+                roots: &self.pool,
+                intermediates,
+                algs: &self.algs,
+                now,
+                sig_checks: 0,
+            };
+            builder.build(&[leaf]).map_err(BuildError::into_text)?
+        };
+        let mut invalid_policies = 0_usize;
+        let mut incompatible_usage = 0_usize;
+        let mut constraints_error: Option<String> = None;
+        for chain in &candidates {
+            if !policy::policies_valid(chain) {
+                invalid_policies += 1;
+            } else if !chain.iter().all(|c| c.server_auth) {
+                // Go: checkChainForKeyUsage with ExtKeyUsageServerAuth.
+                incompatible_usage += 1;
+            } else if let Err(e) = constraints::check_chain(chain) {
+                if constraints_error.is_none() {
+                    constraints_error = Some(format!("{NOT_AUTHORIZED_FOR_NAME}{e}"));
+                }
+            } else {
+                return Ok(());
             }
-            if issuer.unhandled_critical {
-                return Err(UNHANDLED_CRITICAL.to_owned());
-            }
         }
-        check_valid(root, now)?;
-        let max_path_len = root.basic_constraints.and_then(|bc| bc.max_path_len);
-        if max_path_len.is_some_and(|max| u64::try_from(intermediates).is_ok_and(|n| n > max)) {
-            return Err(TOO_MANY_INTERMEDIATES.to_owned());
+        if let Some(e) = constraints_error {
+            return Err(e);
         }
-        if !(presented.leaf.server_auth && issuers.iter().all(|c| c.server_auth)) {
+        if incompatible_usage > 0 && invalid_policies == 0 {
             return Err(INCOMPATIBLE_USAGE.to_owned());
         }
-        Ok(())
+        let mut details = Vec::new();
+        if incompatible_usage > 0 {
+            details.push(format!(
+                "{incompatible_usage} candidate chains with incompatible key usage"
+            ));
+        }
+        if invalid_policies > 0 {
+            details.push(format!(
+                "{invalid_policies} candidate chains with invalid policies"
+            ));
+        }
+        Err(if details.is_empty() {
+            "x509: no valid chains built".to_owned()
+        } else {
+            format!("x509: no valid chains built: {}", details.join(", "))
+        })
     }
 }
 
-/// Go: `CheckSignatureFrom`'s checks of the parent: a version 3 certificate needs basic
-/// constraints, basic constraints need `cA`, and a key usage needs `keyCertSign`.
-const fn may_sign(parent: &Certificate) -> bool {
-    let ca = match parent.basic_constraints {
-        Some(bc) => bc.is_ca,
-        None => parent.version != 3,
-    };
-    ca && (parent.key_usage == 0 || parent.key_usage & KEY_USAGE_CERT_SIGN != 0)
+/// Go: one certificate of `verifyServerCertificate`'s parsing loop.
+fn parse_presented(der: &[u8]) -> Result<Certificate, Rejection> {
+    let cert = cert::parse(der).map_err(Rejection::Parse)?;
+    if cert.rsa.is_some_and(|key| key.bits > MAX_RSA_BITS) {
+        return Err(Rejection::Key(format!(
+            "tls: server sent certificate containing RSA key larger than {MAX_RSA_BITS} bits"
+        )));
+    }
+    Ok(cert)
 }
 
-/// Go: `UnknownAuthorityError` with the error that rejected a candidate issuer.
-fn hint(reason: &str, candidate: &Certificate) -> String {
-    format!(
-        "{UNKNOWN_AUTHORITY} (possibly because of {} while trying to verify candidate authority \
-         certificate {})",
-        quote(reason),
-        quote(&candidate.display_name())
-    )
+/// Go: `alreadyInChain`: a certificate with the same subject and key is in the chain, and both
+/// lack a subject alternative name or carry the same one. Go stops at the first certificate with
+/// the same subject and key where only one of the two has the extension.
+fn already_in_chain(candidate: &Certificate, chain: &[&Certificate]) -> bool {
+    for cert in chain {
+        if cert.subject != candidate.subject || cert.spki != candidate.spki {
+            continue;
+        }
+        match (&candidate.san, &cert.san) {
+            (None, None) => return true,
+            (Some(a), Some(b)) if a == b => return true,
+            (Some(_), Some(_)) => {}
+            (None, Some(_)) | (Some(_), None) => return false,
+        }
+    }
+    false
 }
 
-/// Go: `isValid`'s checks that do not depend on the chain: critical extensions, then validity.
-fn check_valid(cert: &Certificate, now: &Time) -> Result<(), String> {
+/// Go: `UnknownAuthorityError` with the first error that rejected a candidate issuer.
+fn unknown_authority(hint: Option<(String, &Certificate)>) -> String {
+    match hint {
+        None => UNKNOWN_AUTHORITY.to_owned(),
+        Some((reason, candidate)) => format!(
+            "{UNKNOWN_AUTHORITY} (possibly because of {} while trying to verify candidate \
+             authority certificate {})",
+            quote(&reason),
+            quote(&candidate.display_name())
+        ),
+    }
+}
+
+/// Go: `isValid` for a certificate of `kind` above `chain` (empty for the leaf). Go's check that
+/// the child's issuer is this certificate's subject always passes here: candidates are found by
+/// that name.
+fn is_valid(
+    cert: &Certificate,
+    kind: Kind,
+    chain: &[&Certificate],
+    now: &Time,
+) -> Result<(), String> {
     if cert.unhandled_critical {
         return Err(UNHANDLED_CRITICAL.to_owned());
     }
     if now.before(&cert.not_before) {
-        return Err(not_yet_valid(now, &cert.not_before));
+        return Err(format!(
+            "{EXPIRED}current time {} is before {}",
+            now.format(time::RFC3339),
+            cert.not_before.format(time::RFC3339)
+        ));
     }
     if now.after(&cert.not_after) {
-        return Err(expired(now, &cert.not_after));
+        return Err(format!(
+            "{EXPIRED}current time {} is after {}",
+            now.format(time::RFC3339),
+            cert.not_after.format(time::RFC3339)
+        ));
+    }
+    if kind == Kind::Intermediate && !cert.basic_constraints.is_some_and(|bc| bc.is_ca) {
+        return Err(NOT_AUTHORIZED_TO_SIGN.to_owned());
+    }
+    // Go: `len(currentChain) - 1` intermediates lie below (-1 for the leaf).
+    let below = chain
+        .len()
+        .checked_sub(1)
+        .and_then(|n| u64::try_from(n).ok());
+    if let Some(max) = cert.basic_constraints.and_then(|bc| bc.max_path_len)
+        && below.is_some_and(|intermediates| intermediates > max)
+    {
+        return Err(TOO_MANY_INTERMEDIATES.to_owned());
     }
     Ok(())
 }
 
-fn not_yet_valid(now: &Time, not_before: &Time) -> String {
-    format!(
-        "{EXPIRED}current time {} is before {}",
-        now.format(time::RFC3339),
-        not_before.format(time::RFC3339)
+/// Go: `CheckSignatureFrom`: `parent` may sign certificates, and its key verifies `child`'s
+/// signature. (Go's check of the parent's key algorithm is moot: `buildChains` skips parents
+/// without a key.)
+fn check_signature_from(
+    child: &Certificate,
+    parent: &Certificate,
+    algs: &WebPkiSupportedAlgorithms,
+) -> Result<(), String> {
+    let ca = parent
+        .basic_constraints
+        .map_or(parent.version != 3, |bc| bc.is_ca);
+    if !ca || (parent.key_usage != 0 && parent.key_usage & KEY_USAGE_CERT_SIGN == 0) {
+        return Err(CONSTRAINT_VIOLATION.to_owned());
+    }
+    check_signature(child, parent, algs)
+}
+
+/// Go's hashes, as `signatureAlgorithmDetails` names them.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Hash {
+    /// Go: `crypto.Hash(0)`: Ed25519 hashes the message itself.
+    None,
+    Md5,
+    Sha1,
+    Sha256,
+    Sha384,
+    Sha512,
+}
+
+/// Go: `PublicKeyAlgorithm`, with `String`'s names.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum KeyAlgorithm {
+    Unknown,
+    Rsa,
+    Dsa,
+    Ecdsa,
+    Ed25519,
+}
+
+impl KeyAlgorithm {
+    const fn name(self) -> &'static str {
+        match self {
+            Self::Unknown => "0",
+            Self::Rsa => "RSA",
+            Self::Dsa => "DSA",
+            Self::Ecdsa => "ECDSA",
+            Self::Ed25519 => "Ed25519",
+        }
+    }
+}
+
+/// Go: `signatureAlgorithmDetails`: the name, the hash and the key algorithm of a signature
+/// algorithm (`Unknown` has none of them).
+const fn details(alg: SignatureAlgorithm) -> (&'static str, Hash, KeyAlgorithm) {
+    use KeyAlgorithm as K;
+    use SignatureAlgorithm as S;
+    match alg {
+        S::Unknown => ("0", Hash::None, K::Unknown),
+        S::Md5WithRsa => ("MD5-RSA", Hash::Md5, K::Rsa),
+        S::Sha1WithRsa => ("SHA1-RSA", Hash::Sha1, K::Rsa),
+        S::Sha256WithRsa => ("SHA256-RSA", Hash::Sha256, K::Rsa),
+        S::Sha384WithRsa => ("SHA384-RSA", Hash::Sha384, K::Rsa),
+        S::Sha512WithRsa => ("SHA512-RSA", Hash::Sha512, K::Rsa),
+        S::Sha256WithRsaPss => ("SHA256-RSAPSS", Hash::Sha256, K::Rsa),
+        S::Sha384WithRsaPss => ("SHA384-RSAPSS", Hash::Sha384, K::Rsa),
+        S::Sha512WithRsaPss => ("SHA512-RSAPSS", Hash::Sha512, K::Rsa),
+        S::DsaWithSha1 => ("DSA-SHA1", Hash::Sha1, K::Dsa),
+        S::DsaWithSha256 => ("DSA-SHA256", Hash::Sha256, K::Dsa),
+        S::EcdsaWithSha1 => ("ECDSA-SHA1", Hash::Sha1, K::Ecdsa),
+        S::EcdsaWithSha256 => ("ECDSA-SHA256", Hash::Sha256, K::Ecdsa),
+        S::EcdsaWithSha384 => ("ECDSA-SHA384", Hash::Sha384, K::Ecdsa),
+        S::EcdsaWithSha512 => ("ECDSA-SHA512", Hash::Sha512, K::Ecdsa),
+        S::PureEd25519 => ("Ed25519", Hash::None, K::Ed25519),
+    }
+}
+
+/// The rustls (aws-lc-rs) algorithm for a signature Go would verify: the key's and the
+/// signature's algorithm identifiers. `None` for what rustls does not offer (P-224 keys).
+fn rustls_algorithm(alg: SignatureAlgorithm, key: PublicKey) -> Option<[AlgorithmIdentifier; 2]> {
+    use SignatureAlgorithm as S;
+    let curve = |c| match c {
+        Curve::P256 => Some(alg_id::ECDSA_P256),
+        Curve::P384 => Some(alg_id::ECDSA_P384),
+        Curve::P521 => Some(alg_id::ECDSA_P521),
+        Curve::P224 => None,
+    };
+    let ids = match (alg, key) {
+        (S::Sha256WithRsa, PublicKey::Rsa) => [alg_id::RSA_ENCRYPTION, alg_id::RSA_PKCS1_SHA256],
+        (S::Sha384WithRsa, PublicKey::Rsa) => [alg_id::RSA_ENCRYPTION, alg_id::RSA_PKCS1_SHA384],
+        (S::Sha512WithRsa, PublicKey::Rsa) => [alg_id::RSA_ENCRYPTION, alg_id::RSA_PKCS1_SHA512],
+        (S::Sha256WithRsaPss, PublicKey::Rsa) => [alg_id::RSA_ENCRYPTION, alg_id::RSA_PSS_SHA256],
+        (S::Sha384WithRsaPss, PublicKey::Rsa) => [alg_id::RSA_ENCRYPTION, alg_id::RSA_PSS_SHA384],
+        (S::Sha512WithRsaPss, PublicKey::Rsa) => [alg_id::RSA_ENCRYPTION, alg_id::RSA_PSS_SHA512],
+        (S::EcdsaWithSha256, PublicKey::Ecdsa(c)) => [curve(c)?, alg_id::ECDSA_SHA256],
+        (S::EcdsaWithSha384, PublicKey::Ecdsa(c)) => [curve(c)?, alg_id::ECDSA_SHA384],
+        (S::EcdsaWithSha512, PublicKey::Ecdsa(c)) => [curve(c)?, alg_id::ECDSA_SHA512],
+        (S::PureEd25519, PublicKey::Ed25519) => [alg_id::ED25519, alg_id::ED25519],
+        _ => return None,
+    };
+    Some(ids)
+}
+
+/// Verifies `child`'s signature with `parent`'s key using the rustls algorithm for it.
+fn rustls_verify(
+    child: &Certificate,
+    parent: &Certificate,
+    algs: &WebPkiSupportedAlgorithms,
+) -> Option<bool> {
+    let [key, signature] = rustls_algorithm(child.signature_algorithm, parent.public_key)?;
+    let alg = algs
+        .all
+        .iter()
+        .find(|a| a.public_key_alg_id() == key && a.signature_alg_id() == signature)?;
+    Some(
+        alg.verify_signature(&parent.public_key_bytes, &child.tbs, &child.signature)
+            .is_ok(),
     )
 }
 
-fn expired(now: &Time, not_after: &Time) -> String {
-    format!(
-        "{EXPIRED}current time {} is after {}",
-        now.format(time::RFC3339),
-        not_after.format(time::RFC3339)
-    )
+/// Go: `checkSignature(child.SignatureAlgorithm, child.RawTBSCertificate, child.Signature,
+/// parent.PublicKey, false)`.
+fn check_signature(
+    child: &Certificate,
+    parent: &Certificate,
+    algs: &WebPkiSupportedAlgorithms,
+) -> Result<(), String> {
+    let (name, hash, key_algorithm) = details(child.signature_algorithm);
+    match hash {
+        Hash::None if key_algorithm != KeyAlgorithm::Ed25519 => {
+            return Err(UNSUPPORTED_ALGORITHM.to_owned());
+        }
+        Hash::Md5 | Hash::Sha1 => {
+            return Err(format!(
+                "x509: cannot verify signature: insecure algorithm {name}"
+            ));
+        }
+        Hash::None | Hash::Sha256 | Hash::Sha384 | Hash::Sha512 => {}
+    }
+    let (want, key_type, failure) = match parent.public_key {
+        PublicKey::Rsa => (
+            KeyAlgorithm::Rsa,
+            "*rsa.PublicKey",
+            "crypto/rsa: verification error",
+        ),
+        PublicKey::Ecdsa(_) => (
+            KeyAlgorithm::Ecdsa,
+            "*ecdsa.PublicKey",
+            "x509: ECDSA verification failure",
+        ),
+        PublicKey::Ed25519 => (
+            KeyAlgorithm::Ed25519,
+            "ed25519.PublicKey",
+            "x509: Ed25519 verification failure",
+        ),
+        PublicKey::Dsa | PublicKey::Unknown => return Err(UNSUPPORTED_ALGORITHM.to_owned()),
+    };
+    if key_algorithm != want {
+        return Err(format!(
+            "x509: signature algorithm specifies an {} public key, but have public key of type \
+             {key_type}",
+            key_algorithm.name()
+        ));
+    }
+    if let Some(rsa) = parent.rsa {
+        rsa_key_check(rsa)?;
+    }
+    match rustls_verify(child, parent, algs) {
+        Some(true) => Ok(()),
+        Some(false) => Err(failure.to_owned()),
+        None => Err(UNSUPPORTED_ALGORITHM.to_owned()),
+    }
 }
 
-/// A webpki time as a Go time.
-fn go_time(t: UnixTime) -> Time {
-    Time::from_unix(i64::try_from(t.as_secs()).unwrap_or(i64::MAX), 0)
-}
-
-/// Go's text for the failure webpki reports when no path verified.
-fn webpki_text(e: &WebpkiError, presented: Presented<'_>, now: &Time) -> String {
-    if let WebpkiError::CertExpired { not_after, .. } = e {
-        return expired(now, &go_time(*not_after));
+/// Go 1.26 `crypto/rsa`'s checks of a key before it verifies (`checkPublicKeySize`, then
+/// `checkPublicKey`), and the sizes aws-lc-rs verifies with (2048 to 8192 bits), which Go does
+/// not limit.
+fn rsa_key_check(key: cert::RsaKey) -> Result<(), String> {
+    if key.bits < 1024 {
+        return Err(format!(
+            "crypto/rsa: {}-bit keys are insecure (see \
+             https://go.dev/pkg/crypto/rsa#hdr-Minimum_key_size)",
+            key.bits
+        ));
     }
-    if let WebpkiError::CertNotValidYet { not_before, .. } = e {
-        return not_yet_valid(now, &go_time(*not_before));
+    if !key.odd {
+        return Err("crypto/rsa: public modulus is even".to_owned());
     }
-    if matches!(e, WebpkiError::UnsupportedCriticalExtension) {
-        return UNHANDLED_CRITICAL.to_owned();
+    if key.exponent < 2 {
+        return Err("crypto/rsa: public exponent too small or negative".to_owned());
     }
-    if matches!(e, WebpkiError::PathLenConstraintViolated) {
-        return TOO_MANY_INTERMEDIATES.to_owned();
+    if key.exponent % 2 == 0 {
+        return Err("crypto/rsa: public exponent is even".to_owned());
     }
-    if matches!(e, WebpkiError::MaximumSignatureChecksExceeded) {
-        return SIGNATURE_LIMIT.to_owned();
+    if key.exponent > i64::from(i32::MAX) {
+        return Err("crypto/rsa: public exponent too large".to_owned());
     }
-    if matches!(
-        e,
-        WebpkiError::EndEntityUsedAsCa | WebpkiError::UnsupportedCertVersion
-    ) && let Some(candidate) = presented.non_ca_issuer()
-    {
-        // Go rejects a version 3 candidate without cA in CheckSignatureFrom (a hint), and an
-        // older one, which webpki does not parse, in isValid.
-        return if may_sign(candidate) {
-            NOT_AUTHORIZED_TO_SIGN.to_owned()
-        } else {
-            hint(CONSTRAINT_VIOLATION, candidate)
-        };
+    if !(2048..=MAX_RSA_BITS).contains(&key.bits) {
+        return Err(UNSUPPORTED_ALGORITHM.to_owned());
     }
-    if matches!(
-        e,
-        WebpkiError::UnknownIssuer
-            | WebpkiError::InvalidSignatureForPublicKey
-            | WebpkiError::UnsupportedSignatureAlgorithmContext(_)
-            | WebpkiError::UnsupportedSignatureAlgorithmForPublicKeyContext(_)
-            | WebpkiError::SignatureAlgorithmMismatch
-            | WebpkiError::CaUsedAsEndEntity
-            | WebpkiError::EndEntityUsedAsCa
-            | WebpkiError::UnsupportedCertVersion
-            | WebpkiError::CertDistrusted
-            | WebpkiError::MaximumPathDepthExceeded
-            | WebpkiError::MaximumPathBuildCallsExceeded
-    ) {
-        return UNKNOWN_AUTHORITY.to_owned();
-    }
-    format!("x509: {e}")
+    Ok(())
 }
 
 /// Go: `Certificate.VerifyHostname`.
@@ -419,7 +708,7 @@ fn verify_hostname(cert: &Certificate, h: &str) -> Result<(), String> {
 
 /// Go: `HostnameError.Error`.
 fn hostname_error(cert: &Certificate, host: &str) -> String {
-    if !cert.has_san && match_hostnames(&cert.common_name, host) {
+    if cert.san.is_none() && match_hostnames(&cert.common_name, host) {
         return LEGACY_COMMON_NAME.to_owned();
     }
     let valid = if host.parse::<IpAddr>().is_ok() {
@@ -516,7 +805,8 @@ fn match_hostnames(pattern: &str, host: &str) -> bool {
 #[derive(Debug)]
 pub(crate) struct ServerVerifier {
     roots: Arc<Roots>,
-    /// The name as the transport has it; rustls's [`ServerName`] drops a trailing dot.
+    /// The name as the transport has it; rustls's [`ServerName`] drops a trailing dot and the
+    /// brackets of an IPv6 address.
     host: Option<String>,
 }
 
@@ -533,14 +823,15 @@ impl ServerCertVerifier for ServerVerifier {
         intermediates: &[CertificateDer<'_>],
         server_name: &ServerName<'_>,
         _ocsp_response: &[u8],
-        now: UnixTime,
+        _now: UnixTime,
     ) -> Result<ServerCertVerified, TlsError> {
-        let host: Cow<'_, str> = self
+        let host = self
             .host
-            .as_deref()
-            .map_or_else(|| server_name.to_str(), Cow::Borrowed);
+            .clone()
+            .unwrap_or_else(|| server_name.to_str().into_owned());
+        // Go: `Config.time()`, the clock to the nanosecond; rustls's time has whole seconds.
         self.roots
-            .verify(end_entity, intermediates, &host, now)
+            .verify(end_entity, intermediates, &host, &Time::now())
             .map(|()| ServerCertVerified::assertion())
             .map_err(|r| {
                 TlsError::InvalidCertificate(CertificateError::Other(OtherError(Arc::new(r))))

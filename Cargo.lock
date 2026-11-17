@@ -282,7 +282,6 @@ dependencies = [
  "pbs-gocompat",
  "pbs-util",
  "rustls",
- "rustls-webpki",
  "serde_json",
  "socket2",
  "tokio",

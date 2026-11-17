@@ -8,8 +8,10 @@
 //! # TLS stack
 //!
 //! rustls 0.23 with the aws-lc-rs provider performs the handshake. The server's certificate is
-//! checked by [`crate::x509`]'s verifier: Go's `Certificate.Verify` order and error texts over
-//! rustls-webpki's path building, against a [`CertPool`] loaded the way Go loads one. The
+//! checked by [`crate::x509`]'s verifier, a port of Go's (its parser, `Certificate.Verify` and
+//! error texts, with aws-lc-rs verifying the signatures), against a [`CertPool`] loaded the way Go
+//! loads one: [`CertPool::system`] when `RootCAs` is unset, whose load error Go reports for every
+//! verification (`x509: failed to load system roots and no roots provided; ...`). The
 //! alternatives, weighed against Go's behaviour, the licence allow list and the workspace's one
 //! version per crate:
 //!
@@ -48,7 +50,7 @@
 
 use std::{
     env,
-    ffi::OsStr,
+    ffi::{OsStr, OsString},
     fmt, fs,
     io::{self, ErrorKind},
     path::{Path, PathBuf},
@@ -163,12 +165,31 @@ impl CertPool {
     /// The first open error other than "not found" (Go's `*fs.PathError` text) when no
     /// certificate was loaded.
     pub fn system() -> Result<Self, HttpError> {
+        Self::load_system().map_err(HttpError::Message)
+    }
+
+    /// Go: `loadSystemRoots`, with the error as Go's text.
+    fn load_system() -> Result<Self, String> {
+        Self::load_roots(
+            env::var_os("SSL_CERT_FILE"),
+            env::var_os("SSL_CERT_DIR"),
+            (&CERT_FILES, &CERT_DIRECTORIES),
+        )
+    }
+
+    /// Go: `loadSystemRoots` given `SSL_CERT_FILE` and `SSL_CERT_DIR` (empty is unset) and the
+    /// default files and directories.
+    fn load_roots(
+        env_file: Option<OsString>,
+        env_dir: Option<OsString>,
+        (cert_files, cert_directories): (&[&str], &[&str]),
+    ) -> Result<Self, String> {
         let mut roots = Self::new();
         let mut first_err: Option<String> = None;
-        let env_file = env::var_os("SSL_CERT_FILE").filter(|f| !f.is_empty());
+        let env_file = env_file.filter(|f| !f.is_empty());
         let files: Vec<&OsStr> = env_file
             .as_deref()
-            .map_or_else(|| CERT_FILES.iter().map(OsStr::new).collect(), |f| vec![f]);
+            .map_or_else(|| cert_files.iter().map(OsStr::new).collect(), |f| vec![f]);
         for file in files {
             match read_file(file) {
                 Ok(data) => {
@@ -182,10 +203,10 @@ impl CertPool {
                 }
             }
         }
-        let env_dir = env::var_os("SSL_CERT_DIR").filter(|d| !d.is_empty());
+        let env_dir = env_dir.filter(|d| !d.is_empty());
         // Go: strings.Split(d, ":"), which split_paths does on the variable's bytes on Unix.
         let dirs: Vec<PathBuf> = env_dir.map_or_else(
-            || CERT_DIRECTORIES.iter().map(PathBuf::from).collect(),
+            || cert_directories.iter().map(PathBuf::from).collect(),
             |d| env::split_paths(&d).collect(),
         );
         for dir in &dirs {
@@ -214,17 +235,26 @@ impl CertPool {
             }
         }
         match first_err {
-            Some(e) if roots.is_empty() => Err(HttpError::Message(e)),
+            Some(e) if roots.is_empty() => Err(e),
             Some(_) | None => Ok(roots),
         }
     }
 
-    /// The process's system pool, loaded once (Go: `systemRoots`).
+    /// The process's system pool, loaded once (Go: `systemRoots`); empty when it did not load.
     #[must_use]
     pub fn system_shared() -> &'static Self {
-        static SYSTEM: OnceLock<CertPool> = OnceLock::new();
-        SYSTEM.get_or_init(|| Self::system().unwrap_or_default())
+        system_roots().as_ref().unwrap_or(&EMPTY_POOL)
     }
+}
+
+/// The pool that stands for a system pool that did not load.
+static EMPTY_POOL: CertPool = CertPool::new();
+
+/// Go: `systemRootsPool()` and `systemRootsErr`: the system pool, or why it did not load, read
+/// once.
+fn system_roots() -> &'static Result<CertPool, String> {
+    static SYSTEM: OnceLock<Result<CertPool, String>> = OnceLock::new();
+    SYSTEM.get_or_init(CertPool::load_system)
 }
 
 /// Go: `tls.Config`, the fields the transport uses.
@@ -239,13 +269,19 @@ pub struct TlsConfig {
 impl TlsConfig {
     /// Builds the rustls configuration and the verifier's root pool (once per transport).
     pub(crate) fn client(&self) -> Result<TlsClient, HttpError> {
-        let pool = self
-            .root_cas
-            .as_ref()
-            .unwrap_or_else(|| CertPool::system_shared());
+        // Go: a nil `RootCAs` is the system pool, and `Verify` fails with `SystemRootsError` when
+        // that did not load.
+        let (pool, system_error) = self.root_cas.as_ref().map_or_else(
+            || match system_roots() {
+                Ok(pool) => (pool, None),
+                Err(e) => (&EMPTY_POOL, Some(e.clone())),
+            },
+            |pool| (pool, None),
+        );
         let provider = aws_lc_rs::default_provider();
         let roots = Arc::new(Roots::new(
             &pool.certs,
+            system_error,
             provider.signature_verification_algorithms,
         ));
         let mut config = ClientConfig::builder_with_provider(Arc::new(provider))
@@ -508,13 +544,14 @@ pub(crate) async fn handshake(
         .unwrap_or(server_name);
     let name = ServerName::try_from(host.to_owned())
         .map_err(|e| HttpError::Message(format!("tls: {e}")))?;
-    // Go verifies against the name as given; rustls's ServerName drops a trailing dot.
+    // Go verifies against the name as given (`VerifyHostname` takes an IPv6 address in
+    // brackets); rustls's ServerName drops a trailing dot.
     let mut config = ClientConfig::clone(&client.config);
     config
         .dangerous()
         .set_certificate_verifier(Arc::new(ServerVerifier::new(
             Arc::clone(&client.roots),
-            Some(host.to_owned()),
+            Some(server_name.to_owned()),
         )));
     let connector = TlsConnector::from(Arc::new(config));
     match connector
@@ -538,10 +575,101 @@ pub(crate) async fn handshake(
 
 #[cfg(test)]
 mod tests {
+    use std::process;
+
+    use serde_json::Value;
     use tokio::io::empty;
 
     use super::*;
     use crate::testutil::ensure_eq;
+
+    /// A directory of the test's own under the temporary directory, removed when dropped.
+    struct TempDir(PathBuf);
+
+    impl TempDir {
+        fn new(name: &str) -> Result<Self, String> {
+            let dir = env::temp_dir().join(format!("pbs-gohttp-client-{name}-{}", process::id()));
+            let _absent = fs::remove_dir_all(&dir);
+            fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+            Ok(Self(dir))
+        }
+
+        /// Writes `data` to `name` in the directory, creating the parents.
+        fn write(&self, name: &str, data: &[u8]) -> Result<PathBuf, String> {
+            let path = self.0.join(name);
+            if let Some(parent) = path.parent() {
+                fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+            }
+            fs::write(&path, data).map_err(|e| e.to_string())?;
+            Ok(path)
+        }
+    }
+
+    impl Drop for TempDir {
+        fn drop(&mut self) {
+            let _removed = fs::remove_dir_all(&self.0);
+        }
+    }
+
+    /// A certificate of the x509 golden as PEM.
+    fn golden_pem(name: &str) -> Result<String, String> {
+        let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("testdata/golden/x509.json");
+        let content = fs::read(&path).map_err(|e| format!("{}: {e}", path.display()))?;
+        let golden: Value = serde_json::from_slice(&content).map_err(|e| e.to_string())?;
+        golden
+            .pointer(&format!("/certs/{name}"))
+            .and_then(Value::as_str)
+            .map(str::to_owned)
+            .ok_or_else(|| format!("missing {name}"))
+    }
+
+    /// Go's `loadSystemRoots` on Linux: `SSL_CERT_FILE` and `SSL_CERT_DIR` (colon separated,
+    /// empty is unset), missing paths, directories for files and files for directories.
+    #[test]
+    fn system_root_loading() -> Result<(), String> {
+        let tmp = TempDir::new("roots")?;
+        let one = tmp.write("one.pem", golden_pem("root")?.as_bytes())?;
+        let _two = tmp.write("a/two.pem", golden_pem("other_root")?.as_bytes())?;
+        let _again = tmp.write("b/one.pem", golden_pem("root")?.as_bytes())?;
+        let empty = tmp.write("empty.pem", b"")?;
+        let path = |p: &Path| p.display().to_string();
+        let (dir_a, dir_b, missing) = (tmp.0.join("a"), tmp.0.join("b"), tmp.0.join("missing"));
+        let dirs = format!("{}:{}::{}", path(&missing), path(&dir_a), path(&dir_b));
+        let none: [&str; 0] = [];
+        let load = |file: &str, dir: &str, defaults: (&[&str], &[&str])| {
+            CertPool::load_roots(Some(file.into()), Some(dir.into()), defaults)
+                .map(|pool| pool.len())
+        };
+        let (one, empty, missing) = (path(&one), path(&empty), path(&missing));
+        let tmp_dir = path(&tmp.0);
+        let defaults = (&none[..], &none[..]);
+        ensure_eq(&load(&missing, &missing, defaults), &Ok(0), "missing")?;
+        ensure_eq(&load(&one, &missing, defaults), &Ok(1), "file")?;
+        ensure_eq(&load(&missing, &dirs, defaults), &Ok(2), "directories")?;
+        ensure_eq(
+            &load(&tmp_dir, &missing, defaults),
+            &Err(format!("read {tmp_dir}: is a directory")),
+            "directory as the file",
+        )?;
+        ensure_eq(
+            &load(&missing, &one, defaults),
+            &Err(format!("open {one}: not a directory")),
+            "file as a directory",
+        )?;
+        ensure_eq(
+            &load(&tmp_dir, &path(&dir_a), defaults),
+            &Ok(1),
+            "an error with roots",
+        )?;
+        let one_first = [missing.as_str(), one.as_str(), empty.as_str()];
+        ensure_eq(&load("", "", (&one_first, &none)), &Ok(1), "first readable")?;
+        let empty_first = [missing.as_str(), empty.as_str(), one.as_str()];
+        ensure_eq(
+            &load("", "", (&empty_first, &none)),
+            &Ok(0),
+            "first readable is empty",
+        )
+    }
 
     #[test]
     fn alert_texts() -> Result<(), String> {

@@ -57,46 +57,36 @@
 //! reads the Linux locations on every platform, which on macOS finds the `/etc/ssl/cert.pem`
 //! bundle. The [`tls`] module docs explain the choice of TLS stack.
 //!
-//! [`x509`] verifies server certificates with Go's order of checks and Go's error texts over
-//! rustls-webpki's path building; `testdata/golden/x509.json`, written by Go, pins both. Where
-//! webpki decides differently, the port follows webpki:
+//! [`x509`] is a port of Go 1.26's server certificate verification (`crypto/tls`'s
+//! `verifyServerCertificate` over `crypto/x509`'s parser and `Certificate.Verify`): Go's parsing
+//! rules, chain building, policy, extended key usage and name constraint checks, and error texts.
+//! `testdata/golden/x509.json` and `testdata/golden/x509_adversarial.json`, written by Go, pin
+//! them. What differs:
 //!
-//! - A leaf that is a CA certificate (`cA` set) is rejected with `x509: certificate signed by
-//!   unknown authority`. Go accepts it.
-//! - A leaf or intermediate with a critical certificate policies, policy mappings, policy
-//!   constraints or inhibit anyPolicy extension is rejected with `x509: unhandled critical
-//!   extension`. Go handles these four; in a root both accept them.
-//! - An empty extended key usage extension is rejected with `x509: EmptyEkuExtension`. Go reads it
-//!   as no restriction.
-//! - Go's RFC 5280 policy validation (`policiesValid`) is not run, so a chain that Go rejects for
-//!   its policy constraints (`x509: no valid chains built: ... candidate chains with invalid
-//!   policies`) verifies.
-//! - A name constraint violation is reported as `x509: NameConstraintViolation`, without Go's text
-//!   (`x509: a root or intermediate certificate is not authorized to sign for this name: ...`).
-//!   Go's checks of the constraint values when it parses a certificate (`x509: failed to parse
-//!   dnsName constraint ...` and the like) are not made; webpki judges the values as it verifies.
-//! - When a candidate issuer's signature does not verify (another key, or an algorithm webpki does
-//!   not take), the error is the plain `x509: certificate signed by unknown authority`, without
-//!   Go's `(possibly because of ... while trying to verify candidate authority certificate ...)`.
-//! - Signatures are checked with rustls's aws-lc-rs algorithms, whose RSA ones take keys of 2048 to
-//!   8192 bits. Go verifies with RSA keys from 1024 bits.
-//! - Public keys are not parsed with their certificates, so Go's key errors (`x509: invalid RSA
-//!   modulus`, `x509: unsupported elliptic curve`, ...) and its `tls: server sent certificate
-//!   containing RSA key larger than 8192 bits` are not reported: such a key fails a signature check
-//!   later, with another error. URI names are not parsed either, so a certificate Go rejects for
-//!   one (`x509: cannot parse URI ...`) is accepted.
-//! - A path through a certificate whose key is on rustls-webpki 0.103's built-in distrust list
-//!   (eight CA keys, in that crate's `src/data/distrusted`) is rejected with `x509: certificate
-//!   signed by unknown authority`. Go has no such list.
-//! - A path holds at most six intermediates, and path building has a budget of calls, as webpki
-//!   sets them; past them the error is `x509: certificate signed by unknown authority`. Go limits
-//!   only the signature checks, to 100 as webpki does.
-//! - A leaf or intermediate whose basic constraints carry a path length above 255 is rejected with
-//!   `x509: BadDer` (webpki reads the value as one byte). Go accepts it.
-//! - When several paths fail, or one path fails several checks, the error reported follows webpki's
-//!   order of checks and its ranking of errors where they differ from Go's.
+//! - Signatures are verified with rustls's aws-lc-rs algorithms, whose RSA ones take keys of 2048
+//!   to 8192 bits and which have no ECDSA on P-224. Go verifies RSA signatures from 1024 bits (a
+//!   root's key has no upper limit) and P-224 ones. The port fails such a signature with `x509:
+//!   cannot verify signature: algorithm unimplemented`, so the chain fails as one whose issuer is
+//!   unknown, with that error as the candidate's.
+//! - aws-lc-rs judges encodings at the edges of its algorithms (a non-canonical Ed25519 key, for
+//!   one) by its own rules, not those of Go's `crypto/ed25519`, `crypto/ecdsa` and `crypto/rsa`.
+//! - The handshake's own signature (TLS 1.3 `CertificateVerify`, TLS 1.2 `ServerKeyExchange`) is
+//!   verified by rustls, which reads the leaf with rustls-webpki: a leaf that Go's verifier accepts
+//!   but webpki does not read (a version 1 or 2 certificate, or a critical extension webpki does
+//!   not know, such as certificate policies) fails the handshake there, with another error.
+//! - Go's `net.ParseIP` (for the server name and URI name constraints) is approximated by Rust's
+//!   `IpAddr` parser, which takes no zones; rustls's `ServerName` refuses some names Go would send
+//!   (an IPv6 address with a zone, a name with a space) before the handshake.
+//! - Go sorts the constraints of one name type with `slices.SortFunc`, which is not stable past
+//!   twelve elements; the port sorts stably, so among many constraints that compare equal, the one
+//!   quoted in an error may differ.
+//! - PEM is decoded by rustls-pki-types, not Go's `encoding/pem`: a block with headers, or text Go
+//!   skips between blocks, may be read differently.
+//! - A P-256 coordinate that is not below the prime gets the text of Go's amd64 and arm64 builds
+//!   (`invalid P256 element encoding`); other architectures say `invalid P256Element encoding`.
 //! - The TLS alert sent for a rejected certificate is `certificate_unknown`, where Go sends
-//!   `bad_certificate`, or `decode_error` for a certificate it cannot parse.
+//!   `bad_certificate`, `decode_error` for a certificate it cannot parse, or
+//!   `unsupported_certificate` for a leaf key it does not sign with.
 
 pub mod bufio;
 pub mod chunked;

@@ -2,12 +2,12 @@
 //! reads, and Go's error texts for a certificate it rejects.
 //!
 //! The structure is checked as Go checks it, with Go's DER rules (`cryptobyte`: low tag numbers,
-//! minimal definite lengths, minimal integers), and so are the extensions verification reads
-//! (key usage, basic constraints, subject alternative names, extended key usage) and the ones Go
-//! rejects when marked critical (key identifiers, authority information access). Not ported:
-//! the public key (Go parses RSA, ECDSA, Ed25519 and X25519 keys here; rustls-webpki checks keys
-//! when it verifies signatures), the URI syntax check of URI names, and the value checks of name
-//! constraints, which rustls-webpki enforces.
+//! minimal definite lengths, minimal integers), and so is every extension Go reads: key usage,
+//! basic constraints, subject alternative names (URI names parsed with Go's `url.Parse`), name
+//! constraints with their values, extended key usage, key identifiers, the policy extensions,
+//! and the ones Go rejects when marked critical. The public key is parsed as Go's
+//! `parsePublicKey` parses it (RSA, ECDSA on Go's four curves, Ed25519 and DSA; other algorithms
+//! leave no key, as in Go), with Go's texts for a key it rejects.
 
 use std::{
     net::{IpAddr, Ipv4Addr, Ipv6Addr},
@@ -15,8 +15,14 @@ use std::{
 };
 
 use pbs_gocompat::{
-    strconv::quote,
+    strconv::{quote, quote_bytes},
     time::{self, DateFields, Time},
+    url::Url,
+};
+
+use super::{
+    constraints::{domain_name_valid, hex, parse_mailbox},
+    ec::{self, Curve},
 };
 
 const BOOLEAN: u8 = 0x01;
@@ -169,16 +175,7 @@ impl<'a> Der<'a> {
 
     /// Go: `ReadASN1Integer` into an `int64` (`tag` lets Go's `ReadASN1Int64WithTag` share it).
     fn read_int(&mut self, tag: u8) -> Option<i64> {
-        let bytes = self.read(tag)?;
-        if !minimal_integer(bytes) || bytes.len() > 8 {
-            return None;
-        }
-        let init: i64 = if bytes.first().is_some_and(|b| b & 0x80 != 0) {
-            -1
-        } else {
-            0
-        };
-        Some(bytes.iter().fold(init, |n, &b| (n << 8) | i64::from(b)))
+        int64(self.read(tag)?)
     }
 
     /// Go: `ReadASN1Integer` into a `uint`, then `parseBasicConstraintsExtension`'s
@@ -209,7 +206,7 @@ impl<'a> Der<'a> {
     }
 
     /// Go: `ReadASN1BitString`: the bytes, whose unused trailing bits must be zero.
-    fn read_bit_string(&mut self) -> Option<&'a [u8]> {
+    fn read_bit_string(&mut self) -> Option<BitString<'a>> {
         let mut ahead = *self;
         let contents = ahead.read(BIT_STRING)?;
         let (&padding, bytes) = contents.split_first()?;
@@ -223,7 +220,34 @@ impl<'a> Der<'a> {
             return None;
         }
         *self = ahead;
-        Some(bytes)
+        Some(BitString { bytes, padding })
+    }
+}
+
+/// Go: `asn1.BitString`: the bytes and the number of unused bits at the end.
+#[derive(Debug, Clone, Copy)]
+struct BitString<'a> {
+    bytes: &'a [u8],
+    padding: u8,
+}
+
+impl BitString<'_> {
+    /// Go: `BitString.RightAlign`: the bits shifted right so that the unused ones lead, as Go
+    /// reads signatures and public keys.
+    fn right_align(self) -> Vec<u8> {
+        if self.padding == 0 {
+            return self.bytes.to_vec();
+        }
+        let shift = self.padding;
+        let mut carry = 0_u8;
+        self.bytes
+            .iter()
+            .map(|&b| {
+                let aligned = carry | (b >> shift);
+                carry = b << (8 - shift);
+                aligned
+            })
+            .collect()
     }
 }
 
@@ -235,6 +259,20 @@ const fn minimal_integer(bytes: &[u8]) -> bool {
         [0xFF, next, ..] => *next & 0x80 == 0,
         _ => true,
     }
+}
+
+/// An INTEGER's contents as an `int64` (Go: `ReadASN1Integer` and `encoding/asn1`'s
+/// `parseInt64`).
+fn int64(bytes: &[u8]) -> Option<i64> {
+    if !minimal_integer(bytes) || bytes.len() > 8 {
+        return None;
+    }
+    let init: i64 = if bytes.first().is_some_and(|b| b & 0x80 != 0) {
+        -1
+    } else {
+        0
+    };
+    Some(bytes.iter().fold(init, |n, &b| (n << 8) | i64::from(b)))
 }
 
 /// Go: `readBase128Int`: at most five bytes, below 2^31, without a leading `0x80`.
@@ -419,14 +457,341 @@ fn utc_time(value: &[u8]) -> Option<Time> {
     Some(Time::date(&fields, t.location().clone()))
 }
 
+/// An algorithm identifier: the OID's contents and the parameters' whole element (Go:
+/// `pkix.AlgorithmIdentifier` with `Parameters.FullBytes`).
+#[derive(Debug, Clone, Copy)]
+struct Algorithm<'a> {
+    oid: &'a [u8],
+    params: Option<&'a [u8]>,
+}
+
 /// Go: `parseAI`.
-fn parse_algorithm(der: &[u8]) -> Result<(), String> {
+fn parse_algorithm(der: &[u8]) -> Result<Algorithm<'_>, String> {
     let mut ai = Der(der);
-    let _algorithm = ai.read_oid().ok_or("x509: malformed OID")?;
-    if !ai.is_empty() {
-        let _parameters = ai.read_any().ok_or("x509: malformed parameters")?;
+    let oid = ai.read_oid().ok_or("x509: malformed OID")?;
+    let params = if ai.is_empty() {
+        None
+    } else {
+        Some(ai.read_any().ok_or("x509: malformed parameters")?.all)
+    };
+    Ok(Algorithm { oid, params })
+}
+
+/// Go: `encoding/asn1` reading a `pkix.AlgorithmIdentifier` inside RSA-PSS parameters: an OID,
+/// then any element as the parameters, and Go ignores what follows inside the SEQUENCE.
+fn algorithm_in<'a>(der: &mut Der<'a>) -> Option<Algorithm<'a>> {
+    let mut seq = Der(der.read(SEQUENCE)?);
+    let oid = seq.read_oid()?;
+    let params = if seq.is_empty() {
+        None
+    } else {
+        Some(seq.read_any()?.all)
+    };
+    Some(Algorithm { oid, params })
+}
+
+/// Go: `encoding/asn1`'s `tagAndLength`.
+#[derive(Debug, Clone, Copy)]
+struct Asn1Header {
+    class: u8,
+    constructed: bool,
+    number: u64,
+    len: usize,
+}
+
+impl Asn1Header {
+    /// A context-specific tag `[number]`.
+    const fn is_context(self, number: u64) -> bool {
+        self.class == 2 && self.number == number
     }
-    Ok(())
+}
+
+/// Go: `encoding/asn1`'s `parseTagAndLength`: it reads high tag numbers, and its callers check
+/// the length against the input only for the element they read the contents of.
+fn asn1_header(input: &[u8]) -> Option<(Asn1Header, &[u8])> {
+    let (&first, mut rest) = input.split_first()?;
+    let mut number = u64::from(first & 0x1F);
+    if number == 0x1F {
+        let (high, after) = base128(rest)?;
+        if high < 0x1F {
+            return None;
+        }
+        number = high;
+        rest = after;
+    }
+    let (&length, mut rest) = rest.split_first()?;
+    let len = if length & 0x80 == 0 {
+        usize::from(length)
+    } else {
+        let (bytes, after) = rest.split_at_checked(usize::from(length & 0x7F))?;
+        rest = after;
+        let mut len = 0_usize;
+        for &b in bytes {
+            if len >= 1 << 23 {
+                return None;
+            }
+            len = (len << 8) | usize::from(b);
+            if len == 0 {
+                return None;
+            }
+        }
+        if len < 0x80 {
+            return None;
+        }
+        len
+    };
+    let header = Asn1Header {
+        class: first >> 6,
+        constructed: first & 0x20 != 0,
+        number,
+        len,
+    };
+    Some((header, rest))
+}
+
+impl Der<'_> {
+    /// Go: `encoding/asn1`'s explicit tag `[number]` on a field without a default: a
+    /// constructed element with contents, whose length Go ignores, and the field's element is
+    /// read from the bytes after its header.
+    fn enter_explicit(&mut self, number: u64) -> Option<()> {
+        let (wrapper, inner) = asn1_header(self.0)?;
+        if inner.is_empty()
+            || !wrapper.is_context(number)
+            || !wrapper.constructed
+            || wrapper.len == 0
+        {
+            return None;
+        }
+        self.0 = inner;
+        Some(())
+    }
+}
+
+/// Go: `pssParameters.TrailerField`, `asn1:"optional,explicit,tag:3,default:1"`, read from what
+/// follows the salt length: an element that does not match leaves the default, but a header
+/// Go cannot read, an explicit tag with nothing after it, an empty `[3]`, or an INTEGER Go
+/// cannot read fails the parameters.
+fn trailer_field(rest: &[u8]) -> Option<i64> {
+    if rest.is_empty() {
+        return Some(1);
+    }
+    let (wrapper, inner) = asn1_header(rest)?;
+    if inner.is_empty() {
+        return None;
+    }
+    if !wrapper.is_context(3) || !(wrapper.constructed || wrapper.len == 0) {
+        return Some(1);
+    }
+    if wrapper.len == 0 {
+        return None;
+    }
+    let (int, contents) = asn1_header(inner)?;
+    if int.class != 0 || int.number != u64::from(INTEGER) || int.constructed {
+        return Some(1);
+    }
+    int64(contents.get(..int.len)?)
+}
+
+const NULL: &[u8] = &[0x05, 0x00];
+const OID_RSA: &[u8] = &[0x2A, 0x86, 0x48, 0x86, 0xF7, 0x0D, 0x01, 0x01, 0x01];
+const OID_RSA_PSS: &[u8] = &[0x2A, 0x86, 0x48, 0x86, 0xF7, 0x0D, 0x01, 0x01, 0x0A];
+const OID_MGF1: &[u8] = &[0x2A, 0x86, 0x48, 0x86, 0xF7, 0x0D, 0x01, 0x01, 0x08];
+const OID_SHA256: &[u8] = &[0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x01];
+const OID_SHA384: &[u8] = &[0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x02];
+const OID_SHA512: &[u8] = &[0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x03];
+const OID_DSA: &[u8] = &[0x2A, 0x86, 0x48, 0xCE, 0x38, 0x04, 0x01];
+const OID_ECDSA: &[u8] = &[0x2A, 0x86, 0x48, 0xCE, 0x3D, 0x02, 0x01];
+const OID_ED25519: &[u8] = &[0x2B, 0x65, 0x70];
+
+/// Go: `x509.SignatureAlgorithm`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) enum SignatureAlgorithm {
+    Unknown,
+    Md5WithRsa,
+    Sha1WithRsa,
+    Sha256WithRsa,
+    Sha384WithRsa,
+    Sha512WithRsa,
+    Sha256WithRsaPss,
+    Sha384WithRsaPss,
+    Sha512WithRsaPss,
+    DsaWithSha1,
+    DsaWithSha256,
+    EcdsaWithSha1,
+    EcdsaWithSha256,
+    EcdsaWithSha384,
+    EcdsaWithSha512,
+    PureEd25519,
+}
+
+/// Go: `getSignatureAlgorithmFromAI`.
+fn signature_algorithm(ai: Algorithm<'_>) -> SignatureAlgorithm {
+    use SignatureAlgorithm as S;
+    const RSA_PKCS1: [u8; 8] = [0x2A, 0x86, 0x48, 0x86, 0xF7, 0x0D, 0x01, 0x01];
+    const ECDSA: [u8; 6] = [0x2A, 0x86, 0x48, 0xCE, 0x3D, 0x04];
+    if ai.oid == OID_ED25519 {
+        return if ai.params.is_some() {
+            S::Unknown
+        } else {
+            S::PureEd25519
+        };
+    }
+    if ai.oid == OID_RSA_PSS {
+        return pss_algorithm(ai.params);
+    }
+    match ai.oid {
+        [p @ .., 0x04] if p == RSA_PKCS1 => S::Md5WithRsa,
+        [p @ .., 0x05] if p == RSA_PKCS1 => S::Sha1WithRsa,
+        [0x2B, 0x0E, 0x03, 0x02, 0x1D] => S::Sha1WithRsa,
+        [p @ .., 0x0B] if p == RSA_PKCS1 => S::Sha256WithRsa,
+        [p @ .., 0x0C] if p == RSA_PKCS1 => S::Sha384WithRsa,
+        [p @ .., 0x0D] if p == RSA_PKCS1 => S::Sha512WithRsa,
+        [0x2A, 0x86, 0x48, 0xCE, 0x38, 0x04, 0x03] => S::DsaWithSha1,
+        [0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x03, 0x02] => S::DsaWithSha256,
+        [p @ .., 0x01] if p == ECDSA => S::EcdsaWithSha1,
+        [p @ .., 0x03, 0x02] if p == ECDSA => S::EcdsaWithSha256,
+        [p @ .., 0x03, 0x03] if p == ECDSA => S::EcdsaWithSha384,
+        [p @ .., 0x03, 0x04] if p == ECDSA => S::EcdsaWithSha512,
+        _ => S::Unknown,
+    }
+}
+
+/// Go: the RSA-PSS case of `getSignatureAlgorithmFromAI`, which reads the parameters with
+/// `encoding/asn1` (see [`Der::enter_explicit`] and [`trailer_field`]): the MGF1 hash must be the
+/// message hash, the salt as long as the hash, and the trailer field the default.
+fn pss_algorithm(params: Option<&[u8]>) -> SignatureAlgorithm {
+    let absent_or_null = |p: Option<&[u8]>| p.is_none_or(|p| p == NULL);
+    let parsed = (|| {
+        let mut fields = Der(Der(params?).read(SEQUENCE)?);
+        fields.enter_explicit(0)?;
+        let hash = algorithm_in(&mut fields)?;
+        fields.enter_explicit(1)?;
+        let mgf = algorithm_in(&mut fields)?;
+        fields.enter_explicit(2)?;
+        let salt = fields.read_int(INTEGER)?;
+        let trailer = trailer_field(fields.0)?;
+        let mgf_hash = algorithm_in(&mut Der(mgf.params?))?;
+        let valid = absent_or_null(hash.params)
+            && mgf.oid == OID_MGF1
+            && mgf_hash.oid == hash.oid
+            && absent_or_null(mgf_hash.params)
+            && trailer == 1;
+        valid.then_some((hash.oid, salt))
+    })();
+    match parsed {
+        Some((OID_SHA256, 32)) => SignatureAlgorithm::Sha256WithRsaPss,
+        Some((OID_SHA384, 48)) => SignatureAlgorithm::Sha384WithRsaPss,
+        Some((OID_SHA512, 64)) => SignatureAlgorithm::Sha512WithRsaPss,
+        Some(_) | None => SignatureAlgorithm::Unknown,
+    }
+}
+
+/// Go: the type of `Certificate.PublicKey`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) enum PublicKey {
+    /// Go: `nil`, for an algorithm `x509` does not parse (X25519 among them).
+    Unknown,
+    /// Go: `*rsa.PublicKey`.
+    Rsa,
+    /// Go: `*dsa.PublicKey`.
+    Dsa,
+    /// Go: `*ecdsa.PublicKey`.
+    Ecdsa(Curve),
+    /// Go: `ed25519.PublicKey`.
+    Ed25519,
+}
+
+/// A big-endian INTEGER's contents, minimally encoded (Go: `ReadASN1Integer` into a `*big.Int`).
+fn read_big(der: &mut Der<'_>) -> Option<Vec<u8>> {
+    der.read(INTEGER)
+        .filter(|b| minimal_integer(b))
+        .map(<[u8]>::to_vec)
+}
+
+/// Whether a minimal two's complement integer is above zero.
+fn positive(int: &[u8]) -> bool {
+    int.first().is_some_and(|b| b & 0x80 == 0) && int.iter().any(|&b| b != 0)
+}
+
+/// The bit length of a positive minimal integer.
+fn bit_len(int: &[u8]) -> usize {
+    let digits = int.strip_prefix(&[0]).unwrap_or(int);
+    digits.first().map_or(0, |&top| {
+        digits.len() * 8 - usize::try_from(top.leading_zeros()).unwrap_or(0)
+    })
+}
+
+/// What Go's RSA verification checks of a key (`crypto/rsa`'s `checkPublicKeySize` and
+/// `checkPublicKey`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) struct RsaKey {
+    /// Go: `N.BitLen()`.
+    pub(super) bits: usize,
+    /// Whether the modulus is odd.
+    pub(super) odd: bool,
+    /// Go: `E`.
+    pub(super) exponent: i64,
+}
+
+/// Go: `parsePublicKey`; returns the key's type and, for RSA, what verification checks.
+fn parse_public_key(ai: Algorithm<'_>, data: &[u8]) -> Result<(PublicKey, Option<RsaKey>), String> {
+    match ai.oid {
+        OID_RSA => {
+            if ai.params != Some(NULL) {
+                return Err("x509: RSA key missing NULL parameters".to_owned());
+            }
+            let mut der = Der(Der(data)
+                .read(SEQUENCE)
+                .ok_or("x509: invalid RSA public key")?);
+            let n = read_big(&mut der).ok_or("x509: invalid RSA modulus")?;
+            let e = der
+                .read_int(INTEGER)
+                .ok_or("x509: invalid RSA public exponent")?;
+            if !positive(&n) {
+                return Err("x509: RSA modulus is not a positive number".to_owned());
+            }
+            if e <= 0 {
+                return Err("x509: RSA public exponent is not a positive number".to_owned());
+            }
+            let rsa = RsaKey {
+                bits: bit_len(&n),
+                odd: n.last().is_some_and(|b| b & 1 == 1),
+                exponent: e,
+            };
+            Ok((PublicKey::Rsa, Some(rsa)))
+        }
+        OID_ECDSA => {
+            let curve_oid = Der(ai.params.unwrap_or_default())
+                .read_oid()
+                .ok_or("x509: invalid ECDSA parameters")?;
+            let curve = Curve::from_oid(curve_oid).ok_or("x509: unsupported elliptic curve")?;
+            ec::check_public_key(curve, data)?;
+            Ok((PublicKey::Ecdsa(curve), None))
+        }
+        OID_ED25519 => {
+            if ai.params.is_some() {
+                return Err("x509: Ed25519 key encoded with illegal parameters".to_owned());
+            }
+            if data.len() != 32 {
+                return Err("x509: wrong Ed25519 public key size".to_owned());
+            }
+            Ok((PublicKey::Ed25519, None))
+        }
+        OID_DSA => {
+            let y = read_big(&mut Der(data)).ok_or("x509: invalid DSA public key")?;
+            let mut outer = Der(ai.params.unwrap_or_default());
+            let mut params = Der(outer.read(SEQUENCE).ok_or("x509: invalid DSA parameters")?);
+            let mut pqg = Vec::with_capacity(3);
+            for _ in 0..3 {
+                pqg.push(read_big(&mut params).ok_or("x509: invalid DSA parameters")?);
+            }
+            if !(positive(&y) && pqg.iter().all(|v| positive(v))) {
+                return Err("x509: zero or negative DSA parameter".to_owned());
+            }
+            Ok((PublicKey::Dsa, None))
+        }
+        _ => Ok((PublicKey::Unknown, None)),
+    }
 }
 
 /// Go: `BasicConstraintsValid` with `IsCA` and `MaxPathLen` (`None`: Go's -1).
@@ -436,9 +801,14 @@ pub(super) struct BasicConstraints {
     pub(super) max_path_len: Option<u64>,
 }
 
+/// Go: `PolicyMapping`: the issuer's and the subject's domain policy, as the OIDs' contents.
+pub(super) type PolicyMapping = (Vec<u8>, Vec<u8>);
+
 /// A parsed certificate: what verification and Go's error texts read.
 #[derive(Debug, Clone)]
 pub(super) struct Certificate {
+    /// Go: `Raw`, the whole certificate.
+    pub(super) raw: Vec<u8>,
     /// Go: `RawIssuer`.
     pub(super) issuer: Vec<u8>,
     /// Go: `RawSubject`.
@@ -458,17 +828,76 @@ pub(super) struct Certificate {
     pub(super) basic_constraints: Option<BasicConstraints>,
     /// Go: `KeyUsage`.
     pub(super) key_usage: u16,
-    /// Whether the certificate has a subject alternative name extension.
-    pub(super) has_san: bool,
+    /// The subject alternative name extension's value (Go: `hasSANExtension`, and what
+    /// `alreadyInChain` compares).
+    pub(super) san: Option<Vec<u8>>,
     /// Go: `DNSNames`.
     pub(super) dns_names: Vec<String>,
-    /// Go: `IPAddresses`.
+    /// Go: `EmailAddresses`.
+    pub(super) email_addresses: Vec<String>,
+    /// Go: `IPAddresses` (four bytes are IPv4, sixteen IPv6).
     pub(super) ip_addresses: Vec<IpAddr>,
+    /// Go: `URIs`.
+    pub(super) uris: Vec<Url>,
     /// Whether the extended key usages allow server authentication: none listed, `any`, or
     /// `serverAuth` (Go: `checkChainForKeyUsage` with `ExtKeyUsageServerAuth`).
     pub(super) server_auth: bool,
     /// Go: `len(UnhandledCriticalExtensions) > 0`.
     pub(super) unhandled_critical: bool,
+    /// Go: `RawTBSCertificate`, what the signature covers.
+    pub(super) tbs: Vec<u8>,
+    /// Go: `SignatureAlgorithm`.
+    pub(super) signature_algorithm: SignatureAlgorithm,
+    /// Go: `Signature` (right-aligned).
+    pub(super) signature: Vec<u8>,
+    /// Go: `RawSubjectPublicKeyInfo`.
+    pub(super) spki: Vec<u8>,
+    /// The type of Go's `PublicKey`.
+    pub(super) public_key: PublicKey,
+    /// The subject public key's bits, right-aligned as Go parses them, which is what signature
+    /// algorithms take.
+    pub(super) public_key_bytes: Vec<u8>,
+    /// What Go's RSA verification checks of an RSA key.
+    pub(super) rsa: Option<RsaKey>,
+    /// Go: `SubjectKeyId`.
+    pub(super) subject_key_id: Vec<u8>,
+    /// Go: `AuthorityKeyId`.
+    pub(super) authority_key_id: Vec<u8>,
+    /// Go's name constraint fields, when the extension is present (Go: `hasNameConstraints`).
+    pub(super) name_constraints: Option<NameConstraints>,
+    /// Go: `Policies`, as DER contents.
+    pub(super) policies: Vec<Vec<u8>>,
+    /// Go: `PolicyMappings`: issuer and subject domain policies.
+    pub(super) policy_mappings: Vec<PolicyMapping>,
+    /// Go: `RequireExplicitPolicy`, when the field is present.
+    pub(super) require_explicit_policy: Option<i64>,
+    /// Go: `InhibitPolicyMapping`, when the field is present.
+    pub(super) inhibit_policy_mapping: Option<i64>,
+    /// Go: `InhibitAnyPolicy`, when the extension is present.
+    pub(super) inhibit_any_policy: Option<i64>,
+}
+
+/// An IP range of a name constraint: the address and mask as the certificate holds them.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(super) struct IpNet {
+    pub(super) ip: Vec<u8>,
+    pub(super) mask: Vec<u8>,
+}
+
+/// The permitted or excluded names of a name constraints extension, by Go's types.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub(super) struct Subtrees {
+    pub(super) dns: Vec<String>,
+    pub(super) ips: Vec<IpNet>,
+    pub(super) emails: Vec<String>,
+    pub(super) uris: Vec<String>,
+}
+
+/// Go: `Permitted...` and `Excluded...`.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub(super) struct NameConstraints {
+    pub(super) permitted: Subtrees,
+    pub(super) excluded: Subtrees,
 }
 
 impl Certificate {
@@ -529,7 +958,7 @@ pub(super) fn parse(der: &[u8]) -> Result<Certificate, String> {
     if inner_algorithm != outer_algorithm {
         return Err("x509: inner and outer signature algorithm identifiers don't match".to_owned());
     }
-    parse_algorithm(inner_algorithm)?;
+    let signature_algorithm = signature_algorithm(parse_algorithm(inner_algorithm)?);
     let issuer = tbs.read_element(SEQUENCE).ok_or("x509: malformed issuer")?;
     let _issuer_names = parse_name(issuer)?;
     let mut validity = Der(tbs.read(SEQUENCE).ok_or("x509: malformed validity")?);
@@ -538,8 +967,9 @@ pub(super) fn parse(der: &[u8]) -> Result<Certificate, String> {
     // Go's text for a malformed subject is "malformed issuer" too.
     let subject = tbs.read_element(SEQUENCE).ok_or("x509: malformed issuer")?;
     let names = parse_name(subject)?;
-    parse_spki(&mut tbs)?;
+    let spki = parse_spki(&mut tbs)?;
     let mut cert = Certificate {
+        raw: raw.to_vec(),
         issuer: issuer.to_vec(),
         subject: subject.to_vec(),
         version,
@@ -550,11 +980,28 @@ pub(super) fn parse(der: &[u8]) -> Result<Certificate, String> {
         organization: names.organization,
         basic_constraints: None,
         key_usage: 0,
-        has_san: false,
+        san: None,
         dns_names: Vec::new(),
+        email_addresses: Vec::new(),
         ip_addresses: Vec::new(),
+        uris: Vec::new(),
         server_auth: true,
         unhandled_critical: false,
+        tbs: tbs_raw.to_vec(),
+        signature_algorithm,
+        signature: Vec::new(),
+        spki: spki.raw.to_vec(),
+        public_key: spki.key,
+        public_key_bytes: spki.bits,
+        rsa: spki.rsa,
+        subject_key_id: Vec::new(),
+        authority_key_id: Vec::new(),
+        name_constraints: None,
+        policies: Vec::new(),
+        policy_mappings: Vec::new(),
+        require_explicit_policy: None,
+        inhibit_policy_mapping: None,
+        inhibit_any_policy: None,
     };
     if version > 1 {
         let _issuer_unique_id = tbs.read_optional(CONTEXT_1, "x509: malformed issuerUniqueID")?;
@@ -563,7 +1010,10 @@ pub(super) fn parse(der: &[u8]) -> Result<Certificate, String> {
             parse_extensions(&mut tbs, &mut cert)?;
         }
     }
-    let _signature = outer.read_bit_string().ok_or("x509: malformed signature")?;
+    cert.signature = outer
+        .read_bit_string()
+        .ok_or("x509: malformed signature")?
+        .right_align();
     if raw.len() != der.len() {
         return Err("x509: trailing data".to_owned());
     }
@@ -594,18 +1044,35 @@ fn parse_version(tbs: &mut Der<'_>) -> Result<i64, String> {
     Ok(version)
 }
 
-/// Go: the `SubjectPublicKeyInfo` structure (the key itself is not parsed).
-fn parse_spki(tbs: &mut Der<'_>) -> Result<(), String> {
+/// A parsed `SubjectPublicKeyInfo`.
+#[derive(Debug, Clone)]
+struct Spki<'a> {
+    raw: &'a [u8],
+    /// The subject public key, right-aligned.
+    bits: Vec<u8>,
+    key: PublicKey,
+    rsa: Option<RsaKey>,
+}
+
+/// Go: the `SubjectPublicKeyInfo` structure, then `parsePublicKey` for the algorithms Go knows.
+fn parse_spki<'a>(tbs: &mut Der<'a>) -> Result<Spki<'a>, String> {
     let raw = tbs.read_element(SEQUENCE).ok_or("x509: malformed spki")?;
     let mut spki = Der(Der(raw).read(SEQUENCE).ok_or("x509: malformed spki")?);
     let algorithm = spki
         .read(SEQUENCE)
         .ok_or("x509: malformed public key algorithm identifier")?;
-    parse_algorithm(algorithm)?;
-    let _public_key = spki
+    let algorithm = parse_algorithm(algorithm)?;
+    let bits = spki
         .read_bit_string()
-        .ok_or("x509: malformed subjectPublicKey")?;
-    Ok(())
+        .ok_or("x509: malformed subjectPublicKey")?
+        .right_align();
+    let (key, rsa) = parse_public_key(algorithm, &bits)?;
+    Ok(Spki {
+        raw,
+        bits,
+        key,
+        rsa,
+    })
 }
 
 /// One extension: its OID contents, criticality and value.
@@ -679,21 +1146,28 @@ fn process_extension(ext: Extension<'_>, cert: &mut Certificate) -> Result<bool,
         15 => cert.key_usage = parse_key_usage(ext.value)?,
         19 => cert.basic_constraints = Some(parse_basic_constraints(ext.value)?),
         17 => {
-            cert.has_san = true;
-            return parse_san(ext.value, cert).map(|names| !names);
+            parse_san(ext.value, cert)?;
+            cert.san = Some(ext.value.to_vec());
+            // Go: a subject alternative name extension without a name it reads is unhandled.
+            return Ok(cert.dns_names.is_empty()
+                && cert.email_addresses.is_empty()
+                && cert.ip_addresses.is_empty()
+                && cert.uris.is_empty());
         }
-        30 => return name_constraints_unhandled(ext.value),
+        30 => return parse_name_constraints(ext.value, cert),
         31 => check_crl_distribution_points(ext.value)?,
-        35 => check_authority_key_id(ext)?,
-        36 => check_policy_constraints(ext.value)?,
+        35 => cert.authority_key_id = parse_authority_key_id(ext)?,
+        36 => parse_policy_constraints(ext.value, cert)?,
         37 => cert.server_auth = parse_ext_key_usage(ext.value)?,
-        14 => check_subject_key_id(ext)?,
-        32 => check_policies(ext.value)?,
-        33 => check_policy_mappings(ext.value)?,
+        14 => cert.subject_key_id = parse_subject_key_id(ext)?,
+        32 => cert.policies = parse_policies(ext.value)?,
+        33 => cert.policy_mappings = parse_policy_mappings(ext.value)?,
         54 => {
-            let _inhibit_any_policy = Der(ext.value)
-                .read_int(INTEGER)
-                .ok_or("x509: invalid inhibit any policy extension")?;
+            cert.inhibit_any_policy = Some(
+                Der(ext.value)
+                    .read_int(INTEGER)
+                    .ok_or("x509: invalid inhibit any policy extension")?,
+            );
         }
         _ => return Ok(true),
     }
@@ -704,7 +1178,8 @@ fn process_extension(ext: Extension<'_>, cert: &mut Certificate) -> Result<bool,
 fn parse_key_usage(value: &[u8]) -> Result<u16, String> {
     let bits = Der(value)
         .read_bit_string()
-        .ok_or("x509: invalid key usage")?;
+        .ok_or("x509: invalid key usage")?
+        .bytes;
     let mut usage = 0_u16;
     for i in 0..9_u16 {
         let byte = bits.get(usize::from(i / 8)).copied().unwrap_or_default();
@@ -735,25 +1210,26 @@ fn parse_basic_constraints(value: &[u8]) -> Result<BasicConstraints, String> {
     })
 }
 
-/// Go: `parseSANExtension`; reports whether any DNS, email, IP or URI name was found.
-fn parse_san(value: &[u8], cert: &mut Certificate) -> Result<bool, String> {
+/// An IA5 value as a Go string (the caller has checked it is ASCII).
+fn ascii(bytes: &[u8]) -> String {
+    bytes.iter().copied().map(char::from).collect()
+}
+
+/// Go: `parseSANExtension` (`forEachSAN`): the DNS, email, IP and URI names, in order.
+fn parse_san(value: &[u8], cert: &mut Certificate) -> Result<(), String> {
     let mut list = Der(Der(value)
         .read(SEQUENCE)
         .ok_or("x509: invalid subject alternative names")?);
-    let mut found = false;
     while !list.is_empty() {
         let name = list
             .read_any()
             .ok_or("x509: invalid subject alternative name")?;
         match name.tag ^ 0x80 {
-            1 | 6 if is_ia5(name.contents) => found = true,
+            1 if is_ia5(name.contents) => cert.email_addresses.push(ascii(name.contents)),
             1 => return Err("x509: SAN rfc822Name is malformed".to_owned()),
-            2 if is_ia5(name.contents) => {
-                cert.dns_names
-                    .push(name.contents.iter().copied().map(char::from).collect());
-                found = true;
-            }
+            2 if is_ia5(name.contents) => cert.dns_names.push(ascii(name.contents)),
             2 => return Err("x509: SAN dNSName is malformed".to_owned()),
+            6 if is_ia5(name.contents) => cert.uris.push(parse_uri(&ascii(name.contents))?),
             6 => return Err("x509: SAN uniformResourceIdentifier is malformed".to_owned()),
             7 => {
                 let ip = if let Ok(v4) = <[u8; 4]>::try_from(name.contents) {
@@ -767,16 +1243,28 @@ fn parse_san(value: &[u8], cert: &mut Certificate) -> Result<bool, String> {
                     ));
                 };
                 cert.ip_addresses.push(ip);
-                found = true;
             }
             _ => {}
         }
     }
-    Ok(found)
+    Ok(())
 }
 
-/// Go: `parseNameConstraintsExtension`'s structure; reports a name type Go does not handle.
-fn name_constraints_unhandled(value: &[u8]) -> Result<bool, String> {
+/// Go: a URI name of `parseSANExtension`: `url.Parse`, then a host must be a valid domain.
+fn parse_uri(text: &str) -> Result<Url, String> {
+    let uri =
+        Url::parse(text).map_err(|e| format!("x509: cannot parse URI {}: {e}", quote(text)))?;
+    if !uri.host.is_empty() && !domain_name_valid(&uri.host, false) {
+        return Err(format!(
+            "x509: cannot parse URI {}: invalid domain",
+            quote(text)
+        ));
+    }
+    Ok(uri)
+}
+
+/// Go: `parseNameConstraintsExtension`; reports a name type Go does not handle.
+fn parse_name_constraints(value: &[u8], cert: &mut Certificate) -> Result<bool, String> {
     let mut outer = Der(value);
     let mut top = Der(outer.read(SEQUENCE).ok_or(INVALID_NAME_CONSTRAINTS)?);
     let permitted = top.read_optional(CONTEXT_0_CONSTRUCTED, INVALID_NAME_CONSTRAINTS)?;
@@ -784,23 +1272,132 @@ fn name_constraints_unhandled(value: &[u8]) -> Result<bool, String> {
     if !outer.is_empty() || !top.is_empty() {
         return Err(INVALID_NAME_CONSTRAINTS.to_owned());
     }
-    if permitted.unwrap_or_default().is_empty() && excluded.unwrap_or_default().is_empty() {
+    let permitted = permitted.unwrap_or_default();
+    let excluded = excluded.unwrap_or_default();
+    if permitted.is_empty() && excluded.is_empty() {
         return Err("x509: empty name constraints extension".to_owned());
     }
     let mut unhandled = false;
-    for subtrees in [permitted, excluded].into_iter().flatten() {
-        let mut list = Der(subtrees);
-        while !list.is_empty() {
-            let base = Der(list.read(SEQUENCE).ok_or(INVALID_NAME_CONSTRAINTS)?)
-                .read_any()
-                .ok_or(INVALID_NAME_CONSTRAINTS)?;
-            // Go handles DNS ([2]), email ([1]), IP ([7]) and URI ([6]) constraints.
-            if !matches!(base.tag, 0x81 | 0x82 | 0x86 | 0x87) {
-                unhandled = true;
+    let constraints = NameConstraints {
+        permitted: parse_subtrees(permitted, &mut unhandled)?,
+        excluded: parse_subtrees(excluded, &mut unhandled)?,
+    };
+    cert.name_constraints = Some(constraints);
+    Ok(unhandled)
+}
+
+/// Go: an IA5 constraint value, or `isIA5String`'s error.
+fn ia5_constraint(value: &[u8]) -> Result<String, String> {
+    if is_ia5(value) {
+        Ok(ascii(value))
+    } else {
+        Err(format!(
+            "x509: invalid constraint value: x509: {} cannot be encoded as an IA5String",
+            quote_bytes(value)
+        ))
+    }
+}
+
+/// Go: `isValidIPMask`: ones, then zeros.
+fn valid_ip_mask(mask: &[u8]) -> bool {
+    let mut seen_zero = false;
+    mask.iter().all(|&b| {
+        if seen_zero {
+            return b == 0;
+        }
+        match b {
+            0x00 | 0x80 | 0xC0 | 0xE0 | 0xF0 | 0xF8 | 0xFC | 0xFE => {
+                seen_zero = true;
+                true
             }
+            0xFF => true,
+            _ => false,
+        }
+    })
+}
+
+/// Go: `getValues` of `parseNameConstraintsExtension`: each subtree's base name, checked as Go
+/// checks it; other name types set `unhandled`.
+fn parse_subtrees(der: &[u8], unhandled: &mut bool) -> Result<Subtrees, String> {
+    let mut list = Der(der);
+    let mut out = Subtrees::default();
+    while !list.is_empty() {
+        let base = Der(list.read(SEQUENCE).ok_or(INVALID_NAME_CONSTRAINTS)?)
+            .read_any()
+            .ok_or(INVALID_NAME_CONSTRAINTS)?;
+        match base.tag {
+            // dNSName
+            0x82 => {
+                let domain = ia5_constraint(base.contents)?;
+                if !domain_name_valid(&domain, true) {
+                    return Err(format!(
+                        "x509: failed to parse dnsName constraint {}",
+                        quote(&domain)
+                    ));
+                }
+                out.dns.push(domain);
+            }
+            // iPAddress
+            0x87 => {
+                let half = match base.contents.len() {
+                    8 => 4,
+                    32 => 16,
+                    len => {
+                        return Err(format!(
+                            "x509: IP constraint contained value of length {len}"
+                        ));
+                    }
+                };
+                let (ip, mask) = base.contents.split_at(half);
+                if !valid_ip_mask(mask) {
+                    return Err(format!(
+                        "x509: IP constraint contained invalid mask {}",
+                        hex(mask)
+                    ));
+                }
+                out.ips.push(IpNet {
+                    ip: ip.to_vec(),
+                    mask: mask.to_vec(),
+                });
+            }
+            // rfc822Name
+            0x81 => {
+                let constraint = ia5_constraint(base.contents)?;
+                let valid = if constraint.contains('@') {
+                    parse_mailbox(&constraint).is_some()
+                } else {
+                    domain_name_valid(&constraint, true)
+                };
+                if !valid {
+                    return Err(format!(
+                        "x509: failed to parse rfc822Name constraint {}",
+                        quote(&constraint)
+                    ));
+                }
+                out.emails.push(constraint);
+            }
+            // uniformResourceIdentifier
+            0x86 => {
+                let domain = ia5_constraint(base.contents)?;
+                // Go: net.ParseIP.
+                if domain.parse::<IpAddr>().is_ok() {
+                    return Err(format!(
+                        "x509: failed to parse URI constraint {}: cannot be IP address",
+                        quote(&domain)
+                    ));
+                }
+                if !domain_name_valid(&domain, true) {
+                    return Err(format!(
+                        "x509: failed to parse URI constraint {}",
+                        quote(&domain)
+                    ));
+                }
+                out.uris.push(domain);
+            }
+            _ => *unhandled = true,
         }
     }
-    Ok(unhandled)
+    Ok(out)
 }
 
 /// Go: the CRL distribution points structure of `processExtensions`.
@@ -823,39 +1420,43 @@ fn check_crl_distribution_points(value: &[u8]) -> Result<(), String> {
     Ok(())
 }
 
-/// Go: `parseAuthorityKeyIdentifier`.
-fn check_authority_key_id(ext: Extension<'_>) -> Result<(), String> {
+/// Go: `parseAuthorityKeyIdentifier`: the key identifier, when there is one.
+fn parse_authority_key_id(ext: Extension<'_>) -> Result<Vec<u8>, String> {
     const INVALID: &str = "x509: invalid authority key identifier";
     if ext.critical {
         return Err("x509: authority key identifier incorrectly marked critical".to_owned());
     }
     let mut akid = Der(Der(ext.value).read(SEQUENCE).ok_or(INVALID)?);
     if akid.peek_tag() == Some(CONTEXT_0) {
-        let _key_id = akid.read(CONTEXT_0).ok_or(INVALID)?;
+        return Ok(akid.read(CONTEXT_0).ok_or(INVALID)?.to_vec());
     }
-    Ok(())
+    Ok(Vec::new())
 }
 
 /// Go: the subject key identifier case of `processExtensions`.
-fn check_subject_key_id(ext: Extension<'_>) -> Result<(), String> {
+fn parse_subject_key_id(ext: Extension<'_>) -> Result<Vec<u8>, String> {
     if ext.critical {
         return Err("x509: subject key identifier incorrectly marked critical".to_owned());
     }
-    let _key_id = Der(ext.value)
+    Der(ext.value)
         .read(OCTET_STRING)
-        .ok_or("x509: invalid subject key identifier")?;
-    Ok(())
+        .map(<[u8]>::to_vec)
+        .ok_or_else(|| "x509: invalid subject key identifier".to_owned())
 }
 
-/// Go: the policy constraints case of `processExtensions`.
-fn check_policy_constraints(value: &[u8]) -> Result<(), String> {
+/// Go: the policy constraints case of `processExtensions`: `requireExplicitPolicy` (`[0]`),
+/// then `inhibitPolicyMapping` (`[1]`).
+fn parse_policy_constraints(value: &[u8], cert: &mut Certificate) -> Result<(), String> {
     let mut seq = Der(Der(value)
         .read(SEQUENCE)
         .ok_or(INVALID_POLICY_CONSTRAINTS)?);
-    for tag in [CONTEXT_0, CONTEXT_1] {
-        if seq.peek_tag() == Some(tag) {
-            let _skip_certs = seq.read_int(tag).ok_or(INVALID_POLICY_CONSTRAINTS)?;
-        }
+    if seq.peek_tag() == Some(CONTEXT_0) {
+        cert.require_explicit_policy =
+            Some(seq.read_int(CONTEXT_0).ok_or(INVALID_POLICY_CONSTRAINTS)?);
+    }
+    if seq.peek_tag() == Some(CONTEXT_1) {
+        cert.inhibit_policy_mapping =
+            Some(seq.read_int(CONTEXT_1).ok_or(INVALID_POLICY_CONSTRAINTS)?);
     }
     Ok(())
 }
@@ -876,19 +1477,19 @@ fn parse_ext_key_usage(value: &[u8]) -> Result<bool, String> {
 
 /// Go: `parseCertificatePoliciesExtension`, which reads each policy with `newOIDFromDER` (arcs
 /// of any size), not `ReadASN1ObjectIdentifier`.
-fn check_policies(value: &[u8]) -> Result<(), String> {
+fn parse_policies(value: &[u8]) -> Result<Vec<Vec<u8>>, String> {
     let mut list = Der(Der(value).read(SEQUENCE).ok_or(INVALID_POLICIES)?);
-    let mut seen: Vec<&[u8]> = Vec::new();
+    let mut policies: Vec<Vec<u8>> = Vec::new();
     while !list.is_empty() {
         let oid = Der(list.read(SEQUENCE).ok_or(INVALID_POLICIES)?)
             .read(OBJECT_IDENTIFIER)
             .ok_or(INVALID_POLICIES)?;
-        if seen.contains(&oid) || !oid_der_valid(oid) {
+        if policies.iter().any(|p| p == oid) || !oid_der_valid(oid) {
             return Err(INVALID_POLICIES.to_owned());
         }
-        seen.push(oid);
+        policies.push(oid.to_vec());
     }
-    Ok(())
+    Ok(policies)
 }
 
 /// Go: `newOIDFromDER`: base-128 subidentifiers of any length, each without a leading `0x80`,
@@ -907,17 +1508,22 @@ fn oid_der_valid(der: &[u8]) -> bool {
     true
 }
 
-/// Go: the policy mappings case of `processExtensions`.
-fn check_policy_mappings(value: &[u8]) -> Result<(), String> {
+/// Go: the policy mappings case of `processExtensions`: issuer and subject domain policies, as
+/// the OIDs' contents (Go does not check them).
+fn parse_policy_mappings(value: &[u8]) -> Result<Vec<PolicyMapping>, String> {
     let mut list = Der(Der(value).read(SEQUENCE).ok_or(INVALID_POLICY_MAPPINGS)?);
+    let mut mappings = Vec::new();
     while !list.is_empty() {
         let mut mapping = Der(list.read(SEQUENCE).ok_or(INVALID_POLICY_MAPPINGS)?);
-        let _subject_policy = mapping
+        let issuer = mapping
             .read(OBJECT_IDENTIFIER)
-            .and_then(|_issuer| mapping.read(OBJECT_IDENTIFIER))
             .ok_or(INVALID_POLICY_MAPPINGS)?;
+        let subject = mapping
+            .read(OBJECT_IDENTIFIER)
+            .ok_or(INVALID_POLICY_MAPPINGS)?;
+        mappings.push((issuer.to_vec(), subject.to_vec()));
     }
-    Ok(())
+    Ok(mappings)
 }
 
 /// Go: the authority information access case of `processExtensions`.
