@@ -6,6 +6,8 @@
 
 use std::fmt::Write as _;
 
+use super::go_unicode::CATEGORIES;
+
 /// Go: `gojsonreference.NewJsonReference(s)` then `.String()`, for draft detection.
 ///
 /// Returns `Ok(Some(text))` with Go's `String()` for a reference without user info, query,
@@ -222,8 +224,7 @@ const fn should_escape_host(c: u8) -> bool {
     )
 }
 
-/// Go: `strconv.Quote` (printability approximated for non-ASCII characters: controls, non-ASCII
-/// spaces and the common format characters are escaped).
+/// Go: `strconv.Quote`.
 pub(super) fn go_quote(s: &str) -> String {
     let mut out = String::with_capacity(s.len() + 2);
     out.push('"');
@@ -255,15 +256,17 @@ pub(super) fn go_quote(s: &str) -> String {
     out
 }
 
-/// An approximation of Go's `strconv.IsPrint` (no Unicode category tables in std).
+/// Go: `strconv.IsPrint`, which is `unicode.IsPrint`: the ASCII space and the letters, marks,
+/// numbers, punctuation and symbols of Go's Unicode tables.
 fn is_go_printable(c: char) -> bool {
-    !(c.is_control()
-        || c.is_whitespace()
-        || matches!(
-            u32::from(c),
-            0xAD | 0x200B..=0x200F | 0x2028..=0x202E | 0x2060..=0x2064 | 0xFEFF | 0xFFFD..=0xFFFF
-        ))
-        || c == '\u{FFFD}'
+    let r = u32::from(c);
+    c == ' '
+        || CATEGORIES.iter().any(|&(name, table, _)| {
+            matches!(name, "L" | "M" | "N" | "P" | "S")
+                && table.as_chunks::<3>().0.iter().any(|&[lo, hi, stride]| {
+                    lo <= r && r <= hi && stride != 0 && (r - lo) % stride == 0
+                })
+        })
 }
 
 #[cfg(test)]
@@ -325,6 +328,28 @@ mod tests {
         for (input, want) in cases {
             if go_quote(input) != want {
                 return Err(format!("{input:?}: got {}, want {want}", go_quote(input)));
+            }
+        }
+        // Go 1.26.2 (Unicode 15.0.0): `Some(escape)` is quoted as a backslash and `escape`,
+        // `None` is kept as is.
+        let runes = [
+            ('\u{378}', Some("u0378")),
+            ('\u{E000}', Some("ue000")),
+            ('\u{1C89}', Some("u1c89")),
+            ('\u{AD}', Some("u00ad")),
+            ('\u{2028}', Some("u2028")),
+            ('\u{3000}', Some("u3000")),
+            ('\u{E0001}', Some("U000e0001")),
+            ('\u{10FFFF}', Some("U0010ffff")),
+            ('\u{1F600}', None),
+            ('\u{FFFD}', None),
+            ('\u{300}', None),
+        ];
+        for (rune, escape) in runes {
+            let want = escape.map_or_else(|| format!("\"{rune}\""), |e| format!(r#""\{e}""#));
+            let got = go_quote(&rune.to_string());
+            if got != want {
+                return Err(format!("{rune:?}: got {got}, want {want}"));
             }
         }
         Ok(())
