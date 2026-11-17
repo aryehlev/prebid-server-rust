@@ -124,3 +124,165 @@ fn add_multi_bid(
     }
     (validated_multi_bids, errs)
 }
+
+#[cfg(test)]
+mod tests {
+    use std::collections::HashSet;
+
+    use super::add_multi_bid;
+    use crate::generated::ExtMultiBid;
+
+    /// An entry (Go: `ExtMultiBid{...}`).
+    fn mb(
+        bidder: &str,
+        bidders: Option<&[&str]>,
+        max_bids: Option<isize>,
+        prefix: &str,
+    ) -> ExtMultiBid {
+        ExtMultiBid {
+            bidder: bidder.to_owned(),
+            bidders: bidders.map(|names| names.iter().map(|&n| n.to_owned()).collect()),
+            max_bids,
+            target_bidder_code_prefix: prefix.to_owned(),
+        }
+    }
+
+    /// Go's `fmt.Errorf("...%v", ExtMultiBid{...})` text: `%v` calls `ExtMultiBid.String`.
+    fn err(prefix: &str, entry: &ExtMultiBid) -> String {
+        format!("{prefix}{}", entry.string())
+    }
+
+    /// A case of `Test_addMultiBid`: its name, the bidders already in `multiBidMap`, the entry,
+    /// and the errors and entries wanted.
+    type AddCase = (
+        &'static str,
+        &'static [&'static str],
+        ExtMultiBid,
+        Vec<String>,
+        Vec<ExtMultiBid>,
+    );
+
+    /// The cases of `Test_addMultiBid` up to `Only Bidder defined`.
+    fn bidder_cases() -> [AddCase; 5] {
+        let pubmatic = mb("pubmatic", None, Some(2), "");
+        let both = mb("appnexus", Some(&["rubicon"]), Some(2), "appN");
+        let appnexus = mb("appnexus", None, Some(2), "appN");
+        [
+            (
+                "MaxBids not defined",
+                &[],
+                ExtMultiBid::default(),
+                vec![err("maxBids not defined for ", &ExtMultiBid::default())],
+                vec![],
+            ),
+            (
+                "Bidder or Bidders not defined",
+                &[],
+                mb("", None, Some(2), ""),
+                vec![err(
+                    "bidder(s) not specified for ",
+                    &mb("", None, Some(2), ""),
+                )],
+                vec![],
+            ),
+            (
+                "Input bidder is already present in multibid",
+                &["pubmatic"],
+                pubmatic.clone(),
+                vec![err(
+                    "multiBid already defined for pubmatic, ignoring this instance ",
+                    &pubmatic,
+                )],
+                vec![],
+            ),
+            (
+                "Bidder and Bidders both defined (only Bidder will be used)",
+                &["pubmatic"],
+                both.clone(),
+                vec![err("ignoring bidders from ", &both)],
+                vec![appnexus.clone()],
+            ),
+            (
+                "Only Bidder defined",
+                &[],
+                appnexus.clone(),
+                vec![],
+                vec![appnexus],
+            ),
+        ]
+    }
+
+    /// The cases of `Test_addMultiBid` from `Only Bidders defined` on.
+    fn bidders_cases() -> [AddCase; 5] {
+        let some = mb("", Some(&["appnexus", "someBidder"]), Some(2), "");
+        let both = mb("", Some(&["appnexus", "pubmatic"]), Some(2), "");
+        let prefixed = mb("", Some(&["appnexus"]), Some(2), "appN");
+        let below = mb("appnexus", None, Some(0), "appN");
+        let over = mb("appnexus", None, Some(10), "appN");
+        [
+            (
+                "Only Bidders defined",
+                &[],
+                some.clone(),
+                vec![],
+                vec![some],
+            ),
+            (
+                "Bidders defined where a bidder is already present in multibid",
+                &["pubmatic"],
+                both.clone(),
+                vec![err(
+                    "multiBid already defined for pubmatic, ignoring this instance ",
+                    &both,
+                )],
+                vec![mb("", Some(&["appnexus"]), Some(2), "")],
+            ),
+            (
+                "Bidders defined along with TargetBidderCodePrefix",
+                &[],
+                prefixed.clone(),
+                vec![err("ignoring targetbiddercodeprefix for ", &prefixed)],
+                vec![mb("", Some(&["appnexus"]), Some(2), "")],
+            ),
+            (
+                "MaxBids defined below minimum limit",
+                &[],
+                below.clone(),
+                vec![err(
+                    "invalid maxBids value, using minimum 1 limit for ",
+                    &below,
+                )],
+                vec![mb("appnexus", None, Some(1), "appN")],
+            ),
+            (
+                "MaxBids defined over max limit",
+                &[],
+                over.clone(),
+                vec![err(
+                    "invalid maxBids value, using maximum 9 limit for ",
+                    &over,
+                )],
+                vec![mb("appnexus", None, Some(9), "appN")],
+            ),
+        ]
+    }
+
+    /// Go: `Test_addMultiBid`. Go's nil and empty result slices are both empty here.
+    #[test]
+    fn add_multi_bid_cases() -> Result<(), String> {
+        let cases = bidder_cases().into_iter().chain(bidders_cases());
+        for (name, present, mut multi_bid, want_errs, want_multi_bids) in cases {
+            let mut multi_bid_map: HashSet<String> =
+                present.iter().map(|&b| b.to_owned()).collect();
+            let (multi_bids, errs) = add_multi_bid(&mut multi_bid_map, &mut multi_bid);
+            let errs: Vec<String> = errs.iter().map(ToString::to_string).collect();
+            if errs != want_errs || multi_bids != want_multi_bids {
+                return Err(format!(
+                    "{name}: got {multi_bids:?} and {errs:?}, want {want_multi_bids:?} and \
+                     {want_errs:?}"
+                ));
+            }
+        }
+        Ok(())
+    }
+}
