@@ -11,6 +11,7 @@ use crate::{
     gotype::GoType,
     strconv::{big_parse_float_error, f64_to_f32, parse_float, parse_float_error_text},
     unicode::go_lossy,
+    value::drop_value,
 };
 
 /// jsoniter's `Iterator.Error` slot. `Eof` is Go's `io.EOF`, which later errors may overwrite.
@@ -1423,7 +1424,10 @@ pub fn read_value(it: &mut Iter<'_>) -> Value {
                     it.read_array_after()
                 }
                 Value::Object(map) => {
-                    let _replaced = map.insert(mem::take(&mut top.key), done);
+                    // A duplicate key replaces a value that can be as deep as the document.
+                    if let Some(replaced) = map.insert(mem::take(&mut top.key), done) {
+                        drop_value(replaced);
+                    }
                     it.read_map_after()
                 }
                 Value::Null | Value::Bool(_) | Value::Number(_) | Value::String(_) => Next::Done,

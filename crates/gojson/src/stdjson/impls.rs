@@ -19,7 +19,7 @@ use crate::{
     error::JsonError,
     gostring::GoString,
     gotype::GoType,
-    jsoniter::GoMap,
+    jsoniter::{GoMap, go_clear_map},
     strconv::{f64_to_f32, parse_float_go, parse_int, parse_uint},
     unicode::go_lossy,
     value::replace_value,
@@ -382,14 +382,15 @@ impl StdDecode for Value {
         from_quoted: bool,
         d: &mut StdDecoder<'_>,
     ) -> Result<(), JsonError> {
+        // The value replaced can be as deep as a document.
         match literal_store::<N>(item, from_quoted, d, Class::Interface)? {
             Store::Nothing => {}
-            Store::Null => *self = Self::Null,
-            Store::Bool(b) => *self = Self::Bool(b),
-            Store::Str(s) => *self = Self::String(go_lossy(&s)),
+            Store::Null => replace_value(self, Self::Null),
+            Store::Bool(b) => replace_value(self, Self::Bool(b)),
+            Store::Str(s) => replace_value(self, Self::String(go_lossy(&s))),
             Store::Num(s) => {
                 if let Some(v) = convert_number(d, s) {
-                    *self = v;
+                    replace_value(self, v);
                 }
             }
         }
@@ -457,7 +458,9 @@ fn slice_array<T: StdDecode + Default>(
             }
         }
     }
-    items.truncate(i);
+    if items.len() > i {
+        items.drain(i..).for_each(GoType::go_drop);
+    }
     Ok(())
 }
 
@@ -531,7 +534,7 @@ where
                 literal_store::<N>(item, false, d, Class::Nilable)?,
                 Store::Null
             ) {
-                *slot = None;
+                go_clear_map(slot);
             }
             Ok(())
         }
@@ -582,7 +585,7 @@ macro_rules! std_map {
                 d: &mut StdDecoder<'_>,
             ) -> Result<(), JsonError> {
                 if let Store::Null = literal_store::<N>(item, from_quoted, d, Class::Nilable)? {
-                    *self = Self::default();
+                    GoMap::go_discard(mem::take(self));
                 }
                 Ok(())
             }

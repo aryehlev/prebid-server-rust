@@ -18,8 +18,12 @@ pub use iter::{Iter, ValueType, read_value};
 use serde_json::{Map, Value};
 
 use crate::{
-    encode::GoMapKey, error::JsonError, gostring::GoString, gotype::GoType, unicode::go_lossy,
-    value::replace_value,
+    encode::GoMapKey,
+    error::JsonError,
+    gostring::GoString,
+    gotype::{GoType, go_clear},
+    unicode::go_lossy,
+    value::{drop_value, replace_value},
 };
 
 /// One step of jsoniter's field-name hash (`hash ^= int64(b); hash *= 0x1000193`).
@@ -49,9 +53,17 @@ pub trait JsoniterDecode: GoType {
     where
         Self: Sized + Default,
     {
+        if it.is_merge_clone() && it.read_nil() {
+            // Go: util/jsonutil/merge.go ptrCloneDecoder.Decode reads a null itself before the
+            // OptionalDecoder reads it again. Once an error is recorded `unreadByte` does
+            // nothing, so each of the two `ReadNil`s consumes a byte, and where decoding goes
+            // on after an error depends on both.
+            go_clear(slot);
+            return;
+        }
         // Go: json-iterator/go reflect_optional.go OptionalDecoder.Decode
         if it.read_nil() {
-            *slot = None;
+            go_clear(slot);
         } else {
             slot.get_or_insert_with(Self::default).jsoniter_decode(it);
         }
@@ -63,7 +75,17 @@ pub trait JsoniterDecode: GoType {
     where
         Self: Sized + Default,
     {
-        decode_slice::<Vec<Self>, Self>(slot, it);
+        Self::jsoniter_decode_slice_as::<Vec<Self>>(slot, it);
+    }
+
+    /// [`JsoniterDecode::jsoniter_decode_slice`] for a slice type named `N`, whose name wraps
+    /// the errors (`[]byte` overrides it with Go's base64 codec).
+    #[doc(hidden)]
+    fn jsoniter_decode_slice_as<N: GoType + ?Sized>(slot: &mut Option<Vec<Self>>, it: &mut Iter<'_>)
+    where
+        Self: Sized + Default,
+    {
+        decode_slice::<N, Self>(slot, it);
     }
 
     /// The `,string` decoding of a `string`-kind field (`stringModeStringDecoder`); other kinds
@@ -71,6 +93,25 @@ pub trait JsoniterDecode: GoType {
     #[doc(hidden)]
     fn jsoniter_decode_string_mode(&mut self, it: &mut Iter<'_>) {
         self.jsoniter_decode(it);
+    }
+
+    /// Decodes `self` as the underlying value of the Go named type `N` (a `#[derive(GoJson)]`
+    /// newtype such as `type Strs []string`): as [`JsoniterDecode::jsoniter_decode`], except
+    /// that a slice's errors are wrapped with `N` (`main.Strs: ...`), as jsoniter's
+    /// `sliceDecoder` for a named slice type wraps them with its own name.
+    #[doc(hidden)]
+    fn jsoniter_decode_named<N: GoType + ?Sized>(&mut self, it: &mut Iter<'_>) {
+        self.jsoniter_decode(it);
+    }
+
+    /// [`JsoniterDecode::jsoniter_decode_option`] for the underlying value of the named type
+    /// `N` (see [`JsoniterDecode::jsoniter_decode_named`]).
+    #[doc(hidden)]
+    fn jsoniter_decode_option_named<N: GoType + ?Sized>(slot: &mut Option<Self>, it: &mut Iter<'_>)
+    where
+        Self: Sized + Default,
+    {
+        Self::jsoniter_decode_option(slot, it);
     }
 }
 
@@ -168,7 +209,10 @@ impl JsoniterDecode for u8 {
         }
     }
 
-    fn jsoniter_decode_slice(slot: &mut Option<Vec<Self>>, it: &mut Iter<'_>) {
+    fn jsoniter_decode_slice_as<N: GoType + ?Sized>(
+        slot: &mut Option<Vec<Self>>,
+        it: &mut Iter<'_>,
+    ) {
         // Go: json-iterator/go reflect_native.go base64Codec.Decode
         if it.read_nil() {
             *slot = None;
@@ -182,7 +226,8 @@ impl JsoniterDecode for u8 {
                     Err((_, msg)) => it.report_error("decode base64", msg.as_bytes()),
                 }
             }
-            ValueType::Array => decode_slice::<Vec<Self>, Self>(slot, it),
+            // The codec's sliceDecoder is for the (possibly named) []byte type itself.
+            ValueType::Array => decode_slice::<N, Self>(slot, it),
             ValueType::Invalid
             | ValueType::Number
             | ValueType::Nil
@@ -224,6 +269,10 @@ impl<T: JsoniterDecode + Default> JsoniterDecode for Option<T> {
     fn jsoniter_decode(&mut self, it: &mut Iter<'_>) {
         T::jsoniter_decode_option(self, it);
     }
+
+    fn jsoniter_decode_named<N: GoType + ?Sized>(&mut self, it: &mut Iter<'_>) {
+        T::jsoniter_decode_option_named::<N>(self, it);
+    }
 }
 
 impl<T: JsoniterDecode + ?Sized> JsoniterDecode for Box<T> {
@@ -233,6 +282,10 @@ impl<T: JsoniterDecode + ?Sized> JsoniterDecode for Box<T> {
 
     fn jsoniter_decode_string_mode(&mut self, it: &mut Iter<'_>) {
         (**self).jsoniter_decode_string_mode(it);
+    }
+
+    fn jsoniter_decode_named<N: GoType + ?Sized>(&mut self, it: &mut Iter<'_>) {
+        (**self).jsoniter_decode_named::<N>(it);
     }
 }
 
@@ -258,7 +311,7 @@ fn decode_slice_inner<T: JsoniterDecode + Default>(slot: &mut Option<Vec<T>>, it
     let mut c = it.next_token();
     if c == b'n' {
         it.skip_three_bytes(b'u', b'l', b'l');
-        *slot = None;
+        go_clear(slot);
         return;
     }
     if c != b'[' {
@@ -267,7 +320,9 @@ fn decode_slice_inner<T: JsoniterDecode + Default>(slot: &mut Option<Vec<T>>, it
     }
     c = it.next_token();
     if c == b']' {
-        *slot = Some(Vec::new());
+        if let Some(old) = slot.replace(Vec::new()) {
+            old.go_drop();
+        }
         return;
     }
     it.unread_byte();
@@ -287,7 +342,9 @@ fn decode_slice_inner<T: JsoniterDecode + Default>(slot: &mut Option<Vec<T>>, it
             continue;
         }
         // Go's slice length is the number of elements decoded, also on error.
-        items.truncate(length);
+        if items.len() > length {
+            items.drain(length..).for_each(GoType::go_drop);
+        }
         if c != b']' {
             it.report_error_byte("decode slice", "expect ], but found ", c);
         }
@@ -297,23 +354,34 @@ fn decode_slice_inner<T: JsoniterDecode + Default>(slot: &mut Option<Vec<T>>, it
 
 impl<T: JsoniterDecode + Default> JsoniterDecode for Vec<T> {
     fn jsoniter_decode(&mut self, it: &mut Iter<'_>) {
-        let mut slot = Some(mem::take(self));
-        Self::jsoniter_decode_option(&mut slot, it);
-        *self = slot.unwrap_or_default();
+        self.jsoniter_decode_named::<Self>(it);
     }
 
     fn jsoniter_decode_option(slot: &mut Option<Self>, it: &mut Iter<'_>) {
+        Self::jsoniter_decode_option_named::<Self>(slot, it);
+    }
+
+    fn jsoniter_decode_named<N: GoType + ?Sized>(&mut self, it: &mut Iter<'_>) {
+        let mut slot = Some(mem::take(self));
+        Self::jsoniter_decode_option_named::<N>(&mut slot, it);
+        *self = slot.unwrap_or_default();
+    }
+
+    fn jsoniter_decode_option_named<N: GoType + ?Sized>(
+        slot: &mut Option<Self>,
+        it: &mut Iter<'_>,
+    ) {
         if it.is_merge_clone() {
             // Go: util/jsonutil/merge.go sliceCloneDecoder.Decode: the slice is set to nil
             // before the slice (or base64) decoder runs, so every element starts from its zero
             // value, and `null` is consumed here: its error ("expect ull") is not wrapped with
             // the slice type.
-            *slot = None;
+            go_clear(slot);
             if it.read_nil() {
                 return;
             }
         }
-        T::jsoniter_decode_slice(slot, it);
+        T::jsoniter_decode_slice_as::<N>(slot, it);
     }
 }
 
@@ -324,25 +392,55 @@ pub trait GoMap: Default {
     type Key: GoMapKey;
     /// The element type.
     type Elem: Default;
-    /// Go's `SetIndex`: inserts or replaces.
+    /// Go's `SetIndex`: inserts or replaces (a replaced element is dropped with
+    /// [`GoType::go_drop`]).
     fn go_insert(&mut self, key: Self::Key, elem: Self::Elem);
-}
 
-impl<K: GoMapKey + Ord, V: Default> GoMap for BTreeMap<K, V> {
-    type Elem = V;
-    type Key = K;
-
-    fn go_insert(&mut self, key: K, elem: V) {
-        let _replaced = self.insert(key, elem);
+    /// Drops the map, its elements with [`GoType::go_drop`] (a nil map's old entries).
+    fn go_discard(self)
+    where
+        Self: Sized,
+    {
+        drop(self);
     }
 }
 
-impl<K: GoMapKey + Eq + Hash, V: Default, S: BuildHasher + Default> GoMap for HashMap<K, V, S> {
+/// Drops the map in `slot`, if any, with [`GoMap::go_discard`], leaving `None` (a nil map).
+pub(crate) fn go_clear_map<M: GoMap>(slot: &mut Option<M>) {
+    if let Some(old) = slot.take() {
+        old.go_discard();
+    }
+}
+
+impl<K: GoMapKey + Ord, V: Default + GoType> GoMap for BTreeMap<K, V> {
     type Elem = V;
     type Key = K;
 
     fn go_insert(&mut self, key: K, elem: V) {
-        let _replaced = self.insert(key, elem);
+        if let Some(replaced) = self.insert(key, elem) {
+            replaced.go_drop();
+        }
+    }
+
+    fn go_discard(self) {
+        self.into_values().for_each(GoType::go_drop);
+    }
+}
+
+impl<K: GoMapKey + Eq + Hash, V: Default + GoType, S: BuildHasher + Default> GoMap
+    for HashMap<K, V, S>
+{
+    type Elem = V;
+    type Key = K;
+
+    fn go_insert(&mut self, key: K, elem: V) {
+        if let Some(replaced) = self.insert(key, elem) {
+            replaced.go_drop();
+        }
+    }
+
+    fn go_discard(self) {
+        self.into_values().for_each(GoType::go_drop);
     }
 }
 
@@ -351,22 +449,38 @@ impl GoMap for Map<String, Value> {
     type Key = String;
 
     fn go_insert(&mut self, key: String, elem: Value) {
-        let _replaced = self.insert(key, elem);
+        if let Some(replaced) = self.insert(key, elem) {
+            drop_value(replaced);
+        }
+    }
+
+    fn go_discard(self) {
+        drop_value(Value::Object(self));
     }
 }
 
 /// jsoniter's `mapDecoder`: `null` makes the map nil; entries are inserted into the existing
 /// map (a nil map is created first); elements start from their zero value.
+///
+/// Under [`Iter::is_merge_clone`] it is decorated as Go decorates every map decoder there
+/// (`mapCloneDecoder`): a `null` is read first, which changes nothing but where decoding goes
+/// on after an error.
 pub fn decode_map<M>(slot: &mut Option<M>, it: &mut Iter<'_>)
 where
     M: GoMap,
     M::Elem: JsoniterDecode,
 {
+    if it.is_merge_clone() && it.read_nil() {
+        // Go: util/jsonutil/merge.go mapCloneDecoder.Decode (the clone itself is invisible:
+        // Rust maps are never shared)
+        go_clear_map(slot);
+        return;
+    }
     // Go: json-iterator/go reflect_map.go mapDecoder.Decode
     let mut c = it.next_token();
     if c == b'n' {
         it.skip_three_bytes(b'u', b'l', b'l');
-        *slot = None;
+        go_clear_map(slot);
         return;
     }
     let map = slot.get_or_insert_with(M::default);

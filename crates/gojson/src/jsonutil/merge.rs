@@ -56,7 +56,11 @@ pub fn ext_merge_decode(existing: &mut RawJson, it: &mut Iter<'_>) {
 ///   malformed `null` is not prefixed with the slice type;
 /// * a `json.RawMessage` keeps its bytes on `null`, takes the incoming value when it is empty, and
 ///   is merged with [`merge_patch`] otherwise; a malformed existing message fails with `invalid
-///   json on existing object`.
+///   json on existing object`;
+/// * a pointer and a map are checked for `null` before their decoder runs, which checks again, as
+///   the decorators do. That changes nothing until an error is recorded; after one, jsoniter's
+///   `unreadByte` does nothing, so each check consumes a byte, and decoding goes on after an error
+///   where Go's does (the decoded fields and the wrapped error text both depend on it).
 ///
 /// Everything else decodes as [`jsonutil::unmarshal`] decodes it: a pointer is set to nil by
 /// `null` and decoded over otherwise, and map entries are added to the existing map. The root

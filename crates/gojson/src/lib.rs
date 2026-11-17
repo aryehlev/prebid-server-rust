@@ -524,9 +524,16 @@
 //! for real openrtb2 values (corpus `Imp`, `Site`, `App`, `User`, `Device` and `BidRequest`
 //! objects merged with first-party data and generated overlays, some over a nil or malformed
 //! `Ext`) and for a struct with every field shape, which `tests/mergeclone.rs` replays.
+//! `go run ./rust/crates/gojson/testdata/go/mergeclone_review` writes adversarial
+//! `MergeClone` goldens (named slice and map types, maps of raw messages, `**T`, `,string`
+//! fields, embedded structs, a recursive type and `openrtb2.Imp`, under overlays with
+//! duplicate, re-cased and malformed members, many of which fail part way), which
+//! `tests/mergeclone_review.rs` replays.
 //! `go run ./rust/crates/gojson/testdata/go/depth` writes the results and error texts of every
 //! decode, merge, compare and search entry point for documents nested 9999, 10000 and 10001
-//! levels deep, which `tests/depth.rs` replays on 2 MiB threads.
+//! levels deep, which `tests/depth.rs` replays on 2 MiB threads, and `go run
+//! ./rust/crates/gojson/testdata/go/deepdrop` the results of decodes that replace or discard a
+//! value nested 9990 levels deep, which `tests/deepdrop.rs` replays on 2 MiB threads.
 //!
 //! Other crates can follow the same pattern with a generator under their own `testdata/go`.
 //!
@@ -559,6 +566,13 @@
 //!   calling the method, and both clone decoders set it to nil on `null` without calling it; here
 //!   the method is called as `jsonutil.Unmarshal` calls it. Prebid's `MergeClone` targets (openrtb2
 //!   values, `config.Account`) have no such field.
+//! * Go's `MergeClone` decodes a struct embedded by pointer (`*T`) through jsoniter's
+//!   `dereferenceDecoder`, which the `ptrCloneDecoder` does not decorate, so it writes into the
+//!   shared original; Rust values are never shared, so only the merged value changes.
+//! * A `#[derive(GoJson)]` newtype over a slice (`type Strs []string`) names the underlying type
+//!   (`[]string: ...`) in jsoniter's element errors where Go names the named type (`main.Strs:
+//!   ...`). A hand-written [`JsoniterDecode`] for such a type gets Go's text by decoding through
+//!   the hidden `jsoniter_decode_named::<Self>`.
 //! * Decoding into an existing slice never revives elements beyond its length. Go keeps the backing
 //!   array: when a slice was shortened (a second decode with fewer elements) and is then decoded
 //!   again with more elements within its capacity, Go decodes the extra elements over the old
@@ -573,8 +587,12 @@
 //!   a debug build (`tests/depth.rs`). What recurses is the Rust side: a typed decode or encode
 //!   once per level of type nesting (unbounded only for a recursive type), and
 //!   `serde_json::Value`'s own `Drop` and `Clone` once per level of the value, which overflows a 2
-//!   MiB debug-build stack at a few thousand nested objects. Drop a `Value` that may be deep
-//!   (anything decoded into `interface{}` from a request) with [`value::drop_value`].
+//!   MiB debug-build stack at a few thousand nested objects. The decoders drop every value they
+//!   replace or discard (a duplicate key, a field decoded twice, a slice that shrinks, `null` into
+//!   a pointer, slice or map, `MergeClone` resetting a slice) without recursing
+//!   (`tests/deepdrop.rs`); the caller drops what it keeps. Drop a `Value` that may be deep
+//!   (anything decoded into `interface{}` from a request), or a struct holding one, with
+//!   [`value::drop_value`] on the `Value`s.
 //! * Not provided: `json.MarshalIndent`, which only Go tests call.
 
 #[doc(hidden)]
