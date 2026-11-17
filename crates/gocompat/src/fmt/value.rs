@@ -63,8 +63,9 @@ pub enum Value {
         /// The underlying value.
         value: Box<Self>,
     },
-    /// A slice; `None` is a nil slice. A slice whose type ends in `]uint8` prints as bytes for
-    /// `%s %q %x %X`.
+    /// A slice; `None` is a nil slice. A slice or array whose element kind is `uint8` (`[]uint8`,
+    /// `[4]uint8`, or a defined element type over `uint8`, but not `[][]uint8`) prints as bytes
+    /// for `%s %q %x %X`, as Go's `t.Elem().Kind() == reflect.Uint8` check does.
     Slice {
         /// The Go type, e.g. `[]string`.
         ty: String,

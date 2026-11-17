@@ -448,6 +448,135 @@ fn random_formats_match_go() -> Result<(), String> {
     )
 }
 
+fn uint8s(ty: &str, values: &[u8]) -> Vec<Value> {
+    let elem = |b: u8| match ty {
+        "main.b8" => named("main.b8", Value::Uint8(b)),
+        _ => Value::Uint8(b),
+    };
+    values.iter().copied().map(elem).collect()
+}
+
+fn array(ty: &str, elems: Vec<Value>) -> Value {
+    Value::Array {
+        ty: ty.to_owned(),
+        elems,
+    }
+}
+
+/// Go: `fmtBytesValues` in `testdata/go/review`.
+fn review_bytes_values() -> Vec<(&'static str, Value)> {
+    let raw =
+        |text: Option<&[u8]>| named("json.RawMessage", Value::Bytes(text.map(<[u8]>::to_vec)));
+    let nil_ptr = Value::Pointer {
+        ty: "*[]uint8".to_owned(),
+        addr: 0,
+        elem: None,
+    };
+    vec![
+        (
+            "bytes_slices",
+            list(
+                "[][]uint8",
+                vec![
+                    Value::Bytes(Some(b"ab".to_vec())),
+                    Value::Bytes(None),
+                    Value::Bytes(Some(b"\x00\xff".to_vec())),
+                ],
+            ),
+        ),
+        (
+            "byte_slice_array",
+            array(
+                "[2][]uint8",
+                vec![Value::Bytes(Some(vec![1, 2])), Value::Bytes(Some(vec![]))],
+            ),
+        ),
+        (
+            "nil_byte_slice_ptrs",
+            list("[]*[]uint8", vec![nil_ptr.clone(), nil_ptr]),
+        ),
+        (
+            "raw_messages",
+            list(
+                "[]json.RawMessage",
+                vec![raw(Some(br#"{"a":1}"#)), raw(None)],
+            ),
+        ),
+        (
+            "byte_arrays",
+            list(
+                "[][2]uint8",
+                vec![
+                    array("[2]uint8", uint8s("uint8", &[65, 66])),
+                    array("[2]uint8", uint8s("uint8", &[0, 255])),
+                ],
+            ),
+        ),
+        (
+            "named_uint8s",
+            list("[]main.b8", uint8s("main.b8", &[65, 66])),
+        ),
+        (
+            "named_uint8_array",
+            array("[3]main.b8", uint8s("main.b8", &[1, 2, 3])),
+        ),
+        (
+            "any_uint8s",
+            list("[]interface {}", uint8s("uint8", &[65, 66])),
+        ),
+        ("uint8s", Value::Bytes(Some(vec![65, 66]))),
+        (
+            "uint8_array",
+            array("[3]uint8", uint8s("uint8", &[65, 66, 67])),
+        ),
+        (
+            "bytes_map",
+            map(
+                "map[string][]uint8",
+                vec![("k".into(), Value::Bytes(Some(b"v".to_vec())))],
+            ),
+        ),
+        (
+            "struct_bytes",
+            record(
+                "main.withBytes",
+                vec![
+                    (
+                        "B",
+                        list("[][]uint8", vec![Value::Bytes(Some(b"x".to_vec()))]),
+                    ),
+                    ("R", raw(Some(b"[]"))),
+                ],
+            ),
+        ),
+    ]
+}
+
+// Review regression: Go prints a slice or array as bytes for `%s %q %x %X` only when its
+// element kind is uint8 (`t.Elem().Kind() == reflect.Uint8`). A `[][]byte` used to match the
+// `]uint8` suffix and print as one flattened run of zero bytes.
+#[test]
+fn review_fmt_bytes_match_go() -> Result<(), String> {
+    let values = review_bytes_values();
+    let rows = golden::rows_bytes(include_str!(
+        "../../testdata/go/golden/review_fmt_bytes.txt"
+    ))?;
+    for row in &rows {
+        let [format, name, want] = row.as_slice() else {
+            return Err(format!("bad row {row:?}"));
+        };
+        let (format, name) = (text(format)?, text(name)?);
+        let value = lookup(&values, name)?;
+        let got = sprintf_bytes(format, slice::from_ref(value));
+        ensure_eq(
+            got.as_slice(),
+            want.as_slice(),
+            &format!("Sprintf({format:?}, {name})"),
+        )?;
+    }
+    ensure_eq(&rows.len(), &(12 * values.len()), "row count")
+}
+
 #[test]
 fn error_helper_is_errors_new() -> Result<(), String> {
     let err = Value::error("boom");

@@ -418,7 +418,7 @@ impl Printer {
     ) {
         let ty = op.value().type_name();
         // Handle byte and uint8 slices and arrays special for the string verbs.
-        if matches!(verb, 's' | 'q' | 'x' | 'X') && ty.ends_with("]uint8") {
+        if matches!(verb, 's' | 'q' | 'x' | 'X') && elem_kind_is_uint8(ty, elems) {
             let bytes: Option<Vec<u8>> = elems.map(|elems| {
                 elems
                     .iter()
@@ -546,6 +546,44 @@ impl Printer {
         }
         self.buf.push(b'\n');
     }
+}
+
+/// Go: `t.Elem().Kind() == reflect.Uint8` for the slice or array type `ty` holding `elems`.
+///
+/// For a type literal (`[]uint8`, `[4]uint8`, `[][]uint8`, `[]main.b`) the element type follows
+/// the first `]`: `uint8` is a byte element, a composite or interface element type is not, and a
+/// defined element type (`main.b`) is a byte element when its values are. A defined slice type
+/// (`main.Bytes`) has elements of its element type, so its first element decides.
+fn elem_kind_is_uint8(ty: &str, elems: Option<&[Value]>) -> bool {
+    let first_is_uint8 = || {
+        elems
+            .and_then(<[Value]>::first)
+            .is_some_and(|e| matches!(e.underlying(), Value::Uint8(_)))
+    };
+    let Some(elem) = ty
+        .strip_prefix('[')
+        .and_then(|rest| rest.split_once(']'))
+        .map(|(_, elem)| elem)
+    else {
+        return first_is_uint8();
+    };
+    if elem == "uint8" {
+        return true;
+    }
+    let composite = [
+        "[",
+        "*",
+        "map[",
+        "chan ",
+        "<-chan",
+        "func(",
+        "struct {",
+        "interface {",
+    ]
+    .iter()
+    .any(|prefix| elem.starts_with(prefix));
+    let predeclared = !elem.contains('.');
+    !composite && !predeclared && first_is_uint8()
 }
 
 /// Go: `tooLarge`: the magnitude of a width or precision is capped at 1e6.
