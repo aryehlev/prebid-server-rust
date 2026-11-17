@@ -1,0 +1,349 @@
+code	ADP	ADP
+code	AED	AED
+code	AFA	AFA
+code	AFN	AFN
+code	ALK	ALK
+code	ALL	ALL
+code	AMD	AMD
+code	ANG	ANG
+code	AOA	AOA
+code	AOK	AOK
+code	AON	AON
+code	AOR	AOR
+code	ARA	ARA
+code	ARL	ARL
+code	ARM	ARM
+code	ARP	ARP
+code	ARS	ARS
+code	ATS	ATS
+code	AUD	AUD
+code	AWG	AWG
+code	AZM	AZM
+code	AZN	AZN
+code	BAD	BAD
+code	BAM	BAM
+code	BAN	BAN
+code	BBD	BBD
+code	BDT	BDT
+code	BEC	BEC
+code	BEF	BEF
+code	BEL	BEL
+code	BGL	BGL
+code	BGM	BGM
+code	BGN	BGN
+code	BGO	BGO
+code	BHD	BHD
+code	BIF	BIF
+code	BMD	BMD
+code	BND	BND
+code	BOB	BOB
+code	BOL	BOL
+code	BOP	BOP
+code	BOV	BOV
+code	BRB	BRB
+code	BRC	BRC
+code	BRE	BRE
+code	BRL	BRL
+code	BRN	BRN
+code	BRR	BRR
+code	BRZ	BRZ
+code	BSD	BSD
+code	BTN	BTN
+code	BUK	BUK
+code	BWP	BWP
+code	BYB	BYB
+code	BYN	BYN
+code	BYR	BYR
+code	BZD	BZD
+code	CAD	CAD
+code	CDF	CDF
+code	CHE	CHE
+code	CHF	CHF
+code	CHW	CHW
+code	CLE	CLE
+code	CLF	CLF
+code	CLP	CLP
+code	CNH	CNH
+code	CNX	CNX
+code	CNY	CNY
+code	COP	COP
+code	COU	COU
+code	CRC	CRC
+code	CSD	CSD
+code	CSK	CSK
+code	CUC	CUC
+code	CUP	CUP
+code	CVE	CVE
+code	CYP	CYP
+code	CZK	CZK
+code	DDM	DDM
+code	DEM	DEM
+code	DJF	DJF
+code	DKK	DKK
+code	DOP	DOP
+code	DZD	DZD
+code	ECS	ECS
+code	ECV	ECV
+code	EEK	EEK
+code	EGP	EGP
+code	ERN	ERN
+code	ESA	ESA
+code	ESB	ESB
+code	ESP	ESP
+code	ETB	ETB
+code	EUR	EUR
+code	FIM	FIM
+code	FJD	FJD
+code	FKP	FKP
+code	FRF	FRF
+code	GBP	GBP
+code	GEK	GEK
+code	GEL	GEL
+code	GHC	GHC
+code	GHS	GHS
+code	GIP	GIP
+code	GMD	GMD
+code	GNF	GNF
+code	GNS	GNS
+code	GQE	GQE
+code	GRD	GRD
+code	GTQ	GTQ
+code	GWE	GWE
+code	GWP	GWP
+code	GYD	GYD
+code	HKD	HKD
+code	HNL	HNL
+code	HRD	HRD
+code	HRK	HRK
+code	HTG	HTG
+code	HUF	HUF
+code	IDR	IDR
+code	IEP	IEP
+code	ILP	ILP
+code	ILR	ILR
+code	ILS	ILS
+code	INR	INR
+code	IQD	IQD
+code	IRR	IRR
+code	ISJ	ISJ
+code	ISK	ISK
+code	ITL	ITL
+code	JMD	JMD
+code	JOD	JOD
+code	JPY	JPY
+code	KES	KES
+code	KGS	KGS
+code	KHR	KHR
+code	KMF	KMF
+code	KPW	KPW
+code	KRH	KRH
+code	KRO	KRO
+code	KRW	KRW
+code	KWD	KWD
+code	KYD	KYD
+code	KZT	KZT
+code	LAK	LAK
+code	LBP	LBP
+code	LKR	LKR
+code	LRD	LRD
+code	LSL	LSL
+code	LTL	LTL
+code	LTT	LTT
+code	LUC	LUC
+code	LUF	LUF
+code	LUL	LUL
+code	LVL	LVL
+code	LVR	LVR
+code	LYD	LYD
+code	MAD	MAD
+code	MAF	MAF
+code	MCF	MCF
+code	MDC	MDC
+code	MDL	MDL
+code	MGA	MGA
+code	MGF	MGF
+code	MKD	MKD
+code	MKN	MKN
+code	MLF	MLF
+code	MMK	MMK
+code	MNT	MNT
+code	MOP	MOP
+code	MRO	MRO
+code	MTL	MTL
+code	MTP	MTP
+code	MUR	MUR
+code	MVP	MVP
+code	MVR	MVR
+code	MWK	MWK
+code	MXN	MXN
+code	MXP	MXP
+code	MXV	MXV
+code	MYR	MYR
+code	MZE	MZE
+code	MZM	MZM
+code	MZN	MZN
+code	NAD	NAD
+code	NGN	NGN
+code	NIC	NIC
+code	NIO	NIO
+code	NLG	NLG
+code	NOK	NOK
+code	NPR	NPR
+code	NZD	NZD
+code	OMR	OMR
+code	PAB	PAB
+code	PEI	PEI
+code	PEN	PEN
+code	PES	PES
+code	PGK	PGK
+code	PHP	PHP
+code	PKR	PKR
+code	PLN	PLN
+code	PLZ	PLZ
+code	PTE	PTE
+code	PYG	PYG
+code	QAR	QAR
+code	RHD	RHD
+code	ROL	ROL
+code	RON	RON
+code	RSD	RSD
+code	RUB	RUB
+code	RUR	RUR
+code	RWF	RWF
+code	SAR	SAR
+code	SBD	SBD
+code	SCR	SCR
+code	SDD	SDD
+code	SDG	SDG
+code	SDP	SDP
+code	SEK	SEK
+code	SGD	SGD
+code	SHP	SHP
+code	SIT	SIT
+code	SKK	SKK
+code	SLL	SLL
+code	SOS	SOS
+code	SRD	SRD
+code	SRG	SRG
+code	SSP	SSP
+code	STD	STD
+code	STN	STN
+code	SUR	SUR
+code	SVC	SVC
+code	SYP	SYP
+code	SZL	SZL
+code	THB	THB
+code	TJR	TJR
+code	TJS	TJS
+code	TMM	TMM
+code	TMT	TMT
+code	TND	TND
+code	TOP	TOP
+code	TPE	TPE
+code	TRL	TRL
+code	TRY	TRY
+code	TTD	TTD
+code	TWD	TWD
+code	TZS	TZS
+code	UAH	UAH
+code	UAK	UAK
+code	UGS	UGS
+code	UGX	UGX
+code	USD	USD
+code	USN	USN
+code	USS	USS
+code	UYI	UYI
+code	UYP	UYP
+code	UYU	UYU
+code	UZS	UZS
+code	VEB	VEB
+code	VEF	VEF
+code	VND	VND
+code	VNN	VNN
+code	VUV	VUV
+code	WST	WST
+code	XAF	XAF
+code	XAG	XAG
+code	XAU	XAU
+code	XBA	XBA
+code	XBB	XBB
+code	XBC	XBC
+code	XBD	XBD
+code	XCD	XCD
+code	XDR	XDR
+code	XEU	XEU
+code	XFO	XFO
+code	XFU	XFU
+code	XOF	XOF
+code	XPD	XPD
+code	XPF	XPF
+code	XPT	XPT
+code	XRE	XRE
+code	XSU	XSU
+code	XTS	XTS
+code	XUA	XUA
+code	XXX	XXX
+code	YDD	YDD
+code	YER	YER
+code	YUD	YUD
+code	YUM	YUM
+code	YUN	YUN
+code	YUR	YUR
+code	ZAL	ZAL
+code	ZAR	ZAR
+code	ZMK	ZMK
+code	ZMW	ZMW
+code	ZRN	ZRN
+code	ZRZ	ZRZ
+code	ZWD	ZWD
+code	ZWL	ZWL
+code	ZWR	ZWR
+case		err:currency: tag is not well-formed
+case	55	err:currency: tag is not well-formed
+case	5553	err:currency: tag is not well-formed
+case	555344	ok:USD
+case	55534458	err:currency: tag is not well-formed
+case	5553445859	err:currency: tag is not well-formed
+case	757364	ok:USD
+case	557364	ok:USD
+case	755364	ok:USD
+case	757344	ok:USD
+case	557344	ok:USD
+case	585858	ok:XXX
+case	787878	ok:XXX
+case	587858	ok:XXX
+case	585453	ok:XTS
+case	787473	ok:XTS
+case	564553	err:currency: tag is not a recognized currency
+case	766573	err:currency: tag is not a recognized currency
+case	4d5255	err:currency: tag is not a recognized currency
+case	464f4f	err:currency: tag is not a recognized currency
+case	666f6f	err:currency: tag is not a recognized currency
+case	313233	err:currency: tag is not well-formed
+case	555331	err:currency: tag is not well-formed
+case	552044	err:currency: tag is not well-formed
+case	555300	err:currency: tag is not well-formed
+case	005553	err:currency: tag is not well-formed
+case	c3895552	err:currency: tag is not well-formed
+case	e282ac	err:currency: tag is not well-formed
+case	c59255	err:currency: tag is not well-formed
+case	20555344	err:currency: tag is not well-formed
+case	55534420	err:currency: tag is not well-formed
+case	09555344	err:currency: tag is not well-formed
+case	552d44	err:currency: tag is not well-formed
+case	7573640a	err:currency: tag is not well-formed
+case	404142	err:currency: tag is not well-formed
+case	5b5553	err:currency: tag is not well-formed
+case	606162	err:currency: tag is not well-formed
+case	7b6162	err:currency: tag is not well-formed
+case	5a5a5a	err:currency: tag is not a recognized currency
+case	7a7a7a	err:currency: tag is not a recognized currency
+case	414141	err:currency: tag is not a recognized currency
+case	5a5752	ok:ZWR
+case	414450	ok:ADP
+case	7a7772	ok:ZWR
+case	f09f92b5	err:currency: tag is not well-formed
+case	c3bfc3bf	err:currency: tag is not well-formed
+case	65cc8175	err:currency: tag is not well-formed
+digest	ascii3	2097152	95809a465df1b895
+digest	letters3	140608	84a7930c0b29a045

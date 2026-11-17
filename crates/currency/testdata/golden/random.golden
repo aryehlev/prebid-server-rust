@@ -1,0 +1,449 @@
+mixed-rate-batch	0	4f48876b38faa8ee	4c0695c5748a6b57
+mixed-agg-batch	0	4f48876b38faa8ee	8de6b5daa219aa35
+mixed-rate-batch	1	2ef0db2229bf269a	476ac170955a47a2
+mixed-agg-batch	1	2ef0db2229bf269a	e525a8c8d927bc33
+mixed-rate-batch	2	465f4734df7feee6	81e41f032fbf45c7
+mixed-agg-batch	2	465f4734df7feee6	6bae990eab7e0ea5
+mixed-rate-batch	3	79dad37d8fd542d4	6f3538191bf2f4c9
+mixed-agg-batch	3	79dad37d8fd542d4	98c1b5b176e28630
+mixed-rate-batch	4	c5e7d8b20c3d8765	64c8c4c5b8e9de96
+mixed-agg-batch	4	c5e7d8b20c3d8765	5e969b3b6db54656
+mixed-rate-batch	5	fe396a934fb861a8	ffd8119ed442d787
+mixed-agg-batch	5	fe396a934fb861a8	41774dc4287678d0
+mixed-rate-batch	6	4775305b9c9be462	d62afaf52e99df39
+mixed-agg-batch	6	4775305b9c9be462	94d9ace0d6bdbda5
+mixed-rate-batch	7	02c0374733ca655d	fc968362c6730489
+mixed-agg-batch	7	02c0374733ca655d	597115ac00531ce3
+mixed-rate-batch	8	0a839b3ac7d7e666	0442cfcf5cf4b88a
+mixed-agg-batch	8	0a839b3ac7d7e666	58e564ce75b07df4
+mixed-rate-batch	9	3556df8e25479f57	a17e0460fbc5285a
+mixed-agg-batch	9	3556df8e25479f57	5146a38f063f1d48
+mixed-rate-batch	10	aa90e66ebe76235a	4f029464b8bd714e
+mixed-agg-batch	10	aa90e66ebe76235a	1763ee7e9e50405a
+mixed-rate-batch	11	e2242a043a49ffd5	dba378de0f289961
+mixed-agg-batch	11	e2242a043a49ffd5	a7087e4236c29119
+mixed-rate-batch	12	71f1da111837d1f6	96878d5a115d2076
+mixed-agg-batch	12	71f1da111837d1f6	d2b82c04f565d0ca
+mixed-rate-batch	13	690fa33a767e8aa9	8e05cd1ab14f9d60
+mixed-agg-batch	13	690fa33a767e8aa9	95b30d427b1c7dd1
+mixed-rate-batch	14	4e8d89fb14279df4	4e7cebfda57538c4
+mixed-agg-batch	14	4e8d89fb14279df4	7d1940583bb744f5
+mixed-rate-batch	15	cdc591e3c66e6fcd	ccc29cb99afd1536
+mixed-agg-batch	15	cdc591e3c66e6fcd	0af1c4a7bb402bd8
+mixed-rate-batch	16	61299a0189f7ed46	487701b21a48b18a
+mixed-agg-batch	16	61299a0189f7ed46	dc18d4b284c1e88c
+mixed-rate-batch	17	94e80f6b89b5354f	06d4d03346046ab7
+mixed-agg-batch	17	94e80f6b89b5354f	93fd35cea87faedb
+mixed-rate-batch	18	fa709b7d0a9963be	b03664aa4f1745f8
+mixed-agg-batch	18	fa709b7d0a9963be	012f3478047a2a01
+mixed-rate-batch	19	8620fa0560c7bdfe	36ae1f43984dda65
+mixed-agg-batch	19	8620fa0560c7bdfe	5aef44eeeaaac300
+pivot-rate-multi	95	ok:0955dc33841e6a08|ok:7a01421fc596c5f7
+pivot-agg-multi	95	ok:0955dc33841e6a08|ok:7a01421fc596c5f7
+pivot-agg-multi	179	ok:3f1bd7ddd939e38f|ok:43d46c73a573be4b|ok:43fa50785c241424
+pivot-rate-multi	190	ok:09b1d482f3030160|ok:3c530b4c257e679e
+pivot-agg-multi	190	ok:09b1d482f3030160|ok:3c530b4c257e679e
+pivot-rate-multi	261	ok:41e8001d85ec8be6|ok:5dd44b75b219eb27
+pivot-agg-multi	261	ok:41e8001d85ec8be6|ok:5dd44b75b219eb27
+pivot-agg-multi	314	ok:3eb7f7aae5962eca|ok:40233a7aaf6230cf
+pivot-rate-batch	0	e7efa66c468487a4	a6b8456463731886
+pivot-agg-batch	0	e7efa66c468487a4	424511489b42ff1c
+pivot-rate-multi	519	ok:3fec211c71a2b255|ok:6c532973f8ea1fba
+pivot-agg-multi	519	ok:3fec211c71a2b255|ok:6c532973f8ea1fba
+pivot-agg-multi	735	ok:00c7e61395d047d8|ok:409b965d007d4ecf
+pivot-rate-batch	1	72450bb87180bd1e	b3629f87bd1d6126
+pivot-agg-batch	1	72450bb87180bd1e	9c183a571de545fa
+pivot-rate-multi	1291	ok:42678217f8344b76|ok:7ff0000000000000
+pivot-agg-multi	1291	ok:42678217f8344b76|ok:7ff0000000000000
+pivot-rate-multi	1337	ok:00a461e666666667|ok:7ff0000000000000
+pivot-agg-multi	1337	ok:00a461e666666667|ok:7ff0000000000000
+pivot-rate-multi	1465	ok:11d65c768b9a8131|ok:3ff91764857f00c7
+pivot-agg-multi	1465	ok:11d65c768b9a8131|ok:3ff91764857f00c7
+pivot-rate-multi	1493	ok:3feccccccccccccd|ok:4010000000000000
+pivot-agg-multi	1493	ok:3feccccccccccccd|ok:4010000000000000
+pivot-rate-batch	2	9658d99cca3b653e	85c2e0478a6108a4
+pivot-agg-batch	2	9658d99cca3b653e	4f8a3a16326b87f2
+pivot-rate-batch	3	118414c6a9f78363	b507c88115ef8473
+pivot-agg-batch	3	118414c6a9f78363	aeffe245cdcf03f4
+pivot-agg-multi	2032	ok:40605a2ec0a17c2f|ok:409469a2b6406c5a
+pivot-rate-multi	2343	ok:1d829f3c6ae1a2dd|ok:3f6dca20cb4fc793
+pivot-agg-multi	2343	ok:1d829f3c6ae1a2dd|ok:3f6dca20cb4fc793
+pivot-rate-batch	4	0834cee268ced743	9ef8b8a5dbde5829
+pivot-agg-batch	4	0834cee268ced743	67d189037ee0e41d
+pivot-rate-multi	2702	ok:4df8ecd1b1d300f3|ok:fff0000000000000
+pivot-agg-multi	2702	ok:4df8ecd1b1d300f3|ok:fff0000000000000
+pivot-agg-multi	2760	ok:3fa85888edb3102f|ok:3fb63d06b925c0e8
+pivot-rate-multi	2888	ok:41839f78385447a3|ok:6a6760cf07ef7237
+pivot-agg-multi	2888	ok:41839f78385447a3|ok:6a6760cf07ef7237
+pivot-rate-batch	5	1aeaa98fc128f1dc	c9c576166de65564
+pivot-agg-batch	5	1aeaa98fc128f1dc	c5da86c99cf9c5bf
+pivot-rate-multi	3252	ok:0000000000000000|ok:5e3facb240f012c9
+pivot-agg-multi	3252	ok:0000000000000000|ok:5e3facb240f012c9
+pivot-rate-multi	3367	ok:45939e5d9407d014|ok:5109ba8494173abc
+pivot-agg-multi	3367	ok:45939e5d9407d014|ok:5109ba8494173abc
+pivot-rate-batch	6	cd6ce34afe431d14	809bf542f831611d
+pivot-agg-batch	6	cd6ce34afe431d14	5acede87045f967d
+pivot-rate-batch	7	27f2bad601775355	c1814e4a6dec0992
+pivot-agg-batch	7	27f2bad601775355	626756022570b99f
+pivot-rate-multi	4130	ok:407cf00000000000|ok:507b7a58d9fdcecb
+pivot-agg-multi	4130	ok:407cf00000000000|ok:507b7a58d9fdcecb
+pivot-rate-multi	4243	ok:410680c36369b623|ok:9c0eea92a61c3119
+pivot-agg-multi	4243	ok:410680c36369b623|ok:9c0eea92a61c3119
+pivot-agg-multi	4343	ok:3f0c5f08dd3adc89|ok:3fc9c4e29fdeefc4
+pivot-rate-batch	8	51378c14a7f72368	f6f9ffc252d2d7d6
+pivot-agg-batch	8	51378c14a7f72368	8c49d7a9f7e1bdc0
+pivot-agg-multi	4509	ok:0000000000000000|ok:1fdd56353085605b
+pivot-rate-multi	4578	ok:1e63ef8e98d0ea43|ok:3e1f08ecc83e573b
+pivot-agg-multi	4578	ok:1e63ef8e98d0ea43|ok:3e1f08ecc83e573b
+pivot-agg-multi	4913	ok:2a915d5150d24c25|ok:7716a23564078585
+pivot-rate-batch	9	2d241b50d85fd394	6b8d50553e9455a8
+pivot-agg-batch	9	2d241b50d85fd394	10825b29cf590484
+val-multi	0	err:currency code FOO is not recognized or malformed|err:currency code MRU is not recognized or malformed
+val-multi	16	err:currency code MRU is not recognized or malformed|err:currency code U$D is not recognized or malformed
+val-multi	27	err:currency code MRU is not recognized or malformed|err:currency code USDX is not recognized or malformed
+val-multi	31	err:currency code USDX is not recognized or malformed|err:currency code VES is not recognized or malformed
+val-multi	57	err:currency code FOO is not recognized or malformed|err:currency code U$D is not recognized or malformed|err:currency code VES is not recognized or malformed
+val-multi	65	err:currency code FOO is not recognized or malformed|err:currency code € is not recognized or malformed
+val-multi	86	err:currency code MRU is not recognized or malformed|err:currency code US is not recognized or malformed
+val-multi	106	err:currency code U$D is not recognized or malformed|err:currency code VES is not recognized or malformed
+val-multi	110	err:currency code MRU is not recognized or malformed|err:currency code U$D is not recognized or malformed
+val-multi	204	err:currency code 123 is not recognized or malformed|err:currency code FOO is not recognized or malformed
+val-multi	253	err:currency code  is not recognized or malformed|err:currency code US is not recognized or malformed
+val-multi	272	err:currency code MRU is not recognized or malformed|err:currency code € is not recognized or malformed
+val-multi	278	err:currency code 123 is not recognized or malformed|err:currency code VES is not recognized or malformed
+val-multi	284	err:currency code FOO is not recognized or malformed|err:currency code VES is not recognized or malformed
+val-multi	303	err:currency code 123 is not recognized or malformed|err:currency code VES is not recognized or malformed
+val-multi	311	err:currency code FOO is not recognized or malformed|err:currency code € is not recognized or malformed
+val-multi	313	err:currency code U$D is not recognized or malformed|err:currency code € is not recognized or malformed
+val-multi	318	err:currency code FOO is not recognized or malformed|err:currency code USDX is not recognized or malformed
+val-multi	329	err:currency code US is not recognized or malformed|err:currency code VES is not recognized or malformed
+val-multi	356	err:currency code  is not recognized or malformed|err:currency code VES is not recognized or malformed
+val-multi	359	err:currency code MRU is not recognized or malformed|err:currency code USDX is not recognized or malformed
+val-multi	390	err:currency code U$D is not recognized or malformed|err:currency code US is not recognized or malformed|err:currency code USDX is not recognized or malformed|err:currency code VES is not recognized or malformed
+val-multi	396	err:currency code 123 is not recognized or malformed|err:currency code USDX is not recognized or malformed|err:currency code € is not recognized or malformed
+val-multi	399	err:currency code USDX is not recognized or malformed|err:currency code € is not recognized or malformed
+val-multi	429	err:currency code 123 is not recognized or malformed|err:currency code US is not recognized or malformed
+val-multi	487	err:currency code FOO is not recognized or malformed|err:currency code US is not recognized or malformed
+val-multi	495	err:currency code FOO is not recognized or malformed|err:currency code U$D is not recognized or malformed
+val-batch	0	c2fad40d9dfbd377	d1b0578adb32f6d0
+val-multi	504	err:currency code US is not recognized or malformed|err:currency code VES is not recognized or malformed
+val-multi	535	err:currency code US is not recognized or malformed|err:currency code € is not recognized or malformed
+val-multi	536	err:currency code VES is not recognized or malformed|err:currency code € is not recognized or malformed
+val-multi	567	err:currency code 123 is not recognized or malformed|err:currency code US is not recognized or malformed
+val-multi	613	err:currency code U$D is not recognized or malformed|err:currency code USDX is not recognized or malformed
+val-multi	628	err:currency code US is not recognized or malformed|err:currency code VES is not recognized or malformed
+val-multi	663	err:currency code US is not recognized or malformed|err:currency code USDX is not recognized or malformed
+val-multi	676	err:currency code  is not recognized or malformed|err:currency code U$D is not recognized or malformed
+val-multi	677	err:currency code  is not recognized or malformed|err:currency code € is not recognized or malformed
+val-multi	678	err:currency code  is not recognized or malformed|err:currency code USDX is not recognized or malformed
+val-multi	680	err:currency code  is not recognized or malformed|err:currency code FOO is not recognized or malformed
+val-multi	709	err:currency code FOO is not recognized or malformed|err:currency code MRU is not recognized or malformed|err:currency code US is not recognized or malformed|err:currency code USDX is not recognized or malformed
+val-multi	714	err:currency code  is not recognized or malformed|err:currency code MRU is not recognized or malformed
+val-multi	722	err:currency code MRU is not recognized or malformed|err:currency code U$D is not recognized or malformed
+val-multi	752	err:currency code MRU is not recognized or malformed|err:currency code € is not recognized or malformed
+val-multi	772	err:currency code MRU is not recognized or malformed|err:currency code US is not recognized or malformed
+val-multi	792	err:currency code FOO is not recognized or malformed|err:currency code US is not recognized or malformed
+val-multi	794	err:currency code MRU is not recognized or malformed|err:currency code USDX is not recognized or malformed
+val-multi	808	err:currency code FOO is not recognized or malformed|err:currency code U$D is not recognized or malformed
+val-multi	827	err:currency code  is not recognized or malformed|err:currency code U$D is not recognized or malformed
+val-multi	839	err:currency code  is not recognized or malformed|err:currency code U$D is not recognized or malformed
+val-multi	856	err:currency code 123 is not recognized or malformed|err:currency code VES is not recognized or malformed
+val-multi	863	err:currency code  is not recognized or malformed|err:currency code 123 is not recognized or malformed
+val-multi	893	err:currency code  is not recognized or malformed|err:currency code U$D is not recognized or malformed|err:currency code € is not recognized or malformed
+val-multi	915	err:currency code MRU is not recognized or malformed|err:currency code U$D is not recognized or malformed
+val-multi	925	err:currency code MRU is not recognized or malformed|err:currency code US is not recognized or malformed
+val-multi	932	err:currency code MRU is not recognized or malformed|err:currency code US is not recognized or malformed
+val-multi	933	err:currency code MRU is not recognized or malformed|err:currency code US is not recognized or malformed
+val-multi	934	err:currency code VES is not recognized or malformed|err:currency code € is not recognized or malformed
+val-multi	947	err:currency code 123 is not recognized or malformed|err:currency code US is not recognized or malformed
+val-batch	1	795b0356b8e35581	17f17c79ebc826ff
+val-multi	1003	err:currency code FOO is not recognized or malformed|err:currency code VES is not recognized or malformed
+val-multi	1033	err:currency code 123 is not recognized or malformed|err:currency code FOO is not recognized or malformed
+val-multi	1071	err:currency code 123 is not recognized or malformed|err:currency code FOO is not recognized or malformed
+val-multi	1089	err:currency code U$D is not recognized or malformed|err:currency code € is not recognized or malformed
+val-multi	1093	err:currency code USDX is not recognized or malformed|err:currency code VES is not recognized or malformed
+val-multi	1185	err:currency code U$D is not recognized or malformed|err:currency code USDX is not recognized or malformed
+val-multi	1217	err:currency code 123 is not recognized or malformed|err:currency code € is not recognized or malformed
+val-multi	1219	err:currency code U$D is not recognized or malformed|err:currency code USDX is not recognized or malformed|err:currency code € is not recognized or malformed
+val-multi	1235	err:currency code  is not recognized or malformed|err:currency code USDX is not recognized or malformed|err:currency code VES is not recognized or malformed
+val-multi	1242	err:currency code U$D is not recognized or malformed|err:currency code USDX is not recognized or malformed
+val-multi	1250	err:currency code 123 is not recognized or malformed|err:currency code USDX is not recognized or malformed
+val-multi	1277	err:currency code 123 is not recognized or malformed|err:currency code USDX is not recognized or malformed
+val-multi	1282	err:currency code US is not recognized or malformed|err:currency code € is not recognized or malformed
+val-multi	1283	err:currency code US is not recognized or malformed|err:currency code VES is not recognized or malformed
+val-multi	1314	err:currency code 123 is not recognized or malformed|err:currency code USDX is not recognized or malformed
+val-multi	1321	err:currency code U$D is not recognized or malformed|err:currency code US is not recognized or malformed|err:currency code USDX is not recognized or malformed
+val-multi	1323	err:currency code FOO is not recognized or malformed|err:currency code U$D is not recognized or malformed
+val-multi	1324	err:currency code  is not recognized or malformed|err:currency code € is not recognized or malformed
+val-multi	1329	err:currency code  is not recognized or malformed|err:currency code MRU is not recognized or malformed
+val-multi	1347	err:currency code US is not recognized or malformed|err:currency code € is not recognized or malformed
+val-multi	1349	err:currency code US is not recognized or malformed|err:currency code € is not recognized or malformed
+val-multi	1357	err:currency code U$D is not recognized or malformed|err:currency code VES is not recognized or malformed
+val-multi	1381	err:currency code 123 is not recognized or malformed|err:currency code U$D is not recognized or malformed|err:currency code US is not recognized or malformed
+val-multi	1416	err:currency code FOO is not recognized or malformed|err:currency code VES is not recognized or malformed
+val-multi	1423	err:currency code 123 is not recognized or malformed|err:currency code US is not recognized or malformed
+val-multi	1454	err:currency code 123 is not recognized or malformed|err:currency code € is not recognized or malformed
+val-multi	1470	err:currency code  is not recognized or malformed|err:currency code U$D is not recognized or malformed
+val-batch	2	f52b1b71c7bdb62f	ee958781023064df
+val-multi	1515	err:currency code 123 is not recognized or malformed|err:currency code USDX is not recognized or malformed
+val-multi	1527	err:currency code FOO is not recognized or malformed|err:currency code US is not recognized or malformed
+val-multi	1536	err:currency code  is not recognized or malformed|err:currency code U$D is not recognized or malformed
+val-multi	1546	err:currency code  is not recognized or malformed|err:currency code € is not recognized or malformed
+val-multi	1547	err:currency code FOO is not recognized or malformed|err:currency code USDX is not recognized or malformed
+val-multi	1549	err:currency code  is not recognized or malformed|err:currency code U$D is not recognized or malformed
+val-multi	1560	err:currency code  is not recognized or malformed|err:currency code 123 is not recognized or malformed|err:currency code U$D is not recognized or malformed
+val-multi	1607	err:currency code MRU is not recognized or malformed|err:currency code € is not recognized or malformed
+val-multi	1615	err:currency code 123 is not recognized or malformed|err:currency code VES is not recognized or malformed
+val-multi	1641	err:currency code 123 is not recognized or malformed|err:currency code US is not recognized or malformed
+val-multi	1642	err:currency code  is not recognized or malformed|err:currency code US is not recognized or malformed
+val-multi	1658	err:currency code 123 is not recognized or malformed|err:currency code USDX is not recognized or malformed
+val-multi	1694	err:currency code 123 is not recognized or malformed|err:currency code MRU is not recognized or malformed
+val-multi	1698	err:currency code U$D is not recognized or malformed|err:currency code USDX is not recognized or malformed
+val-multi	1725	err:currency code FOO is not recognized or malformed|err:currency code U$D is not recognized or malformed
+val-multi	1739	err:currency code USDX is not recognized or malformed|err:currency code VES is not recognized or malformed
+val-multi	1772	err:currency code  is not recognized or malformed|err:currency code MRU is not recognized or malformed|err:currency code USDX is not recognized or malformed
+val-multi	1798	err:currency code 123 is not recognized or malformed|err:currency code FOO is not recognized or malformed|err:currency code € is not recognized or malformed
+val-multi	1815	err:currency code U$D is not recognized or malformed|err:currency code USDX is not recognized or malformed
+val-multi	1837	err:currency code  is not recognized or malformed|err:currency code US is not recognized or malformed
+val-multi	1853	err:currency code US is not recognized or malformed|err:currency code € is not recognized or malformed
+val-multi	1872	err:currency code 123 is not recognized or malformed|err:currency code MRU is not recognized or malformed|err:currency code VES is not recognized or malformed
+val-multi	1903	err:currency code MRU is not recognized or malformed|err:currency code VES is not recognized or malformed
+val-multi	1914	err:currency code US is not recognized or malformed|err:currency code USDX is not recognized or malformed|err:currency code VES is not recognized or malformed
+val-multi	1916	err:currency code 123 is not recognized or malformed|err:currency code US is not recognized or malformed
+val-multi	1931	err:currency code  is not recognized or malformed|err:currency code FOO is not recognized or malformed
+val-multi	1938	err:currency code U$D is not recognized or malformed|err:currency code USDX is not recognized or malformed
+val-multi	1961	err:currency code  is not recognized or malformed|err:currency code U$D is not recognized or malformed
+val-multi	1967	err:currency code U$D is not recognized or malformed|err:currency code USDX is not recognized or malformed
+val-multi	1970	err:currency code USDX is not recognized or malformed|err:currency code € is not recognized or malformed
+val-multi	1987	err:currency code FOO is not recognized or malformed|err:currency code USDX is not recognized or malformed
+val-batch	3	abfafa237471e58c	648cf22c646034d6
+val-multi	2006	err:currency code MRU is not recognized or malformed|err:currency code VES is not recognized or malformed
+val-multi	2010	err:currency code FOO is not recognized or malformed|err:currency code U$D is not recognized or malformed
+val-multi	2018	err:currency code MRU is not recognized or malformed|err:currency code VES is not recognized or malformed
+val-multi	2032	err:currency code USDX is not recognized or malformed|err:currency code € is not recognized or malformed
+val-multi	2038	err:currency code U$D is not recognized or malformed|err:currency code USDX is not recognized or malformed
+val-multi	2045	err:currency code MRU is not recognized or malformed|err:currency code € is not recognized or malformed
+val-multi	2069	err:currency code U$D is not recognized or malformed|err:currency code USDX is not recognized or malformed
+val-multi	2075	err:currency code MRU is not recognized or malformed|err:currency code VES is not recognized or malformed|err:currency code € is not recognized or malformed
+val-multi	2094	err:currency code 123 is not recognized or malformed|err:currency code MRU is not recognized or malformed
+val-multi	2103	err:currency code MRU is not recognized or malformed|err:currency code € is not recognized or malformed
+val-multi	2128	err:currency code US is not recognized or malformed|err:currency code USDX is not recognized or malformed
+val-multi	2134	err:currency code USDX is not recognized or malformed|err:currency code VES is not recognized or malformed
+val-multi	2135	err:currency code MRU is not recognized or malformed|err:currency code USDX is not recognized or malformed
+val-multi	2138	err:currency code FOO is not recognized or malformed|err:currency code US is not recognized or malformed|err:currency code € is not recognized or malformed
+val-multi	2160	err:currency code 123 is not recognized or malformed|err:currency code MRU is not recognized or malformed
+val-multi	2164	err:currency code MRU is not recognized or malformed|err:currency code U$D is not recognized or malformed
+val-multi	2168	err:currency code 123 is not recognized or malformed|err:currency code VES is not recognized or malformed
+val-multi	2173	err:currency code FOO is not recognized or malformed|err:currency code VES is not recognized or malformed
+val-multi	2181	err:currency code MRU is not recognized or malformed|err:currency code U$D is not recognized or malformed
+val-multi	2185	err:currency code MRU is not recognized or malformed|err:currency code € is not recognized or malformed
+val-multi	2190	err:currency code US is not recognized or malformed|err:currency code USDX is not recognized or malformed|err:currency code € is not recognized or malformed
+val-multi	2199	err:currency code US is not recognized or malformed|err:currency code USDX is not recognized or malformed
+val-multi	2205	err:currency code FOO is not recognized or malformed|err:currency code U$D is not recognized or malformed
+val-multi	2245	err:currency code US is not recognized or malformed|err:currency code VES is not recognized or malformed
+val-multi	2250	err:currency code FOO is not recognized or malformed|err:currency code US is not recognized or malformed|err:currency code € is not recognized or malformed
+val-multi	2253	err:currency code FOO is not recognized or malformed|err:currency code U$D is not recognized or malformed
+val-multi	2270	err:currency code 123 is not recognized or malformed|err:currency code FOO is not recognized or malformed|err:currency code USDX is not recognized or malformed
+val-multi	2279	err:currency code  is not recognized or malformed|err:currency code FOO is not recognized or malformed|err:currency code USDX is not recognized or malformed
+val-multi	2280	err:currency code 123 is not recognized or malformed|err:currency code USDX is not recognized or malformed|err:currency code VES is not recognized or malformed
+val-multi	2287	err:currency code 123 is not recognized or malformed|err:currency code USDX is not recognized or malformed
+val-multi	2305	err:currency code VES is not recognized or malformed|err:currency code € is not recognized or malformed
+val-multi	2319	err:currency code USDX is not recognized or malformed|err:currency code € is not recognized or malformed
+val-multi	2322	err:currency code FOO is not recognized or malformed|err:currency code USDX is not recognized or malformed
+val-multi	2374	err:currency code 123 is not recognized or malformed|err:currency code USDX is not recognized or malformed
+val-multi	2401	err:currency code  is not recognized or malformed|err:currency code FOO is not recognized or malformed
+val-multi	2406	err:currency code MRU is not recognized or malformed|err:currency code VES is not recognized or malformed
+val-multi	2424	err:currency code US is not recognized or malformed|err:currency code USDX is not recognized or malformed
+val-multi	2431	err:currency code 123 is not recognized or malformed|err:currency code US is not recognized or malformed|err:currency code USDX is not recognized or malformed
+val-multi	2441	err:currency code 123 is not recognized or malformed|err:currency code US is not recognized or malformed|err:currency code USDX is not recognized or malformed|err:currency code € is not recognized or malformed
+val-multi	2455	err:currency code FOO is not recognized or malformed|err:currency code MRU is not recognized or malformed
+val-multi	2485	err:currency code FOO is not recognized or malformed|err:currency code US is not recognized or malformed
+val-batch	4	9746be76ca9072fe	a12d4bbf4df9fd3f
+val-multi	2540	err:currency code  is not recognized or malformed|err:currency code U$D is not recognized or malformed
+val-multi	2542	err:currency code MRU is not recognized or malformed|err:currency code VES is not recognized or malformed
+val-multi	2543	err:currency code MRU is not recognized or malformed|err:currency code US is not recognized or malformed
+val-multi	2563	err:currency code FOO is not recognized or malformed|err:currency code U$D is not recognized or malformed
+val-multi	2581	err:currency code U$D is not recognized or malformed|err:currency code € is not recognized or malformed
+val-multi	2585	err:currency code VES is not recognized or malformed|err:currency code € is not recognized or malformed
+val-multi	2590	err:currency code FOO is not recognized or malformed|err:currency code US is not recognized or malformed|err:currency code € is not recognized or malformed
+val-multi	2599	err:currency code U$D is not recognized or malformed|err:currency code US is not recognized or malformed
+val-multi	2626	err:currency code  is not recognized or malformed|err:currency code USDX is not recognized or malformed
+val-multi	2633	err:currency code  is not recognized or malformed|err:currency code 123 is not recognized or malformed
+val-multi	2635	err:currency code 123 is not recognized or malformed|err:currency code € is not recognized or malformed
+val-multi	2650	err:currency code MRU is not recognized or malformed|err:currency code USDX is not recognized or malformed
+val-multi	2670	err:currency code FOO is not recognized or malformed|err:currency code USDX is not recognized or malformed
+val-multi	2684	err:currency code U$D is not recognized or malformed|err:currency code USDX is not recognized or malformed
+val-multi	2704	err:currency code 123 is not recognized or malformed|err:currency code € is not recognized or malformed
+val-multi	2718	err:currency code FOO is not recognized or malformed|err:currency code USDX is not recognized or malformed
+val-multi	2736	err:currency code FOO is not recognized or malformed|err:currency code USDX is not recognized or malformed
+val-multi	2750	err:currency code 123 is not recognized or malformed|err:currency code € is not recognized or malformed
+val-multi	2758	err:currency code FOO is not recognized or malformed|err:currency code U$D is not recognized or malformed
+val-multi	2791	err:currency code FOO is not recognized or malformed|err:currency code U$D is not recognized or malformed
+val-multi	2798	err:currency code  is not recognized or malformed|err:currency code MRU is not recognized or malformed
+val-multi	2802	err:currency code FOO is not recognized or malformed|err:currency code USDX is not recognized or malformed
+val-multi	2810	err:currency code 123 is not recognized or malformed|err:currency code FOO is not recognized or malformed
+val-multi	2836	err:currency code US is not recognized or malformed|err:currency code VES is not recognized or malformed
+val-multi	2885	err:currency code FOO is not recognized or malformed|err:currency code MRU is not recognized or malformed
+val-multi	2892	err:currency code U$D is not recognized or malformed|err:currency code USDX is not recognized or malformed
+val-multi	2953	err:currency code  is not recognized or malformed|err:currency code US is not recognized or malformed|err:currency code USDX is not recognized or malformed
+val-multi	2994	err:currency code MRU is not recognized or malformed|err:currency code US is not recognized or malformed
+val-multi	2995	err:currency code  is not recognized or malformed|err:currency code U$D is not recognized or malformed
+val-batch	5	ce95b5b264a5f28e	8a17b8330a89ef2c
+val-multi	3010	err:currency code US is not recognized or malformed|err:currency code VES is not recognized or malformed
+val-multi	3044	err:currency code MRU is not recognized or malformed|err:currency code VES is not recognized or malformed
+val-multi	3048	err:currency code U$D is not recognized or malformed|err:currency code USDX is not recognized or malformed
+val-multi	3049	err:currency code  is not recognized or malformed|err:currency code 123 is not recognized or malformed
+val-multi	3067	err:currency code  is not recognized or malformed|err:currency code FOO is not recognized or malformed
+val-multi	3079	err:currency code  is not recognized or malformed|err:currency code € is not recognized or malformed
+val-multi	3101	err:currency code FOO is not recognized or malformed|err:currency code MRU is not recognized or malformed
+val-multi	3114	err:currency code MRU is not recognized or malformed|err:currency code USDX is not recognized or malformed
+val-multi	3127	err:currency code VES is not recognized or malformed|err:currency code € is not recognized or malformed
+val-multi	3133	err:currency code  is not recognized or malformed|err:currency code U$D is not recognized or malformed
+val-multi	3187	err:currency code US is not recognized or malformed|err:currency code USDX is not recognized or malformed
+val-multi	3206	err:currency code 123 is not recognized or malformed|err:currency code US is not recognized or malformed
+val-multi	3209	err:currency code 123 is not recognized or malformed|err:currency code USDX is not recognized or malformed
+val-multi	3211	err:currency code U$D is not recognized or malformed|err:currency code USDX is not recognized or malformed
+val-multi	3217	err:currency code USDX is not recognized or malformed|err:currency code VES is not recognized or malformed
+val-multi	3221	err:currency code  is not recognized or malformed|err:currency code MRU is not recognized or malformed
+val-multi	3234	err:currency code  is not recognized or malformed|err:currency code € is not recognized or malformed
+val-multi	3245	err:currency code 123 is not recognized or malformed|err:currency code US is not recognized or malformed|err:currency code VES is not recognized or malformed
+val-multi	3250	err:currency code FOO is not recognized or malformed|err:currency code U$D is not recognized or malformed
+val-multi	3251	err:currency code  is not recognized or malformed|err:currency code MRU is not recognized or malformed
+val-multi	3255	err:currency code  is not recognized or malformed|err:currency code U$D is not recognized or malformed|err:currency code VES is not recognized or malformed
+val-multi	3256	err:currency code US is not recognized or malformed|err:currency code € is not recognized or malformed
+val-multi	3269	err:currency code  is not recognized or malformed|err:currency code VES is not recognized or malformed
+val-multi	3274	err:currency code FOO is not recognized or malformed|err:currency code MRU is not recognized or malformed
+val-multi	3283	err:currency code  is not recognized or malformed|err:currency code US is not recognized or malformed
+val-multi	3322	err:currency code FOO is not recognized or malformed|err:currency code € is not recognized or malformed
+val-multi	3331	err:currency code U$D is not recognized or malformed|err:currency code US is not recognized or malformed
+val-multi	3354	err:currency code 123 is not recognized or malformed|err:currency code € is not recognized or malformed
+val-multi	3386	err:currency code  is not recognized or malformed|err:currency code FOO is not recognized or malformed|err:currency code VES is not recognized or malformed
+val-multi	3400	err:currency code MRU is not recognized or malformed|err:currency code US is not recognized or malformed
+val-multi	3436	err:currency code FOO is not recognized or malformed|err:currency code MRU is not recognized or malformed
+val-multi	3443	err:currency code  is not recognized or malformed|err:currency code U$D is not recognized or malformed
+val-multi	3464	err:currency code US is not recognized or malformed|err:currency code USDX is not recognized or malformed
+val-multi	3485	err:currency code  is not recognized or malformed|err:currency code VES is not recognized or malformed
+val-batch	6	4e08da133c42aa72	2d82ee78a8841b4f
+val-multi	3501	err:currency code  is not recognized or malformed|err:currency code FOO is not recognized or malformed
+val-multi	3520	err:currency code USDX is not recognized or malformed|err:currency code € is not recognized or malformed
+val-multi	3533	err:currency code 123 is not recognized or malformed|err:currency code MRU is not recognized or malformed|err:currency code US is not recognized or malformed
+val-multi	3534	err:currency code 123 is not recognized or malformed|err:currency code U$D is not recognized or malformed
+val-multi	3545	err:currency code 123 is not recognized or malformed|err:currency code USDX is not recognized or malformed
+val-multi	3549	err:currency code  is not recognized or malformed|err:currency code US is not recognized or malformed
+val-multi	3557	err:currency code  is not recognized or malformed|err:currency code MRU is not recognized or malformed
+val-multi	3593	err:currency code MRU is not recognized or malformed|err:currency code US is not recognized or malformed
+val-multi	3601	err:currency code  is not recognized or malformed|err:currency code FOO is not recognized or malformed|err:currency code US is not recognized or malformed
+val-multi	3621	err:currency code USDX is not recognized or malformed|err:currency code VES is not recognized or malformed
+val-multi	3623	err:currency code  is not recognized or malformed|err:currency code VES is not recognized or malformed
+val-multi	3630	err:currency code  is not recognized or malformed|err:currency code U$D is not recognized or malformed
+val-multi	3643	err:currency code USDX is not recognized or malformed|err:currency code VES is not recognized or malformed
+val-multi	3655	err:currency code 123 is not recognized or malformed|err:currency code VES is not recognized or malformed
+val-multi	3663	err:currency code 123 is not recognized or malformed|err:currency code US is not recognized or malformed
+val-multi	3676	err:currency code FOO is not recognized or malformed|err:currency code MRU is not recognized or malformed
+val-multi	3682	err:currency code FOO is not recognized or malformed|err:currency code VES is not recognized or malformed
+val-multi	3693	err:currency code US is not recognized or malformed|err:currency code VES is not recognized or malformed
+val-multi	3703	err:currency code  is not recognized or malformed|err:currency code FOO is not recognized or malformed
+val-multi	3707	err:currency code FOO is not recognized or malformed|err:currency code US is not recognized or malformed
+val-multi	3728	err:currency code 123 is not recognized or malformed|err:currency code FOO is not recognized or malformed|err:currency code US is not recognized or malformed
+val-multi	3752	err:currency code FOO is not recognized or malformed|err:currency code € is not recognized or malformed
+val-multi	3768	err:currency code MRU is not recognized or malformed|err:currency code U$D is not recognized or malformed
+val-multi	3772	err:currency code U$D is not recognized or malformed|err:currency code US is not recognized or malformed
+val-multi	3778	err:currency code USDX is not recognized or malformed|err:currency code VES is not recognized or malformed
+val-multi	3782	err:currency code U$D is not recognized or malformed|err:currency code VES is not recognized or malformed
+val-multi	3792	err:currency code 123 is not recognized or malformed|err:currency code USDX is not recognized or malformed
+val-multi	3809	err:currency code  is not recognized or malformed|err:currency code USDX is not recognized or malformed|err:currency code € is not recognized or malformed
+val-multi	3819	err:currency code USDX is not recognized or malformed|err:currency code € is not recognized or malformed
+val-multi	3830	err:currency code  is not recognized or malformed|err:currency code 123 is not recognized or malformed
+val-multi	3851	err:currency code  is not recognized or malformed|err:currency code € is not recognized or malformed
+val-multi	3856	err:currency code FOO is not recognized or malformed|err:currency code MRU is not recognized or malformed
+val-multi	3870	err:currency code U$D is not recognized or malformed|err:currency code USDX is not recognized or malformed
+val-multi	3875	err:currency code  is not recognized or malformed|err:currency code US is not recognized or malformed
+val-multi	3887	err:currency code MRU is not recognized or malformed|err:currency code USDX is not recognized or malformed
+val-multi	3937	err:currency code  is not recognized or malformed|err:currency code 123 is not recognized or malformed
+val-multi	3958	err:currency code 123 is not recognized or malformed|err:currency code U$D is not recognized or malformed
+val-multi	3972	err:currency code MRU is not recognized or malformed|err:currency code € is not recognized or malformed
+val-multi	3985	err:currency code US is not recognized or malformed|err:currency code USDX is not recognized or malformed
+val-multi	3994	err:currency code MRU is not recognized or malformed|err:currency code US is not recognized or malformed
+val-multi	3995	err:currency code USDX is not recognized or malformed|err:currency code VES is not recognized or malformed
+val-batch	7	8b3a5730e0362b94	d54ed0734dff806b
+val-multi	4013	err:currency code FOO is not recognized or malformed|err:currency code € is not recognized or malformed
+val-multi	4050	err:currency code U$D is not recognized or malformed|err:currency code US is not recognized or malformed
+val-multi	4054	err:currency code 123 is not recognized or malformed|err:currency code MRU is not recognized or malformed
+val-multi	4088	err:currency code U$D is not recognized or malformed|err:currency code € is not recognized or malformed
+val-multi	4097	err:currency code FOO is not recognized or malformed|err:currency code MRU is not recognized or malformed
+val-multi	4103	err:currency code U$D is not recognized or malformed|err:currency code USDX is not recognized or malformed
+val-multi	4162	err:currency code FOO is not recognized or malformed|err:currency code € is not recognized or malformed
+val-multi	4164	err:currency code USDX is not recognized or malformed|err:currency code € is not recognized or malformed
+val-multi	4165	err:currency code US is not recognized or malformed|err:currency code USDX is not recognized or malformed
+val-multi	4177	err:currency code USDX is not recognized or malformed|err:currency code € is not recognized or malformed
+val-multi	4193	err:currency code FOO is not recognized or malformed|err:currency code U$D is not recognized or malformed
+val-multi	4196	err:currency code U$D is not recognized or malformed|err:currency code US is not recognized or malformed
+val-multi	4205	err:currency code MRU is not recognized or malformed|err:currency code VES is not recognized or malformed
+val-multi	4209	err:currency code  is not recognized or malformed|err:currency code 123 is not recognized or malformed
+val-multi	4242	err:currency code FOO is not recognized or malformed|err:currency code US is not recognized or malformed
+val-multi	4255	err:currency code  is not recognized or malformed|err:currency code 123 is not recognized or malformed
+val-multi	4281	err:currency code  is not recognized or malformed|err:currency code FOO is not recognized or malformed
+val-multi	4283	err:currency code FOO is not recognized or malformed|err:currency code MRU is not recognized or malformed
+val-multi	4296	err:currency code FOO is not recognized or malformed|err:currency code € is not recognized or malformed
+val-multi	4330	err:currency code  is not recognized or malformed|err:currency code 123 is not recognized or malformed|err:currency code US is not recognized or malformed
+val-multi	4333	err:currency code 123 is not recognized or malformed|err:currency code US is not recognized or malformed|err:currency code € is not recognized or malformed
+val-multi	4363	err:currency code 123 is not recognized or malformed|err:currency code € is not recognized or malformed
+val-multi	4372	err:currency code US is not recognized or malformed|err:currency code USDX is not recognized or malformed
+val-multi	4382	err:currency code U$D is not recognized or malformed|err:currency code US is not recognized or malformed
+val-multi	4388	err:currency code  is not recognized or malformed|err:currency code U$D is not recognized or malformed
+val-multi	4399	err:currency code 123 is not recognized or malformed|err:currency code VES is not recognized or malformed
+val-multi	4404	err:currency code  is not recognized or malformed|err:currency code MRU is not recognized or malformed
+val-multi	4448	err:currency code FOO is not recognized or malformed|err:currency code VES is not recognized or malformed
+val-multi	4464	err:currency code  is not recognized or malformed|err:currency code € is not recognized or malformed
+val-multi	4476	err:currency code  is not recognized or malformed|err:currency code VES is not recognized or malformed
+val-batch	8	8013a211ee42630c	7aa21b26660045f2
+val-multi	4552	err:currency code  is not recognized or malformed|err:currency code 123 is not recognized or malformed
+val-multi	4568	err:currency code MRU is not recognized or malformed|err:currency code VES is not recognized or malformed
+val-multi	4597	err:currency code U$D is not recognized or malformed|err:currency code VES is not recognized or malformed
+val-multi	4611	err:currency code 123 is not recognized or malformed|err:currency code USDX is not recognized or malformed|err:currency code € is not recognized or malformed
+val-multi	4642	err:currency code FOO is not recognized or malformed|err:currency code VES is not recognized or malformed
+val-multi	4658	err:currency code FOO is not recognized or malformed|err:currency code U$D is not recognized or malformed|err:currency code US is not recognized or malformed
+val-multi	4671	err:currency code U$D is not recognized or malformed|err:currency code VES is not recognized or malformed|err:currency code € is not recognized or malformed
+val-multi	4698	err:currency code FOO is not recognized or malformed|err:currency code USDX is not recognized or malformed
+val-multi	4719	err:currency code U$D is not recognized or malformed|err:currency code US is not recognized or malformed
+val-multi	4725	err:currency code  is not recognized or malformed|err:currency code 123 is not recognized or malformed|err:currency code MRU is not recognized or malformed
+val-multi	4728	err:currency code  is not recognized or malformed|err:currency code FOO is not recognized or malformed
+val-multi	4730	err:currency code MRU is not recognized or malformed|err:currency code USDX is not recognized or malformed
+val-multi	4734	err:currency code 123 is not recognized or malformed|err:currency code VES is not recognized or malformed
+val-multi	4749	err:currency code 123 is not recognized or malformed|err:currency code FOO is not recognized or malformed
+val-multi	4760	err:currency code 123 is not recognized or malformed|err:currency code USDX is not recognized or malformed
+val-multi	4768	err:currency code  is not recognized or malformed|err:currency code MRU is not recognized or malformed
+val-multi	4842	err:currency code  is not recognized or malformed|err:currency code MRU is not recognized or malformed
+val-multi	4868	err:currency code VES is not recognized or malformed|err:currency code € is not recognized or malformed
+val-multi	4869	err:currency code FOO is not recognized or malformed|err:currency code U$D is not recognized or malformed
+val-multi	4874	err:currency code MRU is not recognized or malformed|err:currency code US is not recognized or malformed
+val-multi	4887	err:currency code USDX is not recognized or malformed|err:currency code € is not recognized or malformed
+val-multi	4910	err:currency code FOO is not recognized or malformed|err:currency code MRU is not recognized or malformed
+val-multi	4913	err:currency code FOO is not recognized or malformed|err:currency code US is not recognized or malformed
+val-multi	4916	err:currency code USDX is not recognized or malformed|err:currency code VES is not recognized or malformed
+val-multi	4938	err:currency code  is not recognized or malformed|err:currency code US is not recognized or malformed
+val-multi	4939	err:currency code  is not recognized or malformed|err:currency code 123 is not recognized or malformed|err:currency code U$D is not recognized or malformed
+val-multi	4968	err:currency code  is not recognized or malformed|err:currency code US is not recognized or malformed
+val-multi	4988	err:currency code  is not recognized or malformed|err:currency code MRU is not recognized or malformed
+val-multi	4993	err:currency code 123 is not recognized or malformed|err:currency code MRU is not recognized or malformed|err:currency code US is not recognized or malformed
+val-batch	9	1dbd62c33eff8c63	4e4b5b806a72a031
+stale-batch	0	a8f7da1f6dbf830c	16f4b8a9d5e7aeac
+stale-batch	1	2cac070a6d08746c	d21c46d150b989c3
+stale-batch	2	4fa76a78b249ddec	d02e04c1652aa227
+stale-batch	3	a6160486281850d3	3599cd83fc8fa9dc
+stale-batch	4	3cdeb44588d07ffe	3f0c840f6e09f425
+stale-batch	5	20edc9cd1ddb2b63	864e260a1f3ccee8
+stale-batch	6	02323fc364445224	578552ae957f43e7
+stale-batch	7	1367d50e00097d5d	49353974efee6b61
+stale-batch	8	c47065a12e47cc62	a11ba8d6edf17cd6
+stale-batch	9	8ecf834e90ea0e3b	16db3a11cc75642e
+stale-batch	10	80e074be2556f07b	f26cff46f793bebd
+stale-batch	11	1045a63307dfdfde	a99da9c995732abe
+stale-batch	12	96a31e2b4c0159dc	51a478a94874bf08
+stale-batch	13	93ff203b392587b0	e7096c61251516db
+stale-batch	14	014afbe76caf3045	977719dbed30474b
+stale-batch	15	b614142d7d59a4c3	c49522ee7a996cf5
+stale-batch	16	b63733362ea8ecd3	221e96ccddbeb37e
+stale-batch	17	b1429b9f535d0173	a4c7e83ec6df133b
+stale-batch	18	b0a4a2be6305f0ba	bad9cacfc4280469
+stale-batch	19	60b5dd02fedfd59e	418814c426b7ddf8
