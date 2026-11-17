@@ -209,6 +209,32 @@ func TestRunNotInstrumented(t *testing.T) {
 	}
 }
 
+// TestRunOffContractTrace: a side whose trace does not validate against the
+// trace schema is a harness error, never a passing case, even though the
+// decoded trace (which drops the unknown member) equals the other side's.
+func TestRunOffContractTrace(t *testing.T) {
+	opts := testOptions(t, fakeImpl(t, parity.ImplGo, fakeGo), fakeImpl(t, parity.ImplRust, fakeOffContract), corpus.CorpusSampleRequests)
+	res, err := Run(context.Background(), opts)
+	if err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	if c := res.Run.Summary.Counts; c.Passing != 0 || c.Mismatch != 0 || c.Error != 2 {
+		t.Fatalf("counts = %+v", c)
+	}
+	for _, id := range []string{caseOracle, caseInline} {
+		cs := mustCase(t, res.Run, id)
+		if cs.Status != report.CaseError || !strings.Contains(cs.Reason, "does not validate") || !strings.Contains(cs.Reason, "http_outs") {
+			t.Errorf("%s = %s (%q)", id, cs.Status, cs.Reason)
+		}
+		if cs.Artifacts.TraceB == "" {
+			t.Errorf("%s: the off-contract trace was not kept: %+v", id, cs.Artifacts)
+		}
+	}
+	if v := Judge(res.Run); v.OK {
+		t.Errorf("verdict = %+v", v)
+	}
+}
+
 func TestRunBudget(t *testing.T) {
 	opts := testOptions(t, fakeImpl(t, parity.ImplGo, fakeGo), fakeImpl(t, parity.ImplRust, fakeGo), "all")
 	opts.Budget = time.Nanosecond

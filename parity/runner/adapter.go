@@ -37,16 +37,20 @@ func (p *pair) execAdapter(ctx context.Context, rc *runCase) caseResult {
 	if p.r.opts.FixtureSelfTest {
 		res.fixture = fixtureOutcome(rc, outs[0])
 	}
+	var invalid []string
 	for i, o := range outs {
 		for j, raw := range o.raw {
 			res.files = append(res.files, caseFile{name: fmt.Sprintf("%s.%s.adapter-%d.json", p.sides[i].name, p.sides[i].impl, j), role: roleExtra, raw: raw})
-			res.notes = append(res.notes, validationNotes(p.sides[i], raw)...)
+			invalid = append(invalid, validationNotes(p.sides[i], raw)...)
 		}
 		if o.err != nil {
 			out := sideFailure(p.sides[i], o.what, o.err)
-			out.files, out.notes, out.fixture = res.files, res.notes, res.fixture
+			out.files, out.notes, out.fixture = res.files, append(res.notes, invalid...), res.fixture
 			return out
 		}
+	}
+	if len(invalid) > 0 {
+		return contractFailure(res, invalid)
 	}
 	doc, err := p.compareAdapter(rc, outs)
 	if err != nil {
@@ -170,17 +174,21 @@ func (p *pair) execIntrospection(ctx context.Context, rc *runCase) caseResult {
 		outs[i].err, outs[i].what, outs[i].bidders = err, "bidders", bidders
 	})
 	res := caseResult{}
+	var invalid []string
 	for i, o := range outs {
 		for j, raw := range o.raw {
 			res.files = append(res.files, caseFile{name: fmt.Sprintf("%s.%s.introspection-%d.json", p.sides[i].name, p.sides[i].impl, j), role: roleExtra, raw: raw})
-			res.notes = append(res.notes, validationNotes(p.sides[i], raw)...)
+			invalid = append(invalid, validationNotes(p.sides[i], raw)...)
 		}
 		if o.err != nil {
 			out := sideFailure(p.sides[i], o.what, o.err)
-			out.files, out.notes = res.files, res.notes
+			out.files, out.notes = res.files, append(res.notes, invalid...)
 			return out
 		}
 		maskPorts(o.config, p.sides[i].srv.Ports)
+	}
+	if len(invalid) > 0 {
+		return contractFailure(res, invalid)
 	}
 	dc := diff.Case{CaseID: rc.ID, FixturePath: rc.Case.FixturePath, Endpoint: rc.Case.Endpoint, Profile: p.b.Label()}
 	cres, err := p.r.engine.CompareConfig(dc, outs[0].config, outs[1].config)
