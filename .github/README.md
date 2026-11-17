@@ -14,7 +14,10 @@ workflow merges new upstream commits and ports them to Rust.
 - `rust/UPSTREAM_SYNC` names the newest upstream commit whose changes the Rust port covers. Only
   the port workflow moves it, and it only moves forward.
 - `rust/upstream-port-log.jsonl` gets one line per upstream commit the port workflow handled: its
-  status, the Go behaviour left unported, and the run.
+  status, the Go behaviour left unported, and the run. It only grows: the guard fails a port
+  pull request that changes lines `main` already has.
+- Only `commit.sh` writes these two records, after the last agent session. A session that
+  changes them (with an edit, or from a test or probe it runs) has the change reverted.
 - `rust/conformance/known_failures.txt` lists the Go adapter fixtures that may still fail. The
   list only shrinks. See `rust/conformance/README.md`.
 - `.claude/` and `.omx/` hold local tool state. They are never committed, and CI fails if they are.
@@ -51,7 +54,7 @@ Every check runs at full strictness. There are no toggles, and no job may contin
 | `rust-test` | `cargo test --workspace --locked` |
 | `conformance` | the Go fixture ratchet (`.github/port/scripts/conformance.sh`). Fixtures of touched adapters must all pass. |
 | `devtools` | `cargo run -p pbs-devtools --locked -- all --check`, with the Go version of the upstream `Dockerfile` |
-| `lint-policy` | `rust/scripts/check-no-lint-suppression.sh` (no `#[allow]`, `#[expect]`, lint caps or "allow" levels anywhere) and its self-tests |
+| `lint-policy` | `rust/scripts/check-no-lint-suppression.sh` (no `#[allow]`, `#[expect]`, lint caps or "allow" levels anywhere, including attributes a macro assembles, which clippy does not see) and its self-tests |
 | `lint-config` | `taplo fmt --check`, shellcheck with every optional check at style severity, and actionlint |
 | `port-tests` | `.github/port/tests/run-all.sh`: the port tooling, tested in temporary repositories |
 | `deny` | `cargo deny --locked check --deny warnings`: advisories, bans, licenses, sources (crates.io only, no duplicate versions) |
@@ -69,9 +72,13 @@ Three jobs, each with its own trust level:
 1. **plan** (read-only token, no agents). It reads git, the open port pull request and its
    `ci-ok` result, and chooses one action:
    - `advance`: merge and port the next chunk of upstream first-parent commits.
-   - `repair`: fix the red CI of the open port pull request without porting anything new.
+   - `repair`: fix the red CI of the open port pull request without porting anything new. Each
+     attempt is a `port-repair:` commit, an empty one when the session changed nothing, so the
+     attempts count towards `PORT_MAX_REPAIRS` and CI runs again.
    - `escalate`: label the pull request `port:needs-human` and stop.
-   - `none`: up to date, waiting for CI, or waiting for a human.
+   - `none`: up to date, waiting for CI, or waiting for a human. A failed `ci-ok` does not count
+     while another CI run on the same head is still going: a push and an edit of the pull request
+     start two runs, and the older one is cancelled with a failed `ci-ok`.
 
    A chunk holds at most `PORT_MAX_COMMITS` commits and `PORT_MAX_GO_LINES` changed Go lines.
    A heavy commit (core Go, modules, an OpenRTB bump, or more than 1500 Go lines) gets a chunk of
@@ -86,16 +93,19 @@ Three jobs, each with its own trust level:
      where Rust differs.
    - **fix**: runs only when the review found blocking differences or the gates are red.
 
-   After every session, `check-worktree.sh` undoes commits, reverts changes outside `rust/` and
-   to protected files, and drops added known failures. The final gates decide pass or fail.
+   After every session, `check-worktree.sh` undoes commits, reverts changes outside `rust/`, to
+   protected files (the workspace manifest, toolchain, rustfmt, clippy, cargo, deny and taplo
+   configs, `rust/scripts/`, the porting rules) and to the port records, and drops added known
+   failures. The final gates decide pass or fail.
    `commit.sh` then commits with the bot identity, and `guard.sh --bot` checks the result. The
    result leaves the job as a git bundle.
 3. **publish** (fresh runner, default-branch tooling, the only push credential). It runs the
    guard on the bundle without building or running anything from it. It pushes
    `port/upstream-sync` (never `main`) and opens or updates the pull request. The PR is a draft
-   while red, labelled `port:green`, `port:red` or `port:partial`. Go behaviour the agents left
-   unported goes to the "Parity debt from upstream ports" issue. A failed port job goes to
-   "Upstream port run failed".
+   while red, labelled `port:green` or `port:red`, plus `port:partial` when the agents reported a
+   commit `partial` or `blocked`, or never reported on it (a failed or refused session). Go
+   behaviour the agents left unported, and those commits, go to the "Parity debt from upstream
+   ports" issue. A failed port job goes to "Upstream port run failed".
 
 The agents run with `.github/port/claude-settings.json`, plus a per-session allow list from
 `render-inputs.sh`:
@@ -208,7 +218,8 @@ reaches a commit or a pull request. Lines about the fork's own generator, such a
 run continues from the new marker.
 
 **The port pull request is red.** The daily run repairs it, up to `PORT_MAX_REPAIRS` times,
-provided CI on `main` is green. Then it escalates with `port:needs-human`. You can fix things
+provided CI on `main` is green (while `main` is red, the planner waits). Then it escalates with
+`port:needs-human`. You can fix things
 yourself: push commits to `port/upstream-sync`, where human commits are allowed. Remove
 `port:needs-human` to hand the branch back. If the branch carries human commits and conflicts
 with `main`, the planner escalates instead of rebuilding it.
@@ -218,6 +229,11 @@ with `main`, the planner escalates instead of rebuilding it.
 to port it, and the log records `skipped`. To merge a chunk without agents, run the workflow with
 mode `merge-only`. That records the commits as `merged-not-ported` and leaves the marker where it
 is, so a later run ports them.
+
+**Every agent step fails, and the commits are logged `blocked`.** Check the agent step log. The
+agent action runs only for a human actor. A scheduled run acts as the user who last changed the
+`cron` line of `upstream-port.yml`, so that change must come from a person, not an App or bot. A
+run started by hand acts as the person who started it. Also check the API key or OAuth token.
 
 **Manual runs.** `mode` takes `auto`, `advance`, `repair`, `merge-only` or `dry-run`:
 
