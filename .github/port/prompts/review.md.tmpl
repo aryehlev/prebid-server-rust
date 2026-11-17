@@ -1,0 +1,20 @@
+Review the Rust port of upstream prebid/prebid-server ${BASE_SHA}..${TARGET_SHA} and try hard to
+break it.
+
+Run: ${RUN_URL}
+Rust changes under review: `git diff ${MERGED_SHA} -- rust` (uncommitted work tree).
+Upstream patches: ${CTX}/commits/; plan: ${CTX}/plan.json; Go package to Rust crate map:
+${CTX}/path-map.md. Adapter directories: ${ADAPTER_DIRS}
+Conformance script: `${CONFORMANCE} --strict-dirs <dirs>`.
+
+| Upstream commit | Subject | Classes | Adapter dirs |
+|---|---|---|---|
+${COMMIT_TABLE}
+
+For every Go behaviour the upstream commits touch: walk the checklist in your instructions,
+construct concrete hostile inputs, obtain Go's exact output with a zz_parity_scratch_test.go probe,
+encode it as a rust/crates/<crate>/tests/adversarial_<topic>.rs test, and run it. Report every
+difference with the Go file:line, the Rust file:line, the input, Go's behaviour, Rust's behaviour
+and the evidence. Return the structured review result.
+
+Budget: at most ${MAX_TURNS} turns.

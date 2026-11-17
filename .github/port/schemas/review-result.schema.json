@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Result of an adversarial parity review session",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["summary", "blocking_count", "findings", "adversarial_tests"],
+  "properties": {
+    "summary": {"type": "string", "maxLength": 6000},
+    "blocking_count": {"type": "integer", "minimum": 0},
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["severity", "title", "go_ref", "rust_ref", "input", "go_behavior", "rust_behavior"],
+        "properties": {
+          "severity": {
+            "description": "blocking: any observable difference from Go; minor: nothing observable changes",
+            "enum": ["blocking", "minor"]
+          },
+          "title": {"type": "string", "maxLength": 300},
+          "go_ref": {"description": "Go file:line", "type": "string"},
+          "rust_ref": {"description": "Rust file:line", "type": "string"},
+          "input": {"type": "string", "maxLength": 4000},
+          "go_behavior": {"type": "string", "maxLength": 4000},
+          "rust_behavior": {"type": "string", "maxLength": 4000},
+          "evidence": {"type": "string", "maxLength": 4000}
+        }
+      }
+    },
+    "adversarial_tests": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["path", "status"],
+        "properties": {
+          "path": {"type": "string", "pattern": "^rust/crates/[^/]+/tests/adversarial_[A-Za-z0-9_]+[.]rs$"},
+          "status": {"enum": ["fails_now", "passes"]}
+        }
+      }
+    }
+  }
+}
