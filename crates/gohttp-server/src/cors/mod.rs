@@ -2,6 +2,8 @@
 //! specification, answering preflight requests itself.
 
 mod sortedset;
+#[cfg(test)]
+mod tests;
 
 use core::fmt::{self, Write as _};
 use std::{
