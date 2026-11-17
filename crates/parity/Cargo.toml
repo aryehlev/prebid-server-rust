@@ -15,17 +15,19 @@ categories.workspace = true
 workspace = true
 
 [features]
-# Parity mode: the deterministic fakes can be installed. Off by default; without it every seam is
-# the production behavior.
-trace = []
+# Parity mode: a process-wide case session records traces, decisions read the envelope, and the
+# deterministic fakes can be installed. Off by default; without it every seam is a no-op.
+trace = ["dep:pbs-metrics", "dep:tokio"]
 
 [dependencies]
 pbs-errortypes = { path = "../errortypes", version = "0.1.0" }
 pbs-gocompat = { path = "../gocompat", version = "0.1.0" }
 pbs-gojson = { path = "../gojson", version = "0.1.0" }
+pbs-metrics = { path = "../metrics", version = "0.1.0", optional = true }
 pbs-util = { path = "../util", version = "0.1.0" }
 sha2 = "0.10.9"
+tokio = { version = "1.50.0", default-features = false, features = ["sync", "time"], optional = true }
 
 [dev-dependencies]
 serde_json = { version = "1.0.154", default-features = false, features = ["std"] }
-tokio = { version = "1.50.0", default-features = false, features = ["sync"] }
+tokio = { version = "1.50.0", default-features = false, features = ["macros", "rt", "rt-multi-thread", "sync", "test-util", "time"] }

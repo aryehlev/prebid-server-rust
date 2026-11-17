@@ -11,16 +11,40 @@
 //! - the documents the servers exchange with the runner, with Go's exact JSON ([`envelope`],
 //!   [`tracedoc`], [`body`], [`adapterio`], [`errorcodes`]), encoded as the Go server writes them
 //!   ([`encode_document`]);
-//! - the deterministic clock, random and UUID sources and the map orders of parity mode
-//!   ([`fakes`]).
+//! - the seams product code calls ([`trace`], [`fakes`]): stage records, decision points, goroutine
+//!   tracking, the deterministic clock, random and UUID sources, and the map orders.
 //!
 //! # The `trace` feature
 //!
 //! Parity mode is the Cargo feature `trace`, off by default. Product crates call the seams
-//! unconditionally; without the feature [`fakes::active`] is a `const fn` returning `None`, so
-//! [`fakes::now`], [`fakes::int`], [`fakes::map_keys`] and [`fakes::new_v4`] are the production
-//! clock, random source, map order and UUIDs. With it, the parity bootstrap installs the fakes
-//! (`fakes::install`, which exists only with the feature).
+//! unconditionally; a production build (without the feature) carries no parity code paths:
+//!
+//! - [`trace::current`] is a `const fn` returning `None`, and [`trace::Session`] is uninhabited, so
+//!   `if let Some(s) = trace::current() { s.record(..) }` and [`trace::with`] compile to nothing
+//!   and the recorded value is never built;
+//! - the decision seams ([`trace::decide`], [`trace::intn`], ...) call their default closure
+//!   directly;
+//! - [`fakes::active`] is `None`, so [`fakes::now`], [`fakes::int`], [`fakes::map_keys`] and
+//!   [`fakes::new_v4`] are the production clock, random source, map order and UUIDs.
+//!
+//! With the feature, the parity bootstrap installs the fakes (`fakes::install`) and the exec
+//! handler runs each case inside `trace::begin_case`: a process-wide lock admits one case at a
+//! time, publishes its [`trace::Session`], applies the envelope's fake values, and on
+//! `trace::Case::end` unpublishes the session and resets the fakes, exactly like Go's
+//! `trace.Begin`. (These items exist only with the feature.) The session records a trace the way
+//! Go's does: stage values as the bytes `jsonutil.Marshal` writes, error lists that are `null`
+//! until recorded and `[]` when recorded empty, outbound calls, decisions, analytics objects and
+//! notes, with every registered stage reported `captured`, `not_reached` or as explicitly marked.
+//!
+//! # Observer-effect rule
+//!
+//! Hooks only snapshot values the code already built. They never rebuild or re-marshal live
+//! request state for tracing purposes and never mutate state (Go: `parity/trace/session.go`).
+//!
+//! # Testing
+//!
+//! The unit tests run in both modes (`cargo test -p pbs-parity` and
+//! `cargo test -p pbs-parity --features trace`).
 
 pub mod adapterio;
 pub mod body;
@@ -29,6 +53,7 @@ pub mod envelope;
 pub mod errorcodes;
 pub mod fakes;
 pub mod ids;
+pub mod trace;
 pub mod tracedoc;
 
 pub use self::{

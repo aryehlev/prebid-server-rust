@@ -1,14 +1,40 @@
-//! Test support: checks, the vendored contract files, and the lock that serializes the tests
-//! touching process-wide state.
+//! Test support: checks, the vendored contract files, the Go goldens, and the lock that
+//! serializes the tests touching process-wide state.
 
 use core::fmt::Debug;
 use std::{fs, path::PathBuf};
 
+#[cfg(feature = "trace")]
+use pbs_gojson::{GoJson, RawJson};
 use serde_json::Value;
 use tokio::sync::{Mutex, MutexGuard};
 
 /// The result of a test: the first failed check.
 pub(super) type TestResult = Result<(), String>;
+
+/// The `regs` struct of Go's `TestAddAnalyticsKeepsTraceEncodable` (and of the golden scripts):
+/// a raw member that `jsonutil.Marshal` writes nothing for when it does not compact.
+#[cfg(feature = "trace")]
+#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[gojson(go_type = "main.regs")]
+pub(super) struct Regs {
+    /// `gdpr`
+    #[gojson(go = "GDPR", json = "gdpr")]
+    pub(super) gdpr: isize,
+    /// `ext`
+    #[gojson(json = "ext,omitempty")]
+    pub(super) ext: RawJson,
+}
+
+/// The `record` struct of the same test: `{"regs": *regs}`.
+#[cfg(feature = "trace")]
+#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[gojson(go_type = "main.regsRecord")]
+pub(super) struct RegsRecord {
+    /// `regs`
+    #[gojson(json = "regs")]
+    pub(super) regs: Option<Regs>,
+}
 
 /// Fails with `what` unless `cond` holds.
 pub(super) fn check(cond: bool, what: &str) -> TestResult {
@@ -49,8 +75,21 @@ pub(super) fn contract_json(name: &str) -> Result<Json, String> {
     Json::parse(&read_file(&format!("contract/{name}"))?, name)
 }
 
-/// The lock that serializes the tests touching process-wide state (the installed fakes).
+/// A golden file the Go program wrote (`testdata/golden/<name>`), parsed.
+#[cfg(feature = "trace")]
+pub(super) fn golden_json(name: &str) -> Result<Json, String> {
+    Json::parse(&read_file(&format!("testdata/golden/{name}"))?, name)
+}
+
+/// The lock that serializes the tests touching process-wide state (the fakes, the published
+/// session).
 static GLOBAL: Mutex<()> = Mutex::const_new(());
+
+/// Takes [`GLOBAL`] from an async test.
+#[cfg(feature = "trace")]
+pub(super) async fn global_lock() -> MutexGuard<'static, ()> {
+    GLOBAL.lock().await
+}
 
 /// Takes [`GLOBAL`] from a test that runs outside a runtime.
 pub(super) fn global_lock_blocking() -> MutexGuard<'static, ()> {
