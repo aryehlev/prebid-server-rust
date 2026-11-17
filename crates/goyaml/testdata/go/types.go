@@ -219,6 +219,11 @@ type TypeConversionResult struct {
 	MapToSlice         []interface{}
 }
 
+// modulesHolder holds a config.AccountModules, the type config.AccountModulesHookFunc converts.
+type modulesHolder struct {
+	Modules config.AccountModules `mapstructure:"modules"`
+}
+
 // msTargets makes a new value of each mapstructure target type, by the name the goldens use.
 var msTargets = map[string]func() interface{}{
 	"Kitchen":              func() interface{} { return new(Kitchen) },
@@ -242,6 +247,7 @@ var msTargets = map[string]func() interface{}{
 	"Tagged":               func() interface{} { return new(Tagged) },
 	"Remainder":            func() interface{} { return new(Remainder) },
 	"TypeConversionResult": func() interface{} { return new(TypeConversionResult) },
+	"modulesHolder":        func() interface{} { return new(modulesHolder) },
 	"map[string]interface {}": func() interface{} {
 		return new(map[string]interface{})
 	},

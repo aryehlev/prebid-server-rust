@@ -13,14 +13,19 @@
 //!   picks the first match in that order; Go picks a random one when several keys fold to the field
 //!   name.
 //! - mapstructure's aggregated errors are sorted, as in Go, so their order never depends on it.
+//! - JSON encoding sorts object keys, as both Go encoders do. jsoniter sorts the keys of a
+//!   `map[interface {}]interface {}` by their text, so keys of different types with the same text
+//!   (`1` and `"1"`) come out in Go's random order; here they keep the map's order.
 
-use std::{cmp::Ordering, collections::BTreeMap};
+use std::{borrow::Cow, cmp::Ordering, collections::BTreeMap};
 
 use pbs_gocompat::{
     fmt as gofmt,
     time::{Duration, Time},
 };
-use pbs_gojson::{GoKind, GoType};
+use pbs_gojson::{
+    Encoder, Flavor, GoEncode, GoKind, GoMapKey, GoType, encode::encode_map, jsoniter::Iter,
+};
 
 /// A Go type of the values this crate models (`reflect.Type`).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -278,6 +283,17 @@ impl Value {
             .map_or_else(|| "<nil>".to_owned(), Type::name)
     }
 
+    /// A Go `[]byte` holding `data`. A `json.RawMessage`, which a decode hook may produce for a
+    /// target of that type, is decoded from it as Go decodes one (its type prints as `[]uint8`,
+    /// and it encodes to JSON as base64, like any `[]byte`).
+    #[must_use]
+    pub fn bytes(data: &[u8]) -> Self {
+        Self::Slice(
+            &Type::Uint8,
+            Some(data.iter().copied().map(Self::Uint8).collect()),
+        )
+    }
+
     /// An empty `[]interface {}`.
     #[must_use]
     pub const fn new_slice() -> Self {
@@ -434,5 +450,230 @@ impl GoType for Value {
 
     fn go_type_name(out: &mut String) {
         out.push_str("interface {}");
+    }
+}
+
+/// JSON encoding of an `interface{}` holding the value (`jsonutil.Marshal`, jsoniter, and
+/// `json.Marshal`): the encoder of its dynamic type, so `time.Time` encodes with `MarshalJSON`,
+/// `[]byte` as base64, and a map's keys as Go writes keys of their type.
+///
+/// jsoniter encodes a `map[interface {}]interface {}` (`encoding/json` reports it as an
+/// unsupported type); a nil key, on which jsoniter panics (a nil pointer dereference), is
+/// reported as an error with the panic's text.
+impl GoEncode for Value {
+    fn go_encode(&self, enc: &mut Encoder) {
+        match self {
+            Self::Nil | Self::Slice(_, None) | Self::StringMap(_, None) => enc.write_null(),
+            Self::Bool(v) => v.go_encode(enc),
+            Self::Int(v) | Self::Int64(v) => v.go_encode(enc),
+            Self::Int8(v) => v.go_encode(enc),
+            Self::Int16(v) => v.go_encode(enc),
+            Self::Int32(v) => v.go_encode(enc),
+            Self::Uint(v) | Self::Uint64(v) => v.go_encode(enc),
+            Self::Uint8(v) => v.go_encode(enc),
+            Self::Uint16(v) => v.go_encode(enc),
+            Self::Uint32(v) => v.go_encode(enc),
+            Self::Float32(v) => v.go_encode(enc),
+            Self::Float64(v) => v.go_encode(enc),
+            Self::String(v) => v.go_encode(enc),
+            Self::Time(t) => encode_time(t, enc),
+            Self::Duration(d) => d.0.go_encode(enc),
+            Self::Slice(elem, Some(items)) => encode_items(elem, items, enc),
+            Self::StringMap(_, Some(entries)) => encode_map(entries, enc),
+            Self::Map(key, elem, entries) => encode_general_map(key, elem, entries.as_deref(), enc),
+        }
+    }
+
+    fn go_is_empty(&self) -> bool {
+        // omitempty: only a nil interface is empty.
+        self.is_nil()
+    }
+}
+
+/// The message of the runtime panic of jsoniter's `dynamicMapKeyEncoder` on a nil key.
+const NIL_KEY_PANIC: &str = "runtime error: invalid memory address or nil pointer dereference";
+
+/// Go: `Time.MarshalJSON`, through jsoniter's `marshalerEncoder` or `encoding/json`'s
+/// `marshalerEncoder`.
+fn encode_time(t: &Time, enc: &mut Encoder) {
+    match t.marshal_json() {
+        Ok(text) => enc.write_raw(text.as_bytes()),
+        Err(e) if enc.is_jsoniter() => enc.set_error(e.to_string().into_bytes()),
+        Err(e) => enc.set_error(
+            format!("json: error calling MarshalJSON for type time.Time: {e}").into_bytes(),
+        ),
+    }
+}
+
+/// A non-nil slice of `elem`.
+fn encode_items(elem: &'static Type, items: &[Value], enc: &mut Encoder) {
+    if *elem == Type::Uint8 {
+        // Go: []byte encodes as a base64 string in both libraries.
+        let bytes: Vec<u8> = items
+            .iter()
+            .filter_map(|item| {
+                if let Value::Uint8(b) = item {
+                    Some(*b)
+                } else {
+                    None
+                }
+            })
+            .collect();
+        <u8 as GoEncode>::go_encode_slice(&bytes, enc);
+        return;
+    }
+    // Go: jsoniter reflect_slice.go sliceEncoder.Encode / encoding/json arrayEncoder
+    let Some((first, rest)) = items.split_first() else {
+        enc.write_raw(b"[]");
+        return;
+    };
+    enc.write_byte(b'[');
+    first.go_encode(enc);
+    for item in rest {
+        enc.write_byte(b',');
+        item.go_encode(enc);
+    }
+    enc.write_byte(b']');
+    if enc.has_error() {
+        // jsoniter wraps any error with the slice type (`encoding/json` does not).
+        enc.wrap_error(&Type::Slice(elem).name(), ": ");
+    }
+}
+
+/// A map whose keys are not of type `string`.
+fn encode_general_map(
+    key: &'static Type,
+    elem: &'static Type,
+    entries: Option<&[(Value, Value)]>,
+    enc: &mut Encoder,
+) {
+    if !enc.is_jsoniter() && !std_map_key(*key) {
+        // Go: encoding/json newMapEncoder picks unsupportedTypeEncoder (even for a nil map).
+        let name = Type::Map(key, elem).name();
+        enc.set_error(format!("json: unsupported type: {name}").into_bytes());
+        return;
+    }
+    let Some(entries) = entries else {
+        enc.write_null();
+        return;
+    };
+    let keys: Vec<MapKey<'_>> = entries.iter().map(|(k, _)| MapKey(k)).collect();
+    encode_map(keys.iter().zip(entries.iter().map(|(_, v)| v)), enc);
+}
+
+/// Whether `encoding/json` encodes maps with keys of type `key`: strings, integers, and
+/// `encoding.TextMarshaler`s.
+const fn std_map_key(key: Type) -> bool {
+    match key {
+        Type::String
+        | Type::Int
+        | Type::Int8
+        | Type::Int16
+        | Type::Int32
+        | Type::Int64
+        | Type::Uint
+        | Type::Uint8
+        | Type::Uint16
+        | Type::Uint32
+        | Type::Uint64
+        | Type::Duration
+        | Type::Time => true,
+        Type::Bool
+        | Type::Float32
+        | Type::Float64
+        | Type::Interface
+        | Type::Slice(_)
+        | Type::Map(..) => false,
+    }
+}
+
+/// A map key as Go's encoders write it, by its dynamic type (jsoniter's `encoderOfMapKey`,
+/// `encoding/json`'s `resolveKeyName`).
+struct MapKey<'a>(&'a Value);
+
+/// The key [`MapKey`]'s decoding methods return; Go never decodes into such a map.
+static NIL_KEY: Value = Value::Nil;
+
+impl GoType for MapKey<'_> {
+    const KIND: GoKind = GoKind::Interface;
+
+    fn go_type_name(out: &mut String) {
+        out.push_str("interface {}");
+    }
+}
+
+impl GoMapKey for MapKey<'_> {
+    fn key_text(&self) -> Cow<'_, [u8]> {
+        // The key as the encoders sort it: jsoniter sorts by the encoded key read back as a
+        // string, `encoding/json` by the resolved key name.
+        match self.0 {
+            Value::String(s) => Cow::Borrowed(s.as_bytes()),
+            Value::Time(t) => Cow::Owned(t.marshal_text().unwrap_or_default().into_bytes()),
+            Value::Bool(_)
+            | Value::Int(_)
+            | Value::Int8(_)
+            | Value::Int16(_)
+            | Value::Int32(_)
+            | Value::Int64(_)
+            | Value::Uint(_)
+            | Value::Uint8(_)
+            | Value::Uint16(_)
+            | Value::Uint32(_)
+            | Value::Uint64(_)
+            | Value::Float32(_)
+            | Value::Float64(_)
+            | Value::Duration(_) => {
+                let mut text = Encoder::new(Flavor::Jsoniter);
+                self.0.go_encode(&mut text);
+                Cow::Owned(text.as_bytes().to_vec())
+            }
+            Value::Nil | Value::Slice(..) | Value::StringMap(..) | Value::Map(..) => {
+                Cow::Borrowed(b"")
+            }
+        }
+    }
+
+    fn write_jsoniter_key(&self, enc: &mut Encoder) {
+        match self.0 {
+            // Go: the HTML-escaping string encoder, and textMarshalerEncoder for time.Time.
+            Value::String(s) => enc.write_str(s.as_bytes()),
+            Value::Time(t) => match t.marshal_text() {
+                Ok(text) => enc.write_str(text.as_bytes()),
+                Err(e) => enc.set_error(e.to_string().into_bytes()),
+            },
+            // Go: numericMapKeyEncoder writes the number (or bool) between quotes.
+            Value::Bool(_)
+            | Value::Int(_)
+            | Value::Int8(_)
+            | Value::Int16(_)
+            | Value::Int32(_)
+            | Value::Int64(_)
+            | Value::Uint(_)
+            | Value::Uint8(_)
+            | Value::Uint16(_)
+            | Value::Uint32(_)
+            | Value::Uint64(_)
+            | Value::Float32(_)
+            | Value::Float64(_)
+            | Value::Duration(_) => {
+                enc.write_byte(b'"');
+                self.0.go_encode(enc);
+                enc.write_byte(b'"');
+            }
+            // A nil key makes dynamicMapKeyEncoder panic; slices and maps cannot be Go map keys.
+            Value::Nil | Value::Slice(..) | Value::StringMap(..) | Value::Map(..) => {
+                enc.set_error(NIL_KEY_PANIC.as_bytes().to_vec());
+            }
+        }
+    }
+
+    fn std_parse_key(key: &[u8]) -> Option<Self> {
+        let _ = key;
+        None
+    }
+
+    fn jsoniter_decode_key(it: &mut Iter<'_>) -> Self {
+        let _ = it;
+        MapKey(&NIL_KEY)
     }
 }

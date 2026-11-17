@@ -16,7 +16,7 @@ type msCase struct {
 
 // msConfigNames are the configurations of a mapstructure.txt row, in column order. A result
 // equal to the "viper" one is written as "=" (with an empty error).
-var msConfigNames = []string{"strict", "weak", "viper", "viper-unused", "viper-zero"}
+var msConfigNames = []string{"strict", "weak", "viper", "viper-unused", "viper-zero", "prebid"}
 
 type m = map[string]interface{}
 
@@ -121,10 +121,44 @@ func msCases() []msCase {
 			"ptrint": 5, "any": m{"k": "v"}, "anys": []interface{}{1, 2}},
 		m{"ints": []int{9}, "strmap": m{"b": "2"}, "nested": m{"b": []string{"y"}}, "ptrint": nil,
 			"any": m{"k2": "v2"}, "anys": []interface{}{"x"}})
+	// config.AccountModules, which AccountModulesHookFunc converts to JSON under the prebid
+	// configuration (each input has at most one entry it fails on, since the hook ranges over
+	// the map in random order); the others decode the values as []byte.
+	for i, input := range msModules() {
+		add(fmt.Sprintf("modules/%d", i), "modulesHolder", input)
+	}
 	prefilled("kitchen/prefilled-nils", "Kitchen",
 		m{"ints": []int{1}, "strmap": m{"a": "1"}, "nested": m{"a": 1}, "string": "s"},
 		m{"ints": nil, "strmap": nil, "nested": nil, "string": nil})
 	return cases
+}
+
+// msModules are the inputs of the config.AccountModules cases.
+func msModules() []interface{} {
+	vendor := func(v interface{}) interface{} { return m{"modules": m{"vendor": v}} }
+	return []interface{}{
+		m{"modules": nil}, m{"modules": m(nil)}, m{"modules": m{}},
+		vendor(nil), vendor(m(nil)), vendor(m{}), vendor(m{"enabled": true}),
+		m{"modules": m{"vendor": m{"a": 1, "b": 2.5, "c": "x<y>&", "d": nil},
+			"other": m{"e": false}}},
+		vendor(m{"list": []interface{}{1, "two", m{"k": "v"}, nil, []interface{}{}}}),
+		vendor(m{"nested": m{"z": 1, "a": m{"b": []interface{}{1.5, 1e21, 1e-7, -0.0}}}}),
+		vendor(m{"ints": []interface{}{map[interface{}]interface{}{2: "v", 10: "w"}},
+			"bools":  map[interface{}]interface{}{true: 1, false: 0},
+			"floats": map[interface{}]interface{}{1.5: "a", 1e21: "b"}}),
+		vendor(m{"typed": []interface{}{uint8(7), int8(-3), float32(0.1), time.Duration(5)}}),
+		vendor(m{"strs": map[string]string{"a": "b"}, "bytes": []uint8("hi"),
+			"empty": []uint8{}, "nilbytes": []uint8(nil)}),
+		vendor("oops"), vendor(map[string]string{"a": "b"}), vendor([]interface{}{m{"a": 1}}),
+		vendor(m{"bad": math.NaN()}), vendor(m{"bad": []interface{}{1, math.Inf(1)}}),
+		vendor(m{"bad": m{"x": math.Inf(-1)}}),
+		vendor(m{"bad": []interface{}{[]interface{}{math.NaN()}, 2}}),
+		m{"modules": "abc"}, m{"modules": 5}, m{"modules": []interface{}{}},
+		m{"modules": []interface{}{m{"vendor": m{"a": 1}}, m{"other": m{"b": "2"}}}},
+		m{"modules": []interface{}{m{"vendor": m{"a": 1}}, nil, "x"}},
+		m{"modules": m{"vendor": m{"a": 1}}, "extra": 1},
+		m{"Modules": m{"vendor": m{"a": "1,2"}}},
+	}
 }
 
 // msKitchenKeys are the keys of Kitchen's mapstructure fields, and keys it does not have.

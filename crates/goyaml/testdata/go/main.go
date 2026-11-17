@@ -9,12 +9,15 @@
 //
 //   - files.txt: every static/bidder-info/*.yaml and the repository's other YAML files, into
 //     interface{}, into config.BidderInfo (also with KnownFields, and through mapstructure from
-//     the interface{} tree, as viper decodes), and into the alias fields.
+//     the interface{} tree, as viper decodes), and into the alias fields; and the interface{}
+//     tree through jsonutil.Marshal and json.Marshal.
 //   - corpus.txt: hand-written inputs, the YAML inputs of yaml.v3's own tests, every sample
 //     scalar under every Kitchen key, and deterministic mutations of them, into interface{},
-//     Kitchen and config.BidderInfo, and as a stream.
-//   - mapstructure.txt: the input shapes of mapstructure's own tests, and every sample value
-//     under every Kitchen key, under the strict, weak and viper configurations.
+//     Kitchen and config.BidderInfo, and as a stream; and the interface{} tree through
+//     jsonutil.Marshal and json.Marshal.
+//   - mapstructure.txt: the input shapes of mapstructure's own tests, every sample value under
+//     every Kitchen key, and config.AccountModules inputs, under the strict, weak and viper
+//     configurations, and Prebid's (viper with config.AccountModulesHookFunc as the only hook).
 //
 // Run it from the repository root, as amd64 code (Go's float-to-integer conversions differ
 // between architectures, and the crate reproduces amd64):
@@ -42,6 +45,7 @@ import (
 
 	"github.com/mitchellh/mapstructure"
 	"github.com/prebid/prebid-server/v4/config"
+	"github.com/prebid/prebid-server/v4/util/jsonutil"
 	"gopkg.in/yaml.v3"
 )
 
@@ -226,6 +230,44 @@ func dumpTo(b *strings.Builder, v reflect.Value) {
 	}
 }
 
+// marshalJSON renders marshal(v): the JSON, "error: " and the error, or "panic: " and the
+// recovered value. jsoniter's output can depend on Go's random map iteration (which of several
+// unsupported values it reports, the order of keys with the same text), so v is marshaled many
+// times, and outcomes that differ are written as "one of:" and each distinct outcome, sorted, on
+// lines of their own.
+func marshalJSON(marshal func(interface{}) ([]byte, error), v interface{}) string {
+	const runs = 64
+	seen := map[string]bool{}
+	for i := 0; i < runs; i++ {
+		seen[marshalOnce(marshal, v)] = true
+	}
+	outcomes := make([]string, 0, len(seen))
+	for outcome := range seen {
+		outcomes = append(outcomes, outcome)
+	}
+	if len(outcomes) == 1 {
+		return outcomes[0]
+	}
+	sort.Strings(outcomes)
+	return "one of:\n" + strings.Join(outcomes, "\n")
+}
+
+func marshalOnce(marshal func(interface{}) ([]byte, error), v interface{}) string {
+	var data []byte
+	err := guard(func() error {
+		var err error
+		data, err = marshal(v)
+		return err
+	})
+	switch {
+	case isPanic(err):
+		return err.Error()
+	case err != nil:
+		return "error: " + err.Error()
+	}
+	return string(data)
+}
+
 // yamlInto decodes input with yaml.Unmarshal into out, a pointer.
 func yamlInto(input []byte, out interface{}) (string, string, error) {
 	err := guard(func() error { return yaml.Unmarshal(input, out) })
@@ -269,7 +311,8 @@ func yamlStream(input []byte, first string) string {
 
 // msConfig is the mapstructure configuration of a golden: mapstructure.Decode ("strict"),
 // mapstructure.WeakDecode ("weak"), or viper's defaultDecoderConfig ("viper"), alone or with
-// ErrorUnused (viper's UnmarshalExact) or ZeroFields.
+// ErrorUnused (viper's UnmarshalExact) or ZeroFields, or Prebid's ("prebid": config.New passes
+// viper.DecodeHook(config.AccountModulesHookFunc()), which replaces viper's hooks).
 func msConfig(name string, out interface{}) *mapstructure.DecoderConfig {
 	c := &mapstructure.DecoderConfig{Result: out}
 	switch name {
@@ -284,6 +327,9 @@ func msConfig(name string, out interface{}) *mapstructure.DecoderConfig {
 		)
 		c.ErrorUnused = name == "viper-unused"
 		c.ZeroFields = name == "viper-zero"
+	case "prebid":
+		c.WeaklyTypedInput = true
+		c.DecodeHook = config.AccountModulesHookFunc()
 	default:
 		log.Fatalf("unknown config %q", name)
 	}
@@ -346,7 +392,8 @@ func writeFiles(dir, repo string) {
 		"config.BidderInfo value", "error", "json.Marshal",
 		"aliasNillableFields value", "error",
 		"BidderInfo KnownFields error",
-		"BidderInfo via mapstructure (viper) value", "error")
+		"BidderInfo via mapstructure (viper) value", "error",
+		"jsonutil.Marshal(interface{})", "json.Marshal(interface{})")
 	for _, path := range yamlFiles(repo) {
 		data, err := os.ReadFile(filepath.Join(repo, path))
 		if err != nil {
@@ -368,7 +415,8 @@ func writeFiles(dir, repo string) {
 			msValue, msErr = msDecode("BidderInfo", "viper", nil, tree)
 		}
 		g.row(path, string(data), treeValue, treeErr, infoValue, infoErr, string(js),
-			aliasValue, aliasErr, known, msValue, msErr)
+			aliasValue, aliasErr, known, msValue, msErr,
+			marshalJSON(jsonutil.Marshal, tree), marshalJSON(json.Marshal, tree))
 	}
 	g.close()
 }
@@ -378,7 +426,8 @@ func writeCorpus(dir, repo string) {
 		"interface{} value", "interface{} error",
 		"Kitchen value", "Kitchen error",
 		"stream (yaml.Decoder into interface{})",
-		"config.BidderInfo value", "error")
+		"config.BidderInfo value", "error",
+		"jsonutil.Marshal(interface{})", "json.Marshal(interface{})")
 	for _, c := range corpus(repo) {
 		var tree interface{}
 		treeValue, treeErr, _ := yamlInto(c.input, &tree)
@@ -388,7 +437,7 @@ func writeCorpus(dir, repo string) {
 		var info config.BidderInfo
 		infoValue, infoErr, _ := yamlInto(c.input, &info)
 		g.row(c.name, string(c.input), treeValue, treeErr, kitchenValue, kitchenErr, stream,
-			infoValue, infoErr)
+			infoValue, infoErr, marshalJSON(jsonutil.Marshal, tree), marshalJSON(json.Marshal, tree))
 	}
 	g.close()
 }

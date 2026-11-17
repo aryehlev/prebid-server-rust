@@ -8,6 +8,9 @@
 //! [`DecoderConfig::decode_hook`].
 //!
 //! Targets implement [`MsDecode`]; structs derive [`GoMapstructure`](crate::GoMapstructure).
+//! [`RawJson`] is a `json.RawMessage` target, a `[]byte` that decodes from [`Value::bytes`] (and
+//! from anything else `decodeSlice` accepts). A hook sees the target's Go type, also when
+//! `decodeMapFromSlice` decodes each item of a slice into a named map type.
 //! Errors carry Go's texts: a single failure is a [`DecodeError::Message`] (`error decoding 'a':
 //! ...`), collected failures a [`DecodeError::Aggregate`] (`2 error(s) decoding:\n\n* ...`),
 //! and a Go runtime panic a [`DecodeError::Panic`].
@@ -39,7 +42,7 @@ use pbs_gocompat::{
     strings::{equal_fold, split},
     time::{Duration, Time, parse_duration},
 };
-use pbs_gojson::{GoKind, GoString};
+use pbs_gojson::{GoKind, GoString, RawJson};
 
 use crate::{
     go_uint64, int_to_float, uint_to_float,
@@ -117,6 +120,14 @@ impl HookTarget {
         Self {
             kind: T::MS_KIND,
             type_name: T::ms_type_name,
+        }
+    }
+
+    /// A map type named by `type_name`.
+    const fn map(type_name: fn(&mut String)) -> Self {
+        Self {
+            kind: GoKind::Map,
+            type_name,
         }
     }
 
@@ -524,12 +535,21 @@ impl Decoder {
             }
             return Ok(());
         }
-        let hooked = match &self.config.decode_hook {
-            Some(hook) => hook(HookTarget::of::<T>(), input)
-                .map_err(|e| DecodeError::Message(format!("error decoding '{name}': {e}")))?,
-            None => None,
-        };
+        let hooked = self.run_hook(HookTarget::of::<T>(), name, input)?;
         out.ms_decode(self, name, hooked.as_ref().unwrap_or(input))
+    }
+
+    /// Go: `DecodeHookExec` in `decode`: the hook's replacement data, if any.
+    fn run_hook(
+        &self,
+        to: HookTarget,
+        name: &str,
+        input: &Value,
+    ) -> Result<Option<Value>, DecodeError> {
+        self.config.decode_hook.as_ref().map_or(Ok(None), |hook| {
+            hook(to, input)
+                .map_err(|e| DecodeError::Message(format!("error decoding '{name}': {e}")))
+        })
     }
 
     /// The `unconvertible type` error of the basic decoders, for the target type `ty`.
@@ -864,6 +884,18 @@ impl Decoder {
         data: &Value,
         out: &mut Option<M>,
     ) -> Result<(), DecodeError> {
+        self.decode_map_as(name, data, out, HookTarget::of::<M>())
+    }
+
+    /// [`Decoder::decode_map`] into a map of the (possibly named) type `ty`, which the hook sees
+    /// when `decodeMapFromSlice` decodes each item into the map itself.
+    fn decode_map_as<M: MsMap + Default>(
+        &mut self,
+        name: &str,
+        data: &Value,
+        out: &mut Option<M>,
+        ty: HookTarget,
+    ) -> Result<(), DecodeError> {
         let fresh = out.is_none() || self.config.zero_fields;
         if let Some(entries) = map_entries(data) {
             return self.decode_map_from_map(name, &entries, out, fresh);
@@ -878,9 +910,18 @@ impl Decoder {
             }
             return Ok(());
         }
-        // Go decodes each element into the map itself, stopping at the first error.
+        // Go decodes each element into the map itself (`d.decode(name[i], item, val)`), stopping
+        // at the first error.
         for (i, item) in items.iter().enumerate() {
-            self.decode_named(&format!("{name}[{i}]"), item, out)?;
+            let item_name = format!("{name}[{i}]");
+            if item.is_nil() {
+                if self.config.zero_fields {
+                    *out = None;
+                }
+                continue;
+            }
+            let hooked = self.run_hook(ty, &item_name, item)?;
+            self.decode_map_as(&item_name, hooked.as_ref().unwrap_or(item), out, ty)?;
         }
         Ok(())
     }
@@ -1136,6 +1177,28 @@ pub trait MsDecode {
     {
         d.decode_ptr(name, input, slot)
     }
+
+    /// [`MsDecode::ms_decode_option`] for a named type over `Option<Self>`, which `ty` names:
+    /// `decodeMapFromSlice` decodes each item into the map itself, so the hook sees the named
+    /// type.
+    ///
+    /// # Errors
+    ///
+    /// Go's decoding error.
+    #[doc(hidden)]
+    fn ms_decode_option_as(
+        slot: &mut Option<Self>,
+        d: &mut Decoder,
+        name: &str,
+        input: &Value,
+        ty: fn(&mut String),
+    ) -> Result<(), DecodeError>
+    where
+        Self: Sized + Default,
+    {
+        let _ = ty;
+        Self::ms_decode_option(slot, d, name, input)
+    }
 }
 
 /// A map target of `decodeMap`.
@@ -1361,6 +1424,27 @@ impl MsDecode for Value {
     }
 }
 
+/// Go `json.RawMessage`, a `[]byte` (`Option<RawJson>` is a `*json.RawMessage`).
+impl MsDecode for RawJson {
+    const MS_KIND: GoKind = GoKind::Slice;
+
+    fn ms_type_name(out: &mut String) {
+        out.push_str("json.RawMessage");
+    }
+
+    fn ms_decode(&mut self, d: &mut Decoder, name: &str, input: &Value) -> Result<(), DecodeError> {
+        // Go: decodeSlice, as for any []byte.
+        let mut bytes = (!self.is_nil()).then(|| self.as_bytes().to_vec());
+        let result = d.decode_slice::<u8>(name, input, &mut bytes);
+        *self = bytes.map_or_else(Self::nil, Self::from_vec);
+        result
+    }
+
+    fn ms_zero(&mut self) {
+        *self = Self::nil();
+    }
+}
+
 impl<T: MsDecode + Default> MsDecode for Vec<T> {
     const MS_KIND: GoKind = GoKind::Slice;
     const MS_OPTION_IS_PTR: bool = false;
@@ -1415,8 +1499,18 @@ macro_rules! ms_map_impls {
                     name: &str,
                     input: &Value,
                 ) -> Result<(), DecodeError> {
+                    self.ms_decode_as(d, name, input, Self::ms_type_name)
+                }
+
+                fn ms_decode_as(
+                    &mut self,
+                    d: &mut Decoder,
+                    name: &str,
+                    input: &Value,
+                    ty: fn(&mut String),
+                ) -> Result<(), DecodeError> {
                     let mut slot = Some(mem::take(self));
-                    let result = d.decode_map(name, input, &mut slot);
+                    let result = d.decode_map_as(name, input, &mut slot, HookTarget::map(ty));
                     *self = slot.unwrap_or_default();
                     result
                 }
@@ -1432,6 +1526,16 @@ macro_rules! ms_map_impls {
                     input: &Value,
                 ) -> Result<(), DecodeError> {
                     d.decode_map(name, input, slot)
+                }
+
+                fn ms_decode_option_as(
+                    slot: &mut Option<Self>,
+                    d: &mut Decoder,
+                    name: &str,
+                    input: &Value,
+                    ty: fn(&mut String),
+                ) -> Result<(), DecodeError> {
+                    d.decode_map_as(name, input, slot, HookTarget::map(ty))
                 }
             }
 
@@ -1483,6 +1587,19 @@ impl<T: MsDecode + Default> MsDecode for Option<T> {
 
     fn ms_decode(&mut self, d: &mut Decoder, name: &str, input: &Value) -> Result<(), DecodeError> {
         T::ms_decode_option(self, d, name, input)
+    }
+
+    fn ms_decode_as(
+        &mut self,
+        d: &mut Decoder,
+        name: &str,
+        input: &Value,
+        ty: fn(&mut String),
+    ) -> Result<(), DecodeError> {
+        if T::MS_OPTION_IS_PTR {
+            return self.ms_decode(d, name, input);
+        }
+        T::ms_decode_option_as(self, d, name, input, ty)
     }
 
     fn ms_zero(&mut self) {

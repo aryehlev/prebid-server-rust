@@ -5,9 +5,11 @@
 //! - [`yaml`]: the libyaml scanner and parser, the composer and the decoder, with Go's values,
 //!   leniencies and byte-identical error texts.
 //! - [`Value`]: a Go `interface{}` tree (what `yaml.Unmarshal` into an `interface{}` produces, and
-//!   what viper hands to mapstructure).
+//!   what viper hands to mapstructure). It implements [`pbs_gojson::GoEncode`] as an `interface{}`
+//!   holding it encodes, for `jsonutil.Marshal` ([`pbs_gojson::jsonutil::marshal`]) and
+//!   `json.Marshal`.
 //! - [`mapstructure`]: decoding a [`Value`] tree into typed values, with viper's defaults
-//!   ([`mapstructure::DecoderConfig::viper`]).
+//!   ([`mapstructure::DecoderConfig::viper`]) or the hook Prebid replaces them with.
 //! - [`GoYaml`] and [`GoMapstructure`]: derive macros for structs and named types, sharing the
 //!   `#[goyaml(...)]` attribute and coexisting with [`pbs_gojson::GoJson`], whose `#[gojson(go_type
 //!   = ...)]`, `go`, `skip` and `embedded` settings they also read.
@@ -33,6 +35,20 @@
 //! A tuple struct with one field is a Go named type over the field's type (`type BidType
 //! string`): it decodes as that type, under its own name. Its field type must implement
 //! `Default`.
+//!
+//! # Prebid's configuration decoding
+//!
+//! `config.New` calls `v.Unmarshal(&c, viper.DecodeHook(AccountModulesHookFunc()))`, and viper's
+//! `DecodeHook` option replaces its default hooks: the configuration decodes with
+//! `WeaklyTypedInput` and that hook alone, so strings are not split into slices nor parsed as
+//! durations. Port it as a [`mapstructure::DecodeHook`] in a
+//! `DecoderConfig { weakly_typed_input: true, decode_hook: Some(hook), .. }`: the hook sees the
+//! target's [`mapstructure::HookTarget::type_name`] (`config.AccountModules` for a named type
+//! deriving [`GoMapstructure`] over `Option<BTreeMap<String, Option<BTreeMap<String, RawJson>>>>`),
+//! marshals each module setting with `pbs_gojson::jsonutil::marshal`, and returns the
+//! `map[string]map[string]json.RawMessage` as [`Value::StringMap`]s of [`Value::bytes`], which
+//! decode into [`pbs_gojson::RawJson`] as Go decodes a `json.RawMessage`. `tests/golden.rs` has
+//! such a port (`account_modules_hook`), replayed against the Go hook.
 //!
 //! # Example
 //!

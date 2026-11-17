@@ -9,16 +9,16 @@
 
 #[cfg(test)]
 mod golden {
-    use std::{cmp::Ordering, collections::BTreeMap, fs, thread};
+    use std::{cmp::Ordering, collections::BTreeMap, fs, sync::Arc, thread};
 
     use pbs_gocompat::{
         math, strconv,
         time::{Duration, Time},
     };
-    use pbs_gojson::{GoJson, GoString, stdjson};
+    use pbs_gojson::{GoJson, GoKind, GoString, RawJson, jsonutil, stdjson};
     use pbs_goyaml::{
         GoMapstructure, GoYaml, Type, Value,
-        mapstructure::{DecodeError, Decoder, DecoderConfig, MsDecode},
+        mapstructure::{DecodeError, DecodeHook, Decoder, DecoderConfig, HookTarget, MsDecode},
         yaml::{self, StreamDecoder, UnmarshalError, YamlDecode},
     };
 
@@ -117,6 +117,28 @@ mod golden {
 
         fn is_zero(&self) -> bool {
             self.0 == 0
+        }
+    }
+
+    impl Dump for RawJson {
+        fn dump(&self, out: &mut String) {
+            // Go: a []byte-kind slice, as its bytes.
+            if self.is_nil() {
+                out.push_str("nil");
+                return;
+            }
+            out.push('[');
+            for (i, b) in self.as_bytes().iter().enumerate() {
+                if i > 0 {
+                    out.push_str(", ");
+                }
+                out.push_str(&b.to_string());
+            }
+            out.push(']');
+        }
+
+        fn is_zero(&self) -> bool {
+            self.is_nil()
         }
     }
 
@@ -455,6 +477,100 @@ mod golden {
             experiment: Option<Box<BidderInfoExperiment>> => "Experiment" "experiment",
             xapi: Option<Box<AdapterXapi>> => "XAPI" "xapi",
         }
+    }
+
+    // ---- config.AccountModules (config/account.go) --------------------------------------------
+
+    /// Go: `config.AccountModules`.
+    #[derive(Debug, Default, GoMapstructure)]
+    #[goyaml(go_type = "config.AccountModules")]
+    struct AccountModules(Option<BTreeMap<String, Option<BTreeMap<String, RawJson>>>>);
+
+    impl Dump for AccountModules {
+        fn dump(&self, out: &mut String) {
+            self.0.dump(out);
+        }
+
+        fn is_zero(&self) -> bool {
+            self.0.is_zero()
+        }
+    }
+
+    /// Go: `modulesHolder` (types.go).
+    #[derive(Debug, Default, GoMapstructure)]
+    #[goyaml(go_type = "main.modulesHolder")]
+    struct ModulesHolder {
+        #[goyaml(go = "Modules")]
+        #[goyaml(mapstructure = "modules")]
+        modules: AccountModules,
+    }
+
+    impl Dump for ModulesHolder {
+        fn dump(&self, out: &mut String) {
+            out.push('{');
+            if !self.modules.is_zero() {
+                out.push_str("Modules:");
+                self.modules.dump(out);
+            }
+            out.push('}');
+        }
+
+        fn is_zero(&self) -> bool {
+            self.modules.is_zero()
+        }
+    }
+
+    /// `json.RawMessage`'s underlying `[]byte`, as [`Value::bytes`] types it.
+    const RAW_MESSAGE: Type = Type::Slice(&Type::Uint8);
+
+    /// `map[string]json.RawMessage`.
+    const RAW_MESSAGE_MAP: Type = Type::Map(&Type::String, &RAW_MESSAGE);
+
+    /// The prefix of `AccountModulesHookFunc`'s errors.
+    const CONVERT_MODULES: &str = "failed to convert account modules map";
+
+    /// Prebid's `config.AccountModulesHookFunc` (`config/account_module_decoder.go`), as the
+    /// config crate would port it. Go ranges over the maps in random order, so of several
+    /// entries that fail it reports any one; this port goes in key order (the goldens have at
+    /// most one). Data of another map type fails Go's `data.(map[string]interface{})`
+    /// assertion, a panic that viper's maps never cause; it is an error here.
+    fn account_modules_hook() -> DecodeHook {
+        Arc::new(|to: HookTarget, data: &Value| {
+            if data.kind() != Some(GoKind::Map) || to.type_name() != "config.AccountModules" {
+                return Ok(None);
+            }
+            let Value::StringMap(Type::Interface, input) = data else {
+                return Err(format!(
+                    "interface conversion: interface {{}} is {}, not map[string]interface {{}}",
+                    data.type_name()
+                ));
+            };
+            let mut result = BTreeMap::new();
+            for (outer_key, outer_value) in input.iter().flatten() {
+                let inner = if outer_value.is_nil() {
+                    None
+                } else if let Value::StringMap(Type::Interface, inner) = outer_value {
+                    let mut converted = BTreeMap::new();
+                    for (inner_key, inner_value) in inner.iter().flatten() {
+                        let raw = jsonutil::marshal(inner_value).map_err(|e| {
+                            format!(
+                                "{CONVERT_MODULES}: failed to marshal value for \
+                                 {outer_key}.{inner_key}: {e}"
+                            )
+                        })?;
+                        let _previous = converted.insert(inner_key.clone(), Value::bytes(&raw));
+                    }
+                    Some(converted)
+                } else {
+                    return Err(format!(
+                        "{CONVERT_MODULES}: failed to convert inner map for {outer_key}"
+                    ));
+                };
+                let _previous =
+                    result.insert(outer_key.clone(), Value::StringMap(&RAW_MESSAGE, inner));
+            }
+            Ok(Some(Value::StringMap(&RAW_MESSAGE_MAP, Some(result))))
+        })
     }
 
     // ---- config.BidderInfo (config/bidderinfo.go) ----------------------------------------------
@@ -862,13 +978,37 @@ mod golden {
 
     /// The outputs that differ from Go by design, as (golden file, case, column, reason). Each
     /// must still differ, so that the list stays accurate.
-    const KNOWN_GAPS: [(&str, &str, &str, &str); 6] = [
+    const KNOWN_GAPS: [(&str, &str, &str, &str); 10] = [
         (
             "corpus.txt",
             "yaml.v3/308",
             "interface{} value",
             "!!binary data that is not UTF-8: Value::String holds a Rust String (the bytes are \
              kept when decoding into GoString)",
+        ),
+        (
+            "corpus.txt",
+            "yaml.v3/308",
+            "jsonutil.Marshal(interface{})",
+            "the same: the encoders write the replacement characters, not \\ufffd escapes",
+        ),
+        (
+            "corpus.txt",
+            "yaml.v3/308",
+            "json.Marshal(interface{})",
+            "the same",
+        ),
+        (
+            "corpus.txt",
+            "mutation/yaml.v3/308/4",
+            "jsonutil.Marshal(interface{})",
+            "the same",
+        ),
+        (
+            "corpus.txt",
+            "mutation/yaml.v3/308/4",
+            "json.Marshal(interface{})",
+            "the same",
         ),
         (
             "corpus.txt",
@@ -1073,6 +1213,47 @@ mod golden {
         lines.join(&b'\n')
     }
 
+    /// The text that ends a Rust encoding error standing for jsoniter's nil-key panic.
+    const NIL_KEY_PANIC: &[u8] =
+        b"runtime error: invalid memory address or nil pointer dereference";
+
+    /// Go: `marshalJSON`: the JSON, `error: ` and the error, or `panic: ` and the panic (the
+    /// nil map key jsoniter panics on, which the Rust encoder reports as an error).
+    fn json_outcome(result: Result<Vec<u8>, Vec<u8>>) -> Vec<u8> {
+        match result {
+            Ok(json) => json,
+            Err(text) if text.ends_with(NIL_KEY_PANIC) => [b"panic: ", NIL_KEY_PANIC].concat(),
+            Err(text) => [b"error: ".as_slice(), &text].concat(),
+        }
+    }
+
+    /// `jsonutil.Marshal` and `json.Marshal` of an `interface{}` tree, compared with the Go
+    /// outputs in columns `first` and `first + 1`: where Go's output depends on its random map
+    /// iteration, the golden lists every outcome (`one of:`), and Rust's must be one of them.
+    fn marshal_tree(
+        tree: &Value,
+        row: &[Vec<u8>],
+        first: usize,
+    ) -> Result<(Vec<u8>, Vec<u8>), String> {
+        let jsonutil_out =
+            json_outcome(jsonutil::marshal(tree).map_err(|e| e.message.as_bytes().to_vec()));
+        let json_out = json_outcome(stdjson::marshal(tree).map_err(|e| e.go_text()));
+        Ok((
+            settle(col(row, first)?, jsonutil_out),
+            settle(col(row, first + 1)?, json_out),
+        ))
+    }
+
+    /// `got`, or Go's `one of:` list when `got` is one of its outcomes.
+    fn settle(want: &[u8], got: Vec<u8>) -> Vec<u8> {
+        match want.strip_prefix(b"one of:\n".as_slice()) {
+            Some(list) if list.split(|&b| b == b'\n').any(|outcome| outcome == got) => {
+                want.to_vec()
+            }
+            Some(_) | None => got,
+        }
+    }
+
     fn replay_files() -> Result<(), String> {
         let mut report = Report::new("files.txt");
         let viper = DecoderConfig::viper();
@@ -1093,6 +1274,7 @@ mod golden {
             } else {
                 ms_outcome::<BidderInfo>(&viper, None, &tree)
             };
+            let (jsonutil_out, json_out) = marshal_tree(&tree, &row, 12)?;
             report.check(
                 &path,
                 &format!("file {path}"),
@@ -1109,6 +1291,8 @@ mod golden {
                     ("BidderInfo KnownFields error", &known),
                     ("BidderInfo via mapstructure value", &ms_value),
                     ("BidderInfo via mapstructure error", &ms_error),
+                    ("jsonutil.Marshal(interface{})", &jsonutil_out),
+                    ("json.Marshal(interface{})", &json_out),
                 ],
             )?;
         }
@@ -1120,13 +1304,14 @@ mod golden {
         for row in rows("corpus.txt")? {
             let name = lossy(col(&row, 0)?);
             let input = col(&row, 1)?;
-            let (_, tree) = yaml_into::<Value>(input);
+            let (tree_value, tree) = yaml_into::<Value>(input);
             let (_, kitchen) = yaml_into::<Kitchen>(input);
             let mut first = tree.value.clone();
             first.extend_from_slice(b" | ");
             first.extend_from_slice(&tree.error);
             let stream = yaml_stream(input, &first);
             let (_, info) = yaml_into::<BidderInfo>(input);
+            let (jsonutil_out, json_out) = marshal_tree(&tree_value, &row, 9)?;
             report.check(
                 &name,
                 &format!("corpus {name}: input {}", shown(input)),
@@ -1140,6 +1325,8 @@ mod golden {
                     ("stream", &stream),
                     ("config.BidderInfo value", &info.value),
                     ("config.BidderInfo error", &info.error),
+                    ("jsonutil.Marshal(interface{})", &jsonutil_out),
+                    ("json.Marshal(interface{})", &json_out),
                 ],
             )?;
         }
@@ -1509,6 +1696,11 @@ mod golden {
                 zero_fields: true,
                 ..DecoderConfig::viper()
             },
+            "prebid" => DecoderConfig {
+                decode_hook: Some(account_modules_hook()),
+                weakly_typed_input: true,
+                ..DecoderConfig::default()
+            },
             _ => DecoderConfig::viper(),
         }
     }
@@ -1560,6 +1752,7 @@ mod golden {
             "Tagged" => ms_outcome::<Tagged>(c, p, i),
             "Remainder" => ms_outcome::<Remainder>(c, p, i),
             "TypeConversionResult" => ms_outcome::<TypeConversionResult>(c, p, i),
+            "modulesHolder" => ms_outcome::<ModulesHolder>(c, p, i),
             "map[string]interface {}" => ms_outcome::<Option<BTreeMap<String, Value>>>(c, p, i),
             "map[string]string" => ms_outcome::<Option<BTreeMap<String, String>>>(c, p, i),
             "[]string" => ms_outcome::<Option<Vec<String>>>(c, p, i),
@@ -1576,7 +1769,14 @@ mod golden {
     }
 
     /// Go: `msConfigNames`.
-    const MS_CONFIGS: [&str; 5] = ["strict", "weak", "viper", "viper-unused", "viper-zero"];
+    const MS_CONFIGS: [&str; 6] = [
+        "strict",
+        "weak",
+        "viper",
+        "viper-unused",
+        "viper-zero",
+        "prebid",
+    ];
 
     fn replay_mapstructure() -> Result<(), String> {
         let mut report = Report::new("mapstructure.txt");
