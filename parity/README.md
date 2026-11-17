@@ -650,6 +650,9 @@ counts exits 0, and one that compares fewer cases exits 1.
 ### Batches and processes
 
 1. The runner selects cases by `--corpus`, `--kinds`, `--match` and `--limit`.
+   * `--corpus` takes a comma-separated list of `adapters`,
+     `sample-requests`, `exchangetest`, `bidder-params`, `replayharness`,
+     `introspection`, `gen` and `all` (the default).
    * `--gen N --seed S` first adds N cases drawn by `parity/gen` (corpus
      `gen`). Their IDs regenerate them exactly. A `--corpus` list that names
      neither `all` nor `gen` gets `gen` added.

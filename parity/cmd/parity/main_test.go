@@ -3,14 +3,17 @@ package main
 import (
 	"bytes"
 	"context"
+	"maps"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 
 	"github.com/prebid/prebid-server/v4/parity/corpus"
 	"github.com/prebid/prebid-server/v4/parity/gen"
 	"github.com/prebid/prebid-server/v4/parity/report"
+	"github.com/prebid/prebid-server/v4/parity/runner"
 )
 
 func TestRunUsage(t *testing.T) {
@@ -96,6 +99,43 @@ func TestRunCode(t *testing.T) {
 				t.Errorf("exit code %d, output %q; want %d and %q", code, stdout.String(), tc.want, tc.wantOut)
 			}
 		})
+	}
+}
+
+// TestCorpusHelpNamesEveryCorpus: the --corpus help lists exactly the corpora
+// the repository's cases come from, the runner's introspection cases, the
+// generated cases and all.
+func TestCorpusHelpNamesEveryCorpus(t *testing.T) {
+	repo, err := corpus.FindRepo(".")
+	if err != nil {
+		t.Fatalf("FindRepo: %v", err)
+	}
+	c, err := corpus.LoadAll(repo)
+	if err != nil {
+		t.Fatalf("LoadAll: %v", err)
+	}
+	want := map[string]bool{runner.CorpusIntrospection: true, gen.CorpusGenerated: true, "all": true}
+	for _, cs := range c.Cases {
+		want[cs.Corpus] = true
+	}
+	for _, sub := range []string{"run", "selftest"} {
+		var stdout, stderr bytes.Buffer
+		if code := run(context.Background(), []string{sub, "-h"}, &stdout, &stderr); code != exitOK {
+			t.Fatalf("%s -h: exit code %d", sub, code)
+		}
+		_, help, ok := strings.Cut(stderr.String(), "comma-separated corpora: ")
+		if !ok {
+			t.Fatalf("%s -h has no --corpus help:\n%s", sub, stderr.String())
+		}
+		help, _, _ = strings.Cut(help, "\n")
+		help = strings.TrimSuffix(help, ` (default "all")`)
+		got := map[string]bool{}
+		for _, name := range strings.Split(help, ", ") {
+			got[name] = true
+		}
+		if !reflect.DeepEqual(got, want) {
+			t.Errorf("%s -h lists the corpora %q, want %v", sub, help, slices.Sorted(maps.Keys(want)))
+		}
 	}
 }
 

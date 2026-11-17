@@ -44,6 +44,13 @@ const (
 	exitIncomplete = 3
 )
 
+// corpusNames are the values --corpus takes: every corpus LoadAll reads, the
+// runner's introspection cases, the generated cases of --gen, and all.
+var corpusNames = []string{
+	corpus.CorpusAdapters, corpus.CorpusSampleRequests, corpus.CorpusExchangeTest, corpus.CorpusBidderParams,
+	corpus.CorpusReplayHarness, runner.CorpusIntrospection, gen.CorpusGenerated, "all",
+}
+
 // Default locations, relative to the repository root.
 const (
 	defaultGoBinary   = "parity/out/bin/pbs-go"
@@ -172,7 +179,7 @@ func (f *runFlags) register(fs *flag.FlagSet, withB bool) {
 	fs.StringVar(&f.profiles, "profiles", runner.DefaultProfile, "comma-separated base profiles (parity/fixtures/profiles)")
 	fs.StringVar(&f.profilesDir, "profiles-dir", "", "profile fixtures directory")
 	fs.StringVar(&f.storedDir, "stored-dir", "", "stored data fixtures directory")
-	fs.StringVar(&f.corpora, "corpus", "all", "comma-separated corpora: adapters, sample-requests, exchangetest, bidder-params, introspection, gen, all")
+	fs.StringVar(&f.corpora, "corpus", "all", "comma-separated corpora: "+strings.Join(corpusNames, ", "))
 	fs.IntVar(&f.gen, "gen", 0, "generated cases (corpus gen, parity/gen) to add to the corpus")
 	fs.Uint64Var(&f.seed, "seed", 1, "seed the --gen cases are drawn with")
 	fs.StringVar(&f.kinds, "kinds", "", "comma-separated case kinds (adapter, lifted_auction, endpoint, exchange, bidder_params, introspection)")

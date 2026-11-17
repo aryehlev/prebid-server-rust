@@ -56,7 +56,8 @@ func (b *batch) Label() string { return profileLabel(b.Base, b.Profile) }
 // Selection filters corpus cases.
 type Selection struct {
 	// Corpora are corpus names (adapters, sample-requests, exchangetest,
-	// bidder-params, introspection); empty means all.
+	// bidder-params, replayharness, introspection, gen, or all); empty means
+	// all.
 	Corpora []string
 	// Kinds are case kinds; empty means all.
 	Kinds []string
