@@ -136,10 +136,14 @@ elif [[ "${parity}" == false ]] && ! git diff --quiet "${upstream_base}" "${ref}
   printf '%s\n' "${stat}" >&2
 fi
 
-# local-state
-tracked=$(git ls-tree -r --name-only "${ref}" -- .claude .omx | head -n 10)
+# local-state: no committed agent configuration (Claude settings/hooks/MCP, ripgrep config) or
+# local tool state. These are never tracked; upstream copies are dropped by merge-upstream.sh so a
+# port agent session cannot load them, and the fork must not add them either.
+agent_cfg_listing=$(port_agent_config_paths)
+mapfile -t agent_cfg <<< "${agent_cfg_listing}"
+tracked=$(git ls-tree -r --name-only "${ref}" -- "${agent_cfg[@]}" | head -n 10)
 if [[ -n "${tracked}" ]]; then
-  violation local-state "local tool state is committed: ${tracked//$'\n'/, }"
+  violation local-state "agent configuration or local tool state is committed: ${tracked//$'\n'/, }"
 fi
 
 # marker

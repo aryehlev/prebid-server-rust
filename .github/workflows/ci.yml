@@ -6,6 +6,10 @@ name: CI
 
 on:
   pull_request:
+    # `edited` is included so the guard re-checks the title and body for AI attribution after a
+    # person or the publish job edits them; without it, text edited after `ci-ok` is green would not
+    # be re-validated before merge. `ready_for_review` covers the port PR leaving its draft state.
+    types: [opened, synchronize, reopened, edited, ready_for_review]
     branches: [main, parity-harness]
   push:
     branches: [main, parity-harness]

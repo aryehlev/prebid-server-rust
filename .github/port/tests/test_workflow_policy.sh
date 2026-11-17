@@ -230,6 +230,11 @@ cp "${T_TOP}/.github/workflows/upstream-port.yml" "${strict}"
 scan "${strict}"
 t_has "continue-on-error is refused in ci.yml even on agent steps" "${T_OUT}" "continue-on-error is not allowed here"
 
+# A pull request title or body edited after ci-ok is green must re-trigger CI, or the guard would
+# never re-check the edited text for AI attribution. The only pull_request types: line is ci.yml's.
+ci_types=$(grep -E '^[[:space:]]+types:' "${T_TOP}/.github/workflows/ci.yml")
+t_has "ci.yml re-runs on pull request edits so the guard re-checks the title and body" "${ci_types}" "edited"
+
 # The agents' settings.
 settings="${T_PORT}/claude-settings.json"
 checks=$(jq -c '[.attribution.commit, .attribution.pr, .includeCoAuthoredBy, .includeGitInstructions,
@@ -243,7 +248,7 @@ for rule in WebFetch WebSearch 'mcp__*' 'Bash(git commit:*)' 'Bash(git push:*)' 
   'Bash(git remote:*)' 'Bash(git fetch:*)' 'Bash(gh:*)' 'Bash(curl:*)' 'Bash(wget:*)' 'Bash(ssh:*)' \
   'Bash(cargo add:*)' 'Bash(cargo install:*)' 'Bash(cargo update:*)' 'Bash(go get:*)' 'Bash(go mod:*)' \
   'Edit(./.github/**)' 'Edit(./.claude/**)' 'Edit(./AGENTS.md)' 'Edit(./rust/Cargo.toml)' \
-  'Edit(./rust/deny.toml)' 'Edit(./rust/scripts/**)' 'Edit(./rust/UPSTREAM_SYNC)' \
+  'Edit(./rust/.cargo/**)' 'Edit(./rust/deny.toml)' 'Edit(./rust/scripts/**)' 'Edit(./rust/UPSTREAM_SYNC)' \
   'Edit(./rust/upstream-port-log.jsonl)'; do
   t_has "settings: deny ${rule}" " ${denied} " " ${rule} "
 done

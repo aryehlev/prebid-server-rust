@@ -42,3 +42,21 @@ macro_rules! quiet {
         fn generated() {}
     };
 }
+#[r#allow(clippy::unwrap_used)]
+fn raw_allow() {}
+#[r#expect(dead_code, reason = "raw identifiers are banned too")]
+fn raw_expect() {}
+#[rustfmt::r#skip]
+fn raw_skip() {}
+macro_rules! launder {
+    ($a:meta) => {
+        #[$a]
+        fn laundered() {}
+    };
+}
+macro_rules! forward_attrs {
+    ($(#[$m:meta])*) => {
+        $(#[$m])*
+        fn forwarded() {}
+    };
+}

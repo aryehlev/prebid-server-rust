@@ -14,11 +14,15 @@
 #
 # Rules (the bracketed id is printed with every finding):
 #   Rust sources, with comments and string literals removed first
-#     rust-lint-attr        #[allow(..)], #![allow(..)], #[expect(..)], #![expect(..)]
+#     rust-lint-attr        #[allow(..)], #![allow(..)], #[expect(..)], #![expect(..)], including the
+#                           raw-identifier forms #[r#allow(..)] / #[r#expect(..)]
 #     rust-cfg-attr-lint    cfg_attr(.., allow(..)) or cfg_attr(.., expect(..)), at any nesting
-#     rustfmt-skip          rustfmt::skip in any form, and the old rustfmt_skip
+#     rustfmt-skip          rustfmt::skip in any form (raw identifiers too), and the old rustfmt_skip
 #     rust-cfg-tool         cfg(..)/cfg_attr(..)/cfg!(..) predicates on clippy or rustfmt
 #     rust-include-legacy   #[path] or include!() that pulls rust/legacy/ code into a crate
+#     rust-macro-attr       #[$x] / #![$x] in a macro body applying a caller-supplied attribute name
+#                           (not one captured whole as #[$x:meta]): launders a lint suppression that
+#                           neither the literal scan above nor clippy's allow_attributes lint sees
 #   Cargo.toml (parsed with taplo, so every TOML spelling is covered)
 #     lint-level            any [lints] or [workspace.lints] level other than warn, deny or forbid
 #     crate-lints           a package whose [lints] is not exactly `workspace = true`
@@ -28,8 +32,9 @@
 #     clippy-config         allow-* / allowed-* options in clippy.toml or .clippy.toml
 #     rustfmt-config        rustfmt configs other than rust/rustfmt.toml, and options that skip files
 #     deny-config           cargo-deny configs other than rust/deny.toml, and ignore/skip/exception lists
-#     cargo-config          rustflags, lint-related [env] entries, build.warnings and lint-command
-#                           aliases in .cargo/config and .cargo/config.toml
+#     cargo-config          rustflags, rustc / rustc-wrapper / rustc-workspace-wrapper / runner
+#                           overrides, lint-related [env] entries (including RUSTC_WRAPPER), build.
+#                           warnings and lint-command aliases in .cargo/config and .cargo/config.toml
 #   Go code we author
 #     go-nolint             nolint, lint:ignore, lint:file-ignore, nosec and revive:disable comments
 #     golangci-config       golangci-lint configs other than .github/linters/golangci.yml, and
@@ -188,7 +193,10 @@ my $balanced = qr{(\((?:[^()]++|(?-1))*\))};
 sub check_rust {
   my ($path, $src) = @_;
   my $code = rust_code_only($src);
-  while ($code =~ m{\#\s*!?\s*\[\s*(allow|expect)\s*\(}g) {
+  # The optional r\# catches raw identifiers: #[r#allow(..)] and #[r#expect(..)] suppress a lint
+  # exactly like #[allow(..)]/#[expect(..)], and the clippy allow_attributes lint does not flag
+  # them, so the text scan is the only backstop.
+  while ($code =~ m{\#\s*!?\s*\[\s*(?:r\#)?(allow|expect)\s*\(}g) {
     finding($path, line_at($code, $-[0]), "rust-lint-attr", "#[$1(..)] suppresses a lint; fix the code instead");
   }
   while ($code =~ m{\bcfg_attr\s*$balanced}g) {
@@ -197,7 +205,7 @@ sub check_rust {
       finding($path, line_at($code, $at), "rust-cfg-attr-lint", "cfg_attr(.., $1(..)) suppresses a lint; fix the code instead");
     }
   }
-  while ($code =~ m{\brustfmt\s*::\s*skip\b|\brustfmt_skip\b}g) {
+  while ($code =~ m{\b(?:r\#)?rustfmt\s*::\s*(?:r\#)?skip\b|\b(?:r\#)?rustfmt_skip\b}g) {
     finding($path, line_at($code, $-[0]), "rustfmt-skip", "rustfmt::skip hides code from the formatter");
   }
   while ($code =~ m{\bcfg(_attr)?\s*!?\s*$balanced}g) {
@@ -220,6 +228,22 @@ sub check_rust {
     if (substr($src, $at, $eol - $at) =~ m{\blegacy/}) {
       finding($path, line_at($code, $at), "rust-include-legacy", "rust/legacy/ is not linted and must not be compiled into a crate");
     }
+  }
+  # A macro that applies a caller-supplied attribute name, #[$x] or #![$x], launders a suppression:
+  # the caller passes allow(..)/expect(..) as a bare :meta fragment and the macro wraps it in #[..],
+  # which neither the literal scan above nor the clippy allow_attributes lint sees. The legitimate
+  # form forwards a whole attribute the caller already wrote with #[..], captured in the matcher as
+  # #[$x:meta]; flag only a metavariable that is never captured inside #[..], and never $crate (the
+  # defining crate path, which no caller controls).
+  my %wrapped;
+  while ($code =~ m{\#\s*\[\s*\$(\w+)\s*:}g) {
+    $wrapped{$1} = 1;
+  }
+  while ($code =~ m{\#\s*!?\s*\[\s*\$(\w+)\b}g) {
+    my ($name, $at) = ($1, $-[0]);
+    next if $name eq "crate" || $wrapped{$name};
+    finding($path, line_at($code, $at), "rust-macro-attr",
+      "#[\$$name] applies a caller-supplied attribute name; capture a whole attribute as #[\$$name:meta] or inline a fixed attribute so a lint suppression cannot be laundered through it");
   }
 }
 
@@ -384,7 +408,8 @@ toml_rules() {
       (if (.sources["allow-org"] | nonempty) then "deny-config\tsources.allow-org admits git dependencies" else empty end)
     elif $kind == "cargoconfig" then
       (paths | select(.[-1] | tostring | test("^rust(doc)?flags$")) | "cargo-config\t`\(map(tostring) | join("."))` sets compiler flags; lint policy lives in rust/Cargo.toml"),
-      ((.env // {}) | keys[] | select(test("^(CARGO_ENCODED_)?RUST(DOC)?FLAGS$|^CARGO_BUILD_RUST(DOC)?FLAGS$|^CARGO_TARGET_.*_RUST[F]LAGS$|^CLIPPY_|^CARGO_BUILD_WARNINGS$")) | "cargo-config\t[env] \(.) can lower lint levels"),
+      (paths | select(.[-1] | tostring | test("^(rustc|rustc-wrapper|rustc-workspace-wrapper|runner)$")) | "cargo-config\t`\(map(tostring) | join("."))` overrides the compiler or the test runner, which can strip lint flags or run code"),
+      ((.env // {}) | keys[] | select(test("^(CARGO_ENCODED_)?RUST(DOC)?FLAGS$|^CARGO_BUILD_RUST(DOC)?FLAGS$|^CARGO_TARGET_.*_RUST[F]LAGS$|^CLIPPY_|^CARGO_BUILD_WARNINGS$|^RUSTC(_WRAPPER|_WORKSPACE_WRAPPER)?$")) | "cargo-config\t[env] \(.) can lower lint levels or run code"),
       (if (.build.warnings // "deny") != "deny" then "cargo-config\tbuild.warnings must be deny if set" else empty end),
       ((.alias // {}) | to_entries[]
         | select((.key | test("^(build|check|clippy|doc|fmt|test|rustdoc|deny|machete)$"))

@@ -1,6 +1,10 @@
 # clippy allow-* options, rustfmt and cargo-deny configs outside their one allowed location and
-# every option in them that skips files or hides findings, compiler flags, [env] entries, warning
-# levels and lint-command aliases in .cargo/config(.toml), and a TOML file that does not parse.
+# every option in them that skips files or hides findings, compiler flags, rustc / rustc-wrapper /
+# runner overrides, [env] entries (RUSTFLAGS, RUSTC_WRAPPER, ...), warning levels and lint-command
+# aliases in .cargo/config(.toml), and a TOML file that does not parse.
+rust/.cargo/config.toml:1: [cargo-config]
+rust/.cargo/config.toml:1: [cargo-config]
+rust/.cargo/config.toml:1: [cargo-config]
 rust/.cargo/config.toml:1: [cargo-config]
 rust/.cargo/config.toml:1: [cargo-config]
 rust/.cargo/config.toml:1: [cargo-config]

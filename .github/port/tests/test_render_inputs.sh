@@ -53,6 +53,7 @@ args=$(get port port_args)
 t_has "port args: model" "${args}" "--model claude-opus-5-5"
 t_has "port args: fallback model" "${args}" "--fallback-model claude-sonnet-5-5"
 t_has "port args: permission mode" "${args}" "--permission-mode default"
+t_has "port args: only trusted settings load" "${args}" "--setting-sources user"
 t_has "port args: turns" "${args}" "--max-turns 150"
 t_has "port args: budget" "${args}" "--max-budget-usd 30"
 t_has "port args: context directory" "${args}" "--add-dir ${ctx}"

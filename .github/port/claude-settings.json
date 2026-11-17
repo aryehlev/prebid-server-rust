@@ -76,6 +76,7 @@
       "Edit(./.omx/**)",
       "Edit(./AGENTS.md)",
       "Edit(./CLAUDE.md)",
+      "Edit(./rust/.cargo/**)",
       "Edit(./rust/Cargo.toml)",
       "Edit(./rust/rust-toolchain.toml)",
       "Edit(./rust/rustfmt.toml)",

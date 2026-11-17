@@ -1,16 +1,19 @@
 [build]
 rustflags = ["-A", "warnings"]
 rustdocflags = ["--cap-lints", "allow"]
+rustc-wrapper = "./evil-rustc.sh"
 warnings = "allow"
 
 [target.x86_64-unknown-linux-gnu]
 rustflags = ["-Aclippy::all"]
+runner = "./run-wrapper.sh"
 
 [target.'cfg(all())']
 rustflags = ["-W", "unused"]
 
 [env]
 RUSTFLAGS = "-Awarnings"
+RUSTC_WRAPPER = "./evil-wrapper.sh"
 CLIPPY_CONF_DIR = "/tmp"
 PBS_GO_ROOT = "/repo"
 

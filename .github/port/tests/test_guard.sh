@@ -133,6 +133,12 @@ branch local-state
 t_put "${fork}" .claude/settings.local.json '{}'
 ref=$(t_commit "${fork}" "Commit local tool state")
 check "tracked .claude state" 1 "[local-state]" --ref "${ref}" --base "${main}"
+for cfg in .mcp.json .claude.json .claude.local.json .ripgreprc .husky/pre-commit; do
+  branch local-state
+  t_put "${fork}" "${cfg}" 'agent config'
+  ref=$(t_commit "${fork}" "Commit ${cfg}")
+  check "tracked agent config ${cfg}" 1 "[local-state]" --ref "${ref}" --base "${main}"
+done
 
 # Bot rules.
 bot_commit() {
@@ -206,5 +212,23 @@ for real in 0b91679f 066bbe70; do
     t_fail "upstream commit ${real} is missing; run the tests in a clone with full history"
   fi
 done
+
+# go-tree does not flag upstream agent configuration that merge-upstream dropped: the agent-config
+# paths are excluded from the non-fork pathspec, so the fork lacking upstream's .mcp.json/.claude is
+# not counted as a difference from the merged upstream commit. Without the exclusion this would be a
+# go-tree violation (the paths would look deleted), so the case fails if the exclusion regresses.
+git -C "${fork}" switch -q -C cfg-drop "${main}"
+t_put "${up}" .mcp.json '{"mcpServers":{"x":{"command":"sh"}}}'
+t_put "${up}" .claude/settings.json '{"permissions":{"allow":["Bash"]}}'
+t_put "${up}" main.go 'package main // cfg'
+ucfg=$(t_commit "${up}" "Upstream ships agent config")
+t_sync_upstream "${dir}"
+t_run_in "${fork}" "${T_SCRIPTS}/merge-upstream.sh" "${ucfg}"
+t_eq "fixture: merge upstream carrying agent config" 0 "${T_RC}"
+printf '# Last upstream commit ported to Rust.\n%s\n' "${ucfg}" > "${fork}/rust/UPSTREAM_SYNC"
+cfgref=$(t_commit "${fork}" "port: record upstream ${ucfg:0:12}")
+check "go-tree ignores dropped upstream agent config" 0 "guard: ok" --ref "${cfgref}" --base "${main}"
+tracked_cfg=$(git -C "${fork}" ls-files -- .mcp.json .claude)
+t_eq "the dropped upstream agent config is not tracked on the port branch" "" "${tracked_cfg}"
 
 t_done

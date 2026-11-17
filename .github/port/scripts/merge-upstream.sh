@@ -43,6 +43,20 @@ if [[ -s "${tmp}/deleted" ]]; then
 fi
 git checkout "${target}" -- "${nonfork[@]}"
 
+# Never import or keep the untrusted agent-configuration paths (a .claude/, .mcp.json, hook or
+# ripgrep config from either side would otherwise be loaded and run by the port agent session with
+# the job's credentials). They are already excluded from the non-fork pathspec, so the checkout
+# above does not bring them in; drop any that are still present, from the index and the work tree.
+# --ignore-unmatch makes the removal a no-op when, as expected, none of them exist.
+agent_listing=$(port_agent_config_paths)
+mapfile -t agent_cfg <<< "${agent_listing}"
+git --literal-pathspecs rm -rq --cached --ignore-unmatch -- "${agent_cfg[@]}" > /dev/null
+for path in "${agent_cfg[@]}"; do
+  if [[ -n "${path}" && -e "${path}" ]]; then
+    rm -rf -- "${path}"
+  fi
+done
+
 if ! git diff --cached --quiet "${target}" -- "${nonfork[@]}"; then
   git diff --cached --stat "${target}" -- "${nonfork[@]}" | tail -n 40 >&2
   port_die "merge-upstream: paths outside the fork-owned set differ from ${target:0:12} after the merge"

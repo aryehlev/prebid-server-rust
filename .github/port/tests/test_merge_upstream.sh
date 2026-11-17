@@ -86,4 +86,29 @@ t_eq "a fork edit of Go never conflicts" 0 "${T_RC}"
 exchange=$(cat "${fork}/exchange/exchange.go")
 t_eq "upstream's Go wins over a fork edit" "package exchange // v4" "${exchange}"
 
+# Untrusted agent configuration carried by upstream (a .claude/, .mcp.json, hook or ripgrep config)
+# must never reach the work tree the port agent session runs in, or it would be loaded and run with
+# the job's credentials. The merge drops every such path, from the index and from disk.
+t_put "${up}" .claude/settings.json '{"x":1}'
+t_put "${up}" .claude/settings.local.json '{"x":2}'
+t_put "${up}" .mcp.json '{"mcpServers":{}}'
+t_put "${up}" .ripgreprc '--pre=sh'
+t_put "${up}" .husky/pre-commit 'run'
+t_put "${up}" main.go 'package main // v5'
+u5=$(t_commit "${up}" "Upstream change that also ships agent config")
+t_sync_upstream "${dir}"
+t_run_in "${fork}" "${T_SCRIPTS}/merge-upstream.sh" "${u5}"
+t_eq "merging upstream that ships agent config exits 0" 0 "${T_RC}"
+tracked_cfg=$(git -C "${fork}" ls-files -- .claude .claude.json .claude.local.json .mcp.json .ripgreprc .husky .omx)
+t_eq "no agent configuration is tracked after the merge" "" "${tracked_cfg}"
+present_cfg=""
+for p in .claude .mcp.json .claude.local.json .ripgreprc .husky; do
+  if [[ -e "${fork}/${p}" ]]; then present_cfg+="${p} "; fi
+done
+t_eq "no agent configuration is left in the work tree" "" "${present_cfg}"
+main_v5=$(cat "${fork}/main.go")
+t_eq "the benign upstream change still lands" "package main // v5" "${main_v5}"
+status=$(git -C "${fork}" status --porcelain)
+t_eq "the work tree is clean after dropping agent config" "" "${status}"
+
 t_done

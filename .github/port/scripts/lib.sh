@@ -33,6 +33,24 @@ port_protected_paths() {
     rust/legacy
 }
 
+# port_agent_config_paths: repository-root paths that configure, or can run code in, a coding agent
+# (Claude Code settings, hooks and MCP servers) or a tool it drives (ripgrep). The fork neither owns
+# these nor accepts them from upstream, so upstream content can never drop settings, a hook or an MCP
+# server that a port agent session would load and run with the job's credentials. They are excluded
+# from port_nonfork_spec (so dropping them is not a go-tree difference from upstream),
+# merge-upstream.sh never imports them, and guard.sh's local-state rule rejects any that are
+# committed. .omx is local tool state and is listed here too.
+port_agent_config_paths() {
+  printf '%s\n' \
+    .claude \
+    .claude.json \
+    .claude.local.json \
+    .mcp.json \
+    .ripgreprc \
+    .husky \
+    .omx
+}
+
 port_error() {
   printf '::error::%s\n' "$*" >&2
 }
@@ -74,13 +92,18 @@ port_fork_paths() {
   port_list "${PORT_DIR}/fork-paths.txt"
 }
 
-# port_nonfork_spec: git pathspecs, one per line, that select every path the fork does not own.
+# port_nonfork_spec: git pathspecs, one per line, that select every path the fork does not own and
+# does not treat as untrusted agent configuration. Both the fork-owned paths and the agent-config
+# paths are excluded: the latter so that dropping an upstream-supplied .claude/.mcp.json/hook (see
+# merge-upstream.sh) is not reported as a go-tree difference from upstream.
 port_nonfork_spec() {
   local listing path
-  listing=$(port_fork_paths)
+  listing=$(printf '%s\n%s\n' "$(port_fork_paths)" "$(port_agent_config_paths)")
   printf '%s\n' ':(top)'
   while IFS= read -r path; do
-    printf ':(top,exclude)%s\n' "${path}"
+    if [[ -n "${path}" ]]; then
+      printf ':(top,exclude)%s\n' "${path}"
+    fi
   done <<< "${listing}"
 }
 

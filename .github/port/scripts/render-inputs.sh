@@ -172,6 +172,10 @@ args() {
     printf -- '--model %s\n' "${model}"
     printf -- '--fallback-model %s\n' "${PORT_FALLBACK_MODEL}"
     printf -- '--permission-mode default\n'
+    # Only the action-written user settings (this session's deny/allow lists) are loaded. Project
+    # and local settings are ignored, so a .claude/ or hook that slipped into the work tree cannot
+    # change the permissions or run on session start. merge-upstream.sh also drops those files.
+    printf -- '--setting-sources user\n'
     printf -- '--max-turns %s\n' "${turns}"
     printf -- '--max-budget-usd %s\n' "${budget}"
     printf -- '--add-dir %s\n' "${ctx}"
