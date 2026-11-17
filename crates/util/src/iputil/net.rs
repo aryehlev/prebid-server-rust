@@ -221,8 +221,12 @@ impl Ip {
         if ip.len() != m.len() {
             return None;
         }
-        let out: Vec<u8> = ip.iter().zip(m).map(|(x, y)| x & y).collect();
-        Self::from_slice(&out)
+        // privacy.scrubIP masks every request's device IPs: no heap allocation.
+        let mut out = [0_u8; IPV6_LEN];
+        for (o, (x, y)) in out.iter_mut().zip(ip.iter().zip(m)) {
+            *o = x & y;
+        }
+        Self::from_slice(out.get(..ip.len())?)
     }
 
     /// Go: `IP.Equal`: the same address, an IPv4 address being equal to its IPv4-mapped form.
