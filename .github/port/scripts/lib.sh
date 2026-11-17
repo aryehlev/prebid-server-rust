@@ -97,8 +97,10 @@ port_fork_paths() {
 # paths are excluded: the latter so that dropping an upstream-supplied .claude/.mcp.json/hook (see
 # merge-upstream.sh) is not reported as a go-tree difference from upstream.
 port_nonfork_spec() {
-  local listing path
-  listing=$(printf '%s\n%s\n' "$(port_fork_paths)" "$(port_agent_config_paths)")
+  local fork_listing agent_listing listing path
+  fork_listing=$(port_fork_paths)
+  agent_listing=$(port_agent_config_paths)
+  listing=$(printf '%s\n%s\n' "${fork_listing}" "${agent_listing}")
   printf '%s\n' ':(top)'
   while IFS= read -r path; do
     if [[ -n "${path}" ]]; then
