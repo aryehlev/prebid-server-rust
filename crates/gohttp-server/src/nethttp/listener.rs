@@ -14,7 +14,7 @@ use std::{
 use pbs_logger::goerr::errno_text;
 use socket2::{Domain, Protocol, SockRef, Socket, TcpKeepalive, Type};
 use tokio::{
-    net::{TcpListener, UnixListener},
+    net::{TcpListener, UnixListener, unix::SocketAddr as UnixSocketAddr},
     task,
 };
 
@@ -293,13 +293,13 @@ impl Listener {
                 })
             }
             Inner::Unix { listener, path } => {
-                let (stream, _remote) = listener.accept().await.map_err(|e| accept_err(&e))?;
+                let (stream, remote) = listener.accept().await.map_err(|e| accept_err(&e))?;
                 Ok(Accepted {
                     stream: Stream::Unix(stream),
                     addrs: Arc::new(ConnAddrs {
                         network: Network::Unix,
                         local: path.to_string_lossy().into_owned(),
-                        remote: String::new(),
+                        remote: unix_peer_string(&remote),
                     }),
                 })
             }
@@ -312,6 +312,34 @@ impl Listener {
             let _removed = fs::remove_file(path);
         }
     }
+}
+
+/// Go: `(*net.UnixAddr).String()` of an accepted connection's peer, the `Request.RemoteAddr` of
+/// a Unix-socket request: a named peer's path, else what `syscall.anyToSockaddr` makes of the
+/// peer's empty path (see [`unnamed_unix_peer`]).
+fn unix_peer_string(addr: &UnixSocketAddr) -> String {
+    addr.as_pathname().map_or_else(
+        || unnamed_unix_peer(addr),
+        |p| p.to_string_lossy().into_owned(),
+    )
+}
+
+/// On Linux Go rewrites the leading NUL of an unnamed or abstract peer address as `@`, so an
+/// unnamed peer (the usual client) is `@` and an abstract one `@name` (up to its first NUL).
+#[cfg(any(target_os = "linux", target_os = "android"))]
+fn unnamed_unix_peer(addr: &UnixSocketAddr) -> String {
+    let name = addr.as_abstract_name().unwrap_or_default();
+    let end = name.iter().position(|&b| b == 0).unwrap_or(name.len());
+    format!(
+        "@{}",
+        String::from_utf8_lossy(name.get(..end).unwrap_or_default())
+    )
+}
+
+/// Elsewhere an unnamed peer's path is empty.
+#[cfg(not(any(target_os = "linux", target_os = "android")))]
+const fn unnamed_unix_peer(_addr: &UnixSocketAddr) -> String {
+    String::new()
 }
 
 /// Go: `syscall.Errno.Temporary()` for accept errors.
@@ -363,4 +391,62 @@ async fn resolve_listen_host(host: &str, port: u16) -> Result<Option<IpAddr>, St
     first
         .map(Some)
         .ok_or_else(|| format!("listen tcp: lookup {host}: no such host"))
+}
+
+#[cfg(test)]
+mod tests {
+    use std::{env, fs, process};
+
+    use tokio::net::{UnixSocket, UnixStream};
+
+    use super::Listener;
+
+    /// Go's `RemoteAddr` of a Unix-socket client that did not bind a path.
+    const UNNAMED_PEER: &str = if cfg!(any(target_os = "linux", target_os = "android")) {
+        "@"
+    } else {
+        ""
+    };
+
+    #[tokio::test]
+    async fn unix_peer_addresses_like_go() -> Result<(), String> {
+        let dir = env::temp_dir().join(format!("gohttp-listener-{}", process::id()));
+        fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+        let (server, client) = (dir.join("s.sock"), dir.join("c.sock"));
+        let _stale_server = fs::remove_file(&server);
+        let _stale_client = fs::remove_file(&client);
+        let ln = Listener::bind_unix(&server.to_string_lossy()).map_err(|e| e.to_string())?;
+
+        let _unnamed = UnixStream::connect(&server)
+            .await
+            .map_err(|e| e.to_string())?;
+        let unnamed = ln
+            .accept_raw()
+            .await
+            .map_err(|e| e.text)?
+            .addrs
+            .remote
+            .clone();
+
+        let sock = UnixSocket::new_stream().map_err(|e| e.to_string())?;
+        sock.bind(&client).map_err(|e| e.to_string())?;
+        let _named = sock.connect(&server).await.map_err(|e| e.to_string())?;
+        let named = ln
+            .accept_raw()
+            .await
+            .map_err(|e| e.text)?
+            .addrs
+            .remote
+            .clone();
+
+        ln.close();
+        let _removed = fs::remove_dir_all(&dir);
+        if unnamed != UNNAMED_PEER {
+            return Err(format!("unnamed peer {unnamed:?}, want {UNNAMED_PEER:?}"));
+        }
+        if named != client.to_string_lossy() {
+            return Err(format!("named peer {named:?}, want {client:?}"));
+        }
+        Ok(())
+    }
 }
