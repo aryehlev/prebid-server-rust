@@ -1,0 +1,3 @@
+# The upstream prebid/prebid-server master commit that the Rust port has been brought up to.
+# Only the upstream-port workflow advances it (.github/port/scripts/commit.sh); see .github/README.md.
+4e296450de2fcc62741340b2e5f7d1df6c1744a5
