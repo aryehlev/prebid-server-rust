@@ -29,7 +29,7 @@ replays:
           contains: ['\"user\":{\"buyeruid\":\"rh-adnxs-uid\"}']
 
   - name: an opted-out uids cookie gives no buyeruid
-    why: an opt-out drops every uid, so the bidder request has no user (usersync/cookie.go:170-177)
+    why: an opt-out drops every uid, so the bidder request has no user (usersync/cookie.go:171-178)
     steps:
       - method: POST
         path: /openrtb2/auction

@@ -28,12 +28,12 @@ notes:
   Parity stored data (parity/fixtures/stored), present in every run. Accounts: parity-account (enabled, no settings) and parity-disabled-account (disabled). Stored request parity-stored-request: a site request for parity-account with tmax 500, price granularity 'low' and no imp. Stored imp parity-stored-imp: a 300x250 banner bidding to appnexus with placementId 12883451. Stored response parity-stored-response: one appnexus seatbid with bid parity-bid, price 1.25, for impid parity-stored-imp. A case can bring more stored data (corpus.Case.Stored); a case that gives one of these IDs different content runs in a separate batch (parity/fixtures/stored/README.md).
 - 'Parity bidders: every bidder in static/bidder-info is configured: 398 files, 116 of them aliases. 18 are disabled by default: adagio, adxcg, appStockSSP, audienceNetwork, avocet, dianomi, epom, huaweiads, ix, m152, mgidX, pangle, revcontent, rubicon, selectmedia, stroeerCore, triplelift_native, zeta_global_ssp. The oracle answers bidder calls by fixture replay, then templates, then 204. User syncers exist only for enabled bidders whose bidder info defines userSync: 235 enabled files do, for example appnexus (syncer key adnxs, redirect), pubmatic (iframe and redirect) and openx (iframe) (usersync/syncersbuilder.go:28-90).'
 - |-
-  Parity limits: video.enable_deprecated_endpoint is false in every profile, and corpus.Profile has no switch for it, so POST /openrtb2/video always answers 501. vtrack.enabled stays true. stored_requests.cache_events is off, so /storedrequests/* answer 404. status_response is empty, so /status answers 204. host_cookie is unset. Outbound calls the oracle has no answer for, such as the /optout recaptcha check, get its 404 unless the case's mock plan has a rule (parity/oracle/generators.go:242-261).
+  Parity limits: video.enable_deprecated_endpoint is false in every base profile, so POST /openrtb2/video answers 501. vtrack.enabled stays true. stored_requests.cache_events is off, so /storedrequests/* answer 404. status_response is empty, so /status answers 204. host_cookie is unset. A case profile, parity/replayharness/profiles/NAME/profile.json (a corpus.Profile), turns on the video endpoint (video_endpoint) or sets status_response or host_cookie for the replays in that directory; the probes run under the base profile only. Outbound calls the oracle has no answer for, such as the /optout recaptcha check, get its 404 unless the case's mock plan has a rule (parity/oracle/generators.go:242-261).
 - |-
-  To send a user-sync cookie, add the header 'Cookie: uids=<value>'. The value is the base64url encoding, with padding, of {"tempUIDs":{"<syncer key>":{"uid":"<uid>","expires":"<RFC 3339 time>"}},"optout":<bool>} (usersync/cookie.go:13, 223-259; usersync/encoder.go:16-23; usersync/decoder.go:15-27). One live adnxs uid: 'uids=eyJ0ZW1wVUlEcyI6eyJhZG54cyI6eyJ1aWQiOiJyaC1hZG54cy11aWQiLCJleHBpcmVzIjoiMjA5OS0wMS0wMVQwMDowMDowMFoifX19'. Opted out: 'uids=eyJvcHRvdXQiOnRydWV9'. A value that does not decode is treated as an empty cookie. A uid is live while its expires is in the future (usersync/cookie.go:170-177, 203-213). optout true drops every uid and blocks syncs. An audienceNetwork uid of '0' is dropped. The host cookie (host_cookie.cookie_name and family) and the opt-out cookie (host_cookie.optout_cookie) are off by default (usersync/cookie.go:135-153).
-- 'Parity hazard: the uids Set-Cookie depends on the wall clock. Its Expires is now plus host_cookie.ttl_days (90), and each uid synced in the request gets expires now plus 14 days, with nanoseconds, inside the encoded value (usersync/cookie.go:93-132). Nothing in parity/schema/normalization.json masks either value, and the clock is not faked, so /setuid and /optout Set-Cookie headers differ between two processes.'
+  To send a user-sync cookie, add the header 'Cookie: uids=<value>'. The value is the base64url encoding, with padding, of {"tempUIDs":{"<syncer key>":{"uid":"<uid>","expires":"<RFC 3339 time>"}},"optout":<bool>} (usersync/cookie.go:14, 224-260; usersync/encoder.go:16-23; usersync/decoder.go:15-27). One live adnxs uid: 'uids=eyJ0ZW1wVUlEcyI6eyJhZG54cyI6eyJ1aWQiOiJyaC1hZG54cy11aWQiLCJleHBpcmVzIjoiMjA5OS0wMS0wMVQwMDowMDowMFoifX19'. Opted out: 'uids=eyJvcHRvdXQiOnRydWV9'. A value that does not decode is treated as an empty cookie. A uid is live while its expires is in the future (usersync/cookie.go:171-178, 204-214). optout true drops every uid and blocks syncs. An audienceNetwork uid of '0' is dropped. The host cookie (host_cookie.cookie_name and family) and the opt-out cookie (host_cookie.optout_cookie) are off by default (usersync/cookie.go:136-154).
+- 'The uids Set-Cookie reads the parity clock (parity/schema/fakes.json server_sites): its Expires is the fake now, 2021-08-20T15:28:50.823Z, plus host_cookie.ttl_days (90), so Thu, 18 Nov 2021 15:28:50 GMT, and each uid synced in the request gets expires the fake now plus 14 days, 2021-09-03T15:28:50.823Z, inside the encoded value (usersync/cookie.go:94-133). Liveness reads the same clock, so a uid that expires in 2099 is live. Two parity-mode servers write the same Set-Cookie.'
 - |-
-  Parity hazard: /cookie_sync without 'bidders' (and with coopSync off) evaluates every syncer in the order NewChooser got them from ranging over a map (usersync/chooser.go:18-33). The usersync.shuffle decision 'identity' keeps that order (usersync/shuffler.go:18-26), so bidder_status order differs between processes. Outside a parity case, which is how ReplayHarness requests arrive, the syncers are shuffled with the real random source, listed bidders included, so with a limit below the number of syncers two runs also sync different bidders. List the bidders explicitly and keep the limit at or above their count to get a stable answer.
+  /cookie_sync without 'bidders' (and with coopSync off) evaluates every syncer in the order NewChooser lists them, ascending bidder name order in parity mode (usersync/chooser.go:20-35; parity/schema/fakes.json orders usersync_bidders). The usersync.shuffle decision 'identity' keeps that order, and so does a parity-mode server for every request on its main port, which is how ReplayHarness requests arrive (usersync/shuffler.go:19-33). Two parity-mode servers therefore sync the same bidders under a limit and list bidder_status in the same order.
 - |-
   Left out on purpose: /__parity/* is the harness's own surface. It is off unless parity.enabled, answers 403 to callers off loopback and 401 without the right X-Parity-Token, and is not product behaviour (parity/wiring/mount.go:43-101). parity/scripts/replayharness-context.sh does not scan parity/ or rust/. There is no /getuid route (singular); GET /getuid answers 404.
 - |-
@@ -316,7 +316,7 @@ endpoints:
   - query parameters are ignored
 - method: POST
   path: /cookie_sync
-  handler: endpoints/cookie_sync.go:97
+  handler: endpoints/cookie_sync.go:102
   auth: false
   params:
   - {name: Cookie, in: header, example: uids=eyJ0ZW1wVUlEcyI6eyJhZG54cyI6eyJ1aWQiOiJyaC1hZG54cy11aWQiLCJleHBpcmVzIjoiMjA5OS0wMS0wMVQwMDowMDowMFoifX19}
@@ -350,38 +350,38 @@ endpoints:
       filterSettings.image.filter: {type: string, enum: [include, exclude]}
   responses:
     '200': |-
-      {"status":"ok"|"no_cookie","bidder_status":[{"bidder","no_cookie":true,"usersync":{"url","type"}}],"debug":[{"bidder","error"}]} plus a newline, Content-Type 'application/json; charset=utf-8', HTML not escaped (endpoints/cookie_sync.go:506-563)
+      {"status":"ok"|"no_cookie","bidder_status":[{"bidder","no_cookie":true,"usersync":{"url","type"}}],"debug":[{"bidder","error"}]} plus a newline, Content-Type 'application/json; charset=utf-8', HTML not escaped (endpoints/cookie_sync.go:511-568)
     '400': |-
-      text/plain '<error>\n' through http.Error: JSON, account, privacy or filter errors (endpoints/cookie_sync.go:100-103, 463-470)
+      text/plain '<error>\n' through http.Error: JSON, account, privacy or filter errors (endpoints/cookie_sync.go:105-108, 468-475)
     '401': |-
-      'User has opted out\n' for an opted-out uids cookie (endpoints/cookie_sync.go:112-115)
+      'User has opted out\n' for an opted-out uids cookie (endpoints/cookie_sync.go:117-120)
   rules:
   - |-
-    a body that is not valid JSON answers 400 'JSON parsing failed: <err>\n'; gdpr must be a JSON number, so "gdpr":"1" fails to parse (endpoints/cookie_sync.go:133-136, 628-640)
+    a body that is not valid JSON answers 400 'JSON parsing failed: <err>\n'; gdpr must be a JSON number, so "gdpr":"1" fails to parse (endpoints/cookie_sync.go:138-141, 633-645)
   - |-
-    account '' becomes 'unknown'; account parity-disabled-account answers 400 'account is disabled, please reach out to the prebid server host\n'; under account-required, no account answers 400 'account must be valid if provided, please reach out to the prebid server host\n' (endpoints/cookie_sync.go:138-144, 472-489)
+    account '' becomes 'unknown'; account parity-disabled-account answers 400 'account is disabled, please reach out to the prebid server host\n'; under account-required, no account answers 400 'account must be valid if provided, please reach out to the prebid server host\n' (endpoints/cookie_sync.go:143-149, 477-494)
   - |-
-    gdpr 1 without gdpr_consent answers 400 'gdpr_consent is required if gdpr=1\n' (endpoints/cookie_sync.go:228-231)
+    gdpr 1 without gdpr_consent answers 400 'gdpr_consent is required if gdpr=1\n' (endpoints/cookie_sync.go:233-236)
   - |-
-    no gdpr and no consent under gdpr.default_value '1' (the gdpr-enforced profile) answers 400 'gdpr_consent is required. gdpr is not specified and is assumed to be 1 by the server. set gdpr=0 to exempt this request\n'; the default profile ('0') accepts it (endpoints/cookie_sync.go:233-235)
+    no gdpr and no consent under gdpr.default_value '1' (the gdpr-enforced profile) answers 400 'gdpr_consent is required. gdpr is not specified and is assumed to be 1 by the server. set gdpr=0 to exempt this request\n'; the default profile ('0') accepts it (endpoints/cookie_sync.go:238-240)
   - |-
     gdpr other than 0 or 1 answers 400 'GDPR signal should be integer 0 or 1\n' (gdpr/signal.go:16, 35-41)
   - |-
-    gpp_sid must be a comma list of int8 with no spaces: '2,6' parses, '2, 6' and '128' answer 400 with the strconv.ParseInt error (endpoints/cookie_sync.go:212-215, util/stringutil/stringutil.go:10-25)
-  - gpp_sid containing 2 sets the GDPR signal to 1, any other gpp_sid sets it to 0, overriding gdpr (endpoints/cookie_sync.go:267-273)
+    gpp_sid must be a comma list of int8 with no spaces: '2,6' parses, '2, 6' and '128' answer 400 with the strconv.ParseInt error (endpoints/cookie_sync.go:217-220, util/stringutil/stringutil.go:10-25)
+  - gpp_sid containing 2 sets the GDPR signal to 1, any other gpp_sid sets it to 0, overriding gdpr (endpoints/cookie_sync.go:272-278)
   - |-
-    filter other than include or exclude answers 400 'error parsing filtersettings.iframe: invalid filter value 'x'. must be either 'include' or 'exclude'\n' (or filtersettings.image); filter bidders that are neither '*' nor a string array answer 400 (endpoints/cookie_sync.go:404-461)
+    filter other than include or exclude answers 400 'error parsing filtersettings.iframe: invalid filter value 'x'. must be either 'include' or 'exclude'\n' (or filtersettings.image); filter bidders that are neither '*' nor a string array answer 400 (endpoints/cookie_sync.go:409-466)
   - |-
-    status is 'ok' when the request cookie has any live uid, else 'no_cookie' (endpoints/cookie_sync.go:507-510)
-  - 'bidder_status lists the syncers chosen: bidders already synced, unknown, without a syncer, duplicates of a chosen syncer key, rejected by the filter or by privacy are left out (usersync/chooser.go:130-218)'
+    status is 'ok' when the request cookie has any live uid, else 'no_cookie' (endpoints/cookie_sync.go:512-515)
+  - 'bidder_status lists the syncers chosen: bidders already synced, unknown, without a syncer, duplicates of a chosen syncer key, rejected by the filter or by privacy are left out (usersync/chooser.go:132-220)'
   - |-
-    with debug true, every bidder that was not chosen gets a debug entry: 'Already in sync', 'Unsupported bidder', 'No sync config', 'Duplicate bidder synced as <key>', 'Rejected by request filter', 'Rejected by privacy', 'Sync disabled by config'; a bidder blocked by its skipwhen settings gets an entry with no error text (endpoints/cookie_sync.go:532-551, 606-626)
+    with debug true, every bidder that was not chosen gets a debug entry: 'Already in sync', 'Unsupported bidder', 'No sync config', 'Duplicate bidder synced as <key>', 'Rejected by request filter', 'Rejected by privacy', 'Sync disabled by config'; a bidder blocked by its skipwhen settings gets an entry with no error text (endpoints/cookie_sync.go:537-556, 611-631)
   - |-
-    limit is the request limit, else the account's cookie_sync.default_limit, capped by max_limit; 0 or less means no limit (endpoints/cookie_sync.go:299-332)
+    limit is the request limit, else the account's cookie_sync.default_limit, capped by max_limit; 0 or less means no limit (endpoints/cookie_sync.go:304-337)
   - the sync URL embeds user_sync.redirect_url with external_url (http://localhost:8000 by default) and the bidder name (config/config.go:948, 1175; usersync/syncer.go:126)
-  - an invalid us_privacy blanks the us_privacy macro and does not fail the request (endpoints/cookie_sync.go:152-160)
-  - a receive-cookie-deprecation Set-Cookie (Partitioned) is added only when the account enables privacysandbox cookiedeprecation and the request lacks that cookie (endpoints/cookie_sync.go:565-589)
-  - an opted-out cookie answers 401 even for a valid body; the body is parsed first, so a bad body still answers 400 (endpoints/cookie_sync.go:97-115)
+  - an invalid us_privacy blanks the us_privacy macro and does not fail the request (endpoints/cookie_sync.go:157-165)
+  - a receive-cookie-deprecation Set-Cookie (Partitioned) is added only when the account enables privacysandbox cookiedeprecation and the request lacks that cookie (endpoints/cookie_sync.go:570-594)
+  - an opted-out cookie answers 401 even for a valid body; the body is parsed first, so a bad body still answers 400 (endpoints/cookie_sync.go:102-120)
 - method: GET
   path: /status
   handler: endpoints/status.go:10
@@ -558,7 +558,7 @@ endpoints:
   - |-
     f other than b or i (case-insensitive) answers 400 '"f" query param is invalid. must be "b" or "i"'; an empty or missing f uses the syncer's default type: redirect is i, iframe is b (endpoints/setuid.go:356-375)
   - |-
-    account parity-disabled-account answers 400 'account is disabled, please reach out to the prebid server host'; under account-required, no account answers 400 'account must be valid if provided, please reach out to the prebid server host' (endpoints/setuid.go:73-94, endpoints/cookie_sync.go:472-489)
+    account parity-disabled-account answers 400 'account is disabled, please reach out to the prebid server host'; under account-required, no account answers 400 'account must be valid if provided, please reach out to the prebid server host' (endpoints/setuid.go:73-94, endpoints/cookie_sync.go:477-494)
   - |-
     gpp_sid that is not a comma list of int8 ('2, 6', '128', 'x') answers 400 'invalid gpp_sid encoding, must be a csv list of integers' (endpoints/setuid.go:96-107)
   - |-
@@ -567,9 +567,9 @@ endpoints:
     gdpr=1 without a consent answers 400 'GDPR consent is required when gdpr signal equals 1' (endpoints/setuid.go:216-218)
   - gpp_sid and gpp take precedence over gdpr and gdpr_consent; a conflict is only a warning (endpoints/setuid.go:197-239, 255-277)
   - with gdpr.host_vendor_id 0, as in every parity profile, the host cookie is always allowed, so any gdpr_consent passes, even one that does not parse (gdpr/gdpr.go:68-72, gdpr/impl.go:233-237)
-  - uid sets tempUIDs.<syncer key> (adnxs for appnexus) with expires now + 14 days; an empty or missing uid removes that key (endpoints/setuid.go:145-156, usersync/cookie.go:116-132)
+  - uid sets tempUIDs.<syncer key> (adnxs for appnexus) with expires now + 14 days; an empty or missing uid removes that key (endpoints/setuid.go:145-156, usersync/cookie.go:117-133)
   - |-
-    the Set-Cookie is 'uids=<base64url>; Path=/; Expires=<now + 90 days>'; with a Chrome or CriOS User-Agent of version 67 or later it adds Secure and SameSite=None (usersync/cookie.go:93-113, endpoints/setuid.go:159, 377-404)
+    the Set-Cookie is 'uids=<base64url>; Path=/; Expires=<now + 90 days>'; with a Chrome or CriOS User-Agent of version 67 or later it adds Secure and SameSite=None (usersync/cookie.go:94-114, endpoints/setuid.go:159, 377-404)
   - a uid already in the cookie is replaced, and the other uids are kept
   - |-
     when host_cookie.max_cookie_size_bytes is set and a non-priority syncer does not fit, the response is 200 'Warning: syncer key is not a priority, and there are only priority elements left, cookie not updated' (endpoints/setuid.go:162-177)
@@ -583,10 +583,10 @@ endpoints:
     '200': '{"buyeruids":{"<syncer key>":"<uid>"}} plus a newline, or {} plus a newline with no uids; no Content-Type is set, so it is sniffed as text/plain; charset=utf-8'
   rules:
   - with the live example cookie it answers {"buyeruids":{"adnxs":"rh-adnxs-uid"}} (endpoints/getuids.go:19-28)
-  - expired uids are listed too (usersync/cookie.go:180-189)
-  - a missing or undecodable cookie, or an opted-out one, answers {} (usersync/decoder.go:15-27, usersync/cookie.go:235-259)
+  - expired uids are listed too (usersync/cookie.go:181-190)
+  - a missing or undecodable cookie, or an opted-out one, answers {} (usersync/decoder.go:15-27, usersync/cookie.go:236-260)
   - |-
-    an audienceNetwork uid of '0' is never listed (usersync/cookie.go:254-257)
+    an audienceNetwork uid of '0' is never listed (usersync/cookie.go:255-258)
   - the cookie is read, never written
 - method: GET
   path: /optout

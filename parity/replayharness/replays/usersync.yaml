@@ -214,7 +214,7 @@ replays:
         expect: {status: 200, json: {"$.bidder_status[0].bidder": appnexus}}
 
   - name: an opted-out cookie_sync is a 401
-    why: cookie_sync checks the cookie's optout flag (endpoints/cookie_sync.go:115)
+    why: cookie_sync checks the cookie's optout flag (endpoints/cookie_sync.go:120)
     steps:
       - method: POST
         path: /cookie_sync
