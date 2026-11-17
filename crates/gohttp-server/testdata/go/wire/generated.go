@@ -408,6 +408,95 @@ func genHeaderLimit(c *corpus) {
 	}
 }
 
+// genRanges requests a short and a long static file with Range headers built from lists of
+// starts and ends, and with spacing, sign, overflow, list and multi-range variants.
+func genRanges(c *corpus) {
+	nums := []string{"", "0", "1", "5", "13", "14", "15", "2999", "3000"}
+	var ranges []string
+	for _, s := range nums {
+		for _, e := range nums {
+			ranges = append(ranges, "bytes="+s+"-"+e)
+		}
+	}
+	ranges = append(ranges,
+		"bytes= 0-4", "bytes=0 -4", "bytes=0- 4", "bytes=0-4 ", "bytes =0-4", "BYTES=0-4",
+		"Bytes=0-4", "bytes=+0-4", "bytes=0-+4", "bytes=-+4", "bytes=--4", "bytes=0--4",
+		"bytes=0-4-", "bytes=0x0-4", "bytes=00-04", "bytes=0-4,", "bytes=,0-4", "bytes=0-4,,5-6",
+		"bytes=0-4, 5-6", "bytes=0-4 ,5-6", "bytes=0-4\t,5-6", "bytes=", "bytes=,",
+		"bytes=0", "bytes=a-b", "bytes=1-a", "bytes=9223372036854775807-",
+		"bytes=9223372036854775808-", "bytes=0-9223372036854775807",
+		"bytes=0-9223372036854775808", "bytes=-9223372036854775807",
+		"bytes=-9223372036854775808", "bytes=99999999999999999999-", "bytes=1_0-20",
+		"bytes=0-0,0-0", "bytes=0-1,1-2,2-3,3-4,4-5", "bytes=0-13,0-0", "bytes=0-6,7-13",
+		"bytes=0-6,7-14", "bytes=20-30,0-1", "bytes=20-30,40-50", "bytes=-0,0-1", "bytes=0-0,-0",
+		"bytes=0-4;x", "bytes= 0-4", "bytes=-1,-1", "bytes=3000-3000,0-0", "bytes=0-4,5-",
+		"bytes=0-0\r\nRange: bytes=5-6",
+	)
+	for _, r := range ranges {
+		for _, f := range []string{"a.txt", "big.txt"} {
+			c.one(fmt.Sprintf("gen range %s %q", f, r), req("GET", "/static/"+f, "Range: "+r))
+		}
+	}
+}
+
+// genConditionals requests a static file with If-Modified-Since, If-Unmodified-Since and
+// If-Range dates in Go's three formats and near misses of them, with If-None-Match, If-Match
+// and If-Range entity-tag lists, and with combinations of the conditions.
+func genConditionals(c *corpus) {
+	dates := []string{
+		"Thu, 02 Jan 2020 03:04:05 GMT", "Thu, 02 Jan 2020 03:04:04 GMT",
+		"Thu, 02 Jan 2020 03:04:06 GMT", "Wed, 01 Jan 2020 00:00:00 GMT",
+		"Fri, 03 Jan 2020 00:00:00 GMT", "Mon, 02 Jan 2020 03:04:05 GMT",
+		"thu, 02 jan 2020 03:04:05 GMT", "Thu, 02 Jan 2020 03:04:05 gmt",
+		"Thu, 02 Jan 2020 03:04:05 UTC", "Thu, 02 Jan 2020 03:04:05 +0000",
+		"Thu, 2 Jan 2020 03:04:05 GMT", "Thu, 02 Jan 20 03:04:05 GMT",
+		"Thu,  02 Jan 2020 03:04:05 GMT", "Thu, 02 Jan 2020 03:04:05 GMT ",
+		"Thu, 02 Jan 2020 3:04:05 GMT", "Thu, 02 Jan 2020 03:04:05", "Thu 02 Jan 2020 03:04:05 GMT",
+		"Thursday, 02-Jan-20 03:04:05 GMT", "Thursday, 02-Jan-20 03:04:05 UTC",
+		"Thursday, 02-Jan-2020 03:04:05 GMT", "Thu, 02-Jan-20 03:04:05 GMT",
+		"Thursday, 02-Jan-20 03:04:05 +0100", "Thursday, 02-Jan-70 03:04:05 GMT",
+		"Thursday, 02-Jan-68 03:04:05 GMT", "Thu Jan  2 03:04:05 2020", "Thu Jan 02 03:04:05 2020",
+		"Thu Jan 2 03:04:05 2020", "Thu Jan  2 03:04:06 2020", "Thu, 02 Jan 2020 03:04:05.5 GMT",
+		"Thu, 32 Jan 2020 03:04:05 GMT", "Thu, 02 Jan 2020 24:00:00 GMT",
+		"Thu, 02 Foo 2020 03:04:05 GMT", "Fri, 29 Feb 2019 00:00:00 GMT",
+		"Sat, 29 Feb 2020 00:00:00 GMT", "Thu, 02 Jan 1969 03:04:05 GMT",
+		"Sat, 01 Jan 0000 00:00:00 GMT", "Fri, 31 Dec 9999 23:59:59 GMT", "garbage", "0",
+	}
+	for _, d := range dates {
+		c.one(fmt.Sprintf("gen cond ims %q", d), req("GET", "/static/a.txt", "If-Modified-Since: "+d))
+		c.one(fmt.Sprintf("gen cond ius %q", d), req("GET", "/static/a.txt", "If-Unmodified-Since: "+d))
+		c.one(fmt.Sprintf("gen cond if-range %q", d), req("GET", "/static/a.txt", "Range: bytes=0-4", "If-Range: "+d))
+	}
+	etags := []string{
+		`"x"`, `W/"x"`, `*`, ` *`, `"x", *`, `"a", "b"`, `"a","b"`, `,"a"`, `"a",`, `W/"a", W/"b"`,
+		`x`, `"x`, `"x"y`, `""`, `W/""`, `w/"x"`, `"é"`, `"a b"`, `, `, `"x" "y"`, `"x",*`,
+		`**`, `*"x"`,
+	}
+	for _, e := range etags {
+		c.one(fmt.Sprintf("gen cond inm %q", e), req("GET", "/static/a.txt", "If-None-Match: "+e))
+		c.one(fmt.Sprintf("gen cond im %q", e), req("GET", "/static/a.txt", "If-Match: "+e))
+		c.one(fmt.Sprintf("gen cond if-range etag %q", e), req("GET", "/static/a.txt", "Range: bytes=0-4", "If-Range: "+e))
+	}
+	combos := [][]string{
+		{"If-Match: *", "If-Unmodified-Since: Wed, 01 Jan 2020 00:00:00 GMT"},
+		{`If-Match: "x"`, "If-Unmodified-Since: Fri, 03 Jan 2020 00:00:00 GMT"},
+		{`If-None-Match: "x"`, "If-Modified-Since: Fri, 03 Jan 2020 00:00:00 GMT"},
+		{"If-None-Match: *", "If-Modified-Since: Wed, 01 Jan 2020 00:00:00 GMT"},
+		{"If-None-Match: *", "Range: bytes=0-4"},
+		{"If-Modified-Since: Fri, 03 Jan 2020 00:00:00 GMT", "Range: bytes=0-4"},
+		{"If-Modified-Since: Wed, 01 Jan 2020 00:00:00 GMT", "Range: bytes=0-4"},
+		{"If-Unmodified-Since: Wed, 01 Jan 2020 00:00:00 GMT", "Range: bytes=0-4"},
+		{"If-Match: *", "If-None-Match: *"},
+		{"If-Range: Thu, 02 Jan 2020 03:04:05 GMT"},
+		{"Range: bytes=0-4", "If-Range: Thu, 02 Jan 2020 03:04:05 GMT", "If-Range: \"x\""},
+		{"If-Modified-Since: garbage", "If-Modified-Since: Fri, 03 Jan 2020 00:00:00 GMT"},
+	}
+	for i, hs := range combos {
+		c.one(fmt.Sprintf("gen cond combo %d", i), req("GET", "/static/a.txt", hs...))
+		c.one(fmt.Sprintf("gen cond combo %d head", i), req("HEAD", "/static/a.txt", hs...))
+	}
+}
+
 // chunkedBody is a chunked request body in wire form. A body that is alone ends where Go stops
 // reading it to reject it: nothing may follow it, as bytes the server leaves unread when it
 // closes the connection make the close a reset or not by timing.
