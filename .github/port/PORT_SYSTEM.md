@@ -14,7 +14,8 @@ byte for byte and is the source of truth. The Rust port lives under `rust/`. You
 2. **Inside `rust/`, never touch the rule files**: `rust/Cargo.toml` (workspace members, lints and
    package metadata), `rust-toolchain.toml`, `rustfmt.toml`, `deny.toml`, `taplo.toml`,
    `PORTING.md`, `README.md`, `scripts/`, `conformance/README.md`, `legacy/`, `UPSTREAM_SYNC` and
-   `upstream-port-log.jsonl`. Changes there are reverted and reported. If a faithful port needs a
+   `upstream-port-log.jsonl`, and never add a `clippy.toml`, `.cargo/` config or toolchain file.
+   Changes there are reverted and reported. If a faithful port needs a
    new workspace crate, a new external crate or a rule change, stop and report `blocked` with the
    exact change that is needed.
 3. **Never commit or move refs.** No `git commit`, `merge`, `rebase`, `reset`, `checkout`,

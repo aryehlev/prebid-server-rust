@@ -7,7 +7,8 @@
 #      stay in the work tree, but no commit object the agent wrote can be published.
 #   3. Go probe files named zz_parity_scratch_test.go are deleted.
 #   4. Changes outside rust/ are reverted, and untracked files there are removed.
-#   5. Changes to the protected rust/ paths (lib.sh port_protected_paths) are reverted.
+#   5. Changes to the protected rust/ paths and to the port records (lib.sh port_protected_paths
+#      and port_record_paths) are reverted; commit.sh writes the records after the last session.
 #   6. Lines added to rust/conformance/known_failures.txt are dropped (removals are kept).
 # Env: MERGED_SHA (the commit the session started from), CTX, WORK_BRANCH (default port-work).
 set -euo pipefail
@@ -63,6 +64,8 @@ if [[ -n "${changed}" ]]; then
 fi
 
 protected_listing=$(port_protected_paths)
+record_listing=$(port_record_paths)
+protected_listing=$(printf '%s\n%s\n' "${protected_listing}" "${record_listing}")
 mapfile -t protected <<< "${protected_listing}"
 changed=$(git status --porcelain --untracked-files=all -- "${protected[@]}")
 if [[ -n "${changed}" ]]; then

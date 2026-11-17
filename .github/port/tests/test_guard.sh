@@ -157,7 +157,8 @@ t_put "${fork}" rust/crates/x/src/lib.rs '//! human fix'
 ref=$(t_commit "${fork}" "Human fix on the port branch")
 check "a human commit in publish mode" 1 "is not the bot's" --ref "${ref}" --base "${main}" --bot
 check "a human commit on the port pull request" 0 "guard: ok" --ref "${ref}" --base "${main}" --bot --allow-human
-for protected in rust/Cargo.toml rust/scripts/a.sh rust/rust-toolchain.toml rust/PORTING.md rust/legacy/old.rs; do
+for protected in rust/Cargo.toml rust/scripts/a.sh rust/rust-toolchain.toml rust/PORTING.md rust/legacy/old.rs \
+  rust/clippy.toml rust/.clippy.toml rust/.cargo/config.toml rust/rust-toolchain rust/.rustfmt.toml; do
   branch bot-protected
   t_put "${fork}" "${protected}" 'changed'
   ref=$(bot_commit "port: change ${protected}")
@@ -172,6 +173,25 @@ branch bot-known
 printf 'adapters/foo/footest/exemplary/a.json\n' > "${fork}/rust/conformance/known_failures.txt"
 ref=$(bot_commit "port: hide a failure")
 check "a bot commit adding a known failure" 1 "[bot-known]" --ref "${ref}" --base "${main}" --bot
+
+# bot-log: the bot appends to the port log and never rewrites what the default branch has.
+git -C "${fork}" switch -q -C log-main "${main}"
+printf '{"upstream":"%s","status":"blocked"}\n' "${u2}" > "${fork}/rust/upstream-port-log.jsonl"
+log_main=$(t_commit "${fork}" "Main has a port log line")
+git -C "${fork}" update-ref refs/remotes/origin/main "${log_main}"
+git -C "${fork}" switch -q -C log-append "${log_main}"
+printf '{"upstream":"%s","status":"ported"}\n' "${u2}" >> "${fork}/rust/upstream-port-log.jsonl"
+ref=$(bot_commit "port: append to the log")
+check "a bot commit appending to the port log" 0 "guard: ok" --ref "${ref}" --base "${log_main}" --bot
+git -C "${fork}" switch -q -C log-rewrite "${log_main}"
+printf '{"upstream":"%s","status":"ported"}\n' "${u2}" > "${fork}/rust/upstream-port-log.jsonl"
+ref=$(bot_commit "port: rewrite the log")
+check "a bot commit rewriting the port log" 1 "[bot-log]" --ref "${ref}" --base "${log_main}" --bot
+git -C "${fork}" switch -q -C log-delete "${log_main}"
+git -C "${fork}" rm -q rust/upstream-port-log.jsonl
+ref=$(bot_commit "port: drop the log")
+check "a bot commit deleting the port log" 1 "[bot-log]" --ref "${ref}" --base "${log_main}" --bot
+git -C "${fork}" update-ref refs/remotes/origin/main "${main}"
 branch side
 t_put "${fork}" rust/crates/x/src/side.rs '//! side'
 side=$(t_commit "${fork}" "Side branch work")

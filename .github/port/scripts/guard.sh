@@ -35,6 +35,7 @@
 #   bot-protected  no change to the protected rust/ paths (lib.sh port_protected_paths)
 #   bot-deps       no new external crate in rust/Cargo.lock
 #   bot-known      no known failures are added
+#   bot-log        rust/upstream-port-log.jsonl only grows: what that merge-base has is unchanged
 # Env: UPSTREAM_BRANCH BASE_BRANCH, PORT_GIT_EMAIL (the bot's commit email)
 set -euo pipefail
 shopt -s inherit_errexit
@@ -272,6 +273,16 @@ if [[ "${bot}" == true ]]; then
   added=$(known_added "${main_base}")
   if [[ -n "${added}" ]]; then
     violation bot-known "known failures were added: ${added//$'\n'/, }"
+  fi
+  # An append adds lines and deletes none; an edited, removed or reordered line counts as deleted.
+  log_path=rust/upstream-port-log.jsonl
+  log_stat=$(git diff --numstat --no-renames "${main_base}" "${ref}" -- "${log_path}")
+  log_deleted=0
+  if [[ -n "${log_stat}" ]]; then
+    read -r _ log_deleted _ <<< "${log_stat}"
+  fi
+  if [[ "${log_deleted}" != 0 ]]; then
+    violation bot-log "${log_path} changed lines that ${main#refs/remotes/origin/} already has; the port only appends to it"
   fi
 fi
 

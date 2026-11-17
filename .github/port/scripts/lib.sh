@@ -18,12 +18,20 @@ PORT_DIR=$(cd "${PORT_SCRIPTS}/.." && pwd)
 # port_protected_paths: the paths under rust/, one per line, that the port agents and the bot may
 # never change. Upstream ports change crate sources, tests and generated data; these files set the
 # rules those changes are checked against (the workspace and its lint policy, the toolchains, the
-# formatter, dependency and suppression checks, the conformance contract and the porting rules).
+# formatter, clippy, cargo, dependency and suppression checks, the conformance contract and the
+# porting rules). Tool configuration files that do not exist yet are listed too, so that an agent
+# cannot add one: a rust/clippy.toml raising thresholds, a rust/.cargo/config.toml changing flags
+# or sources, or a legacy rust/rust-toolchain file, which rustup prefers to rust-toolchain.toml.
 port_protected_paths() {
   printf '%s\n' \
     rust/Cargo.toml \
     rust/rust-toolchain.toml \
+    rust/rust-toolchain \
     rust/rustfmt.toml \
+    rust/.rustfmt.toml \
+    rust/clippy.toml \
+    rust/.clippy.toml \
+    rust/.cargo \
     rust/deny.toml \
     rust/taplo.toml \
     rust/PORTING.md \
@@ -31,6 +39,15 @@ port_protected_paths() {
     rust/scripts \
     rust/conformance/README.md \
     rust/legacy
+}
+
+# port_record_paths: the port records under rust/, one per line: the upstream marker and the port
+# log. Only commit.sh writes them, after the last agent session, so check-worktree.sh reverts any
+# change a session makes to them, and guard.sh's bot-log rule checks that the log only grows.
+port_record_paths() {
+  printf '%s\n' \
+    rust/UPSTREAM_SYNC \
+    rust/upstream-port-log.jsonl
 }
 
 # port_agent_config_paths: repository-root paths that configure, or can run code in, a coding agent

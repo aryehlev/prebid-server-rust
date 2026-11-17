@@ -249,9 +249,25 @@ for rule in WebFetch WebSearch 'mcp__*' 'Bash(git commit:*)' 'Bash(git push:*)' 
   'Bash(cargo add:*)' 'Bash(cargo install:*)' 'Bash(cargo update:*)' 'Bash(go get:*)' 'Bash(go mod:*)' \
   'Edit(./.github/**)' 'Edit(./.claude/**)' 'Edit(./AGENTS.md)' 'Edit(./rust/Cargo.toml)' \
   'Edit(./rust/.cargo/**)' 'Edit(./rust/deny.toml)' 'Edit(./rust/scripts/**)' 'Edit(./rust/UPSTREAM_SYNC)' \
-  'Edit(./rust/upstream-port-log.jsonl)'; do
+  'Edit(./rust/upstream-port-log.jsonl)' 'Edit(./rust/**/rust-toolchain)' 'Edit(./rust/**/clippy.toml)' \
+  'Edit(./rust/**/.clippy.toml)' 'Edit(./rust/**/.rustfmt.toml)'; do
   t_has "settings: deny ${rule}" " ${denied} " " ${rule} "
 done
+# Every protected path and port record that check-worktree.sh reverts is also denied to Edit, so a
+# session learns at once instead of losing the change afterwards.
+protected=$(
+  # shellcheck source=../scripts/lib.sh
+  source "${T_SCRIPTS}/lib.sh"
+  port_protected_paths
+  port_record_paths
+)
+undenied=""
+while IFS= read -r path; do
+  if [[ " ${denied} " != *" Edit(./${path})"* && " ${denied} " != *" Edit(./${path}/**)"* ]]; then
+    undenied+="${path} "
+  fi
+done <<< "${protected}"
+t_eq "settings: every protected path is denied to Edit" "" "${undenied}"
 allowed=$(jq -r '(.permissions.allow // []) | length' "${settings}")
 t_eq "settings: the allow lists come from render-inputs.sh" 0 "${allowed}"
 
