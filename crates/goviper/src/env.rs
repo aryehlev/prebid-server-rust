@@ -151,7 +151,21 @@ impl Environment {
     }
 }
 
-/// Go: `os.SameFile` of two directories' `Stat`s (here, of the paths with links resolved).
+/// Go: `os.SameFile` of the paths' `Stat`s: the same device and inode, so two names of one
+/// directory through a bind mount or a macOS firmlink (`/System/Volumes/Data/...`) are the
+/// same, though their paths with links resolved differ.
+#[cfg(unix)]
+fn same_file(a: &Path, b: &Path) -> bool {
+    use std::os::unix::fs::MetadataExt as _;
+
+    match (fs::metadata(a), fs::metadata(b)) {
+        (Ok(a), Ok(b)) => a.dev() == b.dev() && a.ino() == b.ino(),
+        (Ok(_) | Err(_), Err(_)) | (Err(_), Ok(_)) => false,
+    }
+}
+
+/// Go: `os.SameFile`, approximated off Unix by the paths with links resolved.
+#[cfg(not(unix))]
 fn same_file(a: &Path, b: &Path) -> bool {
     match (fs::canonicalize(a), fs::canonicalize(b)) {
         (Ok(a), Ok(b)) => a == b,
@@ -208,6 +222,38 @@ fn shell_name(s: &[u8]) -> (&[u8], usize) {
 #[cfg(test)]
 mod tests {
     use super::Environment;
+
+    /// Go's `os.SameFile` compares devices and inodes: two hard links to one file are the same
+    /// file, although their paths (with links resolved) differ.
+    #[cfg(unix)]
+    #[test]
+    fn same_file_compares_inodes() -> Result<(), String> {
+        use std::{env, fs, process};
+
+        use super::same_file;
+
+        let dir = env::temp_dir().join(format!("goviper-same-file-{}", process::id()));
+        let _stale = fs::remove_dir_all(&dir);
+        fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+        let (a, b, c) = (dir.join("a"), dir.join("b"), dir.join("c"));
+        let result = (|| {
+            fs::write(&a, "x").map_err(|e| e.to_string())?;
+            fs::hard_link(&a, &b).map_err(|e| e.to_string())?;
+            fs::write(&c, "x").map_err(|e| e.to_string())?;
+            if fs::canonicalize(&a).ok() == fs::canonicalize(&b).ok() {
+                return Err("the hard links resolve to one path".to_owned());
+            }
+            if !same_file(&a, &b) || !same_file(&dir, &dir.join(".")) {
+                return Err("two names of one file are not the same file".to_owned());
+            }
+            if same_file(&a, &c) || same_file(&a, &dir.join("missing")) {
+                return Err("different or missing files are the same file".to_owned());
+            }
+            Ok(())
+        })();
+        let _removed = fs::remove_dir_all(&dir);
+        result
+    }
 
     /// Go: `os.TestExpand`'s table, with its `mapping` as the variables.
     #[test]

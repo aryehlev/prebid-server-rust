@@ -81,7 +81,10 @@ type Scenario struct {
 	Env map[string]string `json:"env,omitempty"`
 	// Cwd is the working directory, relative to the temporary directory.
 	Cwd string `json:"cwd,omitempty"`
-	Ops []*Op  `json:"ops"`
+	// GOOS, if set, is the only operating system (runtime.GOOS) whose file system gives these
+	// results; the Rust side skips the scenario elsewhere.
+	GOOS string `json:"goos,omitempty"`
+	Ops  []*Op  `json:"ops"`
 
 	// random marks a generated scenario, left out when its results are not stable.
 	random bool

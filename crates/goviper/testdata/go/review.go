@@ -1,6 +1,8 @@
 package main
 
 import (
+	"os"
+	"runtime"
 	"strconv"
 	"strings"
 	"time"
@@ -22,6 +24,7 @@ func reviewScenarios() []*Scenario {
 	s = append(s, reviewMerge()...)
 	s = append(s, reviewCase()...)
 	s = append(s, reviewSearch()...)
+	s = append(s, reviewSameFile()...)
 	s = append(s, reviewEmptyEnv()...)
 	s = append(s, reviewOddKeys()...)
 	s = append(s, reviewTypedEnv()...)
@@ -281,6 +284,26 @@ func reviewSearch() []*Scenario {
 			configName(""), addConfigPath("@TMP@"), addConfigPath(""), readInConfig(),
 			configFileUsed(), get("from"), configName("pbs.yaml"), readInConfig(),
 			configFileUsed(), get("from"),
+		)},
+	}
+}
+
+// reviewSameFile has PWD name the working directory by another path to the same device and
+// inode, which os.Getwd accepts (os.SameFile) although the paths with links resolved differ: on
+// macOS, /System/Volumes/Data/<dir> is a firmlink alias of <dir> (on Linux a bind mount would
+// do, which needs root). The scenario is for macOS only.
+func reviewSameFile() []*Scenario {
+	if runtime.GOOS != "darwin" {
+		return nil
+	}
+	if _, err := os.Stat("/System/Volumes/Data/private"); err != nil {
+		return nil
+	}
+	return []*Scenario{
+		{Name: "review/search/pwd_firmlink", GOOS: runtime.GOOS, Files: map[string]string{
+			"pbs.yaml": "from: cwd\n",
+		}, Env: map[string]string{"PWD": "/System/Volumes/Data@TMP@"}, Ops: ops(
+			configName("pbs"), addConfigPath("."), readInConfig(), configFileUsed(), get("from"),
 		)},
 	}
 }

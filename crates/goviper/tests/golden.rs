@@ -727,9 +727,22 @@ mod golden {
         }
     }
 
-    /// Runs a scenario's operations, comparing each outcome with Go's.
+    /// Go's `runtime.GOOS` for the operating system the test runs on.
+    fn goos() -> &'static str {
+        match env::consts::OS {
+            "macos" => "darwin",
+            os => os,
+        }
+    }
+
+    /// Runs a scenario's operations, comparing each outcome with Go's (a scenario whose results
+    /// only one operating system's file system gives is skipped elsewhere).
     fn run_scenario(scenario: &Json, report: &mut Report) -> Result<(), String> {
         let name = text_of(scenario, "name");
+        let only_on = text_of(scenario, "goos");
+        if !only_on.is_empty() && only_on != goos() {
+            return Ok(());
+        }
         let dir = TempDir::new()?;
         let tmp = dir
             .0
