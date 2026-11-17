@@ -33,24 +33,7 @@ const (
 	checkTimeout    = "timeout"
 	checkConnection = "connection"
 	reportTool      = "replayharness"
-	// sevShape and shapePrefix mark a divergence in the shape of the body
-	// alone, when both sides answered with the same status (func baseline).
-	// A divergence that does not match both counts, whatever the endpoint.
-	sevShape    = "warning"
-	shapePrefix = "response shape differs from the baseline"
 )
-
-// CookieSync is the endpoint whose shape divergences the gate does not count.
-const CookieSync = "POST /cookie_sync"
-
-// cookieSyncReason is why the shape divergences of CookieSync are not
-// counted. Only the body depends on the syncer order, so its status
-// divergences, and the findings one side draws, still count.
-const cookieSyncReason = "Go answers it nondeterministically: without a bidder list, or with coopSync, it takes the " +
-	"syncers from ranging over a map (usersync/chooser.go) and shuffles them (usersync/shuffler.go), so two " +
-	"Go servers sync different bidders and the debug list comes and goes; that order changes the shape of the " +
-	"body, never the status, so a status divergence still counts; the parity runner compares the cookie_sync " +
-	"requests that list their bidders"
 
 // ErrBadReport is a file that is not a ReplayHarness JSON report.
 var ErrBadReport = errors.New("rhgate: not a ReplayHarness JSON report")
@@ -109,17 +92,6 @@ func Read(r io.Reader) (*Report, error) {
 	return &rep, nil
 }
 
-// ShapeNotComparedReason returns why the gate does not count the shape
-// divergences of an endpoint ("METHOD /path"), or "". Every other difference
-// on that endpoint counts.
-func ShapeNotComparedReason(endpoint string) string {
-	if endpoint == CookieSync {
-		return cookieSyncReason
-	}
-
-	return ""
-}
-
 // Item is one difference between the sides on one probe.
 type Item struct {
 	Endpoint string `json:"endpoint"`
@@ -143,8 +115,8 @@ func Judge(base, ref *Report) *Verdict {
 	}
 
 	for _, r := range base.Results {
-		for _, d := range divergences(r) {
-			v.add(&v.Divergences, r, d.what, d.shape)
+		for _, what := range divergences(r) {
+			v.add(&v.Divergences, r, what)
 		}
 	}
 
@@ -152,7 +124,7 @@ func Judge(base, ref *Report) *Verdict {
 		v.compareFindings(base, ref)
 	}
 
-	for _, items := range [][]Item{v.Divergences, v.OnlyB, v.OnlyA, v.NotCompared} {
+	for _, items := range [][]Item{v.Divergences, v.OnlyB, v.OnlyA} {
 		sortItems(items)
 	}
 
@@ -169,9 +141,6 @@ type Verdict struct {
 	Divergences []Item   `json:"divergences,omitempty"`
 	OnlyB       []Item   `json:"only_b,omitempty"`
 	OnlyA       []Item   `json:"only_a,omitempty"`
-	// NotCompared are the shape divergences on the endpoints
-	// ShapeNotComparedReason names: printed, not counted.
-	NotCompared []Item `json:"not_compared,omitempty"`
 	// Shared counts the findings both sides draw: A is the reference, so
 	// they are not failures here.
 	Shared int `json:"shared"`
@@ -204,21 +173,6 @@ func (v *Verdict) Write(w io.Writer) error {
 		}
 	}
 
-	if len(v.NotCompared) > 0 {
-		fmt.Fprintf(&b, "%d shape divergences on endpoints whose shape is not compared, reported and not counted:\n", len(v.NotCompared))
-
-		reasons := map[string]bool{}
-
-		for _, it := range v.NotCompared {
-			fmt.Fprintf(&b, "  %s  %s (%s): %s\n", it.Endpoint, it.Name, it.Scenario, it.What)
-
-			if !reasons[it.Endpoint] {
-				reasons[it.Endpoint] = true
-				fmt.Fprintf(&b, "    shape not compared: %s\n", ShapeNotComparedReason(it.Endpoint))
-			}
-		}
-	}
-
 	for _, why := range v.Incomplete {
 		fmt.Fprintf(&b, "incomplete: %s\n", why)
 	}
@@ -230,17 +184,9 @@ func (v *Verdict) Write(w io.Writer) error {
 	return nil
 }
 
-// add files a difference under list, or, when it is a shape divergence on
-// an endpoint whose shape is not compared, under NotCompared.
-func (v *Verdict) add(list *[]Item, r Result, what string, shape bool) {
-	item := Item{Endpoint: r.Scenario.Endpoint, Scenario: r.Scenario.ID, Name: r.Scenario.Name, What: what}
-	if shape && ShapeNotComparedReason(r.Scenario.Endpoint) != "" {
-		v.NotCompared = append(v.NotCompared, item)
-
-		return
-	}
-
-	*list = append(*list, item)
+// add files a difference under list.
+func (v *Verdict) add(list *[]Item, r Result, what string) {
+	*list = append(*list, Item{Endpoint: r.Scenario.Endpoint, Scenario: r.Scenario.ID, Name: r.Scenario.Name, What: what})
 }
 
 // compareFindings files the findings one side draws on a probe and the
@@ -277,12 +223,12 @@ func (v *Verdict) compareFindings(base, ref *Report) {
 				continue
 			}
 
-			v.add(&v.OnlyB, r, "only side B: "+key, false)
+			v.add(&v.OnlyB, r, "only side B: "+key)
 		}
 
 		for key := range fa {
 			if !fb[key] {
-				v.add(&v.OnlyA, r, "only side A: "+key, false)
+				v.add(&v.OnlyA, r, "only side A: "+key)
 			}
 		}
 	}
@@ -292,34 +238,28 @@ func (v *Verdict) compareFindings(base, ref *Report) {
 	}
 }
 
-// divergence is one difference between the sides' answers to a probe.
-type divergence struct {
-	what string
-	// shape marks a divergence in the shape of the body alone.
-	shape bool
-}
-
-// divergences returns what differs between the sides on one probe.
-func divergences(r Result) []divergence {
+// divergences returns what differs between the sides on one probe: every
+// divergence finding, the status ones (severity error) and those of the
+// shape of the body alone (warning) alike, whatever the endpoint.
+func divergences(r Result) []string {
 	if len(r.Observed) == 0 {
-		return []divergence{{what: "side B has no answer in the report"}}
+		return []string{"side B has no answer in the report"}
 	}
 
 	if r.Baseline == nil {
-		return []divergence{{what: "side A has no answer in the report"}}
+		return []string{"side A has no answer in the report"}
 	}
 
-	var out []divergence
+	var out []string
 
 	for _, f := range r.Findings {
 		if f.Check == CheckDivergence {
-			shape := f.Severity == sevShape && strings.HasPrefix(f.Message, shapePrefix)
-			out = append(out, divergence{what: f.String(), shape: shape})
+			out = append(out, f.String())
 		}
 	}
 
 	if b, a := r.Observed[0], r.Baseline; b.Status == 0 && a.Status != 0 {
-		out = append(out, divergence{what: fmt.Sprintf("side B did not answer (%s); side A answered %d", b.Error, a.Status)})
+		out = append(out, fmt.Sprintf("side B did not answer (%s); side A answered %d", b.Error, a.Status))
 	}
 
 	return out

@@ -42,16 +42,17 @@ func TestJudgeCountsDivergences(t *testing.T) {
 	base := report("http://a",
 		result("1", "GET /status", 200, 200),
 		result("2", "GET /info/bidders", 200, 200, shapeDivergence()),
-		result("3", rhgate.CookieSync, 200, 200, shapeDivergence()),
+		result("3", cookieSync, 200, 200, shapeDivergence()),
 		result("4", "POST /openrtb2/auction", 0, 200),
 	)
 
 	v := rhgate.Judge(base, nil)
-	if !v.Failed() || len(v.Divergences) != 2 || len(v.NotCompared) != 1 || len(v.Incomplete) != 0 {
+	if !v.Failed() || len(v.Divergences) != 3 || len(v.Incomplete) != 0 {
 		t.Fatalf("verdict %+v", v)
 	}
 
-	if v.Divergences[0].Endpoint != "GET /info/bidders" || !strings.Contains(v.Divergences[1].What, "side B did not answer") {
+	if v.Divergences[0].Endpoint != "GET /info/bidders" || v.Divergences[1].Endpoint != cookieSync ||
+		!strings.Contains(v.Divergences[2].What, "side B did not answer") {
 		t.Errorf("divergences %+v", v.Divergences)
 	}
 
@@ -60,18 +61,22 @@ func TestJudgeCountsDivergences(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if !strings.Contains(out.String(), "shape not compared: "+rhgate.ShapeNotComparedReason(rhgate.CookieSync)) {
-		t.Errorf("the verdict does not give the reason a difference is not counted:\n%s", out.String())
+	if !strings.Contains(out.String(), "3 divergences") {
+		t.Errorf("the verdict does not count the divergences:\n%s", out.String())
 	}
 }
 
-// TestJudgeCountsCookieSyncStatus checks that only the shape divergences of
-// POST /cookie_sync go uncounted: the syncer order Go draws changes the
-// shape of its body, never its status. The first probe is what the cs422
-// seeded bug, a side B answering 422 instead of 400 to a body /cookie_sync
-// cannot parse, gives: an error divergence, and a finding only side B
-// draws.
-func TestJudgeCountsCookieSyncStatus(t *testing.T) {
+// cookieSync is the endpoint two Go servers answered apart before parity
+// mode sorted its syncers and kept their order on the main port
+// (usersync/chooser.go, usersync/shuffler.go).
+const cookieSync = "POST /cookie_sync"
+
+// TestJudgeCountsCookieSync checks that POST /cookie_sync is judged as every
+// other endpoint: its shape divergences count as its status divergences do.
+// The first probe is what the cs422 seeded bug, a side B answering 422
+// instead of 400 to a body /cookie_sync cannot parse, gives: an error
+// divergence, and a finding only side B draws.
+func TestJudgeCountsCookieSync(t *testing.T) {
 	t.Parallel()
 
 	status := rhgate.Finding{Check: rhgate.CheckDivergence, Severity: "error", Message: "baseline returned 400, target returned 422"}
@@ -80,16 +85,16 @@ func TestJudgeCountsCookieSyncStatus(t *testing.T) {
 	}
 	other := rhgate.Finding{Check: rhgate.CheckDivergence, Severity: "warning", Message: "a divergence that is not of the shape"}
 	base := report("http://a",
-		result("1", rhgate.CookieSync, 422, 400, status, undocumented),
-		result("2", rhgate.CookieSync, 200, 200, shapeDivergence()),
-		result("3", rhgate.CookieSync, 0, 200),
-		result("4", rhgate.CookieSync, 200, 200, other),
+		result("1", cookieSync, 422, 400, status, undocumented),
+		result("2", cookieSync, 200, 200, shapeDivergence()),
+		result("3", cookieSync, 0, 200),
+		result("4", cookieSync, 200, 200, other),
 	)
-	ref := report("", result("1", rhgate.CookieSync, 400, -1), result("2", rhgate.CookieSync, 200, -1),
-		result("3", rhgate.CookieSync, 200, -1), result("4", rhgate.CookieSync, 200, -1))
+	ref := report("", result("1", cookieSync, 400, -1), result("2", cookieSync, 200, -1),
+		result("3", cookieSync, 200, -1), result("4", cookieSync, 200, -1))
 
 	v := rhgate.Judge(base, ref)
-	if !v.Failed() || len(v.Divergences) != 3 || len(v.OnlyB) != 1 || len(v.OnlyA) != 0 || len(v.NotCompared) != 1 {
+	if !v.Failed() || len(v.Divergences) != 4 || len(v.OnlyB) != 1 || len(v.OnlyA) != 0 {
 		t.Fatalf("verdict %+v", v)
 	}
 
@@ -97,19 +102,15 @@ func TestJudgeCountsCookieSyncStatus(t *testing.T) {
 		t.Errorf("the status divergence is %+v", d)
 	}
 
-	if v.Divergences[1].Scenario != "3" || v.Divergences[2].Scenario != "4" || v.OnlyB[0].Scenario != "1" {
+	if v.Divergences[1].Scenario != "2" || v.Divergences[2].Scenario != "3" || v.Divergences[3].Scenario != "4" || v.OnlyB[0].Scenario != "1" {
 		t.Errorf("divergences %+v, only B %+v", v.Divergences, v.OnlyB)
 	}
 
-	if v.NotCompared[0].Scenario != "2" {
-		t.Errorf("not compared %+v", v.NotCompared)
-	}
-
-	// Shape divergences alone, as two Go servers give, pass.
-	aa := rhgate.Judge(report("http://a", result("2", rhgate.CookieSync, 200, 200, shapeDivergence())),
-		report("", result("2", rhgate.CookieSync, 200, -1)))
-	if aa.Failed() || len(aa.NotCompared) != 1 {
-		t.Errorf("verdict %+v", aa)
+	// A shape divergence alone fails the gate.
+	shape := rhgate.Judge(report("http://a", result("2", cookieSync, 200, 200, shapeDivergence())),
+		report("", result("2", cookieSync, 200, -1)))
+	if !shape.Failed() || len(shape.Divergences) != 1 {
+		t.Errorf("verdict %+v", shape)
 	}
 }
 

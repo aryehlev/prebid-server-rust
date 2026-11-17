@@ -16,9 +16,8 @@
 #      (informational: Go is the reference, so a finding is not a failure);
 #   2. the replays in parity/replayharness/replays, which must all pass;
 #   3. with --baseline, the probes against two Go servers with
-#      `replayharness run --baseline`; a divergence fails, except a shape
-#      divergence on /cookie_sync, which Go answers nondeterministically
-#      (see below);
+#      `replayharness run --baseline`; any divergence fails: in parity mode
+#      Go answers every probe alike, /cookie_sync included (see below);
 #   4. with --record, the probes and the replays again through
 #      `replayharness record`, then the recording replayed with --mutate
 #      through the same proxy, and the result compacted into
@@ -239,42 +238,33 @@ else
 fi
 check_breach
 
-# Cookie sync shuffles the syncers it evaluates (usersync/chooser.go,
-# usersync/shuffler.go), so with a limit, or with no bidder list, two Go
-# servers pick different bidders and the debug list comes and goes. That
-# changes the shape of the body, never the status: its shape divergences
-# (severity warning) are printed but do not fail the run; any other
-# divergence does, a status divergence (severity error) there included.
-nondeterministic='^POST /cookie_sync$'
+# Cookie sync evaluates the syncers in the order the chooser lists them and
+# then shuffles them (usersync/chooser.go, usersync/shuffler.go). A Go server
+# in parity mode lists them in bidder order and keeps that order on its main
+# port (parity/schema/fakes.json usersync_bidders, decisions.json
+# usersync.shuffle outside_case), so two of them answer /cookie_sync alike
+# and its divergences, of the status or of the shape of the body, fail the
+# run as any other endpoint's do.
 
 # divergences prints the divergence findings of the baseline report, each
-# with its endpoint, that are (known) or are not (unexpected) shape
-# divergences on an endpoint matching $nondeterministic.
+# with its endpoint.
 divergences() {
-  awk -v skip="$nondeterministic" -v want="$1" '
+  awk '
     /^[A-Z]+ \// { section = $0; next }
-    /^ +[^ ]+ (error|warning) +divergence / {
-      known = (section ~ skip && $2 == "warning") ? "known" : "unexpected"
-      if (known == want) { print section ":" $0; getline; print }
-    }' "$out/baseline.txt"
+    /^ +[^ ]+ (error|warning) +divergence / { print section ":" $0; getline; print }' "$out/baseline.txt"
 }
 
 if ((baseline)); then
   say "probes on $target against the baseline $baseline_url"
   "$cli" run "$map" --target "$target" --baseline "$baseline_url" --fail-on never --no-color \
     --json "$out/baseline.json" >"$out/baseline.txt"
-  known=$(divergences known)
-  unexpected=$(divergences unexpected)
-  if [[ -n "$known" ]]; then
-    say "divergence on an endpoint Go answers nondeterministically (not a failure):"
-    echo "$known" >&2
-  fi
-  if [[ -n "$unexpected" ]]; then
+  found=$(divergences)
+  if [[ -n "$found" ]]; then
     say "divergence between the two Go servers:"
-    echo "$unexpected" >&2
+    echo "$found" >&2
     status=1
   else
-    say "no unexpected divergence between the two Go servers"
+    say "no divergence between the two Go servers"
   fi
   check_breach
 fi
