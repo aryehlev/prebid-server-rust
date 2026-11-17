@@ -1,7 +1,8 @@
 //! Ports of `util/httputil/httputil_test.go` and replays of the `httputil` goldens.
 
-use std::{error::Error, fs, path::PathBuf};
+use std::{error::Error, fs};
 
+use pbs_devtools::repo::go_root;
 use pbs_gocompat::http::{Header, canonical_header_key};
 
 use super::{
@@ -363,18 +364,8 @@ fn misc_golden() -> TestResult {
 
 #[test]
 fn pixel_is_the_go_file() -> TestResult {
-    // The embedded image is the one Go embeds with //go:embed pixel.png.
-    let path: PathBuf = [
-        env!("CARGO_MANIFEST_DIR"),
-        "..",
-        "..",
-        "..",
-        "util",
-        "httputil",
-        "pixel.png",
-    ]
-    .iter()
-    .collect();
+    // The embedded image is the one Go embeds with //go:embed pixel.png, in the Go root.
+    let path = go_root()?.join("util").join("httputil").join("pixel.png");
     let go = fs::read(path)?;
     check_eq(PIXEL_1X1_PNG.content, go.as_slice(), "pixel.png")
 }

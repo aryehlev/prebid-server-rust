@@ -1,7 +1,7 @@
 // Command golden writes the parity goldens that pbs-openrtb's tests replay byte for byte.
 //
 // Every OpenRTB JSON document of prebid-server's test corpora (the adapter fixtures under every
-// fixture root of rust/testdata/go_fixture_manifest.json, exchange tests, endpoint sample
+// fixture root of testdata/go_fixture_manifest.json, exchange tests, endpoint sample
 // requests, first-party data tests, the native request and response markup they carry) and of
 // the openrtb module's own testdata, generated mutations of every ported type (each field with a
 // sample value, null, values of the wrong JSON type, out-of-range numbers, other key cases,
@@ -30,9 +30,13 @@
 //
 // each encoding "'" and the bytes or "!" and the error text.
 //
-// Run it from the repository root (the toolchain the other goldens use):
+// Run it from the directory of this module, crates/openrtb/testdata/go (the toolchain the other
+// goldens use):
 //
-//	GOTOOLCHAIN=go1.26.2 go run ./rust/crates/openrtb/testdata/go
+//	GOTOOLCHAIN=go1.26.2 go run .
+//
+// The corpora are read from the upstream checkout the module builds against, by the
+// repository-relative paths the goldens record (see enterUpstream).
 package main
 
 import (
@@ -69,8 +73,12 @@ func init() {
 const inlineMax = 64
 
 func main() {
-	out := flag.String("out", "rust/crates/openrtb/testdata/golden", "directory to write the goldens to")
+	out := flag.String("out", "../golden", "directory to write the goldens to")
+	manifest := flag.String("manifest", "../../../../testdata/go_fixture_manifest.json",
+		"the adapter test manifest that pbs-devtools writes from the adapters' *_test.go files")
 	flag.Parse()
+	openrtbDir := moduleDir("github.com/prebid/openrtb/v20")
+	enterUpstream(out, manifest)
 	types := map[string]reflect.Type{}
 	for _, p := range portedTypes {
 		types[p.goType.String()] = p.goType
@@ -80,14 +88,14 @@ func main() {
 	}
 
 	c := newCorpus(types)
-	c.adapters()
+	c.adapters(*manifest)
 	c.exchange()
 	c.endpoints()
 	c.firstPartyData()
 	write(filepath.Join(*out, "corpus.tsv"), c.roots, c.files, c.cases)
 
 	m := newCorpus(types)
-	m.module(moduleDir())
+	m.module(openrtbDir)
 	write(filepath.Join(*out, "module.tsv"), nil, nil, m.cases)
 
 	var mutations []testCase
@@ -255,13 +263,9 @@ func (c *corpus) jsonFiles(root string) []string {
 	return paths
 }
 
-// fixtureManifest is the adapter test manifest that pbs-devtools writes from the adapters'
-// *_test.go files.
-const fixtureManifest = "rust/testdata/go_fixture_manifest.json"
-
 // fixtureRoots are the distinct fixture directories of every adapterstest.RunJSONBidderTest
-// call, sorted.
-func fixtureRoots() []string {
+// call in the adapter test manifest, sorted.
+func fixtureRoots(fixtureManifest string) []string {
 	data, err := os.ReadFile(fixtureManifest)
 	if err != nil {
 		log.Fatal(err)
@@ -287,9 +291,9 @@ func fixtureRoots() []string {
 }
 
 // adapters harvests the JSON files below every adapterstest.RunJSONBidderTest fixture root.
-func (c *corpus) adapters() {
+func (c *corpus) adapters(fixtureManifest string) {
 	var paths []string
-	for _, root := range fixtureRoots() {
+	for _, root := range fixtureRoots(fixtureManifest) {
 		paths = append(paths, c.jsonFiles(filepath.FromSlash(root))...)
 	}
 	for _, path := range paths {
@@ -490,13 +494,20 @@ var moduleTests = []struct {
 	{"openrtb3/testdata/response.json", "openrtb3.Body"},
 }
 
-// moduleDir is the openrtb module's directory in the module cache.
-func moduleDir() string {
-	out, err := exec.Command("go", "list", "-m", "-f", "{{.Dir}}", "github.com/prebid/openrtb/v20").Output()
+// moduleDir is the directory of module mod in this module's build: the module cache for the
+// openrtb module, the upstream checkout (the go.mod replace target, .upstream/ at the repository
+// root, or the replacement in the go.work file GOWORK names) for the upstream module. It runs the
+// go command in the current directory, so it is called before enterUpstream.
+func moduleDir(mod string) string {
+	out, err := exec.Command("go", "list", "-m", "-f", "{{.Dir}}", mod).Output()
 	if err != nil {
-		log.Fatalf("go list -m github.com/prebid/openrtb/v20: %v", err)
+		log.Fatalf("go list -m %s: %v", mod, err)
 	}
-	return strings.TrimSpace(string(out))
+	dir := strings.TrimSpace(string(out))
+	if dir == "" {
+		log.Fatalf("go list -m %s gave no directory", mod)
+	}
+	return dir
 }
 
 // module records the openrtb module's testdata files, inline, labelled by file; files with the

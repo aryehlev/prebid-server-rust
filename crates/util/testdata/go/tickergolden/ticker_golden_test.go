@@ -5,10 +5,10 @@
 // called at a scripted time, and the golden records when every run started. Scenarios avoid a
 // Stop at the same instant as a tick, where Go's select picks a case at random.
 //
-// Run from the repository root with the toolchain the Dockerfile builds with:
+// Run from the directory of this module (crates/util/testdata/go) with the toolchain the
+// Dockerfile builds with (GOLDEN_OUT is relative to the package directory, where go test runs):
 //
-//	GOLDEN_OUT=rust/crates/util/testdata/golden/task_ticker.txt \
-//	    go test ./rust/crates/util/testdata/go/tickergolden -run TestWriteGolden -count=1
+//	GOLDEN_OUT=$PWD/../golden/task_ticker.txt go test ./tickergolden -run TestWriteGolden -count=1
 package tickergolden
 
 import (

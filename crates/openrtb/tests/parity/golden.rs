@@ -13,7 +13,9 @@ use serde_json::Value;
 
 use super::{
     index::{TYPES, for_each_type},
-    support::{TestResult, ensure_eq, fnv64, golden_rows, read, repo_root, report, show},
+    support::{
+        TestResult, ensure_eq, fnv64, go_root, golden_rows, read, report, show, workspace_root,
+    },
 };
 
 /// One encoding: its bytes, or its error text.
@@ -240,7 +242,7 @@ const STALE_ELEMENT: &[u8] = b"stale element";
 fn regenerate(what: &str) -> String {
     format!(
         "{what} after the goldens were written; regenerate them with \
-         `GOTOOLCHAIN=go1.26.2 go run ./rust/crates/openrtb/testdata/go`"
+         `GOTOOLCHAIN=go1.26.2 go run .` in crates/openrtb/testdata/go"
     )
 }
 
@@ -250,7 +252,7 @@ fn corpus_file(row: &[Vec<u8>]) -> TestResult<(String, Vec<u8>)> {
         return Err(format!("bad #file row of {} fields", row.len()));
     };
     let path = String::from_utf8_lossy(path).into_owned();
-    let data = read(&repo_root().join(&path))?;
+    let data = read(&go_root()?.join(&path))?;
     let got = format!("{:016x}", fnv64(&data));
     if got.as_bytes() != hash.as_slice() {
         return Err(regenerate(&format!("{path} changed")));
@@ -431,11 +433,11 @@ fn check(file: &str, min_rows: usize, gaps: Gaps) -> TestResult<Tally> {
     Ok(tally)
 }
 
-/// The JSON files below `dir` (repository-relative, `/`-separated), appended to `out`: as the
+/// The JSON files below `dir` (relative to the Go root, `/`-separated), appended to `out`: as the
 /// generator's `filepath.WalkDir`, files whose name ends in `.json`, case-sensitively
 /// (`strings.HasSuffix`), not following symbolic links to directories.
 fn json_files(dir: &str, out: &mut Vec<String>) -> TestResult {
-    let path = repo_root().join(dir);
+    let path = go_root()?.join(dir);
     let entries = fs::read_dir(&path).map_err(|e| format!("reading {}: {e}", path.display()))?;
     for entry in entries {
         let entry = entry.map_err(|e| format!("reading {}: {e}", path.display()))?;
@@ -453,10 +455,10 @@ fn json_files(dir: &str, out: &mut Vec<String>) -> TestResult {
     Ok(())
 }
 
-/// The fixture roots of `rust/testdata/go_fixture_manifest.json` as the generator's
+/// The fixture roots of `testdata/go_fixture_manifest.json` as the generator's
 /// `fixtureRoots` reads them: distinct, without missing or empty ones.
 fn fixture_roots() -> TestResult<BTreeSet<String>> {
-    let path = repo_root().join("rust/testdata/go_fixture_manifest.json");
+    let path = workspace_root()?.join("testdata/go_fixture_manifest.json");
     let manifest: Value = serde_json::from_slice(&read(&path)?).map_err(|e| e.to_string())?;
     let runs = manifest
         .get("runs")

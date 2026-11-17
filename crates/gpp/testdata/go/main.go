@@ -1,10 +1,11 @@
 // Command gppgolden writes the differential golden files replayed by the pbs-gpp Rust tests
-// (rust/crates/gpp/src/golden_tests.rs).
+// (crates/gpp/src/golden_tests.rs).
 //
-// It runs the real github.com/prebid/go-gpp at the version pinned in Prebid Server's go.mod, so
-// run it from the repository root:
+// It runs the real github.com/prebid/go-gpp at the version pinned in Prebid Server's go.mod
+// (this module's go.mod requires the same version), so run it from the directory of this module
+// (crates/gpp/testdata/go):
 //
-//	go run ./rust/crates/gpp/testdata/go
+//	go run .
 //
 // Every file has one case per line with tab-separated fields. Strings are written with esc (a
 // quoted form where bytes outside printable ASCII, backslash and double quote are escaped as
@@ -41,7 +42,7 @@ import (
 const seed = 20261116
 
 func main() {
-	out := flag.String("out", "rust/crates/gpp/testdata/golden", "output directory")
+	out := flag.String("out", "../golden", "output directory")
 	flag.Parse()
 
 	r := rand.New(rand.NewSource(seed))

@@ -1,8 +1,8 @@
 //! The generated Rust module for one Go package.
 //!
-//! The output is already in rustfmt's canonical form for `rust/rustfmt.toml` (so `--check`
-//! compares bytes without running rustfmt): imports grouped and sorted the way rustfmt sorts
-//! them, attributes and items broken the way rustfmt breaks them when they exceed the width,
+//! The output is already in rustfmt's canonical form for the workspace's `rustfmt.toml` (so
+//! `--check` compares bytes without running rustfmt): imports grouped and sorted the way rustfmt
+//! sorts them, attributes and items broken the way rustfmt breaks them when they exceed the width,
 //! and docs from [`docs`].
 
 use core::{iter::Peekable, str::Chars};

@@ -1,8 +1,8 @@
 // Command errortypes writes the golden files replayed by the pbs-errortypes Rust tests.
 //
-// Run from the repository root:
+// Run from the directory of this module (crates/errortypes/testdata/go):
 //
-//	go run ./rust/crates/errortypes/testdata/go/errortypes rust/crates/errortypes/testdata/go/errortypes
+//	go run ./errortypes errortypes
 package main
 
 import (

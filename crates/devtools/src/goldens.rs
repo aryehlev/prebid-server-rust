@@ -40,15 +40,17 @@ fn str_of<'v>(v: &'v Value, key: &str) -> Result<&'v str> {
         .ok_or_else(|| ToolError::new(format!("{key} is not a string")))
 }
 
-/// Every golden records the commit the manifest was generated from.
+/// Every golden records the commit the manifest was generated from, the one `UPSTREAM_SYNC`
+/// pins.
 #[test]
 fn goldens_share_go_commit() -> Result<()> {
     let repo = Repo::locate(None)?;
     let manifest = golden(&repo, MANIFEST_PATH)?;
     let commit = str_of(&manifest, "go_commit")?;
-    check(
-        commit.len() == 40 && commit.chars().all(|c| c.is_ascii_hexdigit()),
-        "go_commit is a full SHA",
+    check_eq(
+        commit,
+        repo.pinned_commit()?.as_str(),
+        "go_commit is the pin",
     )?;
     for dump in Dump::ALL {
         check_eq(
@@ -83,7 +85,7 @@ fn bidder_constants_match_go_dump() -> Result<()> {
 #[test]
 fn bidder_infos_cover_static_yaml() -> Result<()> {
     let repo = Repo::locate(None)?;
-    let dir = repo.path("static/bidder-info");
+    let dir = repo.go_path("static/bidder-info");
     let mut on_disk = BTreeSet::new();
     for entry in fs::read_dir(&dir).map_err(|e| ToolError::io(&dir, &e))? {
         let name = entry?.file_name().to_string_lossy().into_owned();
@@ -114,7 +116,7 @@ fn bidder_infos_cover_static_yaml() -> Result<()> {
 #[test]
 fn config_defaults_record_unprefixed_bind_env() -> Result<()> {
     let repo = Repo::locate(None)?;
-    let path = repo.path("config/config.go");
+    let path = repo.go_path("config/config.go");
     let src = fs::read_to_string(&path).map_err(|e| ToolError::io(&path, &e))?;
     let (before_prefix, _) = src
         .split_once("v.SetEnvPrefix(")
@@ -185,7 +187,7 @@ fn struct_meta_resolves_fixture_unmarshal_errors() -> Result<()> {
         }
     }
     let mut refs = BTreeSet::new();
-    for path in fixtures::all_json(&repo.path("adapters"))? {
+    for path in fixtures::all_json(&repo.go_path("adapters"))? {
         let text = fs::read_to_string(&path).map_err(|e| ToolError::io(&path, &e))?;
         for rest in text.split("cannot unmarshal ").skip(1) {
             let word: String = rest

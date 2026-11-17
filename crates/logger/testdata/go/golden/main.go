@@ -5,9 +5,10 @@
 // files) and github.com/chasex/glog (the file logger of the filesystem analytics module), the
 // two logging libraries Prebid Server uses.
 //
-// Run from the repository root with the toolchain the Dockerfile builds with:
+// Run from the directory of this module (crates/logger/testdata/go) with the toolchain the
+// Dockerfile builds with:
 //
-//	go run ./rust/crates/logger/testdata/go/golden rust/crates/logger/testdata/golden
+//	go run ./golden ../golden
 package main
 
 import (

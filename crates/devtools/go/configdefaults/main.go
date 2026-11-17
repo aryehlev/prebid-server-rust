@@ -1,4 +1,4 @@
-// Command configdefaults dumps the host configuration defaults to rust/testdata/go_config_defaults.json.
+// Command configdefaults dumps the host configuration defaults to testdata/go_config_defaults.json.
 //
 // It loads static/bidder-info and calls config.SetupViper on a fresh viper exactly as main.go's
 // loadConfig does (config name "pbs"), from an empty working directory and with every PBS_*
@@ -32,8 +32,9 @@ import (
 	"github.com/prebid/prebid-server/v4/config"
 	"github.com/prebid/prebid-server/v4/errortypes"
 	"github.com/prebid/prebid-server/v4/openrtb_ext"
-	"github.com/prebid/prebid-server/v4/rust/crates/devtools/go/internal/dump"
 	"github.com/prebid/prebid-server/v4/util/jsonutil"
+
+	"github.com/aryehlev/prebid-server-rust/crates/devtools/go/internal/dump"
 )
 
 func init() {

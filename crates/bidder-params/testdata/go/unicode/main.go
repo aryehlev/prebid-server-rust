@@ -2,10 +2,10 @@
 // reads (categories, scripts, their case-folding tables, category aliases and the simple case
 // folding orbits), taken from the Go toolchain that runs it.
 //
-// From the repository root:
+// From the directory of this module (crates/bidder-params/testdata/go):
 //
-//	go run ./rust/crates/bidder-params/testdata/go/unicode rust/crates/bidder-params/src/gojsonschema/go_unicode.rs
-//	rustfmt +nightly-2026-11-13 --edition 2024 rust/crates/bidder-params/src/gojsonschema/go_unicode.rs
+//	go run ./unicode ../../src/gojsonschema/go_unicode.rs
+//	rustfmt +nightly-2026-11-13 --edition 2024 ../../src/gojsonschema/go_unicode.rs
 package main
 
 import (

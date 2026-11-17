@@ -10,10 +10,13 @@
 //     schema (odd numbers, escapes, duplicate keys, invalid UTF-8, truncation), validated by
 //     openrtb_ext.NewBidderParamsValidator.
 //
-// Run it from the repository root, with the Go version the server is built with (the
-// Dockerfile's):
+// Run it from the directory of this module (crates/bidder-params/testdata/go), with the Go
+// version the server is built with (the Dockerfile's):
 //
-//	go run ./rust/crates/bidder-params/testdata/go/adversarial rust/crates/bidder-params/testdata/golden
+//	go run ./adversarial ../golden
+//
+// It reads static/bidder-params and static/bidder-info from the upstream checkout the module
+// builds against (see enterUpstream).
 //
 // Go iterates maps in random order, so every document is validated by several independently
 // loaded copies of its schema, several times each, and every distinct output is recorded.
@@ -47,7 +50,7 @@ const (
 	copies = 8
 	// repeats is the number of validations per copy.
 	repeats = 2
-	// schemaDir is the bidder params schema directory, relative to the repository root.
+	// schemaDir is the bidder params schema directory, relative to the upstream checkout.
 	schemaDir = "static/bidder-params"
 )
 
@@ -55,7 +58,7 @@ func main() {
 	if len(os.Args) != 2 {
 		log.Fatal("usage: adversarial <output directory>")
 	}
-	out := os.Args[1]
+	out := enterUpstream(os.Args[1])
 	if err := os.MkdirAll(out, 0o755); err != nil {
 		log.Fatal(err)
 	}

@@ -1,9 +1,10 @@
 // Command typegen describes Go packages for `pbs-devtools typegen`, which turns the description
 // into Rust types for pbs-gojson.
 //
-// It is run from the repository root by pbs-devtools:
+// pbs-devtools runs it from the directory of this module (crates/devtools/go), so the packages
+// resolve in this module's build (the upstream checkout and its dependencies):
 //
-//	go run ./rust/crates/devtools/go/typegen -out FILE IMPORTPATH...
+//	go run ./typegen -out FILE IMPORTPATH...
 //
 // For each package it records, in source order (files sorted by name, declarations in file
 // order): every type declaration with its Go doc comment; structs with their fields (name, type,
@@ -167,7 +168,7 @@ func main() {
 	}
 	targets := flag.Args()
 	pkgs := goList(targets)
-	desc := description{Generator: "pbs-devtools typegen (rust/crates/devtools/go/typegen)"}
+	desc := description{Generator: "pbs-devtools typegen (crates/devtools/go/typegen)"}
 	for _, path := range targets {
 		desc.Packages = append(desc.Packages, describe(pkgs, pkgs[path]))
 	}

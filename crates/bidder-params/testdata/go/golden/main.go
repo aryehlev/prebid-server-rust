@@ -2,9 +2,12 @@
 // real Go code: openrtb_ext.NewBidderParamsValidator over static/bidder-params, and
 // github.com/xeipuuv/gojsonschema itself for the engine cases.
 //
-// Run it from the repository root:
+// Run it from the directory of this module (crates/bidder-params/testdata/go):
 //
-//	go run ./rust/crates/bidder-params/testdata/go/golden rust/crates/bidder-params/testdata/golden
+//	go run ./golden ../golden
+//
+// It reads static/bidder-params and static/bidder-info from the upstream checkout the module
+// builds against (see enterUpstream).
 //
 // Go iterates maps in random order, and gojsonschema walks maps (the properties of a schema,
 // fixed when the schema is loaded, and the keys of every validated document), so a value with
@@ -42,7 +45,7 @@ const (
 	copies = 12
 	// repeats is the number of validations per copy.
 	repeats = 3
-	// schemaDir is the bidder params schema directory, relative to the repository root.
+	// schemaDir is the bidder params schema directory, relative to the upstream checkout.
 	schemaDir = "static/bidder-params"
 )
 
@@ -50,7 +53,7 @@ func main() {
 	if len(os.Args) != 2 {
 		log.Fatal("usage: golden <output directory>")
 	}
-	out := os.Args[1]
+	out := enterUpstream(os.Args[1])
 	if err := os.MkdirAll(out, 0o755); err != nil {
 		log.Fatal(err)
 	}

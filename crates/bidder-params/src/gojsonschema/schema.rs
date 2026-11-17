@@ -720,6 +720,8 @@ impl<'d> Parser<'d> {
 mod tests {
     use std::fs;
 
+    use pbs_devtools::repo::go_root;
+
     use super::Schema;
 
     /// Features this port does not implement fail loudly instead of validating differently.
@@ -799,19 +801,22 @@ mod tests {
         Ok(())
     }
 
-    /// Every bidder schema in the repository compiles (Go: `TestBidderParamSchemas`).
+    /// Every bidder schema of the Go root compiles (Go: `TestBidderParamSchemas`).
     #[test]
     fn every_bidder_schema_compiles() -> Result<(), String> {
-        let dir = concat!(env!("CARGO_MANIFEST_DIR"), "/../../../static/bidder-params");
+        let dir = go_root()
+            .map_err(|e| e.to_string())?
+            .join("static")
+            .join("bidder-params");
         let mut count = 0usize;
-        for entry in fs::read_dir(dir).map_err(|e| e.to_string())? {
+        for entry in fs::read_dir(&dir).map_err(|e| format!("{}: {e}", dir.display()))? {
             let path = entry.map_err(|e| e.to_string())?.path();
             let bytes = fs::read(&path).map_err(|e| e.to_string())?;
             let _schema = Schema::new(&bytes).map_err(|e| format!("{}: {e}", path.display()))?;
             count += 1;
         }
         if count < 250 {
-            return Err(format!("only {count} schemas in {dir}"));
+            return Err(format!("only {count} schemas in {}", dir.display()));
         }
         Ok(())
     }

@@ -3,9 +3,9 @@
 //
 // Every output line is a tab-separated list of fields, each quoted with strconv.Quote.
 //
-// Run from the repository root:
+// Run from the directory of this module (crates/gocompat/testdata/go):
 //
-//	go run ./rust/crates/gocompat/testdata/go/review rust/crates/gocompat/testdata/go/golden
+//	go run ./review golden
 package main
 
 import (

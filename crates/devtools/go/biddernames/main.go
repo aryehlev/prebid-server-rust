@@ -1,4 +1,4 @@
-// Command biddernames dumps the openrtb_ext bidder name tables to rust/testdata/go_bidder_names.json.
+// Command biddernames dumps the openrtb_ext bidder name tables to testdata/go_bidder_names.json.
 //
 // It records every BidderName constant declared in openrtb_ext (parsed from the source, since Go
 // cannot enumerate constants at run time), CoreBidderNames() before and after the bidder-info
@@ -21,8 +21,9 @@ import (
 
 	"github.com/prebid/prebid-server/v4/config"
 	"github.com/prebid/prebid-server/v4/openrtb_ext"
-	"github.com/prebid/prebid-server/v4/rust/crates/devtools/go/internal/dump"
 	"github.com/prebid/prebid-server/v4/util/jsonutil"
+
+	"github.com/aryehlev/prebid-server-rust/crates/devtools/go/internal/dump"
 )
 
 func init() {

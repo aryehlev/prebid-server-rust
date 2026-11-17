@@ -1,10 +1,11 @@
 // Command currencygolden writes the golden files that the pbs-currency Rust tests replay.
 //
 // It drives the real Go code: golang.org/x/text/currency.ParseISO (at the version pinned in
-// the repository go.mod), the prebid-server currency package, and jsonutil.UnmarshalValid /
-// jsoniter for decoding the currency file. Run it from anywhere inside the repository:
+// the upstream go.mod, which this module's go.mod requires too), the prebid-server currency
+// package, and jsonutil.UnmarshalValid / jsoniter for decoding the currency file. Run it from
+// the directory of this module (crates/currency/testdata/go):
 //
-//	go run ./rust/crates/currency/testdata/go
+//	go run .
 //
 // The output files are written next to this directory, under ../golden. random.golden holds
 // digests of random corpora that the Rust tests regenerate; see random.go.

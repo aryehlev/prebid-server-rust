@@ -7,7 +7,7 @@
 
 use core::mem;
 
-/// The line width rustfmt enforces (`max_width` and `comment_width` in `rust/rustfmt.toml`).
+/// The line width rustfmt enforces (`max_width` and `comment_width` in `rustfmt.toml`).
 pub const WIDTH: usize = 100;
 
 /// Characters that make a line more than plain prose in Markdown (`_` is allowed inside words,

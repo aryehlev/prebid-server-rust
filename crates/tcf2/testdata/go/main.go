@@ -1,13 +1,15 @@
 // Command tcf2golden records how github.com/prebid/go-gdpr (the exact version pinned by the
-// repository go.mod) and the Go standard library pieces it relies on behave for a large corpus of
-// consent strings, base64 inputs, bit offsets and global vendor list documents.
+// upstream go.mod, which this module's go.mod requires too) and the Go standard library pieces it
+// relies on behave for a large corpus of consent strings, base64 inputs, bit offsets and global
+// vendor list documents.
 //
 // The pbs-tcf2 Rust tests replay the JSON files written by this program and require identical
 // results, including byte-identical error text and the places where Go panics.
 //
-// Run it from the repository root with the Go toolchain used by the production Dockerfile:
+// Run it from the directory of this module (crates/tcf2/testdata/go) with the Go toolchain used
+// by the production Dockerfile:
 //
-//	GOTOOLCHAIN=go1.26.2 go run ./rust/crates/tcf2/testdata/go -out rust/crates/tcf2/testdata
+//	GOTOOLCHAIN=go1.26.2 go run . -out ..
 package main
 
 import (

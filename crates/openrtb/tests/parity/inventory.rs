@@ -1,5 +1,5 @@
 //! Every Go type, struct field, JSON tag and constant of the six packages against the reflect
-//! and `go/types` metadata of the Go build in `rust/testdata/go_struct_meta.json`.
+//! and `go/types` metadata of the Go build in `testdata/go_struct_meta.json`.
 
 use std::collections::BTreeMap;
 
@@ -14,7 +14,7 @@ use serde_json::Value;
 
 use super::{
     index::{CONSTANTS, for_each_const, for_each_struct, for_each_type},
-    support::{TestResult, ensure_eq, read, repo_root, report},
+    support::{TestResult, ensure_eq, read, report, workspace_root},
 };
 
 /// The import paths of the ported packages start with this.
@@ -86,7 +86,7 @@ fn list<'a>(value: &'a Value, key: &str) -> TestResult<&'a [Value]> {
 
 /// The metadata of the ported packages.
 fn packages() -> TestResult<Vec<Value>> {
-    let path = repo_root().join("rust/testdata/go_struct_meta.json");
+    let path = workspace_root()?.join("testdata/go_struct_meta.json");
     let meta: Value = serde_json::from_slice(&read(&path)?).map_err(|e| e.to_string())?;
     let packages: Vec<Value> = list(&meta, "packages")?
         .iter()

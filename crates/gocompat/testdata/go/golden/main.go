@@ -4,9 +4,12 @@
 // Large sweeps are summarised by an FNV-1a 64 checksum over their output, computed over
 // values drawn from the splitmix64 generator that the Rust tests reimplement.
 //
-// Run from the repository root:
+// Run from the directory of this module (crates/gocompat/testdata/go):
 //
-//	go run ./rust/crates/gocompat/testdata/go/golden rust/crates/gocompat/testdata/go/golden
+//	go run ./golden golden
+//
+// It reads static/bidder-info from the upstream checkout the module builds against (see
+// enterUpstream).
 package main
 
 import (
@@ -26,7 +29,7 @@ func main() {
 		fmt.Fprintln(os.Stderr, "usage: golden <output dir>")
 		os.Exit(2)
 	}
-	outDir = os.Args[1]
+	outDir = enterUpstream(os.Args[1])
 	genHTTP()
 	genStrconv()
 	genURL()

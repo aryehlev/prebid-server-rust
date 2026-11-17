@@ -41,7 +41,7 @@ pub struct Config {
     /// The crate directory (set when the file is loaded).
     #[serde(skip)]
     pub dir: PathBuf,
-    /// The config file's repository-relative path (set when the file is loaded).
+    /// The config file's workspace-relative path (set when the file is loaded).
     #[serde(skip)]
     pub source: String,
 }
@@ -196,13 +196,13 @@ impl Config {
     }
 }
 
-/// Every `rust/crates/*/typegen.json`, sorted by crate directory.
+/// Every `crates/*/typegen.json`, sorted by crate directory.
 ///
 /// # Errors
 ///
 /// Fails when a file cannot be read or parsed, or a Go package is configured twice.
 pub fn discover(repo: &Repo) -> Result<Vec<Config>> {
-    let crates = repo.path("rust/crates");
+    let crates = repo.path("crates");
     let mut dirs: Vec<PathBuf> = fs::read_dir(&crates)
         .map_err(|e| ToolError::io(&crates, &e))?
         .filter_map(|entry| entry.ok().map(|e| e.path()))
@@ -239,7 +239,7 @@ pub fn load(repo: &Repo, dir: &Path) -> Result<Config> {
         .map_err(|e| ToolError::new(format!("{}: {e}", path.display())))?;
     config.dir = dir.to_path_buf();
     config.source = path
-        .strip_prefix(repo.root())
+        .strip_prefix(repo.workspace())
         .unwrap_or(&path)
         .to_string_lossy()
         .replace('\\', "/");

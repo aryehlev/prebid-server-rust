@@ -1,4 +1,4 @@
-//! The hand-maintained hooks overlay, `rust/testdata/go_fixture_hooks.json`.
+//! The hand-maintained hooks overlay, `testdata/go_fixture_hooks.json`.
 //!
 //! Some Go adapter tests change a bidder after `Builder` returns it (a fake clock, a fixed random
 //! generator, a testing flag) or build it as a struct literal. The manifest generator cannot
@@ -16,8 +16,8 @@ use crate::{
     manifest::Totals,
 };
 
-/// Repository-relative path of the overlay.
-pub const HOOKS_PATH: &str = "rust/testdata/go_fixture_hooks.json";
+/// Workspace-relative path of the overlay.
+pub const HOOKS_PATH: &str = "testdata/go_fixture_hooks.json";
 
 /// The overlay file.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]

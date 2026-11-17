@@ -5,14 +5,11 @@
 // through the same promhttp handler server/prometheus.go uses, and writes the exposition text.
 // The Rust tests replay the same script and compare byte for byte.
 //
-// Run from the repository root (the generated script is rewritten first, then every script is
-// replayed):
+// Run from the directory of this module, crates/metrics/testdata/go (the generated script is
+// rewritten first, then every script is replayed):
 //
-//	go run ./rust/crates/metrics/testdata/go \
-//	  -gen rust/crates/metrics/testdata/scenarios_generated.txt
-//	go run ./rust/crates/metrics/testdata/go \
-//	  -script rust/crates/metrics/testdata/scenarios.txt,rust/crates/metrics/testdata/scenarios_generated.txt \
-//	  -out rust/crates/metrics/testdata/golden
+//	go run . -gen ../scenarios_generated.txt
+//	go run . -script ../scenarios.txt,../scenarios_generated.txt -out ../golden
 //
 // Script format (one directive per line, tokens separated by single spaces, every token value
 // percent-decoded with url.PathUnescape, '#' starts a comment line):

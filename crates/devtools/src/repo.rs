@@ -1,8 +1,17 @@
-//! Locating the repository, the Go commit the goldens derive from, and writing or checking
-//! generated files.
+//! The two roots every command works with, the commit the goldens derive from, running Go, and
+//! writing or checking generated files.
+//!
+//! The *workspace* is this Rust repository: goldens and generated sources are written into it.
+//! The *Go root* is a checkout of the upstream Go server at the commit [`PIN_FILE`] pins: the Go
+//! programs build against it, and its sources and static files are read from it. The Go root is
+//! `$PBS_GO_ROOT` when that is set, else [`DEFAULT_GO_ROOT`] at the workspace root, where
+//! [`FETCH_SCRIPT`] checks it out ([`go_root`]). It is never searched for: when neither exists,
+//! every command and test that needs it fails and says to run the script.
 
 use std::{
-    env, fs,
+    env,
+    ffi::OsString,
+    fs,
     io::ErrorKind,
     path::{Path, PathBuf},
     process::{self, Command},
@@ -11,116 +20,251 @@ use std::{
 
 use crate::error::{Result, ToolError};
 
-/// The Go module path of the repository root.
+/// The module path of the upstream Go server.
 pub const GO_MODULE: &str = "github.com/prebid/prebid-server/v4";
 
-/// Directory, relative to the root, that holds the generated goldens.
-pub const TESTDATA: &str = "rust/testdata";
+/// Directory, relative to the workspace root, that holds the generated goldens.
+pub const TESTDATA: &str = "testdata";
 
-/// Paths whose history defines `go_commit`: the Go code and the data the goldens are read from.
-/// The Rust workspace is excluded so regenerating the goldens never moves the commit.
-const GO_PATHSPEC: &[&str] = &[
-    "*.go",
-    "go.mod",
-    "go.sum",
-    "static",
-    "adapters",
-    ":(exclude)rust",
-];
+/// The file, relative to the workspace root, whose one non-comment line is the upstream commit
+/// the port is pinned to.
+pub const PIN_FILE: &str = "UPSTREAM_SYNC";
 
-/// The repository a command operates on.
+/// The script, relative to the workspace root, that checks out the Go root.
+pub const FETCH_SCRIPT: &str = "scripts/fetch-upstream.sh";
+
+/// Where the Go root is by default, relative to the workspace root.
+pub const DEFAULT_GO_ROOT: &str = ".upstream";
+
+/// The Go module, relative to the workspace root, that holds the dump programs and the typegen
+/// describer.
+pub const GO_TOOLS: &str = "crates/devtools/go";
+
+/// The workspace root: the directory two levels above this crate's manifest, which holds the root
+/// `Cargo.toml` and [`PIN_FILE`].
+///
+/// # Errors
+///
+/// Fails when that directory has no `Cargo.toml` or no [`PIN_FILE`].
+pub fn workspace_root() -> Result<PathBuf> {
+    let manifest_dir = Path::new(env!("CARGO_MANIFEST_DIR"));
+    let root = manifest_dir.ancestors().nth(2).ok_or_else(|| {
+        ToolError::new(format!(
+            "{} has no workspace root above it",
+            manifest_dir.display()
+        ))
+    })?;
+    if !root.join("Cargo.toml").is_file() || !root.join(PIN_FILE).is_file() {
+        return Err(ToolError::new(format!(
+            "{} is not the workspace root (it needs Cargo.toml and {PIN_FILE})",
+            root.display()
+        )));
+    }
+    Ok(root.to_path_buf())
+}
+
+/// The Go root, absolute and with its symbolic links resolved.
+///
+/// It is `$PBS_GO_ROOT` when that is set and not empty (a relative path is taken from the
+/// workspace root), else [`DEFAULT_GO_ROOT`] at the workspace root.
+///
+/// # Errors
+///
+/// Fails, saying to run [`FETCH_SCRIPT`], when the directory does not exist or is not a checkout
+/// of [`GO_MODULE`].
+pub fn go_root() -> Result<PathBuf> {
+    resolve_go_root(&workspace_root()?, None)
+}
+
+fn resolve_go_root(workspace: &Path, explicit: Option<&Path>) -> Result<PathBuf> {
+    let from_env = env::var_os("PBS_GO_ROOT").filter(|v| !v.is_empty());
+    let (dir, source) = match (explicit, from_env) {
+        (Some(dir), _) => (dir.to_path_buf(), "--go-root"),
+        (None, Some(dir)) => (workspace.join(dir), "PBS_GO_ROOT"),
+        (None, None) => (workspace.join(DEFAULT_GO_ROOT), "the default"),
+    };
+    let fetch = if source == "the default" {
+        format!("run {FETCH_SCRIPT} to check out the commit {PIN_FILE} pins there")
+    } else {
+        format!(
+            "run {FETCH_SCRIPT} --dir {} to check out the commit {PIN_FILE} pins there",
+            dir.display()
+        )
+    };
+    let resolved = fs::canonicalize(&dir).map_err(|e| {
+        ToolError::new(format!(
+            "the Go root {} ({source}) cannot be used: {e}. It is the upstream Go server that the \
+             goldens are generated from and the tests read; {fetch} (or set PBS_GO_ROOT to such \
+             a checkout)",
+            dir.display()
+        ))
+    })?;
+    if !declares_go_module(&resolved) {
+        return Err(ToolError::new(format!(
+            "the Go root {} ({source}) is not a checkout of {GO_MODULE}: its go.mod does not \
+             declare the module; {fetch}",
+            resolved.display()
+        )));
+    }
+    Ok(resolved)
+}
+
+fn declares_go_module(dir: &Path) -> bool {
+    fs::read_to_string(dir.join("go.mod")).is_ok_and(|s| {
+        s.lines()
+            .next()
+            .is_some_and(|l| l.trim() == format!("module {GO_MODULE}"))
+    })
+}
+
+/// The commit `workspace`'s [`PIN_FILE`] pins: its one line that is neither empty nor a `#`
+/// comment, a full 40-character SHA.
+///
+/// # Errors
+///
+/// Fails when the file cannot be read or does not hold exactly one such line.
+pub fn pinned_commit(workspace: &Path) -> Result<String> {
+    let path = workspace.join(PIN_FILE);
+    let text = fs::read_to_string(&path).map_err(|e| ToolError::io(&path, &e))?;
+    let pins: Vec<&str> = text
+        .lines()
+        .map(str::trim)
+        .filter(|l| !l.is_empty() && !l.starts_with('#'))
+        .collect();
+    match pins.as_slice() {
+        [pin] if is_full_sha(pin) => Ok((*pin).to_owned()),
+        _ => Err(ToolError::new(format!(
+            "{} must hold exactly one non-comment line, the full SHA of the pinned upstream commit",
+            path.display()
+        ))),
+    }
+}
+
+fn is_full_sha(s: &str) -> bool {
+    s.len() == 40
+        && s.bytes()
+            .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
+}
+
+/// The workspace and the Go root a command operates on.
 #[derive(Debug, Clone)]
 pub struct Repo {
-    root: PathBuf,
+    workspace: PathBuf,
+    go_root: PathBuf,
 }
 
 impl Repo {
-    /// Uses `root` if given, then `PBS_GO_ROOT`, then the nearest ancestor of the current
-    /// directory (and of this crate's source directory) whose `go.mod` declares [`GO_MODULE`].
+    /// Finds the workspace ([`workspace_root`]) and uses `go_root` as the Go root if given (a
+    /// relative path is taken from the current directory), else the one [`go_root`] finds.
     ///
     /// # Errors
     ///
-    /// Fails when no such directory is found or the given one is not the repository root.
-    pub fn locate(root: Option<&Path>) -> Result<Self> {
-        if let Some(root) = root {
-            return Self::at(root);
-        }
-        if let Some(from_env) = env::var_os("PBS_GO_ROOT") {
-            return Self::at(Path::new(&from_env));
-        }
-        let cwd = env::current_dir()?;
-        let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-        for start in [cwd.as_path(), manifest_dir.as_path()] {
-            if let Some(found) = start.ancestors().find(|dir| is_root(dir)) {
-                return Self::at(found);
-            }
-        }
-        Err(ToolError::new(format!(
-            "cannot find the prebid-server repository root (a go.mod declaring {GO_MODULE}); pass \
-             --root or set PBS_GO_ROOT"
-        )))
+    /// Fails when either root cannot be used; for the Go root, the error says how to fetch it.
+    pub fn locate(go_root: Option<&Path>) -> Result<Self> {
+        let workspace = workspace_root()?;
+        let go_root = resolve_go_root(&workspace, go_root)?;
+        Ok(Self { workspace, go_root })
     }
 
-    fn at(root: &Path) -> Result<Self> {
-        let root = fs::canonicalize(root).map_err(|e| ToolError::io(root, &e))?;
-        if !is_root(&root) {
-            return Err(ToolError::new(format!(
-                "{} is not the prebid-server repository root (no go.mod declaring {GO_MODULE})",
-                root.display()
-            )));
-        }
-        Ok(Self { root })
-    }
-
-    /// The repository root.
+    /// The workspace root.
     #[must_use]
-    pub fn root(&self) -> &Path {
-        &self.root
+    pub fn workspace(&self) -> &Path {
+        &self.workspace
     }
 
-    /// `rel` (slash-separated) joined to the root.
+    /// The Go root.
+    #[must_use]
+    pub fn go_root(&self) -> &Path {
+        &self.go_root
+    }
+
+    /// `rel` (slash-separated) joined to the workspace root.
     #[must_use]
     pub fn path(&self, rel: &str) -> PathBuf {
-        rel.split('/')
-            .fold(self.root.clone(), |p, part| p.join(part))
+        join(&self.workspace, rel)
     }
 
-    /// The commit recorded as `go_commit`: `override_commit`, else `PBS_GO_COMMIT`, else the last
-    /// commit touching `*.go`, `go.mod`, `go.sum`, `static/` or `adapters/` outside `rust/`.
+    /// `rel` (slash-separated) joined to the Go root.
+    #[must_use]
+    pub fn go_path(&self, rel: &str) -> PathBuf {
+        join(&self.go_root, rel)
+    }
+
+    /// The commit [`PIN_FILE`] pins.
     ///
     /// # Errors
     ///
-    /// Fails when git is unavailable, the clone is shallow (its history cannot answer the
-    /// question), or the history has no matching commit.
+    /// As [`pinned_commit`].
+    pub fn pinned_commit(&self) -> Result<String> {
+        pinned_commit(&self.workspace)
+    }
+
+    /// The commit recorded as `go_commit`: `override_commit`, else `PBS_GO_COMMIT`, else the
+    /// pinned commit. The Go root must be a clean checkout of exactly that commit
+    /// ([`Repo::verify_go_root`]), so a golden never names a commit it was not made from.
+    ///
+    /// # Errors
+    ///
+    /// Fails when the commit is not a full SHA or the Go root is not a clean checkout of it.
     pub fn go_commit(&self, override_commit: Option<&str>) -> Result<String> {
-        if let Some(c) = override_commit {
-            return Ok(c.to_owned());
+        let commit = match override_commit {
+            Some(c) => c.to_owned(),
+            None => match env::var("PBS_GO_COMMIT").ok().filter(|c| !c.is_empty()) {
+                Some(c) => c,
+                None => self.pinned_commit()?,
+            },
+        };
+        if !is_full_sha(&commit) {
+            return Err(ToolError::new(format!(
+                "go_commit {commit} is not a full 40-character SHA"
+            )));
         }
-        if let Some(c) = env::var("PBS_GO_COMMIT").ok().filter(|c| !c.is_empty()) {
-            return Ok(c);
-        }
-        let shallow = self.git(&["rev-parse", "--is-shallow-repository"])?;
-        if shallow.trim() == "true" {
-            return Err(ToolError::new(
-                "the clone is shallow, so the last Go commit cannot be determined; fetch full \
-                 history or set PBS_GO_COMMIT",
-            ));
-        }
-        let mut args = vec!["log", "-1", "--format=%H", "--"];
-        args.extend_from_slice(GO_PATHSPEC);
-        let commit = self.git(&args)?.trim().to_owned();
-        if commit.is_empty() {
-            return Err(ToolError::new(
-                "git log found no commit touching the Go sources",
-            ));
-        }
+        self.verify_go_root(&commit)?;
         Ok(commit)
     }
 
-    fn git(&self, args: &[&str]) -> Result<String> {
+    /// Checks that the Go root is a git checkout whose `HEAD` is `commit` and that it has no local
+    /// changes or untracked files.
+    ///
+    /// # Errors
+    ///
+    /// Fails, saying how to fix the checkout, when it is not one.
+    pub fn verify_go_root(&self, commit: &str) -> Result<()> {
+        let fetch = format!(
+            "run {FETCH_SCRIPT} --dir {} --sha {commit}",
+            self.go_root.display()
+        );
+        let head = self.git_in_go_root(&["rev-parse", "HEAD"]).map_err(|e| {
+            ToolError::new(format!(
+                "cannot tell which commit the Go root {} is at ({e}); {fetch}",
+                self.go_root.display()
+            ))
+        })?;
+        let head = head.trim();
+        if head != commit {
+            return Err(ToolError::new(format!(
+                "the Go root {} is at {head}, not {commit}; {fetch}",
+                self.go_root.display()
+            )));
+        }
+        // Without optional locks, `git status` does not refresh the index: the check writes
+        // nothing into the Go root.
+        let status = self.git_in_go_root(&["--no-optional-locks", "status", "--porcelain"])?;
+        if !status.trim().is_empty() {
+            return Err(ToolError::new(format!(
+                "the Go root {} has local changes or untracked files, so it is not {commit} \
+                 itself; clean it or remove it and {fetch}:\n{}",
+                self.go_root.display(),
+                status.trim_end()
+            )));
+        }
+        Ok(())
+    }
+
+    fn git_in_go_root(&self, args: &[&str]) -> Result<String> {
         let out = Command::new("git")
             .args(args)
-            .current_dir(&self.root)
+            .current_dir(&self.go_root)
             .output()
             .map_err(|e| ToolError::new(format!("running git: {e}")))?;
         if !out.status.success() {
@@ -132,14 +276,104 @@ impl Repo {
         }
         String::from_utf8(out.stdout).map_err(|e| ToolError::new(format!("git output: {e}")))
     }
+
+    /// Runs `go <args>` (or `$GO <args>`) in `module`, a workspace-relative Go tooling module,
+    /// building against the Go root, with every `PBS_*` variable removed.
+    ///
+    /// The run uses a temporary `go.work` that holds `module` and replaces [`GO_MODULE`] by the
+    /// Go root, which overrides the module's own `replace` (the default Go root), and has the
+    /// module's `go` version, so the `GODEBUG` defaults stay those of the upstream module. Its
+    /// `go.work.sum` starts as the Go root's `go.sum`: the packages of the Go root that `module`
+    /// does not import itself (the adapters `struct-meta` loads) find their checksums there.
+    ///
+    /// # Errors
+    ///
+    /// Fails when the module or Go cannot be used, or the command fails (with the tail of its
+    /// standard error).
+    pub fn go(&self, module: &str, args: &[OsString]) -> Result<()> {
+        let dir = self.path(module);
+        let tmp = TempDir::new("pbs-devtools-gowork")?;
+        let result = self.go_in(&dir, tmp.path(), args);
+        let removed = tmp.remove();
+        result?;
+        removed
+    }
+
+    fn go_in(&self, dir: &Path, tmp: &Path, args: &[OsString]) -> Result<()> {
+        let go_mod = dir.join("go.mod");
+        let text = fs::read_to_string(&go_mod).map_err(|e| ToolError::io(&go_mod, &e))?;
+        let version = text
+            .lines()
+            .find_map(|l| l.trim().strip_prefix("go "))
+            .map(str::trim)
+            .ok_or_else(|| ToolError::new(format!("{} has no go directive", go_mod.display())))?;
+        let work = tmp.join("go.work");
+        let content = format!(
+            "go {version}\n\nuse {}\n\nreplace {GO_MODULE} => {}\n",
+            go_quote(dir)?,
+            go_quote(&self.go_root)?
+        );
+        fs::write(&work, content).map_err(|e| ToolError::io(&work, &e))?;
+        let sum = self.go_root.join("go.sum");
+        let work_sum = tmp.join("go.work.sum");
+        let _ = fs::copy(&sum, &work_sum).map_err(|e| ToolError::io(&sum, &e))?;
+
+        let go = env::var_os("GO").unwrap_or_else(|| "go".into());
+        let mut cmd = Command::new(&go);
+        let _ = cmd.args(args).current_dir(dir).env("GOWORK", &work);
+        for (key, _) in env::vars_os() {
+            if key.to_string_lossy().starts_with("PBS_") {
+                let _ = cmd.env_remove(key);
+            }
+        }
+        let output = cmd.output().map_err(|e| {
+            ToolError::new(format!(
+                "running {}: {e} (is the Go toolchain installed? set GO to its path)",
+                go.to_string_lossy()
+            ))
+        })?;
+        if output.status.success() {
+            return Ok(());
+        }
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        let lines: Vec<&str> = stderr.lines().collect();
+        let tail = lines
+            .get(lines.len().saturating_sub(40)..)
+            .unwrap_or_default()
+            .join("\n");
+        let shown: Vec<String> = args
+            .iter()
+            .map(|a| a.to_string_lossy().into_owned())
+            .collect();
+        Err(ToolError::new(format!(
+            "go {} failed in {} ({}):\n{tail}",
+            shown.join(" "),
+            dir.display(),
+            output.status
+        )))
+    }
 }
 
-fn is_root(dir: &Path) -> bool {
-    fs::read_to_string(dir.join("go.mod")).is_ok_and(|s| {
-        s.lines()
-            .next()
-            .is_some_and(|l| l.trim() == format!("module {GO_MODULE}"))
-    })
+fn join(root: &Path, rel: &str) -> PathBuf {
+    rel.split('/')
+        .fold(root.to_path_buf(), |p, part| p.join(part))
+}
+
+/// `path` as a Go string literal, the form `go.work` takes paths in.
+fn go_quote(path: &Path) -> Result<String> {
+    let s = path
+        .to_str()
+        .ok_or_else(|| ToolError::new(format!("{} is not UTF-8", path.display())))?;
+    let mut out = String::with_capacity(s.len() + 2);
+    out.push('"');
+    for c in s.chars() {
+        if c == '"' || c == '\\' {
+            out.push('\\');
+        }
+        out.push(c);
+    }
+    out.push('"');
+    Ok(out)
 }
 
 /// Whether a generated file is written or compared against the committed copy.
@@ -236,21 +470,64 @@ pub fn to_json<T: serde::Serialize>(value: &T) -> Result<Vec<u8>> {
 
 #[cfg(test)]
 mod tests {
-    use std::fs;
+    use std::{fs, path::Path};
 
-    use super::{Mode, Outcome, Repo, TempDir, emit};
+    use super::{
+        FETCH_SCRIPT, Mode, Outcome, PIN_FILE, Repo, TempDir, emit, go_quote, pinned_commit,
+    };
     use crate::{
         error::Result,
         testutil::{check, check_eq},
     };
 
     #[test]
-    fn locates_this_repository() -> Result<()> {
+    fn locates_the_workspace_and_the_go_root() -> Result<()> {
         let repo = Repo::locate(None)?;
-        check(repo.path("go.mod").is_file(), "go.mod at root")?;
         check(
-            repo.path("rust/crates/devtools/Cargo.toml").is_file(),
-            "this crate",
+            repo.path("crates/devtools/Cargo.toml").is_file(),
+            "this crate is in the workspace",
+        )?;
+        check(repo.path(FETCH_SCRIPT).is_file(), "the fetch script")?;
+        check(repo.go_path("go.mod").is_file(), "go.mod in the Go root")?;
+        check(
+            repo.go_path("static/bidder-info").is_dir(),
+            "static files in the Go root",
+        )?;
+        check(
+            !repo.path("go.mod").exists() && !repo.path("static").exists(),
+            "the workspace holds no upstream Go server files",
+        )
+    }
+
+    /// The tests read the Go root as the goldens' commit left it: a clean checkout of the pin.
+    #[test]
+    fn go_root_is_a_clean_checkout_of_the_pinned_commit() -> Result<()> {
+        let repo = Repo::locate(None)?;
+        repo.verify_go_root(&repo.pinned_commit()?)
+    }
+
+    #[test]
+    fn reads_the_pin() -> Result<()> {
+        let dir = TempDir::new("pbs-devtools-pin")?;
+        let file = dir.path().join(PIN_FILE);
+        let sha = "4e296450de2fcc62741340b2e5f7d1df6c1744a5";
+        fs::write(&file, format!("# comment\n\n{sha}\n"))?;
+        check_eq(pinned_commit(dir.path())?.as_str(), sha, "one pin")?;
+        fs::write(&file, format!("{sha}\n{sha}\n"))?;
+        check(pinned_commit(dir.path()).is_err(), "two pins")?;
+        fs::write(&file, "4e296450\n")?;
+        check(pinned_commit(dir.path()).is_err(), "abbreviated")?;
+        fs::write(&file, sha.to_uppercase())?;
+        check(pinned_commit(dir.path()).is_err(), "upper case")?;
+        dir.remove()
+    }
+
+    #[test]
+    fn quotes_paths_for_go_work() -> Result<()> {
+        check_eq(
+            go_quote(Path::new(r#"/a b/"c"\d"#))?.as_str(),
+            r#""/a b/\"c\"\\d""#,
+            "quoted",
         )
     }
 

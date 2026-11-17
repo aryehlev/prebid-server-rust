@@ -9,9 +9,12 @@
 // It also writes src/unicode/tables.rs, the Unicode tables (case mapping, strconv.IsPrint and
 // letters and digits) that let the crate treat runes exactly as this Go version does.
 //
-// Run it from the repository root:
+// Run it from the directory of this module (crates/gojson/testdata/go):
 //
-//	go run ./rust/crates/gojson/testdata/go
+//	go run .
+//
+// The adapter fixtures are read from the upstream checkout the module builds against (see
+// upstreamDir).
 package main
 
 import (
@@ -784,10 +787,13 @@ func writeFixture(g *golden, root string, fx fixture, marshal bool, prefix strin
 }
 
 func main() {
-	out := flag.String("out", "rust/crates/gojson/testdata/golden", "output directory")
-	root := flag.String("root", ".", "repository root (for adapter fixtures)")
-	tables := flag.String("tables", "rust/crates/gojson/src/unicode/tables.rs", "Rust Unicode tables")
+	out := flag.String("out", "../golden", "output directory")
+	root := flag.String("root", "", "upstream checkout, for adapter fixtures (default: the one this module builds against)")
+	tables := flag.String("tables", "../../src/unicode/tables.rs", "Rust Unicode tables")
 	flag.Parse()
+	if *root == "" {
+		*root = upstreamDir()
+	}
 	if err := os.MkdirAll(*out, 0o755); err != nil {
 		log.Fatal(err)
 	}

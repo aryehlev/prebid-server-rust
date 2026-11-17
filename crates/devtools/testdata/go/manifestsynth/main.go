@@ -1,4 +1,4 @@
-// Command manifestsynth writes rust/crates/devtools/testdata/manifest_synth.json, the golden the
+// Command manifestsynth writes crates/devtools/testdata/manifest_synth.json, the golden the
 // pbs-devtools manifest evaluator is checked against.
 //
 // It generates a Go adapter package whose tests build bidders in the shapes adapters/*/*_test.go
@@ -10,9 +10,12 @@
 // the sources and requires, per case, the exact Go result ("match"), a loud refusal ("loud"), or
 // no run at all ("none").
 //
-// Run from the repository root:
+// Run from the directory of this module (crates/devtools/testdata/go):
 //
-//	go run ./rust/crates/devtools/testdata/go/manifestsynth
+//	go run ./manifestsynth
+//
+// The package is built against the upstream checkout this module builds against (the go.mod
+// replace target, .upstream/ at the repository root, or the replacement a GOWORK file names).
 package main
 
 import (
@@ -35,10 +38,15 @@ const (
 	seed     = 20261117
 	pkgName  = "zzsynth"
 	tmpName  = "zzsynth_tmp"
-	genRel   = "rust/crates/devtools/testdata/go/manifestsynth"
-	outRel   = "rust/crates/devtools/testdata/manifest_synth.json"
 	module   = "github.com/prebid/prebid-server/v4"
 	fakeName = "adapterstest"
+	// genRel is where this program lived inside the upstream module tree when the golden was
+	// first generated. The golden's generator label and the fake package's import path are built
+	// from it, so the package is compiled in a throwaway module whose path keeps that import path
+	// and regenerating the golden stays byte-identical.
+	genRel = "rust/crates/devtools/testdata/go/manifestsynth"
+	// outRel is the golden, relative to this module's directory.
+	outRel = "../manifest_synth.json"
 )
 
 // bidderConsts are the openrtb_ext constants the generated tests use, with their Go values.
@@ -91,13 +99,9 @@ type golden struct {
 }
 
 func main() {
-	root := flag.String("root", ".", "repository root")
-	out := flag.String("out", "", "golden to write (default "+outRel+" under -root)")
+	out := flag.String("out", filepath.FromSlash(outRel), "golden to write")
 	n := flag.Int("n", 240, "number of generated match cases")
 	flag.Parse()
-	if *out == "" {
-		*out = filepath.Join(*root, filepath.FromSlash(outRel))
-	}
 
 	g := newGen(rand.New(rand.NewSource(seed)))
 	for i := 0; i < *n; i++ {
@@ -106,7 +110,7 @@ func main() {
 	g.loudCases()
 
 	files := g.files()
-	obs := run(*root, files)
+	obs := run(files)
 	consts := map[string]string{}
 	for k, v := range bidderConsts {
 		consts[k] = string(v)
@@ -141,19 +145,34 @@ func fatalf(format string, args ...any) {
 	os.Exit(1)
 }
 
-// run writes the package under the generator's directory, runs its tests and returns what the
-// fake RunJSONBidderTest recorded, sorted by test name (stable within a test).
-func run(root string, files []sourceFile) []observation {
-	root, err := filepath.Abs(root)
-	if err != nil {
-		fatalf("resolving -root: %v", err)
+// run writes the package into a throwaway module (see genRel), runs its tests and returns what
+// the fake RunJSONBidderTest recorded, sorted by test name (stable within a test).
+func run(files []sourceFile) []observation {
+	upstream := goOutput("", "list", "-m", "-f", "{{.Dir}}", module)
+	if upstream == "" {
+		fatalf("go list -m %s gave no directory; is the module replaced by a checkout?", module)
 	}
-	dir := filepath.Join(root, filepath.FromSlash(genRel), tmpName)
-	if err := os.RemoveAll(dir); err != nil {
-		fatalf("removing %s: %v", dir, err)
+	goVersion := goOutput("", "list", "-m", "-f", "{{.GoVersion}}")
+	version := goOutput("", "list", "-m", "-f", "{{.Version}}", module)
+	sum, err := os.ReadFile(filepath.Join(upstream, "go.sum"))
+	if err != nil {
+		fatalf("reading the upstream go.sum: %v", err)
+	}
+
+	dir, err := os.MkdirTemp("", "manifestsynth-")
+	if err != nil {
+		fatalf("creating a temporary module: %v", err)
 	}
 	defer os.RemoveAll(dir)
-	for _, f := range append(files, sourceFile{Name: fakeName + "/" + fakeName + ".go", Src: fakeSrc}) {
+	goMod := "module " + module + "/" + genRel + "/" + tmpName + "\n\ngo " + goVersion + "\n\n" +
+		"require " + module + " " + version + "\n\nreplace " + module + " => " + upstream + "\n"
+	sources := make([]sourceFile, 0, len(files)+3)
+	sources = append(sources, files...)
+	sources = append(sources,
+		sourceFile{Name: fakeName + "/" + fakeName + ".go", Src: fakeSrc},
+		sourceFile{Name: "go.mod", Src: goMod},
+		sourceFile{Name: "go.sum", Src: string(sum)})
+	for _, f := range sources {
 		p := filepath.Join(dir, filepath.FromSlash(f.Name))
 		if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
 			fatalf("creating %s: %v", filepath.Dir(p), err)
@@ -162,10 +181,13 @@ func run(root string, files []sourceFile) []observation {
 			fatalf("writing %s: %v", p, err)
 		}
 	}
+	// The module requires only upstream; tidy adds the requirements its packages need, at the
+	// versions upstream selects, and drops the go.sum lines they do not.
+	goOutput(dir, "mod", "tidy")
 	rec := filepath.Join(dir, "observations.jsonl")
-	cmd := exec.Command("go", "test", "-vet=off", "-count=1", "./"+genRel+"/"+tmpName)
-	cmd.Dir = root
-	cmd.Env = append(os.Environ(), "ZZSYNTH_OUT="+rec)
+	cmd := exec.Command("go", "test", "-vet=off", "-count=1", ".")
+	cmd.Dir = dir
+	cmd.Env = append(os.Environ(), "GOWORK=off", "ZZSYNTH_OUT="+rec)
 	if output, err := cmd.CombinedOutput(); err != nil {
 		fatalf("go test failed: %v\n%s", err, output)
 	}
@@ -185,6 +207,22 @@ func run(root string, files []sourceFile) []observation {
 	}
 	sort.SliceStable(obs, func(i, j int) bool { return obs[i].Test < obs[j].Test })
 	return obs
+}
+
+// goOutput runs the go command in dir (this module's directory when dir is empty; outside it, with
+// GOWORK=off) and returns its trimmed standard output.
+func goOutput(dir string, args ...string) string {
+	cmd := exec.Command("go", args...)
+	if dir != "" {
+		cmd.Dir = dir
+		cmd.Env = append(os.Environ(), "GOWORK=off")
+	}
+	cmd.Stderr = os.Stderr
+	out, err := cmd.Output()
+	if err != nil {
+		fatalf("go %s: %v", strings.Join(args, " "), err)
+	}
+	return strings.TrimSpace(string(out))
 }
 
 // fakeSrc is the adapterstest stand-in: it records the call instead of running fixtures.

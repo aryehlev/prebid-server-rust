@@ -1,5 +1,5 @@
 //! `pbs-devtools adapter-manifest`: the Go adapter fixture manifest,
-//! `rust/testdata/go_fixture_manifest.json`.
+//! `testdata/go_fixture_manifest.json`.
 //!
 //! For every `adapterstest.RunJSONBidderTest(t, dir, bidder)` call in `adapters/*/*_test.go`, the
 //! generator finds how `bidder` was built — a `Builder(name, config.Adapter{...},
@@ -30,8 +30,8 @@ use crate::{
     repo::Repo,
 };
 
-/// Repository-relative path of the manifest.
-pub const MANIFEST_PATH: &str = "rust/testdata/go_fixture_manifest.json";
+/// Workspace-relative path of the manifest.
+pub const MANIFEST_PATH: &str = "testdata/go_fixture_manifest.json";
 
 /// The generated manifest.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -178,7 +178,7 @@ pub fn generate(repo: &Repo, go_commit: &str) -> Result<Manifest> {
     let mut errors = Vec::new();
     let mut runs = Vec::new();
 
-    let adapters = repo.path("adapters");
+    let adapters = repo.go_path("adapters");
     let mut dirs: Vec<String> = Vec::new();
     for entry in fs::read_dir(&adapters).map_err(|e| ToolError::io(&adapters, &e))? {
         let entry = entry.map_err(|e| ToolError::io(&adapters, &e))?;
@@ -203,7 +203,7 @@ pub fn generate(repo: &Repo, go_commit: &str) -> Result<Manifest> {
         .map(|k| ((*k).to_owned(), 0))
         .collect();
     for run in &mut runs {
-        let root = repo.path(&run.fixture_root);
+        let root = repo.go_path(&run.fixture_root);
         if !root.is_dir() {
             errors.push(format!(
                 "{}/{}: fixture root {} does not exist",
@@ -228,7 +228,7 @@ pub fn generate(repo: &Repo, go_commit: &str) -> Result<Manifest> {
     let mut never_run = Vec::new();
     for path in fixtures::all_json(&adapters)? {
         if !executed.contains(&path) {
-            let rel = path.strip_prefix(repo.root()).unwrap_or(&path);
+            let rel = path.strip_prefix(repo.go_root()).unwrap_or(&path);
             never_run.push(rel.to_string_lossy().replace('\\', "/"));
         }
     }
@@ -347,7 +347,7 @@ fn apply_hooks(
 }
 
 fn file_sha256(repo: &Repo, rel: &str) -> Result<String> {
-    let path = repo.path(rel);
+    let path = repo.go_path(rel);
     let bytes = fs::read(&path).map_err(|e| ToolError::io(&path, &e))?;
     let mut hex = String::with_capacity(64);
     for b in Sha256::digest(&bytes) {
@@ -382,7 +382,7 @@ pub fn bidder_constants(repo: &Repo) -> Result<BTreeMap<String, String>> {
 }
 
 fn read_go_files(repo: &Repo, rel_dir: &str, include_tests: bool) -> Result<Vec<File>> {
-    let dir = repo.path(rel_dir);
+    let dir = repo.go_path(rel_dir);
     let mut names = Vec::new();
     for entry in fs::read_dir(&dir).map_err(|e| ToolError::io(&dir, &e))? {
         let entry = entry.map_err(|e| ToolError::io(&dir, &e))?;

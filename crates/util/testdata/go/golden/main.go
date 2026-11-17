@@ -5,9 +5,10 @@
 // FNV-1a 64 checksum over their newline-terminated outputs, computed over inputs drawn from
 // the splitmix64 generator that the Rust tests reimplement.
 //
-// Run from the repository root with the toolchain the Dockerfile builds with:
+// Run from the directory of this module (crates/util/testdata/go) with the toolchain the
+// Dockerfile builds with:
 //
-//	go run ./rust/crates/util/testdata/go/golden rust/crates/util/testdata/golden
+//	go run ./golden ../golden
 package main
 
 import (

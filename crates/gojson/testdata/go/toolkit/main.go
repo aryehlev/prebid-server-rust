@@ -11,16 +11,17 @@
 // one tab-separated case per line. A Go panic is recorded as the single result field
 // "PANIC: <value>".
 //
-// Run it from the repository root:
+// Run it from the directory of this module (crates/gojson/testdata/go):
 //
-//	go run ./rust/crates/gojson/testdata/go/toolkit
+//	go run ./toolkit
+//
+// util/jsonutil's test table is read from the upstream checkout the module builds against.
 package main
 
 import (
 	"bufio"
 	"bytes"
 	"encoding/json"
-	"errors"
 	"flag"
 	"fmt"
 	"go/ast"
@@ -973,10 +974,7 @@ func (g *gen) randomNames(n *node) []string {
 func writeElement(dir string, r *rand.Rand) {
 	g := create(dir, "element.txt", "jsonutil.FindElement: FIND ext names found start end err\njsonutil.DropElement: DROP ext names out isNil err\n(names are encoded as jsonparser paths)")
 	defer g.close()
-	repo, err := os.Getwd()
-	if err != nil {
-		log.Fatal(err)
-	}
+	repo := moduleDir("github.com/prebid/prebid-server/v4")
 	cases := tableCases(filepath.Join(repo, "util", "jsonutil", "jsonutil_test.go"), "input", "elementToRemove", "")
 	fmt.Printf("TestDropElement cases: %d\n", len(cases))
 	for _, c := range cases {
@@ -1085,11 +1083,8 @@ func writeMergeClone(dir string, r *rand.Rand) {
 }
 
 func main() {
-	out := flag.String("out", filepath.Join("rust", "crates", "gojson", "testdata", "go", "toolkit"), "output directory")
+	out := flag.String("out", "toolkit", "output directory")
 	flag.Parse()
-	if _, err := os.Stat(filepath.Join("util", "jsonutil")); errors.Is(err, os.ErrNotExist) {
-		log.Fatal("run from the repository root")
-	}
 	writeMergePatch(*out, rand.New(rand.NewSource(1)))
 	writeJSONParser(*out, rand.New(rand.NewSource(2)))
 	writeStream(*out, rand.New(rand.NewSource(3)))

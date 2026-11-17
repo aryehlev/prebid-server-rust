@@ -1,5 +1,5 @@
 // Command bidderinfos dumps static/bidder-info as the Go server loads it at startup to
-// rust/testdata/go_bidder_infos.json.
+// testdata/go_bidder_infos.json.
 //
 // It follows main.go: config.LoadBidderInfoFromDisk on the absolute bidder-info path, then
 // config.SetupViper and config.New, which merges the (empty) adapters.* host config into the infos
@@ -23,8 +23,9 @@ import (
 	"github.com/prebid/prebid-server/v4/config"
 	"github.com/prebid/prebid-server/v4/errortypes"
 	"github.com/prebid/prebid-server/v4/openrtb_ext"
-	"github.com/prebid/prebid-server/v4/rust/crates/devtools/go/internal/dump"
 	"github.com/prebid/prebid-server/v4/util/jsonutil"
+
+	"github.com/aryehlev/prebid-server-rust/crates/devtools/go/internal/dump"
 )
 
 func init() {

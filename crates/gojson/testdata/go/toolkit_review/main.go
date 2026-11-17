@@ -12,16 +12,15 @@
 // existing message. Fields are written with strconv.QuoteToASCII, one tab-separated case per
 // line; a Go panic is recorded as the single result field "PANIC: <value>".
 //
-// Run it from the repository root:
+// Run it from the directory of this module (crates/gojson/testdata/go):
 //
-//	go run ./rust/crates/gojson/testdata/go/toolkit_review
+//	go run ./toolkit_review
 package main
 
 import (
 	"bufio"
 	"bytes"
 	"encoding/json"
-	"errors"
 	"flag"
 	"fmt"
 	"log"
@@ -1010,11 +1009,8 @@ func writeMergeClone(dir string, r *rand.Rand) {
 }
 
 func main() {
-	out := flag.String("out", filepath.Join("rust", "crates", "gojson", "testdata", "go", "toolkit_review"), "output directory")
+	out := flag.String("out", "toolkit_review", "output directory")
 	flag.Parse()
-	if _, err := os.Stat(filepath.Join("util", "jsonutil")); errors.Is(err, os.ErrNotExist) {
-		log.Fatal("run from the repository root")
-	}
 	writeMergePatch(*out, rand.New(rand.NewSource(11)))
 	writeJSONParser(*out, rand.New(rand.NewSource(12)))
 	writeStream(*out, rand.New(rand.NewSource(13)))

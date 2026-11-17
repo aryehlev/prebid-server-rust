@@ -93,6 +93,7 @@ checksum = "cf8baf1c55e62ffcace7a9f06f4bd9cd3f0c4beb022d3b367256b91b87513d98"
 name = "pbs-bidder-params"
 version = "0.1.0"
 dependencies = [
+ "pbs-devtools",
  "regex",
 ]
 
@@ -202,6 +203,7 @@ version = "0.1.0"
 name = "pbs-openrtb"
 version = "0.1.0"
 dependencies = [
+ "pbs-devtools",
  "pbs-gocompat",
  "pbs-gojson",
  "serde_json",
@@ -226,6 +228,7 @@ dependencies = [
 name = "pbs-util"
 version = "0.1.0"
 dependencies = [
+ "pbs-devtools",
  "pbs-gocompat",
  "serde_json",
  "tokio",

@@ -21,9 +21,20 @@ mod tests {
         },
         new_bidder_params_validator,
     };
+    use pbs_devtools::repo::go_root;
 
     const GOLDEN_DIR: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/testdata/golden");
-    const SCHEMA_DIR: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../../static/bidder-params");
+
+    /// `static/bidder-params` of the Go root, the upstream checkout the goldens were made from.
+    fn schema_dir() -> Result<String, String> {
+        let dir = go_root()
+            .map_err(|e| e.to_string())?
+            .join("static")
+            .join("bidder-params");
+        dir.to_str()
+            .map(str::to_owned)
+            .ok_or_else(|| format!("{} is not UTF-8", dir.display()))
+    }
 
     /// A decoded golden object (or one of its nested objects).
     struct Record<'d> {
@@ -275,7 +286,7 @@ mod tests {
                 }
             }
         }
-        let validator = new_bidder_params_validator(SCHEMA_DIR, &bidders, &aliases)
+        let validator = new_bidder_params_validator(&schema_dir()?, &bidders, &aliases)
             .map_err(|e| e.to_string())?;
         Ok((validator, files))
     }
@@ -283,10 +294,11 @@ mod tests {
     /// The bidder's schema, for comparing errors as a multiset.
     fn schema_of<'c>(
         cache: &'c mut BTreeMap<String, Schema>,
+        dir: &str,
         file: &str,
     ) -> Result<&'c Schema, String> {
         if !cache.contains_key(file) {
-            let bytes = fs::read(format!("{SCHEMA_DIR}/{file}")).map_err(|e| e.to_string())?;
+            let bytes = fs::read(format!("{dir}/{file}")).map_err(|e| e.to_string())?;
             let _previous = cache.insert(file.to_owned(), Schema::new(&bytes)?);
         }
         cache.get(file).ok_or_else(|| "schema cache".to_owned())
@@ -295,6 +307,7 @@ mod tests {
     #[test]
     fn bidder_params_match_go() -> Result<(), String> {
         let (validator, files) = load_validator()?;
+        let dir = schema_dir()?;
         let mut cache = BTreeMap::new();
         let mut failures = Vec::new();
         let mut cases = 0usize;
@@ -316,7 +329,7 @@ mod tests {
                 ("invalid", Err(ParamsError::Invalid(_))) if outputs.len() > 1 => {
                     // Go reported these errors in several orders: compare them as a multiset.
                     let file = files.get(bidder).cloned().unwrap_or_default();
-                    let result = schema_of(&mut cache, &file)?
+                    let result = schema_of(&mut cache, &dir, &file)?
                         .validate(&ext)
                         .map_err(|e| e.to_string())?;
                     sorted_strings(result.errors()) == record.strings("errors")

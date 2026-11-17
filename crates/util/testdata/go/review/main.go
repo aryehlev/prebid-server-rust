@@ -8,9 +8,9 @@
 // HTTP server stores in Request.RemoteAddr. Every output line is a tab-separated list of
 // strconv.Quote'd fields, the format the other pbs-util goldens use.
 //
-// Run from the repository root:
+// Run from the directory of this module (crates/util/testdata/go):
 //
-//	go run ./rust/crates/util/testdata/go/review rust/crates/util/testdata/golden
+//	go run ./review ../golden
 package main
 
 import (

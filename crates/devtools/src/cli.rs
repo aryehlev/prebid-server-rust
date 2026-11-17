@@ -14,21 +14,26 @@ use crate::{
 };
 
 const USAGE: &str = "\
-usage: pbs-devtools <command> [--check] [--root DIR] [--go-commit SHA]
+usage: pbs-devtools <command> [--check] [--go-root DIR] [--go-commit SHA]
 
 commands:
-  adapter-manifest   regenerate rust/testdata/go_fixture_manifest.json from adapters/*/*_test.go
+  adapter-manifest   regenerate testdata/go_fixture_manifest.json from the Go root's
+                     adapters/*/*_test.go
   go-dump <what>     run a Go dump program; <what> is struct-meta, config-defaults,
                      bidder-infos, bidder-names or all
-  typegen            regenerate the Rust types of the Go packages in rust/crates/*/typegen.json
+  typegen            regenerate the Rust types of the Go packages in crates/*/typegen.json
   all                adapter-manifest, go-dump all and typegen
   help               print this text
 
+Goldens and generated files are written into this workspace. They are generated from the Go
+root, a checkout of the upstream Go server at the commit UPSTREAM_SYNC pins, which
+scripts/fetch-upstream.sh makes.
+
 options:
   --check            do not write; fail if a committed file differs from a fresh generation
-  --root DIR         repository root (default: $PBS_GO_ROOT, else found from the current directory)
-  --go-commit SHA    commit recorded as go_commit (default: $PBS_GO_COMMIT, else the last commit
-                     touching *.go, go.mod, go.sum, static/ or adapters/ outside rust/)
+  --go-root DIR      the Go root (default: $PBS_GO_ROOT, else .upstream in the workspace)
+  --go-commit SHA    commit recorded as go_commit (default: $PBS_GO_COMMIT, else the commit
+                     UPSTREAM_SYNC pins); the Go root must be a clean checkout of it
 ";
 
 #[derive(Debug, PartialEq, Eq)]
@@ -44,7 +49,7 @@ enum Command {
 struct Options {
     command: Command,
     mode: Mode,
-    root: Option<PathBuf>,
+    go_root: Option<PathBuf>,
     go_commit: Option<String>,
 }
 
@@ -52,7 +57,7 @@ fn parse(args: &[String]) -> Result<Options> {
     let mut opts = Options {
         command: Command::Help,
         mode: Mode::Write,
-        root: None,
+        go_root: None,
         go_commit: None,
     };
     let mut positional = Vec::new();
@@ -60,10 +65,10 @@ fn parse(args: &[String]) -> Result<Options> {
     while let Some(arg) = it.next() {
         match arg.as_str() {
             "--check" => opts.mode = Mode::Check,
-            "--root" => {
-                opts.root = Some(
+            "--go-root" => {
+                opts.go_root = Some(
                     it.next()
-                        .ok_or_else(|| ToolError::new("--root needs a directory"))?
+                        .ok_or_else(|| ToolError::new("--go-root needs a directory"))?
                         .into(),
                 );
             }
@@ -119,7 +124,7 @@ pub fn run(args: &[String]) -> Result<()> {
         out.write_all(USAGE.as_bytes())?;
         return Ok(());
     }
-    let repo = Repo::locate(opts.root.as_deref())?;
+    let repo = Repo::locate(opts.go_root.as_deref())?;
     let go_commit = repo.go_commit(opts.go_commit.as_deref())?;
     let (manifest, dumps, types) = match opts.command {
         Command::Manifest => (true, Vec::new(), false),
@@ -191,10 +196,11 @@ mod tests {
     #[test]
     fn parses_commands() -> Result<()> {
         check_eq(&parse(&args(""))?.command, &Command::Help, "no args")?;
-        let o = parse(&args("adapter-manifest --check --root /x"))?;
+        let o = parse(&args("adapter-manifest --check --go-root /x"))?;
         check_eq(&o.command, &Command::Manifest, "manifest")?;
         check_eq(&o.mode, &Mode::Check, "check")?;
-        check_eq(&o.root.as_deref(), &Some(Path::new("/x")), "root")?;
+        check_eq(&o.go_root.as_deref(), &Some(Path::new("/x")), "go root")?;
+        check(parse(&args("all --root /x")).is_err(), "--root is gone")?;
         check_eq(
             &parse(&args("typegen --check"))?.command,
             &Command::Typegen,

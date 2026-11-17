@@ -6,6 +6,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
+use pbs_devtools::repo;
 use pbs_gocompat::strconv::unquote_bytes;
 
 /// A test result whose error is the failure message.
@@ -29,9 +30,15 @@ pub(super) fn crate_dir() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
 }
 
-/// The repository root: the Go module whose corpora the goldens were made from.
-pub(super) fn repo_root() -> PathBuf {
-    crate_dir().join("../../..")
+/// The Go root: the upstream checkout whose corpora the goldens were made from
+/// (`$PBS_GO_ROOT`, else `.upstream` at the workspace root; `scripts/fetch-upstream.sh` makes it).
+pub(super) fn go_root() -> TestResult<PathBuf> {
+    repo::go_root().map_err(|e| e.to_string())
+}
+
+/// The workspace root, which holds the cross-crate goldens in `testdata/`.
+pub(super) fn workspace_root() -> TestResult<PathBuf> {
+    repo::workspace_root().map_err(|e| e.to_string())
 }
 
 /// The file's bytes.

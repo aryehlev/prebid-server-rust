@@ -1,4 +1,4 @@
-// Command structmeta dumps Go type metadata to rust/testdata/go_struct_meta.json.
+// Command structmeta dumps Go type metadata to testdata/go_struct_meta.json.
 //
 // For every named type in the target packages it records, through reflect, the Go "pkg.Type" name
 // (reflect.Type.String(), the spelling jsoniter and encoding/json use in error messages), the kind,
@@ -7,15 +7,17 @@
 // get their underlying type, and every exported typed constant (the adcom1 enums, BidderName, ...)
 // gets its value.
 //
-// Go cannot list a package's types at run time, so the tool runs in two steps:
+// Go cannot list a package's types at run time, so the tool runs in two steps, from the directory
+// of this module (crates/devtools/go):
 //
-//	go run ./rust/crates/devtools/go/structmeta -plan DIR      # writes DIR/overlay.json
-//	go run -overlay DIR/overlay.json ./rust/crates/devtools/go/structmeta -out FILE -go-commit SHA
+//	go run ./structmeta -plan DIR      # writes DIR/overlay.json
+//	go run -overlay DIR/overlay.json ./structmeta -out FILE -go-commit SHA
 //
 // The plan step parses each target package and writes one overlay file per package (and one for
 // this command) that registers its declarations with package reg; the overlay compiles those files
 // into the real packages, so even unexported adapter types are reflected. `pbs-devtools go-dump
-// struct-meta` runs both steps.
+// struct-meta` runs both steps, with a go.work.sum that holds the upstream go.sum, because the
+// adapter packages bring dependencies this module's own go.sum does not list.
 package main
 
 import (
@@ -36,13 +38,13 @@ import (
 	"strings"
 	"unicode"
 
-	"github.com/prebid/prebid-server/v4/rust/crates/devtools/go/internal/dump"
-	"github.com/prebid/prebid-server/v4/rust/crates/devtools/go/structmeta/reg"
+	"github.com/aryehlev/prebid-server-rust/crates/devtools/go/internal/dump"
+	"github.com/aryehlev/prebid-server-rust/crates/devtools/go/structmeta/reg"
 )
 
 const (
-	modulePath  = "github.com/prebid/prebid-server/v4"
-	selfPath    = modulePath + "/rust/crates/devtools/go/structmeta"
+	modulePath  = dump.UpstreamModule
+	selfPath    = "github.com/aryehlev/prebid-server-rust/crates/devtools/go/structmeta"
 	regPath     = selfPath + "/reg"
 	overlayName = "zz_pbs_devtools_structmeta.go"
 )
@@ -57,8 +59,8 @@ var externalPackages = []string{
 	"github.com/prebid/openrtb/v20/openrtb3",
 }
 
-// modulePackages are directories of this module (relative to the root). "adapters/..." expands to
-// the adapters package and every package below it.
+// modulePackages are directories of the upstream module (relative to its root). "adapters/..."
+// expands to the adapters package and every package below it.
 var modulePackages = []string{
 	"adapters/...",
 	"config",
@@ -71,9 +73,9 @@ var expectedPackages []string
 func main() {
 	if hasFlag("-plan") {
 		plan := flag.String("plan", "", "write overlay files and DIR/overlay.json, then exit")
-		root := flag.String("plan-root", ".", "repository root for -plan")
+		root := flag.String("plan-root", "", "upstream checkout for -plan (default: the one this program builds against)")
 		flag.Parse()
-		runPlan(*plan, *root)
+		runPlan(*plan, dump.UpstreamDir(*root))
 		return
 	}
 	opts := dump.ParseFlags()
@@ -111,15 +113,13 @@ type pkgDecls struct {
 	consts []constDecl
 }
 
-func runPlan(outDir, rootFlag string) {
+// runPlan writes the overlay. root is the upstream module's directory as the go command reports
+// it, so the overlay's keys name the files the go command will look for.
+func runPlan(outDir, root string) {
 	if outDir == "" {
 		dump.Fatalf("-plan needs a directory")
 	}
-	root, err := filepath.Abs(rootFlag)
-	if err != nil {
-		dump.Fatalf("resolving -plan-root: %v", err)
-	}
-	outDir, err = filepath.Abs(outDir)
+	outDir, err := filepath.Abs(outDir)
 	if err != nil {
 		dump.Fatalf("resolving -plan: %v", err)
 	}
@@ -132,7 +132,7 @@ func runPlan(outDir, rootFlag string) {
 		local = append(local, parsePackage(modulePath+"/"+rel, filepath.Join(root, rel)))
 	}
 	var external []pkgDecls
-	dirs := goListDirs(root, externalPackages)
+	dirs := goListDirs(append([]string{selfPath}, externalPackages...))
 	for _, path := range externalPackages {
 		external = append(external, parsePackage(path, dirs[path]))
 	}
@@ -147,10 +147,9 @@ func runPlan(outDir, rootFlag string) {
 		writeGo(src, localOverlay(p))
 		replace[target] = src
 	}
-	selfDir := filepath.Join(root, "rust", "crates", "devtools", "go", "structmeta")
 	src := filepath.Join(outDir, "self.go")
 	writeGo(src, selfOverlay(local, external))
-	replace[filepath.Join(selfDir, overlayName)] = src
+	replace[filepath.Join(dirs[selfPath], overlayName)] = src
 
 	overlay, err := dump.Marshal(map[string]interface{}{"Replace": replace})
 	if err != nil {
@@ -202,10 +201,11 @@ func expandModulePackages(root string) []string {
 	return out
 }
 
-func goListDirs(root string, paths []string) map[string]string {
+// goListDirs locates packages in this program's own build (the current directory's module, or the
+// workspace GOWORK names), so that they are the packages the overlay is compiled against.
+func goListDirs(paths []string) map[string]string {
 	args := append([]string{"list", "-f", "{{.ImportPath}}\t{{.Dir}}"}, paths...)
 	cmd := exec.Command("go", args...)
-	cmd.Dir = root
 	cmd.Stderr = os.Stderr
 	out, err := cmd.Output()
 	if err != nil {

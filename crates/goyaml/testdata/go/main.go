@@ -21,10 +21,12 @@
 //     config.AccountModules inputs, under the strict, weak and viper configurations, and
 //     Prebid's (viper with config.AccountModulesHookFunc as the only hook).
 //
-// Run it from the repository root, as amd64 code (Go's float-to-integer conversions differ
-// between architectures, and the crate reproduces amd64):
+// Run it from the directory of this module (crates/goyaml/testdata/go), as amd64 code (Go's
+// float-to-integer conversions differ between architectures, and the crate reproduces amd64):
 //
-//	GOARCH=amd64 go run ./rust/crates/goyaml/testdata/go
+//	GOARCH=amd64 go run .
+//
+// The repository it reads is the upstream checkout the module builds against (see upstreamDir).
 package main
 
 import (
@@ -58,9 +60,12 @@ func init() {
 }
 
 func main() {
-	out := flag.String("out", "rust/crates/goyaml/testdata/golden", "golden directory")
-	repo := flag.String("repo", ".", "repository root")
+	out := flag.String("out", "../golden", "golden directory")
+	repo := flag.String("repo", "", "upstream checkout (default: the one this module builds against)")
 	flag.Parse()
+	if *repo == "" {
+		*repo = upstreamDir()
+	}
 	if err := os.MkdirAll(*out, 0o755); err != nil {
 		log.Fatal(err)
 	}
@@ -360,7 +365,7 @@ func msDecode(target, configName string, prefill *interface{}, input interface{}
 
 // yamlFiles lists the repository's YAML files, slash-separated and sorted.
 func yamlFiles(repo string) []string {
-	skip := map[string]bool{".git": true, ".claude": true, "rust": true, "node_modules": true, "vendor": true}
+	skip := map[string]bool{".git": true, "node_modules": true, "vendor": true}
 	var paths []string
 	err := filepath.WalkDir(repo, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {

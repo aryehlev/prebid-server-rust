@@ -12,7 +12,7 @@ import (
 	"github.com/spf13/viper"
 )
 
-// configDefaults is the part of rust/testdata/go_config_defaults.json that describes what
+// configDefaults is the part of testdata/go_config_defaults.json that describes what
 // config.SetupViper registers.
 type configDefaults struct {
 	ConfigFileName string `json:"config_file_name"`

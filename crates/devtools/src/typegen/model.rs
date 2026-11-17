@@ -1,4 +1,4 @@
-//! The package description that `rust/crates/devtools/go/typegen` writes (go/types facts about
+//! The package description that `crates/devtools/go/typegen` writes (go/types facts about
 //! each Go package, in source order).
 
 use serde::Deserialize;

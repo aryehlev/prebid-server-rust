@@ -19,13 +19,14 @@
 //   - scenarios.jsonl: hand-written scenarios (ports of viper's own tests and of Prebid's
 //     main_test.go) and seeded random ones, one per line.
 //   - prebid.jsonl: config.SetupViper, written as the operations it performs (rebuilt from
-//     rust/testdata/go_config_defaults.json; the generator checks that they give SetupViper's own
+//     testdata/go_config_defaults.json; the generator checks that they give SetupViper's own
 //     keys and values), with a pbs.yaml and PBS_* variables.
 //
-// Run it from the repository root, as amd64 code (Go's float-to-integer conversions, which cast
-// uses, differ between architectures, and the crate reproduces amd64):
+// Run it from the directory of this module (crates/goviper/testdata/go), as amd64 code (Go's
+// float-to-integer conversions, which cast uses, differ between architectures, and the crate
+// reproduces amd64):
 //
-//	GOARCH=amd64 go run ./rust/crates/goviper/testdata/go
+//	GOARCH=amd64 go run .
 package main
 
 import (
@@ -56,8 +57,8 @@ func init() {
 const runs = 24
 
 func main() {
-	out := flag.String("out", "rust/crates/goviper/testdata/golden", "golden directory")
-	defaults := flag.String("defaults", "rust/testdata/go_config_defaults.json", "config.SetupViper's keys")
+	out := flag.String("out", "../golden", "golden directory")
+	defaults := flag.String("defaults", "../../../../testdata/go_config_defaults.json", "config.SetupViper's keys")
 	flag.Parse()
 	if err := os.MkdirAll(*out, 0o755); err != nil {
 		log.Fatal(err)

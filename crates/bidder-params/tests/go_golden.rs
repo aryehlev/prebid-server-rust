@@ -19,9 +19,20 @@ mod tests {
         },
         new_bidder_params_validator,
     };
+    use pbs_devtools::repo::go_root;
 
     const GOLDEN_DIR: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/testdata/golden");
-    const SCHEMA_DIR: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../../static/bidder-params");
+
+    /// `static/bidder-params` of the Go root, the upstream checkout the goldens were made from.
+    fn schema_dir() -> Result<String, String> {
+        let dir = go_root()
+            .map_err(|e| e.to_string())?
+            .join("static")
+            .join("bidder-params");
+        dir.to_str()
+            .map(str::to_owned)
+            .ok_or_else(|| format!("{} is not UTF-8", dir.display()))
+    }
 
     /// One decoded golden record.
     struct Record {
@@ -142,6 +153,8 @@ mod tests {
     struct Fixture {
         validator: StandardBidderParamValidator,
         schemas: BTreeMap<String, String>,
+        /// The schema directory the validator was loaded from.
+        schema_dir: String,
     }
 
     fn load_fixture() -> Result<Fixture, String> {
@@ -166,9 +179,14 @@ mod tests {
                 aliases.len()
             ));
         }
-        let validator = new_bidder_params_validator(SCHEMA_DIR, &bidders, &aliases)
+        let schema_dir = schema_dir()?;
+        let validator = new_bidder_params_validator(&schema_dir, &bidders, &aliases)
             .map_err(|e| e.to_string())?;
-        Ok(Fixture { validator, schemas })
+        Ok(Fixture {
+            validator,
+            schemas,
+            schema_dir,
+        })
     }
 
     #[test]
@@ -178,7 +196,8 @@ mod tests {
             let want = if file.is_empty() {
                 String::new()
             } else {
-                fs::read_to_string(format!("{SCHEMA_DIR}/{file}")).map_err(|e| e.to_string())?
+                fs::read_to_string(format!("{}/{file}", fixture.schema_dir))
+                    .map_err(|e| e.to_string())?
             };
             if fixture.validator.schema(name) != want {
                 return Err(format!(
@@ -220,7 +239,8 @@ mod tests {
         // Go reported these errors in several orders: compare them as a multiset.
         let file = fixture.schemas.get(bidder).cloned().unwrap_or_default();
         if !parsed.contains_key(&file) {
-            let bytes = fs::read(format!("{SCHEMA_DIR}/{file}")).map_err(|e| e.to_string())?;
+            let bytes =
+                fs::read(format!("{}/{file}", fixture.schema_dir)).map_err(|e| e.to_string())?;
             let _previous = parsed.insert(file.clone(), Schema::new(&bytes)?);
         }
         let schema = parsed.get(&file).ok_or("schema cache")?;

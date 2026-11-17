@@ -1,10 +1,11 @@
 // Command unicodegen writes the Unicode tables of pbs-gocompat from the Go unicode package, plus
 // a checksum over every rune that the Rust tests recompute from those tables.
 //
-// Run from the repository root (then format the output with the pinned rustfmt):
+// Run from the directory of this module, crates/gocompat/testdata/go (then format the output
+// with the pinned rustfmt):
 //
-//	go run ./rust/crates/gocompat/testdata/go/unicodegen rust/crates/gocompat
-//	rustfmt +nightly-2026-11-13 --edition 2024 rust/crates/gocompat/src/unicode/tables.rs
+//	go run ./unicodegen ../..
+//	rustfmt +nightly-2026-11-13 --edition 2024 ../../src/unicode/tables.rs
 package main
 
 import (

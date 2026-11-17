@@ -1,9 +1,10 @@
 //! `pbs-devtools typegen`: Rust types for Go packages, generated from what go/types says about
 //! them.
 //!
-//! Every `rust/crates/<crate>/typegen.json` ([`config`]) names Go packages and where their Rust
-//! modules go. Generation runs the Go describer `rust/crates/devtools/go/typegen` once over all
-//! configured packages (it type-checks them from source and records, in source order, every type
+//! Every `crates/<crate>/typegen.json` ([`config`]) names Go packages and where their Rust
+//! modules go. Generation runs the Go describer `crates/devtools/go/typegen` once over all
+//! configured packages, as the Go root's build resolves them (it type-checks them from source
+//! and records, in source order, every type
 //! with its fields, tags and doc comments, every constant with its exact value, and every
 //! function and method; see [`model`]), then writes for each package one Rust file:
 //!
@@ -48,19 +49,19 @@ pub mod model;
 pub mod names;
 pub mod registry;
 
-use std::{collections::BTreeMap, env, ffi::OsString, fs, path::Path, process::Command};
+use std::{collections::BTreeMap, ffi::OsString, fs, path::Path};
 
 use self::{config::Config, model::Description, registry::Registry};
 use crate::{
     error::{Result, ToolError},
-    repo::{self, Mode, Outcome, Repo, TempDir},
+    repo::{self, GO_TOOLS, Mode, Outcome, Repo, TempDir},
 };
 
-/// The Go describer, relative to the repository root.
-pub const DESCRIBER: &str = "./rust/crates/devtools/go/typegen";
+/// The Go describer, relative to the [`GO_TOOLS`] module.
+pub const DESCRIBER: &str = "./typegen";
 
 /// Generates every configured crate's files, writing them or (in check mode) comparing them with
-/// the committed copies. Returns each file's repository-relative path and outcome.
+/// the committed copies. Returns each file's workspace-relative path and outcome.
 ///
 /// # Errors
 ///
@@ -121,7 +122,7 @@ pub fn generate(
     Ok(files)
 }
 
-/// The crate directory, relative to the repository root.
+/// The crate directory, relative to the workspace root.
 fn crate_dir(config: &Config) -> &str {
     config
         .source
@@ -152,38 +153,8 @@ fn describe_into(repo: &Repo, go_paths: &[String], tmp: &Path) -> Result<Descrip
         out.clone().into_os_string(),
     ];
     args.extend(go_paths.iter().map(OsString::from));
-    go(repo, &args)?;
+    repo.go(GO_TOOLS, &args)?;
     let bytes = fs::read(&out).map_err(|e| ToolError::io(&out, &e))?;
     serde_json::from_slice(&bytes)
         .map_err(|e| ToolError::new(format!("parsing the Go description: {e}")))
-}
-
-/// Runs `go` (or `$GO`) in the repository root without `PBS_*` variables.
-fn go(repo: &Repo, args: &[OsString]) -> Result<()> {
-    let go = env::var_os("GO").unwrap_or_else(|| "go".into());
-    let mut cmd = Command::new(&go);
-    let _ = cmd.args(args).current_dir(repo.root());
-    for (key, _) in env::vars_os() {
-        if key.to_string_lossy().starts_with("PBS_") {
-            let _ = cmd.env_remove(key);
-        }
-    }
-    let output = cmd.output().map_err(|e| {
-        ToolError::new(format!(
-            "running {}: {e} (is the Go toolchain installed? set GO to its path)",
-            go.to_string_lossy()
-        ))
-    })?;
-    if output.status.success() {
-        return Ok(());
-    }
-    let stderr = String::from_utf8_lossy(&output.stderr);
-    Err(ToolError::new(format!(
-        "go {} failed ({}):\n{stderr}",
-        args.iter()
-            .map(|a| a.to_string_lossy().into_owned())
-            .collect::<Vec<_>>()
-            .join(" "),
-        output.status
-    )))
 }
