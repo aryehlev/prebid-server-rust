@@ -4,9 +4,14 @@
 // main.go, router/router.go, router/admin.go and server/server.go configure them (handlers.go).
 // It also writes testdata/golden/shutdown.golden: what connections in every state see when
 // Server.Shutdown runs, and what Serve and Shutdown return (drain.go).
-// Run it from the repository root with the toolchain of the production Dockerfile:
+// Run it from the directory of this module (crates/gohttp-server/testdata/go) with the toolchain
+// of the production Dockerfile:
 //
-//	GOTOOLCHAIN=go1.26.2 go run ./rust/crates/gohttp-server/testdata/go/wire
+//	GOTOOLCHAIN=go1.26.2 go run ./wire
+//
+// The header lines both goldens start with still name the generator by its path in the former
+// fork layout (rust/crates/...): they are golden content, kept so the goldens regenerate
+// byte for byte.
 //
 // tests/go_wire replays every case against pbs-gohttp-server serving the same handlers and
 // compares the bytes. Date header values and multipart boundaries are normalized; everything else

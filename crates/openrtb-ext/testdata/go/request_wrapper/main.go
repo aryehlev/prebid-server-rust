@@ -4,7 +4,7 @@
 //
 // Every bid request of prebid-server's test corpora (the mockBidRequest and the ORTB bodies of
 // the expected HTTP calls of the adapter fixtures under every fixture root of
-// rust/testdata/go_fixture_manifest.json, the incoming and expected outgoing requests of the
+// testdata/go_fixture_manifest.json, the incoming and expected outgoing requests of the
 // exchange tests, the requests of the endpoint sample requests and of the first-party data tests)
 // that jsonutil.Unmarshal decodes into an openrtb2.BidRequest, and generated mutations
 // (mutations.go), is wrapped in a RequestWrapper and run through scripts of wrapper operations
@@ -37,9 +37,13 @@
 // so its replay can only match that form. Fields are strconv.QuoteToASCII quoted and tab
 // separated.
 //
-// Run it from the repository root (the toolchain the other goldens use):
+// Run it from the directory of this module, crates/openrtb-ext/testdata/go (the toolchain the
+// other goldens use):
 //
-//	GOTOOLCHAIN=go1.26.2 go run ./rust/crates/openrtb-ext/testdata/go/request_wrapper
+//	GOTOOLCHAIN=go1.26.2 go run ./request_wrapper
+//
+// The corpora are read from the upstream checkout the module builds against, by the
+// repository-relative paths the goldens record (see enterUpstream).
 package main
 
 import (
@@ -73,11 +77,14 @@ func init() {
 const inlineMax = 32
 
 func main() {
-	out := flag.String("out", "rust/crates/openrtb-ext/testdata/go/request_wrapper", "directory to write the goldens to")
+	out := flag.String("out", "request_wrapper", "directory to write the goldens to")
+	manifest := flag.String("manifest", "../../../../testdata/go_fixture_manifest.json",
+		"the adapter test manifest that pbs-devtools writes from the adapters' *_test.go files")
 	flag.Parse()
+	enterUpstream(out, manifest)
 
 	c := &corpus{seen: map[string]bool{}}
-	c.adapters()
+	c.adapters(*manifest)
 	c.exchange()
 	c.endpoints()
 	c.firstPartyData()
@@ -185,13 +192,9 @@ func (c *corpus) jsonFiles(root string) []string {
 	return paths
 }
 
-// fixtureManifest is the adapter test manifest that pbs-devtools writes from the adapters'
-// *_test.go files.
-const fixtureManifest = "rust/testdata/go_fixture_manifest.json"
-
 // fixtureRoots are the distinct fixture directories of every adapterstest.RunJSONBidderTest
-// call, sorted.
-func fixtureRoots() []string {
+// call in the adapter test manifest, sorted.
+func fixtureRoots(fixtureManifest string) []string {
 	data, err := os.ReadFile(fixtureManifest)
 	if err != nil {
 		log.Fatal(err)
@@ -218,8 +221,8 @@ func fixtureRoots() []string {
 
 // adapters harvests the JSON files below every adapterstest.RunJSONBidderTest fixture root: the
 // PBS-format request and the bodies of the expected HTTP calls.
-func (c *corpus) adapters() {
-	for _, root := range fixtureRoots() {
+func (c *corpus) adapters(fixtureManifest string) {
+	for _, root := range fixtureRoots(fixtureManifest) {
 		for _, path := range c.jsonFiles(filepath.FromSlash(root)) {
 			var spec struct {
 				MockBidRequest json.RawMessage `json:"mockBidRequest"`

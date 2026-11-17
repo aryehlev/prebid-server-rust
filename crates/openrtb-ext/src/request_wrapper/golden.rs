@@ -6,8 +6,9 @@
 //! observation of every step.
 //!
 //! An observation is a sequence of parts, each its decimal length, `:` and its bytes. Regenerate
-//! the goldens from the repository root with
-//! `GOTOOLCHAIN=go1.26.2 go run ./rust/crates/openrtb-ext/testdata/go/request_wrapper`.
+//! the goldens with `GOTOOLCHAIN=go1.26.2 go run ./request_wrapper` in `testdata/go`; the corpora
+//! are read from the Go root (`$PBS_GO_ROOT`, else `.upstream`, which `scripts/fetch-upstream.sh`
+//! makes).
 //!
 //! One thing is not compared byte for byte: an error text that is not valid UTF-8. jsoniter
 //! quotes the byte it did not expect as it is (`unexpected character: \xff`), and a [`GoError`]
@@ -21,6 +22,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
+use pbs_devtools::repo;
 use pbs_errortypes::GoError;
 use pbs_gocompat::strconv::unquote_bytes;
 use pbs_gojson::{GoEncode, JsoniterDecode, RawJson, jsonutil};
@@ -46,9 +48,15 @@ fn crate_dir() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
 }
 
-/// The repository root: the Go module whose corpora the goldens were made from.
-fn repo_root() -> PathBuf {
-    crate_dir().join("../../..")
+/// The Go root: the upstream checkout whose corpora the goldens were made from
+/// (`$PBS_GO_ROOT`, else `.upstream` at the workspace root; `scripts/fetch-upstream.sh` makes it).
+fn go_root() -> TestResult<PathBuf> {
+    repo::go_root().map_err(|e| e.to_string())
+}
+
+/// The workspace root, which holds the cross-crate goldens in `testdata/`.
+fn workspace_root() -> TestResult<PathBuf> {
+    repo::workspace_root().map_err(|e| e.to_string())
 }
 
 /// The file's bytes.
@@ -77,7 +85,7 @@ fn show(bytes: &[u8]) -> String {
 fn regenerate(what: &str) -> String {
     format!(
         "{what} after the goldens were written; regenerate them with \
-         `GOTOOLCHAIN=go1.26.2 go run ./rust/crates/openrtb-ext/testdata/go/request_wrapper`"
+         `GOTOOLCHAIN=go1.26.2 go run ./request_wrapper` in crates/openrtb-ext/testdata/go"
     )
 }
 
@@ -125,7 +133,7 @@ fn golden(file: &str) -> TestResult<Golden> {
             (Some(b"#go"), _) => {}
             (Some(b"#root"), Some(root)) => golden.roots.push(root),
             (Some(b"#file"), Some(corpus_path)) => {
-                let corpus = read(&repo_root().join(&corpus_path))?;
+                let corpus = read(&go_root()?.join(&corpus_path))?;
                 let recorded = row.get(2).map_or(&[][..], Vec::as_slice);
                 if hash(&corpus).as_bytes() != recorded {
                     return Err(regenerate(&format!("{corpus_path} changed")));
@@ -320,11 +328,11 @@ fn report(file: &str, tally: &Tally, min_rows: usize) -> TestResult {
     Ok(())
 }
 
-/// The JSON files below `dir` (repository-relative, `/`-separated), appended to `out`: as the
+/// The JSON files below `dir` (relative to the Go root, `/`-separated), appended to `out`: as the
 /// generator's `filepath.WalkDir`, files whose name ends in `.json`, not following symbolic
 /// links to directories.
 fn json_files(dir: &str, out: &mut Vec<String>) -> TestResult {
-    let path = repo_root().join(dir);
+    let path = go_root()?.join(dir);
     let entries = fs::read_dir(&path).map_err(|e| format!("reading {}: {e}", path.display()))?;
     for entry in entries {
         let entry = entry.map_err(|e| format!("reading {}: {e}", path.display()))?;
@@ -342,10 +350,10 @@ fn json_files(dir: &str, out: &mut Vec<String>) -> TestResult {
     Ok(())
 }
 
-/// The fixture roots of `rust/testdata/go_fixture_manifest.json` as the generator reads them:
+/// The fixture roots of `testdata/go_fixture_manifest.json` as the generator reads them:
 /// distinct, without missing or empty ones.
 fn fixture_roots() -> TestResult<BTreeSet<String>> {
-    let path = repo_root().join("rust/testdata/go_fixture_manifest.json");
+    let path = workspace_root()?.join("testdata/go_fixture_manifest.json");
     let manifest: Value = serde_json::from_slice(&read(&path)?).map_err(|e| e.to_string())?;
     let runs = manifest
         .get("runs")

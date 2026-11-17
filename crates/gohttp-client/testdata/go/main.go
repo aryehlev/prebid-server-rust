@@ -1,14 +1,15 @@
 // Command httpgolden writes the differential goldens replayed by the pbs-gohttp-client Rust
-// tests (rust/crates/gohttp-client/src/golden_tests.rs).
+// tests (crates/gohttp-client/src/golden_tests.rs).
 //
 // Each case starts raw TCP capture servers that run a fixed script per accepted connection
 // (read a request, write bytes, sleep, close, reset, ...), then drives a net/http Client whose
 // Transport is configured the way Prebid Server's router.go configures its clients. The golden
 // records, per case, the exact bytes every server connection consumed and, per request, the
 // client's result: the response head, the body and its read error, the trailer, the final URL,
-// the error texts and the httptrace events. Run it from the repository root:
+// the error texts and the httptrace events. Run it from the directory of this module
+// (crates/gohttp-client/testdata/go) with Go 1.26.2:
 //
-//	go run ./rust/crates/gohttp-client/testdata/go
+//	GOTOOLCHAIN=go1.26.2 go run .
 //
 // Server addresses are written as {{A}}, {{B}}, ...; other loopback addresses (the client's
 // side of a connection) as {{LOCAL}}; and the current time in certificate errors as {{NOW}}.
@@ -173,8 +174,8 @@ type Golden struct {
 }
 
 func main() {
-	out := flag.String("out", "rust/crates/gohttp-client/testdata/golden/cases.json", "output file")
-	proxyOut := flag.String("proxy-out", "rust/crates/gohttp-client/testdata/golden/proxy.json",
+	out := flag.String("out", "../golden/cases.json", "output file")
+	proxyOut := flag.String("proxy-out", "../golden/proxy.json",
 		"output file of the proxy selection probes")
 	only := flag.String("only", "", "run only the named case (for debugging; nothing is written)")
 	verbose := flag.Bool("v", false, "log each case and its duration")

@@ -46,7 +46,7 @@
 //! The unit tests run in both modes (`cargo test -p pbs-parity` and
 //! `cargo test -p pbs-parity --features trace`). The goldens under `testdata/golden` are written by
 //! the Go program under `testdata/go`, built against the real `parity` packages of the
-//! `parity-harness` branch (`testdata/go/run.sh` builds it in a temporary worktree): fake
+//! `parity-harness` branch (`testdata/go/run.sh` builds it against a temporary worktree): fake
 //! streams, decision records, scripted sessions encoded as traces, envelope and body edge cases,
 //! document round trips through the schema examples, error records and metric deltas, and the
 //! Go schema validator's verdict on every document this crate produces

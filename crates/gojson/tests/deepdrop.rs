@@ -5,8 +5,8 @@
 //! builds, so the decoders drop what they discard with heap memory instead.
 //!
 //! The expected results and error texts are the goldens that `testdata/go/deepdrop` writes
-//! with Go 1.25 and json-iterator 1.1.12. Regenerate them from the repository root with
-//! `go run ./rust/crates/gojson/testdata/go/deepdrop`.
+//! with Go 1.25 and json-iterator 1.1.12. Regenerate them with `go run ./deepdrop` in
+//! `testdata/go`.
 
 #[cfg(test)]
 mod deepdrop {

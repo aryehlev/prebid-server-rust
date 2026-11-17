@@ -18,9 +18,9 @@
 // bytes the target's raw message is set to afterwards, and result is jsonutil.Marshal of the
 // value after MergeClone (also after an error).
 //
-// Run it from the repository root:
+// Run it from the directory of this module (crates/gojson/testdata/go):
 //
-//	go run ./rust/crates/gojson/testdata/go/mergeclone_review
+//	go run ./mergeclone_review
 package main
 
 import (
@@ -466,7 +466,7 @@ func existings(r *gen, n int, zero func() interface{}, overlay func() string) []
 }
 
 func main() {
-	out := flag.String("out", "rust/crates/gojson/testdata/go/mergeclone_review", "output directory")
+	out := flag.String("out", "mergeclone_review", "output directory")
 	flag.Parse()
 	if err := os.MkdirAll(*out, 0o755); err != nil {
 		log.Fatal(err)

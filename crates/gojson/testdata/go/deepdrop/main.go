@@ -10,9 +10,9 @@
 //
 //	api  target  base  input  result  error
 //
-// Run it from the repository root:
+// Run it from the directory of this module (crates/gojson/testdata/go):
 //
-//	go run ./rust/crates/gojson/testdata/go/deepdrop
+//	go run ./deepdrop
 package main
 
 import (
@@ -127,7 +127,7 @@ func (g *golden) row(fields ...string) {
 }
 
 func main() {
-	out := flag.String("out", "rust/crates/gojson/testdata/go/deepdrop", "output directory")
+	out := flag.String("out", "deepdrop", "output directory")
 	flag.Parse()
 	if err := os.MkdirAll(*out, 0o755); err != nil {
 		log.Fatal(err)

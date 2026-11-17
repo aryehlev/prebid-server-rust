@@ -1,7 +1,7 @@
 // Command golden writes the parity goldens that pbs-openrtb-ext's tests replay byte for byte.
 //
 // Every Prebid extension object of prebid-server's test corpora (the adapter fixtures under every
-// fixture root of rust/testdata/go_fixture_manifest.json, exchange tests, endpoint sample
+// fixture root of testdata/go_fixture_manifest.json, exchange tests, endpoint sample
 // requests, first-party data tests) is decoded as the openrtb_ext type prebid-server decodes it
 // into: request.ext and request.ext.prebid, imp.ext, imp.ext.prebid, imp.ext.data and the bidder
 // params of imp.ext.bidder, imp.ext.prebid.bidder.<bidder> and imp.ext.<bidder> (as each
@@ -31,7 +31,7 @@
 //	function label arg... "->" result...
 //
 // constants.tsv holds the name, Go type and value of every exported constant declared without a
-// type (the metadata in rust/testdata/go_struct_meta.json lists the typed ones), checked against
+// type (the metadata in testdata/go_struct_meta.json lists the typed ones), checked against
 // the package's source (constants.go).
 //
 // review.tsv (cases as in corpus.tsv), review_functions.tsv and review_aliases.tsv (calls as in
@@ -42,9 +42,13 @@
 // -review-scale and -review-seed change the random documents of review.tsv; the committed
 // goldens use the defaults.
 //
-// Run it from the repository root (the toolchain the other goldens use):
+// Run it from the directory of this module, crates/openrtb-ext/testdata/go (the toolchain the
+// other goldens use):
 //
-//	GOTOOLCHAIN=go1.26.2 go run ./rust/crates/openrtb-ext/testdata/go
+//	GOTOOLCHAIN=go1.26.2 go run .
+//
+// The corpora are read from the upstream checkout the module builds against, by the
+// repository-relative paths the goldens record (see enterUpstream).
 package main
 
 import (
@@ -98,8 +102,11 @@ var wrapperTypes = map[string]bool{
 }
 
 func main() {
-	out := flag.String("out", "rust/crates/openrtb-ext/testdata/golden", "directory to write the goldens to")
+	out := flag.String("out", "../golden", "directory to write the goldens to")
+	manifest := flag.String("manifest", "../../../../testdata/go_fixture_manifest.json",
+		"the adapter test manifest that pbs-devtools writes from the adapters' *_test.go files")
 	flag.Parse()
+	enterUpstream(out, manifest)
 	decodable := decodableTypes()
 	types := map[string]reflect.Type{}
 	for _, t := range decodable {
@@ -110,7 +117,7 @@ func main() {
 	}
 
 	c := newCorpus(types, bidderParamTypes(types))
-	c.adapters()
+	c.adapters(*manifest)
 	c.exchange()
 	c.endpoints()
 	c.firstPartyData()
@@ -503,13 +510,9 @@ func (c *corpus) jsonFiles(root string) []string {
 	return paths
 }
 
-// fixtureManifest is the adapter test manifest that pbs-devtools writes from the adapters'
-// *_test.go files.
-const fixtureManifest = "rust/testdata/go_fixture_manifest.json"
-
 // fixtureRoots are the distinct fixture directories of every adapterstest.RunJSONBidderTest
-// call, sorted.
-func fixtureRoots() []string {
+// call in the adapter test manifest, sorted.
+func fixtureRoots(fixtureManifest string) []string {
 	data, err := os.ReadFile(fixtureManifest)
 	if err != nil {
 		log.Fatal(err)
@@ -545,8 +548,8 @@ func adapterDir(root string) string {
 
 // adapters harvests the JSON files below every adapterstest.RunJSONBidderTest fixture root: the
 // PBS-format request and the bids the adapter returns.
-func (c *corpus) adapters() {
-	for _, root := range fixtureRoots() {
+func (c *corpus) adapters(fixtureManifest string) {
+	for _, root := range fixtureRoots(fixtureManifest) {
 		bidder := adapterDir(root)
 		for _, path := range c.jsonFiles(filepath.FromSlash(root)) {
 			var spec struct {

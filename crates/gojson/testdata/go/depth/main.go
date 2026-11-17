@@ -11,9 +11,9 @@
 // where result is "=" when the output equals the input document and the output otherwise
 // (re-encoded values, merged documents, booleans and FindElement's indices).
 //
-// Run it from the repository root:
+// Run it from the directory of this module (crates/gojson/testdata/go):
 //
-//	go run ./rust/crates/gojson/testdata/go/depth
+//	go run ./depth
 package main
 
 import (
@@ -98,7 +98,7 @@ func result(input string, out []byte) string {
 }
 
 func main() {
-	out := flag.String("out", "rust/crates/gojson/testdata/go/depth", "output directory")
+	out := flag.String("out", "depth", "output directory")
 	flag.Parse()
 	if err := os.MkdirAll(*out, 0o755); err != nil {
 		log.Fatal(err)

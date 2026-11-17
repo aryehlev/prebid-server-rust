@@ -1,8 +1,8 @@
 // Command pure writes testdata/golden/pure.golden for pbs-gohttp-server: what Go's pure
-// functions return for many generated inputs. Run it from the repository root with the Go
-// toolchain Prebid ships (go1.26.2):
+// functions return for many generated inputs. Run it from the directory of this module
+// (crates/gohttp-server/testdata/go) with the Go toolchain Prebid ships (go1.26.2):
 //
-//	GOTOOLCHAIN=go1.26.2 go run ./rust/crates/gohttp-server/testdata/go/pure
+//	GOTOOLCHAIN=go1.26.2 go run ./pure
 //
 // Each line is "<function> <quoted input> <quoted output>":
 //

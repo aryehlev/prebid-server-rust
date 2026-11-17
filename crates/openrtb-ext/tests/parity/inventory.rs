@@ -1,6 +1,6 @@
 //! Every Go type, struct field, JSON tag, constant and function of `openrtb_ext`, against Go.
 //!
-//! The Go side is the reflect and `go/types` metadata in `rust/testdata/go_struct_meta.json`,
+//! The Go side is the reflect and `go/types` metadata in `testdata/go_struct_meta.json`,
 //! the Go type index that typegen writes (`testdata/go/ported_types_gen.go`), the untyped
 //! constants of `constants.tsv`, and the function ports that `typegen.json` registers.
 
@@ -20,7 +20,7 @@ use super::{
         CONSTANTS, FUNCTIONS, TYPES, for_each_const, for_each_struct, for_each_type,
         for_each_untyped_const,
     },
-    support::{TestResult, crate_dir, ensure_eq, golden_rows, read, repo_root, report},
+    support::{TestResult, crate_dir, ensure_eq, golden_rows, read, report, workspace_root},
 };
 
 /// The Go types of `request_wrapper.go`, which a separate unit ports (they hold unexported
@@ -120,7 +120,7 @@ fn list<'a>(value: &'a Value, key: &str) -> TestResult<&'a [Value]> {
 
 /// The metadata of `openrtb_ext`.
 fn package() -> TestResult<Value> {
-    let path = repo_root().join("rust/testdata/go_struct_meta.json");
+    let path = workspace_root()?.join("testdata/go_struct_meta.json");
     let meta: Value = serde_json::from_slice(&read(&path)?).map_err(|e| e.to_string())?;
     list(&meta, "packages")?
         .iter()

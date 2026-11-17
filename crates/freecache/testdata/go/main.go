@@ -1,9 +1,10 @@
 // Command freecachegolden writes the golden files that the pbs-freecache Rust tests replay.
 //
 // It drives the real github.com/coocood/freecache and github.com/cespare/xxhash/v2 at the
-// versions the repository go.mod pins (v1.2.1 and v2.3.0). Run it from the repository root:
+// versions the upstream go.mod pins (v1.2.1 and v2.3.0), which this module's go.mod requires
+// too. Run it from the directory of this module (crates/freecache/testdata/go):
 //
-//	go run ./rust/crates/freecache/testdata/go
+//	go run .
 //
 // It writes, next to this directory under ../golden:
 //
@@ -27,7 +28,7 @@
 // To debug a mismatch, print one script's per-operation records and compare them with the lines
 // the Rust test reports:
 //
-//	go run ./rust/crates/freecache/testdata/go -trace small_evict -from 12000 -to 13000
+//	go run . -trace small_evict -from 12000 -to 13000
 package main
 
 import (

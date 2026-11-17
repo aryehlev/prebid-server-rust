@@ -13,7 +13,7 @@ To refresh after the contract changes, from the repository root:
 
 ```sh
 for f in $(git ls-tree --name-only parity-harness parity/schema/ parity/schema/examples/ | grep '\.json$'); do
-  git show "parity-harness:$f" > "rust/crates/parity/contract/${f#parity/schema/}"
+  git show "parity-harness:$f" > "crates/parity/contract/${f#parity/schema/}"
 done
 ```
 

@@ -9,11 +9,11 @@
 //!   `json.Marshal` and an `Encoder` without HTML escaping.
 //! * `functions` replays the results of the package's functions and methods over generated inputs.
 //! * `inventory` checks every Go type, field, JSON tag, constant and function port against the Go
-//!   build's metadata (`rust/testdata/go_struct_meta.json`), typegen's Go type index and
-//!   `typegen.json`.
+//!   build's metadata (`testdata/go_struct_meta.json`), typegen's Go type index and `typegen.json`.
 //!
-//! `index` lists the ported types, constants and functions. Regenerate the goldens from the
-//! repository root with `GOTOOLCHAIN=go1.26.2 go run ./rust/crates/openrtb-ext/testdata/go`.
+//! `index` lists the ported types, constants and functions. Regenerate the goldens with
+//! `GOTOOLCHAIN=go1.26.2 go run .` in `crates/openrtb-ext/testdata/go`; the corpora are read from
+//! the Go root (`$PBS_GO_ROOT`, else `.upstream`, which `scripts/fetch-upstream.sh` makes).
 
 #[cfg(test)]
 pub mod functions;

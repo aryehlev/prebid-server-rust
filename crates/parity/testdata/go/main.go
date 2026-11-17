@@ -1,10 +1,13 @@
 // Command rustgolden writes the goldens of the Rust pbs-parity crate
-// (rust/crates/parity/testdata/golden) from the real parity packages of the
+// (crates/parity/testdata/golden) from the real parity packages of the
 // parity-harness branch, and validates the documents the Rust crate produces
-// (rust/crates/parity/testdata/documents) with the Go schema validator.
+// (crates/parity/testdata/documents) with the Go schema validator.
 //
-// run.sh in this directory builds it inside a temporary worktree of the
-// parity-harness branch; it is not part of the Go module of this branch.
+// It is a module of its own, like every Go tooling root of this repository,
+// but the packages it imports from the parity tree (github.com/prebid/prebid-server/v4/parity/...)
+// are not in the upstream server: run.sh in this directory builds it against a
+// temporary worktree of the parity-harness branch, which a go.work file puts in
+// place of the upstream module.
 package main
 
 import (
@@ -38,9 +41,9 @@ import (
 )
 
 func main() {
-	contractDir := flag.String("contract", "", "the vendored contract directory (rust/crates/parity/contract)")
-	documentsDir := flag.String("documents", "", "the documents the Rust crate produced (rust/crates/parity/testdata/documents)")
-	outDir := flag.String("out", "", "the golden directory to write (rust/crates/parity/testdata/golden)")
+	contractDir := flag.String("contract", "", "the vendored contract directory (crates/parity/contract)")
+	documentsDir := flag.String("documents", "", "the documents the Rust crate produced (crates/parity/testdata/documents)")
+	outDir := flag.String("out", "", "the golden directory to write (crates/parity/testdata/golden)")
 	ref := flag.String("ref", "", "the parity-harness commit the goldens are built from")
 	flag.Parse()
 	if *contractDir == "" || *documentsDir == "" || *outDir == "" || *ref == "" {

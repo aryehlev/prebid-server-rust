@@ -7,8 +7,7 @@
 //! but `encoding/json` rejects) over generated existing values, some of them `MergeClone`
 //! results themselves, as `account/fetcher.go` merges the defaults and then the account.
 //!
-//! Regenerate the goldens from the repository root with
-//! `go run ./rust/crates/gojson/testdata/go/mergeclone_review`.
+//! Regenerate the goldens with `go run ./mergeclone_review` in `testdata/go`.
 
 #[cfg(test)]
 mod mergeclone_review {

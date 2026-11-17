@@ -4,8 +4,8 @@
 //! on its own thread, named after it, so an overflow names the case that caused it.
 //!
 //! The expected results and error texts are the goldens that `testdata/go/depth` writes with
-//! Go 1.25, json-iterator 1.1.12 and json-patch v5.9.0. Regenerate them from the repository
-//! root with `go run ./rust/crates/gojson/testdata/go/depth`.
+//! Go 1.25, json-iterator 1.1.12 and json-patch v5.9.0. Regenerate them with
+//! `go run ./depth` in `testdata/go`.
 
 #[cfg(test)]
 mod depth {

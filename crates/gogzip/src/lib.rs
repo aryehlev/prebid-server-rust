@@ -41,8 +41,8 @@
 //!
 //! # Go versions
 //!
-//! The reference is Go 1.25, the version `go.mod` declares: the golden files are generated
-//! with Go 1.25.7, whose `compress/flate`, `compress/gzip` and `hash/crc32` are those of
+//! The reference is Go 1.25, the version the upstream `go.mod` declares: the golden files are
+//! generated with Go 1.25.7, whose `compress/flate`, `compress/gzip` and `hash/crc32` are those of
 //! 1.25.0. The `Dockerfile` builds with Go 1.26.2, which writes and reads the same bytes (the
 //! golden files regenerate identically with 1.26.2 and 1.26.11): Go 1.26 only reorders fields
 //! of the compressor struct and changes the amd64 CRC-32 assembly. Go 1.24 differs from 1.25

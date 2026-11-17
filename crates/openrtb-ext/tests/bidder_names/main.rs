@@ -1,4 +1,4 @@
-//! The bidder name registry against Go (`rust/testdata/go_bidder_names.json`, dumped by
+//! The bidder name registry against Go (`testdata/go_bidder_names.json`, dumped by
 //! `pbs-devtools go-dump bidder-names`), before and after the aliases of `static/bidder-info`
 //! are registered, and the Go tests that register aliases (`TestSetAliasBidderName`, the valid
 //! case of `TestNewBidderParamsValidator`).
@@ -17,6 +17,7 @@ mod tests {
         process,
     };
 
+    use pbs_devtools::repo;
     use pbs_openrtb_ext::openrtb_ext::{
         BidderName, BidderParamValidator as _, build_bidder_map, build_bidder_name_hash_set,
         build_bidder_string_slice, core_bidder_names, get_alias_bidder_to_parent,
@@ -39,8 +40,15 @@ mod tests {
         }
     }
 
-    fn repo_root() -> PathBuf {
-        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../..")
+    /// The Go root, whose `static/bidder-params` the validator loads (`$PBS_GO_ROOT`, else
+    /// `.upstream` at the workspace root; `scripts/fetch-upstream.sh` makes it).
+    fn go_root() -> TestResult<PathBuf> {
+        repo::go_root().map_err(|e| e.to_string())
+    }
+
+    /// The workspace root, which holds the cross-crate goldens in `testdata/`.
+    fn workspace_root() -> TestResult<PathBuf> {
+        repo::workspace_root().map_err(|e| e.to_string())
     }
 
     fn field<'a>(value: &'a Value, key: &str) -> TestResult<&'a Value> {
@@ -277,7 +285,7 @@ mod tests {
     /// The validator of `static/bidder-params` with every alias registered, as the server builds
     /// it: each alias has its parent's schema.
     fn check_static_validator(aliases: &BTreeMap<String, String>) -> TestResult {
-        let dir = repo_root().join("static/bidder-params");
+        let dir = go_root()?.join("static/bidder-params");
         let validator =
             new_bidder_params_validator(&dir.to_string_lossy()).map_err(|e| e.to_string())?;
         for (alias, parent) in aliases {
@@ -319,7 +327,7 @@ mod tests {
 
     #[test]
     fn bidder_names_match_go() -> TestResult {
-        let path = repo_root().join("rust/testdata/go_bidder_names.json");
+        let path = workspace_root()?.join("testdata/go_bidder_names.json");
         let data = fs::read(&path).map_err(|e| format!("reading {}: {e}", path.display()))?;
         let golden: Value = serde_json::from_slice(&data).map_err(|e| e.to_string())?;
         check_static(&golden)?;

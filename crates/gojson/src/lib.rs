@@ -519,20 +519,19 @@
 //! `Set`/`Delete` layouts, `Unescape` over every surrogate pair class, `MergeClone` over every
 //! existing shape), which `tests/toolkit_review.rs` replays.
 //!
-//! `go run ./rust/crates/gojson/testdata/go/mergeclone` writes `jsonutil.MergeClone` goldens
-//! for real openrtb2 values (corpus `Imp`, `Site`, `App`, `User`, `Device` and `BidRequest`
-//! objects merged with first-party data and generated overlays, some over a nil or malformed
+//! `go run ./mergeclone` in `testdata/go` writes `jsonutil.MergeClone` goldens for real openrtb2
+//! values (corpus `Imp`, `Site`, `App`, `User`, `Device` and `BidRequest` objects of the upstream
+//! server merged with first-party data and generated overlays, some over a nil or malformed
 //! `Ext`) and for a struct with every field shape, which `tests/mergeclone.rs` replays.
-//! `go run ./rust/crates/gojson/testdata/go/mergeclone_review` writes adversarial
-//! `MergeClone` goldens (named slice and map types, maps of raw messages, `**T`, `,string`
-//! fields, embedded structs, a recursive type and `openrtb2.Imp`, under overlays with
-//! duplicate, re-cased and malformed members, many of which fail part way), which
-//! `tests/mergeclone_review.rs` replays.
-//! `go run ./rust/crates/gojson/testdata/go/depth` writes the results and error texts of every
-//! decode, merge, compare and search entry point for documents nested 9999, 10000 and 10001
-//! levels deep, which `tests/depth.rs` replays on 2 MiB threads, and `go run
-//! ./rust/crates/gojson/testdata/go/deepdrop` the results of decodes that replace or discard a
-//! value nested 9990 levels deep, which `tests/deepdrop.rs` replays on 2 MiB threads.
+//! `go run ./mergeclone_review` in `testdata/go` writes adversarial `MergeClone` goldens (named
+//! slice and map types, maps of raw messages, `**T`, `,string` fields, embedded structs, a
+//! recursive type and `openrtb2.Imp`, under overlays with duplicate, re-cased and malformed
+//! members, many of which fail part way), which `tests/mergeclone_review.rs` replays.
+//! `go run ./depth` in `testdata/go` writes the results and error texts of every decode, merge,
+//! compare and search entry point for documents nested 9999, 10000 and 10001 levels deep, which
+//! `tests/depth.rs` replays on 2 MiB threads, and `go run ./deepdrop` the results of decodes that
+//! replace or discard a value nested 9990 levels deep, which `tests/deepdrop.rs` replays on 2 MiB
+//! threads.
 //!
 //! Other crates can follow the same pattern with a generator under their own `testdata/go`.
 //!

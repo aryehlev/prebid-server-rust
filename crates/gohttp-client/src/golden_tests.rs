@@ -1,15 +1,14 @@
 //! Differential replay of the Go `net/http` client goldens.
 //!
-//! `testdata/golden/cases.json` is written by `testdata/go` (run
-//! `go run ./rust/crates/gohttp-client/testdata/go` from the repository root with Go 1.26.2). For
-//! every case it holds the client configuration (the way Prebid Server's `router.go` builds its
-//! clients, with `ProxyFromEnvironment` over the golden's proxy environment), the scripts of raw
-//! TCP capture servers, the requests, and what Go produced: the bytes every server connection
-//! consumed and, per request, the response head, body, trailer, final URL, error texts and
-//! `httptrace` events. This test runs the same scripts against Rust capture servers, sends the
-//! same requests through [`Client`], and compares everything after the same normalization
-//! (server addresses as `{{A}}`, the client side of a connection as `{{LOCAL}}`, the time in a
-//! certificate expiry error as `{{NOW}}`).
+//! `testdata/golden/cases.json` is written by `testdata/go` (run `go run .` in that directory, a
+//! Go module of its own, with Go 1.26.2). For every case it holds the client configuration (the
+//! way Prebid Server's `router.go` builds its clients, with `ProxyFromEnvironment` over the
+//! golden's proxy environment), the scripts of raw TCP capture servers, the requests, and what Go
+//! produced: the bytes every server connection consumed and, per request, the response head, body,
+//! trailer, final URL, error texts and `httptrace` events. This test runs the same scripts against
+//! Rust capture servers, sends the same requests through [`Client`], and compares everything after
+//! the same normalization (server addresses as `{{A}}`, the client side of a connection as
+//! `{{LOCAL}}`, the time in a certificate expiry error as `{{NOW}}`).
 //!
 //! `testdata/golden/proxy.json`, from the same run, holds the `httpproxy.Config` that
 //! `FromEnvironment` reads from each of a list of proxy environments and the proxy its

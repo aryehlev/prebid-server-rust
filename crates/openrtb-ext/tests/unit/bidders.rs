@@ -10,7 +10,7 @@ use pbs_openrtb_ext::openrtb_ext::{
     is_bidder_name_reserved, new_bidder_params_validator,
 };
 
-use super::support::{TempDir, TestResult, all_ok, ensure_eq, repo_root, temp_path};
+use super::support::{TempDir, TestResult, all_ok, ensure_eq, go_root, temp_path};
 
 const TEST_SCHEMA: &str = r#"{
 		"$schema": "http://json-schema.org/draft-04/schema#",
@@ -162,7 +162,7 @@ fn new_bidder_params_validator_errors() -> TestResult {
 /// `LoadJSON`).
 #[test]
 fn bidder_param_schemas() -> TestResult {
-    let dir = repo_root().join("static/bidder-params");
+    let dir = go_root()?.join("static/bidder-params");
     let validator =
         new_bidder_params_validator(&dir.to_string_lossy()).map_err(|e| e.to_string())?;
     all_ok(core_bidder_names().into_iter().map(|bidder| {

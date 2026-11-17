@@ -387,6 +387,7 @@ name = "pbs-openrtb-ext"
 version = "0.1.0"
 dependencies = [
  "pbs-bidder-params",
+ "pbs-devtools",
  "pbs-errortypes",
  "pbs-gocompat",
  "pbs-gojson",

@@ -1,20 +1,24 @@
 // Command gogzipgolden writes the golden files that the pbs-gogzip Rust tests replay.
 //
 // It drives Go's compress/flate and compress/gzip writers and readers over the corpus of
-// corpus.go (which the Rust tests regenerate), repository fixtures collected into
+// corpus.go (which the Rust tests regenerate), fixtures of the upstream server collected into
 // ../corpus, and the test vectors of Go's own compress/flate and compress/gzip tests, read
-// from GOROOT (gotests.go). Run it from anywhere inside the repository with a toolchain of the
-// Go version go.mod declares (1.25):
+// from GOROOT (gotests.go). Run it from the directory of this module
+// (crates/gogzip/testdata/go) with a toolchain of the Go version the upstream go.mod declares
+// (1.25):
 //
-//	GOTOOLCHAIN=go1.25.7 go run ./rust/crates/gogzip/testdata/go
+//	GOTOOLCHAIN=go1.25.7 go run .
+//
+// The fixtures are read from the Go root (see goRoot): $PBS_GO_ROOT, else .upstream at the
+// workspace root, which scripts/fetch-upstream.sh checks out.
 //
 // The outputs go next to this directory: ../golden (the golden files), ../corpus (the
 // fixture inputs) and ../flate (Go's compress/flate testdata). With -out DIR they go under
 // DIR instead, so a run with another toolchain, such as the Go 1.26.2 the Dockerfile builds
 // with, can be compared:
 //
-//	GOTOOLCHAIN=go1.26.2 go run ./rust/crates/gogzip/testdata/go -out /tmp/gogzip
-//	diff -r rust/crates/gogzip/testdata/golden /tmp/gogzip/golden
+//	GOTOOLCHAIN=go1.26.2 go run . -out /tmp/gogzip
+//	diff -r ../golden /tmp/gogzip/golden
 //
 // Golden lines are tab separated. Outputs are recorded as LEN.FNV.CALLS: the byte count, the
 // FNV-1a 64 hash and the number of Write calls the underlying writer saw. The *_edges.txt
@@ -83,17 +87,17 @@ func writeFile(path string, data []byte) {
 	}
 }
 
-// repoRoot is the repository root, five directories above this file.
-func repoRoot() string {
+// moduleDir is the directory of this module, crates/gogzip/testdata/go.
+func moduleDir() string {
 	_, file, _, ok := runtime.Caller(0)
 	if !ok {
 		panic("no caller information")
 	}
-	return filepath.Join(filepath.Dir(file), "..", "..", "..", "..", "..")
+	return filepath.Dir(file)
 }
 
-// fixtureCorpus concatenates repository JSON fixtures, in path order, into 200000 bytes of
-// real OpenRTB requests and exchange test cases.
+// fixtureCorpus concatenates JSON fixtures of the upstream checkout root, in path order, into
+// 200000 bytes of real OpenRTB requests and exchange test cases.
 func fixtureCorpus(root string) []byte {
 	var paths []string
 	for _, pattern := range []string{
@@ -126,10 +130,10 @@ func main() {
 	out := flag.String("out", "", "directory to write golden, corpus and flate under (default: next to this generator)")
 	flag.Parse()
 
-	root := repoRoot()
+	root := goRoot()
 	dir := *out
 	if dir == "" {
-		dir = filepath.Join(root, "rust", "crates", "gogzip", "testdata")
+		dir = filepath.Join(moduleDir(), "..")
 	}
 	goroot := runtime.GOROOT()
 	corpusDir = filepath.Join(dir, "corpus")

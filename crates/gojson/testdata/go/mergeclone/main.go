@@ -4,7 +4,7 @@
 // User and Device, plus whole openrtb2.BidRequests), and into a test struct with every field
 // shape the merge-clone decoders treat specially. tests/mergeclone.rs replays them.
 //
-// The existing values are openrtb2 objects collected from the repository's JSON corpora
+// The existing values are openrtb2 objects collected from the upstream server's JSON corpora
 // (endpoints/openrtb2/sample-requests, exchange/exchangetest, firstpartydata/tests), decoded
 // with jsonutil.Unmarshal; some get a nil or malformed Ext. The overlays are the first-party
 // data objects of those corpora (bidder config FPD and imp.ext.prebid.imp) and seeded random
@@ -19,9 +19,11 @@
 //
 // where ext is "-" (keep the decoded Ext), "nil", or "=" followed by the bytes Ext is set to.
 //
-// Run it from the repository root:
+// Run it from the directory of this module (crates/gojson/testdata/go):
 //
-//	go run ./rust/crates/gojson/testdata/go/mergeclone
+//	go run ./mergeclone
+//
+// The corpora are read from the upstream checkout the module builds against (see upstreamDir).
 package main
 
 import (
@@ -403,7 +405,7 @@ func runCase(g *golden, t *target, index int, ext *string, overlay string) {
 }
 
 func main() {
-	out := flag.String("out", "rust/crates/gojson/testdata/go/mergeclone", "output directory")
+	out := flag.String("out", "mergeclone", "output directory")
 	flag.Parse()
 
 	targets := []*target{
@@ -424,7 +426,11 @@ func main() {
 		seen[t] = map[string]bool{}
 		fpdSeen[t] = map[string]bool{}
 	}
-	roots := []string{"endpoints/openrtb2/sample-requests", "exchange/exchangetest", "firstpartydata/tests"}
+	upstream := upstreamDir()
+	var roots []string
+	for _, root := range []string{"endpoints/openrtb2/sample-requests", "exchange/exchangetest", "firstpartydata/tests"} {
+		roots = append(roots, filepath.Join(upstream, filepath.FromSlash(root)))
+	}
 	collect(roots, func(path []string, v interface{}) {
 		obj, ok := v.(map[string]interface{})
 		if !ok || len(path) == 0 {

@@ -2,6 +2,7 @@
 
 use std::{env, fmt::Debug, fs, path::PathBuf, process};
 
+use pbs_devtools::repo;
 use pbs_gojson::{JsoniterDecode, jsonutil};
 
 /// A test result whose error is the failure message.
@@ -27,9 +28,10 @@ pub(super) fn unmarshal_error<T: JsoniterDecode + ?Sized>(doc: &str, v: &mut T) 
         .map(|e| e.message.to_string_lossy())
 }
 
-/// The repository root (the Go module).
-pub(super) fn repo_root() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../..")
+/// The Go root: the upstream checkout whose static files the tests read (`$PBS_GO_ROOT`, else
+/// `.upstream` at the workspace root; `scripts/fetch-upstream.sh` makes it).
+pub(super) fn go_root() -> TestResult<PathBuf> {
+    repo::go_root().map_err(|e| e.to_string())
 }
 
 /// A path under the system's temporary directory for this process, named `name`.

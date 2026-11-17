@@ -210,8 +210,8 @@ fn replay_script(name: &str) -> TestResult {
                 let trace = write_trace(name, batch, &records);
                 return Err(format!(
                     "{name} batch {batch}: {label} {value} != Go {expected}. Rust records: \
-                     {trace}; Go records: go run ./rust/crates/freecache/testdata/go -trace \
-                     {name} -from {} -to {}",
+                     {trace}; Go records: go run . -trace {name} -from {} -to {} in \
+                     crates/freecache/testdata/go",
                     batch * spec.batch,
                     op + 1
                 )

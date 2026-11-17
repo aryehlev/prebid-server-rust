@@ -1,7 +1,7 @@
 # Rust port: copy-on-write performance design and Go aliasing ledger
 
 Produced by the cow-perf-design audit (4 audits, 3 adversarial reviews, 1 synthesis) on 2026-11-17.
-The rules live in PORTING.md section 7. This file records the decisions, the deterministic Go
+The rules live in rust/PORTING.md section 7. This file records the decisions, the deterministic Go
 aliasing behaviours later tiers must port as named seams, and the per-tier rules for unit prompts.
 
 ## Decisions

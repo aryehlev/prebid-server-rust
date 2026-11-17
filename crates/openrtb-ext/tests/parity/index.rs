@@ -3,7 +3,7 @@
 //! Written by hand rather than by typegen's `rust_index`, which would also list the port of
 //! `request_wrapper.go` (a separate unit): `inventory` checks it against the Go type index
 //! (`testdata/go/ported_types_gen.go`), the Go build's metadata
-//! (`rust/testdata/go_struct_meta.json`), the goldens and `typegen.json`.
+//! (`testdata/go_struct_meta.json`), the goldens and `typegen.json`.
 
 use std::collections::{BTreeMap, HashSet};
 

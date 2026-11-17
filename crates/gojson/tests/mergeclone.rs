@@ -4,8 +4,8 @@
 //! `User`, `Device` and `BidRequest` values and of a struct with every field shape, then
 //! `jsonutil.Marshal`), replayed byte for byte.
 //!
-//! Regenerate the goldens from the repository root with
-//! `go run ./rust/crates/gojson/testdata/go/mergeclone`.
+//! Regenerate the goldens with `go run ./mergeclone` in `testdata/go`, a Go module that builds
+//! against the upstream checkout.
 
 #[cfg(test)]
 mod mergeclone {
