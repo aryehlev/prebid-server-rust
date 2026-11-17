@@ -1,0 +1,38 @@
+{
+  "description": "Edge-value pools for the structural and malformed-input mutators of parity/gen. boundary_numbers are JSON number literals kept verbatim; unicode_strings are decoded strings (the generator re-encodes them).",
+  "boundary_numbers": [
+    "0", "-1", "1", "-0", "0.0", "1.0", "1e2", "1E-2", "0.1", "0.30000000000000004",
+    "127", "128", "255", "256", "32767", "32768", "65535", "65536",
+    "2147483647", "2147483648", "-2147483648", "-2147483649", "4294967295", "4294967296",
+    "9007199254740991", "9007199254740993", "9223372036854775807", "9223372036854775808",
+    "-9223372036854775809", "18446744073709551616", "1e308", "1.7976931348623157e308",
+    "5e-324", "1e400", "123456789012345678901234567890"
+  ],
+  "unicode_strings": [
+    "naïve café",
+    "日本語テキスト",
+    "emoji 🎯🚀",
+    "rtl ‮override",
+    "combining é",
+    "<script>alert(1)</script>&amp;",
+    "a&b<c>d",
+    "line\nbreak\ttab",
+    "quote \" backslash \\ slash /",
+    "nul \u0000 byte",
+    "zero​width",
+    "﻿bom-prefixed",
+    "line separator ",
+    "control \u0001\u001f",
+    "",
+    " ",
+    "  padded  "
+  ],
+  "tmax": [0, 1, 50, 100, 250, 500, 1000, 2000, 5000, 60000],
+  "valid_tmax": [500, 800, 1000, 1500, 2000, 3000],
+  "nesting_depths": [64, 127, 128, 129, 256, 600],
+  "trailing_garbage": ["}", "]", "x", "{\"id\":\"second\"}", "\u0000", "//comment"],
+  "alt_bodies": ["", "null", "[]", "{}", "\"string\"", "0", "true", "[{}]", " \n\t "],
+  "content_types": ["text/plain", "application/x-www-form-urlencoded", "application/json; charset=utf-8", "application/json;charset=ISO-8859-1", "APPLICATION/JSON", "application/javascript"],
+  "content_encodings": ["br", "deflate", "compress", "gzip, br", "GZIP", "identity"],
+  "methods": ["GET", "PUT", "DELETE", "PATCH", "OPTIONS", "HEAD"]
+}
