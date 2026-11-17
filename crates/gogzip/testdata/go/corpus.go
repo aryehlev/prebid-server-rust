@@ -23,6 +23,9 @@ import (
 //	abc:N              byte(i % 128) for i < N (Go's TestBestSpeed input)
 //	seq:N              byte(i) for i < N (Go's TestReaderEarlyEOF input)
 //	square:N           byte(i * i) for i < N (Go's TestDeflate largeDataChunk)
+//	fib:K:SEED         Fib(j+1) copies of byte 0x20+j for j < K, shuffled: byte frequencies
+//	                   whose unlimited Huffman code is about K bits deep, so past the 15-bit
+//	                   limit of the literal code when K > 16
 //	file:NAME[:N]      ../corpus/NAME, or its first N bytes
 //	A+B+...            the concatenation of the specs A, B, ...
 
@@ -209,6 +212,22 @@ func genInput(spec string) []byte {
 		b := make([]byte, atoi(f[1]))
 		for i := range b {
 			b[i] = byte(i * i)
+		}
+		return b
+	case "fib":
+		var b []byte
+		x, y := 1, 1
+		for j := 0; j < atoi(f[1]); j++ {
+			for i := 0; i < x; i++ {
+				b = append(b, byte(0x20+j))
+			}
+			x, y = y, x+y
+		}
+		// A Fisher-Yates shuffle, so that the bytes are literals rather than runs.
+		r := &splitmix64{atou(f[2])}
+		for i := len(b) - 1; i > 0; i-- {
+			j := int(r.next() % uint64(i+1))
+			b[i], b[j] = b[j], b[i]
 		}
 		return b
 	case "file":

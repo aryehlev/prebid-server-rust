@@ -61,7 +61,9 @@ func errResult(err error) string {
 }
 
 // mutate applies a mutation to a stream: "-", t:N (keep the first N bytes), x:POS:VAL (xor
-// the byte at POS with VAL) or a:HEX (append the bytes).
+// the byte at POS with VAL), a:HEX (append the bytes) or m:SEED:K (K edits at positions
+// splitmix64 seeded with SEED picks: flip a bit, set a byte, truncate, insert a byte or
+// delete one).
 func mutate(stream []byte, m string) []byte {
 	f := strings.Split(m, ":")
 	b := append([]byte{}, stream...)
@@ -71,6 +73,23 @@ func mutate(stream []byte, m string) []byte {
 		b = b[:atoi(f[1])]
 	case "x":
 		b[atoi(f[1])] ^= byte(atoi(f[2]))
+	case "m":
+		g := &splitmix64{atou(f[1])}
+		for i := 0; i < atoi(f[2]) && len(b) > 0; i++ {
+			pos := int(g.next() % uint64(len(b)))
+			switch g.next() % 5 {
+			case 0:
+				b[pos] ^= 1 << (g.next() % 8)
+			case 1:
+				b[pos] = byte(g.next())
+			case 2:
+				b = b[:pos]
+			case 3:
+				b = append(b[:pos], append([]byte{byte(g.next())}, b[pos:]...)...)
+			default:
+				b = append(b[:pos], b[pos+1:]...)
+			}
+		}
 	case "a":
 		tail, err := hex.DecodeString(f[1])
 		if err != nil {

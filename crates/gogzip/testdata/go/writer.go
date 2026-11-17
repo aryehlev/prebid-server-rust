@@ -23,11 +23,15 @@ type target struct {
 	calls  int
 	failAt int
 	sticky bool
+	// sizes lists the length of every Write call, failed ones included, each followed by a
+	// comma.
+	sizes []byte
 }
 
 func (t *target) Write(b []byte) (int, error) {
 	i := t.calls
 	t.calls++
+	t.sizes = fmt.Appendf(t.sizes, "%d,", len(b))
 	if t.failAt >= 0 && (i == t.failAt || t.sticky && i > t.failAt) {
 		return 0, io.ErrClosedPipe
 	}
@@ -37,6 +41,12 @@ func (t *target) Write(b []byte) (int, error) {
 
 func (t *target) result() string {
 	return fmt.Sprintf("%d.%016x.%d", t.buf.Len(), fnv64(t.buf.Bytes()), t.calls)
+}
+
+// sizesResult is the FNV-1a 64 of sizes: two writers that write the same bytes in different
+// Write calls differ.
+func (t *target) sizesResult() string {
+	return fmt.Sprintf("%016x", fnv64(t.sizes))
 }
 
 // compressor is the API that flate.Writer and gzip.Writer share.
@@ -195,7 +205,9 @@ func genInputs(specs string) [][]byte {
 	return inputs
 }
 
-func runFlate(level int, dict, inputs, text string) string {
+// flateScript returns a script on a flate.Writer at level, with the dictionary dict (an input
+// spec, or - for none), over the |-separated inputs.
+func flateScript(level int, dict, inputs string) *script {
 	t := &target{failAt: -1}
 	var w *flate.Writer
 	var err error
@@ -207,8 +219,11 @@ func runFlate(level int, dict, inputs, text string) string {
 	if err != nil {
 		panic(err)
 	}
-	s := &script{w: w, inputs: genInputs(inputs), targets: []*target{t}}
-	return s.run(text)
+	return &script{w: w, inputs: genInputs(inputs), targets: []*target{t}}
+}
+
+func runFlate(level int, dict, inputs, text string) string {
+	return flateScript(level, dict, inputs).run(text)
 }
 
 // header is a gzip header spec: "-" or comma-separated name=HEX, comment=HEX, extra=HEX
@@ -254,7 +269,9 @@ func parseHeader(spec string) gzip.Header {
 	return h
 }
 
-func runGzip(level int, header, inputs, text string) string {
+// gzipScript returns a script on a gzip.Writer at level with the header spec header, which
+// the H operation sets again, over the |-separated inputs.
+func gzipScript(level int, header, inputs string) *script {
 	t := &target{failAt: -1}
 	w, err := gzip.NewWriterLevel(t, level)
 	if err != nil {
@@ -262,8 +279,11 @@ func runGzip(level int, header, inputs, text string) string {
 	}
 	h := parseHeader(header)
 	w.Header = h
-	s := &script{w: w, inputs: genInputs(inputs), targets: []*target{t}, header: func() { w.Header = h }}
-	return s.run(text)
+	return &script{w: w, inputs: genInputs(inputs), targets: []*target{t}, header: func() { w.Header = h }}
+}
+
+func runGzip(level int, header, inputs, text string) string {
+	return gzipScript(level, header, inputs).run(text)
 }
 
 func hexs(s string) string { return hex.EncodeToString([]byte(s)) }

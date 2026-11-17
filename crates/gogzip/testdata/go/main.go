@@ -17,7 +17,9 @@
 //	diff -r rust/crates/gogzip/testdata/golden /tmp/gogzip/golden
 //
 // Golden lines are tab separated. Outputs are recorded as LEN.FNV.CALLS: the byte count, the
-// FNV-1a 64 hash and the number of Write calls the underlying writer saw.
+// FNV-1a 64 hash and the number of Write calls the underlying writer saw. The *_edges.txt
+// files (edges.go) add the edge cases of the port's review and generated cases, with the
+// lengths of the Write calls too.
 package main
 
 import (
@@ -151,4 +153,8 @@ func main() {
 	writeFlateReader(goldenDir, goroot)
 	writeGzipReader(goldenDir, goroot)
 	writeBlocks(goldenDir, goroot)
+	writeFlateEdges(goldenDir)
+	writeGzipEdges(goldenDir)
+	writeFlateReaderEdges(goldenDir)
+	writeGzipReaderEdges(goldenDir)
 }
