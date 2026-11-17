@@ -1072,3 +1072,53 @@ fn convert_to_type_of(val_type: &Value, val: &Value) -> Option<Value> {
         | Value::Map(..) => return None,
     })
 }
+
+#[cfg(test)]
+mod tests {
+    use pbs_gocompat::strings::Replacer;
+    use pbs_goyaml::{Type, Value};
+
+    use super::Viper;
+    use crate::env::Environment;
+
+    /// Go's `AllSettings` is random here (`host_schain_node` is a `nil` default, a scalar, and
+    /// the file holds keys under it): in some runs `PBS_HOST_SCHAIN_NODE_ASI` wins, in others the
+    /// file's value does (the parent's map replaces the child written before it). This port
+    /// follows the order that reaches the parent first, where the variable wins, and leaves the
+    /// file's map alone (as Go's other order does).
+    #[test]
+    fn prefix_key_settings_take_the_child_variable() -> Result<(), String> {
+        let env = Environment::from_vars([("PBS_HOST_SCHAIN_NODE_ASI", "env.example.com")]);
+        let mut v = Viper::with_environment(env);
+        v.set_config_type("yaml");
+        v.set_default("host_schain_node", Value::Nil);
+        v.set_env_key_replacer(Some(Replacer::new([(".", "_")])));
+        v.set_env_prefix("PBS");
+        v.automatic_env();
+        v.read_config(b"host_schain_node:\n  asi: example.com\n  sid: \"1\"\n")
+            .map_err(|e| e.to_string())?;
+        let node = |asi: &str| {
+            Value::StringMap(
+                &Type::Interface,
+                Some(
+                    [
+                        ("asi".to_owned(), Value::String(asi.to_owned())),
+                        ("sid".to_owned(), Value::String("1".to_owned())),
+                    ]
+                    .into_iter()
+                    .collect(),
+                ),
+            )
+        };
+        let settings = v.all_settings();
+        if settings.get("host_schain_node") != Some(&node("env.example.com")) {
+            return Err(format!("AllSettings is {settings:?}"));
+        }
+        // The configuration file's map is not written to.
+        let after = v.get("host_schain_node");
+        if after != Some(node("example.com")) {
+            return Err(format!("Get is {after:?} after AllSettings"));
+        }
+        Ok(())
+    }
+}

@@ -69,7 +69,14 @@
 //!   [`Viper::all_settings`] with a key that is a path prefix of another), this port gives one of
 //!   Go's outcomes.
 //! - Go's aliasing: [`Viper::get`] returns copies, so [`Viper::all_settings`] never writes into a
-//!   map another source holds (Go's can, when a key is a path prefix of another).
+//!   map another source holds. Go's does when a key is a path prefix of another and its iteration
+//!   reaches the shorter key first (the order this port's result follows): the longer key's value
+//!   is then also written into that source's map, and later reads of the shorter key (`Get`, `Sub`,
+//!   `UnmarshalKey`) see it. Here later reads see the sources unchanged, as in Go's other order.
+//!   Prebid only reads leaves after `Unmarshal`, which this does not change. Prebid's configuration
+//!   meets the case through `host_schain_node` (a `nil` default): with `host_schain_node.*` in the
+//!   file and, say, `PBS_HOST_SCHAIN_NODE_ASI` set, Go's `Unmarshal` takes the variable in some
+//!   runs and the file's value in others; this port always takes the variable.
 //! - Go panics: a negative slice index in a key (`tv.-1`) finds nothing instead, and
 //!   [`Viper::set_env_key_replacer`] takes `None` (Go's nil `*strings.Replacer` panics on use).
 //! - Go named types: a [`Value`](pbs_goyaml::Value) cannot hold `[]openrtb_ext.BidderName` or
