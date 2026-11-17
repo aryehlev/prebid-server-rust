@@ -4,6 +4,7 @@
 use std::{
     env,
     error::Error,
+    ffi::OsString,
     fs, io,
     ops::Range,
     path::Path,
@@ -128,6 +129,61 @@ fn parse_severity_matches_go() -> TestResult {
         check_eq(&Severity::from_int(s.as_int()), &Some(s), s.as_str())?;
     }
     check_eq(&Severity::from_int(4), &None, "4")
+}
+
+#[test]
+fn process_facts_follow_go() -> TestResult {
+    // Go: os.TempDir is $TMPDIR, or /tmp when it is unset or empty.
+    let temp_dirs = [
+        (None, "/tmp"),
+        (Some(""), "/tmp"),
+        (Some("/var/tmp/x"), "/var/tmp/x"),
+        (Some("rel"), "rel"),
+    ];
+    for (tmpdir, want) in temp_dirs {
+        let got = super::go_temp_dir(tmpdir.map(OsString::from));
+        check_eq(got.as_path(), Path::new(want), format!("{tmpdir:?}"))?;
+    }
+
+    // Go: os.Hostname reads /proc/sys/kernel/hostname dropping one newline (an empty file is
+    // an error, leaving unknownhost), then shortHostname cuts at the first dot.
+    let hosts = [
+        ("pbs-7d9f.example.com\n", Some("pbs-7d9f")),
+        ("pbs\n", Some("pbs")),
+        ("pbs", Some("pbs")),
+        ("\n", Some("")),
+        (".lead\n", Some("")),
+        ("a\n\n", Some("a\n")),
+        ("", None),
+    ];
+    for (text, want) in hosts {
+        check_eq(&super::short_hostname(text), &want.map(str::to_owned), text)?;
+    }
+
+    // glibc's passwd lookup by numeric uid: comments and blank lines are skipped, the first
+    // match wins, and an unknown uid has no name (Go's cgo user.Current fails, giving
+    // unknownuser; $USER is not consulted).
+    let passwd = "root:x:0:0:root:/root:/bin/bash\n\
+                  # prebid:x:1001:2001::/home/prebid:/bin/sh\n\
+                  \n\
+                  bad:x:notanumber:0::/:/bin/sh\n  \
+                  prebid:x:1001:2001::/home/prebid:/usr/sbin/nologin\n\
+                  second:x:1001:2001::/:/bin/sh\n\
+                  short:x\n";
+    let users = [(0, Some("root")), (1001, Some("prebid")), (12345, None)];
+    for (uid, want) in users {
+        check_eq(
+            &super::passwd_name(passwd, uid),
+            &want.map(str::to_owned),
+            uid.to_string(),
+        )?;
+    }
+    check_eq(super::sanitize_user("").as_str(), "unknownuser", "no user")?;
+    check_eq(
+        super::sanitize_user("a.b-c\u{e9}1").as_str(),
+        "a_b_c_1",
+        "Go's strings.Map",
+    )
 }
 
 /// Decodes a golden argument (`s:`, `d:`, `f:`, `b:` or `nil`).

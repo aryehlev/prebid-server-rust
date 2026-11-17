@@ -30,8 +30,9 @@
 //! [`crate`]-level functions, which report Go's); stack traces are Rust backtraces; the file
 //! header names the Rust build (`Binary: Built with rustc for linux/amd64`); `-v` and
 //! `-vmodule` are parsed and kept but no `V` logging is ported, since no Prebid code uses it;
-//! the host name comes from `/proc/sys/kernel/hostname` and the user from `/etc/passwd` or
-//! `$USER`, falling back to Go's `unknownhost` and `unknownuser`; and Go's context and
+//! the host name comes from `/proc/sys/kernel/hostname` (Go asks `uname` first) and the user
+//! from `/etc/passwd`, or from `$USER` where there is no `/proc/self`, falling back to Go's
+//! `unknownhost` and `unknownuser`; and Go's context and
 //! structured sinks, `Stats`, `CopyStandardLogTo` and `Exit` functions are not ported.
 
 mod bridge;
@@ -43,7 +44,9 @@ mod tests;
 
 use std::{
     backtrace::Backtrace,
-    env, error, fmt, fs,
+    env, error,
+    ffi::OsString,
+    fmt, fs,
     io::{self, Write},
     panic::Location,
     path::{Path, PathBuf},
@@ -237,7 +240,7 @@ impl Env {
             host: host_name(),
             user: sanitize_user(&user_name()),
             pid: process::id(),
-            temp_dir: env::temp_dir(),
+            temp_dir: go_temp_dir(env::var_os("TMPDIR")),
             clock: Time::now,
         }
     }
@@ -259,41 +262,76 @@ fn go_base(path: &str) -> String {
         .to_owned()
 }
 
-/// Go: `shortHostname(os.Hostname())`, or `unknownhost`.
+/// Go: `os.TempDir()` on Unix: `$TMPDIR`, or `/tmp` when it is unset or empty (not the
+/// per-user directory `std::env::temp_dir` picks on macOS, nor the working directory an empty
+/// `$TMPDIR` gives it).
+fn go_temp_dir(tmpdir: Option<OsString>) -> PathBuf {
+    tmpdir
+        .filter(|dir| !dir.is_empty())
+        .map_or_else(|| PathBuf::from("/tmp"), PathBuf::from)
+}
+
+/// Go: `shortHostname(os.Hostname())`, or `unknownhost` when the name cannot be read.
 fn host_name() -> String {
     fs::read_to_string("/proc/sys/kernel/hostname")
         .ok()
-        .map(|h| h.trim_end_matches('\n').to_owned())
-        .filter(|h| !h.is_empty())
-        .map_or_else(
-            || "unknownhost".to_owned(),
-            |h| h.split('.').next().unwrap_or_default().to_owned(),
-        )
+        .and_then(|text| short_hostname(&text))
+        .unwrap_or_else(|| "unknownhost".to_owned())
 }
 
-/// Go: `user.Current().Username`: the `/etc/passwd` name of this process's user, else `$USER`.
+/// Go: `os.Hostname` over the text of `/proc/sys/kernel/hostname` (one trailing newline
+/// dropped; an empty file is an error), then `shortHostname`. An empty host name stays empty,
+/// as in Go.
+fn short_hostname(proc_text: &str) -> Option<String> {
+    if proc_text.is_empty() {
+        return None;
+    }
+    let name = proc_text.strip_suffix('\n').unwrap_or(proc_text);
+    Some(name.split('.').next().unwrap_or_default().to_owned())
+}
+
+/// Go: `user.Current().Username` as the cgo build of Prebid looks it up (`getpwuid_r`, with no
+/// fallback): the `/etc/passwd` name of this process's user, or nothing when its uid has no
+/// entry. Only where `/proc/self` cannot tell the uid (off Linux) is `$USER` used instead.
 fn user_name() -> String {
-    passwd_user().unwrap_or_else(|| env::var("USER").unwrap_or_default())
+    process_uid().map_or_else(
+        || env::var("USER").unwrap_or_default(),
+        |uid| {
+            fs::read_to_string("/etc/passwd")
+                .ok()
+                .and_then(|passwd| passwd_name(&passwd, uid))
+                .unwrap_or_default()
+        },
+    )
 }
 
-/// The `/etc/passwd` entry for the owner of `/proc/self` (Linux).
+/// The owner of `/proc/self`: this process's user id (Linux).
 #[cfg(unix)]
-fn passwd_user() -> Option<String> {
+fn process_uid() -> Option<u32> {
     use std::os::unix::fs::MetadataExt as _;
 
-    let uid = fs::metadata("/proc/self").ok()?.uid().to_string();
-    let passwd = fs::read_to_string("/etc/passwd").ok()?;
-    passwd.lines().find_map(|line| {
-        let mut parts = line.split(':');
-        let name = parts.next()?;
-        (parts.nth(1)? == uid).then(|| name.to_owned())
-    })
+    fs::metadata("/proc/self").ok().map(|meta| meta.uid())
 }
 
-/// No `/etc/passwd` lookup off Unix.
+/// No process user id off Unix.
 #[cfg(not(unix))]
-const fn passwd_user() -> Option<String> {
+const fn process_uid() -> Option<u32> {
     None
+}
+
+/// glibc's `files` lookup of `uid` in `/etc/passwd` text: the name of the first entry whose
+/// numeric uid field is `uid`, skipping blank lines and `#` comments.
+fn passwd_name(passwd: &str, uid: u32) -> Option<String> {
+    passwd.lines().find_map(|line| {
+        let line = line.trim_start();
+        if line.starts_with('#') {
+            return None;
+        }
+        let mut parts = line.split(':');
+        let name = parts.next()?;
+        let id: u32 = parts.nth(1)?.parse().ok()?;
+        (id == uid).then(|| name.to_owned())
+    })
 }
 
 /// Go: glog's mapping of the user name, or `unknownuser` when there is none.
