@@ -2,10 +2,14 @@
 //! decoder error and every encoding must match Go byte for byte.
 
 use core::str::from_utf8;
-use std::collections::BTreeMap;
+use std::{
+    collections::{BTreeMap, BTreeSet},
+    fs,
+};
 
 use pbs_gojson::{GoEncode, JsoniterDecode, StdDecode, gotype::go_type_name, jsonutil, stdjson};
 use pbs_openrtb::{adcom1, native1, openrtb2, openrtb3};
+use serde_json::Value;
 
 use super::{
     index::{TYPES, for_each_type},
@@ -211,10 +215,22 @@ struct Tally {
     string_gaps: usize,
     /// Every other difference.
     failures: Vec<String>,
+    /// The directories of the `#root` rows.
+    roots: Vec<String>,
+    /// The paths of the `#file` rows.
+    files: Vec<String>,
 }
 
-/// A corpus file of a `#file` row: its bytes, checked against the hash Go recorded.
-fn corpus_file(row: &[Vec<u8>]) -> TestResult<Vec<u8>> {
+/// The message for a corpus that changed after the goldens were written.
+fn regenerate(what: &str) -> String {
+    format!(
+        "{what} after the goldens were written; regenerate them with \
+         `GOTOOLCHAIN=go1.26.2 go run ./rust/crates/openrtb/testdata/go`"
+    )
+}
+
+/// A corpus file of a `#file` row: its path and bytes, checked against the hash Go recorded.
+fn corpus_file(row: &[Vec<u8>]) -> TestResult<(String, Vec<u8>)> {
     let [_, path, hash] = row else {
         return Err(format!("bad #file row of {} fields", row.len()));
     };
@@ -222,12 +238,9 @@ fn corpus_file(row: &[Vec<u8>]) -> TestResult<Vec<u8>> {
     let data = read(&repo_root().join(&path))?;
     let got = format!("{:016x}", fnv64(&data));
     if got.as_bytes() != hash.as_slice() {
-        return Err(format!(
-            "{path} changed after the goldens were written; regenerate them with \
-             `GOTOOLCHAIN=go1.26.2 go run ./rust/crates/openrtb/testdata/go`"
-        ));
+        return Err(regenerate(&format!("{path} changed")));
     }
-    Ok(data)
+    Ok((path, data))
 }
 
 /// The document of a row: `'` and its bytes, or `@file:offset:length` into a corpus file.
@@ -341,7 +354,17 @@ fn replay(file: &str, runners: &Runners) -> TestResult<Tally> {
     for row in golden_rows(file)? {
         match row.first().map(Vec::as_slice) {
             Some(b"#go") => {}
-            Some(b"#file") => files.push(corpus_file(&row)?),
+            Some(b"#root") => {
+                let [_, root] = row.as_slice() else {
+                    return Err(format!("bad #root row of {} fields", row.len()));
+                };
+                tally.roots.push(String::from_utf8_lossy(root).into_owned());
+            }
+            Some(b"#file") => {
+                let (path, data) = corpus_file(&row)?;
+                tally.files.push(path);
+                files.push(data);
+            }
             Some(_) | None => replay_row(&row, &files, runners, &mut tally)?,
         }
     }
@@ -350,7 +373,7 @@ fn replay(file: &str, runners: &Runners) -> TestResult<Tally> {
 
 /// Replays `file`, then checks that nothing but `string_gaps` encodings differ from Go, and
 /// that at least `min_rows` documents were replayed.
-fn check(file: &str, min_rows: usize, string_gaps: usize) -> TestResult {
+fn check(file: &str, min_rows: usize, string_gaps: usize) -> TestResult<Tally> {
     let tally = replay(file, &runners()?)?;
     report(file, &tally.failures, 20)?;
     if tally.rows < min_rows {
@@ -363,20 +386,82 @@ fn check(file: &str, min_rows: usize, string_gaps: usize) -> TestResult {
             "{file}: encodings that differ by the String gap ({} outputs)",
             tally.outputs
         ),
-    )
+    )?;
+    Ok(tally)
 }
 
-/// Every `OpenRTB` document of the adapter, exchange and endpoint test corpora, and the
-/// native markup they carry.
+/// The JSON files below `dir` (repository-relative, `/`-separated), appended to `out`: as the
+/// generator's `filepath.WalkDir`, files whose name ends in `.json`, case-sensitively
+/// (`strings.HasSuffix`), not following symbolic links to directories.
+fn json_files(dir: &str, out: &mut Vec<String>) -> TestResult {
+    let path = repo_root().join(dir);
+    let entries = fs::read_dir(&path).map_err(|e| format!("reading {}: {e}", path.display()))?;
+    for entry in entries {
+        let entry = entry.map_err(|e| format!("reading {}: {e}", path.display()))?;
+        let name = entry.file_name().to_string_lossy().into_owned();
+        let child = format!("{dir}/{name}");
+        let kind = entry
+            .file_type()
+            .map_err(|e| format!("reading {child}: {e}"))?;
+        if kind.is_dir() {
+            json_files(&child, out)?;
+        } else if name.as_bytes().ends_with(b".json") {
+            out.push(child);
+        }
+    }
+    Ok(())
+}
+
+/// The fixture roots of `rust/testdata/go_fixture_manifest.json` as the generator's
+/// `fixtureRoots` reads them: distinct, without missing or empty ones.
+fn fixture_roots() -> TestResult<BTreeSet<String>> {
+    let path = repo_root().join("rust/testdata/go_fixture_manifest.json");
+    let manifest: Value = serde_json::from_slice(&read(&path)?).map_err(|e| e.to_string())?;
+    let runs = manifest
+        .get("runs")
+        .and_then(Value::as_array)
+        .ok_or("the fixture manifest has no runs")?;
+    Ok(runs
+        .iter()
+        .filter_map(|run| run.get("fixture_root").and_then(Value::as_str))
+        .filter(|root| !root.is_empty())
+        .map(str::to_owned)
+        .collect())
+}
+
+/// Every `OpenRTB` document of the adapter, exchange, endpoint and first-party data test
+/// corpora, and the native markup they carry. The corpus must be the one the goldens were made
+/// from: every fixture root of the adapter test manifest is walked, and no JSON file was added
+/// to or removed from a walked directory since.
 #[test]
 fn corpus() -> TestResult {
-    check("corpus.tsv", 8000, 0)
+    let tally = check("corpus.tsv", 8100, 0)?;
+    let roots: BTreeSet<String> = tally.roots.iter().cloned().collect();
+    let fixture_roots = fixture_roots()?;
+    let missing: Vec<&String> = fixture_roots.difference(&roots).collect();
+    if !missing.is_empty() {
+        return Err(regenerate(&format!("fixture roots {missing:?} were added")));
+    }
+    let mut on_disk = Vec::new();
+    for root in &tally.roots {
+        json_files(root, &mut on_disk)?;
+    }
+    let on_disk: BTreeSet<String> = on_disk.into_iter().collect();
+    let recorded: BTreeSet<String> = tally.files.iter().cloned().collect();
+    let added: Vec<&String> = on_disk.difference(&recorded).collect();
+    let removed: Vec<&String> = recorded.difference(&on_disk).collect();
+    if !added.is_empty() || !removed.is_empty() {
+        return Err(regenerate(&format!(
+            "corpus files {added:?} were added and {removed:?} removed"
+        )));
+    }
+    Ok(())
 }
 
 /// The openrtb module's testdata files.
 #[test]
 fn module() -> TestResult {
-    check("module.tsv", 34, 0)
+    check("module.tsv", 34, 0).map(drop)
 }
 
 /// The encodings of the mutations that differ from Go by the documented `String` gap: the
@@ -388,5 +473,5 @@ const MUTATION_STRING_GAPS: usize = 246;
 /// The generated mutations of every ported type.
 #[test]
 fn mutations() -> TestResult {
-    check("mutations.tsv", 20000, MUTATION_STRING_GAPS)
+    check("mutations.tsv", 20000, MUTATION_STRING_GAPS).map(drop)
 }

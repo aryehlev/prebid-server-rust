@@ -1,14 +1,15 @@
 // Command golden writes the parity goldens that pbs-openrtb's tests replay byte for byte.
 //
-// Every OpenRTB JSON document of prebid-server's test corpora (adapter tests, exchange tests,
-// endpoint sample requests, the native request and response markup they carry) and of the
-// openrtb module's own testdata, and generated mutations of every ported type (each field with
-// a sample value, null, values of the wrong JSON type, out-of-range numbers, other key cases,
-// duplicate keys; unknown fields, empty and malformed documents), is decoded as its Go type
+// Every OpenRTB JSON document of prebid-server's test corpora (the adapter fixtures under every
+// fixture root of rust/testdata/go_fixture_manifest.json, exchange tests, endpoint sample
+// requests, first-party data tests, the native request and response markup they carry) and of
+// the openrtb module's own testdata, and generated mutations of every ported type (each field
+// with a sample value, null, values of the wrong JSON type, out-of-range numbers, other key cases,
+// duplicate keys; unknown fields, empty and malformed documents) is decoded as its Go type
 // twice: with jsonutil.Unmarshal (jsoniter, as prebid-server decodes) and with
 // encoding/json.Unmarshal. Each result, also after a failed decode, is re-encoded with
-// jsonutil.Marshal (jsoniter with the RawMessageExtension that main.go registers),
-// json.Marshal, and a json.Encoder with SetEscapeHTML(false).
+// jsonutil.Marshal (jsoniter with the RawMessageExtension that main.go registers), json.Marshal,
+// and a json.Encoder with SetEscapeHTML(false).
 //
 // Each case is one line of tab-separated strconv.QuoteToASCII fields:
 //
@@ -18,7 +19,9 @@
 // that index) or "'" and the document itself. The error fields are empty on success. An encoding
 // is "~" (the document's own bytes), "=N" (the same bytes as encoding N), "+N" (encoding N and a
 // newline), "'" and the bytes, "#length:fnv" (FNV-1a 64 of bytes over 64 long) or "!" and the
-// error text.
+// error text. corpus.tsv lists every directory it walks on a "#root" line and every JSON file
+// found there on a "#file" line, also files that hold no case, so that a new corpus file makes
+// the parity test ask for regeneration.
 //
 // Run it from the repository root (the toolchain the other goldens use):
 //
@@ -73,20 +76,21 @@ func main() {
 	c.adapters()
 	c.exchange()
 	c.endpoints()
-	write(filepath.Join(*out, "corpus.tsv"), c.files, c.cases)
+	c.firstPartyData()
+	write(filepath.Join(*out, "corpus.tsv"), c.roots, c.files, c.cases)
 
 	m := newCorpus(types)
 	m.module(moduleDir())
-	write(filepath.Join(*out, "module.tsv"), nil, m.cases)
+	write(filepath.Join(*out, "module.tsv"), nil, nil, m.cases)
 
 	var mutations []testCase
 	for _, p := range portedTypes {
 		mutations = append(mutations, mutate(p.goType)...)
 	}
-	write(filepath.Join(*out, "mutations.tsv"), nil, mutations)
+	write(filepath.Join(*out, "mutations.tsv"), nil, nil, mutations)
 
-	log.Printf("corpus: %d files, %d cases; module: %d cases; mutations: %d cases",
-		len(c.files), len(c.cases), len(m.cases), len(mutations))
+	log.Printf("corpus: %d roots, %d files, %d cases; module: %d cases; mutations: %d cases",
+		len(c.roots), len(c.files), len(c.cases), len(m.cases), len(mutations))
 }
 
 // testCase is one document to decode as one Go type.
@@ -105,6 +109,7 @@ type corpusFile struct {
 
 type corpus struct {
 	types map[string]reflect.Type
+	roots []string
 	files []corpusFile
 	cases []testCase
 	seen  map[string]bool
@@ -204,26 +209,27 @@ func (c *corpus) adm(adm, label string) {
 	}
 }
 
-// open reads a corpus file and makes it the current one; it reports whether the file is JSON.
+// open reads a corpus file, records it and makes it the current one; it reports whether the
+// file decodes into v. Every file is recorded, so that the parity test can tell a new corpus
+// file from one without cases.
 func (c *corpus) open(path string, v interface{}) bool {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		log.Fatal(err)
 	}
-	if json.Unmarshal(data, v) != nil {
-		return false
-	}
 	c.files = append(c.files, corpusFile{path: filepath.ToSlash(path), data: data})
-	return true
+	return json.Unmarshal(data, v) == nil
 }
 
-func jsonFiles(root string, keep func(string) bool) []string {
+// jsonFiles records root as walked and returns the JSON files below it, sorted.
+func (c *corpus) jsonFiles(root string) []string {
+	c.roots = append(c.roots, filepath.ToSlash(root))
 	var paths []string
 	err := filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
-		if !d.IsDir() && strings.HasSuffix(path, ".json") && keep(path) {
+		if !d.IsDir() && strings.HasSuffix(path, ".json") {
 			paths = append(paths, path)
 		}
 		return nil
@@ -235,13 +241,44 @@ func jsonFiles(root string, keep func(string) bool) []string {
 	return paths
 }
 
-// adapters harvests adapters/*/*test/**/*.json (adapterstest.RunJSONBidderTest fixtures).
-func (c *corpus) adapters() {
-	inTestDir := func(path string) bool {
-		parts := strings.Split(filepath.ToSlash(path), "/")
-		return len(parts) > 3 && strings.HasSuffix(parts[2], "test")
+// fixtureManifest is the adapter test manifest that pbs-devtools writes from the adapters'
+// *_test.go files.
+const fixtureManifest = "rust/testdata/go_fixture_manifest.json"
+
+// fixtureRoots are the distinct fixture directories of every adapterstest.RunJSONBidderTest
+// call, sorted.
+func fixtureRoots() []string {
+	data, err := os.ReadFile(fixtureManifest)
+	if err != nil {
+		log.Fatal(err)
 	}
-	for _, path := range jsonFiles("adapters", inTestDir) {
+	var manifest struct {
+		Runs []struct {
+			FixtureRoot string `json:"fixture_root"`
+		} `json:"runs"`
+	}
+	if err := json.Unmarshal(data, &manifest); err != nil {
+		log.Fatalf("%s: %v", fixtureManifest, err)
+	}
+	seen := map[string]bool{}
+	var roots []string
+	for _, r := range manifest.Runs {
+		if r.FixtureRoot != "" && !seen[r.FixtureRoot] {
+			seen[r.FixtureRoot] = true
+			roots = append(roots, r.FixtureRoot)
+		}
+	}
+	sort.Strings(roots)
+	return roots
+}
+
+// adapters harvests the JSON files below every adapterstest.RunJSONBidderTest fixture root.
+func (c *corpus) adapters() {
+	var paths []string
+	for _, root := range fixtureRoots() {
+		paths = append(paths, c.jsonFiles(filepath.FromSlash(root))...)
+	}
+	for _, path := range paths {
 		var spec struct {
 			MockBidRequest json.RawMessage `json:"mockBidRequest"`
 			HTTPCalls      []struct {
@@ -287,7 +324,7 @@ func isObject(raw json.RawMessage) bool {
 
 // exchange harvests exchange/exchangetest/*.json (exchange_test.go's exchangeSpec).
 func (c *corpus) exchange() {
-	for _, path := range jsonFiles(filepath.Join("exchange", "exchangetest"), func(string) bool { return true }) {
+	for _, path := range c.jsonFiles(filepath.Join("exchange", "exchangetest")) {
 		var spec struct {
 			IncomingRequest struct {
 				OrtbRequest json.RawMessage `json:"ortbRequest"`
@@ -337,7 +374,7 @@ func (c *corpus) exchange() {
 // endpoints harvests endpoints/openrtb2/sample-requests/**/*.json (test_utils.go's testCase).
 func (c *corpus) endpoints() {
 	root := filepath.Join("endpoints", "openrtb2", "sample-requests")
-	for _, path := range jsonFiles(root, func(string) bool { return true }) {
+	for _, path := range c.jsonFiles(root) {
 		var spec struct {
 			BidRequest                 json.RawMessage            `json:"mockBidRequest"`
 			ExpectedValidatedBidReq    json.RawMessage            `json:"expectedValidatedBidRequest"`
@@ -359,6 +396,40 @@ func (c *corpus) endpoints() {
 		}
 		if isObject(spec.ExpectedBidResponse) {
 			c.add(spec.ExpectedBidResponse, "openrtb2.BidResponse", "expectedBidResponse")
+		}
+	}
+}
+
+// firstPartyData harvests the request documents of firstpartydata/tests/resolvefpd and
+// extractfpdforbidders (first_party_data_test.go's fpdFileForResolveFPD and fpdFile): the
+// incoming request, and the outgoing request (per bidder for resolvefpd).
+func (c *corpus) firstPartyData() {
+	for _, dir := range []string{"resolvefpd", "extractfpdforbidders"} {
+		for _, path := range c.jsonFiles(filepath.Join("firstpartydata", "tests", dir)) {
+			var spec struct {
+				InputRequestData  json.RawMessage `json:"inputRequestData"`
+				OutputRequestData json.RawMessage `json:"outputRequestData"`
+			}
+			if !c.open(path, &spec) {
+				continue
+			}
+			c.add(spec.InputRequestData, "openrtb2.BidRequest", "inputRequestData")
+			if dir == "extractfpdforbidders" {
+				c.add(spec.OutputRequestData, "openrtb2.BidRequest", "outputRequestData")
+				continue
+			}
+			var perBidder map[string]json.RawMessage
+			if json.Unmarshal(spec.OutputRequestData, &perBidder) != nil {
+				continue
+			}
+			bidders := make([]string, 0, len(perBidder))
+			for b := range perBidder {
+				bidders = append(bidders, b)
+			}
+			sort.Strings(bidders)
+			for _, b := range bidders {
+				c.add(perBidder[b], "openrtb2.BidRequest", "outputRequestData."+b)
+			}
 		}
 	}
 }
@@ -485,22 +556,47 @@ func fnv64(data []byte) uint64 {
 	return h.Sum64()
 }
 
-func write(path string, files []corpusFile, cases []testCase) {
+// rowWriter writes rows of tab-separated strconv.QuoteToASCII fields.
+type rowWriter struct {
+	f *os.File
+	w *bufio.Writer
+}
+
+func newRowWriter(path string) *rowWriter {
 	f, err := os.Create(path)
 	if err != nil {
 		log.Fatal(err)
 	}
-	w := bufio.NewWriter(f)
-	row := func(fields ...string) {
-		for i, field := range fields {
-			if i > 0 {
-				w.WriteByte('\t')
-			}
-			w.WriteString(strconv.QuoteToASCII(field))
+	rw := &rowWriter{f: f, w: bufio.NewWriter(f)}
+	rw.row("#go", runtime.Version())
+	return rw
+}
+
+func (rw *rowWriter) row(fields ...string) {
+	for i, field := range fields {
+		if i > 0 {
+			rw.w.WriteByte('\t')
 		}
-		w.WriteByte('\n')
+		rw.w.WriteString(strconv.QuoteToASCII(field))
 	}
-	row("#go", runtime.Version())
+	rw.w.WriteByte('\n')
+}
+
+func (rw *rowWriter) close() {
+	if err := rw.w.Flush(); err != nil {
+		log.Fatal(err)
+	}
+	if err := rw.f.Close(); err != nil {
+		log.Fatal(err)
+	}
+}
+
+func write(path string, roots []string, files []corpusFile, cases []testCase) {
+	rw := newRowWriter(path)
+	row := rw.row
+	for _, root := range roots {
+		row("#root", root)
+	}
 	for _, cf := range files {
 		row("#file", cf.path, fmt.Sprintf("%016x", fnv64(cf.data)))
 	}
@@ -516,10 +612,5 @@ func write(path string, files []corpusFile, cases []testCase) {
 			iterErr, cells[0], cells[1], cells[2],
 			stdErr, cells[3], cells[4], cells[5])
 	}
-	if err := w.Flush(); err != nil {
-		log.Fatal(err)
-	}
-	if err := f.Close(); err != nil {
-		log.Fatal(err)
-	}
+	rw.close()
 }
