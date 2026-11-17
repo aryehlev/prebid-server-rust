@@ -30,6 +30,7 @@ func reviewScenarios() []*Scenario {
 	s = append(s, reviewTypedEnv()...)
 	s = append(s, reviewUnicodeKeys()...)
 	s = append(s, reviewCastSweep()...)
+	s = append(s, reviewParseEdges()...)
 	s = append(s, reviewRandomScenarios(20261118, 200)...)
 	return s
 }
@@ -333,6 +334,45 @@ func reviewOddKeys() []*Scenario {
 			setDefault("Ä", 5), setDefault(" sp ", 6),
 			observe(keys...),
 			replacer(".", "_"), autoEnv(), observe(keys...), unmarshal("map"),
+		)},
+	}
+}
+
+// reviewParseEdges reads files as operators write them: byte order marks, CRLF line ends,
+// several YAML documents, JSON with trailing data or comments, and files read through
+// ReadInConfig (where a parse error keeps the previous configuration).
+func reviewParseEdges() []*Scenario {
+	bom := "\ufeff"
+	var out []*Op
+	out = append(out, configType("yaml"))
+	for _, doc := range []string{
+		bom + "a: 1\n", "a: 1\r\nb:\r\n  c: 2\r\n", "a: 1\n---\nb: 2\n", "---\na: 1\n...\n",
+		"%YAML 1.2\n---\na: 1\n", "a: 1 # comment\n#only: comment\n", "a:\n\t- 1\n",
+		"a: !!str 1\nb: !!int \"2\"\n", "a: 0o17\nb: 017\nc: 0x1F\nd: 1_000\ne: +1\nf: .5\n",
+		"a: 2001-12-14\nb: 2001-12-14 21:59:43.10 -5\nc: \"2001-12-14\"\n",
+		"? [a, b]\n: c\n", "a: &x 1\nb: *x\n", "A:\n  B: 1\na:\n  c: 2\n",
+	} {
+		out = append(out, readConfig(doc), allSettings(), get("a"), get("b"))
+	}
+	out = append(out, configType("json"))
+	for _, doc := range []string{
+		bom + `{"a": 1}`, "{\"a\": 1}\r\n", `{"a": 1}{"b": 2}`, `{"a": 1} // c`, `{"a": 1,}`,
+		`{"a": 01}`, `{"a": 1.0e+2, "b": -0, "c": 1E400}`, `{"a": "\u00e9", "b": "\/"}`,
+		` {"a": {"A": {"b": 1}}} `, `{"a": [{"B": 1}], "b": {"C": [1]}}`,
+	} {
+		out = append(out, readConfig(doc), allSettings(), get("a"), get("b"))
+	}
+	return []*Scenario{
+		{Name: "review/parse/read_config", Ops: out},
+		{Name: "review/parse/read_in_config", Files: map[string]string{
+			"good.yaml": "a: good\n", "bom.json": bom + `{"a": "bom"}`, "crlf.yml": "a: crlf\r\n",
+			"two.yaml": "a: first\n---\na: second\n", "bad.json": `{"a": }`,
+		}, Ops: ops(
+			configFile("@TMP@/good.yaml"), readInConfig(), get("a"),
+			configFile("@TMP@/bom.json"), readInConfig(), get("a"),
+			configFile("@TMP@/crlf.yml"), readInConfig(), get("a"),
+			configFile("@TMP@/two.yaml"), readInConfig(), get("a"),
+			configFile("@TMP@/bad.json"), readInConfig(), get("a"),
 		)},
 	}
 }
