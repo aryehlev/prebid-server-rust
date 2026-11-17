@@ -1,0 +1,7 @@
+"get canonical"	"2.5"
+"values"	"2.5,2.6"
+"get raw upper key via Get"	""
+"get lower literal via Get"	""
+"index lower literal"	"literal"
+"write"	"Accept: application/json\r\nContent-Type: application/json;charset=utf-8\r\nTOKEN: raw\r\nUser-Agent: ua\r\nX-Openrtb-Version: 2.5\r\nX-Openrtb-Version: 2.6\r\nx-lower: literal\r\n"
+"write subset"	"Accept: application/json\r\nContent-Type: application/json;charset=utf-8\r\nTOKEN: raw\r\nX-Openrtb-Version: 2.5\r\nX-Openrtb-Version: 2.6\r\nx-lower: literal\r\n"

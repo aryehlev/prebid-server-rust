@@ -1,0 +1,2 @@
+"build"	"a=1+2&a=3&b=2&c=x%26y%3Dz"	"1 2"	"true"	"false"
+"modify"	"b=%E2%82%AC&c=x%26y%3Dz"	""	"false"	"€"
