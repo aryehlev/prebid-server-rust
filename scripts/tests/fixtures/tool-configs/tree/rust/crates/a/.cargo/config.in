@@ -1,0 +1,2 @@
+[profile.dev]
+rustflags = ["-Aunused"]

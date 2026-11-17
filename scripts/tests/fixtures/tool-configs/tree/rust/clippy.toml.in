@@ -1,0 +1,5 @@
+allow-unwrap-in-tests = true
+allowed-duplicate-crates = ["syn"]
+too-many-lines-threshold = 200
+absolute-paths-allowed-crates = ["std"]
+msrv = "1.50"

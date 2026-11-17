@@ -1,0 +1,455 @@
+# Daily upstream port: merge the next chunk of upstream prebid/prebid-server commits and port them
+# to rust/ with agent sessions (port, adversarial review, fix), then publish the result as the one
+# port pull request. See .github/README.md for the design, the secrets and the runbook.
+#
+# Trust boundaries
+#   plan     read-only token, no agents; decides the run from git, pull request and CI state, and
+#            stages the default branch's .github/port tooling for the port job
+#   port     read-only contents token and no push credential on the runner, checkout without
+#            persisted credentials, agents limited by an allow list, a deny list and offline
+#            cargo/go after a prefetch step; produces a git bundle
+#   publish  a fresh runner with the default branch's tooling and the only push credential (GitHub
+#            App token or PORT_PUSH_TOKEN); it runs the git-only guard on the bundle and never
+#            builds or runs code from it
+name: Upstream port
+
+on:
+  schedule:
+    - cron: "23 5 * * *"
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "auto decides from the pull request and CI state; advance and repair force a mode; merge-only merges without agents; dry-run publishes nothing"
+        type: choice
+        options: [auto, advance, repair, merge-only, dry-run]
+        default: auto
+      max_commits:
+        description: "Most upstream commits in this chunk (blank: vars.PORT_MAX_COMMITS or 3)"
+        type: string
+        default: ""
+      target_sha:
+        description: "Stop at this upstream first-parent commit (blank: the upstream head)"
+        type: string
+        default: ""
+
+permissions: {}
+
+concurrency:
+  group: upstream-port
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: bash
+
+env:
+  UPSTREAM_URL: https://github.com/prebid/prebid-server.git
+  UPSTREAM_BRANCH: master
+  BASE_BRANCH: main
+  PORT_BRANCH: port/upstream-sync
+  RUN_MODE: ${{ inputs.mode || 'auto' }}
+  PORT_GIT_NAME: ${{ vars.PORT_GIT_NAME || 'github-actions[bot]' }}
+  PORT_GIT_EMAIL: ${{ vars.PORT_GIT_EMAIL || '41898282+github-actions[bot]@users.noreply.github.com' }}
+  RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+jobs:
+  plan:
+    name: Plan
+    if: vars.PORT_ENABLED != 'false'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      pull-requests: read
+      checks: read
+      statuses: read
+      actions: read
+    outputs:
+      action: ${{ steps.plan.outputs.action }}
+      reason: ${{ steps.plan.outputs.reason }}
+      work_sha: ${{ steps.plan.outputs.work_sha }}
+      port_branch_sha: ${{ steps.plan.outputs.port_branch_sha }}
+      restart: ${{ steps.plan.outputs.restart }}
+      pr_number: ${{ steps.plan.outputs.pr_number }}
+      base_sha: ${{ steps.plan.outputs.base_sha }}
+      target_sha: ${{ steps.plan.outputs.target_sha }}
+      adapter_dirs: ${{ steps.plan.outputs.adapter_dirs }}
+      needs_claude: ${{ steps.plan.outputs.needs_claude }}
+      budget_class: ${{ steps.plan.outputs.budget_class }}
+    steps:
+      - name: Checkout the default branch (trusted tooling; all branches are fetched)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ env.BASE_BRANCH }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Fetch upstream
+        run: git fetch --no-tags "${UPSTREAM_URL}" "+refs/heads/${UPSTREAM_BRANCH}:refs/remotes/upstream/${UPSTREAM_BRANCH}"
+      - name: Compute the plan
+        id: plan
+        env:
+          GH_TOKEN: ${{ github.token }}
+          MAX_COMMITS: ${{ inputs.max_commits || vars.PORT_MAX_COMMITS || '3' }}
+          MAX_PR_COMMITS: ${{ vars.PORT_MAX_PR_COMMITS || '10' }}
+          MAX_REPAIRS: ${{ vars.PORT_MAX_REPAIRS || '2' }}
+          MAX_GO_LINES: ${{ vars.PORT_MAX_GO_LINES || '3000' }}
+          TARGET_INPUT: ${{ inputs.target_sha }}
+          OUT_DIR: ${{ runner.temp }}/port-plan
+        run: .github/port/scripts/plan.sh
+      - name: Stage the default branch's tooling (a tar keeps the executable bits)
+        run: tar -C .github -cf "${RUNNER_TEMP}/port-plan/tooling.tar" port
+      - name: Upload the plan
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: port-plan
+          path: ${{ runner.temp }}/port-plan
+          retention-days: 7
+          if-no-files-found: error
+      - name: Summary
+        env:
+          ACTION: ${{ steps.plan.outputs.action }}
+          REASON: ${{ steps.plan.outputs.reason }}
+        run: |
+          {
+            printf '### Upstream port plan\n\n- action: %s\n- reason: %s\n\n' "${ACTION}" "${REASON}"
+            jq -r '.commits[]? | "- \(.sha[0:12]) \(.subject | gsub("[`\r\n]"; " ")): \(.classes | join(", "))"' \
+              "${RUNNER_TEMP}/port-plan/plan.json"
+          } >> "${GITHUB_STEP_SUMMARY}"
+
+  port:
+    name: Port
+    needs: plan
+    if: needs.plan.outputs.action == 'advance' || needs.plan.outputs.action == 'repair'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 330
+    permissions:
+      contents: read
+    env:
+      ACTION: ${{ needs.plan.outputs.action }}
+      BASE_SHA: ${{ needs.plan.outputs.base_sha }}
+      TARGET_SHA: ${{ needs.plan.outputs.target_sha }}
+      WORK_SHA: ${{ needs.plan.outputs.work_sha }}
+      PR_NUMBER: ${{ needs.plan.outputs.pr_number }}
+      ADAPTER_DIRS: ${{ needs.plan.outputs.adapter_dirs }}
+      NEEDS_CLAUDE: ${{ needs.plan.outputs.needs_claude }}
+      BUDGET_CLASS: ${{ needs.plan.outputs.budget_class }}
+      PORT_MODEL: ${{ vars.PORT_MODEL || 'claude-opus-5-5' }}
+      REVIEW_MODEL: ${{ vars.PORT_REVIEW_MODEL || vars.PORT_MODEL || 'claude-opus-5-5' }}
+      PORT_FALLBACK_MODEL: ${{ vars.PORT_FALLBACK_MODEL || 'claude-sonnet-5-5' }}
+      PORT_BUDGET_USD: ${{ vars.PORT_BUDGET_USD || '30' }}
+      PORT_CORE_BUDGET_USD: ${{ vars.PORT_CORE_BUDGET_USD || '60' }}
+      REVIEW_BUDGET_USD: ${{ vars.PORT_REVIEW_BUDGET_USD || '10' }}
+      FIX_BUDGET_USD: ${{ vars.PORT_FIX_BUDGET_USD || '15' }}
+      GIT_AUTHOR_NAME: ${{ vars.PORT_GIT_NAME || 'github-actions[bot]' }}
+      GIT_AUTHOR_EMAIL: ${{ vars.PORT_GIT_EMAIL || '41898282+github-actions[bot]@users.noreply.github.com' }}
+      GIT_COMMITTER_NAME: ${{ vars.PORT_GIT_NAME || 'github-actions[bot]' }}
+      GIT_COMMITTER_EMAIL: ${{ vars.PORT_GIT_EMAIL || '41898282+github-actions[bot]@users.noreply.github.com' }}
+      CLAUDE_CODE_SUBPROCESS_ENV_SCRUB: "1"
+      CARGO_TERM_COLOR: never
+      CARGO_INCREMENTAL: "0"
+      RUST_BACKTRACE: "1"
+      GOTOOLCHAIN: local
+      GOFLAGS: -mod=readonly
+    steps:
+      - name: Download the plan and the trusted tooling
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: port-plan
+          path: ${{ runner.temp }}/port-plan
+      - name: Checkout the planned commit (all branches are fetched)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.plan.outputs.work_sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Prepare the work branch
+        run: |
+          mkdir -p "${RUNNER_TEMP}/tooling" "${RUNNER_TEMP}/port-ctx"
+          tar -C "${RUNNER_TEMP}/tooling" -xf "${RUNNER_TEMP}/port-plan/tooling.tar"
+          {
+            printf 'T=%s\n' "${RUNNER_TEMP}/tooling/port/scripts"
+            printf 'CTX=%s\n' "${RUNNER_TEMP}/port-ctx"
+            printf 'PLAN_DIR=%s\n' "${RUNNER_TEMP}/port-plan"
+            printf 'PBS_GO_ROOT=%s\n' "${GITHUB_WORKSPACE}"
+            printf 'WORK_BRANCH=port-work\n'
+          } >> "${GITHUB_ENV}"
+          git switch -c port-work
+          git fetch --no-tags "${UPSTREAM_URL}" "+refs/heads/${UPSTREAM_BRANCH}:refs/remotes/upstream/${UPSTREAM_BRANCH}"
+      - name: Merge the default branch and the upstream chunk
+        run: |
+          if ! git merge-base --is-ancestor "refs/remotes/origin/${BASE_BRANCH}" HEAD; then
+            git merge --no-ff --no-verify -m "Merge ${BASE_BRANCH} into ${PORT_BRANCH}" "refs/remotes/origin/${BASE_BRANCH}"
+          fi
+          if [[ "${ACTION}" == advance ]]; then
+            "${T}/merge-upstream.sh" "${TARGET_SHA}"
+          fi
+          merged=$(git rev-parse HEAD)
+          printf 'MERGED_SHA=%s\n' "${merged}" >> "${GITHUB_ENV}"
+      - name: Go version of the upstream Dockerfile
+        id: go
+        run: '"${T}/go-version.sh"'
+      - name: Install Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: ${{ steps.go.outputs.version }}
+          cache-dependency-path: go.sum
+      - name: Install the Rust toolchains (rust-toolchain.toml and the rustfmt nightly)
+        working-directory: rust
+        run: |
+          rustup toolchain install
+          toolchain=$(scripts/rustfmt-toolchain.sh)
+          rustup toolchain install "${toolchain}" --profile minimal --component rustfmt
+      - name: Install taplo and cargo-machete
+        uses: taiki-e/install-action@ab49d3c64680143e184118bed66a46419fc15519 # v2.90.5
+        with:
+          tool: taplo@0.10.0,cargo-machete@0.9.2
+      - name: Cache
+        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        with:
+          workspaces: rust -> target
+          shared-key: upstream-port
+          cache-on-failure: "true"
+      - name: Build the porting context
+        run: '"${T}/build-context.sh"'
+      - name: Prefetch dependencies (the last network use before the agents)
+        run: |
+          (cd rust && cargo fetch --locked)
+          go mod download
+      - name: Gates before the agents
+        id: before
+        run: |
+          "${T}/gates.sh" --out "${CTX}/gates-before.json" --strict-dirs "${ADAPTER_DIRS}" || true
+          status=$(jq -r '.status' "${CTX}/gates-before.json")
+          printf 'status=%s\n' "${status}" >> "${GITHUB_OUTPUT}"
+      - name: Render the agent inputs
+        id: inputs
+        run: '"${T}/render-inputs.sh"'
+
+      - name: "Agent: port"
+        id: claude_port
+        if: steps.inputs.outputs.run_claude == 'true'
+        continue-on-error: true
+        timeout-minutes: 150
+        uses: anthropics/claude-code-action@cc98b3ae241b0fcfb6a42a2690751afffecb4452 # v1.0.278
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          github_token: ${{ github.token }}
+          prompt: ${{ steps.inputs.outputs.port_prompt }}
+          settings: ${{ steps.inputs.outputs.port_settings }}
+          claude_args: ${{ steps.inputs.outputs.port_args }}
+          bot_name: ${{ vars.PORT_GIT_NAME || 'github-actions[bot]' }}
+          bot_id: ${{ vars.PORT_GIT_ID || '41898282' }}
+          display_report: "false"
+      - name: Gates after the port
+        id: after
+        if: steps.inputs.outputs.run_claude == 'true'
+        run: |
+          "${T}/check-worktree.sh"
+          "${T}/gates.sh" --out "${CTX}/gates-after.json" --strict-dirs "${ADAPTER_DIRS}" || true
+          status=$(jq -r '.status' "${CTX}/gates-after.json")
+          printf 'status=%s\n' "${status}" >> "${GITHUB_OUTPUT}"
+
+      - name: "Agent: adversarial review"
+        id: claude_review
+        if: steps.inputs.outputs.run_claude == 'true' && steps.claude_port.outcome == 'success' && vars.PORT_REVIEW != 'false'
+        continue-on-error: true
+        timeout-minutes: 45
+        uses: anthropics/claude-code-action@cc98b3ae241b0fcfb6a42a2690751afffecb4452 # v1.0.278
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          github_token: ${{ github.token }}
+          prompt: ${{ steps.inputs.outputs.review_prompt }}
+          settings: ${{ steps.inputs.outputs.review_settings }}
+          claude_args: ${{ steps.inputs.outputs.review_args }}
+          bot_name: ${{ vars.PORT_GIT_NAME || 'github-actions[bot]' }}
+          bot_id: ${{ vars.PORT_GIT_ID || '41898282' }}
+          display_report: "false"
+      - name: Decide on the fix session
+        id: decide
+        if: steps.inputs.outputs.run_claude == 'true'
+        env:
+          REVIEW_JSON: ${{ steps.claude_review.outputs.structured_output }}
+          AFTER_STATUS: ${{ steps.after.outputs.status }}
+        run: |
+          "${T}/check-worktree.sh"
+          "${T}/decide-fix.sh"
+
+      - name: "Agent: fix"
+        id: claude_fix
+        if: steps.decide.outputs.fix == 'true'
+        continue-on-error: true
+        timeout-minutes: 60
+        uses: anthropics/claude-code-action@cc98b3ae241b0fcfb6a42a2690751afffecb4452 # v1.0.278
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          github_token: ${{ github.token }}
+          prompt: ${{ steps.inputs.outputs.fix_prompt }}
+          settings: ${{ steps.inputs.outputs.fix_settings }}
+          claude_args: ${{ steps.inputs.outputs.fix_args }}
+          bot_name: ${{ vars.PORT_GIT_NAME || 'github-actions[bot]' }}
+          bot_id: ${{ vars.PORT_GIT_ID || '41898282' }}
+          display_report: "false"
+
+      - name: Final gates (authoritative)
+        id: final
+        env:
+          CLAUDE_RAN: ${{ steps.inputs.outputs.run_claude }}
+        run: |
+          if [[ "${CLAUDE_RAN}" == true ]]; then
+            "${T}/check-worktree.sh"
+            "${T}/gates.sh" --out "${CTX}/gates-final.json" --strict-dirs "${ADAPTER_DIRS}" || true
+          else
+            cp "${CTX}/gates-before.json" "${CTX}/gates-final.json"
+          fi
+          status=$(jq -r '.status' "${CTX}/gates-final.json")
+          printf 'status=%s\n' "${status}" >> "${GITHUB_OUTPUT}"
+      - name: Commit with the bot identity and no AI attribution
+        env:
+          PORT_JSON: ${{ steps.claude_port.outputs.structured_output }}
+          FIX_JSON: ${{ steps.claude_fix.outputs.structured_output }}
+        run: |
+          "${T}/commit.sh"
+          "${T}/guard.sh" --bot --ref HEAD --base "${WORK_SHA}" --strict-dirs "${ADAPTER_DIRS}"
+      - name: Package the result
+        env:
+          PORT_JSON: ${{ steps.claude_port.outputs.structured_output }}
+          REVIEW_JSON: ${{ steps.claude_review.outputs.structured_output }}
+          FIX_JSON: ${{ steps.claude_fix.outputs.structured_output }}
+          FINAL_STATUS: ${{ steps.final.outputs.status }}
+          CLAUDE_RAN: ${{ steps.inputs.outputs.run_claude }}
+        run: |
+          out="${RUNNER_TEMP}/out"
+          mkdir -p "${out}"
+          exclude=("^refs/remotes/origin/${BASE_BRANCH}")
+          if git rev-parse -q --verify "refs/remotes/origin/${PORT_BRANCH}" > /dev/null; then
+            exclude+=("^refs/remotes/origin/${PORT_BRANCH}")
+          fi
+          new_commits=$(git rev-list --count refs/heads/port-work "${exclude[@]}")
+          if [[ "${new_commits}" -eq 0 ]]; then
+            touch "${out}/no-changes"
+          else
+            git bundle create "${out}/port.bundle" refs/heads/port-work "${exclude[@]}"
+          fi
+          for file in plan.json gates-before.json gates-after.json gates-final.json; do
+            if [[ -f "${CTX}/${file}" ]]; then
+              cp "${CTX}/${file}" "${out}/${file}"
+            fi
+          done
+          if [[ "${ACTION}" == advance ]]; then
+            count=$(jq -r '.commits | length' "${CTX}/plan.json")
+            tail -n "${count}" rust/upstream-port-log.jsonl > "${out}/port-log.jsonl"
+          fi
+          printf '%s' "${PORT_JSON:-}" > "${out}/port-result.json"
+          printf '%s' "${REVIEW_JSON:-}" > "${out}/review-result.json"
+          printf '%s' "${FIX_JSON:-}" > "${out}/fix-result.json"
+          printf '%s' "${FINAL_STATUS:-unknown}" > "${out}/final-status"
+          "${T}/render-report.sh" > "${out}/report.md"
+          cat "${out}/report.md" >> "${GITHUB_STEP_SUMMARY}"
+      - name: Upload the result
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: port-result
+          path: ${{ runner.temp }}/out
+          retention-days: 14
+          if-no-files-found: error
+
+  publish:
+    name: Publish
+    needs: [plan, port]
+    if: >-
+      always() &&
+      needs.plan.result == 'success' &&
+      (needs.plan.outputs.action == 'advance' || needs.plan.outputs.action == 'repair' || needs.plan.outputs.action == 'escalate') &&
+      (inputs.mode || 'auto') != 'dry-run'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    env:
+      ACTION: ${{ needs.plan.outputs.action }}
+      REASON: ${{ needs.plan.outputs.reason }}
+      PR_NUMBER: ${{ needs.plan.outputs.pr_number }}
+      RESTART: ${{ needs.plan.outputs.restart }}
+      PORT_BRANCH_SHA: ${{ needs.plan.outputs.port_branch_sha }}
+      WORK_SHA: ${{ needs.plan.outputs.work_sha }}
+      ADAPTER_DIRS: ${{ needs.plan.outputs.adapter_dirs }}
+      PORT_RESULT: ${{ needs.port.result }}
+      HAS_APP_KEY: ${{ secrets.PORT_APP_PRIVATE_KEY != '' }}
+      HAS_PUSH_TOKEN: ${{ secrets.PORT_PUSH_TOKEN != '' }}
+    steps:
+      - name: Mint a GitHub App installation token
+        id: app
+        if: (vars.PORT_APP_ID != '' || vars.PORT_APP_CLIENT_ID != '') && env.HAS_APP_KEY == 'true'
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          client-id: ${{ vars.PORT_APP_CLIENT_ID || vars.PORT_APP_ID }}
+          private-key: ${{ secrets.PORT_APP_PRIVATE_KEY }}
+          permission-contents: write
+          permission-pull-requests: write
+          permission-issues: write
+          permission-workflows: write
+      - name: Require a push credential
+        env:
+          HAS_APP_TOKEN: ${{ steps.app.outputs.token != '' }}
+        run: |
+          if [[ "${HAS_APP_TOKEN}" != true && "${HAS_PUSH_TOKEN}" != true ]]; then
+            printf '::error::configure a GitHub App (vars.PORT_APP_ID and secrets.PORT_APP_PRIVATE_KEY) or secrets.PORT_PUSH_TOKEN; pushes made with GITHUB_TOKEN do not trigger CI, so the port pull request would never get ci-ok\n'
+            exit 1
+          fi
+      - name: Checkout the default branch (trusted tooling, push credential)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ env.BASE_BRANCH }}
+          fetch-depth: 0
+          token: ${{ steps.app.outputs.token || secrets.PORT_PUSH_TOKEN }}
+      - name: Escalate to a person
+        if: env.ACTION == 'escalate'
+        env:
+          GH_TOKEN: ${{ steps.app.outputs.token || secrets.PORT_PUSH_TOKEN }}
+        run: .github/port/scripts/publish-pr.sh --escalate
+      - name: Report the failed port job
+        if: env.ACTION != 'escalate' && (env.PORT_RESULT == 'failure' || env.PORT_RESULT == 'cancelled')
+        env:
+          GH_TOKEN: ${{ steps.app.outputs.token || secrets.PORT_PUSH_TOKEN }}
+        run: .github/port/scripts/report-failure.sh
+      - name: Download the port result
+        if: env.PORT_RESULT == 'success'
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: port-result
+          path: ${{ runner.temp }}/result
+      - name: Import the bundle and run the authoritative guard
+        if: env.PORT_RESULT == 'success'
+        run: |
+          git fetch --no-tags "${UPSTREAM_URL}" "+refs/heads/${UPSTREAM_BRANCH}:refs/remotes/upstream/${UPSTREAM_BRANCH}"
+          if [[ -f "${RUNNER_TEMP}/result/no-changes" ]]; then
+            printf 'NO_CHANGES=1\n' >> "${GITHUB_ENV}"
+            exit 0
+          fi
+          git bundle verify "${RUNNER_TEMP}/result/port.bundle"
+          git fetch --no-tags "${RUNNER_TEMP}/result/port.bundle" "+refs/heads/port-work:refs/port/new"
+          .github/port/scripts/guard.sh --bot --ref refs/port/new --base "${WORK_SHA}" \
+            --strict-dirs "${ADAPTER_DIRS}" --pr-text "${RUNNER_TEMP}/result/report.md"
+      - name: Push the port branch (never the default branch)
+        if: env.PORT_RESULT == 'success' && env.NO_CHANGES != '1'
+        run: |
+          case "${PORT_BRANCH}" in
+            main | master | "${BASE_BRANCH}" | "")
+              printf '::error::refusing to push to %s\n' "${PORT_BRANCH}"
+              exit 1
+              ;;
+            *) ;;
+          esac
+          if [[ "${RESTART}" == true && -n "${PORT_BRANCH_SHA}" ]]; then
+            git push --force-with-lease="refs/heads/${PORT_BRANCH}:${PORT_BRANCH_SHA}" origin "refs/port/new:refs/heads/${PORT_BRANCH}"
+          else
+            git push origin "refs/port/new:refs/heads/${PORT_BRANCH}"
+          fi
+      - name: Open or update the pull request
+        if: env.PORT_RESULT == 'success' && env.NO_CHANGES != '1'
+        env:
+          GH_TOKEN: ${{ steps.app.outputs.token || secrets.PORT_PUSH_TOKEN }}
+        run: .github/port/scripts/publish-pr.sh --result "${RUNNER_TEMP}/result"

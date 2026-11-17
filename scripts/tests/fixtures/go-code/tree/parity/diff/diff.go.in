@@ -1,0 +1,5 @@
+package diff
+
+import "math/rand" //nolint:gosec
+
+var _ = rand.Int

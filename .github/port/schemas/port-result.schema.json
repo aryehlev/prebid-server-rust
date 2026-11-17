@@ -1,0 +1,57 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Result of a port, fix or repair session",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["overall_status", "summary", "commits", "rust_files_changed", "verification", "not_ported", "followups"],
+  "properties": {
+    "overall_status": {
+      "description": "ported: every planned upstream change is in Rust; partial: some is missing (listed in not_ported); blocked: nothing could be ported; no_change_needed: Rust already behaves like the new Go",
+      "enum": ["ported", "partial", "blocked", "no_change_needed"]
+    },
+    "summary": {"type": "string", "maxLength": 6000},
+    "commits": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["sha", "status", "notes"],
+        "properties": {
+          "sha": {"type": "string", "pattern": "^[0-9a-f]{7,40}$"},
+          "status": {"enum": ["ported", "no_change_needed", "partial", "blocked"]},
+          "notes": {"type": "string", "maxLength": 2000}
+        }
+      }
+    },
+    "rust_files_changed": {"type": "array", "items": {"type": "string"}},
+    "verification": {
+      "description": "Every verification command that was run, with the result that was observed",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["command", "result"],
+        "properties": {
+          "command": {"type": "string"},
+          "result": {"enum": ["pass", "fail", "not_run"]},
+          "details": {"type": "string", "maxLength": 2000}
+        }
+      }
+    },
+    "not_ported": {
+      "description": "Go behaviour the Rust port still lacks after this session",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["go_path", "reason"],
+        "properties": {
+          "sha": {"description": "The upstream commit that introduced it", "type": "string", "pattern": "^[0-9a-f]{7,40}$"},
+          "go_path": {"type": "string"},
+          "reason": {"type": "string", "maxLength": 2000}
+        }
+      }
+    },
+    "followups": {"type": "array", "items": {"type": "string", "maxLength": 2000}}
+  }
+}

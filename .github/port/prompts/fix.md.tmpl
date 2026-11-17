@@ -1,0 +1,16 @@
+Fix the problems listed in ${CTX}/fix-input.md (blocking adversarial review findings, failing
+gates, or both) in the Rust port of upstream prebid/prebid-server ${BASE_SHA}..${TARGET_SHA}.
+
+Run: ${RUN_URL}
+Your changes and the earlier sessions' changes start from commit ${MERGED_SHA}
+(`git diff ${MERGED_SHA} -- rust`). Context directory: ${CTX}. Adapter directories whose Go
+fixtures must all pass: ${ADAPTER_DIRS}
+Conformance script: `${CONFORMANCE} --strict-dirs <dirs>`.
+Formatter: `rustfmt +${RUSTFMT_TOOLCHAIN} --edition 2024 <files you changed>`.
+
+The adversarial tests under rust/crates/*/tests/adversarial_*.rs encode Go's real behaviour. Make
+them pass by fixing production code. Do not change or delete them unless a Go probe proves the
+expected value in the test is wrong. Then run all verification again and return the structured
+result for the whole range (the same schema as the port session).
+
+Budget: at most ${MAX_TURNS} turns.

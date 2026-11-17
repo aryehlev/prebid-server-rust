@@ -1,0 +1,3 @@
+#![allow(dead_code)]
+#[allow(unused)]
+fn legacy_is_not_scanned() {}

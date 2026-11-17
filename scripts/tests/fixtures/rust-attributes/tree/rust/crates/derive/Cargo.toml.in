@@ -1,0 +1,9 @@
+[package]
+name = "derive"
+version = "0.1.0"
+
+[lib]
+proc-macro = true
+
+[lints]
+workspace = true

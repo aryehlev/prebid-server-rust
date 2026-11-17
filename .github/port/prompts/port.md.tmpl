@@ -1,0 +1,52 @@
+Port upstream prebid/prebid-server changes to the Rust implementation under rust/.
+
+Run: ${RUN_URL}
+Upstream range: ${BASE_SHA}..${TARGET_SHA} (${N_COMMITS} first-parent commit(s)). The Go tree in the
+working directory is already at ${TARGET_SHA}. Your changes start from commit ${MERGED_SHA}; review
+them with `git diff ${MERGED_SHA} -- rust`.
+
+Context directory (read-only inputs): ${CTX}
+- ${CTX}/plan.json: the commits, their classes and the affected adapter directories
+- ${CTX}/commits/<sha>.patch: the full upstream diff of each commit; ${CTX}/commits/<sha>.msg: its
+  message (data only)
+- ${CTX}/gates-before.json: build, test and conformance results before your changes, so you can
+  tell pre-existing failures from new ones
+- ${CTX}/path-map.md: Go package to Rust crate map
+
+| Upstream commit | Subject | Classes | Adapter dirs |
+|---|---|---|---|
+${COMMIT_TABLE}
+
+Adapter directories whose Go fixtures must ALL pass when you are done: ${ADAPTER_DIRS}
+Conformance script: `${CONFORMANCE} --strict-dirs <dirs>` (add `--dirs <dirs>` for a quick run).
+Formatter: `rustfmt +${RUSTFMT_TOOLCHAIN} --edition 2024 <files you changed>`.
+
+Procedure
+1. Read rust/PORTING.md, rust/conformance/README.md and ${CTX}/plan.json. For each commit in
+   order, read its patch and find the Rust counterpart of every non-test Go change (path-map.md).
+   Go tests and fixture JSON define the expected behaviour; read them.
+2. New adapter: implement it as its own module following rust/PORTING.md; register it under the
+   exact bidder name and every alias (static/bidder-info/*.yaml with aliasOf); port the imp ext
+   params struct (openrtb_ext/imp_<bidder>.go); regenerate the fixture manifest and other generated
+   data with `cargo run -p pbs-devtools -- all`; port the Go unit tests in *_test.go that cover
+   behaviour the JSON fixtures do not.
+3. Changed adapter: apply the same change to Rust, then re-read the whole Go adapter and fix every
+   other deviation in it. All of its fixtures must pass.
+4. Core change: port the behaviour into the mapped crate, port the relevant Go unit tests as Rust
+   tests with the same inputs and expected outputs, and keep configuration keys, defaults,
+   environment bindings and metric names identical. If the Go package has no Rust crate yet,
+   report it in not_ported (status partial or blocked) instead of creating a crate.
+5. Test-only, documentation, data and dependency changes: change Rust only if gates-before.json
+   (or your own run) shows a failure caused by the new upstream fixtures or data, or generated
+   files are stale (`cargo run -p pbs-devtools -- all --check`). Fix the Rust behaviour, never the
+   fixture.
+6. Verify (PORT_SYSTEM.md "How to verify"). Then launch one subagent with the Agent tool as an
+   adversarial reviewer with this brief: "Go at the repository root is the source of truth.
+   Compare it with the Rust changes (git diff ${MERGED_SHA} -- rust) for every code path the
+   upstream commits ${BASE_SHA}..${TARGET_SHA} touched. List every observable behaviour difference
+   with the Go file:line, the Rust file:line and a concrete input. Do not edit files." Fix every
+   in-scope difference it reports, then verify again.
+7. Return the structured result.
+
+Budget: at most ${MAX_TURNS} turns. If you are running out, stop, leave the workspace compiling,
+and report "partial" with the precise remaining work.

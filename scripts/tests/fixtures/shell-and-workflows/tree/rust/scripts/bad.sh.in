@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+# shellcheck disable=SC2086
+echo $x
+# shellcheck source=lib.sh disable=SC1091
+# shellcheck extended-analysis=false
+shellcheck --exclude=SC2086 x.sh
+shellcheck -e SC2086 x.sh
+shellcheck --severity=warning x.sh
+shellcheck -S error x.sh
+shellcheck --include=SC2086 x.sh
+export RUSTFLAGS="-D warnings"
+CARGO_ENCODED_RUSTFLAGS=x cargo build
+export RUSTDOCFLAGS="--cap-lints allow"
+export CARGO_BUILD_WARNINGS=allow
+cargo clippy --workspace -- -D warnings -A clippy::pedantic
+cargo clippy -- -Aclippy::all
+rustc --cap-lints allow main.rs
+cargo clippy -- --warn clippy::all
+actionlint -ignore 'SC2086' .github/workflows/ci.yml
+export CLIPPY_CONF_DIR=/tmp

@@ -1,0 +1,4 @@
+# The clean tree holds near misses that must not be reported: lint-like text in comments, string,
+# raw string and char literals, expect()/allow() method calls, cfg(doc), warn/deny attributes,
+# workspace lint levels warn/deny/forbid, empty ignore lists, allowed workflow and script forms, and
+# suppressions inside rust/legacy/ and rust/target/, which are not scanned.

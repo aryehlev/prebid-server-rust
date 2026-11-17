@@ -1,0 +1,10 @@
+# taplo (TOML formatter) settings for every TOML file in the Rust workspace.
+# CI runs, from rust/:  taplo fmt --check --config taplo.toml
+include = ["**/*.toml"]
+exclude = ["target/**", "legacy/**"]
+
+[formatting]
+indent_string = "    "
+column_width = 100
+inline_table_expand = false
+allowed_blank_lines = 1
