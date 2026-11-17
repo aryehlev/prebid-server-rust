@@ -3,13 +3,13 @@
 // Every OpenRTB JSON document of prebid-server's test corpora (the adapter fixtures under every
 // fixture root of rust/testdata/go_fixture_manifest.json, exchange tests, endpoint sample
 // requests, first-party data tests, the native request and response markup they carry) and of
-// the openrtb module's own testdata, and generated mutations of every ported type (each field
-// with a sample value, null, values of the wrong JSON type, out-of-range numbers, other key cases,
-// duplicate keys; unknown fields, empty and malformed documents) is decoded as its Go type
-// twice: with jsonutil.Unmarshal (jsoniter, as prebid-server decodes) and with
-// encoding/json.Unmarshal. Each result, also after a failed decode, is re-encoded with
-// jsonutil.Marshal (jsoniter with the RawMessageExtension that main.go registers), json.Marshal,
-// and a json.Encoder with SetEscapeHTML(false).
+// the openrtb module's own testdata, generated mutations of every ported type (each field with a
+// sample value, null, values of the wrong JSON type, out-of-range numbers, other key cases,
+// duplicate keys; unknown fields, empty and malformed documents), and adversarial documents
+// (adversarial.go) is decoded as its Go type twice: with jsonutil.Unmarshal (jsoniter, as
+// prebid-server decodes) and with encoding/json.Unmarshal. Each result, also after a failed
+// decode, is re-encoded with jsonutil.Marshal (jsoniter with the RawMessageExtension that main.go
+// registers), json.Marshal, and a json.Encoder with SetEscapeHTML(false).
 //
 // Each case is one line of tab-separated strconv.QuoteToASCII fields:
 //
@@ -22,6 +22,13 @@
 // error text. corpus.tsv lists every directory it walks on a "#root" line and every JSON file
 // found there on a "#file" line, also files that hold no case, so that a new corpus file makes
 // the parity test ask for regeneration.
+//
+// encode.tsv holds the encodings of values that no JSON document decodes to (NaN and infinite
+// floats, invalid json.RawMessage bytes), built by encodeCases (encode.go): one line per value,
+//
+//	name enc1 enc2 enc3
+//
+// each encoding "'" and the bytes or "!" and the error text.
 //
 // Run it from the repository root (the toolchain the other goldens use):
 //
@@ -89,8 +96,15 @@ func main() {
 	}
 	write(filepath.Join(*out, "mutations.tsv"), nil, nil, mutations)
 
-	log.Printf("corpus: %d roots, %d files, %d cases; module: %d cases; mutations: %d cases",
-		len(c.roots), len(c.files), len(c.cases), len(m.cases), len(mutations))
+	adv := adversarial()
+	write(filepath.Join(*out, "adversarial.tsv"), nil, nil, adv)
+
+	enc := encodeCases()
+	writeEncodings(filepath.Join(*out, "encode.tsv"), enc)
+
+	log.Printf("corpus: %d roots, %d files, %d cases; module: %d cases; mutations: %d cases; "+
+		"adversarial: %d cases; encode: %d values",
+		len(c.roots), len(c.files), len(c.cases), len(m.cases), len(mutations), len(adv), len(enc))
 }
 
 // testCase is one document to decode as one Go type.

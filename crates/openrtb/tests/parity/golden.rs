@@ -1,10 +1,10 @@
 //! Replays the goldens that `testdata/go` writes (its `main.go` documents the format): every
 //! decoder error and every encoding must match Go byte for byte.
 
-use core::str::from_utf8;
+use core::{iter::repeat_n, str::from_utf8};
 use std::{
     collections::{BTreeMap, BTreeSet},
-    fs,
+    fs, thread,
 };
 
 use pbs_gojson::{GoEncode, JsoniterDecode, StdDecode, gotype::go_type_name, jsonutil, stdjson};
@@ -37,7 +37,8 @@ pub(super) type Runner = fn(&[u8]) -> Outcome;
 /// The runner of each ported type, by Go name.
 pub(super) type Runners = BTreeMap<String, Runner>;
 
-fn encode<T: GoEncode>(v: &T) -> [Encoded; 3] {
+/// `v` encoded with `jsonutil.Marshal`, `json.Marshal` and an `Encoder` without HTML escaping.
+pub(super) fn encode<T: GoEncode>(v: &T) -> [Encoded; 3] {
     [
         jsonutil::marshal(v).map_err(|e| e.message.into_bytes()),
         stdjson::marshal(v).map_err(|e| e.go_text()),
@@ -213,6 +214,8 @@ struct Tally {
     outputs: usize,
     /// Encodings that differ only as the documented `String` gap allows.
     string_gaps: usize,
+    /// Rows of [`STALE_ELEMENT`] cases that differ from Go (the documented `Vec` gap).
+    stale_elements: usize,
     /// Every other difference.
     failures: Vec<String>,
     /// The directories of the `#root` rows.
@@ -220,6 +223,18 @@ struct Tally {
     /// The paths of the `#file` rows.
     files: Vec<String>,
 }
+
+/// The end of the labels of the adversarial cases that revive slice elements beyond a slice's
+/// length.
+///
+/// Go decodes an array into the slice it already holds: it reuses the elements up to the
+/// slice's capacity, also those beyond its length, which a shorter array decoded earlier left
+/// in the backing array. A third occurrence of a key (`{"imp":[A,B],"imp":[C],"imp":[{},{}]}`)
+/// therefore brings back B, merged with what the third array says about it, while a Rust `Vec`
+/// dropped B when it shrank (Go: `encoding/json` `decodeState.array`, jsoniter
+/// `sliceDecoder.doDecode` through reflect2's `UnsafeGrow`). Besides such repeated keys, only Go
+/// code that decodes into a slice it cut shorter (`s = s[:n]`) can show it.
+const STALE_ELEMENT: &[u8] = b"stale element";
 
 /// The message for a corpus that changed after the goldens were written.
 fn regenerate(what: &str) -> String {
@@ -301,15 +316,16 @@ fn replay_row(
     let what = format!("{name} {} {}", show(label), show(&doc));
     tally.rows += 1;
     tally.outputs += 2;
+    let mut failures = Vec::new();
     if rust.jsoniter_err != *iter_err {
-        tally.failures.push(format!(
+        failures.push(format!(
             "{what}: jsonutil.Unmarshal error {}, Go's is {}",
             show(&rust.jsoniter_err),
             show(iter_err)
         ));
     }
     if rust.std_err != *std_err {
-        tally.failures.push(format!(
+        failures.push(format!(
             "{what}: json.Unmarshal error {}, Go's is {}",
             show(&rust.std_err),
             show(std_err)
@@ -336,13 +352,18 @@ fn replay_row(
         if string_gap {
             tally.string_gaps += 1;
         } else {
-            tally.failures.push(format!(
+            failures.push(format!(
                 "{what}: encoding {} is {}, Go's is {}",
                 i + 1,
                 describe_got(got),
                 describe_want(want)
             ));
         }
+    }
+    if label.ends_with(STALE_ELEMENT) && !failures.is_empty() {
+        tally.stale_elements += 1;
+    } else {
+        tally.failures.extend(failures);
     }
     Ok(())
 }
@@ -371,9 +392,24 @@ fn replay(file: &str, runners: &Runners) -> TestResult<Tally> {
     Ok(tally)
 }
 
-/// Replays `file`, then checks that nothing but `string_gaps` encodings differ from Go, and
-/// that at least `min_rows` documents were replayed.
-fn check(file: &str, min_rows: usize, string_gaps: usize) -> TestResult<Tally> {
+/// What a golden file may differ from Go by: the documented gaps.
+#[derive(Clone, Copy)]
+struct Gaps {
+    /// Encodings that differ only by the `String` gap.
+    strings: usize,
+    /// [`STALE_ELEMENT`] rows that differ.
+    stale_elements: usize,
+}
+
+/// No differences at all.
+const NO_GAPS: Gaps = Gaps {
+    strings: 0,
+    stale_elements: 0,
+};
+
+/// Replays `file`, then checks that it differs from Go by exactly `gaps`, and that at least
+/// `min_rows` documents were replayed.
+fn check(file: &str, min_rows: usize, gaps: Gaps) -> TestResult<Tally> {
     let tally = replay(file, &runners()?)?;
     report(file, &tally.failures, 20)?;
     if tally.rows < min_rows {
@@ -381,11 +417,16 @@ fn check(file: &str, min_rows: usize, string_gaps: usize) -> TestResult<Tally> {
     }
     ensure_eq(
         &tally.string_gaps,
-        &string_gaps,
+        &gaps.strings,
         &format!(
             "{file}: encodings that differ by the String gap ({} outputs)",
             tally.outputs
         ),
+    )?;
+    ensure_eq(
+        &tally.stale_elements,
+        &gaps.stale_elements,
+        &format!("{file}: \"stale element\" cases that differ"),
     )?;
     Ok(tally)
 }
@@ -435,7 +476,7 @@ fn fixture_roots() -> TestResult<BTreeSet<String>> {
 /// to or removed from a walked directory since.
 #[test]
 fn corpus() -> TestResult {
-    let tally = check("corpus.tsv", 8100, 0)?;
+    let tally = check("corpus.tsv", 8100, NO_GAPS)?;
     let roots: BTreeSet<String> = tally.roots.iter().cloned().collect();
     let fixture_roots = fixture_roots()?;
     let missing: Vec<&String> = fixture_roots.difference(&roots).collect();
@@ -461,7 +502,7 @@ fn corpus() -> TestResult {
 /// The openrtb module's testdata files.
 #[test]
 fn module() -> TestResult {
-    check("module.tsv", 34, 0).map(drop)
+    check("module.tsv", 34, NO_GAPS).map(drop)
 }
 
 /// The encodings of the mutations that differ from Go by the documented `String` gap: the
@@ -473,5 +514,60 @@ const MUTATION_STRING_GAPS: usize = 246;
 /// The generated mutations of every ported type.
 #[test]
 fn mutations() -> TestResult {
-    check("mutations.tsv", 20000, MUTATION_STRING_GAPS).map(drop)
+    let gaps = Gaps {
+        strings: MUTATION_STRING_GAPS,
+        stale_elements: 0,
+    };
+    check("mutations.tsv", 20000, gaps).map(drop)
+}
+
+/// The [`STALE_ELEMENT`] cases of `adversarial.tsv` that differ from Go: one per struct field
+/// that is a slice of structs (42), each `{"f":[A,B],"f":[B],"f":[{},{}]}`.
+const ADVERSARIAL_STALE_ELEMENTS: usize = 42;
+
+/// The adversarial documents of `testdata/go/adversarial.go`: merges on duplicate keys, slice
+/// element edges, Unicode case folding of keys, malformed objects, `json.RawMessage` contents,
+/// wrong values at every nested field path, and the nesting limit.
+#[test]
+fn adversarial() -> TestResult {
+    let gaps = Gaps {
+        strings: 0,
+        stale_elements: ADVERSARIAL_STALE_ELEMENTS,
+    };
+    check("adversarial.tsv", 6000, gaps).map(drop)
+}
+
+/// Nesting far beyond Go's limit fails as at the limit, without exhausting the stack: Go
+/// stops at depth 10001, so a decoder that recursed further would crash a Rust thread.
+#[test]
+fn deep_nesting() -> TestResult {
+    let rows = golden_rows("adversarial.tsv")?;
+    let limit = rows
+        .iter()
+        .find(|row| row.get(2).is_some_and(|label| label == b"depth ext 10001"))
+        .ok_or("adversarial.tsv has no \"depth ext 10001\" row")?;
+    let (Some(iter_err), Some(std_err)) = (limit.get(3), limit.get(7)) else {
+        return Err("bad \"depth ext 10001\" row".to_owned());
+    };
+    let depth = 1_000_000;
+    let mut doc = b"{\"ext\":".to_vec();
+    doc.extend(repeat_n(b'[', depth));
+    doc.extend(repeat_n(b']', depth));
+    doc.push(b'}');
+    let runner = runners()?
+        .get("openrtb2.BidRequest")
+        .copied()
+        .ok_or("no runner for openrtb2.BidRequest")?;
+    // A thread with the 2 MiB stack Rust gives spawned threads (and tokio its workers).
+    let outcome = thread::Builder::new()
+        .stack_size(2 << 20)
+        .spawn(move || {
+            let o = runner(&doc);
+            (o.jsoniter_err, o.std_err)
+        })
+        .map_err(|e| e.to_string())?
+        .join()
+        .map_err(|panic| format!("the decoder thread panicked: {panic:?}"))?;
+    ensure_eq(&outcome.0, iter_err, "jsonutil.Unmarshal error")?;
+    ensure_eq(&outcome.1, std_err, "json.Unmarshal error")
 }
