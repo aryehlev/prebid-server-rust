@@ -3,8 +3,14 @@
 
 use std::{env, sync::OnceLock};
 
-use pbs_gocompat::url::Url;
-use pbs_util::iputil::net::{Ip, IpNet, join_host_port, parse_cidr, parse_ip, split_host_port};
+use pbs_gocompat::{
+    strings::{to_lower, trim_space},
+    url::Url,
+};
+use pbs_util::iputil::{
+    net::{Ip, IpNet, join_host_port, parse_cidr, parse_ip, split_host_port},
+    netip::{self, Addr},
+};
 
 use crate::{error::HttpError, httpguts::idna_to_ascii, request::Request};
 
@@ -46,11 +52,11 @@ pub struct ProxySelector {
     domain_matchers: Vec<Matcher>,
 }
 
-/// Go: `getEnvAny`.
-fn get_env_any(names: &[&str]) -> String {
+/// Go: `getEnvAny` over `getenv`.
+fn get_env_any<F: Fn(&str) -> Option<String>>(getenv: &F, names: &[&str]) -> String {
     names
         .iter()
-        .filter_map(|n| env::var(n).ok())
+        .filter_map(|n| getenv(n))
         .find(|v| !v.is_empty())
         .unwrap_or_default()
 }
@@ -59,11 +65,18 @@ impl Config {
     /// Go: `httpproxy.FromEnvironment()`.
     #[must_use]
     pub fn from_environment() -> Self {
+        Self::from_env_lookup(|name| env::var(name).ok())
+    }
+
+    /// Go: `httpproxy.FromEnvironment()` with `getenv` in place of `os.Getenv` (`None` for an
+    /// unset variable).
+    #[must_use]
+    pub fn from_env_lookup<F: Fn(&str) -> Option<String>>(getenv: F) -> Self {
         Self {
-            http_proxy: get_env_any(&["HTTP_PROXY", "http_proxy"]),
-            https_proxy: get_env_any(&["HTTPS_PROXY", "https_proxy"]),
-            no_proxy: get_env_any(&["NO_PROXY", "no_proxy"]),
-            cgi: env::var("REQUEST_METHOD").is_ok_and(|v| !v.is_empty()),
+            http_proxy: get_env_any(&getenv, &["HTTP_PROXY", "http_proxy"]),
+            https_proxy: get_env_any(&getenv, &["HTTPS_PROXY", "https_proxy"]),
+            no_proxy: get_env_any(&getenv, &["NO_PROXY", "no_proxy"]),
+            cgi: getenv("REQUEST_METHOD").is_some_and(|v| !v.is_empty()),
         }
     }
 
@@ -77,7 +90,8 @@ impl Config {
             ..ProxySelector::default()
         };
         for p in self.no_proxy.split(',') {
-            let p = p.trim().to_lowercase();
+            // Go: strings.ToLower(strings.TrimSpace(p)), the simple case mapping per rune.
+            let p = to_lower(trim_space(p));
             if p.is_empty() {
                 continue;
             }
@@ -145,6 +159,16 @@ fn parse_proxy(proxy: &str) -> Option<Url> {
     }
 }
 
+/// Go: `netip.ParseAddr(host)` then `net.IP(nip.AsSlice())`, as `useProxy` reads a host: unlike
+/// `net.ParseIP` it accepts an IPv6 address with a zone (`fe80::1%en0`), which the IP drops.
+fn parse_addr_ip(host: &str) -> Option<Ip> {
+    match netip::parse_addr(host).ok()? {
+        Addr::V4(octets) => Ip::from_slice(&octets),
+        Addr::V6 { octets, .. } => Some(Ip::from16(octets)),
+        Addr::Invalid => None,
+    }
+}
+
 /// Go: `net.IP.IsLoopback`.
 fn is_loopback(ip: &Ip) -> bool {
     let mut v6_loopback = [0_u8; 16];
@@ -209,12 +233,11 @@ impl ProxySelector {
         if host == "localhost" {
             return false;
         }
-        // Go: net.ParseIP, which rejects zones.
-        let ip = parse_ip(host);
+        let ip = parse_addr_ip(host);
         if ip.as_ref().is_some_and(is_loopback) {
             return false;
         }
-        let lower = host.trim().to_lowercase();
+        let lower = to_lower(trim_space(host));
         if ip.is_some()
             && self
                 .ip_matchers
@@ -312,6 +335,54 @@ mod tests {
             &proxied(&sel, "https://example.org/")?,
             &Some("https://secure.example".to_owned()),
             "https proxy",
+        )
+    }
+
+    #[test]
+    fn zones_and_go_case_mapping() -> Result<(), String> {
+        let sel = Config {
+            http_proxy: "proxy.example:3128".to_owned(),
+            no_proxy: "fe80::/10,\u{a0}\u{130}.test\u{a0}".to_owned(),
+            ..Config::default()
+        }
+        .proxy_selector();
+        let p = Some("http://proxy.example:3128".to_owned());
+        // useProxy parses hosts with netip.ParseAddr, which accepts an IPv6 zone.
+        ensure_eq(
+            &proxied(&sel, "http://[::1%25lo0]:8080/")?,
+            &None,
+            "zoned loopback",
+        )?;
+        ensure_eq(
+            &proxied(&sel, "http://[fe80::1%25en0]/")?,
+            &None,
+            "zoned address in a NO_PROXY CIDR",
+        )?;
+        ensure_eq(
+            &proxied(&sel, "http://[2001:db8::1%25eth0]/")?,
+            &p,
+            "zoned address outside the CIDR",
+        )?;
+        // strings.TrimSpace drops the no-break spaces and strings.ToLower maps U+0130 to i.
+        ensure_eq(&proxied(&sel, "http://i.test/")?, &None, "simple lowering")?;
+        ensure_eq(&proxied(&sel, "http://a.i.test/")?, &None, "subdomain")?;
+        let env = Config::from_env_lookup(|name| match name {
+            "HTTP_PROXY" => Some(String::new()),
+            "http_proxy" => Some("lower.example".to_owned()),
+            "HTTPS_PROXY" => Some("upper.example".to_owned()),
+            "https_proxy" => Some("ignored.example".to_owned()),
+            "REQUEST_METHOD" => Some("GET".to_owned()),
+            _ => None,
+        });
+        ensure_eq(
+            &env,
+            &Config {
+                http_proxy: "lower.example".to_owned(),
+                https_proxy: "upper.example".to_owned(),
+                no_proxy: String::new(),
+                cgi: true,
+            },
+            "environment precedence",
         )
     }
 }
