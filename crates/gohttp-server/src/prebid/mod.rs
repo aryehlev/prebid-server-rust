@@ -1,6 +1,9 @@
 //! Prebid Server's own HTTP pieces built on this crate: `router.NoCache`,
 //! `router.SupportCORS`, and the `http.Server` settings of `server/server.go`.
 
+#[cfg(test)]
+mod tests;
+
 use core::time::Duration;
 use std::sync::Arc;
 
