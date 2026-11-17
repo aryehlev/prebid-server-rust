@@ -429,8 +429,10 @@ pub fn read_transfer(
     request_method: &str,
     header: &mut Header,
 ) -> Result<ResponseTransfer, HttpError> {
+    // Go decides Close on the version as received (HTTP/0.0 closes) and only then defaults a
+    // 0.0 version to HTTP/1.1 for the framing.
+    let mut close = should_close(proto.0, proto.1, header, true);
     let (major, minor) = if proto == (0, 0) { (1, 1) } else { proto };
-    let mut close = should_close(major, minor, header, true);
     let chunked = parse_transfer_encoding(header, major, minor)?;
     let real_length = fix_length(status, request_method, header, chunked)?;
     let content_length = if request_method == "HEAD" {
@@ -468,4 +470,27 @@ pub fn read_transfer(
         trailer,
         framing,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::testutil::ensure_eq;
+
+    #[test]
+    fn http_0_0_closes_but_frames_as_1_1() -> Result<(), String> {
+        let mut chunked_header = Header::new();
+        chunked_header.add("Transfer-Encoding", "chunked");
+        let http00 =
+            read_transfer(200, (0, 0), "GET", &mut chunked_header).map_err(|e| e.to_string())?;
+        // Go: shouldClose sees ProtoMajor 0 before the version defaults to HTTP/1.1, which
+        // then honours Transfer-Encoding.
+        ensure_eq(&http00.close, &true, "HTTP/0.0 close")?;
+        ensure_eq(&http00.framing, &Framing::Chunked, "HTTP/0.0 framing")?;
+        let mut length_header = Header::new();
+        length_header.add("Content-Length", "2");
+        let http11 =
+            read_transfer(200, (1, 1), "GET", &mut length_header).map_err(|e| e.to_string())?;
+        ensure_eq(&http11.close, &false, "HTTP/1.1 keep-alive")
+    }
 }
