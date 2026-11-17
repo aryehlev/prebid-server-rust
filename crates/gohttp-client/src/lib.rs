@@ -50,6 +50,12 @@
 //! HTTP/2 is not implemented: Prebid's transports set `DialContext` (and `TLSClientConfig`)
 //! without `ForceAttemptHTTP2`, which disables HTTP/2 in Go as well. Go's `DefaultTransport`
 //! would negotiate HTTP/2 with TLS servers; [`client::default_transport`] does not.
+//!
+//! On macOS Go ignores `SSL_CERT_FILE` and `SSL_CERT_DIR` and verifies with the platform verifier
+//! (Security.framework, so keychain roots and trust settings apply); it runs its own verifier only
+//! when that one fails and certificates were appended to the system pool. [`CertPool::system`]
+//! reads the Linux locations on every platform, which on macOS finds the `/etc/ssl/cert.pem`
+//! bundle. The [`tls`] module docs explain the choice of TLS stack.
 
 pub mod bufio;
 pub mod chunked;

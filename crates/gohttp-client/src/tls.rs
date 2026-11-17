@@ -4,6 +4,34 @@
 //! session resumption (Go's `ClientSessionCache` is nil), no ALPN (HTTP/2 is off), SNI for host
 //! names but not for IP addresses, and the hybrid post-quantum key exchange preferred. Handshake
 //! failures carry Go's texts for the common cases.
+//!
+//! # TLS stack
+//!
+//! rustls 0.23 with the aws-lc-rs provider performs the handshake, and rustls-webpki verifies the
+//! server against a [`CertPool`] loaded the way Go loads one. The alternatives, weighed against
+//! Go's behaviour, the licence allow list and the workspace's one version per crate:
+//!
+//! - ring has no post-quantum key exchange (Go 1.26, like aws-lc-rs, prefers `X25519MLKEM768`), and
+//!   its newest release, 0.17.14, depends on windows-sys 0.52 where tokio, mio and socket2 use
+//!   0.61. Only tokio 1.39 to 1.46 use 0.52, and the workspace needs tokio 1.54.
+//! - [`CertPool::system`] reads `SSL_CERT_FILE`, `SSL_CERT_DIR` and Go's Linux file and directory
+//!   lists as `x509.SystemCertPool` does. `rustls-native-certs` searches openssl-probe's lists,
+//!   whose entries and order differ from Go's; `webpki-roots` is a bundled Mozilla list under
+//!   CDLA-Permissive-2.0; `rustls-platform-verifier` brings jni-macros, which needs a second `syn`.
+//! - native-tls and openssl build against OpenSSL and need `openssl-macros`, which also needs a
+//!   second `syn`; native-tls on macOS stops at TLS 1.2.
+//! - s2n-tls is a C library whose errors lack the certificate names and validity times that Go's
+//!   texts quote.
+//!
+//! aws-lc-sys builds with the `cc` crate, so on Linux and macOS it needs a C compiler but not
+//! `cmake`.
+//!
+//! `Cargo.lock` lists ring although nothing builds it: rustls-webpki's `alloc` feature names
+//! `ring?/alloc`, and Cargo's lock resolution keeps an optional dependency that a weak feature
+//! names. `cargo tree` and `cargo deny` leave ring out, but `cargo metadata`, which clippy's
+//! `multiple_crate_versions` reads, includes it, so that lint sees ring's windows-sys 0.52 next to
+//! tokio's 0.61. rustls 0.24 (pre-release as of 0.24.0-dev.3) moves the providers into crates of
+//! their own and rustls-webpki 0.104 drops its ring feature, which removes the entry.
 
 use std::{
     env, fmt, fs,
