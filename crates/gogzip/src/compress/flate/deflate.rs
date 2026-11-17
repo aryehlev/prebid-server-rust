@@ -872,10 +872,11 @@ impl<W: Write> Writer<W> {
 #[cfg(test)]
 mod tests {
     //! Ports of Go's `deflate_test.go` and `writer_test.go` (the golden files cover the bytes
-    //! of every level; these are Go's own checks). Go's `TestVeryLongSparseChunk` (2.3 GB) and
-    //! `TestRegression2508` (128 MiB) only run without `-short` and are not ported, and
-    //! `TestMaxStackSize` checks goroutine stacks. `TestWriterReset` compares the reset state
-    //! with `reflect.DeepEqual`; the port compares the tokens and the output instead.
+    //! of every level; these are Go's own checks). Go's `TestVeryLongSparseChunk` (2.3 GB at
+    //! level 1, only without `-short`) is not ported: `flate_edges.txt` takes level 1 across
+    //! its offset wraparound with flushes instead. `TestMaxStackSize` checks goroutine stacks.
+    //! `TestWriterReset` compares the reset state with `reflect.DeepEqual`; the port compares
+    //! the tokens and the output instead.
 
     use std::{cell::RefCell, io, rc::Rc};
 
@@ -1524,8 +1525,8 @@ mod tests {
         Ok(())
     }
 
-    /// Go: `writer_test.go` `TestDeflateFast_Reset` (with `-short`'s single offset of 256): the
-    /// output of level 1 is the same right before the match offsets wrap around.
+    /// Go: `writer_test.go` `TestDeflateFast_Reset`, with the offsets 1 to 256 of a run without
+    /// `-short`: the output of level 1 is the same right before the match offsets wrap around.
     #[test]
     fn deflate_fast_reset() -> Result<(), String> {
         // Go: bufferReset.
@@ -1544,24 +1545,41 @@ mod tests {
         clean.close().map_err(|err| err.to_string())?;
         let want = clean.into_inner();
 
-        let offset = 256;
-        let mut w = Writer::new(Vec::new(), BEST_SPEED).map_err(|err| err.to_string())?;
-        // Go: reset until right before the wraparound; each reset adds maxMatchOffset.
-        for _ in 0..(BUFFER_RESET - input.len() - offset - MAX_MATCH_OFFSET) / MAX_MATCH_OFFSET {
-            w.d.reset();
-        }
-        let _old = w.reset(Vec::new());
-        for _ in 0..3 {
-            put(&mut w, &input)?;
-        }
-        w.close().map_err(|err| err.to_string())?;
-        if *w.get_ref() != want {
-            return Err(format!(
-                "output did not match at wraparound, len(want) = {}, len(got) = {}",
-                want.len(),
-                w.get_ref().len()
-            ));
+        let mut offset = 1;
+        while offset <= 256 {
+            let mut w = Writer::new(Vec::new(), BEST_SPEED).map_err(|err| err.to_string())?;
+            // Go: reset until right before the wraparound; each reset adds maxMatchOffset.
+            for _ in 0..(BUFFER_RESET - input.len() - offset - MAX_MATCH_OFFSET) / MAX_MATCH_OFFSET
+            {
+                w.d.reset();
+            }
+            let _old = w.reset(Vec::new());
+            for _ in 0..3 {
+                put(&mut w, &input)?;
+            }
+            w.close().map_err(|err| err.to_string())?;
+            if *w.get_ref() != want {
+                return Err(format!(
+                    "offset {offset}: output did not match at wraparound, len(want) = {}, \
+                     len(got) = {}",
+                    want.len(),
+                    w.get_ref().len()
+                ));
+            }
+            offset *= 2;
         }
         Ok(())
+    }
+
+    /// Go: `writer_test.go` `TestRegression2508` (run without `-short`): 128 MiB of zeros at
+    /// level 1 in 1 KiB writes.
+    #[test]
+    fn regression_2508() -> Result<(), String> {
+        let mut w = Writer::new(io::sink(), BEST_SPEED).map_err(|err| err.to_string())?;
+        let buf = [0; 1024];
+        for _ in 0..131_072 {
+            put(&mut w, &buf)?;
+        }
+        w.close().map_err(|err| err.to_string())
     }
 }
