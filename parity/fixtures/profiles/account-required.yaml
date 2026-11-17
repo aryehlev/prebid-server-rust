@@ -1,0 +1,5 @@
+name: account-required
+description: Requests must name a known account; parity/fixtures/stored/accounts holds parity-account and the disabled parity-disabled-account.
+extends: default
+config:
+  account_required: true

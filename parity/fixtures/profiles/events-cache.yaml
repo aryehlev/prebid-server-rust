@@ -1,0 +1,12 @@
+name: events-cache
+description: Account events on and bid caching TTLs set, so vast and event URLs and Prebid Cache writes are exercised.
+extends: default
+config:
+  external_url: http://pbs.parity.test
+  account_defaults:
+    events:
+      enabled: true
+  cache:
+    default_ttl_seconds:
+      banner: 300
+      video: 1500

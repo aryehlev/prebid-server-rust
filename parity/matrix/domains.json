@@ -1,0 +1,15 @@
+{
+  "schema": "pbs-parity-matrix-domains/1",
+  "description": "The nine locked coverage-matrix rows (Phase-1 D-05/D-06) in their locked order. The order must equal parity.AllDomains(); matrix_test.go enforces it.",
+  "domains": [
+    {"domain": "endpoints", "title": "Endpoints", "surface": "HTTP-visible request and response behaviour of /openrtb2/auction, /openrtb2/amp, /openrtb2/video and the support endpoints."},
+    {"domain": "config_bootstrap", "title": "Config and bootstrap", "surface": "Config keys, defaults and env bindings (GET /__parity/config) and bidder metadata loading (GET /__parity/bidders)."},
+    {"domain": "stored_data", "title": "Stored data", "surface": "Stored requests and imps, request merging and account resolution."},
+    {"domain": "auction_lifecycle", "title": "Auction lifecycle", "surface": "Validation, request shaping, bidder fan-out, response assembly and timeouts."},
+    {"domain": "policy_privacy_identity", "title": "Policy, privacy and identity", "surface": "Floors, currency, bid adjustments, targeting, multibid, privacy enforcement and identity."},
+    {"domain": "bidders_adapters", "title": "Bidders and adapters", "surface": "Adapter request building (MakeRequests), outbound bidder calls and response parsing (MakeBids)."},
+    {"domain": "hooks_modules", "title": "Hooks and modules", "surface": "Module hooks, execution plans and hook outcomes."},
+    {"domain": "cache_support_flows", "title": "Cache and support flows", "surface": "Prebid Cache writes, stored responses, events and vtrack."},
+    {"domain": "cutover_proof", "title": "Cutover proof", "surface": "Prometheus metric deltas, analytics calls and other operational evidence."}
+  ]
+}
