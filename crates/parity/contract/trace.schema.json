@@ -1,0 +1,142 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://prebid.org/pbs-parity/schema/v1/trace.schema.json",
+  "title": "pbs-parity-trace/1",
+  "description": "Response of POST /__parity/exec: the real HTTP response the server produced for the envelope plus everything it observed on the way. Both implementations must emit every top-level member (empty arrays/maps, never omitted).",
+  "type": "object",
+  "required": [
+    "schema", "schema_version", "impl", "build", "case_id", "endpoint",
+    "http_in", "http_response", "stages", "stage_status", "http_out",
+    "decisions", "metrics_delta", "analytics", "notes"
+  ],
+  "properties": {
+    "schema": {"const": "pbs-parity-trace/1"},
+    "schema_version": {"$ref": "common.schema.json#/definitions/SchemaVersion"},
+    "impl": {"$ref": "common.schema.json#/definitions/Impl"},
+    "build": {"$ref": "common.schema.json#/definitions/BuildInfo"},
+    "case_id": {"type": "string"},
+    "endpoint": {"type": "string", "description": "The envelope request path."},
+    "http_in": {
+      "description": "The inbound request as the server's handler chain received it (stage http.in).",
+      "oneOf": [{"type": "null"}, {"$ref": "#/definitions/HTTPRequest"}]
+    },
+    "http_response": {
+      "description": "The response written by the handler chain (stage http.response). If the handler panicked, status is 500 and notes contains 'panic: ...'.",
+      "oneOf": [{"type": "null"}, {"$ref": "#/definitions/HTTPResponse"}]
+    },
+    "stages": {
+      "description": "stage_id -> key -> entry. key is '_' for unkeyed stages, otherwise the bidder, seat or 'bidder#call' named by the stage's keyed_by in stages.json.",
+      "type": "object",
+      "propertyNames": {"$ref": "common.schema.json#/definitions/StageID"},
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": {"$ref": "#/definitions/StageEntry"}
+      }
+    },
+    "stage_status": {
+      "description": "Status of every stage registered in stages.json: captured, not_reached, or unimplemented (Rust only: no equivalent capture point yet).",
+      "type": "object",
+      "propertyNames": {"$ref": "common.schema.json#/definitions/StageID"},
+      "additionalProperties": {"type": "string", "enum": ["captured", "not_reached", "unimplemented"]}
+    },
+    "http_out": {
+      "description": "Outbound calls. Filled by the server in inline mode (wire=false); in oracle mode the runner merges the oracle's wire captures (wire=true).",
+      "type": "array",
+      "items": {"$ref": "common.schema.json#/definitions/OutboundCall"}
+    },
+    "decisions": {
+      "type": "array",
+      "items": {"$ref": "#/definitions/Decision"}
+    },
+    "metrics_delta": {
+      "description": "Prometheus series that changed while the case ran, sorted by name then labels.",
+      "type": "array",
+      "items": {"$ref": "#/definitions/MetricDelta"}
+    },
+    "analytics": {
+      "type": "array",
+      "items": {"$ref": "#/definitions/AnalyticsRecord"}
+    },
+    "notes": {"type": "array", "items": {"type": "string"}}
+  },
+  "additionalProperties": false,
+  "definitions": {
+    "HTTPRequest": {
+      "type": "object",
+      "required": ["method", "path", "query", "headers", "body"],
+      "properties": {
+        "method": {"type": "string"},
+        "path": {"type": "string"},
+        "query": {"type": "string"},
+        "headers": {"$ref": "common.schema.json#/definitions/HeaderList"},
+        "body": {"$ref": "common.schema.json#/definitions/Body"}
+      },
+      "additionalProperties": false
+    },
+    "HTTPResponse": {
+      "type": "object",
+      "required": ["status", "headers", "body"],
+      "properties": {
+        "status": {"type": "integer"},
+        "headers": {"$ref": "common.schema.json#/definitions/HeaderList"},
+        "body": {"$ref": "common.schema.json#/definitions/Body"}
+      },
+      "additionalProperties": false
+    },
+    "StageEntry": {
+      "description": "One recorded value. json is the semantic value; raw is the exact bytes the implementation marshaled (raw_b64 when they are not UTF-8), so lexical differences survive the outer document's re-encoding. errors/warnings are null when the stage records no error list and [] when it recorded an empty one. writes counts how often the key was recorded (last write wins). seq is the session-wide sequence number of the last write.",
+      "type": "object",
+      "required": ["seq", "writes", "json", "raw", "errors", "warnings"],
+      "properties": {
+        "seq": {"type": "integer", "minimum": 0},
+        "writes": {"type": "integer", "minimum": 0},
+        "json": {},
+        "raw": {"type": ["string", "null"]},
+        "raw_b64": {"type": "string", "contentEncoding": "base64"},
+        "errors": {"oneOf": [{"type": "null"}, {"$ref": "common.schema.json#/definitions/ErrorRecordList"}]},
+        "warnings": {"oneOf": [{"type": "null"}, {"$ref": "common.schema.json#/definitions/ErrorRecordList"}]},
+        "notes": {"type": "array", "items": {"type": "string"}}
+      },
+      "additionalProperties": false
+    },
+    "Decision": {
+      "description": "One consulted decision point. source is envelope when the value came from envelope.decisions, rng otherwise.",
+      "type": "object",
+      "required": ["point", "value", "source"],
+      "properties": {
+        "point": {"$ref": "common.schema.json#/definitions/DecisionID"},
+        "value": {"type": ["integer", "string"]},
+        "source": {"type": "string", "enum": ["envelope", "rng"]},
+        "notes": {"type": "array", "items": {"type": "string"}}
+      },
+      "additionalProperties": false
+    },
+    "MetricDelta": {
+      "description": "Change of one Prometheus series. counter/gauge/untyped: delta is the value change, count_delta and bucket_deltas are null. histogram/summary: delta is the sum change, count_delta the observation-count change, bucket_deltas (histogram only) the non-zero cumulative bucket changes keyed by the exposition-format 'le' value.",
+      "type": "object",
+      "required": ["name", "type", "labels", "delta", "count_delta", "bucket_deltas"],
+      "properties": {
+        "name": {"type": "string"},
+        "type": {"type": "string", "enum": ["counter", "gauge", "histogram", "summary", "untyped"]},
+        "labels": {"type": "object", "additionalProperties": {"type": "string"}},
+        "delta": {"type": "number"},
+        "count_delta": {"type": ["integer", "null"]},
+        "bucket_deltas": {
+          "type": ["object", "null"],
+          "additionalProperties": {"type": "integer"}
+        }
+      },
+      "additionalProperties": false
+    },
+    "AnalyticsRecord": {
+      "description": "One analytics Log*Object call. object is a language-neutral projection: for auction/amp/video {status, errors[ErrorRecord], request (BidRequest as the handler left it, never rebuilt), response, account_id, start_time_set, hook_outcomes, seat_non_bid, ...}; for cookie_sync/setuid {status, errors, ...}; for notification {request, account_id}.",
+      "type": "object",
+      "required": ["kind", "object"],
+      "properties": {
+        "kind": {"type": "string", "enum": ["auction", "amp", "video", "cookie_sync", "setuid", "notification"]},
+        "object": {"type": "object"}
+      },
+      "additionalProperties": false
+    }
+  }
+}

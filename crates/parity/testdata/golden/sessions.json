@@ -1,0 +1,650 @@
+{
+  "golden": [
+    {
+      "envelope": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"empty\",\"request\":{\"method\":\"POST\",\"path\":\"/openrtb2/auction\",\"query\":\"\",\"headers\":[]},\"mock\":{},\"capture\":{}}",
+      "name": "empty",
+      "ops": [],
+      "results": [],
+      "trace": "{\"schema\":\"pbs-parity-trace/1\",\"schema_version\":\"1.0.0\",\"impl\":\"rust\",\"build\":{\"git_sha\":\"\",\"version\":\"\"},\"case_id\":\"empty\",\"endpoint\":\"/openrtb2/auction\",\"http_in\":null,\"http_response\":null,\"stages\":{},\"stage_status\":{\"account.resolved\":\"not_reached\",\"adapter.bids\":\"not_reached\",\"adapter.requests\":\"not_reached\",\"adapter.requests_final\":\"not_reached\",\"amp.targeting_response\":\"not_reached\",\"analytics\":\"not_reached\",\"auction.setup\":\"not_reached\",\"auction.winners\":\"not_reached\",\"bidder.request\":\"not_reached\",\"bidder.result\":\"not_reached\",\"bidders.resolved\":\"not_reached\",\"bids.adjusted\":\"not_reached\",\"cache.result\":\"not_reached\",\"category.mapping\":\"not_reached\",\"config.resolved\":\"not_reached\",\"events.tracking\":\"not_reached\",\"exchange.response\":\"not_reached\",\"floors.enforce\":\"not_reached\",\"floors.enrich\":\"not_reached\",\"fpd.resolved\":\"not_reached\",\"gdpr.context\":\"not_reached\",\"hook_outcomes\":\"not_reached\",\"hooks.all_processed_bid_responses\":\"not_reached\",\"hooks.auction_response\":\"not_reached\",\"hooks.bidder_request\":\"not_reached\",\"hooks.entrypoint\":\"not_reached\",\"hooks.exitpoint\":\"not_reached\",\"hooks.processed_auction\":\"not_reached\",\"hooks.raw_auction\":\"not_reached\",\"hooks.raw_bidder_response\":\"not_reached\",\"http.in\":\"not_reached\",\"http.out\":\"not_reached\",\"http.response\":\"not_reached\",\"metrics_delta\":\"not_reached\",\"privacy.bidder\":\"not_reached\",\"privacy.labels\":\"not_reached\",\"request.merged\":\"not_reached\",\"request.normalized\":\"not_reached\",\"request.validated\":\"not_reached\",\"seat_non_bids\":\"not_reached\",\"stored.fetch\":\"not_reached\",\"stored.responses\":\"not_reached\",\"targeting\":\"not_reached\",\"video.cache\":\"not_reached\",\"video.pods\":\"not_reached\"},\"http_out\":[],\"decisions\":[],\"metrics_delta\":[],\"analytics\":[],\"notes\":[]}\n"
+    },
+    {
+      "envelope": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"lex\",\"request\":{\"method\":\"POST\",\"path\":\"/openrtb2/auction\",\"query\":\"\",\"headers\":[]},\"mock\":{},\"capture\":{}}",
+      "name": "lexical",
+      "ops": [
+        {
+          "op": "record",
+          "stage": "request.validated",
+          "type": "map",
+          "value": {
+            "adm": "\u003cb\u003e\u0026"
+          }
+        },
+        {
+          "op": "record_raw",
+          "stage": "http.response",
+          "raw_b64": "eyJhIjoxLjB9Cg=="
+        },
+        {
+          "op": "record_raw",
+          "stage": "adapter.bids",
+          "key": "appnexus#0",
+          "raw_b64": "/w=="
+        },
+        {
+          "op": "record",
+          "stage": "bidder.request",
+          "key": "appnexus",
+          "type": "int",
+          "value": 1
+        },
+        {
+          "op": "record",
+          "stage": "bidder.request",
+          "key": "appnexus",
+          "type": "int",
+          "value": 2
+        },
+        {
+          "op": "record",
+          "stage": "auction.setup",
+          "type": "string",
+          "value": "é\u2028\u003c\u003e\u0026\u0001"
+        },
+        {
+          "op": "record",
+          "stage": "targeting",
+          "type": "float",
+          "value": 1e21
+        },
+        {
+          "op": "record",
+          "stage": "floors.enrich",
+          "type": "float",
+          "value": 0.000001
+        },
+        {
+          "op": "record",
+          "stage": "floors.enforce",
+          "type": "float",
+          "value": -0.5
+        },
+        {
+          "op": "record",
+          "stage": "seat_non_bids",
+          "type": "strings",
+          "value": null
+        },
+        {
+          "op": "record",
+          "stage": "cache.result",
+          "type": "strings",
+          "value": []
+        },
+        {
+          "op": "record",
+          "stage": "stored.fetch",
+          "type": "raw",
+          "text": "{\"b\": [1, 2], \"c\": \"\u003c\"}"
+        },
+        {
+          "op": "record",
+          "stage": "stored.responses",
+          "type": "raw",
+          "text": "{\"dsa\":"
+        },
+        {
+          "op": "record",
+          "stage": "video.pods",
+          "type": "nan"
+        },
+        {
+          "op": "record",
+          "stage": "category.mapping",
+          "type": "bool",
+          "value": true
+        },
+        {
+          "op": "record",
+          "stage": "account.resolved",
+          "type": "regs_record",
+          "value": {
+            "gdpr": 1,
+            "ext": "{\"a\" : 1}"
+          }
+        },
+        {
+          "op": "record",
+          "stage": "fpd.resolved",
+          "type": "nil_regs"
+        },
+        {
+          "op": "record_raw",
+          "stage": "events.tracking"
+        },
+        {
+          "op": "record",
+          "stage": "privacy.bidder",
+          "key": "\u003c\u0026\u003e",
+          "type": "int",
+          "value": 3
+        },
+        {
+          "op": "next_seq"
+        },
+        {
+          "op": "wants",
+          "stage": "http.in"
+        }
+      ],
+      "results": [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        19,
+        true
+      ],
+      "trace": "{\"schema\":\"pbs-parity-trace/1\",\"schema_version\":\"1.0.0\",\"impl\":\"rust\",\"build\":{\"git_sha\":\"\",\"version\":\"\"},\"case_id\":\"lex\",\"endpoint\":\"/openrtb2/auction\",\"http_in\":null,\"http_response\":null,\"stages\":{\"account.resolved\":{\"_\":{\"seq\":15,\"writes\":1,\"json\":{\"regs\":{\"gdpr\":1,\"ext\":{\"a\":1}}},\"raw\":\"{\\\"regs\\\":{\\\"gdpr\\\":1,\\\"ext\\\":{\\\"a\\\":1}}}\",\"errors\":null,\"warnings\":null}},\"adapter.bids\":{\"appnexus#0\":{\"seq\":3,\"writes\":1,\"json\":null,\"raw\":null,\"raw_b64\":\"/w==\",\"errors\":null,\"warnings\":null,\"notes\":[\"raw value is not valid JSON\"]}},\"auction.setup\":{\"_\":{\"seq\":6,\"writes\":1,\"json\":\"é\\u2028\\u003c\\u003e\\u0026\\u0001\",\"raw\":\"\\\"é\\\\u2028\\\\u003c\\\\u003e\\\\u0026\\\\u0001\\\"\",\"errors\":null,\"warnings\":null}},\"bidder.request\":{\"appnexus\":{\"seq\":5,\"writes\":2,\"json\":2,\"raw\":\"2\",\"errors\":null,\"warnings\":null}},\"cache.result\":{\"_\":{\"seq\":11,\"writes\":1,\"json\":[],\"raw\":\"[]\",\"errors\":null,\"warnings\":null}},\"category.mapping\":{\"_\":{\"seq\":14,\"writes\":1,\"json\":true,\"raw\":\"true\",\"errors\":null,\"warnings\":null}},\"events.tracking\":{\"_\":{\"seq\":17,\"writes\":1,\"json\":null,\"raw\":\"\",\"errors\":null,\"warnings\":null,\"notes\":[\"raw value is not valid JSON\"]}},\"floors.enforce\":{\"_\":{\"seq\":9,\"writes\":1,\"json\":-0.5,\"raw\":\"-0.5\",\"errors\":null,\"warnings\":null}},\"floors.enrich\":{\"_\":{\"seq\":8,\"writes\":1,\"json\":0.000001,\"raw\":\"0.000001\",\"errors\":null,\"warnings\":null}},\"fpd.resolved\":{\"_\":{\"seq\":16,\"writes\":1,\"json\":{\"regs\":null},\"raw\":\"{\\\"regs\\\":null}\",\"errors\":null,\"warnings\":null}},\"http.response\":{\"_\":{\"seq\":2,\"writes\":1,\"json\":{\"a\":1.0},\"raw\":\"{\\\"a\\\":1.0}\\n\",\"errors\":null,\"warnings\":null}},\"privacy.bidder\":{\"\u003c\u0026\u003e\":{\"seq\":18,\"writes\":1,\"json\":3,\"raw\":\"3\",\"errors\":null,\"warnings\":null}},\"request.validated\":{\"_\":{\"seq\":1,\"writes\":1,\"json\":{\"adm\":\"\\u003cb\\u003e\\u0026\"},\"raw\":\"{\\\"adm\\\":\\\"\\\\u003cb\\\\u003e\\\\u0026\\\"}\",\"errors\":null,\"warnings\":null}},\"seat_non_bids\":{\"_\":{\"seq\":10,\"writes\":1,\"json\":null,\"raw\":\"null\",\"errors\":null,\"warnings\":null}},\"stored.fetch\":{\"_\":{\"seq\":12,\"writes\":1,\"json\":{\"b\":[1,2],\"c\":\"\u003c\"},\"raw\":\"{\\\"b\\\":[1,2],\\\"c\\\":\\\"\u003c\\\"}\",\"errors\":null,\"warnings\":null}},\"stored.responses\":{\"_\":{\"seq\":13,\"writes\":1,\"json\":null,\"raw\":\"\",\"errors\":null,\"warnings\":null,\"notes\":[\"raw value is not valid JSON\"]}},\"targeting\":{\"_\":{\"seq\":7,\"writes\":1,\"json\":1e+21,\"raw\":\"1e+21\",\"errors\":null,\"warnings\":null}},\"video.pods\":{\"_\":{\"seq\":0,\"writes\":0,\"json\":null,\"raw\":null,\"errors\":null,\"warnings\":null,\"notes\":[\"marshal error: unsupported value: NaN\"]}}},\"stage_status\":{\"account.resolved\":\"captured\",\"adapter.bids\":\"captured\",\"adapter.requests\":\"not_reached\",\"adapter.requests_final\":\"not_reached\",\"amp.targeting_response\":\"not_reached\",\"analytics\":\"not_reached\",\"auction.setup\":\"captured\",\"auction.winners\":\"not_reached\",\"bidder.request\":\"captured\",\"bidder.result\":\"not_reached\",\"bidders.resolved\":\"not_reached\",\"bids.adjusted\":\"not_reached\",\"cache.result\":\"captured\",\"category.mapping\":\"captured\",\"config.resolved\":\"not_reached\",\"events.tracking\":\"captured\",\"exchange.response\":\"not_reached\",\"floors.enforce\":\"captured\",\"floors.enrich\":\"captured\",\"fpd.resolved\":\"captured\",\"gdpr.context\":\"not_reached\",\"hook_outcomes\":\"not_reached\",\"hooks.all_processed_bid_responses\":\"not_reached\",\"hooks.auction_response\":\"not_reached\",\"hooks.bidder_request\":\"not_reached\",\"hooks.entrypoint\":\"not_reached\",\"hooks.exitpoint\":\"not_reached\",\"hooks.processed_auction\":\"not_reached\",\"hooks.raw_auction\":\"not_reached\",\"hooks.raw_bidder_response\":\"not_reached\",\"http.in\":\"not_reached\",\"http.out\":\"not_reached\",\"http.response\":\"captured\",\"metrics_delta\":\"not_reached\",\"privacy.bidder\":\"captured\",\"privacy.labels\":\"not_reached\",\"request.merged\":\"not_reached\",\"request.normalized\":\"not_reached\",\"request.validated\":\"captured\",\"seat_non_bids\":\"captured\",\"stored.fetch\":\"captured\",\"stored.responses\":\"captured\",\"targeting\":\"captured\",\"video.cache\":\"not_reached\",\"video.pods\":\"captured\"},\"http_out\":[],\"decisions\":[],\"metrics_delta\":[],\"analytics\":[],\"notes\":[]}\n"
+    },
+    {
+      "envelope": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"errs\",\"request\":{\"method\":\"POST\",\"path\":\"/openrtb2/auction\",\"query\":\"\",\"headers\":[]},\"mock\":{},\"capture\":{}}",
+      "name": "errors",
+      "ops": [
+        {
+          "op": "errors",
+          "stage": "request.validated",
+          "errors": [
+            {
+              "type": "bad_input",
+              "message": "b"
+            },
+            {
+              "type": "warning",
+              "code": 10001,
+              "message": "w"
+            }
+          ]
+        },
+        {
+          "op": "errors",
+          "stage": "bidder.result",
+          "key": "x",
+          "errors": []
+        },
+        {
+          "op": "errors",
+          "stage": "bidder.result",
+          "key": "y",
+          "errors": null
+        },
+        {
+          "op": "record",
+          "stage": "bidder.result",
+          "key": "x",
+          "type": "int",
+          "value": 5
+        },
+        {
+          "op": "errors",
+          "stage": "privacy.bidder",
+          "key": "appnexus",
+          "errors": [
+            {
+              "type": "generic",
+              "message": "plain \u003cb\u003e"
+            },
+            {
+              "type": "debug_warning",
+              "code": 10003,
+              "message": "d"
+            },
+            {
+              "type": "timeout",
+              "message": "t"
+            },
+            {
+              "type": "bidder_temporarily_disabled",
+              "message": "bt"
+            },
+            {
+              "type": "warning",
+              "code": 42,
+              "message": "odd code"
+            }
+          ]
+        },
+        {
+          "op": "errors",
+          "stage": "privacy.bidder",
+          "key": "appnexus",
+          "errors": [
+            {
+              "type": "bad_server_response",
+              "message": "s"
+            }
+          ]
+        },
+        {
+          "op": "record",
+          "stage": "privacy.bidder",
+          "key": "appnexus",
+          "type": "int",
+          "value": 1
+        },
+        {
+          "op": "mark",
+          "stage": "metrics_delta",
+          "status": "captured"
+        },
+        {
+          "op": "mark",
+          "stage": "video.cache",
+          "status": "unimplemented"
+        },
+        {
+          "op": "mark",
+          "stage": "privacy.bidder",
+          "status": "not_reached"
+        },
+        {
+          "op": "note",
+          "text": "n1 %d \u003cb\u003e"
+        },
+        {
+          "op": "note",
+          "text": "n2"
+        },
+        {
+          "op": "note_b64",
+          "raw_b64": "YmFkIP8gYnl0ZQ=="
+        }
+      ],
+      "results": [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      "trace": "{\"schema\":\"pbs-parity-trace/1\",\"schema_version\":\"1.0.0\",\"impl\":\"rust\",\"build\":{\"git_sha\":\"\",\"version\":\"\"},\"case_id\":\"errs\",\"endpoint\":\"/openrtb2/auction\",\"http_in\":null,\"http_response\":null,\"stages\":{\"bidder.result\":{\"x\":{\"seq\":4,\"writes\":1,\"json\":5,\"raw\":\"5\",\"errors\":[],\"warnings\":[]},\"y\":{\"seq\":3,\"writes\":0,\"json\":null,\"raw\":null,\"errors\":[],\"warnings\":[]}},\"privacy.bidder\":{\"appnexus\":{\"seq\":6,\"writes\":1,\"json\":1,\"raw\":\"1\",\"errors\":[{\"code\":999,\"kind\":\"UnknownError\",\"message\":\"plain \u003cb\u003e\",\"scope\":\"general\",\"severity\":\"unknown\",\"fatal\":true},{\"code\":1,\"kind\":\"Timeout\",\"message\":\"t\",\"scope\":\"general\",\"severity\":\"fatal\",\"fatal\":true},{\"code\":4,\"kind\":\"BadServerResponse\",\"message\":\"s\",\"scope\":\"general\",\"severity\":\"fatal\",\"fatal\":true}],\"warnings\":[{\"code\":10003,\"kind\":\"BidderLevelDebugDisabledWarning\",\"message\":\"d\",\"scope\":\"debug\",\"severity\":\"warning\",\"fatal\":false},{\"code\":6,\"kind\":\"BidderTemporarilyDisabled\",\"message\":\"bt\",\"scope\":\"general\",\"severity\":\"warning\",\"fatal\":false},{\"code\":42,\"kind\":\"Unknown\",\"message\":\"odd code\",\"scope\":\"general\",\"severity\":\"warning\",\"fatal\":false}]}},\"request.validated\":{\"_\":{\"seq\":1,\"writes\":0,\"json\":null,\"raw\":null,\"errors\":[{\"code\":2,\"kind\":\"BadInput\",\"message\":\"b\",\"scope\":\"general\",\"severity\":\"fatal\",\"fatal\":true}],\"warnings\":[{\"code\":10001,\"kind\":\"InvalidPrivacyConsentWarning\",\"message\":\"w\",\"scope\":\"general\",\"severity\":\"warning\",\"fatal\":false}]}}},\"stage_status\":{\"account.resolved\":\"not_reached\",\"adapter.bids\":\"not_reached\",\"adapter.requests\":\"not_reached\",\"adapter.requests_final\":\"not_reached\",\"amp.targeting_response\":\"not_reached\",\"analytics\":\"not_reached\",\"auction.setup\":\"not_reached\",\"auction.winners\":\"not_reached\",\"bidder.request\":\"not_reached\",\"bidder.result\":\"captured\",\"bidders.resolved\":\"not_reached\",\"bids.adjusted\":\"not_reached\",\"cache.result\":\"not_reached\",\"category.mapping\":\"not_reached\",\"config.resolved\":\"not_reached\",\"events.tracking\":\"not_reached\",\"exchange.response\":\"not_reached\",\"floors.enforce\":\"not_reached\",\"floors.enrich\":\"not_reached\",\"fpd.resolved\":\"not_reached\",\"gdpr.context\":\"not_reached\",\"hook_outcomes\":\"not_reached\",\"hooks.all_processed_bid_responses\":\"not_reached\",\"hooks.auction_response\":\"not_reached\",\"hooks.bidder_request\":\"not_reached\",\"hooks.entrypoint\":\"not_reached\",\"hooks.exitpoint\":\"not_reached\",\"hooks.processed_auction\":\"not_reached\",\"hooks.raw_auction\":\"not_reached\",\"hooks.raw_bidder_response\":\"not_reached\",\"http.in\":\"not_reached\",\"http.out\":\"not_reached\",\"http.response\":\"not_reached\",\"metrics_delta\":\"captured\",\"privacy.bidder\":\"captured\",\"privacy.labels\":\"not_reached\",\"request.merged\":\"not_reached\",\"request.normalized\":\"not_reached\",\"request.validated\":\"captured\",\"seat_non_bids\":\"not_reached\",\"stored.fetch\":\"not_reached\",\"stored.responses\":\"not_reached\",\"targeting\":\"not_reached\",\"video.cache\":\"unimplemented\",\"video.pods\":\"not_reached\"},\"http_out\":[],\"decisions\":[],\"metrics_delta\":[],\"analytics\":[],\"notes\":[\"n1 %d \u003cb\u003e\",\"n2\",\"bad \\ufffd byte\"]}\n"
+    },
+    {
+      "envelope": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"filter\",\"request\":{\"method\":\"POST\",\"path\":\"/openrtb2/auction\",\"query\":\"\",\"headers\":[]},\"mock\":{},\"capture\":{\"stages\":[\"http.in\",\"made.up\"],\"analytics\":false}}",
+      "name": "filter",
+      "ops": [
+        {
+          "op": "record",
+          "stage": "http.in",
+          "type": "int",
+          "value": 1
+        },
+        {
+          "op": "record",
+          "stage": "bidder.request",
+          "key": "a",
+          "type": "int",
+          "value": 1
+        },
+        {
+          "op": "record_raw",
+          "stage": "bidder.request",
+          "key": "a",
+          "raw_b64": "MQ=="
+        },
+        {
+          "op": "errors",
+          "stage": "bidder.request",
+          "key": "a",
+          "errors": [
+            {
+              "type": "bad_input",
+              "message": "b"
+            }
+          ]
+        },
+        {
+          "op": "outbound",
+          "call": "{\"seq\":1,\"kind\":\"bidder\",\"bidder\":\"appnexus\",\"orig_url\":\"https://ib.adnxs.com/openrtb2/prebid?a=\u003cb\u003e\u0026c\",\"request\":{\"method\":\"POST\",\"url\":\"http://127.0.0.1:9/appnexus\",\"headers\":[[\"Content-Type\",\"application/json\"],[\"X-Parity-Meta\",\"e30=\"]],\"body\":{\"text\":\"{\\\"id\\\":\\\"1\\\"}\",\"json\":{\"id\":\"1\"}}},\"wire\":false,\"mock\":{\"source\":\"inline\",\"id\":\"bidders.appnexus\"},\"response\":{\"status\":200,\"headers\":[[\"Content-Type\",\"application/json\"]],\"body\":{\"text\":\"{}\",\"json\":{}},\"delay_ms\":5},\"error\":null,\"notes\":[\"n\"]}"
+        },
+        {
+          "op": "analytics",
+          "type": "int",
+          "value": 1,
+          "kind": "auction"
+        },
+        {
+          "op": "mark",
+          "stage": "bidder.request",
+          "status": "captured"
+        },
+        {
+          "op": "wants",
+          "stage": "http.in"
+        },
+        {
+          "op": "wants",
+          "stage": "bidder.request"
+        },
+        {
+          "op": "next_seq"
+        }
+      ],
+      "results": [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        true,
+        false,
+        2
+      ],
+      "trace": "{\"schema\":\"pbs-parity-trace/1\",\"schema_version\":\"1.0.0\",\"impl\":\"rust\",\"build\":{\"git_sha\":\"\",\"version\":\"\"},\"case_id\":\"filter\",\"endpoint\":\"/openrtb2/auction\",\"http_in\":null,\"http_response\":null,\"stages\":{\"http.in\":{\"_\":{\"seq\":1,\"writes\":1,\"json\":1,\"raw\":\"1\",\"errors\":null,\"warnings\":null}}},\"stage_status\":{\"account.resolved\":\"not_reached\",\"adapter.bids\":\"not_reached\",\"adapter.requests\":\"not_reached\",\"adapter.requests_final\":\"not_reached\",\"amp.targeting_response\":\"not_reached\",\"analytics\":\"not_reached\",\"auction.setup\":\"not_reached\",\"auction.winners\":\"not_reached\",\"bidder.request\":\"captured\",\"bidder.result\":\"not_reached\",\"bidders.resolved\":\"not_reached\",\"bids.adjusted\":\"not_reached\",\"cache.result\":\"not_reached\",\"category.mapping\":\"not_reached\",\"config.resolved\":\"not_reached\",\"events.tracking\":\"not_reached\",\"exchange.response\":\"not_reached\",\"floors.enforce\":\"not_reached\",\"floors.enrich\":\"not_reached\",\"fpd.resolved\":\"not_reached\",\"gdpr.context\":\"not_reached\",\"hook_outcomes\":\"not_reached\",\"hooks.all_processed_bid_responses\":\"not_reached\",\"hooks.auction_response\":\"not_reached\",\"hooks.bidder_request\":\"not_reached\",\"hooks.entrypoint\":\"not_reached\",\"hooks.exitpoint\":\"not_reached\",\"hooks.processed_auction\":\"not_reached\",\"hooks.raw_auction\":\"not_reached\",\"hooks.raw_bidder_response\":\"not_reached\",\"http.in\":\"captured\",\"http.out\":\"not_reached\",\"http.response\":\"not_reached\",\"metrics_delta\":\"not_reached\",\"privacy.bidder\":\"not_reached\",\"privacy.labels\":\"not_reached\",\"request.merged\":\"not_reached\",\"request.normalized\":\"not_reached\",\"request.validated\":\"not_reached\",\"seat_non_bids\":\"not_reached\",\"stored.fetch\":\"not_reached\",\"stored.responses\":\"not_reached\",\"targeting\":\"not_reached\",\"video.cache\":\"not_reached\",\"video.pods\":\"not_reached\"},\"http_out\":[],\"decisions\":[],\"metrics_delta\":[],\"analytics\":[],\"notes\":[]}\n"
+    },
+    {
+      "envelope": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"analytics-stage\",\"request\":{\"method\":\"POST\",\"path\":\"/openrtb2/auction\",\"query\":\"\",\"headers\":[]},\"mock\":{},\"capture\":{\"stages\":[\"analytics\"],\"analytics\":false}}",
+      "name": "analytics_without_stage",
+      "ops": [
+        {
+          "op": "analytics",
+          "type": "int",
+          "value": 1,
+          "kind": "auction"
+        },
+        {
+          "op": "wants",
+          "stage": "analytics"
+        }
+      ],
+      "results": [
+        null,
+        true
+      ],
+      "trace": "{\"schema\":\"pbs-parity-trace/1\",\"schema_version\":\"1.0.0\",\"impl\":\"rust\",\"build\":{\"git_sha\":\"\",\"version\":\"\"},\"case_id\":\"analytics-stage\",\"endpoint\":\"/openrtb2/auction\",\"http_in\":null,\"http_response\":null,\"stages\":{},\"stage_status\":{\"account.resolved\":\"not_reached\",\"adapter.bids\":\"not_reached\",\"adapter.requests\":\"not_reached\",\"adapter.requests_final\":\"not_reached\",\"amp.targeting_response\":\"not_reached\",\"analytics\":\"not_reached\",\"auction.setup\":\"not_reached\",\"auction.winners\":\"not_reached\",\"bidder.request\":\"not_reached\",\"bidder.result\":\"not_reached\",\"bidders.resolved\":\"not_reached\",\"bids.adjusted\":\"not_reached\",\"cache.result\":\"not_reached\",\"category.mapping\":\"not_reached\",\"config.resolved\":\"not_reached\",\"events.tracking\":\"not_reached\",\"exchange.response\":\"not_reached\",\"floors.enforce\":\"not_reached\",\"floors.enrich\":\"not_reached\",\"fpd.resolved\":\"not_reached\",\"gdpr.context\":\"not_reached\",\"hook_outcomes\":\"not_reached\",\"hooks.all_processed_bid_responses\":\"not_reached\",\"hooks.auction_response\":\"not_reached\",\"hooks.bidder_request\":\"not_reached\",\"hooks.entrypoint\":\"not_reached\",\"hooks.exitpoint\":\"not_reached\",\"hooks.processed_auction\":\"not_reached\",\"hooks.raw_auction\":\"not_reached\",\"hooks.raw_bidder_response\":\"not_reached\",\"http.in\":\"not_reached\",\"http.out\":\"not_reached\",\"http.response\":\"not_reached\",\"metrics_delta\":\"not_reached\",\"privacy.bidder\":\"not_reached\",\"privacy.labels\":\"not_reached\",\"request.merged\":\"not_reached\",\"request.normalized\":\"not_reached\",\"request.validated\":\"not_reached\",\"seat_non_bids\":\"not_reached\",\"stored.fetch\":\"not_reached\",\"stored.responses\":\"not_reached\",\"targeting\":\"not_reached\",\"video.cache\":\"not_reached\",\"video.pods\":\"not_reached\"},\"http_out\":[],\"decisions\":[],\"metrics_delta\":[],\"analytics\":[],\"notes\":[]}\n"
+    },
+    {
+      "envelope": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"bad-filter\",\"request\":{\"method\":\"POST\",\"path\":\"/openrtb2/auction\",\"query\":\"\",\"headers\":[]},\"mock\":{},\"capture\":{\"stages\":\"some\"}}",
+      "name": "bad_filter",
+      "ops": [
+        {
+          "op": "record",
+          "stage": "http.in",
+          "type": "int",
+          "value": 1
+        },
+        {
+          "op": "wants",
+          "stage": "bidder.request"
+        }
+      ],
+      "results": [
+        null,
+        true
+      ],
+      "trace": "{\"schema\":\"pbs-parity-trace/1\",\"schema_version\":\"1.0.0\",\"impl\":\"rust\",\"build\":{\"git_sha\":\"\",\"version\":\"\"},\"case_id\":\"bad-filter\",\"endpoint\":\"/openrtb2/auction\",\"http_in\":null,\"http_response\":null,\"stages\":{\"http.in\":{\"_\":{\"seq\":1,\"writes\":1,\"json\":1,\"raw\":\"1\",\"errors\":null,\"warnings\":null}}},\"stage_status\":{\"account.resolved\":\"not_reached\",\"adapter.bids\":\"not_reached\",\"adapter.requests\":\"not_reached\",\"adapter.requests_final\":\"not_reached\",\"amp.targeting_response\":\"not_reached\",\"analytics\":\"not_reached\",\"auction.setup\":\"not_reached\",\"auction.winners\":\"not_reached\",\"bidder.request\":\"not_reached\",\"bidder.result\":\"not_reached\",\"bidders.resolved\":\"not_reached\",\"bids.adjusted\":\"not_reached\",\"cache.result\":\"not_reached\",\"category.mapping\":\"not_reached\",\"config.resolved\":\"not_reached\",\"events.tracking\":\"not_reached\",\"exchange.response\":\"not_reached\",\"floors.enforce\":\"not_reached\",\"floors.enrich\":\"not_reached\",\"fpd.resolved\":\"not_reached\",\"gdpr.context\":\"not_reached\",\"hook_outcomes\":\"not_reached\",\"hooks.all_processed_bid_responses\":\"not_reached\",\"hooks.auction_response\":\"not_reached\",\"hooks.bidder_request\":\"not_reached\",\"hooks.entrypoint\":\"not_reached\",\"hooks.exitpoint\":\"not_reached\",\"hooks.processed_auction\":\"not_reached\",\"hooks.raw_auction\":\"not_reached\",\"hooks.raw_bidder_response\":\"not_reached\",\"http.in\":\"captured\",\"http.out\":\"not_reached\",\"http.response\":\"not_reached\",\"metrics_delta\":\"not_reached\",\"privacy.bidder\":\"not_reached\",\"privacy.labels\":\"not_reached\",\"request.merged\":\"not_reached\",\"request.normalized\":\"not_reached\",\"request.validated\":\"not_reached\",\"seat_non_bids\":\"not_reached\",\"stored.fetch\":\"not_reached\",\"stored.responses\":\"not_reached\",\"targeting\":\"not_reached\",\"video.cache\":\"not_reached\",\"video.pods\":\"not_reached\"},\"http_out\":[],\"decisions\":[],\"metrics_delta\":[],\"analytics\":[],\"notes\":[\"capture.stages ignored: capture.stages: string value must be \\\"*\\\", got \\\"some\\\"\"]}\n"
+    },
+    {
+      "envelope": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"bad-filter-object\",\"request\":{\"method\":\"POST\",\"path\":\"/openrtb2/auction\",\"query\":\"\",\"headers\":[]},\"mock\":{},\"capture\":{\"stages\":{\"a\":1}}}",
+      "name": "bad_filter_object",
+      "ops": [
+        {
+          "op": "wants",
+          "stage": "http.in"
+        }
+      ],
+      "results": [
+        true
+      ],
+      "trace": "{\"schema\":\"pbs-parity-trace/1\",\"schema_version\":\"1.0.0\",\"impl\":\"rust\",\"build\":{\"git_sha\":\"\",\"version\":\"\"},\"case_id\":\"bad-filter-object\",\"endpoint\":\"/openrtb2/auction\",\"http_in\":null,\"http_response\":null,\"stages\":{},\"stage_status\":{\"account.resolved\":\"not_reached\",\"adapter.bids\":\"not_reached\",\"adapter.requests\":\"not_reached\",\"adapter.requests_final\":\"not_reached\",\"amp.targeting_response\":\"not_reached\",\"analytics\":\"not_reached\",\"auction.setup\":\"not_reached\",\"auction.winners\":\"not_reached\",\"bidder.request\":\"not_reached\",\"bidder.result\":\"not_reached\",\"bidders.resolved\":\"not_reached\",\"bids.adjusted\":\"not_reached\",\"cache.result\":\"not_reached\",\"category.mapping\":\"not_reached\",\"config.resolved\":\"not_reached\",\"events.tracking\":\"not_reached\",\"exchange.response\":\"not_reached\",\"floors.enforce\":\"not_reached\",\"floors.enrich\":\"not_reached\",\"fpd.resolved\":\"not_reached\",\"gdpr.context\":\"not_reached\",\"hook_outcomes\":\"not_reached\",\"hooks.all_processed_bid_responses\":\"not_reached\",\"hooks.auction_response\":\"not_reached\",\"hooks.bidder_request\":\"not_reached\",\"hooks.entrypoint\":\"not_reached\",\"hooks.exitpoint\":\"not_reached\",\"hooks.processed_auction\":\"not_reached\",\"hooks.raw_auction\":\"not_reached\",\"hooks.raw_bidder_response\":\"not_reached\",\"http.in\":\"not_reached\",\"http.out\":\"not_reached\",\"http.response\":\"not_reached\",\"metrics_delta\":\"not_reached\",\"privacy.bidder\":\"not_reached\",\"privacy.labels\":\"not_reached\",\"request.merged\":\"not_reached\",\"request.normalized\":\"not_reached\",\"request.validated\":\"not_reached\",\"seat_non_bids\":\"not_reached\",\"stored.fetch\":\"not_reached\",\"stored.responses\":\"not_reached\",\"targeting\":\"not_reached\",\"video.cache\":\"not_reached\",\"video.pods\":\"not_reached\"},\"http_out\":[],\"decisions\":[],\"metrics_delta\":[],\"analytics\":[],\"notes\":[\"capture.stages ignored: capture.stages: json: cannot unmarshal object into Go value of type []parity.StageID\"]}\n"
+    },
+    {
+      "envelope": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"out\",\"request\":{\"method\":\"POST\",\"path\":\"/openrtb2/auction\",\"query\":\"\",\"headers\":[]},\"mock\":{},\"capture\":{\"stages\":\"*\"}}",
+      "name": "outbound_analytics",
+      "ops": [
+        {
+          "op": "next_seq"
+        },
+        {
+          "op": "outbound",
+          "call": "{\"seq\":1,\"kind\":\"bidder\",\"bidder\":\"appnexus\",\"orig_url\":\"https://ib.adnxs.com/openrtb2/prebid?a=\u003cb\u003e\u0026c\",\"request\":{\"method\":\"POST\",\"url\":\"http://127.0.0.1:9/appnexus\",\"headers\":[[\"Content-Type\",\"application/json\"],[\"X-Parity-Meta\",\"e30=\"]],\"body\":{\"text\":\"{\\\"id\\\":\\\"1\\\"}\",\"json\":{\"id\":\"1\"}}},\"wire\":false,\"mock\":{\"source\":\"inline\",\"id\":\"bidders.appnexus\"},\"response\":{\"status\":200,\"headers\":[[\"Content-Type\",\"application/json\"]],\"body\":{\"text\":\"{}\",\"json\":{}},\"delay_ms\":5},\"error\":null,\"notes\":[\"n\"]}"
+        },
+        {
+          "op": "outbound",
+          "call": "{\"seq\":2,\"kind\":\"cache\",\"bidder\":\"\",\"orig_url\":\"http://cache/x\",\"request\":{\"method\":\"POST\",\"url\":\"http://cache/x\",\"headers\":[],\"body\":null},\"wire\":false,\"mock\":null,\"response\":null,\"error\":\"timeout\"}"
+        },
+        {
+          "op": "analytics",
+          "type": "regs_record",
+          "value": {
+            "gdpr": 1,
+            "ext": "{}"
+          },
+          "kind": "auction"
+        },
+        {
+          "op": "analytics",
+          "type": "regs_record",
+          "value": {
+            "gdpr": 1,
+            "ext": "{\"dsa\":"
+          },
+          "kind": "amp"
+        },
+        {
+          "op": "analytics",
+          "type": "map",
+          "value": {
+            "\u003c": "\u003e"
+          },
+          "kind": "video"
+        },
+        {
+          "op": "analytics",
+          "type": "nan",
+          "kind": "cookie_sync"
+        },
+        {
+          "op": "analytics",
+          "type": "nil_regs",
+          "kind": "setuid"
+        },
+        {
+          "op": "analytics",
+          "type": "raw",
+          "text": " { \"a\" : [ 1 ] , \"b\" : \"\u003c\u0026\u003e\" } ",
+          "kind": "notification"
+        },
+        {
+          "op": "next_seq"
+        }
+      ],
+      "results": [
+        1,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        2
+      ],
+      "trace": "{\"schema\":\"pbs-parity-trace/1\",\"schema_version\":\"1.0.0\",\"impl\":\"rust\",\"build\":{\"git_sha\":\"\",\"version\":\"\"},\"case_id\":\"out\",\"endpoint\":\"/openrtb2/auction\",\"http_in\":null,\"http_response\":null,\"stages\":{},\"stage_status\":{\"account.resolved\":\"not_reached\",\"adapter.bids\":\"not_reached\",\"adapter.requests\":\"not_reached\",\"adapter.requests_final\":\"not_reached\",\"amp.targeting_response\":\"not_reached\",\"analytics\":\"captured\",\"auction.setup\":\"not_reached\",\"auction.winners\":\"not_reached\",\"bidder.request\":\"not_reached\",\"bidder.result\":\"not_reached\",\"bidders.resolved\":\"not_reached\",\"bids.adjusted\":\"not_reached\",\"cache.result\":\"not_reached\",\"category.mapping\":\"not_reached\",\"config.resolved\":\"not_reached\",\"events.tracking\":\"not_reached\",\"exchange.response\":\"not_reached\",\"floors.enforce\":\"not_reached\",\"floors.enrich\":\"not_reached\",\"fpd.resolved\":\"not_reached\",\"gdpr.context\":\"not_reached\",\"hook_outcomes\":\"not_reached\",\"hooks.all_processed_bid_responses\":\"not_reached\",\"hooks.auction_response\":\"not_reached\",\"hooks.bidder_request\":\"not_reached\",\"hooks.entrypoint\":\"not_reached\",\"hooks.exitpoint\":\"not_reached\",\"hooks.processed_auction\":\"not_reached\",\"hooks.raw_auction\":\"not_reached\",\"hooks.raw_bidder_response\":\"not_reached\",\"http.in\":\"not_reached\",\"http.out\":\"captured\",\"http.response\":\"not_reached\",\"metrics_delta\":\"not_reached\",\"privacy.bidder\":\"not_reached\",\"privacy.labels\":\"not_reached\",\"request.merged\":\"not_reached\",\"request.normalized\":\"not_reached\",\"request.validated\":\"not_reached\",\"seat_non_bids\":\"not_reached\",\"stored.fetch\":\"not_reached\",\"stored.responses\":\"not_reached\",\"targeting\":\"not_reached\",\"video.cache\":\"not_reached\",\"video.pods\":\"not_reached\"},\"http_out\":[{\"seq\":1,\"kind\":\"bidder\",\"bidder\":\"appnexus\",\"orig_url\":\"https://ib.adnxs.com/openrtb2/prebid?a=\u003cb\u003e\u0026c\",\"request\":{\"method\":\"POST\",\"url\":\"http://127.0.0.1:9/appnexus\",\"headers\":[[\"Content-Type\",\"application/json\"],[\"X-Parity-Meta\",\"e30=\"]],\"body\":{\"text\":\"{\\\"id\\\":\\\"1\\\"}\",\"json\":{\"id\":\"1\"}}},\"wire\":false,\"mock\":{\"source\":\"inline\",\"id\":\"bidders.appnexus\"},\"response\":{\"status\":200,\"headers\":[[\"Content-Type\",\"application/json\"]],\"body\":{\"text\":\"{}\",\"json\":{}},\"delay_ms\":5},\"error\":null,\"notes\":[\"n\"]},{\"seq\":2,\"kind\":\"cache\",\"bidder\":\"\",\"orig_url\":\"http://cache/x\",\"request\":{\"method\":\"POST\",\"url\":\"http://cache/x\",\"headers\":[],\"body\":null},\"wire\":false,\"mock\":null,\"response\":null,\"error\":\"timeout\"}],\"decisions\":[],\"metrics_delta\":[],\"analytics\":[{\"kind\":\"auction\",\"object\":{\"regs\":{\"gdpr\":1,\"ext\":{}}}},{\"kind\":\"video\",\"object\":{\"\\u003c\":\"\\u003e\"}},{\"kind\":\"setuid\",\"object\":{\"regs\":null}},{\"kind\":\"notification\",\"object\":{\"a\":[1],\"b\":\"\u003c\u0026\u003e\"}}],\"notes\":[\"analytics amp: marshaled object is not valid JSON, not recorded: \\\"{\\\\\\\"regs\\\\\\\":{\\\\\\\"gdpr\\\\\\\":1,\\\\\\\"ext\\\\\\\":}}\\\"\",\"analytics cookie_sync: marshal error: unsupported value: NaN\"]}\n"
+    },
+    {
+      "envelope": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"decide\",\"request\":{\"method\":\"POST\",\"path\":\"/openrtb2/auction\",\"query\":\"\",\"headers\":[]},\"mock\":{},\"capture\":{},\"decisions\":{\"floors.skip\":1,\"floors.data_rate\":2,\"floors.modelgroup\":2,\"floors.enforce\":0,\"category.dedupe\":\"1\",\"pricegranularity.timesplit\":null,\"usersync.shuffle\":\"identity\"}}",
+      "name": "decisions",
+      "ops": [
+        {
+          "op": "decide",
+          "point": "floors.skip",
+          "def": 0
+        },
+        {
+          "op": "decide",
+          "point": "floors.data_rate",
+          "def": 1
+        },
+        {
+          "op": "intn",
+          "point": "floors.modelgroup",
+          "n": 3,
+          "offset": -3
+        },
+        {
+          "op": "intn",
+          "point": "floors.modelgroup",
+          "n": 2,
+          "offset": -1
+        },
+        {
+          "op": "decide_bool",
+          "point": "floors.enforce",
+          "draw": true
+        },
+        {
+          "op": "decide",
+          "point": "category.dedupe",
+          "def": 0
+        },
+        {
+          "op": "decide",
+          "point": "pricegranularity.timesplit",
+          "def": 1
+        },
+        {
+          "op": "decide_string",
+          "point": "usersync.shuffle",
+          "def": "rng"
+        },
+        {
+          "op": "last_decision",
+          "point": "floors.modelgroup"
+        },
+        {
+          "op": "last_decision",
+          "point": "floors.skip"
+        },
+        {
+          "op": "last_decision",
+          "point": "usersync.shuffle"
+        }
+      ],
+      "results": [
+        1,
+        1,
+        2,
+        1,
+        false,
+        0,
+        0,
+        "identity",
+        "1",
+        "1",
+        "\"identity\""
+      ],
+      "trace": "{\"schema\":\"pbs-parity-trace/1\",\"schema_version\":\"1.0.0\",\"impl\":\"rust\",\"build\":{\"git_sha\":\"\",\"version\":\"\"},\"case_id\":\"decide\",\"endpoint\":\"/openrtb2/auction\",\"http_in\":null,\"http_response\":null,\"stages\":{},\"stage_status\":{\"account.resolved\":\"not_reached\",\"adapter.bids\":\"not_reached\",\"adapter.requests\":\"not_reached\",\"adapter.requests_final\":\"not_reached\",\"amp.targeting_response\":\"not_reached\",\"analytics\":\"not_reached\",\"auction.setup\":\"not_reached\",\"auction.winners\":\"not_reached\",\"bidder.request\":\"not_reached\",\"bidder.result\":\"not_reached\",\"bidders.resolved\":\"not_reached\",\"bids.adjusted\":\"not_reached\",\"cache.result\":\"not_reached\",\"category.mapping\":\"not_reached\",\"config.resolved\":\"not_reached\",\"events.tracking\":\"not_reached\",\"exchange.response\":\"not_reached\",\"floors.enforce\":\"not_reached\",\"floors.enrich\":\"not_reached\",\"fpd.resolved\":\"not_reached\",\"gdpr.context\":\"not_reached\",\"hook_outcomes\":\"not_reached\",\"hooks.all_processed_bid_responses\":\"not_reached\",\"hooks.auction_response\":\"not_reached\",\"hooks.bidder_request\":\"not_reached\",\"hooks.entrypoint\":\"not_reached\",\"hooks.exitpoint\":\"not_reached\",\"hooks.processed_auction\":\"not_reached\",\"hooks.raw_auction\":\"not_reached\",\"hooks.raw_bidder_response\":\"not_reached\",\"http.in\":\"not_reached\",\"http.out\":\"not_reached\",\"http.response\":\"not_reached\",\"metrics_delta\":\"not_reached\",\"privacy.bidder\":\"not_reached\",\"privacy.labels\":\"not_reached\",\"request.merged\":\"not_reached\",\"request.normalized\":\"not_reached\",\"request.validated\":\"not_reached\",\"seat_non_bids\":\"not_reached\",\"stored.fetch\":\"not_reached\",\"stored.responses\":\"not_reached\",\"targeting\":\"not_reached\",\"video.cache\":\"not_reached\",\"video.pods\":\"not_reached\"},\"http_out\":[],\"decisions\":[{\"point\":\"floors.skip\",\"value\":1,\"source\":\"envelope\"},{\"point\":\"floors.data_rate\",\"value\":1,\"source\":\"rng\",\"notes\":[\"envelope override 2 is not 0 or 1\"]},{\"point\":\"floors.modelgroup\",\"value\":2,\"source\":\"envelope\"},{\"point\":\"floors.modelgroup\",\"value\":1,\"source\":\"rng\",\"notes\":[\"envelope override 2 outside [0,2)\"]},{\"point\":\"floors.enforce\",\"value\":0,\"source\":\"envelope\"},{\"point\":\"category.dedupe\",\"value\":0,\"source\":\"rng\"},{\"point\":\"pricegranularity.timesplit\",\"value\":0,\"source\":\"envelope\"},{\"point\":\"usersync.shuffle\",\"value\":\"identity\",\"source\":\"envelope\"}],\"metrics_delta\":[],\"analytics\":[],\"notes\":[]}\n"
+    },
+    {
+      "envelope": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"chance\",\"request\":{\"method\":\"POST\",\"path\":\"/openrtb2/auction\",\"query\":\"\",\"headers\":[]},\"mock\":{},\"capture\":{},\"decisions\":{\"floors.skip\":0,\"usersync.shuffle\":\"reverse\",\"floors.modelgroup\":-1}}",
+      "name": "decisions_chance",
+      "ops": [
+        {
+          "op": "decide_chance",
+          "point": "floors.skip",
+          "draw": true,
+          "uncertain": true
+        },
+        {
+          "op": "decide_chance",
+          "point": "floors.skip",
+          "draw": true
+        },
+        {
+          "op": "decide_chance",
+          "point": "floors.enforce"
+        },
+        {
+          "op": "decide_chance",
+          "point": "floors.data_rate",
+          "draw": true,
+          "uncertain": true
+        },
+        {
+          "op": "decide_string",
+          "point": "usersync.shuffle",
+          "def": "rng \u003c\u0026\u003e"
+        },
+        {
+          "op": "intn",
+          "point": "floors.modelgroup",
+          "n": 5,
+          "offset": -5
+        },
+        {
+          "op": "decide",
+          "point": "floors.modelgroup",
+          "def": 3
+        },
+        {
+          "op": "decide_string",
+          "point": "floors.skip",
+          "def": "x"
+        },
+        {
+          "op": "decide_bool",
+          "point": "category.dedupe"
+        },
+        {
+          "op": "last_decision",
+          "point": "category.dedupe"
+        },
+        {
+          "op": "last_decision",
+          "point": "pricegranularity.timesplit"
+        }
+      ],
+      "results": [
+        false,
+        true,
+        false,
+        true,
+        "rng \u003c\u0026\u003e",
+        0,
+        -1,
+        "x",
+        false,
+        "0",
+        null
+      ],
+      "trace": "{\"schema\":\"pbs-parity-trace/1\",\"schema_version\":\"1.0.0\",\"impl\":\"rust\",\"build\":{\"git_sha\":\"\",\"version\":\"\"},\"case_id\":\"chance\",\"endpoint\":\"/openrtb2/auction\",\"http_in\":null,\"http_response\":null,\"stages\":{},\"stage_status\":{\"account.resolved\":\"not_reached\",\"adapter.bids\":\"not_reached\",\"adapter.requests\":\"not_reached\",\"adapter.requests_final\":\"not_reached\",\"amp.targeting_response\":\"not_reached\",\"analytics\":\"not_reached\",\"auction.setup\":\"not_reached\",\"auction.winners\":\"not_reached\",\"bidder.request\":\"not_reached\",\"bidder.result\":\"not_reached\",\"bidders.resolved\":\"not_reached\",\"bids.adjusted\":\"not_reached\",\"cache.result\":\"not_reached\",\"category.mapping\":\"not_reached\",\"config.resolved\":\"not_reached\",\"events.tracking\":\"not_reached\",\"exchange.response\":\"not_reached\",\"floors.enforce\":\"not_reached\",\"floors.enrich\":\"not_reached\",\"fpd.resolved\":\"not_reached\",\"gdpr.context\":\"not_reached\",\"hook_outcomes\":\"not_reached\",\"hooks.all_processed_bid_responses\":\"not_reached\",\"hooks.auction_response\":\"not_reached\",\"hooks.bidder_request\":\"not_reached\",\"hooks.entrypoint\":\"not_reached\",\"hooks.exitpoint\":\"not_reached\",\"hooks.processed_auction\":\"not_reached\",\"hooks.raw_auction\":\"not_reached\",\"hooks.raw_bidder_response\":\"not_reached\",\"http.in\":\"not_reached\",\"http.out\":\"not_reached\",\"http.response\":\"not_reached\",\"metrics_delta\":\"not_reached\",\"privacy.bidder\":\"not_reached\",\"privacy.labels\":\"not_reached\",\"request.merged\":\"not_reached\",\"request.normalized\":\"not_reached\",\"request.validated\":\"not_reached\",\"seat_non_bids\":\"not_reached\",\"stored.fetch\":\"not_reached\",\"stored.responses\":\"not_reached\",\"targeting\":\"not_reached\",\"video.cache\":\"not_reached\",\"video.pods\":\"not_reached\"},\"http_out\":[],\"decisions\":[{\"point\":\"floors.skip\",\"value\":0,\"source\":\"envelope\"},{\"point\":\"floors.skip\",\"value\":1,\"source\":\"rng\",\"notes\":[\"envelope override ignored: the configured rate fixes the outcome\"]},{\"point\":\"floors.enforce\",\"value\":0,\"source\":\"rng\"},{\"point\":\"floors.data_rate\",\"value\":1,\"source\":\"rng\"},{\"point\":\"usersync.shuffle\",\"value\":\"rng \\u003c\\u0026\\u003e\",\"source\":\"rng\",\"notes\":[\"envelope override \\\"reverse\\\" is not an allowed value\"]},{\"point\":\"floors.modelgroup\",\"value\":0,\"source\":\"rng\",\"notes\":[\"envelope override -1 outside [0,5)\"]},{\"point\":\"floors.modelgroup\",\"value\":-1,\"source\":\"envelope\"},{\"point\":\"floors.skip\",\"value\":\"x\",\"source\":\"rng\"},{\"point\":\"category.dedupe\",\"value\":0,\"source\":\"rng\"}],\"metrics_delta\":[],\"analytics\":[],\"notes\":[]}\n"
+    }
+  ],
+  "parity_ref": "abad587d4f6302094ae9b9b4bf347bbb3422e6b7"
+}

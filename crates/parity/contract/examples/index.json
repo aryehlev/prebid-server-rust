@@ -1,0 +1,27 @@
+{
+  "schema": "pbs-parity-index/1",
+  "schema_version": "1.0.0",
+  "cases": [
+    {
+      "case_id": "endpoints/openrtb2/sample-requests/valid-whole/exemplary/simple.json#seed",
+      "fixture_path": "endpoints/openrtb2/sample-requests/valid-whole/exemplary/simple.json",
+      "endpoint": "/openrtb2/auction",
+      "domains": ["auction_lifecycle", "endpoints", "bidders_adapters"],
+      "mismatch_kinds": ["value", "lexical", "wire"],
+      "summary_path": "parity/out/run-1/cases/0001/summary.json",
+      "artifact_path": "parity/out/run-1/cases/0001/diff.json",
+      "stage": "request.validated",
+      "cluster": "0b4a3f0d2e7c9a1b5d6e8f90123456789abcdef0",
+      "primary_domain": "auction_lifecycle"
+    },
+    {
+      "case_id": "adapters/appnexus/appnexustest/exemplary/simple-banner.json#requests",
+      "fixture_path": "adapters/appnexus/appnexustest/exemplary/simple-banner.json",
+      "endpoint": "/__parity/adapter/appnexus/requests",
+      "domains": [],
+      "mismatch_kinds": [],
+      "summary_path": "parity/out/run-1/cases/0002/summary.json",
+      "artifact_path": "parity/out/run-1/cases/0002/diff.json"
+    }
+  ]
+}

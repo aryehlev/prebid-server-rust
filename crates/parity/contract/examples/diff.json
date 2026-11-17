@@ -1,0 +1,63 @@
+{
+  "schema": "pbs-parity-diff/1",
+  "schema_version": "1.0.0",
+  "case_id": "endpoints/openrtb2/sample-requests/valid-whole/exemplary/simple.json#seed",
+  "fixture_path": "endpoints/openrtb2/sample-requests/valid-whole/exemplary/simple.json",
+  "endpoint": "/openrtb2/auction",
+  "profile": "default",
+  "mismatches": [
+    {
+      "case_id": "endpoints/openrtb2/sample-requests/valid-whole/exemplary/simple.json#seed",
+      "fixture_path": "endpoints/openrtb2/sample-requests/valid-whole/exemplary/simple.json",
+      "endpoint": "/openrtb2/auction",
+      "profile": "default",
+      "stage": "request.validated",
+      "key": "_",
+      "domain": "auction_lifecycle",
+      "requirement": "AUCT-01",
+      "kind": "value",
+      "json_path": "$.imp[0].banner.w",
+      "go": 300,
+      "rust": null,
+      "primary": true,
+      "consequential_of": null,
+      "signature": "0b4a3f0d2e7c9a1b5d6e8f90123456789abcdef0"
+    },
+    {
+      "case_id": "endpoints/openrtb2/sample-requests/valid-whole/exemplary/simple.json#seed",
+      "fixture_path": "endpoints/openrtb2/sample-requests/valid-whole/exemplary/simple.json",
+      "endpoint": "/openrtb2/auction",
+      "profile": "default",
+      "stage": "http.response",
+      "key": "_",
+      "domain": "endpoints",
+      "requirement": "ENDP-01",
+      "kind": "lexical",
+      "class": "html_escape",
+      "json_path": "$.seatbid[0].bid[0].adm",
+      "go": "<div>",
+      "rust": "\\u003cdiv\\u003e",
+      "primary": false,
+      "consequential_of": null,
+      "signature": "1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9c0d"
+    },
+    {
+      "case_id": "endpoints/openrtb2/sample-requests/valid-whole/exemplary/simple.json#seed",
+      "fixture_path": "endpoints/openrtb2/sample-requests/valid-whole/exemplary/simple.json",
+      "endpoint": "/openrtb2/auction",
+      "profile": "default",
+      "stage": "http.out",
+      "key": "_",
+      "domain": "bidders_adapters",
+      "requirement": "BIDD-01",
+      "kind": "wire",
+      "class": "default_header",
+      "json_path": "$[0].request.headers['User-Agent']",
+      "go": "Go-http-client/1.1",
+      "rust": "reqwest/0.12",
+      "primary": false,
+      "consequential_of": "0b4a3f0d2e7c9a1b5d6e8f90123456789abcdef0",
+      "signature": "2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9c0d1e"
+    }
+  ]
+}

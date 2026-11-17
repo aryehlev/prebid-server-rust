@@ -1,0 +1,1313 @@
+{
+  "golden": [
+    {
+      "decision_int": {
+        "category.dedupe": null,
+        "floors.data_rate": null,
+        "floors.enforce": null,
+        "floors.modelgroup": null,
+        "floors.skip": null,
+        "pricegranularity.timesplit": null,
+        "usersync.shuffle": null
+      },
+      "decision_string": {
+        "category.dedupe": null,
+        "floors.data_rate": null,
+        "floors.enforce": null,
+        "floors.modelgroup": null,
+        "floors.skip": null,
+        "pricegranularity.timesplit": null,
+        "usersync.shuffle": null
+      },
+      "decode_error": null,
+      "effective_level": "http",
+      "effective_mode": "oracle",
+      "header_values": {
+        "": [],
+        "CONTENT-TYPE": [],
+        "a": [],
+        "content-type": [],
+        "k": [],
+        "missing": [],
+        "only": [],
+        "x": []
+      },
+      "input": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"c\",\"request\":{\"method\":\"POST\",\"path\":\"/openrtb2/auction\",\"query\":\"a=1\",\"headers\":[]},\"mock\":{},\"capture\":{}}",
+      "name": "minimal",
+      "reencoded": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"c\",\"request\":{\"method\":\"POST\",\"path\":\"/openrtb2/auction\",\"query\":\"a=1\",\"headers\":[]},\"mock\":{},\"capture\":{}}",
+      "stage_filter": null,
+      "wants_analytics": true,
+      "wants_metrics": true
+    },
+    {
+      "decision_int": {
+        "category.dedupe": null,
+        "floors.data_rate": null,
+        "floors.enforce": null,
+        "floors.modelgroup": null,
+        "floors.skip": null,
+        "pricegranularity.timesplit": null,
+        "usersync.shuffle": null
+      },
+      "decision_string": {
+        "category.dedupe": null,
+        "floors.data_rate": null,
+        "floors.enforce": null,
+        "floors.modelgroup": null,
+        "floors.skip": null,
+        "pricegranularity.timesplit": null,
+        "usersync.shuffle": null
+      },
+      "decode_error": null,
+      "effective_level": "http",
+      "effective_mode": "oracle",
+      "header_values": {
+        "": [],
+        "CONTENT-TYPE": [],
+        "a": [],
+        "content-type": [],
+        "k": [],
+        "missing": [],
+        "only": [],
+        "x": []
+      },
+      "input": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"c\",\"request\":{\"method\":\"POST\",\"path\":\"/openrtb2/auction\",\"query\":\"a=1\",\"headers\":[]},\"mock\":{},\"capture\":{},\"capture\":{\"stages\":\"*\"}}",
+      "name": "capture_star",
+      "reencoded": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"c\",\"request\":{\"method\":\"POST\",\"path\":\"/openrtb2/auction\",\"query\":\"a=1\",\"headers\":[]},\"mock\":{},\"capture\":{\"stages\":\"*\"}}",
+      "stage_filter": null,
+      "wants_analytics": true,
+      "wants_metrics": true
+    },
+    {
+      "decision_int": {
+        "category.dedupe": null,
+        "floors.data_rate": null,
+        "floors.enforce": null,
+        "floors.modelgroup": null,
+        "floors.skip": null,
+        "pricegranularity.timesplit": null,
+        "usersync.shuffle": null
+      },
+      "decision_string": {
+        "category.dedupe": null,
+        "floors.data_rate": null,
+        "floors.enforce": null,
+        "floors.modelgroup": null,
+        "floors.skip": null,
+        "pricegranularity.timesplit": null,
+        "usersync.shuffle": null
+      },
+      "decode_error": null,
+      "effective_level": "http",
+      "effective_mode": "oracle",
+      "header_values": {
+        "": [],
+        "CONTENT-TYPE": [],
+        "a": [],
+        "content-type": [],
+        "k": [],
+        "missing": [],
+        "only": [],
+        "x": []
+      },
+      "input": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"c\",\"request\":{\"method\":\"POST\",\"path\":\"/openrtb2/auction\",\"query\":\"a=1\",\"headers\":[]},\"mock\":{},\"capture\":{},\"capture\":{\"stages\":null}}",
+      "name": "capture_null",
+      "reencoded": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"c\",\"request\":{\"method\":\"POST\",\"path\":\"/openrtb2/auction\",\"query\":\"a=1\",\"headers\":[]},\"mock\":{},\"capture\":{\"stages\":null}}",
+      "stage_filter": null,
+      "wants_analytics": true,
+      "wants_metrics": true
+    },
+    {
+      "decision_int": {
+        "category.dedupe": null,
+        "floors.data_rate": null,
+        "floors.enforce": null,
+        "floors.modelgroup": null,
+        "floors.skip": null,
+        "pricegranularity.timesplit": null,
+        "usersync.shuffle": null
+      },
+      "decision_string": {
+        "category.dedupe": null,
+        "floors.data_rate": null,
+        "floors.enforce": null,
+        "floors.modelgroup": null,
+        "floors.skip": null,
+        "pricegranularity.timesplit": null,
+        "usersync.shuffle": null
+      },
+      "decode_error": null,
+      "effective_level": "http",
+      "effective_mode": "oracle",
+      "header_values": {
+        "": [],
+        "CONTENT-TYPE": [],
+        "a": [],
+        "content-type": [],
+        "k": [],
+        "missing": [],
+        "only": [],
+        "x": []
+      },
+      "input": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"c\",\"request\":{\"method\":\"POST\",\"path\":\"/openrtb2/auction\",\"query\":\"a=1\",\"headers\":[]},\"mock\":{},\"capture\":{},\"capture\":{\"stages\":\"all\"}}",
+      "name": "capture_all_string",
+      "reencoded": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"c\",\"request\":{\"method\":\"POST\",\"path\":\"/openrtb2/auction\",\"query\":\"a=1\",\"headers\":[]},\"mock\":{},\"capture\":{\"stages\":\"all\"}}",
+      "stage_filter": {
+        "error": "capture.stages: string value must be \"*\", got \"all\""
+      },
+      "wants_analytics": true,
+      "wants_metrics": true
+    },
+    {
+      "decision_int": {
+        "category.dedupe": null,
+        "floors.data_rate": null,
+        "floors.enforce": null,
+        "floors.modelgroup": null,
+        "floors.skip": null,
+        "pricegranularity.timesplit": null,
+        "usersync.shuffle": null
+      },
+      "decision_string": {
+        "category.dedupe": null,
+        "floors.data_rate": null,
+        "floors.enforce": null,
+        "floors.modelgroup": null,
+        "floors.skip": null,
+        "pricegranularity.timesplit": null,
+        "usersync.shuffle": null
+      },
+      "decode_error": null,
+      "effective_level": "http",
+      "effective_mode": "oracle",
+      "header_values": {
+        "": [],
+        "CONTENT-TYPE": [],
+        "a": [],
+        "content-type": [],
+        "k": [],
+        "missing": [],
+        "only": [],
+        "x": []
+      },
+      "input": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"c\",\"request\":{\"method\":\"POST\",\"path\":\"/openrtb2/auction\",\"query\":\"a=1\",\"headers\":[]},\"mock\":{},\"capture\":{},\"capture\":{\"stages\":\"\\u002a\"}}",
+      "name": "capture_escaped_string",
+      "reencoded": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"c\",\"request\":{\"method\":\"POST\",\"path\":\"/openrtb2/auction\",\"query\":\"a=1\",\"headers\":[]},\"mock\":{},\"capture\":{\"stages\":\"\\u002a\"}}",
+      "stage_filter": null,
+      "wants_analytics": true,
+      "wants_metrics": true
+    },
+    {
+      "decision_int": {
+        "category.dedupe": null,
+        "floors.data_rate": null,
+        "floors.enforce": null,
+        "floors.modelgroup": null,
+        "floors.skip": null,
+        "pricegranularity.timesplit": null,
+        "usersync.shuffle": null
+      },
+      "decision_string": {
+        "category.dedupe": null,
+        "floors.data_rate": null,
+        "floors.enforce": null,
+        "floors.modelgroup": null,
+        "floors.skip": null,
+        "pricegranularity.timesplit": null,
+        "usersync.shuffle": null
+      },
+      "decode_error": null,
+      "effective_level": "http",
+      "effective_mode": "oracle",
+      "header_values": {
+        "": [],
+        "CONTENT-TYPE": [],
+        "a": [],
+        "content-type": [],
+        "k": [],
+        "missing": [],
+        "only": [],
+        "x": []
+      },
+      "input": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"c\",\"request\":{\"method\":\"POST\",\"path\":\"/openrtb2/auction\",\"query\":\"a=1\",\"headers\":[]},\"mock\":{},\"capture\":{},\"capture\":{\"stages\":[\"http.in\",\"made.up\",\"http.in\"]}}",
+      "name": "capture_list",
+      "reencoded": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"c\",\"request\":{\"method\":\"POST\",\"path\":\"/openrtb2/auction\",\"query\":\"a=1\",\"headers\":[]},\"mock\":{},\"capture\":{\"stages\":[\"http.in\",\"made.up\",\"http.in\"]}}",
+      "stage_filter": [
+        "http.in",
+        "made.up"
+      ],
+      "wants_analytics": true,
+      "wants_metrics": true
+    },
+    {
+      "decision_int": {
+        "category.dedupe": null,
+        "floors.data_rate": null,
+        "floors.enforce": null,
+        "floors.modelgroup": null,
+        "floors.skip": null,
+        "pricegranularity.timesplit": null,
+        "usersync.shuffle": null
+      },
+      "decision_string": {
+        "category.dedupe": null,
+        "floors.data_rate": null,
+        "floors.enforce": null,
+        "floors.modelgroup": null,
+        "floors.skip": null,
+        "pricegranularity.timesplit": null,
+        "usersync.shuffle": null
+      },
+      "decode_error": null,
+      "effective_level": "http",
+      "effective_mode": "oracle",
+      "header_values": {
+        "": [],
+        "CONTENT-TYPE": [],
+        "a": [],
+        "content-type": [],
+        "k": [],
+        "missing": [],
+        "only": [],
+        "x": []
+      },
+      "input": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"c\",\"request\":{\"method\":\"POST\",\"path\":\"/openrtb2/auction\",\"query\":\"a=1\",\"headers\":[]},\"mock\":{},\"capture\":{},\"capture\":{\"stages\":[]}}",
+      "name": "capture_empty_list",
+      "reencoded": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"c\",\"request\":{\"method\":\"POST\",\"path\":\"/openrtb2/auction\",\"query\":\"a=1\",\"headers\":[]},\"mock\":{},\"capture\":{\"stages\":[]}}",
+      "stage_filter": [],
+      "wants_analytics": true,
+      "wants_metrics": true
+    },
+    {
+      "decision_int": {
+        "category.dedupe": null,
+        "floors.data_rate": null,
+        "floors.enforce": null,
+        "floors.modelgroup": null,
+        "floors.skip": null,
+        "pricegranularity.timesplit": null,
+        "usersync.shuffle": null
+      },
+      "decision_string": {
+        "category.dedupe": null,
+        "floors.data_rate": null,
+        "floors.enforce": null,
+        "floors.modelgroup": null,
+        "floors.skip": null,
+        "pricegranularity.timesplit": null,
+        "usersync.shuffle": null
+      },
+      "decode_error": null,
+      "effective_level": "http",
+      "effective_mode": "oracle",
+      "header_values": {
+        "": [],
+        "CONTENT-TYPE": [],
+        "a": [],
+        "content-type": [],
+        "k": [],
+        "missing": [],
+        "only": [],
+        "x": []
+      },
+      "input": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"c\",\"request\":{\"method\":\"POST\",\"path\":\"/openrtb2/auction\",\"query\":\"a=1\",\"headers\":[]},\"mock\":{},\"capture\":{},\"capture\":{\"stages\":[null,\"http.in\"]}}",
+      "name": "capture_null_element",
+      "reencoded": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"c\",\"request\":{\"method\":\"POST\",\"path\":\"/openrtb2/auction\",\"query\":\"a=1\",\"headers\":[]},\"mock\":{},\"capture\":{\"stages\":[null,\"http.in\"]}}",
+      "stage_filter": [
+        "",
+        "http.in"
+      ],
+      "wants_analytics": true,
+      "wants_metrics": true
+    },
+    {
+      "decision_int": {
+        "category.dedupe": null,
+        "floors.data_rate": null,
+        "floors.enforce": null,
+        "floors.modelgroup": null,
+        "floors.skip": null,
+        "pricegranularity.timesplit": null,
+        "usersync.shuffle": null
+      },
+      "decision_string": {
+        "category.dedupe": null,
+        "floors.data_rate": null,
+        "floors.enforce": null,
+        "floors.modelgroup": null,
+        "floors.skip": null,
+        "pricegranularity.timesplit": null,
+        "usersync.shuffle": null
+      },
+      "decode_error": null,
+      "effective_level": "http",
+      "effective_mode": "oracle",
+      "header_values": {
+        "": [],
+        "CONTENT-TYPE": [],
+        "a": [],
+        "content-type": [],
+        "k": [],
+        "missing": [],
+        "only": [],
+        "x": []
+      },
+      "input": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"c\",\"request\":{\"method\":\"POST\",\"path\":\"/openrtb2/auction\",\"query\":\"a=1\",\"headers\":[]},\"mock\":{},\"capture\":{},\"capture\":{\"stages\":[1]}}",
+      "name": "capture_number_list",
+      "reencoded": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"c\",\"request\":{\"method\":\"POST\",\"path\":\"/openrtb2/auction\",\"query\":\"a=1\",\"headers\":[]},\"mock\":{},\"capture\":{\"stages\":[1]}}",
+      "stage_filter": {
+        "error": "capture.stages: json: cannot unmarshal number into Go value of type parity.StageID"
+      },
+      "wants_analytics": true,
+      "wants_metrics": true
+    },
+    {
+      "decision_int": {
+        "category.dedupe": null,
+        "floors.data_rate": null,
+        "floors.enforce": null,
+        "floors.modelgroup": null,
+        "floors.skip": null,
+        "pricegranularity.timesplit": null,
+        "usersync.shuffle": null
+      },
+      "decision_string": {
+        "category.dedupe": null,
+        "floors.data_rate": null,
+        "floors.enforce": null,
+        "floors.modelgroup": null,
+        "floors.skip": null,
+        "pricegranularity.timesplit": null,
+        "usersync.shuffle": null
+      },
+      "decode_error": null,
+      "effective_level": "http",
+      "effective_mode": "oracle",
+      "header_values": {
+        "": [],
+        "CONTENT-TYPE": [],
+        "a": [],
+        "content-type": [],
+        "k": [],
+        "missing": [],
+        "only": [],
+        "x": []
+      },
+      "input": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"c\",\"request\":{\"method\":\"POST\",\"path\":\"/openrtb2/auction\",\"query\":\"a=1\",\"headers\":[]},\"mock\":{},\"capture\":{},\"capture\":{\"stages\":{}}}",
+      "name": "capture_object",
+      "reencoded": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"c\",\"request\":{\"method\":\"POST\",\"path\":\"/openrtb2/auction\",\"query\":\"a=1\",\"headers\":[]},\"mock\":{},\"capture\":{\"stages\":{}}}",
+      "stage_filter": {
+        "error": "capture.stages: json: cannot unmarshal object into Go value of type []parity.StageID"
+      },
+      "wants_analytics": true,
+      "wants_metrics": true
+    },
+    {
+      "decision_int": {
+        "category.dedupe": null,
+        "floors.data_rate": null,
+        "floors.enforce": null,
+        "floors.modelgroup": null,
+        "floors.skip": null,
+        "pricegranularity.timesplit": null,
+        "usersync.shuffle": null
+      },
+      "decision_string": {
+        "category.dedupe": null,
+        "floors.data_rate": null,
+        "floors.enforce": null,
+        "floors.modelgroup": null,
+        "floors.skip": null,
+        "pricegranularity.timesplit": null,
+        "usersync.shuffle": null
+      },
+      "decode_error": null,
+      "effective_level": "http",
+      "effective_mode": "oracle",
+      "header_values": {
+        "": [],
+        "CONTENT-TYPE": [],
+        "a": [],
+        "content-type": [],
+        "k": [],
+        "missing": [],
+        "only": [],
+        "x": []
+      },
+      "input": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"c\",\"request\":{\"method\":\"POST\",\"path\":\"/openrtb2/auction\",\"query\":\"a=1\",\"headers\":[]},\"mock\":{},\"capture\":{},\"capture\":{\"stages\":true}}",
+      "name": "capture_bool",
+      "reencoded": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"c\",\"request\":{\"method\":\"POST\",\"path\":\"/openrtb2/auction\",\"query\":\"a=1\",\"headers\":[]},\"mock\":{},\"capture\":{\"stages\":true}}",
+      "stage_filter": {
+        "error": "capture.stages: json: cannot unmarshal bool into Go value of type []parity.StageID"
+      },
+      "wants_analytics": true,
+      "wants_metrics": true
+    },
+    {
+      "decision_int": {
+        "category.dedupe": null,
+        "floors.data_rate": null,
+        "floors.enforce": null,
+        "floors.modelgroup": null,
+        "floors.skip": null,
+        "pricegranularity.timesplit": null,
+        "usersync.shuffle": null
+      },
+      "decision_string": {
+        "category.dedupe": null,
+        "floors.data_rate": null,
+        "floors.enforce": null,
+        "floors.modelgroup": null,
+        "floors.skip": null,
+        "pricegranularity.timesplit": null,
+        "usersync.shuffle": null
+      },
+      "decode_error": null,
+      "effective_level": "http",
+      "effective_mode": "oracle",
+      "header_values": {
+        "": [],
+        "CONTENT-TYPE": [],
+        "a": [],
+        "content-type": [],
+        "k": [],
+        "missing": [],
+        "only": [],
+        "x": []
+      },
+      "input": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"c\",\"request\":{\"method\":\"POST\",\"path\":\"/openrtb2/auction\",\"query\":\"a=1\",\"headers\":[]},\"mock\":{},\"capture\":{},\"capture\":{\"stages\":5}}",
+      "name": "capture_number",
+      "reencoded": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"c\",\"request\":{\"method\":\"POST\",\"path\":\"/openrtb2/auction\",\"query\":\"a=1\",\"headers\":[]},\"mock\":{},\"capture\":{\"stages\":5}}",
+      "stage_filter": {
+        "error": "capture.stages: json: cannot unmarshal number into Go value of type []parity.StageID"
+      },
+      "wants_analytics": true,
+      "wants_metrics": true
+    },
+    {
+      "decision_int": {
+        "category.dedupe": null,
+        "floors.data_rate": null,
+        "floors.enforce": null,
+        "floors.modelgroup": null,
+        "floors.skip": null,
+        "pricegranularity.timesplit": null,
+        "usersync.shuffle": null
+      },
+      "decision_string": {
+        "category.dedupe": null,
+        "floors.data_rate": null,
+        "floors.enforce": null,
+        "floors.modelgroup": null,
+        "floors.skip": null,
+        "pricegranularity.timesplit": null,
+        "usersync.shuffle": null
+      },
+      "decode_error": null,
+      "effective_level": "http",
+      "effective_mode": "oracle",
+      "header_values": {
+        "": [],
+        "CONTENT-TYPE": [],
+        "a": [],
+        "content-type": [],
+        "k": [],
+        "missing": [],
+        "only": [],
+        "x": []
+      },
+      "input": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"c\",\"request\":{\"method\":\"POST\",\"path\":\"/openrtb2/auction\",\"query\":\"a=1\",\"headers\":[]},\"mock\":{},\"capture\":{},\"capture\":{\"metrics\":false,\"analytics\":true}}",
+      "name": "capture_flags",
+      "reencoded": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"c\",\"request\":{\"method\":\"POST\",\"path\":\"/openrtb2/auction\",\"query\":\"a=1\",\"headers\":[]},\"mock\":{},\"capture\":{\"metrics\":false,\"analytics\":true}}",
+      "stage_filter": null,
+      "wants_analytics": true,
+      "wants_metrics": false
+    },
+    {
+      "decision_int": {
+        "category.dedupe": null,
+        "floors.data_rate": null,
+        "floors.enforce": null,
+        "floors.modelgroup": null,
+        "floors.skip": null,
+        "pricegranularity.timesplit": null,
+        "usersync.shuffle": null
+      },
+      "decision_string": {
+        "category.dedupe": null,
+        "floors.data_rate": null,
+        "floors.enforce": null,
+        "floors.modelgroup": null,
+        "floors.skip": null,
+        "pricegranularity.timesplit": null,
+        "usersync.shuffle": null
+      },
+      "decode_error": null,
+      "effective_level": "http",
+      "effective_mode": "oracle",
+      "header_values": {
+        "": [],
+        "CONTENT-TYPE": [],
+        "a": [],
+        "content-type": [],
+        "k": [],
+        "missing": [],
+        "only": [],
+        "x": []
+      },
+      "input": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"c\",\"request\":{\"method\":\"POST\",\"path\":\"/openrtb2/auction\",\"query\":\"a=1\",\"headers\":[]},\"mock\":{},\"capture\":{},\"capture\":{\"metrics\":null,\"analytics\":false}}",
+      "name": "capture_flags_null",
+      "reencoded": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"c\",\"request\":{\"method\":\"POST\",\"path\":\"/openrtb2/auction\",\"query\":\"a=1\",\"headers\":[]},\"mock\":{},\"capture\":{\"analytics\":false}}",
+      "stage_filter": null,
+      "wants_analytics": false,
+      "wants_metrics": true
+    },
+    {
+      "decision_int": {
+        "category.dedupe": null,
+        "floors.data_rate": null,
+        "floors.enforce": 0,
+        "floors.modelgroup": null,
+        "floors.skip": 1,
+        "pricegranularity.timesplit": 0,
+        "usersync.shuffle": null
+      },
+      "decision_string": {
+        "category.dedupe": null,
+        "floors.data_rate": "1",
+        "floors.enforce": "",
+        "floors.modelgroup": null,
+        "floors.skip": null,
+        "pricegranularity.timesplit": null,
+        "usersync.shuffle": "identity"
+      },
+      "decode_error": null,
+      "effective_level": "http",
+      "effective_mode": "oracle",
+      "header_values": {
+        "": [],
+        "CONTENT-TYPE": [],
+        "a": [],
+        "content-type": [],
+        "k": [],
+        "missing": [],
+        "only": [],
+        "x": []
+      },
+      "input": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"c\",\"request\":{\"method\":\"POST\",\"path\":\"/openrtb2/auction\",\"query\":\"a=1\",\"headers\":[]},\"mock\":{},\"capture\":{},\"decisions\":{\"floors.skip\":1,\"floors.data_rate\":\"1\",\"floors.modelgroup\":2.5,\"floors.enforce\":null,\"category.dedupe\":1e2,\"pricegranularity.timesplit\":-0,\"usersync.shuffle\":\"identity\",\"unknown.point\":3}}",
+      "name": "decisions",
+      "reencoded": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"c\",\"request\":{\"method\":\"POST\",\"path\":\"/openrtb2/auction\",\"query\":\"a=1\",\"headers\":[]},\"mock\":{},\"decisions\":{\"category.dedupe\":1e2,\"floors.data_rate\":\"1\",\"floors.enforce\":null,\"floors.modelgroup\":2.5,\"floors.skip\":1,\"pricegranularity.timesplit\":-0,\"unknown.point\":3,\"usersync.shuffle\":\"identity\"},\"capture\":{}}",
+      "stage_filter": null,
+      "wants_analytics": true,
+      "wants_metrics": true
+    },
+    {
+      "decision_int": {
+        "category.dedupe": null,
+        "floors.data_rate": null,
+        "floors.enforce": -9223372036854775808,
+        "floors.modelgroup": 9223372036854775807,
+        "floors.skip": null,
+        "pricegranularity.timesplit": null,
+        "usersync.shuffle": null
+      },
+      "decision_string": {
+        "category.dedupe": null,
+        "floors.data_rate": null,
+        "floors.enforce": null,
+        "floors.modelgroup": null,
+        "floors.skip": null,
+        "pricegranularity.timesplit": null,
+        "usersync.shuffle": ""
+      },
+      "decode_error": null,
+      "effective_level": "http",
+      "effective_mode": "oracle",
+      "header_values": {
+        "": [],
+        "CONTENT-TYPE": [],
+        "a": [],
+        "content-type": [],
+        "k": [],
+        "missing": [],
+        "only": [],
+        "x": []
+      },
+      "input": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"c\",\"request\":{\"method\":\"POST\",\"path\":\"/openrtb2/auction\",\"query\":\"a=1\",\"headers\":[]},\"mock\":{},\"capture\":{},\"decisions\":{\"floors.modelgroup\":9223372036854775807,\"floors.skip\":9223372036854775808,\"floors.enforce\":-9223372036854775808,\"usersync.shuffle\":\"\",\"floors.data_rate\":true,\"category.dedupe\":[1]}}",
+      "name": "decisions_extremes",
+      "reencoded": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"c\",\"request\":{\"method\":\"POST\",\"path\":\"/openrtb2/auction\",\"query\":\"a=1\",\"headers\":[]},\"mock\":{},\"decisions\":{\"category.dedupe\":[1],\"floors.data_rate\":true,\"floors.enforce\":-9223372036854775808,\"floors.modelgroup\":9223372036854775807,\"floors.skip\":9223372036854775808,\"usersync.shuffle\":\"\"},\"capture\":{}}",
+      "stage_filter": null,
+      "wants_analytics": true,
+      "wants_metrics": true
+    },
+    {
+      "decision_int": {
+        "category.dedupe": null,
+        "floors.data_rate": null,
+        "floors.enforce": null,
+        "floors.modelgroup": null,
+        "floors.skip": null,
+        "pricegranularity.timesplit": null,
+        "usersync.shuffle": null
+      },
+      "decision_string": {
+        "category.dedupe": null,
+        "floors.data_rate": null,
+        "floors.enforce": null,
+        "floors.modelgroup": null,
+        "floors.skip": null,
+        "pricegranularity.timesplit": null,
+        "usersync.shuffle": null
+      },
+      "decode_error": null,
+      "effective_level": "http",
+      "effective_mode": "oracle",
+      "header_values": {
+        "": [],
+        "CONTENT-TYPE": [],
+        "a": [],
+        "content-type": [],
+        "k": [],
+        "missing": [],
+        "only": [],
+        "x": []
+      },
+      "input": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"c\",\"request\":{\"method\":\"POST\",\"path\":\"/openrtb2/auction\",\"query\":\"a=1\",\"headers\":[]},\"mock\":{},\"capture\":{},\"decisions\":null}",
+      "name": "decisions_null",
+      "reencoded": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"c\",\"request\":{\"method\":\"POST\",\"path\":\"/openrtb2/auction\",\"query\":\"a=1\",\"headers\":[]},\"mock\":{},\"capture\":{}}",
+      "stage_filter": null,
+      "wants_analytics": true,
+      "wants_metrics": true
+    },
+    {
+      "decision_int": {
+        "category.dedupe": null,
+        "floors.data_rate": null,
+        "floors.enforce": null,
+        "floors.modelgroup": null,
+        "floors.skip": null,
+        "pricegranularity.timesplit": null,
+        "usersync.shuffle": null
+      },
+      "decision_string": {
+        "category.dedupe": null,
+        "floors.data_rate": null,
+        "floors.enforce": null,
+        "floors.modelgroup": null,
+        "floors.skip": null,
+        "pricegranularity.timesplit": null,
+        "usersync.shuffle": null
+      },
+      "decode_error": null,
+      "effective_level": "http",
+      "effective_mode": "oracle",
+      "header_values": {
+        "": [
+          "",
+          ""
+        ],
+        "CONTENT-TYPE": [
+          "a",
+          "b"
+        ],
+        "a": [
+          "b"
+        ],
+        "content-type": [
+          "a",
+          "b"
+        ],
+        "k": [
+          ""
+        ],
+        "missing": [],
+        "only": [
+          ""
+        ],
+        "x": [
+          "c"
+        ]
+      },
+      "input": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"c\",\"request\":{\"method\":\"POST\",\"path\":\"/openrtb2/auction\",\"query\":\"a=1\",\"headers\":[]},\"mock\":{},\"capture\":{},\"request\":{\"method\":\"GET\",\"path\":\"/p\",\"query\":\"\",\"headers\":[[\"Content-Type\",\"a\"],[\"content-type\",\"b\"],[\"X\",\"c\"],[\"only\"],[\"a\",\"b\",\"c\"],[],null,[\"K\",null]]}}",
+      "name": "headers",
+      "reencoded": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"c\",\"request\":{\"method\":\"GET\",\"path\":\"/p\",\"query\":\"\",\"headers\":[[\"Content-Type\",\"a\"],[\"content-type\",\"b\"],[\"X\",\"c\"],[\"only\",\"\"],[\"a\",\"b\"],[\"\",\"\"],[\"\",\"\"],[\"K\",\"\"]]},\"mock\":{},\"capture\":{}}",
+      "stage_filter": null,
+      "wants_analytics": true,
+      "wants_metrics": true
+    },
+    {
+      "decision_int": {
+        "category.dedupe": null,
+        "floors.data_rate": null,
+        "floors.enforce": null,
+        "floors.modelgroup": null,
+        "floors.skip": null,
+        "pricegranularity.timesplit": null,
+        "usersync.shuffle": null
+      },
+      "decision_string": {
+        "category.dedupe": null,
+        "floors.data_rate": null,
+        "floors.enforce": null,
+        "floors.modelgroup": null,
+        "floors.skip": null,
+        "pricegranularity.timesplit": null,
+        "usersync.shuffle": null
+      },
+      "decode_error": null,
+      "effective_level": "http",
+      "effective_mode": "oracle",
+      "header_values": {
+        "": [],
+        "CONTENT-TYPE": [],
+        "a": [],
+        "content-type": [],
+        "k": [],
+        "missing": [],
+        "only": [],
+        "x": []
+      },
+      "input": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"c\",\"request\":{\"method\":\"POST\",\"path\":\"/openrtb2/auction\",\"query\":\"a=1\",\"headers\":[]},\"mock\":{},\"capture\":{},\"request\":{\"method\":\"GET\",\"path\":\"/p\",\"query\":\"\",\"headers\":null}}",
+      "name": "headers_null",
+      "reencoded": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"c\",\"request\":{\"method\":\"GET\",\"path\":\"/p\",\"query\":\"\",\"headers\":null},\"mock\":{},\"capture\":{}}",
+      "stage_filter": null,
+      "wants_analytics": true,
+      "wants_metrics": true
+    },
+    {
+      "decode_error": "json: cannot unmarshal object into Go struct field ExecRequest.request.headers of type parity.HeaderList",
+      "input": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"c\",\"request\":{\"method\":\"POST\",\"path\":\"/openrtb2/auction\",\"query\":\"a=1\",\"headers\":[]},\"mock\":{},\"capture\":{},\"request\":{\"method\":\"GET\",\"path\":\"/p\",\"query\":\"\",\"headers\":{}}}",
+      "name": "headers_object"
+    },
+    {
+      "decode_error": "json: cannot unmarshal object into Go struct field ExecRequest.request.headers of type [2]string",
+      "input": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"c\",\"request\":{\"method\":\"POST\",\"path\":\"/openrtb2/auction\",\"query\":\"a=1\",\"headers\":[]},\"mock\":{},\"capture\":{},\"request\":{\"method\":\"GET\",\"path\":\"/p\",\"query\":\"\",\"headers\":[{\"a\":1}]}}",
+      "name": "headers_pair_object"
+    },
+    {
+      "decode_error": "json: cannot unmarshal number into Go struct field ExecRequest.request.headers of type string",
+      "input": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"c\",\"request\":{\"method\":\"POST\",\"path\":\"/openrtb2/auction\",\"query\":\"a=1\",\"headers\":[]},\"mock\":{},\"capture\":{},\"request\":{\"method\":\"GET\",\"path\":\"/p\",\"query\":\"\",\"headers\":[[1,\"x\"]]}}",
+      "name": "headers_pair_number"
+    },
+    {
+      "decode_error": "json: cannot unmarshal string into Go struct field ExecRequest.request.headers of type [2]string",
+      "input": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"c\",\"request\":{\"method\":\"POST\",\"path\":\"/openrtb2/auction\",\"query\":\"a=1\",\"headers\":[]},\"mock\":{},\"capture\":{},\"request\":{\"method\":\"GET\",\"path\":\"/p\",\"query\":\"\",\"headers\":[\"ab\"]}}",
+      "name": "headers_pair_string"
+    },
+    {
+      "decode_error": "json: cannot unmarshal number into Go struct field Envelope.case_id of type string",
+      "input": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"c\",\"request\":{\"method\":\"POST\",\"path\":\"/openrtb2/auction\",\"query\":\"a=1\",\"headers\":[]},\"mock\":{},\"capture\":{},\"case_id\":5}",
+      "name": "type_error"
+    },
+    {
+      "decode_error": "json: cannot unmarshal string into Go struct field InlineResponse.mock.inline.rules.response.status of type int",
+      "input": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"c\",\"request\":{\"method\":\"POST\",\"path\":\"/openrtb2/auction\",\"query\":\"a=1\",\"headers\":[]},\"mock\":{},\"capture\":{},\"mock\":{\"inline\":{\"rules\":[{\"response\":{\"status\":\"200\"}}]}}}",
+      "name": "nested_type_error"
+    },
+    {
+      "decode_error": "unexpected end of JSON input",
+      "input": "{\"case_id\":",
+      "name": "syntax_error"
+    },
+    {
+      "decode_error": "invalid character 'x' after top-level value",
+      "input": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"c\",\"request\":{\"method\":\"POST\",\"path\":\"/openrtb2/auction\",\"query\":\"a=1\",\"headers\":[]},\"mock\":{},\"capture\":{}} x",
+      "name": "trailing_garbage"
+    },
+    {
+      "decode_error": "json: cannot unmarshal array into Go value of type parity.Envelope",
+      "input": "[1]",
+      "name": "not_object"
+    },
+    {
+      "decision_int": {
+        "category.dedupe": null,
+        "floors.data_rate": null,
+        "floors.enforce": null,
+        "floors.modelgroup": null,
+        "floors.skip": null,
+        "pricegranularity.timesplit": null,
+        "usersync.shuffle": null
+      },
+      "decision_string": {
+        "category.dedupe": null,
+        "floors.data_rate": null,
+        "floors.enforce": null,
+        "floors.modelgroup": null,
+        "floors.skip": null,
+        "pricegranularity.timesplit": null,
+        "usersync.shuffle": null
+      },
+      "decode_error": null,
+      "effective_level": "http",
+      "effective_mode": "oracle",
+      "header_values": {
+        "": [],
+        "CONTENT-TYPE": [],
+        "a": [],
+        "content-type": [],
+        "k": [],
+        "missing": [],
+        "only": [],
+        "x": []
+      },
+      "input": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"c\",\"request\":{\"method\":\"POST\",\"path\":\"/openrtb2/auction\",\"query\":\"a=1\",\"headers\":[]},\"mock\":{},\"capture\":{},\"fakes\":{\"now_unix_ms\":1,\"int63\":2,\"uuid\":\"x\"}}",
+      "name": "fakes",
+      "reencoded": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"c\",\"request\":{\"method\":\"POST\",\"path\":\"/openrtb2/auction\",\"query\":\"a=1\",\"headers\":[]},\"mock\":{},\"fakes\":{\"now_unix_ms\":1,\"int63\":2,\"uuid\":\"x\"},\"capture\":{}}",
+      "stage_filter": null,
+      "wants_analytics": true,
+      "wants_metrics": true
+    },
+    {
+      "decision_int": {
+        "category.dedupe": null,
+        "floors.data_rate": null,
+        "floors.enforce": null,
+        "floors.modelgroup": null,
+        "floors.skip": null,
+        "pricegranularity.timesplit": null,
+        "usersync.shuffle": null
+      },
+      "decision_string": {
+        "category.dedupe": null,
+        "floors.data_rate": null,
+        "floors.enforce": null,
+        "floors.modelgroup": null,
+        "floors.skip": null,
+        "pricegranularity.timesplit": null,
+        "usersync.shuffle": null
+      },
+      "decode_error": null,
+      "effective_level": "http",
+      "effective_mode": "oracle",
+      "header_values": {
+        "": [],
+        "CONTENT-TYPE": [],
+        "a": [],
+        "content-type": [],
+        "k": [],
+        "missing": [],
+        "only": [],
+        "x": []
+      },
+      "input": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"c\",\"request\":{\"method\":\"POST\",\"path\":\"/openrtb2/auction\",\"query\":\"a=1\",\"headers\":[]},\"mock\":{},\"capture\":{},\"fakes\":{\"now_unix_ms\":0,\"int63\":0,\"uuid\":\"\"}}",
+      "name": "fakes_zero",
+      "reencoded": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"c\",\"request\":{\"method\":\"POST\",\"path\":\"/openrtb2/auction\",\"query\":\"a=1\",\"headers\":[]},\"mock\":{},\"fakes\":{},\"capture\":{}}",
+      "stage_filter": null,
+      "wants_analytics": true,
+      "wants_metrics": true
+    },
+    {
+      "decision_int": {
+        "category.dedupe": null,
+        "floors.data_rate": null,
+        "floors.enforce": null,
+        "floors.modelgroup": null,
+        "floors.skip": null,
+        "pricegranularity.timesplit": null,
+        "usersync.shuffle": null
+      },
+      "decision_string": {
+        "category.dedupe": null,
+        "floors.data_rate": null,
+        "floors.enforce": null,
+        "floors.modelgroup": null,
+        "floors.skip": null,
+        "pricegranularity.timesplit": null,
+        "usersync.shuffle": null
+      },
+      "decode_error": null,
+      "effective_level": "http",
+      "effective_mode": "inline",
+      "header_values": {
+        "": [],
+        "CONTENT-TYPE": [],
+        "a": [],
+        "content-type": [],
+        "k": [],
+        "missing": [],
+        "only": [],
+        "x": []
+      },
+      "input": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"c\",\"request\":{\"method\":\"POST\",\"path\":\"/openrtb2/auction\",\"query\":\"a=1\",\"headers\":[]},\"mock\":{},\"capture\":{},\"mock\":{\"mode\":\"inline\",\"level\":\"http\",\"inline\":{\"rules\":[{\"id\":\"r1\",\"kind\":\"bidder\",\"bidder\":\"appnexus\",\"uri_regex\":\"^https://\",\"response\":{\"status\":204,\"delay_ms\":10}},{\"response\":{\"fail\":\"timeout\"}}],\"bidders\":{\"appnexus\":{\"status\":200,\"headers\":[[\"Content-Type\",\"application/json\"]],\"body\":{\"json\":{\"id\":\"1\"}}}},\"default_bidder\":{\"status\":204},\"cache\":{\"status\":200,\"body\":{\"text\":\"{\\\"responses\\\":[]}\"}},\"kinds\":{\"currency\":{\"fail\":\"refused\"},\"floors\":{\"fail\":\"\"}}}}}",
+      "name": "mock_inline",
+      "reencoded": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"c\",\"request\":{\"method\":\"POST\",\"path\":\"/openrtb2/auction\",\"query\":\"a=1\",\"headers\":[]},\"mock\":{\"mode\":\"inline\",\"level\":\"http\",\"inline\":{\"rules\":[{\"id\":\"r1\",\"kind\":\"bidder\",\"bidder\":\"appnexus\",\"uri_regex\":\"^https://\",\"response\":{\"status\":204,\"delay_ms\":10}},{\"response\":{\"fail\":\"timeout\"}}],\"bidders\":{\"appnexus\":{\"status\":200,\"headers\":[[\"Content-Type\",\"application/json\"]],\"body\":{\"json\":{\"id\":\"1\"}}}},\"default_bidder\":{\"status\":204},\"cache\":{\"status\":200,\"body\":{\"text\":\"{\\\"responses\\\":[]}\"}},\"kinds\":{\"currency\":{\"fail\":\"refused\"},\"floors\":{\"fail\":\"\"}}}},\"capture\":{}}",
+      "stage_filter": null,
+      "wants_analytics": true,
+      "wants_metrics": true
+    },
+    {
+      "decision_int": {
+        "category.dedupe": null,
+        "floors.data_rate": null,
+        "floors.enforce": null,
+        "floors.modelgroup": null,
+        "floors.skip": null,
+        "pricegranularity.timesplit": null,
+        "usersync.shuffle": null
+      },
+      "decision_string": {
+        "category.dedupe": null,
+        "floors.data_rate": null,
+        "floors.enforce": null,
+        "floors.modelgroup": null,
+        "floors.skip": null,
+        "pricegranularity.timesplit": null,
+        "usersync.shuffle": null
+      },
+      "decode_error": null,
+      "effective_level": "bidder_response",
+      "effective_mode": "inline",
+      "header_values": {
+        "": [],
+        "CONTENT-TYPE": [],
+        "a": [],
+        "content-type": [],
+        "k": [],
+        "missing": [],
+        "only": [],
+        "x": []
+      },
+      "input": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"c\",\"request\":{\"method\":\"POST\",\"path\":\"/openrtb2/auction\",\"query\":\"a=1\",\"headers\":[]},\"mock\":{},\"capture\":{},\"mock\":{\"mode\":\"inline\",\"level\":\"bidder_response\",\"bidder_responses\":{\"appnexus\":{\"currency\":\"USD\",\"bids\":[{\"bid\":{\"id\":\"b\",\"impid\":\"i\",\"price\":1.5},\"type\":\"banner\",\"seat\":\"s\",\"video\":{\"duration\":5},\"meta\":{\"x\":1},\"deal_priority\":2}],\"fledge_auction_configs\":[{\"a\":1}],\"errors\":[{\"code\":2,\"message\":\"m\"}]},\"rubicon\":{\"nil_response\":true,\"currency\":\"\",\"bids\":null}}}}",
+      "name": "mock_bidder_response",
+      "reencoded": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"c\",\"request\":{\"method\":\"POST\",\"path\":\"/openrtb2/auction\",\"query\":\"a=1\",\"headers\":[]},\"mock\":{\"mode\":\"inline\",\"level\":\"bidder_response\",\"bidder_responses\":{\"appnexus\":{\"currency\":\"USD\",\"bids\":[{\"bid\":{\"id\":\"b\",\"impid\":\"i\",\"price\":1.5},\"type\":\"banner\",\"seat\":\"s\",\"video\":{\"duration\":5},\"meta\":{\"x\":1},\"deal_priority\":2}],\"fledge_auction_configs\":[{\"a\":1}],\"errors\":[{\"code\":2,\"message\":\"m\"}]},\"rubicon\":{\"nil_response\":true,\"currency\":\"\",\"bids\":null}}},\"capture\":{}}",
+      "stage_filter": null,
+      "wants_analytics": true,
+      "wants_metrics": true
+    },
+    {
+      "decision_int": {
+        "category.dedupe": null,
+        "floors.data_rate": null,
+        "floors.enforce": null,
+        "floors.modelgroup": null,
+        "floors.skip": null,
+        "pricegranularity.timesplit": null,
+        "usersync.shuffle": null
+      },
+      "decision_string": {
+        "category.dedupe": null,
+        "floors.data_rate": null,
+        "floors.enforce": null,
+        "floors.modelgroup": null,
+        "floors.skip": null,
+        "pricegranularity.timesplit": null,
+        "usersync.shuffle": null
+      },
+      "decode_error": null,
+      "effective_level": "http",
+      "effective_mode": "oracle",
+      "header_values": {
+        "": [],
+        "CONTENT-TYPE": [],
+        "a": [],
+        "content-type": [],
+        "k": [],
+        "missing": [],
+        "only": [],
+        "x": []
+      },
+      "input": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"c\",\"request\":{\"method\":\"POST\",\"path\":\"/openrtb2/auction\",\"query\":\"a=1\",\"headers\":[]},\"mock\":{},\"capture\":{},\"request\":{\"method\":\"POST\",\"path\":\"/p\",\"query\":\"\",\"headers\":[],\"body\":{\"text\":\"\u003ca\u003e\",\"b64\":\"PGE+\",\"json\":{\"a\":\"\u003c\"},\"content_encoding\":\"br\"},\"remote_addr\":\"1.2.3.4:5\",\"host\":\"h\"}}",
+      "name": "body_variants",
+      "reencoded": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"c\",\"request\":{\"method\":\"POST\",\"path\":\"/p\",\"query\":\"\",\"host\":\"h\",\"headers\":[],\"remote_addr\":\"1.2.3.4:5\",\"body\":{\"text\":\"\\u003ca\\u003e\",\"b64\":\"PGE+\",\"json\":{\"a\":\"\\u003c\"},\"content_encoding\":\"br\"}},\"mock\":{},\"capture\":{}}",
+      "stage_filter": null,
+      "wants_analytics": true,
+      "wants_metrics": true
+    },
+    {
+      "decision_int": {
+        "category.dedupe": null,
+        "floors.data_rate": null,
+        "floors.enforce": null,
+        "floors.modelgroup": null,
+        "floors.skip": null,
+        "pricegranularity.timesplit": null,
+        "usersync.shuffle": null
+      },
+      "decision_string": {
+        "category.dedupe": null,
+        "floors.data_rate": null,
+        "floors.enforce": null,
+        "floors.modelgroup": null,
+        "floors.skip": null,
+        "pricegranularity.timesplit": null,
+        "usersync.shuffle": null
+      },
+      "decode_error": null,
+      "effective_level": "http",
+      "effective_mode": "oracle",
+      "header_values": {
+        "": [],
+        "CONTENT-TYPE": [],
+        "a": [],
+        "content-type": [],
+        "k": [],
+        "missing": [],
+        "only": [],
+        "x": []
+      },
+      "input": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"c\",\"request\":{\"method\":\"POST\",\"path\":\"/openrtb2/auction\",\"query\":\"a=1\",\"headers\":[]},\"mock\":{},\"capture\":{},\"extra\":1,\"request\":{\"method\":\"GET\",\"path\":\"/p\",\"query\":\"\",\"headers\":[],\"extra\":2}}",
+      "name": "unknown_fields",
+      "reencoded": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"c\",\"request\":{\"method\":\"GET\",\"path\":\"/p\",\"query\":\"\",\"headers\":[]},\"mock\":{},\"capture\":{}}",
+      "stage_filter": null,
+      "wants_analytics": true,
+      "wants_metrics": true
+    },
+    {
+      "decision_int": {
+        "category.dedupe": null,
+        "floors.data_rate": null,
+        "floors.enforce": null,
+        "floors.modelgroup": null,
+        "floors.skip": null,
+        "pricegranularity.timesplit": null,
+        "usersync.shuffle": null
+      },
+      "decision_string": {
+        "category.dedupe": null,
+        "floors.data_rate": null,
+        "floors.enforce": null,
+        "floors.modelgroup": null,
+        "floors.skip": null,
+        "pricegranularity.timesplit": null,
+        "usersync.shuffle": null
+      },
+      "decode_error": null,
+      "effective_level": "http",
+      "effective_mode": "oracle",
+      "header_values": {
+        "": [],
+        "CONTENT-TYPE": [],
+        "a": [],
+        "content-type": [],
+        "k": [],
+        "missing": [],
+        "only": [],
+        "x": []
+      },
+      "input": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"c\",\"request\":{\"method\":\"POST\",\"path\":\"/openrtb2/auction\",\"query\":\"a=1\",\"headers\":[]},\"mock\":{},\"capture\":{},\"CASE_ID\":\"upper\",\"Profile\":\"p\"}",
+      "name": "case_insensitive_keys",
+      "reencoded": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"upper\",\"profile\":\"p\",\"request\":{\"method\":\"POST\",\"path\":\"/openrtb2/auction\",\"query\":\"a=1\",\"headers\":[]},\"mock\":{},\"capture\":{}}",
+      "stage_filter": null,
+      "wants_analytics": true,
+      "wants_metrics": true
+    },
+    {
+      "decision_int": {
+        "category.dedupe": null,
+        "floors.data_rate": null,
+        "floors.enforce": null,
+        "floors.modelgroup": null,
+        "floors.skip": null,
+        "pricegranularity.timesplit": null,
+        "usersync.shuffle": null
+      },
+      "decision_string": {
+        "category.dedupe": null,
+        "floors.data_rate": null,
+        "floors.enforce": null,
+        "floors.modelgroup": null,
+        "floors.skip": null,
+        "pricegranularity.timesplit": null,
+        "usersync.shuffle": null
+      },
+      "decode_error": null,
+      "effective_level": "http",
+      "effective_mode": "oracle",
+      "header_values": {
+        "": [],
+        "CONTENT-TYPE": [],
+        "a": [],
+        "content-type": [],
+        "k": [],
+        "missing": [],
+        "only": [],
+        "x": []
+      },
+      "input": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"c\",\"request\":{\"method\":\"POST\",\"path\":\"/openrtb2/auction\",\"query\":\"a=1\",\"headers\":[]},\"mock\":{},\"capture\":{},\"case_id\":\"a\",\"case_id\":\"b\"}",
+      "name": "duplicate_keys",
+      "reencoded": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"b\",\"request\":{\"method\":\"POST\",\"path\":\"/openrtb2/auction\",\"query\":\"a=1\",\"headers\":[]},\"mock\":{},\"capture\":{}}",
+      "stage_filter": null,
+      "wants_analytics": true,
+      "wants_metrics": true
+    },
+    {
+      "decision_int": {
+        "category.dedupe": null,
+        "floors.data_rate": null,
+        "floors.enforce": null,
+        "floors.modelgroup": null,
+        "floors.skip": null,
+        "pricegranularity.timesplit": null,
+        "usersync.shuffle": null
+      },
+      "decision_string": {
+        "category.dedupe": null,
+        "floors.data_rate": null,
+        "floors.enforce": null,
+        "floors.modelgroup": null,
+        "floors.skip": null,
+        "pricegranularity.timesplit": null,
+        "usersync.shuffle": null
+      },
+      "decode_error": null,
+      "effective_level": "http",
+      "effective_mode": "oracle",
+      "header_values": {
+        "": [],
+        "CONTENT-TYPE": [],
+        "a": [],
+        "content-type": [],
+        "k": [],
+        "missing": [],
+        "only": [],
+        "x": []
+      },
+      "input": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"c\",\"request\":{\"method\":\"POST\",\"path\":\"/openrtb2/auction\",\"query\":\"a=1\",\"headers\":[]},\"mock\":{},\"capture\":{},\"case_id\":\"\u003c\u0026\u003e\",\"fixture_path\":\"a\\u2028b\"}",
+      "name": "html_in_strings",
+      "reencoded": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"\\u003c\\u0026\\u003e\",\"fixture_path\":\"a\\u2028b\",\"request\":{\"method\":\"POST\",\"path\":\"/openrtb2/auction\",\"query\":\"a=1\",\"headers\":[]},\"mock\":{},\"capture\":{}}",
+      "stage_filter": null,
+      "wants_analytics": true,
+      "wants_metrics": true
+    },
+    {
+      "decision_int": {
+        "category.dedupe": null,
+        "floors.data_rate": 1,
+        "floors.enforce": 1,
+        "floors.modelgroup": null,
+        "floors.skip": 0,
+        "pricegranularity.timesplit": 0,
+        "usersync.shuffle": null
+      },
+      "decision_string": {
+        "category.dedupe": null,
+        "floors.data_rate": null,
+        "floors.enforce": null,
+        "floors.modelgroup": null,
+        "floors.skip": null,
+        "pricegranularity.timesplit": null,
+        "usersync.shuffle": null
+      },
+      "decode_error": null,
+      "effective_level": "http",
+      "effective_mode": "oracle",
+      "header_values": {
+        "": [],
+        "CONTENT-TYPE": [
+          "application/json"
+        ],
+        "a": [],
+        "content-type": [
+          "application/json"
+        ],
+        "k": [],
+        "missing": [],
+        "only": [],
+        "x": []
+      },
+      "input": "{\n  \"schema\": \"pbs-parity-envelope/1\",\n  \"schema_version\": \"1.0.0\",\n  \"case_id\": \"endpoints/openrtb2/sample-requests/valid-whole/exemplary/simple.json#seed\",\n  \"fixture_path\": \"endpoints/openrtb2/sample-requests/valid-whole/exemplary/simple.json\",\n  \"profile\": \"default\",\n  \"request\": {\n    \"method\": \"POST\",\n    \"path\": \"/openrtb2/auction\",\n    \"query\": \"\",\n    \"host\": \"127.0.0.1:8000\",\n    \"headers\": [\n      [\"Content-Type\", \"application/json\"],\n      [\"User-Agent\", \"Mozilla/5.0 (parity)\"],\n      [\"X-Forwarded-For\", \"203.0.113.7\"],\n      [\"Accept-Encoding\", \"gzip\"]\n    ],\n    \"remote_addr\": \"127.0.0.1:53000\",\n    \"body\": {\n      \"json\": {\n        \"id\": \"some-request-id\",\n        \"site\": {\"page\": \"prebid.org\", \"publisher\": {\"id\": \"a3de7af2-a86a-4043-a77b-c7e86744155e\"}},\n        \"imp\": [\n          {\n            \"id\": \"some-impression-id\",\n            \"banner\": {\"format\": [{\"w\": 300, \"h\": 250}]},\n            \"ext\": {\"prebid\": {\"bidder\": {\"appnexus\": {\"placementId\": 12883451}}}}\n          }\n        ],\n        \"tmax\": 500\n      }\n    }\n  },\n  \"mock\": {\n    \"mode\": \"oracle\",\n    \"level\": \"http\"\n  },\n  \"decisions\": {\n    \"floors.skip\": 0,\n    \"floors.data_rate\": 1,\n    \"floors.enforce\": 1,\n    \"pricegranularity.timesplit\": 0\n  },\n  \"fakes\": {\n    \"now_unix_ms\": 1629473330823,\n    \"int63\": 10,\n    \"uuid\": \"30470a14-2949-4110-abce-b62d57304ad5\"\n  },\n  \"capture\": {\n    \"stages\": \"*\",\n    \"metrics\": true,\n    \"analytics\": true\n  }\n}\n",
+      "name": "example:envelope.oracle.json",
+      "reencoded": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"endpoints/openrtb2/sample-requests/valid-whole/exemplary/simple.json#seed\",\"fixture_path\":\"endpoints/openrtb2/sample-requests/valid-whole/exemplary/simple.json\",\"profile\":\"default\",\"request\":{\"method\":\"POST\",\"path\":\"/openrtb2/auction\",\"query\":\"\",\"host\":\"127.0.0.1:8000\",\"headers\":[[\"Content-Type\",\"application/json\"],[\"User-Agent\",\"Mozilla/5.0 (parity)\"],[\"X-Forwarded-For\",\"203.0.113.7\"],[\"Accept-Encoding\",\"gzip\"]],\"remote_addr\":\"127.0.0.1:53000\",\"body\":{\"json\":{\"id\":\"some-request-id\",\"site\":{\"page\":\"prebid.org\",\"publisher\":{\"id\":\"a3de7af2-a86a-4043-a77b-c7e86744155e\"}},\"imp\":[{\"id\":\"some-impression-id\",\"banner\":{\"format\":[{\"w\":300,\"h\":250}]},\"ext\":{\"prebid\":{\"bidder\":{\"appnexus\":{\"placementId\":12883451}}}}}],\"tmax\":500}}},\"mock\":{\"mode\":\"oracle\",\"level\":\"http\"},\"decisions\":{\"floors.data_rate\":1,\"floors.enforce\":1,\"floors.skip\":0,\"pricegranularity.timesplit\":0},\"fakes\":{\"now_unix_ms\":1629473330823,\"int63\":10,\"uuid\":\"30470a14-2949-4110-abce-b62d57304ad5\"},\"capture\":{\"stages\":\"*\",\"metrics\":true,\"analytics\":true}}",
+      "stage_filter": null,
+      "wants_analytics": true,
+      "wants_metrics": true
+    },
+    {
+      "decision_int": {
+        "category.dedupe": 1,
+        "floors.data_rate": null,
+        "floors.enforce": null,
+        "floors.modelgroup": 0,
+        "floors.skip": null,
+        "pricegranularity.timesplit": null,
+        "usersync.shuffle": null
+      },
+      "decision_string": {
+        "category.dedupe": null,
+        "floors.data_rate": null,
+        "floors.enforce": null,
+        "floors.modelgroup": null,
+        "floors.skip": null,
+        "pricegranularity.timesplit": null,
+        "usersync.shuffle": null
+      },
+      "decode_error": null,
+      "effective_level": "http",
+      "effective_mode": "inline",
+      "header_values": {
+        "": [],
+        "CONTENT-TYPE": [
+          "application/json"
+        ],
+        "a": [],
+        "content-type": [
+          "application/json"
+        ],
+        "k": [],
+        "missing": [],
+        "only": [],
+        "x": []
+      },
+      "input": "{\n  \"schema\": \"pbs-parity-envelope/1\",\n  \"schema_version\": \"1.0.0\",\n  \"case_id\": \"gen:42:7:drop(imp[0].banner)+timeout(appnexus)\",\n  \"profile\": \"default\",\n  \"request\": {\n    \"method\": \"POST\",\n    \"path\": \"/openrtb2/auction\",\n    \"query\": \"debug=1\",\n    \"headers\": [\n      [\"Content-Type\", \"application/json\"],\n      [\"Content-Encoding\", \"gzip\"],\n      [\"Sec-GPC\", \"1\"]\n    ],\n    \"body\": {\n      \"content_encoding\": \"gzip\",\n      \"text\": \"{\\\"id\\\":\\\"r1\\\",\\\"imp\\\":[{\\\"id\\\":\\\"i1\\\",\\\"video\\\":{\\\"mimes\\\":[\\\"video/mp4\\\"],\\\"w\\\":640,\\\"h\\\":480},\\\"ext\\\":{\\\"prebid\\\":{\\\"bidder\\\":{\\\"appnexus\\\":{\\\"placementId\\\":1},\\\"rubicon\\\":{\\\"accountId\\\":1001,\\\"siteId\\\":113932,\\\"zoneId\\\":535510}}}}}],\\\"app\\\":{\\\"bundle\\\":\\\"com.example\\\",\\\"publisher\\\":{\\\"id\\\":\\\"acct\\\"}},\\\"ext\\\":{\\\"prebid\\\":{\\\"targeting\\\":{},\\\"cache\\\":{\\\"vastxml\\\":{}}}}}\"\n    }\n  },\n  \"mock\": {\n    \"mode\": \"inline\",\n    \"level\": \"http\",\n    \"inline\": {\n      \"rules\": [\n        {\n          \"id\": \"appnexus-timeout\",\n          \"kind\": \"bidder\",\n          \"bidder\": \"appnexus\",\n          \"uri_regex\": \"^https?://ib\\\\.adnxs\\\\.com/\",\n          \"response\": {\"fail\": \"timeout\"}\n        },\n        {\n          \"id\": \"slow-currency\",\n          \"kind\": \"currency\",\n          \"response\": {\n            \"status\": 200,\n            \"delay_ms\": 20,\n            \"headers\": [[\"Content-Type\", \"application/json\"]],\n            \"body\": {\"json\": {\"dataAsOf\": \"2021-08-20\", \"conversions\": {\"USD\": {\"EUR\": 0.85}}}}\n          }\n        }\n      ],\n      \"bidders\": {\n        \"rubicon\": {\n          \"status\": 200,\n          \"headers\": [[\"Content-Type\", \"application/json\"]],\n          \"body\": {\"json\": {\"id\": \"r1\", \"seatbid\": [{\"seat\": \"rubicon\", \"bid\": [{\"id\": \"b1\", \"impid\": \"i1\", \"price\": 1.25, \"adm\": \"\u003cVAST version=\\\"3.0\\\"\u003e\u003c/VAST\u003e\", \"crid\": \"c1\", \"w\": 640, \"h\": 480}]}], \"cur\": \"USD\"}}\n        }\n      },\n      \"default_bidder\": {\"status\": 204},\n      \"cache\": {\n        \"status\": 200,\n        \"headers\": [[\"Content-Type\", \"application/json\"]],\n        \"body\": {\"text\": \"{\\\"responses\\\":[{\\\"uuid\\\":\\\"a8c1b4f0-0000-4000-8000-000000000001\\\"}]}\"}\n      },\n      \"kinds\": {\n        \"vendorlist\": {\"fail\": \"refused\"},\n        \"floors\": {\"status\": 404}\n      }\n    }\n  },\n  \"decisions\": {\n    \"category.dedupe\": 1,\n    \"floors.modelgroup\": 0\n  },\n  \"capture\": {\n    \"stages\": [\"http.in\", \"request.validated\", \"bidder.request\", \"adapter.requests\", \"http.out\", \"adapter.bids\", \"exchange.response\", \"http.response\"],\n    \"metrics\": false,\n    \"analytics\": false\n  }\n}\n",
+      "name": "example:envelope.inline.json",
+      "reencoded": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"gen:42:7:drop(imp[0].banner)+timeout(appnexus)\",\"profile\":\"default\",\"request\":{\"method\":\"POST\",\"path\":\"/openrtb2/auction\",\"query\":\"debug=1\",\"headers\":[[\"Content-Type\",\"application/json\"],[\"Content-Encoding\",\"gzip\"],[\"Sec-GPC\",\"1\"]],\"body\":{\"text\":\"{\\\"id\\\":\\\"r1\\\",\\\"imp\\\":[{\\\"id\\\":\\\"i1\\\",\\\"video\\\":{\\\"mimes\\\":[\\\"video/mp4\\\"],\\\"w\\\":640,\\\"h\\\":480},\\\"ext\\\":{\\\"prebid\\\":{\\\"bidder\\\":{\\\"appnexus\\\":{\\\"placementId\\\":1},\\\"rubicon\\\":{\\\"accountId\\\":1001,\\\"siteId\\\":113932,\\\"zoneId\\\":535510}}}}}],\\\"app\\\":{\\\"bundle\\\":\\\"com.example\\\",\\\"publisher\\\":{\\\"id\\\":\\\"acct\\\"}},\\\"ext\\\":{\\\"prebid\\\":{\\\"targeting\\\":{},\\\"cache\\\":{\\\"vastxml\\\":{}}}}}\",\"content_encoding\":\"gzip\"}},\"mock\":{\"mode\":\"inline\",\"level\":\"http\",\"inline\":{\"rules\":[{\"id\":\"appnexus-timeout\",\"kind\":\"bidder\",\"bidder\":\"appnexus\",\"uri_regex\":\"^https?://ib\\\\.adnxs\\\\.com/\",\"response\":{\"fail\":\"timeout\"}},{\"id\":\"slow-currency\",\"kind\":\"currency\",\"response\":{\"status\":200,\"headers\":[[\"Content-Type\",\"application/json\"]],\"body\":{\"json\":{\"dataAsOf\":\"2021-08-20\",\"conversions\":{\"USD\":{\"EUR\":0.85}}}},\"delay_ms\":20}}],\"bidders\":{\"rubicon\":{\"status\":200,\"headers\":[[\"Content-Type\",\"application/json\"]],\"body\":{\"json\":{\"id\":\"r1\",\"seatbid\":[{\"seat\":\"rubicon\",\"bid\":[{\"id\":\"b1\",\"impid\":\"i1\",\"price\":1.25,\"adm\":\"\\u003cVAST version=\\\"3.0\\\"\\u003e\\u003c/VAST\\u003e\",\"crid\":\"c1\",\"w\":640,\"h\":480}]}],\"cur\":\"USD\"}}}},\"default_bidder\":{\"status\":204},\"cache\":{\"status\":200,\"headers\":[[\"Content-Type\",\"application/json\"]],\"body\":{\"text\":\"{\\\"responses\\\":[{\\\"uuid\\\":\\\"a8c1b4f0-0000-4000-8000-000000000001\\\"}]}\"}},\"kinds\":{\"floors\":{\"status\":404},\"vendorlist\":{\"fail\":\"refused\"}}}},\"decisions\":{\"category.dedupe\":1,\"floors.modelgroup\":0},\"capture\":{\"stages\":[\"http.in\",\"request.validated\",\"bidder.request\",\"adapter.requests\",\"http.out\",\"adapter.bids\",\"exchange.response\",\"http.response\"],\"metrics\":false,\"analytics\":false}}",
+      "stage_filter": [
+        "adapter.bids",
+        "adapter.requests",
+        "bidder.request",
+        "exchange.response",
+        "http.in",
+        "http.out",
+        "http.response",
+        "request.validated"
+      ],
+      "wants_analytics": false,
+      "wants_metrics": false
+    },
+    {
+      "decision_int": {
+        "category.dedupe": null,
+        "floors.data_rate": null,
+        "floors.enforce": null,
+        "floors.modelgroup": null,
+        "floors.skip": null,
+        "pricegranularity.timesplit": null,
+        "usersync.shuffle": null
+      },
+      "decision_string": {
+        "category.dedupe": null,
+        "floors.data_rate": null,
+        "floors.enforce": null,
+        "floors.modelgroup": null,
+        "floors.skip": null,
+        "pricegranularity.timesplit": null,
+        "usersync.shuffle": null
+      },
+      "decode_error": null,
+      "effective_level": "bidder_response",
+      "effective_mode": "oracle",
+      "header_values": {
+        "": [],
+        "CONTENT-TYPE": [
+          "application/json"
+        ],
+        "a": [],
+        "content-type": [
+          "application/json"
+        ],
+        "k": [],
+        "missing": [],
+        "only": [],
+        "x": []
+      },
+      "input": "{\n  \"schema\": \"pbs-parity-envelope/1\",\n  \"schema_version\": \"1.0.0\",\n  \"case_id\": \"exchange/exchangetest/bid-consolidation-test.json#seed\",\n  \"fixture_path\": \"exchange/exchangetest/bid-consolidation-test.json\",\n  \"request\": {\n    \"method\": \"POST\",\n    \"path\": \"/openrtb2/auction\",\n    \"query\": \"\",\n    \"headers\": [[\"Content-Type\", \"application/json\"]],\n    \"body\": {\n      \"json\": {\n        \"id\": \"some-request-id\",\n        \"site\": {\"page\": \"test.somepage.com\"},\n        \"imp\": [{\"id\": \"my-imp-id\", \"video\": {\"mimes\": [\"video/mp4\"]}, \"ext\": {\"prebid\": {\"bidder\": {\"appnexus\": {\"placementId\": 1}, \"pubmatic\": {\"publisherId\": \"5890\"}}}}}],\n        \"cur\": [\"USD\"]\n      }\n    }\n  },\n  \"mock\": {\n    \"level\": \"bidder_response\",\n    \"bidder_responses\": {\n      \"appnexus\": {\n        \"currency\": \"USD\",\n        \"bids\": [\n          {\"bid\": {\"id\": \"apn-bid\", \"impid\": \"my-imp-id\", \"price\": 0.3, \"w\": 200, \"h\": 250, \"crid\": \"creative-1\"}, \"type\": \"video\", \"video\": {\"duration\": 30, \"primary_category\": \"\"}, \"deal_priority\": 0}\n        ],\n        \"errors\": [{\"code\": 10008, \"message\": \"bid adjustment warning\"}]\n      },\n      \"pubmatic\": {\n        \"nil_response\": true,\n        \"currency\": \"\",\n        \"bids\": [],\n        \"errors\": [{\"code\": 4, \"message\": \"Unexpected status code: 500\"}]\n      }\n    }\n  },\n  \"capture\": {\"stages\": \"*\"}\n}\n",
+      "name": "example:envelope.bidder_response.json",
+      "reencoded": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"exchange/exchangetest/bid-consolidation-test.json#seed\",\"fixture_path\":\"exchange/exchangetest/bid-consolidation-test.json\",\"request\":{\"method\":\"POST\",\"path\":\"/openrtb2/auction\",\"query\":\"\",\"headers\":[[\"Content-Type\",\"application/json\"]],\"body\":{\"json\":{\"id\":\"some-request-id\",\"site\":{\"page\":\"test.somepage.com\"},\"imp\":[{\"id\":\"my-imp-id\",\"video\":{\"mimes\":[\"video/mp4\"]},\"ext\":{\"prebid\":{\"bidder\":{\"appnexus\":{\"placementId\":1},\"pubmatic\":{\"publisherId\":\"5890\"}}}}}],\"cur\":[\"USD\"]}}},\"mock\":{\"level\":\"bidder_response\",\"bidder_responses\":{\"appnexus\":{\"currency\":\"USD\",\"bids\":[{\"bid\":{\"id\":\"apn-bid\",\"impid\":\"my-imp-id\",\"price\":0.3,\"w\":200,\"h\":250,\"crid\":\"creative-1\"},\"type\":\"video\",\"video\":{\"duration\":30,\"primary_category\":\"\"}}],\"errors\":[{\"code\":10008,\"message\":\"bid adjustment warning\"}]},\"pubmatic\":{\"nil_response\":true,\"currency\":\"\",\"bids\":[],\"errors\":[{\"code\":4,\"message\":\"Unexpected status code: 500\"}]}}},\"capture\":{\"stages\":\"*\"}}",
+      "stage_filter": null,
+      "wants_analytics": true,
+      "wants_metrics": true
+    }
+  ],
+  "parity_ref": "abad587d4f6302094ae9b9b4bf347bbb3422e6b7"
+}

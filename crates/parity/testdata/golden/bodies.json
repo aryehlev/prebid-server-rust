@@ -1,0 +1,199 @@
+{
+  "golden": {
+    "inputs": [
+      {
+        "body": "{\"text\":\"hi \u003cb\u003e\"}",
+        "decoded_b64": "aGkgPGI+",
+        "gzip": false,
+        "name": "text",
+        "wire_b64": "aGkgPGI+"
+      },
+      {
+        "body": "{\"b64\":\"aGk=\"}",
+        "decoded_b64": "aGk=",
+        "gzip": false,
+        "name": "b64",
+        "wire_b64": "aGk="
+      },
+      {
+        "body": "{\"text\":\"ignored\",\"b64\":\"aGk=\",\"json\":{\"a\":1}}",
+        "decoded_b64": "aGk=",
+        "gzip": false,
+        "name": "b64_wins",
+        "wire_b64": "aGk="
+      },
+      {
+        "body": "{\"b64\":\"!!\"}",
+        "decoded_error": "body.b64: illegal base64 data at input byte 0",
+        "gzip": false,
+        "name": "b64_invalid",
+        "wire_error": "body.b64: illegal base64 data at input byte 0"
+      },
+      {
+        "body": "{\"b64\":\"aGk\"}",
+        "decoded_error": "body.b64: illegal base64 data at input byte 0",
+        "gzip": false,
+        "name": "b64_unpadded",
+        "wire_error": "body.b64: illegal base64 data at input byte 0"
+      },
+      {
+        "body": "{\"b64\":\"aG\\nk=\"}",
+        "decoded_b64": "aGk=",
+        "gzip": false,
+        "name": "b64_newlines",
+        "wire_b64": "aGk="
+      },
+      {
+        "body": "{\"json\":{\"a\" : 1}}",
+        "decoded_b64": "eyJhIiA6IDF9",
+        "gzip": false,
+        "name": "json",
+        "wire_b64": "eyJhIiA6IDF9"
+      },
+      {
+        "body": "{\"json\":null}",
+        "decoded_b64": "bnVsbA==",
+        "gzip": false,
+        "name": "json_null",
+        "wire_b64": "bnVsbA=="
+      },
+      {
+        "body": "{}",
+        "decoded_b64": "",
+        "gzip": false,
+        "name": "none",
+        "wire_b64": ""
+      },
+      {
+        "body": "{\"text\":\"\"}",
+        "decoded_b64": "",
+        "gzip": false,
+        "name": "text_empty",
+        "wire_b64": ""
+      },
+      {
+        "body": "{\"text\":\"hi\",\"content_encoding\":\"br\"}",
+        "decoded_b64": "aGk=",
+        "gzip": false,
+        "name": "text_unsupported",
+        "wire_error": "unsupported content encoding \"br\""
+      },
+      {
+        "body": "{\"text\":\"hi\",\"content_encoding\":\"Identity\"}",
+        "decoded_b64": "aGk=",
+        "gzip": false,
+        "name": "text_identity",
+        "wire_b64": "aGk="
+      },
+      {
+        "body": "{\"json\":{\"a\":1},\"content_encoding\":\"gzip\"}",
+        "decoded_b64": "eyJhIjoxfQ==",
+        "gzip": true,
+        "name": "json_gzip",
+        "wire_b64": "H4sIAAAAAAAA/6pWSlSyMqwFBAAA//+vrBtWBwAAAA=="
+      },
+      {
+        "body": "{\"b64\":\"H4sIAAAAAAAA/6pWSlSyMqwFBAAA//+vrBtWBwAAAA==\",\"content_encoding\":\"gzip\"}",
+        "decoded_b64": "eyJhIjoxfQ==",
+        "gzip": true,
+        "name": "b64_gzip",
+        "wire_b64": "H4sIAAAAAAAA/6pWSlSyMqwFBAAA//+vrBtWBwAAAA=="
+      },
+      {
+        "body": "{\"b64\":\"aGk=\",\"content_encoding\":\"br\"}",
+        "decoded_error": "unsupported content encoding \"br\"",
+        "gzip": false,
+        "name": "b64_unsupported",
+        "wire_b64": "aGk="
+      }
+    ],
+    "recorded": [
+      {
+        "body": "{\"text\":\"{\\\"a\\\":1}\",\"json\":{\"a\":1}}",
+        "content_encoding": "",
+        "gzip": false,
+        "name": "json",
+        "raw_b64": "eyJhIjoxfQ=="
+      },
+      {
+        "body": "{\"text\":\" {\\\"a\\\": [1, 2]}\\n\",\"json\":{\"a\":[1,2]}}",
+        "content_encoding": "",
+        "gzip": false,
+        "name": "json_with_space",
+        "raw_b64": "IHsiYSI6IFsxLCAyXX0K"
+      },
+      {
+        "body": "{\"text\":\"hello \\u003cb\\u003e\"}",
+        "content_encoding": "",
+        "gzip": false,
+        "name": "text",
+        "raw_b64": "aGVsbG8gPGI+"
+      },
+      {
+        "body": "{\"b64\":\"//4=\"}",
+        "content_encoding": "",
+        "gzip": false,
+        "name": "invalid_utf8",
+        "raw_b64": "//4="
+      },
+      {
+        "body": "{\"b64\":\"Iv8i\",\"json\":\"\ufffd\"}",
+        "content_encoding": "",
+        "gzip": false,
+        "name": "invalid_utf8_json",
+        "raw_b64": "Iv8i"
+      },
+      {
+        "body": "null",
+        "content_encoding": "",
+        "gzip": false,
+        "name": "empty",
+        "raw_b64": ""
+      },
+      {
+        "body": "{\"text\":\"{\\\"a\\\":1}\",\"json\":{\"a\":1}}",
+        "content_encoding": " IDENTITY ",
+        "gzip": false,
+        "name": "identity_spelled",
+        "raw_b64": "eyJhIjoxfQ=="
+      },
+      {
+        "body": "{\"b64\":\"eyJhIjoxfQ==\",\"content_encoding\":\"br\"}",
+        "content_encoding": "br",
+        "gzip": false,
+        "name": "unsupported",
+        "raw_b64": "eyJhIjoxfQ=="
+      },
+      {
+        "body": "{\"b64\":\"eA==\",\"content_encoding\":\"deflate\"}",
+        "content_encoding": "Deflate",
+        "gzip": false,
+        "name": "upper_unsupported",
+        "raw_b64": "eA=="
+      },
+      {
+        "body": "{\"b64\":\"H4sIAAAAAAAA/6pWSlSyMqwFBAAA//+vrBtWBwAAAA==\",\"json\":{\"a\":1},\"content_encoding\":\"gzip\"}",
+        "content_encoding": "gzip",
+        "gzip": true,
+        "name": "gzip",
+        "raw_b64": "H4sIAAAAAAAA/6pWSlSyMqwFBAAA//+vrBtWBwAAAA=="
+      },
+      {
+        "body": "{\"b64\":\"H4sIAAAAAAAA/8rLL1HIKs7PAwQAAP//ZsuMxggAAAA=\",\"content_encoding\":\"x-gzip\"}",
+        "content_encoding": "X-GZIP",
+        "gzip": true,
+        "name": "x_gzip",
+        "raw_b64": "H4sIAAAAAAAA/8rLL1HIKs7PAwQAAP//ZsuMxggAAAA="
+      },
+      {
+        "body": "{\"b64\":\"eyJhIjoxfQ==\",\"content_encoding\":\"gzip\"}",
+        "content_encoding": "gzip",
+        "gzip": true,
+        "name": "gzip_corrupt",
+        "raw_b64": "eyJhIjoxfQ=="
+      }
+    ],
+    "text_body": "{\"text\":\"a\\u003cb\"}"
+  },
+  "parity_ref": "abad587d4f6302094ae9b9b4bf347bbb3422e6b7"
+}

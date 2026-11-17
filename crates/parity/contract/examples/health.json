@@ -1,0 +1,12 @@
+{
+  "schema": "pbs-parity/1",
+  "schema_version": "1.0.0",
+  "impl": "go",
+  "build": {"git_sha": "482787ba", "version": "parity"},
+  "stages_supported": ["http.in", "request.validated", "http.out", "analytics", "metrics_delta", "http.response"],
+  "decisions_supported": ["floors.skip", "usersync.shuffle"],
+  "endpoints": ["/openrtb2/auction", "/openrtb2/amp", "/openrtb2/video", "/cookie_sync", "/setuid", "/event", "/vtrack", "/status", "/info/bidders"],
+  "mock_modes": ["oracle", "inline"],
+  "mock_levels": ["http", "bidder_response"],
+  "fakes": true
+}
