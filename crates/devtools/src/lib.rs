@@ -58,13 +58,16 @@
 //!   types at run time, so a `-plan` step writes `go build -overlay` files that register each
 //!   declaration from inside its own package.
 //! - `configdefaults`: `config.SetupViper` exactly as `main.go` calls it, every key with its
-//!   default, Go type and verified `PBS_*` variable, and the `config.New` result.
+//!   default, Go type and verified `PBS_*` variable (plus the un-prefixed fallback, such as
+//!   `GDPR_DEFAULT_VALUE`, that a `BindEnv` made before `SetEnvPrefix` adds), and the `config.New`
+//!   result.
 //! - `bidderinfos`: `static/bidder-info` through `config.LoadBidderInfoFromDisk` and `config.New`.
 //! - `biddernames`: the `openrtb_ext` bidder name constants, `CoreBidderNames()`, reserved-name
 //!   predicates and the `NormalizeBidderName` table.
 //!
-//! The programs clear `PBS_*` variables, run viper from an empty directory, and route glog to
-//! stderr, which is shown only when a dump fails.
+//! The programs clear `PBS_*` variables (`configdefaults` also clears those un-prefixed
+//! fallbacks), run viper from an empty directory, and route glog to stderr, which is shown only
+//! when a dump fails.
 
 pub mod cli;
 pub mod error;

@@ -3,15 +3,18 @@
   "go_commit": "4e296450de2fcc62741340b2e5f7d1df6c1744a5",
   "notes": [
     "keys: sorted viper.AllKeys() after config.SetupViper(v, \"pbs\", bidderInfos), no config file, no PBS_* env; adapters.<bidder>.* keys are folded into bidder_keys.",
-    "default: viper Get(key) encoded with encoding/json; null with has_default=false means the key is only env-bound (BindEnv) and has no default.",
+    "default: viper Get(key) encoded with encoding/json; has_default is viper.IsSet(key), false (with a null default) when the key is only env-bound (BindEnv) or its default is nil (SetDefault(key, nil), as for host_schain_node).",
     "go_type: fmt %T of the default; viper casts env and file values to this type (SetTypeByDefaultValue).",
     "env: strings.NewReplacer(\".\", \"_\") applied to strings.ToUpper(\"PBS_\" + key); env_verified means setting it changed Get(key).",
+    "env_fallbacks: the other variables explicit BindEnv calls registered for the key (made before SetEnvPrefix, so un-prefixed, e.g. GDPR_DEFAULT_VALUE), with the same replacer; viper v1.12 reads env first and then these in order, using the first that is set; verified means setting it alone changed Get(key).",
+    "empty_env_ignored: whether a variable set to the empty string is treated as unset (viper AllowEmptyEnv off), checked on external_url.",
     "configuration: encoding/json of *config.Configuration returned by config.New with these defaults (untagged fields use Go names, unexported fields are absent).",
     "account_defaults_json: cfg.AccountDefaultsJSON(), the jsonutil.Marshal output used as the account merge-patch base.",
     "config_new_errors: the AggregateError entries config.New returned, in Go order; config_new_error is its Error() text."
   ],
   "config_file_name": "pbs",
   "env_prefix": "PBS",
+  "empty_env_ignored": true,
   "keys": [
     {
       "key": "account_defaults.debug_allow",
@@ -19,7 +22,8 @@
       "default": true,
       "go_type": "bool",
       "env": "PBS_ACCOUNT_DEFAULTS_DEBUG_ALLOW",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "account_defaults.disabled",
@@ -27,7 +31,8 @@
       "default": false,
       "go_type": "bool",
       "env": "PBS_ACCOUNT_DEFAULTS_DISABLED",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "account_defaults.events.default_url",
@@ -35,7 +40,8 @@
       "default": "https://PBS_HOST/event?t=##PBS-EVENTTYPE##&vtype=##PBS-VASTEVENT##&b=##PBS-BIDID##&f=i&a=##PBS-ACCOUNTID##&ts=##PBS-TIMESTAMP##&bidder=##PBS-BIDDER##&int=##PBS-INTEGRATION##&mt=##PBS-MEDIATYPE##&ch=##PBS-CHANNEL##&aid=##PBS-AUCTIONID##&l=##PBS-LINEID##",
       "go_type": "string",
       "env": "PBS_ACCOUNT_DEFAULTS_EVENTS_DEFAULT_URL",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "account_defaults.events.enabled",
@@ -43,7 +49,8 @@
       "default": false,
       "go_type": "bool",
       "env": "PBS_ACCOUNT_DEFAULTS_EVENTS_ENABLED",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "account_defaults.events_enabled",
@@ -51,7 +58,8 @@
       "default": false,
       "go_type": "bool",
       "env": "PBS_ACCOUNT_DEFAULTS_EVENTS_ENABLED",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "account_defaults.price_floors.adjust_for_bid_adjustment",
@@ -59,7 +67,8 @@
       "default": true,
       "go_type": "bool",
       "env": "PBS_ACCOUNT_DEFAULTS_PRICE_FLOORS_ADJUST_FOR_BID_ADJUSTMENT",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "account_defaults.price_floors.enabled",
@@ -67,7 +76,8 @@
       "default": false,
       "go_type": "bool",
       "env": "PBS_ACCOUNT_DEFAULTS_PRICE_FLOORS_ENABLED",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "account_defaults.price_floors.enforce_deal_floors",
@@ -75,7 +85,8 @@
       "default": false,
       "go_type": "bool",
       "env": "PBS_ACCOUNT_DEFAULTS_PRICE_FLOORS_ENFORCE_DEAL_FLOORS",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "account_defaults.price_floors.enforce_floors_rate",
@@ -83,7 +94,8 @@
       "default": 100,
       "go_type": "int",
       "env": "PBS_ACCOUNT_DEFAULTS_PRICE_FLOORS_ENFORCE_FLOORS_RATE",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "account_defaults.price_floors.fetch.enabled",
@@ -91,7 +103,8 @@
       "default": false,
       "go_type": "bool",
       "env": "PBS_ACCOUNT_DEFAULTS_PRICE_FLOORS_FETCH_ENABLED",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "account_defaults.price_floors.fetch.max_age_sec",
@@ -99,7 +112,8 @@
       "default": 86400,
       "go_type": "int",
       "env": "PBS_ACCOUNT_DEFAULTS_PRICE_FLOORS_FETCH_MAX_AGE_SEC",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "account_defaults.price_floors.fetch.max_file_size_kb",
@@ -107,7 +121,8 @@
       "default": 100,
       "go_type": "int",
       "env": "PBS_ACCOUNT_DEFAULTS_PRICE_FLOORS_FETCH_MAX_FILE_SIZE_KB",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "account_defaults.price_floors.fetch.max_rules",
@@ -115,7 +130,8 @@
       "default": 1000,
       "go_type": "int",
       "env": "PBS_ACCOUNT_DEFAULTS_PRICE_FLOORS_FETCH_MAX_RULES",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "account_defaults.price_floors.fetch.max_schema_dims",
@@ -123,7 +139,8 @@
       "default": 0,
       "go_type": "int",
       "env": "PBS_ACCOUNT_DEFAULTS_PRICE_FLOORS_FETCH_MAX_SCHEMA_DIMS",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "account_defaults.price_floors.fetch.period_sec",
@@ -131,7 +148,8 @@
       "default": 3600,
       "go_type": "int",
       "env": "PBS_ACCOUNT_DEFAULTS_PRICE_FLOORS_FETCH_PERIOD_SEC",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "account_defaults.price_floors.fetch.timeout_ms",
@@ -139,7 +157,8 @@
       "default": 3000,
       "go_type": "int",
       "env": "PBS_ACCOUNT_DEFAULTS_PRICE_FLOORS_FETCH_TIMEOUT_MS",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "account_defaults.price_floors.fetch.url",
@@ -147,7 +166,8 @@
       "default": "",
       "go_type": "string",
       "env": "PBS_ACCOUNT_DEFAULTS_PRICE_FLOORS_FETCH_URL",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "account_defaults.price_floors.max_rules",
@@ -155,7 +175,8 @@
       "default": 100,
       "go_type": "int",
       "env": "PBS_ACCOUNT_DEFAULTS_PRICE_FLOORS_MAX_RULES",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "account_defaults.price_floors.max_schema_dims",
@@ -163,7 +184,8 @@
       "default": 3,
       "go_type": "int",
       "env": "PBS_ACCOUNT_DEFAULTS_PRICE_FLOORS_MAX_SCHEMA_DIMS",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "account_defaults.price_floors.use_dynamic_data",
@@ -171,7 +193,8 @@
       "default": false,
       "go_type": "bool",
       "env": "PBS_ACCOUNT_DEFAULTS_PRICE_FLOORS_USE_DYNAMIC_DATA",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "account_defaults.privacy.dsa.default",
@@ -179,7 +202,13 @@
       "default": null,
       "go_type": "",
       "env": "PBS_ACCOUNT_DEFAULTS_PRIVACY_DSA_DEFAULT",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": [
+        {
+          "env": "ACCOUNT_DEFAULTS_PRIVACY_DSA_DEFAULT",
+          "verified": true
+        }
+      ]
     },
     {
       "key": "account_defaults.privacy.dsa.gdpr_only",
@@ -187,7 +216,13 @@
       "default": null,
       "go_type": "",
       "env": "PBS_ACCOUNT_DEFAULTS_PRIVACY_DSA_GDPR_ONLY",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": [
+        {
+          "env": "ACCOUNT_DEFAULTS_PRIVACY_DSA_GDPR_ONLY",
+          "verified": true
+        }
+      ]
     },
     {
       "key": "account_defaults.privacy.ipv4.anon_keep_bits",
@@ -195,7 +230,8 @@
       "default": 24,
       "go_type": "int",
       "env": "PBS_ACCOUNT_DEFAULTS_PRIVACY_IPV4_ANON_KEEP_BITS",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "account_defaults.privacy.ipv6.anon_keep_bits",
@@ -203,7 +239,8 @@
       "default": 56,
       "go_type": "int",
       "env": "PBS_ACCOUNT_DEFAULTS_PRIVACY_IPV6_ANON_KEEP_BITS",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "account_defaults.privacy.privacysandbox.cookiedeprecation.enabled",
@@ -211,7 +248,8 @@
       "default": false,
       "go_type": "bool",
       "env": "PBS_ACCOUNT_DEFAULTS_PRIVACY_PRIVACYSANDBOX_COOKIEDEPRECATION_ENABLED",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "account_defaults.privacy.privacysandbox.cookiedeprecation.ttl_sec",
@@ -219,7 +257,8 @@
       "default": 604800,
       "go_type": "int",
       "env": "PBS_ACCOUNT_DEFAULTS_PRIVACY_PRIVACYSANDBOX_COOKIEDEPRECATION_TTL_SEC",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "account_defaults.privacy.privacysandbox.topicsdomain",
@@ -227,7 +266,8 @@
       "default": "",
       "go_type": "string",
       "env": "PBS_ACCOUNT_DEFAULTS_PRIVACY_PRIVACYSANDBOX_TOPICSDOMAIN",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "account_required",
@@ -235,7 +275,8 @@
       "default": false,
       "go_type": "bool",
       "env": "PBS_ACCOUNT_REQUIRED",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "accounts.cache.background_refresh_backoff_seconds",
@@ -243,7 +284,8 @@
       "default": 5,
       "go_type": "int",
       "env": "PBS_ACCOUNTS_CACHE_BACKGROUND_REFRESH_BACKOFF_SECONDS",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "accounts.cache.background_refresh_timeout_seconds",
@@ -251,7 +293,8 @@
       "default": 10,
       "go_type": "int",
       "env": "PBS_ACCOUNTS_CACHE_BACKGROUND_REFRESH_TIMEOUT_SECONDS",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "accounts.cache.coalesce_requests",
@@ -259,7 +302,8 @@
       "default": false,
       "go_type": "bool",
       "env": "PBS_ACCOUNTS_CACHE_COALESCE_REQUESTS",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "accounts.cache.max_entries",
@@ -267,7 +311,8 @@
       "default": 50000,
       "go_type": "int",
       "env": "PBS_ACCOUNTS_CACHE_MAX_ENTRIES",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "accounts.cache.negative.enabled",
@@ -275,7 +320,8 @@
       "default": false,
       "go_type": "bool",
       "env": "PBS_ACCOUNTS_CACHE_NEGATIVE_ENABLED",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "accounts.cache.negative.max_entries",
@@ -283,7 +329,8 @@
       "default": 10000,
       "go_type": "int",
       "env": "PBS_ACCOUNTS_CACHE_NEGATIVE_MAX_ENTRIES",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "accounts.cache.negative.ttl_seconds",
@@ -291,7 +338,8 @@
       "default": 60,
       "go_type": "int",
       "env": "PBS_ACCOUNTS_CACHE_NEGATIVE_TTL_SECONDS",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "accounts.cache.negative.type",
@@ -299,7 +347,8 @@
       "default": "lru",
       "go_type": "string",
       "env": "PBS_ACCOUNTS_CACHE_NEGATIVE_TYPE",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "accounts.cache.refresh",
@@ -307,7 +356,8 @@
       "default": "ttl",
       "go_type": "string",
       "env": "PBS_ACCOUNTS_CACHE_REFRESH",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "accounts.cache.serve_stale",
@@ -315,7 +365,8 @@
       "default": false,
       "go_type": "bool",
       "env": "PBS_ACCOUNTS_CACHE_SERVE_STALE",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "accounts.cache.ttl_seconds",
@@ -323,7 +374,8 @@
       "default": 3600,
       "go_type": "int",
       "env": "PBS_ACCOUNTS_CACHE_TTL_SECONDS",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "accounts.cache.type",
@@ -331,7 +383,8 @@
       "default": "lru",
       "go_type": "string",
       "env": "PBS_ACCOUNTS_CACHE_TYPE",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "accounts.cache_events.enabled",
@@ -339,7 +392,8 @@
       "default": false,
       "go_type": "bool",
       "env": "PBS_ACCOUNTS_CACHE_EVENTS_ENABLED",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "accounts.cache_events.endpoint",
@@ -347,7 +401,8 @@
       "default": "",
       "go_type": "string",
       "env": "PBS_ACCOUNTS_CACHE_EVENTS_ENDPOINT",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "accounts.filesystem.directorypath",
@@ -355,7 +410,8 @@
       "default": "./stored_requests/data/by_id",
       "go_type": "string",
       "env": "PBS_ACCOUNTS_FILESYSTEM_DIRECTORYPATH",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "accounts.filesystem.enabled",
@@ -363,7 +419,8 @@
       "default": false,
       "go_type": "bool",
       "env": "PBS_ACCOUNTS_FILESYSTEM_ENABLED",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "accounts.http.endpoint",
@@ -371,7 +428,8 @@
       "default": "",
       "go_type": "string",
       "env": "PBS_ACCOUNTS_HTTP_ENDPOINT",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "accounts.http.use_rfc3986_compliant_request_builder",
@@ -379,7 +437,8 @@
       "default": true,
       "go_type": "bool",
       "env": "PBS_ACCOUNTS_HTTP_USE_RFC3986_COMPLIANT_REQUEST_BUILDER",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "accounts.http_events.endpoint",
@@ -387,7 +446,8 @@
       "default": "",
       "go_type": "string",
       "env": "PBS_ACCOUNTS_HTTP_EVENTS_ENDPOINT",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "accounts.http_events.refresh_rate_seconds",
@@ -395,7 +455,8 @@
       "default": 0,
       "go_type": "int",
       "env": "PBS_ACCOUNTS_HTTP_EVENTS_REFRESH_RATE_SECONDS",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "accounts.http_events.timeout_ms",
@@ -403,7 +464,8 @@
       "default": 0,
       "go_type": "int",
       "env": "PBS_ACCOUNTS_HTTP_EVENTS_TIMEOUT_MS",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "accounts.in_memory_cache.size_bytes",
@@ -411,7 +473,8 @@
       "default": 0,
       "go_type": "int",
       "env": "PBS_ACCOUNTS_IN_MEMORY_CACHE_SIZE_BYTES",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "accounts.in_memory_cache.ttl_seconds",
@@ -419,7 +482,8 @@
       "default": 0,
       "go_type": "int",
       "env": "PBS_ACCOUNTS_IN_MEMORY_CACHE_TTL_SECONDS",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "accounts.in_memory_cache.type",
@@ -427,7 +491,8 @@
       "default": "none",
       "go_type": "string",
       "env": "PBS_ACCOUNTS_IN_MEMORY_CACHE_TYPE",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "accounts.v2_enabled",
@@ -435,7 +500,8 @@
       "default": false,
       "go_type": "bool",
       "env": "PBS_ACCOUNTS_V2_ENABLED",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "admin.enabled",
@@ -443,7 +509,8 @@
       "default": true,
       "go_type": "bool",
       "env": "PBS_ADMIN_ENABLED",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "admin_port",
@@ -451,7 +518,8 @@
       "default": 6060,
       "go_type": "int",
       "env": "PBS_ADMIN_PORT",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "amp_timeout_adjustment_ms",
@@ -459,7 +527,8 @@
       "default": 0,
       "go_type": "int",
       "env": "PBS_AMP_TIMEOUT_ADJUSTMENT_MS",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "analytics.agma.accounts",
@@ -467,7 +536,8 @@
       "default": [],
       "go_type": "[]config.AgmaAnalyticsAccount",
       "env": "PBS_ANALYTICS_AGMA_ACCOUNTS",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "analytics.agma.buffers.count",
@@ -475,7 +545,8 @@
       "default": 100,
       "go_type": "int",
       "env": "PBS_ANALYTICS_AGMA_BUFFERS_COUNT",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "analytics.agma.buffers.size",
@@ -483,7 +554,8 @@
       "default": "2MB",
       "go_type": "string",
       "env": "PBS_ANALYTICS_AGMA_BUFFERS_SIZE",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "analytics.agma.buffers.timeout",
@@ -491,7 +563,8 @@
       "default": "15m",
       "go_type": "string",
       "env": "PBS_ANALYTICS_AGMA_BUFFERS_TIMEOUT",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "analytics.agma.enabled",
@@ -499,7 +572,8 @@
       "default": false,
       "go_type": "bool",
       "env": "PBS_ANALYTICS_AGMA_ENABLED",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "analytics.agma.endpoint.gzip",
@@ -507,7 +581,8 @@
       "default": false,
       "go_type": "bool",
       "env": "PBS_ANALYTICS_AGMA_ENDPOINT_GZIP",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "analytics.agma.endpoint.timeout",
@@ -515,7 +590,8 @@
       "default": "2s",
       "go_type": "string",
       "env": "PBS_ANALYTICS_AGMA_ENDPOINT_TIMEOUT",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "analytics.agma.endpoint.url",
@@ -523,7 +599,8 @@
       "default": "https://go.pbs.agma-analytics.de/v1/prebid-server",
       "go_type": "string",
       "env": "PBS_ANALYTICS_AGMA_ENDPOINT_URL",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "analytics.file.filename",
@@ -531,7 +608,8 @@
       "default": "",
       "go_type": "string",
       "env": "PBS_ANALYTICS_FILE_FILENAME",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "analytics.pubstack.buffers.count",
@@ -539,7 +617,8 @@
       "default": 100,
       "go_type": "int",
       "env": "PBS_ANALYTICS_PUBSTACK_BUFFERS_COUNT",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "analytics.pubstack.buffers.size",
@@ -547,7 +626,8 @@
       "default": "2MB",
       "go_type": "string",
       "env": "PBS_ANALYTICS_PUBSTACK_BUFFERS_SIZE",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "analytics.pubstack.buffers.timeout",
@@ -555,7 +635,8 @@
       "default": "900s",
       "go_type": "string",
       "env": "PBS_ANALYTICS_PUBSTACK_BUFFERS_TIMEOUT",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "analytics.pubstack.configuration_refresh_delay",
@@ -563,7 +644,8 @@
       "default": "2h",
       "go_type": "string",
       "env": "PBS_ANALYTICS_PUBSTACK_CONFIGURATION_REFRESH_DELAY",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "analytics.pubstack.enabled",
@@ -571,7 +653,8 @@
       "default": false,
       "go_type": "bool",
       "env": "PBS_ANALYTICS_PUBSTACK_ENABLED",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "analytics.pubstack.endpoint",
@@ -579,7 +662,8 @@
       "default": "https://s2s.pbstck.com/v1",
       "go_type": "string",
       "env": "PBS_ANALYTICS_PUBSTACK_ENDPOINT",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "analytics.pubstack.scopeid",
@@ -587,7 +671,8 @@
       "default": "change-me",
       "go_type": "string",
       "env": "PBS_ANALYTICS_PUBSTACK_SCOPEID",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "auction_timeouts_ms.default",
@@ -595,7 +680,8 @@
       "default": 0,
       "go_type": "int",
       "env": "PBS_AUCTION_TIMEOUTS_MS_DEFAULT",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "auction_timeouts_ms.max",
@@ -603,7 +689,8 @@
       "default": 0,
       "go_type": "int",
       "env": "PBS_AUCTION_TIMEOUTS_MS_MAX",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "auto_gen_source_tid",
@@ -611,7 +698,8 @@
       "default": true,
       "go_type": "bool",
       "env": "PBS_AUTO_GEN_SOURCE_TID",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "blocked_apps",
@@ -621,7 +709,8 @@
       ],
       "go_type": "[]string",
       "env": "PBS_BLOCKED_APPS",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "cache.default_ttl_seconds.audio",
@@ -629,7 +718,8 @@
       "default": 0,
       "go_type": "int",
       "env": "PBS_CACHE_DEFAULT_TTL_SECONDS_AUDIO",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "cache.default_ttl_seconds.banner",
@@ -637,7 +727,8 @@
       "default": 0,
       "go_type": "int",
       "env": "PBS_CACHE_DEFAULT_TTL_SECONDS_BANNER",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "cache.default_ttl_seconds.native",
@@ -645,7 +736,8 @@
       "default": 0,
       "go_type": "int",
       "env": "PBS_CACHE_DEFAULT_TTL_SECONDS_NATIVE",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "cache.default_ttl_seconds.video",
@@ -653,7 +745,8 @@
       "default": 0,
       "go_type": "int",
       "env": "PBS_CACHE_DEFAULT_TTL_SECONDS_VIDEO",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "cache.expected_millis",
@@ -661,7 +754,8 @@
       "default": 10,
       "go_type": "int",
       "env": "PBS_CACHE_EXPECTED_MILLIS",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "cache.host",
@@ -669,7 +763,8 @@
       "default": "",
       "go_type": "string",
       "env": "PBS_CACHE_HOST",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "cache.query",
@@ -677,7 +772,8 @@
       "default": "",
       "go_type": "string",
       "env": "PBS_CACHE_QUERY",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "cache.scheme",
@@ -685,7 +781,8 @@
       "default": "",
       "go_type": "string",
       "env": "PBS_CACHE_SCHEME",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "category_mapping.filesystem.directorypath",
@@ -693,7 +790,8 @@
       "default": "./static/category-mapping",
       "go_type": "string",
       "env": "PBS_CATEGORY_MAPPING_FILESYSTEM_DIRECTORYPATH",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "category_mapping.filesystem.enabled",
@@ -701,7 +799,8 @@
       "default": true,
       "go_type": "bool",
       "env": "PBS_CATEGORY_MAPPING_FILESYSTEM_ENABLED",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "category_mapping.http.endpoint",
@@ -709,7 +808,8 @@
       "default": "",
       "go_type": "string",
       "env": "PBS_CATEGORY_MAPPING_HTTP_ENDPOINT",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "ccpa.enforce",
@@ -717,7 +817,8 @@
       "default": false,
       "go_type": "bool",
       "env": "PBS_CCPA_ENFORCE",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "certificates_file",
@@ -725,7 +826,8 @@
       "default": "",
       "go_type": "string",
       "env": "PBS_CERTIFICATES_FILE",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "compression.request.enable_gzip",
@@ -733,7 +835,8 @@
       "default": false,
       "go_type": "bool",
       "env": "PBS_COMPRESSION_REQUEST_ENABLE_GZIP",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "compression.response.enable_gzip",
@@ -741,7 +844,8 @@
       "default": false,
       "go_type": "bool",
       "env": "PBS_COMPRESSION_RESPONSE_ENABLE_GZIP",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "currency_converter.fetch_interval_seconds",
@@ -749,7 +853,8 @@
       "default": 1800,
       "go_type": "int",
       "env": "PBS_CURRENCY_CONVERTER_FETCH_INTERVAL_SECONDS",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "currency_converter.fetch_timeout_ms",
@@ -757,7 +862,8 @@
       "default": 60000,
       "go_type": "int",
       "env": "PBS_CURRENCY_CONVERTER_FETCH_TIMEOUT_MS",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "currency_converter.fetch_url",
@@ -765,7 +871,8 @@
       "default": "https://cdn.jsdelivr.net/gh/prebid/currency-file@1/latest.json",
       "go_type": "string",
       "env": "PBS_CURRENCY_CONVERTER_FETCH_URL",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "currency_converter.stale_rates_seconds",
@@ -773,7 +880,8 @@
       "default": 0,
       "go_type": "int",
       "env": "PBS_CURRENCY_CONVERTER_STALE_RATES_SECONDS",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "datacenter",
@@ -781,7 +889,8 @@
       "default": "",
       "go_type": "string",
       "env": "PBS_DATACENTER",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "debug.override_token",
@@ -789,7 +898,8 @@
       "default": "",
       "go_type": "string",
       "env": "PBS_DEBUG_OVERRIDE_TOKEN",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "debug.timeout_notification.fail_only",
@@ -797,7 +907,8 @@
       "default": false,
       "go_type": "bool",
       "env": "PBS_DEBUG_TIMEOUT_NOTIFICATION_FAIL_ONLY",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "debug.timeout_notification.log",
@@ -805,7 +916,8 @@
       "default": false,
       "go_type": "bool",
       "env": "PBS_DEBUG_TIMEOUT_NOTIFICATION_LOG",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "debug.timeout_notification.sampling_rate",
@@ -813,7 +925,8 @@
       "default": 0,
       "go_type": "float64",
       "env": "PBS_DEBUG_TIMEOUT_NOTIFICATION_SAMPLING_RATE",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "default_request.alias_info",
@@ -821,7 +934,8 @@
       "default": false,
       "go_type": "bool",
       "env": "PBS_DEFAULT_REQUEST_ALIAS_INFO",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "default_request.file.name",
@@ -829,7 +943,8 @@
       "default": "",
       "go_type": "string",
       "env": "PBS_DEFAULT_REQUEST_FILE_NAME",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "default_request.type",
@@ -837,7 +952,8 @@
       "default": "",
       "go_type": "string",
       "env": "PBS_DEFAULT_REQUEST_TYPE",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "event.timeout_ms",
@@ -845,7 +961,8 @@
       "default": 1000,
       "go_type": "int",
       "env": "PBS_EVENT_TIMEOUT_MS",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "experiment.adscert.inprocess.domain_check_interval_seconds",
@@ -853,7 +970,8 @@
       "default": 30,
       "go_type": "int",
       "env": "PBS_EXPERIMENT_ADSCERT_INPROCESS_DOMAIN_CHECK_INTERVAL_SECONDS",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "experiment.adscert.inprocess.domain_renewal_interval_seconds",
@@ -861,7 +979,8 @@
       "default": 30,
       "go_type": "int",
       "env": "PBS_EXPERIMENT_ADSCERT_INPROCESS_DOMAIN_RENEWAL_INTERVAL_SECONDS",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "experiment.adscert.inprocess.key",
@@ -869,7 +988,8 @@
       "default": "",
       "go_type": "string",
       "env": "PBS_EXPERIMENT_ADSCERT_INPROCESS_KEY",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "experiment.adscert.inprocess.origin",
@@ -877,7 +997,8 @@
       "default": "",
       "go_type": "string",
       "env": "PBS_EXPERIMENT_ADSCERT_INPROCESS_ORIGIN",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "experiment.adscert.mode",
@@ -885,7 +1006,8 @@
       "default": "off",
       "go_type": "string",
       "env": "PBS_EXPERIMENT_ADSCERT_MODE",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "experiment.adscert.remote.signing_timeout_ms",
@@ -893,7 +1015,8 @@
       "default": 5,
       "go_type": "int",
       "env": "PBS_EXPERIMENT_ADSCERT_REMOTE_SIGNING_TIMEOUT_MS",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "experiment.adscert.remote.url",
@@ -901,7 +1024,8 @@
       "default": "",
       "go_type": "string",
       "env": "PBS_EXPERIMENT_ADSCERT_REMOTE_URL",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "external_cache.host",
@@ -909,7 +1033,8 @@
       "default": "",
       "go_type": "string",
       "env": "PBS_EXTERNAL_CACHE_HOST",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "external_cache.path",
@@ -917,7 +1042,8 @@
       "default": "",
       "go_type": "string",
       "env": "PBS_EXTERNAL_CACHE_PATH",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "external_cache.scheme",
@@ -925,7 +1051,8 @@
       "default": "",
       "go_type": "string",
       "env": "PBS_EXTERNAL_CACHE_SCHEME",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "external_url",
@@ -933,7 +1060,8 @@
       "default": "http://localhost:8000",
       "go_type": "string",
       "env": "PBS_EXTERNAL_URL",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "garbage_collector_threshold",
@@ -941,7 +1069,8 @@
       "default": 0,
       "go_type": "int",
       "env": "PBS_GARBAGE_COLLECTOR_THRESHOLD",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "gdpr.amp_exception",
@@ -949,7 +1078,8 @@
       "default": false,
       "go_type": "bool",
       "env": "PBS_GDPR_AMP_EXCEPTION",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "gdpr.default_value",
@@ -957,7 +1087,13 @@
       "default": null,
       "go_type": "",
       "env": "PBS_GDPR_DEFAULT_VALUE",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": [
+        {
+          "env": "GDPR_DEFAULT_VALUE",
+          "verified": true
+        }
+      ]
     },
     {
       "key": "gdpr.eea_countries",
@@ -1010,7 +1146,8 @@
       ],
       "go_type": "[]string",
       "env": "PBS_GDPR_EEA_COUNTRIES",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "gdpr.enabled",
@@ -1018,7 +1155,8 @@
       "default": true,
       "go_type": "bool",
       "env": "PBS_GDPR_ENABLED",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "gdpr.host_vendor_id",
@@ -1026,7 +1164,8 @@
       "default": 0,
       "go_type": "int",
       "env": "PBS_GDPR_HOST_VENDOR_ID",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "gdpr.live_gvl_refresh_interval_seconds",
@@ -1034,7 +1173,8 @@
       "default": 86400,
       "go_type": "int",
       "env": "PBS_GDPR_LIVE_GVL_REFRESH_INTERVAL_SECONDS",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "gdpr.non_standard_publishers",
@@ -1044,7 +1184,8 @@
       ],
       "go_type": "[]string",
       "env": "PBS_GDPR_NON_STANDARD_PUBLISHERS",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "gdpr.tcf2.enabled",
@@ -1052,7 +1193,8 @@
       "default": true,
       "go_type": "bool",
       "env": "PBS_GDPR_TCF2_ENABLED",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "gdpr.tcf2.purpose1.enforce_algo",
@@ -1060,7 +1202,8 @@
       "default": "full",
       "go_type": "string",
       "env": "PBS_GDPR_TCF2_PURPOSE1_ENFORCE_ALGO",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "gdpr.tcf2.purpose1.enforce_purpose",
@@ -1068,7 +1211,8 @@
       "default": true,
       "go_type": "bool",
       "env": "PBS_GDPR_TCF2_PURPOSE1_ENFORCE_PURPOSE",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "gdpr.tcf2.purpose1.enforce_vendors",
@@ -1076,7 +1220,8 @@
       "default": true,
       "go_type": "bool",
       "env": "PBS_GDPR_TCF2_PURPOSE1_ENFORCE_VENDORS",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "gdpr.tcf2.purpose1.vendor_exceptions",
@@ -1084,7 +1229,8 @@
       "default": [],
       "go_type": "[]string",
       "env": "PBS_GDPR_TCF2_PURPOSE1_VENDOR_EXCEPTIONS",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "gdpr.tcf2.purpose10.enforce_algo",
@@ -1092,7 +1238,8 @@
       "default": "full",
       "go_type": "string",
       "env": "PBS_GDPR_TCF2_PURPOSE10_ENFORCE_ALGO",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "gdpr.tcf2.purpose10.enforce_purpose",
@@ -1100,7 +1247,8 @@
       "default": true,
       "go_type": "bool",
       "env": "PBS_GDPR_TCF2_PURPOSE10_ENFORCE_PURPOSE",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "gdpr.tcf2.purpose10.enforce_vendors",
@@ -1108,7 +1256,8 @@
       "default": true,
       "go_type": "bool",
       "env": "PBS_GDPR_TCF2_PURPOSE10_ENFORCE_VENDORS",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "gdpr.tcf2.purpose10.vendor_exceptions",
@@ -1116,7 +1265,8 @@
       "default": [],
       "go_type": "[]string",
       "env": "PBS_GDPR_TCF2_PURPOSE10_VENDOR_EXCEPTIONS",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "gdpr.tcf2.purpose2.enforce_algo",
@@ -1124,7 +1274,8 @@
       "default": "full",
       "go_type": "string",
       "env": "PBS_GDPR_TCF2_PURPOSE2_ENFORCE_ALGO",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "gdpr.tcf2.purpose2.enforce_purpose",
@@ -1132,7 +1283,8 @@
       "default": true,
       "go_type": "bool",
       "env": "PBS_GDPR_TCF2_PURPOSE2_ENFORCE_PURPOSE",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "gdpr.tcf2.purpose2.enforce_vendors",
@@ -1140,7 +1292,8 @@
       "default": true,
       "go_type": "bool",
       "env": "PBS_GDPR_TCF2_PURPOSE2_ENFORCE_VENDORS",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "gdpr.tcf2.purpose2.vendor_exceptions",
@@ -1148,7 +1301,8 @@
       "default": [],
       "go_type": "[]string",
       "env": "PBS_GDPR_TCF2_PURPOSE2_VENDOR_EXCEPTIONS",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "gdpr.tcf2.purpose3.enforce_algo",
@@ -1156,7 +1310,8 @@
       "default": "full",
       "go_type": "string",
       "env": "PBS_GDPR_TCF2_PURPOSE3_ENFORCE_ALGO",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "gdpr.tcf2.purpose3.enforce_purpose",
@@ -1164,7 +1319,8 @@
       "default": true,
       "go_type": "bool",
       "env": "PBS_GDPR_TCF2_PURPOSE3_ENFORCE_PURPOSE",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "gdpr.tcf2.purpose3.enforce_vendors",
@@ -1172,7 +1328,8 @@
       "default": true,
       "go_type": "bool",
       "env": "PBS_GDPR_TCF2_PURPOSE3_ENFORCE_VENDORS",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "gdpr.tcf2.purpose3.vendor_exceptions",
@@ -1180,7 +1337,8 @@
       "default": [],
       "go_type": "[]string",
       "env": "PBS_GDPR_TCF2_PURPOSE3_VENDOR_EXCEPTIONS",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "gdpr.tcf2.purpose4.enforce_algo",
@@ -1188,7 +1346,8 @@
       "default": "full",
       "go_type": "string",
       "env": "PBS_GDPR_TCF2_PURPOSE4_ENFORCE_ALGO",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "gdpr.tcf2.purpose4.enforce_purpose",
@@ -1196,7 +1355,8 @@
       "default": true,
       "go_type": "bool",
       "env": "PBS_GDPR_TCF2_PURPOSE4_ENFORCE_PURPOSE",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "gdpr.tcf2.purpose4.enforce_vendors",
@@ -1204,7 +1364,8 @@
       "default": true,
       "go_type": "bool",
       "env": "PBS_GDPR_TCF2_PURPOSE4_ENFORCE_VENDORS",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "gdpr.tcf2.purpose4.vendor_exceptions",
@@ -1212,7 +1373,8 @@
       "default": [],
       "go_type": "[]string",
       "env": "PBS_GDPR_TCF2_PURPOSE4_VENDOR_EXCEPTIONS",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "gdpr.tcf2.purpose5.enforce_algo",
@@ -1220,7 +1382,8 @@
       "default": "full",
       "go_type": "string",
       "env": "PBS_GDPR_TCF2_PURPOSE5_ENFORCE_ALGO",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "gdpr.tcf2.purpose5.enforce_purpose",
@@ -1228,7 +1391,8 @@
       "default": true,
       "go_type": "bool",
       "env": "PBS_GDPR_TCF2_PURPOSE5_ENFORCE_PURPOSE",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "gdpr.tcf2.purpose5.enforce_vendors",
@@ -1236,7 +1400,8 @@
       "default": true,
       "go_type": "bool",
       "env": "PBS_GDPR_TCF2_PURPOSE5_ENFORCE_VENDORS",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "gdpr.tcf2.purpose5.vendor_exceptions",
@@ -1244,7 +1409,8 @@
       "default": [],
       "go_type": "[]string",
       "env": "PBS_GDPR_TCF2_PURPOSE5_VENDOR_EXCEPTIONS",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "gdpr.tcf2.purpose6.enforce_algo",
@@ -1252,7 +1418,8 @@
       "default": "full",
       "go_type": "string",
       "env": "PBS_GDPR_TCF2_PURPOSE6_ENFORCE_ALGO",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "gdpr.tcf2.purpose6.enforce_purpose",
@@ -1260,7 +1427,8 @@
       "default": true,
       "go_type": "bool",
       "env": "PBS_GDPR_TCF2_PURPOSE6_ENFORCE_PURPOSE",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "gdpr.tcf2.purpose6.enforce_vendors",
@@ -1268,7 +1436,8 @@
       "default": true,
       "go_type": "bool",
       "env": "PBS_GDPR_TCF2_PURPOSE6_ENFORCE_VENDORS",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "gdpr.tcf2.purpose6.vendor_exceptions",
@@ -1276,7 +1445,8 @@
       "default": [],
       "go_type": "[]string",
       "env": "PBS_GDPR_TCF2_PURPOSE6_VENDOR_EXCEPTIONS",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "gdpr.tcf2.purpose7.enforce_algo",
@@ -1284,7 +1454,8 @@
       "default": "full",
       "go_type": "string",
       "env": "PBS_GDPR_TCF2_PURPOSE7_ENFORCE_ALGO",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "gdpr.tcf2.purpose7.enforce_purpose",
@@ -1292,7 +1463,8 @@
       "default": true,
       "go_type": "bool",
       "env": "PBS_GDPR_TCF2_PURPOSE7_ENFORCE_PURPOSE",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "gdpr.tcf2.purpose7.enforce_vendors",
@@ -1300,7 +1472,8 @@
       "default": true,
       "go_type": "bool",
       "env": "PBS_GDPR_TCF2_PURPOSE7_ENFORCE_VENDORS",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "gdpr.tcf2.purpose7.vendor_exceptions",
@@ -1308,7 +1481,8 @@
       "default": [],
       "go_type": "[]string",
       "env": "PBS_GDPR_TCF2_PURPOSE7_VENDOR_EXCEPTIONS",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "gdpr.tcf2.purpose8.enforce_algo",
@@ -1316,7 +1490,8 @@
       "default": "full",
       "go_type": "string",
       "env": "PBS_GDPR_TCF2_PURPOSE8_ENFORCE_ALGO",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "gdpr.tcf2.purpose8.enforce_purpose",
@@ -1324,7 +1499,8 @@
       "default": true,
       "go_type": "bool",
       "env": "PBS_GDPR_TCF2_PURPOSE8_ENFORCE_PURPOSE",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "gdpr.tcf2.purpose8.enforce_vendors",
@@ -1332,7 +1508,8 @@
       "default": true,
       "go_type": "bool",
       "env": "PBS_GDPR_TCF2_PURPOSE8_ENFORCE_VENDORS",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "gdpr.tcf2.purpose8.vendor_exceptions",
@@ -1340,7 +1517,8 @@
       "default": [],
       "go_type": "[]string",
       "env": "PBS_GDPR_TCF2_PURPOSE8_VENDOR_EXCEPTIONS",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "gdpr.tcf2.purpose9.enforce_algo",
@@ -1348,7 +1526,8 @@
       "default": "full",
       "go_type": "string",
       "env": "PBS_GDPR_TCF2_PURPOSE9_ENFORCE_ALGO",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "gdpr.tcf2.purpose9.enforce_purpose",
@@ -1356,7 +1535,8 @@
       "default": true,
       "go_type": "bool",
       "env": "PBS_GDPR_TCF2_PURPOSE9_ENFORCE_PURPOSE",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "gdpr.tcf2.purpose9.enforce_vendors",
@@ -1364,7 +1544,8 @@
       "default": true,
       "go_type": "bool",
       "env": "PBS_GDPR_TCF2_PURPOSE9_ENFORCE_VENDORS",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "gdpr.tcf2.purpose9.vendor_exceptions",
@@ -1372,7 +1553,8 @@
       "default": [],
       "go_type": "[]string",
       "env": "PBS_GDPR_TCF2_PURPOSE9_VENDOR_EXCEPTIONS",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "gdpr.tcf2.purpose_one_treatment.access_allowed",
@@ -1380,7 +1562,8 @@
       "default": true,
       "go_type": "bool",
       "env": "PBS_GDPR_TCF2_PURPOSE_ONE_TREATMENT_ACCESS_ALLOWED",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "gdpr.tcf2.purpose_one_treatment.enabled",
@@ -1388,7 +1571,8 @@
       "default": true,
       "go_type": "bool",
       "env": "PBS_GDPR_TCF2_PURPOSE_ONE_TREATMENT_ENABLED",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "gdpr.tcf2.special_feature1.enforce",
@@ -1396,7 +1580,8 @@
       "default": true,
       "go_type": "bool",
       "env": "PBS_GDPR_TCF2_SPECIAL_FEATURE1_ENFORCE",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "gdpr.tcf2.special_feature1.vendor_exceptions",
@@ -1404,7 +1589,8 @@
       "default": [],
       "go_type": "[]openrtb_ext.BidderName",
       "env": "PBS_GDPR_TCF2_SPECIAL_FEATURE1_VENDOR_EXCEPTIONS",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "gdpr.timeouts_ms.active_vendorlist_fetch",
@@ -1412,7 +1598,8 @@
       "default": 0,
       "go_type": "int",
       "env": "PBS_GDPR_TIMEOUTS_MS_ACTIVE_VENDORLIST_FETCH",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "gdpr.timeouts_ms.init_vendorlist_fetches",
@@ -1420,7 +1607,8 @@
       "default": 0,
       "go_type": "int",
       "env": "PBS_GDPR_TIMEOUTS_MS_INIT_VENDORLIST_FETCHES",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "generate_bid_id",
@@ -1428,7 +1616,8 @@
       "default": false,
       "go_type": "bool",
       "env": "PBS_GENERATE_BID_ID",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "generate_request_id",
@@ -1436,7 +1625,8 @@
       "default": false,
       "go_type": "bool",
       "env": "PBS_GENERATE_REQUEST_ID",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "hooks.enabled",
@@ -1444,7 +1634,8 @@
       "default": false,
       "go_type": "bool",
       "env": "PBS_HOOKS_ENABLED",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "host",
@@ -1452,7 +1643,8 @@
       "default": "",
       "go_type": "string",
       "env": "PBS_HOST",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "host_cookie.cookie_name",
@@ -1460,7 +1652,8 @@
       "default": "",
       "go_type": "string",
       "env": "PBS_HOST_COOKIE_COOKIE_NAME",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "host_cookie.domain",
@@ -1468,7 +1661,8 @@
       "default": "",
       "go_type": "string",
       "env": "PBS_HOST_COOKIE_DOMAIN",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "host_cookie.family",
@@ -1476,7 +1670,8 @@
       "default": "",
       "go_type": "string",
       "env": "PBS_HOST_COOKIE_FAMILY",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "host_cookie.max_cookie_size_bytes",
@@ -1484,7 +1679,8 @@
       "default": 0,
       "go_type": "int",
       "env": "PBS_HOST_COOKIE_MAX_COOKIE_SIZE_BYTES",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "host_cookie.opt_in_url",
@@ -1492,7 +1688,8 @@
       "default": "",
       "go_type": "string",
       "env": "PBS_HOST_COOKIE_OPT_IN_URL",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "host_cookie.opt_out_url",
@@ -1500,7 +1697,8 @@
       "default": "",
       "go_type": "string",
       "env": "PBS_HOST_COOKIE_OPT_OUT_URL",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "host_cookie.optout_cookie.name",
@@ -1508,7 +1706,8 @@
       "default": "",
       "go_type": "string",
       "env": "PBS_HOST_COOKIE_OPTOUT_COOKIE_NAME",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "host_cookie.ttl_days",
@@ -1516,7 +1715,8 @@
       "default": 90,
       "go_type": "int",
       "env": "PBS_HOST_COOKIE_TTL_DAYS",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "host_cookie.value",
@@ -1524,7 +1724,8 @@
       "default": "",
       "go_type": "string",
       "env": "PBS_HOST_COOKIE_VALUE",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "host_schain_node",
@@ -1532,7 +1733,8 @@
       "default": null,
       "go_type": "",
       "env": "PBS_HOST_SCHAIN_NODE",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "http_client.dialer.keep_alive_seconds",
@@ -1540,7 +1742,8 @@
       "default": 15,
       "go_type": "int",
       "env": "PBS_HTTP_CLIENT_DIALER_KEEP_ALIVE_SECONDS",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "http_client.dialer.timeout_seconds",
@@ -1548,7 +1751,8 @@
       "default": 30,
       "go_type": "int",
       "env": "PBS_HTTP_CLIENT_DIALER_TIMEOUT_SECONDS",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "http_client.expect_continue_timeout_seconds",
@@ -1556,7 +1760,8 @@
       "default": 1,
       "go_type": "int",
       "env": "PBS_HTTP_CLIENT_EXPECT_CONTINUE_TIMEOUT_SECONDS",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "http_client.idle_connection_timeout_seconds",
@@ -1564,7 +1769,8 @@
       "default": 60,
       "go_type": "int",
       "env": "PBS_HTTP_CLIENT_IDLE_CONNECTION_TIMEOUT_SECONDS",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "http_client.max_connections_per_host",
@@ -1572,7 +1778,8 @@
       "default": 0,
       "go_type": "int",
       "env": "PBS_HTTP_CLIENT_MAX_CONNECTIONS_PER_HOST",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "http_client.max_idle_connections",
@@ -1580,7 +1787,8 @@
       "default": 400,
       "go_type": "int",
       "env": "PBS_HTTP_CLIENT_MAX_IDLE_CONNECTIONS",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "http_client.max_idle_connections_per_host",
@@ -1588,7 +1796,8 @@
       "default": 10,
       "go_type": "int",
       "env": "PBS_HTTP_CLIENT_MAX_IDLE_CONNECTIONS_PER_HOST",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "http_client.throttle.enable_throttling",
@@ -1596,7 +1805,8 @@
       "default": false,
       "go_type": "bool",
       "env": "PBS_HTTP_CLIENT_THROTTLE_ENABLE_THROTTLING",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "http_client.throttle.long_queue_wait_threshold_ms",
@@ -1604,7 +1814,8 @@
       "default": 50,
       "go_type": "int",
       "env": "PBS_HTTP_CLIENT_THROTTLE_LONG_QUEUE_WAIT_THRESHOLD_MS",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "http_client.throttle.short_queue_wait_threshold_ms",
@@ -1612,7 +1823,8 @@
       "default": 10,
       "go_type": "int",
       "env": "PBS_HTTP_CLIENT_THROTTLE_SHORT_QUEUE_WAIT_THRESHOLD_MS",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "http_client.throttle.simulate_throttling_only",
@@ -1620,7 +1832,8 @@
       "default": false,
       "go_type": "bool",
       "env": "PBS_HTTP_CLIENT_THROTTLE_SIMULATE_THROTTLING_ONLY",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "http_client.throttle.throttle_window",
@@ -1628,7 +1841,8 @@
       "default": 1000,
       "go_type": "int",
       "env": "PBS_HTTP_CLIENT_THROTTLE_THROTTLE_WINDOW",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "http_client.tls_handshake_timeout_seconds",
@@ -1636,7 +1850,8 @@
       "default": 10,
       "go_type": "int",
       "env": "PBS_HTTP_CLIENT_TLS_HANDSHAKE_TIMEOUT_SECONDS",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "http_client_cache.dialer.keep_alive_seconds",
@@ -1644,7 +1859,8 @@
       "default": 15,
       "go_type": "int",
       "env": "PBS_HTTP_CLIENT_CACHE_DIALER_KEEP_ALIVE_SECONDS",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "http_client_cache.dialer.timeout_seconds",
@@ -1652,7 +1868,8 @@
       "default": 30,
       "go_type": "int",
       "env": "PBS_HTTP_CLIENT_CACHE_DIALER_TIMEOUT_SECONDS",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "http_client_cache.expect_continue_timeout_seconds",
@@ -1660,7 +1877,8 @@
       "default": 1,
       "go_type": "int",
       "env": "PBS_HTTP_CLIENT_CACHE_EXPECT_CONTINUE_TIMEOUT_SECONDS",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "http_client_cache.idle_connection_timeout_seconds",
@@ -1668,7 +1886,8 @@
       "default": 60,
       "go_type": "int",
       "env": "PBS_HTTP_CLIENT_CACHE_IDLE_CONNECTION_TIMEOUT_SECONDS",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "http_client_cache.max_connections_per_host",
@@ -1676,7 +1895,8 @@
       "default": 0,
       "go_type": "int",
       "env": "PBS_HTTP_CLIENT_CACHE_MAX_CONNECTIONS_PER_HOST",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "http_client_cache.max_idle_connections",
@@ -1684,7 +1904,8 @@
       "default": 10,
       "go_type": "int",
       "env": "PBS_HTTP_CLIENT_CACHE_MAX_IDLE_CONNECTIONS",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "http_client_cache.max_idle_connections_per_host",
@@ -1692,7 +1913,8 @@
       "default": 2,
       "go_type": "int",
       "env": "PBS_HTTP_CLIENT_CACHE_MAX_IDLE_CONNECTIONS_PER_HOST",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "http_client_cache.tls_handshake_timeout_seconds",
@@ -1700,7 +1922,8 @@
       "default": 10,
       "go_type": "int",
       "env": "PBS_HTTP_CLIENT_CACHE_TLS_HANDSHAKE_TIMEOUT_SECONDS",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "lmt.enforce",
@@ -1708,7 +1931,8 @@
       "default": true,
       "go_type": "bool",
       "env": "PBS_LMT_ENFORCE",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "max_request_size",
@@ -1716,7 +1940,8 @@
       "default": 262144,
       "go_type": "int",
       "env": "PBS_MAX_REQUEST_SIZE",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "metrics.disabled_metrics.account_adapter_details",
@@ -1724,7 +1949,8 @@
       "default": false,
       "go_type": "bool",
       "env": "PBS_METRICS_DISABLED_METRICS_ACCOUNT_ADAPTER_DETAILS",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "metrics.disabled_metrics.account_debug",
@@ -1732,7 +1958,8 @@
       "default": true,
       "go_type": "bool",
       "env": "PBS_METRICS_DISABLED_METRICS_ACCOUNT_DEBUG",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "metrics.disabled_metrics.account_stored_responses",
@@ -1740,7 +1967,8 @@
       "default": true,
       "go_type": "bool",
       "env": "PBS_METRICS_DISABLED_METRICS_ACCOUNT_STORED_RESPONSES",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "metrics.disabled_metrics.adapter_buyeruid_scrubbed",
@@ -1748,7 +1976,8 @@
       "default": true,
       "go_type": "bool",
       "env": "PBS_METRICS_DISABLED_METRICS_ADAPTER_BUYERUID_SCRUBBED",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "metrics.disabled_metrics.adapter_connections_dial_metrics",
@@ -1756,7 +1985,8 @@
       "default": true,
       "go_type": "bool",
       "env": "PBS_METRICS_DISABLED_METRICS_ADAPTER_CONNECTIONS_DIAL_METRICS",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "metrics.disabled_metrics.adapter_connections_metrics",
@@ -1764,7 +1994,8 @@
       "default": true,
       "go_type": "bool",
       "env": "PBS_METRICS_DISABLED_METRICS_ADAPTER_CONNECTIONS_METRICS",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "metrics.disabled_metrics.adapter_gdpr_request_blocked",
@@ -1772,7 +2003,8 @@
       "default": false,
       "go_type": "bool",
       "env": "PBS_METRICS_DISABLED_METRICS_ADAPTER_GDPR_REQUEST_BLOCKED",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "metrics.influxdb.align_timestamps",
@@ -1780,7 +2012,8 @@
       "default": false,
       "go_type": "bool",
       "env": "PBS_METRICS_INFLUXDB_ALIGN_TIMESTAMPS",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "metrics.influxdb.database",
@@ -1788,7 +2021,8 @@
       "default": "",
       "go_type": "string",
       "env": "PBS_METRICS_INFLUXDB_DATABASE",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "metrics.influxdb.host",
@@ -1796,7 +2030,8 @@
       "default": "",
       "go_type": "string",
       "env": "PBS_METRICS_INFLUXDB_HOST",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "metrics.influxdb.measurement",
@@ -1804,7 +2039,8 @@
       "default": "",
       "go_type": "string",
       "env": "PBS_METRICS_INFLUXDB_MEASUREMENT",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "metrics.influxdb.metric_send_interval",
@@ -1812,7 +2048,8 @@
       "default": 20,
       "go_type": "int",
       "env": "PBS_METRICS_INFLUXDB_METRIC_SEND_INTERVAL",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "metrics.influxdb.password",
@@ -1820,7 +2057,8 @@
       "default": "",
       "go_type": "string",
       "env": "PBS_METRICS_INFLUXDB_PASSWORD",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "metrics.influxdb.username",
@@ -1828,7 +2066,8 @@
       "default": "",
       "go_type": "string",
       "env": "PBS_METRICS_INFLUXDB_USERNAME",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "metrics.prometheus.namespace",
@@ -1836,7 +2075,8 @@
       "default": "",
       "go_type": "string",
       "env": "PBS_METRICS_PROMETHEUS_NAMESPACE",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "metrics.prometheus.port",
@@ -1844,7 +2084,8 @@
       "default": 0,
       "go_type": "int",
       "env": "PBS_METRICS_PROMETHEUS_PORT",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "metrics.prometheus.subsystem",
@@ -1852,7 +2093,8 @@
       "default": "",
       "go_type": "string",
       "env": "PBS_METRICS_PROMETHEUS_SUBSYSTEM",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "metrics.prometheus.timeout_ms",
@@ -1860,7 +2102,8 @@
       "default": 10000,
       "go_type": "int",
       "env": "PBS_METRICS_PROMETHEUS_TIMEOUT_MS",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "port",
@@ -1868,7 +2111,8 @@
       "default": 8000,
       "go_type": "int",
       "env": "PBS_PORT",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "price_floors.enabled",
@@ -1876,7 +2120,8 @@
       "default": false,
       "go_type": "bool",
       "env": "PBS_PRICE_FLOORS_ENABLED",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "price_floors.fetcher.cache_size_mb",
@@ -1884,7 +2129,8 @@
       "default": 64,
       "go_type": "int",
       "env": "PBS_PRICE_FLOORS_FETCHER_CACHE_SIZE_MB",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "price_floors.fetcher.capacity",
@@ -1892,7 +2138,8 @@
       "default": 20000,
       "go_type": "int",
       "env": "PBS_PRICE_FLOORS_FETCHER_CAPACITY",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "price_floors.fetcher.http_client.dialer.keep_alive_seconds",
@@ -1900,7 +2147,8 @@
       "default": 15,
       "go_type": "int",
       "env": "PBS_PRICE_FLOORS_FETCHER_HTTP_CLIENT_DIALER_KEEP_ALIVE_SECONDS",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "price_floors.fetcher.http_client.dialer.timeout_seconds",
@@ -1908,7 +2156,8 @@
       "default": 30,
       "go_type": "int",
       "env": "PBS_PRICE_FLOORS_FETCHER_HTTP_CLIENT_DIALER_TIMEOUT_SECONDS",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "price_floors.fetcher.http_client.expect_continue_timeout_seconds",
@@ -1916,7 +2165,8 @@
       "default": 1,
       "go_type": "int",
       "env": "PBS_PRICE_FLOORS_FETCHER_HTTP_CLIENT_EXPECT_CONTINUE_TIMEOUT_SECONDS",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "price_floors.fetcher.http_client.idle_connection_timeout_seconds",
@@ -1924,7 +2174,8 @@
       "default": 60,
       "go_type": "int",
       "env": "PBS_PRICE_FLOORS_FETCHER_HTTP_CLIENT_IDLE_CONNECTION_TIMEOUT_SECONDS",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "price_floors.fetcher.http_client.max_connections_per_host",
@@ -1932,7 +2183,8 @@
       "default": 0,
       "go_type": "int",
       "env": "PBS_PRICE_FLOORS_FETCHER_HTTP_CLIENT_MAX_CONNECTIONS_PER_HOST",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "price_floors.fetcher.http_client.max_idle_connections",
@@ -1940,7 +2192,8 @@
       "default": 40,
       "go_type": "int",
       "env": "PBS_PRICE_FLOORS_FETCHER_HTTP_CLIENT_MAX_IDLE_CONNECTIONS",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "price_floors.fetcher.http_client.max_idle_connections_per_host",
@@ -1948,7 +2201,8 @@
       "default": 2,
       "go_type": "int",
       "env": "PBS_PRICE_FLOORS_FETCHER_HTTP_CLIENT_MAX_IDLE_CONNECTIONS_PER_HOST",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "price_floors.fetcher.http_client.tls_handshake_timeout_seconds",
@@ -1956,7 +2210,8 @@
       "default": 10,
       "go_type": "int",
       "env": "PBS_PRICE_FLOORS_FETCHER_HTTP_CLIENT_TLS_HANDSHAKE_TIMEOUT_SECONDS",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "price_floors.fetcher.max_retries",
@@ -1964,7 +2219,8 @@
       "default": 10,
       "go_type": "int",
       "env": "PBS_PRICE_FLOORS_FETCHER_MAX_RETRIES",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "price_floors.fetcher.worker",
@@ -1972,7 +2228,8 @@
       "default": 20,
       "go_type": "int",
       "env": "PBS_PRICE_FLOORS_FETCHER_WORKER",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "recaptcha_secret",
@@ -1980,7 +2237,8 @@
       "default": "",
       "go_type": "string",
       "env": "PBS_RECAPTCHA_SECRET",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "request_timeout_headers.request_time_in_queue",
@@ -1988,7 +2246,8 @@
       "default": "",
       "go_type": "string",
       "env": "PBS_REQUEST_TIMEOUT_HEADERS_REQUEST_TIME_IN_QUEUE",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "request_timeout_headers.request_timeout_in_queue",
@@ -1996,7 +2255,8 @@
       "default": "",
       "go_type": "string",
       "env": "PBS_REQUEST_TIMEOUT_HEADERS_REQUEST_TIMEOUT_IN_QUEUE",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "request_validation.ipv4_private_networks",
@@ -2010,7 +2270,8 @@
       ],
       "go_type": "[]string",
       "env": "PBS_REQUEST_VALIDATION_IPV4_PRIVATE_NETWORKS",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "request_validation.ipv6_private_networks",
@@ -2024,7 +2285,8 @@
       ],
       "go_type": "[]string",
       "env": "PBS_REQUEST_VALIDATION_IPV6_PRIVATE_NETWORKS",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "status_response",
@@ -2032,7 +2294,8 @@
       "default": "",
       "go_type": "string",
       "env": "PBS_STATUS_RESPONSE",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "stored_requests.cache_events_api",
@@ -2040,7 +2303,8 @@
       "default": false,
       "go_type": "bool",
       "env": "PBS_STORED_REQUESTS_CACHE_EVENTS_API",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "stored_requests.database.connection.dbname",
@@ -2048,7 +2312,8 @@
       "default": "",
       "go_type": "string",
       "env": "PBS_STORED_REQUESTS_DATABASE_CONNECTION_DBNAME",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "stored_requests.database.connection.driver",
@@ -2056,7 +2321,8 @@
       "default": "",
       "go_type": "string",
       "env": "PBS_STORED_REQUESTS_DATABASE_CONNECTION_DRIVER",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "stored_requests.database.connection.host",
@@ -2064,7 +2330,8 @@
       "default": "",
       "go_type": "string",
       "env": "PBS_STORED_REQUESTS_DATABASE_CONNECTION_HOST",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "stored_requests.database.connection.password",
@@ -2072,7 +2339,8 @@
       "default": "",
       "go_type": "string",
       "env": "PBS_STORED_REQUESTS_DATABASE_CONNECTION_PASSWORD",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "stored_requests.database.connection.port",
@@ -2080,7 +2348,8 @@
       "default": 0,
       "go_type": "int",
       "env": "PBS_STORED_REQUESTS_DATABASE_CONNECTION_PORT",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "stored_requests.database.connection.query_string",
@@ -2088,7 +2357,8 @@
       "default": "",
       "go_type": "string",
       "env": "PBS_STORED_REQUESTS_DATABASE_CONNECTION_QUERY_STRING",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "stored_requests.database.connection.tls.client_cert",
@@ -2096,7 +2366,8 @@
       "default": "",
       "go_type": "string",
       "env": "PBS_STORED_REQUESTS_DATABASE_CONNECTION_TLS_CLIENT_CERT",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "stored_requests.database.connection.tls.client_key",
@@ -2104,7 +2375,8 @@
       "default": "",
       "go_type": "string",
       "env": "PBS_STORED_REQUESTS_DATABASE_CONNECTION_TLS_CLIENT_KEY",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "stored_requests.database.connection.tls.root_cert",
@@ -2112,7 +2384,8 @@
       "default": "",
       "go_type": "string",
       "env": "PBS_STORED_REQUESTS_DATABASE_CONNECTION_TLS_ROOT_CERT",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "stored_requests.database.connection.user",
@@ -2120,7 +2393,8 @@
       "default": "",
       "go_type": "string",
       "env": "PBS_STORED_REQUESTS_DATABASE_CONNECTION_USER",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "stored_requests.database.fetcher.amp_query",
@@ -2128,7 +2402,8 @@
       "default": "",
       "go_type": "string",
       "env": "PBS_STORED_REQUESTS_DATABASE_FETCHER_AMP_QUERY",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "stored_requests.database.fetcher.query",
@@ -2136,7 +2411,8 @@
       "default": "",
       "go_type": "string",
       "env": "PBS_STORED_REQUESTS_DATABASE_FETCHER_QUERY",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "stored_requests.database.initialize_caches.amp_query",
@@ -2144,7 +2420,8 @@
       "default": "",
       "go_type": "string",
       "env": "PBS_STORED_REQUESTS_DATABASE_INITIALIZE_CACHES_AMP_QUERY",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "stored_requests.database.initialize_caches.query",
@@ -2152,7 +2429,8 @@
       "default": "",
       "go_type": "string",
       "env": "PBS_STORED_REQUESTS_DATABASE_INITIALIZE_CACHES_QUERY",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "stored_requests.database.initialize_caches.timeout_ms",
@@ -2160,7 +2438,8 @@
       "default": 0,
       "go_type": "int",
       "env": "PBS_STORED_REQUESTS_DATABASE_INITIALIZE_CACHES_TIMEOUT_MS",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "stored_requests.database.poll_for_updates.amp_query",
@@ -2168,7 +2447,8 @@
       "default": "",
       "go_type": "string",
       "env": "PBS_STORED_REQUESTS_DATABASE_POLL_FOR_UPDATES_AMP_QUERY",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "stored_requests.database.poll_for_updates.query",
@@ -2176,7 +2456,8 @@
       "default": "",
       "go_type": "string",
       "env": "PBS_STORED_REQUESTS_DATABASE_POLL_FOR_UPDATES_QUERY",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "stored_requests.database.poll_for_updates.refresh_rate_seconds",
@@ -2184,7 +2465,8 @@
       "default": 0,
       "go_type": "int",
       "env": "PBS_STORED_REQUESTS_DATABASE_POLL_FOR_UPDATES_REFRESH_RATE_SECONDS",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "stored_requests.database.poll_for_updates.timeout_ms",
@@ -2192,7 +2474,8 @@
       "default": 0,
       "go_type": "int",
       "env": "PBS_STORED_REQUESTS_DATABASE_POLL_FOR_UPDATES_TIMEOUT_MS",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "stored_requests.directorypath",
@@ -2200,7 +2483,8 @@
       "default": "./stored_requests/data/by_id",
       "go_type": "string",
       "env": "PBS_STORED_REQUESTS_DIRECTORYPATH",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "stored_requests.filesystem.directorypath",
@@ -2208,7 +2492,8 @@
       "default": "./stored_requests/data/by_id",
       "go_type": "string",
       "env": "PBS_STORED_REQUESTS_FILESYSTEM_DIRECTORYPATH",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "stored_requests.filesystem.enabled",
@@ -2216,7 +2501,8 @@
       "default": false,
       "go_type": "bool",
       "env": "PBS_STORED_REQUESTS_FILESYSTEM_ENABLED",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "stored_requests.http.amp_endpoint",
@@ -2224,7 +2510,8 @@
       "default": "",
       "go_type": "string",
       "env": "PBS_STORED_REQUESTS_HTTP_AMP_ENDPOINT",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "stored_requests.http.endpoint",
@@ -2232,7 +2519,8 @@
       "default": "",
       "go_type": "string",
       "env": "PBS_STORED_REQUESTS_HTTP_ENDPOINT",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "stored_requests.http.use_rfc3986_compliant_request_builder",
@@ -2240,7 +2528,8 @@
       "default": true,
       "go_type": "bool",
       "env": "PBS_STORED_REQUESTS_HTTP_USE_RFC3986_COMPLIANT_REQUEST_BUILDER",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "stored_requests.http_events.amp_endpoint",
@@ -2248,7 +2537,8 @@
       "default": "",
       "go_type": "string",
       "env": "PBS_STORED_REQUESTS_HTTP_EVENTS_AMP_ENDPOINT",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "stored_requests.http_events.endpoint",
@@ -2256,7 +2546,8 @@
       "default": "",
       "go_type": "string",
       "env": "PBS_STORED_REQUESTS_HTTP_EVENTS_ENDPOINT",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "stored_requests.http_events.refresh_rate_seconds",
@@ -2264,7 +2555,8 @@
       "default": 0,
       "go_type": "int",
       "env": "PBS_STORED_REQUESTS_HTTP_EVENTS_REFRESH_RATE_SECONDS",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "stored_requests.http_events.timeout_ms",
@@ -2272,7 +2564,8 @@
       "default": 0,
       "go_type": "int",
       "env": "PBS_STORED_REQUESTS_HTTP_EVENTS_TIMEOUT_MS",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "stored_requests.in_memory_cache.imp_cache_size_bytes",
@@ -2280,7 +2573,8 @@
       "default": 0,
       "go_type": "int",
       "env": "PBS_STORED_REQUESTS_IN_MEMORY_CACHE_IMP_CACHE_SIZE_BYTES",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "stored_requests.in_memory_cache.request_cache_size_bytes",
@@ -2288,7 +2582,8 @@
       "default": 0,
       "go_type": "int",
       "env": "PBS_STORED_REQUESTS_IN_MEMORY_CACHE_REQUEST_CACHE_SIZE_BYTES",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "stored_requests.in_memory_cache.resp_cache_size_bytes",
@@ -2296,7 +2591,8 @@
       "default": 0,
       "go_type": "int",
       "env": "PBS_STORED_REQUESTS_IN_MEMORY_CACHE_RESP_CACHE_SIZE_BYTES",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "stored_requests.in_memory_cache.ttl_seconds",
@@ -2304,7 +2600,8 @@
       "default": 0,
       "go_type": "int",
       "env": "PBS_STORED_REQUESTS_IN_MEMORY_CACHE_TTL_SECONDS",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "stored_requests.in_memory_cache.type",
@@ -2312,7 +2609,8 @@
       "default": "none",
       "go_type": "string",
       "env": "PBS_STORED_REQUESTS_IN_MEMORY_CACHE_TYPE",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "stored_requests_timeout_ms",
@@ -2320,7 +2618,8 @@
       "default": 50,
       "go_type": "int",
       "env": "PBS_STORED_REQUESTS_TIMEOUT_MS",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "stored_responses.cache_events.enabled",
@@ -2328,7 +2627,8 @@
       "default": false,
       "go_type": "bool",
       "env": "PBS_STORED_RESPONSES_CACHE_EVENTS_ENABLED",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "stored_responses.cache_events.endpoint",
@@ -2336,7 +2636,8 @@
       "default": "",
       "go_type": "string",
       "env": "PBS_STORED_RESPONSES_CACHE_EVENTS_ENDPOINT",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "stored_responses.database.connection.dbname",
@@ -2344,7 +2645,8 @@
       "default": "",
       "go_type": "string",
       "env": "PBS_STORED_RESPONSES_DATABASE_CONNECTION_DBNAME",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "stored_responses.database.connection.driver",
@@ -2352,7 +2654,8 @@
       "default": "",
       "go_type": "string",
       "env": "PBS_STORED_RESPONSES_DATABASE_CONNECTION_DRIVER",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "stored_responses.database.connection.host",
@@ -2360,7 +2663,8 @@
       "default": "",
       "go_type": "string",
       "env": "PBS_STORED_RESPONSES_DATABASE_CONNECTION_HOST",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "stored_responses.database.connection.password",
@@ -2368,7 +2672,8 @@
       "default": "",
       "go_type": "string",
       "env": "PBS_STORED_RESPONSES_DATABASE_CONNECTION_PASSWORD",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "stored_responses.database.connection.port",
@@ -2376,7 +2681,8 @@
       "default": 0,
       "go_type": "int",
       "env": "PBS_STORED_RESPONSES_DATABASE_CONNECTION_PORT",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "stored_responses.database.connection.query_string",
@@ -2384,7 +2690,8 @@
       "default": "",
       "go_type": "string",
       "env": "PBS_STORED_RESPONSES_DATABASE_CONNECTION_QUERY_STRING",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "stored_responses.database.connection.tls.client_cert",
@@ -2392,7 +2699,8 @@
       "default": "",
       "go_type": "string",
       "env": "PBS_STORED_RESPONSES_DATABASE_CONNECTION_TLS_CLIENT_CERT",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "stored_responses.database.connection.tls.client_key",
@@ -2400,7 +2708,8 @@
       "default": "",
       "go_type": "string",
       "env": "PBS_STORED_RESPONSES_DATABASE_CONNECTION_TLS_CLIENT_KEY",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "stored_responses.database.connection.tls.root_cert",
@@ -2408,7 +2717,8 @@
       "default": "",
       "go_type": "string",
       "env": "PBS_STORED_RESPONSES_DATABASE_CONNECTION_TLS_ROOT_CERT",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "stored_responses.database.connection.user",
@@ -2416,7 +2726,8 @@
       "default": "",
       "go_type": "string",
       "env": "PBS_STORED_RESPONSES_DATABASE_CONNECTION_USER",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "stored_responses.database.fetcher.amp_query",
@@ -2424,7 +2735,8 @@
       "default": "",
       "go_type": "string",
       "env": "PBS_STORED_RESPONSES_DATABASE_FETCHER_AMP_QUERY",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "stored_responses.database.fetcher.query",
@@ -2432,7 +2744,8 @@
       "default": "",
       "go_type": "string",
       "env": "PBS_STORED_RESPONSES_DATABASE_FETCHER_QUERY",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "stored_responses.database.initialize_caches.amp_query",
@@ -2440,7 +2753,8 @@
       "default": "",
       "go_type": "string",
       "env": "PBS_STORED_RESPONSES_DATABASE_INITIALIZE_CACHES_AMP_QUERY",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "stored_responses.database.initialize_caches.query",
@@ -2448,7 +2762,8 @@
       "default": "",
       "go_type": "string",
       "env": "PBS_STORED_RESPONSES_DATABASE_INITIALIZE_CACHES_QUERY",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "stored_responses.database.initialize_caches.timeout_ms",
@@ -2456,7 +2771,8 @@
       "default": 0,
       "go_type": "int",
       "env": "PBS_STORED_RESPONSES_DATABASE_INITIALIZE_CACHES_TIMEOUT_MS",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "stored_responses.database.poll_for_updates.amp_query",
@@ -2464,7 +2780,8 @@
       "default": "",
       "go_type": "string",
       "env": "PBS_STORED_RESPONSES_DATABASE_POLL_FOR_UPDATES_AMP_QUERY",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "stored_responses.database.poll_for_updates.query",
@@ -2472,7 +2789,8 @@
       "default": "",
       "go_type": "string",
       "env": "PBS_STORED_RESPONSES_DATABASE_POLL_FOR_UPDATES_QUERY",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "stored_responses.database.poll_for_updates.refresh_rate_seconds",
@@ -2480,7 +2798,8 @@
       "default": 0,
       "go_type": "int",
       "env": "PBS_STORED_RESPONSES_DATABASE_POLL_FOR_UPDATES_REFRESH_RATE_SECONDS",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "stored_responses.database.poll_for_updates.timeout_ms",
@@ -2488,7 +2807,8 @@
       "default": 0,
       "go_type": "int",
       "env": "PBS_STORED_RESPONSES_DATABASE_POLL_FOR_UPDATES_TIMEOUT_MS",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "stored_responses.filesystem.directorypath",
@@ -2496,7 +2816,8 @@
       "default": "",
       "go_type": "string",
       "env": "PBS_STORED_RESPONSES_FILESYSTEM_DIRECTORYPATH",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "stored_responses.filesystem.enabled",
@@ -2504,7 +2825,8 @@
       "default": false,
       "go_type": "bool",
       "env": "PBS_STORED_RESPONSES_FILESYSTEM_ENABLED",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "stored_responses.http.endpoint",
@@ -2512,7 +2834,8 @@
       "default": "",
       "go_type": "string",
       "env": "PBS_STORED_RESPONSES_HTTP_ENDPOINT",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "stored_responses.http_events.endpoint",
@@ -2520,7 +2843,8 @@
       "default": "",
       "go_type": "string",
       "env": "PBS_STORED_RESPONSES_HTTP_EVENTS_ENDPOINT",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "stored_responses.http_events.refresh_rate_seconds",
@@ -2528,7 +2852,8 @@
       "default": 0,
       "go_type": "int",
       "env": "PBS_STORED_RESPONSES_HTTP_EVENTS_REFRESH_RATE_SECONDS",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "stored_responses.http_events.timeout_ms",
@@ -2536,7 +2861,8 @@
       "default": 0,
       "go_type": "int",
       "env": "PBS_STORED_RESPONSES_HTTP_EVENTS_TIMEOUT_MS",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "stored_responses.in_memory_cache.imp_cache_size_bytes",
@@ -2544,7 +2870,8 @@
       "default": 0,
       "go_type": "int",
       "env": "PBS_STORED_RESPONSES_IN_MEMORY_CACHE_IMP_CACHE_SIZE_BYTES",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "stored_responses.in_memory_cache.request_cache_size_bytes",
@@ -2552,7 +2879,8 @@
       "default": 0,
       "go_type": "int",
       "env": "PBS_STORED_RESPONSES_IN_MEMORY_CACHE_REQUEST_CACHE_SIZE_BYTES",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "stored_responses.in_memory_cache.resp_cache_size_bytes",
@@ -2560,7 +2888,8 @@
       "default": 0,
       "go_type": "int",
       "env": "PBS_STORED_RESPONSES_IN_MEMORY_CACHE_RESP_CACHE_SIZE_BYTES",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "stored_responses.in_memory_cache.ttl_seconds",
@@ -2568,7 +2897,8 @@
       "default": 0,
       "go_type": "int",
       "env": "PBS_STORED_RESPONSES_IN_MEMORY_CACHE_TTL_SECONDS",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "stored_responses.in_memory_cache.type",
@@ -2576,7 +2906,8 @@
       "default": "none",
       "go_type": "string",
       "env": "PBS_STORED_RESPONSES_IN_MEMORY_CACHE_TYPE",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "stored_video_req.cache_events.enabled",
@@ -2584,7 +2915,8 @@
       "default": false,
       "go_type": "bool",
       "env": "PBS_STORED_VIDEO_REQ_CACHE_EVENTS_ENABLED",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "stored_video_req.cache_events.endpoint",
@@ -2592,7 +2924,8 @@
       "default": "",
       "go_type": "string",
       "env": "PBS_STORED_VIDEO_REQ_CACHE_EVENTS_ENDPOINT",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "stored_video_req.database.connection.dbname",
@@ -2600,7 +2933,8 @@
       "default": "",
       "go_type": "string",
       "env": "PBS_STORED_VIDEO_REQ_DATABASE_CONNECTION_DBNAME",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "stored_video_req.database.connection.driver",
@@ -2608,7 +2942,8 @@
       "default": "",
       "go_type": "string",
       "env": "PBS_STORED_VIDEO_REQ_DATABASE_CONNECTION_DRIVER",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "stored_video_req.database.connection.host",
@@ -2616,7 +2951,8 @@
       "default": "",
       "go_type": "string",
       "env": "PBS_STORED_VIDEO_REQ_DATABASE_CONNECTION_HOST",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "stored_video_req.database.connection.password",
@@ -2624,7 +2960,8 @@
       "default": "",
       "go_type": "string",
       "env": "PBS_STORED_VIDEO_REQ_DATABASE_CONNECTION_PASSWORD",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "stored_video_req.database.connection.port",
@@ -2632,7 +2969,8 @@
       "default": 0,
       "go_type": "int",
       "env": "PBS_STORED_VIDEO_REQ_DATABASE_CONNECTION_PORT",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "stored_video_req.database.connection.query_string",
@@ -2640,7 +2978,8 @@
       "default": "",
       "go_type": "string",
       "env": "PBS_STORED_VIDEO_REQ_DATABASE_CONNECTION_QUERY_STRING",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "stored_video_req.database.connection.tls.client_cert",
@@ -2648,7 +2987,8 @@
       "default": "",
       "go_type": "string",
       "env": "PBS_STORED_VIDEO_REQ_DATABASE_CONNECTION_TLS_CLIENT_CERT",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "stored_video_req.database.connection.tls.client_key",
@@ -2656,7 +2996,8 @@
       "default": "",
       "go_type": "string",
       "env": "PBS_STORED_VIDEO_REQ_DATABASE_CONNECTION_TLS_CLIENT_KEY",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "stored_video_req.database.connection.tls.root_cert",
@@ -2664,7 +3005,8 @@
       "default": "",
       "go_type": "string",
       "env": "PBS_STORED_VIDEO_REQ_DATABASE_CONNECTION_TLS_ROOT_CERT",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "stored_video_req.database.connection.user",
@@ -2672,7 +3014,8 @@
       "default": "",
       "go_type": "string",
       "env": "PBS_STORED_VIDEO_REQ_DATABASE_CONNECTION_USER",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "stored_video_req.database.fetcher.amp_query",
@@ -2680,7 +3023,8 @@
       "default": "",
       "go_type": "string",
       "env": "PBS_STORED_VIDEO_REQ_DATABASE_FETCHER_AMP_QUERY",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "stored_video_req.database.fetcher.query",
@@ -2688,7 +3032,8 @@
       "default": "",
       "go_type": "string",
       "env": "PBS_STORED_VIDEO_REQ_DATABASE_FETCHER_QUERY",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "stored_video_req.database.initialize_caches.amp_query",
@@ -2696,7 +3041,8 @@
       "default": "",
       "go_type": "string",
       "env": "PBS_STORED_VIDEO_REQ_DATABASE_INITIALIZE_CACHES_AMP_QUERY",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "stored_video_req.database.initialize_caches.query",
@@ -2704,7 +3050,8 @@
       "default": "",
       "go_type": "string",
       "env": "PBS_STORED_VIDEO_REQ_DATABASE_INITIALIZE_CACHES_QUERY",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "stored_video_req.database.initialize_caches.timeout_ms",
@@ -2712,7 +3059,8 @@
       "default": 0,
       "go_type": "int",
       "env": "PBS_STORED_VIDEO_REQ_DATABASE_INITIALIZE_CACHES_TIMEOUT_MS",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "stored_video_req.database.poll_for_updates.amp_query",
@@ -2720,7 +3068,8 @@
       "default": "",
       "go_type": "string",
       "env": "PBS_STORED_VIDEO_REQ_DATABASE_POLL_FOR_UPDATES_AMP_QUERY",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "stored_video_req.database.poll_for_updates.query",
@@ -2728,7 +3077,8 @@
       "default": "",
       "go_type": "string",
       "env": "PBS_STORED_VIDEO_REQ_DATABASE_POLL_FOR_UPDATES_QUERY",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "stored_video_req.database.poll_for_updates.refresh_rate_seconds",
@@ -2736,7 +3086,8 @@
       "default": 0,
       "go_type": "int",
       "env": "PBS_STORED_VIDEO_REQ_DATABASE_POLL_FOR_UPDATES_REFRESH_RATE_SECONDS",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "stored_video_req.database.poll_for_updates.timeout_ms",
@@ -2744,7 +3095,8 @@
       "default": 0,
       "go_type": "int",
       "env": "PBS_STORED_VIDEO_REQ_DATABASE_POLL_FOR_UPDATES_TIMEOUT_MS",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "stored_video_req.filesystem.directorypath",
@@ -2752,7 +3104,8 @@
       "default": "",
       "go_type": "string",
       "env": "PBS_STORED_VIDEO_REQ_FILESYSTEM_DIRECTORYPATH",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "stored_video_req.filesystem.enabled",
@@ -2760,7 +3113,8 @@
       "default": false,
       "go_type": "bool",
       "env": "PBS_STORED_VIDEO_REQ_FILESYSTEM_ENABLED",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "stored_video_req.http.endpoint",
@@ -2768,7 +3122,8 @@
       "default": "",
       "go_type": "string",
       "env": "PBS_STORED_VIDEO_REQ_HTTP_ENDPOINT",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "stored_video_req.http_events.endpoint",
@@ -2776,7 +3131,8 @@
       "default": "",
       "go_type": "string",
       "env": "PBS_STORED_VIDEO_REQ_HTTP_EVENTS_ENDPOINT",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "stored_video_req.http_events.refresh_rate_seconds",
@@ -2784,7 +3140,8 @@
       "default": 0,
       "go_type": "int",
       "env": "PBS_STORED_VIDEO_REQ_HTTP_EVENTS_REFRESH_RATE_SECONDS",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "stored_video_req.http_events.timeout_ms",
@@ -2792,7 +3149,8 @@
       "default": 0,
       "go_type": "int",
       "env": "PBS_STORED_VIDEO_REQ_HTTP_EVENTS_TIMEOUT_MS",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "stored_video_req.in_memory_cache.imp_cache_size_bytes",
@@ -2800,7 +3158,8 @@
       "default": 0,
       "go_type": "int",
       "env": "PBS_STORED_VIDEO_REQ_IN_MEMORY_CACHE_IMP_CACHE_SIZE_BYTES",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "stored_video_req.in_memory_cache.request_cache_size_bytes",
@@ -2808,7 +3167,8 @@
       "default": 0,
       "go_type": "int",
       "env": "PBS_STORED_VIDEO_REQ_IN_MEMORY_CACHE_REQUEST_CACHE_SIZE_BYTES",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "stored_video_req.in_memory_cache.resp_cache_size_bytes",
@@ -2816,7 +3176,8 @@
       "default": 0,
       "go_type": "int",
       "env": "PBS_STORED_VIDEO_REQ_IN_MEMORY_CACHE_RESP_CACHE_SIZE_BYTES",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "stored_video_req.in_memory_cache.ttl_seconds",
@@ -2824,7 +3185,8 @@
       "default": 0,
       "go_type": "int",
       "env": "PBS_STORED_VIDEO_REQ_IN_MEMORY_CACHE_TTL_SECONDS",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "stored_video_req.in_memory_cache.type",
@@ -2832,7 +3194,8 @@
       "default": "none",
       "go_type": "string",
       "env": "PBS_STORED_VIDEO_REQ_IN_MEMORY_CACHE_TYPE",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "tmax_adjustments.bidder_network_latency_buffer_ms",
@@ -2840,7 +3203,8 @@
       "default": 0,
       "go_type": "int",
       "env": "PBS_TMAX_ADJUSTMENTS_BIDDER_NETWORK_LATENCY_BUFFER_MS",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "tmax_adjustments.bidder_response_duration_min_ms",
@@ -2848,7 +3212,8 @@
       "default": 0,
       "go_type": "int",
       "env": "PBS_TMAX_ADJUSTMENTS_BIDDER_RESPONSE_DURATION_MIN_MS",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "tmax_adjustments.enabled",
@@ -2856,7 +3221,8 @@
       "default": false,
       "go_type": "bool",
       "env": "PBS_TMAX_ADJUSTMENTS_ENABLED",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "tmax_adjustments.pbs_response_preparation_duration_ms",
@@ -2864,7 +3230,8 @@
       "default": 0,
       "go_type": "int",
       "env": "PBS_TMAX_ADJUSTMENTS_PBS_RESPONSE_PREPARATION_DURATION_MS",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "tmax_default",
@@ -2872,7 +3239,8 @@
       "default": 0,
       "go_type": "int",
       "env": "PBS_TMAX_DEFAULT",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "unix_socket_enable",
@@ -2880,7 +3248,8 @@
       "default": false,
       "go_type": "bool",
       "env": "PBS_UNIX_SOCKET_ENABLE",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "unix_socket_name",
@@ -2888,7 +3257,8 @@
       "default": "prebid-server.sock",
       "go_type": "string",
       "env": "PBS_UNIX_SOCKET_NAME",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "user_sync.coop_sync.default",
@@ -2896,7 +3266,13 @@
       "default": null,
       "go_type": "",
       "env": "PBS_USER_SYNC_COOP_SYNC_DEFAULT",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": [
+        {
+          "env": "USER_SYNC_COOP_SYNC_DEFAULT",
+          "verified": true
+        }
+      ]
     },
     {
       "key": "user_sync.external_url",
@@ -2904,7 +3280,13 @@
       "default": null,
       "go_type": "",
       "env": "PBS_USER_SYNC_EXTERNAL_URL",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": [
+        {
+          "env": "USER_SYNC_EXTERNAL_URL",
+          "verified": true
+        }
+      ]
     },
     {
       "key": "user_sync.priority_groups",
@@ -2912,7 +3294,8 @@
       "default": [],
       "go_type": "[][]string",
       "env": "PBS_USER_SYNC_PRIORITY_GROUPS",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "user_sync.redirect_url",
@@ -2920,7 +3303,8 @@
       "default": "{{.ExternalURL}}/setuid?bidder={{.SyncerKey}}&gdpr={{.GDPR}}&gdpr_consent={{.GDPRConsent}}&gpp={{.GPP}}&gpp_sid={{.GPPSID}}&f={{.SyncType}}&uid={{.UserMacro}}",
       "go_type": "string",
       "env": "PBS_USER_SYNC_REDIRECT_URL",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "validations.banner_creative_max_size",
@@ -2928,7 +3312,8 @@
       "default": "skip",
       "go_type": "string",
       "env": "PBS_VALIDATIONS_BANNER_CREATIVE_MAX_SIZE",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "validations.max_creative_size.height",
@@ -2936,7 +3321,8 @@
       "default": 0,
       "go_type": "int",
       "env": "PBS_VALIDATIONS_MAX_CREATIVE_SIZE_HEIGHT",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "validations.max_creative_size.width",
@@ -2944,7 +3330,8 @@
       "default": 0,
       "go_type": "int",
       "env": "PBS_VALIDATIONS_MAX_CREATIVE_SIZE_WIDTH",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "validations.secure_markup",
@@ -2952,7 +3339,8 @@
       "default": "skip",
       "go_type": "string",
       "env": "PBS_VALIDATIONS_SECURE_MARKUP",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "video.enable_deprecated_endpoint",
@@ -2960,7 +3348,8 @@
       "default": false,
       "go_type": "bool",
       "env": "PBS_VIDEO_ENABLE_DEPRECATED_ENDPOINT",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "vtrack.allow_unknown_bidder",
@@ -2968,7 +3357,8 @@
       "default": true,
       "go_type": "bool",
       "env": "PBS_VTRACK_ALLOW_UNKNOWN_BIDDER",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "vtrack.enabled",
@@ -2976,7 +3366,8 @@
       "default": true,
       "go_type": "bool",
       "env": "PBS_VTRACK_ENABLED",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     },
     {
       "key": "vtrack.timeout_ms",
@@ -2984,7 +3375,8 @@
       "default": 2000,
       "go_type": "int",
       "env": "PBS_VTRACK_TIMEOUT_MS",
-      "env_verified": true
+      "env_verified": true,
+      "env_fallbacks": []
     }
   ],
   "bidder_keys": {

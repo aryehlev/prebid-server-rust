@@ -108,6 +108,60 @@ fn bidder_infos_cover_static_yaml() -> Result<()> {
     check_eq(&keys, &stems, "bidder_infos keys are the file stems")
 }
 
+/// `config.SetupViper` calls `v.BindEnv(key)` for a few keys before `v.SetEnvPrefix("PBS")`, so
+/// viper also reads them from the un-prefixed variable (`GDPR_DEFAULT_VALUE`, which the Go docs
+/// use). The dump lists exactly those as verified fallbacks, and every other key has none.
+#[test]
+fn config_defaults_record_unprefixed_bind_env() -> Result<()> {
+    let repo = Repo::locate(None)?;
+    let path = repo.path("config/config.go");
+    let src = fs::read_to_string(&path).map_err(|e| ToolError::io(&path, &e))?;
+    let (before_prefix, _) = src
+        .split_once("v.SetEnvPrefix(")
+        .ok_or_else(|| ToolError::new("config.go no longer calls v.SetEnvPrefix"))?;
+    let want = before_prefix
+        .split("v.BindEnv(\"")
+        .skip(1)
+        .map(|call| {
+            let (key, _) = call
+                .split_once('"')
+                .ok_or_else(|| ToolError::new("unterminated BindEnv key"))?;
+            Ok((key.to_owned(), key.to_uppercase().replace('.', "_")))
+        })
+        .collect::<Result<BTreeMap<String, String>>>()?;
+    check(
+        want.contains_key("gdpr.default_value"),
+        "gdpr.default_value is bound early",
+    )?;
+
+    let defaults = golden(&repo, Dump::ConfigDefaults.golden())?;
+    check(
+        field(&defaults, "empty_env_ignored")?.as_bool() == Some(true),
+        "an empty variable counts as unset",
+    )?;
+    let mut got = Vec::new();
+    for key in array(&defaults, "keys")? {
+        let name = str_of(key, "key")?;
+        check(
+            field(key, "env_verified")?.as_bool() == Some(true),
+            &format!("{name}: its PBS_ variable binds"),
+        )?;
+        for fallback in array(key, "env_fallbacks")? {
+            check(
+                field(fallback, "verified")?.as_bool() == Some(true),
+                &format!("{name}: its fallback variable binds"),
+            )?;
+            got.push((name.to_owned(), str_of(fallback, "env")?.to_owned()));
+        }
+    }
+    // The golden lists keys sorted, as the map iterates.
+    check_eq(
+        &got,
+        &want.into_iter().collect::<Vec<_>>(),
+        "keys with an un-prefixed variable",
+    )
+}
+
 /// Every `cannot unmarshal pkg.Type.Field` named in an adapter fixture (Go's jsoniter error text)
 /// names a type and field present in `go_struct_meta.json`, so ports can reproduce the message.
 #[test]

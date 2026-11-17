@@ -5,8 +5,9 @@
 // variable removed, so no file or environment value leaks in. It then records:
 //
 //   - every viper key with its default (viper Get with no file and no env), the default's Go type,
-//     the environment variable viper reads for it, and whether that variable was verified to bind
-//     (by setting a sentinel value and observing Get change);
+//     the environment variable viper reads for it, any further variables an explicit BindEnv made
+//     before the PBS prefix was set (GDPR_DEFAULT_VALUE for gdpr.default_value), and whether each
+//     variable was verified to bind (by setting a sentinel value and observing Get change);
 //   - the per-bidder adapters.<bidder>.* keys bound by setBidderDefaults, folded into one suffix
 //     table plus the list of bidders;
 //   - the Configuration config.New produces from those defaults (encoding/json of the struct), the
@@ -46,12 +47,18 @@ const (
 )
 
 type key struct {
-	Key         string          `json:"key"`
-	HasDefault  bool            `json:"has_default"`
-	Default     json.RawMessage `json:"default"`
-	GoType      string          `json:"go_type"`
-	Env         string          `json:"env"`
-	EnvVerified bool            `json:"env_verified"`
+	Key          string          `json:"key"`
+	HasDefault   bool            `json:"has_default"`
+	Default      json.RawMessage `json:"default"`
+	GoType       string          `json:"go_type"`
+	Env          string          `json:"env"`
+	EnvVerified  bool            `json:"env_verified"`
+	EnvFallbacks []envVar        `json:"env_fallbacks"`
+}
+
+type envVar struct {
+	Env      string `json:"env"`
+	Verified bool   `json:"verified"`
 }
 
 type bidderSuffix struct {
@@ -72,6 +79,7 @@ type output struct {
 	Notes               []string        `json:"notes"`
 	ConfigFileName      string          `json:"config_file_name"`
 	EnvPrefix           string          `json:"env_prefix"`
+	EmptyEnvIgnored     bool            `json:"empty_env_ignored"`
 	Keys                []key           `json:"keys"`
 	BidderKeys          bidderKeys      `json:"bidder_keys"`
 	ConfigNewErrors     []string        `json:"config_new_errors"`
@@ -100,6 +108,19 @@ func main() {
 		dump.Fatalf("chdir %s: %v", empty, err)
 	}
 
+	// SetupViper itself reads values (IsSet in the migrate functions), so the un-prefixed variables
+	// explicit BindEnv calls register are found on a throwaway viper and cleared before the real
+	// one is set up, as ClearPBSEnv cleared the PBS_* ones.
+	probe := viper.New()
+	config.SetupViper(probe, configFileName, bidderInfos)
+	for _, names := range explicitEnv(probe) {
+		for _, name := range names {
+			if err := os.Unsetenv(name); err != nil {
+				dump.Fatalf("unsetting %s: %v", name, err)
+			}
+		}
+	}
+
 	v := viper.New()
 	config.SetupViper(v, configFileName, bidderInfos)
 	if used := v.ConfigFileUsed(); used != "" {
@@ -112,7 +133,8 @@ func main() {
 	}
 	sort.Strings(bidders)
 
-	keys, suffixes := collectKeys(v, bidders)
+	keys, suffixes := collectKeys(v, bidders, explicitEnv(v))
+	emptyIgnored := emptyEnvIgnored(v)
 
 	cfg, newErr := config.New(v, bidderInfos, openrtb_ext.NormalizeBidderName)
 	if cfg == nil {
@@ -132,15 +154,18 @@ func main() {
 		GoCommit:  opts.GoCommit,
 		Notes: []string{
 			"keys: sorted viper.AllKeys() after config.SetupViper(v, \"pbs\", bidderInfos), no config file, no PBS_* env; adapters.<bidder>.* keys are folded into bidder_keys.",
-			"default: viper Get(key) encoded with encoding/json; null with has_default=false means the key is only env-bound (BindEnv) and has no default.",
+			"default: viper Get(key) encoded with encoding/json; has_default is viper.IsSet(key), false (with a null default) when the key is only env-bound (BindEnv) or its default is nil (SetDefault(key, nil), as for host_schain_node).",
 			"go_type: fmt %T of the default; viper casts env and file values to this type (SetTypeByDefaultValue).",
 			"env: strings.NewReplacer(\".\", \"_\") applied to strings.ToUpper(\"PBS_\" + key); env_verified means setting it changed Get(key).",
+			"env_fallbacks: the other variables explicit BindEnv calls registered for the key (made before SetEnvPrefix, so un-prefixed, e.g. GDPR_DEFAULT_VALUE), with the same replacer; viper v1.12 reads env first and then these in order, using the first that is set; verified means setting it alone changed Get(key).",
+			"empty_env_ignored: whether a variable set to the empty string is treated as unset (viper AllowEmptyEnv off), checked on external_url.",
 			"configuration: encoding/json of *config.Configuration returned by config.New with these defaults (untagged fields use Go names, unexported fields are absent).",
 			"account_defaults_json: cfg.AccountDefaultsJSON(), the jsonutil.Marshal output used as the account merge-patch base.",
 			"config_new_errors: the AggregateError entries config.New returned, in Go order; config_new_error is its Error() text.",
 		},
 		ConfigFileName:      configFileName,
 		EnvPrefix:           envPrefix,
+		EmptyEnvIgnored:     emptyIgnored,
 		Keys:                keys,
 		BidderKeys:          bidderKeys{Note: "every bidder in bidders has every key adapters.<bidder>.<suffix>; the env var is PBS_ADAPTERS_<BIDDER>_<env_suffix> with the bidder upper-cased.", Bidders: bidders, Suffixes: suffixes},
 		ConfigNewErrors:     errorStrings(newErr),
@@ -157,7 +182,7 @@ func envName(k string) string {
 
 // collectKeys splits viper's keys into the general list and the per-bidder suffix table, checking
 // that every bidder has exactly the same suffixes.
-func collectKeys(v *viper.Viper, bidders []string) ([]key, []bidderSuffix) {
+func collectKeys(v *viper.Viper, bidders []string, explicit map[string][]string) ([]key, []bidderSuffix) {
 	isBidder := make(map[string]bool, len(bidders))
 	for _, b := range bidders {
 		isBidder[b] = true
@@ -179,7 +204,7 @@ func collectKeys(v *viper.Viper, bidders []string) ([]key, []bidderSuffix) {
 				continue
 			}
 		}
-		keys = append(keys, describeKey(v, k))
+		keys = append(keys, describeKey(v, k, explicit[k]))
 	}
 
 	var suffixes []string
@@ -208,6 +233,9 @@ func collectKeys(v *viper.Viper, bidders []string) ([]key, []bidderSuffix) {
 			if v.IsSet(k) {
 				dump.Fatalf("per-bidder key %s unexpectedly has a value", k)
 			}
+			if extra := fallbacks(k, explicit[k]); len(extra) > 0 {
+				dump.Fatalf("per-bidder key %s binds %v besides %s; the suffix table cannot express it", k, extra, envName(k))
+			}
 			if !envBinds(v, k, envName(k)) {
 				verified = false
 			}
@@ -221,21 +249,78 @@ func collectKeys(v *viper.Viper, bidders []string) ([]key, []bidderSuffix) {
 	return keys, table
 }
 
-func describeKey(v *viper.Viper, k string) key {
+func describeKey(v *viper.Viper, k string, explicit []string) key {
 	val := v.Get(k)
 	goType := ""
 	if val != nil {
 		goType = fmt.Sprintf("%T", val)
 	}
 	env := envName(k)
-	return key{
-		Key:         k,
-		HasDefault:  v.IsSet(k),
-		Default:     dump.Raw(val),
-		GoType:      goType,
-		Env:         env,
-		EnvVerified: envBinds(v, k, env),
+	vars := []envVar{}
+	for _, name := range fallbacks(k, explicit) {
+		vars = append(vars, envVar{Env: name, Verified: envBinds(v, k, name)})
 	}
+	return key{
+		Key:          k,
+		HasDefault:   v.IsSet(k),
+		Default:      dump.Raw(val),
+		GoType:       goType,
+		Env:          env,
+		EnvVerified:  envBinds(v, k, env),
+		EnvFallbacks: vars,
+	}
+}
+
+// fallbacks returns the explicitly bound variables of k other than its automatic one, without
+// repeats, in registration order.
+func fallbacks(k string, explicit []string) []string {
+	var out []string
+	seen := map[string]bool{envName(k): true}
+	for _, name := range explicit {
+		if !seen[name] {
+			seen[name] = true
+			out = append(out, name)
+		}
+	}
+	return out
+}
+
+// explicitEnv returns, per lower-case key, the variables BindEnv registered for it, as viper's
+// getEnv reads them (after config.SetupViper's "." to "_" replacer), in registration order.
+// viper v1.12 keeps them in the unexported field env (map[string][]string); reflect only reads it.
+func explicitEnv(v *viper.Viper) map[string][]string {
+	f := reflect.ValueOf(v).Elem().FieldByName("env")
+	if !f.IsValid() || f.Type() != reflect.TypeOf(map[string][]string{}) {
+		dump.Fatalf("viper.Viper has no env map[string][]string field; update configdefaults for this viper version")
+	}
+	replacer := strings.NewReplacer(".", "_")
+	out := map[string][]string{}
+	iter := f.MapRange()
+	for iter.Next() {
+		k, names := iter.Key().String(), iter.Value()
+		for i := 0; i < names.Len(); i++ {
+			out[k] = append(out[k], replacer.Replace(names.Index(i).String()))
+		}
+	}
+	return out
+}
+
+// emptyEnvIgnored reports whether setting a bound variable to "" leaves Get unchanged.
+func emptyEnvIgnored(v *viper.Viper) bool {
+	const k = "external_url"
+	before := v.Get(k)
+	if before == nil || before == "" {
+		dump.Fatalf("%s has no non-empty default to check empty variables with", k)
+	}
+	env := envName(k)
+	if err := os.Setenv(env, ""); err != nil {
+		dump.Fatalf("setenv %s: %v", env, err)
+	}
+	after := v.Get(k)
+	if err := os.Unsetenv(env); err != nil {
+		dump.Fatalf("unsetenv %s: %v", env, err)
+	}
+	return reflect.DeepEqual(before, after)
 }
 
 // envBinds sets env to a sentinel of the default's type and reports whether viper's Get(k) changed.
