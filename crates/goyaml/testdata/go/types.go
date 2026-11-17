@@ -261,4 +261,23 @@ var msTargets = map[string]func() interface{}{
 	"bool":              func() interface{} { return new(bool) },
 	"float64":           func() interface{} { return new(float64) },
 	"time.Duration":     func() interface{} { return new(time.Duration) },
+	"int8":              func() interface{} { return new(int8) },
+	"uint8":             func() interface{} { return new(uint8) },
+	"uint":              func() interface{} { return new(uint) },
+	"float32":           func() interface{} { return new(float32) },
+	"[]int":             func() interface{} { return new([]int) },
+	"[]uint8":           func() interface{} { return new([]uint8) },
+	"map[string]int":    func() interface{} { return new(map[string]int) },
+	"map[int]string":    func() interface{} { return new(map[int]string) },
+	"map[string][]string": func() interface{} {
+		return new(map[string][]string)
+	},
+	"[]map[string]string": func() interface{} {
+		return new([]map[string]string)
+	},
+	"time.Time":  func() interface{} { return new(time.Time) },
+	"*time.Time": func() interface{} { return new(*time.Time) },
+	"Nested":     func() interface{} { return new(Nested) },
+	"*Nested":    func() interface{} { return new(*Nested) },
+	"**int":      func() interface{} { return new(**int) },
 }

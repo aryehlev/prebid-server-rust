@@ -11,8 +11,11 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"reflect"
 	"strconv"
 	"strings"
+
+	"gopkg.in/yaml.v3"
 )
 
 // corpusCase is one YAML input of corpus.txt.
@@ -68,7 +71,90 @@ func corpus(repo string) []corpusCase {
 	for i, input := range limits() {
 		add(fmt.Sprintf("limits/%d", i), input)
 	}
+	gen := newYAMLGen(20261118)
+	for i := 0; i < randomDocs; i++ {
+		doc := gen.doc()
+		if fmtSortable(doc) {
+			add(fmt.Sprintf("random/%d", i), doc)
+		}
+		if i%3 == 0 {
+			if mutation := string(mutate([]byte(doc), rnd)); fmtSortable(mutation) {
+				add(fmt.Sprintf("mutation/random/%d", i), mutation)
+			}
+		}
+	}
 	return cases
+}
+
+// randomDocs is the number of yamlGen documents in corpus.txt.
+const randomDocs = 2500
+
+// fmtSortable reports whether the maps that yaml.v3's "invalid map key: %#v" error can print
+// for input have keys of one dynamic type each: fmt orders keys of different types by the
+// addresses of their runtime types, which the port cannot reproduce.
+func fmtSortable(input string) bool {
+	var root yaml.Node
+	if yaml.Unmarshal([]byte(input), &root) != nil {
+		return true
+	}
+	return sortableKeys(&root)
+}
+
+// sortableKeys reports whether the collection keys in n's tree decode to values whose maps
+// each have keys of one dynamic type.
+func sortableKeys(n *yaml.Node) bool {
+	if n.Kind == yaml.MappingNode {
+		for i := 0; i < len(n.Content); i += 2 {
+			if k := n.Content[i]; k.Kind != yaml.ScalarNode {
+				var key interface{}
+				if k.Decode(&key) == nil && !oneKeyType(reflect.ValueOf(key)) {
+					return false
+				}
+			}
+		}
+	}
+	for _, c := range n.Content {
+		if !sortableKeys(c) {
+			return false
+		}
+	}
+	return true
+}
+
+// oneKeyType reports whether each map in v's tree has keys of one dynamic type.
+func oneKeyType(v reflect.Value) bool {
+	switch v.Kind() {
+	case reflect.Interface:
+		return v.IsNil() || oneKeyType(v.Elem())
+	case reflect.Slice:
+		for i := 0; i < v.Len(); i++ {
+			if !oneKeyType(v.Index(i)) {
+				return false
+			}
+		}
+	case reflect.Map:
+		var keyType reflect.Type
+		iter := v.MapRange()
+		for iter.Next() {
+			if !oneKeyType(iter.Value()) {
+				return false
+			}
+			k := iter.Key()
+			if k.Kind() == reflect.Interface {
+				if k.IsNil() {
+					// fmt sorts a nil key first, whatever the types of the others.
+					continue
+				}
+				k = k.Elem()
+			}
+			if keyType == nil {
+				keyType = k.Type()
+			} else if k.Type() != keyType {
+				return false
+			}
+		}
+	}
+	return true
 }
 
 // limits are inputs at and over yaml.v3's depth limits (10000 flow levels or indents), and
@@ -431,4 +517,35 @@ var handwritten = []string{
 	"endpoint: [x]\n",
 	"aliasOf: appnexus\ndisabled: true\nmodifyingVastXmlAllowed: false\n",
 	"debug: {allow: true, extra: 1}\nunknownKey: 1\n",
+	// Timestamp keys are == when their *time.Location pointers are: UTC and the unnamed
+	// whole-hour zones from -12h to +14h, which time.FixedZone caches, but no other zone.
+	"{2001-12-14T00:00:00+05:00: a, 2001-12-14t00:00:00+05:00: b}\n",
+	"{2001-12-14T00:00:00+05:30: a, 2001-12-14t00:00:00+05:30: b}\n",
+	"{2001-12-14T00:00:00+14:00: a, 2001-12-14t00:00:00+14:00: b}\n",
+	"{2001-12-14T00:00:00+15:00: a, 2001-12-14t00:00:00+15:00: b}\n",
+	"{2001-12-14T00:00:00-12:00: a, 2001-12-14t00:00:00-12:00: b}\n",
+	"{2001-12-14T00:00:00-12:30: a, 2001-12-14t00:00:00-12:30: b}\n",
+	"{2001-12-14T00:00:00Z: a, 2001-12-14t00:00:00+00:00: b, 2001-12-14: c}\n",
+	"b: &b {2001-12-14T00:00:00+05:00: a}\nm:\n  <<: *b\n  2001-12-14T00:00:00+05:00: c\n",
+	"b: &b {2001-12-14T00:00:00+05:30: a}\nm:\n  <<: *b\n  2001-12-14T00:00:00+05:30: c\n",
+	"a: &a 2001-12-14T00:00:00-03:30\nm: {*a: 1, x: *a}\nn:\n  <<: {*a: 2}\n  *a: 3\n",
+	// fmt prints a time.Time in a map key with its GoString method, and sorts time keys by
+	// their wall and ext fields (nanoseconds before seconds), then by location pointer.
+	"? {2001-12-14: a}\n: b\n",
+	"? {2001-12-14T01:02:03.5+05:00: a}\n: b\n",
+	"? {2001-12-14T01:02:03.5-05:30: a}\n: b\n",
+	"? [2001-12-14T01:02:03.000000001Z, 1h, 0001-01-01]\n: b\n",
+	"? {2001-12-14: a, 2001-12-13T00:00:00.5Z: b, 2001-12-15: c, 2001-12-14T00:00:00.1Z: d}\n: b\n",
+	"? {2001-12-14T05:30:00+05:30: a, 2001-12-14T00:00:00Z: c}\n: x\n",
+	"? {\"x\\u00e9\\u0001\\\"\\0\": 2001-12-14T00:00:00+05:30, \"time.Time{\": [2001-12-14]}\n: x\n",
+	"? [{a: [9999-12-31T23:59:59.999999999-23:59]}]\n: x\n",
+	// A scalar tagged !!seq or !!map shows its value after the tag in type errors.
+	"int: !!map 1h30m\nstrings: !!seq -3.5\nstrmap: !!map true\nvalue: !!map 1.0\n",
+	"!!map 1.0\n",
+	"!!seq x\n",
+	// jsoniter panics on a nil map key wherever it is, even after an error.
+	"[.nan, {~: 1}]\n",
+	"[{~: 1}, .nan]\n",
+	"{a: .nan, b: [{~: 1}]}\n",
+	"[[.nan], [{x: 1, ~: 2}]]\n",
 }

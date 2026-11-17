@@ -13,7 +13,7 @@ mod golden {
 
     use pbs_gocompat::{
         math, strconv,
-        time::{Duration, Time},
+        time::{DateFields, Duration, Location, Time},
     };
     use pbs_gojson::{GoJson, GoKind, GoString, RawJson, jsonutil, stdjson};
     use pbs_goyaml::{
@@ -978,7 +978,7 @@ mod golden {
 
     /// The outputs that differ from Go by design, as (golden file, case, column, reason). Each
     /// must still differ, so that the list stays accurate.
-    const KNOWN_GAPS: [(&str, &str, &str, &str); 10] = [
+    const KNOWN_GAPS: [(&str, &str, &str, &str); 6] = [
         (
             "corpus.txt",
             "yaml.v3/308",
@@ -1000,33 +1000,9 @@ mod golden {
         ),
         (
             "corpus.txt",
-            "mutation/yaml.v3/308/4",
-            "jsonutil.Marshal(interface{})",
-            "the same",
-        ),
-        (
-            "corpus.txt",
-            "mutation/yaml.v3/308/4",
-            "json.Marshal(interface{})",
-            "the same",
-        ),
-        (
-            "corpus.txt",
             "yaml.v3/308",
             "Kitchen value",
             "the same, in the ,inline map",
-        ),
-        (
-            "corpus.txt",
-            "mutation/yaml.v3/308/4",
-            "interface{} value",
-            "the same",
-        ),
-        (
-            "corpus.txt",
-            "mutation/yaml.v3/308/4",
-            "Kitchen value",
-            "the same",
         ),
         (
             "mapstructure.txt",
@@ -1624,7 +1600,12 @@ mod golden {
                 Type::Float32 => Value::Float32(math::float32(self.float(32)?)),
                 Type::Float64 => Value::Float64(self.float(64)?),
                 Type::String => Value::String(self.string()?),
-                Type::Time => return Err(self.error("time.Time values are not parsed")),
+                Type::Time => {
+                    self.expect("time(")?;
+                    let text = self.take_while(|b| b != b')');
+                    self.expect(")")?;
+                    Value::Time(parse_time(&text).map_err(|e| self.error(&e))?)
+                }
                 Type::Slice(elem) => {
                     if self.eat("nil") {
                         return Ok(Value::Slice(elem, None));
@@ -1664,6 +1645,59 @@ mod golden {
                 }
             })
         }
+    }
+
+    /// Go's `Time.String()` (`2006-01-02 15:04:05.999999999 -0700 MST`) back into a [`Time`]:
+    /// `UTC` is `time.UTC`, a zone named by its offset an unnamed fixed zone.
+    fn parse_time(text: &str) -> Result<Time, String> {
+        let bad = || format!("bad time {text:?}");
+        let num = |s: &str| {
+            s.parse::<i64>()
+                .map_err(|e| format!("bad time {text:?}: {e}"))
+        };
+        let parts: Vec<&str> = text.split(' ').collect();
+        let [date, clock, offset, zone] = parts.as_slice() else {
+            return Err(bad());
+        };
+        let date: Vec<&str> = date.split('-').collect();
+        let [year, month, day] = date.as_slice() else {
+            return Err(bad());
+        };
+        let (hms, frac) = clock.split_once('.').unwrap_or((clock, ""));
+        let hms: Vec<&str> = hms.split(':').collect();
+        let [hour, minute, second] = hms.as_slice() else {
+            return Err(bad());
+        };
+        let nanosecond = if frac.is_empty() {
+            0
+        } else {
+            num(&format!("{frac:0<9}"))?
+        };
+        let sign = match offset.get(..1) {
+            Some("+") => 1,
+            Some("-") => -1,
+            _ => return Err(bad()),
+        };
+        let hours = num(offset.get(1..3).ok_or_else(bad)?)?;
+        let minutes = num(offset.get(3..).ok_or_else(bad)?)?;
+        let seconds = sign * (hours * 3600 + minutes * 60);
+        let loc = if *zone == "UTC" && seconds == 0 {
+            Location::Utc
+        } else if zone == offset {
+            Location::fixed_zone("", seconds)
+        } else {
+            Location::fixed_zone(zone, seconds)
+        };
+        let fields = DateFields {
+            year: num(year)?,
+            month: num(month)?,
+            day: num(day)?,
+            hour: num(hour)?,
+            minute: num(minute)?,
+            second: num(second)?,
+            nanosecond,
+        };
+        Ok(Time::date(&fields, loc))
     }
 
     /// Parses a `dump` of an `interface{}` value; the parse must render back to `text`.
@@ -1764,6 +1798,25 @@ mod golden {
             "bool" => ms_outcome::<bool>(c, p, i),
             "float64" => ms_outcome::<f64>(c, p, i),
             "time.Duration" => ms_outcome::<Duration>(c, p, i),
+            "int8" => ms_outcome::<i8>(c, p, i),
+            "uint8" => ms_outcome::<u8>(c, p, i),
+            "uint" => ms_outcome::<usize>(c, p, i),
+            "float32" => ms_outcome::<f32>(c, p, i),
+            "[]int" => ms_outcome::<Option<Vec<isize>>>(c, p, i),
+            "[]uint8" => ms_outcome::<Option<Vec<u8>>>(c, p, i),
+            "map[string]int" => ms_outcome::<Option<BTreeMap<String, isize>>>(c, p, i),
+            "map[int]string" => ms_outcome::<Option<BTreeMap<isize, String>>>(c, p, i),
+            "map[string][]string" => {
+                ms_outcome::<Option<BTreeMap<String, Option<Vec<String>>>>>(c, p, i)
+            }
+            "[]map[string]string" => {
+                ms_outcome::<Option<Vec<Option<BTreeMap<String, String>>>>>(c, p, i)
+            }
+            "time.Time" => ms_outcome::<Time>(c, p, i),
+            "*time.Time" => ms_outcome::<Option<Time>>(c, p, i),
+            "Nested" => ms_outcome::<Nested>(c, p, i),
+            "*Nested" => ms_outcome::<Option<Box<Nested>>>(c, p, i),
+            "**int" => ms_outcome::<Option<Option<isize>>>(c, p, i),
             _ => return None,
         })
     }

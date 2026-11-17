@@ -12,12 +12,14 @@
 //     the interface{} tree, as viper decodes), and into the alias fields; and the interface{}
 //     tree through jsonutil.Marshal and json.Marshal.
 //   - corpus.txt: hand-written inputs, the YAML inputs of yaml.v3's own tests, every sample
-//     scalar under every Kitchen key, and deterministic mutations of them, into interface{},
-//     Kitchen and config.BidderInfo, and as a stream; and the interface{} tree through
-//     jsonutil.Marshal and json.Marshal.
-//   - mapstructure.txt: the input shapes of mapstructure's own tests, every sample value under
-//     every Kitchen key, and config.AccountModules inputs, under the strict, weak and viper
-//     configurations, and Prebid's (viper with config.AccountModulesHookFunc as the only hook).
+//     scalar under every Kitchen key, seeded random documents (random.go), and deterministic
+//     mutations of them, into interface{}, Kitchen and config.BidderInfo, and as a stream; and
+//     the interface{} tree through jsonutil.Marshal and json.Marshal.
+//   - mapstructure.txt: the input shapes of mapstructure's own tests, every sample value into
+//     every Kitchen key and every basic, slice, map, pointer, time and struct target (empty and
+//     prefilled), seeded random trees into Kitchen and config.BidderInfo, and
+//     config.AccountModules inputs, under the strict, weak and viper configurations, and
+//     Prebid's (viper with config.AccountModulesHookFunc as the only hook).
 //
 // Run it from the repository root, as amd64 code (Go's float-to-integer conversions differ
 // between architectures, and the crate reproduces amd64):
