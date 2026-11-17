@@ -7,11 +7,12 @@ import (
 	"github.com/prebid/prebid-server/v4/parity/report"
 )
 
-// Verdict is the outcome of a self-test.
+// Verdict is the outcome of a self-test, or of a run judged without a
+// baseline.
 type Verdict struct {
-	// OK is true when the A/A comparison found no mismatch and no harness
-	// error, no fixture failed (excused ones aside) and something was
-	// actually compared.
+	// OK is true when the comparison found no mismatch and no harness error,
+	// no fixture failed (excused ones aside) and something was actually
+	// compared.
 	OK bool `json:"ok"`
 	// Incomplete is true when nothing could be compared because the server
 	// is not parity-capable yet.
@@ -34,12 +35,17 @@ func SelfTest(ctx context.Context, opts Options) (*Result, Verdict, error) {
 	return res, Judge(res.Run), nil
 }
 
-// Judge evaluates a self-test run.
+// Judge evaluates a self-test run, or a run that has no baseline to ratchet
+// against: any mismatch fails it.
 func Judge(run *report.Run) Verdict {
 	v := Verdict{Reasons: []string{}}
 	c := run.Summary.Counts
 	if c.Mismatch > 0 {
-		v.Reasons = append(v.Reasons, fmt.Sprintf("%d cases mismatch between two processes of %s (%d clusters)", c.Mismatch, run.Summary.ImplA, run.Summary.Clusters))
+		between := "two processes of " + run.Summary.ImplA
+		if run.Summary.Mode != report.ModeSelfTest {
+			between = run.Summary.ImplA + " and " + run.Summary.ImplB
+		}
+		v.Reasons = append(v.Reasons, fmt.Sprintf("%d cases mismatch between %s (%d clusters)", c.Mismatch, between, run.Summary.Clusters))
 	}
 	if c.Error > 0 {
 		v.Reasons = append(v.Reasons, fmt.Sprintf("%d cases failed in the harness", c.Error))

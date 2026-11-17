@@ -638,9 +638,14 @@ Exit codes:
 | Code | Meaning |
 |---|---|
 | 0 | Success. |
-| 1 | The self-test found a mismatch, a harness error or a failing fixture, or the ratchet regressed. |
+| 1 | `selftest`, or `run` without `--baseline`, found a mismatch, a harness error or a failing fixture; or the ratchet regressed. |
 | 2 | A usage or harness error. |
-| 3 | The self-test was incomplete: nothing could be compared. |
+| 3 | `selftest`, or `run` without `--baseline`, was incomplete: nothing could be compared. |
+
+`run` without `--baseline` judges its run as `selftest` does, and prints
+each reason after `run:`. With `--baseline`, the ratchet alone decides (see
+"Minimization and the ratchet"): a run whose mismatches the baseline already
+counts exits 0, and one that compares fewer cases exits 1.
 
 ### Batches and processes
 
@@ -1226,7 +1231,7 @@ parity/scripts/replayharness.sh baseline|parity|selftest|canary|record-saved|cli
 | Command | What it does |
 | --- | --- |
 | `baseline` | Starts side A (Go) and side B with `rhtool serve -servers 2`, both under one profile and with the mock oracle. Then it runs three steps: the probes on side A alone; `replayharness run parity/replayharness/api.yaml --target B --baseline A --fail-on warning --junit ... --json ...`; and `replayharness replay parity/replayharness/replays --target B`. `rhtool gate` judges the reports (see below). |
-| `parity` | Runs `parity run --corpus replayharness`, with side B set by `--impl-b` and `--bin-b`. It fails on any mismatch or error, and it lists what the corpus leaves out. Flags after `--` go to `parity run`; with `-baseline`, the ratchet decides the result. |
+| `parity` | Runs `parity run --corpus replayharness`, with side B set by `--impl-b` and `--bin-b`, and lists what the corpus leaves out. The runner's exit code is the result: it fails on any mismatch or error. Flags after `--` go to `parity run`; with `-baseline`, the ratchet decides the result. |
 | `selftest` | An A/A run: `parity selftest --corpus replayharness`, then `baseline` with Go on both sides. Neither may find a difference. |
 | `canary` | Builds a Go side B with two seeded bugs, through a build overlay, so the checkout does not change. The first bug drops the `X-Prebid` header from `/openrtb2/auction`. The second renames `status` to `state` in `/info/bidders/{name}`. Both `parity` and `baseline` must fail. |
 | `record-saved` | Writes `parity/replayharness/saved.jsonl` (see above). |

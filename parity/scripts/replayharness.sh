@@ -421,23 +421,10 @@ run_baseline() {
   say "$label: $(verdict "$baseline_status")"
 }
 
-# ratcheted says whether the parity flags after -- name a -baseline to
-# ratchet against.
-ratcheted() {
-  local f
-  for f in ${parity_flags[@]+"${parity_flags[@]}"}; do
-    case "$f" in
-      -baseline | --baseline | -baseline=* | --baseline=*) return 0 ;;
-    esac
-  done
-  return 1
-}
-
 # run_parity runs parity $2 (run or selftest) on the replayharness corpus
-# into $out/$1 and sets parity_status: 0 no difference, 1 a difference or an
-# error, 3 nothing compared. selftest judges the run itself, and so does the
-# ratchet when -baseline is given; otherwise parity run exits 0 whenever the
-# run completes, so its counts decide.
+# into $out/$1 and sets parity_status to its exit code: 0 no difference, 1 a
+# difference or an error, 3 nothing compared. With -baseline after --, the
+# ratchet decides parity run's exit code instead.
 run_parity() {
   local label=$1 sub=$2
   local dir="$out/$label"
@@ -461,17 +448,6 @@ run_parity() {
   runner_pid=""
   check_breach
   tail -n 15 "$dir.log" | sed "s/^/replayharness: $label: /" >&2
-  if ((parity_status == 0)) && [[ "$sub" == run ]] && ! ratcheted; then
-    local mismatch errors passing
-    mismatch=$(run_json_count "$dir" mismatch)
-    errors=$(run_json_count "$dir" error)
-    passing=$(run_json_count "$dir" passing)
-    if ((${mismatch:-0} > 0 || ${errors:-0} > 0)); then
-      parity_status=1
-    elif ((${passing:-0} == 0)); then
-      parity_status=3
-    fi
-  fi
   say "$label: $(verdict "$parity_status")"
 }
 

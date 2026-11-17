@@ -3,12 +3,14 @@ package main
 import (
 	"bytes"
 	"context"
+	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
 
 	"github.com/prebid/prebid-server/v4/parity/corpus"
 	"github.com/prebid/prebid-server/v4/parity/gen"
+	"github.com/prebid/prebid-server/v4/parity/report"
 )
 
 func TestRunUsage(t *testing.T) {
@@ -39,6 +41,59 @@ func TestRunUsage(t *testing.T) {
 			}
 			if !strings.Contains(stderr.String(), tc.wantErr) {
 				t.Errorf("stderr = %q, want %q", stderr.String(), tc.wantErr)
+			}
+		})
+	}
+}
+
+// TestRunCode: without --baseline, parity run fails on a mismatch, a harness
+// error or a failing fixture and is incomplete when it compared nothing; with
+// one, the ratchet decides, so the mismatches the baseline already counts
+// pass and more harness errors or fewer compared cases fail.
+func TestRunCode(t *testing.T) {
+	newRun := func(c report.Counts, f *report.FixtureTotals) *report.Run {
+		return &report.Run{Summary: report.RunSummary{Mode: report.ModeRun, RunID: "r", ImplA: "go", ImplB: "rust", Counts: c, Fixtures: f}}
+	}
+	clean := newRun(report.Counts{Total: 3, Passing: 3}, nil)
+	mismatch := newRun(report.Counts{Total: 3, Passing: 1, Mismatch: 2}, nil)
+	harness := newRun(report.Counts{Total: 3, Passing: 2, Error: 1}, nil)
+	fixture := newRun(report.Counts{Total: 3, Passing: 3}, &report.FixtureTotals{Total: 1, Failing: 1})
+	nothing := newRun(report.Counts{Total: 3, NotYetInstrumented: 3}, nil)
+	nothingButError := newRun(report.Counts{Total: 3, NotYetInstrumented: 2, Error: 1}, nil)
+
+	tests := []struct {
+		name     string
+		run      *report.Run
+		baseline *report.Run
+		want     int
+		wantOut  string
+	}{
+		{"clean", clean, nil, exitOK, "run: ok"},
+		{"mismatch", mismatch, nil, exitFailure, "run: 2 cases mismatch between go and rust (0 clusters)"},
+		{"harness error", harness, nil, exitFailure, "run: 1 cases failed in the harness"},
+		{"failing fixture", fixture, nil, exitFailure, "run: 1 adapter fixtures fail"},
+		{"nothing compared", nothing, nil, exitIncomplete, "run: no case was compared"},
+		{"nothing compared and an error", nothingButError, nil, exitFailure, "run: 1 cases failed in the harness"},
+		{"mismatches the baseline counts", mismatch, mismatch, exitOK, "ratchet: ok"},
+		{"more errors than the baseline", harness, clean, exitFailure, "ratchet regression: harness errors: 0 -> 1"},
+		{"fewer compared than the baseline", nothing, clean, exitFailure, "ratchet regression: compared cases: 3 -> 0"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			path := ""
+			if tc.baseline != nil {
+				path = filepath.Join(t.TempDir(), "baseline.json")
+				if err := report.WriteJSON(path, report.BaselineOf(tc.baseline)); err != nil {
+					t.Fatal(err)
+				}
+			}
+			var stdout bytes.Buffer
+			code, err := runCode(&stdout, tc.run, path)
+			if err != nil {
+				t.Fatalf("runCode: %v", err)
+			}
+			if code != tc.want || !strings.Contains(stdout.String(), tc.wantOut) {
+				t.Errorf("exit code %d, output %q; want %d and %q", code, stdout.String(), tc.want, tc.wantOut)
 			}
 		})
 	}

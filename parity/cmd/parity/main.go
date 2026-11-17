@@ -307,10 +307,37 @@ func cmdRun(ctx context.Context, args []string, stdout, stderr io.Writer) (int, 
 		return exitUsage, err
 	}
 	printRun(stdout, res.Run)
-	if f.baseline == "" {
-		return exitOK, nil
+	return runCode(stdout, res.Run, f.baseline)
+}
+
+// runCode is the exit code of parity run. With a baseline the ratchet
+// decides, so a run whose mismatches the baseline already counts passes, and
+// one with more mismatches or harness errors, fewer compared cases or a new
+// cluster fails. Without one the run is judged as a self-test is: a
+// mismatch, a harness error or a failing fixture fails it, and a run that
+// compared nothing is incomplete.
+func runCode(stdout io.Writer, run *report.Run, baseline string) (int, error) {
+	if baseline != "" {
+		return ratchet(stdout, run, baseline, false)
 	}
-	return ratchet(stdout, res.Run, f.baseline, false)
+	return verdictCode(stdout, "run", runner.Judge(run)), nil
+}
+
+// verdictCode prints a verdict's reasons, each after prefix, and returns its
+// exit code: exitIncomplete when nothing was compared and nothing else is
+// wrong, exitFailure for anything else that is wrong.
+func verdictCode(stdout io.Writer, prefix string, v runner.Verdict) int {
+	for _, r := range v.Reasons {
+		fmt.Fprintf(stdout, "%s: %s\n", prefix, r)
+	}
+	switch {
+	case v.OK:
+		fmt.Fprintf(stdout, "%s: ok\n", prefix)
+		return exitOK
+	case v.Incomplete && len(v.Reasons) == 1:
+		return exitIncomplete
+	}
+	return exitFailure
 }
 
 func cmdSelfTest(ctx context.Context, args []string, stdout, stderr io.Writer) (int, error) {
@@ -330,17 +357,7 @@ func cmdSelfTest(ctx context.Context, args []string, stdout, stderr io.Writer) (
 		return exitUsage, err
 	}
 	printRun(stdout, res.Run)
-	for _, r := range verdict.Reasons {
-		fmt.Fprintln(stdout, "selftest:", r)
-	}
-	switch {
-	case verdict.OK:
-		fmt.Fprintln(stdout, "selftest: ok")
-		return exitOK, nil
-	case verdict.Incomplete && len(verdict.Reasons) == 1:
-		return exitIncomplete, nil
-	}
-	return exitFailure, nil
+	return verdictCode(stdout, "selftest", verdict), nil
 }
 
 func cmdMinimize(ctx context.Context, args []string, stdout, stderr io.Writer) (int, error) {
