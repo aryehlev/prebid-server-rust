@@ -1,8 +1,10 @@
 //! Replays the golden files that `testdata/go/` writes with Go's `compress/flate`: the writer at
 //! every level over the corpus and scripts (`flate_writer.txt`, `flate_large.txt`), preset
 //! dictionaries (`flate_dict.txt`), the reader over intact, flushed, truncated and corrupt
-//! streams and Go's own test vectors (`flate_reader.txt`), and the block writers over Go's
-//! `writeBlockTests` and Huffman testdata (`flate_blocks.txt` and `testdata/flate`).
+//! streams and Go's own test vectors (`flate_reader.txt`), the block writers over Go's
+//! `writeBlockTests` and Huffman testdata (`flate_blocks.txt` and `testdata/flate`), and the
+//! edge and generated cases of `edges.go`, with the lengths of the writer's `Write` calls
+//! (`flate_edges.txt`, `flate_reader_edges.txt`).
 
 use std::{
     cell::Cell,
@@ -17,7 +19,7 @@ use super::{
 };
 use crate::compress::testutil::{
     BytesReader, Target, err_result, fields, fnv64, gen_input, golden, mutate, num, read_trace,
-    report, run_flate, testdata,
+    report, run_flate, testdata, with_sizes,
 };
 
 /// The levels of `flate_writer.txt`'s result columns.
@@ -177,6 +179,70 @@ fn dict() -> Result<(), String> {
     report(&failures)
 }
 
+/// Checks the lines of `flate_edges.txt` named `name` (see `testdata/go/edges.go`): their
+/// results and the lengths of the underlying `Write` calls.
+fn edges(name: &str) -> Result<(), String> {
+    let mut failures = Vec::new();
+    let mut seen = 0;
+    for (i, line) in golden("flate_edges.txt")?.lines().enumerate() {
+        let [group, level, dict, inputs, script, want] = fields(line)?;
+        if group != name {
+            continue;
+        }
+        seen += 1;
+        let got = with_sizes(run_flate(num(level)?, dict, inputs, script)?);
+        if got != want {
+            failures.push(format!(
+                "flate_edges.txt:{} {name} level {level} dict {dict} {inputs} {script}\n got \
+                 {got}\nwant {want}",
+                i + 1
+            ));
+        }
+    }
+    if seen == 0 {
+        return Err(format!("no {name} lines in flate_edges.txt"));
+    }
+    report(&failures)
+}
+
+/// Level 1 with its offsets wrapping at Go's `bufferReset`, through 65520 to 65540 flushes.
+#[test]
+fn edges_best_speed_wrap() -> Result<(), String> {
+    edges("wrap")
+}
+
+/// Levels 2 to 9 rebasing their hash chains past Go's `maxHashOffset` within matching data.
+#[test]
+fn edges_hash_rebase() -> Result<(), String> {
+    edges("rebase")
+}
+
+#[test]
+fn edges_stored_boundaries() -> Result<(), String> {
+    edges("stored")
+}
+
+#[test]
+fn edges_flush_close() -> Result<(), String> {
+    edges("flush")
+}
+
+/// Literal codes that Go's `bitCounts` limits to 15 bits.
+#[test]
+fn edges_huffman_limit() -> Result<(), String> {
+    edges("huff")
+}
+
+#[test]
+fn edges_generated() -> Result<(), String> {
+    edges("gen")
+}
+
+#[test]
+fn edges_generated_dict() -> Result<(), String> {
+    edges("gendict")
+}
+
 /// Go: `flateStream`: compresses `input` with `script` at `level`, or for level `raw` takes
 /// the input as the stream.
 fn stream(level: &str, dict: &str, input: &str, script: &str) -> Result<Vec<u8>, String> {
@@ -215,9 +281,9 @@ fn read(stream: &[u8], dict: &[u8], bufsize: usize, reset: bool) -> String {
     res
 }
 
-/// Checks part `part` of `parts` of `flate_reader.txt`.
-fn reader_part(part: usize, parts: usize) -> Result<(), String> {
-    let text = golden("flate_reader.txt")?;
+/// Checks part `part` of `parts` of `file`, `flate_reader.txt` or a file of its format.
+fn reader_part(file: &str, part: usize, parts: usize) -> Result<(), String> {
+    let text = golden(file)?;
     let lines: Vec<&str> = text.lines().collect();
     let (start, end) = (lines.len() * part / parts, lines.len() * (part + 1) / parts);
     let mut failures = Vec::new();
@@ -250,8 +316,8 @@ fn reader_part(part: usize, parts: usize) -> Result<(), String> {
         let got = read(&data, &dict, num(bufsize)?, reset == "reset");
         if got != want {
             failures.push(format!(
-                "flate_reader.txt:{} {name} level {level} {input} {script} {mutation} buffer \
-                 {bufsize}\n got {got}\nwant {want}",
+                "{file}:{} {name} level {level} {input} {script} {mutation} buffer {bufsize}\n \
+                 got {got}\nwant {want}",
                 i + 1
             ));
         }
@@ -261,17 +327,29 @@ fn reader_part(part: usize, parts: usize) -> Result<(), String> {
 
 #[test]
 fn reader_part0() -> Result<(), String> {
-    reader_part(0, 3)
+    reader_part("flate_reader.txt", 0, 3)
 }
 
 #[test]
 fn reader_part1() -> Result<(), String> {
-    reader_part(1, 3)
+    reader_part("flate_reader.txt", 1, 3)
 }
 
 #[test]
 fn reader_part2() -> Result<(), String> {
-    reader_part(2, 3)
+    reader_part("flate_reader.txt", 2, 3)
+}
+
+/// `flate_reader_edges.txt`: every truncation and a bit flip at every byte of small streams,
+/// and generated corruptions.
+#[test]
+fn reader_edges_part0() -> Result<(), String> {
+    reader_part("flate_reader_edges.txt", 0, 2)
+}
+
+#[test]
+fn reader_edges_part1() -> Result<(), String> {
+    reader_part("flate_reader_edges.txt", 1, 2)
 }
 
 /// The tokens of a `flate_blocks.txt` line: hexadecimal, runs as `token*count`.

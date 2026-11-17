@@ -1,8 +1,9 @@
 //! Replays the golden files that `testdata/go/` writes with Go's `compress/gzip`: the level
 //! checks (`levels.txt`), the writer at every level with every kind of header, script and
-//! failing writer (`gzip_writer.txt`), and the reader over single and concatenated members,
+//! failing writer (`gzip_writer.txt`), the reader over single and concatenated members,
 //! multistream off, `Reset`, truncated and corrupt streams, header flags and Go's own test
-//! vectors (`gzip_reader.txt`).
+//! vectors (`gzip_reader.txt`), and the edge and generated cases of `edges.go`, with the
+//! lengths of the writer's `Write` calls (`gzip_edges.txt`, `gzip_reader_edges.txt`).
 
 use std::{cell::Cell, io, rc::Rc};
 
@@ -11,7 +12,7 @@ use crate::compress::{
     flate,
     testutil::{
         BytesReader, err_result, fields, fnv64, gen_input, golden, header_result, mutate, num,
-        parse_header, read_trace, report, run_gzip,
+        parse_header, read_trace, report, run_gzip, with_sizes,
     },
 };
 
@@ -52,7 +53,7 @@ fn writer_level(level: &str) -> Result<(), String> {
             continue;
         }
         seen += 1;
-        let got = run_gzip(num(lvl)?, header, inputs, script)?;
+        let (got, _) = run_gzip(num(lvl)?, header, inputs, script)?;
         if got != want {
             failures.push(format!(
                 "gzip_writer.txt:{} level {level} header {header} {inputs} {script}\n got \
@@ -127,6 +128,30 @@ fn writer_best_compression() -> Result<(), String> {
     writer_level("9")
 }
 
+/// `gzip_edges.txt`: generated headers, inputs and scripts at random levels, with the lengths
+/// of the underlying `Write` calls.
+#[test]
+fn writer_edges() -> Result<(), String> {
+    let mut failures = Vec::new();
+    let mut seen = 0;
+    for (i, line) in golden("gzip_edges.txt")?.lines().enumerate() {
+        let [name, level, header, inputs, script, want] = fields(line)?;
+        seen += 1;
+        let got = with_sizes(run_gzip(num(level)?, header, inputs, script)?);
+        if got != want {
+            failures.push(format!(
+                "gzip_edges.txt:{} {name} level {level} header {header} {inputs} {script}\n got \
+                 {got}\nwant {want}",
+                i + 1
+            ));
+        }
+    }
+    if seen == 0 {
+        return Err("no lines in gzip_edges.txt".to_owned());
+    }
+    report(&failures)
+}
+
 /// Go: `gzipStream`: `raw:SPEC`, or `&`-separated members `LEVEL~HEADER~INPUT`.
 fn stream(members: &str) -> Result<Vec<u8>, String> {
     if let Some(spec) = members.strip_prefix("raw:") {
@@ -193,9 +218,9 @@ fn read(stream: &[u8], mode: &str, bufsize: usize) -> Result<String, String> {
     Ok(format!("{prefix}{}", parts.join("||")))
 }
 
-/// Checks part `part` of `parts` of `gzip_reader.txt`.
-fn reader_part(part: usize, parts: usize) -> Result<(), String> {
-    let text = golden("gzip_reader.txt")?;
+/// Checks part `part` of `parts` of `file`, `gzip_reader.txt` or a file of its format.
+fn reader_part(file: &str, part: usize, parts: usize) -> Result<(), String> {
+    let text = golden(file)?;
     let lines: Vec<&str> = text.lines().collect();
     let (start, end) = (lines.len() * part / parts, lines.len() * (part + 1) / parts);
     let mut failures = Vec::new();
@@ -212,8 +237,8 @@ fn reader_part(part: usize, parts: usize) -> Result<(), String> {
         let got = read(&data, mode, num(bufsize)?)?;
         if got != want {
             failures.push(format!(
-                "gzip_reader.txt:{} {name} {members} {mutation} {mode} buffer {bufsize}\n got \
-                 {got}\nwant {want}",
+                "{file}:{} {name} {members} {mutation} {mode} buffer {bufsize}\n got {got}\nwant \
+                 {want}",
                 i + 1
             ));
         }
@@ -223,15 +248,22 @@ fn reader_part(part: usize, parts: usize) -> Result<(), String> {
 
 #[test]
 fn reader_part0() -> Result<(), String> {
-    reader_part(0, 3)
+    reader_part("gzip_reader.txt", 0, 3)
 }
 
 #[test]
 fn reader_part1() -> Result<(), String> {
-    reader_part(1, 3)
+    reader_part("gzip_reader.txt", 1, 3)
 }
 
 #[test]
 fn reader_part2() -> Result<(), String> {
-    reader_part(2, 3)
+    reader_part("gzip_reader.txt", 2, 3)
+}
+
+/// `gzip_reader_edges.txt`: every truncation and a bit flip at every byte of small streams,
+/// trailing data, and generated corruptions of generated members.
+#[test]
+fn reader_edges() -> Result<(), String> {
+    reader_part("gzip_reader_edges.txt", 0, 1)
 }

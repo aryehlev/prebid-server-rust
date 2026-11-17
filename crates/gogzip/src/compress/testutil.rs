@@ -3,7 +3,7 @@
 //! golden replays in `flate/golden_test.rs` and `gzip/golden_test.rs` rebuild Go's inputs and
 //! describe the port's results in Go's words.
 
-use core::{fmt, str::FromStr};
+use core::{fmt, mem, str::FromStr};
 use std::{
     cell::Cell,
     fs,
@@ -173,6 +173,26 @@ fn gen_mixed(n: usize, seed: u64) -> Vec<u8> {
     b
 }
 
+/// Go: the `fib` input: `Fib(j + 1)` copies of byte `0x20 + j` for `j < symbols`, in a
+/// Fisher-Yates shuffle.
+fn gen_fib(symbols: usize, seed: u64) -> Vec<u8> {
+    let mut out = Vec::new();
+    let (mut count, mut next) = (1usize, 1usize);
+    for symbol in 0..symbols {
+        out.resize(out.len() + count, low_byte(to_u64(0x20 + symbol)));
+        (count, next) = (next, count.saturating_add(next));
+    }
+    let mut rng = SplitMix64(seed);
+    for i in (1..out.len()).rev() {
+        let j = to_usize(rng.next_u64() % to_u64(i + 1));
+        // Go: b[i], b[j] = b[j], b[i], with j <= i.
+        if let Some([first, .., last]) = out.get_mut(j..=i) {
+            mem::swap(first, last);
+        }
+    }
+    out
+}
+
 /// Reads `testdata/<rel>` of this crate.
 pub(in crate::compress) fn testdata(rel: &str) -> Result<Vec<u8>, String> {
     let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
@@ -283,6 +303,7 @@ pub(in crate::compress) fn gen_input(spec: &str) -> Result<Vec<u8>, String> {
         "square" => Ok((0..size(1)?)
             .map(|i| low_byte(to_u64(i.wrapping_mul(i))))
             .collect()),
+        "fib" => Ok(gen_fib(size(1)?, seed(2)?)),
         "file" => {
             let b = testdata(&format!("corpus/{}", arg(1)?))?;
             if f.len() > 2 {
@@ -310,6 +331,8 @@ pub(in crate::compress) fn gen_inputs(specs: &str) -> Result<Vec<Vec<u8>>, Strin
 pub(in crate::compress) struct Target {
     buf: Vec<u8>,
     calls: usize,
+    /// The length of every `Write` call, failed ones included.
+    sizes: Vec<usize>,
     fail_at: Option<usize>,
     sticky: bool,
 }
@@ -339,6 +362,17 @@ impl Target {
         self.calls
     }
 
+    /// Go: `target.sizesResult`: the FNV-1a 64 of the `Write` call lengths, each in decimal and
+    /// followed by a comma, so that two writers that split the same bytes differently differ.
+    fn sizes_result(&self) -> String {
+        let mut text = String::new();
+        for n in &self.sizes {
+            text.push_str(&n.to_string());
+            text.push(',');
+        }
+        format!("{:016x}", fnv64(text.as_bytes()))
+    }
+
     /// Go: `target.result`: `LEN.FNV.CALLS`.
     fn result(&self) -> String {
         format!(
@@ -354,6 +388,7 @@ impl Write for Target {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
         let i = self.calls;
         self.calls += 1;
+        self.sizes.push(buf.len());
         if let Some(fail_at) = self.fail_at
             && (i == fail_at || self.sticky && i > fail_at)
         {
@@ -634,12 +669,19 @@ pub(in crate::compress) fn run_gzip(
     header: &str,
     inputs: &str,
     script: &str,
-) -> Result<String, String> {
+) -> Result<(String, Vec<Target>), String> {
     let mut w = gzip::Writer::new_level(Target::default(), level).map_err(|err| err.to_string())?;
     let h = parse_header(header)?;
     h.clone_into(w.header_mut());
     let subject = Subject::Gzip(Box::new(w), Box::new(h));
-    Ok(Script::new(subject, gen_inputs(inputs)?).run(script)?.0)
+    Script::new(subject, gen_inputs(inputs)?).run(script)
+}
+
+/// Go: `script.runSizes`: a script's result followed by `#` and each target's
+/// [`Target::sizes_result`], separated by semicolons.
+pub(in crate::compress) fn with_sizes((result, targets): (String, Vec<Target>)) -> String {
+    let sizes: Vec<String> = targets.iter().map(Target::sizes_result).collect();
+    format!("{result}#{}", sizes.join(";"))
 }
 
 /// Go: `headerResult`: `xNAME.xCOMMENT.EXTRA.MTIME.OS`, with hexadecimal strings, `nil` for no
@@ -764,7 +806,8 @@ pub(in crate::compress) fn err_result(r: Result<(), GzipError>) -> String {
 }
 
 /// Go: `mutate`: `-`, `t:N` (keep the first N bytes), `x:POS:VAL` (xor the byte at POS with
-/// VAL) or `a:HEX` (append).
+/// VAL), `a:HEX` (append) or `m:SEED:K` (K edits that splitmix64 seeded with SEED picks: flip
+/// a bit, set a byte, truncate, insert a byte or delete one).
 pub(in crate::compress) fn mutate(stream: &[u8], m: &str) -> Result<Vec<u8>, String> {
     let f: Vec<&str> = m.split(':').collect();
     let arg = |i: usize| f.get(i).copied().unwrap_or_default();
@@ -781,6 +824,35 @@ pub(in crate::compress) fn mutate(stream: &[u8], m: &str) -> Result<Vec<u8>, Str
             *slot ^= val;
         }
         "a" => b.extend(hex_decode(arg(1))?),
+        "m" => {
+            let mut rng = SplitMix64(num(arg(1))?);
+            let edits: usize = num(arg(2))?;
+            for _ in 0..edits {
+                if b.is_empty() {
+                    break;
+                }
+                let pos = to_usize(rng.next_u64() % to_u64(b.len()));
+                match rng.next_u64() % 5 {
+                    0 => {
+                        let bit = 1u8 << (rng.next_u64() % 8);
+                        if let Some(slot) = b.get_mut(pos) {
+                            *slot ^= bit;
+                        }
+                    }
+                    1 => {
+                        let value = low_byte(rng.next_u64());
+                        if let Some(slot) = b.get_mut(pos) {
+                            *slot = value;
+                        }
+                    }
+                    2 => b.truncate(pos),
+                    3 => b.insert(pos, low_byte(rng.next_u64())),
+                    _ => {
+                        let _removed = b.remove(pos);
+                    }
+                }
+            }
+        }
         _ => return Err(format!("unknown mutation {m}")),
     }
     Ok(b)
