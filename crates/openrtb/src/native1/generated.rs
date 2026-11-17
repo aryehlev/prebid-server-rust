@@ -27,20 +27,25 @@ use pbs_gojson::GoJson;
 pub struct AdUnit(pub i64);
 
 /// Paid Search Units
+#[doc(alias = "AdUnitPaidSearch")]
 pub const AD_UNIT_PAID_SEARCH: AdUnit = AdUnit(1);
 
 /// Recommendation Widgets
+#[doc(alias = "AdUnitRecommendationWidget")]
 pub const AD_UNIT_RECOMMENDATION_WIDGET: AdUnit = AdUnit(2);
 
 /// Promoted Listings
+#[doc(alias = "AdUnitPromotedListing")]
 pub const AD_UNIT_PROMOTED_LISTING: AdUnit = AdUnit(3);
 
 /// In-Ad (IAB Standard) with Native Element Units
+#[doc(alias = "AdUnitInAd")]
 pub const AD_UNIT_IN_AD: AdUnit = AdUnit(4);
 
 /// ```text
 /// Custom /”Can’t Be Contained”
 /// ```
+#[doc(alias = "AdUnitCustom")]
 pub const AD_UNIT_CUSTOM: AdUnit = AdUnit(5);
 
 /// ```text
@@ -57,39 +62,51 @@ pub const AD_UNIT_CUSTOM: AdUnit = AdUnit(5);
 pub struct ContextSubType(pub i64);
 
 /// General or mixed content.
+#[doc(alias = "ContextSubTypeGeneral")]
 pub const CONTEXT_SUB_TYPE_GENERAL: ContextSubType = ContextSubType(10);
 
 /// Primarily article content (which of course could include images, etc as part of the article)
+#[doc(alias = "ContextSubTypeArticle")]
 pub const CONTEXT_SUB_TYPE_ARTICLE: ContextSubType = ContextSubType(11);
 
 /// Primarily video content
+#[doc(alias = "ContextSubTypeVideo")]
 pub const CONTEXT_SUB_TYPE_VIDEO: ContextSubType = ContextSubType(12);
 
 /// Primarily audio content
+#[doc(alias = "ContextSubTypeAudio")]
 pub const CONTEXT_SUB_TYPE_AUDIO: ContextSubType = ContextSubType(13);
 
 /// Primarily image content
+#[doc(alias = "ContextSubTypeImage")]
 pub const CONTEXT_SUB_TYPE_IMAGE: ContextSubType = ContextSubType(14);
 
 /// User-generated content - forums, comments, etc
+#[doc(alias = "ContextSubTypeUserGenerated")]
 pub const CONTEXT_SUB_TYPE_USER_GENERATED: ContextSubType = ContextSubType(15);
 
 /// General social content such as a general social network
+#[doc(alias = "ContextSubTypeSocial")]
 pub const CONTEXT_SUB_TYPE_SOCIAL: ContextSubType = ContextSubType(20);
 
 /// Primarily email content
+#[doc(alias = "ContextSubTypeEmail")]
 pub const CONTEXT_SUB_TYPE_EMAIL: ContextSubType = ContextSubType(21);
 
 /// Primarily chat/IM content
+#[doc(alias = "ContextSubTypeChat")]
 pub const CONTEXT_SUB_TYPE_CHAT: ContextSubType = ContextSubType(22);
 
 /// Content focused on selling products, whether digital or physical
+#[doc(alias = "ContextSubTypeSelling")]
 pub const CONTEXT_SUB_TYPE_SELLING: ContextSubType = ContextSubType(30);
 
 /// Application store/marketplace
+#[doc(alias = "ContextSubTypeAppStore")]
 pub const CONTEXT_SUB_TYPE_APP_STORE: ContextSubType = ContextSubType(31);
 
 /// Product reviews site primarily (which may sell product secondarily)
+#[doc(alias = "ContextSubTypeProductReview")]
 pub const CONTEXT_SUB_TYPE_PRODUCT_REVIEW: ContextSubType = ContextSubType(32);
 
 /// ```text
@@ -107,12 +124,15 @@ pub const CONTEXT_SUB_TYPE_PRODUCT_REVIEW: ContextSubType = ContextSubType(32);
 pub struct ContextType(pub i64);
 
 /// Content-centric context such as newsfeed, article, image gallery, video gallery, or similar.
+#[doc(alias = "ContextTypeContent")]
 pub const CONTEXT_TYPE_CONTENT: ContextType = ContextType(1);
 
 /// Social-centric context such as social network feed, email, chat, or similar.
+#[doc(alias = "ContextTypeSocial")]
 pub const CONTEXT_TYPE_SOCIAL: ContextType = ContextType(2);
 
 /// Product context such as product listings, details, recommendations, reviews, or similar.
+#[doc(alias = "ContextTypeProduct")]
 pub const CONTEXT_TYPE_PRODUCT: ContextType = ContextType(3);
 
 /// ```text
@@ -142,6 +162,7 @@ pub struct DataAssetType(pub i64);
 /// Recommendations:
 ///   Required. Max 25 or longer
 /// ```
+#[doc(alias = "DataAssetTypeSponsored")]
 pub const DATA_ASSET_TYPE_SPONSORED: DataAssetType = DataAssetType(1);
 
 /// ```text
@@ -157,6 +178,7 @@ pub const DATA_ASSET_TYPE_SPONSORED: DataAssetType = DataAssetType(1);
 /// Recommendations:
 ///   Recommended. Max 140 or longer.
 /// ```
+#[doc(alias = "DataAssetTypeDesc")]
 pub const DATA_ASSET_TYPE_DESC: DataAssetType = DataAssetType(2);
 
 /// ```text
@@ -172,6 +194,7 @@ pub const DATA_ASSET_TYPE_DESC: DataAssetType = DataAssetType(2);
 /// Recommendations:
 ///   Optional. 0-5 integer formatted as string.
 /// ```
+#[doc(alias = "DataAssetTypeRating")]
 pub const DATA_ASSET_TYPE_RATING: DataAssetType = DataAssetType(3);
 
 /// ```text
@@ -184,6 +207,7 @@ pub const DATA_ASSET_TYPE_RATING: DataAssetType = DataAssetType(3);
 /// Format:
 ///   number formatted as string
 /// ```
+#[doc(alias = "DataAssetTypeLikes")]
 pub const DATA_ASSET_TYPE_LIKES: DataAssetType = DataAssetType(4);
 
 /// ```text
@@ -196,6 +220,7 @@ pub const DATA_ASSET_TYPE_LIKES: DataAssetType = DataAssetType(4);
 /// Format:
 ///   number formatted as string
 /// ```
+#[doc(alias = "DataAssetTypeDownloads")]
 pub const DATA_ASSET_TYPE_DOWNLOADS: DataAssetType = DataAssetType(5);
 
 /// ```text
@@ -209,6 +234,7 @@ pub const DATA_ASSET_TYPE_DOWNLOADS: DataAssetType = DataAssetType(5);
 /// Format:
 ///   number formatted as string
 /// ```
+#[doc(alias = "DataAssetTypePrice")]
 pub const DATA_ASSET_TYPE_PRICE: DataAssetType = DataAssetType(6);
 
 /// ```text
@@ -223,6 +249,7 @@ pub const DATA_ASSET_TYPE_PRICE: DataAssetType = DataAssetType(6);
 /// Format:
 ///   number formatted as string
 /// ```
+#[doc(alias = "DataAssetTypeSalePrice")]
 pub const DATA_ASSET_TYPE_SALE_PRICE: DataAssetType = DataAssetType(7);
 
 /// ```text
@@ -235,6 +262,7 @@ pub const DATA_ASSET_TYPE_SALE_PRICE: DataAssetType = DataAssetType(7);
 /// Format:
 ///   string
 /// ```
+#[doc(alias = "DataAssetTypePhone")]
 pub const DATA_ASSET_TYPE_PHONE: DataAssetType = DataAssetType(8);
 
 /// ```text
@@ -247,6 +275,7 @@ pub const DATA_ASSET_TYPE_PHONE: DataAssetType = DataAssetType(8);
 /// Format:
 ///   text
 /// ```
+#[doc(alias = "DataAssetTypeAddress")]
 pub const DATA_ASSET_TYPE_ADDRESS: DataAssetType = DataAssetType(9);
 
 /// ```text
@@ -259,6 +288,7 @@ pub const DATA_ASSET_TYPE_ADDRESS: DataAssetType = DataAssetType(9);
 /// Format:
 ///   text
 /// ```
+#[doc(alias = "DataAssetTypeDesc2")]
 pub const DATA_ASSET_TYPE_DESC2: DataAssetType = DataAssetType(10);
 
 /// ```text
@@ -273,6 +303,7 @@ pub const DATA_ASSET_TYPE_DESC2: DataAssetType = DataAssetType(10);
 /// Format:
 ///   text
 /// ```
+#[doc(alias = "DataAssetTypeDispayURL")]
 pub const DATA_ASSET_TYPE_DISPAY_URL: DataAssetType = DataAssetType(11);
 
 /// ```text
@@ -288,6 +319,7 @@ pub const DATA_ASSET_TYPE_DISPAY_URL: DataAssetType = DataAssetType(11);
 /// Recommendations:
 ///   Optional. Max 15 or longer.
 /// ```
+#[doc(alias = "DataAssetTypeCTAText")]
 pub const DATA_ASSET_TYPE_CTA_TEXT: DataAssetType = DataAssetType(12);
 
 /// ```text
@@ -298,9 +330,11 @@ pub const DATA_ASSET_TYPE_CTA_TEXT: DataAssetType = DataAssetType(12);
 pub struct EventTrackingMethod(pub i64);
 
 /// Image-pixel tracking - URL provided will be inserted as a 1x1 pixel at the time of the event.
+#[doc(alias = "EventTrackingMethodImage")]
 pub const EVENT_TRACKING_METHOD_IMAGE: EventTrackingMethod = EventTrackingMethod(1);
 
 /// Javascript-based tracking - URL provided will be inserted as a js tag at the time of the event.
+#[doc(alias = "EventTrackingMethodJS")]
 pub const EVENT_TRACKING_METHOD_JS: EventTrackingMethod = EventTrackingMethod(2);
 
 /// ```text
@@ -311,15 +345,19 @@ pub const EVENT_TRACKING_METHOD_JS: EventTrackingMethod = EventTrackingMethod(2)
 pub struct EventType(pub i64);
 
 /// Impression
+#[doc(alias = "EventTypeImpression")]
 pub const EVENT_TYPE_IMPRESSION: EventType = EventType(1);
 
 /// Visible impression using MRC definition at 50% in view for 1 second
+#[doc(alias = "EventTypeViewableMRC50")]
 pub const EVENT_TYPE_VIEWABLE_MRC50: EventType = EventType(2);
 
 /// 100% in view for 1 second (ie `GroupM` standard)
+#[doc(alias = "EventTypeViewableMRC100")]
 pub const EVENT_TYPE_VIEWABLE_MRC100: EventType = EventType(3);
 
 /// Visible impression for video using MRC definition at 50% in view for 2 seconds
+#[doc(alias = "EventTypeViewableVideo50")]
 pub const EVENT_TYPE_VIEWABLE_VIDEO50: EventType = EventType(4);
 
 /// ```text
@@ -350,9 +388,11 @@ pub const EVENT_TYPE_VIEWABLE_VIDEO50: EventType = EventType(4);
 pub struct ImageAssetType(pub i64);
 
 /// Icon; Icon image; Optional. Max height: at least 50; aspect ratio: 1:1
+#[doc(alias = "ImageAssetTypeIcon")]
 pub const IMAGE_ASSET_TYPE_ICON: ImageAssetType = ImageAssetType(1);
 
 /// Logo; Logo image for the brand/app. Deprecated in version 1.2 - use type 1 Icon.
+#[doc(alias = "ImageAssetTypeLogo")]
 pub const IMAGE_ASSET_TYPE_LOGO: ImageAssetType = ImageAssetType(2);
 
 /// ```text
@@ -366,6 +406,7 @@ pub const IMAGE_ASSET_TYPE_LOGO: ImageAssetType = ImageAssetType(2);
 ///     max width: at least 627, 836, or 1198
 ///     aspect ratio: 1:1, 4:3, or 1.91:1
 /// ```
+#[doc(alias = "ImageAssetTypeMain")]
 pub const IMAGE_ASSET_TYPE_MAIN: ImageAssetType = ImageAssetType(3);
 
 /// ```text
@@ -382,24 +423,31 @@ pub const IMAGE_ASSET_TYPE_MAIN: ImageAssetType = ImageAssetType(3);
 pub struct Layout(pub i64);
 
 /// Content Wall
+#[doc(alias = "LayoutContentWall")]
 pub const LAYOUT_CONTENT_WALL: Layout = Layout(1);
 
 /// App Wall
+#[doc(alias = "LayoutAppWall")]
 pub const LAYOUT_APP_WALL: Layout = Layout(2);
 
 /// News Feed
+#[doc(alias = "LayoutNewsFeed")]
 pub const LAYOUT_NEWS_FEED: Layout = Layout(3);
 
 /// Chat List
+#[doc(alias = "LayoutChatList")]
 pub const LAYOUT_CHAT_LIST: Layout = Layout(4);
 
 /// Carousel
+#[doc(alias = "LayoutCarousel")]
 pub const LAYOUT_CAROUSEL: Layout = Layout(5);
 
 /// Content Stream
+#[doc(alias = "LayoutContentStream")]
 pub const LAYOUT_CONTENT_STREAM: Layout = Layout(6);
 
 /// Grid adjoining the content
+#[doc(alias = "LayoutGrid")]
 pub const LAYOUT_GRID: Layout = Layout(7);
 
 /// ```text
@@ -412,18 +460,22 @@ pub const LAYOUT_GRID: Layout = Layout(7);
 pub struct PlacementType(pub i64);
 
 /// In the feed of content - for example as an item inside the organic feed/grid/listing/carousel.
+#[doc(alias = "PlacementTypeFeed")]
 pub const PLACEMENT_TYPE_FEED: PlacementType = PlacementType(1);
 
 /// In the atomic unit of the content - IE in the article page or single image page
+#[doc(alias = "PlacementTypeAtomicContentUnit")]
 pub const PLACEMENT_TYPE_ATOMIC_CONTENT_UNIT: PlacementType = PlacementType(2);
 
 /// ```text
 /// Outside the core content - for example in the ads section on the right rail, as a banner-style
 /// placement near the content, etc.
 /// ```
+#[doc(alias = "PlacementTypeOutsideCoreContent")]
 pub const PLACEMENT_TYPE_OUTSIDE_CORE_CONTENT: PlacementType = PlacementType(3);
 
 /// Recommendation widget, most commonly presented below the article content.
+#[doc(alias = "PlacementTypeRecommendationWidget")]
 pub const PLACEMENT_TYPE_RECOMMENDATION_WIDGET: PlacementType = PlacementType(4);
 
 /// ```text
@@ -439,43 +491,57 @@ pub const PLACEMENT_TYPE_RECOMMENDATION_WIDGET: PlacementType = PlacementType(4)
 pub struct Protocol(pub i8);
 
 /// VAST 1.0
+#[doc(alias = "ProtocolVAST10")]
 pub const PROTOCOL_VAST10: Protocol = Protocol(1);
 
 /// VAST 2.0
+#[doc(alias = "ProtocolVAST20")]
 pub const PROTOCOL_VAST20: Protocol = Protocol(2);
 
 /// VAST 3.0
+#[doc(alias = "ProtocolVAST30")]
 pub const PROTOCOL_VAST30: Protocol = Protocol(3);
 
 /// VAST 1.0 Wrapper
+#[doc(alias = "ProtocolVAST10Wrapper")]
 pub const PROTOCOL_VAST10_WRAPPER: Protocol = Protocol(4);
 
 /// VAST 2.0 Wrapper
+#[doc(alias = "ProtocolVAST20Wrapper")]
 pub const PROTOCOL_VAST20_WRAPPER: Protocol = Protocol(5);
 
 /// VAST 3.0 Wrapper
+#[doc(alias = "ProtocolVAST30Wrapper")]
 pub const PROTOCOL_VAST30_WRAPPER: Protocol = Protocol(6);
 
 /// VAST 4.0
+#[doc(alias = "ProtocolVAST40")]
 pub const PROTOCOL_VAST40: Protocol = Protocol(7);
 
 /// VAST 4.0 Wrapper
+#[doc(alias = "ProtocolVAST40Wrapper")]
 pub const PROTOCOL_VAST40_WRAPPER: Protocol = Protocol(8);
 
 /// DAAST 1.0
+#[doc(alias = "ProtocolDAAST10")]
 pub const PROTOCOL_DAAST10: Protocol = Protocol(9);
 
 /// DAAST 1.0 Wrapper
+#[doc(alias = "ProtocolDAAST10Wrapper")]
 pub const PROTOCOL_DAAST10_WRAPPER: Protocol = Protocol(10);
 
 /// VAST 4.1
+#[doc(alias = "ProtocolVAST41")]
 pub const PROTOCOL_VAST41: Protocol = Protocol(11);
 
 /// VAST 4.1 Wrapper
+#[doc(alias = "ProtocolVAST41Wrapper")]
 pub const PROTOCOL_VAST41_WRAPPER: Protocol = Protocol(12);
 
 /// VAST 4.2
+#[doc(alias = "ProtocolVAST42")]
 pub const PROTOCOL_VAST42: Protocol = Protocol(13);
 
 /// VAST 4.2 Wrapper
+#[doc(alias = "ProtocolVAST42Wrapper")]
 pub const PROTOCOL_VAST42_WRAPPER: Protocol = Protocol(14);

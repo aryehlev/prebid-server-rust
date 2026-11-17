@@ -356,6 +356,7 @@ impl<'a> Emitter<'a> {
             0,
             &format!("Go type `{}`.", info.go_name),
         );
+        out.extend(doc_alias(&info.rust_name, &decl.name));
         let mut derives = vec!["Clone"];
         if info.copy {
             derives.push("Copy");
@@ -482,6 +483,7 @@ impl<'a> Emitter<'a> {
             0,
             &format!("Go type `{}`.", info.go_name),
         );
+        out.extend(doc_alias(&info.rust_name, &decl.name));
         out.push(format!("#[derive({})]", derives.join(", ")));
         out.extend(attribute(0, &args));
         out.push(format!("pub struct {}(pub {inner});", info.rust_name));
@@ -577,6 +579,7 @@ impl<'a> Emitter<'a> {
             0,
             &format!("Go constant `{}`.", decl.name),
         );
+        out.extend(doc_alias(&name, &decl.name));
         let line = format!("pub const {name}: {rust_ty} = {expr};");
         if line.len() > WIDTH {
             out.push(format!("pub const {name}: {rust_ty} ="));
@@ -716,13 +719,30 @@ fn const_literal(value: &str, kind: &str) -> Option<String> {
 /// A `#[gojson(...)]` attribute, one argument per line when the arguments exceed rustfmt's
 /// `attr_fn_like_width` or the line exceeds the width.
 fn attribute(indent: usize, args: &[String]) -> Vec<String> {
+    meta_list(indent, "gojson", args)
+}
+
+/// `#[doc(alias = "Go")]` for an item whose Rust name differs from its Go name
+/// (`NoBidUnknownError` → `NO_BID_UNKNOWN_ERROR`), so that rustdoc search and grep find the
+/// Rust item by the Go name a porter reads; nothing when the names are equal (rustc rejects an
+/// alias equal to the item's name).
+fn doc_alias(rust: &str, go: &str) -> Vec<String> {
+    if rust == go {
+        return Vec::new();
+    }
+    meta_list(0, "doc", &[format!("alias = {}", literal(go))])
+}
+
+/// `#[name(args)]`, one argument per line when the arguments exceed rustfmt's
+/// `attr_fn_like_width` or the line exceeds the width.
+fn meta_list(indent: usize, name: &str, args: &[String]) -> Vec<String> {
     let pad = " ".repeat(indent);
     let joined = args.join(", ");
-    let line = format!("{pad}#[gojson({joined})]");
+    let line = format!("{pad}#[{name}({joined})]");
     if joined.len() <= ATTR_ARGS_WIDTH && line.len() <= WIDTH {
         return vec![line];
     }
-    let mut out = vec![format!("{pad}#[gojson(")];
+    let mut out = vec![format!("{pad}#[{name}(")];
     let last = args.len().saturating_sub(1);
     for (i, arg) in args.iter().enumerate() {
         let comma = if i == last { "" } else { "," };
@@ -897,7 +917,7 @@ impl Tree {
 mod tests {
     use std::{cmp::Ordering, collections::BTreeSet};
 
-    use super::{attribute, const_literal, imports, literal, version_cmp};
+    use super::{attribute, const_literal, doc_alias, imports, literal, version_cmp};
     use crate::{error::Result, testutil::check_eq};
 
     #[test]
@@ -987,6 +1007,20 @@ mod tests {
                 "    )]".to_owned(),
             ],
             "long attribute",
+        )
+    }
+
+    #[test]
+    fn aliases_items_renamed_from_go() -> Result<()> {
+        check_eq(
+            &doc_alias("NO_BID_UNKNOWN_ERROR", "NoBidUnknownError"),
+            &vec!["#[doc(alias = \"NoBidUnknownError\")]".to_owned()],
+            "renamed",
+        )?;
+        check_eq(
+            &doc_alias("APIVPAID10", "APIVPAID10"),
+            &Vec::<String>::new(),
+            "same name",
         )
     }
 }

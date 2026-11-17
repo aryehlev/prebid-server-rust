@@ -21,15 +21,19 @@ use crate::{adcom1, openrtb3};
 pub struct AdInsertion(pub i8);
 
 /// status unknown
+#[doc(alias = "AdInsertUnknown")]
 pub const AD_INSERT_UNKNOWN: AdInsertion = AdInsertion(0);
 
 /// all client-side (i.e., not server-side)
+#[doc(alias = "AdInsertClient")]
 pub const AD_INSERT_CLIENT: AdInsertion = AdInsertion(1);
 
 /// assets stitched server-side but tracking pixels fired client-side
+#[doc(alias = "AdInsertServerStitchClientTrack")]
 pub const AD_INSERT_SERVER_STITCH_CLIENT_TRACK: AdInsertion = AdInsertion(2);
 
 /// all server-side
+#[doc(alias = "AdInsertServer")]
 pub const AD_INSERT_SERVER: AdInsertion = AdInsertion(3);
 
 /// ```text
@@ -803,15 +807,19 @@ pub struct Banner {
 pub struct BannerAdType(pub i8);
 
 /// XHTML Text Ad (usually mobile)
+#[doc(alias = "BannerAdTypeXHTMLTextAd")]
 pub const BANNER_AD_TYPE_XHTML_TEXT_AD: BannerAdType = BannerAdType(1);
 
 /// XHTML Banner Ad. (usually mobile)
+#[doc(alias = "BannerAdTypeXHTMLBannerAd")]
 pub const BANNER_AD_TYPE_XHTML_BANNER_AD: BannerAdType = BannerAdType(2);
 
 /// `JavaScript` Ad; must be valid XHTML (i.e., Script Tags Included)
+#[doc(alias = "BannerAdTypeJavaScriptAd")]
 pub const BANNER_AD_TYPE_JAVA_SCRIPT_AD: BannerAdType = BannerAdType(3);
 
 /// iframe
+#[doc(alias = "BannerAdTypeIframe")]
 pub const BANNER_AD_TYPE_IFRAME: BannerAdType = BannerAdType(4);
 
 /// ```text
@@ -3498,15 +3506,19 @@ pub struct Imp {
 pub struct MarkupType(pub i8);
 
 /// Go constant `MarkupBanner`.
+#[doc(alias = "MarkupBanner")]
 pub const MARKUP_BANNER: MarkupType = MarkupType(1);
 
 /// Go constant `MarkupVideo`.
+#[doc(alias = "MarkupVideo")]
 pub const MARKUP_VIDEO: MarkupType = MarkupType(2);
 
 /// Go constant `MarkupAudio`.
+#[doc(alias = "MarkupAudio")]
 pub const MARKUP_AUDIO: MarkupType = MarkupType(3);
 
 /// Go constant `MarkupNative`.
+#[doc(alias = "MarkupNative")]
 pub const MARKUP_NATIVE: MarkupType = MarkupType(4);
 
 /// ```text

@@ -229,15 +229,18 @@ pub struct Ad {
 pub struct AgentType(pub i64);
 
 /// An ID which is tied to a specific web browser or device (cookie-based, probabilistic, or other).
+#[doc(alias = "AgentTypeWeb")]
 pub const AGENT_TYPE_WEB: AgentType = AgentType(1);
 
 /// ```text
 /// In-app impressions, which will typically contain a type of device ID (or rather, the
 /// privacy-compliant versions of device IDs).
 /// ```
+#[doc(alias = "AgentTypeApp")]
 pub const AGENT_TYPE_APP: AgentType = AgentType(2);
 
 /// A person-based ID, i.e., that is the same across devices.
+#[doc(alias = "AgentTypePerson")]
 pub const AGENT_TYPE_PERSON: AgentType = AgentType(3);
 
 /// `APIFramework` represents API frameworks either supported by a placement or required by an ad.
@@ -1128,6 +1131,7 @@ pub struct AuditStatus(pub isize);
 /// Pending Audit: An audit has not yet been completed on this ad. A recommendation cannot be made
 /// to use this ad, but vendors' policies may override.
 /// ```
+#[doc(alias = "AuditPendingAudit")]
 pub const AUDIT_PENDING_AUDIT: AuditStatus = AuditStatus(1);
 
 /// ```text
@@ -1135,18 +1139,21 @@ pub const AUDIT_PENDING_AUDIT: AuditStatus = AuditStatus(1);
 /// can be recommended for use. However, once the audit has been completed, its status will change
 /// and it may or may not be approved for continued use.
 /// ```
+#[doc(alias = "AuditPreApproved")]
 pub const AUDIT_PRE_APPROVED: AuditStatus = AuditStatus(2);
 
 /// ```text
 /// Approved: The audit is complete and the ad is approved for use. Note, however, that some
 /// attributes (e.g., adomain, cat, attr, etc.) may have been changed in the process by the auditor.
 /// ```
+#[doc(alias = "AuditApproved")]
 pub const AUDIT_APPROVED: AuditStatus = AuditStatus(3);
 
 /// ```text
 /// Denied: The audit is complete, but the ad has been found unacceptable in some material aspect
 /// and is disapproved for use.
 /// ```
+#[doc(alias = "AuditDenied")]
 pub const AUDIT_DENIED: AuditStatus = AuditStatus(4);
 
 /// ```text
@@ -1155,12 +1162,14 @@ pub const AUDIT_DENIED: AuditStatus = AuditStatus(4);
 /// until the ad is resubmitted for audit and approved. Vendors need to communicate offline as to
 /// the criteria that constitutes a material change.
 /// ```
+#[doc(alias = "AuditChangedResubmissionRequested")]
 pub const AUDIT_CHANGED_RESUBMISSION_REQUESTED: AuditStatus = AuditStatus(5);
 
 /// ```text
 /// Expired: The ad has been marked as expired by the vendor. Vendors need to communicate offline as
 /// to the expected bidding behavior for ads with this status.
 /// ```
+#[doc(alias = "AuditExpired")]
 pub const AUDIT_EXPIRED: AuditStatus = AuditStatus(6);
 
 /// `AutoRefreshTrigger` represents a list of triggers that result in an ad slot refreshing.
@@ -1169,18 +1178,22 @@ pub const AUDIT_EXPIRED: AuditStatus = AuditStatus(6);
 pub struct AutoRefreshTrigger(pub i8);
 
 /// Go constant `AutoRefreshTriggerUnknown`.
+#[doc(alias = "AutoRefreshTriggerUnknown")]
 pub const AUTO_REFRESH_TRIGGER_UNKNOWN: AutoRefreshTrigger = AutoRefreshTrigger(0);
 
 /// Refresh triggered by user-initiated action such as scrolling.
+#[doc(alias = "AutoRefreshTriggerUserAction")]
 pub const AUTO_REFRESH_TRIGGER_USER_ACTION: AutoRefreshTrigger = AutoRefreshTrigger(1);
 
 /// ```text
 /// Event-driven content change. For example, ads refresh when the football game score changes on
 /// the page.
 /// ```
+#[doc(alias = "AutoRefreshTriggerEvent")]
 pub const AUTO_REFRESH_TRIGGER_EVENT: AutoRefreshTrigger = AutoRefreshTrigger(2);
 
 /// Time-based refresh. Ads refresh on a predefined time interval even without user activity.
+#[doc(alias = "AutoRefreshTriggerTime")]
 pub const AUTO_REFRESH_TRIGGER_TIME: AutoRefreshTrigger = AutoRefreshTrigger(3);
 
 /// ```text
@@ -1293,27 +1306,34 @@ pub struct CategoryTaxonomy(pub i64);
 /// IAB Tech Lab Content Category Taxonomy 1.0: Deprecated, and recommend NOT be used since it does
 /// not have SCD flags.
 /// ```
+#[doc(alias = "CatTaxIABContent10")]
 pub const CAT_TAX_IAB_CONTENT10: CategoryTaxonomy = CategoryTaxonomy(1);
 
 /// ```text
 /// IAB Tech Lab Content Category Taxonomy 2.0: Deprecated, and recommend NOT be used since it does
 /// not have SCD flags.
 /// ```
+#[doc(alias = "CatTaxIABContent20")]
 pub const CAT_TAX_IAB_CONTENT20: CategoryTaxonomy = CategoryTaxonomy(2);
 
 /// IAB Tech Lab Ad Product Taxonomy 1.0.
+#[doc(alias = "CatTaxIABProduct10")]
 pub const CAT_TAX_IAB_PRODUCT10: CategoryTaxonomy = CategoryTaxonomy(3);
 
 /// IAB Tech Lab Audience Taxonomy 1.1.
+#[doc(alias = "CatTaxIABAudience11")]
 pub const CAT_TAX_IAB_AUDIENCE11: CategoryTaxonomy = CategoryTaxonomy(4);
 
 /// IAB Tech Lab Content Category Taxonomy 2.1.
+#[doc(alias = "CatTaxIABContent21")]
 pub const CAT_TAX_IAB_CONTENT21: CategoryTaxonomy = CategoryTaxonomy(5);
 
 /// IAB Tech Lab Content Category Taxonomy 2.2.
+#[doc(alias = "CatTaxIABContent22")]
 pub const CAT_TAX_IAB_CONTENT22: CategoryTaxonomy = CategoryTaxonomy(6);
 
 /// IAB Tech Lab Content Category Taxonomy 3.0.
+#[doc(alias = "CatTaxIABContent30")]
 pub const CAT_TAX_IAB_CONTENT30: CategoryTaxonomy = CategoryTaxonomy(7);
 
 /// ```text
@@ -1380,15 +1400,19 @@ pub struct Channel {
 pub struct ClickType(pub isize);
 
 /// Non-Clickable
+#[doc(alias = "ClickNonClickable")]
 pub const CLICK_NON_CLICKABLE: ClickType = ClickType(0);
 
 /// Clickable - Details Unknown
+#[doc(alias = "ClickUnknown")]
 pub const CLICK_UNKNOWN: ClickType = ClickType(1);
 
 /// Clickable - Embedded Browser/Webview
+#[doc(alias = "ClickEmbedded")]
 pub const CLICK_EMBEDDED: ClickType = ClickType(2);
 
 /// Clickable - Native Browser
+#[doc(alias = "ClickNative")]
 pub const CLICK_NATIVE: ClickType = ClickType(3);
 
 /// ```text
@@ -1455,12 +1479,15 @@ pub struct Companion {
 pub struct CompanionType(pub i8);
 
 /// Static Resource
+#[doc(alias = "CompanionStatic")]
 pub const COMPANION_STATIC: CompanionType = CompanionType(1);
 
 /// HTML Resource
+#[doc(alias = "CompanionHTML")]
 pub const COMPANION_HTML: CompanionType = CompanionType(2);
 
 /// iframe Resource
+#[doc(alias = "CompanionIFrame")]
 pub const COMPANION_I_FRAME: CompanionType = CompanionType(3);
 
 /// `ConnectionType` represents options for the type of device connectivity.
@@ -1469,41 +1496,49 @@ pub const COMPANION_I_FRAME: CompanionType = CompanionType(3);
 pub struct ConnectionType(pub i8);
 
 /// 0 Unknown
+#[doc(alias = "ConnectionUnknown")]
 pub const CONNECTION_UNKNOWN: ConnectionType = ConnectionType(0);
 
 /// ```text
 /// 1    Ethernet; Wired Connection
 /// ```
+#[doc(alias = "ConnectionEthernet")]
 pub const CONNECTION_ETHERNET: ConnectionType = ConnectionType(1);
 
 /// ```text
 /// 2    WIFI
 /// ```
+#[doc(alias = "ConnectionWIFI")]
 pub const CONNECTION_WIFI: ConnectionType = ConnectionType(2);
 
 /// ```text
 /// 3    Cellular Network - Unknown Generation
 /// ```
+#[doc(alias = "ConnectionCellular")]
 pub const CONNECTION_CELLULAR: ConnectionType = ConnectionType(3);
 
 /// ```text
 /// 4    Cellular Network - 2G
 /// ```
+#[doc(alias = "Connection2G")]
 pub const CONNECTION2G: ConnectionType = ConnectionType(4);
 
 /// ```text
 /// 5    Cellular Network - 3G
 /// ```
+#[doc(alias = "Connection3G")]
 pub const CONNECTION3G: ConnectionType = ConnectionType(5);
 
 /// ```text
 /// 6    Cellular Network - 4G
 /// ```
+#[doc(alias = "Connection4G")]
 pub const CONNECTION4G: ConnectionType = ConnectionType(6);
 
 /// ```text
 /// 7    Cellular Network - 5G
 /// ```
+#[doc(alias = "Connection5G")]
 pub const CONNECTION5G: ConnectionType = ConnectionType(7);
 
 /// ```text
@@ -1840,24 +1875,31 @@ pub struct Content {
 pub struct ContentContext(pub i8);
 
 /// 1 Video (i.e., video file or stream such as Internet TV broadcasts)
+#[doc(alias = "ContentVideo")]
 pub const CONTENT_VIDEO: ContentContext = ContentContext(1);
 
 /// 2 Game (i.e., an interactive software game)
+#[doc(alias = "ContentGame")]
 pub const CONTENT_GAME: ContentContext = ContentContext(2);
 
 /// 3 Music (i.e., audio file or stream such as Internet radio broadcasts)
+#[doc(alias = "ContentMusic")]
 pub const CONTENT_MUSIC: ContentContext = ContentContext(3);
 
 /// 4 Application (i.e., an interactive software application)
+#[doc(alias = "ContentApp")]
 pub const CONTENT_APP: ContentContext = ContentContext(4);
 
 /// 5 Text (i.e., primarily textual document such as a web page, eBook, or news article)
+#[doc(alias = "ContentText")]
 pub const CONTENT_TEXT: ContentContext = ContentContext(5);
 
 /// 6 Other (i.e., none of the other categories applies)
+#[doc(alias = "ContentOther")]
 pub const CONTENT_OTHER: ContentContext = ContentContext(6);
 
 /// 7 Unknown
+#[doc(alias = "ContentUnknown")]
 pub const CONTENT_UNKNOWN: ContentContext = ContentContext(7);
 
 /// ```text
@@ -1869,57 +1911,75 @@ pub const CONTENT_UNKNOWN: ContentContext = ContentContext(7);
 pub struct CreativeAttribute(pub i64);
 
 /// Audio Ad (Autoplay)
+#[doc(alias = "AttrAudioAuto")]
 pub const ATTR_AUDIO_AUTO: CreativeAttribute = CreativeAttribute(1);
 
 /// Audio Ad (User Initiated)
+#[doc(alias = "AttrAudioUser")]
 pub const ATTR_AUDIO_USER: CreativeAttribute = CreativeAttribute(2);
 
 /// Expandable (Automatic)
+#[doc(alias = "AttrExpandableAuto")]
 pub const ATTR_EXPANDABLE_AUTO: CreativeAttribute = CreativeAttribute(3);
 
 /// Expandable (User Initiated - Click)
+#[doc(alias = "AttrExpandableUserClick")]
 pub const ATTR_EXPANDABLE_USER_CLICK: CreativeAttribute = CreativeAttribute(4);
 
 /// Expandable (User Initiated - Rollover)
+#[doc(alias = "AttrExpandableUserRollover")]
 pub const ATTR_EXPANDABLE_USER_ROLLOVER: CreativeAttribute = CreativeAttribute(5);
 
 /// In-Banner Video Ad (Autoplay)
+#[doc(alias = "AttrVideoAuto")]
 pub const ATTR_VIDEO_AUTO: CreativeAttribute = CreativeAttribute(6);
 
 /// In-Banner Video Ad (User Initiated)
+#[doc(alias = "AttrVideoUser")]
 pub const ATTR_VIDEO_USER: CreativeAttribute = CreativeAttribute(7);
 
 /// Pop (e.g., Over, Under, or Upon Exit)
+#[doc(alias = "AttrPop")]
 pub const ATTR_POP: CreativeAttribute = CreativeAttribute(8);
 
 /// Provocative or Suggestive Imagery
+#[doc(alias = "AttrProvocative")]
 pub const ATTR_PROVOCATIVE: CreativeAttribute = CreativeAttribute(9);
 
 /// Shaky, Flashing, Flickering, Extreme Animation, Smileys
+#[doc(alias = "AttrExtremeAnimation")]
 pub const ATTR_EXTREME_ANIMATION: CreativeAttribute = CreativeAttribute(10);
 
 /// Surveys
+#[doc(alias = "AttrSurvey")]
 pub const ATTR_SURVEY: CreativeAttribute = CreativeAttribute(11);
 
 /// Text Only
+#[doc(alias = "AttrTextOnly")]
 pub const ATTR_TEXT_ONLY: CreativeAttribute = CreativeAttribute(12);
 
 /// User Interactive (e.g., Embedded Games)
+#[doc(alias = "AttrInteractive")]
 pub const ATTR_INTERACTIVE: CreativeAttribute = CreativeAttribute(13);
 
 /// Windows Dialog or Alert Style
+#[doc(alias = "AttrWindowsDialog")]
 pub const ATTR_WINDOWS_DIALOG: CreativeAttribute = CreativeAttribute(14);
 
 /// Has Audio On/Off Button
+#[doc(alias = "AttrHasAudioToggleButton")]
 pub const ATTR_HAS_AUDIO_TOGGLE_BUTTON: CreativeAttribute = CreativeAttribute(15);
 
 /// Ad Provides Skip Button (e.g. VPAID-rendered skip button on pre-roll video)
+#[doc(alias = "AttrHasSkipButton")]
 pub const ATTR_HAS_SKIP_BUTTON: CreativeAttribute = CreativeAttribute(16);
 
 /// Adobe Flash
+#[doc(alias = "AttrFlash")]
 pub const ATTR_FLASH: CreativeAttribute = CreativeAttribute(17);
 
 /// Responsive; Sizeless; Fluid (i.e., creatives that dynamically resize to environment)
+#[doc(alias = "AttrResponsive")]
 pub const ATTR_RESPONSIVE: CreativeAttribute = CreativeAttribute(18);
 
 /// ```text
@@ -2079,12 +2139,15 @@ pub struct DataAssetFormat {
 pub struct DeliveryMethod(pub i8);
 
 /// Streaming
+#[doc(alias = "DeliveryStreaming")]
 pub const DELIVERY_STREAMING: DeliveryMethod = DeliveryMethod(1);
 
 /// Progressive
+#[doc(alias = "DeliveryProgressive")]
 pub const DELIVERY_PROGRESSIVE: DeliveryMethod = DeliveryMethod(2);
 
 /// Download
+#[doc(alias = "DeliveryDownload")]
 pub const DELIVERY_DOWNLOAD: DeliveryMethod = DeliveryMethod(3);
 
 /// ```text
@@ -2418,27 +2481,35 @@ pub struct Device {
 pub struct DeviceType(pub i8);
 
 /// Mobile/Tablet - General
+#[doc(alias = "DeviceMobile")]
 pub const DEVICE_MOBILE: DeviceType = DeviceType(1);
 
 /// Personal Computer
+#[doc(alias = "DevicePC")]
 pub const DEVICE_PC: DeviceType = DeviceType(2);
 
 /// Connected TV
+#[doc(alias = "DeviceTV")]
 pub const DEVICE_TV: DeviceType = DeviceType(3);
 
 /// Phone
+#[doc(alias = "DevicePhone")]
 pub const DEVICE_PHONE: DeviceType = DeviceType(4);
 
 /// Tablet
+#[doc(alias = "DeviceTablet")]
 pub const DEVICE_TABLET: DeviceType = DeviceType(5);
 
 /// Connected Device
+#[doc(alias = "DeviceConnected")]
 pub const DEVICE_CONNECTED: DeviceType = DeviceType(6);
 
 /// Set Top Box
+#[doc(alias = "DeviceSetTopBox")]
 pub const DEVICE_SET_TOP_BOX: DeviceType = DeviceType(7);
 
 /// OOH Device
+#[doc(alias = "DeviceOOH")]
 pub const DEVICE_OOH: DeviceType = DeviceType(8);
 
 /// ```text
@@ -2629,57 +2700,69 @@ pub struct Display {
 pub struct DisplayContextType(pub isize);
 
 /// Content-centric context (e.g., newsfeed, article, image gallery, video gallery, etc.).
+#[doc(alias = "DisplayContextContent")]
 pub const DISPLAY_CONTEXT_CONTENT: DisplayContextType = DisplayContextType(10);
 
 /// ```text
 /// - Primarily article content, which could include images, etc. as part of the article.
 /// ```
+#[doc(alias = "DisplayContextContentArticle")]
 pub const DISPLAY_CONTEXT_CONTENT_ARTICLE: DisplayContextType = DisplayContextType(11);
 
 /// ```text
 /// - Primarily video content.
 /// ```
+#[doc(alias = "DisplayContextContentVideo")]
 pub const DISPLAY_CONTEXT_CONTENT_VIDEO: DisplayContextType = DisplayContextType(12);
 
 /// ```text
 /// - Primarily audio content.
 /// ```
+#[doc(alias = "DisplayContextContentAudio")]
 pub const DISPLAY_CONTEXT_CONTENT_AUDIO: DisplayContextType = DisplayContextType(13);
 
 /// ```text
 /// - Primarily image content.
 /// ```
+#[doc(alias = "DisplayContextContentImage")]
 pub const DISPLAY_CONTEXT_CONTENT_IMAGE: DisplayContextType = DisplayContextType(14);
 
 /// ```text
 /// - User-generated content (e.g., forums, comments, etc.).
 /// ```
+#[doc(alias = "DisplayContextContentUserGenerated")]
 pub const DISPLAY_CONTEXT_CONTENT_USER_GENERATED: DisplayContextType = DisplayContextType(15);
 
 /// Social-centric context (e.g., social network feed, email, chat, etc.).
+#[doc(alias = "DisplayContextSocial")]
 pub const DISPLAY_CONTEXT_SOCIAL: DisplayContextType = DisplayContextType(20);
 
 /// ```text
 /// - Primarily email content.
 /// ```
+#[doc(alias = "DisplayContextSocialEmail")]
 pub const DISPLAY_CONTEXT_SOCIAL_EMAIL: DisplayContextType = DisplayContextType(21);
 
 /// ```text
 /// - Primarily chat/IM content.
 /// ```
+#[doc(alias = "DisplayContextSocialChat")]
 pub const DISPLAY_CONTEXT_SOCIAL_CHAT: DisplayContextType = DisplayContextType(22);
 
 /// Product context (e.g., product listings, details, recommendations, reviews, etc.).
+#[doc(alias = "DisplayContextProduct")]
 pub const DISPLAY_CONTEXT_PRODUCT: DisplayContextType = DisplayContextType(30);
 
 /// ```text
 /// - App store/marketplace.
 /// ```
+#[doc(alias = "DisplayContextProductApp")]
 pub const DISPLAY_CONTEXT_PRODUCT_APP: DisplayContextType = DisplayContextType(31);
 
 /// ```text
 /// - Product reviews site primarily, which may sell product secondarily.
 /// ```
+#[doc(alias = "DisplayContextProductReview")]
 pub const DISPLAY_CONTEXT_PRODUCT_REVIEW: DisplayContextType = DisplayContextType(32);
 
 /// `DisplayCreativeSubtype` represents subtypes of display ad creatives.
@@ -2688,15 +2771,19 @@ pub const DISPLAY_CONTEXT_PRODUCT_REVIEW: DisplayContextType = DisplayContextTyp
 pub struct DisplayCreativeSubtype(pub i8);
 
 /// HTML
+#[doc(alias = "CreativeHTML")]
 pub const CREATIVE_HTML: DisplayCreativeSubtype = DisplayCreativeSubtype(1);
 
 /// AMPHTML
+#[doc(alias = "CreativeAMP")]
 pub const CREATIVE_AMP: DisplayCreativeSubtype = DisplayCreativeSubtype(2);
 
 /// Structured Image Object
+#[doc(alias = "CreativeImage")]
 pub const CREATIVE_IMAGE: DisplayCreativeSubtype = DisplayCreativeSubtype(3);
 
 /// Structured Native Object
+#[doc(alias = "CreativeNative")]
 pub const CREATIVE_NATIVE: DisplayCreativeSubtype = DisplayCreativeSubtype(4);
 
 /// ```text
@@ -3012,18 +3099,22 @@ pub struct DisplayPlacementType(pub isize);
 /// In the feed of content (e.g., as an item inside the organic feed, grid, listing, carousel,
 /// etc.).
 /// ```
+#[doc(alias = "DisplayPlacementFeed")]
 pub const DISPLAY_PLACEMENT_FEED: DisplayPlacementType = DisplayPlacementType(1);
 
 /// In the atomic unit of the content (e.g., in the article page or single image page).
+#[doc(alias = "DisplayPlacementUnit")]
 pub const DISPLAY_PLACEMENT_UNIT: DisplayPlacementType = DisplayPlacementType(2);
 
 /// ```text
 /// Outside the core content (e.g., in the ads section on the right rail, as a banner-style
 /// placement near the content, etc.).
 /// ```
+#[doc(alias = "DisplayPlacementOutside")]
 pub const DISPLAY_PLACEMENT_OUTSIDE: DisplayPlacementType = DisplayPlacementType(3);
 
 /// Recommendation widget; most commonly presented below article content.
+#[doc(alias = "DisplayPlacementWidget")]
 pub const DISPLAY_PLACEMENT_WIDGET: DisplayPlacementType = DisplayPlacementType(4);
 
 /// ```text
@@ -3161,18 +3252,22 @@ pub struct DOOH {
 pub struct DOOHMultiplierMeasurementSourceType(pub i8);
 
 /// Go constant `MultiplierUnknown`.
+#[doc(alias = "MultiplierUnknown")]
 pub const MULTIPLIER_UNKNOWN: DOOHMultiplierMeasurementSourceType =
     DOOHMultiplierMeasurementSourceType(0);
 
 /// Go constant `MultiplierMeasurementVendorProvided`.
+#[doc(alias = "MultiplierMeasurementVendorProvided")]
 pub const MULTIPLIER_MEASUREMENT_VENDOR_PROVIDED: DOOHMultiplierMeasurementSourceType =
     DOOHMultiplierMeasurementSourceType(1);
 
 /// Go constant `MultiplierPublisherProvided`.
+#[doc(alias = "MultiplierPublisherProvided")]
 pub const MULTIPLIER_PUBLISHER_PROVIDED: DOOHMultiplierMeasurementSourceType =
     DOOHMultiplierMeasurementSourceType(2);
 
 /// Go constant `MultiplierExchangeProvided`.
+#[doc(alias = "MultiplierExchangeProvided")]
 pub const MULTIPLIER_EXCHANGE_PROVIDED: DOOHMultiplierMeasurementSourceType =
     DOOHMultiplierMeasurementSourceType(3);
 
@@ -3188,12 +3283,14 @@ pub const MULTIPLIER_EXCHANGE_PROVIDED: DOOHMultiplierMeasurementSourceType =
 pub struct DOOHVenueTaxonomy(pub isize);
 
 /// `AdCom` DOOH Venue Types (deprecated)
+#[doc(alias = "VenueTaxonomyAdCom")]
 pub const VENUE_TAXONOMY_AD_COM: DOOHVenueTaxonomy = DOOHVenueTaxonomy(0);
 
 /// ```text
 /// OpenOOH Venue Taxonomy 1.0
 /// https://github.com/openooh/venue-taxonomy/blob/main/specification-1.0.md
 /// ```
+#[doc(alias = "VenueTaxonomyOpenOOH10")]
 pub const VENUE_TAXONOMY_OPEN_OOH10: DOOHVenueTaxonomy = DOOHVenueTaxonomy(1);
 
 /// ```text
@@ -3201,23 +3298,27 @@ pub const VENUE_TAXONOMY_OPEN_OOH10: DOOHVenueTaxonomy = DOOHVenueTaxonomy(1);
 /// https://github.com/InteractiveAdvertisingBureau/AdCOM/blob/master/AdCOM%20v1.0%20FINAL.md#list--
 /// dooh-venue-types-
 /// ```
+#[doc(alias = "VenueTaxonomyDPAA")]
 pub const VENUE_TAXONOMY_DPAA: DOOHVenueTaxonomy = DOOHVenueTaxonomy(2);
 
 /// ```text
 /// DMI Categorization of Venues 1.1
 /// https://www.dmi-org.com/download/DMI_Standards_for_DOOH_Venues.pdf
 /// ```
+#[doc(alias = "VenueTaxonomyDMI11")]
 pub const VENUE_TAXONOMY_DMI11: DOOHVenueTaxonomy = DOOHVenueTaxonomy(3);
 
 /// ```text
 /// OMA taxonomy Jan 2022 https://www.oma.org.au/industry-standards
 /// ```
+#[doc(alias = "VenueTaxonomyOMAJan2022")]
 pub const VENUE_TAXONOMY_OMA_JAN2022: DOOHVenueTaxonomy = DOOHVenueTaxonomy(4);
 
 /// ```text
 /// OpenOOH Venue Taxonomy 1.1
 /// https://github.com/openooh/venue-taxonomy/blob/main/specification-1.1.md
 /// ```
+#[doc(alias = "VenueTaxonomyOpenOOH11")]
 pub const VENUE_TAXONOMY_OPEN_OOH11: DOOHVenueTaxonomy = DOOHVenueTaxonomy(5);
 
 /// ```text
@@ -3230,176 +3331,233 @@ pub const VENUE_TAXONOMY_OPEN_OOH11: DOOHVenueTaxonomy = DOOHVenueTaxonomy(5);
 pub struct DOOHVenueType(pub isize);
 
 /// Airborne
+#[doc(alias = "VenueAirborne")]
 pub const VENUE_AIRBORNE: DOOHVenueType = DOOHVenueType(1);
 
 /// Airports - General
+#[doc(alias = "VenueAirportsGeneral")]
 pub const VENUE_AIRPORTS_GENERAL: DOOHVenueType = DOOHVenueType(2);
 
 /// Airports - Baggage Claim
+#[doc(alias = "VenueAirportsBaggageClaim")]
 pub const VENUE_AIRPORTS_BAGGAGE_CLAIM: DOOHVenueType = DOOHVenueType(3);
 
 /// Airports - Terminal
+#[doc(alias = "VenueAirportsTerminal")]
 pub const VENUE_AIRPORTS_TERMINAL: DOOHVenueType = DOOHVenueType(4);
 
 /// Airports - Lounges
+#[doc(alias = "VenueAirportsLounge")]
 pub const VENUE_AIRPORTS_LOUNGE: DOOHVenueType = DOOHVenueType(5);
 
 /// ATMs
+#[doc(alias = "VenueATM")]
 pub const VENUE_ATM: DOOHVenueType = DOOHVenueType(6);
 
 /// Backlights
+#[doc(alias = "VenueBacklight")]
 pub const VENUE_BACKLIGHT: DOOHVenueType = DOOHVenueType(7);
 
 /// Bars
+#[doc(alias = "VenueBars")]
 pub const VENUE_BARS: DOOHVenueType = DOOHVenueType(8);
 
 /// Benches
+#[doc(alias = "VenueBench")]
 pub const VENUE_BENCH: DOOHVenueType = DOOHVenueType(9);
 
 /// Bike Racks
+#[doc(alias = "VenueBikeRack")]
 pub const VENUE_BIKE_RACK: DOOHVenueType = DOOHVenueType(10);
 
 /// Bulletins
+#[doc(alias = "VenueBulletin")]
 pub const VENUE_BULLETIN: DOOHVenueType = DOOHVenueType(11);
 
 /// Buses
+#[doc(alias = "VenueBuses")]
 pub const VENUE_BUSES: DOOHVenueType = DOOHVenueType(12);
 
 /// Cafes
+#[doc(alias = "VenueCafes")]
 pub const VENUE_CAFES: DOOHVenueType = DOOHVenueType(13);
 
 /// Casual Dining Restaurants
+#[doc(alias = "VenueCasualDining")]
 pub const VENUE_CASUAL_DINING: DOOHVenueType = DOOHVenueType(14);
 
 /// Child Care
+#[doc(alias = "VenueChildCare")]
 pub const VENUE_CHILD_CARE: DOOHVenueType = DOOHVenueType(15);
 
 /// Cinema
+#[doc(alias = "VenueCinema")]
 pub const VENUE_CINEMA: DOOHVenueType = DOOHVenueType(16);
 
 /// City Information Panels
+#[doc(alias = "VenueCityInformationPanel")]
 pub const VENUE_CITY_INFORMATION_PANEL: DOOHVenueType = DOOHVenueType(17);
 
 /// Convenience Stores
+#[doc(alias = "VenueConvenienceStore")]
 pub const VENUE_CONVENIENCE_STORE: DOOHVenueType = DOOHVenueType(18);
 
 /// Dedicated Wild Posting
+#[doc(alias = "VenueDedicatedWildPosting")]
 pub const VENUE_DEDICATED_WILD_POSTING: DOOHVenueType = DOOHVenueType(19);
 
 /// Doctors Offices - General
+#[doc(alias = "VenueDoctorsOffice")]
 pub const VENUE_DOCTORS_OFFICE: DOOHVenueType = DOOHVenueType(20);
 
 /// Doctors Offices - Obstetrics
+#[doc(alias = "VenueDoctorsOfficeObstetrics")]
 pub const VENUE_DOCTORS_OFFICE_OBSTETRICS: DOOHVenueType = DOOHVenueType(21);
 
 /// Doctors Offices - Pediatrics
+#[doc(alias = "VenueDoctorsOfficePediatrics")]
 pub const VENUE_DOCTORS_OFFICE_PEDIATRICS: DOOHVenueType = DOOHVenueType(22);
 
 /// Family entertainment
+#[doc(alias = "VenueFamilyEntertainment")]
 pub const VENUE_FAMILY_ENTERTAINMENT: DOOHVenueType = DOOHVenueType(23);
 
 /// Ferries
+#[doc(alias = "VenueFerry")]
 pub const VENUE_FERRY: DOOHVenueType = DOOHVenueType(24);
 
 /// Financial Services
+#[doc(alias = "VenueFinancialService")]
 pub const VENUE_FINANCIAL_SERVICE: DOOHVenueType = DOOHVenueType(25);
 
 /// Gas Stations
+#[doc(alias = "VenueGasStation")]
 pub const VENUE_GAS_STATION: DOOHVenueType = DOOHVenueType(26);
 
 /// Golf Courses
+#[doc(alias = "VenueGolfCourse")]
 pub const VENUE_GOLF_COURSE: DOOHVenueType = DOOHVenueType(27);
 
 /// Gyms
+#[doc(alias = "VenueGym")]
 pub const VENUE_GYM: DOOHVenueType = DOOHVenueType(28);
 
 /// Hospitals
+#[doc(alias = "VenueHospital")]
 pub const VENUE_HOSPITAL: DOOHVenueType = DOOHVenueType(29);
 
 /// Hotels
+#[doc(alias = "VenueHotel")]
 pub const VENUE_HOTEL: DOOHVenueType = DOOHVenueType(30);
 
 /// Junior Posters
+#[doc(alias = "VenueJuniorPoster")]
 pub const VENUE_JUNIOR_POSTER: DOOHVenueType = DOOHVenueType(31);
 
 /// Kiosks
+#[doc(alias = "VenueKiosk")]
 pub const VENUE_KIOSK: DOOHVenueType = DOOHVenueType(32);
 
 /// Malls - General
+#[doc(alias = "VenueMall")]
 pub const VENUE_MALL: DOOHVenueType = DOOHVenueType(33);
 
 /// Malls - Food Courts
+#[doc(alias = "VenueMallFoodCourt")]
 pub const VENUE_MALL_FOOD_COURT: DOOHVenueType = DOOHVenueType(34);
 
 /// Marine
+#[doc(alias = "VenueMarine")]
 pub const VENUE_MARINE: DOOHVenueType = DOOHVenueType(35);
 
 /// Mobile Billboards
+#[doc(alias = "VenueMobileBillboard")]
 pub const VENUE_MOBILE_BILLBOARD: DOOHVenueType = DOOHVenueType(36);
 
 /// Movie Theater Lobbies
+#[doc(alias = "VenueMovieTheaterLobby")]
 pub const VENUE_MOVIE_THEATER_LOBBY: DOOHVenueType = DOOHVenueType(37);
 
 /// Newsstands
+#[doc(alias = "VenueNewsStand")]
 pub const VENUE_NEWS_STAND: DOOHVenueType = DOOHVenueType(38);
 
 /// Office Buildings
+#[doc(alias = "VenueOfficeBuilding")]
 pub const VENUE_OFFICE_BUILDING: DOOHVenueType = DOOHVenueType(39);
 
 /// Phone Kiosks
+#[doc(alias = "VenuePhoneKiosk")]
 pub const VENUE_PHONE_KIOSK: DOOHVenueType = DOOHVenueType(40);
 
 /// Posters
+#[doc(alias = "VenuePoster")]
 pub const VENUE_POSTER: DOOHVenueType = DOOHVenueType(41);
 
 /// ```text
 /// QSR [Quick-Service Restaurants / Fast-Food]
 /// ```
+#[doc(alias = "VenueQSR")]
 pub const VENUE_QSR: DOOHVenueType = DOOHVenueType(42);
 
 /// Rail
+#[doc(alias = "VenueRail")]
 pub const VENUE_RAIL: DOOHVenueType = DOOHVenueType(43);
 
 /// Receptacles
+#[doc(alias = "VenueReceptacle")]
 pub const VENUE_RECEPTACLE: DOOHVenueType = DOOHVenueType(44);
 
 /// Resorts / Leisure
+#[doc(alias = "VenueResortLeisure")]
 pub const VENUE_RESORT_LEISURE: DOOHVenueType = DOOHVenueType(45);
 
 /// Retail
+#[doc(alias = "VenueRetail")]
 pub const VENUE_RETAIL: DOOHVenueType = DOOHVenueType(46);
 
 /// Salons
+#[doc(alias = "VenueSalon")]
 pub const VENUE_SALON: DOOHVenueType = DOOHVenueType(47);
 
 /// Shelters
+#[doc(alias = "VenueShelter")]
 pub const VENUE_SHELTER: DOOHVenueType = DOOHVenueType(48);
 
 /// Sports Arenas
+#[doc(alias = "VenueSportsArena")]
 pub const VENUE_SPORTS_ARENA: DOOHVenueType = DOOHVenueType(49);
 
 /// Subway
+#[doc(alias = "VenueSubway")]
 pub const VENUE_SUBWAY: DOOHVenueType = DOOHVenueType(50);
 
 /// Taxis / Wrapped vehicles
+#[doc(alias = "VenueTaxi")]
 pub const VENUE_TAXI: DOOHVenueType = DOOHVenueType(51);
 
 /// Truckside
+#[doc(alias = "VenueTruckSide")]
 pub const VENUE_TRUCK_SIDE: DOOHVenueType = DOOHVenueType(52);
 
 /// Universities
+#[doc(alias = "VenueUniversity")]
 pub const VENUE_UNIVERSITY: DOOHVenueType = DOOHVenueType(53);
 
 /// Urban Panels
+#[doc(alias = "VenueUrbanPanel")]
 pub const VENUE_URBAN_PANEL: DOOHVenueType = DOOHVenueType(54);
 
 /// Veterinarian Offices
+#[doc(alias = "VenueVeterinarianOffice")]
 pub const VENUE_VETERINARIAN_OFFICE: DOOHVenueType = DOOHVenueType(55);
 
 /// Walls / Spectaculars
+#[doc(alias = "VenueWallSpectacular")]
 pub const VENUE_WALL_SPECTACULAR: DOOHVenueType = DOOHVenueType(56);
 
 /// Other
+#[doc(alias = "VenueOther")]
 pub const VENUE_OTHER: DOOHVenueType = DOOHVenueType(57);
 
 /// ```text
@@ -3585,9 +3743,11 @@ pub struct EventSpec {
 pub struct EventTrackingMethod(pub isize);
 
 /// Image-Pixel: URL provided will be inserted as a 1x1 pixel at the time of the event.
+#[doc(alias = "TrackingImagePixel")]
 pub const TRACKING_IMAGE_PIXEL: EventTrackingMethod = EventTrackingMethod(1);
 
 /// `JavaScript`: URL provided will be inserted as a `JavaScript` tag at the time of the event.
+#[doc(alias = "TrackingJS")]
 pub const TRACKING_JS: EventTrackingMethod = EventTrackingMethod(2);
 
 /// ```text
@@ -3603,21 +3763,26 @@ pub struct EventType(pub isize);
 /// loaded: Delivered as a part of the creative markup. Creative may be pre-cached or pre-loaded;
 /// prior to initial rendering.
 /// ```
+#[doc(alias = "EventLoaded")]
 pub const EVENT_LOADED: EventType = EventType(1);
 
 /// impression: Ad impression per IAB/MRC Ad Impression Measurement Guidelines.
+#[doc(alias = "EventImpression")]
 pub const EVENT_IMPRESSION: EventType = EventType(2);
 
 /// viewable-mrc50: Visible impression using MRC definition of 50% in view for 1 second.
+#[doc(alias = "EventViewMRC50")]
 pub const EVENT_VIEW_MRC50: EventType = EventType(3);
 
 /// viewable-mrc100: 100% in view for 1 second (i.e., the `GroupM` standard).
+#[doc(alias = "EventViewMRC100")]
 pub const EVENT_VIEW_MRC100: EventType = EventType(4);
 
 /// ```text
 /// viewable-video50: Visible impression for video using MRC definition of 50% in view for 2
 /// seconds.
 /// ```
+#[doc(alias = "EventViewVideo50")]
 pub const EVENT_VIEW_VIDEO50: EventType = EventType(5);
 
 /// ```text
@@ -3629,21 +3794,27 @@ pub const EVENT_VIEW_VIDEO50: EventType = EventType(5);
 pub struct ExpandableDirection(pub i8);
 
 /// Left
+#[doc(alias = "ExpandableLeft")]
 pub const EXPANDABLE_LEFT: ExpandableDirection = ExpandableDirection(1);
 
 /// Right
+#[doc(alias = "ExpandableRight")]
 pub const EXPANDABLE_RIGHT: ExpandableDirection = ExpandableDirection(2);
 
 /// Up
+#[doc(alias = "ExpandableUp")]
 pub const EXPANDABLE_UP: ExpandableDirection = ExpandableDirection(3);
 
 /// Down
+#[doc(alias = "ExpandableDown")]
 pub const EXPANDABLE_DOWN: ExpandableDirection = ExpandableDirection(4);
 
 /// Full Screen
+#[doc(alias = "ExpandableFullScreen")]
 pub const EXPANDABLE_FULL_SCREEN: ExpandableDirection = ExpandableDirection(5);
 
 /// Resize/Minimize (make smaller)
+#[doc(alias = "ExpandableResize")]
 pub const EXPANDABLE_RESIZE: ExpandableDirection = ExpandableDirection(6);
 
 /// ```text
@@ -3735,27 +3906,34 @@ pub struct ExtendedIdentifierUID {
 pub struct FeedType(pub i8);
 
 /// AOD - Music Streaming Service
+#[doc(alias = "FeedMusicService")]
 pub const FEED_MUSIC_SERVICE: FeedType = FeedType(1);
 
 /// ```text
 /// LIVE - FM/AM broadcast: Live content broadcast over the air but also available via online
 /// streaming.
 /// ```
+#[doc(alias = "FeedRadioBroadcast")]
 pub const FEED_RADIO_BROADCAST: FeedType = FeedType(2);
 
 /// AOD - Podcast: Original, pre-recorded content distributed as episodes in a series.
+#[doc(alias = "FeedPodcast")]
 pub const FEED_PODCAST: FeedType = FeedType(3);
 
 /// AOD - Catch-up Radio: recorded segment of a radio show that was originally broadcast live.
+#[doc(alias = "FeedCatchUpRadio")]
 pub const FEED_CATCH_UP_RADIO: FeedType = FeedType(4);
 
 /// LIVE - Web Radio: Live content only available via online streaming, not as AM/FM broadcast.
+#[doc(alias = "FeedWebRadio")]
 pub const FEED_WEB_RADIO: FeedType = FeedType(5);
 
 /// MISC - Video Game: Background audio in video games.
+#[doc(alias = "FeedVideoGame")]
 pub const FEED_VIDEO_GAME: FeedType = FeedType(6);
 
 /// MISC - Text To Speech: Audio books, website plugin that can read article.
+#[doc(alias = "FeedTextToSpeech")]
 pub const FEED_TEXT_TO_SPEECH: FeedType = FeedType(7);
 
 /// ```text
@@ -4098,15 +4276,19 @@ pub struct ImageAssetFormat {
 pub struct IPLocationService(pub i8);
 
 /// ip2location
+#[doc(alias = "LocationServiceIP2Location")]
 pub const LOCATION_SERVICE_IP2_LOCATION: IPLocationService = IPLocationService(1);
 
 /// Neustar (Quova)
+#[doc(alias = "LocationServiceNeustar")]
 pub const LOCATION_SERVICE_NEUSTAR: IPLocationService = IPLocationService(2);
 
 /// `MaxMind`
+#[doc(alias = "LocationServiceMaxMind")]
 pub const LOCATION_SERVICE_MAX_MIND: IPLocationService = IPLocationService(3);
 
 /// `NetAcuity` (Digital Element)
+#[doc(alias = "LocationServiceNetAcuity")]
 pub const LOCATION_SERVICE_NET_ACUITY: IPLocationService = IPLocationService(4);
 
 /// ```text
@@ -4130,9 +4312,11 @@ pub struct ItemSpec {
 pub struct LinearityMode(pub i8);
 
 /// Linear (i.e., In-Stream such as Pre-Roll, Mid-Roll, Post-Roll)
+#[doc(alias = "LinearityLinear")]
 pub const LINEARITY_LINEAR: LinearityMode = LinearityMode(1);
 
 /// Non-Linear (i.e., Overlay)
+#[doc(alias = "LinearityNonLinear")]
 pub const LINEARITY_NON_LINEAR: LinearityMode = LinearityMode(2);
 
 /// ```text
@@ -4193,12 +4377,15 @@ pub struct LinkAsset {
 pub struct LocationType(pub i8);
 
 /// GPS/Location Services
+#[doc(alias = "LocationGPS")]
 pub const LOCATION_GPS: LocationType = LocationType(1);
 
 /// IP Address
+#[doc(alias = "LocationIP")]
 pub const LOCATION_IP: LocationType = LocationType(2);
 
 /// User Provided (e.g., registration data)
+#[doc(alias = "LocationUserProvided")]
 pub const LOCATION_USER_PROVIDED: LocationType = LocationType(3);
 
 /// ```text
@@ -4211,30 +4398,36 @@ pub const LOCATION_USER_PROVIDED: LocationType = LocationType(3);
 pub struct MatchMethod(pub i64);
 
 /// Go constant `MatchMethodUnknown`.
+#[doc(alias = "MatchMethodUnknown")]
 pub const MATCH_METHOD_UNKNOWN: MatchMethod = MatchMethod(0);
 
 /// ```text
 /// No matching has occurred. The associated ID came directly from a 3rd-party cookie or OS-provided
 /// resettable device ID for advertising (IFA).
 /// ```
+#[doc(alias = "MatchMethodNoMatch")]
 pub const MATCH_METHOD_NO_MATCH: MatchMethod = MatchMethod(1);
 
 /// Real time cookie sync as described in Appendix C (Cookie Based ID Syncing) of `OpenRTB` 2.x.
+#[doc(alias = "MatchMethodBrowserCookieSync")]
 pub const MATCH_METHOD_BROWSER_COOKIE_SYNC: MatchMethod = MatchMethod(2);
 
 /// ID match was based on user authentication such as an email login or hashed PII.
+#[doc(alias = "MatchMethodAuthenticated")]
 pub const MATCH_METHOD_AUTHENTICATED: MatchMethod = MatchMethod(3);
 
 /// ```text
 /// ID match was based on a 1st party observation, but without user authentication (e.g. GUID,
 /// SharedID, Session IDs, CHIPS or other 1st party cookies contained in localStorage).
 /// ```
+#[doc(alias = "MatchMethodObserved")]
 pub const MATCH_METHOD_OBSERVED: MatchMethod = MatchMethod(4);
 
 /// ```text
 /// ID match was inferred from linkage based on non-authenticated features across multiple browsers
 /// or devices (e.g. IP address and/or UserAgent).
 /// ```
+#[doc(alias = "MatchMethodInference")]
 pub const MATCH_METHOD_INFERENCE: MatchMethod = MatchMethod(5);
 
 /// `MediaCreativeSubtype` represents subtypes of audio and video ad creatives.
@@ -4243,45 +4436,59 @@ pub const MATCH_METHOD_INFERENCE: MatchMethod = MatchMethod(5);
 pub struct MediaCreativeSubtype(pub i8);
 
 /// VAST 1.0
+#[doc(alias = "CreativeVAST10")]
 pub const CREATIVE_VAST10: MediaCreativeSubtype = MediaCreativeSubtype(1);
 
 /// VAST 2.0
+#[doc(alias = "CreativeVAST20")]
 pub const CREATIVE_VAST20: MediaCreativeSubtype = MediaCreativeSubtype(2);
 
 /// VAST 3.0
+#[doc(alias = "CreativeVAST30")]
 pub const CREATIVE_VAST30: MediaCreativeSubtype = MediaCreativeSubtype(3);
 
 /// VAST 1.0 Wrapper
+#[doc(alias = "CreativeVAST10Wrapper")]
 pub const CREATIVE_VAST10_WRAPPER: MediaCreativeSubtype = MediaCreativeSubtype(4);
 
 /// VAST 2.0 Wrapper
+#[doc(alias = "CreativeVAST20Wrapper")]
 pub const CREATIVE_VAST20_WRAPPER: MediaCreativeSubtype = MediaCreativeSubtype(5);
 
 /// VAST 3.0 Wrapper
+#[doc(alias = "CreativeVAST30Wrapper")]
 pub const CREATIVE_VAST30_WRAPPER: MediaCreativeSubtype = MediaCreativeSubtype(6);
 
 /// VAST 4.0
+#[doc(alias = "CreativeVAST40")]
 pub const CREATIVE_VAST40: MediaCreativeSubtype = MediaCreativeSubtype(7);
 
 /// VAST 4.0 Wrapper
+#[doc(alias = "CreativeVAST40Wrapper")]
 pub const CREATIVE_VAST40_WRAPPER: MediaCreativeSubtype = MediaCreativeSubtype(8);
 
 /// DAAST 1.0
+#[doc(alias = "CreativeDAAST10")]
 pub const CREATIVE_DAAST10: MediaCreativeSubtype = MediaCreativeSubtype(9);
 
 /// DAAST 1.0 Wrapper
+#[doc(alias = "CreativeDAAST10Wrapper")]
 pub const CREATIVE_DAAST10_WRAPPER: MediaCreativeSubtype = MediaCreativeSubtype(10);
 
 /// VAST 4.1
+#[doc(alias = "CreativeVAST41")]
 pub const CREATIVE_VAST41: MediaCreativeSubtype = MediaCreativeSubtype(11);
 
 /// VAST 4.1 Wrapper
+#[doc(alias = "CreativeVAST41Wrapper")]
 pub const CREATIVE_VAST41_WRAPPER: MediaCreativeSubtype = MediaCreativeSubtype(12);
 
 /// VAST 4.2
+#[doc(alias = "CreativeVAST42")]
 pub const CREATIVE_VAST42: MediaCreativeSubtype = MediaCreativeSubtype(13);
 
 /// VAST 4.2 Wrapper
+#[doc(alias = "CreativeVAST42Wrapper")]
 pub const CREATIVE_VAST42_WRAPPER: MediaCreativeSubtype = MediaCreativeSubtype(14);
 
 /// ```text
@@ -4294,12 +4501,15 @@ pub const CREATIVE_VAST42_WRAPPER: MediaCreativeSubtype = MediaCreativeSubtype(1
 pub struct MediaRating(pub i8);
 
 /// All Audiences
+#[doc(alias = "MediaRatingAll")]
 pub const MEDIA_RATING_ALL: MediaRating = MediaRating(1);
 
 /// Everyone Over Age 12
+#[doc(alias = "MediaRatingOver12")]
 pub const MEDIA_RATING_OVER12: MediaRating = MediaRating(2);
 
 /// Mature Audiences
+#[doc(alias = "MediaRatingMature")]
 pub const MEDIA_RATING_MATURE: MediaRating = MediaRating(3);
 
 /// Native object is the root of a structure that defines a native display ad.
@@ -4356,6 +4566,7 @@ pub struct NativeDataAssetType(pub isize);
 /// sponsored: "Sponsored By" message which should contain the brand name of the sponsor.
 /// Recommended maximum length of at least 25 characters.
 /// ```
+#[doc(alias = "DataAssetSponsored")]
 pub const DATA_ASSET_SPONSORED: NativeDataAssetType = NativeDataAssetType(1);
 
 /// ```text
@@ -4363,48 +4574,59 @@ pub const DATA_ASSET_SPONSORED: NativeDataAssetType = NativeDataAssetType(1);
 /// lengths may be truncated or ellipsed when rendered. Recommended maximum length of at least 140
 /// characters.
 /// ```
+#[doc(alias = "DataAssetDesc")]
 pub const DATA_ASSET_DESC: NativeDataAssetType = NativeDataAssetType(2);
 
 /// rating: Numeric rating of the product (e.g., an app's rating). Recommended integer range of 0-5.
+#[doc(alias = "DataAssetRating")]
 pub const DATA_ASSET_RATING: NativeDataAssetType = NativeDataAssetType(3);
 
 /// likes: Number of social ratings or "likes" of the product.
+#[doc(alias = "DataAssetLikes")]
 pub const DATA_ASSET_LIKES: NativeDataAssetType = NativeDataAssetType(4);
 
 /// downloads: Number downloads and/or installs of the product.
+#[doc(alias = "DataAssetDownloads")]
 pub const DATA_ASSET_DOWNLOADS: NativeDataAssetType = NativeDataAssetType(5);
 
 /// ```text
 /// price: Price of the product, app, or in-app purchase. Value should include currency symbol in
 /// localized format (e.g., "$10").
 /// ```
+#[doc(alias = "DataAssetPrice")]
 pub const DATA_ASSET_PRICE: NativeDataAssetType = NativeDataAssetType(6);
 
 /// ```text
 /// saleprice: Sale price that can be used together with "price" to indicate a comparative
 /// discounted price. Value should include currency symbol in localized format (e.g., "$8.50").
 /// ```
+#[doc(alias = "DataAssetSalePrice")]
 pub const DATA_ASSET_SALE_PRICE: NativeDataAssetType = NativeDataAssetType(7);
 
 /// phone: A formatted phone number.
+#[doc(alias = "DataAssetPhone")]
 pub const DATA_ASSET_PHONE: NativeDataAssetType = NativeDataAssetType(8);
 
 /// address: A formatted address.
+#[doc(alias = "DataAssetAddress")]
 pub const DATA_ASSET_ADDRESS: NativeDataAssetType = NativeDataAssetType(9);
 
 /// desc2: Additional descriptive text associated with the product.
+#[doc(alias = "DataAssetDesc2")]
 pub const DATA_ASSET_DESC2: NativeDataAssetType = NativeDataAssetType(10);
 
 /// ```text
 /// displayurl: Display URL for the ad. To be used when sponsoring entity doesn't own the content
 /// (e.g., "Sponsored by Brand on Site", where Site is specified in this data asset).
 /// ```
+#[doc(alias = "DataAssetDisplayURL")]
 pub const DATA_ASSET_DISPLAY_URL: NativeDataAssetType = NativeDataAssetType(11);
 
 /// ```text
 /// ctatext: Description of the call to action (CTA) button for the destination URL. Recommended
 /// maximum length of at least 15 characters.
 /// ```
+#[doc(alias = "DataAssetCTAText")]
 pub const DATA_ASSET_CTA_TEXT: NativeDataAssetType = NativeDataAssetType(12);
 
 /// ```text
@@ -4450,6 +4672,7 @@ pub struct NativeFormat {
 pub struct NativeImageAssetType(pub isize);
 
 /// Icon: Icon image. Maximum height at least 50 device independent pixels (DIPS); aspect ratio 1:1.
+#[doc(alias = "ImageAssetIcon")]
 pub const IMAGE_ASSET_ICON: NativeImageAssetType = NativeImageAssetType(1);
 
 /// ```text
@@ -4461,6 +4684,7 @@ pub const IMAGE_ASSET_ICON: NativeImageAssetType = NativeImageAssetType(1);
 /// Large: Maximum height at least 200 DIPS; maximum width at least 200, 267, or 382 DIPS (i.e.,
 /// aspect ratios of 1:1, 4:3, or 1.91:1, respectively).
 /// ```
+#[doc(alias = "ImageAssetMain")]
 pub const IMAGE_ASSET_MAIN: NativeImageAssetType = NativeImageAssetType(3);
 
 /// ```text
@@ -4527,66 +4751,84 @@ pub struct Network {
 pub struct OperatingSystem(pub isize);
 
 /// Other Not Listed
+#[doc(alias = "OSNotListed")]
 pub const OS_NOT_LISTED: OperatingSystem = OperatingSystem(0);
 
 /// 3DS System Software
 pub const OS3DS: OperatingSystem = OperatingSystem(1);
 
 /// Android
+#[doc(alias = "OSAndroid")]
 pub const OS_ANDROID: OperatingSystem = OperatingSystem(2);
 
 /// Apple TV Software
+#[doc(alias = "OSAppleTV")]
 pub const OS_APPLE_TV: OperatingSystem = OperatingSystem(3);
 
 /// Asha
+#[doc(alias = "OSAsha")]
 pub const OS_ASHA: OperatingSystem = OperatingSystem(4);
 
 /// Bada
+#[doc(alias = "OSBada")]
 pub const OS_BADA: OperatingSystem = OperatingSystem(5);
 
 /// `BlackBerry`
+#[doc(alias = "OSBlackBerry")]
 pub const OS_BLACK_BERRY: OperatingSystem = OperatingSystem(6);
 
 /// BREW
 pub const OSBREW: OperatingSystem = OperatingSystem(7);
 
 /// `ChromeOS`
+#[doc(alias = "OSChromeOS")]
 pub const OS_CHROME_OS: OperatingSystem = OperatingSystem(8);
 
 /// Darwin
+#[doc(alias = "OSDarwin")]
 pub const OS_DARWIN: OperatingSystem = OperatingSystem(9);
 
 /// `FireOS`
+#[doc(alias = "OSFireOS")]
 pub const OS_FIRE_OS: OperatingSystem = OperatingSystem(10);
 
 /// `FirefoxOS`
+#[doc(alias = "OSFirefoxOS")]
 pub const OS_FIREFOX_OS: OperatingSystem = OperatingSystem(11);
 
 /// `HelenOS`
+#[doc(alias = "OSHelenOS")]
 pub const OS_HELEN_OS: OperatingSystem = OperatingSystem(12);
 
 /// iOS
 pub const OSIOS: OperatingSystem = OperatingSystem(13);
 
 /// Linux
+#[doc(alias = "OSLinux")]
 pub const OS_LINUX: OperatingSystem = OperatingSystem(14);
 
 /// `MacOS`
+#[doc(alias = "OSMacOS")]
 pub const OS_MAC_OS: OperatingSystem = OperatingSystem(15);
 
 /// `MeeGo`
+#[doc(alias = "OSMeeGo")]
 pub const OS_MEE_GO: OperatingSystem = OperatingSystem(16);
 
 /// `MorphOS`
+#[doc(alias = "OSMorphOS")]
 pub const OS_MORPH_OS: OperatingSystem = OperatingSystem(17);
 
 /// `NetBSD`
+#[doc(alias = "OSNetBSD")]
 pub const OS_NET_BSD: OperatingSystem = OperatingSystem(18);
 
 /// `NucleusPLUS`
+#[doc(alias = "OSNucleusPLUS")]
 pub const OS_NUCLEUS_PLUS: OperatingSystem = OperatingSystem(19);
 
 /// PS Vita System Software
+#[doc(alias = "OSPSVita")]
 pub const OSPS_VITA: OperatingSystem = OperatingSystem(20);
 
 /// PS3 System Software
@@ -4599,18 +4841,23 @@ pub const OSPS4: OperatingSystem = OperatingSystem(22);
 pub const OSPSP: OperatingSystem = OperatingSystem(23);
 
 /// Symbian
+#[doc(alias = "OSSymbian")]
 pub const OS_SYMBIAN: OperatingSystem = OperatingSystem(24);
 
 /// Tizen
+#[doc(alias = "OSTizen")]
 pub const OS_TIZEN: OperatingSystem = OperatingSystem(25);
 
 /// `WatchOS`
+#[doc(alias = "OSWatchOS")]
 pub const OS_WATCH_OS: OperatingSystem = OperatingSystem(26);
 
 /// `WebOS`
+#[doc(alias = "OSWebOS")]
 pub const OS_WEB_OS: OperatingSystem = OperatingSystem(27);
 
 /// Windows
+#[doc(alias = "OSWindows")]
 pub const OS_WINDOWS: OperatingSystem = OperatingSystem(28);
 
 /// ```text
@@ -4791,27 +5038,35 @@ pub struct Placement {
 pub struct PlacementPosition(pub i8);
 
 /// Unknown
+#[doc(alias = "PositionUnknown")]
 pub const POSITION_UNKNOWN: PlacementPosition = PlacementPosition(0);
 
 /// Above The Fold
+#[doc(alias = "PositionAboveFold")]
 pub const POSITION_ABOVE_FOLD: PlacementPosition = PlacementPosition(1);
 
 /// Locked (i.e., fixed position)
+#[doc(alias = "PositionLocked")]
 pub const POSITION_LOCKED: PlacementPosition = PlacementPosition(2);
 
 /// Below The Fold
+#[doc(alias = "PositionBelowFold")]
 pub const POSITION_BELOW_FOLD: PlacementPosition = PlacementPosition(3);
 
 /// Header
+#[doc(alias = "PositionHeader")]
 pub const POSITION_HEADER: PlacementPosition = PlacementPosition(4);
 
 /// Footer
+#[doc(alias = "PositionFooter")]
 pub const POSITION_FOOTER: PlacementPosition = PlacementPosition(5);
 
 /// Sidebar
+#[doc(alias = "PositionSideBar")]
 pub const POSITION_SIDE_BAR: PlacementPosition = PlacementPosition(6);
 
 /// Fullscreen
+#[doc(alias = "PositionFullScreen")]
 pub const POSITION_FULL_SCREEN: PlacementPosition = PlacementPosition(7);
 
 /// `PlaybackCessationMode` represents modes for when media playback terminates.
@@ -4820,15 +5075,18 @@ pub const POSITION_FULL_SCREEN: PlacementPosition = PlacementPosition(7);
 pub struct PlaybackCessationMode(pub i8);
 
 /// On Video Completion or when Terminated by User
+#[doc(alias = "PlaybackCompletion")]
 pub const PLAYBACK_COMPLETION: PlaybackCessationMode = PlaybackCessationMode(1);
 
 /// On Leaving Viewport or when Terminated by User
+#[doc(alias = "PlaybackLeavingViewport")]
 pub const PLAYBACK_LEAVING_VIEWPORT: PlaybackCessationMode = PlaybackCessationMode(2);
 
 /// ```text
 /// On Leaving Viewport Continues as a Floating/Slider Unit until Video Completion or when
 /// Terminated by User
 /// ```
+#[doc(alias = "PlaybackFloating")]
 pub const PLAYBACK_FLOATING: PlaybackCessationMode = PlaybackCessationMode(3);
 
 /// `PlaybackMethod` represents media playback methods.
@@ -4837,21 +5095,27 @@ pub const PLAYBACK_FLOATING: PlaybackCessationMode = PlaybackCessationMode(3);
 pub struct PlaybackMethod(pub i8);
 
 /// Initiates on Page Load with Sound On
+#[doc(alias = "PlaybackPageLoadSoundOn")]
 pub const PLAYBACK_PAGE_LOAD_SOUND_ON: PlaybackMethod = PlaybackMethod(1);
 
 /// Initiates on Page Load with Sound Off by Default
+#[doc(alias = "PlaybackPageLoadSoundOff")]
 pub const PLAYBACK_PAGE_LOAD_SOUND_OFF: PlaybackMethod = PlaybackMethod(2);
 
 /// Initiates on Click with Sound On
+#[doc(alias = "PlaybackClickSoundOn")]
 pub const PLAYBACK_CLICK_SOUND_ON: PlaybackMethod = PlaybackMethod(3);
 
 /// Initiates on Mouse-Over with Sound On
+#[doc(alias = "PlaybackMouseOverSoundOn")]
 pub const PLAYBACK_MOUSE_OVER_SOUND_ON: PlaybackMethod = PlaybackMethod(4);
 
 /// Initiates on Entering Viewport with Sound On
+#[doc(alias = "PlaybackViewportSoundOn")]
 pub const PLAYBACK_VIEWPORT_SOUND_ON: PlaybackMethod = PlaybackMethod(5);
 
 /// Initiates on Entering Viewport with Sound Off by Default
+#[doc(alias = "PlaybackViewportSoundOff")]
 pub const PLAYBACK_VIEWPORT_SOUND_OFF: PlaybackMethod = PlaybackMethod(6);
 
 /// ```text
@@ -4859,6 +5123,7 @@ pub const PLAYBACK_VIEWPORT_SOUND_OFF: PlaybackMethod = PlaybackMethod(6);
 /// interaction. The media player will keep playing additional media (playlist or generated) for the
 /// user until the user actively stops this from happening.
 /// ```
+#[doc(alias = "PlaybackContinuous")]
 pub const PLAYBACK_CONTINUOUS: PlaybackMethod = PlaybackMethod(7);
 
 /// `PodDedupe`
@@ -4869,15 +5134,19 @@ pub const PLAYBACK_CONTINUOUS: PlaybackMethod = PlaybackMethod(7);
 pub struct PodDedupe(pub i8);
 
 /// Go constant `PodDedupeADomain`.
+#[doc(alias = "PodDedupeADomain")]
 pub const POD_DEDUPE_A_DOMAIN: PodDedupe = PodDedupe(1);
 
 /// Go constant `PodDedupeIABCategory`.
+#[doc(alias = "PodDedupeIABCategory")]
 pub const POD_DEDUPE_IAB_CATEGORY: PodDedupe = PodDedupe(2);
 
 /// Go constant `PodDedupeCreativeID`.
+#[doc(alias = "PodDedupeCreativeID")]
 pub const POD_DEDUPE_CREATIVE_ID: PodDedupe = PodDedupe(3);
 
 /// Go constant `PodDedupeMediafileURL`.
+#[doc(alias = "PodDedupeMediafileURL")]
 pub const POD_DEDUPE_MEDIAFILE_URL: PodDedupe = PodDedupe(4);
 
 /// ```text
@@ -4889,12 +5158,15 @@ pub const POD_DEDUPE_MEDIAFILE_URL: PodDedupe = PodDedupe(4);
 pub struct PodSequence(pub i8);
 
 /// Last pod in the content stream.
+#[doc(alias = "PodSeqLast")]
 pub const POD_SEQ_LAST: PodSequence = PodSequence(-1);
 
 /// Any pod in the content stream.
+#[doc(alias = "PodSeqAny")]
 pub const POD_SEQ_ANY: PodSequence = PodSequence(0);
 
 /// First pod in the content stream.
+#[doc(alias = "PodSeqFirst")]
 pub const POD_SEQ_FIRST: PodSequence = PodSequence(1);
 
 /// ```text
@@ -4977,15 +5249,19 @@ pub struct Producer {
 pub struct ProductionQuality(pub i8);
 
 /// Unknown
+#[doc(alias = "ProductionUnknown")]
 pub const PRODUCTION_UNKNOWN: ProductionQuality = ProductionQuality(0);
 
 /// Professionally Produced
+#[doc(alias = "ProductionProfessional")]
 pub const PRODUCTION_PROFESSIONAL: ProductionQuality = ProductionQuality(1);
 
 /// Prosumer
+#[doc(alias = "ProductionProsumer")]
 pub const PRODUCTION_PROSUMER: ProductionQuality = ProductionQuality(2);
 
 /// User Generated (UGC)
+#[doc(alias = "ProductionUser")]
 pub const PRODUCTION_USER: ProductionQuality = ProductionQuality(3);
 
 /// Publisher object describes the publisher of the media in which ads will be displayed.
@@ -5423,12 +5699,15 @@ pub struct Site {
 pub struct SizeUnit(pub i8);
 
 /// Device Independent Pixels (DIPS)
+#[doc(alias = "SizeDIP")]
 pub const SIZE_DIP: SizeUnit = SizeUnit(1);
 
 /// Inches
+#[doc(alias = "SizeIn")]
 pub const SIZE_IN: SizeUnit = SizeUnit(2);
 
 /// Centimeters
+#[doc(alias = "SizeCm")]
 pub const SIZE_CM: SizeUnit = SizeUnit(3);
 
 /// ```text
@@ -5439,15 +5718,19 @@ pub const SIZE_CM: SizeUnit = SizeUnit(3);
 pub struct SlotPositionInPod(pub i8);
 
 /// Last ad in the pod.
+#[doc(alias = "SlotPosLast")]
 pub const SLOT_POS_LAST: SlotPositionInPod = SlotPositionInPod(-1);
 
 /// Any ad in the pod.
+#[doc(alias = "SlotPosAny")]
 pub const SLOT_POS_ANY: SlotPositionInPod = SlotPositionInPod(0);
 
 /// First ad in the pod.
+#[doc(alias = "SlotPosFirst")]
 pub const SLOT_POS_FIRST: SlotPositionInPod = SlotPositionInPod(1);
 
 /// First or Last ad in the pod.
+#[doc(alias = "SlotPosFirstOrLast")]
 pub const SLOT_POS_FIRST_OR_LAST: SlotPositionInPod = SlotPositionInPod(2);
 
 /// `StartDelay` represents video or audio start delay.
@@ -5456,12 +5739,15 @@ pub const SLOT_POS_FIRST_OR_LAST: SlotPositionInPod = SlotPositionInPod(2);
 pub struct StartDelay(pub i64);
 
 /// Pre-Roll
+#[doc(alias = "StartPreRoll")]
 pub const START_PRE_ROLL: StartDelay = StartDelay(0);
 
 /// Generic Mid-Roll
+#[doc(alias = "StartMidRoll")]
 pub const START_MID_ROLL: StartDelay = StartDelay(-1);
 
 /// Generic Post-Roll
+#[doc(alias = "StartPostRoll")]
 pub const START_POST_ROLL: StartDelay = StartDelay(-2);
 
 /// ```text
@@ -5776,15 +6062,19 @@ pub struct UserAgent {
 pub struct UserAgentSource(pub i8);
 
 /// Unspecified/unknown
+#[doc(alias = "UASourceUnknown")]
 pub const UA_SOURCE_UNKNOWN: UserAgentSource = UserAgentSource(0);
 
 /// User-Agent Client Hints (only low-entropy headers were available)
+#[doc(alias = "UASourceLowEntropy")]
 pub const UA_SOURCE_LOW_ENTROPY: UserAgentSource = UserAgentSource(1);
 
 /// User-Agent Client Hints (with high-entropy headers available)
+#[doc(alias = "UASourceHighEntropy")]
 pub const UA_SOURCE_HIGH_ENTROPY: UserAgentSource = UserAgentSource(2);
 
 /// Parsed from User-Agent header (the same string carried by the ua field)
+#[doc(alias = "UASourceParsed")]
 pub const UA_SOURCE_PARSED: UserAgentSource = UserAgentSource(3);
 
 /// Video object provides additional detail about an ad specifically for video ads.
@@ -6329,6 +6619,7 @@ pub struct VideoPlacementSubtype(pub i8);
 /// In-Stream: Played before, during or after the streaming video content that the consumer has
 /// requested (e.g., Pre-roll, Mid-roll, Post-roll).
 /// ```
+#[doc(alias = "VideoPlacementInStream")]
 pub const VIDEO_PLACEMENT_IN_STREAM: VideoPlacementSubtype = VideoPlacementSubtype(1);
 
 /// ```text
@@ -6336,21 +6627,25 @@ pub const VIDEO_PLACEMENT_IN_STREAM: VideoPlacementSubtype = VideoPlacementSubty
 /// experience as opposed to another static or rich media format. The format relies on the existence
 /// of display ad inventory on the page for its delivery.
 /// ```
+#[doc(alias = "VideoPlacementInBanner")]
 pub const VIDEO_PLACEMENT_IN_BANNER: VideoPlacementSubtype = VideoPlacementSubtype(2);
 
 /// ```text
 /// In-Article: Loads and plays dynamically between paragraphs of editorial content; existing as a
 /// standalone branded message.
 /// ```
+#[doc(alias = "VideoPlacementInArticle")]
 pub const VIDEO_PLACEMENT_IN_ARTICLE: VideoPlacementSubtype = VideoPlacementSubtype(3);
 
 /// In-Feed: Found in content, social, or product feeds.
+#[doc(alias = "VideoPlacementInFeed")]
 pub const VIDEO_PLACEMENT_IN_FEED: VideoPlacementSubtype = VideoPlacementSubtype(4);
 
 /// ```text
 /// Interstitial/Slider/Floating: Covers the entire or a portion of screen area, but is always on
 /// screen while displayed (i.e. cannot be scrolled out of view).
 /// ```
+#[doc(alias = "VideoPlacementAlwaysVisible")]
 pub const VIDEO_PLACEMENT_ALWAYS_VISIBLE: VideoPlacementSubtype = VideoPlacementSubtype(5);
 
 /// ```text
@@ -6372,6 +6667,7 @@ pub struct VideoPlcmtSubtype(pub i8);
 /// in-view capable of audio when playing. If the player converts to floating/sticky
 /// subsequent ad calls should accurately convey the updated player size.
 /// ```
+#[doc(alias = "VideoPlcmtInstream")]
 pub const VIDEO_PLCMT_INSTREAM: VideoPlcmtSubtype = VideoPlcmtSubtype(1);
 
 /// ```text
@@ -6382,6 +6678,7 @@ pub const VIDEO_PLCMT_INSTREAM: VideoPlcmtSubtype = VideoPlcmtSubtype(1);
 /// start playback upon entering the viewport. It may convert to a floating/sticky player
 /// as it scrolls off the page.
 /// ```
+#[doc(alias = "VideoPlcmtAccompanyingContent")]
 pub const VIDEO_PLCMT_ACCOMPANYING_CONTENT: VideoPlcmtSubtype = VideoPlcmtSubtype(2);
 
 /// ```text
@@ -6390,6 +6687,7 @@ pub const VIDEO_PLCMT_ACCOMPANYING_CONTENT: VideoPlcmtSubtype = VideoPlcmtSubtyp
 /// of the viewport and cannot be scrolled out of view. This can be in placements like
 /// in-app video or slideshows.
 /// ```
+#[doc(alias = "VideoPlcmtInterstitial")]
 pub const VIDEO_PLCMT_INTERSTITIAL: VideoPlcmtSubtype = VideoPlcmtSubtype(3);
 
 /// ```text
@@ -6397,6 +6695,7 @@ pub const VIDEO_PLCMT_INTERSTITIAL: VideoPlcmtSubtype = VideoPlcmtSubtype(3);
 /// without streaming video content. This can be in placements like slideshows, native
 /// feeds, in-content or sticky/floating.
 /// ```
+#[doc(alias = "VideoPlcmtNoContent")]
 pub const VIDEO_PLCMT_NO_CONTENT: VideoPlcmtSubtype = VideoPlcmtSubtype(4);
 
 /// `VolumeNormalizationMode` represents types of volume normalization modes, typically for audio.
@@ -6405,16 +6704,21 @@ pub const VIDEO_PLCMT_NO_CONTENT: VideoPlcmtSubtype = VideoPlcmtSubtype(4);
 pub struct VolumeNormalizationMode(pub i8);
 
 /// None
+#[doc(alias = "VolumeNormNone")]
 pub const VOLUME_NORM_NONE: VolumeNormalizationMode = VolumeNormalizationMode(0);
 
 /// Ad Volume Average Normalized to Content
+#[doc(alias = "VolumeNormAvg")]
 pub const VOLUME_NORM_AVG: VolumeNormalizationMode = VolumeNormalizationMode(1);
 
 /// Ad Volume Peak Normalized to Content
+#[doc(alias = "VolumeNormPeak")]
 pub const VOLUME_NORM_PEAK: VolumeNormalizationMode = VolumeNormalizationMode(2);
 
 /// Ad Loudness Normalized to Content
+#[doc(alias = "VolumeNormLoudness")]
 pub const VOLUME_NORM_LOUDNESS: VolumeNormalizationMode = VolumeNormalizationMode(3);
 
 /// Custom Volume Normalization
+#[doc(alias = "VolumeNormCustom")]
 pub const VOLUME_NORM_CUSTOM: VolumeNormalizationMode = VolumeNormalizationMode(4);

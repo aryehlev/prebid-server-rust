@@ -15,12 +15,15 @@ use pbs_gojson::{GoJson, RawJson};
 pub struct AuctionType(pub i64);
 
 /// Go constant `FirstPrice`.
+#[doc(alias = "FirstPrice")]
 pub const FIRST_PRICE: AuctionType = AuctionType(1);
 
 /// Go constant `SecondPricePlus`.
+#[doc(alias = "SecondPricePlus")]
 pub const SECOND_PRICE_PLUS: AuctionType = AuctionType(2);
 
 /// the value passed in flr is the agreed upon deal price
+#[doc(alias = "DealPrice")]
 pub const DEAL_PRICE: AuctionType = AuctionType(3);
 
 /// ```text
@@ -463,101 +466,133 @@ pub struct Item {
 pub struct LossReason(pub i64);
 
 /// Bid Won
+#[doc(alias = "LossWon")]
 pub const LOSS_WON: LossReason = LossReason(0);
 
 /// Internal Error
+#[doc(alias = "LossInternalError")]
 pub const LOSS_INTERNAL_ERROR: LossReason = LossReason(1);
 
 /// Impression Opportunity Expired
+#[doc(alias = "LossExpired")]
 pub const LOSS_EXPIRED: LossReason = LossReason(2);
 
 /// Invalid Bid Response
+#[doc(alias = "LossInvalidResponse")]
 pub const LOSS_INVALID_RESPONSE: LossReason = LossReason(3);
 
 /// Invalid Deal ID
+#[doc(alias = "LossInvalidDealID")]
 pub const LOSS_INVALID_DEAL_ID: LossReason = LossReason(4);
 
 /// Invalid Auction ID
+#[doc(alias = "LossInvalidAuctionID")]
 pub const LOSS_INVALID_AUCTION_ID: LossReason = LossReason(5);
 
 /// Invalid Advertiser Domain
+#[doc(alias = "LossInvalidAdvertiserDomain")]
 pub const LOSS_INVALID_ADVERTISER_DOMAIN: LossReason = LossReason(6);
 
 /// Missing Markup
+#[doc(alias = "LossMissingMarkup")]
 pub const LOSS_MISSING_MARKUP: LossReason = LossReason(7);
 
 /// Missing Creative ID
+#[doc(alias = "LossMissingCreativeID")]
 pub const LOSS_MISSING_CREATIVE_ID: LossReason = LossReason(8);
 
 /// Missing Bid Price
+#[doc(alias = "LossMissingBidPrice")]
 pub const LOSS_MISSING_BID_PRICE: LossReason = LossReason(9);
 
 /// Missing Minimum Creative Approval Data
+#[doc(alias = "LossMissingApproval")]
 pub const LOSS_MISSING_APPROVAL: LossReason = LossReason(10);
 
 /// Bid was Below Auction Floor
+#[doc(alias = "LossBelowAuctionFloor")]
 pub const LOSS_BELOW_AUCTION_FLOOR: LossReason = LossReason(100);
 
 /// Bid was Below Deal Floor
+#[doc(alias = "LossBelowDealFloor")]
 pub const LOSS_BELOW_DEAL_FLOOR: LossReason = LossReason(101);
 
 /// Lost to Higher Bid
+#[doc(alias = "LossLostToHigherBid")]
 pub const LOSS_LOST_TO_HIGHER_BID: LossReason = LossReason(102);
 
 /// Lost to a Bid for a Deal
+#[doc(alias = "LossLostToDealBid")]
 pub const LOSS_LOST_TO_DEAL_BID: LossReason = LossReason(103);
 
 /// Buyer Seat Blocked
+#[doc(alias = "LossSeatBlocked")]
 pub const LOSS_SEAT_BLOCKED: LossReason = LossReason(104);
 
 /// Creative Filtered - General; Reason Unknown
+#[doc(alias = "LossCreativeFiltered")]
 pub const LOSS_CREATIVE_FILTERED: LossReason = LossReason(200);
 
 /// Creative Filtered - Pending Processing by Exchange (e.g., approval, transcoding, etc.)
+#[doc(alias = "LossPendingProcessing")]
 pub const LOSS_PENDING_PROCESSING: LossReason = LossReason(201);
 
 /// Creative Filtered - Disapproved by Exchange
+#[doc(alias = "LossDisapproved")]
 pub const LOSS_DISAPPROVED: LossReason = LossReason(202);
 
 /// Creative Filtered - Size Not Allowed
+#[doc(alias = "LossSizeNotAllowed")]
 pub const LOSS_SIZE_NOT_ALLOWED: LossReason = LossReason(203);
 
 /// Creative Filtered - Incorrect Creative Format
+#[doc(alias = "LossIncorrectFormat")]
 pub const LOSS_INCORRECT_FORMAT: LossReason = LossReason(204);
 
 /// Creative Filtered - Advertiser Exclusions
+#[doc(alias = "LossAdvertiserExclusions")]
 pub const LOSS_ADVERTISER_EXCLUSIONS: LossReason = LossReason(205);
 
 /// ```text
 /// Creative Filtered - App Store ID Exclusions (ex App Bundle Exclusions in OpenRTB <=2.5)
 /// ```
+#[doc(alias = "LossAppStoreIDExclusions")]
 pub const LOSS_APP_STORE_ID_EXCLUSIONS: LossReason = LossReason(206);
 
 /// Creative Filtered - Not Secure
+#[doc(alias = "LossNotSecure")]
 pub const LOSS_NOT_SECURE: LossReason = LossReason(207);
 
 /// Creative Filtered - Language Exclusions
+#[doc(alias = "LossLanguageExclusions")]
 pub const LOSS_LANGUAGE_EXCLUSIONS: LossReason = LossReason(208);
 
 /// Creative Filtered - Category Exclusions
+#[doc(alias = "LossCategoryExclusions")]
 pub const LOSS_CATEGORY_EXCLUSIONS: LossReason = LossReason(209);
 
 /// Creative Filtered - Creative Attribute Exclusions
+#[doc(alias = "LossAttributeExclusions")]
 pub const LOSS_ATTRIBUTE_EXCLUSIONS: LossReason = LossReason(210);
 
 /// Creative Filtered - Ad Type Exclusions
+#[doc(alias = "LossAdTypeExclusions")]
 pub const LOSS_AD_TYPE_EXCLUSIONS: LossReason = LossReason(211);
 
 /// Creative Filtered - Animation Too Long
+#[doc(alias = "LossAnimationTooLong")]
 pub const LOSS_ANIMATION_TOO_LONG: LossReason = LossReason(212);
 
 /// Creative Filtered - Not Allowed in Deal
+#[doc(alias = "LossNotAllowedInDeal")]
 pub const LOSS_NOT_ALLOWED_IN_DEAL: LossReason = LossReason(213);
 
 /// Creative Filtered - Invalid `SKAdNetwork`
+#[doc(alias = "LossInvalidSKAdNetwork")]
 pub const LOSS_INVALID_SK_AD_NETWORK: LossReason = LossReason(214);
 
 /// Creative Filtered - App Bundle Exclusions
+#[doc(alias = "LossAppBundleExclusions")]
 pub const LOSS_APP_BUNDLE_EXCLUSIONS: LossReason = LossReason(215);
 
 /// ```text
@@ -670,57 +705,75 @@ pub struct Metric {
 pub struct NoBidReason(pub i64);
 
 /// Unknown Error
+#[doc(alias = "NoBidUnknownError")]
 pub const NO_BID_UNKNOWN_ERROR: NoBidReason = NoBidReason(0);
 
 /// Technical Error
+#[doc(alias = "NoBidTechnicalError")]
 pub const NO_BID_TECHNICAL_ERROR: NoBidReason = NoBidReason(1);
 
 /// Invalid Request
+#[doc(alias = "NoBidInvalidRequest")]
 pub const NO_BID_INVALID_REQUEST: NoBidReason = NoBidReason(2);
 
 /// Known Web Crawler
+#[doc(alias = "NoBidCrawler")]
 pub const NO_BID_CRAWLER: NoBidReason = NoBidReason(3);
 
 /// Suspected Non-Human Traffic
+#[doc(alias = "NoBidNonHuman")]
 pub const NO_BID_NON_HUMAN: NoBidReason = NoBidReason(4);
 
 /// Cloud, Data Center, or Proxy IP
+#[doc(alias = "NoBidProxy")]
 pub const NO_BID_PROXY: NoBidReason = NoBidReason(5);
 
 /// Unsupported Device
+#[doc(alias = "NoBidUnsupportedDevice")]
 pub const NO_BID_UNSUPPORTED_DEVICE: NoBidReason = NoBidReason(6);
 
 /// Blocked Publisher or Site
+#[doc(alias = "NoBidBlockedPublisher")]
 pub const NO_BID_BLOCKED_PUBLISHER: NoBidReason = NoBidReason(7);
 
 /// Unmatched User
+#[doc(alias = "NoBidUnmatchedUser")]
 pub const NO_BID_UNMATCHED_USER: NoBidReason = NoBidReason(8);
 
 /// Daily User Cap Met
+#[doc(alias = "NoBidDailyUserCap")]
 pub const NO_BID_DAILY_USER_CAP: NoBidReason = NoBidReason(9);
 
 /// Daily Domain Cap Met
+#[doc(alias = "NoBidDailyDomainCap")]
 pub const NO_BID_DAILY_DOMAIN_CAP: NoBidReason = NoBidReason(10);
 
 /// Ads.txt Authorization Unavailable
+#[doc(alias = "NoBidAuthorizationUnavailable")]
 pub const NO_BID_AUTHORIZATION_UNAVAILABLE: NoBidReason = NoBidReason(11);
 
 /// Ads.txt Authorization Violation
+#[doc(alias = "NoBidAuthorizationViolation")]
 pub const NO_BID_AUTHORIZATION_VIOLATION: NoBidReason = NoBidReason(12);
 
 /// Ads.cert Authentication Unavailable
+#[doc(alias = "NoBidAuthenticationUnavailable")]
 pub const NO_BID_AUTHENTICATION_UNAVAILABLE: NoBidReason = NoBidReason(13);
 
 /// Ads.cert Authentication Violation
+#[doc(alias = "NoBidAuthenticationViolation")]
 pub const NO_BID_AUTHENTICATION_VIOLATION: NoBidReason = NoBidReason(14);
 
 /// Insufficient Auction Time
+#[doc(alias = "NoBidInsufficientTime")]
 pub const NO_BID_INSUFFICIENT_TIME: NoBidReason = NoBidReason(15);
 
 /// Incomplete `SupplyChain`
+#[doc(alias = "NoBidIncompleteSupplyChain")]
 pub const NO_BID_INCOMPLETE_SUPPLY_CHAIN: NoBidReason = NoBidReason(16);
 
 /// Blocked `SupplyChain` Node
+#[doc(alias = "NoBidBlockedSupplyChainNode")]
 pub const NO_BID_BLOCKED_SUPPLY_CHAIN_NODE: NoBidReason = NoBidReason(17);
 
 /// ```text

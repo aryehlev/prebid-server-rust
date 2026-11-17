@@ -13,7 +13,9 @@
 //!   decodes them as Go does;
 //! - a `pub const` per exported constant (`PositionUnknown` → `POSITION_UNKNOWN`), and a `pub use`
 //!   per type alias;
-//! - Go doc comments as rustdoc ([`docs`]).
+//! - Go doc comments as rustdoc ([`docs`]), and `#[doc(alias = "GoName")]` on every type and
+//!   constant whose Rust name differs from its Go name, so that rustdoc search and grep find it by
+//!   the Go name.
 //!
 //! Types map exactly ([`registry`]): `int8` → `i8`, `int` → `isize` (and so on for every width),
 //! `string` → `String` (or `GoString`), pointers to structs → `Option<Box<T>>`, other pointers →
