@@ -384,6 +384,30 @@ func genCORS(c *corpus) {
 	}
 }
 
+// genHeaderLimit sends requests whose header, with its blank line, is one byte under, at or
+// over the server's read limit for a header (MaxHeaderBytes plus 4096 bytes of bufio slack),
+// as one long value, a long target or many lines, and a long value followed by a pipelined
+// request.
+func genHeaderLimit(c *corpus) {
+	const limit = 1<<20 + 4096
+	const line = "X-Line: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\r\n"
+	for _, delta := range []int{-1, 0, 1} {
+		head := "GET /status HTTP/1.1\r\nHost: x\r\nX-Big: "
+		pad := limit + delta - len(head) - len("\r\n\r\n")
+		c.add(fmt.Sprintf("gen limit value %+d", delta), "main", 0, send(head), sendN("a", pad), send("\r\n\r\n"))
+		c.add(fmt.Sprintf("gen limit value %+d pipelined", delta), "main", 0,
+			send(head), sendN("a", pad), send("\r\n\r\n"+req("GET", "/status")))
+		start, tail := "GET /status?", " HTTP/1.1\r\nHost: x\r\n\r\n"
+		c.add(fmt.Sprintf("gen limit target %+d", delta), "main", 0,
+			send(start), sendN("a", limit+delta-len(start)-len(tail)), send(tail))
+		first := "GET /status HTTP/1.1\r\nHost: x\r\n"
+		n := (limit - len(first) - len("\r\n")) / len(line)
+		rest := limit + delta - len(first) - n*len(line) - len("\r\n")
+		c.add(fmt.Sprintf("gen limit lines %+d", delta), "main", 0,
+			send(first), sendN(line, n), send("X-Last: "+strings.Repeat("b", rest-len("X-Last: \r\n"))+"\r\n\r\n"))
+	}
+}
+
 // chunkedBody is a chunked request body in wire form.
 type chunkedBody struct{ name, wire string }
 

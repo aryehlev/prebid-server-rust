@@ -126,6 +126,7 @@ func allCases() []wireCase {
 	genPipelines(c)
 	genBodies(c)
 	genChunked(c)
+	genHeaderLimit(c)
 	return c.cases
 }
 

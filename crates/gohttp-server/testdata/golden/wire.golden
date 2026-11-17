@@ -49324,3 +49324,111 @@ pause 100
 send "\nGET /status HTTP/1.1\r\nHost: example.com\r\n\r\n"
 response "HTTP/1.1 200 OK\r\nCache-Control: no-cache, no-store, must-revalidate\r\nContent-Type: application/json\r\nExpires: 0\r\nPragma: no-cache\r\nVary: Origin\r\nDate: <date>\r\nContent-Length: 36\r\n\r\nlen=5 body=\"hello\" trailer: X-T=\"v\"\nHTTP/1.1 204 No Content\r\nCache-Control: no-cache, no-store, must-revalidate\r\nExpires: 0\r\nPragma: no-cache\r\nVary: Origin\r\nDate: <date>\r\n\r\n"
 end open
+
+case gen limit value -1
+server main
+wait 300
+send "GET /status HTTP/1.1\r\nHost: x\r\nX-Big: "
+send "a" * 1052629
+send "\r\n\r\n"
+response "HTTP/1.1 204 No Content\r\nCache-Control: no-cache, no-store, must-revalidate\r\nExpires: 0\r\nPragma: no-cache\r\nVary: Origin\r\nDate: <date>\r\n\r\n"
+end open
+
+case gen limit value -1 pipelined
+server main
+wait 300
+send "GET /status HTTP/1.1\r\nHost: x\r\nX-Big: "
+send "a" * 1052629
+send "\r\n\r\nGET /status HTTP/1.1\r\nHost: example.com\r\n\r\n"
+response "HTTP/1.1 204 No Content\r\nCache-Control: no-cache, no-store, must-revalidate\r\nExpires: 0\r\nPragma: no-cache\r\nVary: Origin\r\nDate: <date>\r\n\r\nHTTP/1.1 204 No Content\r\nCache-Control: no-cache, no-store, must-revalidate\r\nExpires: 0\r\nPragma: no-cache\r\nVary: Origin\r\nDate: <date>\r\n\r\n"
+end open
+
+case gen limit target -1
+server main
+wait 300
+send "GET /status?"
+send "a" * 1052637
+send " HTTP/1.1\r\nHost: x\r\n\r\n"
+response "HTTP/1.1 204 No Content\r\nCache-Control: no-cache, no-store, must-revalidate\r\nExpires: 0\r\nPragma: no-cache\r\nVary: Origin\r\nDate: <date>\r\n\r\n"
+end open
+
+case gen limit lines -1
+server main
+wait 300
+send "GET /status HTTP/1.1\r\nHost: x\r\n"
+send "X-Line: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\r\n" * 10964
+send "X-Last: bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\r\n\r\n"
+response "HTTP/1.1 204 No Content\r\nCache-Control: no-cache, no-store, must-revalidate\r\nExpires: 0\r\nPragma: no-cache\r\nVary: Origin\r\nDate: <date>\r\n\r\n"
+end open
+
+case gen limit value +0
+server main
+wait 300
+send "GET /status HTTP/1.1\r\nHost: x\r\nX-Big: "
+send "a" * 1052630
+send "\r\n\r\n"
+response "HTTP/1.1 204 No Content\r\nCache-Control: no-cache, no-store, must-revalidate\r\nExpires: 0\r\nPragma: no-cache\r\nVary: Origin\r\nDate: <date>\r\n\r\n"
+end open
+
+case gen limit value +0 pipelined
+server main
+wait 300
+send "GET /status HTTP/1.1\r\nHost: x\r\nX-Big: "
+send "a" * 1052630
+send "\r\n\r\nGET /status HTTP/1.1\r\nHost: example.com\r\n\r\n"
+response "HTTP/1.1 204 No Content\r\nCache-Control: no-cache, no-store, must-revalidate\r\nExpires: 0\r\nPragma: no-cache\r\nVary: Origin\r\nDate: <date>\r\n\r\nHTTP/1.1 204 No Content\r\nCache-Control: no-cache, no-store, must-revalidate\r\nExpires: 0\r\nPragma: no-cache\r\nVary: Origin\r\nDate: <date>\r\n\r\n"
+end open
+
+case gen limit target +0
+server main
+wait 300
+send "GET /status?"
+send "a" * 1052638
+send " HTTP/1.1\r\nHost: x\r\n\r\n"
+response "HTTP/1.1 204 No Content\r\nCache-Control: no-cache, no-store, must-revalidate\r\nExpires: 0\r\nPragma: no-cache\r\nVary: Origin\r\nDate: <date>\r\n\r\n"
+end open
+
+case gen limit lines +0
+server main
+wait 300
+send "GET /status HTTP/1.1\r\nHost: x\r\n"
+send "X-Line: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\r\n" * 10964
+send "X-Last: bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\r\n\r\n"
+response "HTTP/1.1 204 No Content\r\nCache-Control: no-cache, no-store, must-revalidate\r\nExpires: 0\r\nPragma: no-cache\r\nVary: Origin\r\nDate: <date>\r\n\r\n"
+end open
+
+case gen limit value +1
+server main
+wait 300
+send "GET /status HTTP/1.1\r\nHost: x\r\nX-Big: "
+send "a" * 1052631
+send "\r\n\r\n"
+response "HTTP/1.1 431 Request Header Fields Too Large\r\nContent-Type: text/plain; charset=utf-8\r\nConnection: close\r\n\r\n431 Request Header Fields Too Large"
+end open
+
+case gen limit value +1 pipelined
+server main
+wait 300
+send "GET /status HTTP/1.1\r\nHost: x\r\nX-Big: "
+send "a" * 1052631
+send "\r\n\r\nGET /status HTTP/1.1\r\nHost: example.com\r\n\r\n"
+response "HTTP/1.1 431 Request Header Fields Too Large\r\nContent-Type: text/plain; charset=utf-8\r\nConnection: close\r\n\r\n431 Request Header Fields Too Large"
+end open
+
+case gen limit target +1
+server main
+wait 300
+send "GET /status?"
+send "a" * 1052639
+send " HTTP/1.1\r\nHost: x\r\n\r\n"
+response "HTTP/1.1 431 Request Header Fields Too Large\r\nContent-Type: text/plain; charset=utf-8\r\nConnection: close\r\n\r\n431 Request Header Fields Too Large"
+end open
+
+case gen limit lines +1
+server main
+wait 300
+send "GET /status HTTP/1.1\r\nHost: x\r\n"
+send "X-Line: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\r\n" * 10964
+send "X-Last: bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\r\n\r\n"
+response "HTTP/1.1 431 Request Header Fields Too Large\r\nContent-Type: text/plain; charset=utf-8\r\nConnection: close\r\n\r\n431 Request Header Fields Too Large"
+end open
