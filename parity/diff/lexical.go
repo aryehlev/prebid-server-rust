@@ -20,7 +20,7 @@ import (
 //   - member_order: the members both sides have appear in a different order.
 //   - whitespace: insignificant whitespace differs (reported once per document).
 //   - trailing_newline: one document ends with a newline the other lacks
-//     (json.Encoder.Encode, endpoints/openrtb2/auction.go:383-394).
+//     (json.Encoder.Encode, endpoints/openrtb2/auction.go:391-403).
 
 // escapeUnit is one decoded rune of a JSON string literal and its spelling.
 type escapeUnit struct {

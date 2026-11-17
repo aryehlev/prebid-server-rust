@@ -1,5 +1,5 @@
 {
-  "description": "responsetimemillis values are wall-clock (exchange.go:786) and auctiontimestamp is the start time (exchange.go:1257): their values are not compared, but a missing bidder key is.",
+  "description": "responsetimemillis values are wall-clock (exchange/exchange.go:836) and auctiontimestamp is the start time (exchange/exchange.go:1307-1310): their values are not compared, but a missing bidder key is.",
   "case": {
     "case_id": "golden/responsetimemillis_key_set",
     "fixture_path": "parity/testdata/diff/responsetimemillis_key_set.json",

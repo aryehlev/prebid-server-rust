@@ -74,8 +74,16 @@ type Client struct {
 
 // NewClient returns a client of the server at base (http://127.0.0.1:<port>).
 // It never uses a proxy and never decompresses, so documents arrive as sent.
+//
+// It holds at most one connection to the server, since the runner calls each
+// server one request at a time. Without the limit, a request started just
+// before the previous response's connection returns to the pool makes the
+// transport dial a second connection, which idles until the server's idle
+// timeout closes it (ReadTimeout, server/server.go:103). The server counts
+// these connections (server/listener.go:24-52), and they are not the case's;
+// the differ ignores the series (listener_connection_metrics).
 func NewClient(base, token string) *Client {
-	tr := &http.Transport{Proxy: nil, DisableCompression: true, MaxIdleConnsPerHost: 4}
+	tr := &http.Transport{Proxy: nil, DisableCompression: true, MaxConnsPerHost: 1, MaxIdleConnsPerHost: 1}
 	return &Client{base: strings.TrimSuffix(base, "/"), token: token, http: &http.Client{Transport: tr}}
 }
 

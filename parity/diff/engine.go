@@ -527,11 +527,11 @@ func (e *Engine) compareMetrics(c *comparer, g, r []parity.MetricDelta) {
 	}
 }
 
-// withoutGoRuntime drops the Go runtime collector series from deltas.
-func withoutGoRuntime(deltas []parity.MetricDelta) []parity.MetricDelta {
+// withoutMetrics drops the series whose name drop reports from deltas.
+func withoutMetrics(deltas []parity.MetricDelta, drop func(name string) bool) []parity.MetricDelta {
 	out := make([]parity.MetricDelta, 0, len(deltas))
 	for _, d := range deltas {
-		if !isGoRuntimeMetric(d.Name) {
+		if !drop(d.Name) {
 			out = append(out, d)
 		}
 	}

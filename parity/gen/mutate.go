@@ -774,7 +774,7 @@ func requestExtMutators() []*mutator {
 			d.req()["tmax"] = num(int64(Pick(r, d.g.pools.Values.ValidTMax)))
 			return nil
 		}),
-		feat("tmax.edge", Uncertain, onAll, "sets an edge tmax (0, 1, very large)", hasReq, func(d *draft, r *RNG) error {
+		feat("tmax.edge", Uncertain, onAll, "sets an edge tmax (0, short, very large)", hasReq, func(d *draft, r *RNG) error {
 			d.req()["tmax"] = num(int64(Pick(r, d.g.pools.Values.TMax)))
 			return nil
 		}),

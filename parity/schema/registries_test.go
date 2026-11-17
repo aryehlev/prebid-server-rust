@@ -2,7 +2,10 @@ package schema
 
 import (
 	"encoding/json"
+	"os"
+	"path/filepath"
 	"sort"
+	"strings"
 	"testing"
 	"time"
 
@@ -252,6 +255,55 @@ func TestFakesRegistryMatchesGoDefaults(t *testing.T) {
 		"adnuntius", "appnexus", "cadent_aperture_mx", "eplanning",
 		"flipp", "huaweiads", "tappx", "yieldlab",
 	}, fakeBidders(reg))
+}
+
+func TestFakesRegistryGeneratedUUIDs(t *testing.T) {
+	reg, err := Fakes()
+	require.NoError(t, err)
+	gen := reg.GeneratedUUIDs
+	require.Equal(t, "uuid", gen.Seed)
+	require.NotEmpty(t, gen.First)
+	for i, want := range gen.First {
+		got := fakes.SequenceUUID(reg.Defaults.UUID, uint64(i+1))
+		assert.Equal(t, want, got.String(), "generated_uuids.first[%d]", i)
+	}
+	assert.NotEmpty(t, gen.GoSites)
+}
+
+// TestFakesRegistryOrders: every order names a Go site whose file exists and
+// holds the seam the entry names.
+func TestFakesRegistryOrders(t *testing.T) {
+	reg, err := Fakes()
+	require.NoError(t, err)
+	seams := map[string]string{
+		"bidder_request_phase":              "defer parityTakeTurn(ctx, bidderRequest.BidderName)()",
+		"fpd_bidders":                       "fakes.MapKeys(allBiddersTable, cmp.Less[string])",
+		"bidder_params_validation":          "fakes.MapKeys(prebid.Bidder, cmp.Less[string])",
+		"stored_bid_responses_validation":   "fakes.MapKeys(bidResponses, cmp.Less[string])",
+		"alias_validation":                  "fakes.MapKeys(aliases, cmp.Less[string])",
+		"alias_gvlid_validation":            "fakes.MapKeys(aliasesGVLIDs, cmp.Less[string])",
+		"bid_adjustment_factors_validation": "fakes.MapKeys(adjustmentFactors, cmp.Less[string])",
+		"auction_winners":                   "fakes.MapKeys(seatBids, cmp.Less[openrtb_ext.BidderName])",
+		"category_dedupe":                   "fakes.MapKeys(seatBids, cmp.Less[openrtb_ext.BidderName])",
+		"adtarget":                          "fakes.MapKeys(imp2source, cmp.Less[int])",
+		"bidmatic":                          "fakes.MapKeys(imp2source, cmp.Less[int])",
+		"bidder_response_order":             "pt.inCallOrder(",
+		"adtelligent":                       "fakes.MapKeys(imp2source, cmp.Less[int])",
+		"datablocks":                        "fakes.MapKeys(reqImps, fakes.LessDatablocks)",
+		"trafficgate":                       "fakes.MapKeys(reqImps, fakes.LessTrafficGate)",
+		"zeroclickfraud":                    "fakes.MapKeys(reqImps, fakes.LessZeroClickFraud)",
+	}
+	require.Len(t, reg.Orders, len(seams))
+	for _, o := range reg.Orders {
+		t.Run(o.Name, func(t *testing.T) {
+			want, ok := seams[o.Name]
+			require.True(t, ok, "unknown order %s", o.Name)
+			file, _, _ := strings.Cut(o.GoSite, ":")
+			src, err := os.ReadFile(filepath.Join("..", "..", file))
+			require.NoError(t, err)
+			assert.Contains(t, string(src), want)
+		})
+	}
 }
 
 func schemaEnum(t *testing.T, file, definition string) []string {

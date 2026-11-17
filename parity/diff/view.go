@@ -295,10 +295,11 @@ const (
 	traceFieldIntrospection = "introspection"
 )
 
-// normalize applies the allowlist to a view: structural rules, UUID
-// collection, ordering rules, then UUID numbering.
+// normalize applies the allowlist to a view: structural rules, message rules,
+// UUID collection, ordering rules, then UUID numbering.
 func (e *Engine) normalize(v *view, uuids *uuidSet) {
 	e.structuralView(v)
+	e.messageView(v)
 	e.collectUUIDs(v, uuids)
 	e.sortView(v, uuids)
 	e.numberView(v, uuids)
@@ -322,7 +323,10 @@ func (e *Engine) structuralView(v *view) {
 		e.rules.structural(parity.StageHTTPOut, c.respBody)
 	}
 	if e.rules.Active(RuleGoRuntimeMetrics, parity.StageMetricsDelta) {
-		v.metrics = withoutGoRuntime(v.metrics)
+		v.metrics = withoutMetrics(v.metrics, isGoRuntimeMetric)
+	}
+	if e.rules.Active(RuleListenerConnections, parity.StageMetricsDelta) {
+		v.metrics = withoutMetrics(v.metrics, isListenerConnectionMetric)
 	}
 }
 
@@ -438,6 +442,7 @@ func sortedEntryKeys(keyed map[string]*entry) []string {
 }
 
 func (e *Engine) sortView(v *view, u *uuidSet) {
+	e.rekeyView(v, u)
 	for stage, keyed := range v.entries {
 		for _, en := range keyed {
 			e.rules.sortRules(stage, en.value, u.maskText)
@@ -447,11 +452,6 @@ func (e *Engine) sortView(v *view, u *uuidSet) {
 	e.rules.sortRules(parity.StageAnalytics, v.analytics, u.maskText)
 	if v.httpResp != nil {
 		e.rules.sortRules(parity.StageHTTPResponse, v.httpResp.body, u.maskText)
-	}
-	for _, stage := range []parity.StageID{parity.StageAdapterBids, parity.StageHooksRawBidderResponse} {
-		if e.rules.Active(RuleAdapterBidsCallKey, stage) {
-			v.entries[stage] = rekeyCalls(v.entries[stage], u.maskText)
-		}
 	}
 	if e.rules.Active(RuleCachePutsOrder, parity.StageHTTPOut) {
 		for _, c := range v.httpOut {
@@ -465,14 +465,59 @@ func (e *Engine) sortView(v *view, u *uuidSet) {
 	}
 }
 
+// rekeyView applies adapter_bids_call_key before the ordering rules: the
+// adapter.bids and hooks.raw_bidder_response keys are re-derived from their
+// requests, and the bids.adjusted call members that name an adapter.bids key
+// follow the new keys, so bids.adjusted sorts by the same call keys.
+func (e *Engine) rekeyView(v *view, u *uuidSet) {
+	renamed := map[string]string{}
+	for _, stage := range []parity.StageID{parity.StageAdapterBids, parity.StageHooksRawBidderResponse} {
+		if !e.rules.Active(RuleAdapterBidsCallKey, stage) {
+			continue
+		}
+		var moved map[string]string
+		v.entries[stage], moved = rekeyCalls(v.entries[stage], u.maskText)
+		if stage == parity.StageAdapterBids {
+			renamed = moved
+		}
+	}
+	if e.rules.Active(RuleAdapterBidsCallKey, parity.StageBidsAdjusted) {
+		for _, en := range v.entries[parity.StageBidsAdjusted] {
+			renameCalls(en.value, renamed)
+		}
+	}
+}
+
+// adjustedCallMembers are the bids.adjusted members holding an adapter.bids key
+// (stagedata.AdjustedBid.Call, stagedata.ConversionError.Call).
+var adjustedCallMembers = []string{"bids[*].call", "conversion_errors[*].call"}
+
+// renameCalls rewrites the call members of a bids.adjusted value.
+func renameCalls(value *node, renamed map[string]string) {
+	for _, n := range anchorsOf(value, adjustedCallMembers) {
+		if n.kind != kindString {
+			continue
+		}
+		if to, ok := renamed[n.str]; ok && to != n.str {
+			n.str, n.raw = to, jsonQuote(to)
+		}
+	}
+}
+
 // rekeyCalls re-derives the call index of bidder#call keys from the request
 // each entry belongs to (request_data.uri, request_data.body), so the keys do
-// not depend on response arrival order.
-func rekeyCalls(keyed map[string]*entry, mask func(string) string) map[string]*entry {
+// not depend on response arrival order or on the order of a map an adapter
+// built its requests from. It returns the entries and the old-to-new keys.
+func rekeyCalls(keyed map[string]*entry, mask func(string) string) (map[string]*entry, map[string]string) {
+	renamed := map[string]string{}
 	if len(keyed) == 0 {
-		return keyed
+		return keyed, renamed
 	}
-	groups := map[string][]*entry{}
+	type call struct {
+		key string
+		en  *entry
+	}
+	groups := map[string][]call{}
 	out := make(map[string]*entry, len(keyed))
 	for _, key := range sortedEntryKeys(keyed) {
 		bidder, _, ok := cutLast(key, "#")
@@ -480,17 +525,19 @@ func rekeyCalls(keyed map[string]*entry, mask func(string) string) map[string]*e
 			out[key] = keyed[key]
 			continue
 		}
-		groups[bidder] = append(groups[bidder], keyed[key])
+		groups[bidder] = append(groups[bidder], call{key: key, en: keyed[key]})
 	}
-	for bidder, entries := range groups {
-		sort.SliceStable(entries, func(i, j int) bool {
-			return callSortKey(entries[i], mask) < callSortKey(entries[j], mask)
+	for bidder, calls := range groups {
+		sort.SliceStable(calls, func(i, j int) bool {
+			return callSortKey(calls[i].en, mask) < callSortKey(calls[j].en, mask)
 		})
-		for i, en := range entries {
-			out[bidder+"#"+strconv.Itoa(i)] = en
+		for i, c := range calls {
+			to := bidder + "#" + strconv.Itoa(i)
+			out[to] = c.en
+			renamed[c.key] = to
 		}
 	}
-	return out
+	return out, renamed
 }
 
 func callSortKey(en *entry, mask func(string) string) string {

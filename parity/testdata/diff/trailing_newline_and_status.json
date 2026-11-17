@@ -1,5 +1,5 @@
 {
-  "description": "json.Encoder.Encode adds a trailing newline (auction.go:394) that a serializer without it lacks: lexical trailing_newline. A different HTTP status is kind status.",
+  "description": "json.Encoder.Encode adds a trailing newline (endpoints/openrtb2/auction.go:403) that a serializer without it lacks: lexical trailing_newline. A different HTTP status is kind status.",
   "case": {
     "case_id": "golden/trailing_newline_and_status",
     "fixture_path": "parity/testdata/diff/trailing_newline_and_status.json",

@@ -1,11 +1,13 @@
 // Package fakes provides the deterministic clock, random and UUID sources that
 // parity mode injects into the adapters with internal nondeterminism (adnuntius,
-// appnexus, cadent_aperture_mx, eplanning, flipp, huaweiads, tappx, yieldlab).
+// appnexus, cadent_aperture_mx, eplanning, flipp, huaweiads, tappx, yieldlab),
+// and the deterministic stream that replaces every uuid.NewV4 while parity mode
+// is on (see uuids.go).
 //
 // Nothing is active until Install is called, which only parity bootstrap does
 // when parity.enabled is true. While nothing is installed every helper returns
-// exactly what the adapter used before (time.Now, math/rand), so the adapter
-// seams are behaviour-neutral in production. The values are part of the
+// exactly what the adapter used before (time.Now, math/rand, random UUIDs), so
+// the seams are behaviour-neutral in production. The values are part of the
 // cross-language contract (parity/schema/fakes.json): the Rust server must
 // inject the same values in parity mode.
 package fakes
@@ -40,13 +42,16 @@ func Defaults() parity.FakeValues {
 // directly into the adapters that already have those seams.
 type Source struct {
 	values atomic.Pointer[parity.FakeValues]
+	uuids  atomic.Pointer[uuidStream]
 }
 
 var active atomic.Pointer[Source]
 
 // Install activates the deterministic sources process-wide and returns them.
-// Calling it again returns the already installed Source.
+// Calling it again returns the already installed Source. The first call also
+// routes uuid.NewV4 through the Source's deterministic UUID stream.
 func Install() *Source {
+	installUUIDGenerator()
 	src := &Source{}
 	src.Set(nil)
 	if active.CompareAndSwap(nil, src) {
@@ -67,7 +72,8 @@ func Active() *Source {
 }
 
 // Set replaces the current values; zero fields (or a nil v) take the defaults.
-// The exec handler calls it per case from envelope.fakes.
+// It also restarts the generated-UUID stream from the (new) uuid value. The
+// exec handler calls it per case from envelope.fakes.
 func (s *Source) Set(v *parity.FakeValues) {
 	merged := Defaults()
 	if v != nil {
@@ -82,6 +88,7 @@ func (s *Source) Set(v *parity.FakeValues) {
 		}
 	}
 	s.values.Store(&merged)
+	s.restartUUIDs(merged.UUID)
 }
 
 // Values returns the current values.

@@ -1,5 +1,5 @@
 {
-  "description": "The input has no source.tid, so Go generates one (auction.go:948). Go uses one tid for both bidders; Rust uses two different ones. After numbering by first appearance Go reads <uuid#1>,<uuid#1> and Rust <uuid#1>,<uuid#2>: the rubicon request is a mismatch.",
+  "description": "The input has no source.tid, so Go generates one (endpoints/openrtb2/auction.go:975-980). Go uses one tid for both bidders; Rust uses two different ones. After numbering by first appearance Go reads <uuid#1>,<uuid#1> and Rust <uuid#1>,<uuid#2>: the rubicon request is a mismatch.",
   "case": {
     "case_id": "golden/tid_uuid_distinct",
     "fixture_path": "parity/testdata/diff/tid_uuid_distinct.json",
