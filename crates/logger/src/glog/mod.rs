@@ -23,8 +23,8 @@
 //! [`flush`]; they rotate after 1800 MiB.
 //!
 //! A FATAL line carries a stack trace, then the files are flushed and the process ends through
-//! the installed [`ExitFn`](crate::exit::ExitFn), as Go's glog aborts. A failure to write a line is
-//! itself fatal, as in Go.
+//! the installed [`ExitFn`](crate::exit::ExitFn) (by default with status 2, the status Go's
+//! runtime exits with on glog's `SIGABRT`). A failure to write a line is itself fatal, as in Go.
 //!
 //! Differences from Go: call sites are Rust files and lines (except for the
 //! [`crate`]-level functions, which report Go's); stack traces are Rust backtraces; the file

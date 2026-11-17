@@ -20,9 +20,9 @@
 //! own functions, report the Rust file and line of their caller.
 //!
 //! Start-up mirrors Go's `main`: parse glog's command-line flags with
-//! [`glog::parse_command_line`] (Go: `flag.Parse`), install [`exit::set_exit_fn`] with the process
-//! exit function so a fatal log ends the process with Go's status 2, and route the `log` crate
-//! through glog with [`glog::install_log_bridge`].
+//! [`glog::parse_command_line`] (Go: `flag.Parse`) and route the `log` crate through glog with
+//! [`glog::install_log_bridge`]. A fatal log ends the process with Go's status 2 through
+//! [`std::process::exit`] unless [`exit::set_exit_fn`] installs another way to end it.
 //!
 //! ```
 //! use pbs_logger::{Logger as _, Value, glog};

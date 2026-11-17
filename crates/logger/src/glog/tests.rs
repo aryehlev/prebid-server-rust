@@ -537,20 +537,17 @@ fn bridge_maps_levels() -> TestResult {
 /// The environment variable that turns a test into a child process's fatal scenario.
 const CHILD: &str = "PBS_LOGGER_FATAL_CHILD";
 
-/// Runs `test` of this binary as a child with [`CHILD`] set to `mode`.
+/// Runs `test` of this binary as a child with [`CHILD`] set to `mode`; returns its exit code
+/// (`None` when a signal ended it) and standard error.
 fn run_child(test: &str, mode: &str) -> Result<(Option<i32>, String), Box<dyn Error>> {
     let out = Command::new(env::current_exe()?)
         .args(["--exact", test, "--test-threads=1"])
         .env(CHILD, mode)
         .output()?;
-    #[cfg(unix)]
-    let signal = {
-        use std::os::unix::process::ExitStatusExt as _;
-        out.status.signal()
-    };
-    #[cfg(not(unix))]
-    let signal = None;
-    Ok((signal, String::from_utf8_lossy(&out.stderr).into_owned()))
+    Ok((
+        out.status.code(),
+        String::from_utf8_lossy(&out.stderr).into_owned(),
+    ))
 }
 
 #[test]
@@ -591,30 +588,31 @@ fn fatal_child() {
 }
 
 #[test]
-fn fatal_logs_a_stack_then_aborts() -> TestResult {
-    // Go: FatalDepthf writes the line with a stack dump, flushes, and sends SIGABRT.
-    let (signal, stderr) = run_child("glog::tests::fatal_child", "instance")?;
+fn fatal_logs_a_stack_then_exits_2() -> TestResult {
+    // Go: FatalDepthf writes the line with a stack dump, flushes, and sends SIGABRT, which the
+    // Go runtime answers with exit status 2 (checked against a Go binary calling
+    // logger.Fatalf); the default ExitFn gives the same status with no set-up.
+    let (code, stderr) = run_child("glog::tests::fatal_child", "instance")?;
     check(
         stderr.starts_with("F0123 01:23:23.123123    4242 here.rs:7] boom 1\n\n"),
         &stderr,
     )?;
     check(stderr.ends_with('\n'), "a final newline")?;
-    if cfg!(unix) {
-        check_eq(&signal, &Some(6), "SIGABRT")?;
-    }
-    let (_signal, facade_stderr) = run_child("glog::tests::fatal_child", "facade")?;
+    check_eq(&code, &Some(2), "Go's fatal exit status")?;
+    let (facade_code, facade_stderr) = run_child("glog::tests::fatal_child", "facade")?;
     check(facade_stderr.starts_with('F'), &facade_stderr)?;
     check(
         facade_stderr.contains(" logger.go:27] fatal x\n\n"),
         format!("the Go site of logger.Fatalf: {facade_stderr}"),
-    )
+    )?;
+    check_eq(&facade_code, &Some(2), "Go's fatal exit status")
 }
 
 #[test]
 fn a_failed_write_is_fatal() -> TestResult {
     // Go: sinkf logs "log: exiting because of error writing previous log to sinks" and
-    // aborts when a sink fails.
-    let (signal, stderr) = run_child("glog::tests::fatal_child", "sinkfail")?;
+    // aborts (exit status 2) when a sink fails.
+    let (code, stderr) = run_child("glog::tests::fatal_child", "sinkfail")?;
     let missing = env::temp_dir().join("pbs-logger-missing-dir").join("x");
     let want = format!(
         "F0123 01:23:23.123123    4242 glog.go:261] log: exiting because of error writing \
@@ -626,10 +624,7 @@ fn a_failed_write_is_fatal() -> TestResult {
         stderr.starts_with(&want),
         format!("{stderr}\nwant prefix {want}"),
     )?;
-    if cfg!(unix) {
-        check_eq(&signal, &Some(6), "SIGABRT")?;
-    }
-    Ok(())
+    check_eq(&code, &Some(2), "Go's fatal exit status")
 }
 
 #[test]
