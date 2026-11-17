@@ -15,3 +15,4 @@ categories.workspace = true
 workspace = true
 
 [dependencies]
+pbs-gojson = { path = "../gojson", version = "0.1.0" }
