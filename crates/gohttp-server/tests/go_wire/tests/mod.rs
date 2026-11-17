@@ -39,6 +39,36 @@ const KNOWN_GAPS: &[(&str, &str)] = &[
         "pbs-gocompat's Url holds Rust strings: a path whose percent-decoding is not UTF-8 \
          holds U+FFFD, so RawPath is kept where Go drops it",
     ),
+    (
+        r#"gen chunked auction trailer "X-T: v\x80\r\n""#,
+        "pbs-gocompat's Header holds Rust strings: a trailer value that is not UTF-8 is \
+         decoded lossily, where Go keeps the raw bytes",
+    ),
+    (
+        r#"gen chunked /openrtb2/video trailer "X-T: v\x80\r\n""#,
+        "pbs-gocompat's Header holds Rust strings: a trailer value that is not UTF-8 is \
+         decoded lossily, where Go keeps the raw bytes",
+    ),
+    (
+        r#"gen chunked auction trailer "X-\xffT: v\r\n""#,
+        "a Rust error message is a string: the malformed trailer line Go's error quotes is \
+         decoded lossily when it is not UTF-8",
+    ),
+    (
+        r#"gen chunked /openrtb2/video trailer "X-\xffT: v\r\n""#,
+        "a Rust error message is a string: the malformed trailer line Go's error quotes is \
+         decoded lossily when it is not UTF-8",
+    ),
+    (
+        r#"gen chunked /t/body/some trailer "X-\xffT: v\r\n""#,
+        "a Rust error message is a string: the malformed trailer line Go's error quotes is \
+         decoded lossily when it is not UTF-8",
+    ),
+    (
+        r#"gen chunked /t/body/max trailer "X-\xffT: v\r\n""#,
+        "a Rust error message is a string: the malformed trailer line Go's error quotes is \
+         decoded lossily when it is not UTF-8",
+    ),
 ];
 
 /// `send "<quoted>"` or `send "<quoted>" * <n>`.

@@ -383,3 +383,136 @@ func genCORS(c *corpus) {
 		c.one("gen cors preflight origin "+o.name, req("OPTIONS", "/nope", hs...))
 	}
 }
+
+// chunkedBody is a chunked request body in wire form.
+type chunkedBody struct{ name, wire string }
+
+// chunkedBodies combines chunk-size lines (every ASCII byte before, after and in the extension
+// of a size, sizes whose overhead check wraps in Go's int64 arithmetic), chunk-data
+// terminators, short and long chunks, last chunks and trailer sections.
+func chunkedBodies() []chunkedBody {
+	var out []chunkedBody
+	add := func(name, wire string) { out = append(out, chunkedBody{name, wire}) }
+	end := "\r\nhello\r\n0\r\n\r\n"
+	sizes := []string{
+		"5", "05", "0000000000000005", "00000000000000005", "0000000000000000z", "5 ", "5\t",
+		"5 \t", " 5", "\t5", "5;", "5;a", "5;a=b", `5;a="b c"`, `5;a="b;c"`, "5 ;a", "5; a",
+		"5;a ", "5;;", "5\v", "5\f", "+5", "-5", "0x5", "5.0", "5,", "5 5", "5\x00", "5\x80",
+		"\xef\xbc\x95", "",
+	}
+	for _, s := range sizes {
+		add(fmt.Sprintf("size %q", s), s+end)
+	}
+	// The overhead check computes 16+2*int64(n): sizes of 2^62 and up wrap.
+	huge := []string{
+		"1000000000000000", "3fffffffffffffff", "4000000000000000", "4000000000000001",
+		"4000000000000002", "5000000000000000", "6000000000000000", "7fffffffffffdfff",
+		"7fffffffffffe000", "7fffffffffffffff", "8000000000000000", "a000000000000000",
+		"c000000000000000", "c000000000000001", "c000000000000002", "e000000000000000",
+		"ffffffffffffdfff", "ffffffffffffe000", "ffffffffffffefff", "ffffffffffffffff",
+		"FFFFFFFFFFFFFFFF", "6000000000000000;x",
+	}
+	for _, s := range huge {
+		add(fmt.Sprintf("huge %q", s), s+end)
+	}
+	for b := 0; b < 0x80; b++ {
+		ch := string(rune(b))
+		add(fmt.Sprintf("byte %02x before size", b), ch+"5"+end)
+		add(fmt.Sprintf("byte %02x after size", b), "5"+ch+end)
+		add(fmt.Sprintf("byte %02x in ext", b), "5;"+ch+end)
+		add(fmt.Sprintf("byte %02x in last", b), "5\r\nhello\r\n0"+ch+"\r\n\r\n")
+	}
+	terms := []string{
+		"", "\r", "\n", "\n\r", "\r\r\n", " \r\n", "\r\n\r\n", "x\r\n", "\x00\r\n", "\r\x00",
+		"\rx", "xx", "\t\n", "\r\n\n",
+	}
+	for _, t := range terms {
+		add(fmt.Sprintf("term %q", t), "5\r\nhello"+t+"0\r\n\r\n")
+	}
+	for _, n := range []int{0, 1, 3, 4, 6, 7, 12} {
+		add(fmt.Sprintf("declared %d for 5", n), fmt.Sprintf("%x\r\nhello\r\n0\r\n\r\n", n))
+	}
+	var many strings.Builder
+	for i := 1; i <= 16; i++ {
+		fmt.Fprintf(&many, "%x\r\n%s\r\n", i, strings.Repeat(string(rune('a'+i%26)), i))
+	}
+	add("sizes 1 to 16", many.String()+"0\r\n\r\n")
+	add("bytes one by one", strings.Repeat("1\r\nz\r\n", 40)+"0\r\n\r\n")
+	add("hex letters", "a\r\n0123456789\r\nA\r\n0123456789\r\n1f\r\n"+strings.Repeat("q", 31)+"\r\n0\r\n\r\n")
+	add("empty first", "0\r\n\r\n")
+	add("empty chunk inside", "5\r\nhello\r\n0\r\n\r\n5\r\nworld\r\n0\r\n\r\n")
+	lasts := []string{
+		"0", "00", "0000000000000000", "00000000000000000", "0;a=b", "0;", "0 ", "0\t", " 0",
+		"0 ;a", `0;a="x"`,
+	}
+	for _, l := range lasts {
+		add(fmt.Sprintf("last %q", l), "5\r\nhello\r\n"+l+"\r\n\r\n")
+	}
+	trailers := []string{
+		"X-T: v\r\n", "X-T: v\r\nX-U: w\r\n", "x-t: v\r\n", "X-T:v\r\n", "X-T: \r\n", "X-T:\r\n",
+		"X-T: v \r\n", "X-T: a\r\nX-T: b\r\n", "X-T: v\r\n folded\r\n", "X-T: v\r\n\tfolded\r\n",
+		" X-T: v\r\n", "X-T v\r\n", "X T: v\r\n", "X-T : v\r\n", ": v\r\n", "X-T: v\x00\r\n",
+		"X-T: v\x7f\r\n", "X-T: v\x80\r\n", "X-\xffT: v\r\n", "X-T: v\tw\r\n", "Host: h\r\n",
+		"Content-Length: 5\r\n", "Transfer-Encoding: chunked\r\n", "Trailer: X-T\r\n",
+		"Content-Type: text/plain\r\n", "Expect: 100-continue\r\n", "Connection: close\r\n",
+		strings.Repeat("X-T: v\r\n", 100), "X-T: " + strings.Repeat("a", 4000) + "\r\n",
+		// The trailer, with its blank line, ends at byte 4096 or 4097 of the buffer.
+		"X-T: " + strings.Repeat("a", 4084) + "\r\n", "X-T: " + strings.Repeat("a", 4085) + "\r\n",
+		"X-T: " + strings.Repeat("a", 5000) + "\r\n",
+	}
+	for _, t := range trailers {
+		add(fmt.Sprintf("trailer %q", t), "5\r\nhello\r\n0\r\n"+t+"\r\n")
+	}
+	ends := []string{
+		"X-T: v\n\n", "X-T: v\r\n\n", "X-T: v\n\r\n", "\n", "X-T: v\r\n", "X-T: v\r\n\r",
+		"X-T: v\rX\r\n\r\n",
+	}
+	for _, e := range ends {
+		add(fmt.Sprintf("trailer end %q", e), "5\r\nhello\r\n0\r\n"+e)
+	}
+	// A chunk line, with its CRLF, of 4096 or 4097 bytes.
+	add("last line 4096", "0;"+strings.Repeat("e", 4092)+"\r\n\r\n")
+	add("last line 4097", "0;"+strings.Repeat("e", 4093)+"\r\n\r\n")
+	return out
+}
+
+// genChunked sends every chunked body, followed by a pipelined request, to a route that reads
+// the whole body and reports it (or its error) and to one that does not read it, so the server
+// discards it; and the bodies with more than one chunk or a trailer to routes that read some of
+// the body, through a limit or a MaxBytesReader.
+func genChunked(c *corpus) {
+	next := req("GET", "/status")
+	for _, b := range chunkedBodies() {
+		c.one("gen chunked auction "+b.name, chunked("/openrtb2/auction", b.wire)+next)
+		c.one("gen chunked none "+b.name, chunked("/t/body/none", b.wire)+next)
+		if strings.HasPrefix(b.name, "trailer") || strings.HasPrefix(b.name, "last") ||
+			strings.HasPrefix(b.name, "sizes") || strings.HasPrefix(b.name, "bytes") ||
+			strings.HasPrefix(b.name, "hex") || strings.HasPrefix(b.name, "term") {
+			for _, target := range []string{"/openrtb2/video", "/t/body/some", "/t/body/max"} {
+				c.one(fmt.Sprintf("gen chunked %s %s", target, b.name), chunked(target, b.wire)+next)
+			}
+		}
+	}
+	for _, t := range []string{"X-T: v\r\n", "X-U: v\r\n", "\r\n" + "X-T: v\r\n", ""} {
+		c.one(fmt.Sprintf("gen chunked declared trailer %q", t),
+			chunked("/openrtb2/auction", "5\r\nhello\r\n0\r\n"+t+"\r\n", "Trailer: X-T")+next)
+	}
+	// k one-byte chunks with an l-byte extension: the line limit (4096 bytes with the CRLF)
+	// and the overhead limit (16 KiB beyond 16 bytes per chunk and twice the data).
+	for _, kl := range [][2]int{{1, 4091}, {1, 4092}, {1, 4093}, {1, 4094}, {4, 4000}, {5, 4000}, {42, 400}, {43, 400}} {
+		chunk := "1;" + strings.Repeat("e", kl[1]) + "\r\nX\r\n"
+		for _, last := range []string{"0", "0;" + strings.Repeat("e", 200)} {
+			for _, target := range []string{"/openrtb2/auction", "/t/body/none"} {
+				c.add(fmt.Sprintf("gen chunked ext %dx%d last %d %s", kl[0], kl[1], len(last), target), "main", 0,
+					send(chunked(target, "")), sendN(chunk, kl[0]), send(last+"\r\n\r\n"+next))
+			}
+		}
+	}
+	// The body arrives in two parts, split inside a size line, the data, its CRLF, the last
+	// chunk or the trailer.
+	wire := "5\r\nhello\r\n0\r\nX-T: v\r\n\r\n"
+	for split := 1; split < len(wire); split++ {
+		c.add(fmt.Sprintf("gen chunked split at %d", split), "main", 0,
+			send(chunked("/openrtb2/auction", wire[:split])), pause(100), send(wire[split:]+next))
+	}
+}

@@ -125,6 +125,7 @@ func allCases() []wireCase {
 	genCORS(c)
 	genPipelines(c)
 	genBodies(c)
+	genChunked(c)
 	return c.cases
 }
 
