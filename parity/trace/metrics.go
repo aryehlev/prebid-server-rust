@@ -72,7 +72,7 @@ func seriesDelta(before, after metricSeries) (parity.MetricDelta, bool) {
 		Name:   after.name,
 		Type:   after.typ,
 		Labels: after.labels,
-		Delta:  after.value - before.value,
+		Delta:  valueDelta(before.value, after.value),
 	}
 	if after.typ != parity.MetricHistogram && after.typ != parity.MetricSummary {
 		return d, d.Delta != 0
@@ -88,6 +88,19 @@ func seriesDelta(before, after metricSeries) (parity.MetricDelta, bool) {
 		}
 	}
 	return d, countDelta != 0 || d.Delta != 0
+}
+
+// valueDelta is after - before when that is finite, else 0. JSON cannot carry
+// NaN or infinities, and the histograms the Go runtime collector exports
+// (metrics/prometheus/prometheus.go NewGoCollector: go_gc_pauses_seconds_total
+// and others built on runtime/metrics) always report a NaN sum. Such a series
+// is reported only through its count and bucket changes.
+func valueDelta(before, after float64) float64 {
+	d := after - before
+	if math.IsNaN(d) || math.IsInf(d, 0) {
+		return 0
+	}
+	return d
 }
 
 func toSeries(family *dto.MetricFamily, m *dto.Metric) metricSeries {

@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
+	"runtime"
 	"sync"
 	"testing"
 	"time"
@@ -13,6 +15,7 @@ import (
 	"github.com/prebid/prebid-server/v4/parity"
 	"github.com/prebid/prebid-server/v4/parity/fakes"
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/collectors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -436,6 +439,46 @@ func TestMetricsDelta(t *testing.T) {
 
 	_, err = GatherMetrics(nil)
 	assert.Error(t, err)
+}
+
+func TestValueDelta(t *testing.T) {
+	tests := []struct {
+		name          string
+		before, after float64
+		want          float64
+	}{
+		{name: "finite", before: 1.5, after: 4, want: 2.5},
+		{name: "unchanged", before: 3, after: 3, want: 0},
+		{name: "both NaN", before: math.NaN(), after: math.NaN(), want: 0},
+		{name: "becomes NaN", before: 1, after: math.NaN(), want: 0},
+		{name: "becomes infinite", before: 1, after: math.Inf(1), want: 0},
+		{name: "both infinite", before: math.Inf(1), after: math.Inf(1), want: 0},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, valueDelta(tt.before, tt.after))
+		})
+	}
+}
+
+// TestMetricsDeltaWithGoCollectorEncodes reproduces the registry PBS builds
+// (metrics/prometheus/prometheus.go registers NewGoCollector): its runtime
+// histograms carry NaN sums, and the delta must still encode as JSON.
+func TestMetricsDeltaWithGoCollectorEncodes(t *testing.T) {
+	reg := prometheus.NewRegistry()
+	reg.MustRegister(collectors.NewGoCollector())
+	before, err := GatherMetrics(reg)
+	require.NoError(t, err)
+	runtime.GC()
+	after, err := GatherMetrics(reg)
+	require.NoError(t, err)
+
+	got := MetricsDelta(before, after)
+	_, err = json.Marshal(got)
+	require.NoError(t, err)
+	for _, d := range got {
+		assert.False(t, math.IsNaN(d.Delta) || math.IsInf(d.Delta, 0), "%s delta %v", d.Name, d.Delta)
+	}
 }
 
 func TestFormatBound(t *testing.T) {
