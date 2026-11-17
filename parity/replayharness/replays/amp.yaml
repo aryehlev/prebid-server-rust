@@ -1,6 +1,6 @@
 # GET /openrtb2/amp: tag_id resolution, query overrides, consent, origin
-# headers and the targeting response. The rh-amp-* stored requests live in
-# parity/replayharness/stored/stored_requests.
+# headers, the privacy sandbox headers and the targeting response. The
+# rh-amp-* stored requests live in parity/replayharness/stored/stored_requests.
 replays:
   - name: AMP without tag_id is a 400
     why: the tag_id query parameter names the stored request (amp/parse.go:161)
@@ -213,3 +213,64 @@ replays:
       - method: POST
         path: /openrtb2/amp?tag_id=rh-amp-banner
         expect: {status: 405, headers: {Allow: "GET, OPTIONS"}, contains: ["Method Not Allowed\n"]}
+
+  - name: AMP reads True-Client-IP, Sec-Cookie-Deprecation and Sec-Browsing-Topics like the auction
+    why: AMP sets the topics response header and runs setFieldsImplicitly and validateRequest as the auction does (endpoints/openrtb2/amp_auction.go:158, 236, 243); FindIP takes a public True-Client-IP before X-Forwarded-For (util/httputil/httputil.go:27-56); rh-amp-topics names rh-topics-account, which enables cookie deprecation and a topics domain, so the header fills device.ext.cdep (endpoints/openrtb2/auction.go:926, 1431-1458) and each valid topic becomes a user.data entry, while an invalid one is debug warning 10012 (endpoints/openrtb2/auction.go:1601-1622, privacysandbox/topics.go:22-107, 223-228)
+    steps:
+      - method: GET
+        path: /openrtb2/amp
+        query: {tag_id: rh-amp-topics, debug: "1"}
+        headers:
+          True-Client-IP: 203.0.113.9
+          X-Forwarded-For: 198.51.100.7
+          Sec-Cookie-Deprecation: label_only_1
+          Sec-Browsing-Topics: "(1 2);v=chrome.1:1:2, (3);v=chrome.1:2:7, (0);v=chrome.1:1:2, (4);v=chrome.1:11:2, ();p=P0000000000000000000000000000000"
+        expect:
+          status: 200
+          headers: {Observe-Browsing-Topics: "?1"}
+          json:
+            $.ortb2.ext.debug.resolvedrequest.device.ip: 203.0.113.9
+            $.ortb2.ext.debug.resolvedrequest.device.ext.cdep: label_only_1
+            $.ortb2.ext.debug.resolvedrequest.user.data[0].name: topics.parity.test
+            $.ortb2.ext.debug.resolvedrequest.user.data[0].segment[1].id: "2"
+            $.ortb2.ext.debug.resolvedrequest.user.data[0].ext.segtax: 600
+            $.ortb2.ext.debug.resolvedrequest.user.data[1].ext.segtax: 601
+            $.ortb2.ext.debug.resolvedrequest.user.data[1].ext.segclass: "7"
+            $.ortb2.ext.warnings.general[0].code: 10012
+            $.ortb2.ext.warnings.general[0].message: "Invalid field in Sec-Browsing-Topics header: (0);v=chrome.1:1:2"
+            $.ortb2.ext.warnings.general[1].message: "Invalid field in Sec-Browsing-Topics header: (4);v=chrome.1:11:2"
+            $.targeting.hb_pb: "0.70"
+      - method: GET
+        path: /openrtb2/amp
+        query: {tag_id: rh-amp-topics}
+        headers: {Sec-Browsing-Topics: "(1 2);v=chrome.1:1:2, (0);v=chrome.1:1:2"}
+        expect:
+          status: 200
+          headers: {Observe-Browsing-Topics: "?1"}
+          not_contains: ["Invalid field in Sec-Browsing-Topics header"]
+      - method: GET
+        path: /openrtb2/amp
+        query: {tag_id: rh-amp-topics, debug: "1"}
+        headers:
+          True-Client-IP: 10.1.2.3
+          X-Forwarded-For: 198.51.100.7
+          Sec-Cookie-Deprecation: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+          Sec-Browsing-Topics: "();p=P0000000000000000000000000000000"
+        expect:
+          status: 200
+          headers: {Observe-Browsing-Topics: "?1"}
+          json:
+            $.ortb2.ext.debug.resolvedrequest.device.ip: 198.51.100.7
+            $.ortb2.ext.debug.resolvedrequest.device.ext: <absent>
+            $.ortb2.ext.debug.resolvedrequest.user: <absent>
+            $.ortb2.ext.warnings.general[0].code: 10011
+      - method: GET
+        path: /openrtb2/amp
+        query: {tag_id: rh-amp-topics, debug: "1"}
+        headers: {True-Client-IP: "2001:4860:4860::8888"}
+        expect:
+          status: 200
+          headers: {Observe-Browsing-Topics: <absent>}
+          json:
+            $.ortb2.ext.debug.resolvedrequest.device.ipv6: "2001:4860:4860::8888"
+            $.ortb2.ext.debug.resolvedrequest.device.ip: <absent>

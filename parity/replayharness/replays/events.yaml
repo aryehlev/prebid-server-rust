@@ -140,3 +140,23 @@ replays:
         path: /vtrack?a=rh-events-account
         json: {puts: [{type: xml, value: "<VAST version=\"3.0\"></VAST>", bidid: rh-bid-7, bidder: aax}]}
         expect: {status: 200, json: {"$.responses[0].uuid": 3aae6a48-e1f6-8c76-83ba-eabd445b50aa}}
+
+  - name: a vtrack put key becomes the cache key, written into the put unescaped
+    why: cachePutObjects copies puts[].key into the Prebid Cache put (endpoints/events/vtrack.go:235-255) and the cache client writes it between quotes without escaping it (prebid_cache_client/client.go:184-188); the oracle answers a keyed put with its key, as Prebid Cache does (parity/oracle/cacheuuid.go:163-191), so a key with a quote makes the put invalid JSON, the cache answers 400 and vtrack 500, and an empty key is left out
+    steps:
+      - method: POST
+        path: /vtrack?a=rh-events-account
+        json: {puts: [{type: xml, value: "<VAST version=\"3.0\"></VAST>", bidid: rh-bid-k1, bidder: pubmatic, key: rh-key-1}]}
+        expect: {status: 200, json: {"$.responses[0].uuid": rh-key-1, $.responses.length: 1}}
+      - method: POST
+        path: /vtrack?a=rh-events-account
+        json: {puts: [{type: xml, value: "<VAST version=\"3.0\"></VAST>", bidid: rh-bid-k2, bidder: pubmatic, key: rh-key-2}, {type: json, value: {k: v}, bidid: rh-bid-k3, bidder: appnexus}]}
+        expect: {status: 200, json: {"$.responses[0].uuid": rh-key-2, "$.responses[1].uuid": 6cfa0c85-79e9-8816-bd42-3b7fba5173e0}}
+      - method: POST
+        path: /vtrack?a=rh-events-account
+        json: {puts: [{type: xml, value: "<VAST version=\"3.0\"></VAST>", bidid: rh-bid-k4, bidder: pubmatic, key: "rh\"key"}]}
+        expect: {status: 500, contains: ["Error(s) updating vast: Prebid Cache call to http://prebid-cache.parity.test/cache returned 400"]}
+      - method: POST
+        path: /vtrack?a=rh-events-account
+        json: {puts: [{type: xml, value: "<VAST version=\"3.0\"></VAST>", bidid: rh-bid-k5, bidder: pubmatic, key: ""}]}
+        expect: {status: 200, json: {"$.responses[0].uuid": 3aae6a48-e1f6-8c76-83ba-eabd445b50aa}}

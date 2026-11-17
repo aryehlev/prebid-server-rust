@@ -1,0 +1,432 @@
+# POST /openrtb2/auction: the request.ext.prebid and imp[].ext.prebid
+# options no other replay sends, chosen for what they change in the bidder
+# requests or in the response.
+#
+# On the main port the oracle answers the live appnexus call 404 (see
+# auction.yaml), so a replay shows what the bidder was sent through test 1:
+# ext.debug.httpcalls.appnexus[0].requestbody is the JSON the adapter
+# marshalled, and the contains strings below match it as it appears in the
+# response, with each quote escaped. Response-side options use the stored
+# bid responses of parity/replayharness/stored.
+replays:
+  - name: request bidderparams reach the bidder's imp params and its request ext
+    why: mergeBidderParams copies ext.prebid.bidderparams.appnexus into the imp's appnexus params, where member becomes the member_id query parameter, and buildRequestExtForBidder keeps only appnexus's entry in the bidder request (endpoints/openrtb2/auction.go:663-702, adapters/appnexus/appnexus.go:97-108, exchange/utils.go:476-545)
+    steps:
+      - method: POST
+        path: /openrtb2/auction
+        json:
+          id: rh-prebid-bidderparams
+          test: 1
+          site: {page: "https://parity.test/page", publisher: {id: parity-account}}
+          imp: [{id: imp-1, banner: {format: [{w: 300, h: 250}]}, ext: {prebid: {bidder: {appnexus: {placementId: 12883451}}}}}]
+          ext: {prebid: {bidderparams: {appnexus: {member: rh}, pubmatic: {publisherId: rh}}}}
+        expect:
+          status: 200
+          json:
+            $.ext.debug.httpcalls.appnexus[0].uri: "http://ib.adnxs.com/openrtb2?member_id=rh"
+            $.ext.debug.resolvedrequest.imp[0].ext.prebid.bidder.appnexus.member: rh
+            $.ext.debug.resolvedrequest.ext.prebid.bidderparams.pubmatic.publisherId: rh
+          contains: ['\"prebid\":{\"bidderparams\":{\"member\":\"rh\"}']
+          not_contains: ['\"publisherId\":\"rh\"}}}}']
+
+  - name: a bidder's schain is written to its request ext
+    why: the SChainWriter puts the schain listed for the bidder in ext.schain of that bidder's request (schain/schainwriter.go:36-71, exchange/utils.go:166-167)
+    steps:
+      - method: POST
+        path: /openrtb2/auction
+        json:
+          id: rh-prebid-schains
+          test: 1
+          site: {page: "https://parity.test/page", publisher: {id: parity-account}}
+          imp: [{id: imp-1, banner: {format: [{w: 300, h: 250}]}, ext: {prebid: {bidder: {appnexus: {placementId: 12883451}}}}}]
+          ext: {prebid: {schains: [{bidders: [appnexus], schain: {complete: 1, nodes: [{asi: parity.test, sid: rh, hp: 1}], ver: "1.0"}}]}}
+        expect:
+          status: 200
+          contains: ['\"schain\":{\"complete\":1,\"nodes\":[{\"asi\":\"parity.test\",\"sid\":\"rh\",\"hp\":1}],\"ver\":\"1.0\"}']
+
+  - name: bidderconfig ortb2 fills the bidder's site and user
+    why: ExtractBidderConfigFPD reads ext.prebid.bidderconfig and ResolveFPD merges its ortb2 site and user into the appnexus request only (firstpartydata/first_party_data.go:117-170, :234-320, :424-452)
+    steps:
+      - method: POST
+        path: /openrtb2/auction
+        json:
+          id: rh-prebid-bidderconfig
+          test: 1
+          site: {page: "https://parity.test/page", publisher: {id: parity-account}}
+          imp: [{id: imp-1, banner: {format: [{w: 300, h: 250}]}, ext: {prebid: {bidder: {appnexus: {placementId: 12883451}}}}}]
+          ext: {prebid: {bidderconfig: [{bidders: [appnexus], config: {ortb2: {site: {keywords: rh-site-kw}, user: {keywords: rh-user-kw}}}}]}}
+        expect:
+          status: 200
+          json:
+            $.ext.debug.resolvedrequest.site.keywords: <absent>
+          contains: ['\"keywords\":\"rh-site-kw\",\"ext\":{\"amp\":0}', '\"user\":{\"keywords\":\"rh-user-kw\"}']
+
+  - name: data bidders and eidpermissions keep first party data and eids from other bidders
+    why: with ext.prebid.data.bidders naming only pubmatic, appnexus gets no site.ext.data or user.ext.data, and removeUnpermissionedEids drops the rh.test eid only pubmatic may see; the eids go to user.ext.eids for appnexus's OpenRTB 2.5 request (firstpartydata/first_party_data.go:117-170, :458-493, exchange/utils.go:808-869)
+    steps:
+      - method: POST
+        path: /openrtb2/auction
+        json:
+          id: rh-prebid-data
+          test: 1
+          site: {page: "https://parity.test/page", publisher: {id: parity-account}, ext: {data: {s: t}}}
+          user: {eids: [{source: rh.test, uids: [{id: a}]}, {source: other.test, uids: [{id: b}]}], ext: {data: {k: v}}}
+          imp: [{id: imp-1, banner: {format: [{w: 300, h: 250}]}, ext: {prebid: {bidder: {appnexus: {placementId: 12883451}}}}}]
+          ext: {prebid: {data: {bidders: [pubmatic], eidpermissions: [{source: rh.test, bidders: [pubmatic]}]}}}
+        expect:
+          status: 200
+          json:
+            $.ext.debug.resolvedrequest.site.ext.data.s: t
+            $.ext.debug.resolvedrequest.user.eids[0].source: rh.test
+          contains:
+            - '\"publisher\":{\"id\":\"parity-account\",\"domain\":\"parity.test\"},\"ext\":{\"amp\":0}}'
+            - '\"user\":{\"ext\":{\"eids\":[{\"source\":\"other.test\",\"uids\":[{\"id\":\"b\"}]}]}}'
+          not_contains: ['\"source\":\"rh.test\"', '\"data\":{\"s\":\"t\"}', '\"data\":{\"k\":\"v\"}']
+
+  - name: an eidpermissions entry for a bidder the host does not know is a 400
+    why: validateEIDPermissions checks each bidder against the known bidders and the request aliases (endpoints/openrtb2/auction.go:1032-1058)
+    steps:
+      - method: POST
+        path: /openrtb2/auction
+        json:
+          id: rh-prebid-eidpermissions-unknown
+          site: {page: "https://parity.test/page"}
+          imp: [{id: imp-1, banner: {format: [{w: 300, h: 250}]}, ext: {prebid: {bidder: {appnexus: {placementId: 12883451}}}}}]
+          ext: {prebid: {data: {eidpermissions: [{source: rh.test, bidders: [rh-nobody]}]}}}
+        expect:
+          status: 400
+          contains: ["Invalid request: request.ext.prebid.data.eidpermissions[0] contains unrecognized bidder \"rh-nobody\"\n"]
+
+  - name: request currency rates convert the stored bid
+    why: ext.prebid.currency.rates with usepbsrates false replaces the oracle's rates, so 0.75 USD becomes 0.375 EUR (exchange/exchange.go, currency/aggregate_conversions.go)
+    steps:
+      - method: POST
+        path: /openrtb2/auction
+        json:
+          id: rh-prebid-currency
+          cur: [EUR]
+          site: {page: "https://parity.test/page", publisher: {id: parity-account}}
+          imp: [{id: imp-1, banner: {format: [{w: 300, h: 250}]}, ext: {prebid: {bidder: {appnexus: {placementId: 1}}, storedbidresponse: [{bidder: appnexus, id: rh-appnexus-banner}]}}}]
+          ext: {prebid: {currency: {rates: {USD: {EUR: 0.5}}, usepbsrates: false}}}
+        expect:
+          status: 200
+          json:
+            $.cur: EUR
+            $.seatbid[0].bid[0].price: 0.375
+            $.seatbid[0].bid[0].ext.origbidcpm: 0.75
+
+  - name: request floors are ignored while the host leaves price floors off
+    why: price_floors.enabled is false in the parity profiles, so ext.prebid.floors neither raises imp.bidfloor nor reaches the bidder (config/config.go:1358, floors/floors.go)
+    steps:
+      - method: POST
+        path: /openrtb2/auction
+        json:
+          id: rh-prebid-floors
+          test: 1
+          site: {page: "https://parity.test/page", publisher: {id: parity-account}}
+          imp: [{id: imp-1, bidfloor: 0.5, bidfloorcur: USD, banner: {format: [{w: 300, h: 250}]}, ext: {prebid: {bidder: {appnexus: {placementId: 12883451}}, floors: {floorrule: banner, floorrulevalue: 1.5, floorvalue: 1.5}}}}]
+          ext: {prebid: {floors: {enabled: true, floormin: 1.5, floormincur: USD, data: {currency: USD, modelgroups: [{schema: {fields: [mediaType]}, values: {banner: 2.0}, default: 1}]}}}}
+        expect:
+          status: 200
+          contains: ['\"bidfloor\":0.5,\"bidfloorcur\":\"USD\"']
+          not_contains: ['\"floors\"', '\"floorrule\"']
+
+  - name: adservertargeting adds keys from the request, the bid and a static value
+    why: adservertargeting.Apply resolves bidrequest, bidresponse and static sources into the winning bid's targeting (adservertargeting/adservertargeting.go:47-160)
+    steps:
+      - method: POST
+        path: /openrtb2/auction
+        json:
+          id: rh-prebid-adservertargeting
+          site: {page: "https://parity.test/page", publisher: {id: parity-account}}
+          imp: [{id: imp-1, banner: {format: [{w: 300, h: 250}]}, ext: {prebid: {bidder: {appnexus: {placementId: 1}}, storedbidresponse: [{bidder: appnexus, id: rh-appnexus-banner}]}}}]
+          ext:
+            prebid:
+              targeting: {includewinners: true, includebidderkeys: true}
+              adservertargeting:
+                - {key: rh_page, source: bidrequest, value: site.page}
+                - {key: rh_static, source: static, value: v1}
+                - {key: rh_crid, source: bidresponse, value: seatbid.bid.crid}
+        expect:
+          status: 200
+          json:
+            $.seatbid[0].bid[0].ext.prebid.targeting.rh_page: "https://parity.test/page"
+            $.seatbid[0].bid[0].ext.prebid.targeting.rh_static: v1
+            $.seatbid[0].bid[0].ext.prebid.targeting.rh_crid: rh-banner-creative
+            $.seatbid[0].bid[0].ext.prebid.targeting.hb_pb: "0.70"
+
+  - name: alternatebiddercodes reach the bidder's request ext
+    why: buildRequestExtForBidder copies the request's alternate bidder codes for the bidder into its ext.prebid (exchange/utils.go:502-573)
+    steps:
+      - method: POST
+        path: /openrtb2/auction
+        json:
+          id: rh-prebid-alternatebiddercodes
+          test: 1
+          site: {page: "https://parity.test/page", publisher: {id: parity-account}}
+          imp: [{id: imp-1, banner: {format: [{w: 300, h: 250}]}, ext: {prebid: {bidder: {appnexus: {placementId: 12883451}}}}}]
+          ext: {prebid: {alternatebiddercodes: {enabled: true, bidders: {appnexus: {enabled: true, allowedbiddercodes: [rh-alt]}}}}}
+        expect:
+          status: 200
+          contains: ['\"alternatebiddercodes\":{\"enabled\":true,\"bidders\":{\"appnexus\":{\"enabled\":true,\"allowedbiddercodes\":[\"rh-alt\"]}}}']
+
+  - name: nosale keeps the device ip of a listed bidder under a CCPA opt-out
+    why: rh-ccpa-account enforces CCPA; us_privacy 1-Y- opts out of the sale, which masks device.ip for appnexus unless ext.prebid.nosale lists it (privacy/ccpa/parsedpolicy.go:52-56, :128-140)
+    steps:
+      - method: POST
+        path: /openrtb2/auction
+        json:
+          id: rh-prebid-nosale
+          test: 1
+          site: {page: "https://parity.test/page", publisher: {id: rh-ccpa-account}}
+          device: {ip: 203.0.113.9, ua: rh-ua}
+          regs: {ext: {us_privacy: 1-Y-}}
+          imp: [{id: imp-1, banner: {format: [{w: 300, h: 250}]}, ext: {prebid: {bidder: {appnexus: {placementId: 12883451}}}}}]
+          ext: {prebid: {nosale: [appnexus]}}
+        expect:
+          status: 200
+          contains: ['\"device\":{\"ua\":\"rh-ua\",\"ip\":\"203.0.113.9\"}']
+      - method: POST
+        path: /openrtb2/auction
+        json:
+          id: rh-prebid-nosale-other
+          test: 1
+          site: {page: "https://parity.test/page", publisher: {id: rh-ccpa-account}}
+          device: {ip: 203.0.113.9, ua: rh-ua}
+          regs: {ext: {us_privacy: 1-Y-}}
+          imp: [{id: imp-1, banner: {format: [{w: 300, h: 250}]}, ext: {prebid: {bidder: {appnexus: {placementId: 12883451}}}}}]
+          ext: {prebid: {nosale: [pubmatic]}}
+        expect:
+          status: 200
+          contains: ['\"device\":{\"ua\":\"rh-ua\",\"ip\":\"203.0.113.0\"}']
+
+  - name: a nosale entry for an unknown bidder is a 400
+    why: parseNoSaleBidders accepts only known bidders and the * wildcard alone (privacy/ccpa/parsedpolicy.go:98-121)
+    steps:
+      - method: POST
+        path: /openrtb2/auction
+        json:
+          id: rh-prebid-nosale-unknown
+          site: {page: "https://parity.test/page"}
+          regs: {ext: {us_privacy: 1-Y-}}
+          imp: [{id: imp-1, banner: {format: [{w: 300, h: 250}]}, ext: {prebid: {bidder: {appnexus: {placementId: 12883451}}}}}]
+          ext: {prebid: {nosale: [rh-nobody]}}
+        expect:
+          status: 400
+
+  - name: bidadjustments multiply the stored bid by media type and bidder
+    why: a banner multiplier of 2 for appnexus doubles the 0.75 bid and keeps origbidcpm (bidadjustment/apply.go:23-60)
+    steps:
+      - method: POST
+        path: /openrtb2/auction
+        json:
+          id: rh-prebid-bidadjustments
+          site: {page: "https://parity.test/page", publisher: {id: parity-account}}
+          imp: [{id: imp-1, banner: {format: [{w: 300, h: 250}]}, ext: {prebid: {bidder: {appnexus: {placementId: 1}}, storedbidresponse: [{bidder: appnexus, id: rh-appnexus-banner}]}}}]
+          ext: {prebid: {bidadjustments: {mediatype: {banner: {appnexus: {"*": [{adjtype: multiplier, value: 2}]}}}}}}
+        expect:
+          status: 200
+          json:
+            $.seatbid[0].bid[0].price: 1.5
+            $.seatbid[0].bid[0].ext.origbidcpm: 0.75
+
+  - name: biddercontrols prefmtnative leaves a multiformat-capable bidder's imp alone
+    why: the preferred media type only applies to bidders without multiformat support, and appnexus supports it, so its imp keeps banner and video (exchange/exchange.go:604-636)
+    steps:
+      - method: POST
+        path: /openrtb2/auction
+        json:
+          id: rh-prebid-biddercontrols
+          test: 1
+          site: {page: "https://parity.test/page", publisher: {id: parity-account}}
+          imp: [{id: imp-1, banner: {format: [{w: 300, h: 250}]}, video: {mimes: [video/mp4], w: 640, h: 480}, ext: {prebid: {bidder: {appnexus: {placementId: 12883451}}}}}]
+          ext: {prebid: {biddercontrols: {appnexus: {prefmtnative: video}}}}
+        expect:
+          status: 200
+          contains: ['\"video\":{\"mimes\":[\"video/mp4\"],\"w\":640,\"h\":480}', '\"banner\":{\"format\":[{\"w\":300,\"h\":250}]']
+
+  - name: aliasgvlids must name a request alias
+    why: validateAliasesGVLIDs rejects a vendor id for an alias the request does not declare (endpoints/openrtb2/auction.go:1109-1121)
+    steps:
+      - method: POST
+        path: /openrtb2/auction
+        json:
+          id: rh-prebid-aliasgvlids-unknown
+          site: {page: "https://parity.test/page"}
+          imp: [{id: imp-1, banner: {format: [{w: 300, h: 250}]}, ext: {prebid: {bidder: {appnexus: {placementId: 12883451}}}}}]
+          ext: {prebid: {aliasgvlids: {rh-alias: 32}}}
+        expect:
+          status: 400
+          contains: ["Invalid request: request.ext.prebid.aliasgvlids. vendorId 32 refers to unknown bidder alias: rh-alias\n"]
+      - method: POST
+        path: /openrtb2/auction
+        json:
+          id: rh-prebid-aliasgvlids
+          test: 1
+          site: {page: "https://parity.test/page", publisher: {id: parity-account}}
+          imp: [{id: imp-1, banner: {format: [{w: 300, h: 250}]}, ext: {prebid: {bidder: {rh-alias: {placementId: 12883451}}}}}]
+          ext: {prebid: {aliases: {rh-alias: appnexus}, aliasgvlids: {rh-alias: 32}}}
+        expect:
+          status: 200
+          json:
+            $.ext.debug.httpcalls.rh-alias[0].uri: "http://ib.adnxs.com/openrtb2"
+          contains: ['\"aliases\":{\"rh-alias\":\"appnexus\"}']
+
+  - name: ext.prebid.events turns on bid events for an account without them
+    why: parity-account does not enable events, and a request ext.prebid.events still adds the win and imp URLs to the bid (exchange/events.go:30-60, :84-110)
+    steps:
+      - method: POST
+        path: /openrtb2/auction
+        json:
+          id: rh-prebid-events
+          site: {page: "https://parity.test/page", publisher: {id: parity-account}}
+          imp: [{id: imp-1, banner: {format: [{w: 300, h: 250}]}, ext: {prebid: {bidder: {appnexus: {placementId: 1}}, storedbidresponse: [{bidder: appnexus, id: rh-appnexus-banner}]}}}]
+          ext: {prebid: {events: {}}}
+        expect:
+          status: 200
+          json:
+            $.seatbid[0].bid[0].ext.prebid.events.win: <string>
+            $.seatbid[0].bid[0].ext.prebid.events.imp: <string>
+          contains: ["\"win\":\"http://localhost:8000/event?t=win\x5Cu0026b=rh-banner-bid\x5Cu0026a=parity-account\x5Cu0026bidder=appnexus\x5Cu0026ts="]
+
+  - name: sdk renderers reach the bidder, analytics and macros do not
+    why: buildRequestExtForBidder copies ext.prebid.sdk and drops the members it does not list, analytics and macros among them, while the resolved request keeps them (exchange/utils.go:533-542)
+    steps:
+      - method: POST
+        path: /openrtb2/auction
+        json:
+          id: rh-prebid-sdk
+          test: 1
+          site: {page: "https://parity.test/page", publisher: {id: parity-account}}
+          imp: [{id: imp-1, banner: {format: [{w: 300, h: 250}]}, ext: {prebid: {bidder: {appnexus: {placementId: 12883451}}}}}]
+          ext: {prebid: {sdk: {renderers: [{name: rh-renderer, version: "1.2", data: {k: v}}]}, analytics: {rh: {k: v}}, macros: {rh: v}, experiment: {adscert: {enabled: true}}}}
+        expect:
+          status: 200
+          json:
+            $.ext.debug.resolvedrequest.ext.prebid.analytics.rh.k: v
+          contains: ['\"prebid\":{\"sdk\":{\"renderers\":[{\"name\":\"rh-renderer\",\"version\":\"1.2\",\"data\":{\"k\":\"v\"}}]},\"server\"']
+          not_contains: ['\"analytics\":{\"rh\"', '\"macros\"', '\"adscert\"']
+
+  - name: multibid names the target bidder code of the winning bid
+    why: with multibid for appnexus the targeting step sets ext.prebid.targetbiddercode on the bids it keeps (exchange/targeting.go:40-70, :125-140)
+    steps:
+      - method: POST
+        path: /openrtb2/auction
+        json:
+          id: rh-prebid-multibid
+          site: {page: "https://parity.test/page", publisher: {id: parity-account}}
+          imp: [{id: imp-1, banner: {format: [{w: 300, h: 250}]}, ext: {prebid: {bidder: {appnexus: {placementId: 1}}, storedbidresponse: [{bidder: appnexus, id: rh-appnexus-banner}]}}}]
+          ext: {prebid: {multibid: [{bidder: appnexus, maxbids: 2, targetbiddercodeprefix: apnx}], targeting: {includewinners: true, includebidderkeys: true}}}
+        expect:
+          status: 200
+          json:
+            $.seatbid[0].bid[0].ext.prebid.targetbiddercode: appnexus
+            $.seatbid[0].bid[0].ext.prebid.targeting.hb_bidder_appnexus: appnexus
+
+  - name: supportdeals adds the deal id to the targeting of a deal bid
+    why: with supportdeals, a bid carrying a dealid gets hb_deal and hb_deal_appnexus (exchange/targeting.go)
+    steps:
+      - method: POST
+        path: /openrtb2/auction
+        json:
+          id: rh-prebid-supportdeals
+          site: {page: "https://parity.test/page", publisher: {id: parity-account}}
+          imp: [{id: imp-1, banner: {format: [{w: 300, h: 250}]}, ext: {prebid: {bidder: {appnexus: {placementId: 1}}, storedbidresponse: [{bidder: appnexus, id: rh-appnexus-deal}]}}}]
+          ext: {prebid: {supportdeals: true, targeting: {includewinners: true, includebidderkeys: true}}}
+        expect:
+          status: 200
+          json:
+            $.seatbid[0].bid[0].dealid: rh-deal-1
+            $.seatbid[0].bid[0].ext.prebid.targeting.hb_deal: rh-deal-1
+            $.seatbid[0].bid[0].ext.prebid.targeting.hb_deal_appnexus: rh-deal-1
+
+  - name: imp options echovideoattrs echo the stored imp's video
+    why: for an imp from a stored imp, options.echovideoattrs copies the stored imp's video into the bid's ext.storedrequestattributes (endpoints/openrtb2/auction.go:1805-1815, exchange/exchange.go:1472-1484)
+    steps:
+      - method: POST
+        path: /openrtb2/auction
+        json:
+          id: rh-prebid-echovideoattrs
+          site: {page: "https://parity.test/page", publisher: {id: parity-account}}
+          imp: [{id: imp-1, ext: {prebid: {storedrequest: {id: rh-imp-video-stored-bid}, options: {echovideoattrs: true}}}}]
+        expect:
+          status: 200
+          json:
+            $.seatbid[0].bid[0].ext.prebid.type: video
+            $.seatbid[0].bid[0].ext.storedrequestattributes.mimes[0]: video/mp4
+            $.seatbid[0].bid[0].ext.storedrequestattributes.protocols[1]: 3
+            $.seatbid[0].bid[0].ext.storedrequestattributes.w: 640
+
+  - name: imp ext prebid imp overrides the imp for its bidder
+    why: imp[].ext.prebid.imp.appnexus is merged into the imp the appnexus request carries, here tagid and bidfloor (exchange/utils.go)
+    steps:
+      - method: POST
+        path: /openrtb2/auction
+        json:
+          id: rh-prebid-imp-imp
+          test: 1
+          site: {page: "https://parity.test/page", publisher: {id: parity-account}}
+          imp: [{id: imp-1, banner: {format: [{w: 300, h: 250}]}, ext: {prebid: {imp: {appnexus: {tagid: rh-tag, bidfloor: 0.3}}, bidder: {appnexus: {placementId: 12883451}}}}}]
+        expect:
+          status: 200
+          contains: ['\"tagid\":\"rh-tag\",\"bidfloor\":0.3,\"secure\":1']
+
+  - name: wlangb and wlang reach the bidder unchanged
+    why: Go does not check the OpenRTB 2.6 language lists, and the request copy for appnexus keeps them (exchange/utils.go:157-160)
+    steps:
+      - method: POST
+        path: /openrtb2/auction
+        json:
+          id: rh-prebid-wlangb
+          test: 1
+          wlangb: [en, fr]
+          site: {page: "https://parity.test/page", publisher: {id: parity-account}}
+          imp: [{id: imp-1, banner: {format: [{w: 300, h: 250}]}, ext: {prebid: {bidder: {appnexus: {placementId: 12883451}}}}}]
+        expect:
+          status: 200
+          contains: ['\"at\":1,\"wlangb\":[\"en\",\"fr\"],\"source\"']
+      - method: POST
+        path: /openrtb2/auction
+        json:
+          id: rh-prebid-wlang-both
+          test: 1
+          wlang: [en]
+          wlangb: [en]
+          site: {page: "https://parity.test/page", publisher: {id: parity-account}}
+          imp: [{id: imp-1, banner: {format: [{w: 300, h: 250}]}, ext: {prebid: {bidder: {appnexus: {placementId: 12883451}}}}}]
+        expect:
+          status: 200
+          contains: ['\"wlang\":[\"en\"],\"wlangb\":[\"en\"]']
+
+  - name: trace verbose without modules adds nothing
+    why: no module is configured in the parity profiles, so ext.prebid.trace leaves ext.prebid.modules out of the response (hooks/hookexecution/enricher.go)
+    steps:
+      - method: POST
+        path: /openrtb2/auction
+        json:
+          id: rh-prebid-trace
+          site: {page: "https://parity.test/page", publisher: {id: parity-account}}
+          imp: [{id: imp-1, banner: {format: [{w: 300, h: 250}]}, ext: {prebid: {bidder: {appnexus: {placementId: 1}}, storedbidresponse: [{bidder: appnexus, id: rh-appnexus-banner}]}}}]
+          ext: {prebid: {trace: verbose}}
+        expect:
+          status: 200
+          json:
+            $.ext.prebid.modules: <absent>
+            $.seatbid[0].bid[0].price: 0.75
+
+  - name: Sec-Browsing-Topics fills user.data for an account with a topics domain
+    why: setSecBrowsingTopicsImplicitly parses the header into user.data segments named by the account's privacysandbox.topicsdomain (endpoints/openrtb2/auction.go:1601-1622, privacysandbox/topics.go:22-44, :108)
+    steps:
+      - method: POST
+        path: /openrtb2/auction
+        headers: {Sec-Browsing-Topics: "(1 2);v=chrome.1:1:2, ();p=P0000000000000000000000000000000"}
+        json:
+          id: rh-prebid-topics
+          test: 1
+          site: {page: "https://parity.test/page", publisher: {id: rh-topics-account}}
+          imp: [{id: imp-1, banner: {format: [{w: 300, h: 250}]}, ext: {prebid: {bidder: {appnexus: {placementId: 12883451}}}}}]
+        expect:
+          status: 200
+          headers: {Observe-Browsing-Topics: "?1"}
+          json:
+            $.ext.debug.resolvedrequest.user.data[0].name: topics.parity.test

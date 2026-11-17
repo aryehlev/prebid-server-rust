@@ -1,9 +1,12 @@
 # User sync: /setuid, /getuids, /cookie_sync and /optout.
 #
-# The uids cookie is base64 JSON whose expiry comes from the wall clock, so
-# replays never compare a whole Set-Cookie value; they save it and send it
-# back, or decode it through /getuids. Cookie sync shuffles the bidders
-# (usersync/chooser.go), so replays with several bidders only check counts.
+# The uids cookie is base64 JSON. In parity mode its expiry comes from the
+# parity clock (parity/schema/fakes.json server_sites), but these replays
+# were written when it came from the wall clock: they save the cookie and
+# send it back, or decode it through /getuids, rather than state it. Cookie
+# sync lists the bidders in name order and keeps that order in parity mode
+# (usersync/chooser.go, usersync/shuffler.go); replays with several bidders
+# still check counts only.
 #
 # Fixed cookies used below (base64 JSON):
 #   uids=eyJ0ZW1wVUlEcyI6eyJhZG54cyI6eyJ1aWQiOiJyaC1hZG54cy11aWQiLCJleHBpcmVzIjoiMjA5OS0wMS0wMVQwMDowMDowMFoifX19
@@ -255,3 +258,22 @@ replays:
       - method: GET
         path: /optout?optout=1&g-recaptcha-response=rh
         expect: {status: 401}
+
+  - name: optout reads no cookie before the captcha passes
+    why: OptOut redirects without a captcha and answers 401 when the captcha fails, both before ReadCookie, so a live or opted-out uids cookie changes nothing and no cookie is written (pbs/usersync.go:71-90)
+    steps:
+      - method: GET
+        path: /optout
+        headers: {Cookie: "uids=eyJ0ZW1wVUlEcyI6eyJhZG54cyI6eyJ1aWQiOiJyaC1hZG54cy11aWQiLCJleHBpcmVzIjoiMjA5OS0wMS0wMVQwMDowMDowMFoifX19"}
+        expect: {status: 301, headers: {Location: "http://localhost:8000/static/optout.html", Set-Cookie: <absent>}}
+      - method: POST
+        path: /optout
+        headers: {Cookie: "uids=eyJvcHRvdXQiOnRydWV9"}
+        expect: {status: 301, headers: {Location: "http://localhost:8000/static/optout.html", Set-Cookie: <absent>}}
+      - method: POST
+        path: /optout
+        headers:
+          Content-Type: application/x-www-form-urlencoded
+          Cookie: "uids=eyJ0ZW1wVUlEcyI6eyJhZG54cyI6eyJ1aWQiOiJyaC1hZG54cy11aWQiLCJleHBpcmVzIjoiMjA5OS0wMS0wMVQwMDowMDowMFoifX19"
+        body: optout=1&g-recaptcha-response=rh
+        expect: {status: 401, headers: {Content-Length: "0", Set-Cookie: <absent>}}
