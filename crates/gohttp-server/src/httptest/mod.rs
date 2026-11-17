@@ -81,6 +81,8 @@ pub struct ResponseRecorder {
     snap_header: Option<Header>,
     wrote_header: bool,
     panic: Option<String>,
+    /// Go: `result`, what the first [`ResponseRecorder::result`] returned.
+    result: Option<RecordedResponse>,
 }
 
 impl Default for ResponseRecorder {
@@ -118,6 +120,7 @@ impl ResponseRecorder {
             snap_header: None,
             wrote_header: false,
             panic: None,
+            result: None,
         }
     }
 
@@ -171,13 +174,17 @@ impl ResponseRecorder {
         self.write_header(200);
     }
 
-    /// Go: `rw.Result()`: the response as a client would see it.
-    #[must_use]
-    pub fn result(&self) -> RecordedResponse {
+    /// Go: `rw.Result()`: the response as a client would see it. As in Go, the first call fixes
+    /// it (taking the header snapshot if the handler has not written yet): later calls return
+    /// the same response, whatever the handler did in between.
+    pub fn result(&mut self) -> RecordedResponse {
+        if let Some(res) = &self.result {
+            return res.clone();
+        }
         let header = self
             .snap_header
-            .clone()
-            .unwrap_or_else(|| self.header_map.clone());
+            .get_or_insert_with(|| self.header_map.clone())
+            .clone();
         let status_code = if self.code == 0 { 200 } else { self.code };
         let status = format!("{status_code:03} {}", status_text(status_code));
         let content_length = parse_content_length(header.get("Content-Length"));
@@ -205,14 +212,16 @@ impl ResponseRecorder {
                 t.add(name, v.clone());
             }
         }
-        RecordedResponse {
+        let res = RecordedResponse {
             status_code,
             status,
             header,
             body: self.body.clone(),
             content_length,
             trailer,
-        }
+        };
+        self.result = Some(res.clone());
+        res
     }
 }
 
