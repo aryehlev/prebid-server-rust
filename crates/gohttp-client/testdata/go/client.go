@@ -268,6 +268,12 @@ func runStep(client *http.Client, st Step, env *runEnv) Result {
 	if st.Req.Host != "" {
 		req.Host = string(env.subst([]byte(st.Req.Host)))
 	}
+	if st.Req.MethodOverride != "" {
+		req.Method = st.Req.MethodOverride
+	}
+	if st.Req.NoGetBody {
+		req.GetBody = nil
+	}
 	req.Close = st.Req.Close
 	if len(st.Req.TransferEncoding) > 0 {
 		req.TransferEncoding = st.Req.TransferEncoding

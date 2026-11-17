@@ -145,6 +145,7 @@ func cases() []Case {
 	all = append(all, continueCases()...)
 	all = append(all, requestErrorCases()...)
 	all = append(all, edgeCases()...)
+	all = append(all, matrixCases()...)
 	return all
 }
 

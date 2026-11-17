@@ -13,6 +13,10 @@
 // Server addresses are written as {{A}}, {{B}}, ...; other loopback addresses (the client's
 // side of a connection) as {{LOCAL}}; and the current time in certificate errors as {{NOW}}.
 // Byte strings are JSON strings when they are valid UTF-8 and {"hex": "..."} objects otherwise.
+//
+// The run also writes testdata/golden/proxy.json (see proxy.go): for a list of proxy
+// environments, the httpproxy.Config that FromEnvironment reads and what its ProxyFunc returns
+// for a list of request URLs.
 package main
 
 import (
@@ -81,6 +85,11 @@ type Req struct {
 	TransferEncoding []string    `json:"transfer_encoding,omitempty"`
 	Trailer          [][2]string `json:"trailer,omitempty"`
 	CtxTimeoutMs     int         `json:"ctx_timeout_ms,omitempty"`
+	// MethodOverride replaces Method after NewRequestWithContext (which validates it), the
+	// way a caller can assign Request.Method directly.
+	MethodOverride string `json:"method_override,omitempty"`
+	// NoGetBody clears the GetBody that NewRequestWithContext sets for in-memory bodies.
+	NoGetBody bool `json:"no_get_body,omitempty"`
 }
 
 // Step is one Client.Do call.
@@ -163,6 +172,8 @@ type Golden struct {
 
 func main() {
 	out := flag.String("out", "rust/crates/gohttp-client/testdata/golden/cases.json", "output file")
+	proxyOut := flag.String("proxy-out", "rust/crates/gohttp-client/testdata/golden/proxy.json",
+		"output file of the proxy selection probes")
 	only := flag.String("only", "", "run only the named case (for debugging; nothing is written)")
 	verbose := flag.Bool("v", false, "log each case and its duration")
 	flag.Parse()
@@ -204,14 +215,27 @@ func main() {
 		}
 		return
 	}
-	data, err := json.MarshalIndent(g, "", " ")
+	if err := writeJSON(*out, g); err != nil {
+		log.Fatal(err)
+	}
+	// The probes change the proxy environment, so they run after every case has used
+	// http.ProxyFromEnvironment (which reads the environment once).
+	probes, err := runProxyProbes()
 	if err != nil {
 		log.Fatal(err)
 	}
-	if err := os.MkdirAll(filepath.Dir(*out), 0o755); err != nil {
+	if err := writeJSON(*proxyOut, ProxyGolden{Probes: probes}); err != nil {
 		log.Fatal(err)
 	}
-	if err := os.WriteFile(*out, append(data, '\n'), 0o644); err != nil {
-		log.Fatal(err)
+}
+
+func writeJSON(path string, v any) error {
+	data, err := json.MarshalIndent(v, "", " ")
+	if err != nil {
+		return err
 	}
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return err
+	}
+	return os.WriteFile(path, append(data, '\n'), 0o644)
 }

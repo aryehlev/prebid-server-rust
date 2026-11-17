@@ -10,6 +10,11 @@
 //! same requests through [`Client`], and compares everything after the same normalization
 //! (server addresses as `{{A}}`, the client side of a connection as `{{LOCAL}}`, the time in a
 //! certificate expiry error as `{{NOW}}`).
+//!
+//! `testdata/golden/proxy.json`, from the same run, holds the `httpproxy.Config` that
+//! `FromEnvironment` reads from each of a list of proxy environments and the proxy its
+//! `ProxyFunc` picks for each of a list of URLs; [`go_proxy_selection_goldens`] checks
+//! [`ProxyConfig::from_env_lookup`] and [`ProxySelector::proxy_for_url`] against them.
 
 use std::{
     collections::{BTreeMap, VecDeque},
@@ -23,7 +28,7 @@ use std::{
 };
 
 use bytes::Bytes;
-use pbs_gocompat::{http::Header, strconv::quote};
+use pbs_gocompat::{http::Header, strconv::quote, url::Url};
 use rustls::{
     ServerConfig,
     crypto::aws_lc_rs,
@@ -53,7 +58,9 @@ const SLOTS: [&str; 4] = ["A", "B", "C", "P"];
 /// How long a case's server connections may run on after its requests are done.
 const GRACE: Duration = Duration::from_secs(3);
 /// The size of the corpus: a truncated golden file fails the test.
-const MIN_CASES: usize = 170;
+const MIN_CASES: usize = 367;
+/// The number of proxy selections in `proxy.json`.
+const MIN_PROXY_RESULTS: usize = 3395;
 
 type Addrs = Arc<BTreeMap<String, String>>;
 type TlsConfigs = Arc<BTreeMap<String, Arc<ServerConfig>>>;
@@ -949,6 +956,13 @@ fn build_request(
     if !host.is_empty() {
         req.host = subst_str(&host, addrs);
     }
+    let method = text(spec, "method_override");
+    if !method.is_empty() {
+        req.method = method;
+    }
+    if flag(spec, "no_get_body") {
+        req.get_body = None;
+    }
     req.close = flag(spec, "close");
     let te = strings(spec, "transfer_encoding")?;
     if !te.is_empty() {
@@ -1168,14 +1182,80 @@ async fn run_case(run: &RunEnv, case: &Value) -> Result<Vec<String>, String> {
     Ok(diffs)
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
-async fn go_net_http_goldens() -> Result<(), String> {
+fn load_golden(name: &str) -> Result<Value, String> {
     let path = Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("testdata")
         .join("golden")
-        .join("cases.json");
+        .join(name);
     let content = fs::read_to_string(&path).map_err(|e| format!("{}: {e}", path.display()))?;
-    let golden: Value = serde_json::from_str(&content).map_err(|e| e.to_string())?;
+    serde_json::from_str(&content).map_err(|e| e.to_string())
+}
+
+/// `httpproxy.FromEnvironment` and its `ProxyFunc` (what `http.ProxyFromEnvironment` runs) for
+/// every probe environment and URL of `proxy.json`.
+#[test]
+fn go_proxy_selection_goldens() -> Result<(), String> {
+    let golden = load_golden("proxy.json")?;
+    let mut failures = Vec::new();
+    let mut checked = 0_usize;
+    for probe in array(&golden, "probes")? {
+        let env: BTreeMap<String, String> = field(probe, "env")?
+            .as_object()
+            .ok_or_else(|| format!("env is not an object: {probe}"))?
+            .iter()
+            .map(|(k, v)| (k.clone(), v.as_str().unwrap_or_default().to_owned()))
+            .collect();
+        let config = ProxyConfig::from_env_lookup(|name| env.get(name).cloned());
+        let want = field(probe, "config")?;
+        let want = ProxyConfig {
+            http_proxy: text(want, "http_proxy"),
+            https_proxy: text(want, "https_proxy"),
+            no_proxy: text(want, "no_proxy"),
+            cgi: flag(want, "cgi"),
+        };
+        if config != want {
+            failures.push(format!(
+                "env {env:?}:\n    got  {config:?}\n    want {want:?}"
+            ));
+        }
+        let selector = config.proxy_selector();
+        for result in array(probe, "results")? {
+            let url = text(result, "url");
+            let (proxy, err) = match Url::parse(&url) {
+                Err(e) => (String::new(), format!("parse: {e}")),
+                Ok(u) => match selector.proxy_for_url(&u) {
+                    Ok(p) => (p.map_or_default(|p| p.to_string()), String::new()),
+                    Err(e) => (String::new(), e.to_string()),
+                },
+            };
+            checked += 1;
+            let (want_proxy, want_err) = (text(result, "proxy"), text(result, "err"));
+            if proxy != want_proxy || err != want_err {
+                failures.push(format!(
+                    "env {env:?} url {url:?}:\n    got  ({proxy:?}, {err:?})\n    want \
+                     ({want_proxy:?}, {want_err:?})"
+                ));
+            }
+        }
+    }
+    if !failures.is_empty() {
+        return Err(format!(
+            "{} of {checked} proxy selections differ from Go:\n{}",
+            failures.len(),
+            failures.join("\n")
+        ));
+    }
+    if checked < MIN_PROXY_RESULTS {
+        return Err(format!(
+            "only {checked} proxy selections, expected at least {MIN_PROXY_RESULTS}"
+        ));
+    }
+    Ok(())
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn go_net_http_goldens() -> Result<(), String> {
+    let golden = load_golden("cases.json")?;
     let run = RunEnv::new(&golden).await?;
     let cases = array(&golden, "cases")?;
     let mut failures = Vec::new();
