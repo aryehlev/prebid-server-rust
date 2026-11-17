@@ -84,3 +84,99 @@ Each of these crates documents its API in its `lib.rs` crate docs. Read them bef
   messages that explain what changed and why.
 - Do **not** add `Co-Authored-By` trailers, "Generated with" lines, or links to AI sessions.
 - Never push to any remote.
+
+## 7. Performance
+
+Speed never buys a difference from Go. Bytes, ordering, error text and side effects stay as §1
+requires. Optimise only what a benchmark or profile shows, and report the numbers with the change.
+
+### Data layout
+
+- A Go pointer to a struct is `Option<Arc<T>>`. Typegen emits it, and hand-written types follow.
+  Other pointers stay `Option<T>`, slices stay `Option<Vec<T>>` (`BidRequest.imp` included) and
+  maps stay `Option<BTreeMap<K, V>>`. `RawJson` already holds shared bytes: clone it, and never
+  re-encode it to copy it.
+- No `Arc<Vec<T>>` or `Arc<String>` (`clippy::rc_buffer`). An `Arc<[T]>` or `Arc<str>` field needs
+  a benchmark and its own `pbs-gojson` impls first.
+- Write through a pointer field only with `Arc::make_mut` (or `pbs_util::ptrutil::make_mut` /
+  `make_mut_or_default`), where Go writes and after Go's condition. `make_mut` on a shared value
+  copies the whole struct, so never call it to read, speculatively, or to store a value already there.
+  Clone with `Arc::clone(&x)` (`clippy::clone_on_ref_ptr`) and move out with `Arc::unwrap_or_clone`.
+- Port a Go copy (`c := *p`, `ptrutil.Clone`, `ortb.Clone*`) as an `Arc` clone at the same point.
+  Port the writes Go then makes to the copy as `make_mut` writes. The values then match Go's.
+- Decode into the existing value wherever Go does (`jsonutil.Unmarshal(data, &x)`). Merge with
+  `jsonutil::merge_clone`, which copies only the paths it decodes, as Go's `MergeClone` does.
+
+### Ownership
+
+- The endpoint owns the `RequestWrapper` and lends it as `&mut` through `HoldAuction`. Nothing holds
+  it in an `Arc` while it can change. A bidder's request is an owned `BidRequest` whose pointer
+  fields are `Arc` clones of the auction request's.
+- Adapters, hooks and module mutations get `&mut` to the value Go passes by pointer. The caller keeps
+  using that same value: `MakeBids` reads what `MakeRequests` left, and the exchange reads `cur`, the
+  imps and the headers after the adapter.
+- A response's bids live in an arena with typed indices. Go's pointer-keyed maps and pointer
+  comparisons become index maps and index comparisons.
+- Analytics, debug and hook objects read their owner where Go reads it, not a copy taken earlier.
+- Goroutines become Tokio tasks that own their inputs (`Arc` snapshots, owned requests). Never start
+  an OS thread per request. Blocking I/O moves to `spawn_blocking` without changing when it
+  completes relative to the response.
+
+### Aliasing
+
+- Copy-on-write gives value semantics. Go has reference semantics wherever two holders share a
+  pointee, a slice's backing array or a map. Some deterministic Go behaviour depends on that sharing:
+  a write one holder makes that another reads, or a pointer comparison. Port each such behaviour as a
+  named seam:
+  - an item named after the Go behaviour;
+  - a `// Go:` citation;
+  - a test with Go's output;
+  - an entry under `# Go aliasing` in the crate docs.
+
+  Never count on `Arc` sharing to reproduce such behaviour implicitly.
+- `Arc::ptr_eq` stands for Go pointer identity only for objects whose Go copy points Rust mirrors one
+  for one: `make_mut` where Go writes a copy, the paths `merge_clone` decodes, and `Arc::new` of a
+  copy where Go copies without writing. Identity does not survive an `ortb.Clone*` port, because Go
+  copies deeply where Rust shares. Slices and maps have no identity at all, so use an explicit
+  marker.
+- A Go struct value copy shares its slices and maps with the original. An element write through
+  either one (`c.Imp[i].TagID = ..`) is seen through both, so port it so that every reader Go has
+  sees it.
+- Go also writes through objects that bidder requests share with the auction request. These writes
+  go through the exchange's shared-write ledger, which replays them where Go's readers see them:
+  - on the auction request once the bidders have run;
+  - in parity mode, also on the bidders after the writer in `bidder_request_phase` order.
+- Never emulate Go nondeterminism (map iteration, completion order, data races). Take one order Go
+  can take: the one `pbs-parity`'s `contract/fakes.json` `orders` names, or else ascending keys. Cite
+  it at the site. In parity mode, impose exactly the orders Go's parity mode imposes.
+
+### Shared state
+
+- State built once at startup is an `Arc` (or `&'static`). State that a background task refreshes is
+  read with one atomic load of an `Arc`: `arc_swap::ArcSwap`, or a `RwLock<Arc<T>>` cloned and
+  released at once. Never hold a guard across `.await`, and never copy the value per request.
+- State that Go writes process-wide at runtime (package variables, config fields set per request)
+  stays process-wide and shared, so later requests see it as Go's do.
+- Counters and flags are atomics. Resolve metric label sets once rather than formatting them per
+  request, and keep the exposition byte-identical.
+
+### Hot path
+
+- Encode with `pbs-gojson` straight into the output buffer. Never `format!` a number or field, never
+  build an intermediate `String`, and never decode and re-encode what Go passes through as bytes.
+- Keep Go's laziness: parse where Go parses (the wrapper's `Get*Ext`), because parsing earlier moves
+  the errors.
+- A cache must not change what a request observes. Cache only pure functions of immutable inputs,
+  or exactly what Go caches, with Go's key, lifetime and invalidation.
+
+### Benchmarks
+
+- Benchmarks live in the crate's `benches/` and run over the Go corpora and the fixtures in
+  `benches/data/`. Use criterion with `harness = false`, and write `main` by hand if criterion's
+  macros trip a lint.
+- Count allocations with `dhat`; its allocator is a safe `#[global_allocator]` static. Never write
+  an allocator, because `unsafe` is forbidden.
+- Benchmark dependencies follow §2 and must not add a second version of any crate
+  (`clippy::multiple_crate_versions`).
+- A claim against Go needs a paired Go benchmark under `testdata/go/`. Report both, before and after.
+- §5 applies to benchmark code: no suppression, no `unwrap`/`expect`, no panicking indexing.
