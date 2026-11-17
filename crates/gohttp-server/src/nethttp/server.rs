@@ -5,12 +5,14 @@ use core::{
     error::Error,
     fmt,
     future::pending,
+    hash::BuildHasher as _,
     sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering},
     time::Duration,
 };
 use std::{
     any::Any,
     collections::HashMap,
+    hash::RandomState,
     io::{self, Write as _},
     sync::{Arc, Mutex, PoisonError},
     time::{SystemTime, UNIX_EPOCH},
@@ -43,6 +45,16 @@ const RST_AVOIDANCE_DELAY: Duration = Duration::from_millis(500);
 
 /// Go: `shutdownPollIntervalMax`.
 const SHUTDOWN_POLL_INTERVAL_MAX: Duration = Duration::from_millis(500);
+
+/// Go: `Shutdown`'s `nextPollInterval`: `base` plus up to 10% jitter
+/// (`rand.Intn(int(pollIntervalBase/10))`).
+fn with_jitter(base: Duration) -> Duration {
+    let tenth = u64::try_from((base / 10).as_nanos()).unwrap_or(u64::MAX);
+    if tenth == 0 {
+        return base;
+    }
+    base + Duration::from_nanos(RandomState::new().hash_one(()) % tenth)
+}
 
 /// Where the server's own log lines go (Go: `Server.ErrorLog`, a `*log.Logger`). The default
 /// is Go's standard logger: `2009/11/10 23:00:00 message` on standard error.
@@ -840,13 +852,13 @@ impl Server {
         self.inner.in_shutdown.store(true, Ordering::SeqCst);
         self.inner.shutdown.notify_waiters();
         self.inner.wait_listeners().await;
-        let mut interval = Duration::from_millis(1);
+        let mut base = Duration::from_millis(1);
         loop {
             if self.inner.close_idle_conns() {
                 return Ok(());
             }
-            let wait = interval;
-            interval = (interval * 2).min(SHUTDOWN_POLL_INTERVAL_MAX);
+            let wait = with_jitter(base);
+            base = (base * 2).min(SHUTDOWN_POLL_INTERVAL_MAX);
             match deadline {
                 Some(d) => {
                     tokio::select! {
@@ -857,5 +869,36 @@ impl Server {
                 None => sleep(wait).await,
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use core::time::Duration;
+    use std::collections::BTreeSet;
+
+    use super::{SHUTDOWN_POLL_INTERVAL_MAX, with_jitter};
+
+    /// Go: `nextPollInterval` waits `base` plus `rand.Intn(base/10)`.
+    #[test]
+    fn shutdown_poll_jitter() -> Result<(), String> {
+        for base in [
+            Duration::from_millis(1),
+            Duration::from_millis(64),
+            SHUTDOWN_POLL_INTERVAL_MAX,
+        ] {
+            let mut seen = BTreeSet::new();
+            for _ in 0..100 {
+                let got = with_jitter(base);
+                if got < base || got >= base + base / 10 {
+                    return Err(format!("{base:?}: {got:?} is outside [base, base*1.1)"));
+                }
+                let _new = seen.insert(got);
+            }
+            if seen.len() < 2 {
+                return Err(format!("{base:?}: no jitter in {seen:?}"));
+            }
+        }
+        Ok(())
     }
 }
