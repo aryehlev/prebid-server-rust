@@ -25,6 +25,18 @@
 //! | `json.NewEncoder(w).Encode(v)` | [`stdjson::marshal`] followed by `b'\n'` |
 //! | `json.Compact(&buf, src)`, `json.Valid(data)` | [`stdjson::compact`], [`stdjson::valid`] |
 //! | jsoniter's own error text | [`jsoniter::unmarshal`] |
+//! | `json.NewDecoder(r).Decode(&v)` | [`stream::decode_std`] (or a [`stream::Decoder`]) |
+//! | jsoniter's `NewDecoder(r).Decode(&v)` | [`stream::decode_jsoniter`] |
+//! | `jsonpatch.MergePatch(doc, patch)` | [`mergepatch::merge_patch`] |
+//! | `jsonpatch.Equal(a, b)` | [`mergepatch::equal`] |
+//! | `jsonparser.Get`, `GetString`, `Set`, `Delete`, `ArrayEach`, ... | [`jsonparser`] |
+//! | `jsonutil.FindElement(ext, names...)` | [`jsonutil::find_element`] |
+//! | `jsonutil.DropElement(ext, names...)` | [`jsonutil::drop_element`] |
+//! | `jsonutil.MergeClone(&ext, data)` for a `json.RawMessage` | [`jsonutil::merge_clone_raw`] |
+//!
+//! `mergepatch` is the root package of `gopkg.in/evanphx/json-patch.v5` v5.9.0, the map-based
+//! one: a merged document comes out compacted, with object keys sorted, deduplicated and
+//! HTML-escaped as `json.Marshal` writes them.
 //!
 //! The functions are not interchangeable. For the same value:
 //!
@@ -498,6 +510,11 @@
 //!    `encode_by_name`;
 //! 4. run `cargo test -p pbs-gojson`.
 //!
+//! The rest of the toolkit (json-patch, jsonparser, the streaming decoders, `FindElement`,
+//! `DropElement` and `MergeClone`) has its own generator: `go run
+//! ./rust/crates/gojson/testdata/go/toolkit` writes `testdata/go/toolkit/*.txt` from the Go
+//! packages' own test tables and seeded random corpora, and `tests/toolkit.rs` replays them.
+//!
 //! Other crates can follow the same pattern with a generator under their own `testdata/go`.
 //!
 //! # Known differences from Go
@@ -514,10 +531,20 @@
 //!   `tryExtractErrorMessage`) return an error or the message unchanged instead.
 //! * [`RawJson::to_object`] uses `String` keys and treats nil and empty messages as an empty
 //!   object, as Go code guarded by `len(ext) > 0` does.
-//! * Not provided: the streaming decoders (`json.NewDecoder(r).Decode(&v)` and jsoniter's
-//!   `NewDecoder`, used in `pbs/usersync.go`, `analytics/pubstack/config.go` and
-//!   `modules/scope3/rtd/module.go`), which ignore trailing data and report `EOF` for empty input;
-//!   `json.MarshalIndent`; and `jsonutil`'s `FindElement`, `DropElement` and `MergeClone`.
+//! * Where Go panics in jsonparser (an empty key where an array is, `Delete` on some malformed
+//!   input), `jsonparser` takes the fallback documented on each function; `mergepatch::equal`
+//!   returns `false` where Go's `Equal` panics on a `null` array element; `FindElement`'s panics
+//!   come back as [`jsonutil::ElementError::Panic`] with Go's runtime error text.
+//! * Go's `jsonparser.Set` can write into its input's spare capacity; [`jsonparser::set`] never
+//!   changes its input.
+//! * [`stream::decode_jsoniter`] reads the whole body as `jsoniter.Unmarshal` does. Go's `Decoder`
+//!   reads through a 512-byte buffer and leaves its position in place at the end of the input, so
+//!   where a decode runs into the end of the input (or the body is longer than 512 bytes) its error
+//!   reports another position and context; both fail.
+//! * `jsonutil.MergeClone` into structs needs the jsoniter decoders to merge `json.RawMessage`
+//!   fields and to reset slices; only the `json.RawMessage` step ([`jsonutil::ext_merge_decode`],
+//!   [`jsonutil::merge_clone_raw`]) is provided.
+//! * Not provided: `json.MarshalIndent`, which only Go tests call.
 
 #[doc(hidden)]
 pub mod base64;
@@ -535,6 +562,7 @@ mod raw;
 pub mod stdjson;
 #[doc(hidden)]
 pub mod strconv;
+pub mod stream;
 pub mod structs;
 #[doc(hidden)]
 pub mod unicode;
