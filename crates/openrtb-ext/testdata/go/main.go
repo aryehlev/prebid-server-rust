@@ -34,6 +34,14 @@
 // type (the metadata in rust/testdata/go_struct_meta.json lists the typed ones), checked against
 // the package's source (constants.go).
 //
+// review.tsv (cases as in corpus.tsv), review_functions.tsv and review_aliases.tsv (calls as in
+// functions.tsv) hold the generated edge cases of review.go: the types with their own JSON
+// decoding at every nesting depth, the StringInt, IntString and json.Number fields, multibid,
+// deal tiers, ATTS values, floors, bidder name folding, and random (also truncated or corrupted)
+// documents of every ported type. review_aliases.tsv is written last, as it registers aliases.
+// -review-scale and -review-seed change the random documents of review.tsv; the committed
+// goldens use the defaults.
+//
 // Run it from the repository root (the toolchain the other goldens use):
 //
 //	GOTOOLCHAIN=go1.26.2 go run ./rust/crates/openrtb-ext/testdata/go
@@ -120,9 +128,18 @@ func main() {
 	consts := untypedConstantRows()
 	writeConstants(filepath.Join(*out, "constants.tsv"), consts)
 
+	review := reviewDecodeCases(types, decodable)
+	write(filepath.Join(*out, "review.tsv"), nil, nil, review)
+	reviewFns := reviewFunctionCases()
+	writeFunctions(filepath.Join(*out, "review_functions.tsv"), reviewFns)
+	// Last: registering aliases changes the package's state for good.
+	aliases := reviewAliasCases()
+	writeFunctions(filepath.Join(*out, "review_aliases.tsv"), aliases)
+
 	log.Printf("corpus: %d roots, %d files, %d cases; mutations: %d cases over %d types; "+
-		"functions: %d calls; constants: %d",
-		len(c.roots), len(c.files), len(c.cases), len(mutations), len(decodable), len(fns), len(consts))
+		"functions: %d calls; constants: %d; review: %d cases, %d calls, %d alias calls",
+		len(c.roots), len(c.files), len(c.cases), len(mutations), len(decodable), len(fns), len(consts),
+		len(review), len(reviewFns), len(aliases))
 }
 
 // decodableTypes are the ported types that JSON documents decode into, in generation order:
@@ -682,12 +699,24 @@ type result struct {
 // three ways.
 func decodeAndEncode(data []byte, t reflect.Type, decode func([]byte, interface{}) error) (string, [3]result) {
 	v := reflect.New(t)
-	errText := ""
-	if err := decode(data, v.Interface()); err != nil {
-		errText = err.Error()
-	}
+	errText := decodeText(data, v.Interface(), decode)
 	value := v.Elem().Interface()
 	return errText, encodeAll(value)
+}
+
+// decodeText is the text of decode's error, empty on success, or "panic: " and the panic value
+// where decode panics (jsonutil.StringInt's method does on a lone quote, which only a document
+// cut short inside a string hands it), so that the row shows it.
+func decodeText(data []byte, v interface{}, decode func([]byte, interface{}) error) (text string) {
+	defer func() {
+		if r := recover(); r != nil {
+			text = fmt.Sprintf("panic: %v", r)
+		}
+	}()
+	if err := decode(data, v); err != nil {
+		return err.Error()
+	}
+	return ""
 }
 
 // encodeAll encodes value with jsonutil.Marshal, json.Marshal and an Encoder without HTML
