@@ -28,6 +28,16 @@ import (
 // PinnedCommit is the ReplayHarness commit this package mirrors.
 const PinnedCommit = "f61ab1997f27b0044eeb801caea62810d75e2d76"
 
+// PinnedVersion is the version that a ReplayHarness CLI built from an
+// unmodified checkout of PinnedCommit reports: the Go pseudo-version of the
+// commit without its leading "v" (cmd/replayharness/main.go reads it from
+// the build info). Its requests carry the User-Agent "ReplayHarness/" +
+// PinnedVersion; a build with local changes appends "+dirty" to it.
+// parity/replayharness/traffic.jsonl and saved.jsonl are recordings of that
+// build. Moving the pin means updating both constants and recording both
+// files again.
+const PinnedVersion = "0.1.1-0.20261116212744-f61ab1997f27"
+
 // Errors the package reports.
 var (
 	ErrBadReplay    = errors.New("rhreplay: invalid replay")

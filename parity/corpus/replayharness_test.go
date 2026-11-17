@@ -508,6 +508,60 @@ func rhCheckStep(t *testing.T, src string, st rhreplay.Step, siblings map[string
 	}
 }
 
+// TestReplayHarnessRecordingsComeFromThePinnedBuild: every request that
+// ReplayHarness itself sent in traffic.jsonl and saved.jsonl carries the
+// User-Agent of the unmodified pinned build. A build with local changes
+// (+dirty) or of another commit may send other requests than the ones
+// rhreplay mirrors. A User-Agent that a replay step sets is the step's own.
+func TestReplayHarnessRecordingsComeFromThePinnedBuild(t *testing.T) {
+	t.Parallel()
+
+	if !strings.HasSuffix(rhreplay.PinnedVersion, "-"+rhreplay.PinnedCommit[:12]) {
+		t.Fatalf("rhreplay.PinnedVersion %s is not a version of rhreplay.PinnedCommit %s", rhreplay.PinnedVersion, rhreplay.PinnedCommit)
+	}
+
+	repo, err := corpus.FindRepo(".")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	root, err := os.OpenRoot(filepath.Join(repo.Root(), filepath.FromSlash(corpus.RootReplayHarness)))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	defer func() { _ = root.Close() }()
+
+	want := "ReplayHarness/" + rhreplay.PinnedVersion
+
+	for _, name := range []string{rhTraffic, "saved.jsonl"} {
+		raw, err := root.ReadFile(name)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		exs, err := rhreplay.ReadRecording(strings.NewReader(string(raw)))
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		pinned := 0
+
+		for _, ex := range exs {
+			switch ua := ex.Request.Headers["User-Agent"]; {
+			case ua == want:
+				pinned++
+			case strings.HasPrefix(ua, "ReplayHarness/"):
+				t.Errorf("%s:%d was sent by %s, not by the pinned build %s", name, ex.Line, ua, want)
+			}
+		}
+
+		if pinned == 0 {
+			t.Errorf("%s holds no request from the pinned build %s", name, want)
+		}
+	}
+}
+
 func TestReplayHarnessScriptBuildsThePinnedCommit(t *testing.T) {
 	t.Parallel()
 

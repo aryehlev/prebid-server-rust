@@ -1093,13 +1093,16 @@ ReplayHarness wrote it, and drops:
 
 It fails when a line holds the parity token or a credential header, or when
 the result is over 5 MB. The recorder already leaves out Cookie,
-Set-Cookie and Authorization. The last run read 4704 exchanges and kept 2523
-on 278 endpoints, in 4172393 bytes.
+Set-Cookie and Authorization. The last run read 4728 exchanges and kept 2535
+on 278 endpoints, in 4185132 bytes. It dropped 2159 repeated requests, 17
+request bodies over 64 KiB and 17 repeated large responses.
 
-A later run recorded the 12 replays of `replays/fields.yaml` with the
-pinned recorder, sending the `User-Agent` that the other lines carry, and
-`rhtool traffic` merged them in. The 2523 lines are unchanged; the file
-holds 2535 exchanges on the same 278 endpoints, in 4201172 bytes.
+The recording comes from the unmodified pinned build: every request that
+ReplayHarness itself sent carries the `User-Agent`
+`ReplayHarness/0.1.1-0.20261116212744-f61ab1997f27` (`rhreplay.PinnedVersion`),
+and `TestReplayHarnessRecordingsComeFromThePinnedBuild` fails on any other
+ReplayHarness build, `+dirty` included, in `traffic.jsonl` or `saved.jsonl`.
+Four requests carry a browser `User-Agent` that their replay step sets.
 
 To send the same requests to any server that the parity runner started:
 
@@ -1521,13 +1524,22 @@ What the table shows:
 * The `Sec-GPC` bug reached one case only. `fields.yaml` now also checks
   `Sec-GPC` on an auction's bidder request.
 
-**Provenance.** The `User-Agent` of the lines in `traffic.jsonl` names a
+**Provenance.** The `User-Agent` of the lines in `traffic.jsonl` named a
 modified build of the pinned commit
-(`ReplayHarness/0.1.1-0.20261116212744-f61ab1997f27+dirty`); `saved.jsonl`
-came from the clean pinned build, which the script requires. The offline
-rebuild test shows that the replay steps in the file are what the pinned
-build sends; nothing checks the probes and the mutated replays. Record the
-file again with the pinned build to remove the doubt.
+(`ReplayHarness/0.1.1-0.20261116212744-f61ab1997f27+dirty`), and nothing
+checked that its probes and mutated replays were what the pinned build
+sends. `saved.jsonl` came from the clean pinned build. The file was not
+edited: `replayharness-replay.sh --record` recorded it again with the clean
+pinned build, under the same compaction rules. The new recording holds the
+same 2535 requests, identical but for that `User-Agent`, in another order.
+Go answered every one with the same status. The answers differ only in the
+`Date` header, the `Last-Modified` header of static files, timestamps,
+random transaction IDs, the `User-Agent` that debug output echoes, and the
+syncers that `POST /cookie_sync` lists in map order (`map_order`). The ID
+of every case that sends the recorder's `User-Agent` changed with it, since
+an ID hashes the whole request. The corpus still has 2495 cases and 64
+requests not compared, with the same tags. The numbers in this review were
+measured on the earlier recording.
 
 ### The Go-vs-Rust gate
 
