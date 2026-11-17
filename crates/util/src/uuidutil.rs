@@ -41,13 +41,24 @@ impl error::Error for UuidError {
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 pub struct UuidRandomGenerator;
 
-/// The operating system's random source, opened once.
+/// The operating system's random source, opened once it opens.
+///
+/// A failure to open it is not remembered: Go's `crypto/rand` needs no file descriptor, so a
+/// passing condition such as `EMFILE` on the first call must fail that call only, not every
+/// later UUID of the process.
 fn urandom() -> Result<&'static File, UuidError> {
-    static URANDOM: OnceLock<Result<File, io::ErrorKind>> = OnceLock::new();
-    URANDOM
-        .get_or_init(|| File::open("/dev/urandom").map_err(|e| e.kind()))
-        .as_ref()
-        .map_err(|&kind| UuidError(io::Error::from(kind)))
+    static URANDOM: OnceLock<File> = OnceLock::new();
+    open_once(&URANDOM, "/dev/urandom")
+}
+
+/// The file in `cell`, or `path` opened and kept there; a failed open leaves `cell` empty.
+fn open_once<'a>(cell: &'a OnceLock<File>, path: &str) -> Result<&'a File, UuidError> {
+    if let Some(file) = cell.get() {
+        return Ok(file);
+    }
+    let file = File::open(path).map_err(UuidError)?;
+    // Another thread may have opened it first; its file is kept and this one closed.
+    Ok(cell.get_or_init(|| file))
 }
 
 impl UuidGenerator for UuidRandomGenerator {
@@ -89,9 +100,9 @@ pub(crate) fn hex_lower(b: &[u8]) -> String {
 
 #[cfg(test)]
 mod tests {
-    use std::collections::BTreeSet;
+    use std::{collections::BTreeSet, sync::OnceLock};
 
-    use super::{UuidGenerator as _, UuidRandomGenerator, v4_string};
+    use super::{UuidGenerator as _, UuidRandomGenerator, open_once, v4_string};
     use crate::golden::{TestResult, check, check_eq, fields, read_golden, text};
 
     #[test]
@@ -109,6 +120,25 @@ mod tests {
             check_eq(v4_string(b).as_bytes(), want, raw)?;
         }
         Ok(())
+    }
+
+    #[test]
+    fn a_failed_open_of_the_random_source_is_not_remembered() -> TestResult {
+        // Go's crypto/rand has no file to open, so one failure (say EMFILE) must not make
+        // every later Generate fail.
+        let cell = OnceLock::new();
+        check(
+            open_once(&cell, "/nonexistent/pbs-urandom").is_err(),
+            "the first open fails",
+        )?;
+        check(
+            open_once(&cell, "/dev/urandom").is_ok(),
+            "a later open succeeds",
+        )?;
+        check(
+            open_once(&cell, "/nonexistent/pbs-urandom").is_ok(),
+            "the opened file is kept",
+        )
     }
 
     #[test]
