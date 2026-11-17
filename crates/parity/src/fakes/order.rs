@@ -6,8 +6,6 @@
 //! auction's tie-breaks. In parity mode those sites visit the keys in the ascending order the
 //! contract names for each one ([`OrderSite`]); otherwise they keep the map's own order.
 
-use core::cmp::Ordering;
-
 use super::active;
 
 /// Every named order of the contract (`fakes.json` `orders`), in registry order.
@@ -124,23 +122,61 @@ impl OrderSite {
 /// yields, which is what ranging over the map gives. Go sorts with `sort.Slice`, which is not
 /// stable: keys that `less` cannot tell apart (two datablocks groups with the same source ID)
 /// have no defined order in Go either.
+///
+/// Like `sort.Slice`, it never panics, whatever `less` answers (`slice::sort_by` may panic when
+/// the comparison is not a total order).
 #[must_use]
 pub fn map_keys<K, I, F>(keys: I, mut less: F) -> Vec<K>
 where
     I: IntoIterator<Item = K>,
     F: FnMut(&K, &K) -> bool,
 {
-    let mut keys: Vec<K> = keys.into_iter().collect();
-    if active().is_some() {
-        keys.sort_by(|a, b| {
-            if less(a, b) {
-                Ordering::Less
-            } else if less(b, a) {
-                Ordering::Greater
-            } else {
-                Ordering::Equal
-            }
+    let keys: Vec<K> = keys.into_iter().collect();
+    if active().is_none() {
+        return keys;
+    }
+    merge_sort(keys, &mut less)
+}
+
+/// A stable bottom-up merge sort by `less` that cannot panic.
+fn merge_sort<K, F>(keys: Vec<K>, less: &mut F) -> Vec<K>
+where
+    F: FnMut(&K, &K) -> bool,
+{
+    let mut runs: Vec<Vec<K>> = keys.into_iter().map(|k| vec![k]).collect();
+    while runs.len() > 1 {
+        let mut pairs = runs.into_iter();
+        let mut merged = Vec::new();
+        while let Some(left) = pairs.next() {
+            merged.push(match pairs.next() {
+                Some(right) => merge(left, right, less),
+                None => left,
+            });
+        }
+        runs = merged;
+    }
+    runs.pop().unwrap_or_default()
+}
+
+/// Merges two sorted runs, keeping `left`'s keys first among keys `less` cannot tell apart.
+fn merge<K, F>(left: Vec<K>, right: Vec<K>, less: &mut F) -> Vec<K>
+where
+    F: FnMut(&K, &K) -> bool,
+{
+    let mut out = Vec::with_capacity(left.len().saturating_add(right.len()));
+    let mut left = left.into_iter().peekable();
+    let mut right = right.into_iter().peekable();
+    loop {
+        let from_right = match (left.peek(), right.peek()) {
+            (Some(l), Some(r)) => less(r, l),
+            (Some(_), None) => false,
+            (None, Some(_)) => true,
+            (None, None) => return out,
+        };
+        out.extend(if from_right {
+            right.next()
+        } else {
+            left.next()
         });
     }
-    keys
 }

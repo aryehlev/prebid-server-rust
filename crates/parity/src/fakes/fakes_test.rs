@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::{collections::BTreeMap, thread};
 
 use pbs_gocompat::time::Time as GoTime;
 use pbs_util::{
@@ -161,6 +161,57 @@ fn source_merges_values_and_restarts_the_stream() -> TestResult {
     check_eq(&src.intn(3), &Some(-1), "Go's % keeps the sign")
 }
 
+// Concurrent draws from one stream get distinct UUIDs, together exactly the first draws of the
+// sequence, and every thread sees its own draws in stream order (Go: `Source.NewV4` takes the
+// next counter value atomically).
+#[test]
+fn concurrent_draws_share_one_stream() -> TestResult {
+    const THREADS: u64 = 8;
+    const DRAWS: u64 = 64;
+    let src = Source::new();
+    src.set(Some(&FakeValues {
+        uuid: "race".to_owned(),
+        ..FakeValues::default()
+    }));
+    let per_thread = thread::scope(|scope| {
+        let workers: Vec<_> = (0..THREADS)
+            .map(|_| scope.spawn(|| (0..DRAWS).map(|_| src.new_v4()).collect::<Vec<_>>()))
+            .collect();
+        workers
+            .into_iter()
+            .map(|w| w.join().map_err(|e| format!("a worker failed: {e:?}")))
+            .collect::<Result<Vec<_>, _>>()
+    })?;
+    let position: BTreeMap<String, u64> = (1..=THREADS * DRAWS)
+        .map(|n| (sequence_uuid("race", n), n))
+        .collect();
+    let mut all = Vec::new();
+    for draws in &per_thread {
+        let ns: Vec<u64> = draws
+            .iter()
+            .map(|u| {
+                position
+                    .get(u)
+                    .copied()
+                    .ok_or_else(|| format!("{u} is not in the stream"))
+            })
+            .collect::<Result<_, _>>()?;
+        check(ns.windows(2).all(|w| w.first() < w.last()), "stream order")?;
+        all.extend(ns);
+    }
+    all.sort_unstable();
+    check_eq(
+        &all,
+        &(1..=THREADS * DRAWS).collect::<Vec<_>>(),
+        "each value drawn once",
+    )?;
+    check_eq(
+        &src.new_v4(),
+        &sequence_uuid("race", THREADS * DRAWS + 1),
+        "the stream continues",
+    )
+}
+
 // Go: parity/fakes/uuids_test.go TestSequenceUUID.
 #[test]
 fn sequence_uuids_are_v4() -> TestResult {
@@ -272,6 +323,36 @@ mod installed {
             &new_v4().ok(),
             &Some(sequence_uuid(DEFAULT_UUID, 1)),
             "fresh stream",
+        )
+    }
+
+    // Go's `sort.Slice` never panics whatever `less` answers. `slice::sort_by` does on this input
+    // ("user-provided comparison function does not correctly implement a total order"), which
+    // `map_keys` used to sort with.
+    #[test]
+    fn map_keys_survive_inconsistent_comparisons() -> TestResult {
+        let _global = global_lock_blocking();
+        let _installed = Installed;
+        let _src = install();
+        let keys: Vec<u64> = (0..1000_u64)
+            .map(|i| i.wrapping_mul(0x9E37_79B9_7F4A_7C15))
+            .collect();
+        let mut state = 1_u64;
+        let mut got = map_keys(keys.clone(), |_, _| {
+            state ^= state << 13;
+            state ^= state >> 7;
+            state ^= state << 17;
+            state.is_multiple_of(2)
+        });
+        let mut want = keys.clone();
+        want.sort_unstable();
+        got.sort_unstable();
+        check_eq(&got, &want, "a permutation of the keys")?;
+        check_eq(&map_keys(keys, |a, b| a < b), &want, "sorted")?;
+        check_eq(
+            &map_keys([31_u32, 12, 35, 18, 3, 20], |a, b| a / 10 < b / 10),
+            &vec![3, 12, 18, 20, 31, 35],
+            "keys less cannot tell apart keep their order",
         )
     }
 }
