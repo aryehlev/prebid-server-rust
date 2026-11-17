@@ -207,16 +207,15 @@ fn strip_password(u: &Url) -> String {
 
 /// Go: `urlErrorOp`.
 fn url_error_op(method: &str) -> String {
-    let Some(first) = method.get(..1) else {
+    if method.is_empty() {
         return "Get".to_owned();
-    };
-    if method.bytes().all(|b| (b' '..=b'~').contains(&b)) {
-        format!(
-            "{first}{}",
-            method.get(1..).unwrap_or_default().to_ascii_lowercase()
-        )
-    } else {
-        method.to_owned()
+    }
+    // Go: ascii.ToLower succeeds only for printable ASCII; anything else is returned as is.
+    match method.split_at_checked(1) {
+        Some((first, rest)) if method.bytes().all(|b| (b' '..=b'~').contains(&b)) => {
+            format!("{first}{}", rest.to_ascii_lowercase())
+        }
+        _ => method.to_owned(),
     }
 }
 
@@ -756,6 +755,15 @@ mod tests {
     fn redirect_helpers() -> Result<(), String> {
         ensure_eq(&url_error_op(""), &"Get".to_owned(), "empty op")?;
         ensure_eq(&url_error_op("POST"), &"Post".to_owned(), "post op")?;
+        ensure_eq(&url_error_op("get"), &"get".to_owned(), "lower op")?;
+        // Go returns a method that is not printable ASCII unchanged, even when its first
+        // character is not ASCII.
+        ensure_eq(
+            &url_error_op("\u{dc}BER"),
+            &"\u{dc}BER".to_owned(),
+            "non-ASCII op",
+        )?;
+        ensure_eq(&url_error_op("GE\tT"), &"GE\tT".to_owned(), "control op")?;
         ensure_eq(
             &is_domain_or_subdomain("a.foo.com", "foo.com"),
             &true,
