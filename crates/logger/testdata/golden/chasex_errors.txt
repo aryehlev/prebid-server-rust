@@ -1,0 +1,3 @@
+"DIR/missing/x.log"	"day"	"open DIR/missing/x.log-YYYYMMDD: no such file or directory"
+"DIR/missing/x.log"	"none"	"open DIR/missing/x.log: no such file or directory"
+"DIR"	"none"	"open DIR: is a directory"

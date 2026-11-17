@@ -157,6 +157,10 @@ version = "0.1.0"
 [[package]]
 name = "pbs-logger"
 version = "0.1.0"
+dependencies = [
+ "log",
+ "pbs-gocompat",
+]
 
 [[package]]
 name = "pbs-metrics"
@@ -176,6 +180,11 @@ dependencies = [
 [[package]]
 name = "pbs-util"
 version = "0.1.0"
+dependencies = [
+ "pbs-gocompat",
+ "serde_json",
+ "tokio",
+]
 
 [[package]]
 name = "pin-project-lite"
