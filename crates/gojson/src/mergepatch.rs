@@ -11,8 +11,10 @@
 //!   `map[string]*lazyNode`: keys unescaped, deduplicated (the last one wins), sorted byte-wise and
 //!   re-escaped (HTML-escaped as well);
 //! * every other value keeps its input bytes, compacted with `json.Compact`'s HTML escaping (`<`,
-//!   `>`, `&`, U+2028 and U+2029 become `<`, ... ), so its key order, duplicate keys and string
-//!   escapes survive;
+//!   `>`, `&`, U+2028 and U+2029 become `\u003c`, ... ), so its key order, duplicate keys and
+//!   string escapes survive;
+//! * the merge runs without recursion, so it accepts documents nested as deep as Go does
+//!   (`encoding/json`'s limit of 10000 levels) on any thread stack;
 //! * a `null` in the patch deletes the key; `null`s nested in an added object are pruned, except
 //!   inside a non-object value that replaces an object, which is kept as it is.
 //!
@@ -42,8 +44,11 @@
 //! # }
 //! ```
 
-use core::{error::Error, fmt, mem, str};
-use std::{borrow::Cow, collections::BTreeMap};
+use core::{error::Error, fmt, mem, slice, str};
+use std::{
+    borrow::Cow,
+    collections::{BTreeMap, btree_map},
+};
 
 use crate::{
     encode::std_string,
@@ -81,8 +86,12 @@ impl fmt::Display for MergePatchError {
 
 impl Error for MergePatchError {}
 
-/// A decoded object: `partialDoc`, a `map[string]*lazyNode` (`None` is a JSON `null`).
-type Doc<'a> = BTreeMap<Cow<'a, [u8]>, Option<Node<'a>>>;
+/// A decoded object: `partialDoc`, a `map[string]*lazyNode` whose values are indices into the
+/// [`Arena`] (`None` is a JSON `null`).
+type Doc<'a> = BTreeMap<Cow<'a, [u8]>, Option<usize>>;
+
+/// A decoded array: `partialArray`.
+type Ary = Vec<Option<usize>>;
 
 /// Go's `lazyNode`: raw bytes until the merge needs to look inside.
 #[derive(Debug)]
@@ -91,8 +100,8 @@ enum Node<'a> {
     Raw(&'a [u8]),
     /// `eDoc`.
     Doc(Doc<'a>),
-    /// `eAry` (`partialArray`).
-    Ary(Vec<Option<Self>>),
+    /// `eAry`.
+    Ary(Ary),
 }
 
 /// What a whole input decodes to with `json.Unmarshal` into a `partialDoc`.
@@ -195,55 +204,76 @@ fn key_of(quoted: &[u8]) -> Cow<'_, [u8]> {
     unquote(quoted).map_or(Cow::Borrowed(inner), Cow::Owned)
 }
 
-fn node_of(raw: &[u8]) -> Option<Node<'_>> {
-    if raw == b"null" {
-        None
-    } else {
-        Some(Node::Raw(raw))
+/// The members of a valid object, in input order: each key as `encoding/json` decodes it and
+/// the exact bytes of its value.
+struct Members<'a> {
+    raw: &'a [u8],
+    i: usize,
+}
+
+impl<'a> Members<'a> {
+    fn new(raw: &'a [u8]) -> Self {
+        Self {
+            raw,
+            i: skip_space(raw, 0) + 1,
+        }
     }
 }
 
-/// `json.Unmarshal(raw, &partialDoc)` of a valid object.
-fn parse_doc(raw: &[u8]) -> Doc<'_> {
-    let mut doc = Doc::new();
-    let mut i = skip_space(raw, 0) + 1;
-    loop {
-        i = skip_space(raw, i);
-        match raw.get(i) {
-            Some(b',') => {
-                i += 1;
-                continue;
+impl<'a> Iterator for Members<'a> {
+    type Item = (Cow<'a, [u8]>, &'a [u8]);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let raw = self.raw;
+        loop {
+            self.i = skip_space(raw, self.i);
+            match raw.get(self.i) {
+                Some(b',') => self.i += 1,
+                Some(b'"') => break,
+                _ => return None,
             }
-            Some(b'"') => {}
-            _ => return doc,
         }
-        let key_end = string_end(raw, i);
-        let key = key_of(raw.get(i..key_end).unwrap_or_default());
+        let key_end = string_end(raw, self.i);
+        let key = key_of(raw.get(self.i..key_end).unwrap_or_default());
         // Skip the colon.
-        i = skip_space(raw, skip_space(raw, key_end) + 1);
-        let end = value_end(raw, i);
-        let _replaced = doc.insert(key, node_of(raw.get(i..end).unwrap_or_default()));
-        i = end;
+        let start = skip_space(raw, skip_space(raw, key_end) + 1);
+        let end = value_end(raw, start);
+        self.i = end;
+        Some((key, raw.get(start..end).unwrap_or_default()))
     }
 }
 
-/// `json.Unmarshal(raw, &partialArray)` of a valid array.
-fn parse_ary(raw: &[u8]) -> Vec<Option<Node<'_>>> {
-    let mut ary = Vec::new();
-    let mut i = skip_space(raw, 0) + 1;
-    loop {
-        i = skip_space(raw, i);
-        match raw.get(i) {
-            Some(b',') => {
-                i += 1;
-                continue;
-            }
-            Some(b']') | None => return ary,
-            Some(_) => {}
+/// The elements of a valid array, in order, as their exact bytes.
+struct Elements<'a> {
+    raw: &'a [u8],
+    i: usize,
+}
+
+impl<'a> Elements<'a> {
+    fn new(raw: &'a [u8]) -> Self {
+        Self {
+            raw,
+            i: skip_space(raw, 0) + 1,
         }
-        let end = value_end(raw, i);
-        ary.push(node_of(raw.get(i..end).unwrap_or_default()));
-        i = end;
+    }
+}
+
+impl<'a> Iterator for Elements<'a> {
+    type Item = &'a [u8];
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let raw = self.raw;
+        loop {
+            self.i = skip_space(raw, self.i);
+            match raw.get(self.i) {
+                Some(b',') => self.i += 1,
+                Some(b']') | None => return None,
+                Some(_) => break,
+            }
+        }
+        let start = self.i;
+        self.i = value_end(raw, start);
+        Some(raw.get(start..self.i).unwrap_or_default())
     }
 }
 
@@ -251,146 +281,202 @@ fn first_byte(raw: &[u8]) -> Option<u8> {
     raw.get(skip_space(raw, 0)).copied()
 }
 
-/// `lazyNode.intoDoc`: whether the node is (now) an object.
-fn into_doc(node: &mut Node<'_>) -> bool {
-    match node {
-        Node::Doc(_) => true,
-        Node::Ary(_) => false,
-        Node::Raw(raw) => {
-            if first_byte(raw) != Some(b'{') {
-                return false;
-            }
-            *node = Node::Doc(parse_doc(raw));
-            true
+/// Every `lazyNode` of one merge. Nodes refer to each other by index, so that neither the
+/// merge nor dropping its result recurses: Go's goroutine stacks grow, and it merges documents
+/// nested as deep as `encoding/json` accepts (10000 levels), which a recursive port could not do
+/// on a small thread stack.
+struct Arena<'a> {
+    nodes: Vec<Node<'a>>,
+}
+
+impl<'a> Arena<'a> {
+    fn new() -> Self {
+        Self {
+            nodes: Vec::with_capacity(16),
         }
     }
-}
 
-/// `lazyNode.intoAry`: whether the node is (now) an array.
-fn into_ary(node: &mut Node<'_>) -> bool {
-    match node {
-        Node::Ary(_) => true,
-        Node::Doc(_) => false,
-        Node::Raw(raw) => {
-            if first_byte(raw) != Some(b'[') {
-                return false;
+    fn push(&mut self, node: Node<'a>) -> usize {
+        self.nodes.push(node);
+        self.nodes.len() - 1
+    }
+
+    /// A `*lazyNode` as `json.Unmarshal` stores it: nil for `null`.
+    fn value(&mut self, raw: &'a [u8]) -> Option<usize> {
+        (raw != b"null").then(|| self.push(Node::Raw(raw)))
+    }
+
+    /// `lazyNode.intoDoc`: whether the node is (now) an object.
+    fn load_doc(&mut self, i: usize) -> bool {
+        let raw = match self.nodes.get(i) {
+            Some(Node::Doc(_)) => return true,
+            Some(Node::Ary(_)) | None => return false,
+            Some(&Node::Raw(raw)) => raw,
+        };
+        if first_byte(raw) != Some(b'{') {
+            return false;
+        }
+        // json.Unmarshal into a map: the last of duplicate keys wins.
+        let mut doc = Doc::new();
+        for (key, value) in Members::new(raw) {
+            let value = self.value(value);
+            let _replaced = doc.insert(key, value);
+        }
+        if let Some(node) = self.nodes.get_mut(i) {
+            *node = Node::Doc(doc);
+        }
+        true
+    }
+
+    /// `lazyNode.intoAry`: whether the node is (now) an array.
+    fn load_ary(&mut self, i: usize) -> bool {
+        let raw = match self.nodes.get(i) {
+            Some(Node::Ary(_)) => return true,
+            Some(Node::Doc(_)) | None => return false,
+            Some(&Node::Raw(raw)) => raw,
+        };
+        if first_byte(raw) != Some(b'[') {
+            return false;
+        }
+        let ary = Elements::new(raw).map(|value| self.value(value)).collect();
+        if let Some(node) = self.nodes.get_mut(i) {
+            *node = Node::Ary(ary);
+        }
+        true
+    }
+
+    /// Go's `pruneNulls`, which recurses through `pruneDocNulls` (objects lose their `null`
+    /// members) and `pruneAryNulls` (`null` elements stay); the order does not matter.
+    fn prune_nulls(&mut self, root: usize) {
+        let mut pending = vec![root];
+        while let Some(i) = pending.pop() {
+            if self.load_doc(i) {
+                if let Some(Node::Doc(doc)) = self.nodes.get_mut(i) {
+                    doc.retain(|_, v| v.is_some());
+                    pending.extend(doc.values().flatten());
+                }
+            } else if self.load_ary(i)
+                && let Some(Node::Ary(ary)) = self.nodes.get(i)
+            {
+                pending.extend(ary.iter().flatten());
             }
-            *node = Node::Ary(parse_ary(raw));
-            true
         }
     }
-}
 
-/// Go's `pruneNulls`.
-fn prune_nulls(node: &mut Node<'_>) {
-    if into_doc(node) {
-        if let Node::Doc(doc) = node {
-            prune_doc_nulls(doc);
-        }
-    } else if into_ary(node)
-        && let Node::Ary(ary) = node
-    {
-        prune_ary_nulls(ary);
-    }
-}
-
-/// Go's `pruneDocNulls`.
-fn prune_doc_nulls(doc: &mut Doc<'_>) {
-    doc.retain(|_, v| v.is_some());
-    for node in doc.values_mut().flatten() {
-        prune_nulls(node);
-    }
-}
-
-/// Go's `pruneAryNulls`: `null` elements stay.
-fn prune_ary_nulls(ary: &mut [Option<Node<'_>>]) {
-    for node in ary.iter_mut().flatten() {
-        prune_nulls(node);
-    }
-}
-
-/// Go's `merge(cur, patch, false)`.
-fn merge<'a>(mut cur: Node<'a>, mut patch: Node<'a>) -> Node<'a> {
-    // Go: json-patch merge.go merge
-    if !into_doc(&mut cur) {
-        prune_nulls(&mut patch);
-        return patch;
-    }
-    if !into_doc(&mut patch) {
-        return patch;
-    }
-    if let (Node::Doc(cur_doc), Node::Doc(patch_doc)) = (&mut cur, patch) {
-        merge_docs(cur_doc, patch_doc);
-    }
-    cur
-}
-
-/// Go's `mergeDocs(doc, patch, false)`.
-fn merge_docs<'a>(doc: &mut Doc<'a>, patch: Doc<'a>) {
-    // Go: json-patch merge.go mergeDocs
-    for (key, value) in patch {
-        match value {
-            None => {
-                let _removed = doc.remove(&key);
-            }
-            Some(mut value) => {
-                if let Some(Some(cur)) = doc.get_mut(&key) {
-                    let taken = mem::replace(cur, Node::Raw(&[]));
-                    *cur = merge(taken, value);
-                } else {
-                    prune_nulls(&mut value);
-                    let _replaced = doc.insert(key, Some(value));
+    /// Go's `mergeDocs(doc, patch, false)` for two object nodes, with its recursion through
+    /// `merge` turned into a list of the object pairs left to merge.
+    fn merge_docs(&mut self, root_doc: usize, root_patch: usize) {
+        // Go: json-patch merge.go mergeDocs, merge
+        let mut pending = vec![(root_doc, root_patch)];
+        while let Some((doc, patch)) = pending.pop() {
+            let patch_doc = match self.nodes.get_mut(patch) {
+                Some(node @ Node::Doc(_)) => match mem::replace(node, Node::Ary(Vec::new())) {
+                    Node::Doc(patch_doc) => patch_doc,
+                    Node::Raw(_) | Node::Ary(_) => continue,
+                },
+                Some(Node::Raw(_) | Node::Ary(_)) | None => continue,
+            };
+            for (key, value) in patch_doc {
+                let Some(value) = value else {
+                    if let Some(Node::Doc(members)) = self.nodes.get_mut(doc) {
+                        let _removed = members.remove(&key);
+                    }
+                    continue;
+                };
+                let cur = match self.nodes.get(doc) {
+                    Some(Node::Doc(cur)) => cur.get(&key).copied().flatten(),
+                    Some(Node::Raw(_) | Node::Ary(_)) | None => None,
+                };
+                let merged = match cur {
+                    // merge(cur, patch): a patch over a non-object replaces it, pruned...
+                    Some(cur) if !self.load_doc(cur) => {
+                        self.prune_nulls(value);
+                        value
+                    }
+                    // ...a non-object patch replaces an object as it is...
+                    Some(_) if !self.load_doc(value) => value,
+                    // ...and two objects merge.
+                    Some(cur) => {
+                        pending.push((cur, value));
+                        cur
+                    }
+                    // A new key (or one that is null): the value, pruned.
+                    None => {
+                        self.prune_nulls(value);
+                        value
+                    }
+                };
+                if let Some(Node::Doc(members)) = self.nodes.get_mut(doc) {
+                    let _replaced = members.insert(key, Some(merged));
                 }
             }
         }
     }
-}
 
-/// `json.Marshal` of a `*lazyNode` (nil writes `null`).
-fn write_opt(out: &mut Vec<u8>, node: Option<&Node<'_>>) {
-    match node {
-        None => out.extend_from_slice(b"null"),
-        Some(node) => write_node(out, node),
-    }
-}
-
-/// `lazyNode.MarshalJSON`, as `json.Marshal` compacts it.
-fn write_node(out: &mut Vec<u8>, node: &Node<'_>) {
-    match node {
-        Node::Raw(raw) => {
-            if append_compact(out, raw, true).is_err() {
-                out.extend_from_slice(raw);
+    /// `json.Marshal` of a node: objects with sorted keys, raw values compacted with HTML
+    /// escaping. Iterative, with a stack of the open objects and arrays.
+    fn write(&self, out: &mut Vec<u8>, root: usize) {
+        enum Open<'n, 'a> {
+            Doc(btree_map::Iter<'n, Cow<'a, [u8]>, Option<usize>>, bool),
+            Ary(slice::Iter<'n, Option<usize>>, bool),
+        }
+        let mut open: Vec<Open<'_, 'a>> = Vec::new();
+        let mut next = Some(Some(root));
+        loop {
+            match next.take() {
+                Some(None) => out.extend_from_slice(b"null"),
+                Some(Some(i)) => match self.nodes.get(i) {
+                    Some(Node::Raw(raw)) => {
+                        // lazyNode.MarshalJSON of an eRaw node, compacted by json.Marshal.
+                        let len = out.len();
+                        if append_compact(out, raw, true).is_err() {
+                            out.truncate(len);
+                            out.extend_from_slice(raw);
+                        }
+                    }
+                    Some(Node::Doc(doc)) => {
+                        out.push(b'{');
+                        open.push(Open::Doc(doc.iter(), true));
+                    }
+                    Some(Node::Ary(ary)) => {
+                        out.push(b'[');
+                        open.push(Open::Ary(ary.iter(), true));
+                    }
+                    None => {}
+                },
+                None => {}
+            }
+            let Some(top) = open.last_mut() else {
+                return;
+            };
+            match top {
+                Open::Doc(members, first) => {
+                    if let Some((key, value)) = members.next() {
+                        if !mem::take(first) {
+                            out.push(b',');
+                        }
+                        std_string(out, key, true);
+                        out.push(b':');
+                        next = Some(*value);
+                    } else {
+                        out.push(b'}');
+                        let _closed = open.pop();
+                    }
+                }
+                Open::Ary(elements, first) => {
+                    if let Some(value) = elements.next() {
+                        if !mem::take(first) {
+                            out.push(b',');
+                        }
+                        next = Some(*value);
+                    } else {
+                        out.push(b']');
+                        let _closed = open.pop();
+                    }
+                }
             }
         }
-        Node::Doc(doc) => write_doc(out, doc),
-        Node::Ary(ary) => write_ary(out, ary),
     }
-}
-
-/// `json.Marshal` of a `partialDoc`: sorted keys.
-fn write_doc(out: &mut Vec<u8>, doc: &Doc<'_>) {
-    out.push(b'{');
-    for (i, (key, value)) in doc.iter().enumerate() {
-        if i > 0 {
-            out.push(b',');
-        }
-        std_string(out, key, true);
-        out.push(b':');
-        write_opt(out, value.as_ref());
-    }
-    out.push(b'}');
-}
-
-/// `json.Marshal` of a `partialArray`.
-fn write_ary(out: &mut Vec<u8>, ary: &[Option<Node<'_>>]) {
-    out.push(b'[');
-    for (i, value) in ary.iter().enumerate() {
-        if i > 0 {
-            out.push(b',');
-        }
-        write_opt(out, value.as_ref());
-    }
-    out.push(b']');
 }
 
 /// `jsonpatch.MergePatch(docData, patchData)`: applies the RFC 7386 merge patch `patch` to
@@ -421,25 +507,27 @@ pub fn merge_patch(doc: &[u8], patch: &[u8]) -> Result<Vec<u8>, MergePatchError>
     if patch_top == Top::Null {
         return Err(MergePatchError::BadJsonPatch);
     }
-    let mut out = Vec::with_capacity(doc.len() + patch.len());
-    match (doc_top, patch_top) {
+    let mut arena = Arena::new();
+    let root = match (doc_top, patch_top) {
         (Top::Object, Top::Object) => {
-            let mut merged = parse_doc(doc);
-            merge_docs(&mut merged, parse_doc(patch));
-            write_doc(&mut out, &merged);
+            let merged = arena.push(Node::Raw(doc));
+            let patch = arena.push(Node::Raw(patch));
+            // json.Unmarshal of both into a partialDoc, then mergeDocs.
+            if arena.load_doc(merged) && arena.load_doc(patch) {
+                arena.merge_docs(merged, patch);
+            }
+            merged
         }
-        (_, Top::Object) => {
-            let mut replaced = parse_doc(patch);
-            prune_doc_nulls(&mut replaced);
-            write_doc(&mut out, &replaced);
-        }
-        (_, Top::Array) => {
-            let mut replaced = parse_ary(patch);
-            prune_ary_nulls(&mut replaced);
-            write_ary(&mut out, &replaced);
+        // Not a document: the result is the patch, pruned (pruneDocNulls or pruneAryNulls).
+        (_, Top::Object | Top::Array) => {
+            let replaced = arena.push(Node::Raw(patch));
+            arena.prune_nulls(replaced);
+            replaced
         }
         (_, Top::Scalar | Top::Null | Top::Syntax) => return Err(MergePatchError::BadJsonPatch),
-    }
+    };
+    let mut out = Vec::with_capacity(doc.len() + patch.len());
+    arena.write(&mut out, root);
     Ok(out)
 }
 
@@ -450,20 +538,19 @@ enum Probe<'a> {
     Ary(Vec<Option<&'a [u8]>>),
 }
 
+/// A member or element as a `*lazyNode`: nil for `null`.
+fn probe_value(raw: &[u8]) -> Option<&[u8]> {
+    (raw != b"null").then_some(raw)
+}
+
 /// `lazyNode.tryDoc`: `json.Unmarshal(raw, &n.doc)` succeeds for an object or `null`.
 fn try_doc(raw: &[u8]) -> Option<Probe<'_>> {
     match classify(raw) {
         Top::Object => {
-            let doc = parse_doc(raw)
-                .into_iter()
-                .map(|(k, v)| {
-                    let member = match v {
-                        Some(Node::Raw(bytes)) => Some(bytes),
-                        Some(Node::Doc(_) | Node::Ary(_)) | None => None,
-                    };
-                    (k, member)
-                })
-                .collect();
+            let mut doc = BTreeMap::new();
+            for (key, value) in Members::new(raw) {
+                let _replaced = doc.insert(key, probe_value(value));
+            }
             Some(Probe::Doc(doc))
         }
         Top::Null => Some(Probe::Doc(BTreeMap::new())),
@@ -474,16 +561,7 @@ fn try_doc(raw: &[u8]) -> Option<Probe<'_>> {
 /// `lazyNode.tryAry`.
 fn try_ary(raw: &[u8]) -> Option<Probe<'_>> {
     match classify(raw) {
-        Top::Array => {
-            let ary = parse_ary(raw)
-                .into_iter()
-                .map(|v| match v {
-                    Some(Node::Raw(bytes)) => Some(bytes),
-                    Some(Node::Doc(_) | Node::Ary(_)) | None => None,
-                })
-                .collect();
-            Some(Probe::Ary(ary))
-        }
+        Top::Array => Some(Probe::Ary(Elements::new(raw).map(probe_value).collect())),
         Top::Null => Some(Probe::Ary(Vec::new())),
         Top::Syntax | Top::Object | Top::Scalar => None,
     }
@@ -548,6 +626,8 @@ pub fn equal(a: &[u8], b: &[u8]) -> bool {
 
 #[cfg(test)]
 mod tests {
+    use std::thread;
+
     use super::{MergePatchError, equal, merge_patch};
 
     fn merged(doc: &str, patch: &str) -> Result<String, String> {
@@ -629,5 +709,58 @@ mod tests {
             }
         }
         Ok(())
+    }
+
+    /// `{"b":1,"x":` + `{"a":` (depth - 1 times) + `1` and the closing braces: an object nested
+    /// `depth` levels deep, with its keys sorted.
+    fn deep_object(depth: usize) -> Vec<u8> {
+        let mut out = br#"{"b":1,"x":"#.to_vec();
+        for _ in 1..depth {
+            out.extend_from_slice(br#"{"a":"#);
+        }
+        out.push(b'1');
+        out.resize(out.len() + depth, b'}');
+        out
+    }
+
+    fn deep_merges() -> Result<(), String> {
+        // Go merges every document encoding/json accepts (nesting up to 10000); the arena
+        // merge needs no stack per level. Object merged into object, at every level:
+        let doc = deep_object(9_999);
+        if merge_patch(&doc, &doc).map_err(|e| e.to_string())? != doc {
+            return Err("deep object merge".to_owned());
+        }
+        // A deep object added to a document (pruned, re-encoded), and a deep array:
+        if merge_patch(br#"{"b":1}"#, &doc).map_err(|e| e.to_string())? != doc {
+            return Err("deep object insert".to_owned());
+        }
+        let mut arr = br#"{"x":"#.to_vec();
+        arr.resize(arr.len() + 9_998, b'[');
+        arr.resize(arr.len() + 9_998, b']');
+        arr.push(b'}');
+        for base in [&br#"{"x":1}"#[..], br#"{"x":{"y":null}}"#] {
+            // Pruned over a non-object, kept as it is over an object.
+            if merge_patch(base, &arr).map_err(|e| e.to_string())? != arr {
+                return Err("deep array insert".to_owned());
+            }
+        }
+        // One level more than encoding/json allows is a syntax error.
+        let too_deep = deep_object(10_001);
+        if merge_patch(b"{}", &too_deep) != Err(MergePatchError::BadJsonPatch) {
+            return Err("10001 levels".to_owned());
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn deep_nesting_on_a_small_stack() -> Result<(), String> {
+        // Tokio's worker threads have 2 MiB stacks; a recursive merge overflowed them at this
+        // depth (and aborted the process). check_valid needs no stack per level either.
+        thread::Builder::new()
+            .stack_size(256 << 10)
+            .spawn(deep_merges)
+            .map_err(|e| e.to_string())?
+            .join()
+            .map_err(|_panic| "the merge thread panicked".to_owned())?
     }
 }
