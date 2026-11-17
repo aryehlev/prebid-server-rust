@@ -169,6 +169,11 @@ version = "0.1.0"
 [[package]]
 name = "pbs-openrtb"
 version = "0.1.0"
+dependencies = [
+ "pbs-gocompat",
+ "pbs-gojson",
+ "serde_json",
+]
 
 [[package]]
 name = "pbs-tcf2"

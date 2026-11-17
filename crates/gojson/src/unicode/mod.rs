@@ -1,8 +1,8 @@
 //! UTF-8 decoding and case mapping that reproduce Go's `unicode/utf8`, `unicode` and `strings`
 //! behaviour where the JSON libraries depend on it.
 //!
-//! Case mapping and rune classes come from Go's own Unicode tables ([`tables`]), not from the
-//! Rust standard library, whose Unicode version is newer than Go's.
+//! Case mapping and rune classes come from Go's own Unicode tables (the private `tables` module),
+//! not from the Rust standard library, whose Unicode version is newer than Go's.
 
 mod tables;
 
