@@ -61,6 +61,10 @@ type DecisionSpec struct {
 	GoSite        string            `json:"go_site"`
 	ConsultedWhen string            `json:"consulted_when"`
 	RNGEquivalent string            `json:"rng_equivalent"`
+	// OutsideCase is the value a parity-mode server applies at the site
+	// for a request outside an exec case, or "" when it draws as in
+	// production.
+	OutsideCase string `json:"outside_case,omitempty"`
 }
 
 // NotDecisionSpec documents a random source that deliberately is not a decision point.
@@ -132,8 +136,19 @@ type FakesRegistry struct {
 	GeneratedUUIDs GeneratedUUIDs `json:"generated_uuids"`
 	// Orders are the deterministic orders parity mode imposes where Go's
 	// outcome depends on response completion order or map iteration.
-	Orders   []FakeOrder `json:"orders"`
-	Adapters []FakeSeam  `json:"adapters"`
+	Orders []FakeOrder `json:"orders"`
+	// ServerSites are where code outside the adapters reads a fake value.
+	ServerSites []FakeSite `json:"server_sites"`
+	Adapters    []FakeSeam `json:"adapters"`
+}
+
+// FakeSite documents where code outside the adapters reads a fake value.
+type FakeSite struct {
+	Name   string `json:"name"`
+	Value  string `json:"value"`
+	Use    string `json:"use"`
+	GoSeam string `json:"go_seam"`
+	GoSite string `json:"go_site"`
 }
 
 // FakeOrder is one fakes.json orders entry.

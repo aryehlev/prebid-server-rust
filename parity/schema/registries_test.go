@@ -4,7 +4,9 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -283,6 +285,7 @@ func TestFakesRegistryOrders(t *testing.T) {
 		"alias_validation":                  "fakes.MapKeys(aliases, cmp.Less[string])",
 		"alias_gvlid_validation":            "fakes.MapKeys(aliasesGVLIDs, cmp.Less[string])",
 		"bid_adjustment_factors_validation": "fakes.MapKeys(adjustmentFactors, cmp.Less[string])",
+		"usersync_bidders":                  "fakes.MapKeys(bidderSyncerLookup, cmp.Less[string])",
 		"auction_winners":                   "fakes.MapKeys(seatBids, cmp.Less[openrtb_ext.BidderName])",
 		"category_dedupe":                   "fakes.MapKeys(seatBids, cmp.Less[openrtb_ext.BidderName])",
 		"adtarget":                          "fakes.MapKeys(imp2source, cmp.Less[int])",
@@ -303,6 +306,66 @@ func TestFakesRegistryOrders(t *testing.T) {
 			require.NoError(t, err)
 			assert.Contains(t, string(src), want)
 		})
+	}
+}
+
+// TestFakesRegistryServerSites: every server site names Go sites whose
+// lines hold the seam, so the line numbers the Rust side reads are current.
+func TestFakesRegistryServerSites(t *testing.T) {
+	reg, err := Fakes()
+	require.NoError(t, err)
+	seams := map[string]string{
+		"uids_cookie_expires":        "fakes.Now().Add(",
+		"uid_expires":                "fakes.Now().Add(uidTTL)",
+		"uid_liveness":               "fakes.Now()",
+		"cookie_deprecation_expires": "c.time.Now()",
+	}
+	require.Len(t, reg.ServerSites, len(seams))
+	for _, site := range reg.ServerSites {
+		t.Run(site.Name, func(t *testing.T) {
+			want, ok := seams[site.Name]
+			require.True(t, ok, "unknown server site %s", site.Name)
+			for _, line := range siteLines(t, site.GoSite) {
+				assert.Contains(t, line, want)
+			}
+		})
+	}
+}
+
+// siteLines returns the source lines a go_site such as "a/b.go:12 (x),
+// :40 (y)" names.
+func siteLines(t *testing.T, goSite string) []string {
+	t.Helper()
+	file, rest, ok := strings.Cut(goSite, ":")
+	require.True(t, ok, "go_site %q names no line", goSite)
+	src, err := os.ReadFile(filepath.Join("..", "..", file))
+	require.NoError(t, err)
+	lines := strings.Split(string(src), "\n")
+	var out []string
+	for _, m := range regexp.MustCompile(`(?:^|:)(\d+)`).FindAllStringSubmatch(rest, -1) {
+		n, err := strconv.Atoi(m[1])
+		require.NoError(t, err)
+		require.LessOrEqual(t, n, len(lines), "%s has no line %d", file, n)
+		out = append(out, lines[n-1])
+	}
+	require.NotEmpty(t, out, "go_site %q names no line", goSite)
+	return out
+}
+
+// TestDecisionsOutsideCase: a decision's outside_case is one of its values,
+// and only usersync.shuffle has one (usersync/shuffler.go).
+func TestDecisionsOutsideCase(t *testing.T) {
+	reg, err := Decisions()
+	require.NoError(t, err)
+	for _, d := range reg.Decisions {
+		if d.ID == parity.DecisionUsersyncShuffle {
+			assert.Equal(t, parity.UsersyncShuffleIdentity, d.OutsideCase)
+		} else {
+			assert.Empty(t, d.OutsideCase, d.ID)
+		}
+		if d.OutsideCase != "" {
+			assert.Contains(t, d.Values, d.OutsideCase)
+		}
 	}
 }
 

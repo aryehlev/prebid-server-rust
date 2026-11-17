@@ -76,7 +76,8 @@
               "values": {"type": "object", "minProperties": 1, "additionalProperties": {"type": "string"}},
               "go_site": {"type": "string", "minLength": 1},
               "consulted_when": {"type": "string", "minLength": 1},
-              "rng_equivalent": {"type": "string", "minLength": 1}
+              "rng_equivalent": {"type": "string", "minLength": 1},
+              "outside_case": {"type": "string", "minLength": 1, "description": "One of values: what a parity-mode server (parity fakes installed) does at the site for a request outside an exec case, that is on its main port, where no envelope pins the point; nothing is recorded. Without it, and outside parity mode, the site draws from the random source there as in production."}
             },
             "additionalProperties": false
           }
@@ -157,7 +158,7 @@
     },
     "Fakes": {
       "type": "object",
-      "required": ["schema", "schema_version", "description", "defaults", "derived", "provenance", "generated_uuids", "orders", "adapters"],
+      "required": ["schema", "schema_version", "description", "defaults", "derived", "provenance", "generated_uuids", "orders", "server_sites", "adapters"],
       "properties": {
         "schema": {"const": "pbs-parity-fakes/1"},
         "schema_version": {"$ref": "common.schema.json#/definitions/SchemaVersion"},
@@ -201,6 +202,22 @@
             "properties": {
               "name": {"type": "string", "minLength": 1},
               "order": {"type": "string", "minLength": 1},
+              "go_seam": {"type": "string", "minLength": 1},
+              "go_site": {"type": "string", "minLength": 1}
+            },
+            "additionalProperties": false
+          }
+        },
+        "server_sites": {
+          "type": "array",
+          "description": "Where code outside the adapters reads a fake value in parity mode.",
+          "items": {
+            "type": "object",
+            "required": ["name", "value", "use", "go_seam", "go_site"],
+            "properties": {
+              "name": {"type": "string", "minLength": 1},
+              "value": {"enum": ["now_unix_ms", "int63", "uuid"]},
+              "use": {"type": "string", "minLength": 1},
               "go_seam": {"type": "string", "minLength": 1},
               "go_site": {"type": "string", "minLength": 1}
             },

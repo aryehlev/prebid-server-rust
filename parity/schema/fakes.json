@@ -1,7 +1,7 @@
 {
   "schema": "pbs-parity-fakes/1",
   "schema_version": "1.0.0",
-  "description": "Deterministic values parity mode injects into the adapters that read the wall clock or a random source. They are installed process-wide at startup when parity.enabled is true (Go: parity/fakes.Install from parity/wiring.Bootstrap) and set per case from envelope.fakes (omitted or zero fields take these defaults). Outside parity mode every seam behaves exactly like the original code. The clock is a fixed instant whose location is UTC; code that explicitly converts to local time (huaweiads getClientTime .Local()) depends on the process time zone, so the runner starts both servers with TZ=UTC. The Rust server must inject the same values at the same sites.",
+  "description": "Deterministic values parity mode injects into the adapters (adapters) and the user sync code (server_sites) that read the wall clock or a random source. They are installed process-wide at startup when parity.enabled is true (Go: parity/fakes.Install from parity/wiring.Bootstrap) and set per case from envelope.fakes (omitted or zero fields take these defaults). Outside parity mode every seam behaves exactly like the original code. The clock is a fixed instant whose location is UTC; code that explicitly converts to local time (huaweiads getClientTime .Local()) depends on the process time zone, so the runner starts both servers with TZ=UTC. The Rust server must inject the same values at the same sites.",
   "defaults": {
     "now_unix_ms": 1629473330823,
     "int63": 10,
@@ -47,6 +47,7 @@
     {"name": "alias_validation", "order": "request.ext.prebid.aliases are checked in ascending alias order, so the first invalid alias (the one reported) follows that order", "go_seam": "parity/fakes order.go MapKeys(aliases, cmp.Less[string])", "go_site": "endpoints/openrtb2/auction.go:1086 (returns the first failure at :1092, :1094, :1098 or :1102)"},
     {"name": "alias_gvlid_validation", "order": "request.ext.prebid.aliasgvlids are checked in ascending alias order, so the first invalid entry (the one reported) follows that order", "go_seam": "parity/fakes order.go MapKeys(aliasesGVLIDs, cmp.Less[string])", "go_site": "endpoints/openrtb2/auction.go:1110 (returns the first failure at :1114 or :1118)"},
     {"name": "bid_adjustment_factors_validation", "order": "request.ext.prebid.bidadjustmentfactors are checked in ascending bidder order, so the first invalid factor (the one reported) follows that order", "go_seam": "parity/fakes order.go MapKeys(adjustmentFactors, cmp.Less[string])", "go_site": "endpoints/openrtb2/auction.go:1000 (returns the first failure at :1003, :1013 or :1020)"},
+    {"name": "usersync_bidders", "order": "the user sync chooser lists the bidders that have a syncer in ascending name order, the order /cookie_sync evaluates them in when the request lists no bidders or turns coopSync on (before usersync.shuffle, which keeps it under identity and, in parity mode, for every request on the main port): it fixes which syncers a limit keeps, which of two bidders sharing a syncer key syncs (the other is a duplicate), and the order of bidder_status and debug in the response", "go_seam": "parity/fakes order.go MapKeys(bidderSyncerLookup, cmp.Less[string])", "go_site": "usersync/chooser.go:23 (biddersAvailable; shuffled and evaluated in usersync/bidderchooser.go choose)"},
     {"name": "auction_winners", "order": "the auction visits the seats in ascending bidder name order when it picks each imp's winning bid, so of two bids with the same price (and the same deal status when deals are preferred) the one from the bidder with the smaller name wins", "go_seam": "parity/fakes order.go MapKeys(seatBids, cmp.Less[openrtb_ext.BidderName])", "go_site": "exchange/auction.go:116 (a later bid replaces the winner only when isNewWinningBid, a strictly higher price, at :121-122)"},
     {"name": "category_dedupe", "order": "category mapping visits the seats in ascending bidder name order, so between two bids with the same category/duration key the earlier (dupe) bid of the category.dedupe decision belongs to the bidder with the smaller name", "go_seam": "parity/fakes order.go MapKeys(seatBids, cmp.Less[openrtb_ext.BidderName])", "go_site": "exchange/exchange.go:1092 (the earlier bid is recorded at :1205, compared at :1158-1176)"},
     {"name": "adtarget", "order": "imp groups ascending by sourceId (aid)", "go_seam": "parity/fakes order.go MapKeys(imp2source, cmp.Less[int])", "go_site": "adapters/adtarget/adtarget.go:62 (MakeBids reads the request whose Imp holds the last group)"},
@@ -55,6 +56,36 @@
     {"name": "datablocks", "order": "imp groups ascending by sourceId", "go_seam": "parity/fakes order.go MapKeys(reqImps, fakes.LessDatablocks)", "go_site": "adapters/datablocks/datablocks.go:41 (MakeBids getMediaType reads internalRequest.Imp)"},
     {"name": "trafficgate", "order": "imp groups ascending by (placementId, host)", "go_seam": "parity/fakes order.go MapKeys(reqImps, fakes.LessTrafficGate)", "go_site": "adapters/trafficgate/trafficgate.go:46 (MakeBids reads internalRequest.Imp)"},
     {"name": "zeroclickfraud", "order": "imp groups ascending by (sourceId, host)", "go_seam": "parity/fakes order.go MapKeys(reqImps, fakes.LessZeroClickFraud)", "go_site": "adapters/zeroclickfraud/zeroclickfraud.go:42 (MakeBids getMediaType reads internalRequest.Imp)"}
+  ],
+  "server_sites": [
+    {
+      "name": "uids_cookie_expires",
+      "value": "now_unix_ms",
+      "use": "Expires of the uids Set-Cookie (now + host_cookie.ttl_days days, written in http.TimeFormat), also in the cookie that the max_cookie_size_bytes check measures before it ejects uids",
+      "go_seam": "usersync/cookie.go WriteCookie and PrepareCookieForWrite: fakes.Now()",
+      "go_site": "usersync/cookie.go:100 (WriteCookie), :72 (PrepareCookieForWrite)"
+    },
+    {
+      "name": "uid_expires",
+      "value": "now_unix_ms",
+      "use": "expires of the uid a sync writes into the uids cookie value (now + 14 days, as RFC 3339 with milliseconds in the base64 JSON): /setuid, and the host cookie sync of the auction endpoints and /cookie_sync",
+      "go_seam": "usersync/cookie.go Sync: fakes.Now()",
+      "go_site": "usersync/cookie.go:129"
+    },
+    {
+      "name": "uid_liveness",
+      "value": "now_unix_ms",
+      "use": "whether a uid of the request's uids cookie is live (now before its expires): the syncers /cookie_sync skips as already synced, the buyer uids and the cookie metrics of the auction endpoints, and the host cookie sync",
+      "go_seam": "usersync/cookie.go GetUID and HasAnyLiveSyncs: fakes.Now()",
+      "go_site": "usersync/cookie.go:174 (GetUID, also behind HasLiveSync), :205 (HasAnyLiveSyncs)"
+    },
+    {
+      "name": "cookie_deprecation_expires",
+      "value": "now_unix_ms",
+      "use": "Expires of the receive-cookie-deprecation Set-Cookie /cookie_sync adds for an account with privacy.privacysandbox.cookiedeprecation.enabled (now + ttl_sec seconds)",
+      "go_seam": "endpoints/cookie_sync.go NewCookieSyncEndpoint: ep.time = fakes.Active() (timeutil.Time)",
+      "go_site": "endpoints/cookie_sync.go:584 c.time.Now()"
+    }
   ],
   "adapters": [
     {
