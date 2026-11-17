@@ -1,0 +1,33 @@
+{
+  "description": "Privacy signal pools for parity/gen. Every entry's classification is checked against the libraries Go PBS uses (go-gdpr, go-gpp, privacy/ccpa) by parity/gen tests. Strings are harvested from the Go test corpora.",
+  "tcf_valid": [
+    "CPXxRfAPXxRfAAfKABENB-CgAAAAAAAAAAYgAAAAAAAA",
+    "COzTVhaOzTVhaGvAAAENAiCIAP_AAH_AAAAAAEEUACCKAAA",
+    "CPdiPIJPdiPIJACABBENAzCv_____3___wAAAQNd_X9cAAAAAAAA",
+    "COwAdDhOwAdDhN4ABAENAPCgAAQAAv___wAAAFP_AAp_4AI6ACACAA",
+    "CPfCRQAPfCRQAAAAAAENCgCAAOAAAAAAAAAAAAAAAAAA",
+    "CPBCa-mPBCa-mAAAAAENA0CAAEAAAAAAACiQAaQAwAAgAgABoAAAAAA",
+    "CPuKGCPPuKGCPNEAAAENCZCAAAAAAAAAAAAAAAAAAAAA"
+  ],
+  "tcf_v1": [
+    "BOS2bx5OS2bx5ABABBAAABoAAAAAFA",
+    "BONV8oqONXwgmADACHENAO7pqzAAppY"
+  ],
+  "tcf_invalid": [
+    "invalid-consent",
+    "CPdiPIJPdiPIJACABBENAzCv",
+    "!!not*base64!!"
+  ],
+  "gpp": [
+    {"gpp": "DBACNYA~CPXxRfAPXxRfAAfKABENB-CgAAAAAAAAAAYgAAAAAAAA~1YNN", "sids": [2, 6], "header_valid": true},
+    {"gpp": "DBACNYA~CPXxRfAPXxRfAAfKABENB-CgAAAAAAAAAAYgAAAAAAAA~1NYN", "sids": [2, 6], "header_valid": true},
+    {"gpp": "DBABMA~CPXxRfAPXxRfAAfKABENB-CgAAAAAAAAAAYgAAAAAAAA", "sids": [2], "header_valid": true},
+    {"gpp": "DBABTA~1YNN", "sids": [6], "header_valid": true},
+    {"gpp": "DBABjw~CPXxRfAPXxRfAAfKABENB-CgAAAAAAAAAAYgAAAAAAAA~1YNN", "sids": [5, 6], "header_valid": true},
+    {"gpp": "DBACNYA~garbage~1YNN", "sids": [2, 6], "header_valid": true},
+    {"gpp": "DBABzw~1YNN", "sids": [], "header_valid": false},
+    {"gpp": "badgpp", "sids": [], "header_valid": false}
+  ],
+  "us_privacy_valid": ["1YNN", "1YYY", "1NYN", "1---", "1-Y-", "1NNN"],
+  "us_privacy_invalid": ["1YN", "2YNN", "{invalid}", "1yNn"]
+}
