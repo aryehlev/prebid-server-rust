@@ -398,7 +398,7 @@ func LiftFixture(f *AdapterFixture, bidder string) (Case, error) {
 		})
 	}
 	env := newEnvelope(id, f.Path, DefaultProfile, jsonPostRequest(EndpointAuction, body))
-	return Case{
+	cs := Case{
 		ID:          id,
 		Kind:        KindLifted,
 		Corpus:      CorpusAdapters,
@@ -407,7 +407,31 @@ func LiftFixture(f *AdapterFixture, bidder string) (Case, error) {
 		Profile:     Profile{},
 		Envelope:    env,
 		Mocks:       plan,
-	}, nil
+	}
+	if status, ok := unservableStatus(plan.HTTP); ok {
+		cs.Tags = addTag(cs.Tags, TagContractGap)
+		cs.Notes = append(cs.Notes, fmt.Sprintf("contract gap: mockResponse status %d has no encoding in envelope.schema.json InlineResponse.status (%d-%d; 0 is omitted and reads as 200) and cannot be sent over HTTP; the adapter case still covers the fixture", status, minMockStatus, maxMockStatus))
+	}
+	return cs, nil
+}
+
+// The statuses an oracle response may carry (envelope.schema.json
+// InlineResponse.status).
+const (
+	minMockStatus = 100
+	maxMockStatus = 599
+)
+
+// unservableStatus returns the first mocked status outside the range the
+// oracle can serve. Adapter tests hand such statuses (0, 42) to MakeBids
+// in-process; a lifted auction can only receive them over the wire.
+func unservableStatus(mocks []HTTPMock) (int, bool) {
+	for _, m := range mocks {
+		if m.Response.Fail == nil && (m.Response.Status < minMockStatus || m.Response.Status > maxMockStatus) {
+			return m.Response.Status, true
+		}
+	}
+	return 0, false
 }
 
 // liftRequest rewrites an adapter-level request into an auction request.

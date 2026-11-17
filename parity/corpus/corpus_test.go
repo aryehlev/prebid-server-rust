@@ -102,6 +102,53 @@ func TestAdapterRunResolutionRate(t *testing.T) {
 	assert.GreaterOrEqual(t, rate, 0.95, "statically resolved RunJSONBidderTest builds")
 }
 
+// TestAdapterRunsBuiltUnderAnotherBiddersName: a test that builds its own
+// package's Builder under another bidder's name cannot be reproduced by a
+// build by bidder name, so its run is unresolved; ordinary runs are not.
+func TestAdapterRunsBuiltUnderAnotherBiddersName(t *testing.T) {
+	c := loadTestCorpus(t)
+	byPackage := map[string]*AdapterRun{}
+	for _, run := range c.Adapters.Runs {
+		byPackage[run.Package] = run
+	}
+	tests := []struct {
+		pkg        string
+		bidder     string
+		unresolved bool
+	}{
+		{pkg: "adapters/akcelo", bidder: "aja", unresolved: true},
+		{pkg: "adapters/smartyads", bidder: "smartadserver", unresolved: true},
+		{pkg: "adapters/aja", bidder: "aja"},
+		{pkg: "adapters/33across", bidder: "33across"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.pkg, func(t *testing.T) {
+			run := byPackage[tt.pkg]
+			require.NotNil(t, run)
+			assert.Equal(t, tt.bidder, run.Bidder)
+			assert.Equal(t, !tt.unresolved, run.Resolved, "%v", run.Problems)
+			if tt.unresolved {
+				assert.Contains(t, strings.Join(run.Problems, "\n"), "would run another adapter")
+			}
+		})
+	}
+}
+
+func TestLoadBuilderPackages(t *testing.T) {
+	repo := testRepo(t)
+	consts, err := loadBidderConstants(repo)
+	require.NoError(t, err)
+	got, err := loadBuilderPackages(repo, consts)
+	require.NoError(t, err)
+	for bidder, dir := range map[string]string{
+		"33across":           "adapters/33across",
+		"akcelo":             "adapters/akcelo",
+		"cadent_aperture_mx": "adapters/cadent_aperture_mx",
+	} {
+		assert.Equal(t, dir, got[bidder], bidder)
+	}
+}
+
 func TestAdapterRunsNeedingFakes(t *testing.T) {
 	c := loadTestCorpus(t)
 	fakes, err := schema.Fakes()
@@ -289,11 +336,15 @@ func TestCaseDocumentsValidateAgainstSchemas(t *testing.T) {
 				docs[fmt.Sprintf("bids[%d]", i)] = bids
 			}
 		}
+		_, statusGap := unservableStatus(cs.Mocks.HTTP)
+		if statusGap {
+			assertMockStatusGap(t, cs)
+		}
 		for name, doc := range docs {
 			raw, err := json.Marshal(doc)
 			require.NoError(t, err, cs.ID)
 			err = schema.Validate(raw)
-			if cs.HasTag(TagContractGap) {
+			if cs.HasTag(TagContractGap) && !statusGap {
 				// The tag must stay honest: the gap is real and is the bid type.
 				assert.ErrorContains(t, err, ".type", cs.ID)
 				continue
@@ -305,6 +356,28 @@ func TestCaseDocumentsValidateAgainstSchemas(t *testing.T) {
 		}
 	}
 	assert.Greater(t, checked, 8000)
+}
+
+// assertMockStatusGap checks that a case with an unservable mocked status is
+// tagged contract_gap and that one of its responses really has no encoding:
+// status 0 is omitted (and reads as the default 200), others fail the schema.
+func assertMockStatusGap(t *testing.T, cs Case) {
+	t.Helper()
+	assert.True(t, cs.HasTag(TagContractGap), cs.ID)
+	rejected := false
+	for _, m := range cs.Mocks.HTTP {
+		if m.Response.Fail == nil && m.Response.Status == 0 {
+			rejected = true
+			continue
+		}
+		raw, err := json.Marshal(m.Response)
+		require.NoError(t, err, cs.ID)
+		if err := schema.ValidateDefinition(schema.FileEnvelope, "InlineResponse", raw); err != nil {
+			assert.ErrorContains(t, err, "status", cs.ID)
+			rejected = true
+		}
+	}
+	assert.True(t, rejected, "%s: no mocked response is outside the schema", cs.ID)
 }
 
 func TestCaseProvenance(t *testing.T) {
@@ -735,6 +808,30 @@ func TestLiftRequest(t *testing.T) {
 	}
 	_, err := liftRequest(json.RawMessage(`[]`), "appnexus")
 	assert.Error(t, err)
+}
+
+// TestLiftedCasesTagUnservableStatuses: a mockResponse status no HTTP server
+// can send makes the lifted case a contract gap; ordinary statuses do not.
+func TestLiftedCasesTagUnservableStatuses(t *testing.T) {
+	c := loadTestCorpus(t)
+	tests := []struct {
+		fixture string
+		gap     bool
+	}{
+		{fixture: "adapters/logicad/logicadtest/supplemental/responseCode.json", gap: true},
+		{fixture: "adapters/mediasquare/mediasquaretest/supplemental/status-not-200.json", gap: true},
+		{fixture: "adapters/mediasquare/mediasquaretest/supplemental/status-400.json"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.fixture, func(t *testing.T) {
+			cs, ok := c.Case(caseID(tt.fixture, "lift:auction"))
+			require.True(t, ok)
+			assert.Equal(t, tt.gap, cs.HasTag(TagContractGap), "%v", cs.Notes)
+		})
+	}
+	fail := parity.OutboundErrTimeout
+	_, gap := unservableStatus([]HTTPMock{{Response: parity.InlineResponse{Fail: &fail}}})
+	assert.False(t, gap, "an injected failure carries no status")
 }
 
 func TestRewriteQueryParam(t *testing.T) {

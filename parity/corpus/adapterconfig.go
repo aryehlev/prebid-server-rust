@@ -82,6 +82,11 @@ type runExtractor struct {
 	bidderConsts map[string]string
 	bidderNames  map[string]bool
 	fakeBidders  map[string]bool
+	// builderPackages maps a bidder name to the adapter package directory
+	// whose Builder exchange/adapter_builders.go registers for it;
+	// builderDirs holds those directories.
+	builderPackages map[string]string
+	builderDirs     map[string]bool
 }
 
 // ExtractAdapterRuns finds every RunJSONBidderTest call under adapters/ and
@@ -127,7 +132,82 @@ func newRunExtractor(repo *Repo) (*runExtractor, error) {
 	for _, seam := range fakes.Adapters {
 		fakeBidders[seam.Bidder] = true
 	}
-	return &runExtractor{bidderConsts: consts, bidderNames: names, fakeBidders: fakeBidders}, nil
+	builders, err := loadBuilderPackages(repo, consts)
+	if err != nil {
+		return nil, err
+	}
+	dirs := make(map[string]bool, len(builders))
+	for _, dir := range builders {
+		dirs[dir] = true
+	}
+	return &runExtractor{bidderConsts: consts, bidderNames: names, fakeBidders: fakeBidders, builderPackages: builders, builderDirs: dirs}, nil
+}
+
+// adapterBuildersFile registers every bidder's Builder.
+const adapterBuildersFile = RootAdapterBuilders
+
+// loadBuilderPackages maps bidder names to the adapter package directory
+// (adapters/<pkg>) of the Builder newAdapterBuilders registers for them
+// (openrtb_ext.BidderX: pkg.Builder). Entries whose package is not resolved
+// are left out.
+func loadBuilderPackages(repo *Repo, consts map[string]string) (map[string]string, error) {
+	src, err := repo.ReadFile(adapterBuildersFile)
+	if err != nil {
+		return nil, err
+	}
+	parsed, err := parser.ParseFile(token.NewFileSet(), adapterBuildersFile, src, parser.SkipObjectResolution)
+	if err != nil {
+		return nil, fmt.Errorf("corpus: parsing %s: %w", adapterBuildersFile, err)
+	}
+	imports := adapterImports(parsed)
+	out := map[string]string{}
+	ast.Inspect(parsed, func(n ast.Node) bool {
+		kv, ok := n.(*ast.KeyValueExpr)
+		if !ok {
+			return true
+		}
+		key, keyOK := kv.Key.(*ast.SelectorExpr)
+		val, valOK := kv.Value.(*ast.SelectorExpr)
+		if !keyOK || !valOK || val.Sel.Name != "Builder" {
+			return true
+		}
+		pkg, pkgOK := val.X.(*ast.Ident)
+		bidder, known := consts[key.Sel.Name]
+		if pkgOK && known {
+			if dir, ok := imports[pkg.Name]; ok {
+				out[bidder] = dir
+			}
+		}
+		return true
+	})
+	if len(out) == 0 {
+		return nil, fmt.Errorf("corpus: no Builder registrations found in %s", adapterBuildersFile)
+	}
+	return out, nil
+}
+
+// adapterImports maps the names an adapter package import is referred to by
+// (its alias, its directory name, and that name without "_" or "-", the usual
+// Go package name) to its directory adapters/<pkg>.
+func adapterImports(f *ast.File) map[string]string {
+	out := map[string]string{}
+	marker := "/" + RootAdapters + "/"
+	for _, spec := range f.Imports {
+		p, err := strconv.Unquote(spec.Path.Value)
+		i := strings.Index(p, marker)
+		if err != nil || i < 0 {
+			continue
+		}
+		dir := p[i+1:]
+		if spec.Name != nil {
+			out[spec.Name.Name] = dir
+			continue
+		}
+		base := path.Base(dir)
+		out[base] = dir
+		out[strings.NewReplacer("_", "", "-", "").Replace(base)] = dir
+	}
+	return out
 }
 
 // loadBidderConstants maps openrtb_ext BidderX constant names to bidder names.
@@ -291,7 +371,21 @@ func (x *runExtractor) finishRun(run *AdapterRun) {
 	if x.fakeBidders[run.Bidder] {
 		run.needsFake("adapter reads the clock or a random source (parity/schema/fakes.json)")
 	}
+	x.checkBuilderPackage(run)
 	run.Resolved = len(run.Problems) == 0
+}
+
+// checkBuilderPackage flags a run of a registered adapter package whose bidder
+// name is registered with another package's Builder (a test that builds its
+// own Builder under, say, openrtb_ext.BidderAJA). The parity contract builds
+// adapters by bidder name, so such a run's fixtures would execute a different
+// adapter than the Go test does.
+func (x *runExtractor) checkBuilderPackage(run *AdapterRun) {
+	dir, known := x.builderPackages[run.Bidder]
+	if !known || dir == run.Package || !x.builderDirs[run.Package] {
+		return
+	}
+	run.problem("bidder %q is registered with the Builder of %s, not of %s; a build by bidder name would run another adapter", run.Bidder, dir, run.Package)
 }
 
 // resolveBidder follows the bidder argument to a Builder call, a helper or a

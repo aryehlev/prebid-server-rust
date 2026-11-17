@@ -33,6 +33,8 @@ const (
 	RootBidderInfo        = "static/bidder-info"
 	RootRouterParamsTests = "router/bidder_params_tests"
 	RootOpenRTBExt        = "openrtb_ext"
+	// RootAdapterBuilders is a single file: the bidder to Builder registry.
+	RootAdapterBuilders = "exchange/adapter_builders.go"
 )
 
 // ErrOutsideCorpus is returned for paths that escape the approved corpus roots.
@@ -44,6 +46,7 @@ func ApprovedRoots() []string {
 		RootAdapters, RootSampleRequests, RootEndpointsOpenRTB2, RootExchangeTest,
 		RootCacheTest, RootCustomCacheKey, RootEventsCacheTest, RootImpCustomCacheKey,
 		RootFPDTests, RootHookExecTest, RootBidderParams, RootBidderInfo, RootRouterParamsTests, RootOpenRTBExt,
+		RootAdapterBuilders,
 	}
 	sort.Strings(roots)
 	return roots
