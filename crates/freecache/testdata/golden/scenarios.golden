@@ -1,0 +1,3 @@
+scenario	TestFreeCache	initial:hr:0000000000000000 ev:0 e:0 aat:0 ex:0 set:nil get:len:8 fnv:d7f2225798fd36ad del:true get:err:Entry not found del:false seterr:0 hits:1685 fnhits:1685 mismatch:0 logged:hr:3fe8300f4aaf0926 ev:1466 e:4154 aat:1700000001 ex:0 reset:hr:0000000000000000 ev:0 e:4154 aat:1700000001 ex:0
+scenario	TestEvacuateCount	missing:65184 entries:34816 evacuates:65184
+scenario	TestIterator	n:10000 mismatch:0 order:18907f6611557e65
