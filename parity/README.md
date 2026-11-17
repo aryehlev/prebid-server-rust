@@ -327,11 +327,14 @@ source of the nondeterminism it removes:
   requests, together with the `bids.adjusted` call members that name them;
 * `http_out` order with `seq` dropped, and the order of a Prebid Cache call's
   `puts` (with its `responses` permuted alongside);
-* the `responsetimemillis` key set;
+* the `responsetimemillis` key set (a value is masked only where it is a
+  non-negative integer);
 * the shape of the auction timestamp and of event `ts`, wherever an event URL
   is recorded (responses, hook stages, analytics);
 * UUID placeholders;
-* hook execution times and timing histograms, compared by count only;
+* hook execution times, masked only where the member is a non-negative
+  integer (its presence is still compared);
+* timing histograms, compared by count only;
 * the Go runtime collector's `go_*` series in `metrics_delta`, and the main
   listener's `connections_*` series. Exec dispatches in process, so those
   series only count the runner's own connections;
