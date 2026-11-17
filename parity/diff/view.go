@@ -6,6 +6,8 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"maps"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -61,6 +63,8 @@ func (v *view) note(format string, args ...any) {
 }
 
 // buildView converts a trace into a view. side names the implementation in notes.
+// Stages are visited in name order and entries in key order, so the notes come
+// out in the same order on every run, whatever the run's shard count.
 func buildView(t *parity.Trace, side string) *view {
 	v := &view{
 		entries: map[parity.StageID]map[string]*entry{},
@@ -69,10 +73,11 @@ func buildView(t *parity.Trace, side string) *view {
 	for stage, st := range t.StageStatus {
 		v.status[stage] = st
 	}
-	for stage, keyed := range t.Stages {
+	for _, stage := range slices.Sorted(maps.Keys(t.Stages)) {
+		keyed := t.Stages[stage]
 		v.entries[stage] = make(map[string]*entry, len(keyed))
-		for key, e := range keyed {
-			v.entries[stage][key] = v.buildEntry(side, stage, key, e)
+		for _, key := range slices.Sorted(maps.Keys(keyed)) {
+			v.entries[stage][key] = v.buildEntry(side, stage, key, keyed[key])
 		}
 	}
 	if t.HTTPIn != nil {

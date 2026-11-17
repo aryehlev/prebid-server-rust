@@ -1412,8 +1412,16 @@ order; a case sends its headers sorted by name, the same way to both sides.
 
 **Determinism.** Three A/A runs of the runner, with `-shards 1`, `2` and
 `4`, gave the same status and summary for every case. Only the order of some
-cases' notes changed (14 and 15 cases): `parity/diff/view.go` builds them by
-ranging over a map.
+cases' notes changed (14 and 15 cases): `parity/diff/view.go` built them by
+ranging over a map. It now visits the stages in name order and each stage's
+entries in key order (`TestNotesFollowStageAndKeyOrder`). Three new runs,
+each with the same `-out` and `-run-id`, wrote byte-identical `index.json`,
+`clusters.json` and case directories; in the 2495 case summaries only
+`duration_ms` differs. Each run had 1551 cases passing, 944 not yet
+instrumented, no mismatch and no error. In 24 of those cases the notes name
+two or more stage entries of a side, so their order came from the map.
+`run.json`, `summary.md`, `matrix.*` and `junit.xml` differ only in times,
+the shard count and the list of servers, one pair per shard.
 
 **Detection.** Each bug below was seeded into a Go side B with a build
 overlay, as the canary is, and run through `parity` and `baseline`:
