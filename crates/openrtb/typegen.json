@@ -1,0 +1,142 @@
+{
+  "crate": "pbs_openrtb",
+  "rust_index": "tests/parity/index.rs",
+  "go_index": {
+    "out": "testdata/go/ported_types_gen.go",
+    "package": "main"
+  },
+  "packages": [
+    {
+      "go": "github.com/prebid/openrtb/v20/openrtb2",
+      "rust": "openrtb2",
+      "out": "src/openrtb2/generated.rs",
+      "field_names": "json",
+      "functions": {
+        "Int8Ptr": {
+          "rust": "int8_ptr",
+          "signature": "fn(i8) -> Option<i8>"
+        },
+        "Int64Ptr": {
+          "rust": "int64_ptr",
+          "signature": "fn(i64) -> Option<i64>"
+        }
+      }
+    },
+    {
+      "go": "github.com/prebid/openrtb/v20/openrtb3",
+      "rust": "openrtb3",
+      "out": "src/openrtb3/generated.rs",
+      "field_names": "json",
+      "overrides": {
+        "SecondPricePlus": {
+          "reason": "Untyped in Go (the const block types only FirstPrice); it is an AuctionType value, so it gets that type.",
+          "go_type": "AuctionType"
+        },
+        "DealPrice": {
+          "reason": "Untyped in Go (the const block types only FirstPrice); it is an AuctionType value, so it gets that type.",
+          "go_type": "AuctionType"
+        }
+      },
+      "functions": {
+        "NoBidReason.Ptr": {
+          "rust": "NoBidReason::ptr",
+          "signature": "fn(openrtb3::NoBidReason) -> Option<openrtb3::NoBidReason>"
+        },
+        "NoBidReason.Val": {
+          "rust": "NoBidReason::val",
+          "signature": "fn(Option<openrtb3::NoBidReason>) -> openrtb3::NoBidReason"
+        }
+      }
+    },
+    {
+      "go": "github.com/prebid/openrtb/v20/adcom1",
+      "rust": "adcom1",
+      "out": "src/adcom1/generated.rs",
+      "field_names": "json",
+      "functions": {
+        "ConnectionType.Ptr": {
+          "rust": "ConnectionType::ptr",
+          "signature": "fn(adcom1::ConnectionType) -> Option<adcom1::ConnectionType>"
+        },
+        "ConnectionType.Val": {
+          "rust": "ConnectionType::val",
+          "signature": "fn(Option<adcom1::ConnectionType>) -> adcom1::ConnectionType"
+        },
+        "DOOHVenueTaxonomy.Ptr": {
+          "rust": "DOOHVenueTaxonomy::ptr",
+          "signature": "fn(adcom1::DOOHVenueTaxonomy) -> Option<adcom1::DOOHVenueTaxonomy>"
+        },
+        "DOOHVenueTaxonomy.Val": {
+          "rust": "DOOHVenueTaxonomy::val",
+          "signature": "fn(Option<adcom1::DOOHVenueTaxonomy>) -> adcom1::DOOHVenueTaxonomy"
+        },
+        "PlacementPosition.Ptr": {
+          "rust": "PlacementPosition::ptr",
+          "signature": "fn(adcom1::PlacementPosition) -> Option<adcom1::PlacementPosition>"
+        },
+        "PlacementPosition.Val": {
+          "rust": "PlacementPosition::val",
+          "signature": "fn(Option<adcom1::PlacementPosition>) -> adcom1::PlacementPosition"
+        },
+        "StartDelay.Ptr": {
+          "rust": "StartDelay::ptr",
+          "signature": "fn(adcom1::StartDelay) -> Option<adcom1::StartDelay>"
+        },
+        "StartDelay.Val": {
+          "rust": "StartDelay::val",
+          "signature": "fn(Option<adcom1::StartDelay>) -> adcom1::StartDelay"
+        },
+        "VolumeNormalizationMode.Ptr": {
+          "rust": "VolumeNormalizationMode::ptr",
+          "signature": "fn(adcom1::VolumeNormalizationMode) -> Option<adcom1::VolumeNormalizationMode>"
+        },
+        "VolumeNormalizationMode.Val": {
+          "rust": "VolumeNormalizationMode::val",
+          "signature": "fn(Option<adcom1::VolumeNormalizationMode>) -> adcom1::VolumeNormalizationMode"
+        }
+      }
+    },
+    {
+      "go": "github.com/prebid/openrtb/v20/native1",
+      "rust": "native1",
+      "out": "src/native1/generated.rs",
+      "field_names": "json",
+      "overrides": {
+        "PlacementTypeFeed": {
+          "reason": "Untyped in Go (no constant of the block is typed); prebid-server compares it with PlacementType values, so it gets that type.",
+          "go_type": "PlacementType"
+        },
+        "PlacementTypeAtomicContentUnit": {
+          "reason": "Untyped in Go (no constant of the block is typed); prebid-server compares it with PlacementType values, so it gets that type.",
+          "go_type": "PlacementType"
+        },
+        "PlacementTypeOutsideCoreContent": {
+          "reason": "Untyped in Go (no constant of the block is typed); prebid-server compares it with PlacementType values, so it gets that type.",
+          "go_type": "PlacementType"
+        },
+        "PlacementTypeRecommendationWidget": {
+          "reason": "Untyped in Go (no constant of the block is typed); prebid-server compares it with PlacementType values, so it gets that type.",
+          "go_type": "PlacementType"
+        }
+      }
+    },
+    {
+      "go": "github.com/prebid/openrtb/v20/native1/request",
+      "rust": "native1::request",
+      "out": "src/native1/request/generated.rs",
+      "field_names": "json"
+    },
+    {
+      "go": "github.com/prebid/openrtb/v20/native1/response",
+      "rust": "native1::response",
+      "out": "src/native1/response/generated.rs",
+      "field_names": "json",
+      "functions": {
+        "Int64Ptr": {
+          "rust": "int64_ptr",
+          "signature": "fn(i64) -> Option<i64>"
+        }
+      }
+    }
+  ]
+}
