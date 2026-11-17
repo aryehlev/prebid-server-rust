@@ -118,7 +118,23 @@ name = "pbs-errortypes"
 version = "0.1.0"
 
 [[package]]
+name = "pbs-freecache"
+version = "0.1.0"
+
+[[package]]
 name = "pbs-gocompat"
+version = "0.1.0"
+
+[[package]]
+name = "pbs-gogzip"
+version = "0.1.0"
+
+[[package]]
+name = "pbs-gohttp-client"
+version = "0.1.0"
+
+[[package]]
+name = "pbs-gohttp-server"
 version = "0.1.0"
 
 [[package]]
@@ -174,6 +190,14 @@ dependencies = [
  "pbs-gojson",
  "serde_json",
 ]
+
+[[package]]
+name = "pbs-openrtb-ext"
+version = "0.1.0"
+
+[[package]]
+name = "pbs-parity"
+version = "0.1.0"
 
 [[package]]
 name = "pbs-tcf2"
