@@ -10,7 +10,7 @@
 //! 4-byte mask produce the 4-byte form. Go slices of other lengths only arise from hand-built
 //! values and are not modelled; their `String` (`?` followed by hex) never appears in Prebid.
 
-use std::{error, fmt};
+use std::{error, fmt, net::SocketAddr};
 
 use super::netip::{self, Parsed};
 
@@ -491,6 +491,46 @@ pub fn parse_cidr(s: &str) -> Result<(Ip, IpNet), ParseError> {
             mask: m,
         },
     ))
+}
+
+/// Go: `net.JoinHostPort`: `host:port`, or `[host]:port` when the host contains a colon.
+#[must_use]
+pub fn join_host_port(host: &str, port: &str) -> String {
+    if host.contains(':') {
+        format!("[{host}]:{port}")
+    } else {
+        format!("{host}:{port}")
+    }
+}
+
+/// Go: `(*net.TCPAddr).String()`, which Go's HTTP server stores in `Request.RemoteAddr` for the
+/// peer of an accepted connection.
+///
+/// The address prints as [`Ip`] does, so the peer of a dual-stack listener that connected over
+/// IPv4 (an IPv4-mapped `SocketAddr::V6`) is `1.2.3.4:5678`, never `[::ffff:1.2.3.4]:5678` as
+/// `SocketAddr`'s `Display` writes it. That difference reaches
+/// [`find_ip`](crate::httputil::find_ip): the bracketed text contains `:`, so the remote
+/// address would be IPv6 and set `device.ipv6` where Go sets `device.ip`.
+///
+/// A non-zero scope id prints as its number. Go prints the name of the interface with that
+/// index when there is one (`[fe80::1%eth0]:80`); either way the text has a zone, which
+/// `net.ParseIP` rejects, so `FindIP` takes no address from it.
+#[must_use]
+pub fn tcp_addr_string(addr: &SocketAddr) -> String {
+    match addr {
+        SocketAddr::V4(a) => join_host_port(
+            &Ip::from4(a.ip().octets()).to_string(),
+            &a.port().to_string(),
+        ),
+        SocketAddr::V6(a) => {
+            let mut host = Ip::from16(a.ip().octets()).to_string();
+            if a.scope_id() != 0 {
+                host.push('%');
+                host.push_str(&a.scope_id().to_string());
+            }
+            join_host_port(&host, &a.port().to_string())
+        }
+    }
 }
 
 /// Go: `net.SplitHostPort`: splits `host:port`, `[host]:port` or `[host%zone]:port` into the

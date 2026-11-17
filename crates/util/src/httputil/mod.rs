@@ -102,6 +102,12 @@ impl<T: RequestHeaders + ?Sized> RequestHeaders for &T {
 ///
 /// Only the first value of each header is read. The version is that of
 /// [`iputil::parse_ip`]: IPv6 whenever the text contains `:`.
+///
+/// `remote_addr` must be the text Go's server would store for the peer: build it with
+/// [`net::tcp_addr_string`](iputil::net::tcp_addr_string), not with `SocketAddr`'s `Display`,
+/// which writes an IPv4 peer of a dual-stack listener as `[::ffff:a.b.c.d]:port` and so turns
+/// its version to IPv6. Go gives a Unix socket peer its socket name (`@` on Linux for the
+/// usual unnamed peer), which has no port, so no address comes from it.
 #[must_use]
 pub fn find_ip<H, V>(r: &H, remote_addr: &str, v: &V) -> Option<(Ip, IpVersion)>
 where
@@ -214,5 +220,7 @@ fn trim_space(s: &[u8]) -> &[u8] {
     s.get(start..end).unwrap_or_default()
 }
 
+#[cfg(test)]
+mod review_tests;
 #[cfg(test)]
 mod tests;

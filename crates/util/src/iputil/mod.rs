@@ -44,4 +44,6 @@ pub use parse::{
 pub use validator::{IpValidator, PublicNetworkIpValidator, VersionIpValidator};
 
 #[cfg(test)]
+mod review_tests;
+#[cfg(test)]
 mod tests;
