@@ -1397,20 +1397,23 @@ After the gate, every replay must pass on side B.
 ### Results: A/A run and canary
 
 The A/A run is `parity/scripts/replayharness.sh selftest`, with Go on both
-sides. Two runs gave the same results:
+sides. The last run, on the recording described above, gave:
 
-* `parity selftest --corpus replayharness`: 2480 cases, of which 1536 passed,
-  0 mismatched, 944 were not yet instrumented, and 0 errored.
+* `parity selftest --corpus replayharness`: 2495 cases, of which 1551
+  passed, 0 mismatched, 944 were not yet instrumented, and 0 errored. The
+  64 requests not compared are reported next to them, so `run.json` counts
+  2559 entries.
 * `baseline`, Go against Go:
   * 1199 probes: 0 divergences, 0 findings drawn by only one side, and 465
     findings drawn by both;
   * one or two `POST /cookie_sync` shape divergences, printed and not
-    counted (the number changes from run to run, as `map_order` explains);
-  * 162 of 162 replays passed.
+    counted (the number changes from run to run, as `map_order` explains;
+    this run printed one);
+  * 174 of 174 replays passed.
 
 The canary is `parity/scripts/replayharness.sh canary`. Both tools caught it:
 
-* The parity run found 257 mismatching cases in one cluster: the `X-Prebid`
+* The parity run found 269 mismatching cases in one cluster: the `X-Prebid`
   header of `/openrtb2/auction`.
 * The baseline found 4 divergences, on the shape of
   `/info/bidders/{bidderName}`.
@@ -1538,8 +1541,11 @@ random transaction IDs, the `User-Agent` that debug output echoes, and the
 syncers that `POST /cookie_sync` lists in map order (`map_order`). The ID
 of every case that sends the recorder's `User-Agent` changed with it, since
 an ID hashes the whole request. The corpus still has 2495 cases and 64
-requests not compared, with the same tags. The numbers in this review were
-measured on the earlier recording.
+requests not compared, with the same tags. The other numbers in this review
+were measured on the earlier recording, before the runner reported the
+requests not compared. On the new recording, the A/A run in "Results: A/A
+run and canary" has the same 1551 passing and 944 not-yet-instrumented
+cases as the determinism runs.
 
 ### The Go-vs-Rust gate
 
