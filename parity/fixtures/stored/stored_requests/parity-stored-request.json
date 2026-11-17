@@ -1,0 +1,6 @@
+{
+  "id": "parity-stored-request",
+  "site": {"page": "https://parity.test/page", "publisher": {"id": "parity-account"}},
+  "tmax": 500,
+  "ext": {"prebid": {"targeting": {"pricegranularity": "low"}}}
+}

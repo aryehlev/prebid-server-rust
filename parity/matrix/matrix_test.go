@@ -292,3 +292,33 @@ func TestBuildMatrixNilRun(t *testing.T) {
 		t.Error("BuildFromRun of a missing directory succeeded")
 	}
 }
+
+// TestCheckedInSnapshot keeps status.json and README.md valid and in sync:
+// README.md must be the rendering of status.json.
+func TestCheckedInSnapshot(t *testing.T) {
+	raw, err := os.ReadFile(FileStatus)
+	if os.IsNotExist(err) {
+		t.Skip("no checked-in snapshot")
+	}
+	if err != nil {
+		t.Fatalf("reading %s: %v", FileStatus, err)
+	}
+	var m Matrix
+	if err := json.Unmarshal(raw, &m); err != nil {
+		t.Fatalf("decoding %s: %v", FileStatus, err)
+	}
+	enc, err := EncodeStatus(&m)
+	if err != nil {
+		t.Fatalf("%s: %v", FileStatus, err)
+	}
+	if string(enc) != string(raw) {
+		t.Errorf("%s is not in canonical form; regenerate it with parity matrix --run <dir>", FileStatus)
+	}
+	md, err := os.ReadFile(FileReadme)
+	if err != nil {
+		t.Fatalf("reading %s: %v", FileReadme, err)
+	}
+	if string(md) != string(RenderMarkdown(&m)) {
+		t.Errorf("%s does not match %s; regenerate both with parity matrix --run <dir>", FileReadme, FileStatus)
+	}
+}

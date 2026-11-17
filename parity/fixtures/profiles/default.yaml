@@ -1,0 +1,22 @@
+# Base host configuration of every parity run. The runner writes it, merged
+# with the profile chain and the case's own settings, to pbs.yaml in the
+# server's working directory. Keys the runner owns (host, parity.*,
+# currency_converter.fetch_url, the filesystem stored-data backends,
+# default_request) are set after the profile and cannot be overridden here;
+# ports and the parity token go through the environment so both servers of a
+# pair read byte-identical files.
+name: default
+description: Go defaults plus what a hermetic run needs (GDPR default, a cache host the oracle answers, throttling and ads.cert off).
+config:
+  gdpr:
+    default_value: "0"
+  cache:
+    scheme: http
+    host: prebid-cache.parity.test
+    query: uuid=%PBS_CACHE_UUID%
+  http_client:
+    throttle:
+      enable_throttling: false
+  experiment:
+    adscert:
+      mode: "off"

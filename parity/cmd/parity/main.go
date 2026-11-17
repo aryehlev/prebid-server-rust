@@ -1,0 +1,468 @@
+// Command parity drives the Go-vs-Rust live differential parity harness.
+//
+//	parity corpus    [--json]                       corpus statistics
+//	parity run       [flags]                        run A against B and write parity/out/<run>
+//	parity selftest  [flags]                        A/A self-test plus the adapter fixture self-test
+//	parity minimize  --run <dir> [--cluster sig]... minimize clusters on live servers
+//	parity report    --run <dir> [--baseline f]     rebuild reports, check the CI ratchet
+//	parity matrix    --run <dir> [--out dir]        write the coverage matrix snapshot
+//
+// Exit codes: 0 success; 1 parity failure (self-test failed, ratchet
+// regressed); 2 usage or harness error; 3 self-test incomplete (nothing could
+// be compared because the server is not parity-capable yet).
+package main
+
+import (
+	"context"
+	"encoding/json"
+	"errors"
+	"flag"
+	"fmt"
+	"io"
+	"os"
+	"os/signal"
+	"path/filepath"
+	"regexp"
+	"strings"
+	"time"
+
+	"github.com/prebid/prebid-server/v4/parity"
+	"github.com/prebid/prebid-server/v4/parity/corpus"
+	"github.com/prebid/prebid-server/v4/parity/matrix"
+	"github.com/prebid/prebid-server/v4/parity/report"
+	"github.com/prebid/prebid-server/v4/parity/runner"
+)
+
+// Exit codes.
+const (
+	exitOK         = 0
+	exitFailure    = 1
+	exitUsage      = 2
+	exitIncomplete = 3
+)
+
+// Default locations, relative to the repository root.
+const (
+	defaultGoBinary   = "parity/out/bin/pbs-go"
+	defaultRustBinary = "rust/target/release/pbs-server"
+	defaultBaseline   = "parity/baseline.json"
+	defaultMatrixDir  = "parity/matrix"
+)
+
+func main() {
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
+	code := run(ctx, os.Args[1:], os.Stdout, os.Stderr)
+	stop()
+	os.Exit(code)
+}
+
+// run dispatches a subcommand and returns the exit code.
+func run(ctx context.Context, args []string, stdout, stderr io.Writer) int {
+	if len(args) == 0 {
+		usage(stderr)
+		return exitUsage
+	}
+	cmds := map[string]func(context.Context, []string, io.Writer, io.Writer) (int, error){
+		"corpus": cmdCorpus, "run": cmdRun, "selftest": cmdSelfTest,
+		"minimize": cmdMinimize, "report": cmdReport, "matrix": cmdMatrix,
+	}
+	cmd, ok := cmds[args[0]]
+	if !ok {
+		usage(stderr)
+		return exitUsage
+	}
+	code, err := cmd(ctx, args[1:], stdout, stderr)
+	switch {
+	case errors.Is(err, flag.ErrHelp):
+		return exitOK
+	case err != nil:
+		fmt.Fprintf(stderr, "parity %s: %v\n", args[0], err)
+		return exitUsage
+	}
+	return code
+}
+
+func usage(w io.Writer) {
+	fmt.Fprintln(w, "usage: parity corpus|run|selftest|minimize|report|matrix [flags]  (parity <cmd> -h for flags)")
+}
+
+// common are the flags every subcommand shares.
+type common struct {
+	repo    string
+	verbose bool
+}
+
+func (c *common) register(fs *flag.FlagSet) {
+	fs.StringVar(&c.repo, "repo", "", "repository root (default: found from the working directory)")
+	fs.BoolVar(&c.verbose, "v", false, "log progress to stderr")
+}
+
+// repoRoot resolves --repo.
+func (c *common) repoRoot() (string, error) {
+	start := c.repo
+	if start == "" {
+		start = "."
+	}
+	repo, err := corpus.FindRepo(start)
+	if err != nil {
+		return "", err
+	}
+	return repo.Root(), nil
+}
+
+func (c *common) logf(stderr io.Writer) func(string, ...any) {
+	if !c.verbose {
+		return nil
+	}
+	return func(format string, args ...any) { fmt.Fprintf(stderr, format+"\n", args...) }
+}
+
+func cmdCorpus(_ context.Context, args []string, stdout, stderr io.Writer) (int, error) {
+	fs := flag.NewFlagSet("corpus", flag.ContinueOnError)
+	fs.SetOutput(stderr)
+	var c common
+	c.register(fs)
+	if err := fs.Parse(args); err != nil {
+		return exitUsage, err
+	}
+	root, err := c.repoRoot()
+	if err != nil {
+		return exitUsage, err
+	}
+	repo, err := corpus.OpenRepo(root)
+	if err != nil {
+		return exitUsage, err
+	}
+	all, err := corpus.LoadAll(repo)
+	if err != nil {
+		return exitUsage, err
+	}
+	for _, e := range all.Errors {
+		fmt.Fprintln(stderr, e)
+	}
+	return exitOK, writeJSON(stdout, all.Stats())
+}
+
+// runFlags are the flags of run and selftest.
+type runFlags struct {
+	common
+	out, runID, implA, binA, implB, binB string
+	profiles, profilesDir, storedDir     string
+	corpora, kinds, match                string
+	limit, shards                        int
+	budget, caseTimeout, startTimeout    time.Duration
+	fixtures, noBuild                    bool
+	baseline                             string
+}
+
+func (f *runFlags) register(fs *flag.FlagSet, withB bool) {
+	f.common.register(fs)
+	fs.StringVar(&f.out, "out", "", "run directory (default parity/out/<run-id>)")
+	fs.StringVar(&f.runID, "run-id", "", "run name (default a UTC timestamp)")
+	fs.StringVar(&f.implA, "impl-a", parity.ImplGo, "implementation A (the reference): go or rust")
+	fs.StringVar(&f.binA, "bin-a", "", "server binary of A (default: build Go into "+defaultGoBinary+")")
+	if withB {
+		fs.StringVar(&f.implB, "impl-b", parity.ImplRust, "implementation B: go or rust")
+		fs.StringVar(&f.binB, "bin-b", "", "server binary of B (default: the Go build for go, "+defaultRustBinary+" for rust when present)")
+	}
+	fs.StringVar(&f.profiles, "profiles", runner.DefaultProfile, "comma-separated base profiles (parity/fixtures/profiles)")
+	fs.StringVar(&f.profilesDir, "profiles-dir", "", "profile fixtures directory")
+	fs.StringVar(&f.storedDir, "stored-dir", "", "stored data fixtures directory")
+	fs.StringVar(&f.corpora, "corpus", "all", "comma-separated corpora: adapters, sample-requests, exchangetest, bidder-params, introspection, all")
+	fs.StringVar(&f.kinds, "kinds", "", "comma-separated case kinds (adapter, lifted_auction, endpoint, exchange, bidder_params, introspection)")
+	fs.StringVar(&f.match, "match", "", "regular expression on case IDs")
+	fs.IntVar(&f.limit, "limit", 0, "maximum cases per base profile (0: no limit)")
+	fs.IntVar(&f.shards, "shards", 1, "server pairs per batch")
+	fs.DurationVar(&f.budget, "budget", 0, "stop starting cases after this long (0: no limit)")
+	fs.DurationVar(&f.caseTimeout, "case-timeout", 30*time.Second, "timeout of one case")
+	fs.DurationVar(&f.startTimeout, "start-timeout", 90*time.Second, "timeout of a server start")
+	fs.BoolVar(&f.noBuild, "no-build", false, "do not build the Go server when --bin-a is empty")
+	if withB {
+		fs.BoolVar(&f.fixtures, "fixtures", false, "also run the adapter fixture self-test of A")
+		fs.StringVar(&f.baseline, "baseline", "", "check the CI ratchet against this baseline after the run")
+	}
+}
+
+// options resolves the flags into runner options, building Go when needed.
+func (f *runFlags) options(ctx context.Context, stderr io.Writer) (runner.Options, error) {
+	root, err := f.repoRoot()
+	if err != nil {
+		return runner.Options{}, err
+	}
+	opts := runner.Options{
+		RepoRoot: root, OutDir: f.out, RunID: f.runID, ProfilesDir: f.profilesDir, StoredDir: f.storedDir,
+		Profiles: splitList(f.profiles), Shards: f.shards, Budget: f.budget, CaseTimeout: f.caseTimeout,
+		StartTimeout: f.startTimeout, FixtureSelfTest: f.fixtures, Logf: f.logf(stderr),
+		Selection: runner.Selection{Corpora: splitList(f.corpora), Kinds: splitList(f.kinds), Limit: f.limit},
+	}
+	if f.match != "" {
+		if opts.Selection.Match, err = regexp.Compile(f.match); err != nil {
+			return opts, fmt.Errorf("--match: %w", err)
+		}
+	}
+	if opts.A, err = f.impl(ctx, root, f.implA, f.binA); err != nil {
+		return opts, err
+	}
+	if f.implB != "" {
+		if opts.B, err = f.impl(ctx, root, f.implB, f.binB); err != nil {
+			return opts, err
+		}
+	}
+	return opts, nil
+}
+
+// impl resolves one implementation's binary: given, the Go build, or the
+// default Rust release binary when it exists (else none: not-yet-instrumented).
+func (f *runFlags) impl(ctx context.Context, root, name, bin string) (runner.Impl, error) {
+	if name != parity.ImplGo && name != parity.ImplRust {
+		return runner.Impl{}, fmt.Errorf("unknown implementation %q (want go or rust)", name)
+	}
+	if bin != "" {
+		abs, err := filepath.Abs(bin)
+		return runner.Impl{Name: name, Binary: abs}, err
+	}
+	if name == parity.ImplRust {
+		def := filepath.Join(root, filepath.FromSlash(defaultRustBinary))
+		if _, err := os.Stat(def); err == nil {
+			return runner.Impl{Name: name, Binary: def}, nil
+		}
+		return runner.Impl{Name: name}, nil
+	}
+	out := filepath.Join(root, filepath.FromSlash(defaultGoBinary))
+	if !f.noBuild {
+		if err := runner.BuildGo(ctx, root, out); err != nil {
+			return runner.Impl{}, err
+		}
+	}
+	return runner.Impl{Name: name, Binary: out}, nil
+}
+
+func cmdRun(ctx context.Context, args []string, stdout, stderr io.Writer) (int, error) {
+	fs := flag.NewFlagSet("run", flag.ContinueOnError)
+	fs.SetOutput(stderr)
+	var f runFlags
+	f.register(fs, true)
+	if err := fs.Parse(args); err != nil {
+		return exitUsage, err
+	}
+	opts, err := f.options(ctx, stderr)
+	if err != nil {
+		return exitUsage, err
+	}
+	res, err := runner.Run(ctx, opts)
+	if err != nil {
+		return exitUsage, err
+	}
+	printRun(stdout, res.Run)
+	if f.baseline == "" {
+		return exitOK, nil
+	}
+	return ratchet(stdout, res.Run, f.baseline, false)
+}
+
+func cmdSelfTest(ctx context.Context, args []string, stdout, stderr io.Writer) (int, error) {
+	fs := flag.NewFlagSet("selftest", flag.ContinueOnError)
+	fs.SetOutput(stderr)
+	var f runFlags
+	f.register(fs, false)
+	if err := fs.Parse(args); err != nil {
+		return exitUsage, err
+	}
+	opts, err := f.options(ctx, stderr)
+	if err != nil {
+		return exitUsage, err
+	}
+	res, verdict, err := runner.SelfTest(ctx, opts)
+	if err != nil {
+		return exitUsage, err
+	}
+	printRun(stdout, res.Run)
+	for _, r := range verdict.Reasons {
+		fmt.Fprintln(stdout, "selftest:", r)
+	}
+	switch {
+	case verdict.OK:
+		fmt.Fprintln(stdout, "selftest: ok")
+		return exitOK, nil
+	case verdict.Incomplete && len(verdict.Reasons) == 1:
+		return exitIncomplete, nil
+	}
+	return exitFailure, nil
+}
+
+func cmdMinimize(ctx context.Context, args []string, stdout, stderr io.Writer) (int, error) {
+	fs := flag.NewFlagSet("minimize", flag.ContinueOnError)
+	fs.SetOutput(stderr)
+	var c common
+	c.register(fs)
+	runDir := fs.String("run", "", "finished run directory (required)")
+	binA := fs.String("bin-a", "", "server binary of A (default: the run's)")
+	binB := fs.String("bin-b", "", "server binary of B (default: the run's)")
+	budget := fs.Int("budget", 200, "executions per case")
+	var clusters, cases listFlag
+	fs.Var(&clusters, "cluster", "cluster signature to minimize (repeatable; default every primary cluster)")
+	fs.Var(&cases, "case", "case ID to minimize (repeatable)")
+	if err := fs.Parse(args); err != nil {
+		return exitUsage, err
+	}
+	if *runDir == "" {
+		return exitUsage, errors.New("--run is required")
+	}
+	root, err := c.repoRoot()
+	if err != nil {
+		return exitUsage, err
+	}
+	opts := runner.MinimizeOptions{
+		RunDir: *runDir, RepoRoot: root, A: runner.Impl{Binary: absOrEmpty(*binA)}, B: runner.Impl{Binary: absOrEmpty(*binB)},
+		Clusters: clusters, Cases: cases, Budget: *budget, Logf: c.logf(stderr),
+	}
+	outcomes, _, err := runner.MinimizeRun(ctx, opts)
+	if err != nil {
+		return exitUsage, err
+	}
+	return exitOK, writeJSON(stdout, outcomes)
+}
+
+func cmdReport(_ context.Context, args []string, stdout, stderr io.Writer) (int, error) {
+	fs := flag.NewFlagSet("report", flag.ContinueOnError)
+	fs.SetOutput(stderr)
+	var c common
+	c.register(fs)
+	runDir := fs.String("run", "", "finished run directory (required)")
+	baseline := fs.String("baseline", "", "baseline to ratchet against (e.g. "+defaultBaseline+")")
+	update := fs.Bool("update-baseline", false, "write the run's totals to --baseline instead of checking")
+	if err := fs.Parse(args); err != nil {
+		return exitUsage, err
+	}
+	if *runDir == "" {
+		return exitUsage, errors.New("--run is required")
+	}
+	run, err := report.Rebuild(*runDir)
+	if err != nil {
+		return exitUsage, err
+	}
+	m, err := matrix.BuildMatrix(run)
+	if err != nil {
+		return exitUsage, err
+	}
+	if err := matrix.WriteRunFiles(m, run.Layout.Dir); err != nil {
+		return exitUsage, err
+	}
+	printRun(stdout, run)
+	if *baseline == "" {
+		return exitOK, nil
+	}
+	return ratchet(stdout, run, *baseline, *update)
+}
+
+func cmdMatrix(_ context.Context, args []string, stdout, stderr io.Writer) (int, error) {
+	fs := flag.NewFlagSet("matrix", flag.ContinueOnError)
+	fs.SetOutput(stderr)
+	var c common
+	c.register(fs)
+	runDir := fs.String("run", "", "finished run directory (required)")
+	out := fs.String("out", "", "snapshot directory (default "+defaultMatrixDir+")")
+	if err := fs.Parse(args); err != nil {
+		return exitUsage, err
+	}
+	if *runDir == "" {
+		return exitUsage, errors.New("--run is required")
+	}
+	dir := *out
+	if dir == "" {
+		root, err := c.repoRoot()
+		if err != nil {
+			return exitUsage, err
+		}
+		dir = filepath.Join(root, filepath.FromSlash(defaultMatrixDir))
+	}
+	m, err := matrix.BuildFromRun(*runDir)
+	if err != nil {
+		return exitUsage, err
+	}
+	if err := matrix.WriteSnapshot(m, dir); err != nil {
+		return exitUsage, err
+	}
+	fmt.Fprintf(stdout, "wrote %s and %s\n", filepath.Join(dir, matrix.FileStatus), filepath.Join(dir, matrix.FileReadme))
+	return exitOK, nil
+}
+
+// ratchet checks (or with update, writes) the baseline.
+func ratchet(stdout io.Writer, run *report.Run, path string, update bool) (int, error) {
+	cur := report.BaselineOf(run)
+	if update {
+		if err := report.WriteJSON(path, cur); err != nil {
+			return exitUsage, err
+		}
+		fmt.Fprintf(stdout, "baseline: wrote %s\n", path)
+		return exitOK, nil
+	}
+	base, err := report.LoadBaseline(path)
+	if err != nil {
+		return exitUsage, err
+	}
+	r := report.CheckRatchet(base, cur)
+	for _, s := range r.Regressions {
+		fmt.Fprintln(stdout, "ratchet regression:", s)
+	}
+	for _, s := range r.Improvements {
+		fmt.Fprintln(stdout, "ratchet improvement:", s)
+	}
+	if !r.OK {
+		return exitFailure, nil
+	}
+	fmt.Fprintln(stdout, "ratchet: ok")
+	return exitOK, nil
+}
+
+// printRun prints the run directory and totals.
+func printRun(w io.Writer, run *report.Run) {
+	c := run.Summary.Counts
+	fmt.Fprintf(w, "run %s (%s vs %s): %d cases, %d passing, %d mismatch, %d not-yet-instrumented, %d error, %d skipped; %d clusters (%d primary)\n",
+		run.Summary.RunID, run.Summary.ImplA, run.Summary.ImplB, c.Total, c.Passing, c.Mismatch, c.NotYetInstrumented, c.Error, c.Skipped,
+		run.Summary.Clusters, run.Summary.PrimaryClusters)
+	if f := run.Summary.Fixtures; f != nil {
+		fmt.Fprintf(w, "fixtures: %d passing, %d failing, %d excused, %d not run\n", f.Passing, f.Failing, f.Excused, f.NotRun)
+	}
+	fmt.Fprintf(w, "reports: %s\n", run.Layout.Dir)
+}
+
+func writeJSON(w io.Writer, v any) error {
+	enc := json.NewEncoder(w)
+	enc.SetIndent("", "  ")
+	if err := enc.Encode(v); err != nil {
+		return fmt.Errorf("encoding output: %w", err)
+	}
+	return nil
+}
+
+// splitList splits a comma-separated flag; empty items are dropped.
+func splitList(s string) []string {
+	var out []string
+	for _, p := range strings.Split(s, ",") {
+		if p = strings.TrimSpace(p); p != "" {
+			out = append(out, p)
+		}
+	}
+	return out
+}
+
+func absOrEmpty(p string) string {
+	if p == "" {
+		return ""
+	}
+	if abs, err := filepath.Abs(p); err == nil {
+		return abs
+	}
+	return p
+}
+
+// listFlag is a repeatable string flag.
+type listFlag []string
+
+func (l *listFlag) String() string { return strings.Join(*l, ",") }
+
+func (l *listFlag) Set(v string) error {
+	*l = append(*l, v)
+	return nil
+}

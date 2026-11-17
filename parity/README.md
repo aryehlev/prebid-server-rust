@@ -33,6 +33,13 @@ them, and `go test ./parity/schema/...` keeps the two in sync.
 | `fixtures/` | Static oracle data: `currency/latest.json` and the `gvl/v2`, `gvl/v3` vendor lists. |
 | `diff/` | The differ: normalization by the allowlist, semantic, lexical and wire comparison, attribution and clustering. Harness-only. |
 | `testdata/diff/` | Golden differ cases: a Go trace, a Rust trace and the exact mismatches expected. |
+| `runner/` | The differential runner: config profiles, server pairs, sharding, case execution, oracle capture merging, the A/A self-test and the adapter fixture self-test, and live minimization. Harness-only. |
+| `report/` | Run artifacts: per-case summaries, `index.json`, `run.json`, `clusters.json`, `summary.md`, `junit.xml`, and the CI ratchet baseline. Harness-only. |
+| `matrix/` | The domain coverage matrix (`domains.json` locks the 9 domains) and its checked-in snapshot `status.json` and `README.md`. Harness-only. |
+| `minimize/` | ddmin minimizer over envelope bodies, headers, query and mock rules. Harness-only. |
+| `cmd/parity/` | The CLI: `corpus`, `run`, `selftest`, `minimize`, `report`, `matrix`. |
+| `fixtures/profiles/` | Base host configurations (`default`, `gdpr-enforced`, `floors`, `account-required`, `events-cache`). |
+| `fixtures/stored/` | Stored requests, imps, responses and accounts copied into every run's stored-data tree. |
 
 ## Versioning
 
@@ -431,6 +438,124 @@ import _ "github.com/prebid/prebid-server/v4/parity/server"
 
 Until that import exists, an authorized `/__parity/*` request answers `501`.
 
+## Runner
+
+```sh
+go run ./parity/cmd/parity selftest --corpus sample-requests,adapters,exchangetest
+go run ./parity/cmd/parity run --impl-b rust --bin-b rust/target/release/pbs-server --baseline parity/baseline.json
+go run ./parity/cmd/parity minimize --run parity/out/<run-id>
+go run ./parity/cmd/parity report --run parity/out/<run-id> --baseline parity/baseline.json
+go run ./parity/cmd/parity matrix --run parity/out/<run-id>
+```
+
+`--impl-a` and `--impl-b` name the sides (`go` or `rust`). `--bin-a` and
+`--bin-b` give their binaries. Without `--bin-*`, a Go side is built into
+`parity/out/bin/pbs-go`. A Rust side uses `rust/target/release/pbs-server`
+when it exists. Otherwise the Rust side is not run, and every case is
+not-yet-instrumented.
+
+Exit codes:
+
+| Code | Meaning |
+|---|---|
+| 0 | Success. |
+| 1 | The self-test found a mismatch, a harness error or a failing fixture, or the ratchet regressed. |
+| 2 | A usage or harness error. |
+| 3 | The self-test was incomplete: nothing could be compared. |
+
+### Batches and processes
+
+1. The runner selects cases by `--corpus`, `--kinds`, `--match` and `--limit`.
+   * Every case runs under every `--profiles` base profile. A case ID gets the
+     suffix `@<profile>` when the base profile is not `default`.
+   * Adapter cases run once, under the first base profile.
+   * `contract_gap` cases are skipped.
+   * `--corpus introspection` (part of `all`) adds one config and bidders
+     comparison per batch.
+2. Cases are grouped into batches. A batch shares the base profile, the case
+   profile and stored data that does not conflict. Two cases that give
+   different bytes to the same stored ID go to separate batches.
+3. Each batch gets a working directory, `<run>/work/<batch>/`, containing:
+   * `pbs.yaml`, merged from the profile `extends` chain, then the case
+     profile, then the keys the runner owns;
+   * a `static/` symlink;
+   * `stored/{stored_requests,stored_imps,stored_responses,accounts}/<id>.json`;
+   * `default_request.json`, when the case profile has one.
+4. Ports, the parity token and `TZ=UTC` go through the environment. Both
+   servers therefore read byte-identical files. A non-Go server also gets
+   `PBS_CONFIG_FILE` and `PBS_STATIC_DIR`.
+5. `--shards N` starts N pairs of servers per batch on free loopback ports.
+   Each pair runs its share of the cases one at a time, in the same order on
+   both sides, and calls `/__parity/reset` before every envelope.
+6. When the two sides have different implementation names, they run each
+   envelope concurrently. In an A/A self-test both sides are `go`, so they run
+   one after the other, and each side's oracle captures are drained before the
+   next side starts.
+
+A server can be not parity-capable: it answers `/__parity/health` with 404 or
+501, does not start, or reports a different `impl`. A health document can also
+show that the server lacks something a case needs: the endpoint, the mock mode
+or level, or the fakes for a `needs_fake` adapter case. In each of these cases,
+the affected cases are not-yet-instrumented, with the reason, and the run still
+writes every report. `--budget` stops starting cases after the given time; the
+remaining cases are skipped.
+
+### Run artifacts
+
+`parity/out/<run-id>/` contains the following. The runner writes
+`parity/out/.gitignore`.
+
+| File | Contents |
+|---|---|
+| `index.json` | `pbs-parity-index/1`: every case with its status, its first divergence and the case directory. |
+| `run.json` | Counts, options, and the server records: binary, health, reason and log for each side and shard. |
+| `clusters.json` | Mismatch clusters by signature, with their representative case and repro paths. |
+| `summary.md` | Counts, reasons cases were not compared, cluster tables by domain, and failing fixtures. |
+| `junit.xml` | One suite per corpus plus `fixture-selftest`. Mismatch is a failure, error is an error, and not-yet-instrumented or skipped is skipped. |
+| `fixtures.json` | Adapter fixture self-test results, when any adapter case ran: passing, failing, excused (`needs_fake`, `unresolved_build`) or not-run. |
+| `matrix.json`, `matrix.md` | The coverage matrix of this run. |
+| `cases/<sha1-16>/` | `summary.json` for every case. A mismatch or error also gets `case.json` (everything needed to rerun the case), `envelope.json`, both traces, `diff.json`, and `min.*.json` after minimization. |
+| `servers/*.log` | Server stdout and stderr. |
+
+### Self-tests
+
+* **A/A.** `selftest` runs implementation A against a second process of
+  itself. Any mismatch means missing normalization or state leaking between
+  cases in the harness.
+* **Adapter fixtures.** `selftest`, or `run --fixtures`, also checks A's
+  adapter endpoints against each fixture's own expectations, with the
+  `adapterstest` semantics:
+  * request count, URI, headers (when expected), imp IDs and JSON body,
+    matched out of order;
+  * error lists, compared literally, by regex or with `startswith`;
+  * bid responses: currency, bid count, seat, type, bid JSON, video and fledge
+    configs.
+
+  A failure on a `needs_fake` or `unresolved_build` case is excused.
+
+### Minimization and the ratchet
+
+`minimize` re-runs the representative case of each primary cluster on a fresh
+pair. The `--cluster` and `--case` flags select others. ddmin keeps the case's
+primary signatures, and writes `min.envelope.json`, `min.case.json` and
+`min.report.json` into the case directory. The run's reports and matrix files
+are then rebuilt. Adapter and introspection cases are not minimized.
+
+`report --baseline parity/baseline.json` fails, with exit code 1, when any of
+the following holds:
+
+* mismatches, errors or the count of any mismatch kind grew;
+* fewer cases were compared;
+* a new cluster appeared.
+
+`--update-baseline` writes the current totals.
+
+`matrix --run <dir>` writes the checked-in snapshot `parity/matrix/status.json`
+and `parity/matrix/README.md`. It has one row for each of the 9 domains in
+`matrix/domains.json`. A row is `passing` or `mismatch` only with evidence
+cases; otherwise it is `not-yet-instrumented`. The matrix also has
+per-endpoint, per-bidder and per-stage tables.
+
 ## Implementing the contract in Rust
 
 1. Serve the same `/__parity/*` routes behind the same guards and the same
@@ -452,8 +577,22 @@ Until that import exists, an authorized `/__parity/*` request answers `501`.
 ```sh
 go test ./parity/...                 # schemas, examples, registries, contract conformance
 go test -race ./parity/trace/... ./parity/transport/... ./parity/diff/...
+go test -race ./parity/runner/... ./parity/minimize/... ./parity/report/... ./parity/matrix/...
 go test ./config ./router ./server ./exchange
 ```
+
+`parity/runner` runs its own test binary as a fake parity server, built on
+`parity/trace`, which makes one oracle call per oracle-mode case. With that
+server it checks the following:
+
+* an A/A self-test passes, with oracle captures merged and config ports masked;
+* a seeded bug on side B is a mismatch, and live minimization keeps only the
+  triggering member;
+* a server without parity routes, a missing binary, or a wrong `impl` makes
+  every case not-yet-instrumented, and all reports are still written.
+
+It also loads every profile's generated `pbs.yaml` through `config.New`, and
+encodes a `case.json` for every case of the repository corpus.
 
 `parity/schema` checks the following:
 

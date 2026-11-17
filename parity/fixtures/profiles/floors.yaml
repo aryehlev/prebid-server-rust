@@ -1,0 +1,10 @@
+name: floors
+description: Price floors enabled at host and account level, with deal-floor enforcement.
+extends: default
+config:
+  price_floors:
+    enabled: true
+  account_defaults:
+    price_floors:
+      enabled: true
+      enforce_deal_floors: true

@@ -1,0 +1,6 @@
+[
+  {
+    "seat": "appnexus",
+    "bid": [{"id": "parity-bid", "impid": "parity-stored-imp", "price": 1.25, "adm": "<div>parity</div>", "crid": "parity-creative", "w": 300, "h": 250}]
+  }
+]

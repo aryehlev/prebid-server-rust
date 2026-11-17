@@ -1,0 +1,10 @@
+name: gdpr-enforced
+description: GDPR applies when the request does not say otherwise; TCF2 enforcement on with the oracle's GVL snapshots.
+extends: default
+config:
+  gdpr:
+    enabled: true
+    default_value: "1"
+    host_vendor_id: 0
+    tcf2:
+      enabled: true
