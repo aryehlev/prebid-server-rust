@@ -523,6 +523,28 @@ const MUTATION_STRING_GAPS: [&str; 10] = [
     "openrtb_ext.UserSyncType value 14",
 ];
 
+/// The adversarial review's documents (`testdata/go/review.go`): the values each `UnmarshalJSON`
+/// method tells apart, nested up to four levels deep in the types that hold them; grids of
+/// price granularity, interstitial, AMP, keyword, deal tier and multibid documents; every edge
+/// value at every `jsonutil.StringInt`, `jsonutil.IntString` and `json.Number` field; and
+/// random documents (one in six truncated or corrupted) of every type JSON decodes into.
+#[test]
+fn review() -> TestResult {
+    let tally = check("review.tsv", 4800, &[], &[])?;
+    for name in [
+        "openrtb_ext.ExtRequest",
+        "openrtb_ext.ExtDevice",
+        "openrtb_ext.ImpExtGoldbach",
+        "openrtb_ext.ExtImpAppnexus",
+        "openrtb_ext.ExtImpRubicon",
+    ] {
+        if !tally.types.contains(name) {
+            return Err(format!("review.tsv has no {name} document"));
+        }
+    }
+    Ok(())
+}
+
 /// The generated mutations of every type JSON decodes into, which must cover every one of
 /// them.
 #[test]

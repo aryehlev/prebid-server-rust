@@ -311,7 +311,8 @@ fn bidders(c: &Call<'_>) -> TestResult<Option<Results>> {
         }
         "BuildBidderNameHashSet" => {
             let mut names: Vec<String> = openrtb_ext::build_bidder_name_hash_set()
-                .into_iter()
+                .iter()
+                .map(|name| name.as_str().to_owned())
                 .collect();
             names.sort();
             vec![joined(names)]
@@ -400,26 +401,32 @@ const STRING_GAPS: [(&str, usize); 4] = [
     ("TargetingKey.TruncateKey", 2),
 ];
 
-/// Every call of `functions.tsv` returns Go's results, except where Go panics (each such call
-/// is checked against the port's documented behaviour) and the documented `String` gap.
-#[test]
-fn functions() -> TestResult {
+/// Replays the calls of a golden file in the format of `functions.tsv`: every call must return
+/// Go's results, except the `go_panics` calls where Go panics (each checked against the port's
+/// documented behaviour) and the `string_gaps` calls, by function, that differ only by the
+/// documented `String` gap. At least `min_calls` calls must be replayed.
+fn replay_calls(
+    file: &str,
+    min_calls: usize,
+    go_panics: usize,
+    string_gap_calls: &[(&str, usize)],
+) -> TestResult {
     let mut failures = Vec::new();
     let mut calls = 0;
     let mut panics = 0;
     let mut string_gaps: BTreeMap<String, usize> = BTreeMap::new();
-    for row in golden_rows("functions.tsv")? {
+    for row in golden_rows(file)? {
         if row.first().is_some_and(|f| f == b"#go") {
             continue;
         }
         let split = row
             .iter()
             .position(|f| f == b"->")
-            .ok_or("a functions.tsv row without \"->\"")?;
+            .ok_or_else(|| format!("a {file} row without \"->\""))?;
         let (head, results) = row.split_at(split);
         let results = results.get(1..).unwrap_or_default();
         let [name, _label, args @ ..] = head else {
-            return Err(format!("bad functions.tsv row of {} fields", row.len()));
+            return Err(format!("bad {file} row of {} fields", row.len()));
         };
         let c = Call {
             name: from_utf8(name).map_err(|e| e.to_string())?,
@@ -454,14 +461,44 @@ fn functions() -> TestResult {
             shown(results)
         ));
     }
-    report("functions.tsv", &failures, 20)?;
-    if calls < 1200 {
-        return Err(format!("functions.tsv: only {calls} calls"));
+    report(file, &failures, 20)?;
+    if calls < min_calls {
+        return Err(format!("{file}: only {calls} calls"));
     }
-    ensure_eq(&panics, &GO_PANICS, "calls where Go panics")?;
-    let want: BTreeMap<String, usize> = STRING_GAPS
+    ensure_eq(
+        &panics,
+        &go_panics,
+        &format!("{file}: calls where Go panics"),
+    )?;
+    let want: BTreeMap<String, usize> = string_gap_calls
         .iter()
         .map(|&(name, n)| (name.to_owned(), n))
         .collect();
-    ensure_eq(&string_gaps, &want, "calls that differ by the String gap")
+    ensure_eq(
+        &string_gaps,
+        &want,
+        &format!("{file}: calls that differ by the String gap"),
+    )
+}
+
+/// Every call of `functions.tsv` returns Go's results, except where Go panics (each such call
+/// is checked against the port's documented behaviour) and the documented `String` gap.
+#[test]
+fn functions() -> TestResult {
+    replay_calls("functions.tsv", 1200, GO_PANICS, &STRING_GAPS)
+}
+
+/// The adversarial review's calls (`testdata/go/review.go`), none where Go panics: bidder names
+/// under Go's Unicode case mapping and folding, and sampled multibid, deal tier, alternate
+/// bidder code, ATTS, floors, consented-provider and clone inputs. The only `String` gap is the
+/// one [`STRING_GAPS`] documents for `ReadDealTiersFromImp`: the `"minDealTier":"5"` documents,
+/// whose jsoniter error text ends in the byte `0xff`.
+#[test]
+fn review_functions() -> TestResult {
+    replay_calls(
+        "review_functions.tsv",
+        8500,
+        0,
+        &[("ReadDealTiersFromImp", 5)],
+    )
 }
