@@ -836,3 +836,84 @@ encodes a `case.json` for every case of the repository corpus.
 * the bidders dump, health and reset documents are correct;
 * the token and loopback guards apply to the routes registered from `init`;
 * every response validates against its schema.
+
+## ReplayHarness
+
+ReplayHarness is a separate tool (CLI `replayharness`) that maps an HTTP API
+from its source code and then generates requests from that map: built-in
+probes, replays its agents write, and recorded or mutated traffic. For parity,
+its value is the requests it generates. Its own `--baseline` comparison only
+checks the status code and the body's shape, so it adds to the byte-exact
+Go-vs-Rust runner and does not replace it. So far the repository has the API
+map and a check for it. Nothing yet turns ReplayHarness requests into
+parity cases.
+
+### The API map
+
+`parity/replayharness/api.yaml` maps the Go server in the format of the
+ReplayHarness discovery agent (`agents/replayharness-discovery.md` in the
+ReplayHarness repository). It has 28 endpoints:
+
+* every route on the main port: `router/router.go`, plus the stored-request
+  event API, which exists only with `stored_requests.cache_events.enabled`;
+* the admin port (`router/admin.go`) and the Prometheus port
+  (`server/prometheus.go`). The map has no port field, so these endpoints say
+  so in their first rule.
+
+For each endpoint the map records:
+
+* the handler's `file:line`;
+* the path, query and header parameters, and an example body;
+* the status codes;
+* the rules the handler enforces, each with its `file:line`: size limits,
+  required parameters, account checks, privacy and consent, cookie behaviour,
+  stored-data lookups, and error statuses and texts.
+
+The notes cover what many endpoints share:
+
+* the handler chain: NoCache, CORS and httprouter, with httprouter's 404, 405,
+  redirect, HEAD and OPTIONS behaviour;
+* account resolution.
+
+The notes also give the parity facts a replay needs:
+
+* the stored request, imp, response and account IDs in `fixtures/stored`;
+* the base profiles;
+* the configured and disabled bidders, and the syncer keys;
+* the endpoints the profiles switch off (video, the stored-request event API);
+* how to send a `uids` cookie, with ready-made values.
+
+Two parity hazards were found while mapping:
+
+* the `uids` Set-Cookie depends on the wall clock;
+* `/cookie_sync` without `bidders` returns the syncers in map order.
+
+`/__parity/*` is left out on purpose: it is the harness, not the product.
+
+Send ReplayHarness requests only to a server that the parity runner started.
+Such a server runs in parity mode on 127.0.0.1, and the mock oracle answers
+every outbound call. Never pass `--allow-remote` to ReplayHarness.
+
+### Checking the map
+
+```sh
+REPLAYHARNESS=/path/to/replayharness parity/scripts/replayharness-context.sh [report.md]
+```
+
+The script reads the repository and sends no requests:
+
+1. It builds a scan root in a temporary directory outside the repository. The
+   root holds every non-test Go file that could register a route, without
+   `rust/` and `parity/`. Full-line `//` comments are blanked, with line
+   numbers kept, so documentation examples such as
+   `stored_requests/events/api/api.go:22-23` are not taken for routes.
+2. It copies the map into that root as `.replayharness/api.yaml`.
+3. It runs `replayharness context` on the root. The script fails when the
+   report has a "Spec drift" section, that is, when the code registers a route
+   the map misses or the map lists a route with no handler.
+4. It checks that every `file:line` the map cites is inside an existing
+   repository file.
+
+It exits 0 when there is no drift and every citation is valid, and 1
+otherwise. The optional argument keeps the full context report. After a route
+or handler changes, update `api.yaml` and run the script again.

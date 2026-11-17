@@ -1,0 +1,790 @@
+# ReplayHarness API map of the Go Prebid Server, the reference the Rust port
+# must match. Every route the Go code registers on the main, admin and
+# Prometheus listeners is here, with its handler file:line, its inputs, and the
+# rules it enforces. The notes give the parity profile facts a replay needs.
+#
+# Format: ReplayHarness agents/replayharness-discovery.md. Check it against the
+# code with parity/scripts/replayharness-context.sh (see parity/README.md).
+name: Prebid Server (Go reference)
+notes:
+- Three listeners. The main port (port, default 8000; PBS_PORT in parity runs) serves every endpoint here unless its rules say otherwise. The admin port (admin_port, default 6060, on while admin.enabled is true) serves /debug/pprof/*, /currency/rates and its own /version (router/admin.go:13-27, server/server.go:57-68). The Prometheus port (metrics.prometheus.port, 0 turns it off) serves /metrics (server/server.go:70-83). The map has no port field, so each admin or Prometheus endpoint says so in its first rule.
+- 'Main-port chain, outermost first: gzip response compression (only with compression.response.enable_gzip), NoCache, CORS, then httprouter (main.go:88-94, server/server.go:97-132). With parity.enabled, wiring.Mount answers /__parity/* before NoCache (main.go:91-93).'
+- |-
+  NoCache adds Cache-Control 'no-cache, no-store, must-revalidate', Pragma 'no-cache' and Expires '0' to every main-port response (router/router.go:107-116).
+- |-
+  CORS is rs/cors v1.11.0, configured in router/router.go:385-393. Every request that is not a preflight gets 'Vary: Origin'. With an Origin header and method GET, POST or HEAD, it also gets Access-Control-Allow-Origin echoing that Origin and Access-Control-Allow-Credentials 'true'. A preflight (OPTIONS with Access-Control-Request-Method) never reaches the router: it answers 204 with an empty body and Vary 'Origin, Access-Control-Request-Method, Access-Control-Request-Headers'. The Allow-* headers come back only when Origin is set, the requested method is GET, POST or HEAD, and the requested headers are within Origin, X-Requested-With, Content-Type and Accept.
+- |-
+  Router is httprouter v1.3.0 with its defaults (Router.ServeHTTP). An unknown path answers 404 '404 page not found\n' (text/plain; charset=utf-8, X-Content-Type-Options nosniff). A known path with the wrong method answers 405 'Method Not Allowed\n' with Allow listing the registered methods plus OPTIONS in sorted order, for example 'OPTIONS, POST' for GET /openrtb2/auction. HEAD is never registered, so HEAD on any main-port route is 405. OPTIONS without Access-Control-Request-Method answers 200 with Allow and an empty body. A path that differs from a route only by a trailing slash or by letter case redirects to the route: 301 for GET, 307 for other methods (GET /status/ and GET /STATUS go to /status). There is no panic handler.
+- No route checks credentials, so every endpoint has auth false. Accounts are named in the request (publisher.id, account, a), not authenticated.
+- |-
+  Account resolution, shared by every endpoint that names an account (account/account.go:27-94). A missing account is 'unknown'. With account_required true, 'unknown' fails with AcctRequired 'Prebid-server has been configured to discard requests without a valid Account ID. Please reach out to the prebid server host.' An ID with no stored account falls back to account_defaults, and that is accepted even with account_required, unless account_defaults.disabled is true (account/account.go:43-62). A disabled account fails with 'Prebid-server has disabled Account ID: <id>, please reach out to the prebid server host.' (account/account.go:85-90). A stored account that is not valid JSON fails with MalformedAcct. Each endpoint maps these errors to its own status code.
+- |-
+  Built without -ldflags, the auction and AMP responses carry X-Prebid 'pbs-go/unknown', and /version answers revision and version 'not-set' (version/xprebidheader.go:12-16, endpoints/version.go:14-40).
+- 'Parity runs: the runner starts the server with parity.enabled, host 127.0.0.1, ports from the free-port helper through PBS_PORT, PBS_ADMIN_PORT and PBS_METRICS_PROMETHEUS_PORT, TZ=UTC, and every outbound call going to the mock oracle on loopback (parity/runner/profiles.go:189-210, parity/runner/procs.go:128-151). The filesystem stored-data backends all read ./stored.'
+- Parity requests reach the server as POST /__parity/exec envelopes. Exec dispatches any method and path through the full main-port chain, with RemoteAddr 127.0.0.1:0 and Host 127.0.0.1 unless the envelope sets them (parity/server/exec.go:131-160, parity/server/request.go:22-25). Admin-port and Prometheus-port endpoints cannot be reached through exec.
+- |-
+  The default parity profile is Go's defaults plus four settings: gdpr.default_value '0'; the cache at http://prebid-cache.parity.test/cache, which the oracle answers with content-addressed UUIDs; HTTP client throttling off; and ads.cert off (parity/fixtures/profiles/default.yaml). The other base profiles are account-required (account_required true), events-cache (account_defaults.events.enabled true, external_url http://pbs.parity.test, cache TTLs), floors, and gdpr-enforced (gdpr.default_value '1', tcf2 on, host_vendor_id 0). A case can add overrides through corpus.Profile (parity/corpus/profile.go:22-76).
+- |-
+  Parity stored data (parity/fixtures/stored), present in every run. Accounts: parity-account (enabled, no settings) and parity-disabled-account (disabled). Stored request parity-stored-request: a site request for parity-account with tmax 500, price granularity 'low' and no imp. Stored imp parity-stored-imp: a 300x250 banner bidding to appnexus with placementId 12883451. Stored response parity-stored-response: one appnexus seatbid with bid parity-bid, price 1.25, for impid parity-stored-imp. A case can bring more stored data (corpus.Case.Stored); a case that gives one of these IDs different content runs in a separate batch (parity/fixtures/stored/README.md).
+- 'Parity bidders: every bidder in static/bidder-info is configured: 398 files, 116 of them aliases. 18 are disabled by default: adagio, adxcg, appStockSSP, audienceNetwork, avocet, dianomi, epom, huaweiads, ix, m152, mgidX, pangle, revcontent, rubicon, selectmedia, stroeerCore, triplelift_native, zeta_global_ssp. The oracle answers bidder calls by fixture replay, then templates, then 204. User syncers exist only for enabled bidders whose bidder info defines userSync: 235 enabled files do, for example appnexus (syncer key adnxs, redirect), pubmatic (iframe and redirect) and openx (iframe) (usersync/syncersbuilder.go:28-90).'
+- |-
+  Parity limits: video.enable_deprecated_endpoint is false in every profile, and corpus.Profile has no switch for it, so POST /openrtb2/video always answers 501. vtrack.enabled stays true. stored_requests.cache_events is off, so /storedrequests/* answer 404. status_response is empty, so /status answers 204. host_cookie is unset. Outbound calls the oracle has no answer for, such as the /optout recaptcha check, get its 404 unless the case's mock plan has a rule (parity/oracle/generators.go:242-261).
+- |-
+  To send a user-sync cookie, add the header 'Cookie: uids=<value>'. The value is the base64url encoding, with padding, of {"tempUIDs":{"<syncer key>":{"uid":"<uid>","expires":"<RFC 3339 time>"}},"optout":<bool>} (usersync/cookie.go:13, 223-259; usersync/encoder.go:16-23; usersync/decoder.go:15-27). One live adnxs uid: 'uids=eyJ0ZW1wVUlEcyI6eyJhZG54cyI6eyJ1aWQiOiJyaC1hZG54cy11aWQiLCJleHBpcmVzIjoiMjA5OS0wMS0wMVQwMDowMDowMFoifX19'. Opted out: 'uids=eyJvcHRvdXQiOnRydWV9'. A value that does not decode is treated as an empty cookie. A uid is live while its expires is in the future (usersync/cookie.go:170-177, 203-213). optout true drops every uid and blocks syncs. An audienceNetwork uid of '0' is dropped. The host cookie (host_cookie.cookie_name and family) and the opt-out cookie (host_cookie.optout_cookie) are off by default (usersync/cookie.go:135-153).
+- 'Parity hazard: the uids Set-Cookie depends on the wall clock. Its Expires is now plus host_cookie.ttl_days (90), and each uid synced in the request gets expires now plus 14 days, with nanoseconds, inside the encoded value (usersync/cookie.go:93-132). Nothing in parity/schema/normalization.json masks either value, and the clock is not faked, so /setuid and /optout Set-Cookie headers differ between two processes.'
+- |-
+  Parity hazard: /cookie_sync without 'bidders' (and with coopSync off) evaluates every syncer in the order NewChooser got them from ranging over a map (usersync/chooser.go:18-33). The usersync.shuffle decision 'identity' keeps that order (usersync/shuffler.go:18-26), so bidder_status order differs between processes. List the bidders explicitly to get a stable order.
+- |-
+  Left out on purpose: /__parity/* is the harness's own surface. It is off unless parity.enabled, answers 403 to callers off loopback and 401 without the right X-Parity-Token, and is not product behaviour (parity/wiring/mount.go:43-101). parity/scripts/replayharness-context.sh does not scan parity/ or rust/. There is no /getuid route (singular); GET /getuid answers 404.
+- |-
+  Do not probe /debug/pprof/profile or /debug/pprof/trace: they block for their 'seconds' parameter (default 30 and 1) while they record.
+endpoints:
+- method: POST
+  path: /openrtb2/auction
+  handler: endpoints/openrtb2/auction.go:162
+  auth: false
+  params:
+  - {name: Content-Encoding, in: header, enum: [gzip]}
+  - {name: Referer, in: header, example: 'https://parity.test/page'}
+  - {name: User-Agent, in: header, example: Mozilla/5.0 (X11; Linux x86_64) Chrome/120.0.0.0}
+  - {name: X-Forwarded-For, in: header, example: 203.0.113.7}
+  - {name: Cookie, in: header, example: uids=eyJ0ZW1wVUlEcyI6eyJhZG54cyI6eyJ1aWQiOiJyaC1hZG54cy11aWQiLCJleHBpcmVzIjoiMjA5OS0wMS0wMVQwMDowMDowMFoifX19}
+  - {name: Sec-GPC, in: header, example: '1'}
+  - {name: Sec-Browsing-Topics, in: header, example: '(1 2);v=chrome.1:1:2'}
+  body:
+    example:
+      id: rh-auction-1
+      site:
+        page: https://parity.test/page
+        publisher:
+          id: parity-account
+      imp:
+      - id: imp-1
+        banner:
+          format:
+          - w: 300
+            h: 250
+        ext:
+          prebid:
+            bidder:
+              appnexus:
+                placementId: 12883451
+      tmax: 500
+      ext:
+        prebid:
+          storedrequest:
+            id: parity-stored-request
+    required:
+    - id
+    - imp
+    - imp[].id
+    - imp[].ext
+    fields:
+      id: {type: string, min_length: 1}
+      tmax: {type: integer, min: 0}
+      imp[].id: {type: string, min_length: 1}
+      imp[].banner.format[].w: {type: integer, min: 1}
+      imp[].banner.format[].h: {type: integer, min: 1}
+  responses:
+    '200': OpenRTB BidResponse JSON plus a newline, Content-Type application/json, HTML not escaped; warnings are in ext.warnings (endpoints/openrtb2/auction.go:360-407). A module rejection is also 200, with nbr (endpoints/openrtb2/auction.go:340-358).
+    '400': |-
+      one 'Invalid request: <message>\n' line per error (endpoints/openrtb2/auction.go:1947-1972), or a BadInput error from the auction (endpoints/openrtb2/auction.go:287-291)
+    '403': blocked app (blocked_apps) or disabled account (endpoints/openrtb2/auction.go:1954-1957)
+    '500': |-
+      malformed stored account (endpoints/openrtb2/auction.go:1958-1961), or 'Critical error while running the auction: <err>' (endpoints/openrtb2/auction.go:292-299)
+  rules:
+  - 'the example merges stored request parity-stored-request under the body: the stored request is the base and the body wins (JSON merge patch; endpoints/openrtb2/auction.go:1722-1841)'
+  - |-
+    a body larger than max_request_size (262144 bytes) answers 400 'Invalid request: request size exceeded max size of 262144 bytes.\n'; a body of exactly 262144 bytes is accepted (endpoints/openrtb2/auction.go:448-470)
+  - |-
+    a Content-Encoding header is rejected while compression.request.enable_gzip is false (the default): 400 'Invalid request: Content-Encoding of type gzip is not supported\n' (endpoints/openrtb2/auction.go:434-438)
+  - |-
+    a body without id answers 400 'Invalid request: request missing required field: "id"\n' (endpoints/openrtb2/auction.go:803-805)
+  - |-
+    a negative tmax answers 400 'Invalid request: request.tmax must be nonnegative. Got -1\n' (endpoints/openrtb2/auction.go:807-809)
+  - |-
+    an empty imp array answers 400 'Invalid request: request.imp must contain at least one element.\n' (endpoints/openrtb2/auction.go:811-813)
+  - |-
+    an imp without id answers 400 'request.imp[0] missing required field: "id"' (ortb/request_validator.go:38-40)
+  - |-
+    an imp with none of banner, video, audio or native answers 400 'request.imp[0] must contain at least one of "banner", "video", "audio", or "native"' (ortb/request_validator.go:46-48)
+  - |-
+    an imp without ext answers 400 'request.imp[0].ext is required' (ortb/request_validator.go:81-83)
+  - |-
+    two imps with the same id answer 400 'request.imp[0].id and request.imp[1].id are both "x". Imp IDs must be unique.' (endpoints/openrtb2/auction.go:950-956)
+  - |-
+    a banner with no w/h and no format answers 400 'request.imp[0].banner has no sizes. Define "w" and "h", or include "format" elements.' (ortb/request_validator_banner.go:43-46); banner wmin, wmax, hmin or hmax answer 400 'uses unsupported property' (ortb/request_validator_banner.go:30-41)
+  - |-
+    a format entry with w and h both 0 answers 400 'Request imp[0].banner.format[0] should define *either* {w, h} (for static size requirements) *or* {wmin, wratio, hratio} (for flexible sizes) to be non-zero.' (ortb/request_validator_banner.go:85-87)
+  - |-
+    an unknown bidder in imp.ext.prebid.bidder answers 400 'request.imp[0].ext.prebid.bidder contains unknown bidder: <name>. Did you forget an alias in request.ext.prebid.aliases?' (ortb/request_validator.go:150-152)
+  - |-
+    bidder params are validated against static/bidder-params/<bidder>.json: appnexus {} answers 400 'request.imp[0].ext.prebid.bidder.appnexus failed validation.\n<schema error>' (ortb/request_validator.go:133-138); with two failing bidders, parity mode reports the first by name (ortb/request_validator.go:126)
+  - |-
+    a disabled bidder (for example rubicon) is dropped with a BidderTemporarilyDisabled warning; if it was the only bidder, the request answers 400 'request.imp[0].ext.prebid.bidder must contain at least one bidder' (ortb/request_validator.go:139-142, 156-158)
+  - |-
+    with none of site, app or dooh, an implicit site is created from the Referer header (endpoints/openrtb2/auction.go:1546-1549, 1625-1649). So such a body without a Referer answers 400 'request.site should include at least one of request.site.id or request.site.page.' (endpoints/openrtb2/auction.go:1229-1247)
+  - |-
+    more than one of site, app and dooh answers 400 'No more than one of request.site or request.app or request.dooh can be defined' (endpoints/openrtb2/auction.go:1460-1482)
+  - |-
+    the account is the first of app, site or dooh .publisher.ext.prebid.parentAccount, then .publisher.id, read from the stored request first; a non-string value answers 400 'site.publisher.id must be a string' (endpoints/openrtb2/auction.go:76-87, 1991-2042)
+  - |-
+    publisher.id parity-disabled-account answers 403 'Invalid request: Prebid-server has disabled Account ID: parity-disabled-account, please reach out to the prebid server host.\n' (account/account.go:85-90, endpoints/openrtb2/auction.go:1954-1957)
+  - under the account-required profile, a request with no publisher answers 400 with the AcctRequired message; an unknown non-empty publisher.id is still accepted (account/account.go:27-62)
+  - |-
+    an unknown ext.prebid.storedrequest.id answers 400 'Invalid request: Stored Request with ID="x" not found.\n', and an unknown imp.ext.prebid.storedrequest.id answers 'Stored Imp with ID="x" not found.' (stored_requests/fetcher.go:59-61, stored_requests/backends/file_fetcher/fetcher.go:30-36, 157-167)
+  - |-
+    a non-string ext.prebid.storedrequest.id answers 400 'ext.prebid.storedrequest.id must be a string' (endpoints/openrtb2/auction.go:1880)
+  - imp.ext.prebid.storedauctionresponse.id parity-stored-response returns that seatbid without calling any bidder (stored_responses/stored_responses.go:74-81, endpoints/openrtb2/auction.go:597-603)
+  - |-
+    storedauctionresponse without id answers 400 'request.imp[0] has ext.prebid.storedauctionresponse specified, but "id" field is missing ' (with a trailing space); an unknown id answers 400 'Invalid request: Stored Response with ID="<id>" not found.\n' from the file fetcher (stored_responses/stored_responses.go:74-77, 138-143; stored_requests/backends/file_fetcher/fetcher.go:39-47)
+  - |-
+    regs.gdpr other than 0 or 1 answers 400 'request.regs.gdpr must be either 0 or 1' (endpoints/openrtb2/auction.go:1380-1407)
+  - |-
+    ext.prebid.channel.name set to '' answers 400 'ext.prebid.channel.name can't be empty' (endpoints/openrtb2/auction.go:1484-1497)
+  - |-
+    app.id listed in blocked_apps answers 403 'Prebid-server does not process requests from App ID: <id>' (endpoints/openrtb2/auction.go:1249-1262)
+  - |-
+    two currencies in cur add the warning 'A prebid request can only process one currency. Taking the first currency in the list, <cur>, as the active currency' and the request continues (endpoints/openrtb2/auction.go:816-818)
+  - |-
+    a Sec-Browsing-Topics request header adds the response header 'Observe-Browsing-Topics: ?1' (endpoints/openrtb2/auction.go:412-417)
+  - |-
+    request id '{{UUID}}' is replaced from the parity UUID stream; any other id is kept, because generate_request_id is false (endpoints/openrtb2/auction.go:1722-1841, config/config.go:1288)
+  - |-
+    a live uids cookie is read for the cookie label and the bidders' buyeruids (endpoints/openrtb2/auction.go:227-238)
+- method: POST
+  path: /openrtb2/video
+  handler: endpoints/openrtb2/video_auction.go:123
+  auth: false
+  body:
+    example:
+      storedrequestid: parity-stored-request
+      podconfig:
+        durationrangesec:
+        - 15
+        - 30
+        requireexactduration: false
+        pods:
+        - podid: 1
+          adpoddurationsec: 30
+          configid: parity-stored-imp
+      site:
+        page: https://parity.test/video
+        publisher:
+          id: parity-account
+      video:
+        mimes:
+        - video/mp4
+        protocols:
+        - 2
+        - 3
+        w: 640
+        h: 480
+    required:
+    - podconfig
+    - podconfig.durationrangesec
+    - podconfig.pods
+    - podconfig.pods[].podid
+    - podconfig.pods[].adpoddurationsec
+    - podconfig.pods[].configid
+    - video
+    - video.mimes
+    - video.protocols
+    fields:
+      podconfig.pods[].podid: {type: integer, min: 1}
+      podconfig.pods[].adpoddurationsec: {type: integer, min: 1}
+  responses:
+    '200': 'video response JSON {adPods: [...]}, Content-Type application/json (endpoints/openrtb2/video_auction.go:429-430)'
+    '400': account required (endpoints/openrtb2/video_auction.go:456-459)
+    '403': blocked app or disabled account (endpoints/openrtb2/video_auction.go:452-455)
+    '500': |-
+      every other error, including validation errors: 'Critical error while running the video endpoint: <errors>' (endpoints/openrtb2/video_auction.go:440-472)
+    '501': the endpoint is disabled (the default, and every parity profile)
+  rules:
+  - |-
+    with video.enable_deprecated_endpoint false (the default and every parity profile), every request answers 501 'The video endpoint is deprecated and will be removed in 5.0. You may re-enable it via the host configuration setting video.enable_deprecated_endpoint', without a newline, before X-Prebid is set (endpoints/openrtb2/video_auction.go:126-130)
+  - |-
+    validation errors answer 500, not 400; the body is 'Critical error while running the video endpoint: ' followed by ' <error>' for each error, so there are two spaces before the first one (endpoints/openrtb2/video_auction.go:448-469)
+  - a body over max_request_size is cut at max_request_size bytes and parsed, with no size error (endpoints/openrtb2/video_auction.go:179-188)
+  - storedrequestid is looked up in stored_requests and merged under the body; a missing storedrequestid is an error only with video_stored_request_required (endpoints/openrtb2/video_auction.go:201-223, 669-675)
+  - |-
+    a pod whose configid is not a stored imp is dropped with 'unable to load configid <id>, Pod id: <podid>'; when every pod is dropped the request answers 500 'all pods are incorrect: ...' (endpoints/openrtb2/video_auction.go:261-271, 483-494)
+  - |-
+    validation messages include 'request missing required field: PodConfig.DurationRangeSec', 'duration array cannot contain negative or zero values', 'request missing required field: Video.Mimes' and 'request.site or request.app must be defined, but not both' (endpoints/openrtb2/video_auction.go:802-906)
+  - |-
+    the generated OpenRTB request id is always 'bid_id' (endpoints/openrtb2/video_auction.go:274)
+  - tmax defaults to 5000 ms when 0 (endpoints/openrtb2/video_auction.go:45, 709-713)
+  - an error from SetDefaults is reported with the earlier error list, not the SetDefaults error (endpoints/openrtb2/video_auction.go:285-289)
+- method: GET
+  path: /openrtb2/amp
+  handler: endpoints/openrtb2/amp_auction.go:112
+  auth: false
+  params:
+  - {name: tag_id, in: query, required: true, example: rh-amp-stored, type: string, min_length: 1}
+  - {name: account, in: query, example: parity-account, type: string}
+  - {name: curl, in: query, example: 'https://parity.test/amp-page', type: string, format: uri}
+  - {name: w, in: query, example: 300, type: integer}
+  - {name: h, in: query, example: 250, type: integer}
+  - {name: ow, in: query, type: integer}
+  - {name: oh, in: query, type: integer}
+  - {name: ms, in: query, example: '300x250,320x50', type: string}
+  - {name: slot, in: query, example: /1234/amp-slot, type: string}
+  - {name: timeout, in: query, example: 800, type: integer, min: 0}
+  - {name: gdpr_applies, in: query, type: boolean}
+  - {name: consent_string, in: query, type: string}
+  - {name: gdpr_consent, in: query, type: string}
+  - {name: consent_type, in: query, type: integer, enum: [1, 2, 3]}
+  - {name: addtl_consent, in: query, type: string}
+  - {name: targeting, in: query, example: '{"site":{"keywords":"amp"}}', type: string}
+  - {name: debug, in: query, enum: ['0', '1']}
+  - {name: trace, in: query, enum: [verbose, basic]}
+  - {name: __amp_source_origin, in: query, example: 'https://parity.test', type: string}
+  - {name: Origin, in: header, example: 'https://parity.test'}
+  - {name: Cookie, in: header, example: uids=eyJ0ZW1wVUlEcyI6eyJhZG54cyI6eyJ1aWQiOiJyaC1hZG54cy11aWQiLCJleHBpcmVzIjoiMjA5OS0wMS0wMVQwMDowMDowMFoifX19}
+  responses:
+    '200': |-
+      {"targeting":{...},"ortb2":{"ext":{...}}} plus a newline, Content-Type 'text/plain; charset=utf-8' (endpoints/openrtb2/amp_auction.go:394-438)
+    '400': |-
+      'Invalid request: <message>\n' per fatal error: parameter, stored request or validation errors (endpoints/openrtb2/amp_auction.go:171-179, 243-254)
+    '403': blocked app or disabled account (endpoints/openrtb2/amp_auction.go:212-216)
+    '500': |-
+      malformed stored account, or 'Critical error while running the auction: <err>' (endpoints/openrtb2/amp_auction.go:217-221, 302-320)
+  rules:
+  - the request is the stored request named by tag_id; parity fixtures have none with one imp, so a case must bring its own stored request (parity-stored-request has no imp) (endpoints/openrtb2/amp_auction.go:555-632)
+  - |-
+    a missing tag_id answers 400 'Invalid request: AMP requests require an AMP tag_id\n' (amp/parse.go:159-162)
+  - |-
+    an unknown tag_id answers 400 'Invalid request: Stored Request with ID="<tag_id>" not found.\n' (endpoints/openrtb2/amp_auction.go:567-571, stored_requests/backends/file_fetcher/fetcher.go:157-167)
+  - |-
+    tag_id=parity-stored-request answers 400 'Invalid request: data for tag_id='parity-stored-request' does not define the required imp array\n' (endpoints/openrtb2/amp_auction.go:606-609)
+  - |-
+    a stored request with two imps answers 400 'data for tag_id '<id>' includes 2 imp elements. Only one is allowed', and one with app answers 400 'request.app must not exist in AMP stored requests.' (endpoints/openrtb2/amp_auction.go:610-618)
+  - |-
+    gdpr_applies must parse with strconv.ParseBool: gdpr_applies=yes answers 400 'Invalid request: strconv.ParseBool: parsing "yes": invalid syntax\n' (amp/parse.go:185-190, 219-226)
+  - |-
+    timeout must be an unsigned integer: timeout=-1 answers 400 'Invalid request: strconv.ParseUint: parsing "-1": invalid syntax\n' (amp/parse.go:192-197, 202-210)
+  - w, h, ow, oh and consent_type that do not parse are treated as 0, with no error (amp/parse.go:212-217)
+  - timeout sets tmax to timeout minus amp_timeout_adjustment_ms (0); with tmax 0 the auction deadline is 900 ms (endpoints/openrtb2/amp_auction.go:183-189, 686-688)
+  - the imp is always sent with secure 1, curl sets site.page and site.domain (the port is stripped), site.ext.amp is 1, and slot sets imp.tagid (endpoints/openrtb2/amp_auction.go:620-666)
+  - account fills the publisher id only when the stored request has none, and account=ACCOUNT_ID (the unresolved macro) is ignored (endpoints/openrtb2/amp_auction.go:857-879)
+  - debug=1 sets test 1 on the request (endpoints/openrtb2/amp_auction.go:602-604)
+  - |-
+    AMP-Access-Control-Allow-Source-Origin echoes __amp_source_origin, or else the Origin header, and Access-Control-Expose-Headers is 'AMP-Access-Control-Allow-Source-Origin' (endpoints/openrtb2/amp_auction.go:145-157)
+  - targeting comes only from bids whose targeting has an hb_cache_id key, plus the response ext.prebid.targeting (endpoints/openrtb2/amp_auction.go:360-410)
+  - 'suspicious: errors from processing stored responses are dropped, because the code checks err rather than errs and errs is then overwritten (endpoints/openrtb2/amp_auction.go:586-591, 628)'
+- method: GET
+  path: /info/bidders
+  handler: endpoints/info/bidders.go:18
+  auth: false
+  params:
+  - {name: enabledonly, in: query, type: string, enum: ['true', 'false']}
+  - {name: baseadaptersonly, in: query, type: string, enum: ['true', 'false']}
+  responses:
+    '200': sorted JSON array of bidder names, Content-Type application/json (endpoints/info/bidders.go:95-136)
+    '400': |-
+      'Invalid value for 'enabledonly' query param, must be of boolean type' or the baseadaptersonly version, no newline (endpoints/info/bidders.go:14-15)
+  rules:
+  - the flags compare case-insensitively with true and false (TRUE works); any other value, including an empty value, answers 400 (endpoints/info/bidders.go:75-91)
+  - with both flags invalid, the enabledonly message wins (endpoints/info/bidders.go:61-73)
+  - without flags, the list leaves out whiteLabelOnly bidders such as teqblaze but includes disabled ones; enabledonly=true leaves out disabled bidders but keeps whiteLabelOnly ones; baseadaptersonly=true leaves out aliases (endpoints/info/bidders.go:108-126)
+  - the four responses are built once at startup (endpoints/info/bidders.go:18-37)
+- method: GET
+  path: /info/bidders/{bidderName}
+  handler: endpoints/info/bidders_detail.go:22
+  auth: false
+  params:
+  - {name: bidderName, in: path, example: appnexus, type: string}
+  responses:
+    '200': 'bidder detail JSON {status, usesHttps, maintainer: {email}, capabilities: {app, site, dooh: {mediaTypes}}, aliasOf}, Content-Type application/json (endpoints/info/bidders_detail.go:117-136)'
+    '404': unknown bidder, or a whiteLabelOnly bidder; empty body (endpoints/info/bidders_detail.go:31-44)
+  rules:
+  - the name is matched case-insensitively (AppNexus works) (endpoints/info/bidders_detail.go:47-56)
+  - |-
+    'all', in any case, answers one object with every non-whiteLabelOnly bidder's detail (endpoints/info/bidders_detail.go:47-50, 57-75)
+  - an enabled bidder has status ACTIVE, usesHttps true only if its endpoint starts with https://, and capabilities; appnexus has usesHttps false (endpoints/info/bidders_detail.go:139-181)
+  - a disabled bidder (for example rubicon) answers 200 with status DISABLED and no usesHttps or capabilities (endpoints/info/bidders_detail.go:177-179)
+  - teqblaze (whiteLabelOnly) answers 404 although it is a known name (endpoints/info/bidders_detail.go:77-87)
+- method: GET
+  path: /bidders/params
+  handler: router/router.go:64
+  auth: false
+  responses:
+    '200': one JSON object mapping every bidder, aliases included, to its params JSON schema; Content-Type application/json
+  rules:
+  - |-
+    built once at startup from static/bidder-params; an alias gets its parent's schema (router/router.go:68-101)
+  - query parameters are ignored
+- method: POST
+  path: /cookie_sync
+  handler: endpoints/cookie_sync.go:97
+  auth: false
+  params:
+  - {name: Cookie, in: header, example: uids=eyJ0ZW1wVUlEcyI6eyJhZG54cyI6eyJ1aWQiOiJyaC1hZG54cy11aWQiLCJleHBpcmVzIjoiMjA5OS0wMS0wMVQwMDowMDowMFoifX19}
+  - {name: User-Agent, in: header, example: Mozilla/5.0 Chrome/120.0.0.0}
+  body:
+    example:
+      bidders:
+      - appnexus
+      - pubmatic
+      gdpr: 0
+      gdpr_consent: ''
+      us_privacy: 1---
+      limit: 2
+      gpp: ''
+      gpp_sid: ''
+      coopSync: false
+      filterSettings:
+        iframe:
+          bidders: '*'
+          filter: include
+        image:
+          bidders:
+          - appnexus
+          filter: include
+      account: parity-account
+      debug: true
+    fields:
+      gdpr: {type: integer, enum: [0, 1]}
+      limit: {type: integer}
+      filterSettings.iframe.filter: {type: string, enum: [include, exclude]}
+      filterSettings.image.filter: {type: string, enum: [include, exclude]}
+  responses:
+    '200': |-
+      {"status":"ok"|"no_cookie","bidder_status":[{"bidder","no_cookie":true,"usersync":{"url","type"}}],"debug":[{"bidder","error"}]} plus a newline, Content-Type 'application/json; charset=utf-8', HTML not escaped (endpoints/cookie_sync.go:506-563)
+    '400': |-
+      text/plain '<error>\n' through http.Error: JSON, account, privacy or filter errors (endpoints/cookie_sync.go:100-103, 463-470)
+    '401': |-
+      'User has opted out\n' for an opted-out uids cookie (endpoints/cookie_sync.go:112-115)
+  rules:
+  - |-
+    a body that is not valid JSON answers 400 'JSON parsing failed: <err>\n'; gdpr must be a JSON number, so "gdpr":"1" fails to parse (endpoints/cookie_sync.go:133-136, 628-640)
+  - |-
+    account '' becomes 'unknown'; account parity-disabled-account answers 400 'account is disabled, please reach out to the prebid server host\n'; under account-required, no account answers 400 'account must be valid if provided, please reach out to the prebid server host\n' (endpoints/cookie_sync.go:138-144, 472-489)
+  - |-
+    gdpr 1 without gdpr_consent answers 400 'gdpr_consent is required if gdpr=1\n' (endpoints/cookie_sync.go:228-231)
+  - |-
+    no gdpr and no consent under gdpr.default_value '1' (the gdpr-enforced profile) answers 400 'gdpr_consent is required. gdpr is not specified and is assumed to be 1 by the server. set gdpr=0 to exempt this request\n'; the default profile ('0') accepts it (endpoints/cookie_sync.go:233-235)
+  - |-
+    gdpr other than 0 or 1 answers 400 'GDPR signal should be integer 0 or 1\n' (gdpr/signal.go:16, 35-41)
+  - |-
+    gpp_sid must be a comma list of int8 with no spaces: '2,6' parses, '2, 6' and '128' answer 400 with the strconv.ParseInt error (endpoints/cookie_sync.go:212-215, util/stringutil/stringutil.go:10-25)
+  - gpp_sid containing 2 sets the GDPR signal to 1, any other gpp_sid sets it to 0, overriding gdpr (endpoints/cookie_sync.go:267-273)
+  - |-
+    filter other than include or exclude answers 400 'error parsing filtersettings.iframe: invalid filter value 'x'. must be either 'include' or 'exclude'\n' (or filtersettings.image); filter bidders that are neither '*' nor a string array answer 400 (endpoints/cookie_sync.go:404-461)
+  - |-
+    status is 'ok' when the request cookie has any live uid, else 'no_cookie' (endpoints/cookie_sync.go:507-510)
+  - 'bidder_status lists the syncers chosen: bidders already synced, unknown, without a syncer, duplicates of a chosen syncer key, rejected by the filter or by privacy are left out (usersync/chooser.go:130-218)'
+  - |-
+    with debug true, every bidder that was not chosen gets a debug entry: 'Already in sync', 'Unsupported bidder', 'No sync config', 'Duplicate bidder synced as <key>', 'Rejected by request filter', 'Rejected by privacy', 'Sync disabled by config'; a bidder blocked by its skipwhen settings gets an entry with no error text (endpoints/cookie_sync.go:532-551, 606-626)
+  - |-
+    limit is the request limit, else the account's cookie_sync.default_limit, capped by max_limit; 0 or less means no limit (endpoints/cookie_sync.go:299-332)
+  - the sync URL embeds user_sync.redirect_url with external_url (http://localhost:8000 by default) and the bidder name (config/config.go:948, 1175; usersync/syncer.go:126)
+  - an invalid us_privacy blanks the us_privacy macro and does not fail the request (endpoints/cookie_sync.go:152-160)
+  - a receive-cookie-deprecation Set-Cookie (Partitioned) is added only when the account enables privacysandbox cookiedeprecation and the request lacks that cookie (endpoints/cookie_sync.go:565-589)
+  - an opted-out cookie answers 401 even for a valid body; the body is parsed first, so a bad body still answers 400 (endpoints/cookie_sync.go:97-115)
+- method: GET
+  path: /status
+  handler: endpoints/status.go:10
+  auth: false
+  responses:
+    '200': the status_response text when it is set
+    '204': |-
+      empty, when status_response is '' (the default)
+  rules:
+  - |-
+    status_response '' answers 204 with no body; any other value answers 200 with exactly that text (endpoints/status.go:10-22)
+- method: GET
+  path: /
+  handler: router/router.go:103
+  auth: false
+  params:
+  - {name: If-Modified-Since, in: header}
+  - {name: Range, in: header, example: bytes=0-9}
+  responses:
+    '200': static/index.html, text/html; charset=utf-8, with Last-Modified and Accept-Ranges
+    '206': a Range request
+    '304': If-Modified-Since at or after the file time
+  rules:
+  - served with net/http ServeFile from static/index.html (378 bytes), so Range, If-Modified-Since and If-None-Match behave as in net/http (router/router.go:103-105)
+- method: GET
+  path: /version
+  handler: endpoints/version.go:14
+  auth: false
+  responses:
+    '200': '{"revision":"not-set","version":"not-set"} without a newline, unless built with -ldflags; no Content-Type is set, so net/http sniffs text/plain; charset=utf-8'
+  rules:
+  - 'served on both ports: the main port registers GET only (router/router.go:302), and the admin port answers any method (router/admin.go:25)'
+  - the body is built once at startup (endpoints/version.go:14-40)
+- method: GET
+  path: /static/{filepath}
+  handler: router/router.go:303
+  auth: false
+  params:
+  - {name: filepath, in: path, example: bidder-info/appnexus.yaml, type: string}
+  responses:
+    '200': the file, or an HTML listing for a directory path that ends in /
+    '301': a directory without its trailing slash, or a path ending in /index.html
+    '404': |-
+      '404 page not found\n' for a missing file
+  rules:
+  - |-
+    filepath is an httprouter catch-all, so it can hold slashes; files come from net/http FileServer over the working directory's static/ (router/router.go:303)
+  - /static/optout.html exists, and is where /optout sends a request without g-recaptcha-response
+  - /static/index.html redirects 301 to ./, and /static/bidder-info redirects 301 to bidder-info/
+  - |-
+    Content-Type comes from the file extension: .json, .html and .svg are built into Go; .yaml is looked up in the host's mime.types and otherwise sniffed, so it can differ between machines
+- method: POST
+  path: /vtrack
+  handler: endpoints/events/vtrack.go:67
+  auth: false
+  params:
+  - {name: a, in: query, required: true, example: parity-account, type: string, min_length: 1}
+  - {name: int, in: query, example: rh_int-1, type: string, max_length: 64, pattern: '^[\p{L}\p{N}_-]*$'}
+  body:
+    example:
+      puts:
+      - type: xml
+        value: <VAST version="3.0"><Ad><Wrapper><AdSystem>rh</AdSystem><VASTAdTagURI><![CDATA[https://parity.test/vast]]></VASTAdTagURI><Impression></Impression><Creatives></Creatives></Wrapper></Ad></VAST>
+        ttlseconds: 300
+        bidid: rh-bid-1
+        bidder: appnexus
+        timestamp: 1629473330823
+    required:
+    - puts
+    - puts[].bidid
+    - puts[].bidder
+    fields:
+      puts[].type: {type: string, enum: [xml, json]}
+      puts[].ttlseconds: {type: integer}
+      puts[].timestamp: {type: integer}
+  responses:
+    '200': '{"responses":[{"uuid":"<uuid>"}]} in put order, Content-Type application/json, no newline (endpoints/events/vtrack.go:125-138, 209-232)'
+    '400': |-
+      missing a, a bad int, or a bad body: 'Invalid request: <err>\n' (endpoints/events/vtrack.go:70-95); account errors other than disabled, malformed or timeout (endpoints/events/vtrack.go:101-110)
+    '500': |-
+      'Error(s) updating vast: <first error>\n' when the cache put fails; malformed stored account (endpoints/events/vtrack.go:114-123)
+    '503': disabled account (endpoints/events/event.go:218-221)
+    '504': account lookup timed out (endpoints/events/event.go:225-227)
+  rules:
+  - registered only while vtrack.enabled is true (the default) (router/router.go:305-309)
+  - |-
+    missing a answers 400 'Account 'a' is required query parameter and can't be empty', with no newline (endpoints/events/vtrack.go:70-77)
+  - |-
+    int longer than 64 characters, or with characters other than letters, digits, '-' and '_', answers 400 'Invalid integration type: integration type length is too long\n' or '...can only contain numbers, letters and these characters '-', '_'\n'; Unicode letters are allowed (endpoints/events/vtrack.go:79-85, endpoints/events/event.go:404-414)
+  - |-
+    a body larger than max_request_size (262144 bytes) answers 400 'Invalid request: request size exceeded max size of 262144 bytes\n' (no period, unlike the auction); exactly 262144 bytes is accepted (endpoints/events/vtrack.go:88-95, 162-182)
+  - |-
+    an empty body answers 400 'Invalid request: request body is empty\n'; a put without bidid answers 'Invalid request: 'bidid' is required field and can't be empty\n', and one without bidder answers the bidder version; the first failing put wins (endpoints/events/vtrack.go:184-203)
+  - the account is resolved like /event (disabled answers 503), but its events setting is never checked, although the comment says so (endpoints/events/vtrack.go:97-112)
+  - '"puts": [] answers 200 {"responses":[]} without a cache call (prebid_cache_client/client.go:87-91)'
+  - |-
+    VAST with an </Impression> tag gets the impression event URL '<external_url>/event?t=imp&b=<bidid>&a=<account>&bidder=<bidder>&f=b&int=<int>&ts=<timestamp>' in CDATA, inside the first Impression when it is empty and as a new Impression after it otherwise; int and ts appear only when set. This happens when the bidder's info is enabled with modifyingVastXmlAllowed, or the bidder is unknown and vtrack.allow_unknown_bidder is true (the default) (endpoints/events/vtrack.go:258-318, endpoints/events/event.go:141-145, 233-270)
+  - |-
+    suspicious: the modified VAST goes into the cache request as raw XML, not a JSON string, so the cache body is not valid JSON (endpoints/events/vtrack.go:320-331, prebid_cache_client/client.go:173-200); in parity the oracle rejects it with 400, so /vtrack answers 500 'Error(s) updating vast: Prebid Cache call to http://prebid-cache.parity.test/cache returned 400: ...'
+  - the put sent to the cache keeps only type, value, ttlseconds and key; bidid, bidder and timestamp are dropped (endpoints/events/vtrack.go:235-256)
+  - only the first cache error is printed, because the loop returns (endpoints/events/vtrack.go:116-123)
+- method: GET
+  path: /event
+  handler: endpoints/events/event.go:64
+  auth: false
+  params:
+  - {name: t, in: query, required: true, example: imp, enum: [imp, win, vast]}
+  - {name: b, in: query, required: true, example: rh-bid-1, type: string, min_length: 1}
+  - {name: a, in: query, required: true, example: parity-account, type: string, min_length: 1}
+  - {name: vtype, in: query, enum: [start, firstQuartile, midPoint, thirdQuartile, complete]}
+  - {name: bidder, in: query, example: appnexus, type: string}
+  - {name: ts, in: query, example: 1629473330823, type: integer}
+  - {name: f, in: query, enum: [b, i]}
+  - {name: x, in: query, enum: ['1', '0']}
+  - {name: int, in: query, type: string, max_length: 64, pattern: '^[\p{L}\p{N}_-]*$'}
+  responses:
+    '200': 'f=i: the 1x1 PNG pixel (endpoints/events/event.go:128-134)'
+    '204': the event was accepted, or x=0 (endpoints/events/event.go:88-92, 137)
+    '400': |-
+      one 'invalid request: <message>\n' line per parameter error (endpoints/events/event.go:66-77); account errors other than disabled, malformed or timeout
+    '401': missing a, or an account whose events are disabled (endpoints/events/event.go:79-86, 113-118)
+    '500': malformed stored account
+    '503': disabled account
+    '504': account lookup timed out (event.timeout_ms, 1000 by default)
+  rules:
+  - |-
+    the parameter errors are collected in this order: t, vtype, b, ts, f, x, int; every one is a separate 'invalid request: ...' line (endpoints/events/event.go:148-201)
+  - |-
+    missing t answers "parameter 't' is required", and an unknown t answers "unknown type: 'x'" (endpoints/events/event.go:276-297)
+  - |-
+    t=vast requires vtype, matched case-sensitively: missing answers "parameter 'vtype' is required", other values "unknown vtype: 'x'"; vtype with t imp or win answers "parameter 'vtype' is only required for t=vast" (endpoints/events/event.go:156-164, 299-322)
+  - |-
+    missing b answers "parameter 'b' is required" (endpoints/events/event.go:166-171)
+  - |-
+    a ts that is not an int64 answers 400 with the prefix doubled: "invalid request: invalid request: error parsing timestamp 'x'\n" (endpoints/events/event.go:366-381)
+  - |-
+    f other than b or i answers "unknown format: 'x'", and x other than 1 or 0 answers "unknown analytics: 'x'" (endpoints/events/event.go:325-363)
+  - |-
+    a is checked only after the other parameters parse: then a missing a answers 401 "Account 'a' is required query parameter and can't be empty", with no newline (endpoints/events/event.go:79-86)
+  - x=0 answers 204 before the account lookup, even for an unknown or disabled account (endpoints/events/event.go:88-92)
+  - |-
+    a=parity-disabled-account answers 503 'Invalid request: Prebid-server has disabled Account ID: parity-disabled-account, please reach out to the prebid server host.\n' (endpoints/events/event.go:101-110, 204-231)
+  - |-
+    the default profile has account events off, so a=parity-account answers 401 "Account 'parity-account' doesn't support events" (endpoints/events/event.go:113-118); the events-cache profile answers 204
+  - f=i writes the PNG after WriteHeader(200), so the Content-Type header added afterwards is lost and net/http sniffs image/png (endpoints/events/event.go:128-134)
+  - bidder is normalized case-insensitively when it is a known bidder (endpoints/events/event.go:188-196)
+- method: GET
+  path: /setuid
+  handler: endpoints/setuid.go:40
+  auth: false
+  params:
+  - {name: bidder, in: query, required: true, example: appnexus, type: string, min_length: 1}
+  - {name: uid, in: query, example: rh-adnxs-uid, type: string}
+  - {name: f, in: query, enum: [b, i]}
+  - {name: account, in: query, example: parity-account, type: string}
+  - {name: gdpr, in: query, enum: ['0', '1']}
+  - {name: gdpr_consent, in: query, type: string}
+  - {name: gpp, in: query, type: string}
+  - {name: gpp_sid, in: query, example: '2,6', type: string, pattern: '^(-?[0-9]+(,-?[0-9]+)*)?$'}
+  - {name: Cookie, in: header, example: uids=eyJ0ZW1wVUlEcyI6eyJhZG54cyI6eyJ1aWQiOiJyaC1hZG54cy11aWQiLCJleHBpcmVzIjoiMjA5OS0wMS0wMVQwMDowMDowMFoifX19}
+  - {name: User-Agent, in: header, example: Mozilla/5.0 Chrome/120.0.0.0}
+  responses:
+    '200': uids Set-Cookie written; f=i answers the 1x1 PNG with Content-Type image/png and Content-Length, f=b answers text/html with Content-Length 0 (endpoints/setuid.go:178-190)
+    '400': the error text, no newline (endpoints/setuid.go:429-438)
+    '401': opted-out cookie, empty body (endpoints/setuid.go:52-56)
+    '451': privacy activity sync-user denied (empty body), or the consent forbids the host cookie (endpoints/setuid.go:113-120, 406-427)
+  rules:
+  - |-
+    bidder is the bidder name, matched case-insensitively (appnexus, AppNexus), not the syncer key: bidder=adnxs answers 400 'The bidder name provided is not supported by Prebid Server' (endpoints/setuid.go:321-340)
+  - |-
+    missing bidder answers 400 '"bidder" query param is required' (endpoints/setuid.go:324-326)
+  - |-
+    a bidder with no syncer, such as the disabled rubicon or a bidder without userSync, answers 400 'The bidder name provided is not supported by Prebid Server' (endpoints/setuid.go:334-337)
+  - |-
+    f other than b or i (case-insensitive) answers 400 '"f" query param is invalid. must be "b" or "i"'; an empty or missing f uses the syncer's default type: redirect is i, iframe is b (endpoints/setuid.go:356-375)
+  - |-
+    account parity-disabled-account answers 400 'account is disabled, please reach out to the prebid server host'; under account-required, no account answers 400 'account must be valid if provided, please reach out to the prebid server host' (endpoints/setuid.go:73-94, endpoints/cookie_sync.go:472-489)
+  - |-
+    gpp_sid that is not a comma list of int8 ('2, 6', '128', 'x') answers 400 'invalid gpp_sid encoding, must be a csv list of integers' (endpoints/setuid.go:96-107)
+  - |-
+    gdpr other than 0 or 1 answers 400 'the gdpr query param must be either 0 or 1. You gave <value>' (endpoints/setuid.go:246-262)
+  - |-
+    gdpr=1 without a consent answers 400 'GDPR consent is required when gdpr signal equals 1' (endpoints/setuid.go:216-218)
+  - gpp_sid and gpp take precedence over gdpr and gdpr_consent; a conflict is only a warning (endpoints/setuid.go:197-239, 255-277)
+  - with gdpr.host_vendor_id 0, as in every parity profile, the host cookie is always allowed, so any gdpr_consent passes, even one that does not parse (gdpr/gdpr.go:68-72, gdpr/impl.go:233-237)
+  - uid sets tempUIDs.<syncer key> (adnxs for appnexus) with expires now + 14 days; an empty or missing uid removes that key (endpoints/setuid.go:145-156, usersync/cookie.go:116-132)
+  - |-
+    the Set-Cookie is 'uids=<base64url>; Path=/; Expires=<now + 90 days>'; with a Chrome or CriOS User-Agent of version 67 or later it adds Secure and SameSite=None (usersync/cookie.go:93-113, endpoints/setuid.go:159, 377-404)
+  - a uid already in the cookie is replaced, and the other uids are kept
+  - |-
+    when host_cookie.max_cookie_size_bytes is set and a non-priority syncer does not fit, the response is 200 'Warning: syncer key is not a priority, and there are only priority elements left, cookie not updated' (endpoints/setuid.go:162-177)
+- method: GET
+  path: /getuids
+  handler: endpoints/getuids.go:19
+  auth: false
+  params:
+  - {name: Cookie, in: header, example: uids=eyJ0ZW1wVUlEcyI6eyJhZG54cyI6eyJ1aWQiOiJyaC1hZG54cy11aWQiLCJleHBpcmVzIjoiMjA5OS0wMS0wMVQwMDowMDowMFoifX19}
+  responses:
+    '200': '{"buyeruids":{"<syncer key>":"<uid>"}} plus a newline, or {} plus a newline with no uids; no Content-Type is set, so it is sniffed as text/plain; charset=utf-8'
+  rules:
+  - with the live example cookie it answers {"buyeruids":{"adnxs":"rh-adnxs-uid"}} (endpoints/getuids.go:19-28)
+  - expired uids are listed too (usersync/cookie.go:180-189)
+  - a missing or undecodable cookie, or an opted-out one, answers {} (usersync/decoder.go:15-27, usersync/cookie.go:235-259)
+  - |-
+    an audienceNetwork uid of '0' is never listed (usersync/cookie.go:254-257)
+  - the cookie is read, never written
+- method: GET
+  path: /optout
+  handler: pbs/usersync.go:71
+  auth: false
+  params:
+  - {name: optout, in: query, example: '1', type: string}
+  - {name: g-recaptcha-response, in: query, example: rh-captcha, type: string}
+  - {name: Cookie, in: header, example: uids=eyJ0ZW1wVUlEcyI6eyJhZG54cyI6eyJ1aWQiOiJyaC1hZG54cy11aWQiLCJleHBpcmVzIjoiMjA5OS0wMS0wMVQwMDowMDowMFoifX19}
+  responses:
+    '301': redirect (see rules)
+    '401': the recaptcha check failed, empty body
+  rules:
+  - optout and g-recaptcha-response are read with FormValue, from the query or an application/x-www-form-urlencoded body (pbs/usersync.go:71-73)
+  - |-
+    without g-recaptcha-response: 301 to '<external_url>/static/optout.html' (http://localhost:8000/static/optout.html by default); GET gets net/http's short HTML body, POST none (pbs/usersync.go:77-80)
+  - |-
+    with g-recaptcha-response, the server POSTs it to https://www.google.com/recaptcha/api/siteverify (pbs/usersync.go:38-69). In parity that call goes to the oracle as kind general and fails unless the case's mock plan answers {"success":true}; a failure answers 401 with an empty body (pbs/usersync.go:82-87)
+  - after a passed check, a non-empty optout writes a uids cookie with optout true and no uids, then 301 to host_cookie.opt_out_url; an empty optout writes the cookie with optout false, keeping the uids, then 301 to host_cookie.opt_in_url. Both URLs are empty by default, and net/http then sends Location / (pbs/usersync.go:89-106)
+- method: POST
+  path: /optout
+  handler: pbs/usersync.go:71
+  auth: false
+  params:
+  - {name: Cookie, in: header, example: uids=eyJ0ZW1wVUlEcyI6eyJhZG54cyI6eyJ1aWQiOiJyaC1hZG54cy11aWQiLCJleHBpcmVzIjoiMjA5OS0wMS0wMVQwMDowMDowMFoifX19}
+  body:
+    content_type: application/x-www-form-urlencoded
+    example:
+      optout: '1'
+      g-recaptcha-response: rh-captcha
+  responses:
+    '301': redirect (see rules)
+    '401': the recaptcha check failed, empty body
+  rules:
+  - optout and g-recaptcha-response are read with FormValue, from the query or an application/x-www-form-urlencoded body (pbs/usersync.go:71-73)
+  - |-
+    without g-recaptcha-response: 301 to '<external_url>/static/optout.html' (http://localhost:8000/static/optout.html by default); GET gets net/http's short HTML body, POST none (pbs/usersync.go:77-80)
+  - |-
+    with g-recaptcha-response, the server POSTs it to https://www.google.com/recaptcha/api/siteverify (pbs/usersync.go:38-69). In parity that call goes to the oracle as kind general and fails unless the case's mock plan answers {"success":true}; a failure answers 401 with an empty body (pbs/usersync.go:82-87)
+  - after a passed check, a non-empty optout writes a uids cookie with optout true and no uids, then 301 to host_cookie.opt_out_url; an empty optout writes the cookie with optout false, keeping the uids, then 301 to host_cookie.opt_in_url. Both URLs are empty by default, and net/http then sends Location / (pbs/usersync.go:89-106)
+- method: POST
+  path: /storedrequests/openrtb2
+  handler: stored_requests/events/api/api.go:36
+  auth: false
+  body:
+    example:
+      requests:
+        rh-req:
+          id: rh-req
+      imps:
+        rh-imp:
+          id: rh-imp
+      accounts: {}
+      responses: {}
+  responses:
+    '200': empty; the save was handed to the in-memory cache
+    '400': |-
+      'Missing update data.\n' or 'Invalid update.\n'
+  rules:
+  - registered only when stored_requests.cache_events.enabled is true, which also needs an in-memory cache; no parity profile enables it, so parity runs answer 404 (stored_requests/config/config.go:277-280, 304-308; config/stored_requests.go:245-248)
+  - the path is fixed by config/stored_requests.go:206
+  - the handler blocks until the cache listener receives the event (stored_requests/events/api/api.go:52, 68)
+  - it has no authentication although it writes the cache; the doc comment says not to expose it (stored_requests/events/api/api.go:26-27)
+- method: DELETE
+  path: /storedrequests/openrtb2
+  handler: stored_requests/events/api/api.go:36
+  auth: false
+  body:
+    example:
+      requests:
+      - rh-req
+      imps:
+      - rh-imp
+      accounts: []
+      responses: []
+  responses:
+    '200': empty; the invalidation was handed to the in-memory cache
+    '400': |-
+      'Missing invalidation data.\n' or 'Invalid invalidation.\n'
+  rules:
+  - registered only when stored_requests.cache_events.enabled is true, which also needs an in-memory cache; no parity profile enables it, so parity runs answer 404 (stored_requests/config/config.go:277-280, 304-308; config/stored_requests.go:245-248)
+  - the path is fixed by config/stored_requests.go:206
+  - the handler blocks until the cache listener receives the event (stored_requests/events/api/api.go:52, 68)
+  - it has no authentication although it writes the cache; the doc comment says not to expose it (stored_requests/events/api/api.go:26-27)
+- method: POST
+  path: /storedrequests/amp
+  handler: stored_requests/events/api/api.go:36
+  auth: false
+  body:
+    example:
+      requests:
+        rh-req:
+          id: rh-req
+      imps:
+        rh-imp:
+          id: rh-imp
+      accounts: {}
+      responses: {}
+  responses:
+    '200': empty; the save was handed to the in-memory cache
+    '400': |-
+      'Missing update data.\n' or 'Invalid update.\n'
+  rules:
+  - registered only when stored_requests.cache_events.enabled is true, which also needs an in-memory cache; no parity profile enables it, so parity runs answer 404 (stored_requests/config/config.go:277-280, 304-308; config/stored_requests.go:245-248)
+  - the path is fixed by config/stored_requests.go:214
+  - the handler blocks until the cache listener receives the event (stored_requests/events/api/api.go:52, 68)
+  - it has no authentication although it writes the cache; the doc comment says not to expose it (stored_requests/events/api/api.go:26-27)
+- method: DELETE
+  path: /storedrequests/amp
+  handler: stored_requests/events/api/api.go:36
+  auth: false
+  body:
+    example:
+      requests:
+      - rh-req
+      imps:
+      - rh-imp
+      accounts: []
+      responses: []
+  responses:
+    '200': empty; the invalidation was handed to the in-memory cache
+    '400': |-
+      'Missing invalidation data.\n' or 'Invalid invalidation.\n'
+  rules:
+  - registered only when stored_requests.cache_events.enabled is true, which also needs an in-memory cache; no parity profile enables it, so parity runs answer 404 (stored_requests/config/config.go:277-280, 304-308; config/stored_requests.go:245-248)
+  - the path is fixed by config/stored_requests.go:214
+  - the handler blocks until the cache listener receives the event (stored_requests/events/api/api.go:52, 68)
+  - it has no authentication although it writes the cache; the doc comment says not to expose it (stored_requests/events/api/api.go:26-27)
+- method: GET
+  path: /debug/pprof/
+  handler: router/admin.go:18
+  auth: false
+  responses:
+    '200': net/http/pprof index HTML; /debug/pprof/<profile> serves heap, goroutine and the other named profiles
+    '404': unknown profile name
+  rules:
+  - admin port only (admin_port, default 6060), any method; not reachable through /__parity/exec (router/admin.go:18-22)
+- method: GET
+  path: /debug/pprof/cmdline
+  handler: router/admin.go:19
+  auth: false
+  responses:
+    '200': the command line, NUL-separated, text/plain
+  rules:
+  - admin port only (admin_port, default 6060), any method; not reachable through /__parity/exec (router/admin.go:18-22)
+- method: GET
+  path: /debug/pprof/profile
+  handler: router/admin.go:20
+  auth: false
+  params:
+  - {name: seconds, in: query, example: 1, type: integer, min: 1}
+  responses:
+    '200': |-
+      a CPU profile after 'seconds' (default 30)
+  rules:
+  - admin port only (admin_port, default 6060), any method; not reachable through /__parity/exec (router/admin.go:18-22)
+  - |-
+    do not probe: blocks for 'seconds', 30 by default
+- method: GET
+  path: /debug/pprof/symbol
+  handler: router/admin.go:21
+  auth: false
+  responses:
+    '200': |-
+      'num_symbols: 1' for GET; POST resolves program counters
+  rules:
+  - admin port only (admin_port, default 6060), any method; not reachable through /__parity/exec (router/admin.go:18-22)
+- method: GET
+  path: /debug/pprof/trace
+  handler: router/admin.go:22
+  auth: false
+  params:
+  - {name: seconds, in: query, example: 1, type: number, min: 0}
+  responses:
+    '200': |-
+      an execution trace after 'seconds' (default 1)
+  rules:
+  - admin port only (admin_port, default 6060), any method; not reachable through /__parity/exec (router/admin.go:18-22)
+  - |-
+    do not probe: blocks for 'seconds' while tracing
+- method: GET
+  path: /currency/rates
+  handler: endpoints/currency_rates.go:59
+  auth: false
+  responses:
+    '200': '{"active":true,"source":<currency_converter.fetch_url>,"fetchingIntervalNs":<ns>,"lastUpdated":<time>,"rates":{...}}, Content-Type application/json (endpoints/currency_rates.go:13-73)'
+    '500': the info could not be marshaled
+  rules:
+  - admin port only, any method; not reachable through /__parity/exec (router/admin.go:24)
+  - 'suspicious: the body is computed once, when the admin mux is built right after the first currency fetch, so later rate refreshes never show (endpoints/currency_rates.go:59-61, main.go:81-94, util/task/ticker_task.go:27-33)'
+  - in parity, source is the oracle currency URL on currency.parity.test and the rates come from parity/fixtures/currency (parity/runner/profiles.go:195)
+- method: GET
+  path: /metrics
+  handler: server/prometheus.go:14
+  auth: false
+  responses:
+    '200': Prometheus text exposition
+    '503': more than 5 scrapes in flight
+  rules:
+  - Prometheus port only (metrics.prometheus.port, 0 turns it off; PBS_METRICS_PROMETHEUS_PORT in parity runs); every path on that port answers the same exposition (server/prometheus.go:14-27, server/server.go:70-83)
+  - parity compares it through metrics_delta in the exec trace, not directly
