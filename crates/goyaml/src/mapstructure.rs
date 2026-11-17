@@ -19,10 +19,15 @@
 //!
 //! - `Metadata`, `ErrorUnset`, `MatchName`, `IgnoreUntaggedFields`, `DecodeHookFuncValue` hooks,
 //!   and `TagName`s other than `mapstructure`.
-//! - Struct-valued and `json.Number` sources, which [`Value`] cannot hold (`decodeMapFromStruct`,
-//!   struct-to-struct decoding).
+//! - `json.Number` sources and structs other than `time.Time`, which [`Value`] cannot hold (a
+//!   `time.Time` source decodes into a struct or a map as Go's `decodeMapFromStruct` makes it: an
+//!   empty map, since its fields are unexported).
 //! - Decoding into a non-nil `interface{}` holding a slice or a map replaces the value; Go decodes
 //!   into a copy of it, keeping its dynamic type (scalars are decoded as Go does).
+//! - A `BTreeMap` or `HashMap` target outside an `Option` cannot be nil: an empty one stands for a
+//!   nil Go map (as in [`crate::yaml`]), so Go's `reflect.Set` panic for a nil source map of
+//!   another type is reproduced only when the target has entries (`Option<BTreeMap<K, V>>` targets
+//!   tell nil from empty).
 //! - `DecoderConfig.Squash` (viper leaves it off), and `,squash` on pointer fields.
 //! - Map iteration order: see [`crate::Value`].
 
@@ -46,7 +51,7 @@ use pbs_gojson::{GoKind, GoString, RawJson};
 
 use crate::{
     go_uint64, int_to_float, uint_to_float,
-    value::{Type, Value, kind_name},
+    value::{STRING_MAP, Type, Value, kind_name},
 };
 
 /// A mapstructure error (Go: the `error` that `Decode` returns).
@@ -368,6 +373,8 @@ const fn is_nil_data(v: &Value) -> bool {
 
 /// The entries of a map value.
 struct MapEntries<'a> {
+    /// The map's type.
+    map_type: Type,
     /// The map's key type.
     key_type: &'static Type,
     /// Whether the map is nil.
@@ -376,10 +383,25 @@ struct MapEntries<'a> {
     pairs: Vec<(Value, &'a Value)>,
 }
 
+impl MapEntries<'_> {
+    /// The entries of a struct source, which `decodeStruct` and `decodeMap` convert to a map
+    /// with `decodeMapFromStruct`: the only struct a [`Value`] holds is a `time.Time`, whose
+    /// fields are all unexported, so the map is an empty `map[string]interface{}`.
+    const fn from_struct() -> Self {
+        Self {
+            map_type: STRING_MAP,
+            key_type: &Type::String,
+            nil: false,
+            pairs: Vec::new(),
+        }
+    }
+}
+
 /// The entries of `data` if it is a map.
 fn map_entries(data: &Value) -> Option<MapEntries<'_>> {
     match data {
-        Value::StringMap(_, m) => Some(MapEntries {
+        Value::StringMap(elem, m) => Some(MapEntries {
+            map_type: Type::Map(&Type::String, elem),
             key_type: &Type::String,
             nil: m.is_none(),
             pairs: m
@@ -388,7 +410,8 @@ fn map_entries(data: &Value) -> Option<MapEntries<'_>> {
                 .map(|(k, v)| (Value::String(k.clone()), v))
                 .collect(),
         }),
-        Value::Map(key_type, _, m) => Some(MapEntries {
+        Value::Map(key_type, elem, m) => Some(MapEntries {
+            map_type: Type::Map(key_type, elem),
             key_type,
             nil: m.is_none(),
             pairs: m.iter().flatten().map(|(k, v)| (k.clone(), v)).collect(),
@@ -760,7 +783,8 @@ impl Decoder {
         out: &mut Value,
     ) -> Result<(), DecodeError> {
         // Go: a non-nil interface's dynamic value is copied, decoded into through a pointer,
-        // and stored back; a nil interface takes the data as is.
+        // and stored back (only on success: an error leaves the interface as it was); a nil
+        // interface takes the data as is.
         match out {
             Value::Bool(v) => *v = self.decode_dyn(name, data, *v)?,
             Value::Int(v) => *v = self.decode_dyn(name, data, GoInt(*v))?.0,
@@ -775,9 +799,9 @@ impl Decoder {
             Value::Uint64(v) => *v = self.decode_dyn(name, data, *v)?,
             Value::Float32(v) => *v = self.decode_dyn(name, data, *v)?,
             Value::Float64(v) => *v = self.decode_dyn(name, data, *v)?,
-            Value::String(v) => *v = self.decode_dyn(name, data, mem::take(v))?,
+            Value::String(v) => *v = self.decode_dyn(name, data, v.clone())?,
             Value::Duration(v) => *v = self.decode_dyn(name, data, *v)?,
-            Value::Time(v) => *v = self.decode_dyn(name, data, mem::take(v))?,
+            Value::Time(v) => *v = self.decode_dyn(name, data, v.clone())?,
             Value::Nil | Value::Slice(..) | Value::StringMap(..) | Value::Map(..) => {
                 *out = data.clone();
             }
@@ -898,7 +922,15 @@ impl Decoder {
     ) -> Result<(), DecodeError> {
         let fresh = out.is_none() || self.config.zero_fields;
         if let Some(entries) = map_entries(data) {
-            return self.decode_map_from_map(name, &entries, out, fresh);
+            return self.decode_map_from_map(name, &entries, out, fresh, ty);
+        }
+        if let Value::Time(_) = data {
+            // Go: decodeMapFromStruct copies the exported fields, and time.Time has none: the
+            // target map is set to the new map, or to itself.
+            if fresh {
+                *out = Some(M::default());
+            }
+            return Ok(());
         }
         let (Value::Slice(_, items), true) = (data, self.config.weakly_typed_input) else {
             return Err(expected_map(name, data));
@@ -926,17 +958,32 @@ impl Decoder {
         Ok(())
     }
 
-    /// Go: `decodeMapFromMap`.
+    /// Go: `decodeMapFromMap` into a map of the type `ty`.
     fn decode_map_from_map<M: MsMap + Default>(
         &mut self,
         name: &str,
         entries: &MapEntries<'_>,
         out: &mut Option<M>,
         fresh: bool,
+        ty: HookTarget,
     ) -> Result<(), DecodeError> {
         if entries.pairs.is_empty() {
             // If the input data is empty, then we just match what the input data is.
             if entries.nil {
+                if out.is_some() {
+                    // Go: `val.Set(dataVal)`, which panics unless the nil map's type is
+                    // assignable to the target's: the data's types are unnamed, so the target's
+                    // underlying type must be the same.
+                    let data_type = entries.map_type.name();
+                    let mut underlying = String::new();
+                    M::ms_type_name(&mut underlying);
+                    if data_type != underlying {
+                        return Err(DecodeError::Panic(format!(
+                            "reflect.Set: value of type {data_type} is not assignable to type {}",
+                            ty.type_name()
+                        )));
+                    }
+                }
                 *out = None;
             } else if fresh {
                 *out = Some(M::default());
@@ -983,8 +1030,11 @@ impl Decoder {
         data: &Value,
         out: &mut S,
     ) -> Result<(), DecodeError> {
-        let Some(entries) = map_entries(data) else {
-            return Err(expected_map(name, data));
+        let entries = match map_entries(data) {
+            Some(entries) => entries,
+            // Go: struct to struct goes through a map[string]interface{} (decodeMapFromStruct).
+            None if matches!(data, Value::Time(_)) => MapEntries::from_struct(),
+            None => return Err(expected_map(name, data)),
         };
         if !matches!(entries.key_type.kind(), GoKind::String | GoKind::Interface) {
             return Err(DecodeError::Message(format!(
@@ -1509,7 +1559,8 @@ macro_rules! ms_map_impls {
                     input: &Value,
                     ty: fn(&mut String),
                 ) -> Result<(), DecodeError> {
-                    let mut slot = Some(mem::take(self));
+                    // An empty map stands for a nil Go map.
+                    let mut slot = (!self.is_empty()).then(|| mem::take(self));
                     let result = d.decode_map_as(name, input, &mut slot, HookTarget::map(ty));
                     *self = slot.unwrap_or_default();
                     result

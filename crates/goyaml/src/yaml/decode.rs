@@ -9,9 +9,7 @@ use std::{
 };
 
 use pbs_gocompat::{
-    base64,
-    fmt::sprintf,
-    math, strconv,
+    base64, math, strconv,
     time::{Duration, Time, parse_duration},
 };
 use pbs_gojson::{GoKind, GoString};
@@ -54,7 +52,7 @@ struct MergeKey {
 impl MergeKey {
     /// Go's `==` on the interface values.
     fn go_eq(&self, other: &Self) -> bool {
-        self.ty == other.ty && self.value.go_eq(&other.value)
+        self.ty == other.ty && self.value.decoded_key_eq(&other.value)
     }
 }
 
@@ -453,8 +451,8 @@ impl<'n> Decoder<'n> {
         };
         let mut msg = format!("line {}: cannot unmarshal ", node.line).into_bytes();
         msg.extend_from_slice(&short_tag(tag));
+        let value = node.value.as_bytes();
         if tag != SEQ_TAG && tag != MAP_TAG {
-            let value = node.value.as_bytes();
             msg.extend_from_slice(b" `");
             if value.len() > 10 {
                 msg.extend_from_slice(value.get(..7).unwrap_or(value));
@@ -463,6 +461,10 @@ impl<'n> Decoder<'n> {
                 msg.extend_from_slice(value);
             }
             msg.push(b'`');
+        } else {
+            // Go writes the value unquoted and whole after a !!seq or !!map tag: empty for a
+            // collection, the text of a scalar tagged so (`!!map1h30m`).
+            msg.extend_from_slice(value);
         }
         msg.extend_from_slice(b" into ");
         msg.extend_from_slice(out_type.as_bytes());
@@ -695,7 +697,7 @@ impl<'n> Decoder<'n> {
                 let shown = k.yaml_key_interface().map_or_default(|(_, v)| v);
                 return Err(UnmarshalError::failf(&format!(
                     "invalid map key: {}",
-                    sprintf("%#v", &[shown.to_fmt()])
+                    shown.go_syntax()
                 )));
             }
             let mut e = M::Elem::default();

@@ -21,7 +21,7 @@ use std::{borrow::Cow, cmp::Ordering, collections::BTreeMap};
 
 use pbs_gocompat::{
     fmt as gofmt,
-    time::{Duration, Time},
+    time::{Duration, Location, Time},
 };
 use pbs_gojson::{
     Encoder, Flavor, GoEncode, GoKind, GoMapKey, GoType, encode::encode_map, jsoniter::Iter,
@@ -366,24 +366,95 @@ impl Value {
         }
     }
 
-    /// Inserts `(key, value)` into a general map's entries, replacing the entry of a key that
-    /// is `==` (Go: `SetMapIndex`).
+    /// Go's `==` on two map keys yaml.v3 decoded one after the other: [`Value::go_eq`], except
+    /// that two `time.Time`s also need the same `*time.Location` pointer. Each `time.Parse` of
+    /// an offset takes its location from `time.FixedZone`, which allocates a new one, but for
+    /// the unnamed whole-hour offsets from -12h to +14h, which it caches; UTC is nil.
+    pub(crate) fn decoded_key_eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::Time(a), Self::Time(b)) => a == b && shared_location(a.location()),
+            _ => self.go_eq(other),
+        }
+    }
+
+    /// Inserts a decoded `(key, value)` into a general map's entries, replacing the entry of a
+    /// key that is `==` (Go: `SetMapIndex`).
     pub(crate) fn general_map_insert(entries: &mut Vec<(Self, Self)>, key: Self, value: Self) {
-        if let Some(entry) = entries.iter_mut().find(|(k, _)| k.go_eq(&key)) {
+        if let Some(entry) = entries.iter_mut().find(|(k, _)| k.decoded_key_eq(&key)) {
             *entry = (key, value);
         } else {
             entries.push((key, value));
         }
     }
 
-    /// Whether a general map's entries hold `key` (Go: `out.MapIndex(k).IsValid()`).
+    /// Whether a general map's entries hold a decoded `key` (Go: `out.MapIndex(k).IsValid()`).
     pub(crate) fn general_map_contains(entries: &[(Self, Self)], key: &Self) -> bool {
-        entries.iter().any(|(k, _)| k.go_eq(key))
+        entries.iter().any(|(k, _)| k.decoded_key_eq(key))
     }
 
-    /// The value as Go's `fmt` sees it, for `%v` and `%#v`.
+    /// The value as Go's `fmt` sees it, for `%v` (`%#v` would print a `time.Time` without its
+    /// `GoString` method: [`Value::go_syntax`] does).
     #[must_use]
     pub fn to_fmt(&self) -> gofmt::Value {
+        self.fmt_with(&mut time_fmt)
+    }
+
+    /// Go: `fmt.Sprintf("%#v", v)`.
+    ///
+    /// `fmt` prints a `time.Time` with its `GoString` method, which [`gofmt`] does not model.
+    /// Each time is printed as a placeholder struct that sorts as Go sorts `time.Time` map keys
+    /// (by their fields: the nanoseconds, the seconds, then the location pointer, nil first),
+    /// and the placeholders are then replaced with `GoString`'s text. Their field names hold a
+    /// NUL, which `%#v` escapes in strings, so no other text matches one.
+    #[must_use]
+    pub fn go_syntax(&self) -> String {
+        let mut times = Vec::new();
+        let tree = self.fmt_with(&mut |t: &Time| {
+            let index = i64::try_from(times.len()).unwrap_or(i64::MAX);
+            times.push(go_string(t));
+            let field = |value| (PLACEHOLDER_FIELD.to_owned(), value);
+            gofmt::Value::Struct {
+                ty: "time.Time".to_owned(),
+                fields: vec![
+                    field(gofmt::Value::Int64(t.nanosecond())),
+                    field(gofmt::Value::Int64(t.unix())),
+                    field(gofmt::Value::Bool(*t.location() != Location::Utc)),
+                    field(gofmt::Value::Int64(index)),
+                ],
+            }
+        });
+        let text = gofmt::sprintf("%#v", &[tree]);
+        if times.is_empty() {
+            return text;
+        }
+        let mut out = String::with_capacity(text.len());
+        let mut rest = text.as_str();
+        while let Some((before, after)) = rest.split_once(PLACEHOLDER) {
+            out.push_str(before);
+            let Some((fields, tail)) = after.split_once('}') else {
+                out.push_str(PLACEHOLDER);
+                rest = after;
+                break;
+            };
+            let shown = fields
+                .rsplit_once(PLACEHOLDER_FIELD)
+                .and_then(|(_, index)| index.strip_prefix(':')?.parse::<usize>().ok())
+                .and_then(|index| times.get(index));
+            if let Some(shown) = shown {
+                out.push_str(shown);
+            } else {
+                out.push_str(PLACEHOLDER);
+                out.push_str(fields);
+                out.push('}');
+            }
+            rest = tail;
+        }
+        out.push_str(rest);
+        out
+    }
+
+    /// The value as Go's `fmt` sees it, with `time` making the `fmt` value of a `time.Time`.
+    fn fmt_with<F: FnMut(&Time) -> gofmt::Value>(&self, time: &mut F) -> gofmt::Value {
         match self {
             Self::Nil => gofmt::Value::Nil,
             Self::Bool(v) => gofmt::Value::Bool(*v),
@@ -400,7 +471,7 @@ impl Value {
             Self::Float32(v) => gofmt::Value::Float32(*v),
             Self::Float64(v) => gofmt::Value::Float64(*v),
             Self::String(v) => gofmt::Value::String(v.clone()),
-            Self::Time(t) => time_fmt(t),
+            Self::Time(t) => time(t),
             Self::Duration(d) => gofmt::Value::Method {
                 kind: gofmt::MethodKind::Stringer,
                 text: d.string(),
@@ -413,21 +484,23 @@ impl Value {
                 ty: Type::Slice(elem).name(),
                 elems: items
                     .as_ref()
-                    .map(|items| items.iter().map(Self::to_fmt).collect()),
+                    .map(|items| items.iter().map(|item| item.fmt_with(time)).collect()),
             },
             Self::StringMap(elem, entries) => gofmt::Value::Map {
                 ty: Type::Map(&Type::String, elem).name(),
                 entries: entries.as_ref().map(|m| {
                     m.iter()
-                        .map(|(k, v)| (gofmt::Value::String(k.clone()), v.to_fmt()))
+                        .map(|(k, v)| (gofmt::Value::String(k.clone()), v.fmt_with(time)))
                         .collect()
                 }),
             },
             Self::Map(key, elem, entries) => gofmt::Value::Map {
                 ty: Type::Map(key, elem).name(),
-                entries: entries
-                    .as_ref()
-                    .map(|m| m.iter().map(|(k, v)| (k.to_fmt(), v.to_fmt())).collect()),
+                entries: entries.as_ref().map(|m| {
+                    m.iter()
+                        .map(|(k, v)| (k.fmt_with(time), v.fmt_with(time)))
+                        .collect()
+                }),
             },
         }
     }
@@ -445,6 +518,86 @@ fn time_fmt(t: &Time) -> gofmt::Value {
     }
 }
 
+/// What [`Value::go_syntax`] replaces: the start of a placeholder `time.Time`.
+const PLACEHOLDER: &str = "time.Time{\u{0}:";
+
+/// The name of each field of a placeholder `time.Time`.
+const PLACEHOLDER_FIELD: &str = "\u{0}";
+
+/// Go: `Time.GoString`, where `Local` is `UTC`.
+fn go_string(t: &Time) -> String {
+    const MONTHS: [&str; 12] = [
+        "January",
+        "February",
+        "March",
+        "April",
+        "May",
+        "June",
+        "July",
+        "August",
+        "September",
+        "October",
+        "November",
+        "December",
+    ];
+    let month = usize::try_from(t.month())
+        .ok()
+        .and_then(|m| MONTHS.get(m.checked_sub(1)?))
+        .map_or_else(
+            || format!("time.Month({})", t.month()),
+            |name| format!("time.{name}"),
+        );
+    let loc = match t.location() {
+        Location::Utc => "time.UTC".to_owned(),
+        Location::Fixed { name, .. } => format!("time.Location({})", go_quoted(name)),
+    };
+    format!(
+        "time.Date({}, {month}, {}, {}, {}, {}, {}, {loc})",
+        t.year(),
+        t.day(),
+        t.hour(),
+        t.minute(),
+        t.second(),
+        t.nanosecond()
+    )
+}
+
+/// Go: `time.quoted`: `s` between double quotes, `"` and `\` escaped with a backslash, and the
+/// bytes of control and non-ASCII characters as `\x` escapes.
+fn go_quoted(s: &str) -> String {
+    let mut out = String::with_capacity(s.len() + 2);
+    out.push('"');
+    for c in s.chars() {
+        if c.is_ascii() && c >= ' ' {
+            if c == '"' || c == '\\' {
+                out.push('\\');
+            }
+            out.push(c);
+        } else {
+            let mut utf8 = [0; 4];
+            for b in c.encode_utf8(&mut utf8).bytes() {
+                out.push_str("\\x");
+                out.extend(
+                    [b >> 4, b & 0xF].map(|n| char::from_digit(u32::from(n), 16).unwrap_or('0')),
+                );
+            }
+        }
+    }
+    out.push('"');
+    out
+}
+
+/// Whether all `time.Time`s in `loc` share one `*time.Location` pointer: UTC (nil), and the
+/// unnamed whole-hour zones from -12h to +14h that `time.FixedZone` caches (since Go 1.21).
+fn shared_location(loc: &Location) -> bool {
+    match loc {
+        Location::Utc => true,
+        Location::Fixed { name, offset } => {
+            name.is_empty() && (-12..=14).any(|hour: i64| hour * 3600 == *offset)
+        }
+    }
+}
+
 impl GoType for Value {
     const KIND: GoKind = GoKind::Interface;
 
@@ -459,9 +612,21 @@ impl GoType for Value {
 ///
 /// jsoniter encodes a `map[interface {}]interface {}` (`encoding/json` reports it as an
 /// unsupported type); a nil key, on which jsoniter panics (a nil pointer dereference), is
-/// reported as an error with the panic's text.
+/// reported as an error with the panic's text. jsoniter reaches every value whatever it failed
+/// on before, and the panic ends the encoding, so a tree with such a key anywhere encodes to that
+/// error when it is encoded on its own (an `interface{}` value inside another Go type reports
+/// it once reached, and keeps it, unless a sub-stream error of an enclosing map hides it).
 impl GoEncode for Value {
     fn go_encode(&self, enc: &mut Encoder) {
+        if enc.is_jsoniter() {
+            if enc.is_empty() && has_nil_key(self) {
+                enc.set_error(NIL_KEY_PANIC.as_bytes().to_vec());
+                return;
+            }
+            if panicked(enc) {
+                return;
+            }
+        }
         match self {
             Self::Nil | Self::Slice(_, None) | Self::StringMap(_, None) => enc.write_null(),
             Self::Bool(v) => v.go_encode(enc),
@@ -492,6 +657,46 @@ impl GoEncode for Value {
 
 /// The message of the runtime panic of jsoniter's `dynamicMapKeyEncoder` on a nil key.
 const NIL_KEY_PANIC: &str = "runtime error: invalid memory address or nil pointer dereference";
+
+/// Whether jsoniter's nil-key panic has ended the encoding.
+fn panicked(enc: &Encoder) -> bool {
+    enc.is_jsoniter() && enc.error_text() == Some(NIL_KEY_PANIC.as_bytes())
+}
+
+/// Whether `v` holds a map with a key jsoniter's `dynamicMapKeyEncoder` panics on: nil (slices
+/// and maps cannot be Go map keys, and fail the same way here).
+fn has_nil_key(v: &Value) -> bool {
+    match v {
+        Value::Slice(_, Some(items)) => items.iter().any(has_nil_key),
+        Value::StringMap(_, Some(entries)) => entries.values().any(has_nil_key),
+        Value::Map(_, _, Some(entries)) => entries.iter().any(|(key, elem)| {
+            matches!(
+                key,
+                Value::Nil | Value::Slice(..) | Value::StringMap(..) | Value::Map(..)
+            ) || has_nil_key(elem)
+        }),
+        Value::Nil
+        | Value::Bool(_)
+        | Value::Int(_)
+        | Value::Int8(_)
+        | Value::Int16(_)
+        | Value::Int32(_)
+        | Value::Int64(_)
+        | Value::Uint(_)
+        | Value::Uint8(_)
+        | Value::Uint16(_)
+        | Value::Uint32(_)
+        | Value::Uint64(_)
+        | Value::Float32(_)
+        | Value::Float64(_)
+        | Value::String(_)
+        | Value::Time(_)
+        | Value::Duration(_)
+        | Value::Slice(_, None)
+        | Value::StringMap(_, None)
+        | Value::Map(_, _, None) => false,
+    }
+}
 
 /// Go: `Time.MarshalJSON`, through jsoniter's `marshalerEncoder` or `encoding/json`'s
 /// `marshalerEncoder`.
@@ -534,7 +739,7 @@ fn encode_items(elem: &'static Type, items: &[Value], enc: &mut Encoder) {
         item.go_encode(enc);
     }
     enc.write_byte(b']');
-    if enc.has_error() {
+    if enc.has_error() && !panicked(enc) {
         // jsoniter wraps any error with the slice type (`encoding/json` does not).
         enc.wrap_error(&Type::Slice(elem).name(), ": ");
     }
@@ -634,6 +839,9 @@ impl GoMapKey for MapKey<'_> {
     }
 
     fn write_jsoniter_key(&self, enc: &mut Encoder) {
+        if panicked(enc) {
+            return;
+        }
         match self.0 {
             // Go: the HTML-escaping string encoder, and textMarshalerEncoder for time.Time.
             Value::String(s) => enc.write_str(s.as_bytes()),
