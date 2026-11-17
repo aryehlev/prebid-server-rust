@@ -11,11 +11,11 @@ use std::{
     str,
     sync::{
         Arc,
-        atomic::{AtomicU32, Ordering},
+        atomic::{AtomicU32, AtomicU64, Ordering},
     },
 };
 
-use super::{Cache, CacheError, Timer};
+use super::{Cache, CacheError, CacheIterator, Timer};
 
 /// The result type of every test in this crate.
 pub(super) type TestResult = Result<(), Box<dyn Error>>;
@@ -74,29 +74,61 @@ pub(super) fn hex_decode(text: &str) -> Result<Vec<u8>, Box<dyn Error>> {
 }
 
 /// A fake clock the tests set and advance; Go's `fakeTimer`.
+///
+/// With a positive `tick_every` it also advances by itself, one second every `tick_every` calls
+/// to [`Timer::now`], so that a cache reading its clock more or less often than Go's changes
+/// the results.
 #[derive(Debug, Default)]
-pub(super) struct FakeTimer(AtomicU32);
+pub(super) struct FakeTimer {
+    now: AtomicU32,
+    calls: AtomicU64,
+    tick_every: u64,
+}
 
 impl FakeTimer {
     /// A shared clock at `now`.
     pub(super) fn at(now: u32) -> Arc<Self> {
-        Arc::new(Self(AtomicU32::new(now)))
+        Self::ticking(now, 0)
+    }
+
+    /// A shared clock at `now` that advances every `tick_every` reads (never when `0`).
+    pub(super) fn ticking(now: u32, tick_every: u64) -> Arc<Self> {
+        Arc::new(Self {
+            now: AtomicU32::new(now),
+            calls: AtomicU64::new(0),
+            tick_every,
+        })
     }
 
     /// Moves the clock by `seconds`, wrapping like Go's `uint32`.
     pub(super) fn advance(&self, seconds: u32) {
-        let _ = self.0.fetch_add(seconds, Ordering::SeqCst);
+        let _ = self.now.fetch_add(seconds, Ordering::SeqCst);
     }
 
     /// Moves the clock back by `seconds`, wrapping like Go's `uint32`.
     pub(super) fn rewind(&self, seconds: u32) {
-        let _ = self.0.fetch_sub(seconds, Ordering::SeqCst);
+        let _ = self.now.fetch_sub(seconds, Ordering::SeqCst);
+    }
+
+    /// The time, without counting as a read (Go's `clock.now` field).
+    pub(super) fn current(&self) -> u32 {
+        self.now.load(Ordering::SeqCst)
+    }
+
+    /// The number of [`Timer::now`] calls so far (Go's `clock.calls`).
+    pub(super) fn calls(&self) -> u64 {
+        self.calls.load(Ordering::SeqCst)
     }
 }
 
 impl Timer for FakeTimer {
+    /// Go: `fakeTimer.Now`.
     fn now(&self) -> u32 {
-        self.0.load(Ordering::SeqCst)
+        let calls = self.calls.fetch_add(1, Ordering::SeqCst).wrapping_add(1);
+        if self.tick_every > 0 && calls.is_multiple_of(self.tick_every) {
+            let _ = self.now.fetch_add(1, Ordering::SeqCst);
+        }
+        self.current()
     }
 }
 
@@ -262,10 +294,11 @@ enum Op {
     Clear,
     ResetStatistics,
     Iterate,
+    IterStep,
 }
 
 /// Go: the operation order of the weight table.
-const OPS: [Op; 20] = [
+const OPS: [Op; 21] = [
     Op::Set,
     Op::Get,
     Op::GetWithExpiration,
@@ -286,6 +319,7 @@ const OPS: [Op; 20] = [
     Op::Clear,
     Op::ResetStatistics,
     Op::Iterate,
+    Op::IterStep,
 ];
 
 /// Go: `specialTTLs`.
@@ -335,9 +369,20 @@ pub(super) struct ScriptSpec {
     collide: bool,
     huge: bool,
     weights: Vec<u64>,
+    deep_keys: usize,
+    small_mix: bool,
+    tick_every: u64,
 }
 
 impl ScriptSpec {
+    /// Go: `freecache.NewCacheCustomTimer(spec.cacheSize, clock)` in `newRunner`.
+    pub(super) fn new_cache(&self) -> FakeCache {
+        Cache::with_timer(
+            self.cache_size,
+            FakeTimer::ticking(self.clock_start, self.tick_every),
+        )
+    }
+
     /// Parses the fields after `script` (the first is the name).
     pub(super) fn parse(fields: &[&str]) -> Result<Self, Box<dyn Error>> {
         let weights = field(fields, 15)?
@@ -365,35 +410,44 @@ impl ScriptSpec {
             collide: field(fields, 13)? == "1",
             huge: field(fields, 14)? == "1",
             weights,
+            deep_keys: field(fields, 16)?.parse()?,
+            small_mix: field(fields, 17)? == "1",
+            tick_every: field(fields, 18)?.parse()?,
         })
     }
 }
 
-/// Go: `runner`.
-pub(super) struct Runner<'spec> {
-    spec: &'spec ScriptSpec,
+/// Go: `runner`, driving a cache created by [`ScriptSpec::new_cache`].
+pub(super) struct Runner<'run> {
+    spec: &'run ScriptSpec,
     rng: SplitMix64,
     vrng: SplitMix64,
     clock: Arc<FakeTimer>,
-    pub(super) cache: FakeCache,
+    pub(super) cache: &'run FakeCache,
     keys: Vec<Vec<u8>>,
     max_kv: i64,
+    /// Go: `it`, the iterator `opIterStep` advances across operations.
+    it: Option<CacheIterator<'run, Arc<FakeTimer>>>,
 }
 
-impl<'spec> Runner<'spec> {
+impl<'run> Runner<'run> {
     /// Go: `newRunner`.
-    pub(super) fn new(spec: &'spec ScriptSpec, collisions: &[Vec<u8>]) -> Self {
-        let clock = FakeTimer::at(spec.clock_start);
-        let cache = Cache::with_timer(spec.cache_size, Arc::clone(&clock));
+    pub(super) fn new(
+        spec: &'run ScriptSpec,
+        cache: &'run FakeCache,
+        collisions: &[Vec<u8>],
+        deep: &[Vec<u8>],
+    ) -> Self {
         let size = spec.cache_size.max(512 * 1024);
         let mut runner = Self {
             spec,
             rng: SplitMix64::new(spec.seed),
             vrng: SplitMix64::new(spec.seed ^ 0x7661_6C75_6573),
-            clock,
+            clock: Arc::clone(cache.timer()),
             cache,
             keys: Vec::new(),
             max_kv: (size / 256) / 4 - 24,
+            it: None,
         };
         if spec.collide {
             runner.keys.extend(collisions.iter().cloned());
@@ -404,6 +458,9 @@ impl<'spec> Runner<'spec> {
             runner.rng.fill(&mut key);
             runner.keys.push(key);
         }
+        runner
+            .keys
+            .extend(deep.iter().take(spec.deep_keys).cloned());
         if spec.huge {
             runner.keys.push(vec![b'h'; 65535]);
             runner.keys.push(vec![b'h'; 65536]);
@@ -445,6 +502,9 @@ impl<'spec> Runner<'spec> {
     fn pick_val_len(&mut self, key_len: usize) -> i64 {
         let lim = self.max_kv - i64::try_from(key_len).unwrap_or(0);
         let small_val = self.spec.small_val;
+        if self.spec.small_mix && self.rng.below(100) < 97 {
+            return self.rng.below_int(small_val.cast_signed() + 1);
+        }
         let x = self.rng.below(100);
         let n = if x < 60 {
             self.rng.below_int(small_val.cast_signed() + 1)
@@ -567,7 +627,48 @@ impl<'spec> Runner<'spec> {
                 ("reset".to_owned(), "ok".to_owned())
             }
             Op::Iterate => self.step_iterate(),
+            Op::IterStep => self.step_iter_step(),
         }
+    }
+
+    /// Go: `record`, an operation's result with every counter and, on a ticking clock, the
+    /// number of clock reads so far.
+    pub(super) fn record(&self, res: &str) -> String {
+        let counters = counters(self.cache);
+        if self.spec.tick_every > 0 {
+            format!("{res} | {counters} c:{}", self.clock.calls())
+        } else {
+            format!("{res} | {counters}")
+        }
+    }
+
+    /// Go: the `opIterStep` case of `step`: up to 1 to 8 more entries of the iterator kept
+    /// across operations, which restarts after reaching the end.
+    fn step_iter_step(&mut self) -> (String, String) {
+        let k = self.rng.below(8) + 1;
+        let cache = self.cache;
+        let mut it = self.it.take().unwrap_or_else(|| cache.new_iterator());
+        let mut digest = Fnv::new();
+        let mut n = 0;
+        let mut end = false;
+        while n < k {
+            let Some(entry) = it.next() else {
+                end = true;
+                break;
+            };
+            n += 1;
+            digest.i64(i64::try_from(entry.key.len()).unwrap_or(0));
+            digest.bytes(&entry.key);
+            digest.i64(i64::try_from(entry.value.len()).unwrap_or(0));
+            digest.bytes(&entry.value);
+        }
+        if !end {
+            self.it = Some(it);
+        }
+        (
+            format!("iterstep {k}"),
+            format!("n:{n} end:{end} fnv:{}", digest.hex()),
+        )
     }
 
     /// The draws shared by the `opSet`, `opGetOrSet` and `opSetAndGet` cases of Go's `step`: the
@@ -679,7 +780,7 @@ impl<'spec> Runner<'spec> {
         };
         (
             format!("tick {sign}{d}"),
-            format!("now:{}", self.clock.now()),
+            format!("now:{}", self.clock.current()),
         )
     }
 

@@ -4,7 +4,9 @@ use std::{borrow::Cow, error::Error};
 
 use super::{
     CacheError, RingBuf,
-    golden::{TestResult, check_eq, field, golden_lines, read_golden},
+    golden::{
+        Fnv, SplitMix64, TestResult, bytes_digest, check_eq, field, golden_lines, read_golden,
+    },
 };
 
 /// Go `%q` of bytes, for the ASCII the test buffers hold.
@@ -107,6 +109,153 @@ fn go_ring_buf() -> TestResult {
     check_eq(&got.len(), &want.len(), "ringbuf.golden line count")?;
     for (line, expected) in got.iter().zip(&want) {
         check_eq(line.as_str(), field(expected, 0)?, "RingBuf step")?;
+    }
+    Ok(())
+}
+
+/// Go: `ringFuzzRuns`.
+const RING_FUZZ_RUNS: usize = 200;
+
+/// Go: `ringFuzzOps`.
+const RING_FUZZ_OPS: usize = 400;
+
+/// Go: `ringFuzzSeed`.
+const RING_FUZZ_SEED: u64 = 0x5249_4E47;
+
+/// Go: `rng.below(n)` of a non-negative Go `int64`, as an `int64`.
+fn below_i64(rng: &mut SplitMix64, n: i64) -> Result<i64, Box<dyn Error>> {
+    Ok(i64::try_from(rng.below(u64::try_from(n)?))?)
+}
+
+/// Go: `make([]byte, rng.below(uint64(size)+3))`.
+fn fuzz_buf(rng: &mut SplitMix64, size: i64) -> Result<Vec<u8>, Box<dyn Error>> {
+    Ok(vec![0; usize::try_from(below_i64(rng, size + 3)?)?])
+}
+
+/// Go: `ringOff`, a stream offset around `[begin, end]`.
+fn ring_off(rng: &mut SplitMix64, rb: &RingBuf) -> Result<i64, Box<dyn Error>> {
+    let span = rb.end() - rb.begin() + 7;
+    Ok(rb.begin() - 3 + below_i64(rng, span)?)
+}
+
+/// Go `%v` of a nil-able error.
+fn err_text(err: Option<CacheError>) -> String {
+    err.map_or_else(|| "<nil>".to_owned(), |err| err.to_string())
+}
+
+/// Go: `ringFuzzStep`, one call rendered as Go renders it.
+fn ring_fuzz_step(rng: &mut SplitMix64, rb: &mut RingBuf) -> Result<String, Box<dyn Error>> {
+    let size = rb.size();
+    Ok(match rng.below(10) {
+        0 | 1 => {
+            let mut p = fuzz_buf(rng, size)?;
+            rng.fill(&mut p);
+            let (n, err) = rb.write(&p);
+            format!("write {} {n} {}", p.len(), err_text(err))
+        }
+        2 => {
+            let off = ring_off(rng, rb)?;
+            let mut p = fuzz_buf(rng, size)?;
+            rng.fill(&mut p);
+            let (n, err) = rb.write_at(&p, off);
+            format!("writeat {off} {} {n} {}", p.len(), err_text(err))
+        }
+        3 => {
+            let off = ring_off(rng, rb)?;
+            let mut p = fuzz_buf(rng, size)?;
+            let (n, err) = rb.read_at(&mut p, off);
+            format!(
+                "readat {off} {} {n} {} {}",
+                p.len(),
+                err_text(err),
+                bytes_digest(&p)
+            )
+        }
+        4 => {
+            let off = ring_off(rng, rb)?;
+            let length = below_i64(rng, size + 1)?;
+            let (s, err) = match rb.slice(off, length) {
+                Ok(s) => (s.into_owned(), None),
+                Err(err) => (Vec::new(), Some(err)),
+            };
+            format!(
+                "slice {off} {length} {} {} {}",
+                s.len(),
+                err_text(err),
+                bytes_digest(&s)
+            )
+        }
+        5 => {
+            let off = ring_off(rng, rb)?;
+            let mut p = fuzz_buf(rng, size)?;
+            if rng.below(2) == 0 {
+                let _ = rb.read_at(&mut p, off);
+            } else {
+                rng.fill(&mut p);
+            }
+            format!("equalat {off} {} {}", p.len(), rb.equal_at(&p, off))
+        }
+        6 | 7 => {
+            let (off, length) = if rng.below(8) == 0 {
+                (ring_off(rng, rb)?, below_i64(rng, size + 3)?)
+            } else {
+                let off = rb.begin() + below_i64(rng, rb.end() - rb.begin() + 1)?;
+                (off, below_i64(rng, rb.end() - off + 1)?)
+            };
+            format!("evacuate {off} {length} {}", rb.evacuate(off, length))
+        }
+        8 => {
+            let length = below_i64(rng, 2 * size + 1)?;
+            rb.skip(length);
+            format!("skip {length}")
+        }
+        _ => {
+            if rng.below(4) == 0 {
+                let begin = below_i64(rng, 100)?;
+                rb.reset(begin);
+                format!("reset {begin}")
+            } else {
+                let new_size = 1 + usize::try_from(rng.below(48))?;
+                rb.resize(new_size);
+                format!("resize {new_size}")
+            }
+        }
+    })
+}
+
+/// Random call sequences on small buffers, compared call by call (rendering, state and data)
+/// with Go's `writeRingFuzz`: every branch of `Evacuate`, wrapped `ReadAt`/`WriteAt`/`Slice`/
+/// `EqualAt`, and the states `Resize` and `Reset` leave behind.
+#[test]
+fn go_ring_buf_fuzz() -> TestResult {
+    let golden = read_golden("ringfuzz.golden")?;
+    let lines = golden_lines(&golden, "ringfuzz");
+    check_eq(&lines.len(), &RING_FUZZ_RUNS, "ringfuzz.golden line count")?;
+    let mut rng = SplitMix64::new(RING_FUZZ_SEED);
+    for (run, fields) in lines.iter().enumerate() {
+        let size = 1 + usize::try_from(rng.below(40))?;
+        let begin = below_i64(&mut rng, 50)?;
+        let mut rb = RingBuf::new(size, begin);
+        let mut digest = Fnv::new();
+        for _ in 0..RING_FUZZ_OPS {
+            let step = ring_fuzz_step(&mut rng, &mut rb)?;
+            digest.bytes(format!("{step} {rb}\n").as_bytes());
+            digest.bytes(&rb.dump());
+        }
+        let got = [
+            run.to_string(),
+            size.to_string(),
+            begin.to_string(),
+            digest.hex(),
+            rb.to_string(),
+        ];
+        for (index, value) in got.iter().enumerate() {
+            check_eq(
+                value.as_str(),
+                field(fields, index)?,
+                &format!("ring fuzz run {run} field {index}"),
+            )?;
+        }
     }
     Ok(())
 }

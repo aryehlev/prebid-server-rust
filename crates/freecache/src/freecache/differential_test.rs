@@ -3,9 +3,10 @@
 use std::{collections::BTreeSet, error::Error};
 
 use super::{
+    Cache,
     golden::{
-        Fnv, Runner, ScriptSpec, SplitMix64, TestResult, check, check_eq, counters, field,
-        golden_lines, hex_decode, read_golden, write_trace,
+        FakeCache, FakeTimer, Fnv, Runner, ScriptSpec, SplitMix64, TestResult, check, check_eq,
+        counters, err_str, field, golden_lines, hex_decode, read_golden, write_trace,
     },
     xxhash,
 };
@@ -75,8 +76,48 @@ fn go_collisions_share_segment_slot_and_tag() -> TestResult {
     Ok(())
 }
 
+/// Go: `deepTarget`, the low 16 bits (segment and slot) every deep key hashes to.
+const DEEP_TARGET: u64 = 0x2A07;
+
+/// Go: `deepCount`.
+const DEEP_COUNT: usize = 1500;
+
+/// The deep keys of `scripts.golden`, checked against the port's hash.
+fn deep_keys(golden: &str) -> Result<Vec<Vec<u8>>, Box<dyn Error>> {
+    let mut keys = Vec::new();
+    for fields in golden_lines(golden, "deep") {
+        let key = hex_decode(field(&fields, 0)?)?;
+        check_eq(
+            &(xxhash::sum64(&key) & 0xFFFF),
+            &DEEP_TARGET,
+            &format!("low 16 bits of Sum64({key:x?})"),
+        )?;
+        keys.push(key);
+    }
+    Ok(keys)
+}
+
+#[test]
+fn go_deep_keys_share_segment_and_slot() -> TestResult {
+    let golden = read_golden("scripts.golden")?;
+    let keys = deep_keys(&golden)?;
+    check_eq(&keys.len(), &DEEP_COUNT, "deep keys")?;
+    let distinct: BTreeSet<&[u8]> = keys.iter().map(Vec::as_slice).collect();
+    check_eq(&distinct.len(), &DEEP_COUNT, "distinct deep keys")?;
+    // Several pairs also share the 16-bit tag, so lookups walk runs of equal tags deep in the
+    // slot.
+    let tags: BTreeSet<u64> = keys
+        .iter()
+        .map(|key| (xxhash::sum64(key) >> 16) & 0xFFFF)
+        .collect();
+    check(
+        DEEP_COUNT - tags.len() >= 10,
+        &format!("only {} deep keys share a tag", DEEP_COUNT - tags.len()),
+    )
+}
+
 /// The scripts the tests below replay, which must be every script in the golden.
-const SCRIPTS: [&str; 10] = [
+const SCRIPTS: [&str; 15] = [
     "small_evict",
     "near_limits",
     "ttl_wrap",
@@ -87,6 +128,11 @@ const SCRIPTS: [&str; 10] = [
     "int_keys",
     "empty_values",
     "negative_size",
+    "deep_slot",
+    "deep_slot_tiny",
+    "ticking_small",
+    "ticking_deep",
+    "iter_mutate",
 ];
 
 #[test]
@@ -108,6 +154,7 @@ fn go_scripts_are_all_replayed() -> TestResult {
 fn replay_script(name: &str) -> TestResult {
     let golden = read_golden("scripts.golden")?;
     let collisions = collisions(&golden)?;
+    let deep = deep_keys(&golden)?;
     let spec_fields = golden_lines(&golden, "script")
         .into_iter()
         .find(|fields| fields.first() == Some(&name))
@@ -119,20 +166,19 @@ fn replay_script(name: &str) -> TestResult {
         .collect();
     let mut want_batches = batches.iter();
 
-    let mut runner = Runner::new(&spec, &collisions);
+    let cache = spec.new_cache();
+    let mut runner = Runner::new(&spec, &cache, &collisions, &deep);
     let mut ops = Fnv::new();
     let mut results = Fnv::new();
     let mut records = Vec::with_capacity(spec.batch);
     for op in 0..spec.ops {
         let (desc, res) = runner.step();
-        let counters = counters(&runner.cache);
+        let record = runner.record(&res);
         ops.bytes(desc.as_bytes());
         ops.bytes(b"\n");
-        results.bytes(res.as_bytes());
-        results.bytes(b" | ");
-        results.bytes(counters.as_bytes());
+        results.bytes(record.as_bytes());
         results.bytes(b"\n");
-        records.push(format!("{op} {desc} => {res} | {counters}"));
+        records.push(format!("{op} {desc} => {record}"));
         if (op + 1) % spec.batch != 0 && op + 1 != spec.ops {
             continue;
         }
@@ -147,7 +193,13 @@ fn replay_script(name: &str) -> TestResult {
         let want = want_batches
             .next()
             .ok_or_else(|| format!("{name}: no golden line for batch {batch}"))?;
-        let got = [batch.to_string(), ops.hex(), results.hex(), state, counters];
+        let got = [
+            batch.to_string(),
+            ops.hex(),
+            results.hex(),
+            state,
+            counters(runner.cache),
+        ];
         for (index, (value, label)) in got
             .iter()
             .zip(["batch", "operations", "results", "state", "counters"])
@@ -224,4 +276,88 @@ fn go_script_empty_values() -> TestResult {
 #[test]
 fn go_script_negative_size() -> TestResult {
     replay_script("negative_size")
+}
+
+/// Hundreds of entries in one slot: `slotCap` grows to 512, and keys sharing a 16-bit tag sit
+/// deep inside it.
+#[test]
+fn go_script_deep_slot() -> TestResult {
+    replay_script("deep_slot")
+}
+
+/// One slot of the smallest cache: nearly every write evicts from the slot it inserts into.
+#[test]
+fn go_script_deep_slot_tiny() -> TestResult {
+    replay_script("deep_slot_tiny")
+}
+
+/// A clock that advances as it is read: every result depends on how often and when the cache
+/// reads its clock.
+#[test]
+fn go_script_ticking_small() -> TestResult {
+    replay_script("ticking_small")
+}
+
+/// The ticking clock on deep slots, wrapping past `u32::MAX` and moving back.
+#[test]
+fn go_script_ticking_deep() -> TestResult {
+    replay_script("ticking_deep")
+}
+
+/// An iterator kept across writes, deletes and clears.
+#[test]
+fn go_script_iter_mutate() -> TestResult {
+    replay_script("iter_mutate")
+}
+
+/// Go: `limitKeyLens`.
+const LIMIT_KEY_LENS: [usize; 12] = [
+    0, 1, 8, 100, 487, 488, 489, 4096, 65511, 65512, 65535, 65536,
+];
+
+/// Go: `maxAccepted`, the longest value `set` accepts with a key of `key_len` bytes, by
+/// bisection, and the error for one byte more.
+fn max_accepted(cache: &FakeCache, key_len: usize) -> String {
+    let key = vec![0; key_len];
+    if let Err(err) = cache.set(&key, &[], 0) {
+        return format!("-1 err:{err}");
+    }
+    let (mut lo, mut hi) = (0, 1 << 17);
+    while lo < hi {
+        let mid = usize::midpoint(lo + 1, hi);
+        if cache.set(&key, &vec![0; mid], 0).is_ok() {
+            lo = mid;
+        } else {
+            hi = mid - 1;
+        }
+    }
+    format!("{lo} {}", err_str(&cache.set(&key, &vec![0; lo + 1], 0)))
+}
+
+/// The entry size limit (`size / 1024 - 24` for key plus value, keys up to 65535 bytes) across
+/// cache sizes around the minimum, the 256 segments and the key limit.
+#[test]
+fn go_entry_limits() -> TestResult {
+    let golden = read_golden("limits.golden")?;
+    let lines = golden_lines(&golden, "limit");
+    check_eq(&lines.len(), &21, "limits.golden line count")?;
+    for fields in lines {
+        let size: i64 = field(&fields, 0)?.parse()?;
+        let cache = Cache::with_timer(size, FakeTimer::at(1_700_000_000));
+        let results: Vec<String> = LIMIT_KEY_LENS
+            .iter()
+            .map(|&key_len| format!("k{key_len}:{}", max_accepted(&cache, key_len)))
+            .collect();
+        check_eq(
+            results.join(",").as_str(),
+            field(&fields, 1)?,
+            &format!("limits of a {size}-byte cache"),
+        )?;
+        check_eq(
+            counters(&cache).as_str(),
+            field(&fields, 2)?,
+            &format!("counters of a {size}-byte cache"),
+        )?;
+    }
+    Ok(())
 }

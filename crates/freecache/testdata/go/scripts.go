@@ -35,6 +35,7 @@ const (
 	opClear
 	opResetStatistics
 	opIterate
+	opIterStep
 	opCount
 )
 
@@ -63,6 +64,14 @@ type scriptSpec struct {
 	collide      bool
 	huge         bool
 	weights      [opCount]int
+	// deepKeys keys from the deep pool (findDeepKeys), which all share one segment and one
+	// slot, join the pool after the random keys.
+	deepKeys int
+	// smallMix draws 97% of the value lengths from 0 to smallVal.
+	smallMix bool
+	// tickEvery, when positive, advances the clock by one second every tickEvery calls to
+	// Now, so that any difference in how often the cache reads its clock changes the results.
+	tickEvery int
 }
 
 // w builds a weight table from (operation, weight) pairs.
@@ -182,10 +191,21 @@ var intKeys = []int64{0, 1, 2, 3, 7, 42, -1, -2, math.MinInt64, math.MaxInt64, 1
 // errFn is the error the GetFn/PeekFn callbacks return when the script asks them to fail.
 var errFn = errors.New("fn error")
 
-// fakeTimer is the script clock.
-type fakeTimer struct{ now uint32 }
+// fakeTimer is the script clock. With tickEvery set it also advances by itself, one second
+// every tickEvery calls to Now.
+type fakeTimer struct {
+	now       uint32
+	calls     uint64
+	tickEvery uint64
+}
 
-func (t *fakeTimer) Now() uint32 { return t.now }
+func (t *fakeTimer) Now() uint32 {
+	t.calls++
+	if t.tickEvery > 0 && t.calls%t.tickEvery == 0 {
+		t.now++
+	}
+	return t.now
+}
 
 // runner executes one script.
 type runner struct {
@@ -196,14 +216,17 @@ type runner struct {
 	cache *freecache.Cache
 	keys  [][]byte
 	maxKV int
+	// it is the iterator opIterStep advances across operations, nil before the first step
+	// and after the end.
+	it *freecache.Iterator
 }
 
-func newRunner(spec *scriptSpec, collisions [][]byte) *runner {
+func newRunner(spec *scriptSpec, collisions, deep [][]byte) *runner {
 	r := &runner{
 		spec:  spec,
 		rng:   splitmix64{state: spec.seed},
 		vrng:  splitmix64{state: spec.seed ^ 0x76616C756573},
-		clock: &fakeTimer{now: spec.clockStart},
+		clock: &fakeTimer{now: spec.clockStart, tickEvery: uint64(spec.tickEvery)},
 	}
 	r.cache = freecache.NewCacheCustomTimer(spec.cacheSize, r.clock)
 	size := spec.cacheSize
@@ -219,6 +242,7 @@ func newRunner(spec *scriptSpec, collisions [][]byte) *runner {
 		r.rng.fill(key)
 		r.keys = append(r.keys, key)
 	}
+	r.keys = append(r.keys, deep[:spec.deepKeys]...)
 	if spec.huge {
 		r.keys = append(r.keys, bytes.Repeat([]byte("h"), 65535), bytes.Repeat([]byte("h"), 65536))
 	}
@@ -258,6 +282,9 @@ func (r *runner) pickKey() int {
 // accepted, anything accepted, or anything up to slightly over the limit.
 func (r *runner) pickValLen(keyLen int) int {
 	lim := r.maxKV - keyLen
+	if r.spec.smallMix && r.rng.below(100) < 97 {
+		return int(r.rng.below(uint64(r.spec.smallVal) + 1))
+	}
 	var n int
 	switch x := r.rng.below(100); {
 	case x < 60:
@@ -432,6 +459,27 @@ func (r *runner) step() (string, string) {
 	case opResetStatistics:
 		c.ResetStatistics()
 		return "reset", "ok"
+	case opIterStep:
+		k := int(r.rng.below(8)) + 1
+		if r.it == nil {
+			r.it = c.NewIterator()
+		}
+		f := newFnv()
+		n, end := 0, false
+		for n < k {
+			e := r.it.Next()
+			if e == nil {
+				end = true
+				r.it = nil
+				break
+			}
+			n++
+			f.i64(int64(len(e.Key)))
+			f.bytes(e.Key)
+			f.i64(int64(len(e.Value)))
+			f.bytes(e.Value)
+		}
+		return fmt.Sprintf("iterstep %d", k), fmt.Sprintf("n:%d end:%v fnv:%s", n, end, f.hex())
 	default:
 		it := c.NewIterator()
 		f := newFnv()
@@ -502,8 +550,19 @@ func specFields(s *scriptSpec) []string {
 		strconv.FormatUint(uint64(s.clockStart), 10), strconv.Itoa(s.keys),
 		strconv.Itoa(s.keyMaxLen), strconv.Itoa(s.smallVal), strconv.Itoa(s.ttlMax),
 		strconv.Itoa(s.tickMax), strconv.Itoa(s.backPermille), boolField(s.collide),
-		boolField(s.huge), strings.Join(weights, ","),
+		boolField(s.huge), strings.Join(weights, ","), strconv.Itoa(s.deepKeys),
+		boolField(s.smallMix), strconv.Itoa(s.tickEvery),
 	}
+}
+
+// record renders an operation's result with every counter and, on a ticking clock, the
+// number of clock reads so far.
+func (r *runner) record(res string) string {
+	out := res + " | " + counters(r.cache)
+	if r.spec.tickEvery > 0 {
+		out += fmt.Sprintf(" c:%d", r.clock.calls)
+	}
+	return out
 }
 
 func writeScripts(g *golden) {
@@ -512,15 +571,19 @@ func writeScripts(g *golden) {
 	for _, key := range collisions {
 		g.line("collide", fmt.Sprintf("%x", key), fmt.Sprintf("%08x", uint32(xxhash.Sum64(key))))
 	}
+	deep := findDeepKeys()
+	for _, key := range deep {
+		g.line("deep", fmt.Sprintf("%x", key))
+	}
 	for i := range scriptSpecs {
 		spec := &scriptSpecs[i]
 		g.line(specFields(spec)...)
-		r := newRunner(spec, collisions)
+		r := newRunner(spec, collisions, deep)
 		ops, results := newFnv(), newFnv()
 		for op := 0; op < spec.ops; op++ {
 			desc, res := r.step()
 			ops.str(desc + "\n")
-			results.str(res + " | " + counters(r.cache) + "\n")
+			results.str(r.record(res) + "\n")
 			if (op+1)%spec.batch != 0 && op+1 != spec.ops {
 				continue
 			}
@@ -543,11 +606,11 @@ func traceScript(name string, from, to int) {
 		if spec.name != name {
 			continue
 		}
-		r := newRunner(spec, findCollisions())
+		r := newRunner(spec, findCollisions(), findDeepKeys())
 		for op := 0; op < spec.ops && (to < 0 || op < to); op++ {
 			desc, res := r.step()
 			if op >= from {
-				fmt.Printf("%d %s => %s | %s\n", op, desc, res, counters(r.cache))
+				fmt.Printf("%d %s => %s\n", op, desc, r.record(res))
 			}
 		}
 		return

@@ -15,7 +15,14 @@
 //     of the operations, of every result and counter, and of the whole cache state read with
 //     reflect (scripts.go);
 //   - scenarios.golden: freecache's own tests replayed on a fake clock, with the counters they
-//     only log (scenarios.go).
+//     only log (scenarios.go);
+//   - limits.golden: the longest value Set accepts for many cache sizes and key lengths
+//     (adversarial.go);
+//   - ringfuzz.golden: random RingBuf call sequences, digested call by call (adversarial.go).
+//
+// scripts.golden also holds the adversarial scripts of adversarial.go: keys that all share one
+// segment and slot, a clock that advances on its own as the cache reads it, and iteration
+// interleaved with writes.
 //
 // To debug a mismatch, print one script's per-operation records and compare them with the lines
 // the Rust test reports:
@@ -167,4 +174,6 @@ func main() {
 	writeXxhash(newGolden(dir, "xxhash.golden"))
 	writeScripts(newGolden(dir, "scripts.golden"))
 	writeScenarios(newGolden(dir, "scenarios.golden"))
+	writeLimits(newGolden(dir, "limits.golden"))
+	writeRingFuzz(newGolden(dir, "ringfuzz.golden"))
 }
