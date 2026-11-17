@@ -19,6 +19,7 @@ use serde_json::{Map, Value};
 
 use crate::{
     encode::GoMapKey, error::JsonError, gostring::GoString, gotype::GoType, unicode::go_lossy,
+    value::replace_value,
 };
 
 /// One step of jsoniter's field-name hash (`hash ^= int64(b); hash *= 0x1000193`).
@@ -463,7 +464,7 @@ impl JsoniterDecode for Map<String, Value> {
 impl JsoniterDecode for Value {
     fn jsoniter_decode(&mut self, it: &mut Iter<'_>) {
         // Go: json-iterator/go reflect_dynamic.go efaceDecoder.Decode → Iterator.Read
-        *self = read_value(it);
+        replace_value(self, read_value(it));
     }
 }
 

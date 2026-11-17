@@ -22,6 +22,7 @@ use crate::{
     jsoniter::GoMap,
     strconv::{f64_to_f32, parse_float_go, parse_int, parse_uint},
     unicode::go_lossy,
+    value::replace_value,
 };
 
 /// How a Go kind treats the literal classes in `literalStore`.
@@ -369,7 +370,7 @@ impl StdDecode for Value {
                 self.std_literal_as::<N>(item, false, d)
             }
             Token::Array | Token::Object => {
-                *self = value_interface(d);
+                replace_value(self, value_interface(d));
                 Ok(())
             }
         }

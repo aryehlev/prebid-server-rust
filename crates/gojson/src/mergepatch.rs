@@ -132,6 +132,12 @@ fn classify(data: &[u8]) -> Top {
     if check_valid(data).is_err() {
         return Top::Syntax;
     }
+    classify_valid(data)
+}
+
+/// [`classify`] for a value already known to be valid JSON (a member or element of a valid
+/// document: every part of a valid document is itself valid, the nesting limit included).
+fn classify_valid(data: &[u8]) -> Top {
     match data.get(skip_space(data, 0)) {
         Some(b'{') => Top::Object,
         Some(b'[') => Top::Array,
@@ -543,9 +549,10 @@ fn probe_value(raw: &[u8]) -> Option<&[u8]> {
     (raw != b"null").then_some(raw)
 }
 
-/// `lazyNode.tryDoc`: `json.Unmarshal(raw, &n.doc)` succeeds for an object or `null`.
-fn try_doc(raw: &[u8]) -> Option<Probe<'_>> {
-    match classify(raw) {
+/// `lazyNode.tryDoc`: `json.Unmarshal(raw, &n.doc)` succeeds for an object or `null`. `top` is
+/// what `raw` decodes to.
+fn try_doc(raw: &[u8], top: Top) -> Option<Probe<'_>> {
+    match top {
         Top::Object => {
             let mut doc = BTreeMap::new();
             for (key, value) in Members::new(raw) {
@@ -559,8 +566,8 @@ fn try_doc(raw: &[u8]) -> Option<Probe<'_>> {
 }
 
 /// `lazyNode.tryAry`.
-fn try_ary(raw: &[u8]) -> Option<Probe<'_>> {
-    match classify(raw) {
+fn try_ary(raw: &[u8], top: Top) -> Option<Probe<'_>> {
+    match top {
         Top::Array => Some(Probe::Ary(Elements::new(raw).map(probe_value).collect())),
         Top::Null => Some(Probe::Ary(Vec::new())),
         Top::Syntax | Top::Object | Top::Scalar => None,
@@ -578,35 +585,61 @@ fn compact_or_raw(raw: &[u8]) -> Cow<'_, [u8]> {
 }
 
 /// `n.equal(o)` with `o` still raw (it always is when Go reaches it).
-fn equal_raw(n: &[u8], o: &[u8]) -> bool {
+///
+/// Go recurses into members and elements; the pairs still to compare are kept on a heap work
+/// list here instead, so that documents as deep as `encoding/json` accepts compare on a small
+/// stack. Comparing has no side effects, so the order does not change the result.
+///
+/// Go's `tryDoc` and `tryAry` validate the bytes again at every level, which makes a deep
+/// comparison quadratic; only the two documents are validated here, since their members and
+/// elements are then valid too, so every probe decodes as Go's does.
+fn equal_raw(a: &[u8], b: &[u8]) -> bool {
     // Go: json-patch patch.go lazyNode.equal
-    match try_doc(n).or_else(|| try_ary(n)) {
-        None => compact_or_raw(n) == compact_or_raw(o),
-        Some(Probe::Doc(n_doc)) => {
-            let Some(Probe::Doc(o_doc)) = try_doc(o) else {
-                return false;
-            };
-            n_doc.len() == o_doc.len()
-                && n_doc
-                    .iter()
-                    .all(|(key, value)| match (value, o_doc.get(key)) {
-                        (None, Some(None)) => true,
-                        (Some(v), Some(Some(ov))) => equal_raw(v, ov),
-                        (Some(_), Some(None)) | (None, Some(Some(_))) | (_, None) => false,
-                    })
-        }
-        Some(Probe::Ary(n_ary)) => {
-            let Some(Probe::Ary(o_ary)) = try_ary(o) else {
-                return false;
-            };
-            // Go dereferences a nil element here and panics; such arrays compare unequal.
-            n_ary.len() == o_ary.len()
-                && n_ary.iter().zip(&o_ary).all(|pair| match pair {
-                    (Some(v), Some(ov)) => equal_raw(v, ov),
-                    (None, _) | (_, None) => false,
-                })
+    let mut pending = vec![(a, b)];
+    let mut validated = false;
+    while let Some((n, o)) = pending.pop() {
+        let classify_one = if validated { classify_valid } else { classify };
+        validated = true;
+        let (n_top, o_top) = (classify_one(n), classify_one(o));
+        match try_doc(n, n_top).or_else(|| try_ary(n, n_top)) {
+            None => {
+                if compact_or_raw(n) != compact_or_raw(o) {
+                    return false;
+                }
+            }
+            Some(Probe::Doc(n_doc)) => {
+                let Some(Probe::Doc(o_doc)) = try_doc(o, o_top) else {
+                    return false;
+                };
+                if n_doc.len() != o_doc.len() {
+                    return false;
+                }
+                for (key, value) in &n_doc {
+                    match (value, o_doc.get(key)) {
+                        (None, Some(None)) => {}
+                        (Some(v), Some(Some(ov))) => pending.push((v, ov)),
+                        (Some(_), Some(None)) | (None, Some(Some(_))) | (_, None) => return false,
+                    }
+                }
+            }
+            Some(Probe::Ary(n_ary)) => {
+                let Some(Probe::Ary(o_ary)) = try_ary(o, o_top) else {
+                    return false;
+                };
+                if n_ary.len() != o_ary.len() {
+                    return false;
+                }
+                // Go dereferences a nil element here and panics; such arrays compare unequal.
+                for pair in n_ary.iter().zip(&o_ary) {
+                    match pair {
+                        (Some(v), Some(ov)) => pending.push((v, ov)),
+                        (None, _) | (_, None) => return false,
+                    }
+                }
+            }
         }
     }
+    true
 }
 
 /// `jsonpatch.Equal(a, b)`: whether two documents are equal as JSON, with Go's quirks.

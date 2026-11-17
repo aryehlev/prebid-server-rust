@@ -2,7 +2,10 @@
 
 use core::{error::Error, fmt};
 
-use crate::stream::{Decoder, StreamError, Token};
+use crate::{
+    stream::{Decoder, StreamError, Token},
+    value::drop_value,
+};
 
 /// The error of [`find_element`] and [`drop_element`].
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -113,7 +116,10 @@ pub fn find_element(extension: &[u8], names: &[&str]) -> FoundElement {
         };
         if matches!(&token, Token::String(s) if s == element_name) {
             let mut value = serde_json::Value::Null;
-            if let Err(err) = dec.decode(&mut value) {
+            let decoded = dec.decode(&mut value);
+            // The value can be 10000 levels deep; its own drop would recurse per level.
+            drop_value(value);
+            if let Err(err) = decoded {
                 return FoundElement::failed(err.into());
             }
             end_index = dec.input_offset();

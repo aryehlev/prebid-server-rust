@@ -495,7 +495,8 @@
 //! [`encode::marshal_with`] encodes with an explicit [`Flavor`] through an [`Encoder`]. The
 //! traits behind the derive, [`GoType`], [`GoEncode`], [`JsoniterDecode`] and [`StdDecode`],
 //! can be implemented by hand for a type the derive cannot describe; their hidden methods are
-//! internal hooks with working defaults.
+//! internal hooks with working defaults. [`value::drop_value`] drops a deeply nested
+//! `serde_json::Value` without recursing.
 //!
 //! # Testing against Go
 //!
@@ -523,6 +524,9 @@
 //! for real openrtb2 values (corpus `Imp`, `Site`, `App`, `User`, `Device` and `BidRequest`
 //! objects merged with first-party data and generated overlays, some over a nil or malformed
 //! `Ext`) and for a struct with every field shape, which `tests/mergeclone.rs` replays.
+//! `go run ./rust/crates/gojson/testdata/go/depth` writes the results and error texts of every
+//! decode, merge, compare and search entry point for documents nested 9999, 10000 and 10001
+//! levels deep, which `tests/depth.rs` replays on 2 MiB threads.
 //!
 //! Other crates can follow the same pattern with a generator under their own `testdata/go`.
 //!
@@ -563,6 +567,14 @@
 //!   keep the old values. Rust drops truncated elements, so they start from zero values. Only
 //!   repeated decodes into the same value can tell the difference; `MergeClone` resets slices
 //!   first, so it never can.
+//! * Go's goroutine stacks grow; a Rust thread's stack does not (Tokio's workers get 2 MiB).
+//!   Decoding, encoding, merging, comparing and searching documents nested to the decoders' limit
+//!   of 10000 levels take no native stack per level of the document, and work on a 2 MiB thread in
+//!   a debug build (`tests/depth.rs`). What recurses is the Rust side: a typed decode or encode
+//!   once per level of type nesting (unbounded only for a recursive type), and
+//!   `serde_json::Value`'s own `Drop` and `Clone` once per level of the value, which overflows a 2
+//!   MiB debug-build stack at a few thousand nested objects. Drop a `Value` that may be deep
+//!   (anything decoded into `interface{}` from a request) with [`value::drop_value`].
 //! * Not provided: `json.MarshalIndent`, which only Go tests call.
 
 #[doc(hidden)]
@@ -585,6 +597,7 @@ pub mod stream;
 pub mod structs;
 #[doc(hidden)]
 pub mod unicode;
+pub mod value;
 
 #[doc(hidden)]
 pub mod __private;
