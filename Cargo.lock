@@ -157,14 +157,30 @@ dependencies = [
 [[package]]
 name = "pbs-goviper"
 version = "0.1.0"
+dependencies = [
+ "pbs-gocompat",
+ "pbs-gojson",
+ "pbs-goyaml",
+ "serde_json",
+]
 
 [[package]]
 name = "pbs-goyaml"
 version = "0.1.0"
+dependencies = [
+ "pbs-gocompat",
+ "pbs-gojson",
+ "pbs-goyaml-derive",
+]
 
 [[package]]
 name = "pbs-goyaml-derive"
 version = "0.1.0"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
+]
 
 [[package]]
 name = "pbs-gpp"

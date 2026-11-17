@@ -234,6 +234,9 @@ Use these entry points:
 - `/gsd-execute-phase` for planned phase work
 
 Do not make direct repo edits outside a GSD workflow unless the user explicitly asks to bypass it.
+
+This GSD rule does not apply to the automated upstream-port agents in CI; they follow
+`.github/port/PORT_SYSTEM.md` instead.
 <!-- GSD:workflow-end -->
 
 

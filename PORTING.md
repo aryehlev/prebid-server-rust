@@ -38,6 +38,8 @@ Use these crates instead of re-implementing Go semantics locally:
 | `pbs-gojson` (+ `pbs-gojson-derive`) | Go JSON: the three encoder flavours (`jsonutil.Marshal`, `encoding/json.Marshal`, `Encoder` with HTML escaping off), Go float formatting, `RawJson` (exact bytes, absent vs `null`), and jsoniter/`encoding/json` decoding semantics with byte-identical error text. |
 | `pbs-errortypes` | Go `errortypes` codes, severities, and error kinds. |
 | `pbs-gocompat` | Go `net/http` header semantics, `net/url` escaping and `Values.Encode`, `strconv` formatting/parsing, `fmt` verbs, the `text/template` subset Prebid uses, `time` Format/Parse/JSON and `Duration`/`ParseDuration` (Local treated as UTC), `strings` case/split/`Replacer`, `encoding/base64`, `unicode` tables, and `math` conversions. |
+| `pbs-goyaml` (+ `pbs-goyaml-derive`) | `gopkg.in/yaml.v3` decoding (as viper 1.12 uses it) and `mapstructure` v1.5.0 decoding into Rust structs, with Go's error text; JSON encoding of decoded values. |
+| `pbs-goviper` | `spf13/viper` v1.12.0 and `spf13/cast` v1.5.0: defaults, env binding (`SetEnvPrefix`, `SetEnvKeyReplacer`, `AutomaticEnv`), config-file search and merge, typed getters, `Unmarshal`. Known gaps are listed in its crate docs: config formats Prebid does not use, `AllSettings` aliasing, and keys that prefix other keys (Go's output there is nondeterministic). |
 
 Each of these crates documents its API in its `lib.rs` crate docs. Read them before porting.
 
@@ -64,6 +66,12 @@ Each of these crates documents its API in its `lib.rs` crate docs. Read them bef
 - Every crate opts into the workspace lint policy with `[lints] workspace = true`.
 - **Never suppress a lint**: no `#[allow(..)]`, `#![allow(..)]`, `#[expect(..)]`,
   `cfg_attr(.., allow(..))`, or `"allow"` levels in any `[lints]` table. Fix the code instead.
+  This covers every spelling: raw identifiers (`#[r#allow(..)]`, `rustfmt::r#skip`), attributes a
+  macro assembles from its input (`#[$x]`, `quote!`'s `#[#x]`), proc-macro strings that spell a
+  suppressing attribute, `#[clippy::msrv]`, `#[automatically_derived]`, and compiler overrides in
+  `.cargo/config*` or the environment (`rustflags`, `rustc-wrapper`, `rustc-workspace-wrapper`,
+  `runner`, `RUSTC*`, `RUSTFLAGS`). Go code we author may not use `nolint`/`nosec`/build tags.
+  `rust/scripts/check-no-lint-suppression.sh` enforces all of this in CI; its header lists the rules.
 - No `unsafe`. No `unwrap`/`expect`/`panic!`/`todo!`/`unimplemented!`/indexing that can panic —
   including in tests (tests return `Result` and use `?`).
 - Before finishing, run `cargo clippy -p <crate> --all-targets` and fix every warning in files you
