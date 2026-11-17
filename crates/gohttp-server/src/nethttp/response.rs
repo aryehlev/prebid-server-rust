@@ -49,7 +49,60 @@ const BUFFER_BEFORE_CHUNKING_SIZE: usize = 2048;
 ///
 /// [`ResponseWriter::write_header`] does no I/O (Go's writes the header to the connection's
 /// buffer only once the body is flushed), so it is synchronous; writing and flushing are not.
-/// A middleware such as a gzip handler wraps a `&mut dyn ResponseWriter` and forwards to it.
+/// A middleware such as a gzip handler wraps a `&mut dyn ResponseWriter` and forwards to it:
+///
+/// ```
+/// use std::io;
+///
+/// use pbs_gohttp_server::{BoxFuture, Handler, Header, Request, ResponseWriter};
+///
+/// /// Counts the body bytes, where a compressing writer would encode them.
+/// struct Counting<'w> {
+///     inner: &'w mut dyn ResponseWriter,
+///     written: usize,
+/// }
+///
+/// impl ResponseWriter for Counting<'_> {
+///     fn header(&mut self) -> &mut Header {
+///         self.inner.header()
+///     }
+///
+///     fn write_header(&mut self, code: u16) {
+///         self.inner.write_header(code);
+///     }
+///
+///     fn write<'a>(&'a mut self, data: &'a [u8]) -> BoxFuture<'a, io::Result<usize>> {
+///         Box::pin(async move {
+///             let n = self.inner.write(data).await?;
+///             self.written += n;
+///             Ok(n)
+///         })
+///     }
+///
+///     fn flush(&mut self) -> BoxFuture<'_, io::Result<()>> {
+///         self.inner.flush()
+///     }
+/// }
+///
+/// /// Serves the wrapped handler through `Counting`.
+/// struct Wrap<H>(H);
+///
+/// impl<H: Handler> Handler for Wrap<H> {
+///     fn serve_http<'a>(
+///         &'a self,
+///         w: &'a mut dyn ResponseWriter,
+///         r: &'a mut Request,
+///     ) -> BoxFuture<'a, ()> {
+///         Box::pin(async move {
+///             let mut counting = Counting {
+///                 inner: w,
+///                 written: 0,
+///             };
+///             self.0.serve_http(&mut counting, r).await;
+///         })
+///     }
+/// }
+/// ```
 pub trait ResponseWriter: Send {
     /// Go: `Header()`: the header map the response will send. Changing it after
     /// [`ResponseWriter::write_header`] has no effect, except for trailers.
