@@ -15,3 +15,6 @@ categories.workspace = true
 workspace = true
 
 [dependencies]
+pbs-gocompat = { path = "../gocompat", version = "0.1.0" }
+pbs-gojson = { path = "../gojson", version = "0.1.0" }
+pbs-goyaml-derive = { path = "../goyaml-derive", version = "0.1.0" }
