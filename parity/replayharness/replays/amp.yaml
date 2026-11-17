@@ -215,7 +215,7 @@ replays:
         expect: {status: 405, headers: {Allow: "GET, OPTIONS"}, contains: ["Method Not Allowed\n"]}
 
   - name: AMP reads True-Client-IP, Sec-Cookie-Deprecation and Sec-Browsing-Topics like the auction
-    why: AMP sets the topics response header and runs setFieldsImplicitly and validateRequest as the auction does (endpoints/openrtb2/amp_auction.go:158, 236, 243); FindIP takes a public True-Client-IP before X-Forwarded-For (util/httputil/httputil.go:27-56); rh-amp-topics names rh-topics-account, which enables cookie deprecation and a topics domain, so the header fills device.ext.cdep (endpoints/openrtb2/auction.go:926, 1431-1458) and each valid topic becomes a user.data entry, while an invalid one is debug warning 10012 (endpoints/openrtb2/auction.go:1601-1622, privacysandbox/topics.go:22-107, 223-228)
+    why: AMP sets the topics response header and runs setFieldsImplicitly and validateRequest as the auction does (endpoints/openrtb2/amp_auction.go:158, 236, 243); FindIP takes a public True-Client-IP before X-Forwarded-For (util/httputil/httputil.go:27-56); rh-amp-topics names rh-topics-account, which enables cookie deprecation and a topics domain, so the header fills device.ext.cdep (endpoints/openrtb2/auction.go:926, 1431-1458) and each valid topic becomes a user.data entry, while an invalid one is debug warning 10012 (endpoints/openrtb2/auction.go:1601-1622, privacysandbox/topics.go:24-108, 227-232; in parity mode the entries and their segment IDs come in ascending order, parity/schema/fakes.json orders topics_user_data)
     steps:
       - method: GET
         path: /openrtb2/amp

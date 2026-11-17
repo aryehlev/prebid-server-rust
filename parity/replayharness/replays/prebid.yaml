@@ -415,7 +415,7 @@ replays:
             $.seatbid[0].bid[0].price: 0.75
 
   - name: Sec-Browsing-Topics fills user.data for an account with a topics domain
-    why: setSecBrowsingTopicsImplicitly parses the header into user.data segments named by the account's privacysandbox.topicsdomain (endpoints/openrtb2/auction.go:1601-1622, privacysandbox/topics.go:22-44, :108)
+    why: setSecBrowsingTopicsImplicitly parses the header into user.data segments named by the account's privacysandbox.topicsdomain (endpoints/openrtb2/auction.go:1601-1622, privacysandbox/topics.go:24-46, :110)
     steps:
       - method: POST
         path: /openrtb2/auction

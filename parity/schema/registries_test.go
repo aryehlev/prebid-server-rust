@@ -286,6 +286,7 @@ func TestFakesRegistryOrders(t *testing.T) {
 		"alias_gvlid_validation":            "fakes.MapKeys(aliasesGVLIDs, cmp.Less[string])",
 		"bid_adjustment_factors_validation": "fakes.MapKeys(adjustmentFactors, cmp.Less[string])",
 		"usersync_bidders":                  "fakes.MapKeys(bidderSyncerLookup, cmp.Less[string])",
+		"topics_user_data":                  "fakes.MapKeys(headerDataMap, cmp.Less[int])",
 		"auction_winners":                   "fakes.MapKeys(seatBids, cmp.Less[openrtb_ext.BidderName])",
 		"category_dedupe":                   "fakes.MapKeys(seatBids, cmp.Less[openrtb_ext.BidderName])",
 		"adtarget":                          "fakes.MapKeys(imp2source, cmp.Less[int])",
