@@ -270,7 +270,11 @@ gate parity like any other mismatch:
   order separately.
 * **Lexical differences** (`kind: lexical`) between semantically equal JSON.
   Classes: `html_escape`, `unicode_escape`, `number_format` (for example `1`
-  vs `1.0`), `trailing_newline`, `whitespace`, `member_order` and `other`.
+  vs `1.0`), `trailing_newline`, `whitespace`, `member_order`, `unrecorded`
+  and `other`. `unrecorded` means one side recorded only the semantic `json`
+  of a value the other side recorded as exact bytes (`raw`, `raw_b64`, `text`
+  or `b64`). None of the other classes can then be checked, so the gap is
+  reported rather than skipped.
 * **The 8 adapters' outputs.** They are compared exactly, thanks to the fakes.
 
 A new normalization rule must cite a Go nondeterminism source, must reduce a

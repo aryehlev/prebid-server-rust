@@ -73,6 +73,9 @@ type node struct {
 	// exact is true when raw, member order and ws are the exact source bytes,
 	// so lexical comparison is meaningful.
 	exact bool
+	// unrecorded marks a document root taken from a semantic json member
+	// because its side recorded no exact bytes for it.
+	unrecorded bool
 	// body marks the decoded content of an HTTP body; encoding is its
 	// Content-Encoding (compared separately from the content).
 	body     bool

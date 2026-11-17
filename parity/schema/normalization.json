@@ -243,6 +243,7 @@
         "trailing_newline": "Encoder.Encode adds a trailing newline that json.Marshal does not (endpoints/openrtb2/auction.go:383-394).",
         "whitespace": "Insignificant whitespace differs.",
         "member_order": "Object member order differs in the raw bytes.",
+        "unrecorded": "One side recorded only the semantic json (no raw, raw_b64, text or b64) of a document the other side recorded as exact bytes, so none of the lexical classes could be checked for it.",
         "other": "Any other byte-level difference between semantically equal JSON."
       }
     },

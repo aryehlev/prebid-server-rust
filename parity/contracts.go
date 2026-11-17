@@ -175,7 +175,11 @@ const (
 	LexicalTrailingNewline = "trailing_newline"
 	LexicalWhitespace      = "whitespace"
 	LexicalMemberOrder     = "member_order"
-	LexicalOther           = "other"
+	// LexicalUnrecorded: one side recorded only the semantic json of a
+	// document the other recorded as exact bytes, so its lexical form could
+	// not be compared.
+	LexicalUnrecorded = "unrecorded"
+	LexicalOther      = "other"
 )
 
 // Wire classes refine KindWire: transport-level differences on the HTTP wire.

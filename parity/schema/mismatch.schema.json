@@ -27,7 +27,7 @@
     },
     "LexicalClass": {
       "type": "string",
-      "enum": ["html_escape", "unicode_escape", "number_format", "trailing_newline", "whitespace", "member_order", "other"]
+      "enum": ["html_escape", "unicode_escape", "number_format", "trailing_newline", "whitespace", "member_order", "unrecorded", "other"]
     },
     "WireClass": {
       "type": "string",

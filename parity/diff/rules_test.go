@@ -40,7 +40,7 @@ func TestNotNormalizedClassesAreKnown(t *testing.T) {
 	}{
 		{reg.NotNormalized.Lexical, parity.KindLexical, []string{
 			parity.LexicalHTMLEscape, parity.LexicalUnicodeEscape, parity.LexicalNumberFormat,
-			parity.LexicalTrailingNewline, parity.LexicalWhitespace, parity.LexicalMemberOrder, parity.LexicalOther,
+			parity.LexicalTrailingNewline, parity.LexicalWhitespace, parity.LexicalMemberOrder, parity.LexicalUnrecorded, parity.LexicalOther,
 		}},
 		{reg.NotNormalized.Wire, parity.KindWire, []string{
 			parity.WireHeaderCase, parity.WireHeaderOrder, parity.WireDefaultHeader, parity.WireHTTPVersion,

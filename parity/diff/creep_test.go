@@ -1,6 +1,7 @@
 package diff
 
 import (
+	"encoding/json"
 	"testing"
 
 	"github.com/prebid/prebid-server/v4/parity"
@@ -80,6 +81,55 @@ func TestNarrowShapesAcceptGoNoise(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestUnrecordedBytesAreReported: a side that records only the semantic json
+// of a value cannot take part in any lexical comparison. Before, that was a
+// note and the pair compared equal, so a Rust trace writer that left out raw
+// bytes passed every lexical gate (here: an HTML escape Go writes and Rust
+// would not). Now it is a lexical "unrecorded" record; two semantic-only
+// sides compare as before.
+func TestUnrecordedBytesAreReported(t *testing.T) {
+	escaped, plain := esc(`{"u":"a^u0026b"}`), `{"u":"a&b"}`
+	semantic := func(js string) parity.StageEntry {
+		return parity.StageEntry{Seq: 1, Writes: 1, JSON: json.RawMessage(js), Errors: []parity.ErrorRecord{}, Warnings: []parity.ErrorRecord{}}
+	}
+	tests := []struct {
+		name string
+		g, r *parity.Trace
+		want []brief
+	}{
+		{"rust entry without raw", entryTrace(parity.ImplGo, rawEntry(escaped)), entryTrace(parity.ImplRust, semantic(plain)),
+			[]brief{{parity.KindLexical, parity.LexicalUnrecorded, "$"}}},
+		{"go entry without raw", entryTrace(parity.ImplGo, semantic(escaped)), entryTrace(parity.ImplRust, rawEntry(escaped)),
+			[]brief{{parity.KindLexical, parity.LexicalUnrecorded, "$"}}},
+		{"neither side has raw", entryTrace(parity.ImplGo, semantic(escaped)), entryTrace(parity.ImplRust, semantic(plain)), nil},
+		{"both sides have raw", entryTrace(parity.ImplGo, rawEntry(escaped)), entryTrace(parity.ImplRust, rawEntry(plain)),
+			[]brief{{parity.KindLexical, parity.LexicalHTMLEscape, "$.u"}}},
+		{"rust body without text", bodyTrace(parity.ImplGo, parity.TextBody(escaped)), bodyTrace(parity.ImplRust, &parity.Body{JSON: json.RawMessage(plain)}),
+			[]brief{{parity.KindLexical, parity.LexicalUnrecorded, "$"}}},
+	}
+	e := newTestEngine(t)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := briefs(compareTraces(t, e, Case{CaseID: "unrecorded"}, tt.g, tt.r).Mismatches)
+			if !equalBriefs(got, tt.want) && !(len(got) == 0 && len(tt.want) == 0) {
+				t.Fatalf("got %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func entryTrace(impl string, e parity.StageEntry) *parity.Trace {
+	t := newTrace(impl)
+	t.Stages[parity.StageRequestValidated] = map[string]parity.StageEntry{parity.UnkeyedStage: e}
+	return t
+}
+
+func bodyTrace(impl string, b *parity.Body) *parity.Trace {
+	t := newTrace(impl)
+	t.HTTPResponse = &parity.HTTPResponse{Status: 200, Headers: parity.HeaderList{}, Body: b}
+	return t
 }
 
 // TestGoRuntimeMetricNames: only the Go runtime collector's own families are
