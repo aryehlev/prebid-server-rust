@@ -1,0 +1,193 @@
+{
+  "golden": {
+    "after": [
+      {
+        "name": "connections",
+        "type": "gauge",
+        "labels": {},
+        "value": "-2",
+        "count": 0,
+        "buckets": []
+      },
+      {
+        "name": "latency_seconds",
+        "type": "histogram",
+        "labels": {},
+        "value": "5.55",
+        "count": 3,
+        "buckets": [
+          {
+            "le": 0.005,
+            "count": 0
+          },
+          {
+            "le": 0.1,
+            "count": 1
+          },
+          {
+            "le": 1,
+            "count": 2
+          },
+          {
+            "le": 2.5,
+            "count": 2
+          },
+          {
+            "le": 1e+21,
+            "count": 3
+          }
+        ]
+      },
+      {
+        "name": "nan_seconds",
+        "type": "histogram",
+        "labels": {},
+        "value": "NaN",
+        "count": 1,
+        "buckets": [
+          {
+            "le": 1,
+            "count": 0
+          }
+        ]
+      },
+      {
+        "name": "requests",
+        "type": "counter",
+        "labels": {
+          "type": "amp",
+          "z": "\"q\""
+        },
+        "value": "3",
+        "count": 0,
+        "buckets": []
+      },
+      {
+        "name": "requests",
+        "type": "counter",
+        "labels": {
+          "type": "web",
+          "z": ""
+        },
+        "value": "3",
+        "count": 0,
+        "buckets": []
+      },
+      {
+        "name": "sizes",
+        "type": "summary",
+        "labels": {},
+        "value": "7",
+        "count": 1,
+        "buckets": []
+      },
+      {
+        "name": "temperature",
+        "type": "untyped",
+        "labels": {},
+        "value": "4",
+        "count": 0,
+        "buckets": []
+      },
+      {
+        "name": "unchanged",
+        "type": "counter",
+        "labels": {},
+        "value": "1",
+        "count": 0,
+        "buckets": []
+      }
+    ],
+    "before": [
+      {
+        "name": "connections",
+        "type": "gauge",
+        "labels": {},
+        "value": "0",
+        "count": 0,
+        "buckets": []
+      },
+      {
+        "name": "latency_seconds",
+        "type": "histogram",
+        "labels": {},
+        "value": "0.05",
+        "count": 1,
+        "buckets": [
+          {
+            "le": 0.005,
+            "count": 0
+          },
+          {
+            "le": 0.1,
+            "count": 1
+          },
+          {
+            "le": 1,
+            "count": 1
+          },
+          {
+            "le": 2.5,
+            "count": 1
+          },
+          {
+            "le": 1e+21,
+            "count": 1
+          }
+        ]
+      },
+      {
+        "name": "nan_seconds",
+        "type": "histogram",
+        "labels": {},
+        "value": "0",
+        "count": 0,
+        "buckets": [
+          {
+            "le": 1,
+            "count": 0
+          }
+        ]
+      },
+      {
+        "name": "requests",
+        "type": "counter",
+        "labels": {
+          "type": "amp",
+          "z": "\"q\""
+        },
+        "value": "2",
+        "count": 0,
+        "buckets": []
+      },
+      {
+        "name": "sizes",
+        "type": "summary",
+        "labels": {},
+        "value": "0",
+        "count": 0,
+        "buckets": []
+      },
+      {
+        "name": "temperature",
+        "type": "untyped",
+        "labels": {},
+        "value": "1.5",
+        "count": 0,
+        "buckets": []
+      },
+      {
+        "name": "unchanged",
+        "type": "counter",
+        "labels": {},
+        "value": "1",
+        "count": 0,
+        "buckets": []
+      }
+    ],
+    "delta": "[{\"name\":\"connections\",\"type\":\"gauge\",\"labels\":{},\"delta\":-2,\"count_delta\":null,\"bucket_deltas\":null},{\"name\":\"latency_seconds\",\"type\":\"histogram\",\"labels\":{},\"delta\":5.5,\"count_delta\":2,\"bucket_deltas\":{\"1\":1,\"1e+21\":2,\"2.5\":1}},{\"name\":\"nan_seconds\",\"type\":\"histogram\",\"labels\":{},\"delta\":0,\"count_delta\":1,\"bucket_deltas\":{}},{\"name\":\"requests\",\"type\":\"counter\",\"labels\":{\"type\":\"amp\",\"z\":\"\\\"q\\\"\"},\"delta\":1,\"count_delta\":null,\"bucket_deltas\":null},{\"name\":\"requests\",\"type\":\"counter\",\"labels\":{\"type\":\"web\",\"z\":\"\"},\"delta\":3,\"count_delta\":null,\"bucket_deltas\":null},{\"name\":\"sizes\",\"type\":\"summary\",\"labels\":{},\"delta\":7,\"count_delta\":1,\"bucket_deltas\":null},{\"name\":\"temperature\",\"type\":\"untyped\",\"labels\":{},\"delta\":2.5,\"count_delta\":null,\"bucket_deltas\":null}]",
+    "empty": "[]",
+    "nil_gather": "parity: no Prometheus gatherer (metrics.prometheus.port is 0)"
+  },
+  "parity_ref": "abad587d4f6302094ae9b9b4bf347bbb3422e6b7"
+}

@@ -1,0 +1,89 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://prebid.org/pbs-parity/schema/v1/introspection.schema.json",
+  "title": "pbs-parity introspection documents",
+  "description": "Responses of GET /__parity/health, GET /__parity/config, GET /__parity/bidders, POST /__parity/reset and the error document every /__parity/* route returns on failure. All routes require the X-Parity-Token header, answer application/json, are served on the main port before CORS/NoCache, and only accept loopback callers unless parity.allow_non_loopback is set.",
+  "oneOf": [
+    {"$ref": "#/definitions/Health"},
+    {"$ref": "#/definitions/ConfigDump"},
+    {"$ref": "#/definitions/BiddersDump"},
+    {"$ref": "#/definitions/Reset"},
+    {"$ref": "#/definitions/Error"}
+  ],
+  "definitions": {
+    "Health": {
+      "type": "object",
+      "required": ["schema", "schema_version", "impl", "build", "stages_supported", "decisions_supported", "endpoints", "mock_modes", "mock_levels", "fakes"],
+      "properties": {
+        "schema": {"const": "pbs-parity/1"},
+        "schema_version": {"$ref": "common.schema.json#/definitions/SchemaVersion"},
+        "impl": {"$ref": "common.schema.json#/definitions/Impl"},
+        "build": {"$ref": "common.schema.json#/definitions/BuildInfo"},
+        "stages_supported": {"type": "array", "items": {"$ref": "common.schema.json#/definitions/StageID"}},
+        "decisions_supported": {"type": "array", "items": {"$ref": "common.schema.json#/definitions/DecisionID"}},
+        "endpoints": {"type": "array", "items": {"type": "string"}, "description": "Product routes exec can dispatch to, e.g. /openrtb2/auction."},
+        "mock_modes": {"type": "array", "items": {"enum": ["oracle", "inline"]}},
+        "mock_levels": {"type": "array", "items": {"enum": ["http", "bidder_response"]}},
+        "fakes": {"type": "boolean", "description": "True when the deterministic adapter fakes (fakes.json) are installed."}
+      },
+      "additionalProperties": false
+    },
+    "ConfigDump": {
+      "description": "config is the resolved host configuration keyed by the Go mapstructure config keys, without the 'adapters' and 'parity' subtrees. The Rust server must emit identical key names.",
+      "type": "object",
+      "required": ["schema", "schema_version", "impl", "config"],
+      "properties": {
+        "schema": {"const": "pbs-parity-config/1"},
+        "schema_version": {"$ref": "common.schema.json#/definitions/SchemaVersion"},
+        "impl": {"$ref": "common.schema.json#/definitions/Impl"},
+        "config": {
+          "type": "object",
+          "not": {"anyOf": [{"required": ["parity"]}, {"required": ["adapters"]}]}
+        }
+      },
+      "additionalProperties": false
+    },
+    "BiddersDump": {
+      "description": "bidders is the resolved bidder info (config overrides and aliases applied) keyed by bidder name with yaml/mapstructure key names; active lists enabled bidders (sorted); disabled maps bidder to its disabled/removed warning message.",
+      "type": "object",
+      "required": ["schema", "schema_version", "impl", "bidders", "active", "disabled"],
+      "properties": {
+        "schema": {"const": "pbs-parity-bidders/1"},
+        "schema_version": {"$ref": "common.schema.json#/definitions/SchemaVersion"},
+        "impl": {"$ref": "common.schema.json#/definitions/Impl"},
+        "bidders": {"type": "object", "additionalProperties": {"type": "object"}},
+        "active": {"type": "array", "items": {"type": "string"}},
+        "disabled": {"type": "object", "additionalProperties": {"type": "string"}}
+      },
+      "additionalProperties": false
+    },
+    "Reset": {
+      "description": "Best-effort reset of order-dependent in-process caches (stored requests, floors fetch cache, bidder health).",
+      "type": "object",
+      "required": ["schema", "schema_version", "impl", "reset", "not_reset"],
+      "properties": {
+        "schema": {"const": "pbs-parity-reset/1"},
+        "schema_version": {"$ref": "common.schema.json#/definitions/SchemaVersion"},
+        "impl": {"$ref": "common.schema.json#/definitions/Impl"},
+        "reset": {"type": "array", "items": {"type": "string"}},
+        "not_reset": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["name", "reason"],
+            "properties": {"name": {"type": "string"}, "reason": {"type": "string"}},
+            "additionalProperties": false
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "Error": {
+      "description": "Error document: 401 bad/missing token, 403 non-loopback caller, 400 invalid input document, 501 route not implemented.",
+      "type": "object",
+      "required": ["error"],
+      "properties": {"error": {"type": "string"}},
+      "additionalProperties": false
+    }
+  }
+}

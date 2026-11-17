@@ -1,0 +1,318 @@
+{
+  "golden": {
+    "analytics_kinds": [
+      "auction",
+      "amp",
+      "video",
+      "cookie_sync",
+      "setuid",
+      "notification"
+    ],
+    "decision_sources": [
+      "envelope",
+      "rng"
+    ],
+    "decisions": [
+      "floors.skip",
+      "floors.data_rate",
+      "floors.modelgroup",
+      "floors.enforce",
+      "category.dedupe",
+      "pricegranularity.timesplit",
+      "usersync.shuffle"
+    ],
+    "domains": [
+      "endpoints",
+      "config_bootstrap",
+      "stored_data",
+      "auction_lifecycle",
+      "policy_privacy_identity",
+      "bidders_adapters",
+      "hooks_modules",
+      "cache_support_flows",
+      "cutover_proof"
+    ],
+    "error_codes": [
+      {
+        "code": 1,
+        "kind": "Timeout"
+      },
+      {
+        "code": 2,
+        "kind": "BadInput"
+      },
+      {
+        "code": 3,
+        "kind": "BlockedApp"
+      },
+      {
+        "code": 4,
+        "kind": "BadServerResponse"
+      },
+      {
+        "code": 5,
+        "kind": "FailedToRequestBids"
+      },
+      {
+        "code": 6,
+        "kind": "BidderTemporarilyDisabled"
+      },
+      {
+        "code": 7,
+        "kind": "AccountDisabled"
+      },
+      {
+        "code": 8,
+        "kind": "AcctRequired"
+      },
+      {
+        "code": 9,
+        "kind": "NoConversionRate"
+      },
+      {
+        "code": 10,
+        "kind": "MalformedAcct"
+      },
+      {
+        "code": 11,
+        "kind": "ModuleRejection"
+      },
+      {
+        "code": 12,
+        "kind": "TmaxTimeout"
+      },
+      {
+        "code": 13,
+        "kind": "FailedToMarshal"
+      },
+      {
+        "code": 14,
+        "kind": "FailedToUnmarshal"
+      },
+      {
+        "code": 15,
+        "kind": "InvalidImpFirstPartyData"
+      },
+      {
+        "code": 16,
+        "kind": "BidderTemporarilyThrottled"
+      },
+      {
+        "code": 999,
+        "kind": "UnknownError"
+      },
+      {
+        "code": 10001,
+        "kind": "InvalidPrivacyConsentWarning"
+      },
+      {
+        "code": 10002,
+        "kind": "AccountLevelDebugDisabledWarning"
+      },
+      {
+        "code": 10003,
+        "kind": "BidderLevelDebugDisabledWarning"
+      },
+      {
+        "code": 10004,
+        "kind": "DisabledCurrencyConversionWarning"
+      },
+      {
+        "code": 10005,
+        "kind": "AlternateBidderCodeWarning"
+      },
+      {
+        "code": 10006,
+        "kind": "MultiBidWarning"
+      },
+      {
+        "code": 10007,
+        "kind": "AdServerTargetingWarning"
+      },
+      {
+        "code": 10008,
+        "kind": "BidAdjustmentWarning"
+      },
+      {
+        "code": 10009,
+        "kind": "FloorBidRejectionWarning"
+      },
+      {
+        "code": 10010,
+        "kind": "InvalidBidResponseDSAWarning"
+      },
+      {
+        "code": 10011,
+        "kind": "SecCookieDeprecationLenWarning"
+      },
+      {
+        "code": 10012,
+        "kind": "SecBrowsingTopicsWarning"
+      },
+      {
+        "code": 10013,
+        "kind": "InvalidUserEIDsWarning"
+      },
+      {
+        "code": 10014,
+        "kind": "InvalidUserUIDsWarning"
+      },
+      {
+        "code": 10015,
+        "kind": "TooLongTargetingPrefixWarning"
+      },
+      {
+        "code": 10016,
+        "kind": "TooShortTargetingPrefixWarning"
+      },
+      {
+        "code": 10017,
+        "kind": "BidderBlockedByPrivacySettings"
+      },
+      {
+        "code": 10999,
+        "kind": "UnknownWarning"
+      }
+    ],
+    "error_kind_unknown": "Unknown",
+    "http": [
+      "/__parity/",
+      "X-Parity-Token",
+      "X-Parity-Meta"
+    ],
+    "impls": [
+      "go",
+      "rust"
+    ],
+    "meta_version": 1,
+    "metric_types": [
+      "counter",
+      "gauge",
+      "histogram",
+      "summary",
+      "untyped"
+    ],
+    "mock_levels": [
+      "http",
+      "bidder_response"
+    ],
+    "mock_modes": [
+      "oracle",
+      "inline"
+    ],
+    "mock_sources": [
+      "inline",
+      "rule",
+      "fixture_replay",
+      "template",
+      "default",
+      "static"
+    ],
+    "outbound_errors": [
+      "timeout",
+      "refused",
+      "reset",
+      "network_disabled",
+      "error"
+    ],
+    "outbound_kinds": [
+      "bidder",
+      "cache",
+      "floors",
+      "currency",
+      "vendorlist",
+      "stored",
+      "module",
+      "general",
+      "default"
+    ],
+    "schema_version": "1.0.0",
+    "schemas": {
+      "adapter_bids_input": "pbs-parity-adapter-bids-input/1",
+      "adapter_bids_output": "pbs-parity-adapter-bids-output/1",
+      "adapter_requests_input": "pbs-parity-adapter-requests-input/1",
+      "adapter_requests_output": "pbs-parity-adapter-requests-output/1",
+      "bidders_dump": "pbs-parity-bidders/1",
+      "config_dump": "pbs-parity-config/1",
+      "decisions": "pbs-parity-decisions/1",
+      "diff": "pbs-parity-diff/1",
+      "envelope": "pbs-parity-envelope/1",
+      "error_codes": "pbs-parity-error-codes/1",
+      "fakes": "pbs-parity-fakes/1",
+      "health": "pbs-parity/1",
+      "index": "pbs-parity-index/1",
+      "normalization": "pbs-parity-normalization/1",
+      "reset": "pbs-parity-reset/1",
+      "stages": "pbs-parity-stages/1",
+      "trace": "pbs-parity-trace/1"
+    },
+    "scopes": [
+      "general",
+      "debug"
+    ],
+    "severities": [
+      "fatal",
+      "warning",
+      "unknown"
+    ],
+    "stage_statuses": [
+      "captured",
+      "not_reached",
+      "unimplemented"
+    ],
+    "stages": [
+      "config.resolved",
+      "bidders.resolved",
+      "http.in",
+      "hooks.entrypoint",
+      "stored.fetch",
+      "account.resolved",
+      "hooks.raw_auction",
+      "request.merged",
+      "request.normalized",
+      "stored.responses",
+      "request.validated",
+      "gdpr.context",
+      "hooks.processed_auction",
+      "auction.setup",
+      "floors.enrich",
+      "fpd.resolved",
+      "privacy.labels",
+      "privacy.bidder",
+      "bidder.request",
+      "hooks.bidder_request",
+      "adapter.requests",
+      "adapter.requests_final",
+      "http.out",
+      "adapter.bids",
+      "hooks.raw_bidder_response",
+      "bids.adjusted",
+      "bidder.result",
+      "floors.enforce",
+      "category.mapping",
+      "events.tracking",
+      "hooks.all_processed_bid_responses",
+      "auction.winners",
+      "cache.result",
+      "targeting",
+      "seat_non_bids",
+      "exchange.response",
+      "video.pods",
+      "video.cache",
+      "amp.targeting_response",
+      "hooks.auction_response",
+      "hooks.exitpoint",
+      "hook_outcomes",
+      "analytics",
+      "metrics_delta",
+      "http.response"
+    ],
+    "unkeyed_stage": "_",
+    "usersync_shuffle_identity": "identity",
+    "wraps": [
+      "raw",
+      "info_aware"
+    ]
+  },
+  "parity_ref": "abad587d4f6302094ae9b9b4bf347bbb3422e6b7"
+}

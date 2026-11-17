@@ -1,0 +1,146 @@
+{
+  "golden": {
+    "cases": [
+      {
+        "record": "{\"code\":1,\"kind\":\"Timeout\",\"message\":\"t\",\"scope\":\"general\",\"severity\":\"fatal\",\"fatal\":true}",
+        "spec": {
+          "type": "timeout",
+          "message": "t"
+        }
+      },
+      {
+        "record": "{\"code\":12,\"kind\":\"TmaxTimeout\",\"message\":\"tt\",\"scope\":\"general\",\"severity\":\"fatal\",\"fatal\":true}",
+        "spec": {
+          "type": "tmax_timeout",
+          "message": "tt"
+        }
+      },
+      {
+        "record": "{\"code\":2,\"kind\":\"BadInput\",\"message\":\"b\",\"scope\":\"general\",\"severity\":\"fatal\",\"fatal\":true}",
+        "spec": {
+          "type": "bad_input",
+          "message": "b"
+        }
+      },
+      {
+        "record": "{\"code\":3,\"kind\":\"BlockedApp\",\"message\":\"ba\",\"scope\":\"general\",\"severity\":\"fatal\",\"fatal\":true}",
+        "spec": {
+          "type": "blocked_app",
+          "message": "ba"
+        }
+      },
+      {
+        "record": "{\"code\":7,\"kind\":\"AccountDisabled\",\"message\":\"ad\",\"scope\":\"general\",\"severity\":\"fatal\",\"fatal\":true}",
+        "spec": {
+          "type": "account_disabled",
+          "message": "ad"
+        }
+      },
+      {
+        "record": "{\"code\":8,\"kind\":\"AcctRequired\",\"message\":\"ar\",\"scope\":\"general\",\"severity\":\"fatal\",\"fatal\":true}",
+        "spec": {
+          "type": "acct_required",
+          "message": "ar"
+        }
+      },
+      {
+        "record": "{\"code\":4,\"kind\":\"BadServerResponse\",\"message\":\"s\",\"scope\":\"general\",\"severity\":\"fatal\",\"fatal\":true}",
+        "spec": {
+          "type": "bad_server_response",
+          "message": "s"
+        }
+      },
+      {
+        "record": "{\"code\":5,\"kind\":\"FailedToRequestBids\",\"message\":\"f\",\"scope\":\"general\",\"severity\":\"fatal\",\"fatal\":true}",
+        "spec": {
+          "type": "failed_to_request_bids",
+          "message": "f"
+        }
+      },
+      {
+        "record": "{\"code\":6,\"kind\":\"BidderTemporarilyDisabled\",\"message\":\"btd\",\"scope\":\"general\",\"severity\":\"warning\",\"fatal\":false}",
+        "spec": {
+          "type": "bidder_temporarily_disabled",
+          "message": "btd"
+        }
+      },
+      {
+        "record": "{\"code\":16,\"kind\":\"BidderTemporarilyThrottled\",\"message\":\"bth\",\"scope\":\"general\",\"severity\":\"warning\",\"fatal\":false}",
+        "spec": {
+          "type": "bidder_throttled",
+          "message": "bth"
+        }
+      },
+      {
+        "record": "{\"code\":10,\"kind\":\"MalformedAcct\",\"message\":\"ma\",\"scope\":\"general\",\"severity\":\"fatal\",\"fatal\":true}",
+        "spec": {
+          "type": "malformed_acct",
+          "message": "ma"
+        }
+      },
+      {
+        "record": "{\"code\":10006,\"kind\":\"MultiBidWarning\",\"message\":\"w\",\"scope\":\"general\",\"severity\":\"warning\",\"fatal\":false}",
+        "spec": {
+          "type": "warning",
+          "code": 10006,
+          "message": "w"
+        }
+      },
+      {
+        "record": "{\"code\":77,\"kind\":\"Unknown\",\"message\":\"unregistered code\",\"scope\":\"general\",\"severity\":\"warning\",\"fatal\":false}",
+        "spec": {
+          "type": "warning",
+          "code": 77,
+          "message": "unregistered code"
+        }
+      },
+      {
+        "record": "{\"code\":14,\"kind\":\"FailedToUnmarshal\",\"message\":\"fu\",\"scope\":\"general\",\"severity\":\"fatal\",\"fatal\":true}",
+        "spec": {
+          "type": "failed_to_unmarshal",
+          "message": "fu"
+        }
+      },
+      {
+        "record": "{\"code\":13,\"kind\":\"FailedToMarshal\",\"message\":\"fm\",\"scope\":\"general\",\"severity\":\"fatal\",\"fatal\":true}",
+        "spec": {
+          "type": "failed_to_marshal",
+          "message": "fm"
+        }
+      },
+      {
+        "record": "{\"code\":10003,\"kind\":\"BidderLevelDebugDisabledWarning\",\"message\":\"d\",\"scope\":\"debug\",\"severity\":\"warning\",\"fatal\":false}",
+        "spec": {
+          "type": "debug_warning",
+          "code": 10003,
+          "message": "d"
+        }
+      },
+      {
+        "record": "{\"code\":15,\"kind\":\"InvalidImpFirstPartyData\",\"message\":\"fpd\",\"scope\":\"general\",\"severity\":\"fatal\",\"fatal\":true}",
+        "spec": {
+          "type": "invalid_imp_first_party_data",
+          "message": "fpd"
+        }
+      },
+      {
+        "record": "{\"code\":999,\"kind\":\"UnknownError\",\"message\":\"plain\",\"scope\":\"general\",\"severity\":\"unknown\",\"fatal\":true}",
+        "spec": {
+          "type": "generic",
+          "message": "plain"
+        }
+      },
+      {
+        "record": "{\"code\":999,\"kind\":\"UnknownError\",\"message\":\"\",\"scope\":\"general\",\"severity\":\"unknown\",\"fatal\":true}",
+        "spec": {
+          "type": "generic",
+          "message": ""
+        }
+      }
+    ],
+    "nil": "{\"code\":999,\"kind\":\"UnknownError\",\"message\":\"\",\"scope\":\"general\",\"severity\":\"unknown\",\"fatal\":true}",
+    "split": "{\"errors\":[{\"code\":1,\"kind\":\"Timeout\",\"message\":\"t\",\"scope\":\"general\",\"severity\":\"fatal\",\"fatal\":true},{\"code\":12,\"kind\":\"TmaxTimeout\",\"message\":\"tt\",\"scope\":\"general\",\"severity\":\"fatal\",\"fatal\":true},{\"code\":2,\"kind\":\"BadInput\",\"message\":\"b\",\"scope\":\"general\",\"severity\":\"fatal\",\"fatal\":true},{\"code\":3,\"kind\":\"BlockedApp\",\"message\":\"ba\",\"scope\":\"general\",\"severity\":\"fatal\",\"fatal\":true},{\"code\":7,\"kind\":\"AccountDisabled\",\"message\":\"ad\",\"scope\":\"general\",\"severity\":\"fatal\",\"fatal\":true},{\"code\":8,\"kind\":\"AcctRequired\",\"message\":\"ar\",\"scope\":\"general\",\"severity\":\"fatal\",\"fatal\":true},{\"code\":4,\"kind\":\"BadServerResponse\",\"message\":\"s\",\"scope\":\"general\",\"severity\":\"fatal\",\"fatal\":true},{\"code\":5,\"kind\":\"FailedToRequestBids\",\"message\":\"f\",\"scope\":\"general\",\"severity\":\"fatal\",\"fatal\":true},{\"code\":10,\"kind\":\"MalformedAcct\",\"message\":\"ma\",\"scope\":\"general\",\"severity\":\"fatal\",\"fatal\":true},{\"code\":14,\"kind\":\"FailedToUnmarshal\",\"message\":\"fu\",\"scope\":\"general\",\"severity\":\"fatal\",\"fatal\":true},{\"code\":13,\"kind\":\"FailedToMarshal\",\"message\":\"fm\",\"scope\":\"general\",\"severity\":\"fatal\",\"fatal\":true},{\"code\":15,\"kind\":\"InvalidImpFirstPartyData\",\"message\":\"fpd\",\"scope\":\"general\",\"severity\":\"fatal\",\"fatal\":true},{\"code\":999,\"kind\":\"UnknownError\",\"message\":\"plain\",\"scope\":\"general\",\"severity\":\"unknown\",\"fatal\":true},{\"code\":999,\"kind\":\"UnknownError\",\"message\":\"\",\"scope\":\"general\",\"severity\":\"unknown\",\"fatal\":true}],\"warnings\":[{\"code\":6,\"kind\":\"BidderTemporarilyDisabled\",\"message\":\"btd\",\"scope\":\"general\",\"severity\":\"warning\",\"fatal\":false},{\"code\":16,\"kind\":\"BidderTemporarilyThrottled\",\"message\":\"bth\",\"scope\":\"general\",\"severity\":\"warning\",\"fatal\":false},{\"code\":10006,\"kind\":\"MultiBidWarning\",\"message\":\"w\",\"scope\":\"general\",\"severity\":\"warning\",\"fatal\":false},{\"code\":77,\"kind\":\"Unknown\",\"message\":\"unregistered code\",\"scope\":\"general\",\"severity\":\"warning\",\"fatal\":false},{\"code\":10003,\"kind\":\"BidderLevelDebugDisabledWarning\",\"message\":\"d\",\"scope\":\"debug\",\"severity\":\"warning\",\"fatal\":false}]}",
+    "split_empty": "{\"errors\":[],\"warnings\":[]}"
+  },
+  "parity_ref": "abad587d4f6302094ae9b9b4bf347bbb3422e6b7"
+}
