@@ -527,6 +527,17 @@ func (e *Engine) compareMetrics(c *comparer, g, r []parity.MetricDelta) {
 	}
 }
 
+// withoutGoRuntime drops the Go runtime collector series from deltas.
+func withoutGoRuntime(deltas []parity.MetricDelta) []parity.MetricDelta {
+	out := make([]parity.MetricDelta, 0, len(deltas))
+	for _, d := range deltas {
+		if !isGoRuntimeMetric(d.Name) {
+			out = append(out, d)
+		}
+	}
+	return out
+}
+
 type metricProjection struct {
 	name string
 	json json.RawMessage

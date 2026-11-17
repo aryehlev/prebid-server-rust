@@ -244,11 +244,13 @@ starts both servers with `TZ=UTC`, because huaweiads formats local time.
 source of the nondeterminism it removes:
 
 * seatbid, warning, httpcalls and seatnonbid order;
-* `http_out` order with `seq` dropped;
+* `http_out` order with `seq` dropped, and the order of a Prebid Cache call's
+  `puts` (with its `responses` permuted alongside);
 * the `responsetimemillis` key set;
 * the shape of the auction timestamp and of event `ts`;
 * UUID placeholders;
 * hook execution times and timing histograms, compared by count only;
+* the Go runtime collector's `go_*` series in `metrics_delta`;
 * the `Date` header;
 * semantic JSON member order;
 * the stage entry `seq`.

@@ -24,6 +24,7 @@ const (
 	RuleHTTPOutOrder        = "http_out_order"
 	RuleAdapterBidsCallKey  = "adapter_bids_call_key"
 	RuleSeatNonBidOrder     = "seatnonbid_order"
+	RuleCachePutsOrder      = "cache_puts_order"
 	RuleResponseTimeMillis  = "responsetimemillis"
 	RuleAuctionTimestamp    = "auctiontimestamp"
 	RuleEventsTSParam       = "events_ts_param"
@@ -34,6 +35,7 @@ const (
 	RuleCacheUUID           = "cache_uuid"
 	RuleHookExecutionTime   = "hook_execution_time"
 	RuleTimingHistograms    = "timing_histograms"
+	RuleGoRuntimeMetrics    = "go_runtime_metrics"
 	RuleHeaderNames         = "header_names"
 	RuleDateHeader          = "date_header"
 	RuleJSONMemberOrder     = "json_member_order"
@@ -75,6 +77,7 @@ var implementations = map[string]implementation{
 	RuleHTTPOutOrder:        {action: actionSort, keys: []string{"kind", "bidder", "orig_url", "request.body"}, drop: []string{"seq"}, mentions: []string{"trace.http_out"}},
 	RuleAdapterBidsCallKey:  {action: actionSort, keys: []string{"request_data.uri", "request_data.body"}, mentions: []string{"bidder#call"}},
 	RuleSeatNonBidOrder:     {action: actionSort, keys: []string{"seat", "impid", "statuscode"}, mentions: []string{"$.ext.prebid.seatnonbid[*]", "nonbid[*]"}},
+	RuleCachePutsOrder:      {action: actionSort, keys: []string{"type", "value"}, mentions: []string{"$.puts[*]", "$.responses[*]"}},
 	RuleResponseTimeMillis:  {action: actionKeySet, mentions: []string{"$.ext.responsetimemillis"}},
 	RuleAuctionTimestamp:    {action: actionShape, shape: true, mentions: []string{"$.ext.prebid.auctiontimestamp"}},
 	RuleEventsTSParam:       {action: actionShape, shape: true, mentions: []string{"ts="}},
@@ -85,6 +88,7 @@ var implementations = map[string]implementation{
 	RuleCacheUUID:           {action: actionUUIDPlaceholder, mentions: []string{"hb_cache_id", "hb_uuid", "cacheId"}},
 	RuleHookExecutionTime:   {action: actionDrop, mentions: []string{"execution_time_millis", "ExecutionTimeMillis", "$.ext.prebid.modules.trace"}},
 	RuleTimingHistograms:    {action: actionCountOnly, mentions: []string{"_time", "_time_seconds", "_duration", "_duration_seconds"}},
+	RuleGoRuntimeMetrics:    {action: actionIgnore, mentions: []string{goRuntimeMetricPrefix}},
 	RuleHeaderNames:         {action: actionCaseInsensitive, mentions: []string{"headers"}},
 	RuleDateHeader:          {action: actionIgnore, mentions: []string{"Date"}},
 	RuleJSONMemberOrder:     {action: actionIgnore, mentions: []string{"member order"}},
@@ -383,6 +387,13 @@ var (
 		parity.StageAdapterRequestsFinal:  {"requests[*].body"},
 		parity.StageAnalytics:             {"[*].object.request"},
 	}
+	// responseExtAnchors are where a stage records a response's ext
+	// (openrtb_ext.ExtBidResponse) beside the BidResponse instead of inside
+	// it (stagedata.ExchangeResponse). Rules whose targets start at $.ext
+	// apply there too.
+	responseExtAnchors = map[parity.StageID][]string{
+		parity.StageExchangeResponse: {"ext_bid_response"},
+	}
 	// seatNonBidLists are SeatNonBid arrays outside a response's ext.
 	seatNonBidLists = map[parity.StageID][]string{
 		parity.StageSeatNonBids: {"", "seatnonbid", "seat_non_bid"},
@@ -393,7 +404,7 @@ var (
 		parity.StageHookOutcomes:     {""},
 		parity.StageHTTPResponse:     {"ext.prebid.modules.trace"},
 		parity.StageAnalytics:        {"[*].object.hook_outcomes", "[*].object.response.ext.prebid.modules.trace"},
-		parity.StageExchangeResponse: {"ext.prebid.modules.trace"},
+		parity.StageExchangeResponse: {"ext.prebid.modules.trace", "ext_bid_response.prebid.modules.trace"},
 	}
 	// headerLists are [[name, value], ...] lists inside stage values.
 	headerLists = map[parity.StageID][]string{
@@ -436,7 +447,7 @@ func (rs *Rules) structural(stage parity.StageID, root *node) {
 		return
 	}
 	if rs.Active(RuleResponseTimeMillis, stage) {
-		for _, n := range selectAll(root, responseAnchors[stage], "ext.responsetimemillis") {
+		for _, n := range selectResponseExt(root, stage, "responsetimemillis") {
 			if n.kind == kindObject {
 				for _, m := range n.members {
 					mask(m.val, "key_set:"+RuleResponseTimeMillis)
@@ -445,11 +456,11 @@ func (rs *Rules) structural(stage parity.StageID, root *node) {
 		}
 	}
 	if rule := rs.Rule(RuleAuctionTimestamp); rule.AppliesTo(stage) {
-		anchors := responseAnchors[stage]
+		nodes := selectResponseExt(root, stage, "prebid.auctiontimestamp")
 		if stage == parity.StageEventsTracking {
-			anchors = []string{""}
+			nodes = selectNodes(root, eventsAuctionTimestamp)
 		}
-		maskShapes(rule, selectAll(root, anchors, "ext.prebid.auctiontimestamp"))
+		maskShapes(rule, nodes)
 	}
 	if rule := rs.Rule(RuleAnalyticsStartTime); rule.AppliesTo(stage) && stage == parity.StageAnalytics {
 		maskShapes(rule, selectNodes(root, "[*].object.start_time_set"))
@@ -469,6 +480,18 @@ func (rs *Rules) structural(stage parity.StageID, root *node) {
 			}
 		}
 	}
+}
+
+// eventsAuctionTimestamp is the events.tracking member holding the auction
+// timestamp (stagedata.EventsTracking.AuctionTimestampMS).
+const eventsAuctionTimestamp = "auction_timestamp_ms"
+
+// selectResponseExt applies a selector relative to a response ext
+// ("responsetimemillis") at the ext of every response anchor of stage and at
+// every response ext anchor.
+func selectResponseExt(root *node, stage parity.StageID, selector string) []*node {
+	out := selectAll(root, responseAnchors[stage], "ext."+selector)
+	return append(out, selectAll(root, responseExtAnchors[stage], selector)...)
 }
 
 // selectAll applies one relative selector at every anchor.
@@ -543,19 +566,19 @@ func (rs *Rules) sortRules(stage parity.StageID, root *node, rewrite func(string
 		}
 	}
 	if rs.Active(RuleWarningsErrorsOrder, stage) {
-		for _, sel := range []string{"ext.warnings.*", "ext.errors.*"} {
-			for _, list := range selectAll(root, responseAnchors[stage], sel) {
+		for _, sel := range []string{"warnings.*", "errors.*"} {
+			for _, list := range selectResponseExt(root, stage, sel) {
 				sortArray(list, []string{"code", "message"}, rewrite)
 			}
 		}
 	}
 	if rs.Active(RuleHTTPCallsOrder, stage) {
-		for _, list := range selectAll(root, responseAnchors[stage], "ext.debug.httpcalls.*") {
+		for _, list := range selectResponseExt(root, stage, "debug.httpcalls.*") {
 			sortArray(list, []string{"uri", "requestbody", "status"}, rewrite)
 		}
 	}
 	if rs.Active(RuleSeatNonBidOrder, stage) {
-		lists := selectAll(root, responseAnchors[stage], "ext.prebid.seatnonbid")
+		lists := selectResponseExt(root, stage, "prebid.seatnonbid")
 		lists = append(lists, anchorsOf(root, seatNonBidLists[stage])...)
 		for _, list := range lists {
 			sortArray(list, []string{"seat"}, rewrite)
@@ -564,6 +587,21 @@ func (rs *Rules) sortRules(stage parity.StageID, root *node, rewrite func(string
 			}
 		}
 	}
+}
+
+// entryWarningStages are the stages whose entry warnings Go builds from map
+// iteration: ortb/request_validator.go ranges over imp.ext.prebid.bidder and
+// appends one warning per disabled or unknown bidder (request.validated). A
+// fatal validation error returns at once, so entry errors keep their order.
+var entryWarningStages = map[parity.StageID]bool{parity.StageRequestValidated: true}
+
+// sortEntryWarnings sorts a stage entry's warnings by (code, message) where Go
+// builds them from map iteration and warnings_errors_order applies to the stage.
+func (rs *Rules) sortEntryWarnings(stage parity.StageID, en *entry, rewrite func(string) string) {
+	if en == nil || !entryWarningStages[stage] || !rs.Active(RuleWarningsErrorsOrder, stage) {
+		return
+	}
+	sortArray(en.warnings, []string{"code", "message"}, rewrite)
 }
 
 // sortArray sorts an array node by the canonical text of each key (dotted
@@ -669,4 +707,59 @@ func isTimingMetric(name, typ string) bool {
 		}
 	}
 	return false
+}
+
+// goRuntimeMetricPrefix starts the name of every series of the Go runtime
+// collector (client_golang collectors.NewGoCollector). PBS registers it
+// through a registerer that prepends the configured namespace and subsystem
+// (metrics/prometheus/prometheus.go), so the prefix may follow "<ns>_<sub>_".
+const goRuntimeMetricPrefix = "go_"
+
+// isGoRuntimeMetric reports whether a series comes from the Go runtime
+// collector (go_runtime_metrics rule).
+func isGoRuntimeMetric(name string) bool {
+	return strings.HasPrefix(name, goRuntimeMetricPrefix) || strings.Contains(name, "_"+goRuntimeMetricPrefix)
+}
+
+// cachePutsKeys are the sort keys of a Prebid Cache request's puts.
+var cachePutsKeys = []string{"type", "value"}
+
+// sortCachePuts orders the puts of a Prebid Cache request by content, and the
+// response's responses with them: the cache answers responses[i] for puts[i],
+// and Go builds the puts from map iteration (exchange/auction.go doCache).
+func sortCachePuts(c *call, rewrite func(string) string) {
+	puts := memberPath(c.reqBody, "puts")
+	if puts == nil || puts.kind != kindArray || len(puts.elems) < 2 {
+		return
+	}
+	order := make([]int, len(puts.elems))
+	parts := make([][]string, len(puts.elems))
+	for i, e := range puts.elems {
+		order[i], parts[i] = i, sortParts(e, cachePutsKeys, rewrite)
+	}
+	sort.SliceStable(order, func(i, j int) bool {
+		return lessParts(parts[order[i]], parts[order[j]])
+	})
+	permute(puts, order)
+	if resps := memberPath(c.respBody, "responses"); resps != nil && resps.kind == kindArray && len(resps.elems) == len(order) {
+		permute(resps, order)
+	}
+}
+
+// lessParts compares two sortParts results element by element.
+func lessParts(a, b []string) bool {
+	for k := range a {
+		if a[k] != b[k] {
+			return a[k] < b[k]
+		}
+	}
+	return false
+}
+
+// permute reorders arr so that element i becomes the old element order[i].
+func permute(arr *node, order []int) {
+	old := append([]*node(nil), arr.elems...)
+	for i, j := range order {
+		arr.elems[i] = old[j]
+	}
 }

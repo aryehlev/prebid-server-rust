@@ -24,12 +24,12 @@
     },
     {
       "id": "warnings_errors_order",
-      "applies_to": ["http.response", "exchange.response", "analytics"],
-      "target": "$.ext.warnings.*[*]; $.ext.errors.*[*]",
+      "applies_to": ["http.response", "exchange.response", "request.validated", "hooks.auction_response", "hooks.exitpoint", "analytics"],
+      "target": "$.ext.warnings.*[*]; $.ext.errors.*[*] (exchange.response: $.ext_bid_response.warnings and errors); request.validated: the entry's own warnings",
       "action": "sort",
       "keys": ["code", "message"],
-      "justification": "Bidder goroutines append errors and warnings concurrently; Go's own endpoint tests compare them order-insensitively.",
-      "go_source": ["exchange/exchange.go:777-807 getAllBids goroutines", "endpoints/openrtb2/auction_test.go:247 compareWarnings"]
+      "justification": "Bidder goroutines append errors and warnings concurrently, and imp ext validation appends one warning per disabled or unknown bidder while ranging over a map; Go's own endpoint tests compare them order-insensitively.",
+      "go_source": ["exchange/exchange.go:777-807 getAllBids goroutines", "ortb/request_validator.go:125 for bidder, val := range prebid.Bidder", "endpoints/openrtb2/auction_test.go:247 compareWarnings"]
     },
     {
       "id": "httpcalls_order",
@@ -69,21 +69,30 @@
       "go_source": ["exchange/seat_non_bids.go:8 type SeatNonBidBuilder map[string][]openrtb_ext.NonBid", "exchange/exchange.go:1643 seatNonBidBuilder.Slice()"]
     },
     {
+      "id": "cache_puts_order",
+      "applies_to": ["http.out"],
+      "target": "Prebid Cache calls (kind cache): request body $.puts[*] by (type, value), with the response body $.responses[*] permuted alongside because responses[i] answers puts[i]",
+      "action": "sort",
+      "keys": ["type", "value"],
+      "justification": "doCache builds the cache request by iterating the per-imp and per-bidder bid maps, so the order of puts (and of the returned UUIDs) differs between Go runs.",
+      "go_source": ["exchange/auction.go:229 for impID, topBidsPerImp := range a.allBidsByBidder", "exchange/auction.go:230 for bidderName, topBidsPerBidder := range topBidsPerImp"]
+    },
+    {
       "id": "responsetimemillis",
-      "applies_to": ["http.response", "exchange.response", "analytics"],
-      "target": "$.ext.responsetimemillis",
+      "applies_to": ["http.response", "exchange.response", "hooks.auction_response", "hooks.exitpoint", "analytics"],
+      "target": "$.ext.responsetimemillis (exchange.response: $.ext_bid_response.responsetimemillis)",
       "action": "key_set",
       "justification": "Values are wall-clock elapsed times of each bidder call.",
       "go_source": ["exchange/exchange.go:781-786 elapsed := time.Since(start)", "exchange/exchange.go:1281"]
     },
     {
       "id": "auctiontimestamp",
-      "applies_to": ["http.response", "exchange.response", "events.tracking", "analytics"],
-      "target": "$.ext.prebid.auctiontimestamp",
+      "applies_to": ["http.response", "exchange.response", "events.tracking", "hooks.auction_response", "hooks.exitpoint", "analytics"],
+      "target": "$.ext.prebid.auctiontimestamp (exchange.response: $.ext_bid_response.prebid.auctiontimestamp; events.tracking: $.auction_timestamp_ms)",
       "action": "shape",
       "shape": {"type": "integer"},
       "justification": "Set from the request start time in milliseconds.",
-      "go_source": ["exchange/exchange.go:1248-1257 auctionTimestamp = r.StartTime.UnixMilli()"]
+      "go_source": ["exchange/exchange.go:1248-1257 auctionTimestamp = r.StartTime.UnixMilli()", "exchange/events.go:33 auctionTimestampMs: ts.UnixNano() / 1e+6"]
     },
     {
       "id": "events_ts_param",
@@ -150,6 +159,14 @@
       "action": "count_only",
       "justification": "Observed values are wall-clock durations; only the number of observations is deterministic.",
       "go_source": ["metrics/prometheus/prometheus.go RecordRequestTime, RecordAdapterTime, RecordOverheadTime, RecordStoredDataFetchTime, RecordPrebidCacheRequestTime, RecordModuleDuration", "exchange/exchange.go:791 RecordAdapterTime(elapsed)"]
+    },
+    {
+      "id": "go_runtime_metrics",
+      "applies_to": ["metrics_delta"],
+      "target": "series of the Go runtime collector: names starting with go_, after any configured namespace/subsystem prefix",
+      "action": "ignore",
+      "justification": "The Go runtime collector reports the process's own memory, GC, scheduler and goroutine state, which changes during every case independently of the request; its runtime/metrics histograms also carry NaN sums.",
+      "go_source": ["metrics/prometheus/prometheus.go:585 metrics.Registerer.MustRegister(promCollector.NewGoCollector())"]
     },
     {
       "id": "header_names",

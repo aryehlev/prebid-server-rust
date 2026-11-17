@@ -191,6 +191,59 @@ func metricsPair() (Case, *parity.Trace, *parity.Trace) {
 	return Case{CaseID: "rule"}, g, r
 }
 
+// runtimeMetricsPair differs only in Go runtime collector series, the way two
+// Go processes do after the same case.
+func runtimeMetricsPair() (Case, *parity.Trace, *parity.Trace) {
+	g, r := newTrace(parity.ImplGo), newTrace(parity.ImplRust)
+	one := int64(1)
+	requests := parity.MetricDelta{Name: "requests", Type: parity.MetricCounter, Labels: map[string]string{"request_type": "openrtb2-web"}, Delta: 1}
+	g.MetricsDelta = []parity.MetricDelta{
+		{Name: "go_memstats_alloc_bytes", Type: parity.MetricGauge, Labels: map[string]string{}, Delta: 1024},
+		{Name: "pbs_go_gc_pauses_seconds_total", Type: parity.MetricHistogram, Labels: map[string]string{}, CountDelta: &one, BucketDeltas: map[string]int64{"+Inf": 1}},
+		requests,
+	}
+	r.MetricsDelta = []parity.MetricDelta{
+		{Name: "go_memstats_alloc_bytes", Type: parity.MetricGauge, Labels: map[string]string{}, Delta: 4096},
+		requests,
+	}
+	return Case{CaseID: "rule"}, g, r
+}
+
+// validatedWarningsPair holds request.validated entries whose disabled-bidder
+// warnings come in another order, as ranging over imp.ext.prebid.bidder gives.
+func validatedWarningsPair() (Case, *parity.Trace, *parity.Trace) {
+	g, r := newTrace(parity.ImplGo), newTrace(parity.ImplRust)
+	req := `{"id":"r1","imp":[{"id":"i1"}]}`
+	put(g, parity.StageRequestValidated, parity.UnkeyedStage, req)
+	put(r, parity.StageRequestValidated, parity.UnkeyedStage, req)
+	a := parity.ErrorRecord{Code: 6, Kind: "BidderTemporarilyDisabled", Message: `Bidder "appnexus" has been disabled`, Scope: "general", Severity: "warning"}
+	b := parity.ErrorRecord{Code: 6, Kind: "BidderTemporarilyDisabled", Message: `Bidder "rubicon" has been disabled`, Scope: "general", Severity: "warning"}
+	ge, re := g.Stages[parity.StageRequestValidated][parity.UnkeyedStage], r.Stages[parity.StageRequestValidated][parity.UnkeyedStage]
+	ge.Warnings, re.Warnings = []parity.ErrorRecord{a, b}, []parity.ErrorRecord{b, a}
+	g.Stages[parity.StageRequestValidated][parity.UnkeyedStage] = ge
+	r.Stages[parity.StageRequestValidated][parity.UnkeyedStage] = re
+	return Case{CaseID: "rule"}, g, r
+}
+
+// cachePutsPair holds one Prebid Cache call whose puts arrive in another
+// order, with the content-addressed UUIDs the oracle answers in put order.
+func cachePutsPair() (Case, *parity.Trace, *parity.Trace) {
+	g, r := newTrace(parity.ImplGo), newTrace(parity.ImplRust)
+	putA, putB := `{"type":"json","value":{"id":"a","price":1}}`, `{"type":"json","value":{"id":"b","price":2}}`
+	respA, respB := `{"uuid":"`+uuidA+`"}`, `{"uuid":"`+uuidB+`"}`
+	mk := func(puts, resps string) []parity.OutboundCall {
+		return []parity.OutboundCall{{Seq: 1, Kind: parity.OutboundCache, OrigURL: "https://cache.example/cache",
+			Request:  parity.OutboundRequest{Method: "POST", URL: "http://cache.example/cache", Header: parity.HeaderList{}, Body: parity.TextBody(`{"puts":[` + puts + `]}`)},
+			Mock:     &parity.MockRef{Source: "rule", ID: "cache"},
+			Response: &parity.OutboundResponse{Status: 200, Headers: parity.HeaderList{}, Body: parity.TextBody(`{"responses":[` + resps + `]}`)}}}
+	}
+	g.HTTPOut = mk(putA+","+putB, respA+","+respB)
+	r.HTTPOut = mk(putB+","+putA, respB+","+respA)
+	put(g, parity.StageCacheResult, parity.UnkeyedStage, `{"puts":[{"kind":"bid","bid_id":"a","id":"`+uuidA+`","assigned":"`+uuidA+`"},{"kind":"bid","bid_id":"b","id":"`+uuidB+`","assigned":"`+uuidB+`"}]}`)
+	put(r, parity.StageCacheResult, parity.UnkeyedStage, `{"puts":[{"kind":"bid","bid_id":"a","id":"`+uuidA+`","assigned":"`+uuidA+`"},{"kind":"bid","bid_id":"b","id":"`+uuidB+`","assigned":"`+uuidB+`"}]}`)
+	return Case{CaseID: "rule"}, g, r
+}
+
 func outHeadersPair(goName, rustName string) ruleCase {
 	return func() (Case, *parity.Trace, *parity.Trace) {
 		g, r := newTrace(parity.ImplGo), newTrace(parity.ImplRust)
@@ -257,10 +310,37 @@ func TestRemovingRuleReenablesDiff(t *testing.T) {
 		{RuleRequestIDUUID, entryPair(parity.StageRequestValidated, parity.UnkeyedStage,
 			`{"id":"`+uuidA+`","imp":[{"id":"i1"}]}`, `{"id":"`+uuidB+`","imp":[{"id":"i1"}]}`), "$.id"},
 		{RuleCacheUUID, entryPair(parity.StageCacheResult, parity.UnkeyedStage,
-			`{"uuids":["`+uuidV1+`"]}`, `{"uuids":["`+uuidA+`"]}`), "$.uuids[0]"},
+			`{"puts":[{"kind":"bid","id":"`+uuidV1+`","assigned":"`+uuidV1+`"}]}`,
+			`{"puts":[{"kind":"bid","id":"`+uuidA+`","assigned":"`+uuidA+`"}]}`), "$.puts[0].id"},
 		{RuleHookExecutionTime, entryPair(parity.StageHookOutcomes, parity.UnkeyedStage, hookOutcomes(1), hookOutcomes(2)),
 			"$.stages[0].outcomes[0].execution_time_millis"},
 		{RuleTimingHistograms, metricsPair, "$.pbs_adapter_request_time_seconds"},
+		{RuleGoRuntimeMetrics, runtimeMetricsPair, "$.go_memstats_alloc_bytes"},
+		{RuleCachePutsOrder, cachePutsPair, "$[0].request.body.puts"},
+		{RuleResponseTimeMillis, entryPair(parity.StageExchangeResponse, parity.UnkeyedStage,
+			`{"bid_response":{"id":"r1"},"ext_bid_response":{"responsetimemillis":{"appnexus":12}}}`,
+			`{"bid_response":{"id":"r1"},"ext_bid_response":{"responsetimemillis":{"appnexus":40}}}`), "$.ext_bid_response.responsetimemillis.appnexus"},
+		{RuleResponseTimeMillis, entryPair(parity.StageHooksAuctionResponse, parity.UnkeyedStage,
+			`{"id":"r1","ext":{"responsetimemillis":{"appnexus":12}}}`, `{"id":"r1","ext":{"responsetimemillis":{"appnexus":40}}}`),
+			"$.ext.responsetimemillis.appnexus"},
+		{RuleAuctionTimestamp, entryPair(parity.StageExchangeResponse, parity.UnkeyedStage,
+			`{"bid_response":{"id":"r1"},"ext_bid_response":{"prebid":{"auctiontimestamp":1700000000000}}}`,
+			`{"bid_response":{"id":"r1"},"ext_bid_response":{"prebid":{"auctiontimestamp":1700000000123}}}`), "$.ext_bid_response.prebid.auctiontimestamp"},
+		{RuleAuctionTimestamp, entryPair(parity.StageHooksExitpoint, parity.UnkeyedStage,
+			`{"id":"r1","ext":{"prebid":{"auctiontimestamp":1700000000000}}}`, `{"id":"r1","ext":{"prebid":{"auctiontimestamp":1700000000123}}}`),
+			"$.ext.prebid.auctiontimestamp"},
+		{RuleAuctionTimestamp, entryPair(parity.StageEventsTracking, parity.UnkeyedStage,
+			`{"enabled_for_request":true,"auction_timestamp_ms":1700000000000}`, `{"enabled_for_request":true,"auction_timestamp_ms":1700000000123}`),
+			"$.auction_timestamp_ms"},
+		{RuleWarningsErrorsOrder, entryPair(parity.StageExchangeResponse, parity.UnkeyedStage,
+			`{"bid_response":{"id":"r1"},"ext_bid_response":{"warnings":{"general":[{"code":1,"message":"a"},{"code":2,"message":"b"}]}}}`,
+			`{"bid_response":{"id":"r1"},"ext_bid_response":{"warnings":{"general":[{"code":2,"message":"b"},{"code":1,"message":"a"}]}}}`),
+			"$.ext_bid_response.warnings.general"},
+		{RuleWarningsErrorsOrder, entryPair(parity.StageHooksAuctionResponse, parity.UnkeyedStage,
+			`{"id":"r1","ext":{"warnings":{"general":[{"code":6,"message":"a"},{"code":6,"message":"b"}]}}}`,
+			`{"id":"r1","ext":{"warnings":{"general":[{"code":6,"message":"b"},{"code":6,"message":"a"}]}}}`),
+			"$.ext.warnings.general"},
+		{RuleWarningsErrorsOrder, validatedWarningsPair, "$['@warnings']"},
 		{RuleHeaderNames, outHeadersPair("X-Prebid", "x-prebid"), "$[0].request.headers"},
 		{RuleDateHeader, responsePair(`{"id":"r1"}`, `{"id":"r1"}`,
 			[][2]string{{"Date", "Mon, 01 Jan 2024 00:00:00 GMT"}}, [][2]string{{"Date", "Tue, 02 Jan 2024 00:00:00 GMT"}}), "$['@headers'].Date"},

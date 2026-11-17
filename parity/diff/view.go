@@ -321,6 +321,9 @@ func (e *Engine) structuralView(v *view) {
 		e.rules.structural(parity.StageHTTPOut, c.reqBody)
 		e.rules.structural(parity.StageHTTPOut, c.respBody)
 	}
+	if e.rules.Active(RuleGoRuntimeMetrics, parity.StageMetricsDelta) {
+		v.metrics = withoutGoRuntime(v.metrics)
+	}
 }
 
 // requestIDStages are where Go writes a generated request id (request $.id);
@@ -378,7 +381,9 @@ func (e *Engine) collectUUIDs(v *view, u *uuidSet) {
 		}
 	}
 	for _, root := range e.stageRoots(v, parity.StageCacheResult) {
-		u.collectAll(RuleCacheUUID, parity.StageCacheResult, root, []string{""}, "uuids[*]")
+		// stagedata.CacheResult: puts[*].id is the UUID the cache returned,
+		// puts[*].assigned the cache ID the auction kept for the bid.
+		u.collectAll(RuleCacheUUID, parity.StageCacheResult, root, []string{""}, "puts[*].id", "puts[*].assigned")
 	}
 	for _, root := range e.stageRoots(v, parity.StageAMPTargetingResponse) {
 		collectCacheTargeting(u, parity.StageAMPTargetingResponse, root)
@@ -436,6 +441,7 @@ func (e *Engine) sortView(v *view, u *uuidSet) {
 	for stage, keyed := range v.entries {
 		for _, en := range keyed {
 			e.rules.sortRules(stage, en.value, u.maskText)
+			e.rules.sortEntryWarnings(stage, en, u.maskText)
 		}
 	}
 	e.rules.sortRules(parity.StageAnalytics, v.analytics, u.maskText)
@@ -445,6 +451,13 @@ func (e *Engine) sortView(v *view, u *uuidSet) {
 	for _, stage := range []parity.StageID{parity.StageAdapterBids, parity.StageHooksRawBidderResponse} {
 		if e.rules.Active(RuleAdapterBidsCallKey, stage) {
 			v.entries[stage] = rekeyCalls(v.entries[stage], u.maskText)
+		}
+	}
+	if e.rules.Active(RuleCachePutsOrder, parity.StageHTTPOut) {
+		for _, c := range v.httpOut {
+			if c.src.Kind == parity.OutboundCache {
+				sortCachePuts(c, u.maskText)
+			}
 		}
 	}
 	if e.rules.Active(RuleHTTPOutOrder, parity.StageHTTPOut) {
