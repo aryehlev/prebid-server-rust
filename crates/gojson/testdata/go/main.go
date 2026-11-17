@@ -795,6 +795,8 @@ func main() {
 	writeEncode(*out)
 	writeFloats(*out)
 	writeFixtures(*out, *root)
+	writeReviewDecode(*out)
+	writeReviewEncode(*out)
 	writeUnicode(*out)
 	writeTables(*tables)
 }

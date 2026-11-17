@@ -6,7 +6,7 @@
 #[cfg(test)]
 mod golden {
     use core::str::from_utf8;
-    use std::{collections::BTreeMap, fmt::Write as _, fs};
+    use std::{collections::BTreeMap, fmt::Write as _, fs, thread};
 
     use pbs_gojson::{
         GoEncode, GoJson, GoMarshaler, GoString, GoUnmarshaler, JsonError, JsonNumber,
@@ -487,6 +487,117 @@ mod golden {
         list: Option<Vec<AnonTop>>,
     }
 
+    // ---- types of the review cases (review.go) -------------------------------------------
+
+    #[derive(Clone, Debug, Default, GoJson)]
+    #[gojson(go_type = "main.Ten")]
+    struct Ten {
+        #[gojson(go = "A", json = "a")]
+        a: isize,
+        #[gojson(go = "B", json = "b")]
+        b: GoString,
+        #[gojson(go = "C", json = "c")]
+        c: Option<isize>,
+        #[gojson(go = "D", json = "d")]
+        d: Option<Vec<isize>>,
+        #[gojson(go = "S", json = "s")]
+        s: bool,
+        #[gojson(go = "F", json = "f")]
+        f: f64,
+        #[gojson(go = "K", json = "k")]
+        k: GoString,
+        #[gojson(go = "P", json = "p")]
+        p: Option<Box<Small>>,
+        #[gojson(go = "M", json = "m")]
+        m: Option<BTreeMap<GoString, isize>>,
+        #[gojson(go = "G", json = "\u{3c3}")]
+        g: GoString,
+    }
+
+    #[derive(Clone, Debug, Default, GoJson)]
+    #[gojson(go_type = "main.Eleven")]
+    struct Eleven {
+        #[gojson(go = "A", json = "a")]
+        a: isize,
+        #[gojson(go = "B", json = "b")]
+        b: GoString,
+        #[gojson(go = "C", json = "c")]
+        c: Option<isize>,
+        #[gojson(go = "D", json = "d")]
+        d: Option<Vec<isize>>,
+        #[gojson(go = "S", json = "s")]
+        s: bool,
+        #[gojson(go = "F", json = "f")]
+        f: f64,
+        #[gojson(go = "K", json = "k")]
+        k: GoString,
+        #[gojson(go = "P", json = "p")]
+        p: Option<Box<Small>>,
+        #[gojson(go = "M", json = "m")]
+        m: Option<BTreeMap<GoString, isize>>,
+        #[gojson(go = "G", json = "\u{3c3}")]
+        g: GoString,
+        #[gojson(go = "X", json = "x")]
+        x: i8,
+    }
+
+    #[derive(Clone, Debug, Default, GoJson)]
+    #[gojson(go_type = "main.Ints")]
+    struct Ints {
+        #[gojson(go = "I8", json = "i8")]
+        v_i8: i8,
+        #[gojson(go = "I16", json = "i16")]
+        v_i16: i16,
+        #[gojson(go = "I32", json = "i32")]
+        v_i32: i32,
+        #[gojson(go = "I64", json = "i64")]
+        v_i64: i64,
+        #[gojson(go = "I", json = "i")]
+        v_i: isize,
+        #[gojson(go = "U8", json = "u8")]
+        v_u8: u8,
+        #[gojson(go = "U16", json = "u16")]
+        v_u16: u16,
+        #[gojson(go = "U32", json = "u32")]
+        v_u32: u32,
+        #[gojson(go = "U64", json = "u64")]
+        v_u64: u64,
+        #[gojson(go = "U", json = "u")]
+        v_u: usize,
+        #[gojson(go = "Pad", json = "pad")]
+        pad: GoString,
+    }
+
+    /// `main.Tags`: names that `encoding/json`'s `isValidTag` rejects (x², नाम, Ⅳ and U+A7DC,
+    /// unassigned in Go's Unicode 15.0.0) beside a Greek letter and an Arabic-Indic digit.
+    #[derive(Clone, Debug, Default, GoJson)]
+    #[gojson(go_type = "main.Tags")]
+    struct Tags {
+        #[gojson(go = "Sup", json = "x\u{b2}")]
+        sup: isize,
+        #[gojson(go = "Mark", json = "\u{928}\u{93e}\u{92e}")]
+        mark: isize,
+        #[gojson(go = "Roman", json = "\u{2163}")]
+        roman: isize,
+        #[gojson(go = "New", json = "\u{a7dc}")]
+        new: isize,
+        #[gojson(go = "Greek", json = "\u{3c3}")]
+        greek: isize,
+        #[gojson(go = "Digit", json = "x\u{663}")]
+        digit: isize,
+    }
+
+    /// `main.Lambda`: U+A7DC has no case mapping in Go's Unicode 15.0.0 (Rust's newer tables
+    /// make it the upper case of U+019B).
+    #[derive(Clone, Debug, Default, GoJson)]
+    #[gojson(go_type = "main.Lambda")]
+    struct Lambda {
+        #[gojson(go = "L", json = "\u{a7dc}")]
+        l: isize,
+        #[gojson(go = "S", json = "\u{3c3}")]
+        s: isize,
+    }
+
     // ---- real Prebid types used by the adapter fixtures ---------------------------------
 
     /// `openrtb_ext.ExtImpAdtarget`; `ExtImpAdtelligent` has the same shape.
@@ -813,6 +924,18 @@ mod golden {
             "map[main.Key]int" => decode_outputs::<Option<BTreeMap<Key, isize>>>(p, i),
             "map[main.Slot]string" => decode_outputs::<Option<BTreeMap<Slot, GoString>>>(p, i),
             "main.Anon" => decode_outputs::<Anon>(p, i),
+            "main.Ten" => decode_outputs::<Ten>(p, i),
+            "main.Eleven" => decode_outputs::<Eleven>(p, i),
+            "main.Ints" => decode_outputs::<Ints>(p, i),
+            "main.Tags" => decode_outputs::<Tags>(p, i),
+            "main.Lambda" => decode_outputs::<Lambda>(p, i),
+            "openrtb2.BidResponse" => decode_outputs::<BidResponse>(p, i),
+            "[]int8" => decode_outputs::<Option<Vec<i8>>>(p, i),
+            "[]int64" => decode_outputs::<Option<Vec<i64>>>(p, i),
+            "[]uint64" => decode_outputs::<Option<Vec<u64>>>(p, i),
+            "[]float32" => decode_outputs::<Option<Vec<f32>>>(p, i),
+            "[]float64" => decode_outputs::<Option<Vec<f64>>>(p, i),
+            "[]interface {}" => decode_outputs::<Option<Vec<Value>>>(p, i),
             _ => return None,
         })
     }
@@ -829,9 +952,31 @@ mod golden {
 
     #[test]
     fn decode_goldens() -> Result<(), String> {
+        replay_decode("decode.txt", &DECODE_KNOWN_GAPS)
+    }
+
+    #[test]
+    fn review_decode_goldens() -> Result<(), String> {
+        on_big_stack(|| replay_decode("review_decode.txt", &[]))
+    }
+
+    /// Runs `f` on a thread with a large stack: the review cases nest values 10000 deep (both
+    /// Go libraries' limit), and `serde_json::Value` clones and drops them recursively.
+    fn on_big_stack(f: fn() -> Result<(), String>) -> Result<(), String> {
+        thread::Builder::new()
+            .stack_size(256 << 20)
+            .spawn(f)
+            .map_err(|e| e.to_string())?
+            .join()
+            .map_err(|_panic| "the replay thread panicked".to_owned())?
+    }
+
+    /// Replays the decode rows of `file`; each listed known gap must still be present and
+    /// still differ, and only its other outputs are compared.
+    fn replay_decode(file: &str, gaps: &[(&str, &[u8], usize, &str)]) -> Result<(), String> {
         let mut failures = Vec::new();
         let mut gaps_seen = 0;
-        let rows = rows("decode.txt")?;
+        let rows = rows(file)?;
         for row in &rows {
             let name = String::from_utf8_lossy(&field(row, 0)?).into_owned();
             let prefill = field(row, 1)?;
@@ -843,7 +988,7 @@ mod golden {
                 quote_to_ascii(&prefill),
                 quote_to_ascii(&input)
             );
-            for &(gap_type, gap_input, index, _reason) in &DECODE_KNOWN_GAPS {
+            for &(gap_type, gap_input, index, _reason) in gaps {
                 if gap_type == name && gap_input == input.as_slice() {
                     let want = field(row, 3 + index)?;
                     let slot = actual.get_mut(index).ok_or("bad known-gap index")?;
@@ -857,10 +1002,10 @@ mod golden {
             }
             compare(&mut failures, &what, row, 3, &DECODE_OUTPUTS, &actual);
         }
-        if gaps_seen != DECODE_KNOWN_GAPS.len() {
-            return Err(format!("only {gaps_seen} known gaps found in the goldens"));
+        if gaps_seen != gaps.len() {
+            return Err(format!("only {gaps_seen} known gaps found in {file}"));
         }
-        finish("decode", rows.len() * DECODE_OUTPUTS.len(), &failures)
+        finish(file, rows.len() * DECODE_OUTPUTS.len(), &failures)
     }
 
     // ---- encoding ---------------------------------------------------------------------------
@@ -1078,6 +1223,69 @@ mod golden {
             compare(&mut failures, &what, row, 2, &ENCODE_OUTPUTS, &actual);
         }
         finish("encode", rows.len() * ENCODE_OUTPUTS.len(), &failures)
+    }
+
+    // ---- review encoding ------------------------------------------------------------------
+
+    /// Decodes `input` with `jsonutil.Unmarshal` (keeping what a failed decode stored, as Go
+    /// does) and encodes the value with the three encoders.
+    fn review_encode_input<T: Default + JsoniterDecode + GoEncode>(input: &[u8]) -> Vec<Vec<u8>> {
+        let mut v = T::default();
+        let _decoded = jsonutil::unmarshal(input, &mut v);
+        encode_outputs(&v)
+    }
+
+    fn review_encode_by_name(name: &str, input: &[u8]) -> Option<Vec<Vec<u8>>> {
+        Some(match name {
+            "main.Small" => review_encode_input::<Small>(input),
+            "main.Ten" => review_encode_input::<Ten>(input),
+            "main.Eleven" => review_encode_input::<Eleven>(input),
+            "map[string]int" => review_encode_input::<Option<BTreeMap<GoString, isize>>>(input),
+            "map[string]string" => {
+                review_encode_input::<Option<BTreeMap<GoString, GoString>>>(input)
+            }
+            "[]string" => review_encode_input::<Option<Vec<GoString>>>(input),
+            "[]float64" => review_encode_input::<Option<Vec<f64>>>(input),
+            "[]float32" => review_encode_input::<Option<Vec<f32>>>(input),
+            "[]json.RawMessage" => review_encode_input::<Option<Vec<RawJson>>>(input),
+            "map[string]json.RawMessage" => {
+                review_encode_input::<Option<BTreeMap<GoString, RawJson>>>(input)
+            }
+            "main.Quoted" => review_encode_input::<Quoted>(input),
+            "openrtb2.BidResponse" => review_encode_input::<BidResponse>(input),
+            "main.Wide" => review_encode_input::<Wide>(input),
+            "interface {}" => review_encode_input::<Value>(input),
+            "map[string]interface {}" => {
+                review_encode_input::<Option<BTreeMap<GoString, Value>>>(input)
+            }
+            "main.Numbers" => review_encode_input::<Numbers>(input),
+            "main.Anon" => review_encode_input::<Anon>(input),
+            "main.Embeds" => review_encode_input::<Embeds>(input),
+            "main.Maps" => review_encode_input::<Maps>(input),
+            "main.Custom" => review_encode_input::<Custom>(input),
+            "main.Upper" => review_encode_input::<Upper>(input),
+            "main.Tags" => review_encode_input::<Tags>(input),
+            _ => return None,
+        })
+    }
+
+    #[test]
+    fn review_encode_goldens() -> Result<(), String> {
+        let mut failures = Vec::new();
+        let rows = rows("review_encode.txt")?;
+        for row in &rows {
+            let name = String::from_utf8_lossy(&field(row, 0)?).into_owned();
+            let input = field(row, 1)?;
+            let what = format!("review encode {name} {}", quote_to_ascii(&input));
+            let actual = review_encode_by_name(&name, &input)
+                .ok_or_else(|| format!("cannot build {what}"))?;
+            compare(&mut failures, &what, row, 2, &ENCODE_OUTPUTS, &actual);
+        }
+        finish(
+            "review encode",
+            rows.len() * ENCODE_OUTPUTS.len(),
+            &failures,
+        )
     }
 
     // ---- floats -----------------------------------------------------------------------------
