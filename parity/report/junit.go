@@ -55,8 +55,9 @@ type junitMessage struct {
 }
 
 // JUnit renders junit.xml: one suite per corpus with one test case per parity
-// case (mismatch is a failure, error an error, not-yet-instrumented and
-// skipped are skipped), plus the fixture self-test suite when present.
+// case (mismatch is a failure, error an error, not-yet-instrumented, skipped
+// and not-compared are skipped), plus the fixture self-test suite when
+// present.
 func JUnit(r *Run) ([]byte, error) {
 	diffs := make(map[string]parity.DiffDocument, len(r.Diffs))
 	for _, d := range r.Diffs {
@@ -139,7 +140,7 @@ func caseResult(c CaseSummary, doc parity.DiffDocument) junitCase {
 		jc.Failure = &junitMessage{Type: string(CaseMismatch), Message: failureMessage(c, doc), Text: mismatchLines(doc)}
 	case CaseError:
 		jc.Error = &junitMessage{Type: string(CaseError), Message: c.Reason}
-	case CaseNotYetInstrumented, CaseSkipped:
+	case CaseNotYetInstrumented, CaseSkipped, CaseNotCompared:
 		jc.Skipped = &junitMessage{Message: string(c.Status) + ": " + c.Reason}
 	}
 	return jc

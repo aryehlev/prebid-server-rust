@@ -660,6 +660,12 @@ counts exits 0, and one that compares fewer cases exits 1.
      suffix `@<profile>` when the base profile is not `default`.
    * Adapter cases run once, under the first base profile.
    * `contract_gap` cases are skipped.
+   * The requests a corpus leaves out of its cases (`corpus.NotCompared`;
+     only the `replayharness` corpus has any) are reported under every base
+     profile with status `not-compared`, the same `@<profile>` suffix, and
+     the reason `<tag>: <reason>`. `--corpus`, `--kinds` and `--match` select
+     them as they select cases; `--limit` does not apply, because none of
+     them runs.
    * `--corpus introspection` (part of `all`) adds one config and bidders
      comparison per batch.
 2. Cases are grouped into batches. A batch shares the base profile, the case
@@ -698,14 +704,28 @@ remaining cases are skipped.
 | File | Contents |
 |---|---|
 | `index.json` | `pbs-parity-index/1`: every case with its status, its first divergence and the case directory. |
-| `run.json` | Counts, options, and the server records: binary, health, reason and log for each side and shard. |
+| `run.json` | Counts by status (`counts`: `total`, `passing`, `mismatch`, `not_yet_instrumented`, `error`, `skipped`, `not_compared`), options, and the server records: binary, health, reason and log for each side and shard. |
 | `clusters.json` | Mismatch clusters by signature, with their representative case and repro paths. |
-| `summary.md` | Counts, reasons cases were not compared, cluster tables by domain, and failing fixtures. |
-| `junit.xml` | One suite per corpus plus `fixture-selftest`. Mismatch is a failure, error is an error, and not-yet-instrumented or skipped is skipped. |
+| `summary.md` | Counts, reasons cases were not compared, every reason of the requests not compared, cluster tables by domain, and failing fixtures. |
+| `junit.xml` | One suite per corpus plus `fixture-selftest`. Mismatch is a failure, error is an error, and not-yet-instrumented, skipped or not-compared is skipped, with the message `<status>: <reason>`. |
 | `fixtures.json` | Adapter fixture self-test results, when any adapter case ran: passing, failing, excused (`needs_fake`, `unresolved_build`) or not-run. |
 | `matrix.json`, `matrix.md` | The coverage matrix of this run. |
-| `cases/<sha1-16>/` | `summary.json` for every case. A mismatch or error also gets `case.json` (everything needed to rerun the case), `envelope.json`, both traces, `diff.json`, and `min.*.json` after minimization. |
+| `cases/<sha1-16>/` | `summary.json` for every case and every request not compared. A mismatch or error also gets `case.json` (everything needed to rerun the case), `envelope.json`, both traces, `diff.json`, and `min.*.json` after minimization. |
 | `servers/*.log` | Server stdout and stderr. |
+
+`run.json` (`pbs-parity-run/1`) and each `summary.json`
+(`pbs-parity-case-summary/1`) are runner documents without a JSON Schema.
+A summary's `status` is one of these, and `reason` explains every status
+but the first two:
+
+| Status | Meaning | Compared | `index.json` entry |
+|---|---|---|---|
+| `passing` | Both sides were compared and nothing differed. | yes | yes |
+| `mismatch` | Both sides were compared and a mismatch was recorded. | yes | yes |
+| `not-yet-instrumented` | A side does not serve what the case needs, such as the endpoint or the mock level. | no | yes |
+| `error` | The harness could not complete the case. | no | yes |
+| `skipped` | Selected but not run: a `contract_gap` case, or the budget ran out. | no | no |
+| `not-compared` | A request the corpus leaves out of its cases; the reason is `<tag>: <reason>` (see "What the corpus does not compare"). It never runs. | no | no |
 
 ### Self-tests
 
@@ -1204,6 +1224,13 @@ differently, or the envelope cannot carry them as sent. Such a request is not
 a case. `rhtool cases` lists each one with a tag and a reason, and the
 `parity` and `selftest` commands write that list to `not-compared.json`.
 The corpus drops nothing recorded or replayed without an entry in that list.
+Each entry has the ID, corpus, kind, fixture path and endpoint its case
+would have. `corpus.LoadAll` keeps the list in `Corpus.NotCompared`, and the
+runner reports each entry with status `not-compared` and the reason
+`<tag>: <reason>`: `run.json` counts them in `counts.not_compared`,
+`summary.md` lists every reason under "Requests not compared", `junit.xml`
+has a skipped test case for each, the matrix counts them per endpoint, and
+each gets a `summary.json`, but no `index.json` entry.
 
 | Tag | Requests | Last run |
 | --- | --- | --- |

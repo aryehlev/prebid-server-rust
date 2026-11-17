@@ -14,6 +14,10 @@ type Corpus struct {
 	Seeds    []Seed
 	// Cases are sorted by ID; IDs are unique.
 	Cases []Case
+	// NotCompared are the requests a corpus leaves out of Cases, each with
+	// its tag and reason, sorted by ID. Only the replayharness corpus has
+	// any. The runner reports them with status not-compared.
+	NotCompared []NotCompared
 	// Errors are per-file load or conversion errors. Loading continues past
 	// them so one broken fixture never hides the rest.
 	Errors []error
@@ -31,6 +35,7 @@ type Stats struct {
 	Seeds           int            `json:"seeds"`
 	CasesByKind     map[Kind]int   `json:"cases_by_kind"`
 	CasesByTag      map[string]int `json:"cases_by_tag"`
+	NotCompared     int            `json:"not_compared"`
 	Errors          int            `json:"errors"`
 }
 
@@ -63,7 +68,9 @@ func LoadAll(repo *Repo) (*Corpus, error) {
 		return nil, fmt.Errorf("corpus: bidder params: %w", err)
 	}
 	c.addCases(c.Params.Cases(), nil)
-	c.addCases(ReplayHarnessCases(repo))
+	rh := LoadReplayHarness(repo)
+	c.addCases(rh.Cases, rh.Errors)
+	c.NotCompared = append(c.NotCompared, rh.NotCompared...)
 
 	c.Seeds, errs = LoadSeeds(repo)
 	c.Errors = append(c.Errors, errs...)
@@ -116,6 +123,7 @@ func (c *Corpus) Stats() Stats {
 		s.ParamsExamples = len(c.Params.Examples)
 	}
 	s.Seeds = len(c.Seeds)
+	s.NotCompared = len(c.NotCompared)
 	for _, cs := range c.Cases {
 		s.CasesByKind[cs.Kind]++
 		for _, tag := range cs.Tags {

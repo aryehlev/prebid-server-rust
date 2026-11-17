@@ -55,7 +55,8 @@ func Judge(run *report.Run) Verdict {
 	}
 	if c.Compared() == 0 {
 		v.Incomplete = true
-		v.Reasons = append(v.Reasons, fmt.Sprintf("no case was compared: %d not-yet-instrumented, %d skipped", c.NotYetInstrumented, c.Skipped))
+		v.Reasons = append(v.Reasons, fmt.Sprintf("no case was compared: %d not-yet-instrumented, %d skipped, %d not compared",
+			c.NotYetInstrumented, c.Skipped, c.NotCompared))
 	}
 	v.OK = len(v.Reasons) == 0
 	return v

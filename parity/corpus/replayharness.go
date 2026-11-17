@@ -95,9 +95,16 @@ type ReplayHarness struct {
 }
 
 // NotCompared is a request of the replayharness corpus that is not a case.
+// Its identity members are those the case would have, so the runner selects
+// and reports it as it does a case, with status not-compared.
 type NotCompared struct {
 	// ID is the case ID the request would have.
 	ID string `json:"case_id"`
+	// Corpus, Kind, FixturePath and Endpoint are the case's.
+	Corpus      string `json:"corpus"`
+	Kind        Kind   `json:"kind"`
+	FixturePath string `json:"fixture_path"`
+	Endpoint    string `json:"endpoint"`
 	// Request is the request line, or the API map endpoint, it stands for.
 	Request string `json:"request"`
 	// Sources are where it was recorded or replayed.
@@ -106,12 +113,12 @@ type NotCompared struct {
 	Reason  string   `json:"reason"`
 }
 
-// ReplayHarnessCases returns the cases of the replayharness corpus and the
-// errors met loading it.
-func ReplayHarnessCases(repo *Repo) ([]Case, []error) {
-	rh := LoadReplayHarness(repo)
-
-	return rh.Cases, rh.Errors
+// newNotCompared is a NotCompared entry of this corpus.
+func newNotCompared(id, endpoint, request, tag, reason string, sources ...string) NotCompared {
+	return NotCompared{
+		ID: id, Corpus: CorpusReplayHarness, Kind: KindEndpoint, FixturePath: RootReplayHarness, Endpoint: endpoint,
+		Request: request, Sources: sources, Tag: tag, Reason: reason,
+	}
 }
 
 // LoadReplayHarness builds the replayharness corpus. A repository without
@@ -434,7 +441,9 @@ func (l *rhLoader) skipStep(st rhreplay.Step, source, reason string) {
 
 	nc, ok := l.skipped[id]
 	if !ok {
-		nc = &NotCompared{ID: id, Request: shown(st.Method + " " + st.Path), Tag: RHNotRebuilt, Reason: reason}
+		entry := newNotCompared(id, l.endpoint(rhRequest{method: st.Method, path: st.Path}), shown(st.Method+" "+st.Path),
+			RHNotRebuilt, reason)
+		nc = &entry
 		l.skipped[id] = nc
 	}
 
@@ -569,9 +578,8 @@ func (l *rhLoader) result() *ReplayHarness {
 		id := caseIDFor(e)
 
 		if tag, reason := l.verdict(e); tag != "" {
-			out.NotCompared = append(out.NotCompared, NotCompared{
-				ID: id, Request: shown(e.req.line()), Sources: e.sources, Tag: tag, Reason: reason,
-			})
+			out.NotCompared = append(out.NotCompared, newNotCompared(id, l.endpoint(e.req), shown(e.req.line()), tag, reason,
+				e.sources...))
 
 			continue
 		}
@@ -766,14 +774,13 @@ func (l *rhLoader) sidePorts() []NotCompared {
 			listener = "prometheus"
 		}
 
-		out = append(out, NotCompared{
-			ID:      fmt.Sprintf("%s#%s-port:%s:%s", RootReplayHarness, listener, strings.ToLower(ep.Method), ep.Path),
-			Request: ep.Method + " " + ep.Path,
-			Sources: []string{rhAPIFile},
-			Tag:     RHSidePort,
-			Reason: "the API map serves it on the " + listener + " listener (" + rule + "); /__parity/exec dispatches " +
+		out = append(out, newNotCompared(
+			fmt.Sprintf("%s#%s-port:%s:%s", RootReplayHarness, listener, strings.ToLower(ep.Method), ep.Path),
+			ep.Path+" "+ep.Method, ep.Method+" "+ep.Path, RHSidePort,
+			"the API map serves it on the "+listener+" listener ("+rule+"); /__parity/exec dispatches "+
 				"to the main router only, so the cases of this path check the main port's answer",
-		})
+			rhAPIFile,
+		))
 	}
 
 	return out

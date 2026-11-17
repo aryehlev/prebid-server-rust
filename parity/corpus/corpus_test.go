@@ -87,6 +87,29 @@ func TestLoadAllCountsAndErrors(t *testing.T) {
 	assert.GreaterOrEqual(t, stats.CasesByKind[KindLifted], stats.AdapterFixtures-1, "every fixture with a bidder yields a lifted case")
 }
 
+// TestLoadAllKeepsTheRequestsNotCompared: LoadAll carries every request the
+// replayharness corpus leaves out of its cases, with the identity its case
+// would have, so the runner can select and report it.
+func TestLoadAllKeepsTheRequestsNotCompared(t *testing.T) {
+	c := loadTestCorpus(t)
+	rh := LoadReplayHarness(testRepo(t))
+	require.NotEmpty(t, rh.NotCompared)
+	assert.Equal(t, rh.NotCompared, c.NotCompared)
+	assert.Equal(t, len(rh.NotCompared), c.Stats().NotCompared)
+	for _, nc := range c.NotCompared {
+		assert.Equal(t, CorpusReplayHarness, nc.Corpus, nc.ID)
+		assert.Equal(t, KindEndpoint, nc.Kind, nc.ID)
+		assert.Equal(t, RootReplayHarness, nc.FixturePath, nc.ID)
+		assert.True(t, strings.HasPrefix(nc.ID, RootReplayHarness+"#"), nc.ID)
+		assert.NotEmpty(t, nc.Endpoint, nc.ID)
+		assert.NotEmpty(t, nc.Tag, nc.ID)
+		assert.NotEmpty(t, nc.Reason, nc.ID)
+		assert.NotEmpty(t, nc.Sources, nc.ID)
+		_, isCase := c.Case(nc.ID)
+		assert.False(t, isCase, "%s is both a case and not compared", nc.ID)
+	}
+}
+
 func TestAdapterRunResolutionRate(t *testing.T) {
 	c := loadTestCorpus(t)
 	resolved := 0

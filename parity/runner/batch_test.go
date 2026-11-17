@@ -75,6 +75,59 @@ func TestSelectCases(t *testing.T) {
 	}
 }
 
+// notComparedEntry is a request a corpus leaves out of its cases.
+func notComparedEntry(id, corpusName string) corpus.NotCompared {
+	return corpus.NotCompared{
+		ID: id, Corpus: corpusName, Kind: corpus.KindEndpoint, FixturePath: "f/" + id, Endpoint: "/cookie_sync POST",
+		Request: "POST /cookie_sync", Sources: []string{"traffic.jsonl:3"}, Tag: "map_order", Reason: "map order",
+	}
+}
+
+// TestSelectNotCompared: not-compared requests are selected by corpus, kind
+// and match as cases are, under every base profile with the same ID
+// suffix, and the limit, which caps the cases that run, leaves them all.
+func TestSelectNotCompared(t *testing.T) {
+	c := &corpus.Corpus{
+		Cases: []corpus.Case{envCase("r-case", corpus.CorpusReplayHarness, corpus.Profile{}, corpus.Stored{})},
+		NotCompared: []corpus.NotCompared{
+			notComparedEntry("r-a", corpus.CorpusReplayHarness), notComparedEntry("r-b", corpus.CorpusReplayHarness),
+			notComparedEntry("s-c", corpus.CorpusSampleRequests),
+		},
+	}
+	tests := []struct {
+		name  string
+		bases []string
+		sel   Selection
+		want  []string
+	}{
+		{"all", []string{"default"}, Selection{}, []string{"r-a", "r-b", "s-c"}},
+		{"corpus", []string{"default"}, Selection{Corpora: []string{corpus.CorpusReplayHarness}}, []string{"r-a", "r-b"}},
+		{"kinds", []string{"default"}, Selection{Kinds: []string{string(corpus.KindAdapter)}}, nil},
+		{"match", []string{"default"}, Selection{Match: regexp.MustCompile(`-b$`)}, []string{"r-b"}},
+		{"limit leaves them all", []string{"default"}, Selection{Limit: 1}, []string{"r-a", "r-b", "s-c"}},
+		{"second profile suffixes ids", []string{"default", "floors"}, Selection{Corpora: []string{corpus.CorpusReplayHarness}},
+			[]string{"r-a", "r-b", "r-a@floors", "r-b@floors"}},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			var got []string
+			for _, n := range selectNotCompared(c, tc.bases, tc.sel) {
+				got = append(got, n.ID)
+				want := n.NC.ID
+				if n.Base != DefaultProfile {
+					want += "@" + n.Base
+				}
+				if n.ID != want {
+					t.Errorf("%s under base %s, want %s", n.ID, n.Base, want)
+				}
+			}
+			if !reflect.DeepEqual(got, tc.want) {
+				t.Errorf("selected %v, want %v", got, tc.want)
+			}
+		})
+	}
+}
+
 func TestRewriteCaseID(t *testing.T) {
 	cs := adapterCase("a#adapter")
 	rc := newRunCase(&cs, "floors")

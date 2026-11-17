@@ -79,6 +79,7 @@ type EndpointRow struct {
 	NotYetInstrumented int                  `json:"not_yet_instrumented"`
 	Error              int                  `json:"error"`
 	Skipped            int                  `json:"skipped"`
+	NotCompared        int                  `json:"not_compared"`
 }
 
 // BidderRow is the per-bidder table: adapter-fixture and lifted-auction pass
@@ -308,6 +309,8 @@ func endpointRows(cases []report.CaseSummary) []EndpointRow {
 			r.Error++
 		case report.CaseSkipped:
 			r.Skipped++
+		case report.CaseNotCompared:
+			r.NotCompared++
 		}
 	}
 	out := make([]EndpointRow, 0, len(by))

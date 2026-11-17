@@ -83,6 +83,7 @@ func mixedRun(t *testing.T) (*report.Run, string) {
 		{id: "adapter-appnexus-1", kind: "adapter", bidder: "appnexus", exercised: []parity.Domain{parity.DomainBiddersAdapters}},
 		{id: "adapter-appnexus-2", kind: "adapter", bidder: "appnexus", status: report.CaseNotYetInstrumented, tags: []string{"needs_fake"}},
 		{id: "lifted-rubicon-1", kind: "lifted_auction", bidder: "rubicon", status: report.CaseNotYetInstrumented},
+		{id: "replayharness-not-compared", kind: "endpoint", status: report.CaseNotCompared},
 	}, []report.FixtureResult{{CaseID: "adapter-appnexus-1", Bidder: "appnexus", Status: report.FixturePassing, Failures: []string{}}})
 }
 
@@ -146,8 +147,15 @@ func TestBuildMatrixTables(t *testing.T) {
 	if err != nil {
 		t.Fatalf("BuildMatrix: %v", err)
 	}
-	if len(m.Endpoints) != 1 || m.Endpoints[0].Cases != 5 || m.Endpoints[0].Status != parity.StatusMismatch || m.Endpoints[0].NotYetInstrumented != 2 {
+	if len(m.Endpoints) != 1 || m.Endpoints[0].Cases != 6 || m.Endpoints[0].Status != parity.StatusMismatch || m.Endpoints[0].NotYetInstrumented != 2 ||
+		m.Endpoints[0].NotCompared != 1 {
 		t.Errorf("endpoints = %+v", m.Endpoints)
+	}
+	if m.Counts.NotCompared != 1 {
+		t.Errorf("counts = %+v", m.Counts)
+	}
+	if md := string(RenderMarkdown(m)); !strings.Contains(md, "| Skipped | Not compared |") || !strings.Contains(md, ", 1 not compared.") {
+		t.Errorf("matrix.md does not show the not-compared request:\n%s", md)
 	}
 	if len(m.Bidders) != 2 {
 		t.Fatalf("bidders = %+v", m.Bidders)

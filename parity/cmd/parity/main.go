@@ -495,9 +495,9 @@ func ratchet(stdout io.Writer, run *report.Run, path string, update bool) (int, 
 // printRun prints the run directory and totals.
 func printRun(w io.Writer, run *report.Run) {
 	c := run.Summary.Counts
-	fmt.Fprintf(w, "run %s (%s vs %s): %d cases, %d passing, %d mismatch, %d not-yet-instrumented, %d error, %d skipped; %d clusters (%d primary)\n",
+	fmt.Fprintf(w, "run %s (%s vs %s): %d cases, %d passing, %d mismatch, %d not-yet-instrumented, %d error, %d skipped, %d not-compared; %d clusters (%d primary)\n",
 		run.Summary.RunID, run.Summary.ImplA, run.Summary.ImplB, c.Total, c.Passing, c.Mismatch, c.NotYetInstrumented, c.Error, c.Skipped,
-		run.Summary.Clusters, run.Summary.PrimaryClusters)
+		c.NotCompared, run.Summary.Clusters, run.Summary.PrimaryClusters)
 	if f := run.Summary.Fixtures; f != nil {
 		fmt.Fprintf(w, "fixtures: %d passing, %d failing, %d excused, %d not run\n", f.Passing, f.Failing, f.Excused, f.NotRun)
 	}

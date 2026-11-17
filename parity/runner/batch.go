@@ -71,14 +71,18 @@ func (s Selection) wantsCorpus(name string) bool {
 	return len(s.Corpora) == 0 || containsString(s.Corpora, name) || containsString(s.Corpora, "all")
 }
 
-func (s Selection) wants(cs *corpus.Case) bool {
-	if !s.wantsCorpus(cs.Corpus) {
+func (s Selection) wants(cs *corpus.Case) bool { return s.wantsEntry(cs.Corpus, cs.Kind, cs.ID) }
+
+// wantsEntry applies the corpus, kind and match filters to a case or a
+// not-compared request.
+func (s Selection) wantsEntry(corpusName string, kind corpus.Kind, id string) bool {
+	if !s.wantsCorpus(corpusName) {
 		return false
 	}
-	if len(s.Kinds) > 0 && !containsString(s.Kinds, string(cs.Kind)) {
+	if len(s.Kinds) > 0 && !containsString(s.Kinds, string(kind)) {
 		return false
 	}
-	return s.Match == nil || s.Match.MatchString(cs.ID)
+	return s.Match == nil || s.Match.MatchString(id)
 }
 
 // selectCases returns the cases to run under each base profile, in base
@@ -111,6 +115,37 @@ func selectCases(c *corpus.Corpus, bases []string, sel Selection) (run []*runCas
 type skippedCase struct {
 	rc     *runCase
 	reason string
+}
+
+// notComparedCase is a request a corpus leaves out of its cases, under one
+// base profile.
+type notComparedCase struct {
+	// ID is the case ID the request would have, suffixed as a case's is.
+	ID   string
+	Base string
+	NC   *corpus.NotCompared
+}
+
+// selectNotCompared returns the not-compared requests the selection names,
+// under each base profile, in base profile then ID order. The corpus, kind
+// and match filters apply as they do to cases; the limit does not, because
+// none of them runs.
+func selectNotCompared(c *corpus.Corpus, bases []string, sel Selection) []notComparedCase {
+	var out []notComparedCase
+	for _, base := range bases {
+		for i := range c.NotCompared {
+			nc := &c.NotCompared[i]
+			if !sel.wantsEntry(nc.Corpus, nc.Kind, nc.ID) {
+				continue
+			}
+			id := nc.ID
+			if base != DefaultProfile {
+				id += "@" + base
+			}
+			out = append(out, notComparedCase{ID: id, Base: base, NC: nc})
+		}
+	}
+	return out
 }
 
 // newRunCase copies cs and rewrites its IDs for the base profile.

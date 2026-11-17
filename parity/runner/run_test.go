@@ -2,8 +2,10 @@ package runner
 
 import (
 	"context"
+	"html"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -248,6 +250,57 @@ func TestRunBudget(t *testing.T) {
 	}
 	if cs := mustCase(t, res.Run, caseOracle); cs.Reason != reasonBudget {
 		t.Errorf("reason = %q", cs.Reason)
+	}
+}
+
+// TestRunReportsNotCompared: the requests a corpus does not compare are
+// reported under every base profile with status not-compared and the
+// reason "<tag>: <reason>": counted in run.json, listed in summary.md,
+// skipped in junit.xml, with a case summary and no index entry. They count
+// as neither compared nor skipped, so a budget that skips every case leaves
+// them as they are.
+func TestRunReportsNotCompared(t *testing.T) {
+	opts := testOptions(t, fakeImpl(t, parity.ImplGo, fakeGo), fakeImpl(t, parity.ImplRust, fakeGo), "all")
+	opts.Profiles = []string{DefaultProfile, "floors"}
+	opts.Budget = time.Nanosecond
+	opts.Corpus.NotCompared = []corpus.NotCompared{{
+		ID: "parity/replayharness#post:/cookie_sync:0123456789abcdef", Corpus: corpus.CorpusReplayHarness, Kind: corpus.KindEndpoint,
+		FixturePath: corpus.RootReplayHarness, Endpoint: "/cookie_sync POST", Request: "POST /cookie_sync",
+		Sources: []string{"traffic.jsonl:7"}, Tag: corpus.RHMapOrder, Reason: "Go's answer lists syncers in map order",
+	}}
+	res, err := Run(context.Background(), opts)
+	if err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	c := res.Run.Summary.Counts
+	if c.NotCompared != 2 || c.Skipped != c.Total-2 || c.Compared() != 0 {
+		t.Errorf("counts = %+v", c)
+	}
+	reason := corpus.RHMapOrder + ": Go's answer lists syncers in map order"
+	for _, id := range []string{opts.Corpus.NotCompared[0].ID, opts.Corpus.NotCompared[0].ID + "@floors"} {
+		cs := mustCase(t, res.Run, id)
+		if cs.Status != report.CaseNotCompared || cs.Reason != reason || cs.Corpus != corpus.CorpusReplayHarness || cs.Endpoint != "/cookie_sync POST" ||
+			!slices.Equal(cs.Notes, []string{"request POST /cookie_sync", "from traffic.jsonl:7"}) {
+			t.Errorf("%s = %+v", id, cs)
+		}
+	}
+	for _, e := range res.Run.Index.Cases {
+		if strings.HasPrefix(e.CaseID, corpus.RootReplayHarness) {
+			t.Errorf("index.json has an entry for the not-compared request %s", e.CaseID)
+		}
+	}
+	files := map[string]string{report.FileRun: `"not_compared": 2`, report.FileSummaryMD: "| 2 | " + reason + " |", report.FileJUnit: `message="not-compared: ` + reason}
+	for name, want := range files {
+		raw, err := os.ReadFile(res.Run.Layout.Path(name))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !strings.Contains(html.UnescapeString(string(raw)), want) {
+			t.Errorf("%s lacks %q:\n%s", name, want, raw)
+		}
+	}
+	if v := Judge(res.Run); v.OK || !v.Incomplete || !strings.Contains(strings.Join(v.Reasons, "; "), "2 not compared") {
+		t.Errorf("verdict = %+v", v)
 	}
 }
 

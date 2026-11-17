@@ -316,6 +316,11 @@ func (r *runner) run(ctx context.Context) (*Result, error) {
 			return nil, err
 		}
 	}
+	for _, n := range selectNotCompared(r.corpus, r.opts.Profiles, r.opts.Selection) {
+		if err := r.recordNotCompared(n); err != nil {
+			return nil, err
+		}
+	}
 	r.logf("[parity runner] %s: %d cases in %d batches, %s vs %s", r.opts.RunID, len(cases), len(batches), r.opts.A.Name, r.opts.B.Name)
 	for i, b := range batches {
 		if err := r.runBatch(ctx, i, len(batches), b); err != nil {
@@ -384,6 +389,22 @@ func (r *runner) newSummary(rc *runCase, label string) report.CaseSummary {
 func (r *runner) recordSkipped(rc *runCase, label, reason string) error {
 	s := r.newSummary(rc, label)
 	s.Status, s.Reason = report.CaseSkipped, reason
+	return r.writer.AddCase(s, nil)
+}
+
+// recordNotCompared reports a request the corpus does not compare: status
+// not-compared, the reason "<tag>: <reason>", and notes naming the request
+// and where it came from.
+func (r *runner) recordNotCompared(n notComparedCase) error {
+	nc := n.NC
+	s := report.NewCaseSummary(n.ID)
+	s.FixturePath, s.Endpoint, s.Profile, s.Kind, s.Corpus = nc.FixturePath, nc.Endpoint, n.Base, string(nc.Kind), nc.Corpus
+	s.ImplA, s.ImplB = r.opts.A.Name, r.opts.B.Name
+	s.Status, s.Reason = report.CaseNotCompared, nc.Tag+": "+nc.Reason
+	s.Notes = append(s.Notes, "request "+nc.Request)
+	for _, src := range nc.Sources {
+		s.Notes = append(s.Notes, "from "+src)
+	}
 	return r.writer.AddCase(s, nil)
 }
 
