@@ -46,14 +46,6 @@ const (
 // Tags of the replayharness requests that are not compared
 // (NotCompared.Tag).
 const (
-	// RHWallClock: Go's answer carries a cookie whose expiry comes from the
-	// wall clock, which no fake or normalization rule covers.
-	RHWallClock = "wall_clock"
-	// RHMapOrder: Go's answer lists syncers in Go map iteration order.
-	RHMapOrder = "map_order"
-	// RHExecFraming: the request depends on how net/http frames the body,
-	// which /__parity/exec does not reproduce.
-	RHExecFraming = "exec_framing"
 	// RHRequestLine: net/http rejects the request line before routing.
 	RHRequestLine = "request_line"
 	// RHTruncated: the recorder cut the body, so it is not what was sent.
@@ -64,10 +56,6 @@ const (
 	// listener, which /__parity/exec cannot reach.
 	RHSidePort = "side_port"
 )
-
-// rhMaxRequestSize is max_request_size in every parity profile: the Go
-// default (config/config.go SetDefault "max_request_size").
-const rhMaxRequestSize = 262144
 
 // rhDefaultUserAgent is the User-Agent of a ReplayHarness built from a
 // source archive, used when traffic.jsonl names no ReplayHarness build.
@@ -299,21 +287,11 @@ type rhRequest struct {
 	added parity.HeaderList
 }
 
-// rhStatus is what one source says about Go's status for a request.
-type rhStatus struct {
-	// spec is a code ("200") or a class ("4xx").
-	spec string
-	// recorded marks a status traffic.jsonl recorded. The recorder drops
-	// Cookie headers, so it may be Go's answer to the request with a cookie.
-	recorded bool
-}
-
 // rhEntry is one distinct request with everything known about it.
 type rhEntry struct {
 	key       string
 	req       rhRequest
 	sources   []string
-	statuses  []rhStatus
 	truncated bool
 }
 
@@ -322,7 +300,6 @@ type rhLoader struct {
 	userAgent string
 	entries   map[string]*rhEntry
 	skipped   map[string]*NotCompared
-	sandbox   map[string]bool
 	ampImps   map[string][]string
 }
 
@@ -332,14 +309,7 @@ func newRHLoader(in *rhInput) *rhLoader {
 		userAgent: dominantUserAgent(in.traffic),
 		entries:   map[string]*rhEntry{},
 		skipped:   map[string]*NotCompared{},
-		sandbox:   map[string]bool{},
 		ampImps:   map[string][]string{},
-	}
-
-	for id, raw := range in.stored.Accounts {
-		if cookieDeprecationEnabled(raw) {
-			l.sandbox[id] = true
-		}
 	}
 
 	for id, raw := range in.stored.Requests {
@@ -394,14 +364,7 @@ func (l *rhLoader) addReplays() {
 			continue
 		}
 
-		req := requestFromWire(b.Wire)
-
-		var statuses []rhStatus
-		for _, spec := range st.Expect.StatusClasses() {
-			statuses = append(statuses, rhStatus{spec: spec})
-		}
-
-		l.add(req, source, statuses, false)
+		l.add(requestFromWire(b.Wire), source, false)
 	}
 }
 
@@ -410,12 +373,11 @@ func (l *rhLoader) addTraffic() {
 	for _, ex := range l.in.traffic {
 		req := requestFromRecording(ex.Request)
 		source := fmt.Sprintf("%s:%d", rhTrafficFile, ex.Line)
-		status := rhStatus{spec: strconv.Itoa(ex.Response.Status), recorded: true}
-		l.add(req, source, []rhStatus{status}, len(req.body) >= rhreplay.RecorderBodyLimit)
+		l.add(req, source, len(req.body) >= rhreplay.RecorderBodyLimit)
 	}
 }
 
-func (l *rhLoader) add(req rhRequest, source string, statuses []rhStatus, truncated bool) {
+func (l *rhLoader) add(req rhRequest, source string, truncated bool) {
 	key := requestKey(req)
 
 	e, ok := l.entries[key]
@@ -425,7 +387,6 @@ func (l *rhLoader) add(req rhRequest, source string, statuses []rhStatus, trunca
 	}
 
 	e.sources = append(e.sources, source)
-	e.statuses = append(e.statuses, statuses...)
 	e.truncated = e.truncated || truncated
 }
 
@@ -577,7 +538,7 @@ func (l *rhLoader) result() *ReplayHarness {
 		e := l.entries[key]
 		id := caseIDFor(e)
 
-		if tag, reason := l.verdict(e); tag != "" {
+		if tag, reason := verdict(e); tag != "" {
 			out.NotCompared = append(out.NotCompared, newNotCompared(id, l.endpoint(e.req), shown(e.req.line()), tag, reason,
 				e.sources...))
 

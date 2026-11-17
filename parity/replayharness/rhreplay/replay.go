@@ -253,26 +253,6 @@ func validStatus(s string) bool {
 	return err == nil && n >= 100 && n <= 599
 }
 
-// StatusClasses returns the status codes or classes ("4xx") a step expects,
-// or nil when it expects none.
-func (e Expect) StatusClasses() []string {
-	if e.Status == nil {
-		return nil
-	}
-
-	items, ok := e.Status.([]any)
-	if !ok {
-		items = []any{e.Status}
-	}
-
-	out := make([]string, 0, len(items))
-	for _, item := range items {
-		out = append(out, strings.ToLower(strings.TrimSpace(Scalar(item))))
-	}
-
-	return out
-}
-
 // normalize turns YAML maps with non-string keys into string-keyed maps.
 func normalize(v any) any {
 	switch t := v.(type) {

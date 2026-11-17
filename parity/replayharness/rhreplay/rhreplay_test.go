@@ -3,6 +3,7 @@ package rhreplay_test
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"strings"
 	"testing"
@@ -64,8 +65,8 @@ func TestParseForms(t *testing.T) {
 		t.Errorf("limit is %T, want float64 as after ReplayHarness's JSON round trip", body["limit"])
 	}
 
-	if got := replays[0].Steps[1].Expect.StatusClasses(); strings.Join(got, ",") != "200,4xx" {
-		t.Errorf("status classes %v", got)
+	if got := fmt.Sprint(replays[0].Steps[1].Expect.Status); got != "[200 4xx]" {
+		t.Errorf("status %v", got)
 	}
 
 	for _, doc := range []string{

@@ -266,7 +266,7 @@ func TestRunReportsNotCompared(t *testing.T) {
 	opts.Corpus.NotCompared = []corpus.NotCompared{{
 		ID: "parity/replayharness#post:/cookie_sync:0123456789abcdef", Corpus: corpus.CorpusReplayHarness, Kind: corpus.KindEndpoint,
 		FixturePath: corpus.RootReplayHarness, Endpoint: "/cookie_sync POST", Request: "POST /cookie_sync",
-		Sources: []string{"traffic.jsonl:7"}, Tag: corpus.RHMapOrder, Reason: "Go's answer lists syncers in map order",
+		Sources: []string{"traffic.jsonl:7"}, Tag: corpus.RHTruncated, Reason: "the recorder cut the body",
 	}}
 	res, err := Run(context.Background(), opts)
 	if err != nil {
@@ -276,7 +276,7 @@ func TestRunReportsNotCompared(t *testing.T) {
 	if c.NotCompared != 2 || c.Skipped != c.Total-2 || c.Compared() != 0 {
 		t.Errorf("counts = %+v", c)
 	}
-	reason := corpus.RHMapOrder + ": Go's answer lists syncers in map order"
+	reason := corpus.RHTruncated + ": the recorder cut the body"
 	for _, id := range []string{opts.Corpus.NotCompared[0].ID, opts.Corpus.NotCompared[0].ID + "@floors"} {
 		cs := mustCase(t, res.Run, id)
 		if cs.Status != report.CaseNotCompared || cs.Reason != reason || cs.Corpus != corpus.CorpusReplayHarness || cs.Endpoint != "/cookie_sync POST" ||

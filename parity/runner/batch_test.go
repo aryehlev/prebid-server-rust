@@ -79,7 +79,7 @@ func TestSelectCases(t *testing.T) {
 func notComparedEntry(id, corpusName string) corpus.NotCompared {
 	return corpus.NotCompared{
 		ID: id, Corpus: corpusName, Kind: corpus.KindEndpoint, FixturePath: "f/" + id, Endpoint: "/cookie_sync POST",
-		Request: "POST /cookie_sync", Sources: []string{"traffic.jsonl:3"}, Tag: "map_order", Reason: "map order",
+		Request: "POST /cookie_sync", Sources: []string{"traffic.jsonl:3"}, Tag: corpus.RHTruncated, Reason: "cut body",
 	}
 }
 

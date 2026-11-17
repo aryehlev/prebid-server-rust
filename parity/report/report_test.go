@@ -48,7 +48,7 @@ func summary(caseID string, status CaseStatus, exercised ...parity.Domain) CaseS
 }
 
 // notCompareReason is the reason of the sample run's not-compared request.
-const notCompareReason = "map_order: Go's answer lists syncers in map iteration order"
+const notCompareReason = "truncated_body: the recorder cut the body at 65536 bytes, so it is not the body that was sent"
 
 // notCompared is the summary the runner writes for a request a corpus does
 // not compare.
@@ -242,7 +242,7 @@ func TestRenderSummary(t *testing.T) {
 	}
 	_, reasons, _ := strings.Cut(md, "## Cases not compared")
 	reasons, _, _ = strings.Cut(reasons, "## Requests not compared")
-	if strings.Contains(reasons, "map_order") {
+	if strings.Contains(reasons, "truncated_body") {
 		t.Errorf("the not-compared request is also among the cases not compared:\n%s", reasons)
 	}
 }

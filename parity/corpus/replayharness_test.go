@@ -191,19 +191,29 @@ func TestReplayHarnessSortsOutTheRequests(t *testing.T) {
 		tags[nc.Tag]++
 	}
 
-	want := map[string]int{
-		corpus.RHWallClock: 3, corpus.RHMapOrder: 1, corpus.RHExecFraming: 1, corpus.RHRequestLine: 1,
-		corpus.RHTruncated: 1, corpus.RHNotRebuilt: 1, corpus.RHSidePort: 1,
-	}
+	want := map[string]int{corpus.RHRequestLine: 1, corpus.RHTruncated: 1, corpus.RHNotRebuilt: 1, corpus.RHSidePort: 1}
 	if fmt.Sprint(tags) != fmt.Sprint(want) {
 		t.Errorf("not compared by tag %v, want %v", tags, want)
 	}
 
-	// /status, /info/bidders, cookie_sync with bidders, /event, the auction
-	// and /getuids with the saved cookie.
-	if len(rh.Cases) != 6 {
-		t.Errorf("%d cases, want 6", len(rh.Cases))
+	// /status, /info/bidders, the two /setuid (recorded and replayed), the
+	// three /cookie_sync (without bidders, with bidders, with the cookie
+	// deprecation account), /event, the two auctions (max_request_size + 1
+	// bytes, and with an imp) and /getuids with the saved cookie.
+	if len(rh.Cases) != 11 {
+		t.Errorf("%d cases, want 11", len(rh.Cases))
 	}
+
+	// The body of max_request_size + 1 bytes is compared: exec ends it as
+	// net/http does.
+	for _, cs := range rh.Cases {
+		if body := cs.Envelope.Request.Body; cs.Envelope.Request.Path == rhAuction && body != nil && body.Text != nil &&
+			len(*body.Text) == 262145 {
+			return
+		}
+	}
+
+	t.Error("no case sends the auction body of max_request_size + 1 bytes")
 }
 
 func TestReplayHarnessCaseEnvelopes(t *testing.T) {
