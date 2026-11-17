@@ -48,7 +48,7 @@ fn static_files() -> Vec<(&'static str, Vec<u8>)> {
         ("spa ce.txt", b"space\n".to_vec()),
         ("sub/index.html", b"<p>sub</p>\n".to_vec()),
         ("sub/b.css", b"body{}\n".to_vec()),
-        ("nested/c.js", b"var c = 1;\n".to_vec()),
+        ("nested/c.png", b"var c = 1;\n".to_vec()),
         ("nested/d.json", b"[1,2]".to_vec()),
     ]
 }

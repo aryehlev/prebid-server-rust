@@ -18,7 +18,9 @@ import (
 )
 
 // The files of the static directory the router serves under /static/, all with modification
-// time staticModTime. tests/go_wire writes the same tree.
+// time staticModTime. tests/go_wire writes the same tree. Their extensions have the same type
+// in Go's built-in table and in the system tables mime reads (which, for .js or .xml, depend on
+// the host), so the golden does not depend on where it was generated.
 var staticFiles = []struct{ name, body string }{
 	{"index.html", "<html><body>Prebid Server</body></html>\n"},
 	{"a.txt", "hello, static\n"},
@@ -28,7 +30,7 @@ var staticFiles = []struct{ name, body string }{
 	{"spa ce.txt", "space\n"},
 	{"sub/index.html", "<p>sub</p>\n"},
 	{"sub/b.css", "body{}\n"},
-	{"nested/c.js", "var c = 1;\n"},
+	{"nested/c.png", "var c = 1;\n"},
 	{"nested/d.json", "[1,2]"},
 }
 

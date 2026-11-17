@@ -158,7 +158,7 @@ func staticMatrix(c *corpus) {
 		"/static/index.html", "/static/sub/index.html", "/static/big.txt", "/static/data.json",
 		"/static/noext", "/static/spa%20ce.txt", "/static/spa ce.txt", "/static/../a.txt",
 		"/static/%2e%2e/a.txt", "/static//a.txt", "/static/sub/b.css", "/static/nested/",
-		"/static/nested/c.js", "/static/empty/", "/static/empty", "/static/a.txt/",
+		"/static/nested/c.png", "/static/empty/", "/static/empty", "/static/a.txt/",
 		"/static/sub/..", "/static/%2e%2e", "/static/a.txt?x=1", "/static/sub?x=1",
 		"/static/nested/d.json", "/static/%00", "/static/a%5Cb",
 	} {
