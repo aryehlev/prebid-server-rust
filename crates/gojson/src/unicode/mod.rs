@@ -1,8 +1,15 @@
 //! UTF-8 decoding and case mapping that reproduce Go's `unicode/utf8`, `unicode` and `strings`
 //! behaviour where the JSON libraries depend on it.
+//!
+//! Case mapping and rune classes come from Go's own Unicode tables ([`tables`]), not from the
+//! Rust standard library, whose Unicode version is newer than Go's.
+
+mod tables;
 
 use core::str::from_utf8;
 use std::borrow::Cow;
+
+use tables::{CASE_RANGES, LETTER_OR_DIGIT, PRINT, UPPER_LOWER};
 
 /// Go's `utf8.RuneError`.
 pub(crate) const RUNE_ERROR: char = '\u{FFFD}';
@@ -62,38 +69,40 @@ pub(crate) fn go_lossy_bytes(b: &[u8]) -> Cow<'_, [u8]> {
     }
 }
 
+/// Go's `unicode.to`: `c` mapped through `unicode.CaseRanges` to lower case when `lower`,
+/// otherwise to upper case; `c` itself when no range covers it.
+fn to_case(c: char, lower: bool) -> char {
+    // Go: unicode/letter.go to
+    let code = u32::from(c);
+    let index = CASE_RANGES.partition_point(|&(_, hi, ..)| hi < code);
+    let Some(&(lo, _, to_upper, to_lower)) = CASE_RANGES.get(index).filter(|r| r.0 <= code) else {
+        return c;
+    };
+    let delta = if lower { to_lower } else { to_upper };
+    let mapped = if delta == UPPER_LOWER {
+        // An alternating range starts with an upper-case rune: even offsets are upper case and
+        // odd offsets lower case.
+        Some(lo + (((code - lo) & !1) | u32::from(lower)))
+    } else {
+        code.checked_add_signed(delta)
+    };
+    mapped.and_then(char::from_u32).unwrap_or(c)
+}
+
 /// Go's `unicode.ToLower` (simple case mapping).
 pub(crate) fn to_lower_rune(c: char) -> char {
-    let mut lower = c.to_lowercase();
-    match (lower.next(), lower.next()) {
-        // Only U+0130 has a multi-character full lowercase mapping; its simple mapping is 'i',
-        // which is the first character of the full mapping.
-        (Some(l), _) => l,
-        (None, _) => c,
+    if c.is_ascii() {
+        return c.to_ascii_lowercase();
     }
+    to_case(c, true)
 }
 
 /// Go's `unicode.ToUpper` (simple case mapping).
 pub(crate) fn to_upper_rune(c: char) -> char {
-    let code = u32::from(c);
-    // Greek letters with ypogegrammeni have a single-character simple uppercase mapping (their
-    // titlecase form) but a two-character full mapping.
-    let simple = match code {
-        0x1F80..=0x1F87 | 0x1F90..=0x1F97 | 0x1FA0..=0x1FA7 => Some(code + 8),
-        0x1FB3 => Some(0x1FBC),
-        0x1FC3 => Some(0x1FCC),
-        0x1FF3 => Some(0x1FFC),
-        _ => None,
-    };
-    if let Some(mapped) = simple.and_then(char::from_u32) {
-        return mapped;
+    if c.is_ascii() {
+        return c.to_ascii_uppercase();
     }
-    let mut upper = c.to_uppercase();
-    match (upper.next(), upper.next()) {
-        (Some(u), None) => u,
-        // A multi-character full mapping means there is no simple mapping.
-        (Some(_) | None, _) => c,
-    }
+    to_case(c, false)
 }
 
 /// Go's `strings.ToLower` over string bytes.
@@ -263,33 +272,32 @@ pub(crate) fn fold_name(name: &[u8]) -> Vec<u8> {
     out
 }
 
-/// Go's `strconv.IsPrint` for a rune. Exact for Latin-1; an approximation (control, format,
-/// separator, private-use and surrogate code points are unprintable) elsewhere.
-pub(crate) fn is_print(c: char) -> bool {
+/// Whether `c` lies in one of the sorted, disjoint inclusive `ranges`.
+fn in_ranges(ranges: &[(u32, u32)], c: char) -> bool {
     let code = u32::from(c);
-    if code < 0x100 {
-        return matches!(code, 0x20..=0x7E | 0xA1..=0xAC | 0xAE..=0xFF);
-    }
-    !(c.is_control()
-        || c.is_whitespace()
-        || matches!(
-            code,
-            0x061C
-                | 0x070F
-                | 0x180E
-                | 0x200B..=0x200F
-                | 0x202A..=0x202E
-                | 0x2060..=0x206F
-                | 0xFEFF
-                | 0xFFF9..=0xFFFB
-                | 0xE000..=0xF8FF
-                | 0x000F_0000..=0x0010_FFFF
-        ))
+    let index = ranges.partition_point(|&(_, hi)| hi < code);
+    ranges.get(index).is_some_and(|&(lo, _)| lo <= code)
+}
+
+/// Go's `strconv.IsPrint` for a rune.
+pub(crate) fn is_print(c: char) -> bool {
+    // Go: strconv/quote.go IsPrint
+    in_ranges(&PRINT, c)
+}
+
+/// Go's `unicode.IsLetter(c) || unicode.IsDigit(c)`.
+pub(crate) fn is_letter_or_digit(c: char) -> bool {
+    in_ranges(&LETTER_OR_DIGIT, c)
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{decode_rune, fold_name, fold_rune, go_lossy, strings_to_lower, to_upper_rune};
+    use std::fs;
+
+    use super::{
+        decode_rune, fold_name, fold_rune, go_lossy, is_letter_or_digit, is_print,
+        strings_to_lower, to_lower_rune, to_upper_rune,
+    };
 
     /// `Ok` when the values are equal, otherwise an error naming the case.
     macro_rules! check {
@@ -379,5 +387,133 @@ mod tests {
             "A\u{FFFD}B".as_bytes().to_vec(),
             "invalid byte",
         )
+    }
+
+    #[test]
+    fn unicode_15_not_the_standard_library() -> Result<(), String> {
+        // Go 1.26.2 (Unicode 15.0.0) against what Rust's newer char methods give.
+        check!(
+            to_upper_rune('\u{19B}'),
+            '\u{19B}',
+            "U+019B has no upper case"
+        )?;
+        check!(
+            to_lower_rune('\u{A7DC}'),
+            '\u{A7DC}',
+            "U+A7DC is unassigned"
+        )?;
+        check!(fold_rune('\u{A7DC}'), '\u{A7DC}', "U+A7DC folds to itself")?;
+        check!(is_print('\u{378}'), false, "unassigned U+0378")?;
+        check!(is_print('\u{A7DC}'), false, "unassigned U+A7DC")?;
+        check!(is_print('\u{E000}'), false, "private use")?;
+        check!(is_print('\u{3000}'), false, "ideographic space")?;
+        check!(is_print('\u{1F600}'), true, "emoji")?;
+        check!(is_letter_or_digit('\u{B2}'), false, "superscript two (No)")?;
+        check!(
+            is_letter_or_digit('\u{2163}'),
+            false,
+            "roman numeral four (Nl)"
+        )?;
+        check!(
+            is_letter_or_digit('\u{93E}'),
+            false,
+            "devanagari vowel sign (Mc)"
+        )?;
+        check!(
+            is_letter_or_digit('\u{663}'),
+            true,
+            "arabic-indic digit three (Nd)"
+        )?;
+        check!(is_letter_or_digit('\u{3C3}'), true, "greek small sigma")
+    }
+
+    /// Go's answers from `testdata/golden/unicode.txt` (written by `testdata/go` with Go
+    /// 1.26.2), indexed by rune.
+    struct GoTables {
+        lower: Vec<u32>,
+        upper: Vec<u32>,
+        fold: Vec<u32>,
+        print: Vec<bool>,
+        letter_or_digit: Vec<bool>,
+    }
+
+    fn go_tables() -> Result<GoTables, String> {
+        let path = concat!(env!("CARGO_MANIFEST_DIR"), "/testdata/golden/unicode.txt");
+        let text = fs::read_to_string(path).map_err(|e| format!("{path}: {e}"))?;
+        let identity: Vec<u32> = (0..=0x0010_FFFF).collect();
+        let mut tables = GoTables {
+            lower: identity.clone(),
+            upper: identity.clone(),
+            fold: identity,
+            print: vec![false; 0x0011_0000],
+            letter_or_digit: vec![false; 0x0011_0000],
+        };
+        for line in text.lines().filter(|line| !line.starts_with('#')) {
+            let fields: Vec<&str> = line.split('\t').map(|f| f.trim_matches('"')).collect();
+            let bad = || format!("bad row {line:?}");
+            let [kind, a, b] = fields.as_slice() else {
+                return Err(bad());
+            };
+            let a = u32::from_str_radix(a, 16).map_err(|e| e.to_string())?;
+            let b = u32::from_str_radix(b, 16).map_err(|e| e.to_string())?;
+            let (first, last) = (a as usize, b as usize);
+            match *kind {
+                "lower" | "upper" | "fold" => {
+                    let table = match *kind {
+                        "lower" => &mut tables.lower,
+                        "upper" => &mut tables.upper,
+                        _ => &mut tables.fold,
+                    };
+                    *table.get_mut(first).ok_or_else(bad)? = b;
+                }
+                "print" | "letterdigit" => {
+                    let table = if *kind == "print" {
+                        &mut tables.print
+                    } else {
+                        &mut tables.letter_or_digit
+                    };
+                    table.get_mut(first..=last).ok_or_else(bad)?.fill(true);
+                }
+                _ => return Err(bad()),
+            }
+        }
+        Ok(tables)
+    }
+
+    #[test]
+    fn tables_match_go_for_every_rune() -> Result<(), String> {
+        // Go: unicode.ToLower, unicode.ToUpper, encoding/json foldRune, strconv.IsPrint and
+        // unicode.IsLetter || unicode.IsDigit over every rune.
+        let go = go_tables()?;
+        let mut mismatches = Vec::new();
+        for c in (0..=0x0010_FFFF_u32).filter_map(char::from_u32) {
+            let code = u32::from(c);
+            let at = |table: &[u32]| table.get(code as usize).copied();
+            let flag = |table: &[bool]| table.get(code as usize).copied().map(u32::from);
+            let got = [
+                ("ToLower", u32::from(to_lower_rune(c)), at(&go.lower)),
+                ("ToUpper", u32::from(to_upper_rune(c)), at(&go.upper)),
+                ("foldRune", u32::from(fold_rune(c)), at(&go.fold)),
+                ("IsPrint", u32::from(is_print(c)), flag(&go.print)),
+                (
+                    "IsLetter||IsDigit",
+                    u32::from(is_letter_or_digit(c)),
+                    flag(&go.letter_or_digit),
+                ),
+            ];
+            for (name, rust, go_value) in got {
+                if Some(rust) != go_value {
+                    mismatches.push(format!(
+                        "{name}(U+{code:04X}): go {go_value:X?}, rust {rust:X}"
+                    ));
+                }
+            }
+        }
+        if mismatches.is_empty() {
+            return Ok(());
+        }
+        let total = mismatches.len();
+        mismatches.truncate(40);
+        Err(format!("{total} mismatches:\n{}", mismatches.join("\n")))
     }
 }

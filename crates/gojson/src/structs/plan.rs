@@ -8,7 +8,7 @@ use super::{FieldDesc, StructDesc};
 use crate::{
     gotype::GoKind,
     jsoniter::calc_hash,
-    unicode::{fold_name, strings_to_lower},
+    unicode::{fold_name, is_letter_or_digit, strings_to_lower},
 };
 
 /// jsoniter's `,string` handling for a field.
@@ -330,10 +330,11 @@ fn jsoniter_encoder(
 
 /// `encoding/json` `isValidTag`.
 fn is_valid_tag(s: &str) -> bool {
+    // Go: encoding/json/encode.go isValidTag (unicode.IsLetter and unicode.IsDigit, which
+    // reject marks, letter numbers and other numbers that Rust's char classes accept)
     !s.is_empty()
-        && s.chars().all(|c| {
-            "!#$%&()*+-./:;<=>?@[]^_{|}~ ".contains(c) || c.is_alphabetic() || c.is_numeric()
-        })
+        && s.chars()
+            .all(|c| "!#$%&()*+-./:;<=>?@[]^_{|}~ ".contains(c) || is_letter_or_digit(c))
 }
 
 /// One `encoding/json` field candidate (`field` in `typeFields`).

@@ -6,6 +6,9 @@
 // with SetEscapeHTML(false). Each output and error is written with strconv.QuoteToASCII, one
 // tab-separated case per line.
 //
+// It also writes src/unicode/tables.rs, the Unicode tables (case mapping, strconv.IsPrint and
+// letters and digits) that let the crate treat runes exactly as this Go version does.
+//
 // Run it from the repository root:
 //
 //	go run ./rust/crates/gojson/testdata/go
@@ -783,6 +786,7 @@ func writeFixture(g *golden, root string, fx fixture, marshal bool, prefix strin
 func main() {
 	out := flag.String("out", "rust/crates/gojson/testdata/golden", "output directory")
 	root := flag.String("root", ".", "repository root (for adapter fixtures)")
+	tables := flag.String("tables", "rust/crates/gojson/src/unicode/tables.rs", "Rust Unicode tables")
 	flag.Parse()
 	if err := os.MkdirAll(*out, 0o755); err != nil {
 		log.Fatal(err)
@@ -791,4 +795,6 @@ func main() {
 	writeEncode(*out)
 	writeFloats(*out)
 	writeFixtures(*out, *root)
+	writeUnicode(*out)
+	writeTables(*tables)
 }

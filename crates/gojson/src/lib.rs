@@ -492,7 +492,8 @@
 //! 1. add the Go type to `testdata/go/types.go` (or use a real one from this repository) and the
 //!    inputs to the tables in `testdata/go/main.go`;
 //! 2. from the repository root, run `go run ./rust/crates/gojson/testdata/go` (keep the program
-//!    `gofmt` and `go vet` clean);
+//!    `gofmt` and `go vet` clean; it also rewrites `src/unicode/tables.rs`, the Unicode tables of
+//!    the Go version that runs it);
 //! 3. mirror the type in `tests/golden.rs` and register its Go name in `decode_by_name` or
 //!    `encode_by_name`;
 //! 4. run `cargo test -p pbs-gojson`.
@@ -511,9 +512,6 @@
 //!   `MarshalJSON` with a pointer receiver, and interfaces with methods.
 //! * Inputs on which Go panics (a lone `"` into `jsonutil.StringInt`, malformed messages in
 //!   `tryExtractErrorMessage`) return an error or the message unchanged instead.
-//! * `strconv.Quote` (used in some error texts) treats non-Latin-1 characters as printable unless
-//!   they are control, format, separator, private-use or surrogate code points, which approximates
-//!   Go's `IsPrint` tables.
 //! * [`RawJson::to_object`] uses `String` keys and treats nil and empty messages as an empty
 //!   object, as Go code guarded by `len(ext) > 0` does.
 //! * Not provided: the streaming decoders (`json.NewDecoder(r).Decode(&v)` and jsoniter's
