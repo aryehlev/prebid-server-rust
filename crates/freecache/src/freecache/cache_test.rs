@@ -697,6 +697,18 @@ fn expire_seconds_wrap_like_go() -> TestResult {
     check_eq(&cache.ttl(b"b")?, &4, "ttl after a second")
 }
 
+/// The cache is built on the heap like Go's `new(Cache)`: boxing a 256-segment array built on
+/// the stack took over 256 KiB of stack in debug builds and over 64 KiB in release builds.
+#[test]
+fn construction_needs_little_stack() -> TestResult {
+    let entries = thread::Builder::new()
+        .stack_size(64 * 1024)
+        .spawn(|| Cache::new(0).entry_count())?
+        .join()
+        .map_err(|panic| format!("construction panicked: {panic:?}"))?;
+    check_eq(&entries, &0, "entries of a new cache")
+}
+
 #[test]
 fn cache_is_send_and_sync() {
     const fn assert_send_sync<T: Send + Sync>() {}

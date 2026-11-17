@@ -52,6 +52,27 @@ impl Segment {
     }
 }
 
+/// Go: `new(Cache)` and the `newSegment` loop of `NewCacheCustomTimer`: the 256 segments with
+/// `buf_size`-byte ring buffers.
+///
+/// They are built one by one on the heap. Boxing an array built on the stack (as
+/// `Box::new(array::from_fn(..))` does) needs over 256 KiB of stack in debug builds and over
+/// 64 KiB in release builds, enough to overflow a small thread stack.
+fn new_segments(buf_size: usize) -> Box<[Segment; SEGMENT_COUNT]> {
+    let segments: Vec<Segment> = (0..SEGMENT_COUNT).map(|_| Segment::new(buf_size)).collect();
+    // The vector holds exactly SEGMENT_COUNT segments, so the conversion cannot fail.
+    segments
+        .try_into()
+        .unwrap_or_else(|_: Vec<Segment>| stack_segments(buf_size))
+}
+
+/// The never-taken fallback of [`new_segments`]. It is kept out of line so that its stack
+/// frame is not reserved in `new_segments`.
+#[inline(never)]
+fn stack_segments(buf_size: usize) -> Box<[Segment; SEGMENT_COUNT]> {
+    Box::new(array::from_fn(|_| Segment::new(buf_size)))
+}
+
 /// Go: `freecache.Cache`, a fixed-size, concurrency-safe byte cache with approximate LRU
 /// eviction and per-entry expiration.
 ///
@@ -79,7 +100,7 @@ impl<T> Cache<T> {
         let size = size.max(MIN_BUF_SIZE);
         let buf_size = index(size / 256).unwrap_or(0);
         Self {
-            segments: Box::new(array::from_fn(|_| Segment::new(buf_size))),
+            segments: new_segments(buf_size),
             timer,
         }
     }
