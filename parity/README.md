@@ -669,7 +669,11 @@ server it checks the following:
 * a seeded bug on side B is a mismatch, and live minimization keeps only the
   triggering member;
 * a server without parity routes, a missing binary, or a wrong `impl` makes
-  every case not-yet-instrumented, and all reports are still written.
+  every case not-yet-instrumented, and all reports are still written;
+* a trace that does not validate against its schema makes the case a harness
+  error, never a passing case. Decoding drops members the contract does not
+  know, so such a trace could otherwise hide differences. The same applies to
+  adapter outputs and introspection dumps.
 
 It also loads every profile's generated `pbs.yaml` through `config.New`, and
 encodes a `case.json` for every case of the repository corpus.
@@ -695,6 +699,14 @@ encodes a `case.json` for every case of the repository corpus.
   allowlisted noise, yields exactly one primary cluster, at
   `adapter.requests_final`;
 * noise alone (A/A) yields no records;
+* the mutation tests seed 41 known differences into the Rust copy of a
+  recorded auction trace (`testdata/diff/mutation`). Each one must be detected
+  with the right primary stage, kind and class. A propagating bug must also
+  leave consequential records downstream. Eight noise mutations must compare
+  equal;
+* the time-valued rules mask only values of Go's shape (13-digit millisecond
+  timestamps, non-negative integer durations), so a value with the wrong unit,
+  sign or presence is still reported;
 * every diff document validates against `mismatch.schema.json`.
 
 `parity/server` checks the following:
