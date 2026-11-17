@@ -14,6 +14,8 @@ mod lex;
 mod listener;
 mod mime;
 mod netconn;
+#[cfg(test)]
+mod pure_tests;
 mod request;
 mod response;
 mod servemux;
