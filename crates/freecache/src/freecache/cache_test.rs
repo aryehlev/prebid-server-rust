@@ -7,6 +7,7 @@
 
 use std::{
     error::Error,
+    panic::{self, AssertUnwindSafe},
     sync::{Arc, Barrier},
     thread,
 };
@@ -762,6 +763,36 @@ fn construction_needs_little_stack() -> TestResult {
         .join()
         .map_err(|panic| format!("construction panicked: {panic:?}"))?;
     check_eq(&entries, &0, "entries of a new cache")
+}
+
+/// A panicking `get_fn` callback (which in Go leaves the segment locked forever) releases the
+/// lock here: the access time was already stamped, the hit is not counted, and the segment
+/// keeps working.
+#[test]
+fn panicking_get_fn_callback_keeps_segment_usable() -> TestResult {
+    let (cache, clock) = fake_cache(0);
+    cache.set(b"key", b"value", 0)?;
+    clock.advance(10);
+    let unwound = panic::catch_unwind(AssertUnwindSafe(|| {
+        cache.get_fn(b"key", |_| -> u8 {
+            panic::resume_unwind(Box::new("callback"))
+        })
+    }));
+    check(unwound.is_err(), "the callback's panic propagates")?;
+    check_eq(
+        &(cache.hit_count(), cache.miss_count()),
+        &(0, 0),
+        "the panicking lookup is not counted",
+    )?;
+    check_eq(
+        &cache.average_access_time(),
+        &i64::from(clock.now()),
+        "the access time was stamped before the callback ran",
+    )?;
+    check_eq(&cache.get(b"key")?, b"value", "the segment still works")?;
+    cache.set(b"key", b"other", 0)?;
+    check_eq(&cache.get(b"key")?, b"other", "and accepts writes")?;
+    check_eq(&cache.hit_count(), &2, "later hits are counted")
 }
 
 #[test]
