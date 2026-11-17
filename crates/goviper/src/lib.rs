@@ -68,7 +68,10 @@
 //!   iteration order (keys that differ only in case, a bound key that is a prefix of another,
 //!   [`Viper::all_settings`] with a key that is a path prefix of another), this port gives one of
 //!   Go's outcomes.
-//! - Go panics: a negative slice index in a key (`tv.-1`) finds nothing instead.
+//! - Go's aliasing: [`Viper::get`] returns copies, so [`Viper::all_settings`] never writes into a
+//!   map another source holds (Go's can, when a key is a path prefix of another).
+//! - Go panics: a negative slice index in a key (`tv.-1`) finds nothing instead, and
+//!   [`Viper::set_env_key_replacer`] takes `None` (Go's nil `*strings.Replacer` panics on use).
 //! - Go named types: a [`Value`](pbs_goyaml::Value) cannot hold `[]openrtb_ext.BidderName` or
 //!   `[]config.AgmaAnalyticsAccount`; an empty `[]interface{}` default stands for such an empty
 //!   slice (it converts, decodes and encodes alike).

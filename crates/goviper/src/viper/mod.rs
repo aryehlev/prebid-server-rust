@@ -290,8 +290,9 @@ impl Viper {
         }
     }
 
-    /// Go: `SetEnvKeyReplacer`: rewrites variable names before they are looked up (`None` for
-    /// Go's nil replacer).
+    /// Go: `SetEnvKeyReplacer`: rewrites variable names before they are looked up. `None`
+    /// removes the replacer, leaving names as a new viper does (in Go, passing a nil
+    /// `*strings.Replacer` makes the next lookup panic).
     pub fn set_env_key_replacer(&mut self, replacer: Option<Replacer>) {
         self.env_key_replacer = replacer;
     }
