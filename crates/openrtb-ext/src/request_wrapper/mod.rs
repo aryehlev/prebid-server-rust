@@ -53,6 +53,11 @@
 //!   function documents what it does instead.
 //! * Errors are [`GoError`]s: `jsonutil`'s `FailedToUnmarshal` and `FailedToMarshal`, or Go's
 //!   `errors.New` texts; invalid UTF-8 in them is U+FFFD.
+//! * Strings are `String`s, as in `pbs-openrtb`: an invalid UTF-8 byte in a decoded member
+//!   (`consent`, `us_privacy`, `tid`, ...) is U+FFFD, which a rebuild writes as its UTF-8 bytes
+//!   where Go writes the escape `�`, and the keys of an ext map that differ only in invalid bytes
+//!   are one key here (the value decoded last) where Go keeps each (and writes each as `"�"`).
+//!   Values of the ext map keep their bytes, invalid ones included.
 
 use core::mem;
 use std::collections::BTreeMap;
