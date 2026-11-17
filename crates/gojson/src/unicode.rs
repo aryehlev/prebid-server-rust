@@ -2,6 +2,7 @@
 //! behaviour where the JSON libraries depend on it.
 
 use core::str::from_utf8;
+use std::borrow::Cow;
 
 /// Go's `utf8.RuneError`.
 pub(crate) const RUNE_ERROR: char = '\u{FFFD}';
@@ -50,6 +51,15 @@ pub(crate) fn go_lossy(b: &[u8]) -> String {
         rest = rest.get(width.max(1)..).unwrap_or_default();
     }
     out
+}
+
+/// [`go_lossy`] as bytes, borrowed when `b` is already valid UTF-8.
+pub(crate) fn go_lossy_bytes(b: &[u8]) -> Cow<'_, [u8]> {
+    if from_utf8(b).is_ok() {
+        Cow::Borrowed(b)
+    } else {
+        Cow::Owned(go_lossy(b).into_bytes())
+    }
 }
 
 /// Go's `unicode.ToLower` (simple case mapping).

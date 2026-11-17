@@ -1,6 +1,6 @@
 //! [`GoEncode`] for the primitive, container and dynamic types.
 
-use core::slice;
+use core::{slice, str};
 use std::{
     borrow::Cow,
     collections::{BTreeMap, HashMap},
@@ -12,7 +12,11 @@ use serde_json::{Map, Number, Value};
 
 use super::{Encoder, Flavor, GoEncode};
 use crate::{
-    base64::encode_std, gostring::GoString, gotype::GoType, jsoniter::Iter, unicode::go_lossy,
+    base64::encode_std,
+    gostring::GoString,
+    gotype::GoType,
+    jsoniter::Iter,
+    unicode::{go_lossy, go_lossy_bytes},
 };
 
 macro_rules! int_encode {
@@ -373,7 +377,16 @@ where
     match enc.flavor() {
         Flavor::Jsoniter => {
             // Go: jsoniter reflect_map.go sortKeysMapEncoder.Encode (entries go through a
-            // sub-stream whose error is adopted only when the outer stream has none).
+            // sub-stream whose error is adopted only when the outer stream has none). The
+            // entries are sorted by each key as ReadString reads it back from the sub-stream,
+            // so an invalid UTF-8 byte sorts as the U+FFFD it was written as. (Go's sort is
+            // not stable; keys that read back equal keep the raw order here.)
+            if sorted
+                .iter()
+                .any(|(text, ..)| str::from_utf8(text).is_err())
+            {
+                sorted.sort_by_cached_key(|(text, ..)| go_lossy_bytes(text).into_owned());
+            }
             enc.write_byte(b'{');
             let mut sub = Encoder::new(Flavor::Jsoniter);
             for (index, (_, key, value)) in sorted.into_iter().enumerate() {
@@ -563,5 +576,36 @@ fn encode_value_tree<'a>(
                 }
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::collections::BTreeMap;
+
+    use crate::{GoString, jsonutil, stdjson};
+
+    #[test]
+    fn invalid_utf8_map_keys_sort_as_go() -> Result<(), String> {
+        // Go 1.26.2 and json-iterator 1.1.12: jsoniter orders the keys as they read back from
+        // its sub-stream (the invalid byte as U+FFFD), encoding/json by their raw bytes.
+        let keys: [&[u8]; 4] = [b"\xC3\xBF", b"\xFF", b"\xEF\xBF\xBE", b"a"];
+        let map: BTreeMap<GoString, isize> = keys
+            .into_iter()
+            .zip(0..)
+            .map(|(key, value)| (GoString::from(key), value))
+            .collect();
+        let jsoniter = jsonutil::marshal(&map).map_err(|e| e.to_string())?;
+        let std = stdjson::marshal(&map).map_err(|e| e.to_string())?;
+        let want_jsoniter = "{\"a\":3,\"\u{FF}\":0,\"\\ufffd\":1,\"\u{FFFE}\":2}";
+        let want_std = "{\"a\":3,\"\u{FF}\":0,\"\u{FFFE}\":2,\"\\ufffd\":1}";
+        if jsoniter != want_jsoniter.as_bytes() || std != want_std.as_bytes() {
+            return Err(format!(
+                "jsonutil.Marshal {:?}, json.Marshal {:?}",
+                String::from_utf8_lossy(&jsoniter),
+                String::from_utf8_lossy(&std),
+            ));
+        }
+        Ok(())
     }
 }
