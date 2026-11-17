@@ -1,0 +1,145 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://prebid.org/pbs-parity/schema/v1/envelope.schema.json",
+  "title": "pbs-parity-envelope/1",
+  "description": "One parity case. The runner posts the identical envelope to POST /__parity/exec on the Go and the Rust server. The server rebuilds the inbound HTTP request from 'request', runs it through its full outer handler chain (compression, NoCache, CORS, router) while a trace session is active, and answers with a pbs-parity-trace/1 document.",
+  "type": "object",
+  "required": ["schema", "schema_version", "case_id", "request", "mock", "capture"],
+  "properties": {
+    "schema": {"const": "pbs-parity-envelope/1"},
+    "schema_version": {"$ref": "common.schema.json#/definitions/SchemaVersion"},
+    "case_id": {
+      "description": "Stable case identifier: '<fixture_path>#<mutation-chain>' or 'gen:<seed>:<idx>:<mutation-chain>'.",
+      "type": "string",
+      "minLength": 1
+    },
+    "fixture_path": {"type": "string", "description": "Repo-relative provenance of the seed fixture, if any."},
+    "profile": {"type": "string", "description": "Config profile the servers were started with."},
+    "request": {"$ref": "#/definitions/ExecRequest"},
+    "mock": {"$ref": "#/definitions/MockSpec"},
+    "decisions": {
+      "description": "Pinned values for decision points (decisions.json). Absent points use the real random source and are reported with source 'rng'.",
+      "type": "object",
+      "propertyNames": {"$ref": "common.schema.json#/definitions/DecisionID"},
+      "properties": {
+        "floors.skip": {"enum": [0, 1]},
+        "floors.data_rate": {"enum": [0, 1]},
+        "floors.modelgroup": {"type": "integer", "minimum": 0},
+        "floors.enforce": {"enum": [0, 1]},
+        "category.dedupe": {"enum": [0, 1]},
+        "pricegranularity.timesplit": {"enum": [0, 1]},
+        "usersync.shuffle": {"enum": ["identity"]}
+      }
+    },
+    "fakes": {"$ref": "common.schema.json#/definitions/FakeValues"},
+    "capture": {"$ref": "#/definitions/CaptureSpec"}
+  },
+  "additionalProperties": false,
+  "definitions": {
+    "ExecRequest": {
+      "description": "The inbound request. headers keep wire order and case; remote_addr becomes the request's RemoteAddr (host:port); host overrides the Host header.",
+      "type": "object",
+      "required": ["method", "path", "query", "headers"],
+      "properties": {
+        "method": {"type": "string", "minLength": 1},
+        "path": {"type": "string", "pattern": "^/"},
+        "query": {"type": "string", "description": "Raw query string without '?'."},
+        "host": {"type": "string"},
+        "headers": {"$ref": "common.schema.json#/definitions/HeaderList"},
+        "remote_addr": {"type": "string"},
+        "body": {"$ref": "common.schema.json#/definitions/Body"}
+      },
+      "additionalProperties": false
+    },
+    "MockSpec": {
+      "type": "object",
+      "properties": {
+        "mode": {
+          "description": "oracle (default): outbound calls go to the runner's oracle proxy. inline: outbound calls are answered in-process from 'inline'.",
+          "type": "string",
+          "enum": ["oracle", "inline"]
+        },
+        "level": {
+          "description": "http (default): real adapters over (mocked) HTTP. bidder_response: MakeRequests runs and is recorded, no HTTP request is sent, and bidder_responses[bidder] is used as the MakeBids output exactly once per bidder.",
+          "type": "string",
+          "enum": ["http", "bidder_response"]
+        },
+        "inline": {"$ref": "#/definitions/InlineMocks"},
+        "bidder_responses": {
+          "type": "object",
+          "additionalProperties": {"$ref": "#/definitions/BidderResponseMock"}
+        }
+      },
+      "additionalProperties": false
+    },
+    "InlineMocks": {
+      "description": "Resolution order: rules (first match); then bidders[bidder] or default_bidder for bidder calls, cache for cache calls, kinds[kind] for other kinds. Built-in defaults: bidder 204, cache 503, anything else the transport error 'parity: network disabled'.",
+      "type": "object",
+      "properties": {
+        "rules": {"type": "array", "items": {"$ref": "#/definitions/InlineRule"}},
+        "bidders": {"type": "object", "additionalProperties": {"$ref": "#/definitions/InlineResponse"}},
+        "default_bidder": {"$ref": "#/definitions/InlineResponse"},
+        "cache": {"$ref": "#/definitions/InlineResponse"},
+        "kinds": {
+          "type": "object",
+          "propertyNames": {"$ref": "common.schema.json#/definitions/OutboundKind"},
+          "additionalProperties": {"$ref": "#/definitions/InlineResponse"}
+        }
+      },
+      "additionalProperties": false
+    },
+    "InlineRule": {
+      "description": "Every non-empty matcher must match. uri_regex is RE2 syntax and is matched against the original (pre-rewrite) URL.",
+      "type": "object",
+      "required": ["response"],
+      "properties": {
+        "id": {"type": "string"},
+        "kind": {"$ref": "common.schema.json#/definitions/OutboundKind"},
+        "bidder": {"type": "string"},
+        "uri_regex": {"type": "string"},
+        "response": {"$ref": "#/definitions/InlineResponse"}
+      },
+      "additionalProperties": false
+    },
+    "InlineResponse": {
+      "description": "Canned response. status defaults to 200. delay_ms waits (honouring the client's deadline) before answering. fail makes the call fail instead: timeout waits for the client deadline (or fails with a timeout error when there is none), refused/reset simulate connection errors.",
+      "type": "object",
+      "properties": {
+        "status": {"type": "integer", "minimum": 100, "maximum": 599},
+        "headers": {"$ref": "common.schema.json#/definitions/HeaderList"},
+        "body": {"$ref": "common.schema.json#/definitions/Body"},
+        "delay_ms": {"type": "integer", "minimum": 0},
+        "fail": {"type": ["string", "null"], "enum": [null, "timeout", "refused", "reset", "error"]}
+      },
+      "additionalProperties": false
+    },
+    "BidderResponseMock": {
+      "description": "Replacement MakeBids output (adapters.BidderResponse plus the error list). nil_response makes MakeBids return no response object, only errors.",
+      "type": "object",
+      "required": ["currency", "bids"],
+      "properties": {
+        "nil_response": {"type": "boolean"},
+        "currency": {"type": "string"},
+        "bids": {"type": "array", "items": {"$ref": "common.schema.json#/definitions/TypedBid"}},
+        "fledge_auction_configs": {"type": ["array", "null"]},
+        "errors": {"type": "array", "items": {"$ref": "common.schema.json#/definitions/ErrorSpec"}}
+      },
+      "additionalProperties": false
+    },
+    "CaptureSpec": {
+      "type": "object",
+      "properties": {
+        "stages": {
+          "description": "\"*\" (default) or the list of stage IDs to record.",
+          "oneOf": [
+            {"const": "*"},
+            {"type": "array", "items": {"$ref": "common.schema.json#/definitions/StageID"}}
+          ]
+        },
+        "metrics": {"type": "boolean", "description": "Capture metrics_delta (default true)."},
+        "analytics": {"type": "boolean", "description": "Capture analytics (default true)."}
+      },
+      "additionalProperties": false
+    }
+  }
+}

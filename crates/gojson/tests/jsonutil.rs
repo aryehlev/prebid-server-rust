@@ -1,5 +1,5 @@
-//! Ports of the `util/jsonutil` Go tests that exercise the JSON codecs (`TestDropElement` and
-//! the `MergeClone` tests cover functions this crate does not port).
+//! Ports of the `util/jsonutil` Go tests that exercise the JSON codecs (`TestDropElement` covers a
+//! function this crate does not port; the `MergeClone` tests are in `tests/mergeclone.rs`).
 
 #[cfg(test)]
 mod jsonutil_tests {

@@ -14,7 +14,9 @@ unmaintained = "all"
 unsound = "all"
 
 [licenses]
-allow = ["Apache-2.0", "MIT", "Unicode-3.0"]
+# Permissive licenses only. ISC and BSD-3-Clause come from the TLS stack (ring, untrusted,
+# rustls-webpki, webpki-roots' dependencies) used by pbs-gohttp-client.
+allow = ["Apache-2.0", "BSD-3-Clause", "ISC", "MIT", "Unicode-3.0"]
 confidence-threshold = 0.95
 unused-allowed-license = "deny"
 

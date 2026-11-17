@@ -27,6 +27,8 @@ use std::{
     hash::BuildHasher,
 };
 
+use crate::value::drop_value;
+
 /// Go's `reflect.Kind`, restricted to the kinds this crate models.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum GoKind {
@@ -125,6 +127,26 @@ pub trait GoType {
         out.push('*');
         Self::go_type_name(out);
     }
+
+    /// Drops a value the decoders discard (an element replaced by a duplicate key, a slice or
+    /// map set to nil, the elements a shorter array leaves over) without recursing through a
+    /// deeply nested `serde_json::Value` in it, which [`crate::value::drop_value`] drops with
+    /// heap memory instead. Containers of `Value`s forward it to their elements; everything
+    /// else, structs included, is dropped as usual.
+    #[doc(hidden)]
+    fn go_drop(self)
+    where
+        Self: Sized,
+    {
+        drop(self);
+    }
+}
+
+/// Drops the value in `slot`, if any, with [`GoType::go_drop`], leaving `None`.
+pub(crate) fn go_clear<T: GoType>(slot: &mut Option<T>) {
+    if let Some(old) = slot.take() {
+        old.go_drop();
+    }
 }
 
 /// Go's `reflect.Type.String()` for `T`.
@@ -164,7 +186,18 @@ primitive_go_type! {
     f64 => Float64, "float64";
     String => String, "string";
     str => String, "string";
-    serde_json::Value => Interface, "interface {}";
+}
+
+impl GoType for serde_json::Value {
+    const KIND: GoKind = GoKind::Interface;
+
+    fn go_type_name(out: &mut String) {
+        out.push_str("interface {}");
+    }
+
+    fn go_drop(self) {
+        drop_value(self);
+    }
 }
 
 impl<T: GoType> GoType for Option<T> {
@@ -193,6 +226,12 @@ impl<T: GoType> GoType for Option<T> {
 
     fn go_type_name(out: &mut String) {
         T::option_go_type_name(out);
+    }
+
+    fn go_drop(self) {
+        if let Some(value) = self {
+            value.go_drop();
+        }
     }
 }
 
@@ -236,6 +275,10 @@ impl<T: GoType> GoType for Vec<T> {
     fn option_go_type_name(out: &mut String) {
         Self::go_type_name(out);
     }
+
+    fn go_drop(self) {
+        self.into_iter().for_each(GoType::go_drop);
+    }
 }
 
 impl<T: GoType> GoType for [T] {
@@ -270,6 +313,10 @@ impl<K: GoType, V: GoType> GoType for BTreeMap<K, V> {
     fn option_go_type_name(out: &mut String) {
         map_type_name::<K, V>(out);
     }
+
+    fn go_drop(self) {
+        self.into_values().for_each(GoType::go_drop);
+    }
 }
 
 impl<K: GoType, V: GoType, S: BuildHasher> GoType for HashMap<K, V, S> {
@@ -283,6 +330,10 @@ impl<K: GoType, V: GoType, S: BuildHasher> GoType for HashMap<K, V, S> {
     fn option_go_type_name(out: &mut String) {
         map_type_name::<K, V>(out);
     }
+
+    fn go_drop(self) {
+        self.into_values().for_each(GoType::go_drop);
+    }
 }
 
 impl GoType for serde_json::Map<String, serde_json::Value> {
@@ -295,6 +346,10 @@ impl GoType for serde_json::Map<String, serde_json::Value> {
 
     fn option_go_type_name(out: &mut String) {
         Self::go_type_name(out);
+    }
+
+    fn go_drop(self) {
+        drop_value(serde_json::Value::Object(self));
     }
 }
 

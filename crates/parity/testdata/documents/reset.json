@@ -1,0 +1,1 @@
+{"schema":"pbs-parity-reset/1","schema_version":"1.0.0","impl":"go","reset":["stored_requests.memory_cache","floors.fetch_cache"],"not_reset":[{"name":"currency.rates","reason":"refreshed only by the ticker task; restart the process for a clean rate table"}]}

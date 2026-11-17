@@ -1,0 +1,18 @@
+-5	!flate: invalid compression level -5: want value in range [-2, 9]	!gzip: invalid compression level: -5
+-4	!flate: invalid compression level -4: want value in range [-2, 9]	!gzip: invalid compression level: -4
+-3	!flate: invalid compression level -3: want value in range [-2, 9]	!gzip: invalid compression level: -3
+-2	ok	ok
+-1	ok	ok
+0	ok	ok
+1	ok	ok
+2	ok	ok
+3	ok	ok
+4	ok	ok
+5	ok	ok
+6	ok	ok
+7	ok	ok
+8	ok	ok
+9	ok	ok
+10	!flate: invalid compression level 10: want value in range [-2, 9]	!gzip: invalid compression level: 10
+11	!flate: invalid compression level 11: want value in range [-2, 9]	!gzip: invalid compression level: 11
+12	!flate: invalid compression level 12: want value in range [-2, 9]	!gzip: invalid compression level: 12

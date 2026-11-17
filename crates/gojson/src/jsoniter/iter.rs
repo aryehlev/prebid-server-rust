@@ -11,6 +11,7 @@ use crate::{
     gotype::GoType,
     strconv::{big_parse_float_error, f64_to_f32, parse_float, parse_float_error_text},
     unicode::go_lossy,
+    value::drop_value,
 };
 
 /// jsoniter's `Iterator.Error` slot. `Eof` is Go's `io.EOF`, which later errors may overwrite.
@@ -64,6 +65,8 @@ pub struct Iter<'a> {
     head: usize,
     pub(super) depth: i64,
     error: Option<IterError>,
+    /// Decoding for `jsonutil.MergeClone` (its frozen config's `mergeCloneExtension`).
+    merge_clone: bool,
 }
 
 // Go: json-iterator/go iter_int.go
@@ -221,7 +224,29 @@ impl<'a> Iter<'a> {
             head: 0,
             depth: 0,
             error: None,
+            merge_clone: false,
         }
+    }
+
+    /// An iterator over `buf` for `jsonutil.MergeClone`, whose frozen jsoniter config carries
+    /// the `mergeCloneExtension`: every slice is set to nil before it is decoded (so its
+    /// elements start from zero values) and every `json.RawMessage` is merged into the
+    /// existing one with `jsonpatch.MergePatch` instead of being replaced.
+    ///
+    /// The decoders consult [`Iter::is_merge_clone`]; a `GoUnmarshaler` decodes with its own
+    /// iterator, as Go's `UnmarshalJSON` methods call `jsonutil.Unmarshal`.
+    #[must_use]
+    pub const fn new_merge_clone(buf: &'a [u8]) -> Self {
+        // Go: util/jsonutil/merge.go jsonConfigMergeClone
+        let mut it = Self::new(buf);
+        it.merge_clone = true;
+        it
+    }
+
+    /// Whether the iterator decodes for `jsonutil.MergeClone` ([`Iter::new_merge_clone`]).
+    #[must_use]
+    pub const fn is_merge_clone(&self) -> bool {
+        self.merge_clone
     }
 
     pub(crate) const fn tail(&self) -> usize {
@@ -1399,7 +1424,10 @@ pub fn read_value(it: &mut Iter<'_>) -> Value {
                     it.read_array_after()
                 }
                 Value::Object(map) => {
-                    let _replaced = map.insert(mem::take(&mut top.key), done);
+                    // A duplicate key replaces a value that can be as deep as the document.
+                    if let Some(replaced) = map.insert(mem::take(&mut top.key), done) {
+                        drop_value(replaced);
+                    }
                     it.read_map_after()
                 }
                 Value::Null | Value::Bool(_) | Value::Number(_) | Value::String(_) => Next::Done,

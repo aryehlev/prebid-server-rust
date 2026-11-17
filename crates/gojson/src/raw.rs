@@ -11,7 +11,7 @@ use crate::{
     error::JsonError,
     gotype::{GoKind, GoType},
     jsoniter::{self, Iter, JsoniterDecode},
-    jsonutil::try_extract_error_message,
+    jsonutil::{ext_merge_decode, try_extract_error_message},
     stdjson::{StdDecode, StdDecoder, append_compact},
     unicode::go_lossy,
 };
@@ -280,6 +280,11 @@ impl GoEncode for RawJson {
 
 impl JsoniterDecode for RawJson {
     fn jsoniter_decode(&mut self, it: &mut Iter<'_>) {
+        if it.is_merge_clone() {
+            // Go: util/jsonutil/merge.go mergeCloneExtension.CreateDecoder (extMergeDecoder)
+            ext_merge_decode(self, it);
+            return;
+        }
         // Go: json-iterator/go reflect_json_raw_message.go jsonRawMessageCodec.Decode
         if it.read_nil() {
             *self = Self::nil();

@@ -19,7 +19,7 @@ pub use scanner::{compact, valid};
 use crate::{
     encode::{Flavor, GoEncode, marshal_with},
     error::JsonError,
-    gotype::GoType,
+    gotype::{GoType, go_clear},
     strconv::quote,
     unicode::decode_rune,
 };
@@ -509,7 +509,7 @@ pub trait StdDecode: GoType {
                 d.save_error(StdDecoder::invalid_string_use::<Option<Self>>(item));
                 return Ok(());
             }
-            *slot = None;
+            go_clear(slot);
             return Ok(());
         }
         slot.get_or_insert_with(Self::default)
@@ -551,7 +551,7 @@ pub trait StdDecode: GoType {
             literal_store::<N>(item, from_quoted, d, Class::Nilable)?,
             Store::Null
         ) {
-            *slot = None;
+            go_clear(slot);
         }
         Ok(())
     }

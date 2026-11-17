@@ -294,12 +294,23 @@ impl<'a> Emitter<'a> {
                     return Err(self.error(decl, "is an interface; skip it and write it by hand"));
                 }
             }
+            DeclKind::Const if skip => {
+                // Written by hand (for example a constant of a hand-written named string type,
+                // which a generated `const` cannot construct): only its Rust name is claimed
+                // and indexed.
+                let name = o
+                    .and_then(|o| o.rust_name.clone())
+                    .unwrap_or_else(|| names::screaming(&decl.name));
+                self.claim_value(&name, &decl.name)?;
+                output.consts.push(IndexConst {
+                    go_name: format!("{}.{}", self.pkg.name, decl.name),
+                    rust: format!("{}::{name}", self.pc.rust),
+                });
+            }
             DeclKind::Const => {
                 let (item, c) = self.const_item(decl, o)?;
                 output.consts.push(c);
-                if !skip {
-                    output.items.push(item);
-                }
+                output.items.push(item);
             }
             DeclKind::Func | DeclKind::Method => {
                 let _ = output.go_funcs.insert(func_key(decl));
@@ -792,9 +803,42 @@ pub fn imports(paths: &BTreeSet<String>) -> Vec<String> {
         let mut roots: Vec<(String, Tree)> = group.into_iter().collect();
         roots.sort_by(|a, b| root_order(&a.0, &b.0));
         for (root, tree) in roots {
-            out.push(format!("use {root}::{};", tree.render()));
+            out.extend(use_lines(&root, &tree));
         }
     }
+    out
+}
+
+/// One `use` declaration, its list wrapped as rustfmt wraps one that does not fit in the width:
+/// one item per line around nested lists, otherwise as many as fit in the indented width less
+/// the trailing comma.
+fn use_lines(root: &str, tree: &Tree) -> Vec<String> {
+    let line = format!("use {root}::{};", tree.render());
+    let parts = tree.parts();
+    if line.len() <= WIDTH || parts.len() < 2 {
+        return vec![line];
+    }
+    let budget = WIDTH - 5;
+    let mut out = vec![format!("use {root}::{{")];
+    let mut current = String::new();
+    let mut prev_nested = false;
+    for part in parts {
+        let nested = part.contains("::");
+        if !current.is_empty()
+            && (current.len() + 1 + part.len() + 1 > budget || nested || prev_nested)
+        {
+            out.push(format!("    {current}"));
+            current.clear();
+        }
+        if !current.is_empty() {
+            current.push(' ');
+        }
+        current.push_str(&part);
+        current.push(',');
+        prev_nested = nested;
+    }
+    out.push(format!("    {current}"));
+    out.push("};".to_owned());
     out
 }
 
@@ -881,6 +925,15 @@ impl Tree {
 
     /// The tree below its prefix: `a`, `a::b`, or `{a, b::c}`.
     fn render(&self) -> String {
+        let parts = self.parts();
+        if parts.len() == 1 && !self.leaf {
+            return parts.into_iter().next().unwrap_or_default();
+        }
+        format!("{{{}}}", parts.join(", "))
+    }
+
+    /// The rendered items of the tree's list, in rustfmt's order.
+    fn parts(&self) -> Vec<String> {
         let mut parts: Vec<(String, String)> = Vec::new();
         if self.leaf {
             parts.push(("self".to_owned(), "self".to_owned()));
@@ -899,17 +952,7 @@ impl Tree {
             (_, "self") => Ordering::Greater,
             (x, y) => version_cmp(x, y),
         });
-        if parts.len() == 1 && !self.leaf {
-            return parts.into_iter().map(|p| p.1).next().unwrap_or_default();
-        }
-        format!(
-            "{{{}}}",
-            parts
-                .into_iter()
-                .map(|p| p.1)
-                .collect::<Vec<_>>()
-                .join(", ")
-        )
+        parts.into_iter().map(|p| p.1).collect()
     }
 }
 
@@ -946,6 +989,38 @@ mod tests {
             .map(str::to_owned)
             .to_vec(),
             "imports",
+        )?;
+        // A list longer than the width wraps as rustfmt wraps it.
+        let long: BTreeSet<String> = [
+            "BidType",
+            "BidderName",
+            "CookieStatus",
+            "ExtDeviceInt",
+            "ExtImpAdUnitCodePrebid",
+            "ExtImpAppnexusKeywords",
+            "ImpExtAdnunitusTargeting",
+            "ImpExtRubiconDebug",
+            "PriceGranularity",
+            "RubiconVideoParams",
+            "StringOrStringArray",
+            "UserSyncType",
+        ]
+        .into_iter()
+        .map(|name| format!("super::{name}"))
+        .collect();
+        check_eq(
+            &imports(&long),
+            &[
+                "use super::{",
+                "    BidType, BidderName, CookieStatus, ExtDeviceInt, ExtImpAdUnitCodePrebid,",
+                "    ExtImpAppnexusKeywords, ImpExtAdnunitusTargeting, ImpExtRubiconDebug, \
+                 PriceGranularity,",
+                "    RubiconVideoParams, StringOrStringArray, UserSyncType,",
+                "};",
+            ]
+            .map(str::to_owned)
+            .to_vec(),
+            "wrapped imports",
         )?;
         let mut names = vec![
             "b", "A", "a", "B", "c1", "c10", "c2", "Ab", "AB", "aB", "a_b", "a1",
