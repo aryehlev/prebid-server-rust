@@ -320,11 +320,13 @@ run started by hand acts as the person who started it. Also check the API key or
 **The parity-harness sync reports a conflict.** Merge `main` into `parity-harness` by hand
 (a merge commit), resolve the conflict, and push. The next sync closes the issue.
 
-**The seams patch does not apply to the new pin.** Rebase the seams on the commit `main` pins: check
-it out with `scripts/fetch-upstream.sh --dir <dir>`, apply the old patch there with
-`git apply --3way`, fix what it rejects, and write the new patch with `git diff`. Commit it on
-`parity-harness` together with a merge of `main`, and push. The next sync checks it and closes the
-issue; `ci-parity.sh` assembles the same tree.
+**The seams patch does not apply to the new pin.** Refresh the seams on `parity-harness` with the
+three-way flow of `parity/README.md` ("The upstream seams"): with the old pin's objects in the Go
+root and `UPSTREAM_SYNC` at the new pin, `parity/scripts/build-go.sh --3way` applies the patch
+with `git apply --3way` in the assembled tree and lists the conflicts; resolve them there, then
+`parity/scripts/seams.sh write` saves the patch and `parity/scripts/seams.sh check` confirms its
+form. Commit it together with a merge of `main`, and push. The next sync checks it and closes the
+issue; `ci-parity.sh` assembles the same tree and runs `seams.sh check` too.
 
 **The port job failed or was cancelled.** See the "Upstream port run failed" issue and the
 linked run. Nothing was pushed. The next scheduled run plans again from scratch.
