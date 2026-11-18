@@ -11,6 +11,7 @@ import (
 	"net/url"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"testing"
@@ -105,6 +106,12 @@ func newFakeServer(mode string) (*fakeServer, error) {
 	}
 	f.oracleURL = cfg.Parity.OracleURL
 	f.oracle = &http.Client{Transport: &http.Transport{Proxy: http.ProxyURL(proxy)}, Timeout: 5 * time.Second}
+	// Like Go's glog, the fake writes a file to the temporary directory, and
+	// says where (TestServersGetTheirOwnTempDir).
+	if err := os.WriteFile(filepath.Join(os.TempDir(), "fake-server."+strconv.Itoa(os.Getpid())+".INFO"), []byte(mode), 0o600); err != nil {
+		return nil, err
+	}
+	fmt.Fprintln(os.Stderr, "fake server: temporary directory", os.TempDir())
 	return f, nil
 }
 

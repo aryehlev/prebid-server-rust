@@ -2,6 +2,7 @@ package runner
 
 import (
 	"encoding/json"
+	"fmt"
 	"reflect"
 	"regexp"
 	"testing"
@@ -174,6 +175,80 @@ func TestPlanBatches(t *testing.T) {
 	if !last.Intro || last.ID != "introspection:default/default" || last.Case.FixturePath != "parity/fixtures/profiles/default.yaml" {
 		t.Errorf("introspection case = %+v", last)
 	}
+}
+
+// TestShuffleBatches: seed 0 keeps case ID order; another seed puts each
+// batch's cases in an order of its own, the same one every time, and keeps
+// every case in its batch.
+func TestShuffleBatches(t *testing.T) {
+	build := func() []*batch {
+		var out []*batch
+		for _, name := range []string{"one", "two"} {
+			b := &batch{Name: name}
+			for i := 0; i < 12; i++ {
+				cs := envCase(fmt.Sprintf("%s-%02d", name, i), corpus.CorpusSampleRequests, corpus.Profile{}, corpus.Stored{})
+				b.Cases = append(b.Cases, newRunCase(&cs, DefaultProfile))
+			}
+			out = append(out, b)
+		}
+		return out
+	}
+	ids := func(batches []*batch) [][]string {
+		var out [][]string
+		for _, b := range batches {
+			var list []string
+			for _, rc := range b.Cases {
+				list = append(list, rc.ID)
+			}
+			out = append(out, list)
+		}
+		return out
+	}
+	sorted := ids(build())
+
+	kept := build()
+	shuffleBatches(kept, 0)
+	if got := ids(kept); !reflect.DeepEqual(got, sorted) {
+		t.Errorf("seed 0 changed the order: %v", got)
+	}
+
+	first, again, other := build(), build(), build()
+	shuffleBatches(first, 7)
+	shuffleBatches(again, 7)
+	shuffleBatches(other, 8)
+	if !reflect.DeepEqual(ids(first), ids(again)) {
+		t.Errorf("seed 7 drew two orders: %v and %v", ids(first), ids(again))
+	}
+	for i, list := range ids(first) {
+		if reflect.DeepEqual(list, sorted[i]) {
+			t.Errorf("seed 7 kept batch %d in case ID order", i)
+		}
+		if got := append([]string(nil), list...); !sameSet(got, sorted[i]) {
+			t.Errorf("seed 7 changed the cases of batch %d: %v", i, got)
+		}
+	}
+	if reflect.DeepEqual(ids(first), ids(other)) {
+		t.Errorf("seeds 7 and 8 drew the same order")
+	}
+}
+
+func sameSet(a, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	seen := map[string]int{}
+	for _, s := range a {
+		seen[s]++
+	}
+	for _, s := range b {
+		seen[s]--
+	}
+	for _, n := range seen {
+		if n != 0 {
+			return false
+		}
+	}
+	return true
 }
 
 func TestMergeDocs(t *testing.T) {

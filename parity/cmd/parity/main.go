@@ -161,6 +161,7 @@ type runFlags struct {
 	corpora, kinds, match                string
 	limit, shards, gen                   int
 	seed                                 uint64
+	shuffle                              int64
 	budget, caseTimeout, startTimeout    time.Duration
 	fixtures, noBuild                    bool
 	baseline                             string
@@ -186,6 +187,7 @@ func (f *runFlags) register(fs *flag.FlagSet, withB bool) {
 	fs.StringVar(&f.match, "match", "", "regular expression on case IDs")
 	fs.IntVar(&f.limit, "limit", 0, "maximum cases per base profile (0: no limit)")
 	fs.IntVar(&f.shards, "shards", 1, "server pairs per batch")
+	fs.Int64Var(&f.shuffle, "shuffle", 0, "run each batch's cases in an order drawn from this seed (0: case ID order)")
 	fs.DurationVar(&f.budget, "budget", 0, "stop starting cases after this long (0: no limit)")
 	fs.DurationVar(&f.caseTimeout, "case-timeout", 30*time.Second, "timeout of one case")
 	fs.DurationVar(&f.startTimeout, "start-timeout", 90*time.Second, "timeout of a server start")
@@ -204,7 +206,7 @@ func (f *runFlags) options(ctx context.Context, stderr io.Writer) (runner.Option
 	}
 	opts := runner.Options{
 		RepoRoot: root, OutDir: f.out, RunID: f.runID, ProfilesDir: f.profilesDir, StoredDir: f.storedDir,
-		Profiles: splitList(f.profiles), Shards: f.shards, Budget: f.budget, CaseTimeout: f.caseTimeout,
+		Profiles: splitList(f.profiles), Shards: f.shards, Shuffle: f.shuffle, Budget: f.budget, CaseTimeout: f.caseTimeout,
 		StartTimeout: f.startTimeout, FixtureSelfTest: f.fixtures, Logf: f.logf(stderr),
 		Selection: runner.Selection{Corpora: splitList(f.corpora), Kinds: splitList(f.kinds), Limit: f.limit},
 	}

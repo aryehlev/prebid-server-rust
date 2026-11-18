@@ -3,6 +3,7 @@ package runner
 import (
 	"encoding/json"
 	"fmt"
+	"math/rand"
 	"path"
 	"regexp"
 	"strings"
@@ -239,6 +240,20 @@ func planBatches(cases []*runCase) []*batch {
 		target.Cases = append(target.Cases, rc)
 	}
 	return out
+}
+
+// shuffleBatches puts the cases of each batch, its introspection case
+// included, in an order drawn from seed: the same order for the same seed
+// and cases with the same Go toolchain. Seed 0 keeps them in case ID order.
+// Both sides of a pair run a shard's cases in the same order either way.
+func shuffleBatches(batches []*batch, seed int64) {
+	if seed == 0 {
+		return
+	}
+	rng := rand.New(rand.NewSource(seed))
+	for _, b := range batches {
+		rng.Shuffle(len(b.Cases), func(i, j int) { b.Cases[i], b.Cases[j] = b.Cases[j], b.Cases[i] })
+	}
 }
 
 // addIntrospection appends the introspection case of every batch.

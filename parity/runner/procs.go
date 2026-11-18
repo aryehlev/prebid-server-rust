@@ -43,6 +43,15 @@ type ServerSpec struct {
 	ExtraEnv []string
 }
 
+// TempDir is the server's TMPDIR: LogPath with the extension ".tmp". The
+// server starts with it empty, and Stop deletes it. Go's glog writes a file
+// per log level to the temporary directory, every INFO line included,
+// whatever the server log gets; with the inherited TMPDIR those files
+// stayed behind after every run, outside its directory.
+func (s ServerSpec) TempDir() string {
+	return strings.TrimSuffix(s.LogPath, filepath.Ext(s.LogPath)) + ".tmp"
+}
+
 // Ports are the listeners of one server process.
 type Ports struct {
 	Main       int `json:"main"`
@@ -95,9 +104,16 @@ func (s *Server) start() error {
 	if err := os.MkdirAll(filepath.Dir(s.Spec.LogPath), 0o755); err != nil {
 		return fmt.Errorf("runner: creating log dir: %w", err)
 	}
+	tmp := s.Spec.TempDir()
+	if err := os.RemoveAll(tmp); err != nil {
+		return fmt.Errorf("runner: clearing the server temporary directory: %w", err)
+	}
+	if err := os.Mkdir(tmp, 0o700); err != nil {
+		return fmt.Errorf("runner: creating the server temporary directory: %w", err)
+	}
 	log, err := os.Create(s.Spec.LogPath)
 	if err != nil {
-		return fmt.Errorf("runner: creating server log: %w", err)
+		return errors.Join(fmt.Errorf("runner: creating server log: %w", err), os.RemoveAll(tmp))
 	}
 	procCtx, cancel := context.WithCancel(context.Background())
 	cmd := exec.CommandContext(procCtx, s.Spec.Binary)
@@ -109,7 +125,7 @@ func (s *Server) start() error {
 	if err := cmd.Start(); err != nil {
 		cancel()
 		log.Close()
-		return fmt.Errorf("runner: starting %s (%s): %w", s.Spec.Impl, s.Spec.Binary, err)
+		return errors.Join(fmt.Errorf("runner: starting %s (%s): %w", s.Spec.Impl, s.Spec.Binary, err), os.RemoveAll(tmp))
 	}
 	s.cmd, s.cancel, s.log = cmd, cancel, log
 	go func() {
@@ -124,18 +140,19 @@ func (s *Server) start() error {
 
 // environ is the inherited environment without PBS_* (so the runner's own
 // shell cannot leak config into a server), plus the ports, the token, TZ=UTC
-// (huaweiads formats local time) and, for non-Go servers, the config-file
-// shim of risk R10.
+// (huaweiads formats local time), TMPDIR (ServerSpec.TempDir) and, for
+// non-Go servers, the config-file shim of risk R10.
 func (s *Server) environ() []string {
 	var env []string
 	for _, kv := range os.Environ() {
-		if strings.HasPrefix(kv, "PBS_") || strings.HasPrefix(kv, "TZ=") {
+		if strings.HasPrefix(kv, "PBS_") || strings.HasPrefix(kv, "TZ=") || strings.HasPrefix(kv, "TMPDIR=") {
 			continue
 		}
 		env = append(env, kv)
 	}
 	env = append(env,
 		"TZ=UTC",
+		"TMPDIR="+s.Spec.TempDir(),
 		"PBS_PORT="+strconv.Itoa(s.Ports.Main),
 		"PBS_ADMIN_PORT="+strconv.Itoa(s.Ports.Admin),
 		"PBS_METRICS_PROMETHEUS_PORT="+strconv.Itoa(s.Ports.Prometheus),
@@ -197,8 +214,8 @@ func (s *Server) exitErr() error {
 	return s.waitErr
 }
 
-// Stop interrupts the process, kills it after the grace period and closes
-// the log. It is safe to call more than once.
+// Stop interrupts the process, kills it after the grace period, closes the
+// log and deletes TempDir. It is safe to call more than once.
 func (s *Server) Stop() error {
 	if s.cancel == nil {
 		return nil
@@ -209,10 +226,14 @@ func (s *Server) Stop() error {
 	if s.Client != nil {
 		s.Client.CloseIdle()
 	}
+	var errs []error
 	if err := s.log.Close(); err != nil {
-		return fmt.Errorf("runner: closing %s log: %w", s.Spec.Impl, err)
+		errs = append(errs, fmt.Errorf("runner: closing %s log: %w", s.Spec.Impl, err))
 	}
-	return nil
+	if err := os.RemoveAll(s.Spec.TempDir()); err != nil {
+		errs = append(errs, fmt.Errorf("runner: deleting the %s temporary directory: %w", s.Spec.Impl, err))
+	}
+	return errors.Join(errs...)
 }
 
 // LogTail returns the end of the server log.

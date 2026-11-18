@@ -2,6 +2,7 @@ package runner
 
 import (
 	"context"
+	"errors"
 	"html"
 	"os"
 	"path/filepath"
@@ -250,6 +251,68 @@ func TestRunBudget(t *testing.T) {
 	}
 	if cs := mustCase(t, res.Run, caseOracle); cs.Reason != reasonBudget {
 		t.Errorf("reason = %q", cs.Reason)
+	}
+}
+
+// TestServersGetTheirOwnTempDir: every server runs with TMPDIR set to its
+// own directory next to its log, whatever TMPDIR the runner has, and the
+// directory is gone once the server stops, so what a server writes there
+// (Go's glog files) neither lands in the runner's temporary directory nor
+// stays behind.
+func TestServersGetTheirOwnTempDir(t *testing.T) {
+	opts := testOptions(t, fakeImpl(t, parity.ImplGo, fakeGo), Impl{}, "all")
+	inherited := t.TempDir()
+	t.Setenv("TMPDIR", inherited)
+	res, _, err := SelfTest(context.Background(), opts)
+	if err != nil {
+		t.Fatalf("SelfTest: %v", err)
+	}
+	if left, err := os.ReadDir(inherited); err != nil || len(left) != 0 {
+		t.Errorf("the servers wrote to the runner's TMPDIR: %v (%v)", left, err)
+	}
+	dir := res.Run.Layout.Path("servers")
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	logs := 0
+	for _, e := range entries {
+		if e.IsDir() {
+			t.Errorf("%s was left behind", e.Name())
+			continue
+		}
+		raw, err := os.ReadFile(filepath.Join(dir, e.Name()))
+		if err != nil {
+			t.Fatal(err)
+		}
+		logs++
+		want := "fake server: temporary directory " + filepath.Join(dir, strings.TrimSuffix(e.Name(), ".log")+".tmp") + "\n"
+		if !strings.Contains(string(raw), want) {
+			t.Errorf("%s lacks %q:\n%s", e.Name(), want, raw)
+		}
+	}
+	if logs == 0 {
+		t.Errorf("no server log in %s", dir)
+	}
+}
+
+// TestRunRefusesCorpusErrors: a corpus with load errors is not run, so the
+// cases of a file the loader skipped cannot go uncompared unnoticed; the
+// error names every load error.
+func TestRunRefusesCorpusErrors(t *testing.T) {
+	opts := testOptions(t, fakeImpl(t, parity.ImplGo, fakeGo), fakeImpl(t, parity.ImplRust, fakeGo), "all")
+	opts.Corpus.Errors = []error{errors.New("replays: usersync.yaml: invalid replay"), errors.New("profiles: video: no case")}
+	_, err := Run(context.Background(), opts)
+	if err == nil {
+		t.Fatal("Run ran a corpus with load errors")
+	}
+	for _, want := range []string{"2 load errors", "usersync.yaml: invalid replay", "video: no case"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("error %q lacks %q", err, want)
+		}
+	}
+	if _, statErr := os.Stat(opts.OutDir); !errors.Is(statErr, os.ErrNotExist) {
+		t.Errorf("the refused run wrote %s (%v)", opts.OutDir, statErr)
 	}
 }
 
