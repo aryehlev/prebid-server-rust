@@ -45,6 +45,7 @@ port_top_level_paths() {
     Cargo.lock \
     Cargo.toml \
     LICENSE \
+    LICENSES \
     NOTICE \
     PORTING.md \
     README.md \
@@ -87,10 +88,11 @@ port_record_paths() {
 # change, and that no commit on the port branch may change (guard.sh's bot-protected rule). They
 # set the rules a port is checked against: the workspace and its lint policy, the toolchains, the
 # formatter, clippy, cargo, dependency and suppression checks, the patched crates, what git
-# ignores (the upstream checkout), the scripts, the conformance contract, the porting rules and
-# the license. Tool configuration files that do not exist yet are listed too, so that an agent
-# cannot add one: a clippy.toml raising thresholds, a .cargo/config.toml changing flags or
-# sources, or a legacy rust-toolchain file, which rustup prefers to rust-toolchain.toml.
+# ignores (the upstream checkout), the scripts, the conformance contract, the porting rules, and
+# the license with the third-party license texts (LICENSES/). Tool configuration files that do not
+# exist yet are listed too, so that an agent cannot add one: a clippy.toml raising thresholds, a
+# .cargo/config.toml changing flags or sources, or a legacy rust-toolchain file, which rustup
+# prefers to rust-toolchain.toml.
 port_protected_paths() {
   printf '%s\n' \
     Cargo.toml \
@@ -109,6 +111,7 @@ port_protected_paths() {
     PORTING.md \
     README.md \
     LICENSE \
+    LICENSES \
     NOTICE \
     conformance/README.md
 }

@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 # guard.sh: every repository invariant on a fake upstream (read from its mirror) and a fake
 # repository in this repository's layout: no upstream file (top-level paths, Go outside the
-# tooling modules, .upstream, symbolic links, submodules, go.work, vendored code, byte-identical
-# copies, the allowed copies, modified copies of upstream Go files), the pin, the known-failures
-# list, CI skip markers, AI attribution (with and without the devtools "Generated with" line), the
-# bot rules and the parity-harness exemption.
+# tooling modules, what LICENSES/ may hold, .upstream, symbolic links, submodules, go.work,
+# vendored code, byte-identical copies, the allowed copies, modified copies of upstream Go files),
+# the pin, the known-failures list, CI skip markers, AI attribution (with and without the devtools
+# "Generated with" line), the bot rules and the parity-harness exemption.
 set -euo pipefail
 shopt -s inherit_errexit
 # shellcheck source=lib.sh
@@ -69,6 +69,25 @@ t_put "${fork}" crates/x/testdata/go/dump/dump.go 'package dump'
 t_put "${fork}" crates/devtools/go/tool.go 'package tool'
 ref=$(t_commit "${fork}" "Go tooling")
 check "Go code in the tooling modules" 0 "guard: ok" --ref "${ref}" --base "${main}"
+branch licenses
+t_put "${fork}" LICENSES/README.md '# Third-party licenses'
+t_put "${fork}" LICENSES/example-mit.txt 'MIT License (test text)'
+t_put "${fork}" LICENSES/go.txt 'Copyright 2009 The Go Authors. (test text)'
+ref=$(t_commit "${fork}" "Third-party license texts")
+check "license texts in LICENSES/" 0 "guard: ok" --ref "${ref}" --base "${main}"
+t_put "${fork}" LICENSES/lib.rs '//! not a license text'
+t_put "${fork}" LICENSES/nested/a.txt 'a license text in a subdirectory'
+t_put "${fork}" LICENSES/.hidden.txt 'a hidden file'
+t_put "${fork}" LICENSES/notes.md 'notes'
+chmod +x "${fork}/LICENSES/example-mit.txt"
+ref=$(t_commit "${fork}" "Other files in LICENSES/")
+check "anything else in LICENSES/" 1 "LICENSES/ holds only README.md and <name>.txt license texts, as regular non-executable files: LICENSES/.hidden.txt, LICENSES/example-mit.txt, LICENSES/lib.rs, LICENSES/nested/a.txt, LICENSES/notes.md" \
+  --ref "${ref}" --base "${main}"
+branch licenses-copy
+mkdir -p "${fork}/LICENSES"
+cp "${up}/LICENSE" "${fork}/LICENSES/apache.txt"
+ref=$(t_commit "${fork}" "A second copy of the upstream license")
+check "a copy of an upstream file in LICENSES/" 1 "its upstream file): LICENSES/apache.txt" --ref "${ref}" --base "${main}"
 branch parity
 t_put "${fork}" parity/cmd/parity/main.go 'package main // parity'
 ref=$(t_commit "${fork}" "The parity harness")
@@ -313,7 +332,7 @@ ref=$(t_commit "${fork}" "Human fix on the port branch")
 check "a human commit in publish mode" 1 "is not the bot's" --ref "${ref}" --base "${main}" --bot
 check "a human commit on the port pull request" 0 "guard: ok" --ref "${ref}" --base "${main}" --bot --allow-human
 for protected in Cargo.toml scripts/a.sh scripts/fetch-upstream.sh rust-toolchain.toml PORTING.md README.md \
-  LICENSE deny.toml taplo.toml clippy.toml .clippy.toml .cargo/config.toml rust-toolchain .rustfmt.toml \
+  LICENSE LICENSES/go.txt deny.toml taplo.toml clippy.toml .clippy.toml .cargo/config.toml rust-toolchain .rustfmt.toml \
   patches/README.md conformance/README.md .gitignore; do
   branch bot-protected
   t_put "${fork}" "${protected}" 'changed'

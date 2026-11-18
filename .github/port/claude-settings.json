@@ -94,6 +94,7 @@
       "Edit(./PORTING.md)",
       "Edit(./README.md)",
       "Edit(./LICENSE)",
+      "Edit(./LICENSES/**)",
       "Edit(./NOTICE)",
       "Edit(./UPSTREAM_SYNC)",
       "Edit(./upstream-port-log.jsonl)",

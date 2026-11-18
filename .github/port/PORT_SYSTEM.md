@@ -23,11 +23,11 @@ new pin's `go.mod`, so every test, generator and check already runs against the 
    automatically and never committed.
 2. **Never touch the rule files**: `Cargo.toml` at the root (workspace members, lints and package
    metadata), `rust-toolchain.toml`, `rustfmt.toml`, `clippy.toml`, `deny.toml`, `taplo.toml`,
-   `.gitignore`, `PORTING.md`, `README.md`, `LICENSE`, `NOTICE`, `scripts/`, `patches/`,
-   `conformance/README.md`, `UPSTREAM_SYNC` and `upstream-port-log.jsonl`, and never add a
-   `clippy.toml`, `rustfmt.toml`, `.cargo/` config or toolchain file anywhere. If a faithful port
-   needs a new workspace crate, a new external crate or a rule change, stop and report `blocked`
-   with the exact change that is needed.
+   `.gitignore`, `PORTING.md`, `README.md`, `LICENSE`, `LICENSES/`, `NOTICE`, `scripts/`,
+   `patches/`, `conformance/README.md`, `UPSTREAM_SYNC` and `upstream-port-log.jsonl`, and never
+   add a `clippy.toml`, `rustfmt.toml`, `.cargo/` config or toolchain file anywhere. If a faithful
+   port needs a new workspace crate, a new external crate or a rule change, stop and report
+   `blocked` with the exact change that is needed.
 3. **Never copy upstream into the repository.** Upstream code and data are read from the Go root,
    never committed: no copied Go file, fixture, YAML or JSON from upstream, no vendored module, no
    symbolic link into `.upstream/`, no submodule or nested repository, no `go.work`. The publish

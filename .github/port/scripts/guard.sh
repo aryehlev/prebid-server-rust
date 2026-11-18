@@ -24,15 +24,16 @@
 # Rules
 #   upstream-files  the repository holds no upstream Go server file: only the top-level paths of
 #                   lib.sh port_top_level_paths (and parity/ on the parity-harness branch); Go code
-#                   only in the Go tooling modules (and parity/); no symbolic link, submodule,
-#                   .gitmodules, go.work or vendor/ directory of a Go module; and no file
-#                   byte-identical to a file of the upstream trees pinned at REF and at the
-#                   merge-base, or to any file of 16 bytes or more in upstream history (any blob
-#                   the mirror's branch and tags reach, so an older version is a copy too), except
-#                   an empty file or a lib.sh port_upstream_copies entry that holds the bytes of
-#                   its upstream file; and no Go file that is a modified copy of an upstream Go
-#                   file of the pinned trees (10 or more of its significant lines are that file's,
-#                   and either half of them or 40 or more)
+#                   only in the Go tooling modules (and parity/); only README.md and <name>.txt
+#                   license texts in LICENSES/, as regular non-executable files and with no
+#                   subdirectory; no symbolic link, submodule, .gitmodules, go.work or vendor/
+#                   directory of a Go module; and no file byte-identical to a file of the upstream
+#                   trees pinned at REF and at the merge-base, or to any file of 16 bytes or more
+#                   in upstream history (any blob the mirror's branch and tags reach, so an older
+#                   version is a copy too), except an empty file or a lib.sh port_upstream_copies
+#                   entry that holds the bytes of its upstream file; and no Go file that is a
+#                   modified copy of an upstream Go file of the pinned trees (10 or more of its
+#                   significant lines are that file's, and either half of them or 40 or more)
 #   local-state     no tracked agent configuration or local tool state (.claude/, .omx/, ...)
 #   marker          UPSTREAM_SYNC pins one upstream commit, on the upstream branch, and the pin
 #                   did not move backwards from the merge-base's
@@ -214,6 +215,14 @@ found=$(sed -n -E 's/^[0-9]+ blob [0-9a-f]+\t(.*\.go)$/\1/p' "${tmp}/tree" | gre
 if [[ -n "${found}" ]]; then
   list=$(joined "${found}")
   violation upstream-files "Go code outside the Go tooling modules (crates/<crate>/testdata/go, crates/devtools/go): ${list}"
+fi
+# LICENSES/ holds the license texts NOTICE refers to, so nothing else: its README.md and one
+# <name>.txt per text, each a regular file, never executable, and never in a subdirectory.
+found=$(sed -n -E 's/^([0-9]+) [a-z]+ [0-9a-f]+\t(LICENSES\/.*)$/\1 \2/p' "${tmp}/tree" \
+  | grep -v -E '^100644 LICENSES/([A-Za-z0-9][A-Za-z0-9._-]*\.txt|README\.md)$' | sed -E 's/^[0-9]+ //' || true)
+if [[ -n "${found}" ]]; then
+  list=$(joined "${found}")
+  violation upstream-files "LICENSES/ holds only README.md and <name>.txt license texts, as regular non-executable files: ${list}"
 fi
 found=$(sed -n -E 's/^(120000|160000) [a-z]+ [0-9a-f]+\t(.*)$/\2 (\1)/p' "${tmp}/tree")
 if [[ -n "${found}" ]]; then
