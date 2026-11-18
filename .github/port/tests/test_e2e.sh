@@ -1054,7 +1054,7 @@ for attempt in 1 2; do
   check "a repair covers the pull request's commits" "${u1} ${u10}" "${P_base_sha} ${P_target_sha}"
   after=$(branch_head)
   subject=$(git -C "${origin}" log -1 --format=%s "${after}")
-  check "the attempt is recorded" "port-repair: no change found for clippy" "${subject}"
+  check "the attempt is recorded" "port-repair: no change found for clippy, clippy-all-features" "${subject}"
   parent=$(git -C "${origin}" rev-parse "${after}^")
   check "one new commit" "${before}" "${parent}"
   changed=$(git -C "${origin}" diff-tree --no-commit-id --name-only -r "${after}")
