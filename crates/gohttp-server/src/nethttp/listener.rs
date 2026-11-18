@@ -324,8 +324,10 @@ fn unix_peer_string(addr: &UnixSocketAddr) -> String {
     )
 }
 
-/// On Linux Go rewrites the leading NUL of an unnamed or abstract peer address as `@`, so an
-/// unnamed peer (the usual client) is `@` and an abstract one `@name` (up to its first NUL).
+/// On Linux Go rewrites the leading NUL of an unnamed or abstract peer address as `@` and ends
+/// the name at the next NUL (Go 1.26.2 `syscall/syscall_linux.go:643-665`), so an unnamed peer
+/// (the usual client, whose address Linux returns without a path) is `@` and an abstract one
+/// `@name` (up to the first NUL of the name).
 #[cfg(any(target_os = "linux", target_os = "android"))]
 fn unnamed_unix_peer(addr: &UnixSocketAddr) -> String {
     let name = addr.as_abstract_name().unwrap_or_default();
@@ -336,7 +338,8 @@ fn unnamed_unix_peer(addr: &UnixSocketAddr) -> String {
     )
 }
 
-/// Elsewhere an unnamed peer's path is empty.
+/// Elsewhere an unnamed peer's path is empty: on darwin Go ends the name at the first NUL of the
+/// all-NUL path the kernel returns (Go 1.26.2 `syscall/syscall_bsd.go:232-253`).
 #[cfg(not(any(target_os = "linux", target_os = "android")))]
 const fn unnamed_unix_peer(_addr: &UnixSocketAddr) -> String {
     String::new()
@@ -397,19 +400,55 @@ async fn resolve_listen_host(host: &str, port: u16) -> Result<Option<IpAddr>, St
 mod tests {
     use std::{env, fs, process};
 
+    use pbs_gocompat::strconv::unquote_bytes;
     use tokio::net::{UnixSocket, UnixStream};
 
     use super::Listener;
 
-    /// Go's `RemoteAddr` of a Unix-socket client that did not bind a path.
-    const UNNAMED_PEER: &str = if cfg!(any(target_os = "linux", target_os = "android")) {
-        "@"
+    /// The wire golden: its `unix remote` case holds Go's reply to a Unix-socket client that did
+    /// not bind a path, one `expect` block per GOOS.
+    const WIRE_GOLDEN: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/testdata/golden/wire.golden");
+
+    /// Go's `GOOS` for the OS this test runs on.
+    const GOOS: &str = if cfg!(target_os = "macos") {
+        "darwin"
     } else {
-        ""
+        env::consts::OS
     };
+
+    /// Go's `RemoteAddr` of a Unix-socket client that did not bind a path, on [`GOOS`]: the
+    /// `remote=%q` body of the wire golden's `unix remote` case in its `expect` block for
+    /// [`GOOS`]. The generator observed the block of the GOOS it ran on and derived the others
+    /// from Go's source; the wire module's Go test checks the block of each GOOS it runs on
+    /// against real Go.
+    fn unnamed_peer() -> Result<String, String> {
+        let text = fs::read_to_string(WIRE_GOLDEN).map_err(|e| format!("{WIRE_GOLDEN}: {e}"))?;
+        let case = text
+            .split("\n\n")
+            .find(|block| block.starts_with("case unix remote\n"))
+            .ok_or_else(|| format!("{WIRE_GOLDEN}: no case unix remote"))?;
+        let expect = format!("expect {GOOS}");
+        let response = case
+            .lines()
+            .skip_while(|line| *line != expect)
+            .nth(1)
+            .and_then(|line| line.strip_prefix("response "))
+            .ok_or_else(|| {
+                format!("{WIRE_GOLDEN}: case unix remote has no expect block for GOOS {GOOS}")
+            })?;
+        let reply = unquote_bytes(response).map_err(|e| format!("{response}: {e}"))?;
+        let reply = String::from_utf8(reply).map_err(|e| e.to_string())?;
+        let quoted = reply
+            .split_once("\r\n\r\nremote=")
+            .map(|(_, quoted)| quoted)
+            .ok_or_else(|| format!("{WIRE_GOLDEN}: no remote= body in {reply:?}"))?;
+        let peer = unquote_bytes(quoted).map_err(|e| format!("{quoted}: {e}"))?;
+        String::from_utf8(peer).map_err(|e| e.to_string())
+    }
 
     #[tokio::test]
     async fn unix_peer_addresses_like_go() -> Result<(), String> {
+        let want_unnamed = unnamed_peer()?;
         let dir = env::temp_dir().join(format!("gohttp-listener-{}", process::id()));
         fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
         let (server, client) = (dir.join("s.sock"), dir.join("c.sock"));
@@ -441,8 +480,10 @@ mod tests {
 
         ln.close();
         let _removed = fs::remove_dir_all(&dir);
-        if unnamed != UNNAMED_PEER {
-            return Err(format!("unnamed peer {unnamed:?}, want {UNNAMED_PEER:?}"));
+        if unnamed != want_unnamed {
+            return Err(format!(
+                "unnamed peer {unnamed:?}, want {want_unnamed:?} (GOOS {GOOS})"
+            ));
         }
         if named != client.to_string_lossy() {
             return Err(format!("named peer {named:?}, want {client:?}"));

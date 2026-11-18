@@ -5,7 +5,7 @@ mod drain;
 mod handlers;
 
 use core::fmt::Write as _;
-use std::{collections::BTreeSet, fs, sync::Arc};
+use std::{collections::BTreeSet, env, fs, sync::Arc};
 
 use pbs_gocompat::strconv::{quote_bytes, unquote_bytes};
 use tokio::sync::Mutex;
@@ -16,6 +16,14 @@ use self::{
 };
 
 const GOLDEN: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/testdata/golden/wire.golden");
+
+/// Go's `GOOS` for the OS this test runs on: of a case that answers differently by GOOS, the
+/// `expect` block that applies here.
+const GOOS: &str = if cfg!(target_os = "macos") {
+    "darwin"
+} else {
+    env::consts::OS
+};
 
 /// Runs the tests one at a time: the shutdown scenarios are timed, and the wire corpus keeps
 /// many connections busy.
@@ -85,38 +93,141 @@ fn parse_send(rest: &str) -> Result<Vec<u8>, String> {
     unquote_bytes(rest).map_err(|e| format!("{rest}: {e}"))
 }
 
-fn parse_golden(text: &str) -> Result<Vec<Case>, String> {
-    let mut cases: Vec<Case> = Vec::new();
+/// One reply the golden lists: its `response` and `end` lines.
+#[derive(Debug, Default)]
+struct Expect {
+    response: Option<Vec<u8>>,
+    end: Option<String>,
+}
+
+/// A case as the golden lists it: one reply, or, for a case that answers differently by GOOS,
+/// one `expect` block per GOOS.
+#[derive(Debug, Default)]
+struct Listed {
+    case: Case,
+    shared: Expect,
+    by_goos: Vec<(String, Expect)>,
+}
+
+impl Listed {
+    /// The reply the `response` and `end` lines belong to: that of the last `expect` block,
+    /// else the shared one.
+    fn reply(&mut self) -> &mut Expect {
+        match self.by_goos.last_mut() {
+            Some((_, e)) => e,
+            None => &mut self.shared,
+        }
+    }
+
+    /// The case with the reply Go gives on `goos`: an error for a case with `expect` blocks
+    /// but none for `goos`.
+    fn resolve(self, goos: &str) -> Result<Case, String> {
+        let Self {
+            mut case,
+            shared,
+            by_goos,
+        } = self;
+        let reply = if by_goos.is_empty() {
+            shared
+        } else {
+            let listed: Vec<&str> = by_goos.iter().map(|(g, _)| g.as_str()).collect();
+            let listed = listed.join(", ");
+            by_goos
+                .into_iter()
+                .find_map(|(g, e)| (g == goos).then_some(e))
+                .ok_or_else(|| {
+                    format!(
+                        "{GOLDEN}: case {} has no expect block for GOOS {goos} (only {listed})",
+                        case.name
+                    )
+                })?
+        };
+        let missing = |line: &str| format!("{GOLDEN}: case {} has no {line} line", case.name);
+        let response = reply.response.ok_or_else(|| missing("response"))?;
+        let end = reply.end.ok_or_else(|| missing("end"))?;
+        case.response = response;
+        case.end = end;
+        Ok(case)
+    }
+}
+
+/// The wire golden, with the replies Go gives on one GOOS.
+#[derive(Debug)]
+struct Golden {
+    /// The GOOS the generator ran on: its `goos` line.
+    generated_on: String,
+    cases: Vec<Case>,
+}
+
+/// Parses the golden (Go: `writeGolden`) for `goos`: a case with `expect` blocks gets the reply
+/// of the one for `goos`, and the parse fails when it has none.
+fn parse_golden(text: &str, goos: &str) -> Result<Golden, String> {
+    let mut generated_on = None;
+    let mut listed: Vec<Listed> = Vec::new();
     for (no, line) in text.lines().enumerate() {
         if line.is_empty() || line.starts_with('#') {
             continue;
         }
-        let bad = || format!("{GOLDEN}:{}: {line}", no + 1);
-        let (key, rest) = line.split_once(' ').ok_or_else(bad)?;
+        let bad = |why: &str| format!("{GOLDEN}:{}: {line}: {why}", no + 1);
+        let (key, rest) = line.split_once(' ').ok_or_else(|| bad("no value"))?;
+        if key == "goos" {
+            if generated_on.is_some() || !listed.is_empty() {
+                return Err(bad("goos is one line before the first case"));
+            }
+            generated_on = Some(rest.to_owned());
+            continue;
+        }
         if key == "case" {
-            cases.push(Case {
-                name: rest.to_owned(),
-                ..Case::default()
+            listed.push(Listed {
+                case: Case {
+                    name: rest.to_owned(),
+                    ..Case::default()
+                },
+                ..Listed::default()
             });
             continue;
         }
-        let case = cases.last_mut().ok_or_else(bad)?;
+        let l = listed.last_mut().ok_or_else(|| bad("before a case"))?;
         match key {
-            "server" => rest.clone_into(&mut case.server),
-            "wait" => case.wait = rest.parse().map_err(|e| format!("{}: {e}", bad()))?,
-            "send" => case.steps.push(Step::Send(parse_send(rest)?)),
+            "server" => rest.clone_into(&mut l.case.server),
+            "wait" => l.case.wait = rest.parse().map_err(|e| bad(&format!("{e}")))?,
+            "send" => l.case.steps.push(Step::Send(parse_send(rest)?)),
             "pause" => {
-                let ms = rest.parse().map_err(|e| format!("{}: {e}", bad()))?;
-                case.steps.push(Step::Pause(ms));
+                let ms = rest.parse().map_err(|e| bad(&format!("{e}")))?;
+                l.case.steps.push(Step::Pause(ms));
+            }
+            "expect" => {
+                if l.shared.response.is_some() || l.shared.end.is_some() {
+                    return Err(bad("an expect block after the case's reply"));
+                }
+                if l.by_goos.iter().any(|(g, _)| g == rest) {
+                    return Err(bad("a second expect block for this GOOS"));
+                }
+                l.by_goos.push((rest.to_owned(), Expect::default()));
             }
             "response" => {
-                case.response = unquote_bytes(rest).map_err(|e| format!("{}: {e}", bad()))?;
+                let response = unquote_bytes(rest).map_err(|e| bad(&format!("{e}")))?;
+                if l.reply().response.replace(response).is_some() {
+                    return Err(bad("a second response line"));
+                }
             }
-            "end" => rest.clone_into(&mut case.end),
-            _ => return Err(bad()),
+            "end" => {
+                if l.reply().end.replace(rest.to_owned()).is_some() {
+                    return Err(bad("a second end line"));
+                }
+            }
+            _ => return Err(bad("unknown key")),
         }
     }
-    Ok(cases)
+    let generated_on = generated_on.ok_or_else(|| format!("{GOLDEN}: no goos line"))?;
+    let cases = listed
+        .into_iter()
+        .map(|l| l.resolve(goos))
+        .collect::<Result<_, _>>()?;
+    Ok(Golden {
+        generated_on,
+        cases,
+    })
 }
 
 fn shorten(b: &[u8]) -> String {
@@ -130,8 +241,8 @@ fn shorten(b: &[u8]) -> String {
 }
 
 /// The report of the cases that differ, or `None` when the differences are exactly the
-/// known gaps.
-fn compare(cases: &[Case], outcomes: &[Outcome]) -> Option<String> {
+/// known gaps. `generated_on` is the GOOS the golden was generated on.
+fn compare(cases: &[Case], outcomes: &[Outcome], generated_on: &str) -> Option<String> {
     let gaps: BTreeSet<&str> = KNOWN_GAPS.iter().map(|(name, _)| *name).collect();
     let mut report = String::new();
     let mut differing = 0;
@@ -162,7 +273,8 @@ fn compare(cases: &[Case], outcomes: &[Outcome]) -> Option<String> {
         return None;
     }
     Some(format!(
-        "{differing} of {} cases differ from Go; known gaps that now match: {fixed:?}{report}",
+        "{differing} of {} cases differ from Go on {GOOS} (golden generated on {generated_on}); \
+         known gaps that now match: {fixed:?}{report}",
         cases.len()
     ))
 }
@@ -171,7 +283,10 @@ fn compare(cases: &[Case], outcomes: &[Outcome]) -> Option<String> {
 async fn wire_bytes_match_go() -> Result<(), String> {
     let _serial = SERIAL.lock().await;
     let text = fs::read_to_string(GOLDEN).map_err(|e| format!("{GOLDEN}: {e}"))?;
-    let cases = parse_golden(&text)?;
+    let Golden {
+        generated_on,
+        cases,
+    } = parse_golden(&text, GOOS)?;
     if cases.len() < 1000 {
         return Err(format!("only {} cases in {GOLDEN}", cases.len()));
     }
@@ -183,14 +298,14 @@ async fn wire_bytes_match_go() -> Result<(), String> {
     let cases: Arc<[Case]> = cases.into();
     let outcomes = run_all(targets, Arc::clone(&cases)).await;
     servers.stop().await;
-    compare(&cases, &outcomes).map_or(Ok(()), Err)
+    compare(&cases, &outcomes, &generated_on).map_or(Ok(()), Err)
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 8)]
 async fn shutdown_matches_go() -> Result<(), String> {
     let _serial = SERIAL.lock().await;
     let text = fs::read_to_string(drain::GOLDEN).map_err(|e| format!("{}: {e}", drain::GOLDEN))?;
-    let scenarios = drain::parse_golden(&text)?;
+    let (generated_on, scenarios) = drain::parse_golden(&text)?;
     if scenarios.len() < 3 {
         return Err(format!(
             "only {} scenarios in {}",
@@ -203,5 +318,9 @@ async fn shutdown_matches_go() -> Result<(), String> {
     for sc in &scenarios {
         observed.push(drain::run(sc, &dir.path).await?);
     }
-    drain::compare(&scenarios, &observed).map_or(Ok(()), Err)
+    drain::compare(&scenarios, &observed).map_or(Ok(()), |report| {
+        Err(format!(
+            "shutdown differs from Go on {GOOS} (golden generated on {generated_on}):{report}"
+        ))
+    })
 }

@@ -10,6 +10,13 @@
 //! handlers one for one. `Date` values and multipart boundaries are normalized on both sides;
 //! everything else must match, including how the connection ended.
 //!
+//! Both goldens record the GOOS the generator ran on (`goos`). A case whose bytes depend on the
+//! GOOS (the `RemoteAddr` of a Unix-socket client: `""` on darwin, `"@"` on linux) has one
+//! `expect` block per GOOS: the generator observed the block of the GOOS it ran on and derived
+//! the others from Go's source (`testdata/go/wire/goos.go`), and the wire module's Go test checks
+//! the block of the GOOS it runs on against real Go. The test takes the block of the OS it runs
+//! on and fails on an OS such a case has no block for.
+//!
 //! `testdata/golden/shutdown.golden`, from the same program, holds the shutdown scenarios: what
 //! idle, active, pipelined, half-read and new connections see while `Server.Shutdown` drains
 //! the server (including connections that have been silent for over 5 seconds), whether later

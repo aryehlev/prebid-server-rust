@@ -13,12 +13,14 @@ type step struct {
 }
 
 // wireCase is one connection: the steps the client takes, the server it talks to, and how
-// many milliseconds of silence (after the last step) end the read.
+// many milliseconds of silence (after the last step) end the read. byGOOS marks a case whose
+// bytes depend on the GOOS (goos.go).
 type wireCase struct {
 	name   string
 	server string
 	wait   int
 	steps  []step
+	byGOOS bool
 }
 
 const defaultWait = 300
@@ -38,6 +40,13 @@ func (c *corpus) add(name, server string, wait int, steps ...step) {
 		wait = defaultWait
 	}
 	c.cases = append(c.cases, wireCase{name: name, server: server, wait: wait, steps: steps})
+}
+
+// addByGOOS adds a case whose bytes depend on the GOOS: the golden holds them for every GOOS
+// of goosValues.
+func (c *corpus) addByGOOS(name, server string, wait int, steps ...step) {
+	c.add(name, server, wait, steps...)
+	c.cases[len(c.cases)-1].byGOOS = true
 }
 
 // one adds a case that sends one request to the main server.
@@ -606,7 +615,8 @@ func plain(c *corpus) {
 // unix runs against the main handler over Prebid's Unix socket listener.
 func unix(c *corpus) {
 	c.add("unix status", "unix", 0, send(req("GET", "/status")))
-	c.add("unix remote", "unix", 0, send(req("GET", "/t/remote")))
+	// The RemoteAddr of a client that did not bind a path is "" on darwin and "@" on linux.
+	c.addByGOOS("unix remote", "unix", 0, send(req("GET", "/t/remote")))
 	c.add("unix echo", "unix", 0, send(post("/openrtb2/auction", "abc")))
 	c.add("unix pipeline", "unix", 0, send(req("GET", "/version")+req("GET", "/t/write/3000")+req("GET", "/static/a.txt")))
 	c.add("unix bad request", "unix", 0, send("GET /status HTTP/1.1\r\n\r\n"))
