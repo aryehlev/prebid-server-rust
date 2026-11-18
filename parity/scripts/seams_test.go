@@ -167,7 +167,9 @@ func TestBuildGoGuardsTheTree(t *testing.T) {
 // needs those blobs to refresh the seams (parity/README.md, "When the pin
 // moves"). A clone of a shallow Go root would copy only what its HEAD
 // reaches. The Go root is a shallow checkout fetch-upstream.sh makes from the
-// one the other tests use, and build-go.sh leaves it as it was.
+// one the other tests use, and build-go.sh leaves it as it was. Once that Go
+// root is gone, build-go.sh refuses to replace the tree, whose seam edits git
+// can no longer tell apart.
 func TestBuildGoBorrowsTheGoRootsObjects(t *testing.T) {
 	bash := requireBash(t)
 	ws, err := filepath.Abs(filepath.Join("..", ".."))
@@ -209,6 +211,17 @@ func TestBuildGoBorrowsTheGoRootsObjects(t *testing.T) {
 	}
 	if status := git(t, goRoot, nil, "status", "--porcelain"); status != "" {
 		t.Errorf("build-go.sh changed the Go root:\n%s", status)
+	}
+
+	if err := os.RemoveAll(goRoot); err != nil {
+		t.Fatal(err)
+	}
+	out, code = runScriptEnv(t, bash, []string{"PBS_GO_ROOT=" + reference}, "build-go.sh", "--no-build", "--tree", tree)
+	if code == 0 || !strings.Contains(out, "borrows objects its Go root no longer has") {
+		t.Errorf("build-go.sh over a tree whose Go root is gone: exit code %d; output:\n%s", code, out)
+	}
+	if _, err := os.Stat(filepath.Join(tree, "main.go")); err != nil {
+		t.Errorf("build-go.sh emptied the tree whose Go root is gone: %v", err)
 	}
 }
 

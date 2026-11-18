@@ -134,7 +134,9 @@ To change a seam, edit the upstream file in the tree (`parity/out/tree`),
 run `seams.sh write` and commit the patch. A new file in an upstream package
 is a seam too: `seams.sh` stages every change but `parity/`, which the tree's
 `.git/info/exclude` lists. `build-go.sh` refuses to replace a tree that holds
-seam edits the patch lacks, so a run never discards them.
+seam edits the patch lacks, so a run never discards them, and one whose Go
+root lost the objects it borrows (deleted, or fetched anew at another
+commit), where git can no longer tell.
 `scripts/seams_test.go` runs `seams.sh check`, checks that it refuses a patch
 that does not apply and one that applies in another form, that
 `build-go.sh` refuses the trees it must not replace, and that a tree

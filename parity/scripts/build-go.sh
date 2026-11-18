@@ -201,6 +201,11 @@ entry=$(find "${tree}" -mindepth 1 -maxdepth 1 -print -quit)
 if [[ -n "${entry}" ]]; then
   [[ -f "${tree}/${marker}" ]] || die "${tree} is neither empty nor a tree this script assembled (it has no ${marker})"
   if [[ -d "${tree}/.git" ]]; then
+    # The tree borrows the Go root's objects (step 2). Once they are gone, because the Go root was
+    # deleted or fetched anew at another commit, git cannot tell the tree's seam edits apart.
+    if ! git -C "${tree}" cat-file -e "HEAD^{tree}" 2> /dev/null; then
+      die "${tree} borrows objects its Go root no longer has, so its seam edits cannot be told apart; save any by hand, then delete the tree"
+    fi
     recorded=$(sed -n 's/^seams=//p' "${tree}/${marker}")
     "${here}/seams.sh" diff --tree "${tree}" > "${tree}/.git/parity-seams"
     current=$(git hash-object -- "${tree}/.git/parity-seams")
