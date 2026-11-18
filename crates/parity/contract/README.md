@@ -18,4 +18,5 @@ done
 ```
 
 then update the Rust registries until `cargo test -p pbs-parity` passes, and regenerate the
-goldens with `../testdata/go/run.sh`.
+goldens with `crates/parity/testdata/go/run.sh` on the `parity-harness` branch, the only branch
+that holds the parity packages the golden program is built against.

@@ -5,9 +5,18 @@
 //
 // It is a module of its own, like every Go tooling root of this repository,
 // but the packages it imports from the parity tree (github.com/prebid/prebid-server/v4/parity/...)
-// are not in the upstream server: run.sh in this directory builds it against a
-// temporary worktree of the parity-harness branch, which a go.work file puts in
-// place of the upstream module.
+// are not in the upstream server. They are the harness of the parity-harness
+// branch, the only branch that holds it, so the goldens are regenerated there,
+// with one command from the repository root:
+//
+//	crates/parity/testdata/go/run.sh
+//
+// run.sh exports the parity/ and UPSTREAM_SYNC of a commit (default HEAD),
+// assembles a tree from them and the pinned upstream checkout with that
+// commit's parity/scripts/build-go.sh (the upstream server with the parity
+// seams applied and the parity packages copied in), and builds this program
+// against the tree, which a go.work file puts in place of the upstream module.
+// On a branch without the harness it stops and says so.
 package main
 
 import (
@@ -44,7 +53,7 @@ func main() {
 	contractDir := flag.String("contract", "", "the vendored contract directory (crates/parity/contract)")
 	documentsDir := flag.String("documents", "", "the documents the Rust crate produced (crates/parity/testdata/documents)")
 	outDir := flag.String("out", "", "the golden directory to write (crates/parity/testdata/golden)")
-	ref := flag.String("ref", "", "the parity-harness commit the goldens are built from")
+	ref := flag.String("ref", "", "the parity-harness commit whose harness the goldens are built from")
 	flag.Parse()
 	if *contractDir == "" || *documentsDir == "" || *outDir == "" || *ref == "" {
 		fail(errors.New("-contract, -documents, -out and -ref are required"))
