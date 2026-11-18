@@ -10,9 +10,10 @@
 # Usage: parity/scripts/build-go.sh [--tree DIR] [--bin DIR] [--patch FILE] [--3way] [--no-build]
 #
 #   --tree DIR    the assembled tree (default parity/out/tree). It is deleted and assembled anew
-#                 on every run, so an existing DIR must be empty or a tree this script assembled,
-#                 and must hold no seam edits that the patch lacks (see seams.sh). Inside this
-#                 repository it must be under parity/out/, which git ignores.
+#                 on every run, so an existing DIR must be empty or a tree this script assembled
+#                 that still finds the objects it borrows from the Go root and holds no seam
+#                 edits that the patch lacks (see seams.sh). Inside this repository it must be
+#                 under parity/out/, which git ignores.
 #   --bin DIR     where the builds go (default parity/out/bin)
 #   --patch FILE  the seams to apply (default parity/upstream-seams.patch)
 #   --3way        apply the seams with git apply --3way, to refresh them after UPSTREAM_SYNC moved
@@ -39,7 +40,7 @@
 #      (the shell scripts and their tests, a Go module of their own), parity/out/ and the patch.
 #      The tree's .git/info/exclude lists parity/, so git in the tree shows the seams only.
 #   5. Unless --no-build, it builds from the tree, with GOWORK=off and -buildvcs=false (the tree
-#      is a scratch clone, nothing to stamp a binary with), into the --bin directory:
+#      is a scratch repository, nothing to stamp a binary with), into the --bin directory:
 #        pbs-go   the instrumented server (the module root, .)
 #        parity   the runner (./parity/cmd/parity)
 #        rhtool   the ReplayHarness tool (./parity/replayharness/rhtool)
@@ -202,7 +203,7 @@ if [[ -n "${entry}" ]]; then
   [[ -f "${tree}/${marker}" ]] || die "${tree} is neither empty nor a tree this script assembled (it has no ${marker})"
   if [[ -d "${tree}/.git" ]]; then
     # The tree borrows the Go root's objects (step 2). Once they are gone, because the Go root was
-    # deleted or fetched anew at another commit, git cannot tell the tree's seam edits apart.
+    # deleted, moved or fetched anew at another commit, git cannot tell the tree's seam edits apart.
     if ! git -C "${tree}" cat-file -e "HEAD^{tree}" 2> /dev/null; then
       die "${tree} borrows objects its Go root no longer has, so its seam edits cannot be told apart; save any by hand, then delete the tree"
     fi
