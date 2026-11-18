@@ -1,2 +1,3 @@
-# Upstream first-parent commits that the daily port merges but never asks an agent to port.
-# One full 40-character SHA per line, optionally followed by a comment. Add entries by pull request.
+# Upstream first-parent commits that the daily port advances the pin over but never asks an agent
+# to port; the port log records them as skipped. One full 40-character SHA per line, optionally
+# followed by a comment. Add entries by pull request.

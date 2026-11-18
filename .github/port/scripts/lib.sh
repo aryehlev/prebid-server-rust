@@ -4,6 +4,11 @@
 #
 # Values are returned on stdout (one item per line) so callers can capture them with $(...) and
 # `mapfile`, never through globals or exit codes of functions used in conditions.
+#
+# The repository holds only the Rust port and its tooling. The upstream Go server is never in it:
+# scripts/fetch-upstream.sh checks the pinned commit out into .upstream/ (git ignores it), and the
+# scripts that need upstream history read a separate bare mirror (upstream-mirror.sh) through
+# port_up. Upstream objects never enter this repository's object store.
 set -euo pipefail
 shopt -s inherit_errexit
 # Byte-order sorting and byte-wise matching everywhere: the known-failures list is sorted in
@@ -14,49 +19,105 @@ export LC_ALL=C
 
 PORT_SCRIPTS=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 PORT_DIR=$(cd "${PORT_SCRIPTS}/.." && pwd)
+# The top of the tree these scripts came from: the repository, or the trusted tooling the plan
+# job packs (.github/port and scripts/fetch-upstream.sh of the default branch, in the same layout).
+PORT_TOP=$(cd "${PORT_DIR}/../.." && pwd)
 
-# port_protected_paths: the paths under rust/, one per line, that the port agents and the bot may
-# never change. Upstream ports change crate sources, tests and generated data; these files set the
-# rules those changes are checked against (the workspace and its lint policy, the toolchains, the
-# formatter, clippy, cargo, dependency and suppression checks, the conformance contract and the
-# porting rules). Tool configuration files that do not exist yet are listed too, so that an agent
-# cannot add one: a rust/clippy.toml raising thresholds, a rust/.cargo/config.toml changing flags
-# or sources, or a legacy rust/rust-toolchain file, which rustup prefers to rust-toolchain.toml.
-port_protected_paths() {
-  printf '%s\n' \
-    rust/Cargo.toml \
-    rust/rust-toolchain.toml \
-    rust/rust-toolchain \
-    rust/rustfmt.toml \
-    rust/.rustfmt.toml \
-    rust/clippy.toml \
-    rust/.clippy.toml \
-    rust/.cargo \
-    rust/deny.toml \
-    rust/taplo.toml \
-    rust/PORTING.md \
-    rust/README.md \
-    rust/scripts \
-    rust/conformance/README.md \
-    rust/legacy
+# port_fetch_upstream ARG...: run scripts/fetch-upstream.sh of that tree.
+port_fetch_upstream() {
+  "${PORT_TOP}/scripts/fetch-upstream.sh" "$@"
 }
 
-# port_record_paths: the port records under rust/, one per line: the upstream marker and the port
-# log. Only commit.sh writes them, after the last agent session, so check-worktree.sh reverts any
-# change a session makes to them, and guard.sh's bot-log rule checks that the log only grows.
+# port_go_module: the module path of the upstream Go server, which the Go tooling modules require.
+port_go_module() {
+  printf '%s\n' github.com/prebid/prebid-server/v4
+}
+
+# port_top_level_paths: the only top-level paths a branch may hold (guard.sh's upstream-files
+# rule). The parity-harness branch also holds parity/. Anything new at the top needs this list
+# changed by a person.
+port_top_level_paths() {
+  printf '%s\n' \
+    .github \
+    .gitignore \
+    .planning \
+    AGENTS.md \
+    Cargo.lock \
+    Cargo.toml \
+    LICENSE \
+    NOTICE \
+    PORTING.md \
+    README.md \
+    UPSTREAM_SYNC \
+    clippy.toml \
+    conformance \
+    crates \
+    deny.toml \
+    patches \
+    rust-toolchain.toml \
+    rustfmt.toml \
+    scripts \
+    taplo.toml \
+    testdata \
+    upstream-port-log.jsonl
+}
+
+# port_writable_paths: what the port agent sessions and the bot may change, one per line: crate
+# sources, tests, Go tooling modules and generated data, the goldens under testdata/, the
+# known-failures list (entries may only be removed) and Cargo.lock (a crate may start using a
+# crate the workspace already locks). check-worktree.sh reverts everything else after a session.
+port_writable_paths() {
+  printf '%s\n' \
+    crates \
+    testdata \
+    conformance/known_failures.txt \
+    Cargo.lock
+}
+
+# port_record_paths: the port records, one per line: the upstream pin and the port log. Only the
+# trusted scripts write them (advance-pin.sh and commit.sh); check-worktree.sh reverts any change
+# a session makes to them, and guard.sh's bot-log rule checks that the log only grows.
 port_record_paths() {
   printf '%s\n' \
-    rust/UPSTREAM_SYNC \
-    rust/upstream-port-log.jsonl
+    UPSTREAM_SYNC \
+    upstream-port-log.jsonl
+}
+
+# port_protected_paths: the paths, one per line, that the port agents and the bot may never
+# change, and that no commit on the port branch may change (guard.sh's bot-protected rule). They
+# set the rules a port is checked against: the workspace and its lint policy, the toolchains, the
+# formatter, clippy, cargo, dependency and suppression checks, the patched crates, what git
+# ignores (the upstream checkout), the scripts, the conformance contract, the porting rules and
+# the license. Tool configuration files that do not exist yet are listed too, so that an agent
+# cannot add one: a clippy.toml raising thresholds, a .cargo/config.toml changing flags or
+# sources, or a legacy rust-toolchain file, which rustup prefers to rust-toolchain.toml.
+port_protected_paths() {
+  printf '%s\n' \
+    Cargo.toml \
+    rust-toolchain.toml \
+    rust-toolchain \
+    rustfmt.toml \
+    .rustfmt.toml \
+    clippy.toml \
+    .clippy.toml \
+    .cargo \
+    deny.toml \
+    taplo.toml \
+    .gitignore \
+    patches \
+    scripts \
+    PORTING.md \
+    README.md \
+    LICENSE \
+    NOTICE \
+    conformance/README.md
 }
 
 # port_agent_config_paths: repository-root paths that configure, or can run code in, a coding agent
-# (Claude Code settings, hooks and MCP servers) or a tool it drives (ripgrep). The fork neither owns
-# these nor accepts them from upstream, so upstream content can never drop settings, a hook or an MCP
-# server that a port agent session would load and run with the job's credentials. They are excluded
-# from port_nonfork_spec (so dropping them is not a go-tree difference from upstream),
-# merge-upstream.sh never imports them, and guard.sh's local-state rule rejects any that are
-# committed. .omx is local tool state and is listed here too.
+# (Claude Code settings, hooks and MCP servers) or a tool it drives (ripgrep). They are never
+# committed (guard.sh's local-state rule), and the agent sessions load only the settings the
+# workflow writes (render-inputs.sh), so a copy in a work tree changes nothing. .omx is local tool
+# state and is listed here too.
 port_agent_config_paths() {
   printf '%s\n' \
     .claude \
@@ -66,6 +127,26 @@ port_agent_config_paths() {
     .ripgreprc \
     .husky \
     .omx
+}
+
+# port_upstream_copies: the files that may be byte-identical to a file of the pinned upstream
+# tree, one "PATH<TAB>REASON" line each. Every other tracked file that equals an upstream blob
+# fails guard.sh's upstream-files rule. An empty file is always allowed: it holds no content.
+port_upstream_copies() {
+  printf '%s\t%s\n' \
+    LICENSE "the Apache License 2.0 text, which the port ships under the same license as upstream" \
+    crates/util/src/httputil/pixel.png "the 86-byte transparent pixel Go serves from util/httputil; the port serves the same bytes"
+}
+
+# port_go_dir_re [parity]: an extended regular expression for the paths Go code may live at: the
+# Go tooling modules (crates/<crate>/testdata/go and crates/devtools/go), plus parity/ on the
+# parity-harness branch.
+port_go_dir_re() {
+  local re='^(crates/[^/]+/testdata/go|crates/devtools/go)/'
+  if [[ "${1:-}" == parity ]]; then
+    re='^(crates/[^/]+/testdata/go|crates/devtools/go|parity)/'
+  fi
+  printf '%s\n' "${re}"
 }
 
 port_error() {
@@ -88,10 +169,15 @@ port_cd_top() {
   cd "${top}" || exit 1
 }
 
-# port_upstream_ref / port_main_ref: remote-tracking refs of the upstream branch and of the fork's
-# default branch.
+# port_up ARG...: git in the bare upstream mirror ${UPSTREAM_GIT} (upstream-mirror.sh makes it).
+port_up() {
+  git --git-dir="${UPSTREAM_GIT:?UPSTREAM_GIT must name the upstream mirror (upstream-mirror.sh)}" "$@"
+}
+
+# port_upstream_ref / port_main_ref: the upstream branch in the mirror, and the remote-tracking
+# ref of the default branch in this repository.
 port_upstream_ref() {
-  printf 'refs/remotes/upstream/%s\n' "${UPSTREAM_BRANCH:-master}"
+  printf 'refs/heads/%s\n' "${UPSTREAM_BRANCH:-master}"
 }
 
 port_main_ref() {
@@ -104,39 +190,54 @@ port_list() {
   sed -E -e 's/[[:space:]]*#.*$//' -e 's/^[[:space:]]+//' -e 's/[[:space:]]+$//' -e '/^$/d' "$@"
 }
 
-# port_fork_paths: the fork-owned paths, one per line.
-port_fork_paths() {
-  port_list "${PORT_DIR}/fork-paths.txt"
+# port_pathspecs PATH...: a git pathspec for each top-relative PATH.
+port_pathspecs() {
+  local path
+  for path in "$@"; do
+    printf ':(top)%s\n' "${path}"
+  done
 }
 
-# port_nonfork_spec: git pathspecs, one per line, that select every path the fork does not own and
-# does not treat as untrusted agent configuration. Both the fork-owned paths and the agent-config
-# paths are excluded: the latter so that dropping an upstream-supplied .claude/.mcp.json/hook (see
-# merge-upstream.sh) is not reported as a go-tree difference from upstream.
-port_nonfork_spec() {
-  local fork_listing agent_listing listing path
-  fork_listing=$(port_fork_paths)
-  agent_listing=$(port_agent_config_paths)
-  listing=$(printf '%s\n%s\n' "${fork_listing}" "${agent_listing}")
+# port_outside_writable_spec: git pathspecs, one per line, that select everything outside
+# port_writable_paths.
+port_outside_writable_spec() {
+  local listing path
+  listing=$(port_writable_paths)
   printf '%s\n' ':(top)'
   while IFS= read -r path; do
-    if [[ -n "${path}" ]]; then
-      printf ':(top,exclude)%s\n' "${path}"
-    fi
+    printf ':(top,exclude)%s\n' "${path}"
   done <<< "${listing}"
 }
 
-# port_outside_rust_spec: git pathspecs, one per line, that select everything outside rust/.
-port_outside_rust_spec() {
-  printf '%s\n' ':(top)' ':(top,exclude)rust'
+# port_pin_parse: read UPSTREAM_SYNC text on stdin and print the pinned commit, the way
+# scripts/fetch-upstream.sh reads it: exactly one line that is neither blank nor a # comment,
+# holding a full 40-character commit. Prints nothing for any other text.
+port_pin_parse() {
+  local pins
+  pins=$(sed -E -e 's/[[:space:]]+$//' -e '/^[[:space:]]*(#|$)/d')
+  if [[ -z "${pins}" || "${pins}" == *$'\n'* ]]; then
+    return 0
+  fi
+  pins=${pins#"${pins%%[![:space:]]*}"}
+  if [[ "${pins}" =~ ^[0-9a-f]{40}$ ]]; then
+    printf '%s\n' "${pins}"
+  fi
 }
 
-# port_marker REV: the upstream commit recorded in rust/UPSTREAM_SYNC at REV (the last 40-hex
-# line), or nothing when the file is missing or holds no commit.
+# port_sync_text SHA: read UPSTREAM_SYNC text on stdin and print it pinned to SHA: its # comment
+# lines, then SHA. advance-pin.sh writes this; check-worktree.sh expects it.
+port_sync_text() {
+  local header
+  header=$(sed -n '/^[[:space:]]*#/p')
+  printf '%s\n%s\n' "${header}" "${1:?}" | sed '/^$/d'
+}
+
+# port_marker REV: the upstream commit UPSTREAM_SYNC pins at REV, or nothing when the file is
+# missing or malformed.
 port_marker() {
   local text
-  text=$(git show "${1:?}:rust/UPSTREAM_SYNC" 2> /dev/null) || text=""
-  sed -n -E '/^[0-9a-f]{40}$/p' <<< "${text}" | tail -n 1
+  text=$(git show "${1:?}:UPSTREAM_SYNC" 2> /dev/null) || text=""
+  port_pin_parse <<< "${text}"
 }
 
 # port_attribution_re: an extended regular expression (match it case-insensitively) for AI

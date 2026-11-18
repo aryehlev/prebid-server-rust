@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# check-no-lint-suppression.sh: fail when code the fork authors suppresses, weakens or hides a lint,
-# formatter or analyzer finding. The policy is to fix the finding; nothing may silence it.
+# check-no-lint-suppression.sh: fail when code of this repository suppresses, weakens or hides a
+# lint, formatter or analyzer finding. The policy is to fix the finding; nothing may silence it.
 #
 # Usage:
 #   scripts/check-no-lint-suppression.sh             scan the git work tree (tracked files and
@@ -55,9 +55,10 @@
 #   Go code we author
 #     go-nolint             nolint, lint:ignore, lint:file-ignore, nosec and revive:disable comments
 #     go-build-tag          //go:build and // +build constraints, which keep a file out of the
-#                           golangci-lint and go vet runs
-#     golangci-config       golangci-lint configs other than .github/linters/golangci.yml, and
-#                           exclusion settings, test-file skipping or a non-`all` default in it
+#                           go build and go test runs of the Go tooling job
+#     golangci-config       any golangci-lint config: this repository's Go code is test tooling
+#                           that is not linted (gofmt -s, go build and go test are its checks),
+#                           and a config would suggest otherwise and could hide findings if it ran
 #   shell scripts, workflow files and other .github YAML
 #     sh-directive          directives for the shell linter that disable checks or extended analysis
 #     sh-rc                 .shellcheckrc entries that disable checks or extended analysis
@@ -380,30 +381,14 @@ sub check_go {
       finding($path, $n, "go-nolint", "linter suppression directive; fix the finding instead");
     }
     if ($line =~ m{\A\s*//\s*(?:go:build|\+build)\b}) {
-      finding($path, $n, "go-build-tag", "a build constraint keeps this file out of the golangci-lint and go vet runs");
+      finding($path, $n, "go-build-tag", "a build constraint keeps this file out of the go build and go test runs of the Go tooling job");
     }
   }
 }
 
 sub check_golangci {
-  my ($path, $src) = @_;
-  if ($path ne ".github/linters/golangci.yml") {
-    finding($path, 1, "golangci-config", "only .github/linters/golangci.yml may configure golangci-lint");
-  }
-  my $n = 0;
-  for my $line (split /\n/, $src, -1) {
-    $n++;
-    next if $line =~ m{\A\s*\#};
-    if ($line =~ m{\A\s*-?\s*(exclusions|exclude[A-Za-z-]*|skip-dirs[A-Za-z-]*|skip-files|new|new-from-rev|new-from-patch|new-from-merge-base|whole-files|disable-all)\s*:}) {
-      finding($path, $n, "golangci-config", "`$1` hides findings");
-    }
-    if ($line =~ m{\A\s*tests\s*:\s*false\b}) {
-      finding($path, $n, "golangci-config", "`tests: false` skips test files");
-    }
-    if ($line =~ m{\A\s*default\s*:\s*(\S+)} && $1 ne "all") {
-      finding($path, $n, "golangci-config", "linters.default must be `all`");
-    }
-  }
+  my ($path) = @_;
+  finding($path, 1, "golangci-config", "golangci-lint does not run on the Go code of this repository, which is test tooling checked by gofmt -s, go build and go test; remove this config");
 }
 
 sub check_shellcheckrc {

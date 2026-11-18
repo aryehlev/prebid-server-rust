@@ -1,6 +1,8 @@
-# Daily: merge main into the parity-harness branch, so the harness keeps testing the current port.
-# The harness patches upstream Go on purpose, so the merge can conflict; then nothing is pushed and
-# the "parity-harness: merging main conflicts" issue is opened or commented (see .github/README.md).
+# Daily: merge main into the parity-harness branch, so the harness keeps testing the current port,
+# and check that the harness still fits the upstream commit main pins: parity/upstream-seams.patch
+# must apply (git apply --check) to a checkout of that commit made with scripts/fetch-upstream.sh.
+# When the merge conflicts or the patch does not apply, nothing is pushed and a parity-harness issue
+# is opened or commented (see .github/README.md).
 name: Parity harness sync
 
 on:
@@ -34,6 +36,7 @@ jobs:
     env:
       BASE_BRANCH: main
       HARNESS_BRANCH: parity-harness
+      PBS_UPSTREAM_URL: https://github.com/prebid/prebid-server.git
       DRY_RUN: ${{ inputs.dry_run || false }}
       RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
       GIT_AUTHOR_NAME: ${{ vars.PORT_GIT_NAME || 'github-actions[bot]' }}
@@ -67,7 +70,7 @@ jobs:
           ref: main
           fetch-depth: 0
           token: ${{ steps.app.outputs.token || secrets.PORT_PUSH_TOKEN }}
-      - name: Merge and push, or report the conflict
+      - name: Merge, check the seams patch against the new pin, and push (or report)
         env:
           GH_TOKEN: ${{ steps.app.outputs.token || secrets.PORT_PUSH_TOKEN }}
         run: .github/port/scripts/sync-parity-harness.sh

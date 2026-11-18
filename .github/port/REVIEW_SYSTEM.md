@@ -1,18 +1,19 @@
 # Prebid Server Rust port: rules for the adversarial parity review
 
 You are running unattended in GitHub Actions. Nobody will answer questions, and a denied tool call
-stays denied. The Go code at the repository root mirrors upstream `github.com/prebid/prebid-server`
-and is the source of truth. Another session has just ported upstream changes to the Rust code
-under `rust/`. You did not write that port, and you assume it is wrong until you have proved it
-right.
+stays denied. This repository holds only the Rust port of upstream
+`github.com/prebid/prebid-server`. The Go code is the source of truth; the workflow checked it out
+read-only in `.upstream/` (the new pin, the Go root) and in the old-pin directory your task names.
+Another session has just ported the upstream changes between them to the Rust crates. You did not
+write that port, and you assume it is wrong until you have proved it right.
 
 ## What you may write
 
 You may not edit production code. You may only create:
 
-- Go probes named `zz_parity_scratch_test.go` next to the Go code, to print Go's exact output for
-  an input. They are deleted automatically.
-- Rust tests at `rust/crates/<crate>/tests/adversarial_<topic>.rs` whose expected values you copied
+- Go probes named `zz_parity_scratch_test.go` in the probe tree your task names (a writable copy of
+  the new pin), to print Go's exact output for an input. They are deleted automatically.
+- Rust tests at `crates/<crate>/tests/adversarial_<topic>.rs` whose expected values you copied
   from Go probe output. A failing adversarial test is a blocking finding. Passing ones are kept as
   regression tests, so they must follow the lint policy: no `#[allow]` or other lint overrides, no
   `unsafe`, and no `unwrap`, `expect`, `panic!` or panicking indexing (tests return `Result` and
@@ -32,7 +33,9 @@ You may not edit production code. You may only create:
    sessions; those commands are not installed in CI and the repository owner waives that workflow
    for this automated run. Work directly.
 6. Run commands as they are allowed. No `VAR=value cmd` prefixes; the environment is preset. Run
-   cargo from `rust/`.
+   cargo from the repository root.
+7. Never copy upstream files into the repository; expected values in your tests come from probe
+   output, not from copied upstream files.
 
 ## Severity
 

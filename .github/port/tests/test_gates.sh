@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# gates.sh: the commands of each check, the JSON report and the exit status, with fake cargo and
-# taplo on PATH (the real checks run in CI's rust jobs).
+# gates.sh: the commands of each check, run from the top of the work tree, the JSON report and the
+# exit status, with fake cargo and taplo on PATH (the real checks run in CI's rust jobs).
 set -euo pipefail
 shopt -s inherit_errexit
 # shellcheck source=lib.sh
@@ -40,9 +40,11 @@ names=$(jq -c '[.checks[] | [.name, .status]]' "${out}")
 t_eq "report: every check in order" '[["fmt","pass"],["clippy","fail"],["doc","pass"],["test","pass"],["devtools","pass"]]' "${names}"
 tail_text=$(jq -r '.checks[1].log_tail' "${out}")
 t_has "report: the failing log tail" "${tail_text}" "warning: unused variable"
-toolchain=$("${T_TOP}/rust/scripts/rustfmt-toolchain.sh")
+toolchain=$("${T_TOP}/scripts/rustfmt-toolchain.sh")
+top_name=$(basename "${T_TOP}")
 cargo_log=$(cat "${calls}")
-t_has "fmt: the pinned nightly" "${cargo_log}" "+${toolchain} fmt --all -- --check | doc flags: unset | cwd=rust"
+t_has "fmt: the pinned nightly, from the top of the work tree" "${cargo_log}" \
+  "+${toolchain} fmt --all -- --check | doc flags: unset | cwd=${top_name}"
 t_has "clippy: every target, locked, warnings denied" "${cargo_log}" \
   "clippy --workspace --all-targets --locked -- -D warnings"
 t_has "doc: rustdoc warnings denied" "${cargo_log}" "doc --workspace --no-deps --locked | doc flags: -D warnings"

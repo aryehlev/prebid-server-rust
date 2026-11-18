@@ -35,7 +35,7 @@
         "additionalProperties": false,
         "required": ["path", "status"],
         "properties": {
-          "path": {"type": "string", "pattern": "^rust/crates/[^/]+/tests/adversarial_[A-Za-z0-9_]+[.]rs$"},
+          "path": {"type": "string", "pattern": "^crates/[^/]+/tests/adversarial_[A-Za-z0-9_]+[.]rs$"},
           "status": {"enum": ["fails_now", "passes"]}
         }
       }

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# conformance.sh: the known-failures ratchet of rust/conformance/README.md, evaluated on prepared
+# conformance.sh: the known-failures ratchet of conformance/README.md, evaluated on prepared
 # reports (--results), plus the absent-harness, harness and harness-failure paths with a fake
 # cargo.
 set -euo pipefail
@@ -9,7 +9,6 @@ source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 
 repo="${T_ROOT}/repo"
 t_repo "${repo}"
-mkdir -p "${repo}/rust"
 a=adapters/foo/footest/exemplary/a.json
 b=adapters/foo/footest/supplemental/b.json
 c=adapters/bar/bartest/exemplary/c.json
@@ -116,6 +115,18 @@ t_run_in "${repo}" "${T_SCRIPTS}/conformance.sh" --results
 t_eq "a flag without a value is a usage error" 2 "${T_RC}"
 t_run_in "${repo}" "${T_SCRIPTS}/conformance.sh" --results "${T_ROOT}/none.jsonl" --known "${T_ROOT}/known.txt"
 t_eq "a missing report is a harness error" 2 "${T_RC}"
+
+# Without PBS_GO_ROOT the Go root is .upstream at the top of the work tree.
+other="${T_ROOT}/other"
+t_repo "${other}"
+for fixture in "${a}" "${b}" "${c}"; do
+  t_put "${other}" ".upstream/${fixture}" '{}'
+done
+printf '%s\n%s\n%s\n' "${fail_a}" "${pass_b}" "${pass_c}" > "${T_ROOT}/results.jsonl"
+printf '# known failures\n%s\n' "${a}" > "${T_ROOT}/known.txt"
+t_run_in "${other}" env -u PBS_GO_ROOT "${T_SCRIPTS}/conformance.sh" --results "${T_ROOT}/results.jsonl" \
+  --manifest "${T_ROOT}/manifest.json" --known "${T_ROOT}/known.txt"
+t_eq "the default Go root is .upstream" 0 "${T_RC}"
 
 # A fake cargo: metadata from FAKE_METADATA, and the harness writes FAKE_RESULTS to
 # PBS_FIXTURE_RESULTS and exits FAKE_TEST_RC.

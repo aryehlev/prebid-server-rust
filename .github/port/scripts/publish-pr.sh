@@ -5,12 +5,12 @@
 #   publish-pr.sh --result DIR   open or update the pull request from a port result directory
 #                                (report.md, final-status, plan.json, port-result.json,
 #                                fix-result.json, and port-log.jsonl: this run's lines of
-#                                rust/upstream-port-log.jsonl), set its labels and draft state,
+#                                upstream-port-log.jsonl), set its labels and draft state,
 #                                comment the run, and record anything not ported on the
-#                                parity-debt issue. A commit the log records as partial or blocked
-#                                counts as not ported even when the agents returned no result (a
-#                                session that failed or never ran), so the marker never moves past
-#                                it silently.
+#                                parity-debt issue. A commit the log records as partial, blocked or
+#                                pinned-not-ported counts as not ported even when the agents
+#                                returned no result (a session that failed or never ran, or a
+#                                pin-only run), so the pin never moves past it silently.
 #   publish-pr.sh --escalate     label the open pull request port:needs-human and comment REASON
 # Env: GH_TOKEN GITHUB_REPOSITORY BASE_BRANCH PORT_BRANCH RUN_URL, and PR_NUMBER REASON for
 #      --escalate.
@@ -83,12 +83,13 @@ publish() {
       break
     fi
   done
-  # This run's port log: commits left partial or blocked, including the ones no agent reported on.
+  # This run's port log: commits left partial or blocked, including the ones no agent reported on,
+  # and the commits a pin-only run advanced the pin over without porting.
   # Those without not_ported items of their own are added to the parity debt by name.
   if [[ -s "${dir}/port-log.jsonl" ]]; then
-    unported=$(jq -s '[.[] | select(.status == "partial" or .status == "blocked")] | length' \
+    unported=$(jq -s '[.[] | select(.status == "partial" or .status == "blocked" or .status == "pinned-not-ported")] | length' \
       "${dir}/port-log.jsonl" 2> /dev/null || printf '0')
-    log_debt=$(jq -s -r '[.[] | select((.status == "partial" or .status == "blocked") and ((.not_ported // []) | length) == 0)
+    log_debt=$(jq -s -r '[.[] | select((.status == "partial" or .status == "blocked" or .status == "pinned-not-ported") and ((.not_ported // []) | length) == 0)
       | "- upstream \(.upstream | tostring | .[0:12]) \(.subject | tostring | gsub("[\r\n]"; " ")): \(.status | tostring)"
         + (if ((.notes // "") | tostring) != "" then " (\(.notes | tostring | gsub("[\r\n]"; " ")))" else "" end)]
       | join("\n") | gsub("~~~"; "~ ~ ~")' "${dir}/port-log.jsonl" 2> /dev/null || true)

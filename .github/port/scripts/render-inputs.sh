@@ -13,7 +13,8 @@
 #
 # Env
 #   ACTION RUN_MODE NEEDS_CLAUDE BUDGET_CLASS   from the plan
-#   CTX MERGED_SHA BASE_SHA TARGET_SHA ADAPTER_DIRS PR_NUMBER PORT_BRANCH RUN_URL
+#   CTX START_SHA BASE_SHA TARGET_SHA PIN_VERSION ADAPTER_DIRS PR_NUMBER PORT_BRANCH RUN_URL
+#   OLD_GO_ROOT PBS_GO_ROOT PROBE_ROOT   the upstream trees (prepare-trees.sh)
 #   PORT_MODEL REVIEW_MODEL PORT_FALLBACK_MODEL
 #   PORT_BUDGET_USD PORT_CORE_BUDGET_USD REVIEW_BUDGET_USD FIX_BUDGET_USD
 #   RUNNER_TEMP GITHUB_WORKSPACE GITHUB_OUTPUT
@@ -42,26 +43,31 @@ check_value PORT_FALLBACK_MODEL "${PORT_FALLBACK_MODEL:-}" '^[A-Za-z0-9._-]+$'
 for budget in PORT_BUDGET_USD PORT_CORE_BUDGET_USD REVIEW_BUDGET_USD FIX_BUDGET_USD; do
   check_value "${budget}" "${!budget:-}" '^[0-9]+([.][0-9]+)?$'
 done
-check_value MERGED_SHA "${MERGED_SHA:-}" '^[0-9a-f]{40}$'
+check_value START_SHA "${START_SHA:-}" '^[0-9a-f]{40}$'
 check_value BASE_SHA "${BASE_SHA:-}" '^[0-9a-f]{40}$'
 check_value TARGET_SHA "${TARGET_SHA:-}" '^[0-9a-f]{40}$'
+check_value PIN_VERSION "${PIN_VERSION:-}" '^(v4[.][0-9A-Za-z.+-]+)?$'
 check_value PR_NUMBER "${PR_NUMBER:-}" '^[0-9]*$'
 check_value PORT_BRANCH "${PORT_BRANCH:-}" '^[A-Za-z0-9._/-]+$'
-for path in "${ctx}" "${temp}" "${workspace}"; do
+old_root=${OLD_GO_ROOT:?}
+new_root=${PBS_GO_ROOT:?}
+probe_root=${PROBE_ROOT:?}
+for path in "${ctx}" "${temp}" "${workspace}" "${old_root}" "${new_root}" "${probe_root}"; do
   check_value path "${path}" '^/[A-Za-z0-9._/-]+$'
 done
 adapter_lines=$(port_csv_lines "${ADAPTER_DIRS:-}")
 adapter_dirs=$(paste -s -d, - <<< "${adapter_lines}")
 
-# Whether the agents run: never in merge-only mode; otherwise for repairs, for commits whose class
-# needs Rust changes, and when the merge alone broke a check new upstream data can break.
+# Whether the agents run: never in pin-only mode; otherwise for repairs, for commits whose class
+# needs Rust changes, and when advancing the pin alone broke a check that new upstream code or
+# data can break.
 before_failed=""
 if [[ -f "${ctx}/gates-before.json" ]]; then
-  before_failed=$(jq -r '[.failed[]? | select(. == "test" or . == "conformance" or . == "devtools")] | join(",")' \
+  before_failed=$(jq -r '[.failed[]? | select(. == "test" or . == "conformance" or . == "devtools" or . == "go")] | join(",")' \
     "${ctx}/gates-before.json")
 fi
 run_claude=false
-if [[ "${run_mode}" != merge-only ]]; then
+if [[ "${run_mode}" != pin-only ]]; then
   if [[ "${action}" == repair || "${NEEDS_CLAUDE:-false}" == true || -n "${before_failed}" ]]; then
     run_claude=true
   fi
@@ -70,8 +76,8 @@ port_output run_claude "${run_claude}"
 printf 'render-inputs: run_claude=%s (action %s, needs_claude %s, failing before: %s)\n' \
   "${run_claude}" "${action}" "${NEEDS_CLAUDE:-false}" "${before_failed:-none}"
 
-rustfmt_toolchain=$(rust/scripts/rustfmt-toolchain.sh)
-stable_toolchain=$(sed -n -E 's/^channel[[:space:]]*=[[:space:]]*"([^"]+)".*$/\1/p' rust/rust-toolchain.toml)
+rustfmt_toolchain=$(scripts/rustfmt-toolchain.sh)
+stable_toolchain=$(sed -n -E 's/^channel[[:space:]]*=[[:space:]]*"([^"]+)".*$/\1/p' rust-toolchain.toml)
 check_value "rust-toolchain.toml channel" "${stable_toolchain}" '^[A-Za-z0-9._-]+$'
 conformance="${PORT_SCRIPTS}/conformance.sh"
 check_value "conformance.sh path" "${conformance}" '^/[A-Za-z0-9._/-]+$'
@@ -106,45 +112,54 @@ inspect_tools=(
   "Bash(cargo metadata *)"
   "Bash(cargo tree *)"
   "Bash(go test *)"
-  "Bash(go vet *)"
   "Bash(go build *)"
   "Bash(go list *)"
   "Bash(go doc *)"
   "Bash(go env *)"
   "Bash(${conformance})"
   "Bash(${conformance} *)"
-  "Bash(rust/scripts/check-no-lint-suppression.sh)"
   "Bash(scripts/check-no-lint-suppression.sh)"
+  "Bash(${PORT_SCRIPTS}/go-tooling.sh)"
 )
 port_tools=(
   "${read_tools[@]}"
   Agent
   TodoWrite
-  "Edit(./rust/**)"
-  "Edit(./**/zz_parity_scratch_test.go)"
+  "Edit(./crates/**)"
+  "Edit(./testdata/**)"
+  "Edit(./conformance/known_failures.txt)"
+  "Edit(/${probe_root}/**/zz_parity_scratch_test.go)"
   "${inspect_tools[@]}"
   "Bash(cargo +${rustfmt_toolchain} fmt *)"
   "Bash(rustfmt +${rustfmt_toolchain} *)"
   "Bash(cargo run -p pbs-devtools *)"
   "Bash(taplo fmt *)"
   "Bash(scripts/cargo-machete.sh)"
-  "Bash(rust/scripts/cargo-machete.sh)"
 )
 review_tools=(
   "${read_tools[@]}"
   TodoWrite
-  "Edit(./rust/crates/*/tests/adversarial_*.rs)"
-  "Edit(./**/zz_parity_scratch_test.go)"
+  "Edit(./crates/*/tests/adversarial_*.rs)"
+  "Edit(/${probe_root}/**/zz_parity_scratch_test.go)"
   "${inspect_tools[@]}"
+)
+
+# The read-only upstream trees: no session may edit them (the deny list always wins).
+tree_denies=(
+  "Edit(/${old_root}/**)"
+  "Edit(/${new_root}/**)"
 )
 
 # settings PASS TOOLS...: write the settings file of one session and print its path.
 settings() {
-  local file="${temp}/claude-settings-${1:?}.json" allow
+  local file="${temp}/claude-settings-${1:?}.json" allow deny
   shift
   allow=$(printf '%s\n' "$@" | jq -R -s -c 'split("\n") | map(select(length > 0))')
-  jq --argjson allow "${allow}" --arg go_root "${workspace}" --arg toolchain "${stable_toolchain}" \
-    '.env.PBS_GO_ROOT = $go_root | .env.RUSTUP_TOOLCHAIN = $toolchain | .permissions.allow = $allow' \
+  deny=$(printf '%s\n' "${tree_denies[@]}" | jq -R -s -c 'split("\n") | map(select(length > 0))')
+  jq --argjson allow "${allow}" --argjson deny "${deny}" --arg go_root "${new_root}" \
+    --arg toolchain "${stable_toolchain}" \
+    '.env.PBS_GO_ROOT = $go_root | .env.RUSTUP_TOOLCHAIN = $toolchain | .permissions.allow = $allow
+     | .permissions.deny = (.permissions.deny + ($deny - .permissions.deny))' \
     "${PORT_DIR}/claude-settings.json" > "${file}"
   printf '%s\n' "${file}"
 }
@@ -174,11 +189,14 @@ args() {
     printf -- '--permission-mode default\n'
     # Only the action-written user settings (this session's deny/allow lists) are loaded. Project
     # and local settings are ignored, so a .claude/ or hook that slipped into the work tree cannot
-    # change the permissions or run on session start. merge-upstream.sh also drops those files.
+    # change the permissions or run on session start. guard.sh rejects any that are committed.
     printf -- '--setting-sources user\n'
     printf -- '--max-turns %s\n' "${turns}"
     printf -- '--max-budget-usd %s\n' "${budget}"
     printf -- '--add-dir %s\n' "${ctx}"
+    printf -- '--add-dir %s\n' "${old_root}"
+    printf -- '--add-dir %s\n' "${new_root}"
+    printf -- '--add-dir %s\n' "${probe_root}"
     if [[ -n "${gomodcache}" ]]; then
       printf -- '--add-dir %s\n' "${gomodcache}"
     fi
@@ -197,7 +215,9 @@ commit_count=$(jq -r '.commits | length' "${ctx}/plan.json")
 render() {
   local template=${1:?} turns=${2:?} rendered=${3:?}
   TPL_RUN_URL=${RUN_URL:-} TPL_BASE_SHA=${BASE_SHA} TPL_TARGET_SHA=${TARGET_SHA} \
-    TPL_MERGED_SHA=${MERGED_SHA} TPL_N_COMMITS=${commit_count} TPL_CTX=${ctx} \
+    TPL_START_SHA=${START_SHA} TPL_N_COMMITS=${commit_count} TPL_CTX=${ctx} \
+    TPL_OLD_GO_ROOT=${old_root} TPL_NEW_GO_ROOT=${new_root} TPL_PROBE_ROOT=${probe_root} \
+    TPL_PIN_VERSION=${PIN_VERSION:-} TPL_GO_TOOLING=${PORT_SCRIPTS}/go-tooling.sh \
     TPL_COMMIT_TABLE=${commit_table} TPL_ADAPTER_DIRS=${adapter_dirs:-none} TPL_MAX_TURNS=${turns} \
     TPL_PR_NUMBER=${PR_NUMBER:-} TPL_PORT_BRANCH=${PORT_BRANCH} TPL_CONFORMANCE=${conformance} \
     TPL_RUSTFMT_TOOLCHAIN=${rustfmt_toolchain} \

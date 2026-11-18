@@ -1,17 +1,22 @@
 #!/usr/bin/env bash
 # plan.sh: decide what this run of the upstream-port workflow does. It never changes the
-# repository; it reads git state, the open port pull request and CI results, then writes
-# ${OUT_DIR}/plan.json and the step outputs the later jobs use.
+# repository; it reads git state, the upstream mirror, the open port pull request and CI results,
+# then writes ${OUT_DIR}/plan.json and the step outputs the later jobs use.
+#
+# The pin (UPSTREAM_SYNC) names the upstream commit the port covers. A run advances it over the
+# next chunk of upstream first-parent commits after it; upstream history is read from the bare
+# mirror UPSTREAM_GIT and never enters this repository.
 #
 # Actions
-#   advance   merge and port the next chunk of upstream first-parent commits
+#   advance   port the next chunk of upstream first-parent commits and advance the pin over it
 #   repair    fix the failing CI of the open port pull request without porting new commits
 #   escalate  label the open port pull request for a human and stop
 #   none      nothing to do (up to date, waiting for CI or for a human)
 #
 # Env (all required unless marked optional)
-#   UPSTREAM_BRANCH BASE_BRANCH PORT_BRANCH   branch names (upstream/<branch>, origin/<branch>)
-#   RUN_MODE        auto | advance | repair | merge-only | dry-run
+#   UPSTREAM_BRANCH BASE_BRANCH PORT_BRANCH   branch names (<branch> in the mirror, origin/<branch>)
+#   UPSTREAM_GIT    the bare upstream mirror (upstream-mirror.sh)
+#   RUN_MODE        auto | advance | repair | pin-only | dry-run
 #   MAX_COMMITS MAX_PR_COMMITS MAX_REPAIRS MAX_GO_LINES   chunking limits (positive integers)
 #   TARGET_INPUT    optional upstream first-parent commit to stop at
 #   PORT_GIT_EMAIL  the bot's commit email (commits by anyone else count as human)
@@ -26,7 +31,7 @@ out_dir=${OUT_DIR:?}
 repo=${GITHUB_REPOSITORY:?}
 port_branch=${PORT_BRANCH:?}
 base_branch=${BASE_BRANCH:?}
-: "${UPSTREAM_BRANCH:?}" "${GITHUB_OUTPUT:?}"
+: "${UPSTREAM_BRANCH:?}" "${GITHUB_OUTPUT:?}" "${UPSTREAM_GIT:?}"
 run_mode=${RUN_MODE:-auto}
 bot_email=${PORT_GIT_EMAIL:?}
 for limit_name in MAX_COMMITS MAX_PR_COMMITS MAX_REPAIRS MAX_GO_LINES; do
@@ -40,8 +45,8 @@ max_pr_commits=${MAX_PR_COMMITS:?}
 max_repairs=${MAX_REPAIRS:?}
 max_go_lines=${MAX_GO_LINES:?}
 case "${run_mode}" in
-  auto | advance | repair | merge-only | dry-run) ;;
-  *) port_die "RUN_MODE must be auto, advance, repair, merge-only or dry-run, got '${run_mode}'" ;;
+  auto | advance | repair | pin-only | dry-run) ;;
+  *) port_die "RUN_MODE must be auto, advance, repair, pin-only or dry-run, got '${run_mode}'" ;;
 esac
 case "${port_branch}" in
   main | master | "${base_branch}") port_die "PORT_BRANCH must not be the default branch" ;;
@@ -62,13 +67,14 @@ pr=""
 base=""
 target=""
 port_branch_sha=""
+target_version=""
 
 # add_commit SHA: classify SHA against its first parent and append it to the chunk.
 add_commit() {
   local sha=${1:?} subject entry skipped
   # Subjects reach commit messages, the port log and pull requests, so attribution is removed here.
-  subject=$(git log -1 --format=%s "${sha}" | port_sanitize)
-  entry=$("${PORT_SCRIPTS}/classify.sh" "${sha}^1" "${sha}")
+  subject=$(port_up log -1 --format=%s "${sha}" | port_sanitize)
+  entry=$(env GIT_DIR="${UPSTREAM_GIT}" "${PORT_SCRIPTS}/classify.sh" "${sha}^1" "${sha}")
   skipped=$(port_list "${PORT_DIR}/skip-commits.txt" | awk -v sha="${sha}" '$1 == sha { print "yes"; exit }')
   if [[ "${skipped}" == yes ]]; then
     entry=$(jq -c '.classes = ["skipped"] | .needs_claude = false | .heavy = false' <<< "${entry}")
@@ -106,6 +112,10 @@ finish() {
   port_output port_branch_sha "${port_branch_sha}"
   port_output base_sha "${base}"
   port_output target_sha "${target}"
+  if [[ -n "${target}" && "${action}" =~ ^(advance|repair)$ ]]; then
+    target_version=$(GITHUB_OUTPUT="" "${PORT_SCRIPTS}/pin-version.sh" "${target}")
+  fi
+  port_output target_version "${target_version}"
   port_output adapter_dirs "${dirs}"
   port_output needs_claude "${needs}"
   port_output budget_class "${budget_class}"
@@ -113,24 +123,24 @@ finish() {
   exit 0
 }
 
+if ! git --git-dir="${UPSTREAM_GIT}" rev-parse -q --verify "${up}^{commit}" > /dev/null; then
+  port_die "the upstream mirror ${UPSTREAM_GIT} has no ${up}; run upstream-mirror.sh first"
+fi
 main_sync=$(port_marker "${main}")
 if [[ -z "${main_sync}" ]]; then
-  port_die "rust/UPSTREAM_SYNC on ${base_branch} holds no upstream commit"
+  port_die "UPSTREAM_SYNC on ${base_branch} does not pin an upstream commit (one full commit SHA on a line of its own)"
 fi
-if ! git merge-base --is-ancestor "${main_sync}" "${main}"; then
-  port_die "rust/UPSTREAM_SYNC ${main_sync:0:12} is not merged into ${base_branch}; was a port pull request squash- or rebase-merged? See .github/README.md"
+if ! git --git-dir="${UPSTREAM_GIT}" merge-base --is-ancestor "${main_sync}" "${up}" 2> /dev/null; then
+  port_die "upstream ${UPSTREAM_BRANCH} does not contain ${main_sync:0:12}, the commit UPSTREAM_SYNC pins on ${base_branch}"
 fi
-if ! git merge-base --is-ancestor "${main_sync}" "${up}"; then
-  port_die "upstream ${UPSTREAM_BRANCH} does not contain rust/UPSTREAM_SYNC ${main_sync:0:12}"
-fi
-limit=$(git rev-parse "${up}")
+limit=$(port_up rev-parse "${up}")
 if [[ -n "${TARGET_INPUT:-}" ]]; then
   if [[ ! "${TARGET_INPUT}" =~ ^[0-9a-f]{7,40}$ ]]; then
     port_die "target_sha must be a hex commit id"
   fi
-  limit=$(git rev-parse --verify "${TARGET_INPUT}^{commit}")
-  if ! git merge-base --is-ancestor "${limit}" "${up}"; then
-    port_die "target ${limit:0:12} is not on upstream ${UPSTREAM_BRANCH}"
+  limit=$(git --git-dir="${UPSTREAM_GIT}" rev-parse -q --verify "${TARGET_INPUT}^{commit}" || true)
+  if [[ -z "${limit}" ]] || ! git --git-dir="${UPSTREAM_GIT}" merge-base --is-ancestor "${limit}" "${up}"; then
+    port_die "target ${TARGET_INPUT} is not on upstream ${UPSTREAM_BRANCH}"
   fi
 fi
 
@@ -174,14 +184,18 @@ if [[ -n "${pr}" ]]; then
     work_sha=${port_branch_sha}
     base=$(port_marker "${branch_ref}")
     if [[ -z "${base}" ]]; then
-      port_die "rust/UPSTREAM_SYNC on ${port_branch} holds no upstream commit"
+      port_die "UPSTREAM_SYNC on ${port_branch} does not pin an upstream commit"
+    fi
+    if ! git --git-dir="${UPSTREAM_GIT}" merge-base --is-ancestor "${main_sync}" "${base}" 2> /dev/null \
+      || ! git --git-dir="${UPSTREAM_GIT}" merge-base --is-ancestor "${base}" "${up}" 2> /dev/null; then
+      port_die "UPSTREAM_SYNC on ${port_branch} pins ${base:0:12}, which is not an upstream ${UPSTREAM_BRANCH} commit at or after ${main_sync:0:12}"
     fi
     ci=$(gh pr checks "${pr}" --repo "${repo}" --json name,bucket \
       --jq '[.[] | select(.name == "ci-ok") | .bucket][0] // "pending"' 2> /dev/null) || true
     ci=${ci:-pending}
     case "${ci}" in
       pass)
-        on_pr=$(git rev-list --first-parent --count "${main_sync}..${base}")
+        on_pr=$(port_up rev-list --first-parent --count "${main_sync}..${base}")
         if [[ "${on_pr}" -ge "${max_pr_commits}" ]]; then
           action=none
           reason="pull request #${pr} carries ${on_pr} upstream commits; waiting for it to be merged"
@@ -229,7 +243,8 @@ elif [[ -n "${port_branch_sha}" ]]; then
 fi
 
 case "${run_mode}" in
-  advance)
+  advance | pin-only)
+    # pin-only runs no agent, so it never repairs: it advances like advance.
     if [[ "${action}" == repair ]]; then
       action=advance
       reason="advance forced by the run mode"
@@ -246,13 +261,16 @@ case "${run_mode}" in
 esac
 
 if [[ "${action}" == repair ]]; then
-  range=$(git rev-list --first-parent --reverse "${main_sync}..${base}")
+  range=$(port_up rev-list --first-parent --reverse "${main_sync}..${base}")
   while IFS= read -r sha; do
     if [[ -n "${sha}" ]]; then
       add_commit "${sha}"
     fi
   done <<< "${range}"
+  # A repair covers every upstream commit the pull request ports: from the pin of the default
+  # branch to the pin of the pull request.
   target=${base}
+  base=${main_sync}
   # The log of the newest failed CI run on the branch head (else its newest finished run): the
   # newest run of the branch can be one on an older head, or one that was cancelled.
   run_id=$(gh run list --repo "${repo}" --workflow ci.yml --branch "${port_branch}" --limit 20 \
@@ -266,7 +284,7 @@ if [[ "${action}" == repair ]]; then
   finish
 fi
 
-pending_list=$(git rev-list --first-parent --reverse "${base}..${limit}")
+pending_list=$(port_up rev-list --first-parent --reverse "${base}..${limit}")
 if [[ -z "${pending_list}" ]]; then
   action=none
   reason="up to date with upstream at ${base:0:12}"

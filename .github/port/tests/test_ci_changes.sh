@@ -1,28 +1,38 @@
 #!/usr/bin/env bash
-# ci-changes.sh: the compared range per event and the adapter directories a change touches
-# (adapter files, bidder info and params through aliasOf, imp params, Rust adapter modules).
+# ci-changes.sh: the compared range per event and the adapter directories a change touches: the
+# upstream files changed between the two pins (adapter files, bidder info and params through
+# aliasOf, imp params), read from the upstream mirror, and Rust adapter modules.
 set -euo pipefail
 shopt -s inherit_errexit
 # shellcheck source=lib.sh
 source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 
+up="${T_ROOT}/upstream"
+t_repo "${up}"
+t_put "${up}" adapters/foo/foo.go 'package foo'
+t_put "${up}" adapters/foo_bar/foo_bar.go 'package foo_bar'
+t_put "${up}" adapters/baz/baz.go 'package baz'
+t_put "${up}" adapters/qux/qux.go 'package qux'
+t_put "${up}" adapters/adapterstest/test_json.go 'package adapterstest'
+t_put "${up}" static/bidder-info/foo.yaml 'endpoint: "http://foo"'
+t_put "${up}" static/bidder-info/fooalias.yaml 'aliasOf: "foo"'
+t_put "${up}" static/bidder-info/orphan.yaml 'endpoint: "http://orphan"'
+t_put "${up}" openrtb_ext/imp_baz.go 'package openrtb_ext'
+u1=$(t_commit "${up}" "upstream base")
+t_put "${up}" static/bidder-info/fooalias.yaml 'aliasOf: "foo" # changed'
+t_put "${up}" static/bidder-info/orphan.yaml 'endpoint: "http://orphan2"'
+t_put "${up}" openrtb_ext/imp_baz.go 'package openrtb_ext // changed'
+t_put "${up}" adapters/adapterstest/test_json.go 'package adapterstest // changed'
+u2=$(t_commit "${up}" "upstream changes")
+t_mirror "${T_ROOT}"
+
 repo="${T_ROOT}/repo"
 t_repo "${repo}"
-t_put "${repo}" adapters/foo/foo.go 'package foo'
-t_put "${repo}" adapters/foo_bar/foo_bar.go 'package foo_bar'
-t_put "${repo}" adapters/baz/baz.go 'package baz'
-t_put "${repo}" adapters/adapterstest/test_json.go 'package adapterstest'
-t_put "${repo}" static/bidder-info/foo.yaml 'endpoint: "http://foo"'
-t_put "${repo}" static/bidder-info/fooalias.yaml 'aliasOf: "foo"'
-t_put "${repo}" static/bidder-info/orphan.yaml 'endpoint: "http://orphan"'
-t_put "${repo}" openrtb_ext/imp_baz.go 'package openrtb_ext'
-t_put "${repo}" rust/crates/adapters/src/lib.rs '//! adapters'
+printf '%s\n' "${u1}" > "${repo}/UPSTREAM_SYNC"
+t_put "${repo}" crates/adapters/src/lib.rs '//! adapters'
 base=$(t_commit "${repo}" "base")
-t_put "${repo}" static/bidder-info/fooalias.yaml 'aliasOf: "foo" # changed'
-t_put "${repo}" static/bidder-info/orphan.yaml 'endpoint: "http://orphan2"'
-t_put "${repo}" openrtb_ext/imp_baz.go 'package openrtb_ext // changed'
-t_put "${repo}" rust/crates/adapters/src/foobar/mod.rs '//! foo_bar'
-t_put "${repo}" adapters/adapterstest/test_json.go 'package adapterstest // changed'
+printf '%s\n' "${u2}" > "${repo}/UPSTREAM_SYNC"
+t_put "${repo}" crates/adapters/src/foobar/mod.rs '//! foo_bar'
 head=$(t_commit "${repo}" "head")
 
 # changes NAME [VAR=VALUE...]: run ci-changes.sh; outputs in ${T_ROOT}/NAME.
@@ -78,5 +88,16 @@ plain=$(t_commit "${repo}" "plain")
 changes plain EVENT=push REF=refs/heads/main PUSH_BEFORE="${head}"
 expect plain head "${plain}"
 expect plain adapter_dirs ""
+
+# Rust changes still count when the pin is not in the mirror.
+printf '%s\n' "${plain}" > "${repo}/UPSTREAM_SYNC"
+t_put "${repo}" crates/adapters/src/qux.rs '//! qux'
+unpinned=$(t_commit "${repo}" "pin a commit the mirror lacks")
+changes unpinned EVENT=push REF=refs/heads/main PUSH_BEFORE="${plain}"
+expect unpinned head "${unpinned}"
+expect unpinned adapter_dirs qux
+t_has "unpinned: warned" "${T_ERR}" "does not pin a commit of the upstream mirror"
+changes nomirror EVENT=push REF=refs/heads/main PUSH_BEFORE="${plain}" UPSTREAM_GIT=
+t_eq "nomirror: the mirror is required" 1 "${T_RC}"
 
 t_done

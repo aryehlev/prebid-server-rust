@@ -6,8 +6,8 @@
 # never carries AI attribution: lines that would are replaced (port_sanitize), and the publish job's
 # guard checks the result again.
 #
-# Env: CTX ACTION RUN_MODE BASE_SHA TARGET_SHA RUN_URL FINAL_STATUS CLAUDE_RAN, and PORT_JSON
-#      REVIEW_JSON FIX_JSON (structured outputs of the sessions, may be empty).
+# Env: CTX ACTION RUN_MODE BASE_SHA TARGET_SHA PIN_VERSION RUN_URL FINAL_STATUS CLAUDE_RAN, and
+#      PORT_JSON REVIEW_JSON FIX_JSON (structured outputs of the sessions, may be empty).
 set -euo pipefail
 shopt -s inherit_errexit
 # shellcheck source=lib.sh
@@ -49,17 +49,13 @@ plan=$(file_or_null "${ctx}/plan.json")
 log_lines='[]'
 if [[ "${action}" == advance ]]; then
   count=$(jq -r '.commits | length' <<< "${plan}")
-  if [[ "${count}" -gt 0 && -f rust/upstream-port-log.jsonl ]]; then
-    log_lines=$(tail -n "${count}" rust/upstream-port-log.jsonl | jq -s -c '.')
+  if [[ "${count}" -gt 0 && -f upstream-port-log.jsonl ]]; then
+    log_lines=$(tail -n "${count}" upstream-port-log.jsonl | jq -s -c '.')
   fi
 fi
 violations=""
 if [[ -s "${ctx}/worktree-violations.txt" ]]; then
   violations=$(head -c 6000 "${ctx}/worktree-violations.txt")
-fi
-shadowed=""
-if [[ -s "${ctx}/shadowed-upstream-paths.txt" ]]; then
-  shadowed=$(head -n 100 "${ctx}/shadowed-upstream-paths.txt")
 fi
 
 report=$(jq -n -r \
@@ -68,7 +64,7 @@ report=$(jq -n -r \
   --argjson before "${before}" --argjson after "${after}" --argjson final_gates "${final_gates}" \
   --arg action "${action}" --arg mode "${RUN_MODE:-auto}" --arg base "${base}" --arg target "${target}" \
   --arg final "${final}" --arg ran "${CLAUDE_RAN:-false}" --arg run "${RUN_URL:-}" \
-  --arg violations "${violations}" --arg shadowed "${shadowed}" --arg fence "'''" '
+  --arg version "${PIN_VERSION:-}" --arg violations "${violations}" --arg fence "'''" '
   def code: tostring | gsub("[`|\r\n]"; " ") | "`\(.)`";
   def block($text): ($text | tostring | gsub("```"; $fence) | .[:8000]) as $t
     | "```text\n\($t)\n```";
@@ -82,6 +78,10 @@ report=$(jq -n -r \
     "## Upstream port: prebid/prebid-server \($base[0:12])..\($target[0:12])",
     "",
     "- Action: `\($action)` (mode `\($mode)`); agent sessions ran: `\($ran)`",
+    (if $action == "advance" then
+      "- Pin: `UPSTREAM_SYNC` moves from \(upstream($base)) to \(upstream($target))"
+        + (if $version != "" then "; the Go tooling modules require the upstream module at `\($version)`" else "" end)
+     else empty end),
     "- **Final gates: \($final)**" + (if $final_gates != null and ($final_gates.failed | length) > 0
         then " (failed: " + ($final_gates.failed | join(", ")) + ")" else "" end),
     (if $run != "" then "- Run: \($run)" else empty end),
@@ -122,12 +122,12 @@ report=$(jq -n -r \
       ""
      else empty end),
     (if $violations != "" then "### Work-tree corrections", "", block($violations), "" else empty end),
-    (if $shadowed != "" then "### Upstream changes in fork-owned paths (not applied)", "", block($shadowed), "" else empty end),
     "### Reviewer checklist",
     "",
-    "- [ ] **Merge with \"Create a merge commit\".** Squash or rebase merging drops the upstream ancestry the next sync depends on.",
+    "- [ ] **Merge with \"Create a merge commit\".** Squash and rebase merges rewrite the bot commits, so the default branch loses each port commit with its `Upstream-Range` and `Port-Run` record.",
     "- [ ] Every upstream commit above is ported, or its gap is recorded as parity debt.",
     "- [ ] New adversarial tests encode real Go behaviour.",
-    "- [ ] Nothing outside `rust/` changed apart from the upstream merge."
+    "- [ ] Nothing outside the writable paths (`crates/`, `testdata/`, `conformance/known_failures.txt`, `Cargo.lock`) changed, apart from the pin (`UPSTREAM_SYNC` and the upstream version in the Go tooling `go.mod` files) and the port log.",
+    "- [ ] No upstream file was copied in: upstream code is read from the pinned checkout, never committed."
   ] | .[]')
 port_sanitize <<< "${report}" | head -c 60000

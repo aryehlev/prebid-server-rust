@@ -247,10 +247,10 @@ for rule in WebFetch WebSearch 'mcp__*' 'Bash(git commit:*)' 'Bash(git push:*)' 
   'Bash(git rebase:*)' 'Bash(git reset:*)' 'Bash(git -c:*)' 'Bash(git -C:*)' 'Bash(git config:*)' \
   'Bash(git remote:*)' 'Bash(git fetch:*)' 'Bash(gh:*)' 'Bash(curl:*)' 'Bash(wget:*)' 'Bash(ssh:*)' \
   'Bash(cargo add:*)' 'Bash(cargo install:*)' 'Bash(cargo update:*)' 'Bash(go get:*)' 'Bash(go mod:*)' \
-  'Edit(./.github/**)' 'Edit(./.claude/**)' 'Edit(./AGENTS.md)' 'Edit(./rust/Cargo.toml)' \
-  'Edit(./rust/.cargo/**)' 'Edit(./rust/deny.toml)' 'Edit(./rust/scripts/**)' 'Edit(./rust/UPSTREAM_SYNC)' \
-  'Edit(./rust/upstream-port-log.jsonl)' 'Edit(./rust/**/rust-toolchain)' 'Edit(./rust/**/clippy.toml)' \
-  'Edit(./rust/**/.clippy.toml)' 'Edit(./rust/**/.rustfmt.toml)'; do
+  'Edit(./.github/**)' 'Edit(./.claude/**)' 'Edit(./.planning/**)' 'Edit(./AGENTS.md)' 'Edit(./.upstream/**)' \
+  'Edit(./Cargo.toml)' 'Edit(./.cargo/**)' 'Edit(./deny.toml)' 'Edit(./scripts/**)' 'Edit(./UPSTREAM_SYNC)' \
+  'Edit(./upstream-port-log.jsonl)' 'Edit(./**/rust-toolchain)' 'Edit(./**/clippy.toml)' \
+  'Edit(./**/.clippy.toml)' 'Edit(./**/.rustfmt.toml)' 'Edit(./**/go.work)' 'Edit(./**/vendor/**)'; do
   t_has "settings: deny ${rule}" " ${denied} " " ${rule} "
 done
 # Every protected path and port record that check-worktree.sh reverts is also denied to Edit, so a
@@ -270,5 +270,20 @@ done <<< "${protected}"
 t_eq "settings: every protected path is denied to Edit" "" "${undenied}"
 allowed=$(jq -r '(.permissions.allow // []) | length' "${settings}")
 t_eq "settings: the allow lists come from render-inputs.sh" 0 "${allowed}"
+
+# The repository's Go code is test tooling: it must build, pass its tests and be gofmt -s clean,
+# and it is not linted (no golangci-lint, no separate go vet), as .github/README.md explains.
+linted=$(grep -n -E '^[^#]*(golangci|go vet)' "${T_TOP}/.github/workflows/"*.yml "${T_SCRIPTS}/"*.sh || true)
+t_eq "no workflow or port script lints the Go tooling" "" "${linted}"
+# (The suppression scanner's fixtures hold golangci configurations on purpose: it flags them.)
+golangci=$(find "${T_TOP}/.github" "${T_TOP}/scripts" -path "${T_TOP}/scripts/tests/fixtures" -prune \
+  -o \( -name '.golangci*' -o -name 'golangci*' \) -print | head -n 5)
+t_eq "no golangci-lint configuration" "" "${golangci}"
+fetched=$(grep -c 'scripts/fetch-upstream.sh' "${T_TOP}/.github/workflows/ci.yml" || true)
+if [[ "${fetched}" -ge 4 ]]; then
+  t_ok "ci.yml fetches the pinned upstream for the jobs that read Go source"
+else
+  t_fail "ci.yml fetches the pinned upstream in ${fetched} place(s)"
+fi
 
 t_done
