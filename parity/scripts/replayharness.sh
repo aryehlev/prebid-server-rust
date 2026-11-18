@@ -155,6 +155,14 @@ die() {
   exit 1
 }
 
+# failures prints the replay report $1 without its passing replays. A failed
+# step prints the response body, which can be binary (/setuid answers a PNG),
+# so grep reads the report as text, and the control bytes other than tab and
+# newline are dropped before they reach the terminal.
+failures() {
+  LC_ALL=C grep -a -v '^✓' "$1" | LC_ALL=C tr -d '\000-\010\013-\037\177' >&2 || true
+}
+
 state=""
 roots_file=""
 seen_file=""
@@ -424,7 +432,7 @@ run_baseline() {
   if ((replay_status == 0)); then
     tail -n 1 "$dir/replays.txt" >&2
   else
-    grep -v '^✓' "$dir/replays.txt" >&2 || true
+    failures "$dir/replays.txt"
   fi
 
   stop_stack
@@ -463,7 +471,7 @@ run_profile_replays() {
       >"$dir/replays-$name.txt"; then
       tail -n 1 "$dir/replays-$name.txt" >&2
     else
-      grep -v '^✓' "$dir/replays-$name.txt" >&2 || true
+      failures "$dir/replays-$name.txt"
       failed=1
     fi
     check_breach

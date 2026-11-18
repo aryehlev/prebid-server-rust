@@ -106,6 +106,14 @@ fi
 
 say() { echo "replayharness-replay: $*" >&2; }
 
+# failures prints the replay report $1 without its passing replays. A failed
+# step prints the response body, which can be binary (/setuid answers a PNG),
+# so grep reads the report as text, and the control bytes other than tab and
+# newline are dropped before they reach the terminal.
+failures() {
+  LC_ALL=C grep -a -v '^✓' "$1" | LC_ALL=C tr -d '\000-\010\013-\037\177' >&2 || true
+}
+
 state=""
 serve_pid=""
 proxy_pid=""
@@ -263,7 +271,7 @@ say "replays on $target"
 if "$cli" replay "$replays" --target "$target" --no-color --junit "$out/replays.junit.xml" >"$out/replays.txt"; then
   tail -n 1 "$out/replays.txt" >&2
 else
-  grep -v '^✓' "$out/replays.txt" >&2 || true
+  failures "$out/replays.txt"
   status=1
 fi
 check_breach
