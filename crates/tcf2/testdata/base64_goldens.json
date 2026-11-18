@@ -1,4 +1,4 @@
-{"header":{"go_version":"go1.26.2","go_gdpr_version":"v1.12.0","generator":"rust/crates/tcf2/testdata/go"},
+{"header":{"go_version":"go1.26.2","go_gdpr_version":"v1.12.0","generator":"crates/tcf2/testdata/go"},
 "cases":[
 {"input":"","raw_url":{"len":0},"raw_url_in_place":{"len":0},"std":{"len":0}},
 {"input":"=","raw_url":{"err":"illegal base64 data at input byte 0","len":0},"raw_url_in_place":{"err":"illegal base64 data at input byte 0","len":0},"std":{"err":"illegal base64 data at input byte 0","len":0}},

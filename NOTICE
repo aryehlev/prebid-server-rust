@@ -4,8 +4,119 @@ This product is a Rust port of Prebid Server (https://github.com/prebid/prebid-s
 Copyright 2017 PREBID.ORG, INC, licensed under the Apache License, Version 2.0. Its behaviour,
 its tests and the test data generated from the Go code are derived from Prebid Server.
 
-The OpenRTB, AdCOM and Native types in crates/openrtb are generated from the Go packages of
-github.com/prebid/openrtb (https://github.com/prebid/openrtb), licensed under the Apache License,
-Version 2.0, and keep their documentation comments.
-
 This project is independent. It is not affiliated with or endorsed by Prebid.org.
+
+
+Third-party works
+-----------------
+
+To match Prebid Server byte for byte, the port also reimplements in Rust the parts of the Go
+standard library and of the Go modules Prebid Server uses whose behaviour shows through it, and
+some of its tests replay test data from them. Those parts are derived from the works below, at the
+versions the pinned Prebid Server uses. Each keeps its own license. LICENSES/README.md lists them
+with the crates that use them, and LICENSES/ holds the license texts that must be reproduced. The
+Apache License, Version 2.0 is in LICENSE.
+
+The Go programming language, Go 1.26.2 (https://go.dev): the standard library, and the test
+data of its compress packages that pbs-gogzip replays.
+  BSD-3-Clause, Copyright 2009 The Go Authors. LICENSES/go.txt
+golang.org/x/net v0.55.0 and golang.org/x/text v0.37.0
+  BSD-3-Clause, Copyright 2009 The Go Authors. LICENSES/go.txt
+github.com/chasex/glog (c62392af379c), which ships no license file; its source says "Copyright
+2009 The Go Authors. All rights reserved. Use of this source code is governed by a BSD-style
+license that can be found in the LICENSE file."
+  LICENSES/go.txt
+github.com/golang/glog v1.2.5
+  Apache-2.0, Copyright 2023 Google Inc. All Rights Reserved.
+github.com/json-iterator/go v1.1.12
+  MIT, Copyright (c) 2016 json-iterator. LICENSES/json-iterator.txt
+github.com/buger/jsonparser v1.1.2
+  MIT, Copyright (c) 2016 Leonid Bugaev. LICENSES/buger-jsonparser.txt
+github.com/tidwall/gjson v1.17.1
+  MIT, Copyright (c) 2016 Josh Baker. LICENSES/tidwall-gjson.txt
+gopkg.in/evanphx/json-patch.v5 v5.9.0
+  BSD-3-Clause, Copyright (c) 2014, Evan Phoenix. LICENSES/evanphx-json-patch.txt
+gopkg.in/yaml.v3 v3.0.1
+  MIT for the files ported from libyaml, Copyright (c) 2006-2010 Kirill Simonov, Copyright (c)
+  2006-2011 Kirill Simonov; Apache-2.0 for the rest, Copyright (c) 2011-2019 Canonical Ltd.
+  LICENSES/go-yaml-v3.txt
+github.com/mitchellh/mapstructure v1.5.0
+  MIT, Copyright (c) 2013 Mitchell Hashimoto. LICENSES/mitchellh-mapstructure.txt
+github.com/spf13/viper v1.12.0
+  MIT, Copyright (c) 2014 Steve Francia. LICENSES/spf13-viper.txt
+github.com/spf13/cast v1.5.0
+  MIT, Copyright (c) 2014 Steve Francia. LICENSES/spf13-cast.txt
+github.com/coocood/freecache v1.2.1
+  MIT, Copyright (c) 2015 Ewan Chou. LICENSES/coocood-freecache.txt
+github.com/cespare/xxhash/v2 v2.3.0
+  MIT, Copyright (c) 2016 Caleb Spare. LICENSES/cespare-xxhash.txt
+github.com/julienschmidt/httprouter v1.3.0
+  BSD-3-Clause, Copyright (c) 2013, Julien Schmidt. LICENSES/julienschmidt-httprouter.txt
+github.com/rs/cors v1.11.0
+  MIT, Copyright (c) 2014 Olivier Poitrey <rs@dailymotion.com>. LICENSES/rs-cors.txt
+github.com/gofrs/uuid v4.2.0+incompatible
+  MIT, Copyright (C) 2013-2018 by Maxim Bublis <b@codemonkey.ru>. LICENSES/gofrs-uuid.txt
+github.com/prebid/openrtb/v20 v20.3.0, whose documentation comments the generated types in
+crates/openrtb keep (they follow the IAB Tech Lab OpenRTB, AdCOM and Native specifications)
+  Apache-2.0, Copyright 2017 PREBID.ORG, INC
+github.com/prebid/go-gdpr v1.12.0
+  Apache-2.0, Copyright 2017 PREBID.ORG, INC
+github.com/prebid/go-gpp v0.2.0
+  Apache-2.0 (its license and sources carry no copyright line)
+github.com/xeipuuv/gojsonschema v1.2.0
+  Apache-2.0, Copyright 2015 xeipuuv, Copyright 2017 and 2018 johandorland, and for
+  jsonContext.go Copyright 2013 MongoDB, Inc.
+github.com/xeipuuv/gojsonreference (bd5ef7bd5415)
+  Apache-2.0, Copyright 2015 xeipuuv
+github.com/prometheus/client_golang v1.12.1, github.com/prometheus/common v0.32.1 and
+github.com/prometheus/client_model v0.2.0
+  Apache-2.0, Copyright The Prometheus Authors (their notices follow)
+
+
+Notices of the Apache-2.0 works
+-------------------------------
+
+Section 4(d) of the Apache License, Version 2.0 asks for the attribution notices of a work's
+NOTICE file. These are the notices of the works above that have a NOTICE file, excluding those
+that do not pertain to any part of this port.
+
+From the NOTICE file of gopkg.in/yaml.v3:
+
+  Copyright 2011-2016 Canonical Ltd.
+
+  Licensed under the Apache License, Version 2.0 (the "License");
+  you may not use this file except in compliance with the License.
+  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+  Unless required by applicable law or agreed to in writing, software
+  distributed under the License is distributed on an "AS IS" BASIS,
+  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  See the License for the specific language governing permissions and
+  limitations under the License.
+
+From the NOTICE file of github.com/prometheus/client_golang (the components it lists, perks, Go
+support for Protocol Buffers and golang_protobuf_extensions, are not part of this port):
+
+  Prometheus instrumentation library for Go applications
+  Copyright 2012-2015 The Prometheus Authors
+
+  This product includes software developed at
+  SoundCloud Ltd. (http://soundcloud.com/).
+
+From the NOTICE file of github.com/prometheus/common:
+
+  Common libraries shared by Prometheus Go components.
+  Copyright 2015 The Prometheus Authors
+
+  This product includes software developed at
+  SoundCloud Ltd. (http://soundcloud.com/).
+
+From the NOTICE file of github.com/prometheus/client_model:
+
+  Data model artifacts for Prometheus.
+  Copyright 2012-2015 The Prometheus Authors
+
+  This product includes software developed at
+  SoundCloud Ltd. (http://soundcloud.com/).

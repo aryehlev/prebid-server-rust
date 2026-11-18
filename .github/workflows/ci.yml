@@ -1,7 +1,12 @@
-# CI for the fork: fork invariants, the Rust workspace at full strictness, the conformance ratchet,
-# the fork's own scripts, configuration and Go code, and (on the parity-harness branch) the parity
-# harness. Every check always runs at full strictness; there are no toggles. Make `ci-ok` the only
-# required status check on main (see .github/README.md).
+# CI: the repository invariants, the Rust workspace at full strictness, the conformance ratchet,
+# the Go tooling, the repository's own scripts and configuration, and (on the parity-harness
+# branch) the parity harness. Every check always runs at full strictness; there are no toggles.
+# Make `ci-ok` the only required status check on main (see .github/README.md).
+#
+# The upstream Go server is never in this repository. Every job that reads Go sources checks out
+# the commit UPSTREAM_SYNC pins into .upstream/ with scripts/fetch-upstream.sh (cached on that
+# commit), and PBS_GO_ROOT points at it. The jobs that need upstream history (the change detection
+# and the guard) read a bare mirror of upstream in the runner's temporary directory.
 name: CI
 
 on:
@@ -31,7 +36,8 @@ env:
   CARGO_TERM_COLOR: always
   CARGO_INCREMENTAL: "0"
   RUST_BACKTRACE: "1"
-  UPSTREAM_URL: https://github.com/prebid/prebid-server.git
+  PBS_UPSTREAM_URL: https://github.com/prebid/prebid-server.git
+  PBS_GO_ROOT: ${{ github.workspace }}/.upstream
   UPSTREAM_BRANCH: master
   BASE_BRANCH: main
   PORT_BRANCH: port/upstream-sync
@@ -51,12 +57,17 @@ jobs:
       adapter_dirs: ${{ steps.diff.outputs.adapter_dirs }}
       port_pr: ${{ steps.diff.outputs.port_pr }}
       parity_harness: ${{ steps.diff.outputs.parity_harness }}
+      full_history: ${{ steps.diff.outputs.full_history }}
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
           persist-credentials: false
+      - name: Mirror upstream
+        run: |
+          mirror=$(.github/port/scripts/upstream-mirror.sh "${RUNNER_TEMP}/upstream.git")
+          printf 'UPSTREAM_GIT=%s\n' "${mirror}" >> "${GITHUB_ENV}"
       - name: Compare
         id: diff
         env:
@@ -71,10 +82,11 @@ jobs:
           PUSH_BEFORE: ${{ github.event.before }}
           MG_BASE: ${{ github.event.merge_group.base_sha }}
           MG_HEAD: ${{ github.event.merge_group.head_sha }}
+          MG_BASE_REF: ${{ github.event.merge_group.base_ref }}
         run: .github/port/scripts/ci-changes.sh
 
   guard:
-    name: Fork invariants
+    name: Repository invariants
     needs: changes
     runs-on: ubuntu-24.04
     timeout-minutes: 10
@@ -84,25 +96,32 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
-      - name: Fetch upstream
-        run: git fetch --no-tags "${UPSTREAM_URL}" "+refs/heads/${UPSTREAM_BRANCH}:refs/remotes/upstream/${UPSTREAM_BRANCH}"
-      - name: Check the fork invariants
+      - name: Mirror upstream
+        run: |
+          mirror=$(.github/port/scripts/upstream-mirror.sh "${RUNNER_TEMP}/upstream.git")
+          printf 'UPSTREAM_GIT=%s\n' "${mirror}" >> "${GITHUB_ENV}"
+      - name: Check the repository invariants (no upstream file, pin, attribution)
         env:
           BASE: ${{ needs.changes.outputs.base }}
           HEAD_SHA: ${{ needs.changes.outputs.head }}
           ADAPTER_DIRS: ${{ needs.changes.outputs.adapter_dirs }}
           PORT_PR: ${{ needs.changes.outputs.port_pr }}
           PARITY_HARNESS: ${{ needs.changes.outputs.parity_harness }}
+          FULL_HISTORY: ${{ needs.changes.outputs.full_history }}
           PR_TITLE: ${{ github.event.pull_request.title }}
           PR_BODY: ${{ github.event.pull_request.body }}
         run: |
           printf '%s\n%s\n' "${PR_TITLE:-}" "${PR_BODY:-}" > "${RUNNER_TEMP}/pr-text.txt"
-          args=(--ref "${HEAD_SHA}" --base "${BASE}" --strict-dirs "${ADAPTER_DIRS}" --pr-text "${RUNNER_TEMP}/pr-text.txt")
+          args=(--ref "${HEAD_SHA}" --base "${BASE}" --upstream "${UPSTREAM_GIT}" --strict-dirs "${ADAPTER_DIRS}"
+            --pr-text "${RUNNER_TEMP}/pr-text.txt")
           if [[ "${PORT_PR}" == true ]]; then
             args+=(--bot --allow-human)
           fi
           if [[ "${PARITY_HARNESS}" == true ]]; then
             args+=(--parity-harness)
+          fi
+          if [[ "${FULL_HISTORY}" == true ]]; then
+            args+=(--full-history)
           fi
           .github/port/scripts/guard.sh "${args[@]}"
 
@@ -110,9 +129,6 @@ jobs:
     name: rustfmt
     runs-on: ubuntu-24.04
     timeout-minutes: 15
-    defaults:
-      run:
-        working-directory: rust
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -130,9 +146,6 @@ jobs:
     name: clippy
     runs-on: ubuntu-24.04
     timeout-minutes: 40
-    defaults:
-      run:
-        working-directory: rust
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -143,18 +156,17 @@ jobs:
       - name: Cache
         uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
-          workspaces: rust -> target
+          workspaces: ". -> target"
           save-if: ${{ github.ref == 'refs/heads/main' }}
       - name: cargo clippy
         run: cargo clippy --workspace --all-targets --locked -- -D warnings
+      - name: cargo clippy --all-features
+        run: cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
 
   rust-doc:
     name: rustdoc
     runs-on: ubuntu-24.04
     timeout-minutes: 30
-    defaults:
-      run:
-        working-directory: rust
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -165,36 +177,54 @@ jobs:
       - name: Cache
         uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
-          workspaces: rust -> target
+          workspaces: ". -> target"
           save-if: ${{ github.ref == 'refs/heads/main' }}
       - name: cargo doc
         env:
           RUSTDOCFLAGS: -D warnings
         run: cargo doc --workspace --no-deps --locked
+      - name: cargo doc --all-features
+        env:
+          RUSTDOCFLAGS: -D warnings
+        run: cargo doc --workspace --no-deps --all-features --locked
 
   rust-test:
     name: cargo test
     runs-on: ubuntu-24.04
     timeout-minutes: 60
-    defaults:
-      run:
-        working-directory: rust
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      - name: Pinned upstream commit
+        id: pin
+        run: .github/port/scripts/upstream-pin.sh
+      - name: Restore the upstream checkout
+        id: upstream
+        uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: .upstream
+          key: upstream-${{ steps.pin.outputs.sha }}
+      - name: Fetch upstream
+        run: scripts/fetch-upstream.sh
+      - name: Save the upstream checkout
+        if: steps.upstream.outputs.cache-hit != 'true' && github.ref == 'refs/heads/main'
+        uses: actions/cache/save@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: .upstream
+          key: upstream-${{ steps.pin.outputs.sha }}
       - name: Install the toolchain from rust-toolchain.toml
         run: rustup toolchain install
       - name: Cache
         uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
-          workspaces: rust -> target
+          workspaces: ". -> target"
           save-if: ${{ github.ref == 'refs/heads/main' }}
       - name: cargo test
-        env:
-          PBS_GO_ROOT: ${{ github.workspace }}
         run: cargo test --workspace --locked
+      - name: cargo test --all-features
+        run: cargo test --workspace --all-features --locked
 
   conformance:
     name: Go fixture conformance
@@ -206,17 +236,32 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      - name: Pinned upstream commit
+        id: pin
+        run: .github/port/scripts/upstream-pin.sh
+      - name: Restore the upstream checkout
+        id: upstream
+        uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: .upstream
+          key: upstream-${{ steps.pin.outputs.sha }}
+      - name: Fetch upstream
+        run: scripts/fetch-upstream.sh
+      - name: Save the upstream checkout
+        if: steps.upstream.outputs.cache-hit != 'true' && github.ref == 'refs/heads/main'
+        uses: actions/cache/save@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: .upstream
+          key: upstream-${{ steps.pin.outputs.sha }}
       - name: Install the toolchain from rust-toolchain.toml
-        working-directory: rust
         run: rustup toolchain install
       - name: Cache
         uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
-          workspaces: rust -> target
+          workspaces: ". -> target"
           save-if: ${{ github.ref == 'refs/heads/main' }}
       - name: Replay the Go adapter fixtures against Rust
         env:
-          PBS_GO_ROOT: ${{ github.workspace }}
           STRICT_DIRS: ${{ needs.changes.outputs.adapter_dirs }}
           CONFORMANCE_REQUIRED: ${{ vars.CONFORMANCE_REQUIRED == 'true' }}
         run: |
@@ -235,32 +280,82 @@ jobs:
     name: Generated files match Go
     runs-on: ubuntu-24.04
     timeout-minutes: 30
-    defaults:
-      run:
-        working-directory: rust
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          fetch-depth: 0
           persist-credentials: false
+      - name: Pinned upstream commit
+        id: pin
+        run: .github/port/scripts/upstream-pin.sh
+      - name: Restore the upstream checkout
+        id: upstream
+        uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: .upstream
+          key: upstream-${{ steps.pin.outputs.sha }}
+      - name: Fetch upstream
+        run: scripts/fetch-upstream.sh
+      - name: Save the upstream checkout
+        if: steps.upstream.outputs.cache-hit != 'true' && github.ref == 'refs/heads/main'
+        uses: actions/cache/save@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: .upstream
+          key: upstream-${{ steps.pin.outputs.sha }}
       - name: Go version of the upstream Dockerfile
         id: go
-        run: '"${GITHUB_WORKSPACE}/.github/port/scripts/go-version.sh"'
+        run: .github/port/scripts/go-version.sh
       - name: Install Go
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version: ${{ steps.go.outputs.version }}
-          cache-dependency-path: go.sum
+          cache-dependency-path: "crates/**/go.sum"
       - name: Install the toolchain from rust-toolchain.toml
         run: rustup toolchain install
       - name: Cache
         uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
-          workspaces: rust -> target
+          workspaces: ". -> target"
           save-if: ${{ github.ref == 'refs/heads/main' }}
       - name: pbs-devtools all --check
         run: cargo run -p pbs-devtools --locked -- all --check
+
+  go-tooling:
+    name: Go tooling
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Pinned upstream commit
+        id: pin
+        run: .github/port/scripts/upstream-pin.sh
+      - name: Restore the upstream checkout
+        id: upstream
+        uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: .upstream
+          key: upstream-${{ steps.pin.outputs.sha }}
+      - name: Fetch upstream
+        run: scripts/fetch-upstream.sh
+      - name: Save the upstream checkout
+        if: steps.upstream.outputs.cache-hit != 'true' && github.ref == 'refs/heads/main'
+        uses: actions/cache/save@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: .upstream
+          key: upstream-${{ steps.pin.outputs.sha }}
+      - name: Go version of the upstream Dockerfile
+        id: go
+        run: .github/port/scripts/go-version.sh
+      - name: Install Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: ${{ steps.go.outputs.version }}
+          cache-dependency-path: "crates/**/go.sum"
+      - name: gofmt -s, go build and go test of every Go tooling module
+        run: .github/port/scripts/go-tooling.sh
 
   lint-policy:
     name: No lint suppression
@@ -276,9 +371,9 @@ jobs:
         with:
           tool: taplo@0.10.0
       - name: Scan for suppressions
-        run: rust/scripts/check-no-lint-suppression.sh
+        run: scripts/check-no-lint-suppression.sh
       - name: Scanner self-tests
-        run: rust/scripts/tests/run.sh
+        run: scripts/tests/run.sh
 
   lint-config:
     name: Workflows, scripts and TOML
@@ -289,13 +384,10 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - name: Go version of the upstream Dockerfile
-        id: go
-        run: '"${GITHUB_WORKSPACE}/.github/port/scripts/go-version.sh"'
-      - name: Install Go
+      - name: Install Go (to build actionlint)
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
-          go-version: ${{ steps.go.outputs.version }}
+          go-version-file: crates/devtools/go/go.mod
           cache: false
       - name: Install shellcheck and taplo
         uses: taiki-e/install-action@ab49d3c64680143e184118bed66a46419fc15519 # v2.90.5
@@ -307,10 +399,9 @@ jobs:
           GOFLAGS: ""
         run: go install github.com/rhysd/actionlint/cmd/actionlint@v1.7.12
       - name: taplo fmt --check
-        working-directory: rust
         run: taplo fmt --check --config taplo.toml
       - name: shellcheck (every optional check, style severity)
-        run: rust/scripts/lint-shell.sh
+        run: scripts/lint-shell.sh
       - name: actionlint (with shellcheck at the same strictness)
         env:
           SHELLCHECK_OPTS: --enable=all --severity=style
@@ -328,6 +419,15 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
+      - name: Mirror upstream (the classifier tests read real upstream commits)
+        run: |
+          mirror=$(.github/port/scripts/upstream-mirror.sh "${RUNNER_TEMP}/upstream.git")
+          printf 'PORT_TESTS_UPSTREAM_GIT=%s\n' "${mirror}" >> "${GITHUB_ENV}"
+      - name: Install Go (the module sync test runs go mod tidy against a local module proxy)
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: crates/devtools/go/go.mod
+          cache: false
       - name: Run the tests
         run: .github/port/tests/run-all.sh
 
@@ -335,9 +435,6 @@ jobs:
     name: cargo-deny
     runs-on: ubuntu-24.04
     timeout-minutes: 15
-    defaults:
-      run:
-        working-directory: rust
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -356,9 +453,6 @@ jobs:
     name: Unused dependencies
     runs-on: ubuntu-24.04
     timeout-minutes: 10
-    defaults:
-      run:
-        working-directory: rust
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -373,31 +467,6 @@ jobs:
       - name: cargo machete
         run: scripts/cargo-machete.sh
 
-  go-lint:
-    name: Fork-authored Go
-    runs-on: ubuntu-24.04
-    timeout-minutes: 20
-    steps:
-      - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-      - name: Go version of the upstream Dockerfile
-        id: go
-        run: '"${GITHUB_WORKSPACE}/.github/port/scripts/go-version.sh"'
-      - name: Install Go
-        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
-        with:
-          go-version: ${{ steps.go.outputs.version }}
-          cache-dependency-path: go.sum
-      - name: Install golangci-lint
-        uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a # v9.3.0
-        with:
-          version: v2.15.0
-          install-only: true
-      - name: gofmt -s, go vet and golangci-lint (every linter, no exclusions)
-        run: rust/scripts/lint-go.sh
-
   parity:
     name: Parity harness
     needs: changes
@@ -410,23 +479,44 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
+      - name: Pinned upstream commit
+        id: pin
+        run: .github/port/scripts/upstream-pin.sh
+      - name: Restore the upstream checkout
+        id: upstream
+        uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: .upstream
+          key: upstream-${{ steps.pin.outputs.sha }}
+      - name: Fetch upstream
+        run: scripts/fetch-upstream.sh
+      # The parity harness runs only for the parity-harness branch, whose caches main's jobs never
+      # see, so it saves the checkout for that branch itself (keyed on the pinned commit, like
+      # main's): a push to it saves, and its pull requests and later pushes restore.
+      - name: Save the upstream checkout
+        if: steps.upstream.outputs.cache-hit != 'true' && github.ref == 'refs/heads/parity-harness'
+        uses: actions/cache/save@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: .upstream
+          key: upstream-${{ steps.pin.outputs.sha }}
       - name: Go version of the upstream Dockerfile
         id: go
-        run: '"${GITHUB_WORKSPACE}/.github/port/scripts/go-version.sh"'
+        run: .github/port/scripts/go-version.sh
       - name: Install Go
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version: ${{ steps.go.outputs.version }}
-          cache-dependency-path: go.sum
+          cache-dependency-path: |
+            .upstream/go.sum
+            crates/**/go.sum
       - name: Install the toolchain from rust-toolchain.toml
-        working-directory: rust
         run: rustup toolchain install
       - name: Cache
         uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
-          workspaces: rust -> target
+          workspaces: ". -> target"
           save-if: false
-      - name: Run the parity harness
+      - name: Run the parity harness (pinned upstream + parity/ + the seams patch, assembled)
         env:
           GOFLAGS: ""
         run: .github/port/scripts/ci-parity.sh
@@ -435,14 +525,14 @@ jobs:
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: parity-out
-          path: parity/out
+          path: ${{ runner.temp }}/parity-go/parity/out
           retention-days: 14
           if-no-files-found: ignore
 
   ci-ok:
     name: ci-ok
     if: always()
-    needs: [changes, guard, rust-fmt, rust-clippy, rust-doc, rust-test, conformance, devtools, lint-policy, lint-config, port-tests, deny, machete, go-lint, parity]
+    needs: [changes, guard, rust-fmt, rust-clippy, rust-doc, rust-test, conformance, devtools, go-tooling, lint-policy, lint-config, port-tests, deny, machete, parity]
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:

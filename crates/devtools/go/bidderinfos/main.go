@@ -98,7 +98,7 @@ func main() {
 	}
 
 	out := output{
-		Generator: "pbs-devtools go-dump bidder-infos (rust/crates/devtools/go/bidderinfos)",
+		Generator: "pbs-devtools go-dump bidder-infos (crates/devtools/go/bidderinfos)",
 		GoCommit:  opts.GoCommit,
 		Notes: []string{
 			"bidder_infos is cfg.BidderInfos after main.go's startup path with no host config; it equals LoadBidderInfoFromDisk's result (checked).",

@@ -1,16 +1,19 @@
-# Daily upstream port: merge the next chunk of upstream prebid/prebid-server commits and port them
-# to rust/ with agent sessions (port, adversarial review, fix), then publish the result as the one
-# port pull request. See .github/README.md for the design, the secrets and the runbook.
+# Daily upstream port: advance the pin (UPSTREAM_SYNC) over the next chunk of upstream
+# prebid/prebid-server commits and port them to the Rust crates with agent sessions (port,
+# adversarial review, fix), then publish the result as the one port pull request. Upstream code is
+# fetched, never committed: the port job checks the old and the new pin out next to the work tree.
+# See .github/README.md for the design, the secrets and the runbook.
 #
 # Trust boundaries
-#   plan     read-only token, no agents; decides the run from git, pull request and CI state, and
-#            stages the default branch's .github/port tooling for the port job
+#   plan     read-only token, no agents; decides the run from git, the upstream mirror, pull
+#            request and CI state, and stages the default branch's tooling (.github/port and
+#            scripts/fetch-upstream.sh) for the port job
 #   port     read-only contents token and no push credential on the runner, checkout without
-#            persisted credentials, agents limited by an allow list, a deny list and offline
-#            cargo/go after a prefetch step; produces a git bundle
+#            persisted credentials, the upstream trees read-only, agents limited by an allow list,
+#            a deny list and offline cargo/go after a prefetch step; produces a git bundle
 #   publish  a fresh runner with the default branch's tooling and the only push credential (GitHub
-#            App token or PORT_PUSH_TOKEN); it runs the git-only guard on the bundle and never
-#            builds or runs code from it
+#            App token or PORT_PUSH_TOKEN); it runs the git-only guard on the bundle against a fresh
+#            upstream mirror and never builds or runs code from it
 name: Upstream port
 
 on:
@@ -19,9 +22,9 @@ on:
   workflow_dispatch:
     inputs:
       mode:
-        description: "auto decides from the pull request and CI state; advance and repair force a mode; merge-only merges without agents; dry-run publishes nothing"
+        description: "auto decides from the pull request and CI state; advance and repair force a mode; pin-only advances the pin without agents; dry-run publishes nothing"
         type: choice
-        options: [auto, advance, repair, merge-only, dry-run]
+        options: [auto, advance, repair, pin-only, dry-run]
         default: auto
       max_commits:
         description: "Most upstream commits in this chunk (blank: vars.PORT_MAX_COMMITS or 3)"
@@ -43,7 +46,7 @@ defaults:
     shell: bash
 
 env:
-  UPSTREAM_URL: https://github.com/prebid/prebid-server.git
+  PBS_UPSTREAM_URL: https://github.com/prebid/prebid-server.git
   UPSTREAM_BRANCH: master
   BASE_BRANCH: main
   PORT_BRANCH: port/upstream-sync
@@ -73,6 +76,7 @@ jobs:
       pr_number: ${{ steps.plan.outputs.pr_number }}
       base_sha: ${{ steps.plan.outputs.base_sha }}
       target_sha: ${{ steps.plan.outputs.target_sha }}
+      target_version: ${{ steps.plan.outputs.target_version }}
       adapter_dirs: ${{ steps.plan.outputs.adapter_dirs }}
       needs_claude: ${{ steps.plan.outputs.needs_claude }}
       budget_class: ${{ steps.plan.outputs.budget_class }}
@@ -83,8 +87,10 @@ jobs:
           ref: ${{ env.BASE_BRANCH }}
           fetch-depth: 0
           persist-credentials: false
-      - name: Fetch upstream
-        run: git fetch --no-tags "${UPSTREAM_URL}" "+refs/heads/${UPSTREAM_BRANCH}:refs/remotes/upstream/${UPSTREAM_BRANCH}"
+      - name: Mirror upstream
+        run: |
+          mirror=$(.github/port/scripts/upstream-mirror.sh "${RUNNER_TEMP}/upstream.git")
+          printf 'UPSTREAM_GIT=%s\n' "${mirror}" >> "${GITHUB_ENV}"
       - name: Compute the plan
         id: plan
         env:
@@ -97,7 +103,7 @@ jobs:
           OUT_DIR: ${{ runner.temp }}/port-plan
         run: .github/port/scripts/plan.sh
       - name: Stage the default branch's tooling (a tar keeps the executable bits)
-        run: tar -C .github -cf "${RUNNER_TEMP}/port-plan/tooling.tar" port
+        run: tar -cf "${RUNNER_TEMP}/port-plan/tooling.tar" .github/port scripts/fetch-upstream.sh
       - name: Upload the plan
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
@@ -128,6 +134,7 @@ jobs:
       ACTION: ${{ needs.plan.outputs.action }}
       BASE_SHA: ${{ needs.plan.outputs.base_sha }}
       TARGET_SHA: ${{ needs.plan.outputs.target_sha }}
+      PIN_VERSION: ${{ needs.plan.outputs.target_version }}
       WORK_SHA: ${{ needs.plan.outputs.work_sha }}
       PR_NUMBER: ${{ needs.plan.outputs.pr_number }}
       ADAPTER_DIRS: ${{ needs.plan.outputs.adapter_dirs }}
@@ -166,35 +173,39 @@ jobs:
         run: |
           mkdir -p "${RUNNER_TEMP}/tooling" "${RUNNER_TEMP}/port-ctx"
           tar -C "${RUNNER_TEMP}/tooling" -xf "${RUNNER_TEMP}/port-plan/tooling.tar"
+          tooling="${RUNNER_TEMP}/tooling/.github/port/scripts"
+          mirror=$("${tooling}/upstream-mirror.sh" "${RUNNER_TEMP}/upstream.git")
           {
-            printf 'T=%s\n' "${RUNNER_TEMP}/tooling/port/scripts"
+            printf 'T=%s\n' "${tooling}"
             printf 'CTX=%s\n' "${RUNNER_TEMP}/port-ctx"
             printf 'PLAN_DIR=%s\n' "${RUNNER_TEMP}/port-plan"
-            printf 'PBS_GO_ROOT=%s\n' "${GITHUB_WORKSPACE}"
+            printf 'UPSTREAM_GIT=%s\n' "${mirror}"
+            printf 'PBS_GO_ROOT=%s\n' "${GITHUB_WORKSPACE}/.upstream"
+            printf 'OLD_GO_ROOT=%s\n' "${RUNNER_TEMP}/upstream-old"
+            printf 'PROBE_ROOT=%s\n' "${RUNNER_TEMP}/upstream-probe"
             printf 'WORK_BRANCH=port-work\n'
           } >> "${GITHUB_ENV}"
           git switch -c port-work
-          git fetch --no-tags "${UPSTREAM_URL}" "+refs/heads/${UPSTREAM_BRANCH}:refs/remotes/upstream/${UPSTREAM_BRANCH}"
-      - name: Merge the default branch and the upstream chunk
+      - name: Merge the default branch
         run: |
           if ! git merge-base --is-ancestor "refs/remotes/origin/${BASE_BRANCH}" HEAD; then
             git merge --no-ff --no-verify -m "Merge ${BASE_BRANCH} into ${PORT_BRANCH}" "refs/remotes/origin/${BASE_BRANCH}"
           fi
-          if [[ "${ACTION}" == advance ]]; then
-            "${T}/merge-upstream.sh" "${TARGET_SHA}"
-          fi
-          merged=$(git rev-parse HEAD)
-          printf 'MERGED_SHA=%s\n' "${merged}" >> "${GITHUB_ENV}"
+          start=$(git rev-parse HEAD)
+          printf 'START_SHA=%s\n' "${start}" >> "${GITHUB_ENV}"
+      - name: Check out the upstream trees (old pin, new pin, probe tree)
+        run: '"${T}/prepare-trees.sh"'
+      - name: Advance the pin (UPSTREAM_SYNC and the Go tooling modules)
+        run: '"${T}/advance-pin.sh" "${TARGET_SHA}" "${PIN_VERSION}"'
       - name: Go version of the upstream Dockerfile
         id: go
         run: '"${T}/go-version.sh"'
-      - name: Install Go
+      - name: Install Go (no cache, so nothing the agents touch is saved)
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version: ${{ steps.go.outputs.version }}
-          cache-dependency-path: go.sum
+          cache: false
       - name: Install the Rust toolchains (rust-toolchain.toml and the rustfmt nightly)
-        working-directory: rust
         run: |
           rustup toolchain install
           toolchain=$(scripts/rustfmt-toolchain.sh)
@@ -206,15 +217,23 @@ jobs:
       - name: Cache
         uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
-          workspaces: rust -> target
+          workspaces: ". -> target"
           shared-key: upstream-port
           cache-on-failure: "true"
       - name: Build the porting context
         run: '"${T}/build-context.sh"'
+      - name: Sync the Go tooling modules with the new pin's go.mod (network, before the agents)
+        run: '"${T}/sync-go-modules.sh" --out "${CTX}"'
       - name: Prefetch dependencies (the last network use before the agents)
         run: |
-          (cd rust && cargo fetch --locked)
-          go mod download
+          cargo fetch --locked
+          (cd "${PBS_GO_ROOT}" && go mod download)
+          modules=$(find crates -name target -prune -o -type f -name go.mod -print)
+          while IFS= read -r gomod; do
+            if [[ -n "${gomod}" ]]; then
+              (cd "${gomod%/go.mod}" && go mod download)
+            fi
+          done <<< "${modules}"
       - name: Gates before the agents
         id: before
         run: |
@@ -312,7 +331,7 @@ jobs:
           FIX_JSON: ${{ steps.claude_fix.outputs.structured_output }}
         run: |
           "${T}/commit.sh"
-          "${T}/guard.sh" --bot --ref HEAD --base "${WORK_SHA}" --strict-dirs "${ADAPTER_DIRS}"
+          "${T}/guard.sh" --bot --ref HEAD --base "${WORK_SHA}" --upstream "${UPSTREAM_GIT}" --strict-dirs "${ADAPTER_DIRS}"
       - name: Package the result
         env:
           PORT_JSON: ${{ steps.claude_port.outputs.structured_output }}
@@ -340,7 +359,7 @@ jobs:
           done
           if [[ "${ACTION}" == advance ]]; then
             count=$(jq -r '.commits | length' "${CTX}/plan.json")
-            tail -n "${count}" rust/upstream-port-log.jsonl > "${out}/port-log.jsonl"
+            tail -n "${count}" upstream-port-log.jsonl > "${out}/port-log.jsonl"
           fi
           printf '%s' "${PORT_JSON:-}" > "${out}/port-result.json"
           printf '%s' "${REVIEW_JSON:-}" > "${out}/review-result.json"
@@ -355,6 +374,14 @@ jobs:
           path: ${{ runner.temp }}/out
           retention-days: 14
           if-no-files-found: error
+      - name: Make the upstream trees writable again
+        if: always()
+        run: |
+          for tree in "${OLD_GO_ROOT:-}" "${PBS_GO_ROOT:-}"; do
+            if [[ -n "${tree}" && -d "${tree}" ]]; then
+              chmod -R u+w "${tree}"
+            fi
+          done
 
   publish:
     name: Publish
@@ -424,14 +451,14 @@ jobs:
       - name: Import the bundle and run the authoritative guard
         if: env.PORT_RESULT == 'success'
         run: |
-          git fetch --no-tags "${UPSTREAM_URL}" "+refs/heads/${UPSTREAM_BRANCH}:refs/remotes/upstream/${UPSTREAM_BRANCH}"
           if [[ -f "${RUNNER_TEMP}/result/no-changes" ]]; then
             printf 'NO_CHANGES=1\n' >> "${GITHUB_ENV}"
             exit 0
           fi
+          mirror=$(.github/port/scripts/upstream-mirror.sh "${RUNNER_TEMP}/upstream.git")
           git bundle verify "${RUNNER_TEMP}/result/port.bundle"
           git fetch --no-tags "${RUNNER_TEMP}/result/port.bundle" "+refs/heads/port-work:refs/port/new"
-          .github/port/scripts/guard.sh --bot --ref refs/port/new --base "${WORK_SHA}" \
+          .github/port/scripts/guard.sh --bot --ref refs/port/new --base "${WORK_SHA}" --upstream "${mirror}" \
             --strict-dirs "${ADAPTER_DIRS}" --pr-text "${RUNNER_TEMP}/result/report.md"
       - name: Push the port branch (never the default branch)
         if: env.PORT_RESULT == 'success' && env.NO_CHANGES != '1'

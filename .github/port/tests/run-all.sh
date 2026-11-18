@@ -1,9 +1,14 @@
 #!/usr/bin/env bash
 # run-all.sh: run every .github/port/tests/test_*.sh in its own bash process (the bash running this
-# script) and fail when any of them fails. Each test builds its fixtures in a temporary directory
-# with git isolated from the user's configuration; nothing outside it is changed. Requires bash 4.4
-# or newer, git, jq and perl, and the full history of this repository (test_classify and
-# test_guard read real upstream commits).
+# script) and fail when any of them fails. Each test builds its fixtures, fake upstream repositories
+# included, in a temporary directory with git isolated from the user's configuration, and runs from
+# that directory; nothing outside it is changed. Requires bash 4.4 or newer, git, jq, perl and Go
+# (test_sync_go_modules runs go mod tidy against a module proxy it makes, with no network).
+#
+# test_classify and test_guard also check real upstream commits: PORT_TESTS_UPSTREAM_GIT must name
+# a git directory with the prebid/prebid-server history (CI sets it to the bare mirror that
+# .github/port/scripts/upstream-mirror.sh makes; locally, make one the same way or point it at any
+# clone). Without it those checks fail.
 #
 # Usage: .github/port/tests/run-all.sh [NAME...]   (NAME: a test without test_ and .sh)
 set -euo pipefail

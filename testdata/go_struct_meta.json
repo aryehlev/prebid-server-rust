@@ -1,5 +1,5 @@
 {
-  "generator": "pbs-devtools go-dump struct-meta (rust/crates/devtools/go/structmeta)",
+  "generator": "pbs-devtools go-dump struct-meta (crates/devtools/go/structmeta)",
   "go_commit": "4e296450de2fcc62741340b2e5f7d1df6c1744a5",
   "notes": ["packages sorted by import path; types sorted by name; fields in declaration order; consts in source order.","go_name and every type string are reflect.Type.String() (package name, not path), the spelling jsoniter/encoding/json use in errors.","json is the parsed `json` tag (null when absent); name is empty when the tag gives none or encoding/json would reject it; skip is the `json:\"-\"` case.","marshalers lists json.Marshaler/json.Unmarshaler/encoding.TextMarshaler/encoding.TextUnmarshaler implemented by T or *T.","consts are the exported typed constants (explicitly typed or via implicit repetition in a const block)."],
   "packages": [

@@ -43,7 +43,7 @@ func main() {
 	hdr := header{
 		GoVersion:     runtime.Version(),
 		GoGDPRVersion: goGDPRVersion(),
-		Generator:     "rust/crates/tcf2/testdata/go",
+		Generator:     "crates/tcf2/testdata/go",
 	}
 
 	gogdpr := readLines(filepath.Join(corpusDir, "corpus_gogdpr.txt"))

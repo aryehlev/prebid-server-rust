@@ -1,20 +1,27 @@
 #!/usr/bin/env bash
 # The upstream-port workflow end to end. The run: blocks of .github/workflows/upstream-port.yml,
-# of ci.yml (the changes and guard jobs) and of parity-harness-sync.yml are extracted by step name
-# and run in order the way the runner runs them: bash --noprofile --norc -eo pipefail, the job env,
-# GITHUB_ENV and GITHUB_OUTPUT files, a fresh clone of a bare origin for every job, artifacts copied
-# between jobs, and a step after a failed one skipped. The agent sessions are fake (they edit the
-# work tree and return structured output), cargo, taplo and go are fake, and gh is gh-shim.sh.
+# of ci.yml (the change detection, the guard and the Go tooling job) and of
+# parity-harness-sync.yml are extracted by step name and run in order the way the runner runs
+# them: bash --noprofile --norc -eo pipefail, the job env, GITHUB_ENV and GITHUB_OUTPUT files, a
+# fresh clone of a bare origin for every job, artifacts copied between jobs, and a step after a
+# failed one skipped (an if: always() step still runs). The agent sessions are fake (they edit the
+# work tree and return structured output); cargo, go, gofmt and taplo are fake; gh is gh-shim.sh;
+# upstream is a local repository that the workflows mirror and check out with
+# scripts/fetch-upstream.sh, exactly as they would the real one.
 #
-# One scheduled run is a "day". The story: no new upstream commits; a small Go change with upstream
-# changes to .github and agent configuration, an upstream file deletion and an upstream commit with
-# Claude trailers, ported by a misbehaving agent; a conflict with main that rebuilds the branch; a
-# huge change split into chunks (a fixture, a heavy core commit, a commit with too many Go lines);
-# a red port that is repaired twice without finding anything and escalates; a person fixing the
-# branch; a conflict with main on a branch that carries a person's commit; merging the pull request;
-# agents that never report; dry-run and merge-only modes; a publish that fails after pushing, the
-# next day's restart and the re-run of the failed job; a failed port job; and the parity-harness
-# sync, clean and conflicting.
+# One scheduled run is a "day". The story: no new upstream commits; a session that copies,
+# symlinks, hard-links and vendors upstream code into the crates and nests a repository there (the
+# guard fails the port job) and one that changes a read-only
+# upstream tree (check-worktree.sh fails it); a small Go change, with upstream agent configuration
+# and an upstream commit carrying Claude trailers, ported by a misbehaving agent; a conflict with
+# main that rebuilds the branch; a huge change split into chunks (a fixture, a heavy core commit,
+# a commit with too many Go lines), the first after a clean merge of main; a red port that is
+# repaired twice without finding anything and escalates; a person fixing the branch; a conflict
+# with main on a branch that carries a person's commit; merging the pull request; agents that
+# never report; dry-run and pin-only modes; a publish that fails after pushing, the next day's
+# restart and the re-run of the failed job; a failed port job; and the parity-harness sync: clean,
+# a seams patch the new pin no longer fits, a person's fix, and a conflicting merge. No upstream
+# object ever enters the repository.
 set -euo pipefail
 shopt -s inherit_errexit
 # shellcheck source=lib.sh
@@ -23,6 +30,7 @@ source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 E2E="${T_ROOT}/e2e"
 mkdir -p "${E2E}/days"
 up="${E2E}/upstream"
+mirror="${E2E}/mirror.git"
 origin="${E2E}/origin.git"
 human="${E2E}/human"
 shim="${E2E}/gh"
@@ -30,6 +38,7 @@ workflows="${T_TOP}/.github/workflows"
 extractor="${E2E}/extract.pl"
 bot_name=${T_BOT_NAME}
 bot_email=${T_BOT_EMAIL}
+pin_header=$'# The upstream commit the port is pinned to.\n# Only the upstream-port workflow advances it.'
 attribution_re=$(
   # shellcheck source=../scripts/lib.sh
   source "${T_SCRIPTS}/lib.sh"
@@ -37,9 +46,11 @@ attribution_re=$(
 )
 t_gh_shim "${shim}"
 printf '[{"conclusion": "success"}]\n' > "${shim}/runs_main.json"
-export E2E_CARGO_LOG="${E2E}/cargo.log" E2E_FAIL_FETCH="${E2E}/fail-fetch" E2E_GOMODCACHE="${E2E}/gomodcache"
+export E2E_CARGO_LOG="${E2E}/cargo.log" E2E_GO_LOG="${E2E}/go.log" E2E_FAIL_FETCH="${E2E}/fail-fetch" \
+  E2E_GOMODCACHE="${E2E}/gomodcache"
 mkdir -p "${E2E_GOMODCACHE}"
 : > "${E2E_CARGO_LOG}"
+: > "${E2E_GO_LOG}"
 
 # extract.pl WORKFLOW JOB STEP: print the run: block of step STEP of job JOB (a literal block, a
 # single-quoted or a plain scalar). A block with a ${{ }} expression is refused: the runner would
@@ -89,7 +100,8 @@ EOF
 
 # Fake tools. cargo logs where it runs and what; clippy and test fail while a crate source says
 # CLIPPY_FAILS or TEST_FAILS; cargo fetch fails while ${E2E_FAIL_FETCH} exists; metadata lists no
-# go_fixtures harness.
+# go_fixtures harness. go logs its calls, answers go env GOMODCACHE and go mod edit -json, and
+# changes nothing otherwise; gofmt finds nothing to change.
 cat > "${T_ROOT}/bin/cargo" << 'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
@@ -120,18 +132,42 @@ EOF
 cat > "${T_ROOT}/bin/go" << 'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
+printf '%s | %s\n' "${PWD}" "$*" >> "${E2E_GO_LOG:?}"
 if [[ "${1:-} ${2:-}" == "env GOMODCACHE" ]]; then
   printf '%s\n' "${E2E_GOMODCACHE:?}"
 fi
+# go mod edit -json [FILE]: the go line and the requirements of a go.mod, as go prints them.
+if [[ "${1:-} ${2:-} ${3:-}" == "mod edit -json" ]]; then
+  perl -e '
+    my $file = $ARGV[0];
+    open(my $fh, "<", $file) or die "$file: $!\n";
+    my ($go, $block, @require) = ("", "");
+    while (my $line = <$fh>) {
+      $line =~ s{//.*}{};
+      $line =~ s/^\s+|\s+$//g;
+      next if $line eq "";
+      if ($block ne "") {
+        if ($line eq ")") { $block = ""; } elsif ($block eq "require") { push @require, [split /\s+/, $line]; }
+        next;
+      }
+      if ($line =~ /^go\s+(\S+)$/) { $go = $1; }
+      elsif ($line =~ /^(require|replace)\s*\($/) { $block = $1; }
+      elsif ($line =~ /^require\s+(\S+)\s+(\S+)$/) { push @require, [$1, $2]; }
+    }
+    my @items = map { "{\"Path\": \"$_->[0]\", \"Version\": \"$_->[1]\"}" } @require;
+    print "{\"Go\": \"$go\", \"Require\": [" . join(", ", @items) . "]}\n";
+  ' "${4:-go.mod}"
+fi
 EOF
+printf '#!/usr/bin/env bash\nexit 0\n' > "${T_ROOT}/bin/gofmt"
 printf '#!/usr/bin/env bash\nexit 0\n' > "${T_ROOT}/bin/taplo"
-chmod +x "${T_ROOT}/bin/cargo" "${T_ROOT}/bin/go" "${T_ROOT}/bin/taplo"
+chmod +x "${T_ROOT}/bin/cargo" "${T_ROOT}/bin/go" "${T_ROOT}/bin/gofmt" "${T_ROOT}/bin/taplo"
 
-# The fake upstream.
+# The fake upstream (branch master, tag v4.0.0 on its first commit).
 t_repo "${up}"
-t_put "${up}" main.go 'package main // v1'
-t_put "${up}" go.mod 'module github.com/prebid/prebid-server/v4'
+printf 'module github.com/prebid/prebid-server/v4\n\ngo 1.25.0\n' > "${up}/go.mod"
 t_put "${up}" Dockerfile 'RUN wget https://dl.google.com/go/go1.26.2.linux-amd64.tar.gz'
+t_put "${up}" main.go 'package main // v1'
 t_put "${up}" exchange/exchange.go 'package exchange // v1'
 t_put "${up}" adapters/foo/foo.go 'package foo // v1'
 t_put "${up}" adapters/foo/footest/exemplary/a.json '{"a": 1}'
@@ -140,39 +176,59 @@ t_put "${up}" "docs/a file.md" 'docs v1'
 t_put "${up}" .github/workflows/upstream.yml 'name: upstream'
 t_put "${up}" AGENTS.md 'upstream agents v1'
 t_put "${up}" README.md 'readme v1'
+t_put "${up}" LICENSE 'Apache License, Version 2.0 (test copy)'
 u1=$(t_commit "${up}" "Initial upstream")
+git -C "${up}" tag v4.0.0
 
-# The fork: a bare origin whose main is upstream plus the fork-owned paths (this repository's port
-# tooling, a small rust/ workspace) and a parity-harness branch that patches main.go.
+# version_of SHA: the pseudo-version of upstream commit SHA, from a mirror of the test's own.
+version_of() {
+  env PBS_UPSTREAM_URL="${up}" "${T_SCRIPTS}/upstream-mirror.sh" "${mirror}" > /dev/null 2>&1
+  env UPSTREAM_GIT="${mirror}" "${T_SCRIPTS}/pin-version.sh" "${1:?}"
+}
+u1_version=$(version_of "${u1}")
+
+# seams FROM: a parity seams patch of upstream main.go that turns the line FROM into the harness's.
+seams() {
+  printf 'diff --git a/main.go b/main.go\n--- a/main.go\n+++ b/main.go\n@@ -1 +1 @@\n-%s\n+package main // patched by the parity harness\n' \
+    "${1:?}"
+}
+
+# The repository: a bare origin whose main holds the Rust port's layout (this repository's port
+# tooling, a small workspace with a Go tooling module, the pin on u1) and no upstream file, and a
+# parity-harness branch with parity/, its seams patch and its own AGENTS.md.
 git init -q --bare "${origin}"
 git -C "${origin}" symbolic-ref HEAD refs/heads/main
-git clone -q "${up}" "${human}"
-git -C "${human}" switch -q -c main
-git -C "${human}" branch -q -D master
-git -C "${human}" remote remove origin
-git -C "${human}" remote add origin "${origin}"
-git -C "${human}" rm -q -r .github/workflows
-mkdir -p "${human}/.github" "${human}/rust/scripts"
+git init -q -b main "${human}"
+mkdir -p "${human}/.github" "${human}/scripts"
 cp -R "${T_PORT}" "${human}/.github/port"
-printf '# Last upstream commit ported to Rust.\n%s\n' "${u1}" > "${human}/rust/UPSTREAM_SYNC"
-: > "${human}/rust/upstream-port-log.jsonl"
-t_put "${human}" rust/Cargo.toml '[workspace]'
-t_put "${human}" rust/Cargo.lock 'version = 4'
-t_put "${human}" rust/taplo.toml '# taplo'
-cp "${T_TOP}/rust/rust-toolchain.toml" "${T_TOP}/rust/rustfmt.toml" "${human}/rust/"
-cp "${T_TOP}/rust/scripts/rustfmt-toolchain.sh" "${human}/rust/scripts/"
-printf '#!/usr/bin/env bash\nexit 0\n' > "${human}/rust/scripts/check-no-lint-suppression.sh"
-printf '#!/usr/bin/env bash\nexit 0\n' > "${human}/rust/scripts/cargo-machete.sh"
-chmod +x "${human}/rust/scripts/check-no-lint-suppression.sh" "${human}/rust/scripts/cargo-machete.sh"
-t_put "${human}" rust/crates/x/src/lib.rs '//! x'
-t_put "${human}" rust/conformance/known_failures.txt '# known failures'
+printf '%s\n%s\n' "${pin_header}" "${u1}" > "${human}/UPSTREAM_SYNC"
+: > "${human}/upstream-port-log.jsonl"
+printf '/target/\n/.upstream/\n' > "${human}/.gitignore"
+t_put "${human}" Cargo.toml '[workspace]'
+t_put "${human}" Cargo.lock 'version = 4'
+t_put "${human}" taplo.toml '# taplo'
+cp "${T_TOP}/rust-toolchain.toml" "${T_TOP}/rustfmt.toml" "${human}/"
+cp "${T_TOP}/scripts/rustfmt-toolchain.sh" "${T_TOP}/scripts/fetch-upstream.sh" "${human}/scripts/"
+printf '#!/usr/bin/env bash\nexit 0\n' > "${human}/scripts/check-no-lint-suppression.sh"
+printf '#!/usr/bin/env bash\nexit 0\n' > "${human}/scripts/cargo-machete.sh"
+chmod +x "${human}/scripts/check-no-lint-suppression.sh" "${human}/scripts/cargo-machete.sh"
+t_put "${human}" crates/x/src/lib.rs '//! x'
+mkdir -p "${human}/crates/x/testdata/go"
+t_go_mod crates/x/testdata/go "${u1_version}" > "${human}/crates/x/testdata/go/go.mod"
+t_put "${human}" crates/x/testdata/go/main.go 'package main // writes the goldens'
+t_put "${human}" conformance/known_failures.txt '# known failures'
+t_put "${human}" conformance/README.md 'the conformance contract'
 t_put "${human}" AGENTS.md 'fork agents'
+t_put "${human}" README.md 'the Rust port'
+cp "${up}/LICENSE" "${human}/LICENSE"
 t_commit "${human}" "Fork setup" > /dev/null
+git -C "${human}" remote add origin "${origin}"
 git -C "${human}" push -q origin main
 git -C "${human}" switch -q -c parity-harness
-t_put "${human}" main.go 'package main // patched by the parity harness'
 t_put "${human}" parity/README.md 'the parity harness'
-t_commit "${human}" "Parity harness: patch main.go" > /dev/null
+seams 'package main // v1' > "${human}/parity/upstream-seams.patch"
+t_put "${human}" AGENTS.md 'fork agents and the parity harness'
+t_commit "${human}" "Parity harness: the seams patch" > /dev/null
 git -C "${human}" push -q origin parity-harness
 git -C "${human}" switch -q main
 
@@ -209,6 +265,13 @@ github_env_args() {
   done < "${GITHUB_ENV}"
 }
 
+# env_value NAME: the value earlier steps of the job wrote to GITHUB_ENV for NAME.
+env_value() {
+  local values
+  values=$(sed -n "s/^${1:?}=//p" "${GITHUB_ENV}")
+  printf '%s\n' "${values##*$'\n'}"
+}
+
 # job NAME: a job on a fresh runner (an empty workspace, as before actions/checkout, a temporary
 # directory, GITHUB_ENV, summary).
 job() {
@@ -218,6 +281,10 @@ job() {
   GITHUB_ENV="${D}/${name}-env"
   GITHUB_STEP_SUMMARY="${D}/${name}-summary.md"
   JOB_FAILED=""
+  # A port job makes upstream trees read-only.
+  if [[ -e "${WS}" || -e "${RUNNER_TEMP}" ]]; then
+    chmod -R u+w -- "${WS}" "${RUNNER_TEMP}" 2> /dev/null || true
+  fi
   rm -rf -- "${WS}" "${RUNNER_TEMP}"
   mkdir -p "${WS}" "${RUNNER_TEMP}"
   : > "${GITHUB_ENV}"
@@ -264,28 +331,42 @@ run_step() {
   fi
 }
 
+# run_always WORKFLOW JOB STEP [VAR=VALUE...]: run_step for a step with if: always(), which also
+# runs after a failed step; JOB_FAILED keeps the first failure.
+run_always() {
+  local failed=${JOB_FAILED}
+  JOB_FAILED=""
+  run_step "$@"
+  if [[ -n "${failed}" ]]; then
+    JOB_FAILED=${failed}
+  fi
+}
+
 # out NAME: step output NAME of the last step.
 out() {
   t_output "${1:?}" "${E2E}/step-output"
 }
 
 port_workflow_env() {
-  JOB_ENV=("UPSTREAM_URL=${up}" UPSTREAM_BRANCH=master BASE_BRANCH=main PORT_BRANCH=port/upstream-sync
+  JOB_ENV=("PBS_UPSTREAM_URL=${up}" UPSTREAM_BRANCH=master BASE_BRANCH=main PORT_BRANCH=port/upstream-sync
     "RUN_MODE=${MODE}" "PORT_GIT_NAME=${bot_name}" "PORT_GIT_EMAIL=${bot_email}" "RUN_URL=${RUN_URL}")
 }
 
+# ci_workflow_env: ci.yml's workflow env for the job in ${WS}.
 ci_workflow_env() {
-  JOB_ENV=("UPSTREAM_URL=${up}" UPSTREAM_BRANCH=master BASE_BRANCH=main PORT_BRANCH=port/upstream-sync
+  JOB_ENV=(CARGO_TERM_COLOR=always CARGO_INCREMENTAL=0 RUST_BACKTRACE=1 "PBS_UPSTREAM_URL=${up}"
+    "PBS_GO_ROOT=${WS}/.upstream" UPSTREAM_BRANCH=master BASE_BRANCH=main PORT_BRANCH=port/upstream-sync
     HARNESS_BRANCH=parity-harness "PORT_GIT_EMAIL=${bot_email}" GOTOOLCHAIN=local GOFLAGS=-mod=readonly)
 }
 
 # The plan job; its outputs land in P_*.
 plan_job() {
+  local wf=upstream-port.yml
   job plan
   port_workflow_env
   checkout main
-  run_step upstream-port.yml plan "Fetch upstream"
-  run_step upstream-port.yml plan "Compute the plan" GH_TOKEN=test-token "MAX_COMMITS=${MAX_COMMITS_INPUT:-3}" \
+  run_step "${wf}" plan "Mirror upstream"
+  run_step "${wf}" plan "Compute the plan" GH_TOKEN=test-token "MAX_COMMITS=${MAX_COMMITS_INPUT:-3}" \
     MAX_PR_COMMITS=10 MAX_REPAIRS=2 MAX_GO_LINES=3000 TARGET_INPUT= "OUT_DIR=${RUNNER_TEMP}/port-plan"
   P_action=$(out action)
   P_reason=$(out reason)
@@ -295,15 +376,16 @@ plan_job() {
   P_pr_number=$(out pr_number)
   P_base_sha=$(out base_sha)
   P_target_sha=$(out target_sha)
+  P_target_version=$(out target_version)
   P_adapter_dirs=$(out adapter_dirs)
   P_needs_claude=$(out needs_claude)
   P_budget_class=$(out budget_class)
-  run_step upstream-port.yml plan "Stage the default branch's tooling (a tar keeps the executable bits)"
+  run_step "${wf}" plan "Stage the default branch's tooling (a tar keeps the executable bits)"
   if [[ -z "${JOB_FAILED}" ]]; then
     rm -rf -- "${D}/artifact-port-plan"
     cp -R "${RUNNER_TEMP}/port-plan" "${D}/artifact-port-plan"
   fi
-  run_step upstream-port.yml plan "Summary" "ACTION=${P_action}" "REASON=${P_reason}"
+  run_step "${wf}" plan "Summary" "ACTION=${P_action}" "REASON=${P_reason}"
   R_plan=ok
   if [[ -n "${JOB_FAILED}" ]]; then
     R_plan=fail
@@ -314,7 +396,7 @@ plan_job() {
 # tree as BEHAVIOUR says and sets AGENT_OUTCOME (the step outcome; the action fails without a
 # structured result) and AGENT_JSON (its structured_output).
 agent() {
-  local session=${1:?} behaviour=${2:?} lib="${WS}/rust/crates/x/src/lib.rs" status=ported evil=false
+  local session=${1:?} behaviour=${2:?} lib="${WS}/crates/x/src/lib.rs" status=ported evil=false probe vendor
   AGENT_OUTCOME=success
   AGENT_JSON=""
   printf '%s %s\n' "${session}" "${behaviour}" >> "${D}/agents.txt"
@@ -330,13 +412,41 @@ agent() {
       env GIT_AUTHOR_NAME=Claude GIT_AUTHOR_EMAIL=noreply@anthropic.com GIT_COMMITTER_NAME=Claude \
         GIT_COMMITTER_EMAIL=noreply@anthropic.com \
         git -C "${WS}" commit -q -m $'Agent commit\n\nCo-Authored-By: Claude <noreply@anthropic.com>'
-      t_put "${WS}" main.go 'package main // edited by the agent'
+      t_put "${WS}" README.md 'rewritten by the agent'
       t_put "${WS}" .claude/settings.json '{"hooks": {}}'
       t_put "${WS}" .mcp.json '{"mcpServers": {}}'
-      t_put "${WS}" rust/clippy.toml 'too-many-lines-threshold = 100000'
-      t_put "${WS}" rust/UPSTREAM_SYNC '0000000000000000000000000000000000000000'
-      printf 'adapters/foo/footest/exemplary/a.json\n' >> "${WS}/rust/conformance/known_failures.txt"
-      t_put "${WS}" adapters/foo/zz_parity_scratch_test.go 'package foo'
+      t_put "${WS}" clippy.toml 'too-many-lines-threshold = 100000'
+      t_put "${WS}" UPSTREAM_SYNC '0000000000000000000000000000000000000000'
+      printf '{"upstream": "forged"}\n' >> "${WS}/upstream-port-log.jsonl"
+      printf 'adapters/foo/footest/exemplary/a.json\n' >> "${WS}/conformance/known_failures.txt"
+      t_go_mod crates/x/testdata/go "${u1_version}" > "${WS}/crates/x/testdata/go/go.mod"
+      t_put "${WS}" crates/x/src/zz_parity_scratch_test.go 'package x'
+      probe=$(env_value PROBE_ROOT)
+      t_put "${probe}" adapters/foo/zz_parity_scratch_test.go 'package foo'
+      ;;
+    vendor)
+      # Upstream code copied into the writable paths: check-worktree.sh keeps it, the guard fails it.
+      printf '//! x ported through %s\n' "${P_target_sha:0:12}" > "${lib}"
+      cp "${WS}/.upstream/adapters/foo/foo.go" "${WS}/crates/x/src/foo.go"
+      mkdir -p "${WS}/testdata/foo"
+      cp "${WS}/.upstream/adapters/foo/footest/exemplary/a.json" "${WS}/testdata/foo/a.json"
+      ln -s ../../../.upstream "${WS}/crates/x/src/upstream"
+      vendor="${WS}/crates/x/testdata/go/vendor/github.com/prebid/prebid-server/v4"
+      mkdir -p "${vendor}"
+      cp "${WS}/.upstream/go.mod" "${vendor}/go.mod"
+      printf 'go 1.25.0\n\nuse .\n' > "${WS}/crates/x/testdata/go/go.work"
+      # A nested repository, which git stages as a gitlink, and a hard link to a file of the
+      # read-only upstream tree, which git stores as a copy of its bytes.
+      git init -q "${WS}/crates/x/nested"
+      t_put "${WS}/crates/x/nested" README.md 'a repository of its own'
+      t_commit "${WS}/crates/x/nested" "A repository of its own" > /dev/null
+      ln "${WS}/.upstream/adapters/foo/footest/exemplary/a.json" "${WS}/crates/x/testdata/a-link.json"
+      ;;
+    tamper)
+      # The session gets around the read-only new pin's tree and edits it.
+      printf '//! x ported through %s\n' "${P_target_sha:0:12}" > "${lib}"
+      chmod u+w "${WS}/.upstream" "${WS}/.upstream/main.go"
+      printf 'package main // edited by the agent\n' > "${WS}/.upstream/main.go"
       ;;
     fail)
       AGENT_OUTCOME=failure
@@ -347,11 +457,11 @@ agent() {
       return 0
       ;;
     blocking)
-      t_put "${WS}" rust/crates/x/tests/adversarial_foo.rs '//! adversarial'
+      t_put "${WS}" crates/x/tests/adversarial_foo.rs '//! adversarial'
       AGENT_JSON=$(jq -n -c '{summary: "one difference", blocking_count: 1, findings: [{severity: "blocking",
-        title: "foo drops an empty imp.ext", go_ref: "adapters/foo/foo.go:1", rust_ref: "rust/crates/x/src/lib.rs:1",
+        title: "foo drops an empty imp.ext", go_ref: "adapters/foo/foo.go:1", rust_ref: "crates/x/src/lib.rs:1",
         input: "imp.ext = {}", go_behavior: "an error", rust_behavior: "no error", evidence: "probe output"}],
-        adversarial_tests: [{path: "rust/crates/x/tests/adversarial_foo.rs", status: "fails_now"}]}')
+        adversarial_tests: [{path: "crates/x/tests/adversarial_foo.rs", status: "fails_now"}]}')
       return 0
       ;;
     repair) perl -pi -e 's/ CLIPPY_FAILS//' "${lib}" ;;
@@ -364,32 +474,37 @@ agent() {
     overall_status: $status,
     summary: (if $evil then "Ported.\nCo-Authored-By: Claude <noreply@anthropic.com>" else "fake \($session) session" end),
     commits: [.commits[] | {sha, status: (if .needs_claude then $status else "no_change_needed" end), notes: "fake"}],
-    rust_files_changed: ["rust/crates/x/src/lib.rs"],
+    rust_files_changed: ["crates/x/src/lib.rs"],
     verification: [{command: "cargo test --workspace --locked", result: "pass"}],
     not_ported: (if $evil then [{go_path: "adapters/bar/bar.go", reason: "video ~~~ ping @someone"}] else [] end),
     followups: []}' "${RUNNER_TEMP}/port-ctx/plan.json")
 }
 
-# The port job; PORT_RESULT is its result.
+# The port job; PORT_RESULT is its result and PORT_FAILED its first failed step.
 port_job() {
-  local wf=upstream-port.yml
+  local wf=upstream-port.yml after_status fix
   job port
   cp -R "${D}/artifact-port-plan" "${RUNNER_TEMP}/port-plan"
   checkout "${P_work_sha}"
   port_workflow_env
-  JOB_ENV+=("ACTION=${P_action}" "BASE_SHA=${P_base_sha}" "TARGET_SHA=${P_target_sha}" "WORK_SHA=${P_work_sha}"
-    "PR_NUMBER=${P_pr_number}" "ADAPTER_DIRS=${P_adapter_dirs}" "NEEDS_CLAUDE=${P_needs_claude}"
-    "BUDGET_CLASS=${P_budget_class}" PORT_MODEL=claude-opus-5-5 REVIEW_MODEL=claude-opus-5-5
-    PORT_FALLBACK_MODEL=claude-sonnet-5-5 PORT_BUDGET_USD=30 PORT_CORE_BUDGET_USD=60 REVIEW_BUDGET_USD=10
-    FIX_BUDGET_USD=15 "GIT_AUTHOR_NAME=${bot_name}" "GIT_AUTHOR_EMAIL=${bot_email}"
-    "GIT_COMMITTER_NAME=${bot_name}" "GIT_COMMITTER_EMAIL=${bot_email}" CLAUDE_CODE_SUBPROCESS_ENV_SCRUB=1
-    CARGO_TERM_COLOR=never CARGO_INCREMENTAL=0 RUST_BACKTRACE=1 GOTOOLCHAIN=local GOFLAGS=-mod=readonly)
+  JOB_ENV+=("ACTION=${P_action}" "BASE_SHA=${P_base_sha}" "TARGET_SHA=${P_target_sha}"
+    "PIN_VERSION=${P_target_version}" "WORK_SHA=${P_work_sha}" "PR_NUMBER=${P_pr_number}"
+    "ADAPTER_DIRS=${P_adapter_dirs}" "NEEDS_CLAUDE=${P_needs_claude}" "BUDGET_CLASS=${P_budget_class}"
+    PORT_MODEL=claude-opus-5-5 REVIEW_MODEL=claude-opus-5-5 PORT_FALLBACK_MODEL=claude-sonnet-5-5
+    PORT_BUDGET_USD=30 PORT_CORE_BUDGET_USD=60 REVIEW_BUDGET_USD=10 FIX_BUDGET_USD=15
+    "GIT_AUTHOR_NAME=${bot_name}" "GIT_AUTHOR_EMAIL=${bot_email}" "GIT_COMMITTER_NAME=${bot_name}"
+    "GIT_COMMITTER_EMAIL=${bot_email}" CLAUDE_CODE_SUBPROCESS_ENV_SCRUB=1 CARGO_TERM_COLOR=never
+    CARGO_INCREMENTAL=0 RUST_BACKTRACE=1 GOTOOLCHAIN=local GOFLAGS=-mod=readonly)
   run_step "${wf}" port "Prepare the work branch"
-  run_step "${wf}" port "Merge the default branch and the upstream chunk"
-  MERGE_LOG=${STEP_LOG}
+  run_step "${wf}" port "Merge the default branch"
+  run_step "${wf}" port "Check out the upstream trees (old pin, new pin, probe tree)"
+  run_step "${wf}" port "Advance the pin (UPSTREAM_SYNC and the Go tooling modules)"
   run_step "${wf}" port "Go version of the upstream Dockerfile"
   GO_VERSION=$(out version)
+  # Installing Go, the Rust toolchains, taplo and cargo-machete and restoring the cache are
+  # actions and downloads; the fake tools stand in for them.
   run_step "${wf}" port "Build the porting context"
+  run_step "${wf}" port "Sync the Go tooling modules with the new pin's go.mod (network, before the agents)"
   run_step "${wf}" port "Prefetch dependencies (the last network use before the agents)"
   run_step "${wf}" port "Gates before the agents"
   run_step "${wf}" port "Render the agent inputs"
@@ -398,18 +513,20 @@ port_job() {
   PORT_JSON=""
   REVIEW_JSON=""
   FIX_JSON=""
+  AFTER_LOG=""
   if [[ -z "${JOB_FAILED}" && "${RUN_CLAUDE}" == true ]]; then
     agent port "${AGENT_PORT}"
     PORT_JSON=${AGENT_JSON}
     run_step "${wf}" port "Gates after the port"
+    AFTER_LOG=${STEP_LOG}
     after_status=$(out status)
-    if [[ "${AGENT_OUTCOME}" == success ]]; then
+    if [[ -z "${JOB_FAILED}" && "${AGENT_OUTCOME}" == success ]]; then
       agent review "${AGENT_REVIEW}"
       REVIEW_JSON=${AGENT_JSON}
     fi
     run_step "${wf}" port "Decide on the fix session" "REVIEW_JSON=${REVIEW_JSON}" "AFTER_STATUS=${after_status}"
     fix=$(out fix)
-    if [[ "${fix}" == true ]]; then
+    if [[ -z "${JOB_FAILED}" && "${fix}" == true ]]; then
       agent fix "${AGENT_FIX}"
       FIX_JSON=${AGENT_JSON}
     fi
@@ -418,14 +535,18 @@ port_job() {
   FINAL_STATUS=$(out status)
   run_step "${wf}" port "Commit with the bot identity and no AI attribution" "PORT_JSON=${PORT_JSON}" \
     "FIX_JSON=${FIX_JSON}"
+  COMMIT_LOG=${STEP_LOG}
   run_step "${wf}" port "Package the result" "PORT_JSON=${PORT_JSON}" "REVIEW_JSON=${REVIEW_JSON}" \
     "FIX_JSON=${FIX_JSON}" "FINAL_STATUS=${FINAL_STATUS}" "CLAUDE_RAN=${RUN_CLAUDE}"
   if [[ -z "${JOB_FAILED}" ]]; then
     rm -rf -- "${D}/artifact-port-result"
     cp -R "${RUNNER_TEMP}/out" "${D}/artifact-port-result"
-    PORT_RESULT=success
-    R_port=ok
-  else
+  fi
+  PORT_FAILED=${JOB_FAILED}
+  run_always "${wf}" port "Make the upstream trees writable again"
+  PORT_RESULT=success
+  R_port=ok
+  if [[ -n "${JOB_FAILED}" ]]; then
     PORT_RESULT=failure
     R_port=fail
   fi
@@ -498,8 +619,11 @@ day() {
   R_port=skip
   R_publish=skip
   PORT_RESULT=skipped
+  PORT_FAILED=""
   RUN_CLAUDE=""
   FINAL_STATUS=""
+  COMMIT_LOG=""
+  AFTER_LOG=""
   plan_job
   if [[ "${R_plan}" == ok && "${P_action}" =~ ^(advance|repair)$ ]]; then
     port_job
@@ -510,36 +634,54 @@ day() {
   CALLS=$(cat "${shim}/calls.log")
 }
 
-# ci: ci.yml on the port pull request: the changes job's Compare step, the guard job, and the
-# gates standing in for the Rust jobs. ci-ok lands in the gh shim's checks.json; CI_GUARD is ok or
-# the failed step, CI_RESULT pass or fail.
+# ci: ci.yml on the port pull request: the changes job (mirror and compare), the guard job, and the
+# Go tooling job with the pinned upstream checkout, in which the gates stand in for the Rust jobs.
+# ci-ok lands in the gh shim's checks.json; CI_GUARD is ok or the failed step, CI_DIRS the adapter
+# directories, CI_RESULT pass or fail.
 ci() {
-  local wf=ci.yml head base pr title body c_base c_head c_dirs c_parity gates_status=fail
+  local wf=ci.yml head base pr title body c_base c_head c_parity go_status=fail gates_status=fail
   head=$(git -C "${origin}" rev-parse refs/heads/port/upstream-sync)
   base=$(git -C "${origin}" rev-parse refs/heads/main)
   pr=$(jq -r '.[0].number' "${shim}/prs.json")
   title=$(cat "${shim}/pr_title.txt")
   body=$(cat "${shim}/pr_body.md")
-  job ci
-  checkout "${head}"
+  job ci-changes
   ci_workflow_env
+  checkout "${head}"
+  run_step "${wf}" changes "Mirror upstream"
   run_step "${wf}" changes Compare EVENT=pull_request "REF=refs/pull/${pr}/merge" REPOSITORY=test/fork \
     "PR_BASE=${base}" "PR_HEAD=${head}" PR_HEAD_REF=port/upstream-sync PR_HEAD_REPO=test/fork BASE_REF=main
   c_base=$(out base)
   c_head=$(out head)
-  c_dirs=$(out adapter_dirs)
+  CI_DIRS=$(out adapter_dirs)
   C_PORT_PR=$(out port_pr)
   c_parity=$(out parity_harness)
-  run_step "${wf}" guard "Fetch upstream"
-  run_step "${wf}" guard "Check the fork invariants" "BASE=${c_base}" "HEAD_SHA=${c_head}" "ADAPTER_DIRS=${c_dirs}" \
-    "PORT_PR=${C_PORT_PR}" "PARITY_HARNESS=${c_parity}" "PR_TITLE=${title}" "PR_BODY=${body}"
+  job ci-guard
+  ci_workflow_env
+  checkout "${head}"
+  run_step "${wf}" guard "Mirror upstream"
+  run_step "${wf}" guard "Check the repository invariants (no upstream file, pin, attribution)" "BASE=${c_base}" \
+    "HEAD_SHA=${c_head}" "ADAPTER_DIRS=${CI_DIRS}" "PORT_PR=${C_PORT_PR}" "PARITY_HARNESS=${c_parity}" \
+    "PR_TITLE=${title}" "PR_BODY=${body}"
   CI_GUARD=${JOB_FAILED:-ok}
-  t_run_in "${WS}" .github/port/scripts/gates.sh --out "${RUNNER_TEMP}/gates.json"
+  job ci-go
+  ci_workflow_env
+  checkout "${head}"
+  run_step "${wf}" go-tooling "Pinned upstream commit"
+  run_step "${wf}" go-tooling "Fetch upstream"
+  run_step "${wf}" go-tooling "Go version of the upstream Dockerfile"
+  run_step "${wf}" go-tooling "gofmt -s, go build and go test of every Go tooling module"
+  if [[ -z "${JOB_FAILED}" ]]; then
+    go_status=pass
+  fi
+  t_run_in "${WS}" env "${JOB_ENV[@]}" .github/port/scripts/gates.sh --out "${RUNNER_TEMP}/gates.json" \
+    --strict-dirs "${CI_DIRS}" \
+    --only fmt,clippy,clippy-all-features,doc,doc-all-features,test,test-all-features,suppression,taplo,machete,devtools,conformance
   if [[ "${T_RC}" -eq 0 ]]; then
     gates_status=pass
   fi
   CI_RESULT=fail
-  if [[ "${CI_GUARD}" == ok && "${gates_status}" == pass ]]; then
+  if [[ "${CI_GUARD}" == ok && "${go_status}" == pass && "${gates_status}" == pass ]]; then
     CI_RESULT=pass
   fi
   printf '[{"name": "ci-ok", "bucket": "%s"}]\n' "${CI_RESULT}" > "${shim}/checks.json"
@@ -548,7 +690,7 @@ ci() {
     > "${shim}/runs_port_upstream-sync.json"
   printf '%s\n' "${T_OUT}" > "${shim}/run_log.txt"
   {
-    printf '::ci on %s: guard %s, gates %s\n' "${head:0:12}" "${CI_GUARD}" "${gates_status}"
+    printf '::ci on %s: guard %s, go tooling %s, gates %s\n' "${head:0:12}" "${CI_GUARD}" "${go_status}" "${gates_status}"
     printf '%s\n' "${T_OUT}"
   } >> "${D}/log.txt"
 }
@@ -556,33 +698,37 @@ ci() {
 # ci_main BEFORE: ci.yml's guard on a push to main from BEFORE (main rules).
 ci_main() {
   local wf=ci.yml c_base c_head c_dirs c_port c_parity
-  job ci-main
-  checkout main
+  job ci-main-changes
   ci_workflow_env
+  checkout main
+  run_step "${wf}" changes "Mirror upstream"
   run_step "${wf}" changes Compare EVENT=push REF=refs/heads/main REPOSITORY=test/fork "PUSH_BEFORE=${1:?}"
   c_base=$(out base)
   c_head=$(out head)
   c_dirs=$(out adapter_dirs)
   c_port=$(out port_pr)
   c_parity=$(out parity_harness)
-  run_step "${wf}" guard "Fetch upstream"
-  run_step "${wf}" guard "Check the fork invariants" "BASE=${c_base}" "HEAD_SHA=${c_head}" "ADAPTER_DIRS=${c_dirs}" \
-    "PORT_PR=${c_port}" "PARITY_HARNESS=${c_parity}" PR_TITLE= PR_BODY=
+  job ci-main-guard
+  ci_workflow_env
+  checkout main
+  run_step "${wf}" guard "Mirror upstream"
+  run_step "${wf}" guard "Check the repository invariants (no upstream file, pin, attribution)" "BASE=${c_base}" \
+    "HEAD_SHA=${c_head}" "ADAPTER_DIRS=${c_dirs}" "PORT_PR=${c_port}" "PARITY_HARNESS=${c_parity}" PR_TITLE= PR_BODY=
   CI_MAIN=${JOB_FAILED:-ok}
 }
 
-# parity_sync: parity-harness-sync.yml.
+# parity_sync: parity-harness-sync.yml. SYNC_FAILED is its failed step, SYNC_LOG the sync's output.
 parity_sync() {
   local wf=parity-harness-sync.yml
   : > "${shim}/calls.log"
   find "${shim}" -maxdepth 1 -name 'body-*.md' -delete
   job sync
-  JOB_ENV=(BASE_BRANCH=main HARNESS_BRANCH=parity-harness DRY_RUN=false "RUN_URL=${RUN_URL}"
-    "GIT_AUTHOR_NAME=${bot_name}" "GIT_AUTHOR_EMAIL=${bot_email}" "GIT_COMMITTER_NAME=${bot_name}"
-    "GIT_COMMITTER_EMAIL=${bot_email}" HAS_APP_KEY=false HAS_PUSH_TOKEN=true)
+  JOB_ENV=(BASE_BRANCH=main HARNESS_BRANCH=parity-harness "PBS_UPSTREAM_URL=${up}" DRY_RUN=false
+    "RUN_URL=${RUN_URL}" "GIT_AUTHOR_NAME=${bot_name}" "GIT_AUTHOR_EMAIL=${bot_email}"
+    "GIT_COMMITTER_NAME=${bot_name}" "GIT_COMMITTER_EMAIL=${bot_email}" HAS_APP_KEY=false HAS_PUSH_TOKEN=true)
   run_step "${wf}" sync "Require a push credential" HAS_APP_TOKEN=false
   checkout main
-  run_step "${wf}" sync "Merge and push, or report the conflict" GH_TOKEN=test-token
+  run_step "${wf}" sync "Merge, check the seams patch against the new pin, and push (or report)" GH_TOKEN=test-token
   SYNC_FAILED=${JOB_FAILED}
   SYNC_LOG=${STEP_LOG}
   CALLS=$(cat "${shim}/calls.log")
@@ -594,8 +740,7 @@ human_fetch() {
   git -C "${human}" fetch -q --prune origin
 }
 
-# human_main_commit PATH CONTENT MESSAGE: a person changes PATH on main (a merged fork pull
-# request).
+# human_main_commit PATH CONTENT MESSAGE: a person changes PATH on main (a merged pull request).
 human_main_commit() {
   human_fetch
   git -C "${human}" switch -q -C main origin/main
@@ -659,6 +804,13 @@ branch_head() {
   git -C "${origin}" rev-parse -q --verify refs/heads/port/upstream-sync || true
 }
 
+# pin_of REV: the commit UPSTREAM_SYNC pins at REV of origin.
+pin_of() {
+  local text
+  text=$(git -C "${origin}" show "${1:?}:UPSTREAM_SYNC")
+  printf '%s\n' "${text##*$'\n'}"
+}
+
 # plan_commits: the commits of the day's plan, space-separated.
 plan_commits() {
   jq -r '[.commits[].sha] | join(" ")' "${D}/artifact-port-plan/plan.json"
@@ -671,15 +823,10 @@ no_attribution() {
   check "no AI attribution in ${1:?}" "" "${hit}"
 }
 
-# fork_messages REF: the messages and identities of REF's commits that upstream does not have.
-fork_messages() {
-  git -C "${human}" log --format='%an <%ae> / %cn <%ce>%n%B' "${1:?}" --not refs/remotes/upstream-mirror/master
-}
-
-# mirror_upstream: refresh the human clone's copy of upstream (for fork_messages).
-mirror_upstream() {
-  git -C "${human}" fetch -q "${up}" "+refs/heads/master:refs/remotes/upstream-mirror/master"
-  human_fetch
+# branch_messages REF: the identities and messages of the first-parent commits of REF that main
+# does not have.
+branch_messages() {
+  git -C "${origin}" log --first-parent --format='%an <%ae> / %cn <%ce>%n%B' "${1:?}" --not refs/heads/main
 }
 
 # --- The story --------------------------------------------------------------------------------
@@ -693,11 +840,10 @@ check "nothing is pushed" $'main\nparity-harness' "${branches}"
 lacks "no pull request is touched" "${CALLS}" "pr create"
 parity_sync
 check "parity sync with nothing to merge" "" "${SYNC_FAILED}"
-contains "parity sync: nothing to merge" "${SYNC_LOG}" "already contains main"
+contains "parity sync: the seams fit the pin" "${SYNC_LOG}" "nothing to push; parity-harness fits upstream ${u1:0:12}"
 
-# A small Go change, upstream changes to .github, AGENTS.md and agent configuration, an upstream
-# file deletion and an upstream commit with Claude trailers, ported by an agent that commits, edits
-# outside rust/, adds a clippy.toml, moves the marker, adds a known failure and writes attribution.
+# A small Go change, an upstream file deletion with upstream changes to its workflows, AGENTS.md
+# and agent configuration, and a new adapter whose upstream commit carries Claude trailers.
 t_put "${up}" adapters/foo/foo.go 'package foo // v2'
 u2=$(up_commit "foo: change the adapter")
 git -C "${up}" rm -q "docs/a file.md"
@@ -711,52 +857,104 @@ t_put "${up}" adapters/bar/bartest/exemplary/a.json '{"bar": 1}'
 t_put "${up}" static/bidder-info/bar.yaml 'endpoint: "http://bar.example"'
 u4=$(up_commit $'New Adapter: Bar (#4397)\n\n\xf0\x9f\xa4\x96 Generated with [Claude Code](https://claude.ai/code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>')
 
+# A session that copies upstream code into the crates and testdata/: all of it is in the writable
+# paths, so check-worktree.sh keeps it, and the guard the commit step runs fails the port job.
+day vendor port=vendor
+jobs_are ok fail ok
+check "action" advance "${P_action}"
+check "the commit step fails" "Commit with the bot identity and no AI attribution" "${PORT_FAILED}"
+contains "the guard: Go code outside the Go tooling modules" "${COMMIT_LOG}" "Go code outside the Go tooling modules"
+contains "the guard: the copied Go file" "${COMMIT_LOG}" "crates/x/src/foo.go"
+contains "the guard: copies of upstream files" "${COMMIT_LOG}" "files byte-identical to an upstream file"
+contains "the guard: the copied fixture" "${COMMIT_LOG}" "testdata/foo/a.json"
+contains "the guard: a nested repository" "${COMMIT_LOG}" "symbolic links and submodules are not allowed: crates/x/nested (160000)"
+contains "the guard: a symbolic link" "${COMMIT_LOG}" "crates/x/src/upstream (120000)"
+contains "the guard: a hard link into the upstream tree" "${COMMIT_LOG}" "crates/x/testdata/a-link.json"
+contains "the guard: vendor/ and go.work" "${COMMIT_LOG}" "a .gitmodules, go.work or vendor/ directory brings in code from elsewhere"
+vendor_head=$(branch_head)
+check "nothing is pushed" "" "${vendor_head}"
+contains "the failure is reported" "${CALLS}" "issue create --repo test/fork --title Upstream port run failed --label port:run-failed"
+lacks "no pull request" "${CALLS}" "pr create"
+
+# A session that gets around the read-only tree of the new pin: check-worktree.sh fails the port
+# job right after the session, before anything is committed.
+day tamper port=tamper
+jobs_are ok fail ok
+check "the port job stops after the session" "Gates after the port" "${PORT_FAILED}"
+contains "the changed tree is refused" "${AFTER_LOG}" "a session changed a read-only tree"
+contains "the open failure issue is commented" "${CALLS}" "issue comment 201"
+tamper_head=$(branch_head)
+check "nothing is pushed" "" "${tamper_head}"
+# A person reads the issue and closes it.
+rm -f -- "${shim}/issues_port:run-failed.json"
+
+# The misbehaving agent commits, edits outside the writable paths, adds agent configuration and a
+# clippy.toml, moves the pin, forges a port log line, adds a known failure, sets the Go tooling
+# module back to the old version, leaves Go probes and writes attribution.
 day small port=evil
 jobs_are ok ok ok
 check "action" advance "${P_action}"
 commits=$(plan_commits)
 check "the chunk" "${u2} ${u3} ${u4}" "${commits}"
 check "adapter directories" "bar,foo" "${P_adapter_dirs}"
-check "the Go version comes from the upstream Dockerfile" 1.26.2 "${GO_VERSION}"
+u4_version=$(version_of "${u4}")
+check "the version of the new pin" "${u4_version}" "${P_target_version}"
+check "the Go version comes from the new pin's Dockerfile" 1.26.2 "${GO_VERSION}"
 check "the agents ran" true "${RUN_CLAUDE}"
 contains "the port prompt lists the commits" "${PORT_PROMPT}" "${u4:0:12}"
+contains "the port prompt names the old pin's tree" "${PORT_PROMPT}" "upstream-old: the old pin ${u1}"
+upstream_diff=$(cat "${D}/port-temp/port-ctx/upstream.diff")
+contains "the agents get the whole Go change" "${upstream_diff}" "adapters/bar/bar.go"
 check "final gates" pass "${FINAL_STATUS}"
-mirror_upstream
+go_tests=$(grep -c -F -e "${D}/port/crates/x/testdata/go | test ./..." "${E2E_GO_LOG}" || true)
+check "the gates test the Go tooling module before, after and at the end" 3 "${go_tests}"
+# The Go calls in the port job's tooling module before its first build: the sync's.
+sync_calls=$(grep -F -e "${D}/port/crates/x/testdata/go | " "${E2E_GO_LOG}" | sed -e 's/^.* | //' -e '/^build /,$d' || true)
+contains "before the gates, the port job gives the Go tooling module the new pin's go line" "${sync_calls}" \
+  "mod edit -go=1.25.0 -toolchain=none"
+contains "before the gates, the port job tidies the Go tooling module" "${sync_calls}" "mod tidy"
 port1=$(branch_head)
-go_diff=$(git -C "${human}" diff --name-only "${u4}" "${port1}" -- . ':(exclude)rust' ':(exclude).github' \
-  ':(exclude)AGENTS.md' ':(exclude).mcp.json' ':(exclude).claude')
-check "outside the fork paths the branch equals upstream" "" "${go_diff}"
-deleted=present
-if ! git -C "${human}" cat-file -e "${port1}:docs/a file.md" 2> /dev/null; then
-  deleted=gone
-fi
-check "the upstream deletion is applied" gone "${deleted}"
-fork_agents=$(git -C "${human}" show "${port1}:AGENTS.md")
-check "the fork's AGENTS.md is kept" "fork agents" "${fork_agents}"
-tracked=$(git -C "${human}" ls-tree -r --name-only "${port1}" -- .github/workflows .mcp.json .claude rust/clippy.toml \
-  adapters/foo/zz_parity_scratch_test.go)
-check "no upstream workflow, agent configuration, clippy.toml or probe is tracked" "" "${tracked}"
-main_go=$(git -C "${human}" show "${port1}:main.go")
-check "the agent's edit outside rust/ is reverted" "package main // v1" "${main_go}"
-known=$(git -C "${human}" show "${port1}:rust/conformance/known_failures.txt")
+main_now=$(git -C "${origin}" rev-parse refs/heads/main)
+parents=$(git -C "${origin}" rev-list --parents -n 1 "${port1}")
+check "one commit on main, nothing of upstream merged" "${port1} ${main_now}" "${parents}"
+listing=$(git -C "${origin}" ls-tree -r --name-only "${port1}")
+copied=$(grep -E -e '^(main\.go|go\.mod|Dockerfile|exchange/|adapters/|static/|docs/|\.mcp\.json|\.claude/|\.github/workflows/)' <<< "${listing}" || true)
+check "the branch holds no upstream file" "" "${copied}"
+pin=$(git -C "${origin}" show "${port1}:UPSTREAM_SYNC")
+check "the pin moves to the chunk's last commit, its comments kept" "${pin_header}"$'\n'"${u4}" "${pin}"
+gomod=$(git -C "${origin}" show "${port1}:crates/x/testdata/go/go.mod")
+requirement=$(grep '^require' <<< "${gomod}" || true)
+check "the Go tooling module requires the new pin" "require github.com/prebid/prebid-server/v4 ${u4_version}" "${requirement}"
+readme=$(git -C "${origin}" show "${port1}:README.md")
+check "the agent's edit of a protected file is reverted" "the Rust port" "${readme}"
+tracked=$(git -C "${origin}" ls-tree -r --name-only "${port1}" -- .mcp.json .claude clippy.toml crates/x/src/zz_parity_scratch_test.go)
+check "no agent configuration, clippy.toml or probe is tracked" "" "${tracked}"
+known=$(git -C "${origin}" show "${port1}:conformance/known_failures.txt")
 check "the added known failure is dropped" "# known failures" "${known}"
-marker=$(git -C "${human}" show "${port1}:rust/UPSTREAM_SYNC" | tail -n 1)
-check "the marker is the chunk's last commit" "${u4}" "${marker}"
-statuses=$(git -C "${human}" show "${port1}:rust/upstream-port-log.jsonl" | jq -r -s 'map(.status) | join(",")')
-check "one port log line per commit" "ported,ported,ported" "${statuses}"
-subject=$(git -C "${human}" log -1 --format=%s "${port1}")
+port_log=$(git -C "${origin}" show "${port1}:upstream-port-log.jsonl")
+statuses=$(jq -r -s 'map(.status) | join(",")' <<< "${port_log}")
+check "one port log line per commit, the forged line dropped" "ported,ported,ported" "${statuses}"
+probe_left=gone
+if [[ -e "${D}/port-temp/upstream-probe/adapters/foo/zz_parity_scratch_test.go" ]]; then
+  probe_left=present
+fi
+check "the probe tree is reset after the session" gone "${probe_left}"
+subject=$(git -C "${origin}" log -1 --format=%s "${port1}")
 check "the port commit" "port: foo: change the adapter (+2 more)" "${subject}"
-identity=$(git -C "${human}" log -1 --format='%an <%ae>' "${port1}")
-check "the bot commits" "${bot_name} <${bot_email}>" "${identity}"
-merge_subject=$(git -C "${human}" log -1 --format=%s "${port1}^1")
-check "the upstream merge" "Merge upstream prebid/prebid-server@${u4:0:12}" "${merge_subject}"
-messages=$(fork_messages "${port1}")
-no_attribution "the fork commits" "${messages}"
+identity=$(git -C "${origin}" log -1 --format='%an <%ae> / %cn <%ce>' "${port1}")
+check "the bot commits" "${bot_name} <${bot_email}> / ${bot_name} <${bot_email}>" "${identity}"
+messages=$(branch_messages "${port1}")
+no_attribution "the branch's commits" "${messages}"
 lacks "the agent's own commit is not published" "${messages}" "Agent commit"
+contains "the commit names the upstream range" "${messages}" "Upstream-Range: ${u1:0:12}..${u4:0:12}"
+contains "the commit names the upstream version" "${messages}" "Upstream-Version: ${u4_version}"
+contains "an upstream commit is listed by its subject only" "${messages}" "upstream ${u4:0:12} New Adapter: Bar (#4397) (ported)"
 report=$(cat "${D}/artifact-port-result/report.md")
-contains "the report lists the work-tree corrections" "${report}" "the session created commits"
-contains "the report lists the shadowed upstream workflow" "${report}" ".github/workflows/upstream.yml"
-contains "the report lists the shadowed AGENTS.md" "${report}" "AGENTS.md"
+contains "the report: the undone session commit" "${report}" "the session created commits"
+contains "the report: the reverted changes" "${report}" "changes outside the writable paths were reverted"
+contains "the report: the protected file" "${report}" "README.md"
+contains "the report: the agent configuration" "${report}" ".mcp.json"
+contains "the report: the dropped known failure" "${report}" "entries added to conformance/known_failures.txt were dropped"
 contains "pull request created" "${CALLS}" "pr create --repo test/fork --base main --head port/upstream-sync"
 lacks "a green pull request is not a draft" "${CALLS}" "--draft"
 contains "green labels" "${CALLS}" "--add-label upstream-port,port:green --remove-label port:red,port:partial"
@@ -765,11 +963,13 @@ no_attribution "the pull request body" "${pr_body}"
 contains "the agent's attribution is removed" "${pr_body}" "[removed: AI attribution]"
 debt=$(cat "${shim}/body-3.md")
 contains "the gap is parity debt, fenced" "${debt}" $'~~~text\n- adapters/bar/bar.go: video ~ ~ ~ ping @someone\n~~~'
-plan_builds=$(grep -c -e '/plan/' -e '/publish/' "${E2E_CARGO_LOG}" || true)
-check "the plan and publish jobs never build" 0 "${plan_builds}"
+cargo_runs=$(grep -c -E -e '/(plan|publish|publish-rerun)( |/)' "${E2E_CARGO_LOG}" || true)
+go_runs=$(grep -c -E -e '/(plan|publish|publish-rerun)( |/)' "${E2E_GO_LOG}" || true)
+check "the plan and publish jobs never run cargo or go" "0 0" "${cargo_runs} ${go_runs}"
 ci
 check "CI: guard on the port pull request" ok "${CI_GUARD}"
 check "CI: the port pull request gets the bot rules" true "${C_PORT_PR}"
+check "CI: the adapters the pin change touches" "bar,foo" "${CI_DIRS}"
 check "CI: ci-ok" pass "${CI_RESULT}"
 
 day idle
@@ -778,11 +978,12 @@ check "a green pull request with nothing new waits" none "${P_action}"
 contains "reason" "${P_reason}" "up to date with upstream at ${u4:0:12}"
 
 # main changes the line the port branch changed: the bot-only branch is rebuilt from main.
-human_main_commit rust/crates/x/src/lib.rs '//! x changed on main' "Rework crate x on main"
+human_main_commit crates/x/src/lib.rs '//! x changed on main' "Rework crate x on main"
 main_now=$(git -C "${origin}" rev-parse refs/heads/main)
 day conflict
 jobs_are ok ok ok
 check "restart" true "${P_restart}"
+contains "reason" "${P_reason}" "conflicts with main; rebuilding it from main"
 check "work starts from main" "${main_now}" "${P_work_sha}"
 check "the lease is the old branch" "${port1}" "${P_port_branch_sha}"
 commits=$(plan_commits)
@@ -799,7 +1000,8 @@ ci
 check "CI: ci-ok" pass "${CI_RESULT}"
 
 # A huge change: a fixture, two adapter changes, a docs commit whose subject carries Claude
-# attribution, a heavy core commit and a commit with more than 1500 Go lines.
+# attribution, a heavy core commit and a commit with more than 1500 Go lines. Before it, a person
+# changes main in a way that does not conflict.
 t_put "${up}" adapters/foo/footest/exemplary/c.json '{"c": 1}'
 u5=$(up_commit "foo: add a fixture")
 t_put "${up}" adapters/bar/bar.go 'package bar // v2'
@@ -815,6 +1017,8 @@ awk 'BEGIN { print "package huge"; for (i = 1; i <= 3200; i++) print "// line " 
 t_put "${up}" adapters/huge/hugetest/exemplary/a.json '{"huge": 1}'
 t_put "${up}" static/bidder-info/huge.yaml 'endpoint: "http://huge.example"'
 u10=$(up_commit "New Adapter: Huge")
+human_main_commit conformance/README.md 'the conformance contract, clarified' "Clarify the conformance contract"
+main_now=$(git -C "${origin}" rev-parse refs/heads/main)
 
 day chunk1
 jobs_are ok ok ok
@@ -822,15 +1026,18 @@ commits=$(plan_commits)
 check "at most three commits" "${u5} ${u6} ${u7}" "${commits}"
 check "work continues on the branch" "${port2}" "${P_work_sha}"
 check "no restart" false "${P_restart}"
-mirror_upstream
 port3=$(branch_head)
-merge_message=$(git -C "${human}" log -1 --format=%B "${port3}^1")
-contains "the upstream head subject is sanitized" "${merge_message}" "Upstream head: [removed: AI attribution]"
-messages=$(fork_messages "${port3}")
-no_attribution "the fork commits" "${messages}"
+merge_subject=$(git -C "${origin}" log -1 --format=%s "${port3}^")
+check "main is merged into the branch first" "Merge main into port/upstream-sync" "${merge_subject}"
+merged_main=$(git -C "${origin}" rev-parse "${port3}^^2")
+check "the merge brings in main" "${main_now}" "${merged_main}"
+messages=$(branch_messages "${port3}")
+no_attribution "the branch's commits" "${messages}"
+contains "the attribution in an upstream subject is removed" "${messages}" "upstream ${u7:0:12} [removed: AI attribution]"
 pr_body=$(cat "${shim}/pr_body.md")
 no_attribution "the pull request body" "${pr_body}"
 ci
+check "CI: a merge of main passes the bot rules" ok "${CI_GUARD}"
 check "CI: ci-ok" pass "${CI_RESULT}"
 
 day chunk2 review=blocking fix=port
@@ -839,8 +1046,8 @@ commits=$(plan_commits)
 check "the chunk stops before a heavy commit" "${u8}" "${commits}"
 agents=$(cat "${D}/agents.txt")
 contains "a blocking review finding runs the fix session" "${agents}" "fix port"
-adversarial=$(git -C "${origin}" ls-tree -r --name-only refs/heads/port/upstream-sync -- rust/crates/x/tests)
-check "the adversarial test is kept" rust/crates/x/tests/adversarial_foo.rs "${adversarial}"
+adversarial=$(git -C "${origin}" ls-tree -r --name-only refs/heads/port/upstream-sync -- crates/x/tests)
+check "the adversarial test is kept" crates/x/tests/adversarial_foo.rs "${adversarial}"
 ci
 check "CI: ci-ok" pass "${CI_RESULT}"
 
@@ -872,9 +1079,10 @@ for attempt in 1 2; do
   jobs_are ok ok ok
   check "action" repair "${P_action}"
   contains "reason" "${P_reason}" "repair ${attempt} of 2"
+  check "a repair covers the pull request's commits" "${u1} ${u10}" "${P_base_sha} ${P_target_sha}"
   after=$(branch_head)
   subject=$(git -C "${origin}" log -1 --format=%s "${after}")
-  check "the attempt is recorded" "port-repair: no change found for clippy" "${subject}"
+  check "the attempt is recorded" "port-repair: no change found for clippy, clippy-all-features" "${subject}"
   parent=$(git -C "${origin}" rev-parse "${after}^")
   check "one new commit" "${before}" "${parent}"
   changed=$(git -C "${origin}" diff-tree --no-commit-id --name-only -r "${after}")
@@ -899,7 +1107,7 @@ contains "reason" "${P_reason}" "labelled port:needs-human"
 # A person fixes the branch and hands it back.
 human_fetch
 git -C "${human}" switch -q -C fix origin/port/upstream-sync
-perl -pi -e 's/ CLIPPY_FAILS//' "${human}/rust/crates/x/src/lib.rs"
+perl -pi -e 's/ CLIPPY_FAILS//' "${human}/crates/x/src/lib.rs"
 t_commit "${human}" "Fix clippy by hand" > /dev/null
 git -C "${human}" push -q origin HEAD:refs/heads/port/upstream-sync
 remove_label port:needs-human
@@ -912,7 +1120,7 @@ jobs_are ok skip skip
 check "action" none "${P_action}"
 
 # main conflicts with a branch that carries a person's commit: escalate instead of rebuilding.
-human_main_commit rust/crates/x/src/lib.rs '//! x changed on main again' "Rework crate x on main again"
+human_main_commit crates/x/src/lib.rs '//! x changed on main again' "Rework crate x on main again"
 day conflict-human
 jobs_are ok skip ok
 check "action" escalate "${P_action}"
@@ -925,8 +1133,8 @@ git -C "${human}" reset -q --hard origin/port/upstream-sync
 merge_rc=0
 git -C "${human}" merge -q --no-ff -m "Merge main into port/upstream-sync" origin/main > /dev/null 2>&1 || merge_rc=$?
 check "the person's merge conflicts" 1 "${merge_rc}"
-t_put "${human}" rust/crates/x/src/lib.rs '//! x resolved by hand'
-git -C "${human}" add rust/crates/x/src/lib.rs
+t_put "${human}" crates/x/src/lib.rs '//! x resolved by hand'
+git -C "${human}" add crates/x/src/lib.rs
 git -C "${human}" commit -q --no-edit
 git -C "${human}" push -q origin HEAD:refs/heads/port/upstream-sync
 remove_label port:needs-human
@@ -935,18 +1143,21 @@ check "CI: a person's merge of main passes the guard" ok "${CI_GUARD}"
 check "CI: ci-ok" pass "${CI_RESULT}"
 merge_pr
 check "CI on main after merging the port pull request" ok "${CI_MAIN}"
-main_marker=$(git -C "${origin}" show refs/heads/main:rust/UPSTREAM_SYNC | tail -n 1)
-check "main's marker" "${u10}" "${main_marker}"
+main_pin=$(pin_of refs/heads/main)
+check "main's pin" "${u10}" "${main_pin}"
 
 parity_sync
 check "a clean parity sync" "" "${SYNC_FAILED}"
+contains "the merge is pushed" "${SYNC_LOG}" "merged main into parity-harness"
 merged=no
 if git -C "${origin}" merge-base --is-ancestor refs/heads/main refs/heads/parity-harness; then
   merged=yes
 fi
 check "the parity harness contains main" yes "${merged}"
-harness_go=$(git -C "${origin}" show refs/heads/parity-harness:main.go)
-check "the harness patch survives" "package main // patched by the parity harness" "${harness_go}"
+harness_patch=$(git -C "${origin}" show refs/heads/parity-harness:parity/upstream-seams.patch)
+contains "the seams patch survives" "${harness_patch}" "patched by the parity harness"
+harness_pin=$(pin_of refs/heads/parity-harness)
+check "the harness pins what main pins" "${u10}" "${harness_pin}"
 
 # Agents that never report (an expired token, a refused actor): the gates stay green, but the
 # commit is logged blocked, the pull request is labelled partial and the commit is parity debt.
@@ -960,15 +1171,15 @@ contains "a new pull request" "${CALLS}" "pr create --repo test/fork"
 contains "green but partial" "${CALLS}" "--add-label upstream-port,port:green,port:partial --remove-label port:red"
 subject=$(git -C "${origin}" log -1 --format=%s refs/heads/port/upstream-sync)
 check "the subject does not claim nothing was needed" \
-  "port: advance upstream marker to ${u11:0:12} (no Rust changes; 1 commit(s) not ported)" "${subject}"
+  "port: advance upstream pin to ${u11:0:12} (no Rust changes; 1 commit(s) not ported)" "${subject}"
 debt=$(cat "${shim}/body-3.md")
 contains "the unreported commit is parity debt" "${debt}" \
   "- upstream ${u11:0:12} foo: another change: blocked (the agent reported no result for this commit)"
 ci
 check "CI: ci-ok" pass "${CI_RESULT}"
 
-# dry-run ports but publishes nothing; merge-only merges without agents and keeps the marker, and
-# the next run ports the merged commit.
+# dry-run ports but publishes nothing; pin-only advances the pin without agents and records the
+# commit as parity debt, so the next run has nothing to port.
 t_put "${up}" adapters/bar/bar.go 'package bar // v3'
 u12=$(up_commit "bar: change")
 before=$(branch_head)
@@ -976,27 +1187,27 @@ day dryrun mode=dry-run
 jobs_are ok ok skip
 after=$(branch_head)
 check "a dry run pushes nothing" "${before}" "${after}"
-day mergeonly mode=merge-only
+day pinonly mode=pin-only
 jobs_are ok ok ok
+check "action" advance "${P_action}"
 check "no agent runs" false "${RUN_CLAUDE}"
-mergeonly_head=$(branch_head)
-subject=$(git -C "${origin}" log -1 --format=%s "${mergeonly_head}")
-check "merge-only commit" "port: record upstream ${u11:0:12}..${u12:0:12} as merged, not ported" "${subject}"
-marker=$(git -C "${origin}" show "${mergeonly_head}:rust/UPSTREAM_SYNC" | tail -n 1)
-check "the marker stays" "${u11}" "${marker}"
+pinonly_head=$(branch_head)
+subject=$(git -C "${origin}" log -1 --format=%s "${pinonly_head}")
+check "the pin-only commit" "port: advance upstream pin to ${u12:0:12} without porting (pin-only run)" "${subject}"
+pinonly_pin=$(pin_of "${pinonly_head}")
+check "the pin moves" "${u12}" "${pinonly_pin}"
+port_log=$(git -C "${origin}" show "${pinonly_head}:upstream-port-log.jsonl")
+last_status=$(jq -r -s 'last.status' <<< "${port_log}")
+check "the log records the commit as pinned, not ported" pinned-not-ported "${last_status}"
+contains "green but partial" "${CALLS}" "--add-label upstream-port,port:green,port:partial --remove-label port:red"
+debt=$(cat "${shim}/body-3.md")
+contains "the pinned commit is parity debt" "${debt}" "- upstream ${u12:0:12} bar: change: pinned-not-ported"
 ci
 check "CI: ci-ok" pass "${CI_RESULT}"
-day aftermerge
-jobs_are ok ok ok
-commits=$(plan_commits)
-check "the merged commit is planned again" "${u12}" "${commits}"
-contains "it is already merged" "${MERGE_LOG}" "is already merged"
-marker=$(git -C "${origin}" show refs/heads/port/upstream-sync:rust/UPSTREAM_SYNC | tail -n 1)
-check "now the marker moves" "${u12}" "${marker}"
-last_status=$(git -C "${origin}" show refs/heads/port/upstream-sync:rust/upstream-port-log.jsonl | tail -n 1 | jq -r .status)
-check "and the log records the port" ported "${last_status}"
-ci
-check "CI: ci-ok" pass "${CI_RESULT}"
+day afterpin
+jobs_are ok skip skip
+check "a pinned commit is not planned again" none "${P_action}"
+contains "reason" "${P_reason}" "up to date with upstream at ${u12:0:12}"
 merge_pr
 check "CI on main" ok "${CI_MAIN}"
 
@@ -1010,11 +1221,11 @@ touch "${shim}/fail_pr_create"
 day half
 jobs_are ok ok fail
 half_head=$(branch_head)
-half_marker=""
+half_pin=""
 if [[ -n "${half_head}" ]]; then
-  half_marker=$(git -C "${origin}" show "${half_head}:rust/UPSTREAM_SYNC" | tail -n 1)
+  half_pin=$(pin_of "${half_head}")
 fi
-check "the branch was pushed" "${u13}" "${half_marker}"
+check "the branch was pushed" "${u13}" "${half_pin}"
 prs=$(cat "${shim}/prs.json")
 check "no pull request" "[]" "${prs}"
 touch "${shim}/fail_pr_create"
@@ -1050,6 +1261,7 @@ touch "${E2E_FAIL_FETCH}"
 day portfail
 rm -f -- "${E2E_FAIL_FETCH}"
 jobs_are ok fail ok
+check "the prefetch fails" "Prefetch dependencies (the last network use before the agents)" "${PORT_FAILED}"
 contains "the failure is reported" "${CALLS}" "issue create --repo test/fork --title Upstream port run failed --label port:run-failed"
 after=$(branch_head)
 check "nothing is pushed" "${before}" "${after}"
@@ -1059,14 +1271,48 @@ commits=$(plan_commits)
 check "the same commit is planned again" "${u14}" "${commits}"
 check "a fixture needs no agent" false "${RUN_CLAUDE}"
 subject=$(git -C "${origin}" log -1 --format=%s refs/heads/port/upstream-sync)
-check "the marker advances" "port: advance upstream marker to ${u14:0:12} (no Rust changes needed)" "${subject}"
+check "the pin advances" "port: advance upstream pin to ${u14:0:12} (no Rust changes needed)" "${subject}"
 ci
 check "CI: ci-ok" pass "${CI_RESULT}"
 merge_pr
 check "CI on main" ok "${CI_MAIN}"
 
-# main now carries upstream's main.go change, which the parity harness patches: the sync
-# conflicts, pushes nothing and opens the issue.
+# main now pins u14, whose main.go (changed by u13) the seams patch no longer fits: the sync
+# merges cleanly but pushes nothing, fails and opens the seams issue.
+DAY=parity-stale
+harness_before=$(git -C "${origin}" rev-parse refs/heads/parity-harness)
+parity_sync
+check "a stale seams patch fails the sync" "Merge, check the seams patch against the new pin, and push (or report)" \
+  "${SYNC_FAILED}"
+harness_after=$(git -C "${origin}" rev-parse refs/heads/parity-harness)
+check "nothing is pushed" "${harness_before}" "${harness_after}"
+contains "the seams issue" "${CALLS}" \
+  "issue create --repo test/fork --title parity-harness: the seams patch does not apply --label parity-harness"
+issue=$(cat "${shim}/body-1.md")
+contains "the issue names the pin" "${issue}" "does not apply to upstream ${u14:0:12}"
+contains "the issue names the patched file" "${issue}" "main.go"
+
+# A person merges main into the harness and rebases the seams on the new pin; the next sync finds
+# nothing to merge, checks the seams and closes the issue.
+DAY=parity-fixed
+human_fetch
+git -C "${human}" switch -q -C parity-harness origin/parity-harness
+git -C "${human}" merge -q --no-ff -m "Merge main into parity-harness" origin/main
+seams 'package main // v2' > "${human}/parity/upstream-seams.patch"
+t_commit "${human}" "Parity harness: rebase the seams on ${u14:0:12}" > /dev/null
+git -C "${human}" push -q origin parity-harness
+harness_before=$(git -C "${origin}" rev-parse refs/heads/parity-harness)
+parity_sync
+check "the fixed harness passes" "" "${SYNC_FAILED}"
+contains "nothing to merge, the seams fit" "${SYNC_LOG}" "nothing to push; parity-harness fits upstream ${u14:0:12}"
+contains "the seams issue is closed" "${CALLS}" "issue close 201"
+harness_after=$(git -C "${origin}" rev-parse refs/heads/parity-harness)
+check "nothing is pushed" "${harness_before}" "${harness_after}"
+
+# A person changes AGENTS.md on main, which the harness changed too: the sync conflicts, pushes
+# nothing and opens the conflict issue.
+DAY=parity-conflict
+human_main_commit AGENTS.md 'fork agents v2' "Update the agent notes"
 harness_before=$(git -C "${origin}" rev-parse refs/heads/parity-harness)
 parity_sync
 check "a conflicting parity sync still succeeds" "" "${SYNC_FAILED}"
@@ -1074,6 +1320,15 @@ harness_after=$(git -C "${origin}" rev-parse refs/heads/parity-harness)
 check "the conflict pushes nothing" "${harness_before}" "${harness_after}"
 contains "the conflict issue" "${CALLS}" "issue create --repo test/fork --title parity-harness: merging main conflicts"
 issue=$(cat "${shim}/body-1.md")
-contains "the issue names the path" "${issue}" "main.go"
+contains "the issue names the path" "${issue}" "AGENTS.md"
+
+# No upstream commit, tree or blob ever entered the repository, except the license text, which the
+# port ships as an allowed copy.
+DAY=end
+upstream_objects=$(git -C "${up}" rev-list --objects --all)
+license_blob=$(git -C "${up}" rev-parse "${u1}:LICENSE")
+ids=$(cut -d ' ' -f 1 <<< "${upstream_objects}" | grep -v -x -F -e "${license_blob}")
+present=$(git -C "${origin}" cat-file --batch-check <<< "${ids}" | grep -c -v ' missing$' || true)
+check "no upstream object is in the repository" 0 "${present}"
 
 t_done

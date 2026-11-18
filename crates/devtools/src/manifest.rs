@@ -259,7 +259,7 @@ pub fn generate(repo: &Repo, go_commit: &str) -> Result<Manifest> {
     }
 
     Ok(Manifest {
-        generator: "pbs-devtools adapter-manifest (rust/crates/devtools)".to_owned(),
+        generator: "pbs-devtools adapter-manifest (crates/devtools)".to_owned(),
         go_commit: go_commit.to_owned(),
         notes: vec![
             "One run per adapterstest.RunJSONBidderTest call in adapters/*/*_test.go.".to_owned(),

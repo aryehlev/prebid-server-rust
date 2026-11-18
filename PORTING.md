@@ -77,7 +77,8 @@ Each of these crates documents its API in its `lib.rs` crate docs. Read them bef
   directory is a Go module of its own: it requires `github.com/prebid/prebid-server/v4` at the
   pinned commit's pseudo-version, replaced by `.upstream`, with upstream's `go` version and
   dependency versions and a tidy `go.sum`, and it runs from its own directory. Go code you author
-  must be `gofmt`-clean and pass `go vet`.
+  is test tooling: it must be `gofmt -s` clean, build, and pass its tests. It is not linted (no
+  `go vet` step, no golangci-lint).
 - A unit is done only when its tests pass and it can state which Go corpus/test cases it reproduces.
 
 ## 5. Lint and format policy

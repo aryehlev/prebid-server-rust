@@ -1,5 +1,5 @@
 {
-  "generator": "pbs-devtools adapter-manifest (rust/crates/devtools)",
+  "generator": "pbs-devtools adapter-manifest (crates/devtools)",
   "go_commit": "4e296450de2fcc62741340b2e5f7d1df6c1744a5",
   "notes": [
     "One run per adapterstest.RunJSONBidderTest call in adapters/*/*_test.go.",

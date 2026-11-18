@@ -35,6 +35,19 @@ deny.toml:1: [deny-config]
 deny.toml:1: [deny-config]
 deny.toml:1: [deny-config]
 deny.toml:1: [deny-config]
+# Exclusions, overrides and bypasses, an extra registry and advisory database, and check levels
+# weaker than the strictest: advisories.db-urls, advisories.unmaintained, licenses.clarify,
+# sources.allow-registry, sources.unknown-git, graph.exclude, graph.exclude-dev,
+# licenses.private.ignore and bans.build.bypass.
+deny.toml:1: [deny-config]
+deny.toml:1: [deny-config]
+deny.toml:1: [deny-config]
+deny.toml:1: [deny-config]
+deny.toml:1: [deny-config]
+deny.toml:1: [deny-config]
+deny.toml:1: [deny-config]
+deny.toml:1: [deny-config]
+deny.toml:1: [deny-config]
 rustfmt.toml:1: [rustfmt-config]
 rustfmt.toml:1: [rustfmt-config]
 rustfmt.toml:1: [rustfmt-config]

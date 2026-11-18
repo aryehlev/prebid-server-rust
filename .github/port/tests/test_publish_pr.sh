@@ -94,6 +94,20 @@ t_lacks "silent agents: a handled commit is not debt" "${debt}" "eeeeeeeeeeee"
 t_has "silent agents: debt is fenced" "${debt}" "~~~text"
 rm -f "${result}/port-log.jsonl"
 
+# A pin-only run advanced the pin without porting: every commit it logged is parity debt.
+: > "${shim}/calls.log"
+rm -f "${shim}"/body-*.md
+jq -n -c '{upstream: "ffffffffffffffffffffffffffffffffffffffff", subject: "exchange: change", status: "pinned-not-ported",
+  not_ported: [], notes: ""}' > "${result}/port-log.jsonl"
+printf '{"labels": [], "isDraft": true}\n' > "${shim}/pr_view.json"
+publish
+calls=$(cat "${shim}/calls.log")
+t_has "pin-only: partial label" "${calls}" \
+  "pr edit 7 --repo test/fork --add-label upstream-port,port:green,port:partial --remove-label port:red"
+debt=$(cat "${shim}/body-3.md")
+t_has "pin-only: the pinned commit is parity debt" "${debt}" "- upstream ffffffffffff exchange: change: pinned-not-ported"
+rm -f "${result}/port-log.jsonl"
+
 : > "${shim}/calls.log"
 t_run_in "${T_ROOT}" env PR_NUMBER=7 REASON="CI is still red" RUN_URL=https://example.invalid/runs/8 \
   "${T_SCRIPTS}/publish-pr.sh" --escalate

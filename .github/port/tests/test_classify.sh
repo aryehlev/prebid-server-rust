@@ -1,21 +1,23 @@
 #!/usr/bin/env bash
-# classify.sh: real upstream commits from this repository's history, and synthetic changes for the
-# classes those commits do not cover.
+# classify.sh: real upstream commits, read from an upstream mirror (PORT_TESTS_UPSTREAM_GIT) the way
+# plan.sh reads them (GIT_DIR names the mirror), and synthetic changes for the classes those
+# commits do not cover.
 set -euo pipefail
 shopt -s inherit_errexit
 # shellcheck source=lib.sh
 source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 
 classify="${T_SCRIPTS}/classify.sh"
+real_git=$(t_real_upstream)
 
 # real SHA EXPECTED_JSON: classify the real upstream commit SHA against its first parent.
 real() {
   local sha=${1:?} expected=${2:?} actual
-  if ! git -C "${T_TOP}" cat-file -e "${sha}^{commit}" 2> /dev/null; then
-    t_fail "upstream commit ${sha} is missing; run the tests in a clone with full history"
+  if [[ -z "${real_git}" ]] || ! git --git-dir="${real_git}" cat-file -e "${sha}^{commit}" 2> /dev/null; then
+    t_fail "upstream commit ${sha} is missing; set PORT_TESTS_UPSTREAM_GIT to an upstream mirror (see run-all.sh)"
     return
   fi
-  t_run_in "${T_TOP}" "${classify}" "${sha}^1" "${sha}"
+  t_run_in "${T_ROOT}" env GIT_DIR="${real_git}" "${classify}" "${sha}^1" "${sha}"
   actual=${T_OUT}
   t_eq "upstream ${sha}" "${expected}" "${actual}"
 }

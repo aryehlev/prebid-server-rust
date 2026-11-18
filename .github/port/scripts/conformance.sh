@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # conformance.sh: run the Rust Go-fixture harness in report mode and apply the known-failures
-# ratchet that rust/conformance/README.md defines. Exit status 0 when the ratchet holds (or the
+# ratchet that conformance/README.md defines. Exit status 0 when the ratchet holds (or the
 # harness is absent and CONFORMANCE_REQUIRED is not true), 1 when it does not, 2 on a usage or
 # harness error.
 #
@@ -10,11 +10,12 @@
 #   --dirs         run only these adapter directories (PBS_FIXTURE_DIRS); completeness and
 #                  known-entry checks are then limited to them
 #   --results      evaluate this report instead of running the harness
-#   --manifest     default rust/testdata/go_fixture_manifest.json
-#   --known        default rust/conformance/known_failures.txt
+#   --manifest     default testdata/go_fixture_manifest.json
+#   --known        default conformance/known_failures.txt
 #   --out          write the JSON summary here (default: stdout only)
 #   --summary      append a Markdown summary here (for example "${GITHUB_STEP_SUMMARY}")
-# Env: PBS_GO_ROOT (default: the repository root), CONFORMANCE_REQUIRED (true makes an absent
+# Env: PBS_GO_ROOT (default: .upstream at the top of the repository, the checkout
+# scripts/fetch-upstream.sh makes), CONFORMANCE_REQUIRED (true makes an absent
 # harness fail).
 set -euo pipefail
 shopt -s inherit_errexit
@@ -26,8 +27,8 @@ root=$(pwd)
 strict_csv=""
 dirs_csv=""
 results=""
-manifest="rust/testdata/go_fixture_manifest.json"
-known="rust/conformance/known_failures.txt"
+manifest="testdata/go_fixture_manifest.json"
+known="conformance/known_failures.txt"
 out=""
 summary=""
 while [[ "$#" -gt 0 ]]; do
@@ -54,7 +55,7 @@ strict_lines=$(port_csv_lines "${strict_csv}")
 dirs_lines=$(port_csv_lines "${dirs_csv}")
 strict_json=$(jq -R -s -c 'split("\n") | map(select(length > 0))' <<< "${strict_lines}")
 dirs_json=$(jq -R -s -c 'split("\n") | map(select(length > 0))' <<< "${dirs_lines}")
-go_root=${PBS_GO_ROOT:-${root}}
+go_root=${PBS_GO_ROOT:-${root}/.upstream}
 
 tmp=$(mktemp -d)
 trap 'rm -rf -- "${tmp}"' EXIT
@@ -102,7 +103,7 @@ absent() {
 }
 
 if [[ -z "${results}" ]]; then
-  metadata=$(cd rust && cargo metadata --no-deps --format-version 1 --locked)
+  metadata=$(cargo metadata --no-deps --format-version 1 --locked)
   present=$(jq -r '[.packages[] | select(.name == "pbs-adapters") | .targets[]
     | select(.name == "go_fixtures" and (.kind | index("test")))] | length > 0' <<< "${metadata}")
   if [[ "${present}" != true ]]; then
@@ -111,8 +112,8 @@ if [[ -z "${results}" ]]; then
   results="${tmp}/results.jsonl"
   dirs_env=$(jq -r 'join(",")' <<< "${dirs_json}")
   printf 'conformance: running the go_fixtures harness%s\n' "${dirs_env:+ for ${dirs_env}}" >&2
-  if ! (cd rust && PBS_GO_ROOT="${go_root}" PBS_FIXTURE_DIRS="${dirs_env}" PBS_FIXTURE_RESULTS="${results}" \
-    cargo test -p pbs-adapters --test go_fixtures --locked); then
+  if ! env PBS_GO_ROOT="${go_root}" PBS_FIXTURE_DIRS="${dirs_env}" PBS_FIXTURE_RESULTS="${results}" \
+    cargo test -p pbs-adapters --test go_fixtures --locked; then
     port_error "conformance: the harness failed in report mode (it must exit 0 when fixtures fail)"
     exit 2
   fi

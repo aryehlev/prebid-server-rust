@@ -1,4 +1,4 @@
-{"header":{"go_version":"go1.26.2","go_gdpr_version":"v1.12.0","generator":"rust/crates/tcf2/testdata/go"},
+{"header":{"go_version":"go1.26.2","go_gdpr_version":"v1.12.0","generator":"crates/tcf2/testdata/go"},
 "cases":[
 {"label":"fuzz tcf2 b64 prefix 1/54 #0","input":"C","vendorconsent":{"err":"illegal base64 data at input byte 0"},"raw_url_decode":{"err":"illegal base64 data at input byte 0","len":0}},
 {"label":"fuzz tcf2 b64 prefix 2/54 #0","input":"CQ","vendorconsent":{"err":"vendor consent strings are at least 29 bytes long. This one was 1"},"raw_url_decode":{"len":1},"tcf1_parse":{"err":"vendor consent strings are at least 22 bytes long. This one was 1"}},

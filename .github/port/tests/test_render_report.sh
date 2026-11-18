@@ -12,9 +12,8 @@ repo="${T_ROOT}/repo"
 t_repo "${repo}"
 s1=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 s2=bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
-mkdir -p "${repo}/rust"
-jq -n -c --arg s1 "${s1}" '{upstream: $s1, status: "partial"}' > "${repo}/rust/upstream-port-log.jsonl"
-jq -n -c --arg s2 "${s2}" '{upstream: $s2, status: "no_change_needed"}' >> "${repo}/rust/upstream-port-log.jsonl"
+jq -n -c --arg s1 "${s1}" '{upstream: $s1, status: "partial"}' > "${repo}/upstream-port-log.jsonl"
+jq -n -c --arg s2 "${s2}" '{upstream: $s2, status: "no_change_needed"}' >> "${repo}/upstream-port-log.jsonl"
 t_commit "${repo}" "log" > /dev/null
 
 ctx="${T_ROOT}/ctx"
@@ -31,20 +30,19 @@ gates() {
 gates fail > "${ctx}/gates-before.json"
 gates fail > "${ctx}/gates-after.json"
 gates pass > "${ctx}/gates-final.json"
-printf 'changes outside rust/ were reverted: M main.go;\n' > "${ctx}/worktree-violations.txt"
-printf '.github/workflows/upstream.yml\n' > "${ctx}/shadowed-upstream-paths.txt"
+printf 'changes outside the writable paths were reverted: M README.md;\n' > "${ctx}/worktree-violations.txt"
 port_json=$(jq -n -c '{overall_status: "partial",
   summary: "Ported foo.\n```\nCo-Authored-By: Claude <noreply@anthropic.com>\n```\nPing @someone",
   commits: [], rust_files_changed: [], verification: [{command: "cargo test", result: "pass"}],
   not_ported: [{go_path: "adapters/foo/foo.go", reason: "video is missing"}], followups: ["check the 🤖 thing"]}')
 review_json=$(jq -n -c '{summary: "x", blocking_count: 1, adversarial_tests: [], findings: [
-  {severity: "blocking", title: "Header case differs", go_ref: "adapters/foo/foo.go:10", rust_ref: "rust/x.rs:5",
-   input: "i", go_behavior: "X-Foo", rust_behavior: "x-foo"},
+  {severity: "blocking", title: "Header case differs", go_ref: "adapters/foo/foo.go:10",
+   rust_ref: "crates/x/src/x.rs:5", input: "i", go_behavior: "X-Foo", rust_behavior: "x-foo"},
   {severity: "minor", title: "Naming", go_ref: "a:1", rust_ref: "b:2", input: "i", go_behavior: "g", rust_behavior: "r"}]}')
 
 t_run_in "${repo}" env CTX="${ctx}" ACTION=advance RUN_MODE=auto BASE_SHA="${s1}" TARGET_SHA="${s2}" \
-  RUN_URL=https://example.invalid/runs/3 FINAL_STATUS=pass CLAUDE_RAN=true PORT_JSON="${port_json}" \
-  REVIEW_JSON="${review_json}" FIX_JSON="" "${T_SCRIPTS}/render-report.sh"
+  PIN_VERSION=v4.0.1-0.20260101000000-bbbbbbbbbbbb RUN_URL=https://example.invalid/runs/3 FINAL_STATUS=pass \
+  CLAUDE_RAN=true PORT_JSON="${port_json}" REVIEW_JSON="${review_json}" FIX_JSON="" "${T_SCRIPTS}/render-report.sh"
 t_eq "report: exit status" 0 "${T_RC}"
 report=${T_OUT}
 t_has "report: heading" "${report}" "## Upstream port: prebid/prebid-server aaaaaaaaaaaa..bbbbbbbbbbbb"
@@ -60,8 +58,10 @@ t_lacks "report: no robot emoji" "${report}" "🤖"
 t_has "report: agent fences cannot close the block" "${report}" "'''"
 t_has "report: not ported" "${report}" "- adapters/foo/foo.go: video is missing"
 t_has "report: blocking findings counted" "${report}" "Blocking findings: 1; minor: 1"
-t_has "report: work-tree corrections" "${report}" "changes outside rust/ were reverted"
-t_has "report: shadowed upstream paths" "${report}" ".github/workflows/upstream.yml"
+t_has "report: work-tree corrections" "${report}" "changes outside the writable paths were reverted"
+t_has "report: the pin moves" "${report}" "- Pin: \`UPSTREAM_SYNC\` moves from"
+t_has "report: the tooling modules follow the pin" "${report}" "require the upstream module at \`v4.0.1-0.20260101000000-bbbbbbbbbbbb\`"
+t_has "report: the no-copy check" "${report}" "No upstream file was copied in"
 t_has "report: merge-commit reminder" "${report}" "Create a merge commit"
 pattern=$(port_attribution_re)
 hit=$(grep -Ei -e "${pattern}" <<< "${report}" || true)

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# lint-shell.sh: run shellcheck at its strictest on every shell script the fork owns: every
+# lint-shell.sh: run shellcheck at its strictest on every shell script of this repository: every
 # optional check enabled, style severity, sourced files followed, and no rc file (so nothing can
 # turn a check off).
 #

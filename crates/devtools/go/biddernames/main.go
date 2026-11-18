@@ -105,7 +105,7 @@ func main() {
 	}
 
 	out := output{
-		Generator: "pbs-devtools go-dump bidder-names (rust/crates/devtools/go/biddernames)",
+		Generator: "pbs-devtools go-dump bidder-names (crates/devtools/go/biddernames)",
 		GoCommit:  opts.GoCommit,
 		Notes: []string{
 			"constants: every BidderName const in openrtb_ext, in source order.",

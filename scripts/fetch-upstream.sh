@@ -19,8 +19,25 @@
 #
 # The Rust tests, pbs-devtools and the Go tooling modules under crates/ read this checkout as the
 # Go root: $PBS_GO_ROOT when it is set, else .upstream at the repository root.
+#
+# Every git command names DIR with -C, and the variables with which git points a command at one
+# repository (GIT_DIR, GIT_WORK_TREE, GIT_INDEX_FILE and the rest of git rev-parse
+# --local-env-vars) are cleared first, as the parity scripts do: git sets GIT_DIR and
+# GIT_INDEX_FILE for a hook of a linked worktree, and GIT_DIR for the command of git rebase --exec
+# there, and with them git -C DIR would initialize, fetch into and check out that worktree's
+# repository instead of DIR.
 set -euo pipefail
 shopt -s inherit_errexit
+
+# Clear the variables with which git points a command at one repository, as git does before it
+# runs a command in another repository (a submodule), keeping the configuration passed down.
+git_variables=$(git rev-parse --local-env-vars)
+while IFS= read -r variable; do
+  case "${variable}" in
+    "" | GIT_CONFIG_PARAMETERS | GIT_CONFIG_COUNT) ;;
+    *) unset "${variable}" ;;
+  esac
+done <<< "${git_variables}"
 
 here=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 root=$(cd "${here}/.." && pwd)

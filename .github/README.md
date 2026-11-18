@@ -1,30 +1,59 @@
-# Fork operations: the Rust port of Prebid Server
+# Operations: the Rust port of Prebid Server
 
-This repository is a fork of [prebid/prebid-server](https://github.com/prebid/prebid-server). The Go
-server stays exactly as upstream ships it. The Rust port lives in `rust/`. The daily upstream-port
-workflow merges new upstream commits and ports them to Rust.
+This repository holds the Rust port of [prebid/prebid-server](https://github.com/prebid/prebid-server)
+and its tooling, and nothing of the Go server. Go is the source of truth: the port matches it
+byte for byte, and every check compares against the upstream commit the repository is pinned to.
+The daily upstream-port workflow advances that pin over new upstream commits and ports them.
 
 ## Repository model
 
-| Path | Owner | Rule |
-| --- | --- | --- |
-| `rust/`, `.github/`, `.planning/`, `AGENTS.md`, `CLAUDE.md` | the fork | listed in `.github/port/fork-paths.txt` |
-| everything else | upstream | byte-identical to the newest upstream commit merged into the branch |
+- **The pin.** `UPSTREAM_SYNC` holds one non-comment line: the full SHA of the upstream `master`
+  commit the port covers. Only the upstream-port workflow advances it, and only forward.
+- **The upstream checkout.** `scripts/fetch-upstream.sh [--dir DIR] [--sha SHA]` checks the pinned
+  commit out into `.upstream/`, which git ignores. Tests, generators and checks read it as the Go
+  root: `$PBS_GO_ROOT`, else `.upstream`. It fetches from `$PBS_UPSTREAM_URL` (default
+  `https://github.com/prebid/prebid-server.git`), or from `$PBS_UPSTREAM_REFERENCE`, a local
+  repository that has the commit, without network access.
+- **Upstream history.** Scripts that need upstream commits (the planner, the guard, the change
+  detection, the classifier) read a separate bare mirror that
+  `.github/port/scripts/upstream-mirror.sh` makes. Upstream objects never enter this repository.
+- **The Go tooling modules.** The only Go code here is test tooling: the programs under
+  `crates/<crate>/testdata/go/` that write goldens from the real Go code, and the dump programs in
+  `crates/devtools/go/`. Each module requires `github.com/prebid/prebid-server/v4` at the pin's
+  pseudo-version (`.github/port/scripts/pin-version.sh` derives it the way the go command does)
+  and replaces it with a relative path to `.upstream`. It has upstream's `go` line, no
+  `toolchain` line, and requires other modules only at the versions upstream's `go.mod` requires
+  them at (`pbs-devtools` checks all of it). The port workflow moves the upstream version together
+  with the pin (`advance-pin.sh`), then syncs the `go` line and the dependency versions with the
+  new pin's `go.mod` and tidies each module (`sync-go-modules.sh`).
+- **The port log.** `upstream-port-log.jsonl` gets one line per upstream commit the pin advanced
+  over: its status (`ported`, `partial`, `blocked`, `no_change_needed`, `skipped` or
+  `pinned-not-ported`), the Go behaviour left unported, and the run. It only grows: the guard
+  fails a port pull request that changes lines `main` already has.
+- Only the trusted scripts write the pin and the log (`advance-pin.sh` and `commit.sh`, after the
+  last agent session). A session that changes them has the change reverted.
+- `conformance/known_failures.txt` lists the Go adapter fixtures that may still fail. The list
+  only shrinks. See `conformance/README.md`.
+- `.claude/`, `.omx/` and other agent configuration and local tool state are never committed.
 
-- `rust/UPSTREAM_SYNC` names the newest upstream commit whose changes the Rust port covers. Only
-  the port workflow moves it, and it only moves forward.
-- `rust/upstream-port-log.jsonl` gets one line per upstream commit the port workflow handled: its
-  status, the Go behaviour left unported, and the run. It only grows: the guard fails a port
-  pull request that changes lines `main` already has.
-- Only `commit.sh` writes these two records, after the last agent session. A session that
-  changes them (with an edit, or from a test or probe it runs) has the change reverted.
-- `rust/conformance/known_failures.txt` lists the Go adapter fixtures that may still fail. The
-  list only shrinks. See `rust/conformance/README.md`.
-- `.claude/` and `.omx/` hold local tool state. They are never committed, and CI fails if they are.
+**No upstream file.** `guard.sh` enforces on every branch that the repository holds no upstream
+Go server file:
 
-The fork never edits upstream Go. A Go change belongs upstream, and the fork picks it up with the
-next merge. The upstream merge keeps the fork-owned paths and takes everything else from upstream,
-so it never conflicts. Upstream history is merged as it is and never rewritten.
+- only the top-level paths of `lib.sh port_top_level_paths` (plus `parity/` on `parity-harness`);
+- Go code only in the Go tooling modules (and `parity/` on `parity-harness`);
+- no symbolic link, submodule, `.gitmodules`, `go.work` or `vendor/` directory;
+- no file byte-identical to a file of the upstream tree at the pin (or the pin the change started
+  from), or to any file of 16 bytes or more in upstream history (any blob the mirror's branch and
+  tags reach, so an older or removed version of an upstream file counts too), except an empty file
+  and the entries of `lib.sh port_upstream_copies`: `LICENSE` (the same Apache 2.0 text) and
+  `crates/util/src/httputil/pixel.png` (the 86-byte pixel Go serves). Each entry names its upstream
+  file and covers only the bytes that file has had, not whatever is put at the path;
+- no modified copy of an upstream Go file: no Go file that shares 10 or more significant lines
+  (24 characters or more, not a comment, import or lone string) with one Go file of the pinned
+  upstream trees, and either half of its own significant lines or 40 or more of them. Hand-written
+  tooling shares only a few such lines with any one upstream file.
+
+A Go change belongs upstream; the port picks it up when the pin advances.
 
 ### Branches
 
@@ -32,101 +61,139 @@ so it never conflicts. Upstream history is merged as it is and never rewritten.
 | --- | --- |
 | `main` | Default branch. Changes land by pull request, as a **merge commit** only. |
 | `port/upstream-sync` | The port pull request. The bot owns this branch. |
-| `parity-harness` | The parity harness. It patches upstream Go on purpose, so it is exempt from the Go-tree rule. Main is merged into it daily. |
+| `parity-harness` | The parity harness: `parity/`, which may hold Go, and `parity/upstream-seams.patch`, the small seams it needs in upstream code. `main` is merged into it daily. |
 
-The upstream merge commits have to stay in `main`'s first-parent history. A squash or rebase
-merge of the port pull request drops them. After that the guard and the planner fail with "was a
-port pull request squash- or rebase-merged?" (see the runbook below).
+Merge the port pull request with a merge commit. A squash or rebase merge rewrites the bot's
+commits, so `main` loses each port commit with its `Upstream-Range`, `Upstream-Version` and
+`Port-Run` record.
 
 ## Workflows
 
 ### `ci.yml`: every pull request, every push to `main` and `parity-harness`, merge queues
 
 Every check runs at full strictness. There are no toggles, and no job may continue on error.
+The jobs that read Go sources check the pinned commit out into `.upstream/` with
+`scripts/fetch-upstream.sh` first (cached on the pin, saved from `main`), with `PBS_GO_ROOT`
+pointing at it.
 
 | Job | What it checks |
 | --- | --- |
-| `changes` | the compared range and the adapter directories the change touches |
-| `guard` | the fork invariants (`.github/port/scripts/guard.sh`): the Go tree equals upstream, no committed `.claude/`/`.omx/`, the `UPSTREAM_SYNC` marker, the known-failures list, no AI attribution in fork commits or pull request text, and on the port pull request the bot rules |
-| `rust-fmt` | `cargo +<nightly> fmt --all -- --check`. The nightly comes from `rust/scripts/rustfmt-toolchain.sh`. |
-| `rust-clippy` | `cargo clippy --workspace --all-targets --locked -- -D warnings` |
-| `rust-doc` | `RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps --locked` |
-| `rust-test` | `cargo test --workspace --locked` |
+| `changes` | the compared range, and whether a push names no commit before it (a new branch or repository, so the guard checks the whole history); the adapter directories the change touches (upstream files changed between the two pins, read from the upstream mirror, and Rust adapter files); whether it is the port pull request; whether it is on the parity-harness branch, for a push, a pull request, a merge queue run or a manual run |
+| `guard` | the repository invariants (`.github/port/scripts/guard.sh`): no upstream file (above), no committed agent configuration or local state, the pin (one upstream `master` commit that never moves backwards), the known-failures list, no AI attribution in any commit the change brings or in pull request text, no CI skip marker on the head commit, and on the port pull request the bot rules |
+| `rust-fmt` | `cargo +<nightly> fmt --all -- --check`. The nightly comes from `rustfmt.toml` through `scripts/rustfmt-toolchain.sh`. |
+| `rust-clippy` | `cargo clippy --workspace --all-targets --locked -- -D warnings`, then the same with `--all-features` |
+| `rust-doc` | `RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps --locked`, then the same with `--all-features` |
+| `rust-test` | `cargo test --workspace --locked`, then the same with `--all-features`, against the pinned upstream checkout |
 | `conformance` | the Go fixture ratchet (`.github/port/scripts/conformance.sh`). Fixtures of touched adapters must all pass. |
-| `devtools` | `cargo run -p pbs-devtools --locked -- all --check`, with the Go version of the upstream `Dockerfile` |
-| `lint-policy` | `rust/scripts/check-no-lint-suppression.sh` (no `#[allow]`, `#[expect]`, lint caps or "allow" levels anywhere, including attributes a macro assembles, which clippy does not see) and its self-tests |
-| `lint-config` | `taplo fmt --check`, shellcheck with every optional check at style severity, and actionlint |
-| `port-tests` | `.github/port/tests/run-all.sh`: the port tooling, tested in temporary repositories |
+| `devtools` | `cargo run -p pbs-devtools --locked -- all --check`: the generated files match Go, with the Go version of the upstream `Dockerfile` |
+| `go-tooling` | the Go tooling modules (`.github/port/scripts/go-tooling.sh`): `gofmt -s -l` prints nothing, and `go build ./...` and `go test ./...` pass with `GOFLAGS=-mod=readonly` in every `crates/**/go.mod` module except `crates/parity/testdata/go`, which needs `parity/` and runs in the `parity` job |
+| `lint-policy` | `scripts/check-no-lint-suppression.sh` (no `#[allow]`, `#[expect]`, lint caps or "allow" levels anywhere, including attributes a macro assembles, which clippy does not see) and its self-tests `scripts/tests/run.sh` |
+| `lint-config` | `taplo fmt --check`, shellcheck of every script with every optional check at style severity (`scripts/lint-shell.sh`), and actionlint |
+| `port-tests` | `.github/port/tests/run-all.sh`: the port tooling, tested in temporary repositories, with an upstream mirror for the checks of real upstream commits and Go for the module sync test |
 | `deny` | `cargo deny --locked check --deny warnings`: advisories, bans, licenses, sources (crates.io only, no duplicate versions) |
-| `machete` | unused dependencies |
-| `go-lint` | `gofmt -s`, `go vet` and golangci-lint (`.github/linters/golangci.yml`, every linter) on the Go the fork writes: `rust/**/testdata/go/`, `rust/crates/devtools/go/` and `parity/` |
-| `parity` | `parity-harness` only: `.github/port/scripts/ci-parity.sh` |
+| `machete` | unused dependencies (`scripts/cargo-machete.sh`) |
+| `parity` | `parity-harness` only: `.github/port/scripts/ci-parity.sh` assembles the pinned upstream tree, `parity/` and the seams patch in a temporary copy, then checks `gofmt -s -l` over the Go files the patch touches, `parity/scripts/seams.sh check`, the parity scripts' own module (`parity/scripts`), `go test ./parity/...` (and `-race` on the concurrent packages), `go test` of every upstream package the patch touches (from its file list) and of the root package, the `crates/parity/testdata/go` module, and the harness selftest. The Go-versus-Rust run follows `cargo metadata`: while the workspace has no bin target named `pbs-server` (it has none yet), the run is skipped with a notice that says so; once it has one, the job builds it and always runs the harness against it (`--bin-b`, ratcheted against `parity/baseline.json` when the branch has one), and any nonzero exit fails, 3 (incomplete) included |
 | `ci-ok` | passes only when every other job passed. `parity` may be skipped. |
 
 Make `ci-ok` the only required status check.
 
+The Go code is test tooling and is not linted: there is no `go vet` job and no golangci-lint, and
+the suppression ban rejects a golangci-lint configuration. Its checks are `gofmt -s`, `go build`
+and `go test` (which runs the small vet subset the go command always runs with tests).
+
 ### `upstream-port.yml`: daily at 05:23 UTC, or by hand
 
-Three jobs, each with its own trust level:
+Three jobs, each with its own trust level. One run at a time.
 
-1. **plan** (read-only token, no agents). It reads git, the open port pull request and its
-   `ci-ok` result, and chooses one action:
-   - `advance`: merge and port the next chunk of upstream first-parent commits.
+1. **plan** (read-only token, no agents). It mirrors upstream into a bare repository, reads git,
+   the open port pull request and its `ci-ok` result, and chooses one action:
+   - `advance`: port the next chunk of upstream first-parent commits after the pin and advance
+     the pin over it.
    - `repair`: fix the red CI of the open port pull request without porting anything new. Each
      attempt is a `port-repair:` commit, an empty one when the session changed nothing, so the
      attempts count towards `PORT_MAX_REPAIRS` and CI runs again.
    - `escalate`: label the pull request `port:needs-human` and stop.
-   - `none`: up to date, waiting for CI, or waiting for a human. A failed `ci-ok` does not count
+   - `none`: up to date, waiting for CI, or waiting for a person. A failed `ci-ok` does not count
      while another CI run on the same head is still going: a push and an edit of the pull request
      start two runs, and the older one is cancelled with a failed `ci-ok`.
 
    A chunk holds at most `PORT_MAX_COMMITS` commits and `PORT_MAX_GO_LINES` changed Go lines.
    A heavy commit (core Go, modules, an OpenRTB bump, or more than 1500 Go lines) gets a chunk of
-   its own. The plan job also packs the default branch's `.github/port` tooling, so later jobs
-   run trusted scripts, never ones taken from the branch under work.
-2. **port** (read-only contents token, no push credential). It works on the planned commit
-   checked out without persisted credentials. It merges `main` if needed, then the upstream chunk
-   (`merge-upstream.sh`), builds the porting context, prefetches crates and Go modules, and runs
-   the gates. Then the agent sessions run:
+   its own. The plan also carries the target's pseudo-version, and the job packs the default
+   branch's `.github/port` tooling and `scripts/fetch-upstream.sh`, so later jobs run trusted
+   scripts, never ones taken from the branch under work.
+2. **port** (read-only contents token, no push credential). It works on the planned commit,
+   checked out without persisted credentials, and merges `main` into it if needed. Then:
+   - `prepare-trees.sh` checks out three upstream trees with `fetch-upstream.sh`: the old pin
+     (read-only, what the port covered so far), the new pin in `.upstream/` (read-only, the Go
+     root of every test, tool and gate) and a writable probe copy of the new pin, the only place
+     a session may add Go probes (`zz_parity_scratch_test.go`).
+   - `advance-pin.sh` moves `UPSTREAM_SYNC` and the Go tooling modules to the new pin.
+   - `build-context.sh` gives the agents the plan, each upstream commit's patch and message, the
+     whole Go diff between the pins, the failing CI log of a repair and the Go-to-Rust path map.
+   - `sync-go-modules.sh` (trusted, with network; the agents have neither `go mod` nor network)
+     gives every Go tooling module the new pin's `go` line and the versions its `go.mod` requires,
+     and runs `go mod tidy` in each, so an upstream dependency bump or Go upgrade does not leave
+     the modules unbuildable under `-mod=readonly`. It fails the job, naming the module, when a
+     module cannot be tidied or still requires something upstream does not.
+     `crates/parity/testdata/go` imports the parity packages, which `main` does not have: it gets
+     the `go` line and the versions without a tidy. The summary goes into the port commit.
+   - Crates and Go modules are prefetched; the gates run (`gates.sh`: the CI checks above).
+
+   Then the agent sessions run:
    - **port**: ports the chunk and writes differential tests.
    - **adversarial review**: compares against Go and writes `adversarial_*.rs` tests that fail
      where Rust differs.
    - **fix**: runs only when the review found blocking differences or the gates are red.
 
-   After every session, `check-worktree.sh` undoes commits, reverts changes outside `rust/`, to
-   protected files (the workspace manifest, toolchain, rustfmt, clippy, cargo, deny and taplo
-   configs, `rust/scripts/`, the porting rules) and to the port records, and drops added known
-   failures. The final gates decide pass or fail.
-   `commit.sh` then commits with the bot identity, and `guard.sh --bot` checks the result. The
-   result leaves the job as a git bundle.
+   The sessions run when a commit needs Rust changes, for every repair, and when advancing the pin
+   alone broke a test, the conformance ratchet, the generated files or the Go tooling; never in
+   `pin-only` mode. After every session, `check-worktree.sh` undoes commits, deletes Go probes in
+   the work tree, reverts every change outside the writable paths (`crates/`, `testdata/`,
+   `conformance/known_failures.txt`, `Cargo.lock`), drops added known failures, applies the pin
+   again, resets the probe tree, and fails the job when either read-only tree is no longer a
+   clean checkout of its pin. The final gates decide pass or fail. `commit.sh` then appends the
+   port log and commits with the bot identity, and `guard.sh --bot` checks the result. The result
+   leaves the job as a git bundle.
 3. **publish** (fresh runner, default-branch tooling, the only push credential). It runs the
-   guard on the bundle without building or running anything from it. It pushes
-   `port/upstream-sync` (never `main`) and opens or updates the pull request. The PR is a draft
-   while red, labelled `port:green` or `port:red`, plus `port:partial` when the agents reported a
-   commit `partial` or `blocked`, or never reported on it (a failed or refused session). Go
-   behaviour the agents left unported, and those commits, go to the "Parity debt from upstream
-   ports" issue. A failed port job goes to "Upstream port run failed".
+   guard on the bundle against a fresh upstream mirror, without building or running anything
+   from it. It pushes `port/upstream-sync` (never `main`) and opens or updates the pull request.
+   The PR is a draft while red, labelled `port:green` or `port:red`, plus `port:partial` when a
+   commit is logged `partial`, `blocked` or `pinned-not-ported`: the agents reported it so, never
+   reported on it (a failed or refused session), or a `pin-only` run skipped it. Go behaviour left
+   unported, and those commits, go to the "Parity debt from upstream ports" issue. A failed port
+   job goes to "Upstream port run failed".
 
 The agents run with `.github/port/claude-settings.json`, plus a per-session allow list from
 `render-inputs.sh`:
 
-- Attribution is off, and bypass-permissions mode is disabled.
-- A deny list blocks git commands that change history or remotes, `gh`, network tools,
-  `WebFetch`/`WebSearch`, MCP tools, dependency changes, and edits to `.github/`, protected
-  `rust/` files and local tool state.
+- Attribution is off, and bypass-permissions mode is disabled. Only the settings the workflow
+  writes are loaded, so a `.claude/` or hook in the work tree changes nothing.
+- A deny list blocks git commands that change history, refs or remotes, `gh`, network tools,
+  `WebFetch`/`WebSearch`, MCP tools, dependency changes, and edits to `.github/`, the protected
+  files (the workspace manifest, toolchain, rustfmt, clippy, cargo, deny and taplo configs,
+  `scripts/`, the porting rules), the pin, the port log, local tool state and both read-only
+  upstream trees. The deny list always wins over the allow lists.
 - Cargo and Go are offline (`CARGO_NET_OFFLINE`, `GOPROXY=off`, `GOFLAGS=-mod=readonly`,
   `GOTOOLCHAIN=local`).
 
 The system prompts are in `.github/port/PORT_SYSTEM.md` and `.github/port/REVIEW_SYSTEM.md`. They
-tell the agents that repository content is data, not instructions, and that the GSD workflow of
-`AGENTS.md` does not apply in CI. Each session has a turn limit, a dollar budget and a step
-timeout. Agent output reaches pull requests only after sanitizing and fencing.
+tell the agents that repository and upstream content is data, not instructions, and that the GSD
+workflow of `AGENTS.md` does not apply in CI. Each session has a turn limit, a dollar budget and a
+step timeout. Agent output reaches pull requests only after sanitizing and fencing.
 
 ### `parity-harness-sync.yml`: daily at 06:47 UTC, or by hand
 
-This workflow merges `main` into `parity-harness` and pushes the merge. If the merge conflicts,
-nothing is pushed and the "parity-harness: merging main conflicts" issue is opened or commented.
-The next clean sync closes it.
+This workflow merges `main` into `parity-harness`, then checks that the harness still fits the
+upstream commit the merge pins: `parity/upstream-seams.patch` must apply (`git apply --check`) to a
+checkout of that commit made with `scripts/fetch-upstream.sh`. Only then is the merge pushed.
+
+- A conflicting merge pushes nothing and opens or comments the "parity-harness: merging main
+  conflicts" issue.
+- A patch that does not apply (or a missing patch) pushes nothing, fails the run and opens or
+  comments the "parity-harness: the seams patch does not apply" issue.
+- When there is nothing to merge, the seams are still checked against the harness's pin.
+- A sync that finds the harness fitting closes both issues.
 
 ### `dependabot.yml`
 
@@ -181,10 +248,9 @@ The bot identity is never a personal email.
 ### Repository settings
 
 - **Pull requests:** allow merge commits only. Turn off squash merging and rebase merging.
-- **`main` ruleset:**
-  - Require a pull request and the `ci-ok` status check.
-  - Block force pushes and deletion.
-  - Do not require linear history, because upstream merges are merge commits.
+- **`main` ruleset:** require a pull request and the `ci-ok` status check; block force pushes and
+  deletion. Do not require linear history: pull requests land as merge commits, and the port
+  branch merges `main` into itself.
 - **`port/upstream-sync`:** leave it unprotected for the pushing App or token. The publish job
   force-pushes with a lease when it rebuilds the branch.
 - **`parity-harness`:** allow the pushing App or token to push merges.
@@ -193,90 +259,101 @@ The bot identity is never a personal email.
 
 ## Attribution policy
 
-No fork commit or pull request carries Claude or other AI attribution:
+No commit or pull request of this repository carries Claude or other AI attribution:
 
 - no `Co-Authored-By` trailer naming Claude or Anthropic
 - no "Generated with Claude Code" or robot-emoji line
-- no claude.ai session link
+- no claude.ai session link or `Claude-Session` trailer
 - no Claude author or committer
 
 The policy is enforced in three places:
 
 1. the agents' settings (attribution off, `includeCoAuthoredBy: false`, no git commit access);
 2. the bot identity that commits;
-3. `guard.sh`, which checks the first-parent fork commits of every pull request and the pull
-   request text.
+3. `guard.sh`, which checks every commit a pull request or push brings, the commits its merges
+   bring in included, and the pull request text. A push that creates a branch or the repository
+   names no commit before it, so the guard checks the whole history of its head
+   (`--full-history`).
 
-Upstream commits are never checked or rewritten: some carry such trailers, and they are merged
-as they are. Text from upstream subjects or from agents passes through `port_sanitize` before it
-reaches a commit or a pull request. Lines about the fork's own generator, such as "Generated with
-`cargo run -p pbs-devtools -- all`", are fine.
+Upstream commits never enter the repository; some carry such trailers. Text from upstream subjects
+or from agents passes through `port_sanitize` before it reaches a commit or a pull request. Lines
+about this repository's own generator, such as "Generated with `cargo run -p pbs-devtools -- all`",
+are fine.
+
+`port_sanitize` also defuses CI skip markers: an upstream subject such as "Fix a typo [skip ci]"
+would otherwise make GitHub run no workflow on the port branch, and the pull request would wait
+for a `ci-ok` that never comes. `[skip ci]` and its variants become `(skip ci)`, and a
+`skip-checks:` trailer line is replaced. The guard fails any head commit that still carries one
+(the `ci-skip` rule), in the port and publish jobs as in CI.
 
 ## Runbook
 
 **The port pull request is green.** Review it and merge it with "Create a merge commit". The next
-run continues from the new marker.
+run continues from the new pin.
 
 **The port pull request is red.** The daily run repairs it, up to `PORT_MAX_REPAIRS` times,
 provided CI on `main` is green (while `main` is red, the planner waits). Then it escalates with
-`port:needs-human`. You can fix things
-yourself: push commits to `port/upstream-sync`, where human commits are allowed. Remove
-`port:needs-human` to hand the branch back. If the branch carries human commits and conflicts
-with `main`, the planner escalates instead of rebuilding it.
+`port:needs-human`. You can fix things yourself: push commits to `port/upstream-sync`, where human
+commits are allowed. Remove `port:needs-human` to hand the branch back. If the branch carries
+human commits and conflicts with `main`, the planner escalates instead of rebuilding it.
 
 **An upstream commit cannot be ported now.** Add its full SHA, with a comment, to
-`.github/port/skip-commits.txt` by pull request. The port still merges it, but no agent is asked
-to port it, and the log records `skipped`. To merge a chunk without agents, run the workflow with
-mode `merge-only`. That records the commits as `merged-not-ported` and leaves the marker where it
-is, so a later run ports them.
+`.github/port/skip-commits.txt` by pull request. The pin still advances over it, but no agent is
+asked to port it, and the log records `skipped`. To advance the pin without agents, run the
+workflow with mode `pin-only`: every commit of the chunk is logged `pinned-not-ported` and becomes
+parity debt, and the pull request is labelled `port:partial`.
 
 **Every agent step fails, and the commits are logged `blocked`.** Check the agent step log. The
 agent action runs only for a human actor. A scheduled run acts as the user who last changed the
 `cron` line of `upstream-port.yml`, so that change must come from a person, not an App or bot. A
 run started by hand acts as the person who started it. Also check the API key or OAuth token.
 
-**Manual runs.** `mode` takes `auto`, `advance`, `repair`, `merge-only` or `dry-run`:
+**Manual runs.** `mode` takes `auto`, `advance`, `repair`, `pin-only` or `dry-run`:
 
 - `advance` ports new commits even when the pull request is red.
+- `repair` only repairs; it does nothing when there is nothing to repair.
 - `dry-run` plans and ports as `auto` would, but publishes nothing. Read the job summary and the
   `port-result` artifact.
 
 `max_commits` limits the chunk. `target_sha` stops at a given upstream first-parent commit.
 
-**A pull request was squash- or rebase-merged.** The tree is right, but the upstream ancestry is
-gone. Restore it on `main` without changing any file, by pull request:
+**The parity-harness sync reports a conflict.** Merge `main` into `parity-harness` by hand
+(a merge commit), resolve the conflict, and push. The next sync closes the issue.
 
-```sh
-git switch -c restore-upstream-ancestry origin/main
-git fetch https://github.com/prebid/prebid-server.git master
-git merge -s ours --no-ff -m "Restore upstream ancestry" "$(sed -n '/^[0-9a-f]\{40\}$/p' rust/UPSTREAM_SYNC)"
-```
-
-**The parity-harness sync reports a conflict.** Merge `main` into `parity-harness` by hand,
-resolve the conflict, and push. The next sync closes the issue.
+**The seams patch does not apply to the new pin.** Refresh the seams on `parity-harness` with the
+three-way flow of `parity/README.md` ("The upstream seams"): with the old pin's objects in the Go
+root and `UPSTREAM_SYNC` at the new pin, `parity/scripts/build-go.sh --3way` applies the patch
+with `git apply --3way` in the assembled tree and lists the conflicts; resolve them there, then
+`parity/scripts/seams.sh write` saves the patch and `parity/scripts/seams.sh check` confirms its
+form. Commit it together with a merge of `main`, and push. The next sync checks it and closes the
+issue; `ci-parity.sh` assembles the same tree and runs `seams.sh check` too.
 
 **The port job failed or was cancelled.** See the "Upstream port run failed" issue and the
 linked run. Nothing was pushed. The next scheduled run plans again from scratch.
 
 ## Local commands
 
-The scripts need bash 4.4 or newer, git, jq and perl. On macOS, install bash with Homebrew.
+The scripts need bash 4.4 or newer, git, jq and perl, and the port tooling tests also need Go
+(`test_sync_go_modules.sh` runs `go mod tidy` against a module proxy in a temporary directory, with
+no network). On macOS, install bash with Homebrew.
 
 ```sh
-.github/port/tests/run-all.sh                  # port tooling tests (or name some: run-all.sh guard plan)
-rust/scripts/lint-shell.sh                     # strict shellcheck of every script
-rust/scripts/check-no-lint-suppression.sh      # the suppression ban; self-tests: rust/scripts/tests/run.sh
-(cd rust && taplo fmt --check --config taplo.toml)
-(cd rust && cargo deny --locked check --deny warnings)
-rust/scripts/cargo-machete.sh
-rust/scripts/lint-go.sh
+scripts/fetch-upstream.sh                      # .upstream/ at the pinned commit
+PBS_UPSTREAM_REFERENCE=~/src/prebid-server scripts/fetch-upstream.sh   # from a local clone, offline
 
-# Fork invariants for the current branch (needs the upstream ref):
-git fetch https://github.com/prebid/prebid-server.git +refs/heads/master:refs/remotes/upstream/master
-.github/port/scripts/guard.sh --ref HEAD --base origin/main
+cargo test --workspace --locked                # reads .upstream/ (or $PBS_GO_ROOT)
+.github/port/scripts/go-tooling.sh             # gofmt -s, go build and go test of the Go tooling
+scripts/lint-shell.sh                          # strict shellcheck of every script
+scripts/check-no-lint-suppression.sh           # the suppression ban; self-tests: scripts/tests/run.sh
+taplo fmt --check --config taplo.toml
+cargo deny --locked check --deny warnings
+scripts/cargo-machete.sh
 
-# What an upstream commit needs, and the conformance ratchet:
-.github/port/scripts/classify.sh <sha>^1 <sha>
+# A bare upstream mirror, for the port tooling tests, the guard and the classifier:
+mirror=$(.github/port/scripts/upstream-mirror.sh /tmp/upstream.git)
+PORT_TESTS_UPSTREAM_GIT=${mirror} .github/port/tests/run-all.sh   # or name some: run-all.sh guard plan
+.github/port/scripts/guard.sh --ref HEAD --base origin/main --upstream "${mirror}"
+GIT_DIR=${mirror} .github/port/scripts/classify.sh <sha>^1 <sha>
 .github/port/scripts/conformance.sh --strict-dirs <adapter,...>
 ```
 

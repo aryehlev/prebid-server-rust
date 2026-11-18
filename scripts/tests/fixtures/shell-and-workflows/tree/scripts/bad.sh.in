@@ -18,3 +18,12 @@ rustc --cap-lints allow main.rs
 cargo clippy -- --warn clippy::all
 actionlint -ignore 'SC2086' .github/workflows/ci.yml
 export CLIPPY_CONF_DIR=/tmp
+export RUSTC_WRAPPER=./strip-lints.sh
+RUSTC=./rustc-without-lints cargo clippy
+export CARGO_BUILD_RUSTC_WORKSPACE_WRAPPER=./wrap.sh
+CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUNNER=true cargo test
+export CARGO_ALIAS_CLIPPY=check
+CARGO_HOME="${PWD}/cargo-home" cargo clippy
+RUSTC_BOOTSTRAP=1 cargo build
+cargo clippy --config 'build.rustflags=["-Awarnings"]' -- -D warnings
+cargo --config=lints.toml test

@@ -20,7 +20,14 @@ export T_RC=0 T_OUT="" T_ERR=""
 T_PASSED=0
 T_FAILED=0
 T_NAME=$(basename "${0}" .sh)
-trap 'rm -rf -- "${T_ROOT}"' EXIT
+# The upstream trees the tests check out are made read-only, so they are made writable before the
+# directory is removed.
+trap 'chmod -R u+w -- "${T_ROOT}" 2> /dev/null || true; rm -rf -- "${T_ROOT}"' EXIT
+# A test runs from the temporary directory, which is no git work tree (git does not look above it),
+# so a script a test starts without naming a repository fails instead of changing this one.
+cd "${T_ROOT}"
+GIT_CEILING_DIRECTORIES=$(dirname "${T_ROOT}")
+export GIT_CEILING_DIRECTORIES
 
 # The scripts run with the bash running the tests (bash 4.4 or newer), whatever bash PATH has.
 bash_dir=$(dirname "${BASH}")
@@ -34,11 +41,13 @@ export GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1 GIT_TERMINAL_PROMPT=0 X
 export GIT_AUTHOR_NAME="Test Person" GIT_AUTHOR_EMAIL="person@example.com"
 export GIT_COMMITTER_NAME="Test Person" GIT_COMMITTER_EMAIL="person@example.com"
 unset GITHUB_OUTPUT GITHUB_ENV GITHUB_STEP_SUMMARY GITHUB_WORKSPACE RUNNER_TEMP GH_TOKEN \
-  CTX PLAN_DIR OUT_DIR MERGED_SHA BASE_SHA TARGET_SHA WORK_SHA ACTION RUN_MODE ADAPTER_DIRS PR_NUMBER \
+  CTX PLAN_DIR OUT_DIR START_SHA BASE_SHA TARGET_SHA WORK_SHA ACTION RUN_MODE ADAPTER_DIRS PR_NUMBER \
   NEEDS_CLAUDE BUDGET_CLASS RUN_URL PORT_JSON FIX_JSON REVIEW_JSON AFTER_STATUS FINAL_STATUS \
   CLAUDE_RAN CONFORMANCE_REQUIRED PBS_GO_ROOT TARGET_INPUT WORK_BRANCH DRY_RUN REASON PORT_RESULT \
-  EVENT REF REPOSITORY PR_BASE PR_HEAD PR_HEAD_REF PR_HEAD_REPO BASE_REF PUSH_BEFORE MG_BASE \
-  MG_HEAD HEAVY_GO_LINES MAX_COMMITS MAX_PR_COMMITS MAX_REPAIRS MAX_GO_LINES GH_SHIM_DIR
+  EVENT REF REPOSITORY PR_BASE PR_HEAD PR_HEAD_REF PR_HEAD_REPO BASE_REF PUSH_BEFORE MG_BASE MG_BASE_REF \
+  MG_HEAD HEAVY_GO_LINES MAX_COMMITS MAX_PR_COMMITS MAX_REPAIRS MAX_GO_LINES GH_SHIM_DIR \
+  UPSTREAM_GIT PBS_UPSTREAM_URL PBS_UPSTREAM_REFERENCE PIN_VERSION OLD_GO_ROOT PROBE_ROOT \
+  CARGO_TARGET_DIR GOFLAGS GOWORK
 export UPSTREAM_BRANCH=master BASE_BRANCH=main PORT_BRANCH=port/upstream-sync HARNESS_BRANCH=parity-harness
 export GITHUB_REPOSITORY=test/fork
 export T_BOT_NAME="github-actions[bot]" T_BOT_EMAIL="41898282+github-actions[bot]@users.noreply.github.com"
@@ -172,18 +181,59 @@ t_gh_shim() {
   export GH_SHIM_DIR="${dir}" GH_TOKEN=test-token
 }
 
-# t_fork_fixture DIR: a fake upstream repository DIR/upstream and a fork DIR/fork of it.
-#   upstream (branch master, tag u1): Go code, an adapter with fixtures, bidder info, docs,
-#     upstream workflows and an AGENTS.md
-#   fork (branch main, tag f0): u1 without upstream's .github/workflows, plus the fork-owned
-#     paths: .github/port, rust/ (UPSTREAM_SYNC = u1, Cargo.toml, Cargo.lock, a crate, the
-#     known-failures list, scripts) and its own AGENTS.md. refs/remotes/upstream/master is u1 and
+# t_real_upstream: the git directory holding the real upstream history that test_classify and
+# test_guard read: PORT_TESTS_UPSTREAM_GIT, which CI sets to the upstream mirror (locally: a mirror
+# made with .github/port/scripts/upstream-mirror.sh, or any clone of prebid/prebid-server). Prints
+# nothing when it is unset or not a git directory.
+t_real_upstream() {
+  local dir=${PORT_TESTS_UPSTREAM_GIT:-}
+  if [[ -n "${dir}" ]] && git --git-dir="${dir}" rev-parse --git-dir > /dev/null 2>&1; then
+    printf '%s\n' "${dir}"
+  fi
+}
+
+# t_go_mod DIR VERSION: the go.mod of a Go tooling module at DIR (relative to the repository top)
+# that requires the upstream module at VERSION and replaces it with .upstream at the top.
+t_go_mod() {
+  local dir=${1:?} version=${2:?} up="" depth
+  depth=$(tr -cd '/' <<< "${dir}" | wc -c)
+  depth=$((depth + 1))
+  while [[ "${depth}" -gt 0 ]]; do
+    up+="../"
+    depth=$((depth - 1))
+  done
+  printf 'module github.com/aryehlev/prebid-server-rust/%s\n\ngo 1.25.0\n\nrequire github.com/prebid/prebid-server/v4 %s\n\nreplace github.com/prebid/prebid-server/v4 => %s.upstream\n' \
+    "${dir}" "${version}" "${up}"
+}
+
+# t_mirror DIR: make or refresh DIR/upstream.git, the bare mirror of DIR/upstream that
+# upstream-mirror.sh keeps, and export UPSTREAM_GIT and PBS_UPSTREAM_URL for it.
+t_mirror() {
+  local dir=${1:?}
+  export PBS_UPSTREAM_URL="${dir}/upstream"
+  "${T_SCRIPTS}/upstream-mirror.sh" "${dir}/upstream.git" > /dev/null 2>&1
+  export UPSTREAM_GIT="${dir}/upstream.git"
+}
+
+# t_fork_fixture DIR: a fake upstream repository DIR/upstream, its mirror DIR/upstream.git and a
+# repository DIR/fork in this repository's layout, which holds no upstream file.
+#   upstream (branch master; tags u1 and v4.0.0 on its first commit): a go.mod of
+#     github.com/prebid/prebid-server/v4, a Dockerfile, Go code, an adapter with fixtures, bidder
+#     info, docs, upstream workflows, an AGENTS.md and a LICENSE
+#   upstream.git: the mirror (t_mirror; UPSTREAM_GIT and PBS_UPSTREAM_URL are exported)
+#   fork (branch main, tag f0): .github/port, UPSTREAM_SYNC pinning u1, Cargo.toml, Cargo.lock, a
+#     crate with a Go tooling module that requires the upstream module at u1's pseudo-version,
+#     testdata/, the known-failures list, scripts/ (with a copy of scripts/fetch-upstream.sh),
+#     patches/, the port log, its own AGENTS.md and upstream's LICENSE (an allowed copy).
 #     refs/remotes/origin/main is main.
+# Sets T_U1 and T_U1_VERSION (u1's pseudo-version).
 t_fork_fixture() {
-  local dir=${1:?} up fork u1
+  local dir=${1:?} up fork
   up="${dir}/upstream"
   fork="${dir}/fork"
   t_repo "${up}"
+  printf 'module github.com/prebid/prebid-server/v4\n\ngo 1.25.0\n' > "${up}/go.mod"
+  t_put "${up}" Dockerfile 'RUN wget https://dl.google.com/go/go1.26.2.linux-amd64.tar.gz'
   t_put "${up}" main.go 'package main // v1'
   t_put "${up}" exchange/exchange.go 'package exchange // v1'
   t_put "${up}" adapters/foo/foo.go 'package foo // v1'
@@ -194,34 +244,49 @@ t_fork_fixture() {
   t_put "${up}" .github/workflows/upstream.yml 'name: upstream'
   t_put "${up}" AGENTS.md 'upstream agents v1'
   t_put "${up}" README.md 'readme v1'
-  u1=$(t_commit "${up}" "Initial upstream")
+  t_put "${up}" LICENSE 'Apache License, Version 2.0 (test copy)'
+  T_U1=$(t_commit "${up}" "Initial upstream")
   git -C "${up}" tag u1
+  git -C "${up}" tag v4.0.0
+  t_mirror "${dir}"
+  T_U1_VERSION=$("${T_SCRIPTS}/pin-version.sh" "${T_U1}")
+  export T_U1 T_U1_VERSION
 
-  git clone -q "${up}" "${fork}"
+  t_repo "${fork}"
   git -C "${fork}" switch -q -c main
-  git -C "${fork}" branch -q -D master
-  git -C "${fork}" remote remove origin
-  git -C "${fork}" rm -q -r .github/workflows
   t_put "${fork}" .github/port/README.md 'fork tooling'
-  mkdir -p "${fork}/rust"
-  printf '# Last upstream commit ported to Rust.\n# One commit per line; the last one counts.\n%s\n' "${u1}" \
-    > "${fork}/rust/UPSTREAM_SYNC"
-  t_put "${fork}" rust/Cargo.toml '[workspace]'
-  printf 'version = 4\n\n[[package]]\nname = "pbs-x"\nversion = "0.1.0"\n' > "${fork}/rust/Cargo.lock"
-  t_put "${fork}" rust/crates/x/src/lib.rs '//! x'
-  t_put "${fork}" rust/conformance/known_failures.txt '# known failures'
-  t_put "${fork}" rust/scripts/a.sh 'echo a'
-  : > "${fork}/rust/upstream-port-log.jsonl"
+  printf '# The upstream commit the port is pinned to.\n# Only the upstream-port workflow advances it.\n%s\n' "${T_U1}" \
+    > "${fork}/UPSTREAM_SYNC"
+  printf '/target/\n/.upstream/\n/.upstream\n' > "${fork}/.gitignore"
+  t_put "${fork}" Cargo.toml '[workspace]'
+  printf 'version = 4\n\n[[package]]\nname = "pbs-x"\nversion = "0.1.0"\n' > "${fork}/Cargo.lock"
+  t_put "${fork}" crates/x/src/lib.rs '//! x'
+  mkdir -p "${fork}/crates/x/testdata/go"
+  t_go_mod crates/x/testdata/go "${T_U1_VERSION}" > "${fork}/crates/x/testdata/go/go.mod"
+  t_put "${fork}" crates/x/testdata/go/main.go 'package main'
+  t_put "${fork}" testdata/README.md 'generated data'
+  t_put "${fork}" conformance/known_failures.txt '# known failures'
+  t_put "${fork}" conformance/README.md 'the conformance contract'
+  t_put "${fork}" scripts/a.sh 'echo a'
+  cp "${T_TOP}/scripts/fetch-upstream.sh" "${fork}/scripts/fetch-upstream.sh"
+  t_put "${fork}" patches/README.md 'patched crates'
+  : > "${fork}/upstream-port-log.jsonl"
   t_put "${fork}" AGENTS.md 'fork agents'
+  cp "${up}/LICENSE" "${fork}/LICENSE"
   t_commit "${fork}" "Fork setup" > /dev/null
   git -C "${fork}" tag f0
-  git -C "${fork}" fetch -q "${up}" "+refs/heads/master:refs/remotes/upstream/master"
   git -C "${fork}" update-ref refs/remotes/origin/main refs/heads/main
 }
 
-# t_sync_upstream DIR: fetch DIR/upstream's master and tags into DIR/fork.
+# t_advance REPO SHA: pin REPO to upstream commit SHA with advance-pin.sh (UPSTREAM_SYNC and the
+# Go tooling modules), at the version pin-version.sh derives from the mirror.
+t_advance() {
+  local repo=${1:?} sha=${2:?} version
+  version=$("${T_SCRIPTS}/pin-version.sh" "${sha}")
+  (cd "${repo}" && "${T_SCRIPTS}/advance-pin.sh" "${sha}" "${version}") > /dev/null
+}
+
+# t_sync_upstream DIR: bring DIR/upstream.git up to date with DIR/upstream (its master and tags).
 t_sync_upstream() {
-  local dir=${1:?}
-  git -C "${dir}/fork" fetch -q "${dir}/upstream" "+refs/heads/master:refs/remotes/upstream/master" \
-    "+refs/tags/*:refs/tags/*"
+  t_mirror "${1:?}"
 }

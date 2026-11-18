@@ -3,7 +3,7 @@
 # .upstream/ is the fetched upstream checkout (scripts/fetch-upstream.sh), not workspace code.
 # taplo does not read .gitignore, so it is excluded here.
 include = ["**/*.toml"]
-exclude = ["target/**", "legacy/**", ".upstream/**"]
+exclude = ["target/**", ".upstream/**"]
 
 [formatting]
 indent_string = "    "

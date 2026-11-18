@@ -1,5 +1,5 @@
 {
-  "generator": "pbs-devtools go-dump bidder-names (rust/crates/devtools/go/biddernames)",
+  "generator": "pbs-devtools go-dump bidder-names (crates/devtools/go/biddernames)",
   "go_commit": "4e296450de2fcc62741340b2e5f7d1df6c1744a5",
   "notes": [
     "constants: every BidderName const in openrtb_ext, in source order.",

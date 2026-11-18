@@ -1,5 +1,7 @@
 [advisories]
 ignore = ["RUSTSEC-2020-0001"]
+db-urls = ["https://example.com/advisory-db"]
+unmaintained = "workspace"
 
 [bans]
 multiple-versions = "deny"
@@ -9,7 +11,20 @@ skip-tree = [{ name = "windows-sys" }]
 [licenses]
 allow = ["MIT"]
 exceptions = [{ allow = ["GPL-3.0"], crate = "z" }]
+clarify = [{ crate = "y", expression = "MIT", license-files = [] }]
 
 [sources]
 allow-git = ["https://github.com/example/crate"]
 allow-org = { github = ["example"] }
+allow-registry = ["https://github.com/rust-lang/crates.io-index", "https://example.com/index"]
+unknown-git = "allow"
+
+[graph]
+exclude = ["openssl-sys"]
+exclude-dev = true
+
+[licenses.private]
+ignore = true
+
+[bans.build]
+bypass = [{ crate = "cc" }]

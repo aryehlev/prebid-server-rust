@@ -35,8 +35,23 @@
 #      exactly those documents;
 #   5. the temporary directory is removed, and the Rust tests run in both
 #      modes against the new goldens.
+#
+# As in the parity scripts, the variables with which git points a command at
+# one repository (GIT_DIR, GIT_WORK_TREE, GIT_INDEX_FILE, ...) are cleared
+# first, so that under a hook or git rebase --exec the git commands here read
+# the repository this script is in, and the export comes from it.
 set -euo pipefail
 shopt -s inherit_errexit
+
+# Clear them as git does before it runs a command in another repository (a
+# submodule), keeping the configuration passed down.
+git_variables="$(git rev-parse --local-env-vars)"
+while IFS= read -r variable; do
+	case "${variable}" in
+	"" | GIT_CONFIG_PARAMETERS | GIT_CONFIG_COUNT) ;;
+	*) unset "${variable}" ;;
+	esac
+done <<<"${git_variables}"
 
 ref="${1:-HEAD}"
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

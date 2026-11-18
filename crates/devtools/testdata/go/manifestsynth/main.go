@@ -42,11 +42,10 @@ const (
 	tmpName  = "zzsynth_tmp"
 	module   = "github.com/prebid/prebid-server/v4"
 	fakeName = "adapterstest"
-	// genRel is where this program lived inside the upstream module tree when the golden was
-	// first generated. The golden's generator label and the fake package's import path are built
-	// from it, so the package is compiled in a throwaway module whose path keeps that import path
-	// and regenerating the golden stays byte-identical.
-	genRel = "rust/crates/devtools/testdata/go/manifestsynth"
+	// genRel is this program's directory in the repository. The golden's generator label and the
+	// fake package's import path are built from it, so the package is compiled in a throwaway
+	// module whose path keeps that import path and regenerating the golden stays byte-identical.
+	genRel = "crates/devtools/testdata/go/manifestsynth"
 	// outRel is the golden, relative to this module's directory.
 	outRel = "../manifest_synth.json"
 )
@@ -118,7 +117,7 @@ func main() {
 		consts[k] = string(v)
 	}
 	gold := golden{
-		Generator: "go run ./" + genRel,
+		Generator: "go run ./" + path.Base(genRel) + " (in " + path.Dir(genRel) + ")",
 		Notes: []string{
 			"files: a generated adapter package (adapters/" + pkgName + " for the evaluator); observations: what each RunJSONBidderTest call received when `go test -vet=off` ran it.",
 			"observation.test is t.Name() (subtests keep their /suffix); root is path.Join(\"adapters/" + pkgName + "\", dir), what the manifest records as fixture_root.",
