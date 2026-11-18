@@ -17,8 +17,11 @@ import (
 // MinimizeOptions configure minimization of a finished run's clusters.
 type MinimizeOptions struct {
 	// RunDir is the finished run directory.
-	RunDir   string
-	RepoRoot string
+	RunDir string
+	// RepoRoot and HarnessRoot default as in Options. The run's recorded
+	// binaries are relative to HarnessRoot.
+	RepoRoot    string
+	HarnessRoot string
 	// A and B default to the run's implementations; a missing binary must
 	// be given.
 	A, B Impl
@@ -57,6 +60,9 @@ func MinimizeRun(ctx context.Context, opts MinimizeOptions) ([]MinimizeOutcome, 
 	if len(targets) == 0 {
 		return nil, run, nil
 	}
+	if opts.RepoRoot, opts.HarnessRoot, err = resolveRoots(opts.RepoRoot, opts.HarnessRoot); err != nil {
+		return nil, nil, err
+	}
 	r, err := newRunner(minimizeRunnerOptions(run, opts))
 	if err != nil {
 		return nil, nil, err
@@ -83,14 +89,14 @@ func minimizeRunnerOptions(run *report.Run, opts MinimizeOptions) Options {
 		}
 		if given.Binary == "" && binary != "" {
 			given.Binary = binary
-			if !filepath.IsAbs(binary) && opts.RepoRoot != "" {
-				given.Binary = filepath.Join(opts.RepoRoot, filepath.FromSlash(binary))
+			if !filepath.IsAbs(binary) && opts.HarnessRoot != "" {
+				given.Binary = filepath.Join(opts.HarnessRoot, filepath.FromSlash(binary))
 			}
 		}
 		return given
 	}
 	return Options{
-		RepoRoot: opts.RepoRoot, OutDir: run.Layout.Dir, RunID: run.Summary.RunID, Mode: run.Summary.Mode,
+		RepoRoot: opts.RepoRoot, HarnessRoot: opts.HarnessRoot, OutDir: run.Layout.Dir, RunID: run.Summary.RunID, Mode: run.Summary.Mode,
 		A: pick(opts.A, run.Summary.ImplA, run.Summary.BinaryA), B: pick(opts.B, run.Summary.ImplB, run.Summary.BinaryB),
 		ProfilesDir: opts.ProfilesDir, StoredDir: opts.StoredDir,
 		CaseTimeout: opts.CaseTimeout, StartTimeout: opts.StartTimeout, Logf: opts.Logf,

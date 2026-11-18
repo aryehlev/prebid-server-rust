@@ -273,14 +273,22 @@ func freePorts(n int) ([]int, error) {
 	return out, nil
 }
 
-// BuildGo builds the Go server binary at out from the repository root.
+// BuildGo builds the Go server binary at out from the repository root, the
+// assembled tree (parity/scripts/build-go.sh builds the same way): without a
+// go.work, and without VCS stamping, since the tree is a scratch clone. An
+// out inside the parity/out of the tree's harness root is kept out of git
+// there.
 func BuildGo(ctx context.Context, repoRoot, out string) error {
 	if err := os.MkdirAll(filepath.Dir(out), 0o755); err != nil {
 		return fmt.Errorf("runner: creating %s: %w", filepath.Dir(out), err)
 	}
 	ignoreOutputRoot(repoRoot, out)
-	cmd := exec.CommandContext(ctx, "go", "build", "-o", out, ".")
+	if _, harness, err := resolveRoots(repoRoot, ""); err == nil {
+		ignoreOutputRoot(harness, out)
+	}
+	cmd := exec.CommandContext(ctx, "go", "build", "-buildvcs=false", "-o", out, ".")
 	cmd.Dir = repoRoot
+	cmd.Env = append(os.Environ(), "GOWORK=off")
 	var stderr bytes.Buffer
 	cmd.Stdout, cmd.Stderr = &stderr, &stderr
 	if err := cmd.Run(); err != nil {

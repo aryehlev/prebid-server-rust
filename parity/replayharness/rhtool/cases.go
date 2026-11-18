@@ -24,7 +24,7 @@ func parseCases(args []string, stderr io.Writer) (casesOptions, error) {
 
 	fs := flag.NewFlagSet("cases", flag.ContinueOnError)
 	fs.SetOutput(stderr)
-	fs.StringVar(&o.repo, "repo", ".", "a directory inside the Prebid Server checkout")
+	fs.StringVar(&o.repo, "repo", ".", "the assembled tree or the workspace, or a directory inside either")
 	fs.StringVar(&o.jsonOut, "json", "", "also write the requests that are not compared, with their reasons, to this JSON file")
 
 	if err := fs.Parse(args); err != nil {

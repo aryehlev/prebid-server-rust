@@ -53,7 +53,41 @@ func ApprovedRoots() []string {
 	return roots
 }
 
-// Repo is a Prebid Server checkout the corpus is read from.
+// The workspace and the assembled tree. The harness lives in the parity/
+// directory of the Rust workspace (the repository that holds the Rust port),
+// which never holds upstream Go, so this code compiles only inside a tree that
+// parity/scripts/build-go.sh assembles: the upstream commit UPSTREAM_SYNC pins,
+// the seams patch and a copy of the workspace's parity/. The corpus is read
+// from that tree; reports go to the workspace (Repo.HarnessRoot).
+const (
+	// TreeMarker is the file build-go.sh writes at the top of the tree it
+	// assembles: "workspace=", "upstream=" and "seams=" lines naming the
+	// workspace, the upstream commit and the seams it applied.
+	TreeMarker = ".parity-tree"
+	// DefaultTree is where build-go.sh assembles the tree, relative to the
+	// workspace.
+	DefaultTree = "parity/out/tree"
+	// workspacePin and workspaceSeams are the files that make a directory the
+	// workspace: the pinned upstream commit and the seams patch.
+	workspacePin   = "UPSTREAM_SYNC"
+	workspaceSeams = "parity/upstream-seams.patch"
+	// buildScript is what assembles the tree, relative to the workspace.
+	buildScript = "parity/scripts/build-go.sh"
+)
+
+// IsWorkspace reports whether dir is the Rust workspace of the harness: it
+// holds the pinned upstream commit and the seams patch.
+func IsWorkspace(dir string) bool {
+	for _, name := range []string{workspacePin, workspaceSeams} {
+		fi, err := os.Stat(filepath.Join(dir, filepath.FromSlash(name)))
+		if err != nil || !fi.Mode().IsRegular() {
+			return false
+		}
+	}
+	return true
+}
+
+// Repo is a Prebid Server checkout the corpus is read from: the assembled tree.
 type Repo struct {
 	root string
 }
@@ -79,22 +113,61 @@ func OpenRepo(root string) (*Repo, error) {
 	return &Repo{root: resolved}, nil
 }
 
-// FindRepo walks up from start until it finds the Prebid Server checkout.
+// FindRepo walks up from start until it finds the tree to read the corpus
+// from: a Prebid Server checkout that holds parity/ (the assembled tree), or
+// the workspace, whose tree is DefaultTree. A checkout without parity/, such
+// as the workspace's .upstream, is passed over.
 func FindRepo(start string) (*Repo, error) {
 	dir, err := filepath.Abs(start)
 	if err != nil {
 		return nil, fmt.Errorf("corpus: resolving %q: %w", start, err)
 	}
 	for {
-		if repo, err := OpenRepo(dir); err == nil {
+		if fi, err := os.Stat(filepath.Join(dir, "parity")); err == nil && fi.IsDir() {
+			if repo, err := OpenRepo(dir); err == nil {
+				return repo, nil
+			}
+		}
+		if IsWorkspace(dir) {
+			tree := filepath.Join(dir, filepath.FromSlash(DefaultTree))
+			repo, err := OpenRepo(tree)
+			if err != nil {
+				return nil, fmt.Errorf("corpus: %s is the workspace, but its assembled tree cannot be used (run %s): %w", dir, buildScript, err)
+			}
 			return repo, nil
 		}
 		parent := filepath.Dir(dir)
 		if parent == dir {
-			return nil, fmt.Errorf("corpus: no Prebid Server checkout above %q", start)
+			return nil, fmt.Errorf("corpus: no assembled tree or workspace above %q (run %s in the workspace)", start, buildScript)
 		}
 		dir = parent
 	}
+}
+
+// HarnessRoot returns the directory whose parity/ holds the harness sources
+// and receives the reports (parity/out): the workspace TreeMarker names, for
+// an assembled tree, or else the checkout itself. In the workspace the Rust
+// build is under target/.
+func (r *Repo) HarnessRoot() (string, error) {
+	marker := filepath.Join(r.root, TreeMarker)
+	raw, err := os.ReadFile(marker)
+	if errors.Is(err, fs.ErrNotExist) {
+		return r.root, nil
+	}
+	if err != nil {
+		return "", fmt.Errorf("corpus: reading %s: %w", marker, err)
+	}
+	for _, line := range strings.Split(string(raw), "\n") {
+		ws, ok := strings.CutPrefix(line, "workspace=")
+		if !ok {
+			continue
+		}
+		if !filepath.IsAbs(ws) || !IsWorkspace(ws) {
+			return "", fmt.Errorf("corpus: %s names %q, which is not the workspace (any more); assemble the tree again with %s", marker, ws, buildScript)
+		}
+		return ws, nil
+	}
+	return "", fmt.Errorf("corpus: %s names no workspace; assemble the tree again with %s", marker, buildScript)
 }
 
 // Root returns the absolute repository root.

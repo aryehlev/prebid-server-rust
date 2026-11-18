@@ -31,7 +31,7 @@ func parseSaved(args []string, stderr io.Writer) (savedOptions, error) {
 
 	fs := flag.NewFlagSet("saved", flag.ContinueOnError)
 	fs.SetOutput(stderr)
-	fs.StringVar(&o.repo, "repo", ".", "a directory inside the Prebid Server checkout")
+	fs.StringVar(&o.repo, "repo", ".", "the assembled tree or the workspace, or a directory inside either")
 	fs.StringVar(&o.tokenFile, "token-file", "", "file holding the parity token, which must not appear in the output (required)")
 	fs.StringVar(&o.out, "o", "", "the file of saved answers to write (required)")
 

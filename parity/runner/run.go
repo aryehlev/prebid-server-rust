@@ -69,9 +69,16 @@ type Impl struct {
 
 // Options configure a run.
 type Options struct {
-	// RepoRoot is the checkout; default: found from the working directory.
+	// RepoRoot is the checkout the corpus, the profiles and the stored data
+	// are read from, the assembled tree; default: found from the working
+	// directory (corpus.FindRepo).
 	RepoRoot string
-	// OutDir is the run directory; default <repo>/parity/out/<RunID>.
+	// HarnessRoot holds the parity/out the run is written to by default, and
+	// the run's recorded paths inside it are relative to it; default the
+	// repository's corpus.Repo.HarnessRoot, the workspace the tree was
+	// assembled from.
+	HarnessRoot string
+	// OutDir is the run directory; default <HarnessRoot>/parity/out/<RunID>.
 	OutDir string
 	// RunID names the run; default a UTC timestamp.
 	RunID string
@@ -164,13 +171,32 @@ func newRunner(opts Options) (*runner, error) {
 	return r, nil
 }
 
-func withDefaults(opts Options) (Options, error) {
-	if opts.RepoRoot == "" {
+// resolveRoots defaults the repository root (found from the working
+// directory) and the harness root (the repository's corpus.Repo.HarnessRoot).
+func resolveRoots(repoRoot, harnessRoot string) (string, string, error) {
+	if repoRoot == "" {
 		repo, err := corpus.FindRepo(".")
 		if err != nil {
-			return opts, err
+			return "", "", err
 		}
-		opts.RepoRoot = repo.Root()
+		repoRoot = repo.Root()
+	}
+	if harnessRoot == "" {
+		repo, err := corpus.OpenRepo(repoRoot)
+		if err != nil {
+			return "", "", err
+		}
+		if harnessRoot, err = repo.HarnessRoot(); err != nil {
+			return "", "", err
+		}
+	}
+	return repoRoot, harnessRoot, nil
+}
+
+func withDefaults(opts Options) (Options, error) {
+	var err error
+	if opts.RepoRoot, opts.HarnessRoot, err = resolveRoots(opts.RepoRoot, opts.HarnessRoot); err != nil {
+		return opts, err
 	}
 	if opts.A.Name == "" || opts.B.Name == "" {
 		return opts, errors.New("runner: both implementation names are required")
@@ -182,7 +208,7 @@ func withDefaults(opts Options) (Options, error) {
 		opts.RunID = time.Now().UTC().Format("20060102T150405Z")
 	}
 	if opts.OutDir == "" {
-		opts.OutDir = filepath.Join(opts.RepoRoot, filepath.FromSlash(defaultOutDir), opts.RunID)
+		opts.OutDir = filepath.Join(opts.HarnessRoot, filepath.FromSlash(defaultOutDir), opts.RunID)
 	}
 	if opts.ProfilesDir == "" {
 		opts.ProfilesDir = filepath.Join(opts.RepoRoot, filepath.FromSlash(defaultProfilesDir))
@@ -228,10 +254,10 @@ func (r *runner) load() error {
 			return err
 		}
 	}
-	if r.layout, err = report.NewLayout(r.opts.OutDir, r.opts.RepoRoot); err != nil {
+	if r.layout, err = report.NewLayout(r.opts.OutDir, r.opts.HarnessRoot); err != nil {
 		return err
 	}
-	ignoreOutputRoot(r.opts.RepoRoot, r.layout.Dir)
+	ignoreOutputRoot(r.opts.HarnessRoot, r.layout.Dir)
 	if r.writer, err = report.NewWriter(r.layout); err != nil {
 		return err
 	}
@@ -293,8 +319,16 @@ func (r *runner) logf(format string, args ...any) { r.opts.Logf(format, args...)
 
 // repoRel is the recorded form of a path: repo-relative when inside the
 // checkout.
-func (r *runner) repoRel(p string) string {
-	rel, err := filepath.Rel(r.opts.RepoRoot, p)
+func (r *runner) repoRel(p string) string { return relTo(r.opts.RepoRoot, p) }
+
+// harnessRel is the recorded form of a server binary: relative to the
+// harness root, which holds parity/out/bin and the Rust build, when inside
+// it.
+func (r *runner) harnessRel(p string) string { return relTo(r.opts.HarnessRoot, p) }
+
+// relTo returns p slash-separated, relative to base when inside it.
+func relTo(base, p string) string {
+	rel, err := filepath.Rel(base, p)
 	if err != nil || strings.HasPrefix(rel, "..") {
 		return filepath.ToSlash(p)
 	}
@@ -356,7 +390,7 @@ func (r *runner) finish() (*Result, error) {
 	r.mu.Lock()
 	summary := report.RunSummary{
 		RunID: r.opts.RunID, Mode: r.opts.Mode, ImplA: r.opts.A.Name, ImplB: r.opts.B.Name,
-		BinaryA: r.repoRel(r.opts.A.Binary), BinaryB: r.repoRel(r.opts.B.Binary),
+		BinaryA: r.harnessRel(r.opts.A.Binary), BinaryB: r.harnessRel(r.opts.B.Binary),
 		StartedAt: r.started.Format(time.RFC3339), FinishedAt: finished.Format(time.RFC3339),
 		DurationMS: finished.Sub(r.started).Milliseconds(), Servers: r.servers, Options: r.optionsRecord(), Notes: r.notes,
 	}
@@ -576,7 +610,7 @@ func (r *runner) startPairs(ctx context.Context, b *batch, workdir string, shard
 // startSide starts one server; failures make the side not-yet-instrumented.
 func (r *runner) startSide(ctx context.Context, b *batch, workdir string, shard int, name string, impl Impl) *side {
 	s := &side{name: name, impl: impl.Name}
-	rec := report.ServerRecord{Batch: b.Name, Profile: b.Label(), Shard: shard, Side: name, Impl: impl.Name, Binary: r.repoRel(impl.Binary)}
+	rec := report.ServerRecord{Batch: b.Name, Profile: b.Label(), Shard: shard, Side: name, Impl: impl.Name, Binary: r.harnessRel(impl.Binary)}
 	defer func() { r.addServer(rec) }()
 	if impl.Binary == "" {
 		s.nyi = fmt.Sprintf("no %s server binary was given for side %s", impl.Name, name)

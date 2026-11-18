@@ -669,7 +669,14 @@ func TestReplayHarnessScriptBuildsThePinnedCommit(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	root, err := os.OpenRoot(repo.Root())
+	// The scripts stay in the workspace: build-go.sh leaves them out of the
+	// tree.
+	harness, err := repo.HarnessRoot()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	root, err := os.OpenRoot(harness)
 	if err != nil {
 		t.Fatal(err)
 	}

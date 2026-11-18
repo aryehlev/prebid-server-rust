@@ -51,10 +51,12 @@ var corpusNames = []string{
 	corpus.CorpusReplayHarness, runner.CorpusIntrospection, gen.CorpusGenerated, "all",
 }
 
-// Default locations, relative to the repository root.
+// Default locations, relative to the harness root: the workspace the tree
+// was assembled from (corpus.Repo.HarnessRoot), which holds the harness in
+// parity/ and the Rust build in target/.
 const (
 	defaultGoBinary   = "parity/out/bin/pbs-go"
-	defaultRustBinary = "rust/target/release/pbs-server"
+	defaultRustBinary = "target/release/pbs-server"
 	defaultBaseline   = "parity/baseline.json"
 	defaultMatrixDir  = "parity/matrix"
 )
@@ -103,21 +105,37 @@ type common struct {
 }
 
 func (c *common) register(fs *flag.FlagSet) {
-	fs.StringVar(&c.repo, "repo", "", "repository root (default: found from the working directory)")
+	fs.StringVar(&c.repo, "repo", "", "the assembled tree, or a directory inside it or the workspace (default: found from the working directory)")
 	fs.BoolVar(&c.verbose, "v", false, "log progress to stderr")
 }
 
-// repoRoot resolves --repo.
+// repoRoot resolves --repo to the assembled tree.
 func (c *common) repoRoot() (string, error) {
-	start := c.repo
-	if start == "" {
-		start = "."
-	}
-	repo, err := corpus.FindRepo(start)
+	repo, err := c.find()
 	if err != nil {
 		return "", err
 	}
 	return repo.Root(), nil
+}
+
+// roots resolves --repo to the assembled tree and its harness root.
+func (c *common) roots() (tree, harness string, err error) {
+	repo, err := c.find()
+	if err != nil {
+		return "", "", err
+	}
+	if harness, err = repo.HarnessRoot(); err != nil {
+		return "", "", err
+	}
+	return repo.Root(), harness, nil
+}
+
+func (c *common) find() (*corpus.Repo, error) {
+	start := c.repo
+	if start == "" {
+		start = "."
+	}
+	return corpus.FindRepo(start)
 }
 
 func (c *common) logf(stderr io.Writer) func(string, ...any) {
@@ -200,12 +218,12 @@ func (f *runFlags) register(fs *flag.FlagSet, withB bool) {
 
 // options resolves the flags into runner options, building Go when needed.
 func (f *runFlags) options(ctx context.Context, stderr io.Writer) (runner.Options, error) {
-	root, err := f.repoRoot()
+	root, harness, err := f.roots()
 	if err != nil {
 		return runner.Options{}, err
 	}
 	opts := runner.Options{
-		RepoRoot: root, OutDir: f.out, RunID: f.runID, ProfilesDir: f.profilesDir, StoredDir: f.storedDir,
+		RepoRoot: root, HarnessRoot: harness, OutDir: f.out, RunID: f.runID, ProfilesDir: f.profilesDir, StoredDir: f.storedDir,
 		Profiles: splitList(f.profiles), Shards: f.shards, Shuffle: f.shuffle, Budget: f.budget, CaseTimeout: f.caseTimeout,
 		StartTimeout: f.startTimeout, FixtureSelfTest: f.fixtures, Logf: f.logf(stderr),
 		Selection: runner.Selection{Corpora: splitList(f.corpora), Kinds: splitList(f.kinds), Limit: f.limit},
@@ -224,11 +242,11 @@ func (f *runFlags) options(ctx context.Context, stderr io.Writer) (runner.Option
 		}
 		opts.Selection.Corpora = withGenerated(opts.Selection.Corpora)
 	}
-	if opts.A, err = f.impl(ctx, root, f.implA, f.binA); err != nil {
+	if opts.A, err = f.impl(ctx, root, harness, f.implA, f.binA); err != nil {
 		return opts, err
 	}
 	if f.implB != "" {
-		if opts.B, err = f.impl(ctx, root, f.implB, f.binB); err != nil {
+		if opts.B, err = f.impl(ctx, root, harness, f.implB, f.binB); err != nil {
 			return opts, err
 		}
 	}
@@ -273,9 +291,10 @@ func withGenerated(corpora []string) []string {
 	return append(corpora, gen.CorpusGenerated)
 }
 
-// impl resolves one implementation's binary: given, the Go build, or the
-// default Rust release binary when it exists (else none: not-yet-instrumented).
-func (f *runFlags) impl(ctx context.Context, root, name, bin string) (runner.Impl, error) {
+// impl resolves one implementation's binary: given, the Go build of the tree
+// at root, or the default Rust release binary of the harness root when it
+// exists (else none: not-yet-instrumented).
+func (f *runFlags) impl(ctx context.Context, root, harness, name, bin string) (runner.Impl, error) {
 	if name != parity.ImplGo && name != parity.ImplRust {
 		return runner.Impl{}, fmt.Errorf("unknown implementation %q (want go or rust)", name)
 	}
@@ -284,13 +303,13 @@ func (f *runFlags) impl(ctx context.Context, root, name, bin string) (runner.Imp
 		return runner.Impl{Name: name, Binary: abs}, err
 	}
 	if name == parity.ImplRust {
-		def := filepath.Join(root, filepath.FromSlash(defaultRustBinary))
+		def := filepath.Join(harness, filepath.FromSlash(defaultRustBinary))
 		if _, err := os.Stat(def); err == nil {
 			return runner.Impl{Name: name, Binary: def}, nil
 		}
 		return runner.Impl{Name: name}, nil
 	}
-	out := filepath.Join(root, filepath.FromSlash(defaultGoBinary))
+	out := filepath.Join(harness, filepath.FromSlash(defaultGoBinary))
 	if !f.noBuild {
 		if err := runner.BuildGo(ctx, root, out); err != nil {
 			return runner.Impl{}, err
@@ -449,11 +468,11 @@ func cmdMatrix(_ context.Context, args []string, stdout, stderr io.Writer) (int,
 	}
 	dir := *out
 	if dir == "" {
-		root, err := c.repoRoot()
+		_, harness, err := c.roots()
 		if err != nil {
 			return exitUsage, err
 		}
-		dir = filepath.Join(root, filepath.FromSlash(defaultMatrixDir))
+		dir = filepath.Join(harness, filepath.FromSlash(defaultMatrixDir))
 	}
 	m, err := matrix.BuildFromRun(*runDir)
 	if err != nil {

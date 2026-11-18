@@ -72,7 +72,7 @@ func parseServe(args []string, stderr io.Writer) (serveOptions, error) {
 
 	fs := flag.NewFlagSet("serve", flag.ContinueOnError)
 	fs.SetOutput(stderr)
-	fs.StringVar(&o.repo, "repo", ".", "repository root, or a directory inside it")
+	fs.StringVar(&o.repo, "repo", ".", "the assembled tree or the workspace, or a directory inside either")
 	fs.StringVar(&o.bin, "bin", "", "the Go server binary (default: build it into -dir)")
 	fs.StringVar(&o.binB, "bin-b", "", "with -servers 2: the binary of the second server, side B (default: the -bin server)")
 	fs.StringVar(&o.implB, "impl-b", parity.ImplGo, "with -servers 2: the implementation side B runs: go or rust")

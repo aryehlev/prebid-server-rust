@@ -306,6 +306,55 @@ func TestRepoResolveRejectsSymlinkEscape(t *testing.T) {
 	assert.ErrorIs(t, err, ErrOutsideCorpus)
 }
 
+// TestFindRepoInTheWorkspaceLayout: from the workspace, or from a directory
+// inside it such as its .upstream (a checkout without parity/), FindRepo finds
+// the assembled tree at DefaultTree; from inside the tree it finds the tree.
+// The tree's HarnessRoot is the workspace its TreeMarker names, and a
+// checkout without the marker is its own harness root.
+func TestFindRepoInTheWorkspaceLayout(t *testing.T) {
+	ws, err := filepath.EvalSymlinks(t.TempDir())
+	require.NoError(t, err)
+	write := func(rel, data string) {
+		p := filepath.Join(ws, filepath.FromSlash(rel))
+		require.NoError(t, os.MkdirAll(filepath.Dir(p), 0o700))
+		require.NoError(t, os.WriteFile(p, []byte(data), 0o600))
+	}
+	mod := "module github.com/prebid/prebid-server/v4\n"
+	write(workspacePin, "4e296450de2fcc62741340b2e5f7d1df6c1744a5\n")
+	write(workspaceSeams, "")
+	write(".upstream/go.mod", mod)
+	write(".upstream/adapters/x/x.go", "")
+	tree := filepath.Join(ws, filepath.FromSlash(DefaultTree))
+
+	_, err = FindRepo(filepath.Join(ws, ".upstream", "adapters"))
+	require.Error(t, err, "the workspace has no assembled tree yet")
+	assert.Contains(t, err.Error(), buildScript)
+
+	write(DefaultTree+"/go.mod", mod)
+	write(DefaultTree+"/parity/README.md", "")
+	write(DefaultTree+"/adapters/x/x.go", "")
+	for _, start := range []string{ws, filepath.Join(ws, ".upstream", "adapters"), filepath.Join(tree, "adapters", "x")} {
+		repo, err := FindRepo(start)
+		require.NoError(t, err, start)
+		assert.Equal(t, tree, repo.Root(), start)
+	}
+
+	repo, err := OpenRepo(tree)
+	require.NoError(t, err)
+	root, err := repo.HarnessRoot()
+	require.NoError(t, err)
+	assert.Equal(t, tree, root, "no marker: the checkout is its own harness root")
+
+	write(DefaultTree+"/"+TreeMarker, "workspace="+ws+"\nupstream=4e296450de2fcc62741340b2e5f7d1df6c1744a5\nseams=x\n")
+	root, err = repo.HarnessRoot()
+	require.NoError(t, err)
+	assert.Equal(t, ws, root)
+
+	write(DefaultTree+"/"+TreeMarker, "workspace="+filepath.Join(ws, "gone")+"\n")
+	_, err = repo.HarnessRoot()
+	assert.Error(t, err, "a marker naming no workspace")
+}
+
 func TestOpenRepoRequiresPrebidModule(t *testing.T) {
 	dir := t.TempDir()
 	_, err := OpenRepo(dir)

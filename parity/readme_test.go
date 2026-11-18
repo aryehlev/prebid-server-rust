@@ -1,4 +1,4 @@
-package parity
+package parity_test
 
 import (
 	"io/fs"
@@ -9,6 +9,8 @@ import (
 	"slices"
 	"strings"
 	"testing"
+
+	"github.com/prebid/prebid-server/v4/parity/corpus"
 )
 
 // codeSpan matches a Markdown code span.
@@ -17,29 +19,46 @@ var codeSpan = regexp.MustCompile("`([^`]+)`")
 // TestContentsNamesEveryPath: the Contents table of README.md names every
 // directory of parity/ down to two levels and every file at its top level, so
 // a reader finds each part of the harness there, and every path the table
-// names exists.
+// names exists. It reads the parity/ of the workspace the tree was assembled
+// from, which also holds what build-go.sh leaves out of the tree (scripts/
+// and the seams patch).
 func TestContentsNamesEveryPath(t *testing.T) {
+	dir := harnessDir(t)
 	var named []string
-	for _, p := range contentsPaths(t) {
+	for _, p := range contentsPaths(t, dir) {
 		for _, alt := range alternatives(p) {
-			if !exists(t, alt) {
+			if !exists(t, dir, alt) {
 				t.Errorf("the Contents table names %s, which does not exist", alt)
 			}
 			named = append(named, alt)
 		}
 	}
-	for _, want := range harnessPaths(t) {
+	for _, want := range harnessPaths(t, dir) {
 		if !slices.ContainsFunc(named, func(p string) bool { return covers(p, want) }) {
 			t.Errorf("the Contents table of README.md does not name %s", want)
 		}
 	}
 }
 
+// harnessDir returns the parity/ directory of the harness root.
+func harnessDir(t *testing.T) string {
+	t.Helper()
+	repo, err := corpus.FindRepo(".")
+	if err != nil {
+		t.Fatal(err)
+	}
+	root, err := repo.HarnessRoot()
+	if err != nil {
+		t.Fatal(err)
+	}
+	return filepath.Join(root, "parity")
+}
+
 // contentsPaths returns the code spans of the first column of the Contents
 // table: a directory with a trailing slash, a file, or a glob pattern.
-func contentsPaths(t *testing.T) []string {
+func contentsPaths(t *testing.T, dir string) []string {
 	t.Helper()
-	raw, err := os.ReadFile("README.md")
+	raw, err := os.ReadFile(filepath.Join(dir, "README.md"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -81,15 +100,15 @@ func alternatives(p string) []string {
 	return out
 }
 
-// exists reports whether p, relative to parity/, names a directory (p ends
-// with a slash) or matches at least one file.
-func exists(t *testing.T, p string) bool {
+// exists reports whether p, relative to dir, names a directory (p ends with a
+// slash) or matches at least one file.
+func exists(t *testing.T, dir, p string) bool {
 	t.Helper()
-	if dir, ok := strings.CutSuffix(p, "/"); ok {
-		fi, err := os.Stat(filepath.FromSlash(dir))
+	if sub, ok := strings.CutSuffix(p, "/"); ok {
+		fi, err := os.Stat(filepath.Join(dir, filepath.FromSlash(sub)))
 		return err == nil && fi.IsDir()
 	}
-	matches, err := filepath.Glob(filepath.FromSlash(p))
+	matches, err := filepath.Glob(filepath.Join(dir, filepath.FromSlash(p)))
 	if err != nil {
 		t.Errorf("the Contents table names %s, which is not a valid pattern: %v", p, err)
 	}
@@ -107,29 +126,28 @@ func covers(p, want string) bool {
 	return err == nil && ok
 }
 
-// harnessPaths lists the directories of parity/ down to two levels, each with
-// a trailing slash, and the files at its top level except README.md and the
+// harnessPaths lists the directories of dir down to two levels, each with a
+// trailing slash, and the files at its top level except README.md and the
 // tests. Hidden directories are left out, and so is out/, where a run writes
-// its reports by default.
-func harnessPaths(t *testing.T) []string {
+// its reports by default and build-go.sh assembles the tree.
+func harnessPaths(t *testing.T, dir string) []string {
 	t.Helper()
 	var out []string
-	err := filepath.WalkDir(".", func(p string, d fs.DirEntry, err error) error {
+	err := fs.WalkDir(os.DirFS(dir), ".", func(p string, d fs.DirEntry, err error) error {
 		if err != nil || p == "." {
 			return err
 		}
-		rel := filepath.ToSlash(p)
-		depth := strings.Count(rel, "/") + 1
+		depth := strings.Count(p, "/") + 1
 		switch {
-		case d.IsDir() && (strings.HasPrefix(d.Name(), ".") || rel == "out"):
+		case d.IsDir() && (strings.HasPrefix(d.Name(), ".") || p == "out"):
 			return fs.SkipDir
 		case d.IsDir():
-			out = append(out, rel+"/")
+			out = append(out, p+"/")
 			if depth == 2 {
 				return fs.SkipDir
 			}
 		case depth == 1 && d.Name() != "README.md" && !strings.HasSuffix(d.Name(), "_test.go"):
-			out = append(out, rel)
+			out = append(out, p)
 		}
 		return nil
 	})
