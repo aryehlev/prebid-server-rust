@@ -4,11 +4,14 @@
 # untrusted commits (the publish job runs it on the port job's bundle before pushing anything).
 #
 # Usage: guard.sh --ref REF --base BASE [--upstream GITDIR] [--bot] [--allow-human]
-#                 [--parity-harness] [--strict-dirs a,b] [--pr-text FILE]
+#                 [--parity-harness] [--full-history] [--strict-dirs a,b] [--pr-text FILE]
 #   --ref             the commit to check
 #   --base            what REF is compared with: the pull request base, the commit before a push,
 #                     or the commit a port run started from. The rules compare REF with
 #                     merge-base(BASE, REF), which is what the change itself did.
+#   --full-history    check every commit REF reaches for attribution, not only those BASE does not
+#                     reach: a push that creates the repository or a branch names no commit before
+#                     it (ci-changes.sh full_history), so all of REF's history is new there
 #   --upstream        the bare upstream mirror (upstream-mirror.sh; default $UPSTREAM_GIT)
 #   --bot             also apply the rules for what the port bot publishes
 #   --allow-human     with --bot: commits by other authors are allowed (pull request CI of the port
@@ -36,13 +39,15 @@
 #   known-list      conformance/known_failures.txt is sorted, has no duplicates and lists only
 #                   files of the pinned upstream tree
 #   known-strict    no known failures are added for the --strict-dirs adapters
-#   attribution     no AI attribution in the messages or identities of the first-parent commits
-#                   of BASE..REF, nor in --pr-text
+#   attribution     no AI attribution in the messages or identities of any commit of BASE..REF
+#                   (every commit REF reaches with --full-history), the commits a merge brings in
+#                   included, nor in --pr-text
 #   ci-skip         REF's message carries no CI skip marker (lib.sh port_ci_skip_re): GitHub runs
 #                   no workflow for a head commit that has one, so neither CI nor this guard would
 #                   check it, and the port pull request would wait for a ci-ok that never comes
-# Bot rules (--bot), measured against merge-base(REF, default branch) so that merges of the
-# default branch into the port branch do not count
+# Bot rules (--bot), over the first-parent commits of BASE..REF and measured against
+# merge-base(REF, default branch) so that merges of the default branch into the port branch do not
+# count
 #   bot-merge      merge commits only merge the default branch
 #   bot-author     non-merge commits are the bot's (unless --allow-human), and the bot's touch
 #                  only the paths of lib.sh port_writable_paths and port_record_paths
@@ -57,7 +62,7 @@ shopt -s inherit_errexit
 source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 
 usage() {
-  printf 'usage: guard.sh --ref REF --base BASE [--upstream GITDIR] [--bot] [--allow-human] [--parity-harness] [--strict-dirs a,b] [--pr-text FILE]\n' >&2
+  printf 'usage: guard.sh --ref REF --base BASE [--upstream GITDIR] [--bot] [--allow-human] [--parity-harness] [--full-history] [--strict-dirs a,b] [--pr-text FILE]\n' >&2
   exit 2
 }
 
@@ -67,15 +72,17 @@ upstream_arg=${UPSTREAM_GIT:-}
 bot=false
 allow_human=false
 parity=false
+full_history=false
 strict_csv=""
 pr_text=""
 while [[ "$#" -gt 0 ]]; do
   case "${1}" in
-    --bot | --allow-human | --parity-harness)
+    --bot | --allow-human | --parity-harness | --full-history)
       case "${1}" in
         --bot) bot=true ;;
         --allow-human) allow_human=true ;;
-        *) parity=true ;;
+        --parity-harness) parity=true ;;
+        *) full_history=true ;;
       esac
       shift
       ;;
@@ -388,8 +395,13 @@ if [[ -n "${strict_lines}" ]]; then
   done <<< "${strict_lines}"
 fi
 
-# attribution
-commits=$(git rev-list --first-parent "${ref}" "^${base}")
+# attribution: every commit the change brings, not only its first-parent line: a merge brings in
+# commits from anywhere.
+if [[ "${full_history}" == true ]]; then
+  attributed=$(git rev-list "${ref}")
+else
+  attributed=$(git rev-list "${ref}" "^${base}")
+fi
 attribution_re=$(port_attribution_re)
 name_re=$(port_ai_name_re)
 email_re=$(port_ai_email_re)
@@ -414,7 +426,7 @@ while IFS= read -r commit; do
   if [[ -n "${hit}" ]]; then
     violation attribution "commit ${commit:0:12} is authored or committed by '${hit}'"
   fi
-done <<< "${commits}"
+done <<< "${attributed}"
 if [[ -n "${pr_text}" ]]; then
   hit=$(grep -Ei -m 1 -e "${attribution_re}" "${pr_text}" || true)
   if [[ -n "${hit}" ]]; then
@@ -430,8 +442,10 @@ if [[ -n "${hit}" ]]; then
   violation ci-skip "commit ${ref:0:12} carries a CI skip marker, so GitHub would run no workflow on it: ${hit}"
 fi
 
-# bot rules
+# bot rules, over the first-parent commits: what a merge of the default branch brings in is the
+# default branch's, not the bot's.
 if [[ "${bot}" == true ]]; then
+  commits=$(git rev-list --first-parent "${ref}" "^${base}")
   if ! git rev-parse -q --verify "${main}" > /dev/null; then
     port_die "guard: ${main} is missing; fetch the default branch first"
   fi
@@ -490,12 +504,19 @@ if [[ "${bot}" == true ]]; then
   fi
 fi
 
+scope="${checked} commit(s) checked for attribution"
+if [[ "${full_history}" == true ]]; then
+  scope+=", the whole history"
+fi
 if [[ "${violations}" -gt 0 ]]; then
-  printf 'guard: %s violation(s) in %s (%s first-parent commit(s) checked)\n' "${violations}" "${ref:0:12}" "${checked}" >&2
+  printf 'guard: %s violation(s) in %s (%s)\n' "${violations}" "${ref:0:12}" "${scope}" >&2
   exit 1
 fi
 mode=main
-if [[ "${bot}" == true ]]; then
-  mode=bot
+if [[ "${parity}" == true ]]; then
+  mode="parity-harness"
 fi
-printf 'guard: ok for %s (%s rules, %s first-parent commit(s) checked)\n' "${ref:0:12}" "${mode}" "${checked}"
+if [[ "${bot}" == true ]]; then
+  mode="${mode} and bot"
+fi
+printf 'guard: ok for %s (%s rules, %s)\n' "${ref:0:12}" "${mode}" "${scope}"

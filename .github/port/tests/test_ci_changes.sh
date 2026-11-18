@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 # ci-changes.sh: the compared range per event and the adapter directories a change touches: the
 # upstream files changed between the two pins (adapter files, bidder info and params through
-# aliasOf, imp params), read from the upstream mirror, and Rust adapter modules.
+# aliasOf, imp params), read from the upstream mirror, and Rust adapter modules; whether the run is
+# on the parity-harness branch, for every event; and whether a push names no commit before it, so
+# the guard checks the whole history.
 set -euo pipefail
 shopt -s inherit_errexit
 # shellcheck source=lib.sh
@@ -60,6 +62,7 @@ expect pr head "${head}"
 expect pr adapter_dirs "baz,foo,foo_bar"
 expect pr port_pr true
 expect pr parity_harness false
+expect pr full_history false
 
 changes forkpr EVENT=pull_request PR_BASE="${base}" PR_HEAD="${head}" PR_HEAD_REF=port/upstream-sync \
   PR_HEAD_REPO=someone/fork BASE_REF=main
@@ -73,15 +76,41 @@ changes push EVENT=push REF=refs/heads/parity-harness PUSH_BEFORE="${base}"
 expect push base "${base}"
 expect push head "${head}"
 expect push parity_harness true
+expect push full_history false
 changes newbranch EVENT=push REF=refs/heads/main PUSH_BEFORE=0000000000000000000000000000000000000000
 expect newbranch base "${base}"
 expect newbranch parity_harness false
-changes mergegroup EVENT=merge_group MG_BASE="${base}" MG_HEAD="${head}"
+expect newbranch full_history true
+t_has "newbranch: the summary says so" "${T_OUT}" "full history true"
+changes newharness EVENT=push REF=refs/heads/parity-harness PUSH_BEFORE=0000000000000000000000000000000000000000
+expect newharness parity_harness true
+expect newharness full_history true
+changes unknownbefore EVENT=push REF=refs/heads/main PUSH_BEFORE=1111111111111111111111111111111111111111
+expect unknownbefore base "${base}"
+expect unknownbefore full_history true
+changes mergegroup EVENT=merge_group MG_BASE="${base}" MG_HEAD="${head}" MG_BASE_REF=refs/heads/main \
+  REF=refs/heads/gh-readonly-queue/main/pr-7-"${base}"
 expect mergegroup base "${base}"
 expect mergegroup adapter_dirs "baz,foo,foo_bar"
-changes dispatch EVENT=workflow_dispatch
+expect mergegroup parity_harness false
+expect mergegroup full_history false
+changes mergegroupharness EVENT=merge_group MG_BASE="${base}" MG_HEAD="${head}" MG_BASE_REF=refs/heads/parity-harness
+expect mergegroupharness parity_harness true
+changes queueharness EVENT=merge_group MG_BASE="${base}" MG_HEAD="${head}" \
+  REF=refs/heads/gh-readonly-queue/parity-harness/pr-7-"${base}"
+expect queueharness parity_harness true
+changes queuelookalike EVENT=merge_group MG_BASE="${base}" MG_HEAD="${head}" MG_BASE_REF=refs/heads/parity-harness-old \
+  REF=refs/heads/gh-readonly-queue/parity-harness-old/pr-7-"${base}"
+expect queuelookalike parity_harness false
+changes dispatch EVENT=workflow_dispatch REF=refs/heads/main
 expect dispatch base "${base}"
 expect dispatch head "${head}"
+expect dispatch parity_harness false
+expect dispatch full_history false
+changes dispatchharness EVENT=workflow_dispatch REF=refs/heads/parity-harness
+expect dispatchharness parity_harness true
+changes dispatchtag EVENT=workflow_dispatch REF=refs/tags/parity-harness
+expect dispatchtag parity_harness false
 
 t_put "${repo}" README.md 'nothing adapter related'
 plain=$(t_commit "${repo}" "plain")

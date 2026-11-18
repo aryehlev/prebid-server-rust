@@ -10,12 +10,19 @@
 #                   Rust changes count too: files under crates/adapters/ named after an adapter
 #                   directory (compared case-insensitively, ignoring "_" and "-").
 #   port_pr         true for a pull request from this repository's port branch
-#   parity_harness  true for a push to the parity-harness branch or a pull request into it
+#   parity_harness  true when the change is on the parity-harness branch: a push to it, a pull
+#                   request into it, a merge queue run for it (merge_group.base_ref, or the queue
+#                   branch gh-readonly-queue/parity-harness/...), and a manual run on it
+#                   (workflow_dispatch from refs/heads/parity-harness)
+#   full_history    true for a push that names no commit to compare with (a new branch or a new
+#                   repository: the before SHA is all zeros, or a commit the clone lacks): every
+#                   commit of head is new to the branch, so the guard checks all of them for
+#                   attribution, not just base..head
 # Upstream trees and history are read from the bare upstream mirror UPSTREAM_GIT
 # (upstream-mirror.sh); this repository never holds them.
 # Env: EVENT REF GITHUB_OUTPUT PORT_BRANCH HARNESS_BRANCH REPOSITORY UPSTREAM_GIT, and per event
 #      PR_BASE PR_HEAD PR_HEAD_REF PR_HEAD_REPO BASE_REF (pull_request), PUSH_BEFORE (push),
-#      MG_BASE MG_HEAD (merge_group).
+#      MG_BASE MG_HEAD MG_BASE_REF (merge_group).
 set -euo pipefail
 shopt -s inherit_errexit
 # shellcheck source=lib.sh
@@ -59,8 +66,12 @@ case "${event}" in
 esac
 head=$(git rev-parse --verify --end-of-options "${head_candidate}^{commit}")
 base=$(commit_or_empty "${base_candidate}")
+full_history=false
 if [[ -z "${base}" ]]; then
   base=$(git rev-parse --verify -q "${head}^1" || printf '%s' "${head}")
+  if [[ "${event}" == push ]]; then
+    full_history=true
+  fi
 fi
 diff_base=$(git merge-base "${base}" "${head}" || printf '%s' "${base}")
 
@@ -162,15 +173,32 @@ if [[ "${event}" == pull_request && "${PR_HEAD_REF:-}" == "${port_branch}" && -n
   port_pr=true
 fi
 parity_harness=false
-if [[ "${event}" == push && "${REF:-}" == "refs/heads/${harness_branch}" ]] \
-  || [[ "${event}" == pull_request && "${BASE_REF:-}" == "${harness_branch}" ]]; then
-  parity_harness=true
-fi
+case "${event}" in
+  push | workflow_dispatch)
+    if [[ "${REF:-}" == "refs/heads/${harness_branch}" ]]; then
+      parity_harness=true
+    fi
+    ;;
+  pull_request)
+    if [[ "${BASE_REF:-}" == "${harness_branch}" ]]; then
+      parity_harness=true
+    fi
+    ;;
+  merge_group)
+    if [[ "${MG_BASE_REF:-}" == "refs/heads/${harness_branch}" \
+      || "${REF:-}" == "refs/heads/gh-readonly-queue/${harness_branch}/"* ]]; then
+      parity_harness=true
+    fi
+    ;;
+  *) ;;
+esac
 
 port_output base "${base}"
 port_output head "${head}"
 port_output adapter_dirs "${touched_list}"
 port_output port_pr "${port_pr}"
 port_output parity_harness "${parity_harness}"
-printf 'ci-changes: %s..%s (upstream %s..%s), adapters [%s], port pull request %s, parity harness %s\n' \
-  "${base:0:12}" "${head:0:12}" "${base_pin:0:12}" "${head_pin:0:12}" "${touched_list}" "${port_pr}" "${parity_harness}"
+port_output full_history "${full_history}"
+printf 'ci-changes: %s..%s (upstream %s..%s), adapters [%s], port pull request %s, parity harness %s, full history %s\n' \
+  "${base:0:12}" "${head:0:12}" "${base_pin:0:12}" "${head_pin:0:12}" "${touched_list}" "${port_pr}" "${parity_harness}" \
+  "${full_history}"

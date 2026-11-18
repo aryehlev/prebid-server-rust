@@ -31,7 +31,7 @@ git -C "${fork}" update-ref refs/remotes/origin/main "${main}"
 
 t_run_in "${fork}" "${guard}" --ref main --base "${f0}"
 t_eq "a clean repository passes" 0 "${T_RC}"
-t_has "a clean repository passes with main rules" "${T_OUT}" "guard: ok for ${main:0:12} (main rules, 1 first-parent commit(s) checked)"
+t_has "a clean repository passes with main rules" "${T_OUT}" "guard: ok for ${main:0:12} (main rules, 1 commit(s) checked for attribution)"
 t_run_in "${fork}" env -u UPSTREAM_GIT "${guard}" --ref main --base "${f0}"
 t_eq "the upstream mirror is required" 1 "${T_RC}"
 t_run_in "${fork}" env -u UPSTREAM_GIT "${guard}" --ref main --base "${f0}" --upstream "${dir}/upstream.git"
@@ -74,7 +74,7 @@ t_put "${fork}" parity/cmd/parity/main.go 'package main // parity'
 ref=$(t_commit "${fork}" "The parity harness")
 check "parity/ outside the parity-harness branch" 1 "top-level paths outside the allowed set (lib.sh port_top_level_paths): parity" \
   --ref "${ref}" --base "${main}"
-check "parity/ on the parity-harness branch" 0 "guard: ok" --ref "${ref}" --base "${main}" --parity-harness
+check "parity/ on the parity-harness branch" 0 "guard: ok for ${ref:0:12} (parity-harness rules, 1 commit(s) checked for attribution)" --ref "${ref}" --base "${main}" --parity-harness
 branch dot-upstream
 mkdir -p "${fork}/.upstream"
 cp "${up}/go.mod" "${fork}/.upstream/go.mod"
@@ -220,6 +220,33 @@ branch committer
 t_put "${fork}" crates/x/src/lib.rs '//! by claude bot'
 ref=$(t_commit_as "${fork}" "claude[bot]" "claude[bot]@users.noreply.github.com" "Port foo")
 check "a commit by claude[bot]" 1 "[attribution]" --ref "${ref}" --base "${main}"
+# Attribution off the first-parent line: a merge brings in a side branch whose commit carries it.
+branch attr-side
+t_put "${fork}" crates/x/src/side.rs '//! side work'
+side_attr=$(t_commit "${fork}" "$(printf 'Side work\n\nCo-Authored-By: Claude <noreply@anthropic.com>')")
+t_put "${fork}" crates/x/src/side.rs '//! side work, finished'
+t_commit "${fork}" "Finish the side work" > /dev/null
+branch attr-merge
+t_put "${fork}" crates/x/src/lib.rs '//! main line'
+t_commit "${fork}" "Main line work" > /dev/null
+git -C "${fork}" merge -q --no-ff -m "Merge the side work" attr-side
+ref=$(git -C "${fork}" rev-parse HEAD)
+check "attribution in a commit a merge brings in" 1 "commit ${side_attr:0:12} carries AI attribution" \
+  --ref "${ref}" --base "${main}"
+t_has "attribution in a commit a merge brings in: every commit is checked" "${T_ERR}" "(4 commit(s) checked for attribution)"
+# A push that creates a branch or the repository names no commit before it: with --full-history
+# every commit REF reaches is checked, so attribution below BASE counts too.
+branch attr-old
+t_put "${fork}" crates/x/src/lib.rs '//! old attributed work'
+old_attr=$(t_commit "${fork}" "$(printf 'Old work\n\nGenerated with [Claude Code](https://claude.com/claude-code)')")
+t_put "${fork}" crates/x/src/lib.rs '//! new work'
+ref=$(t_commit "${fork}" "New work")
+check "attribution below the base, without --full-history" 0 "guard: ok for ${ref:0:12} (main rules, 1 commit(s) checked for attribution)" \
+  --ref "${ref}" --base "${old_attr}"
+check "attribution below the base, with --full-history" 1 "commit ${old_attr:0:12} carries AI attribution" \
+  --ref "${ref}" --base "${old_attr}" --full-history
+t_has "attribution below the base, with --full-history: the whole history is checked" "${T_ERR}" ", the whole history)"
+check "a clean whole history" 0 ", the whole history)" --ref main --base "${main}" --full-history
 # CI skip markers: GitHub runs no workflow on a head commit that carries one, so nothing would check
 # it. Only the head counts, as only the head counts for GitHub.
 for case in \
@@ -269,7 +296,7 @@ branch bot-ok
 t_put "${fork}" crates/x/src/lib.rs '//! ported'
 t_put "${fork}" testdata/generated.json '{"generated": true}'
 ref=$(bot_commit "port: Add the foo change")
-check "a bot commit in the writable paths" 0 "guard: ok for ${ref:0:12} (bot rules" --ref "${ref}" --base "${main}" --bot
+check "a bot commit in the writable paths" 0 "guard: ok for ${ref:0:12} (main and bot rules" --ref "${ref}" --base "${main}" --bot
 branch bot-pin
 t_advance "${fork}" "${u3}"
 printf '{"upstream":"%s","status":"no_change_needed"}\n' "${u3}" >> "${fork}/upstream-port-log.jsonl"

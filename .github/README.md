@@ -75,8 +75,8 @@ pointing at it.
 
 | Job | What it checks |
 | --- | --- |
-| `changes` | the compared range; the adapter directories the change touches (upstream files changed between the two pins, read from the upstream mirror, and Rust adapter files); whether it is the port pull request or the parity harness |
-| `guard` | the repository invariants (`.github/port/scripts/guard.sh`): no upstream file (above), no committed agent configuration or local state, the pin (one upstream `master` commit that never moves backwards), the known-failures list, no AI attribution in commits or pull request text, no CI skip marker on the head commit, and on the port pull request the bot rules |
+| `changes` | the compared range, and whether a push names no commit before it (a new branch or repository, so the guard checks the whole history); the adapter directories the change touches (upstream files changed between the two pins, read from the upstream mirror, and Rust adapter files); whether it is the port pull request; whether it is on the parity-harness branch, for a push, a pull request, a merge queue run or a manual run |
+| `guard` | the repository invariants (`.github/port/scripts/guard.sh`): no upstream file (above), no committed agent configuration or local state, the pin (one upstream `master` commit that never moves backwards), the known-failures list, no AI attribution in any commit the change brings or in pull request text, no CI skip marker on the head commit, and on the port pull request the bot rules |
 | `rust-fmt` | `cargo +<nightly> fmt --all -- --check`. The nightly comes from `rustfmt.toml` through `scripts/rustfmt-toolchain.sh`. |
 | `rust-clippy` | `cargo clippy --workspace --all-targets --locked -- -D warnings` |
 | `rust-doc` | `RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps --locked` |
@@ -260,8 +260,10 @@ The policy is enforced in three places:
 
 1. the agents' settings (attribution off, `includeCoAuthoredBy: false`, no git commit access);
 2. the bot identity that commits;
-3. `guard.sh`, which checks the first-parent commits of every pull request and push, and the pull
-   request text.
+3. `guard.sh`, which checks every commit a pull request or push brings, the commits its merges
+   bring in included, and the pull request text. A push that creates a branch or the repository
+   names no commit before it, so the guard checks the whole history of its head
+   (`--full-history`).
 
 Upstream commits never enter the repository; some carry such trailers. Text from upstream subjects
 or from agents passes through `port_sanitize` before it reaches a commit or a pull request. Lines

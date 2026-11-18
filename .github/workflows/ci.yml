@@ -57,6 +57,7 @@ jobs:
       adapter_dirs: ${{ steps.diff.outputs.adapter_dirs }}
       port_pr: ${{ steps.diff.outputs.port_pr }}
       parity_harness: ${{ steps.diff.outputs.parity_harness }}
+      full_history: ${{ steps.diff.outputs.full_history }}
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -81,6 +82,7 @@ jobs:
           PUSH_BEFORE: ${{ github.event.before }}
           MG_BASE: ${{ github.event.merge_group.base_sha }}
           MG_HEAD: ${{ github.event.merge_group.head_sha }}
+          MG_BASE_REF: ${{ github.event.merge_group.base_ref }}
         run: .github/port/scripts/ci-changes.sh
 
   guard:
@@ -105,6 +107,7 @@ jobs:
           ADAPTER_DIRS: ${{ needs.changes.outputs.adapter_dirs }}
           PORT_PR: ${{ needs.changes.outputs.port_pr }}
           PARITY_HARNESS: ${{ needs.changes.outputs.parity_harness }}
+          FULL_HISTORY: ${{ needs.changes.outputs.full_history }}
           PR_TITLE: ${{ github.event.pull_request.title }}
           PR_BODY: ${{ github.event.pull_request.body }}
         run: |
@@ -116,6 +119,9 @@ jobs:
           fi
           if [[ "${PARITY_HARNESS}" == true ]]; then
             args+=(--parity-harness)
+          fi
+          if [[ "${FULL_HISTORY}" == true ]]; then
+            args+=(--full-history)
           fi
           .github/port/scripts/guard.sh "${args[@]}"
 
@@ -471,6 +477,15 @@ jobs:
           key: upstream-${{ steps.pin.outputs.sha }}
       - name: Fetch upstream
         run: scripts/fetch-upstream.sh
+      # The parity harness runs only for the parity-harness branch, whose caches main's jobs never
+      # see, so it saves the checkout for that branch itself (keyed on the pinned commit, like
+      # main's): a push to it saves, and its pull requests and later pushes restore.
+      - name: Save the upstream checkout
+        if: steps.upstream.outputs.cache-hit != 'true' && github.ref == 'refs/heads/parity-harness'
+        uses: actions/cache/save@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: .upstream
+          key: upstream-${{ steps.pin.outputs.sha }}
       - name: Go version of the upstream Dockerfile
         id: go
         run: .github/port/scripts/go-version.sh
