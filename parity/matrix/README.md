@@ -2,7 +2,7 @@
 
 Run `selftest-snapshot`: implementation A `go` against implementation B `go`, finished 2026-11-17T00:53:11Z. Source: `parity/out/selftest-snapshot/index.json`.
 
-8394 cases: 0 passing, 0 mismatch, 8390 not-yet-instrumented, 0 error, 4 skipped.
+8394 cases: 0 passing, 0 mismatch, 8390 not-yet-instrumented, 0 error, 4 skipped, 0 not compared.
 
 ## Domains
 
@@ -20,14 +20,14 @@ Run `selftest-snapshot`: implementation A `go` against implementation B `go`, fi
 
 ## Endpoints
 
-| Endpoint | Status | Cases | Passing | Mismatch | Not yet instrumented | Error | Skipped |
-|---|---|---|---|---|---|---|---|
-| `/__parity/adapter/{bidder}/requests` | not-yet-instrumented | 3696 | 0 | 0 | 3696 | 0 | 0 |
-| `/__parity/config` | not-yet-instrumented | 42 | 0 | 0 | 42 | 0 | 0 |
-| `/bidders/params` | not-yet-instrumented | 1 | 0 | 0 | 1 | 0 | 0 |
-| `/openrtb2/amp` | not-yet-instrumented | 20 | 0 | 0 | 20 | 0 | 0 |
-| `/openrtb2/auction` | not-yet-instrumented | 4626 | 0 | 0 | 4622 | 0 | 4 |
-| `/openrtb2/video` | not-yet-instrumented | 9 | 0 | 0 | 9 | 0 | 0 |
+| Endpoint | Status | Cases | Passing | Mismatch | Not yet instrumented | Error | Skipped | Not compared |
+|---|---|---|---|---|---|---|---|---|
+| `/__parity/adapter/{bidder}/requests` | not-yet-instrumented | 3696 | 0 | 0 | 3696 | 0 | 0 | 0 |
+| `/__parity/config` | not-yet-instrumented | 42 | 0 | 0 | 42 | 0 | 0 | 0 |
+| `/bidders/params` | not-yet-instrumented | 1 | 0 | 0 | 1 | 0 | 0 | 0 |
+| `/openrtb2/amp` | not-yet-instrumented | 20 | 0 | 0 | 20 | 0 | 0 | 0 |
+| `/openrtb2/auction` | not-yet-instrumented | 4626 | 0 | 0 | 4622 | 0 | 4 | 0 |
+| `/openrtb2/video` | not-yet-instrumented | 9 | 0 | 0 | 9 | 0 | 0 | 0 |
 
 ## Bidders
 

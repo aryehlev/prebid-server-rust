@@ -1,0 +1,12 @@
+{
+  "id": "rh-topics-account",
+  "privacy": {
+    "privacysandbox": {
+      "topicsdomain": "topics.parity.test",
+      "cookiedeprecation": {
+        "enabled": true,
+        "ttl_sec": 86400
+      }
+    }
+  }
+}

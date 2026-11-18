@@ -1,0 +1,48 @@
+{
+  "id": "rh-amp-two-imps",
+  "site": {
+    "page": "https://parity.test/amp"
+  },
+  "imp": [
+    {
+      "id": "rh-amp-imp-1",
+      "banner": {
+        "format": [
+          {
+            "w": 300,
+            "h": 250
+          }
+        ]
+      },
+      "ext": {
+        "prebid": {
+          "bidder": {
+            "appnexus": {
+              "placementId": 12883451
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "rh-amp-imp-2",
+      "banner": {
+        "format": [
+          {
+            "w": 320,
+            "h": 50
+          }
+        ]
+      },
+      "ext": {
+        "prebid": {
+          "bidder": {
+            "appnexus": {
+              "placementId": 12883451
+            }
+          }
+        }
+      }
+    }
+  ]
+}

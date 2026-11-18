@@ -1,8 +1,8 @@
 // Package corpus loads the Go test corpora that seed the parity harness:
 // adapterstest JSON fixtures (with the Builder configuration each test run
 // uses, extracted with go/ast), endpoints/openrtb2 sample requests,
-// exchange/exchangetest specs, bidder-params schemas and the smaller
-// domain-targeted seed corpora.
+// exchange/exchangetest specs, bidder-params schemas, the requests ReplayHarness
+// sends (parity/replayharness) and the smaller domain-targeted seed corpora.
 //
 // Every loader keeps provenance: each Case carries the repo-relative
 // fixture_path it came from, and its case_id is "<fixture_path>#<variant>". The

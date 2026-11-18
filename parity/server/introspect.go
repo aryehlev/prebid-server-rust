@@ -40,18 +40,45 @@ func (s *Server) health(w http.ResponseWriter, _ *http.Request) {
 	})
 }
 
-// productEndpoints lists the product routes exec can dispatch to, as
-// router/router.go registers them (httprouter patterns, registration order).
+// productEndpoints lists every route of the main router, which exec
+// dispatches to, as router/router.go registers them (httprouter patterns,
+// registration order): the stored data cache event routes
+// (stored_requests/config/config.go newEventsAPI) and then the product
+// routes. The runner compares a request that no route matches only when
+// both sides list the same routes, since the router's own answer (a 404, a
+// 405 or a redirect) depends on all of them.
 func productEndpoints(cfg *config.Configuration) []string {
-	endpoints := []string{
+	var endpoints []string
+	if cfg != nil {
+		sections := []*config.StoredRequests{&cfg.StoredRequests, &cfg.StoredRequestsAMP, &cfg.CategoryMapping, &cfg.StoredVideo}
+		if !cfg.Accounts.V2Enabled {
+			sections = append(sections, &cfg.Accounts)
+		}
+		for _, sr := range append(sections, &cfg.StoredResponses) {
+			if sr.CacheEvents.Enabled && !contains(endpoints, sr.CacheEvents.Endpoint) {
+				endpoints = append(endpoints, sr.CacheEvents.Endpoint)
+			}
+		}
+	}
+	endpoints = append(endpoints,
 		EndpointAuction, EndpointVideo, EndpointAMP,
 		"/info/bidders", "/info/bidders/:bidderName", "/bidders/params",
 		"/cookie_sync", "/status", "/", "/version", "/static/*filepath",
-	}
+	)
 	if cfg != nil && cfg.VTrack.Enabled {
 		endpoints = append(endpoints, "/vtrack")
 	}
 	return append(endpoints, "/event", "/setuid", "/getuids", "/optout")
+}
+
+// contains reports whether list holds s.
+func contains(list []string, s string) bool {
+	for _, v := range list {
+		if v == s {
+			return true
+		}
+	}
+	return false
 }
 
 // dumpConfig serves GET /__parity/config: the resolved configuration as

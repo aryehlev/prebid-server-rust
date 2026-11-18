@@ -15,7 +15,10 @@ import (
 // survive or which media type they get (adtelligent, datablocks, trafficgate,
 // zeroclickfraud). Two Go processes then disagree on the same case. In parity
 // mode those adapters range over MapKeys instead, which visits the groups in
-// the ascending order the contract (fakes.json map_order) names for each one.
+// the ascending order the contract (fakes.json orders) names for each one. The
+// same holds for the server code whose outcome follows a map's iteration
+// order: first party data, the request validation errors, the auction
+// winners, category dedupe and the user sync chooser.
 
 // MapKeys returns the keys of m in the order an adapter ranges over them.
 // While the fakes are installed (parity mode) the keys are sorted ascending by
@@ -33,7 +36,7 @@ func MapKeys[K comparable, V any](m map[K]V, less func(a, b K) bool) []K {
 }
 
 // The orders of the adapters that range over a map of imp groups (fakes.json
-// map_order). adtelligent orders its sourceId groups with cmp.Less[int].
+// orders). adtelligent orders its sourceId groups with cmp.Less[int].
 
 // LessDatablocks orders datablocks imp groups by sourceId.
 func LessDatablocks(a, b openrtb_ext.ExtImpDatablocks) bool { return a.SourceId < b.SourceId }

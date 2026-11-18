@@ -1,0 +1,33 @@
+{
+  "id": "rh-appnexus-video",
+  "seatbid": [
+    {
+      "seat": "appnexus",
+      "bid": [
+        {
+          "id": "rh-video-bid",
+          "impid": "rh-placeholder-imp",
+          "price": 2.5,
+          "adm": "<VAST version=\"3.0\"><Ad><InLine><AdSystem>rh</AdSystem><Impression></Impression><Creatives></Creatives></InLine></Ad></VAST>",
+          "adomain": [
+            "parity.test"
+          ],
+          "crid": "rh-video-creative",
+          "w": 640,
+          "h": 480,
+          "ext": {
+            "appnexus": {
+              "bid_ad_type": 1,
+              "creative_info": {
+                "video": {
+                  "duration": 15
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "cur": "USD"
+}

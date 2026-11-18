@@ -1,0 +1,38 @@
+{
+  "id": "rh-amp-banner",
+  "site": {
+    "page": "https://parity.test/amp"
+  },
+  "imp": [
+    {
+      "id": "rh-amp-imp",
+      "banner": {
+        "format": [
+          {
+            "w": 300,
+            "h": 250
+          }
+        ]
+      },
+      "ext": {
+        "prebid": {
+          "bidder": {
+            "appnexus": {
+              "placementId": 12883451
+            }
+          }
+        }
+      }
+    }
+  ],
+  "ext": {
+    "prebid": {
+      "targeting": {
+        "pricegranularity": "medium"
+      },
+      "cache": {
+        "bids": {}
+      }
+    }
+  }
+}

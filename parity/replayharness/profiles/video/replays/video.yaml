@@ -1,0 +1,78 @@
+# POST /openrtb2/video with video.enable_deprecated_endpoint on (profile.json).
+# The default profile leaves it off, so every other case gets the 501.
+#
+# rh-video-pods (parity/replayharness/stored/stored_requests) asks for two
+# pods: pod 1 of 30 seconds in 15 second slots from the stored imp
+# rh-imp-video-live, whose appnexus call the oracle answers 404, and pod 2
+# from a stored imp that does not exist. The endpoint merges the body over
+# the stored request as a JSON merge patch, so a step can replace one member.
+replays:
+  - name: a video request over a stored request answers its pods
+    why: the endpoint merges the body over the stored request, builds two 15 second imps for pod 1, reports pod 2's missing configid, and with no bid answers only the pod errors, with a null targeting (endpoints/openrtb2/video_auction.go:201-222, 259, 388, 422-430, 474-527, 573-631)
+    steps:
+      - method: POST
+        path: /openrtb2/video
+        json: {storedrequestid: rh-video-pods}
+        expect:
+          status: 200
+          headers: {Content-Type: application/json, X-Prebid: pbs-go/unknown}
+          contains: ['{"adPods":[{"podid":2,"targeting":null,"errors":["unable to load configid rh-imp-nope, Pod id: 2"]}]}']
+
+  - name: video request errors are text with every message after one space each
+    why: handleError writes 500 unless an error code maps to another status, and joins the messages with a leading space each (endpoints/openrtb2/video_auction.go:440-470)
+    steps:
+      - method: POST
+        path: /openrtb2/video
+        json: {}
+        expect:
+          status: 500
+          headers: {Content-Type: text/plain; charset=utf-8}
+          contains: ["Critical error while running the video endpoint:  request missing required field: PodConfig.DurationRangeSec request missing required field: PodConfig.Pods request missing required field: site or app request missing required field: Video"]
+      - method: POST
+        path: /openrtb2/video
+        body: not json
+        expect: {status: 500, contains: ["Critical error while running the video endpoint:  expect ull"]}
+      - method: POST
+        path: /openrtb2/video
+        json: {storedrequestid: rh-nope}
+        expect: {status: 500, contains: ["Critical error while running the video endpoint:  Stored Request with ID=\"rh-nope\" not found."]}
+      - method: POST
+        path: /openrtb2/video
+        json: {storedrequestid: rh-video-pods, app: {bundle: rh.app}}
+        expect: {status: 500, contains: ["Critical error while running the video endpoint:  request.site or request.app must be defined, but not both"]}
+      - method: POST
+        path: /openrtb2/video
+        json: {storedrequestid: rh-video-pods, video: {mimes: [""]}}
+        expect: {status: 500, contains: ["Critical error while running the video endpoint:  request missing required field: Video.Mimes, mime types contains empty strings only"]}
+      - method: POST
+        path: /openrtb2/video
+        json: {storedrequestid: rh-video-pods, podconfig: {durationrangesec: [15, -5]}}
+        expect: {status: 500, contains: ["Critical error while running the video endpoint:  duration array cannot contain negative or zero values"]}
+      - method: POST
+        path: /openrtb2/video
+        json: {storedrequestid: rh-video-pods, site: {publisher: {id: parity-disabled-account}}}
+        expect: {status: 403, contains: ["Critical error while running the video endpoint:  Prebid-server has disabled Account ID: parity-disabled-account, please reach out to the prebid server host."]}
+
+  - name: video pod errors fail the request only when every pod fails
+    why: validateVideoRequest's pod errors and createImpressions's configid errors are joined in that order when no pod is left (endpoints/openrtb2/video_auction.go:252-270, 802-850)
+    steps:
+      - method: POST
+        path: /openrtb2/video
+        json:
+          storedrequestid: rh-video-pods
+          podconfig: {pods: [{podid: 3, adpoddurationsec: 30, configid: rh-imp-nope}, {podid: 4, adpoddurationsec: 0, configid: rh-imp-video-live}]}
+        expect:
+          status: 500
+          contains: ["Critical error while running the video endpoint:  all pods are incorrect: request missing or incorrect required field: PodConfig.Pods.AdPodDurationSec, Pod index: 1; unable to load configid rh-imp-nope, Pod id: 3"]
+
+  - name: a video imp cannot use a stored bid response
+    why: the endpoint validates the request without stored bid responses, so an imp that names one fails the bidder check (endpoints/openrtb2/video_auction.go:336, ortb/request_validator.go:169-197)
+    steps:
+      - method: POST
+        path: /openrtb2/video
+        json:
+          storedrequestid: rh-video-pods
+          podconfig: {pods: [{podid: 1, adpoddurationsec: 30, configid: rh-imp-video-pod}]}
+        expect:
+          status: 500
+          contains: ["Critical error while running the video endpoint:  request validation failed. Stored bid responses are specified for imp 1_0. Bidders specified in imp.ext should match with bidders specified in imp.ext.prebid.storedbidresponse"]

@@ -1,0 +1,369 @@
+# User sync: /setuid, /getuids, /cookie_sync and /optout.
+#
+# The uids cookie is base64 JSON. In parity mode its expiry comes from the
+# parity clock (parity/schema/fakes.json server_sites), but these replays
+# were written when it came from the wall clock: they save the cookie and
+# send it back, or decode it through /getuids, rather than state it. The
+# replay of the Chrome versions states the Expires the parity clock gives
+# the default profile's 90-day ttl, Thu, 18 Nov 2021 15:28:50 GMT. Cookie
+# sync lists the bidders in name order and keeps that order in parity mode
+# (usersync/chooser.go, usersync/shuffler.go); replays with several bidders
+# still check counts only.
+#
+# Fixed cookies used below (base64 JSON):
+#   uids=eyJ0ZW1wVUlEcyI6eyJhZG54cyI6eyJ1aWQiOiJyaC1hZG54cy11aWQiLCJleHBpcmVzIjoiMjA5OS0wMS0wMVQwMDowMDowMFoifX19
+#     {"tempUIDs":{"adnxs":{"uid":"rh-adnxs-uid","expires":"2099-01-01T00:00:00Z"}}}
+#   uids=eyJvcHRvdXQiOnRydWV9
+#     {"optout":true}
+#   uids=eyJ0ZW1wVUlEcyI6eyJhZG54cyI6eyJ1aWQiOiJyaC11aWQtMjAyNCIsImV4cGlyZXMiOiIyMDI0LTAxLTAxVDAwOjAwOjAwWiJ9fX0=
+#     {"tempUIDs":{"adnxs":{"uid":"rh-uid-2024","expires":"2024-01-01T00:00:00Z"}}}
+#   uids=eyJ0ZW1wVUlEcyI6eyJhZG54cyI6eyJ1aWQiOiJyaC11aWQtYXQtY2xvY2siLCJleHBpcmVzIjoiMjAyMS0wOC0yMFQxNToyODo1MC44MjNaIn19fQ==
+#     {"tempUIDs":{"adnxs":{"uid":"rh-uid-at-clock","expires":"2021-08-20T15:28:50.823Z"}}}
+#   uids=eyJ0ZW1wVUlEcyI6eyJhZG54cyI6eyJ1aWQiOiJyaC11aWQtYWZ0ZXItY2xvY2siLCJleHBpcmVzIjoiMjAyMS0wOC0yMFQxNToyODo1MC44MjRaIn19fQ==
+#     {"tempUIDs":{"adnxs":{"uid":"rh-uid-after-clock","expires":"2021-08-20T15:28:50.824Z"}}}
+#   The last three expire between the parity clock (2021-08-20T15:28:50.823Z)
+#   and the wall clock, at the parity clock's instant, and a millisecond after
+#   it, so a server that judges a uid live by the wall clock, or with <=,
+#   answers them differently.
+replays:
+  - name: setuid then getuids then cookie_sync with the saved cookie
+    why: setuid stores the uid under the appnexus syncer key adnxs, getuids decodes it, and cookie_sync then reports appnexus as already in sync (endpoints/setuid.go, endpoints/getuids.go, endpoints/cookie_sync.go)
+    steps:
+      - method: GET
+        path: /setuid?bidder=appnexus&uid=rh-flow-uid
+        expect:
+          status: 200
+          headers: {Content-Type: image/png, Set-Cookie: "uids="}
+          contains: ["PNG\r\n\x1a\n", "IEND"]
+        save: {cookie: "header:Set-Cookie"}
+      - method: GET
+        path: /getuids
+        headers: {Cookie: "{{cookie}}"}
+        expect:
+          status: 200
+          json:
+            $.buyeruids.adnxs: rh-flow-uid
+      - method: POST
+        path: /cookie_sync
+        headers: {Cookie: "{{cookie}}"}
+        json: {bidders: [appnexus], debug: true}
+        expect:
+          status: 200
+          json:
+            $.status: ok
+            $.bidder_status: []
+            $.debug[0].bidder: appnexus
+            $.debug[0].error: Already in sync
+
+  - name: setuid cookie attributes follow the format and the browser
+    why: f=b answers an empty text/html body, and a recent Chrome user agent adds Secure and SameSite=None (endpoints/setuid.go:187, 378)
+    steps:
+      - method: GET
+        path: /setuid?bidder=AppNexus&uid=rh-uid-chrome&f=i
+        headers: {User-Agent: "Mozilla/5.0 Chrome/120.0.0.0"}
+        expect:
+          status: 200
+          headers: {Content-Type: image/png, Set-Cookie: "SameSite=None"}
+      - method: GET
+        path: /setuid?bidder=appnexus&uid=rh-uid-blank&f=b
+        expect:
+          status: 200
+          headers: {Content-Type: text/html, Content-Length: "0", Set-Cookie: "Path=/; Expires="}
+      - method: GET
+        path: /setuid?bidder=pubmatic&uid=rh-uid-pm
+        expect:
+          status: 200
+          headers: {Content-Type: text/html, Set-Cookie: "uids="}
+
+  - name: setuid adds SameSite=None from Chrome 67 on, and for CriOS
+    why: siteCookieCheck reads the number after the first Chrome/ (else after CriOS/) up to the next dot or the end, Atoi turning anything else into 0, and adds Secure and SameSite=None when it is at least 67 (endpoints/setuid.go:378-404, usersync/cookie.go:108-111). The steps without SameSite=None state only what every answer has; the parity cases compare the whole Set-Cookie
+    steps:
+      - method: GET
+        path: /setuid?bidder=appnexus&uid=rh-uid-chrome-66
+        headers: {User-Agent: "Mozilla/5.0 Chrome/66.0.3359.181"}
+        expect: {status: 200, headers: {Set-Cookie: "Expires=Thu, 18 Nov 2021 15:28:50 GMT"}}
+      - method: GET
+        path: /setuid?bidder=appnexus&uid=rh-uid-chrome-67
+        headers: {User-Agent: "Mozilla/5.0 Chrome/67.0.3396.87"}
+        expect: {status: 200, headers: {Set-Cookie: "GMT; Secure; SameSite=None"}}
+      - method: GET
+        path: /setuid?bidder=appnexus&uid=rh-uid-crios-67
+        headers: {User-Agent: "Mozilla/5.0 (iPhone) CriOS/67.0.3396.87 Mobile"}
+        expect: {status: 200, headers: {Set-Cookie: "GMT; Secure; SameSite=None"}}
+      - method: GET
+        path: /setuid?bidder=appnexus&uid=rh-uid-chrome-nodot
+        headers: {User-Agent: "Mozilla/5.0 Chrome/70"}
+        expect: {status: 200, headers: {Set-Cookie: "GMT; Secure; SameSite=None"}}
+      - method: GET
+        path: /setuid?bidder=appnexus&uid=rh-uid-chrome-word
+        headers: {User-Agent: "Mozilla/5.0 Chrome/beta.1 CriOS/90.0"}
+        expect: {status: 200, headers: {Set-Cookie: "Expires=Thu, 18 Nov 2021 15:28:50 GMT"}}
+
+  - name: setuid parameter errors are plain 400s
+    why: getSyncer, getResponseFormat and the GDPR and GPP parsers each return their own text (endpoints/setuid.go:100, 217, 261, 325, 331, 372)
+    steps:
+      - {method: GET, path: "/setuid?uid=x", expect: {status: 400, contains: ["\"bidder\" query param is required"]}}
+      - {method: GET, path: "/setuid?bidder=adnxs&uid=x", expect: {status: 400, contains: ["The bidder name provided is not supported by Prebid Server"]}}
+      - {method: GET, path: "/setuid?bidder=rubicon&uid=x", expect: {status: 400, contains: ["The bidder name provided is not supported by Prebid Server"]}}
+      - {method: GET, path: "/setuid?bidder=appnexus&uid=x&f=x", expect: {status: 400, contains: ["\"f\" query param is invalid. must be \"b\" or \"i\""]}}
+      - {method: GET, path: "/setuid?bidder=appnexus&uid=x&gdpr=2", expect: {status: 400, contains: ["the gdpr query param must be either 0 or 1. You gave 2"]}}
+      - {method: GET, path: "/setuid?bidder=appnexus&uid=x&gdpr=1", expect: {status: 400, contains: ["GDPR consent is required when gdpr signal equals 1"]}}
+      - {method: GET, path: "/setuid?bidder=appnexus&uid=x&gpp_sid=2,%206", expect: {status: 400, contains: ["invalid gpp_sid encoding, must be a csv list of integers"]}}
+      - {method: GET, path: "/setuid?bidder=appnexus&uid=x&gpp_sid=128", expect: {status: 400, contains: ["invalid gpp_sid encoding, must be a csv list of integers"]}}
+      - {method: GET, path: "/setuid?bidder=appnexus&uid=x&account=parity-disabled-account", expect: {status: 400, contains: ["account is disabled, please reach out to the prebid server host"]}}
+
+  - name: setuid accepts GDPR consent strings it cannot parse
+    why: with gdpr=1 any non-empty gdpr_consent passes the presence check, and the default profile leaves gdpr.host_vendor_id unset, so the host GDPR check is skipped (endpoints/setuid.go:406-427, config/config.go:301)
+    steps:
+      - method: GET
+        path: /setuid?bidder=appnexus&uid=x&gdpr=1&gdpr_consent=garbage
+        expect: {status: 200, headers: {Set-Cookie: "uids="}}
+      - method: GET
+        path: /setuid?bidder=appnexus&uid=x&gdpr=1&gdpr_consent=CPXxRfAPXxRfAAfKABENB-CgAAAAAAAAAAYgAAAAAAAA
+        expect: {status: 200, headers: {Set-Cookie: "uids="}}
+      - method: GET
+        path: /setuid?bidder=appnexus&uid=x&gdpr=0&gpp=DBACNYA~CPXxRfAPXxRfAAfKABENB-CgAAAAAAAAAAYgAAAAAAAA~1YNN&gpp_sid=2
+        expect: {status: 200, headers: {Set-Cookie: "uids="}}
+
+  - name: an opted-out cookie blocks setuid with an empty 401
+    why: setuid checks the cookie's optout flag first (endpoints/setuid.go:54)
+    steps:
+      - method: GET
+        path: /setuid?bidder=appnexus&uid=x
+        headers: {Cookie: "uids=eyJvcHRvdXQiOnRydWV9"}
+        expect: {status: 401, headers: {Content-Length: "0", Set-Cookie: <absent>}}
+
+  - name: setuid without uid removes the bidder and empties the cookie
+    why: an empty uid deletes the syncer's entry; with nothing left Go writes uids= with an empty value (usersync/cookie.go)
+    steps:
+      - method: GET
+        path: /setuid?bidder=appnexus
+        headers: {Cookie: "uids=eyJ0ZW1wVUlEcyI6eyJhZG54cyI6eyJ1aWQiOiJyaC1hZG54cy11aWQiLCJleHBpcmVzIjoiMjA5OS0wMS0wMVQwMDowMDowMFoifX19"}
+        expect: {status: 200, headers: {Set-Cookie: "uids=; Path=/"}}
+
+  - name: getuids decodes live, opted-out, garbage and missing cookies
+    why: an opted-out, undecodable or missing cookie all give {} (endpoints/getuids.go)
+    steps:
+      - method: GET
+        path: /getuids
+        headers: {Cookie: "uids=eyJ0ZW1wVUlEcyI6eyJhZG54cyI6eyJ1aWQiOiJyaC1hZG54cy11aWQiLCJleHBpcmVzIjoiMjA5OS0wMS0wMVQwMDowMDowMFoifX19"}
+        expect: {status: 200, headers: {Content-Type: text/plain}, contains: ["{\"buyeruids\":{\"adnxs\":\"rh-adnxs-uid\"}}\n"]}
+      - {method: GET, path: /getuids, headers: {Cookie: "uids=eyJvcHRvdXQiOnRydWV9"}, expect: {status: 200, contains: ["{}\n"], not_contains: [buyeruids]}}
+      - {method: GET, path: /getuids, headers: {Cookie: "uids=!!!"}, expect: {status: 200, contains: ["{}\n"], not_contains: [buyeruids]}}
+      - {method: GET, path: /getuids, expect: {status: 200, contains: ["{}\n"], not_contains: [buyeruids]}}
+
+  - name: cookie_sync without a cookie returns the bidder's sync URL
+    why: appnexus has a redirect syncer whose URL carries the setuid callback with empty privacy macros (static/bidder-info/appnexus.yaml, usersync/syncer.go)
+    steps:
+      - method: POST
+        path: /cookie_sync
+        json: {bidders: [appnexus], debug: true}
+        expect:
+          status: 200
+          headers: {Content-Type: application/json}
+          json:
+            $.status: no_cookie
+            $.bidder_status[0].bidder: appnexus
+            $.bidder_status[0].no_cookie: true
+            $.bidder_status[0].usersync.type: redirect
+            $.bidder_status[0].usersync.url: "https://ib.adnxs.com/getuid?http%3A%2F%2Flocalhost%3A8000%2Fsetuid%3Fbidder%3Dappnexus%26gdpr%3D%26gdpr_consent%3D%26gpp%3D%26gpp_sid%3D%26f%3Di%26uid%3D%24UID"
+            $.debug: <absent>
+
+  - name: cookie_sync with several bidders returns one entry each
+    why: the order is shuffled, so only the count is stable (usersync/chooser.go)
+    steps:
+      - method: POST
+        path: /cookie_sync
+        json: {bidders: [appnexus, pubmatic, openx]}
+        expect: {status: 200, json: {$.status: no_cookie, $.bidder_status.length: 3}}
+      - method: POST
+        path: /cookie_sync
+        json: {bidders: [appnexus, pubmatic, openx], limit: 2}
+        expect: {status: 200, json: {$.bidder_status.length: 2}}
+
+  - name: an account cookie_sync max_limit caps the bidders
+    why: rh-cookie-sync-account sets default_limit and max_limit 1 (endpoints/cookie_sync.go)
+    steps:
+      - method: POST
+        path: /cookie_sync
+        json: {bidders: [appnexus, pubmatic, openx], account: rh-cookie-sync-account, limit: 3}
+        expect: {status: 200, json: {$.bidder_status.length: 1}}
+
+  - name: cookie_sync debug lists unsupported and filtered bidders
+    why: unknown and disabled bidders are Unsupported bidder, and a filter that excludes every type is Rejected by request filter (usersync/chooser.go)
+    steps:
+      - method: POST
+        path: /cookie_sync
+        json: {bidders: [rubicon], debug: true}
+        expect: {status: 200, json: {$.bidder_status: [], "$.debug[0].bidder": rubicon, "$.debug[0].error": Unsupported bidder}}
+      - method: POST
+        path: /cookie_sync
+        json: {bidders: [rh-nobody], debug: true}
+        expect: {status: 200, json: {"$.debug[0].bidder": rh-nobody, "$.debug[0].error": Unsupported bidder}}
+      - method: POST
+        path: /cookie_sync
+        json: {bidders: [appnexus], debug: true, filterSettings: {image: {bidders: [appnexus], filter: exclude}, iframe: {bidders: "*", filter: exclude}}}
+        expect: {status: 200, json: {"$.debug[0].error": Rejected by request filter}}
+
+  - name: cookie_sync request errors are 400s with a trailing newline
+    why: parseRequest reports JSON, GDPR, GPP and filter errors through handleError (endpoints/cookie_sync.go)
+    steps:
+      - method: POST
+        path: /cookie_sync
+        headers: {Content-Type: application/json}
+        body: "{"
+        expect: {status: 400, contains: ["JSON parsing failed: expects \" or n, but found \x00\n"]}
+      - method: POST
+        path: /cookie_sync
+        headers: {Content-Type: application/json}
+        body: '{"gdpr":"1"}'
+        expect: {status: 400, contains: ["JSON parsing failed: cannot unmarshal endpoints.cookieSyncRequest.GDPR: unexpected character:"]}
+      - {method: POST, path: /cookie_sync, json: {gdpr: 1}, expect: {status: 400, contains: ["gdpr_consent is required if gdpr=1\n"]}}
+      - {method: POST, path: /cookie_sync, json: {gdpr: 3}, expect: {status: 400, contains: ["GDPR signal should be integer 0 or 1\n"]}}
+      - {method: POST, path: /cookie_sync, json: {account: parity-disabled-account}, expect: {status: 400, contains: ["account is disabled, please reach out to the prebid server host\n"]}}
+      - {method: POST, path: /cookie_sync, json: {filterSettings: {iframe: {bidders: "*", filter: x}}}, expect: {status: 400, contains: ["error parsing filtersettings.iframe: invalid filter value 'x'. must be either 'include' or 'exclude'\n"]}}
+      - {method: POST, path: /cookie_sync, json: {filterSettings: {image: {bidders: 7, filter: include}}}, expect: {status: 400, contains: ["error parsing filtersettings.image: invalid bidders type. must either be a string '*' or a string array of bidders\n"]}}
+      - {method: POST, path: /cookie_sync, json: {gpp_sid: "2, 6"}, expect: {status: 400, contains: ["strconv.ParseInt: parsing \" 6\": invalid syntax\n"]}}
+
+  - name: cookie_sync treats gpp_sid 2 as GDPR applying
+    why: section 2 is TCF EU, so without a consent string the request fails like gdpr=1 (endpoints/cookie_sync.go)
+    steps:
+      - {method: POST, path: /cookie_sync, json: {gpp_sid: "2", bidders: [appnexus]}, expect: {status: 400, contains: ["gdpr_consent is required if gdpr=1\n"]}}
+
+  - name: cookie_sync privacy signals change the sync URL or block the bidder
+    why: a GPP string fills the gpp and consent macros, while gdpr=1 with a consent lacking appnexus's purpose 1 rejects it (usersync/syncer.go, gdpr/)
+    steps:
+      - method: POST
+        path: /cookie_sync
+        json: {bidders: [appnexus], gpp: "DBACNYA~CPXxRfAPXxRfAAfKABENB-CgAAAAAAAAAAYgAAAAAAAA~1YNN", gpp_sid: "6", debug: true}
+        expect:
+          status: 200
+          json:
+            $.bidder_status[0].usersync.url: "https://ib.adnxs.com/getuid?http%3A%2F%2Flocalhost%3A8000%2Fsetuid%3Fbidder%3Dappnexus%26gdpr%3D0%26gdpr_consent%3DCPXxRfAPXxRfAAfKABENB-CgAAAAAAAAAAYgAAAAAAAA%26gpp%3DDBACNYA~CPXxRfAPXxRfAAfKABENB-CgAAAAAAAAAAYgAAAAAAAA~1YNN%26gpp_sid%3D6%26f%3Di%26uid%3D%24UID"
+      - method: POST
+        path: /cookie_sync
+        json: {bidders: [appnexus], gdpr: 1, gdpr_consent: CPXxRfAPXxRfAAfKABENB-CgAAAAAAAAAAYgAAAAAAAA, debug: true}
+        expect: {status: 200, json: {$.status: no_cookie, $.bidder_status: [], "$.debug[0].error": Rejected by privacy}}
+      - method: POST
+        path: /cookie_sync
+        json: {bidders: [appnexus], us_privacy: 1YYY}
+        expect: {status: 200, json: {"$.bidder_status[0].bidder": appnexus}}
+
+  - name: an opted-out cookie_sync is a 401
+    why: cookie_sync checks the cookie's optout flag (endpoints/cookie_sync.go:120)
+    steps:
+      - method: POST
+        path: /cookie_sync
+        headers: {Cookie: "uids=eyJvcHRvdXQiOnRydWV9"}
+        json: {bidders: [appnexus]}
+        expect: {status: 401, headers: {Content-Type: text/plain}, contains: ["User has opted out\n"]}
+
+  - name: a privacy sandbox account sets the cookie deprecation cookie
+    why: rh-sandbox-account enables privacysandbox.cookiedeprecation, so cookie_sync writes receive-cookie-deprecation as a partitioned cookie (endpoints/cookie_sync.go)
+    steps:
+      - method: POST
+        path: /cookie_sync
+        json: {bidders: [appnexus], account: rh-sandbox-account}
+        expect:
+          status: 200
+          headers: {Set-Cookie: "receive-cookie-deprecation=1; Path=/; Expires="}
+          json: {"$.bidder_status[0].bidder": appnexus}
+      - method: POST
+        path: /cookie_sync
+        json: {bidders: [appnexus], account: parity-account}
+        expect: {status: 200, headers: {Set-Cookie: <absent>}}
+
+  - name: optout without a captcha redirects to the static page
+    why: OptOut redirects with 301 when g-recaptcha-response is empty, for GET and POST alike (pbs/usersync.go:71-78)
+    steps:
+      - method: GET
+        path: /optout
+        expect: {status: 301, headers: {Location: "http://localhost:8000/static/optout.html"}}
+      - method: POST
+        path: /optout
+        expect: {status: 301, headers: {Location: "http://localhost:8000/static/optout.html"}}
+
+  - name: optout with a captcha fails verification on loopback
+    why: VerifyRecaptcha posts to www.google.com, which the oracle answers 404, so OptOut answers an empty 401 (pbs/usersync.go:22, 84-85)
+    steps:
+      - method: POST
+        path: /optout
+        headers: {Content-Type: application/x-www-form-urlencoded}
+        body: optout=1&g-recaptcha-response=rh
+        expect: {status: 401, headers: {Content-Length: "0", Set-Cookie: <absent>}}
+      - method: GET
+        path: /optout?optout=1&g-recaptcha-response=rh
+        expect: {status: 401}
+
+  - name: optout reads no cookie before the captcha passes
+    why: OptOut redirects without a captcha and answers 401 when the captcha fails, both before ReadCookie, so a live or opted-out uids cookie changes nothing and no cookie is written (pbs/usersync.go:71-90)
+    steps:
+      - method: GET
+        path: /optout
+        headers: {Cookie: "uids=eyJ0ZW1wVUlEcyI6eyJhZG54cyI6eyJ1aWQiOiJyaC1hZG54cy11aWQiLCJleHBpcmVzIjoiMjA5OS0wMS0wMVQwMDowMDowMFoifX19"}
+        expect: {status: 301, headers: {Location: "http://localhost:8000/static/optout.html", Set-Cookie: <absent>}}
+      - method: POST
+        path: /optout
+        headers: {Cookie: "uids=eyJvcHRvdXQiOnRydWV9"}
+        expect: {status: 301, headers: {Location: "http://localhost:8000/static/optout.html", Set-Cookie: <absent>}}
+      - method: POST
+        path: /optout
+        headers:
+          Content-Type: application/x-www-form-urlencoded
+          Cookie: "uids=eyJ0ZW1wVUlEcyI6eyJhZG54cyI6eyJ1aWQiOiJyaC1hZG54cy11aWQiLCJleHBpcmVzIjoiMjA5OS0wMS0wMVQwMDowMDowMFoifX19"
+        body: optout=1&g-recaptcha-response=rh
+        expect: {status: 401, headers: {Content-Length: "0", Set-Cookie: <absent>}}
+
+  - name: a uid is live while the parity clock is before its expires
+    why: in parity mode GetUID and HasAnyLiveSyncs compare a uid's expires with the parity clock, also on the main port (usersync/cookie.go:174, :205; fakes.json server_sites uid_liveness), and time.Before is strict. A uid that expired by the wall clock in 2024 is in sync, one that expires at the clock's instant is not, so the cookie has no live sync (status no_cookie, endpoints/cookie_sync.go:513), and one a millisecond later is
+    steps:
+      - method: POST
+        path: /cookie_sync
+        headers: {Cookie: "uids=eyJ0ZW1wVUlEcyI6eyJhZG54cyI6eyJ1aWQiOiJyaC11aWQtMjAyNCIsImV4cGlyZXMiOiIyMDI0LTAxLTAxVDAwOjAwOjAwWiJ9fX0="}
+        json: {bidders: [appnexus], debug: true}
+        expect:
+          status: 200
+          json:
+            $.status: ok
+            $.bidder_status: []
+            $.debug[0].bidder: appnexus
+            $.debug[0].error: Already in sync
+      - method: POST
+        path: /cookie_sync
+        headers: {Cookie: "uids=eyJ0ZW1wVUlEcyI6eyJhZG54cyI6eyJ1aWQiOiJyaC11aWQtYXQtY2xvY2siLCJleHBpcmVzIjoiMjAyMS0wOC0yMFQxNToyODo1MC44MjNaIn19fQ=="}
+        json: {bidders: [appnexus], debug: true}
+        expect:
+          status: 200
+          json:
+            $.status: no_cookie
+            $.bidder_status[0].bidder: appnexus
+            $.bidder_status[0].no_cookie: true
+            $.debug: <absent>
+      - method: POST
+        path: /cookie_sync
+        headers: {Cookie: "uids=eyJ0ZW1wVUlEcyI6eyJhZG54cyI6eyJ1aWQiOiJyaC11aWQtYWZ0ZXItY2xvY2siLCJleHBpcmVzIjoiMjAyMS0wOC0yMFQxNToyODo1MC44MjRaIn19fQ=="}
+        json: {bidders: [appnexus], debug: true}
+        expect:
+          status: 200
+          json:
+            $.status: ok
+            $.bidder_status: []
+            $.debug[0].bidder: appnexus
+            $.debug[0].error: Already in sync
+
+  - name: a uid that is no longer live still becomes the bidder's buyeruid
+    why: prepareUser takes the cookie's uid whether or not it is live (exchange/utils.go:779-786); only the request's cookie metrics label follows liveness (endpoints/openrtb2/auction.go:233-237)
+    steps:
+      - method: POST
+        path: /openrtb2/auction
+        headers: {Cookie: "uids=eyJ0ZW1wVUlEcyI6eyJhZG54cyI6eyJ1aWQiOiJyaC11aWQtYXQtY2xvY2siLCJleHBpcmVzIjoiMjAyMS0wOC0yMFQxNToyODo1MC44MjNaIn19fQ=="}
+        json:
+          id: rh-cookie-at-clock
+          test: 1
+          tmax: 500
+          site: {page: "https://parity.test/"}
+          imp: [{id: i, banner: {format: [{w: 300, h: 250}]}, ext: {prebid: {bidder: {appnexus: {placementId: 1}}}}}]
+        expect:
+          status: 200
+          json: {$.ext.debug.httpcalls.appnexus.length: 1}
+          contains: ['\"user\":{\"buyeruid\":\"rh-uid-at-clock\"}']

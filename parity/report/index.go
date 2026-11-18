@@ -85,10 +85,15 @@ const (
 	CaseError CaseStatus = "error"
 	// CaseSkipped means the case was selected but not run (budget, filters).
 	CaseSkipped CaseStatus = "skipped"
+	// CaseNotCompared marks a request a corpus leaves out of its cases
+	// (corpus.NotCompared): two correct servers may answer it differently,
+	// or the envelope cannot carry it as sent. It is never run. Its reason
+	// is "<tag>: <reason>".
+	CaseNotCompared CaseStatus = "not-compared"
 )
 
 // Executed reports whether the case was attempted (it gets an index entry).
-func (s CaseStatus) Executed() bool { return s != CaseSkipped }
+func (s CaseStatus) Executed() bool { return s != CaseSkipped && s != CaseNotCompared }
 
 // Compared reports whether both implementations were actually compared.
 func (s CaseStatus) Compared() bool { return s == CasePassing || s == CaseMismatch }
@@ -124,7 +129,8 @@ type CaseSummary struct {
 	ImplA         string     `json:"impl_a"`
 	ImplB         string     `json:"impl_b"`
 	Status        CaseStatus `json:"status"`
-	// Reason explains a not-yet-instrumented, error or skipped status.
+	// Reason explains a not-yet-instrumented, error, skipped or not-compared
+	// status.
 	Reason string `json:"reason,omitempty"`
 	// ExercisedDomains are the domains of the stages implementation A
 	// captured: what a passing comparison proves.
@@ -210,7 +216,7 @@ func OrderedKinds(set map[parity.MismatchKind]bool) []string {
 }
 
 // BuildIndex returns the index.json document of the executed cases, sorted by
-// case ID. Skipped cases are not executed and get no entry.
+// case ID. Skipped and not-compared cases are not executed and get no entry.
 func BuildIndex(cases []CaseSummary) parity.AuctionIndex {
 	idx := parity.AuctionIndex{Schema: parity.SchemaIndex, SchemaVersion: parity.SchemaVersion, Cases: []parity.AuctionIndexEntry{}}
 	for _, c := range cases {

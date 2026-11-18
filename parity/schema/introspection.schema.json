@@ -21,7 +21,7 @@
         "build": {"$ref": "common.schema.json#/definitions/BuildInfo"},
         "stages_supported": {"type": "array", "items": {"$ref": "common.schema.json#/definitions/StageID"}},
         "decisions_supported": {"type": "array", "items": {"$ref": "common.schema.json#/definitions/DecisionID"}},
-        "endpoints": {"type": "array", "items": {"type": "string"}, "description": "Product routes exec can dispatch to, e.g. /openrtb2/auction."},
+        "endpoints": {"type": "array", "items": {"type": "string"}, "description": "Every route of the main-port router, which exec dispatches every request to, as httprouter v1.3.0 patterns: ':name' matches the bytes up to the next '/' (at least one when it ends the pattern), '*name' ends a pattern and matches the rest of the path, e.g. /openrtb2/auction, /info/bidders/:bidderName, /static/*filepath. The runner compares a request whose path a route of each side matches; one only a route of one side matches is not-yet-instrumented; one no route matches, which the router answers itself (404, 405 with Allow, a trailing-slash or fixed-path redirect, OPTIONS), is compared when both sides list the same routes. An empty list stands for every route."},
         "mock_modes": {"type": "array", "items": {"enum": ["oracle", "inline"]}},
         "mock_levels": {"type": "array", "items": {"enum": ["http", "bidder_response"]}},
         "fakes": {"type": "boolean", "description": "True when the deterministic adapter fakes (fakes.json) are installed."}

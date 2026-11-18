@@ -47,6 +47,17 @@ func summary(caseID string, status CaseStatus, exercised ...parity.Domain) CaseS
 	return s
 }
 
+// notCompareReason is the reason of the sample run's not-compared request.
+const notCompareReason = "truncated_body: the recorder cut the body at 65536 bytes, so it is not the body that was sent"
+
+// notCompared is the summary the runner writes for a request a corpus does
+// not compare.
+func notCompared(caseID string) CaseSummary {
+	s := summary(caseID, CaseNotCompared)
+	s.Corpus, s.Endpoint, s.Reason = "replayharness", "/cookie_sync POST", notCompareReason
+	return s
+}
+
 // sampleRun writes a run with one case of every status under base/out/run.
 func sampleRun(t *testing.T) (*Run, string) {
 	t.Helper()
@@ -72,6 +83,7 @@ func sampleRun(t *testing.T) (*Run, string) {
 		{summary("d-nyi", CaseNotYetInstrumented), nil},
 		{summary("e-error", CaseError), nil},
 		{summary("f-skipped", CaseSkipped), nil},
+		{notCompared("g-not-compared"), nil},
 	}
 	for _, c := range cases {
 		if err := w.AddCase(c.s, c.doc); err != nil {
@@ -92,7 +104,7 @@ func sampleRun(t *testing.T) (*Run, string) {
 
 func TestFinishWritesRunDocuments(t *testing.T) {
 	run, base := sampleRun(t)
-	want := Counts{Total: 6, Passing: 1, Mismatch: 2, NotYetInstrumented: 1, Error: 1, Skipped: 1}
+	want := Counts{Total: 7, Passing: 1, Mismatch: 2, NotYetInstrumented: 1, Error: 1, Skipped: 1, NotCompared: 1}
 	if run.Summary.Counts != want {
 		t.Errorf("counts = %+v, want %+v", run.Summary.Counts, want)
 	}
@@ -125,7 +137,14 @@ func TestFinishWritesRunDocuments(t *testing.T) {
 		}
 	}
 	if want := []string{"a-pass", "b-mismatch", "c-mismatch", "d-nyi", "e-error"}; !reflect.DeepEqual(ids, want) {
-		t.Errorf("index cases = %v, want %v (skipped cases have no entry)", ids, want)
+		t.Errorf("index cases = %v, want %v (skipped and not-compared cases have no entry)", ids, want)
+	}
+	if g, ok := run.Case("g-not-compared"); !ok || g.Status != CaseNotCompared || g.Reason != notCompareReason || g.Artifacts.Summary == "" {
+		t.Errorf("g-not-compared summary = %+v", g)
+	}
+	var onDisk RunSummary
+	if err := ReadJSON(run.Layout.Path(FileRun), &onDisk); err != nil || onDisk.Counts.NotCompared != 1 {
+		t.Errorf("run.json counts = %+v (%v), want not_compared 1", onDisk.Counts, err)
 	}
 	b, _ := run.Case("b-mismatch")
 	if b.Status != CaseMismatch || b.FirstStage != parity.StageRequestValidated || b.PrimaryDomain != parity.DomainAuctionLifecycle || b.Primary != 1 || b.Mismatches != 2 {
@@ -215,10 +234,16 @@ func TestRenderSummary(t *testing.T) {
 			t.Errorf("summary.md has no section for %s", d)
 		}
 	}
-	for _, want := range []string{"| mismatch | 2 |", "value 2", "## Cases not compared", "rust does not serve", "## Adapter fixture self-test", "`fx-2`"} {
+	for _, want := range []string{"| mismatch | 2 |", "value 2", "## Cases not compared", "rust does not serve", "## Adapter fixture self-test", "`fx-2`",
+		"| not-compared | 1 |", "## Requests not compared", "| 1 | " + notCompareReason + " |"} {
 		if !strings.Contains(md, want) {
 			t.Errorf("summary.md lacks %q", want)
 		}
+	}
+	_, reasons, _ := strings.Cut(md, "## Cases not compared")
+	reasons, _, _ = strings.Cut(reasons, "## Requests not compared")
+	if strings.Contains(reasons, "truncated_body") {
+		t.Errorf("the not-compared request is also among the cases not compared:\n%s", reasons)
 	}
 }
 
@@ -232,11 +257,14 @@ func TestJUnit(t *testing.T) {
 	if err := xml.Unmarshal(raw, &doc); err != nil {
 		t.Fatalf("junit.xml is not well-formed: %v\n%s", err, raw)
 	}
-	if doc.Tests != 9 || doc.Failures != 3 || doc.Errors != 1 || doc.Skipped != 3 {
+	if doc.Tests != 10 || doc.Failures != 3 || doc.Errors != 1 || doc.Skipped != 4 {
 		t.Errorf("totals tests=%d failures=%d errors=%d skipped=%d", doc.Tests, doc.Failures, doc.Errors, doc.Skipped)
 	}
-	if len(doc.Suites) != 2 || doc.Suites[0].Name != "endpoints" || doc.Suites[1].Name != SuiteFixtures {
+	if len(doc.Suites) != 3 || doc.Suites[0].Name != "endpoints" || doc.Suites[1].Name != SuiteFixtures || doc.Suites[2].Name != "replayharness" {
 		t.Fatalf("suites = %+v", doc.Suites)
+	}
+	if c := doc.Suites[2].Cases; len(c) != 1 || c[0].Skipped == nil || c[0].Skipped.Message != "not-compared: "+notCompareReason {
+		t.Errorf("not-compared test case = %+v", c)
 	}
 	for _, c := range doc.Suites[0].Cases {
 		if c.Name == "b-mismatch" && (c.Failure == nil || !strings.Contains(c.Failure.Message, "first at request.validated") || !strings.Contains(c.Failure.Text, "$.imp[0].id")) {

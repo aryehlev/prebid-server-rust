@@ -121,18 +121,20 @@ func (p *pair) execute(ctx context.Context, rc *runCase) caseResult {
 	return failed("case kind %s has neither an envelope nor adapter inputs", rc.Case.Kind)
 }
 
-// envelopeSupport checks the health document against what an envelope needs.
-func envelopeSupport(s *side, env *parity.Envelope) string {
-	h := s.srv.Health
-	switch {
-	case len(h.Endpoints) > 0 && !containsString(h.Endpoints, env.Request.Path):
-		return fmt.Sprintf("%s (%s) exec cannot dispatch to %s", s.impl, s.name, env.Request.Path)
-	case len(h.MockModes) > 0 && !containsString(h.MockModes, env.Mock.EffectiveMode()):
-		return fmt.Sprintf("%s (%s) does not support mock mode %s", s.impl, s.name, env.Mock.EffectiveMode())
-	case len(h.MockLevels) > 0 && !containsString(h.MockLevels, env.Mock.EffectiveLevel()):
-		return fmt.Sprintf("%s (%s) does not support mock level %s", s.impl, s.name, env.Mock.EffectiveLevel())
+// envelopeSupport checks both health documents against what an envelope
+// needs: the mock mode and level on each side, and the route of its path on
+// the pair (routeSupport).
+func envelopeSupport(sides [2]*side, env *parity.Envelope) string {
+	for _, s := range sides {
+		h := s.srv.Health
+		switch {
+		case len(h.MockModes) > 0 && !containsString(h.MockModes, env.Mock.EffectiveMode()):
+			return fmt.Sprintf("%s (%s) does not support mock mode %s", s.impl, s.name, env.Mock.EffectiveMode())
+		case len(h.MockLevels) > 0 && !containsString(h.MockLevels, env.Mock.EffectiveLevel()):
+			return fmt.Sprintf("%s (%s) does not support mock level %s", s.impl, s.name, env.Mock.EffectiveLevel())
+		}
 	}
-	return ""
+	return routeSupport(sides, env.Request.Path)
 }
 
 // sideTrace is what one side produced for an envelope.
@@ -149,10 +151,8 @@ type sideTrace struct {
 // captures into http_out and diffs the traces.
 func (p *pair) execEnvelope(ctx context.Context, rc *runCase) caseResult {
 	env := rc.Case.Envelope
-	for _, s := range p.sides {
-		if reason := envelopeSupport(s, env); reason != "" {
-			return notInstrumented(reason)
-		}
+	if reason := envelopeSupport(p.sides, env); reason != "" {
+		return notInstrumented(reason)
 	}
 	res := caseResult{}
 	res.notes = append(res.notes, p.reset(ctx)...)

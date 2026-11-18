@@ -1,0 +1,184 @@
+package rhgate_test
+
+import (
+	"bytes"
+	"errors"
+	"strings"
+	"testing"
+
+	"github.com/prebid/prebid-server/v4/parity/replayharness/rhgate"
+)
+
+func result(id, endpoint string, b, a int, findings ...rhgate.Finding) rhgate.Result {
+	r := rhgate.Result{
+		Scenario: rhgate.Scenario{ID: id, Endpoint: endpoint, Name: "probe " + id},
+		Observed: []rhgate.Observed{{Status: b}},
+		Findings: findings,
+	}
+	if a >= 0 {
+		r.Baseline = &rhgate.Observed{Status: a}
+	}
+
+	return r
+}
+
+func report(baseline string, results ...rhgate.Result) *rhgate.Report {
+	return &rhgate.Report{Tool: "replayharness", Version: "v1", Target: "http://b", Baseline: baseline, Results: results}
+}
+
+func serverError() rhgate.Finding {
+	return rhgate.Finding{Check: "server-error", Severity: "error", Message: "500 on extreme input"}
+}
+
+// shapeDivergence is the divergence ReplayHarness reports when both sides
+// answer with the same status and differently shaped bodies.
+func shapeDivergence() rhgate.Finding {
+	return rhgate.Finding{Check: rhgate.CheckDivergence, Severity: "warning", Message: "response shape differs from the baseline: $.x is gone"}
+}
+
+func TestJudgeCountsDivergences(t *testing.T) {
+	t.Parallel()
+
+	base := report("http://a",
+		result("1", "GET /status", 200, 200),
+		result("2", "GET /info/bidders", 200, 200, shapeDivergence()),
+		result("3", cookieSync, 200, 200, shapeDivergence()),
+		result("4", "POST /openrtb2/auction", 0, 200),
+	)
+
+	v := rhgate.Judge(base, nil)
+	if !v.Failed() || len(v.Divergences) != 3 || len(v.Incomplete) != 0 {
+		t.Fatalf("verdict %+v", v)
+	}
+
+	if v.Divergences[0].Endpoint != "GET /info/bidders" || v.Divergences[1].Endpoint != cookieSync ||
+		!strings.Contains(v.Divergences[2].What, "side B did not answer") {
+		t.Errorf("divergences %+v", v.Divergences)
+	}
+
+	var out bytes.Buffer
+	if err := v.Write(&out); err != nil {
+		t.Fatal(err)
+	}
+
+	if !strings.Contains(out.String(), "3 divergences") {
+		t.Errorf("the verdict does not count the divergences:\n%s", out.String())
+	}
+}
+
+// cookieSync is the endpoint two Go servers answered apart before parity
+// mode sorted its syncers and kept their order on the main port
+// (usersync/chooser.go, usersync/shuffler.go).
+const cookieSync = "POST /cookie_sync"
+
+// TestJudgeCountsCookieSync checks that POST /cookie_sync is judged as every
+// other endpoint: its shape divergences count as its status divergences do.
+// The first probe is what the cs422 seeded bug, a side B answering 422
+// instead of 400 to a body /cookie_sync cannot parse, gives: an error
+// divergence, and a finding only side B draws.
+func TestJudgeCountsCookieSync(t *testing.T) {
+	t.Parallel()
+
+	status := rhgate.Finding{Check: rhgate.CheckDivergence, Severity: "error", Message: "baseline returned 400, target returned 422"}
+	undocumented := rhgate.Finding{
+		Check: "undocumented-status", Severity: "warning", Message: "returned 422, which the spec does not list for this endpoint",
+	}
+	other := rhgate.Finding{Check: rhgate.CheckDivergence, Severity: "warning", Message: "a divergence that is not of the shape"}
+	base := report("http://a",
+		result("1", cookieSync, 422, 400, status, undocumented),
+		result("2", cookieSync, 200, 200, shapeDivergence()),
+		result("3", cookieSync, 0, 200),
+		result("4", cookieSync, 200, 200, other),
+	)
+	ref := report("", result("1", cookieSync, 400, -1), result("2", cookieSync, 200, -1),
+		result("3", cookieSync, 200, -1), result("4", cookieSync, 200, -1))
+
+	v := rhgate.Judge(base, ref)
+	if !v.Failed() || len(v.Divergences) != 4 || len(v.OnlyB) != 1 || len(v.OnlyA) != 0 {
+		t.Fatalf("verdict %+v", v)
+	}
+
+	if d := v.Divergences[0]; d.Scenario != "1" || d.What != "error divergence: "+status.Message {
+		t.Errorf("the status divergence is %+v", d)
+	}
+
+	if v.Divergences[1].Scenario != "2" || v.Divergences[2].Scenario != "3" || v.Divergences[3].Scenario != "4" || v.OnlyB[0].Scenario != "1" {
+		t.Errorf("divergences %+v, only B %+v", v.Divergences, v.OnlyB)
+	}
+
+	// A shape divergence alone fails the gate.
+	shape := rhgate.Judge(report("http://a", result("2", cookieSync, 200, 200, shapeDivergence())),
+		report("", result("2", cookieSync, 200, -1)))
+	if !shape.Failed() || len(shape.Divergences) != 1 {
+		t.Errorf("verdict %+v", shape)
+	}
+}
+
+func findingsBase() *rhgate.Report {
+	slow := rhgate.Finding{Check: "slow", Severity: "warning", Message: "slower than 2s"}
+
+	return report("http://a",
+		result("1", "GET /status", 500, 500, serverError()),
+		result("2", "GET /static/{filepath}", 500, 500, serverError(), slow),
+		result("3", "GET /info/bidders", 200, 200),
+	)
+}
+
+func TestJudgeComparesFindings(t *testing.T) {
+	t.Parallel()
+
+	ref := report("", result("1", "GET /status", 500, -1, serverError()), result("2", "GET /static/{filepath}", 500, -1),
+		result("3", "GET /info/bidders", 200, -1, serverError()))
+
+	v := rhgate.Judge(findingsBase(), ref)
+	if !v.Failed() || v.Shared != 1 || len(v.OnlyB) != 1 || len(v.OnlyA) != 1 || len(v.Divergences) != 0 {
+		t.Fatalf("verdict %+v", v)
+	}
+
+	if v.OnlyB[0].Scenario != "2" || v.OnlyA[0].Scenario != "3" {
+		t.Errorf("only B %+v, only A %+v", v.OnlyB, v.OnlyA)
+	}
+}
+
+func TestJudgeLeavesTimingOut(t *testing.T) {
+	t.Parallel()
+
+	ref := report("", result("1", "", 500, -1, serverError()), result("2", "", 500, -1, serverError()), result("3", "", 200, -1))
+
+	if v := rhgate.Judge(findingsBase(), ref); v.Failed() || v.Shared != 2 || len(v.Incomplete) != 0 {
+		t.Errorf("verdict %+v", v)
+	}
+}
+
+func TestJudgeIncomplete(t *testing.T) {
+	t.Parallel()
+
+	for name, tc := range map[string]struct{ base, ref *rhgate.Report }{
+		"not a baseline run": {base: report("", result("1", "GET /status", 200, -1))},
+		"no probes":          {base: report("http://a")},
+		"reference lacks a probe": {
+			base: report("http://a", result("1", "GET /status", 200, 200)),
+			ref:  report("", result("2", "GET /status", 200, -1)),
+		},
+	} {
+		if v := rhgate.Judge(tc.base, tc.ref); len(v.Incomplete) == 0 {
+			t.Errorf("%s: verdict %+v is complete", name, v)
+		}
+	}
+}
+
+func TestRead(t *testing.T) {
+	t.Parallel()
+
+	rep, err := rhgate.Read(strings.NewReader(`{"tool":"replayharness","version":"v1","target":"t","baseline":"b",` +
+		`"results":[{"scenario":{"id":"1","endpoint":"GET /status"},"observed":[{"status":200}],"baseline":{"status":200}}]}`))
+	if err != nil || len(rep.Results) != 1 || rep.Results[0].Baseline.Status != 200 {
+		t.Fatalf("Read: %+v, %v", rep, err)
+	}
+
+	for _, doc := range []string{`{"tool":"other"}`, `not json`} {
+		if _, err := rhgate.Read(strings.NewReader(doc)); !errors.Is(err, rhgate.ErrBadReport) {
+			t.Errorf("Read(%s): err %v, want ErrBadReport", doc, err)
+		}
+	}
+}

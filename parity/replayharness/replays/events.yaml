@@ -1,0 +1,162 @@
+# GET /event and POST /vtrack. rh-events-account turns events on; the
+# default parity-account leaves them off. vtrack writes to the prebid cache,
+# which the oracle answers with ids derived from the payload.
+replays:
+  - name: event reports every bad parameter, one per line
+    why: ParseEventRequest keeps going after each error and the handler prints them all with an invalid request prefix; the timestamp error carries the prefix twice (endpoints/events/event.go:148-200, 373)
+    steps:
+      - method: GET
+        path: /event?t=x&vtype=y&ts=abc&f=z&x=q&int=%24%24
+        expect:
+          status: 400
+          contains:
+            - "invalid request: unknown type: 'x'\ninvalid request: parameter 'vtype' is only required for t=vast\ninvalid request: parameter 'b' is required\ninvalid request: invalid request: error parsing timestamp 'abc'\ninvalid request: unknown format: 'z'\ninvalid request: unknown analytics: 'q'\ninvalid request: integration type can only contain numbers, letters and these characters '-', '_'\n"
+
+  - name: event parameter rules
+    why: t is required, vtype is required for t=vast and only allowed there, and vtype values are lower case (endpoints/events/event.go:162, 294-323, 388)
+    steps:
+      - {method: GET, path: "/event?b=x&a=parity-account", expect: {status: 400, contains: ["invalid request: parameter 't' is required\n"]}}
+      - {method: GET, path: "/event?t=vast&b=x&a=parity-account", expect: {status: 400, contains: ["invalid request: parameter 'vtype' is required\n"]}}
+      - {method: GET, path: "/event?t=vast&vtype=Start&b=x&a=parity-account", expect: {status: 400, contains: ["invalid request: unknown vtype: 'Start'\n"]}}
+      - {method: GET, path: "/event?t=imp&vtype=start&b=x&a=parity-account", expect: {status: 400, contains: ["invalid request: parameter 'vtype' is only required for t=vast\n"]}}
+      - {method: GET, path: "/event?t=imp&b=x&a=parity-account&ts=abc", expect: {status: 400, contains: ["invalid request: invalid request: error parsing timestamp 'abc'\n"]}}
+
+  - name: event integration type limits
+    why: int is at most 64 bytes of letters, digits, - and _, where letters are any Unicode letter (endpoints/events/event.go:404-412)
+    steps:
+      - method: GET
+        path: /event?t=imp&b=x&a=rh-events-account&int=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+        expect: {status: 400, contains: ["invalid request: integration type length is too long\n"]}
+      - method: GET
+        path: /event?t=imp&b=x&a=rh-events-account&int=%C3%A9t%C3%A9_1
+        expect: {status: 204}
+
+  - name: event without an account is a 401 with no newline
+    why: the account check writes its message with Fprintf and no newline (endpoints/events/event.go:83-84)
+    steps:
+      - method: GET
+        path: /event?t=imp&b=x
+        expect: {status: 401, contains: ["Account 'a' is required query parameter and can't be empty"], not_contains: ["empty\n"]}
+
+  - name: analytics off short-circuits before the account lookup
+    why: x=0 answers 204 before the account is fetched, so even an unknown account passes (endpoints/events/event.go:88-91)
+    steps:
+      - method: GET
+        path: /event?t=imp&b=x&a=rh-who&x=0
+        expect: {status: 204}
+
+  - name: event account outcomes
+    why: a disabled account is 503, a malformed one 500, an account without events 401, and rh-events-account 204 (endpoints/events/event.go:115-116, 204-231)
+    steps:
+      - {method: GET, path: "/event?t=imp&b=x&a=parity-disabled-account", expect: {status: 503, contains: ["Invalid request: Prebid-server has disabled Account ID: parity-disabled-account, please reach out to the prebid server host.\n"]}}
+      - {method: GET, path: "/event?t=imp&b=x&a=rh-malformed-account", expect: {status: 500, contains: ["Invalid request: The prebid-server account config for account id \"rh-malformed-account\" is malformed. Please reach out to the prebid server host.\n"]}}
+      - {method: GET, path: "/event?t=imp&b=x&a=parity-account", expect: {status: 401, contains: ["Account 'parity-account' doesn't support events"]}}
+      - {method: GET, path: "/event?t=imp&b=x&a=rh-events-account", expect: {status: 204}}
+      - {method: GET, path: "/event?t=vast&vtype=complete&b=x&a=rh-events-account&bidder=APPNEXUS&ts=1629473330823&int=rh_int-1", expect: {status: 204}}
+
+  - name: an image event answers the tracking pixel
+    why: f=i writes a 1x1 PNG instead of 204; the Content-Type is added after WriteHeader, so it is dropped and net/http sniffs image/png from the bytes (endpoints/events/event.go:129-133)
+    steps:
+      - method: GET
+        path: /event?t=win&b=x&a=rh-events-account&f=i
+        expect: {status: 200, headers: {Content-Type: image/png, Content-Length: "86"}, contains: ["PNG\r\n\x1a\n"]}
+
+  - name: an auction event URL round-trips through /event
+    why: the win URL that the auction puts in bid ext is accepted by the event endpoint for the same account (exchange/events.go, endpoints/events/event.go)
+    steps:
+      - method: POST
+        path: /openrtb2/auction
+        json:
+          id: rh-event-roundtrip
+          imp: [{id: imp-1, ext: {prebid: {storedrequest: {id: rh-imp-stored-bid}}}}]
+          ext: {prebid: {storedrequest: {id: rh-events-request}}}
+        expect: {status: 200, json: {"$.seatbid[0].bid[0].ext.prebid.events.win": <string>}}
+      - method: GET
+        path: /event?t=win&b=rh-banner-bid&a=rh-events-account&bidder=appnexus
+        expect: {status: 204}
+
+  - name: vtrack input validation
+    why: ParseVTrackRequest needs the account, a body, and a bidid and bidder on each put (endpoints/events/vtrack.go:74, 82-83, 185-200)
+    steps:
+      - {method: POST, path: /vtrack, json: {puts: []}, expect: {status: 400, contains: ["Account 'a' is required query parameter and can't be empty"]}}
+      - {method: POST, path: "/vtrack?a=rh-events-account", body: "", expect: {status: 400, contains: ["Invalid request: request body is empty\n"]}}
+      - {method: POST, path: "/vtrack?a=rh-events-account", json: {puts: [{type: xml, value: "<VAST/>", bidder: appnexus}]}, expect: {status: 400, contains: ["Invalid request: 'bidid' is required field and can't be empty\n"]}}
+      - {method: POST, path: "/vtrack?a=rh-events-account", json: {puts: [{type: xml, value: "<VAST/>", bidid: b1}]}, expect: {status: 400, contains: ["Invalid request: 'bidder' is required field and can't be empty\n"]}}
+      - {method: POST, path: "/vtrack?a=rh-events-account&int=a%20b", json: {puts: []}, expect: {status: 400, contains: ["Invalid integration type: integration type can only contain numbers, letters and these characters '-', '_'\n"]}}
+      - {method: POST, path: "/vtrack?a=parity-disabled-account", json: {puts: []}, expect: {status: 503, contains: ["Prebid-server has disabled Account ID: parity-disabled-account"]}}
+      - {method: GET, path: "/vtrack?a=x", expect: {status: 405, headers: {Allow: "OPTIONS, POST"}}}
+
+  - name: vtrack with no puts answers an empty list without a newline
+    why: an empty or missing puts list skips the cache and still writes responses (endpoints/events/vtrack.go:134)
+    steps:
+      - {method: POST, path: "/vtrack?a=rh-events-account", json: {puts: []}, expect: {status: 200, headers: {Content-Type: application/json}, contains: ['{"responses":[]}'], not_contains: ["\n"]}}
+      - {method: POST, path: "/vtrack?a=rh-events-account", json: {}, expect: {status: 200, contains: ['{"responses":[]}']}}
+
+  - name: vtrack caches puts it does not modify and returns the cache ids
+    why: appnexus and pubmatic do not set modifyingVastXmlAllowed, so the VAST is put unchanged, still a JSON string; the oracle derives each uuid from the payload, so the same put gives the same uuid for any account (endpoints/events/vtrack.go:235-283)
+    steps:
+      - method: POST
+        path: /vtrack?a=rh-events-account
+        json: {puts: [{type: xml, value: "<VAST version=\"3.0\"><Ad><Wrapper><AdSystem>rh</AdSystem><Impression></Impression></Wrapper></Ad></VAST>", ttlseconds: 300, bidid: rh-bid-1, bidder: appnexus, timestamp: 1629473330823}]}
+        expect:
+          status: 200
+          headers: {Content-Type: application/json}
+          json: {"$.responses[0].uuid": e2041931-8dfc-8071-9e90-bac246e8449b, $.responses.length: 1}
+      - method: POST
+        path: /vtrack?a=rh-events-account
+        json: {puts: [{type: xml, value: "<VAST version=\"3.0\"></VAST>", bidid: rh-bid-2, bidder: pubmatic}]}
+        expect: {status: 200, json: {"$.responses[0].uuid": 3aae6a48-e1f6-8c76-83ba-eabd445b50aa}}
+      - method: POST
+        path: /vtrack?a=parity-account
+        json: {puts: [{type: xml, value: "<VAST version=\"3.0\"></VAST>", bidid: rh-bid-2, bidder: pubmatic}]}
+        expect: {status: 200, json: {"$.responses[0].uuid": 3aae6a48-e1f6-8c76-83ba-eabd445b50aa}}
+      - method: POST
+        path: /vtrack?a=rh-events-account
+        json: {puts: [{type: json, value: {k: v}, bidid: rh-bid-4, bidder: pubmatic}]}
+        expect: {status: 200, json: {"$.responses[0].uuid": 6cfa0c85-79e9-8816-bd42-3b7fba5173e0}}
+
+  - name: vtrack breaks every VAST put it modifies
+    why: when the bidder may modify VAST (modifyingVastXmlAllowed, or any unknown bidder, since vtrack.allow_unknown_bidder defaults to true) and the VAST has an Impression tag, ModifyVastXmlJSON returns the new XML without JSON quoting; the cache put is then not JSON, the cache answers 400 and vtrack 500 (endpoints/events/vtrack.go:119, 247-249, 271-283, 320-333; config/config.go:1133)
+    steps:
+      - method: POST
+        path: /vtrack?a=rh-events-account
+        json: {puts: [{type: xml, value: "<VAST version=\"3.0\"><Ad><InLine><Impression></Impression></InLine></Ad></VAST>", bidid: rh-bid-3, bidder: rh-unknown}]}
+        expect:
+          status: 500
+          contains: ["Error(s) updating vast: Prebid Cache call to http://prebid-cache.parity.test/cache returned 400"]
+      - method: POST
+        path: /vtrack?a=rh-events-account
+        json: {puts: [{type: xml, value: "<VAST version=\"3.0\"><Ad><InLine><Impression></Impression></InLine></Ad></VAST>", bidid: rh-bid-5, bidder: aax}]}
+        expect: {status: 500, contains: ["Error(s) updating vast:"]}
+      - method: POST
+        path: /vtrack?a=rh-events-account
+        json: {puts: [{type: xml, value: "<VAST version=\"3.0\"><Ad><InLine><Impression></Impression></InLine></Ad></VAST>", bidid: rh-bid-6, bidder: "   "}]}
+        expect: {status: 500, contains: ["Error(s) updating vast:"]}
+
+  - name: a modifying bidder's VAST without an Impression tag is put unchanged
+    why: ModifyVastXmlString leaves a VAST with no Impression tag alone, so the put stays valid JSON (endpoints/events/vtrack.go:300-306)
+    steps:
+      - method: POST
+        path: /vtrack?a=rh-events-account
+        json: {puts: [{type: xml, value: "<VAST version=\"3.0\"></VAST>", bidid: rh-bid-7, bidder: aax}]}
+        expect: {status: 200, json: {"$.responses[0].uuid": 3aae6a48-e1f6-8c76-83ba-eabd445b50aa}}
+
+  - name: a vtrack put key becomes the cache key, written into the put unescaped
+    why: cachePutObjects copies puts[].key into the Prebid Cache put (endpoints/events/vtrack.go:235-255) and the cache client writes it between quotes without escaping it (prebid_cache_client/client.go:184-188); the oracle answers a keyed put with its key, as Prebid Cache does (parity/oracle/cacheuuid.go:163-191), so a key with a quote makes the put invalid JSON, the cache answers 400 and vtrack 500, and an empty key is left out
+    steps:
+      - method: POST
+        path: /vtrack?a=rh-events-account
+        json: {puts: [{type: xml, value: "<VAST version=\"3.0\"></VAST>", bidid: rh-bid-k1, bidder: pubmatic, key: rh-key-1}]}
+        expect: {status: 200, json: {"$.responses[0].uuid": rh-key-1, $.responses.length: 1}}
+      - method: POST
+        path: /vtrack?a=rh-events-account
+        json: {puts: [{type: xml, value: "<VAST version=\"3.0\"></VAST>", bidid: rh-bid-k2, bidder: pubmatic, key: rh-key-2}, {type: json, value: {k: v}, bidid: rh-bid-k3, bidder: appnexus}]}
+        expect: {status: 200, json: {"$.responses[0].uuid": rh-key-2, "$.responses[1].uuid": 6cfa0c85-79e9-8816-bd42-3b7fba5173e0}}
+      - method: POST
+        path: /vtrack?a=rh-events-account
+        json: {puts: [{type: xml, value: "<VAST version=\"3.0\"></VAST>", bidid: rh-bid-k4, bidder: pubmatic, key: "rh\"key"}]}
+        expect: {status: 500, contains: ["Error(s) updating vast: Prebid Cache call to http://prebid-cache.parity.test/cache returned 400"]}
+      - method: POST
+        path: /vtrack?a=rh-events-account
+        json: {puts: [{type: xml, value: "<VAST version=\"3.0\"></VAST>", bidid: rh-bid-k5, bidder: pubmatic, key: ""}]}
+        expect: {status: 200, json: {"$.responses[0].uuid": 3aae6a48-e1f6-8c76-83ba-eabd445b50aa}}

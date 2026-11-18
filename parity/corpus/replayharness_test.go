@@ -1,0 +1,687 @@
+package corpus_test
+
+import (
+	"encoding/base64"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"maps"
+	"os"
+	"path/filepath"
+	"regexp"
+	"slices"
+	"strconv"
+	"strings"
+	"testing"
+	"testing/fstest"
+
+	"github.com/prebid/prebid-server/v4/parity"
+	"github.com/prebid/prebid-server/v4/parity/corpus"
+	"github.com/prebid/prebid-server/v4/parity/replayharness/rhreplay"
+)
+
+const (
+	rhUA      = "ReplayHarness/test"
+	rhNotePfx = "from "
+	rhTraffic = "traffic.jsonl"
+	rhBodyCap = 64 << 10
+	rhSandbox = `{"id":"rh-sandbox","privacy":{"privacysandbox":{"cookiedeprecation":{"enabled":true,"ttl_sec":86400}}}}`
+	rhSetUID  = "/setuid"
+	rhCustom  = "X-Custom"
+	rhAuction = "/openrtb2/auction"
+	rhStatus  = "/status"
+	rhInfo    = "/info/bidders"
+	rhReplays = `replays:
+  - name: flow
+    steps:
+      - method: GET
+        path: /setuid
+        query: {bidder: appnexus, uid: rh}
+        expect: {status: 200}
+        save: {cookie: "header:Set-Cookie"}
+      - method: GET
+        path: /getuids
+        headers: {Cookie: "{{cookie}}"}
+  - name: dup
+    steps:
+      - {method: GET, path: /status}
+  - name: unique
+    steps:
+      - {method: GET, path: "/x/{{unique}}"}
+`
+	rhAPI = `endpoints:
+  - {method: GET, path: /status}
+  - method: GET
+    path: /debug/pprof/
+    rules: ["admin port only (admin_port), any method"]
+  - {method: GET, path: "/info/bidders/{bidderName}"}
+`
+)
+
+var rhCaseID = regexp.MustCompile(`^parity/replayharness#[a-z]+:/[^:]*:[0-9a-f]{16}$`)
+
+type rhLine struct {
+	Request  rhreplay.Request  `json:"request"`
+	Response rhreplay.Response `json:"response"`
+}
+
+func rhReq(method, path, query, body string, headers map[string]string) rhLine {
+	h := map[string]string{"User-Agent": rhUA}
+	maps.Copy(h, headers)
+
+	return rhLine{Request: rhreplay.Request{Method: method, Path: path, Query: query, Headers: h, Body: body}, Response: rhreplay.Response{Status: 200}}
+}
+
+func rhJSONLines(t *testing.T, lines []rhLine) string {
+	t.Helper()
+
+	var b strings.Builder
+
+	for _, l := range lines {
+		raw, err := json.Marshal(l)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		b.Write(raw)
+		b.WriteByte('\n')
+	}
+
+	return b.String()
+}
+
+// rhTrafficLines is the synthetic traffic.jsonl: one request of each kind the
+// loader sorts out.
+func rhTrafficLines(custom string) []rhLine {
+	binary := rhReq("POST", "/event", "", base64.StdEncoding.EncodeToString([]byte{0xff, 0xfe}), nil)
+	binary.Request.BodyEncoding = "base64"
+
+	return []rhLine{
+		rhReq("GET", rhStatus, "", "", nil),
+		rhReq("GET", rhStatus, "", "", nil),
+		rhReq("GET", rhInfo, "x=1", "", map[string]string{
+			"Connection": "close", "Accept-Encoding": "gzip", parity.TokenHeader: "secret", rhCustom: custom,
+		}),
+		rhReq("GET", rhSetUID, "bidder=appnexus&uid=a", "", nil),
+		rhReq("POST", "/cookie_sync", "", `{}`, nil),
+		rhReq("POST", "/cookie_sync", "", `{"bidders":["appnexus"]}`, nil),
+		rhReq("POST", "/cookie_sync", "", `{"Account":"rh-sandbox","bidders":["appnexus"]}`, nil),
+		rhReq("POST", rhAuction, "", strings.Repeat("a", 262145), nil),
+		rhReq("GET", "/a b", "", "", nil),
+		rhReq("POST", rhAuction, "", strings.Repeat("b", rhreplay.RecorderBodyLimit), nil),
+		binary,
+		rhReq("POST", rhAuction, "", `{"id":"r","imp":[{"id":"imp-1"}]}`, nil),
+	}
+}
+
+// rhRepo writes a repository with a synthetic parity/replayharness.
+func rhRepo(t *testing.T, custom string) *corpus.Repo {
+	t.Helper()
+
+	return rhRepoWith(t, custom, nil)
+}
+
+// rhRepoWith is rhRepo with more files, keyed by slash path.
+func rhRepoWith(t *testing.T, custom string, extra map[string]string) *corpus.Repo {
+	t.Helper()
+
+	saved := rhReq("GET", rhSetUID, "bidder=appnexus&uid=rh", "", map[string]string{"User-Agent": "ReplayHarness/other"})
+	saved.Response.Headers = map[string]string{"Set-Cookie": "uids=abc; Path=/"}
+
+	root := t.TempDir()
+	files := map[string]string{
+		"go.mod":                                               "module github.com/prebid/prebid-server/v4\n",
+		"parity/replayharness/" + rhTraffic:                    rhJSONLines(t, rhTrafficLines(custom)),
+		"parity/replayharness/saved.jsonl":                     rhJSONLines(t, []rhLine{saved}),
+		"parity/replayharness/replays/flow.yaml":               rhReplays,
+		"parity/replayharness/api.yaml":                        rhAPI,
+		"parity/replayharness/stored/accounts/rh-sandbox.json": rhSandbox,
+	}
+	maps.Copy(files, extra)
+
+	for rel, data := range files {
+		p := filepath.Join(root, filepath.FromSlash(rel))
+		if err := os.MkdirAll(filepath.Dir(p), 0o750); err != nil {
+			t.Fatal(err)
+		}
+
+		if err := os.WriteFile(p, []byte(data), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	repo, err := corpus.OpenRepo(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	return repo
+}
+
+func rhLoad(t *testing.T, repo *corpus.Repo) *corpus.ReplayHarness {
+	t.Helper()
+
+	rh := corpus.LoadReplayHarness(repo)
+	for _, err := range rh.Errors {
+		t.Errorf("loading: %v", err)
+	}
+
+	return rh
+}
+
+// rhFind returns the case whose envelope sends method and path.
+func rhFind(t *testing.T, rh *corpus.ReplayHarness, method, path string) corpus.Case {
+	t.Helper()
+
+	for _, cs := range rh.Cases {
+		if r := cs.Envelope.Request; r.Method == method && r.Path == path {
+			return cs
+		}
+	}
+
+	t.Fatalf("no case sends %s %s", method, path)
+
+	return corpus.Case{}
+}
+
+func TestReplayHarnessSortsOutTheRequests(t *testing.T) {
+	t.Parallel()
+
+	rh := rhLoad(t, rhRepo(t, " v "))
+
+	tags := map[string]int{}
+
+	for _, nc := range rh.NotCompared {
+		if nc.Reason == "" || len(nc.Sources) == 0 {
+			t.Errorf("not compared without a reason or a source: %+v", nc)
+		}
+
+		tags[nc.Tag]++
+	}
+
+	want := map[string]int{corpus.RHRequestLine: 1, corpus.RHTruncated: 1, corpus.RHNotRebuilt: 1, corpus.RHSidePort: 1}
+	if fmt.Sprint(tags) != fmt.Sprint(want) {
+		t.Errorf("not compared by tag %v, want %v", tags, want)
+	}
+
+	// /status, /info/bidders, the two /setuid (recorded and replayed), the
+	// three /cookie_sync (without bidders, with bidders, with the cookie
+	// deprecation account), /event, the two auctions (max_request_size + 1
+	// bytes, and with an imp) and /getuids with the saved cookie.
+	if len(rh.Cases) != 11 {
+		t.Errorf("%d cases, want 11", len(rh.Cases))
+	}
+
+	// The body of max_request_size + 1 bytes is compared: exec ends it as
+	// net/http does.
+	for _, cs := range rh.Cases {
+		if body := cs.Envelope.Request.Body; cs.Envelope.Request.Path == rhAuction && body != nil && body.Text != nil &&
+			len(*body.Text) == 262145 {
+			return
+		}
+	}
+
+	t.Error("no case sends the auction body of max_request_size + 1 bytes")
+}
+
+func TestReplayHarnessProfileCases(t *testing.T) {
+	t.Parallel()
+
+	const profileJSON = "parity/replayharness/profiles/status/profile.json"
+
+	rh := rhLoad(t, rhRepoWith(t, " v ", map[string]string{
+		profileJSON: `{"status_response":"ok"}`,
+		"parity/replayharness/profiles/status/replays/status.yaml": `replays:
+  - name: status
+    steps:
+      - {method: GET, path: /status}
+      - {method: GET, path: /getuids, headers: {Cookie: "{{cookie}}"}}
+`,
+	}))
+
+	var plain, profiled []corpus.Case
+
+	for _, cs := range rh.Cases {
+		switch {
+		case cs.Envelope.Request.Path != rhStatus:
+		case cs.Profile.IsDefault():
+			plain = append(plain, cs)
+		default:
+			profiled = append(profiled, cs)
+		}
+	}
+
+	if len(plain) != 1 || len(profiled) != 1 {
+		t.Fatalf("%d default and %d profile cases of GET /status, want 1 and 1", len(plain), len(profiled))
+	}
+
+	cs := profiled[0]
+	if cs.Profile.StatusResponse != "ok" || cs.Envelope.Profile != cs.Profile.Name() || !rhCaseID.MatchString(cs.ID) ||
+		cs.ID == plain[0].ID || !slices.Contains(cs.Notes, "under the case profile of "+profileJSON) {
+		t.Errorf("profile case %s: profile %+v, envelope profile %q, notes %q", cs.ID, cs.Profile, cs.Envelope.Profile, cs.Notes)
+	}
+
+	// saved.jsonl holds the default profile's answers, so the step that
+	// sends the saved cookie is not rebuilt under the profile.
+	var skipped int
+
+	for _, nc := range rh.NotCompared {
+		if nc.Tag == corpus.RHNotRebuilt && len(nc.Sources) == 1 &&
+			strings.HasPrefix(nc.Sources[0], "profiles/status/replays/status.yaml: replay \"status\", step 2") {
+			skipped++
+		}
+	}
+
+	if skipped != 1 {
+		t.Errorf("%d not-rebuilt entries for the profile step with a saved value, want 1", skipped)
+	}
+}
+
+func TestReplayHarnessProfileFiles(t *testing.T) {
+	t.Parallel()
+
+	if _, err := corpus.ReadReplayHarnessProfile([]byte(`{"video_endpoint":true,"host_cookie":{"cookie_name":"rh"}}`)); err != nil {
+		t.Errorf("a valid profile: %v", err)
+	}
+
+	for name, raw := range map[string]string{
+		"unknown member": `{"status_respons":"ok"}`,
+		"nothing set":    `{}`,
+		"currency":       `{"currency_rates":{"USD":{"EUR":1}}}`,
+		"trailing data":  `{"status_response":"ok"} {}`,
+		"not an object":  `[]`,
+	} {
+		if _, err := corpus.ReadReplayHarnessProfile([]byte(raw)); err == nil {
+			t.Errorf("%s: no error", name)
+		}
+	}
+
+	rh := corpus.LoadReplayHarness(rhRepoWith(t, " v ", map[string]string{
+		"parity/replayharness/profiles/bad/profile.json":   `{}`,
+		"parity/replayharness/profiles/bad/replays/x.yaml": "replays: []\n",
+	}))
+	if len(rh.Errors) != 1 || len(rh.Cases) != 0 {
+		t.Errorf("a profile that sets nothing: %d errors, %d cases; want 1 error and no case", len(rh.Errors), len(rh.Cases))
+	}
+}
+
+func TestReplayHarnessCaseEnvelopes(t *testing.T) {
+	t.Parallel()
+
+	for _, cs := range rhLoad(t, rhRepo(t, " v ")).Cases {
+		env := cs.Envelope
+		if !rhCaseID.MatchString(cs.ID) || env.CaseID != cs.ID || cs.Corpus != corpus.CorpusReplayHarness ||
+			cs.FixturePath != corpus.RootReplayHarness || len(env.Decisions) != len(parity.AllDecisions()) {
+			t.Errorf("case %s: envelope %+v", cs.ID, env)
+		}
+	}
+}
+
+func TestReplayHarnessKeepsRequestsExactly(t *testing.T) {
+	t.Parallel()
+
+	rh := rhLoad(t, rhRepo(t, " v "))
+
+	status := rhFind(t, rh, "GET", rhStatus)
+	sources := []string{rhNotePfx + rhTraffic + ":1", rhNotePfx + rhTraffic + ":2", rhNotePfx + `replays/flow.yaml: replay "dup", step 1`}
+
+	for _, s := range sources {
+		if !slices.Contains(status.Notes, s) {
+			t.Errorf("the /status case does not note %q: %v", s, status.Notes)
+		}
+	}
+
+	info := rhFind(t, rh, "GET", rhInfo)
+	if got := fmt.Sprint(info.Envelope.Request.Headers); got != "[[Accept-Encoding gzip] [User-Agent "+rhUA+"] ["+rhCustom+" v]]" ||
+		info.Envelope.Request.Query != "x=1" {
+		t.Errorf("the /info/bidders case sends %s ? %s", got, info.Envelope.Request.Query)
+	}
+
+	notes := strings.Join(info.Notes, "\n")
+	if !strings.Contains(notes, "Accept-Encoding, Connection, "+parity.TokenHeader) {
+		t.Errorf("the /info/bidders case does not note the headers it leaves out: %v", info.Notes)
+	}
+
+	if !strings.Contains(notes, "added as Go's HTTP client writes them: Accept-Encoding: gzip") {
+		t.Errorf("the /info/bidders case does not note the headers it adds: %v", info.Notes)
+	}
+
+	// A body gets the Content-Length net/http sends with it.
+	if got := rhFind(t, rh, "POST", "/event").Envelope.Request.Headers; !slices.Contains(got, [2]string{"Content-Length", "2"}) {
+		t.Errorf("the /event case sends %v, without the Content-Length of its body", got)
+	}
+}
+
+func TestReplayHarnessKeepsBodiesAndSavedValues(t *testing.T) {
+	t.Parallel()
+
+	rh := rhLoad(t, rhRepo(t, " v "))
+
+	if body := rhFind(t, rh, "POST", "/event").Envelope.Request.Body; body == nil || body.B64 == nil || body.Text != nil ||
+		*body.B64 != base64.StdEncoding.EncodeToString([]byte{0xff, 0xfe}) {
+		t.Errorf("the binary body is not kept as base64: %+v", body)
+	}
+
+	if got := rhFind(t, rh, "GET", "/getuids").Envelope.Request.Headers; !slices.Contains(got, [2]string{"Cookie", "uids=abc; Path=/"}) {
+		t.Errorf("the step using the saved cookie sends %v", got)
+	}
+
+	if auction := rhFind(t, rh, "POST", rhAuction); !slices.Equal(auction.Mocks.ImpIDs, []string{"imp-1"}) {
+		t.Errorf("auction imp IDs %v", auction.Mocks.ImpIDs)
+	}
+}
+
+func TestReplayHarnessIDsAreStableAndContentAddressed(t *testing.T) {
+	t.Parallel()
+
+	ids := func(rh *corpus.ReplayHarness) []string {
+		out := make([]string, 0, len(rh.Cases))
+		for _, cs := range rh.Cases {
+			out = append(out, cs.ID)
+		}
+
+		return out
+	}
+
+	repo := rhRepo(t, " v ")
+	first, again := rhLoad(t, repo), rhLoad(t, repo)
+
+	if !slices.Equal(ids(first), ids(again)) {
+		t.Errorf("IDs change between loads: %v, %v", ids(first), ids(again))
+	}
+
+	changed := rhLoad(t, rhRepo(t, "w"))
+	if rhFind(t, first, "GET", rhStatus).ID != rhFind(t, changed, "GET", rhStatus).ID {
+		t.Error("the /status case ID depends on another request")
+	}
+
+	if rhFind(t, first, "GET", rhInfo).ID == rhFind(t, changed, "GET", rhInfo).ID {
+		t.Error("the /info/bidders case ID does not change with its header")
+	}
+}
+
+func TestReplayHarnessWithoutRecordingsIsEmpty(t *testing.T) {
+	t.Parallel()
+
+	root := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, "go.mod"), []byte("module github.com/prebid/prebid-server/v4\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	repo, err := corpus.OpenRepo(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if rh := corpus.LoadReplayHarness(repo); len(rh.Cases)+len(rh.NotCompared)+len(rh.Errors) != 0 {
+		t.Errorf("corpus %+v", rh)
+	}
+}
+
+// TestReplayHarnessReadsThroughTheRepo: the corpus directory is an approved
+// root, and the loader reads it through Repo.FS, as every other loader reads
+// through Repo: a file whose symlink leaves the approved roots is refused
+// with ErrOutsideCorpus, not read.
+func TestReplayHarnessReadsThroughTheRepo(t *testing.T) {
+	t.Parallel()
+
+	if !slices.Contains(corpus.ApprovedRoots(), corpus.RootReplayHarness) {
+		t.Fatalf("ApprovedRoots() = %v, want %s in it", corpus.ApprovedRoots(), corpus.RootReplayHarness)
+	}
+
+	files := []string{rhTraffic, "saved.jsonl", "replays/flow.yaml", "api.yaml", "stored/accounts/rh-sandbox.json"}
+	if err := fstest.TestFS(rhRepo(t, "fs").FS(corpus.RootReplayHarness), files...); err != nil {
+		t.Fatal(err)
+	}
+
+	for _, name := range append(files, "replays/escape.yaml", "stored/accounts/escape.json") {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			repo := rhRepo(t, "escape")
+			file := filepath.Join(repo.Root(), filepath.FromSlash(corpus.RootReplayHarness), filepath.FromSlash(name))
+
+			data, err := os.ReadFile(file)
+			if err != nil && !errors.Is(err, os.ErrNotExist) {
+				t.Fatal(err)
+			}
+
+			if data == nil {
+				data = []byte(rhSandbox)
+				if filepath.Ext(name) == ".yaml" {
+					data = []byte(rhReplays)
+				}
+			}
+
+			outside := filepath.Join(t.TempDir(), filepath.Base(name))
+			if err := os.WriteFile(outside, data, 0o600); err != nil {
+				t.Fatal(err)
+			}
+
+			if err := os.Remove(file); err != nil && !errors.Is(err, os.ErrNotExist) {
+				t.Fatal(err)
+			}
+
+			if err := os.Symlink(outside, file); err != nil {
+				t.Skipf("symlinks unsupported: %v", err)
+			}
+
+			rh := corpus.LoadReplayHarness(repo)
+			if len(rh.Errors) != 1 || !errors.Is(rh.Errors[0], corpus.ErrOutsideCorpus) {
+				t.Fatalf("errors %v, want one that wraps %v", rh.Errors, corpus.ErrOutsideCorpus)
+			}
+
+			if len(rh.Cases)+len(rh.NotCompared) != 0 {
+				t.Errorf("%d cases and %d requests not compared from a corpus that could not be read", len(rh.Cases), len(rh.NotCompared))
+			}
+		})
+	}
+}
+
+// rhSources maps every source of the real corpus to all the sources of its
+// request, and says whether the request is a case.
+func rhSources(rh *corpus.ReplayHarness) (map[string][]string, map[string]bool) {
+	siblings, isCase := map[string][]string{}, map[string]bool{}
+
+	for _, cs := range rh.Cases {
+		var all []string
+
+		for _, n := range cs.Notes {
+			if s, ok := strings.CutPrefix(n, rhNotePfx); ok {
+				all = append(all, s)
+			}
+		}
+
+		for _, s := range all {
+			siblings[s], isCase[s] = all, true
+		}
+	}
+
+	for _, nc := range rh.NotCompared {
+		for _, s := range nc.Sources {
+			siblings[s] = nc.Sources
+		}
+	}
+
+	return siblings, isCase
+}
+
+func TestReplayHarnessCoversTheRecording(t *testing.T) {
+	t.Parallel()
+
+	repo, err := corpus.FindRepo(".")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	root, err := os.OpenRoot(filepath.Join(repo.Root(), filepath.FromSlash(corpus.RootReplayHarness)))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	defer func() { _ = root.Close() }()
+
+	raw, err := root.ReadFile(rhTraffic)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	exs, err := rhreplay.ReadRecording(strings.NewReader(string(raw)))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	siblings, _ := rhSources(rhLoad(t, repo))
+
+	for _, ex := range exs {
+		if _, ok := siblings[rhTraffic+":"+strconv.Itoa(ex.Line)]; !ok {
+			t.Errorf("%s:%d is neither a case nor listed as not compared", rhTraffic, ex.Line)
+		}
+	}
+}
+
+// rhStepSize is the size of a step's body as ReplayHarness sends it.
+func rhStepSize(t *testing.T, st rhreplay.Step) int {
+	t.Helper()
+
+	if st.Body != nil {
+		return len(*st.Body)
+	}
+
+	raw, err := json.Marshal(st.JSON)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	return len(raw)
+}
+
+func TestReplayHarnessRebuildsWhatReplayHarnessSent(t *testing.T) {
+	t.Parallel()
+
+	repo, err := corpus.FindRepo(".")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	root, err := os.OpenRoot(filepath.Join(repo.Root(), filepath.FromSlash(corpus.RootReplayHarness)))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	defer func() { _ = root.Close() }()
+
+	replays, err := rhreplay.LoadDir(root.FS(), "replays")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	siblings, isCase := rhSources(rhLoad(t, repo))
+
+	for _, r := range replays {
+		for i, st := range r.Steps {
+			rhCheckStep(t, fmt.Sprintf("replays/%s: replay %q, step %d", r.File, r.Name, i+1), st, siblings, isCase)
+		}
+	}
+}
+
+// rhCheckStep checks that the corpus holds step src and that, when the step
+// is a case, rhreplay rebuilt the very request traffic.jsonl recorded for it.
+// The recorder drops Cookie headers and traffic.jsonl drops bodies over
+// 64 KiB, so only those steps may be missing from the recording.
+func rhCheckStep(t *testing.T, src string, st rhreplay.Step, siblings map[string][]string, isCase map[string]bool) {
+	t.Helper()
+
+	all, ok := siblings[src]
+	if !ok {
+		t.Errorf("%s is neither a case nor listed as not compared", src)
+
+		return
+	}
+
+	recorded := slices.ContainsFunc(all, func(s string) bool { return strings.HasPrefix(s, rhTraffic+":") })
+	_, cookie := st.Headers["Cookie"]
+
+	if isCase[src] && !recorded && !cookie && rhStepSize(t, st) <= rhBodyCap {
+		t.Errorf("%s: rhreplay does not rebuild the request traffic.jsonl recorded for it", src)
+	}
+}
+
+// TestReplayHarnessRecordingsComeFromThePinnedBuild: every request that
+// ReplayHarness itself sent in traffic.jsonl and saved.jsonl carries the
+// User-Agent of the unmodified pinned build. A build with local changes
+// (+dirty) or of another commit may send other requests than the ones
+// rhreplay mirrors. A User-Agent that a replay step sets is the step's own.
+func TestReplayHarnessRecordingsComeFromThePinnedBuild(t *testing.T) {
+	t.Parallel()
+
+	if !strings.HasSuffix(rhreplay.PinnedVersion, "-"+rhreplay.PinnedCommit[:12]) {
+		t.Fatalf("rhreplay.PinnedVersion %s is not a version of rhreplay.PinnedCommit %s", rhreplay.PinnedVersion, rhreplay.PinnedCommit)
+	}
+
+	repo, err := corpus.FindRepo(".")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	root, err := os.OpenRoot(filepath.Join(repo.Root(), filepath.FromSlash(corpus.RootReplayHarness)))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	defer func() { _ = root.Close() }()
+
+	want := "ReplayHarness/" + rhreplay.PinnedVersion
+
+	for _, name := range []string{rhTraffic, "saved.jsonl"} {
+		raw, err := root.ReadFile(name)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		exs, err := rhreplay.ReadRecording(strings.NewReader(string(raw)))
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		pinned := 0
+
+		for _, ex := range exs {
+			switch ua := ex.Request.Headers["User-Agent"]; {
+			case ua == want:
+				pinned++
+			case strings.HasPrefix(ua, "ReplayHarness/"):
+				t.Errorf("%s:%d was sent by %s, not by the pinned build %s", name, ex.Line, ua, want)
+			}
+		}
+
+		if pinned == 0 {
+			t.Errorf("%s holds no request from the pinned build %s", name, want)
+		}
+	}
+}
+
+func TestReplayHarnessScriptBuildsThePinnedCommit(t *testing.T) {
+	t.Parallel()
+
+	repo, err := corpus.FindRepo(".")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	root, err := os.OpenRoot(repo.Root())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	defer func() { _ = root.Close() }()
+
+	script, err := root.ReadFile("parity/scripts/replayharness.sh")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !strings.Contains(string(script), "\nrh_commit="+rhreplay.PinnedCommit+"\n") {
+		t.Errorf("parity/scripts/replayharness.sh does not build rhreplay.PinnedCommit %s", rhreplay.PinnedCommit)
+	}
+}

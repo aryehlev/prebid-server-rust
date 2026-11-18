@@ -28,6 +28,7 @@ type Counts struct {
 	NotYetInstrumented int `json:"not_yet_instrumented"`
 	Error              int `json:"error"`
 	Skipped            int `json:"skipped"`
+	NotCompared        int `json:"not_compared"`
 }
 
 // add counts one case.
@@ -44,6 +45,8 @@ func (c *Counts) add(s CaseStatus) {
 		c.Error++
 	case CaseSkipped:
 		c.Skipped++
+	case CaseNotCompared:
+		c.NotCompared++
 	}
 }
 

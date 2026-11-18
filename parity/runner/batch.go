@@ -3,6 +3,7 @@ package runner
 import (
 	"encoding/json"
 	"fmt"
+	"math/rand"
 	"path"
 	"regexp"
 	"strings"
@@ -56,7 +57,8 @@ func (b *batch) Label() string { return profileLabel(b.Base, b.Profile) }
 // Selection filters corpus cases.
 type Selection struct {
 	// Corpora are corpus names (adapters, sample-requests, exchangetest,
-	// bidder-params, introspection); empty means all.
+	// bidder-params, replayharness, introspection, gen, or all); empty means
+	// all.
 	Corpora []string
 	// Kinds are case kinds; empty means all.
 	Kinds []string
@@ -70,14 +72,18 @@ func (s Selection) wantsCorpus(name string) bool {
 	return len(s.Corpora) == 0 || containsString(s.Corpora, name) || containsString(s.Corpora, "all")
 }
 
-func (s Selection) wants(cs *corpus.Case) bool {
-	if !s.wantsCorpus(cs.Corpus) {
+func (s Selection) wants(cs *corpus.Case) bool { return s.wantsEntry(cs.Corpus, cs.Kind, cs.ID) }
+
+// wantsEntry applies the corpus, kind and match filters to a case or a
+// not-compared request.
+func (s Selection) wantsEntry(corpusName string, kind corpus.Kind, id string) bool {
+	if !s.wantsCorpus(corpusName) {
 		return false
 	}
-	if len(s.Kinds) > 0 && !containsString(s.Kinds, string(cs.Kind)) {
+	if len(s.Kinds) > 0 && !containsString(s.Kinds, string(kind)) {
 		return false
 	}
-	return s.Match == nil || s.Match.MatchString(cs.ID)
+	return s.Match == nil || s.Match.MatchString(id)
 }
 
 // selectCases returns the cases to run under each base profile, in base
@@ -110,6 +116,37 @@ func selectCases(c *corpus.Corpus, bases []string, sel Selection) (run []*runCas
 type skippedCase struct {
 	rc     *runCase
 	reason string
+}
+
+// notComparedCase is a request a corpus leaves out of its cases, under one
+// base profile.
+type notComparedCase struct {
+	// ID is the case ID the request would have, suffixed as a case's is.
+	ID   string
+	Base string
+	NC   *corpus.NotCompared
+}
+
+// selectNotCompared returns the not-compared requests the selection names,
+// under each base profile, in base profile then ID order. The corpus, kind
+// and match filters apply as they do to cases; the limit does not, because
+// none of them runs.
+func selectNotCompared(c *corpus.Corpus, bases []string, sel Selection) []notComparedCase {
+	var out []notComparedCase
+	for _, base := range bases {
+		for i := range c.NotCompared {
+			nc := &c.NotCompared[i]
+			if !sel.wantsEntry(nc.Corpus, nc.Kind, nc.ID) {
+				continue
+			}
+			id := nc.ID
+			if base != DefaultProfile {
+				id += "@" + base
+			}
+			out = append(out, notComparedCase{ID: id, Base: base, NC: nc})
+		}
+	}
+	return out
 }
 
 // newRunCase copies cs and rewrites its IDs for the base profile.
@@ -203,6 +240,20 @@ func planBatches(cases []*runCase) []*batch {
 		target.Cases = append(target.Cases, rc)
 	}
 	return out
+}
+
+// shuffleBatches puts the cases of each batch, its introspection case
+// included, in an order drawn from seed: the same order for the same seed
+// and cases with the same Go toolchain. Seed 0 keeps them in case ID order.
+// Both sides of a pair run a shard's cases in the same order either way.
+func shuffleBatches(batches []*batch, seed int64) {
+	if seed == 0 {
+		return
+	}
+	rng := rand.New(rand.NewSource(seed))
+	for _, b := range batches {
+		rng.Shuffle(len(b.Cases), func(i, j int) { b.Cases[i], b.Cases[j] = b.Cases[j], b.Cases[i] })
+	}
 }
 
 // addIntrospection appends the introspection case of every batch.

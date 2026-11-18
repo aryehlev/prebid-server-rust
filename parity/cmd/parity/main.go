@@ -44,6 +44,13 @@ const (
 	exitIncomplete = 3
 )
 
+// corpusNames are the values --corpus takes: every corpus LoadAll reads, the
+// runner's introspection cases, the generated cases of --gen, and all.
+var corpusNames = []string{
+	corpus.CorpusAdapters, corpus.CorpusSampleRequests, corpus.CorpusExchangeTest, corpus.CorpusBidderParams,
+	corpus.CorpusReplayHarness, runner.CorpusIntrospection, gen.CorpusGenerated, "all",
+}
+
 // Default locations, relative to the repository root.
 const (
 	defaultGoBinary   = "parity/out/bin/pbs-go"
@@ -154,6 +161,7 @@ type runFlags struct {
 	corpora, kinds, match                string
 	limit, shards, gen                   int
 	seed                                 uint64
+	shuffle                              int64
 	budget, caseTimeout, startTimeout    time.Duration
 	fixtures, noBuild                    bool
 	baseline                             string
@@ -172,13 +180,14 @@ func (f *runFlags) register(fs *flag.FlagSet, withB bool) {
 	fs.StringVar(&f.profiles, "profiles", runner.DefaultProfile, "comma-separated base profiles (parity/fixtures/profiles)")
 	fs.StringVar(&f.profilesDir, "profiles-dir", "", "profile fixtures directory")
 	fs.StringVar(&f.storedDir, "stored-dir", "", "stored data fixtures directory")
-	fs.StringVar(&f.corpora, "corpus", "all", "comma-separated corpora: adapters, sample-requests, exchangetest, bidder-params, introspection, gen, all")
+	fs.StringVar(&f.corpora, "corpus", "all", "comma-separated corpora: "+strings.Join(corpusNames, ", "))
 	fs.IntVar(&f.gen, "gen", 0, "generated cases (corpus gen, parity/gen) to add to the corpus")
 	fs.Uint64Var(&f.seed, "seed", 1, "seed the --gen cases are drawn with")
 	fs.StringVar(&f.kinds, "kinds", "", "comma-separated case kinds (adapter, lifted_auction, endpoint, exchange, bidder_params, introspection)")
 	fs.StringVar(&f.match, "match", "", "regular expression on case IDs")
 	fs.IntVar(&f.limit, "limit", 0, "maximum cases per base profile (0: no limit)")
 	fs.IntVar(&f.shards, "shards", 1, "server pairs per batch")
+	fs.Int64Var(&f.shuffle, "shuffle", 0, "run each batch's cases in an order drawn from this seed (0: case ID order)")
 	fs.DurationVar(&f.budget, "budget", 0, "stop starting cases after this long (0: no limit)")
 	fs.DurationVar(&f.caseTimeout, "case-timeout", 30*time.Second, "timeout of one case")
 	fs.DurationVar(&f.startTimeout, "start-timeout", 90*time.Second, "timeout of a server start")
@@ -197,7 +206,7 @@ func (f *runFlags) options(ctx context.Context, stderr io.Writer) (runner.Option
 	}
 	opts := runner.Options{
 		RepoRoot: root, OutDir: f.out, RunID: f.runID, ProfilesDir: f.profilesDir, StoredDir: f.storedDir,
-		Profiles: splitList(f.profiles), Shards: f.shards, Budget: f.budget, CaseTimeout: f.caseTimeout,
+		Profiles: splitList(f.profiles), Shards: f.shards, Shuffle: f.shuffle, Budget: f.budget, CaseTimeout: f.caseTimeout,
 		StartTimeout: f.startTimeout, FixtureSelfTest: f.fixtures, Logf: f.logf(stderr),
 		Selection: runner.Selection{Corpora: splitList(f.corpora), Kinds: splitList(f.kinds), Limit: f.limit},
 	}
@@ -307,10 +316,37 @@ func cmdRun(ctx context.Context, args []string, stdout, stderr io.Writer) (int, 
 		return exitUsage, err
 	}
 	printRun(stdout, res.Run)
-	if f.baseline == "" {
-		return exitOK, nil
+	return runCode(stdout, res.Run, f.baseline)
+}
+
+// runCode is the exit code of parity run. With a baseline the ratchet
+// decides, so a run whose mismatches the baseline already counts passes, and
+// one with more mismatches or harness errors, fewer compared cases or a new
+// cluster fails. Without one the run is judged as a self-test is: a
+// mismatch, a harness error or a failing fixture fails it, and a run that
+// compared nothing is incomplete.
+func runCode(stdout io.Writer, run *report.Run, baseline string) (int, error) {
+	if baseline != "" {
+		return ratchet(stdout, run, baseline, false)
 	}
-	return ratchet(stdout, res.Run, f.baseline, false)
+	return verdictCode(stdout, "run", runner.Judge(run)), nil
+}
+
+// verdictCode prints a verdict's reasons, each after prefix, and returns its
+// exit code: exitIncomplete when nothing was compared and nothing else is
+// wrong, exitFailure for anything else that is wrong.
+func verdictCode(stdout io.Writer, prefix string, v runner.Verdict) int {
+	for _, r := range v.Reasons {
+		fmt.Fprintf(stdout, "%s: %s\n", prefix, r)
+	}
+	switch {
+	case v.OK:
+		fmt.Fprintf(stdout, "%s: ok\n", prefix)
+		return exitOK
+	case v.Incomplete && len(v.Reasons) == 1:
+		return exitIncomplete
+	}
+	return exitFailure
 }
 
 func cmdSelfTest(ctx context.Context, args []string, stdout, stderr io.Writer) (int, error) {
@@ -330,17 +366,7 @@ func cmdSelfTest(ctx context.Context, args []string, stdout, stderr io.Writer) (
 		return exitUsage, err
 	}
 	printRun(stdout, res.Run)
-	for _, r := range verdict.Reasons {
-		fmt.Fprintln(stdout, "selftest:", r)
-	}
-	switch {
-	case verdict.OK:
-		fmt.Fprintln(stdout, "selftest: ok")
-		return exitOK, nil
-	case verdict.Incomplete && len(verdict.Reasons) == 1:
-		return exitIncomplete, nil
-	}
-	return exitFailure, nil
+	return verdictCode(stdout, "selftest", verdict), nil
 }
 
 func cmdMinimize(ctx context.Context, args []string, stdout, stderr io.Writer) (int, error) {
@@ -471,9 +497,9 @@ func ratchet(stdout io.Writer, run *report.Run, path string, update bool) (int, 
 // printRun prints the run directory and totals.
 func printRun(w io.Writer, run *report.Run) {
 	c := run.Summary.Counts
-	fmt.Fprintf(w, "run %s (%s vs %s): %d cases, %d passing, %d mismatch, %d not-yet-instrumented, %d error, %d skipped; %d clusters (%d primary)\n",
+	fmt.Fprintf(w, "run %s (%s vs %s): %d cases, %d passing, %d mismatch, %d not-yet-instrumented, %d error, %d skipped, %d not-compared; %d clusters (%d primary)\n",
 		run.Summary.RunID, run.Summary.ImplA, run.Summary.ImplB, c.Total, c.Passing, c.Mismatch, c.NotYetInstrumented, c.Error, c.Skipped,
-		run.Summary.Clusters, run.Summary.PrimaryClusters)
+		c.NotCompared, run.Summary.Clusters, run.Summary.PrimaryClusters)
 	if f := run.Summary.Fixtures; f != nil {
 		fmt.Fprintf(w, "fixtures: %d passing, %d failing, %d excused, %d not run\n", f.Passing, f.Failing, f.Excused, f.NotRun)
 	}

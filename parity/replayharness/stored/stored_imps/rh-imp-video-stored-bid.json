@@ -1,0 +1,29 @@
+{
+  "id": "rh-imp-video-stored-bid",
+  "video": {
+    "mimes": [
+      "video/mp4"
+    ],
+    "protocols": [
+      2,
+      3
+    ],
+    "w": 640,
+    "h": 480
+  },
+  "ext": {
+    "prebid": {
+      "bidder": {
+        "appnexus": {
+          "placementId": 12883451
+        }
+      },
+      "storedbidresponse": [
+        {
+          "bidder": "appnexus",
+          "id": "rh-appnexus-video"
+        }
+      ]
+    }
+  }
+}

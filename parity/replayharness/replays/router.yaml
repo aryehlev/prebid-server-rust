@@ -1,0 +1,71 @@
+# Routing on the main port: httprouter's 404, 405, redirects and OPTIONS,
+# the rs/cors preflight, and the admin-only routes that the main port does
+# not serve (router/router.go).
+replays:
+  - name: an unknown path is the standard 404
+    why: httprouter falls back to http.NotFound
+    steps:
+      - {method: GET, path: /rh-nope, expect: {status: 404, headers: {Content-Type: text/plain, X-Content-Type-Options: nosniff}, contains: ["404 page not found\n"]}}
+      - {method: GET, path: /getuid, expect: {status: 404}}
+
+  - name: admin and metrics routes are not on the main port
+    why: currency rates, pprof, stored request updates and Prometheus metrics live on the admin and metrics listeners only (router/admin.go, server/server.go)
+    steps:
+      - {method: GET, path: /currency/rates, expect: {status: 404}}
+      - {method: GET, path: /debug/pprof/, expect: {status: 404}}
+      - {method: GET, path: /metrics, expect: {status: 404}}
+      - {method: POST, path: /storedrequests/openrtb2, json: {requests: {}}, expect: {status: 404}}
+
+  - name: a wrong method is 405 with the allowed methods
+    why: httprouter's HandleMethodNotAllowed lists the registered methods plus OPTIONS (router/router.go:300, 325-326)
+    steps:
+      - {method: POST, path: /status, expect: {status: 405, headers: {Allow: "GET, OPTIONS"}, contains: ["Method Not Allowed\n"]}}
+      - {method: GET, path: /openrtb2/auction, expect: {status: 405, headers: {Allow: "OPTIONS, POST"}}}
+      - {method: DELETE, path: /optout, expect: {status: 405, headers: {Allow: "GET, OPTIONS, POST"}}}
+      - {method: PUT, path: /cookie_sync, expect: {status: 405, headers: {Allow: "OPTIONS, POST"}}}
+
+  - name: HEAD is not mapped to GET
+    why: httprouter only routes HEAD when a HEAD handler is registered, so HEAD /status is 405 like any other method
+    steps:
+      - {method: HEAD, path: /status, expect: {status: 405, headers: {Allow: "GET, OPTIONS"}}}
+
+  - name: a trailing slash or wrong case redirects to the route
+    why: RedirectTrailingSlash and RedirectFixedPath answer 301 for GET with the fixed path
+    steps:
+      - {method: GET, path: /status/, expect: {status: 301, headers: {Location: /status}}}
+      - {method: GET, path: /STATUS, expect: {status: 301, headers: {Location: /status}}}
+      - {method: GET, path: /Info/Bidders, expect: {status: 301, headers: {Location: /info/bidders}}}
+
+  - name: a trailing slash on a POST route redirects with 307
+    why: httprouter v1.3.0 uses 307 for methods other than GET, so a client resends the body (github.com/julienschmidt/httprouter router.go)
+    steps:
+      - {method: POST, path: /openrtb2/auction/, json: {id: x}, expect: {status: 307, headers: {Location: /openrtb2/auction}}}
+
+  - name: a plain OPTIONS request is answered by the router
+    why: HandleOPTIONS answers 200 with the Allow header when there is no CORS preflight
+    steps:
+      - {method: OPTIONS, path: /status, expect: {status: 200, headers: {Allow: "GET, OPTIONS"}}}
+      - {method: OPTIONS, path: /openrtb2/auction, expect: {status: 200, headers: {Allow: "OPTIONS, POST"}}}
+
+  - name: a CORS preflight is answered by rs/cors with 204
+    why: any origin is allowed with credentials, but only the headers Origin, X-Requested-With, Content-Type and Accept (router/router.go:386-391)
+    steps:
+      - method: OPTIONS
+        path: /openrtb2/auction
+        headers: {Origin: "https://parity.test", Access-Control-Request-Method: POST, Access-Control-Request-Headers: content-type}
+        expect:
+          status: 204
+          headers:
+            Access-Control-Allow-Origin: "https://parity.test"
+            Access-Control-Allow-Credentials: "true"
+            Access-Control-Allow-Methods: POST
+            Access-Control-Allow-Headers: content-type
+            Vary: "Origin, Access-Control-Request-Method, Access-Control-Request-Headers"
+      - method: OPTIONS
+        path: /openrtb2/auction
+        headers: {Origin: "https://parity.test", Access-Control-Request-Method: POST, Access-Control-Request-Headers: x-custom}
+        expect:
+          status: 204
+          headers:
+            Access-Control-Allow-Origin: <absent>
+            Access-Control-Allow-Headers: <absent>

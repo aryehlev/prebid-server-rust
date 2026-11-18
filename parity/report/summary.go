@@ -70,9 +70,10 @@ const (
 	shortSignature           = 12
 )
 
-// RenderSummary renders summary.md: run identity, totals, not-yet-instrumented
-// reasons, the top clusters of every domain (primary clusters first) with
-// their minimized repro paths, and the fixture self-test.
+// RenderSummary renders summary.md: run identity, totals, the reasons cases
+// were not compared, the requests the corpora do not compare, the top
+// clusters of every domain (primary clusters first) with their minimized
+// repro paths, and the fixture self-test.
 func RenderSummary(r *Run) []byte {
 	var b bytes.Buffer
 	s := r.Summary
@@ -81,6 +82,7 @@ func RenderSummary(r *Run) []byte {
 		s.Mode, s.ImplA, s.ImplB, s.StartedAt, float64(s.DurationMS)/1000)
 	renderCounts(&b, s)
 	renderReasons(&b, r.Cases)
+	renderNotCompared(&b, r.Cases)
 	renderDomains(&b, r)
 	renderFixtures(&b, r.Fixtures)
 	return b.Bytes()
@@ -94,7 +96,7 @@ func renderCounts(b *bytes.Buffer, s RunSummary) {
 	}{
 		{string(CasePassing), s.Counts.Passing}, {string(CaseMismatch), s.Counts.Mismatch},
 		{string(CaseNotYetInstrumented), s.Counts.NotYetInstrumented}, {string(CaseError), s.Counts.Error},
-		{string(CaseSkipped), s.Counts.Skipped}, {"total", s.Counts.Total},
+		{string(CaseSkipped), s.Counts.Skipped}, {string(CaseNotCompared), s.Counts.NotCompared}, {"total", s.Counts.Total},
 	}
 	for _, row := range rows {
 		fmt.Fprintf(b, "| %s | %d |\n", row.name, row.n)
@@ -116,11 +118,12 @@ func kindBreakdown(byKind map[string]int) string {
 	return " (" + strings.Join(parts, ", ") + ")"
 }
 
-// renderReasons lists the most frequent reasons of cases that were not compared.
+// renderReasons lists the most frequent reasons of cases that were not
+// compared; renderNotCompared lists the not-compared ones.
 func renderReasons(b *bytes.Buffer, cases []CaseSummary) {
 	counts := map[string]int{}
 	for _, c := range cases {
-		if !c.Status.Compared() && c.Reason != "" {
+		if !c.Status.Compared() && c.Status != CaseNotCompared && c.Reason != "" {
 			counts[string(c.Status)+": "+c.Reason]++
 		}
 	}
@@ -134,6 +137,28 @@ func renderReasons(b *bytes.Buffer, cases []CaseSummary) {
 			fmt.Fprintf(b, "| ... | %d more reasons |\n", len(reasons)-i)
 			break
 		}
+		fmt.Fprintf(b, "| %d | %s |\n", counts[reason], cell(reason))
+	}
+	b.WriteString("\n")
+}
+
+// renderNotCompared lists every reason of the requests the corpora leave out
+// of their cases (status not-compared), most frequent first. The corpora
+// give few distinct reasons, so the table is not cut.
+func renderNotCompared(b *bytes.Buffer, cases []CaseSummary) {
+	counts := map[string]int{}
+	for _, c := range cases {
+		if c.Status == CaseNotCompared {
+			counts[c.Reason]++
+		}
+	}
+	if len(counts) == 0 {
+		return
+	}
+	b.WriteString("## Requests not compared\n\nThe corpora leave these requests out of their cases: two correct servers " +
+		"may answer them differently, or the envelope cannot carry them as sent. Each reason starts with its tag.\n\n")
+	b.WriteString("| Requests | Reason |\n|---|---|\n")
+	for _, reason := range sortedByCount(counts) {
 		fmt.Fprintf(b, "| %d | %s |\n", counts[reason], cell(reason))
 	}
 	b.WriteString("\n")

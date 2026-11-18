@@ -1,0 +1,194 @@
+# Header-driven request enrichment in /openrtb2/auction: Referer,
+# User-Agent, X-Forwarded-For, X-Real-IP, DNT, Sec-GPC and
+# Sec-Browsing-Topics. Each request uses the rh-seatbid-banner stored auction
+# response, so no bidder is called, and test 1 so ext.debug.resolvedrequest
+# shows what Go filled in.
+#
+# ReplayHarness sends its own User-Agent unless a step sets one, and when the
+# traffic is recorded the proxy appends 127.0.0.1 to X-Forwarded-For; Go
+# skips loopback and private addresses, so the expected IPs stay the same.
+replays:
+  - name: Referer fills site.page and site.domain when site is missing
+    why: setSiteImplicitly creates the site from the Referer, and the publisher domain is the registrable domain (endpoints/openrtb2/auction.go:1625-1648)
+    steps:
+      - method: POST
+        path: /openrtb2/auction
+        headers: {Referer: "https://ref.parity.test/a/page?x=1"}
+        json:
+          id: rh-referer
+          test: 1
+          imp: [{id: i, banner: {format: [{w: 300, h: 250}]}, ext: {prebid: {bidder: {appnexus: {placementId: 1}}, storedauctionresponse: {id: rh-seatbid-banner}}}}]
+        expect:
+          status: 200
+          json:
+            $.ext.debug.resolvedrequest.site.page: "https://ref.parity.test/a/page?x=1"
+            $.ext.debug.resolvedrequest.site.domain: ref.parity.test
+            $.ext.debug.resolvedrequest.site.publisher.domain: parity.test
+            $.ext.debug.resolvedrequest.site.ext.amp: 0
+
+  - name: Referer sets site.domain even when site.page is given
+    why: the Referer's host fills site.domain whenever it is empty, without looking at site.page, so the domain and the page disagree (endpoints/openrtb2/auction.go:1630-1638)
+    steps:
+      - method: POST
+        path: /openrtb2/auction
+        headers: {Referer: "https://ref.parity.test/a/page?x=1"}
+        json:
+          id: rh-referer-page
+          test: 1
+          site: {page: "https://own.parity.test/p"}
+          imp: [{id: i, banner: {format: [{w: 300, h: 250}]}, ext: {prebid: {bidder: {appnexus: {placementId: 1}}, storedauctionresponse: {id: rh-seatbid-banner}}}}]
+        expect:
+          status: 200
+          json:
+            $.ext.debug.resolvedrequest.site.page: "https://own.parity.test/p"
+            $.ext.debug.resolvedrequest.site.domain: ref.parity.test
+
+  - name: User-Agent, DNT, X-Forwarded-For and Sec-GPC fill device and regs
+    why: setDeviceImplicitly copies the headers, X-Forwarded-For gives the first public address, and Sec-GPC 1 becomes regs.ext.gpc (endpoints/openrtb2/auction.go:1564-1597, util/httputil/httputil.go:28)
+    steps:
+      - method: POST
+        path: /openrtb2/auction
+        headers: {User-Agent: "Mozilla/5.0 (rh-test)", DNT: "1", X-Forwarded-For: "203.0.113.7, 10.0.0.1", Sec-GPC: "1"}
+        json:
+          id: rh-headers-device
+          test: 1
+          site: {page: "https://parity.test/"}
+          imp: [{id: i, banner: {format: [{w: 300, h: 250}]}, ext: {prebid: {bidder: {appnexus: {placementId: 1}}, storedauctionresponse: {id: rh-seatbid-banner}}}}]
+        expect:
+          status: 200
+          json:
+            $.ext.debug.resolvedrequest.device.ua: "Mozilla/5.0 (rh-test)"
+            $.ext.debug.resolvedrequest.device.dnt: 1
+            $.ext.debug.resolvedrequest.device.ip: 203.0.113.7
+            $.ext.debug.resolvedrequest.regs.ext.gpc: "1"
+
+  - name: values in the request win over the headers
+    why: the implicit setters only fill empty fields (endpoints/openrtb2/auction.go:1564-1597)
+    steps:
+      - method: POST
+        path: /openrtb2/auction
+        headers: {User-Agent: "Mozilla/5.0 (rh-test)", DNT: "1", X-Forwarded-For: 203.0.113.7, Sec-GPC: "1"}
+        json:
+          id: rh-headers-own
+          test: 1
+          site: {page: "https://parity.test/"}
+          device: {ua: own-ua, ip: 198.51.100.1, dnt: 0}
+          regs: {ext: {gpc: "0"}}
+          imp: [{id: i, banner: {format: [{w: 300, h: 250}]}, ext: {prebid: {bidder: {appnexus: {placementId: 1}}, storedauctionresponse: {id: rh-seatbid-banner}}}}]
+        expect:
+          status: 200
+          json:
+            $.ext.debug.resolvedrequest.device.ua: own-ua
+            $.ext.debug.resolvedrequest.device.ip: 198.51.100.1
+            $.ext.debug.resolvedrequest.device.dnt: 0
+            $.ext.debug.resolvedrequest.regs.ext.gpc: "0"
+
+  - name: private-only X-Forwarded-For leaves device.ip empty
+    why: private and loopback addresses are skipped, and the loopback peer is not used either (util/httputil/httputil.go:28)
+    steps:
+      - method: POST
+        path: /openrtb2/auction
+        headers: {X-Forwarded-For: "10.0.0.1, 192.168.1.1"}
+        json:
+          id: rh-xff-private
+          test: 1
+          site: {page: "https://parity.test/"}
+          imp: [{id: i, banner: {format: [{w: 300, h: 250}]}, ext: {prebid: {bidder: {appnexus: {placementId: 1}}, storedauctionresponse: {id: rh-seatbid-banner}}}}]
+        expect:
+          status: 200
+          json:
+            $.ext.debug.resolvedrequest.device.ip: <absent>
+            $.ext.debug.resolvedrequest.device.ipv6: <absent>
+
+  - name: X-Real-IP is used when X-Forwarded-For has no public address
+    why: FindIP falls back to X-Real-IP (util/httputil/httputil.go:28)
+    steps:
+      - method: POST
+        path: /openrtb2/auction
+        headers: {X-Real-IP: 203.0.113.8}
+        json:
+          id: rh-x-real-ip
+          test: 1
+          site: {page: "https://parity.test/"}
+          imp: [{id: i, banner: {format: [{w: 300, h: 250}]}, ext: {prebid: {bidder: {appnexus: {placementId: 1}}, storedauctionresponse: {id: rh-seatbid-banner}}}}]
+        expect: {status: 200, json: {$.ext.debug.resolvedrequest.device.ip: 203.0.113.8}}
+
+  - name: a documentation-range IPv6 X-Forwarded-For is ignored
+    why: 2001:db8::/32 is in Go's private IPv6 networks list, so device.ipv6 stays empty (config/config.go:1322)
+    steps:
+      - method: POST
+        path: /openrtb2/auction
+        headers: {X-Forwarded-For: "2001:db8::7"}
+        json:
+          id: rh-xff-ipv6
+          test: 1
+          site: {page: "https://parity.test/"}
+          imp: [{id: i, banner: {format: [{w: 300, h: 250}]}, ext: {prebid: {bidder: {appnexus: {placementId: 1}}, storedauctionresponse: {id: rh-seatbid-banner}}}}]
+        expect:
+          status: 200
+          json:
+            $.ext.debug.resolvedrequest.device.ip: <absent>
+            $.ext.debug.resolvedrequest.device.ipv6: <absent>
+
+  - name: DNT 0 is copied but Sec-GPC 0 is not
+    why: DNT 0 and 1 both set device.dnt, while only Sec-GPC 1 sets regs.ext.gpc (endpoints/openrtb2/auction.go:1578-1597)
+    steps:
+      - method: POST
+        path: /openrtb2/auction
+        headers: {Sec-GPC: "0", DNT: "0"}
+        json:
+          id: rh-gpc-zero
+          test: 1
+          site: {page: "https://parity.test/"}
+          imp: [{id: i, banner: {format: [{w: 300, h: 250}]}, ext: {prebid: {bidder: {appnexus: {placementId: 1}}, storedauctionresponse: {id: rh-seatbid-banner}}}}]
+        expect:
+          status: 200
+          json:
+            $.ext.debug.resolvedrequest.device.dnt: 0
+            $.ext.debug.resolvedrequest.regs: <absent>
+
+  - name: Sec-Browsing-Topics makes the response ask to observe topics
+    why: a Sec-Browsing-Topics request header adds Observe-Browsing-Topics ?1 to the response (endpoints/openrtb2/auction.go:412-417)
+    steps:
+      - method: POST
+        path: /openrtb2/auction
+        headers: {Sec-Browsing-Topics: "(1 2);v=chrome.1:1:2, ();p=P000000000"}
+        json:
+          id: rh-topics
+          site: {page: "https://parity.test/"}
+          imp: [{id: i, banner: {format: [{w: 300, h: 250}]}, ext: {prebid: {bidder: {appnexus: {placementId: 1}}, storedauctionresponse: {id: rh-seatbid-banner}}}}]
+        expect: {status: 200, headers: {Observe-Browsing-Topics: "?1"}}
+      - method: POST
+        path: /openrtb2/auction
+        json:
+          id: rh-no-topics
+          site: {page: "https://parity.test/"}
+          imp: [{id: i, banner: {format: [{w: 300, h: 250}]}, ext: {prebid: {bidder: {appnexus: {placementId: 1}}, storedauctionresponse: {id: rh-seatbid-banner}}}}]
+        expect: {status: 200, headers: {Observe-Browsing-Topics: <absent>}}
+
+  - name: an unknown debug override header does not turn debug on
+    why: X-Pbs-Debug-Override only works with the configured host token, which the default profile leaves empty (config/config.go:1296)
+    steps:
+      - method: POST
+        path: /openrtb2/auction
+        headers: {X-Pbs-Debug-Override: rh}
+        json:
+          id: rh-override
+          site: {page: "https://parity.test/"}
+          imp: [{id: i, banner: {format: [{w: 300, h: 250}]}, ext: {prebid: {bidder: {appnexus: {placementId: 1}}, storedauctionresponse: {id: rh-seatbid-banner}}}}]
+        expect:
+          status: 200
+          json:
+            $.ext.debug: <absent>
+            $.ext.warnings.general[0].code: 10002
+
+  - name: Origin is echoed with credentials on the auction
+    why: the CORS wrapper allows any origin with credentials (router/router.go:386-391)
+    steps:
+      - method: POST
+        path: /openrtb2/auction
+        headers: {Origin: "https://parity.test"}
+        json: {}
+        expect:
+          status: 400
+          headers: {Access-Control-Allow-Origin: "https://parity.test", Access-Control-Allow-Credentials: "true", Vary: Origin}

@@ -1,0 +1,28 @@
+{
+  "id": "rh-appnexus-banner",
+  "seatbid": [
+    {
+      "seat": "appnexus",
+      "bid": [
+        {
+          "id": "rh-banner-bid",
+          "impid": "rh-placeholder-imp",
+          "price": 0.75,
+          "adm": "<div>rh banner</div>",
+          "adomain": [
+            "parity.test"
+          ],
+          "crid": "rh-banner-creative",
+          "w": 300,
+          "h": 250,
+          "ext": {
+            "appnexus": {
+              "bid_ad_type": 0
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "cur": "USD"
+}

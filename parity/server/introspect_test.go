@@ -45,13 +45,16 @@ func TestHealth(t *testing.T) {
 	}
 }
 
-func contains(list []string, s string) bool {
-	for _, v := range list {
-		if v == s {
-			return true
-		}
-	}
-	return false
+// TestHealthListsCacheEventRoutes: with cache_events on, the stored data
+// event routes the main router registers are listed first.
+func TestHealthListsCacheEventRoutes(t *testing.T) {
+	cfg := &config.Configuration{}
+	cfg.StoredRequests.CacheEvents = config.CacheEventsConfig{Enabled: true, Endpoint: "/storedrequests/openrtb2"}
+	cfg.StoredRequestsAMP.CacheEvents = config.CacheEventsConfig{Enabled: true, Endpoint: "/storedrequests/amp"}
+	cfg.Accounts.CacheEvents = config.CacheEventsConfig{Enabled: true, Endpoint: "/storedrequests/amp"}
+	got := productEndpoints(cfg)
+	assert.Equal(t, []string{"/storedrequests/openrtb2", "/storedrequests/amp", EndpointAuction}, got[:3])
+	assert.Equal(t, productEndpoints(&config.Configuration{}), got[2:])
 }
 
 // dumpLookup walks a decoded dump by keys.

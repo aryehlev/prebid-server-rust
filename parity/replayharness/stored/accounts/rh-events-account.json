@@ -1,0 +1,6 @@
+{
+  "id": "rh-events-account",
+  "events": {
+    "enabled": true
+  }
+}

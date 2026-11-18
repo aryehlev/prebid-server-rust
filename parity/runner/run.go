@@ -91,6 +91,11 @@ type Options struct {
 	Selection Selection
 	// Shards is the number of server pairs per batch; default 1.
 	Shards int
+	// Shuffle, when not 0, runs each batch's cases in an order drawn from
+	// this seed instead of case ID order (shuffleBatches). A case whose
+	// result depends on the cases run before it on the same servers then
+	// shows up as a difference between runs.
+	Shuffle int64
 	// Budget stops starting new cases after this long; 0 means no limit.
 	Budget time.Duration
 	// CaseTimeout bounds one case on one pair; default 30s.
@@ -212,6 +217,9 @@ func (r *runner) load() error {
 			return err
 		}
 	}
+	if err := corpusErrors(r.corpus.Errors); err != nil {
+		return err
+	}
 	if r.profiles, err = LoadProfiles(r.opts.ProfilesDir, r.repoRel); err != nil {
 		return err
 	}
@@ -293,6 +301,17 @@ func (r *runner) repoRel(p string) string {
 	return filepath.ToSlash(rel)
 }
 
+// corpusErrors refuses a corpus that did not load cleanly. The loaders skip
+// what they cannot read (one bad replay file drops every replayharness
+// case), so a run would compare fewer cases than the corpus holds and could
+// pass, or end "nothing was compared", without saying why.
+func corpusErrors(errs []error) error {
+	if len(errs) == 0 {
+		return nil
+	}
+	return fmt.Errorf("runner: the corpus has %d load errors, and the cases they hold would not be compared:\n%w", len(errs), errors.Join(errs...))
+}
+
 func newToken() (string, error) {
 	b := make([]byte, tokenBytes)
 	if _, err := rand.Read(b); err != nil {
@@ -311,8 +330,14 @@ func (r *runner) run(ctx context.Context) (*Result, error) {
 	if r.opts.Selection.wantsCorpus(CorpusIntrospection) {
 		addIntrospection(batches, r.profiles)
 	}
+	shuffleBatches(batches, r.opts.Shuffle)
 	for _, s := range skipped {
 		if err := r.recordSkipped(s.rc, profileLabel(s.rc.Base, s.rc.Case.Profile), s.reason); err != nil {
+			return nil, err
+		}
+	}
+	for _, n := range selectNotCompared(r.corpus, r.opts.Profiles, r.opts.Selection) {
+		if err := r.recordNotCompared(n); err != nil {
 			return nil, err
 		}
 	}
@@ -354,7 +379,7 @@ func (r *runner) finish() (*Result, error) {
 func (r *runner) optionsRecord() map[string]string {
 	o := r.opts
 	rec := map[string]string{
-		"profiles": strings.Join(o.Profiles, ","), "shards": strconv.Itoa(o.Shards),
+		"profiles": strings.Join(o.Profiles, ","), "shards": strconv.Itoa(o.Shards), "shuffle": strconv.FormatInt(o.Shuffle, 10),
 		"corpora": strings.Join(o.Selection.Corpora, ","), "kinds": strings.Join(o.Selection.Kinds, ","),
 		"limit": strconv.Itoa(o.Selection.Limit), "budget": o.Budget.String(), "case_timeout": o.CaseTimeout.String(),
 		"fixture_selftest": strconv.FormatBool(o.FixtureSelfTest),
@@ -384,6 +409,22 @@ func (r *runner) newSummary(rc *runCase, label string) report.CaseSummary {
 func (r *runner) recordSkipped(rc *runCase, label, reason string) error {
 	s := r.newSummary(rc, label)
 	s.Status, s.Reason = report.CaseSkipped, reason
+	return r.writer.AddCase(s, nil)
+}
+
+// recordNotCompared reports a request the corpus does not compare: status
+// not-compared, the reason "<tag>: <reason>", and notes naming the request
+// and where it came from.
+func (r *runner) recordNotCompared(n notComparedCase) error {
+	nc := n.NC
+	s := report.NewCaseSummary(n.ID)
+	s.FixturePath, s.Endpoint, s.Profile, s.Kind, s.Corpus = nc.FixturePath, nc.Endpoint, n.Base, string(nc.Kind), nc.Corpus
+	s.ImplA, s.ImplB = r.opts.A.Name, r.opts.B.Name
+	s.Status, s.Reason = report.CaseNotCompared, nc.Tag+": "+nc.Reason
+	s.Notes = append(s.Notes, "request "+nc.Request)
+	for _, src := range nc.Sources {
+		s.Notes = append(s.Notes, "from "+src)
+	}
 	return r.writer.AddCase(s, nil)
 }
 

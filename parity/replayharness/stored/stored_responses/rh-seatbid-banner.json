@@ -1,0 +1,17 @@
+[
+  {
+    "seat": "appnexus",
+    "bid": [
+      {
+        "id": "rh-seatbid-bid",
+        "impid": "rh-seatbid-imp",
+        "price": 1.25,
+        "adm": "<div>rh seatbid</div>",
+        "crid": "rh-seatbid-creative",
+        "w": 300,
+        "h": 250,
+        "mtype": 1
+      }
+    ]
+  }
+]

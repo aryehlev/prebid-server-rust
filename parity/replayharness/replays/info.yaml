@@ -1,0 +1,131 @@
+# Read-only endpoints: /info/bidders, /bidders/params, /status, /version,
+# / and /static. Their bodies come from static/ and the bidder YAML files,
+# so the replays check shape and a few known entries, not whole lists.
+replays:
+  - name: info bidders lists every bidder, sorted, without white-label-only ones
+    why: the list is built once at startup from the bidder infos; teqblaze is whiteLabelOnly and is left out (endpoints/info/bidders.go, static/bidder-info/teqblaze.yaml)
+    steps:
+      - method: GET
+        path: /info/bidders
+        expect:
+          status: 200
+          headers: {Content-Type: application/json}
+          contains: ['["152media","1accord","33across",', '"appnexus"', '"rubicon"']
+          not_contains: ['"teqblaze"']
+
+  - name: info bidders filters on enabled and base adapters
+    why: enabledonly drops disabled bidders such as rubicon, and baseadaptersonly drops aliases such as 152media (endpoints/info/bidders.go)
+    steps:
+      - method: GET
+        path: /info/bidders?enabledonly=TRUE
+        expect: {status: 200, contains: ['"152media"', '"appnexus"'], not_contains: ['"rubicon"']}
+      - method: GET
+        path: /info/bidders?baseadaptersonly=true
+        expect: {status: 200, contains: ['"adkernel"', '"rubicon"'], not_contains: ['"152media"']}
+
+  - name: info bidders rejects non-boolean filters without a newline
+    why: only true and false in any case are accepted (not 1 or an empty value), and enabledonly is checked first (endpoints/info/bidders.go:61-90)
+    steps:
+      - {method: GET, path: "/info/bidders?enabledonly=yes", expect: {status: 400, contains: ["Invalid value for 'enabledonly' query param, must be of boolean type"], not_contains: ["type\n"]}}
+      - {method: GET, path: "/info/bidders?enabledonly=yes&baseadaptersonly=no", expect: {status: 400, contains: ["'enabledonly'"], not_contains: ["'baseadaptersonly'"]}}
+      - {method: GET, path: "/info/bidders?enabledonly=", expect: {status: 400, contains: ["'enabledonly'"]}}
+      - {method: GET, path: "/info/bidders?baseadaptersonly=1", expect: {status: 400, contains: ["'baseadaptersonly'"]}}
+      - {method: GET, path: "/info/bidders?baseadaptersonly=on", expect: {status: 400, contains: ["Invalid value for 'baseadaptersonly' query param, must be of boolean type"]}}
+
+  - name: bidder detail is case-insensitive and shows status and capabilities
+    why: the name is normalized before the lookup (endpoints/info/bidders_detail.go:47-58)
+    steps:
+      - method: GET
+        path: /info/bidders/AppNexus
+        expect:
+          status: 200
+          headers: {Content-Type: application/json}
+          json:
+            $.status: ACTIVE
+            $.usesHttps: false
+            $.maintainer.email: prebid@microsoft.com
+            $.capabilities.site.mediaTypes: [banner, video, native]
+            $.aliasOf: <absent>
+      - method: GET
+        path: /info/bidders/152media
+        expect: {status: 200, json: {$.aliasOf: adkernel, $.status: ACTIVE}}
+      - method: GET
+        path: /info/bidders/rubicon
+        expect: {status: 200, json: {$.status: DISABLED, $.capabilities: <absent>, $.maintainer.email: header-bidding@rubiconproject.com}}
+
+  - name: unknown and white-label-only bidders are an empty 404
+    why: the detail map has no entry for them (endpoints/info/bidders_detail.go:33, 42)
+    steps:
+      - {method: GET, path: /info/bidders/teqblaze, expect: {status: 404, headers: {Content-Length: "0"}}}
+      - {method: GET, path: /info/bidders/rh-nope, expect: {status: 404, headers: {Content-Length: "0"}}}
+
+  - name: the all detail maps every listed bidder
+    why: the name all, in any case, returns the merged map (endpoints/info/bidders_detail.go:48-49, 103-115)
+    steps:
+      - method: GET
+        path: /info/bidders/ALL
+        expect:
+          status: 200
+          json:
+            $.appnexus.status: ACTIVE
+            $.rubicon.status: DISABLED
+            $.152media.aliasOf: adkernel
+            $.teqblaze: <absent>
+
+  - name: bidders params returns every JSON schema
+    why: the schemas are read from static/bidder-params at startup (router/router.go:129, 298)
+    steps:
+      - method: GET
+        path: /bidders/params
+        expect:
+          status: 200
+          headers: {Content-Type: application/json}
+          json:
+            $.appnexus.title: <string>
+            $.appnexus.type: object
+            $.appnexus.oneOf: <array>
+
+  - name: status is an empty 204
+    why: status_response is empty by default, so the handler only writes 204 (router/router.go:300, endpoints/status.go)
+    steps:
+      - {method: GET, path: /status, expect: {status: 204, headers: {Content-Type: <absent>}}}
+
+  - name: version reports not-set values without a newline
+    why: the binary is built without ldflags, so both fields are not-set (router/router.go:302, endpoints/version.go)
+    steps:
+      - method: GET
+        path: /version
+        expect: {status: 200, json: {$.revision: not-set, $.version: not-set}, not_contains: ["\n"]}
+
+  - name: the root page and static files are served from static/
+    why: / serves static/index.html and /static/* serves the directory with http.FileServer, which supports ranges and redirects index.html and directories (router/router.go:104, 301, 303)
+    steps:
+      - method: GET
+        path: /
+        expect: {status: 200, headers: {Content-Type: text/html, Accept-Ranges: bytes}, contains: ["<title>Prebid Server</title>"]}
+      - method: GET
+        path: /
+        headers: {Range: bytes=0-9}
+        expect: {status: 206, headers: {Content-Range: "bytes 0-9/"}, contains: ["<html>\n   "]}
+      - method: GET
+        path: /static/bidder-info/appnexus.yaml
+        expect: {status: 200, headers: {Content-Type: text/plain}, contains: ["endpoint: \"http://ib.adnxs.com/openrtb2\""]}
+      - {method: GET, path: /static/index.html, expect: {status: 301, headers: {Location: ./}}}
+      - {method: GET, path: /static/bidder-info, expect: {status: 301, headers: {Location: bidder-info/}}}
+      - {method: GET, path: /static/rh-nope.json, expect: {status: 404, contains: ["404 page not found\n"]}}
+
+  - name: static paths cannot climb out of static/
+    why: httprouter and http.FileServer clean the path, so it stays under static/ (router/router.go:303)
+    steps:
+      - {method: GET, path: /static/../go.mod, expect: {status: 404, not_contains: ["module github.com"]}}
+      - {method: GET, path: /static/%2e%2e/go.mod, expect: {status: 404, not_contains: ["module github.com"]}}
+
+  - name: a static file name over 255 bytes is a 500
+    why: the open fails with ENAMETOOLONG, which http.FileServer maps to 500 Internal Server Error; 255 bytes is still a plain 404 (router/router.go:303, net/http fs.go toHTTPError)
+    steps:
+      - method: GET
+        path: /static/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+        expect: {status: 500, headers: {Content-Type: text/plain}, contains: ["500 Internal Server Error\n"]}
+      - method: GET
+        path: /static/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+        expect: {status: 404, contains: ["404 page not found\n"]}

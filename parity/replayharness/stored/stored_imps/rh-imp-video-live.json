@@ -1,0 +1,19 @@
+{
+  "id": "rh-imp-video-live",
+  "video": {
+    "mimes": [
+      "video/mp4"
+    ],
+    "protocols": [
+      2,
+      3
+    ],
+    "w": 640,
+    "h": 480
+  },
+  "ext": {
+    "appnexus": {
+      "placementId": 12883451
+    }
+  }
+}

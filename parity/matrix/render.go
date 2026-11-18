@@ -63,8 +63,8 @@ func RenderMarkdown(m *Matrix) []byte {
 	b.WriteString("# Parity coverage matrix\n\n")
 	fmt.Fprintf(&b, "Run `%s`: implementation A `%s` against implementation B `%s`, finished %s. Source: `%s`.\n\n",
 		m.RunID, m.ImplA, m.ImplB, orDash(m.FinishedAt), m.Index)
-	fmt.Fprintf(&b, "%d cases: %d passing, %d mismatch, %d not-yet-instrumented, %d error, %d skipped.\n\n",
-		m.Counts.Total, m.Counts.Passing, m.Counts.Mismatch, m.Counts.NotYetInstrumented, m.Counts.Error, m.Counts.Skipped)
+	fmt.Fprintf(&b, "%d cases: %d passing, %d mismatch, %d not-yet-instrumented, %d error, %d skipped, %d not compared.\n\n",
+		m.Counts.Total, m.Counts.Passing, m.Counts.Mismatch, m.Counts.NotYetInstrumented, m.Counts.Error, m.Counts.Skipped, m.Counts.NotCompared)
 	renderDomains(&b, m)
 	renderEndpoints(&b, m)
 	renderBidders(&b, m)
@@ -97,9 +97,9 @@ func evidenceCell(r Row) string {
 }
 
 func renderEndpoints(b *bytes.Buffer, m *Matrix) {
-	b.WriteString("## Endpoints\n\n| Endpoint | Status | Cases | Passing | Mismatch | Not yet instrumented | Error | Skipped |\n|---|---|---|---|---|---|---|---|\n")
+	b.WriteString("## Endpoints\n\n| Endpoint | Status | Cases | Passing | Mismatch | Not yet instrumented | Error | Skipped | Not compared |\n|---|---|---|---|---|---|---|---|---|\n")
 	for _, r := range m.Endpoints {
-		fmt.Fprintf(b, "| `%s` | %s | %d | %d | %d | %d | %d | %d |\n", cell(r.Endpoint), r.Status, r.Cases, r.Passing, r.Mismatch, r.NotYetInstrumented, r.Error, r.Skipped)
+		fmt.Fprintf(b, "| `%s` | %s | %d | %d | %d | %d | %d | %d | %d |\n", cell(r.Endpoint), r.Status, r.Cases, r.Passing, r.Mismatch, r.NotYetInstrumented, r.Error, r.Skipped, r.NotCompared)
 	}
 	b.WriteString("\n")
 }

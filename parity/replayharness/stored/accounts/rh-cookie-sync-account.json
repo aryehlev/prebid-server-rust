@@ -1,0 +1,7 @@
+{
+  "id": "rh-cookie-sync-account",
+  "cookie_sync": {
+    "default_limit": 1,
+    "max_limit": 1
+  }
+}

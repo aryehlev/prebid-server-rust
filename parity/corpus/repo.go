@@ -35,6 +35,7 @@ const (
 	RootOpenRTBExt        = "openrtb_ext"
 	// RootAdapterBuilders is a single file: the bidder to Builder registry.
 	RootAdapterBuilders = "exchange/adapter_builders.go"
+	// RootReplayHarness (replayharness.go) is approved too.
 )
 
 // ErrOutsideCorpus is returned for paths that escape the approved corpus roots.
@@ -46,7 +47,7 @@ func ApprovedRoots() []string {
 		RootAdapters, RootSampleRequests, RootEndpointsOpenRTB2, RootExchangeTest,
 		RootCacheTest, RootCustomCacheKey, RootEventsCacheTest, RootImpCustomCacheKey,
 		RootFPDTests, RootHookExecTest, RootBidderParams, RootBidderInfo, RootRouterParamsTests, RootOpenRTBExt,
-		RootAdapterBuilders,
+		RootAdapterBuilders, RootReplayHarness,
 	}
 	sort.Strings(roots)
 	return roots
@@ -167,6 +168,54 @@ func (r *Repo) ReadDir(rel string) ([]fs.DirEntry, error) {
 		return nil, fmt.Errorf("corpus: listing %s: %w", rel, err)
 	}
 	return entries, nil
+}
+
+// FS returns the repo-relative corpus directory rel as an fs.FS for code that
+// reads through one. Every name it opens, reads or lists goes through Resolve,
+// so it reads nothing outside the approved corpus roots, whatever symlinks
+// the directory holds.
+func (r *Repo) FS(rel string) fs.FS { return repoFS{repo: r, dir: rel} }
+
+// repoFS is Repo.FS.
+type repoFS struct {
+	repo *Repo
+	dir  string
+}
+
+// rel maps an fs.FS name to a repo-relative path.
+func (f repoFS) rel(op, name string) (string, error) {
+	if !fs.ValidPath(name) {
+		return "", &fs.PathError{Op: op, Path: name, Err: fs.ErrInvalid}
+	}
+	return path.Join(f.dir, name), nil
+}
+
+func (f repoFS) Open(name string) (fs.File, error) {
+	rel, err := f.rel("open", name)
+	if err != nil {
+		return nil, err
+	}
+	abs, err := f.repo.Resolve(rel)
+	if err != nil {
+		return nil, &fs.PathError{Op: "open", Path: name, Err: err}
+	}
+	return os.Open(abs)
+}
+
+func (f repoFS) ReadFile(name string) ([]byte, error) {
+	rel, err := f.rel("readfile", name)
+	if err != nil {
+		return nil, err
+	}
+	return f.repo.ReadFile(rel)
+}
+
+func (f repoFS) ReadDir(name string) ([]fs.DirEntry, error) {
+	rel, err := f.rel("readdir", name)
+	if err != nil {
+		return nil, err
+	}
+	return f.repo.ReadDir(rel)
 }
 
 func cleanRel(rel string) (string, error) {

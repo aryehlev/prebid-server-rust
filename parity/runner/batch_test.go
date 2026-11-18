@@ -2,6 +2,7 @@ package runner
 
 import (
 	"encoding/json"
+	"fmt"
 	"reflect"
 	"regexp"
 	"testing"
@@ -75,6 +76,59 @@ func TestSelectCases(t *testing.T) {
 	}
 }
 
+// notComparedEntry is a request a corpus leaves out of its cases.
+func notComparedEntry(id, corpusName string) corpus.NotCompared {
+	return corpus.NotCompared{
+		ID: id, Corpus: corpusName, Kind: corpus.KindEndpoint, FixturePath: "f/" + id, Endpoint: "/cookie_sync POST",
+		Request: "POST /cookie_sync", Sources: []string{"traffic.jsonl:3"}, Tag: corpus.RHTruncated, Reason: "cut body",
+	}
+}
+
+// TestSelectNotCompared: not-compared requests are selected by corpus, kind
+// and match as cases are, under every base profile with the same ID
+// suffix, and the limit, which caps the cases that run, leaves them all.
+func TestSelectNotCompared(t *testing.T) {
+	c := &corpus.Corpus{
+		Cases: []corpus.Case{envCase("r-case", corpus.CorpusReplayHarness, corpus.Profile{}, corpus.Stored{})},
+		NotCompared: []corpus.NotCompared{
+			notComparedEntry("r-a", corpus.CorpusReplayHarness), notComparedEntry("r-b", corpus.CorpusReplayHarness),
+			notComparedEntry("s-c", corpus.CorpusSampleRequests),
+		},
+	}
+	tests := []struct {
+		name  string
+		bases []string
+		sel   Selection
+		want  []string
+	}{
+		{"all", []string{"default"}, Selection{}, []string{"r-a", "r-b", "s-c"}},
+		{"corpus", []string{"default"}, Selection{Corpora: []string{corpus.CorpusReplayHarness}}, []string{"r-a", "r-b"}},
+		{"kinds", []string{"default"}, Selection{Kinds: []string{string(corpus.KindAdapter)}}, nil},
+		{"match", []string{"default"}, Selection{Match: regexp.MustCompile(`-b$`)}, []string{"r-b"}},
+		{"limit leaves them all", []string{"default"}, Selection{Limit: 1}, []string{"r-a", "r-b", "s-c"}},
+		{"second profile suffixes ids", []string{"default", "floors"}, Selection{Corpora: []string{corpus.CorpusReplayHarness}},
+			[]string{"r-a", "r-b", "r-a@floors", "r-b@floors"}},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			var got []string
+			for _, n := range selectNotCompared(c, tc.bases, tc.sel) {
+				got = append(got, n.ID)
+				want := n.NC.ID
+				if n.Base != DefaultProfile {
+					want += "@" + n.Base
+				}
+				if n.ID != want {
+					t.Errorf("%s under base %s, want %s", n.ID, n.Base, want)
+				}
+			}
+			if !reflect.DeepEqual(got, tc.want) {
+				t.Errorf("selected %v, want %v", got, tc.want)
+			}
+		})
+	}
+}
+
 func TestRewriteCaseID(t *testing.T) {
 	cs := adapterCase("a#adapter")
 	rc := newRunCase(&cs, "floors")
@@ -121,6 +175,80 @@ func TestPlanBatches(t *testing.T) {
 	if !last.Intro || last.ID != "introspection:default/default" || last.Case.FixturePath != "parity/fixtures/profiles/default.yaml" {
 		t.Errorf("introspection case = %+v", last)
 	}
+}
+
+// TestShuffleBatches: seed 0 keeps case ID order; another seed puts each
+// batch's cases in an order of its own, the same one every time, and keeps
+// every case in its batch.
+func TestShuffleBatches(t *testing.T) {
+	build := func() []*batch {
+		var out []*batch
+		for _, name := range []string{"one", "two"} {
+			b := &batch{Name: name}
+			for i := 0; i < 12; i++ {
+				cs := envCase(fmt.Sprintf("%s-%02d", name, i), corpus.CorpusSampleRequests, corpus.Profile{}, corpus.Stored{})
+				b.Cases = append(b.Cases, newRunCase(&cs, DefaultProfile))
+			}
+			out = append(out, b)
+		}
+		return out
+	}
+	ids := func(batches []*batch) [][]string {
+		var out [][]string
+		for _, b := range batches {
+			var list []string
+			for _, rc := range b.Cases {
+				list = append(list, rc.ID)
+			}
+			out = append(out, list)
+		}
+		return out
+	}
+	sorted := ids(build())
+
+	kept := build()
+	shuffleBatches(kept, 0)
+	if got := ids(kept); !reflect.DeepEqual(got, sorted) {
+		t.Errorf("seed 0 changed the order: %v", got)
+	}
+
+	first, again, other := build(), build(), build()
+	shuffleBatches(first, 7)
+	shuffleBatches(again, 7)
+	shuffleBatches(other, 8)
+	if !reflect.DeepEqual(ids(first), ids(again)) {
+		t.Errorf("seed 7 drew two orders: %v and %v", ids(first), ids(again))
+	}
+	for i, list := range ids(first) {
+		if reflect.DeepEqual(list, sorted[i]) {
+			t.Errorf("seed 7 kept batch %d in case ID order", i)
+		}
+		if got := append([]string(nil), list...); !sameSet(got, sorted[i]) {
+			t.Errorf("seed 7 changed the cases of batch %d: %v", i, got)
+		}
+	}
+	if reflect.DeepEqual(ids(first), ids(other)) {
+		t.Errorf("seeds 7 and 8 drew the same order")
+	}
+}
+
+func sameSet(a, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	seen := map[string]int{}
+	for _, s := range a {
+		seen[s]++
+	}
+	for _, s := range b {
+		seen[s]--
+	}
+	for _, n := range seen {
+		if n != 0 {
+			return false
+		}
+	}
+	return true
 }
 
 func TestMergeDocs(t *testing.T) {

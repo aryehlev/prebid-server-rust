@@ -1,0 +1,206 @@
+# GDPR, CCPA and GPP in /openrtb2/auction. AMP and user sync consent cases
+# are in amp.yaml and usersync.yaml. The default profile sets
+# gdpr.default_value 0 and leaves the host vendor id unset; rh-ccpa-account
+# turns CCPA enforcement on. The TCF string below gives no vendor consent to
+# appnexus, so GDPR enforcement drops the bidder whenever GDPR applies.
+#
+# When every bidder is dropped the response is the bare id with nbr 2 and no
+# bidder entries at all.
+replays:
+  - name: GDPR without consent drops the bidder and answers nbr 2
+    why: regs.gdpr 1 with no consent string fails appnexus's purpose checks, so no bidder request is made (gdpr/, exchange/utils.go)
+    steps:
+      - method: POST
+        path: /openrtb2/auction
+        json:
+          id: rh-gdpr-noconsent
+          test: 1
+          site: {page: "https://p.test", publisher: {id: parity-account}}
+          regs: {gdpr: 1}
+          imp: [{id: i, banner: {format: [{w: 300, h: 250}]}, ext: {prebid: {bidder: {appnexus: {placementId: 1}}}}}]
+        expect:
+          status: 200
+          json:
+            $.id: rh-gdpr-noconsent
+            $.nbr: 2
+            $.seatbid: <absent>
+            $.ext.debug.httpcalls: <absent>
+            $.ext.responsetimemillis: <absent>
+            $.ext.debug.resolvedrequest.regs.gdpr: 1
+
+  - name: a TCF consent without the vendor still drops the bidder
+    why: the consent parses but grants appnexus nothing, so the result matches no consent (gdpr/)
+    steps:
+      - method: POST
+        path: /openrtb2/auction
+        json:
+          id: rh-gdpr-consent
+          test: 1
+          site: {page: "https://p.test", publisher: {id: parity-account}}
+          regs: {gdpr: 1}
+          user: {consent: CPXxRfAPXxRfAAfKABENB-CgAAAAAAAAAAYgAAAAAAAA}
+          imp: [{id: i, banner: {format: [{w: 300, h: 250}]}, ext: {prebid: {bidder: {appnexus: {placementId: 1}}}}}]
+        expect:
+          status: 200
+          json:
+            $.nbr: 2
+            $.ext.debug.resolvedrequest.user.consent: CPXxRfAPXxRfAAfKABENB-CgAAAAAAAAAAYgAAAAAAAA
+
+  - name: an unparsable TCF consent gives no warning and drops the bidder
+    why: unlike AMP, the auction does not warn about a bad user.consent; enforcement simply fails (gdpr/)
+    steps:
+      - method: POST
+        path: /openrtb2/auction
+        json:
+          id: rh-gdpr-garbage
+          site: {page: "https://p.test", publisher: {id: parity-account}}
+          regs: {gdpr: 1}
+          user: {consent: garbage}
+          imp: [{id: i, banner: {format: [{w: 300, h: 250}]}, ext: {prebid: {bidder: {appnexus: {placementId: 1}}}}}]
+        expect:
+          status: 200
+          json:
+            $.nbr: 2
+            $.ext.warnings.general.length: 1
+            $.ext.warnings.general[0].code: 10002
+
+  - name: regs.ext.gdpr is honoured like regs.gdpr
+    why: the 2.5 location is upconverted before enforcement (openrtb_ext/convert_up.go)
+    steps:
+      - method: POST
+        path: /openrtb2/auction
+        json:
+          id: rh-gdpr-ext
+          site: {page: "https://p.test"}
+          regs: {ext: {gdpr: 1}}
+          imp: [{id: i, banner: {format: [{w: 300, h: 250}]}, ext: {prebid: {bidder: {appnexus: {placementId: 1}}}}}]
+        expect: {status: 200, json: {$.nbr: 2}}
+
+  - name: an invalid us_privacy string is warned about twice and an empty prebid error list appears
+    why: the CCPA policy reports a general warning and a prebid-scoped warning, and ext.errors gains an empty prebid array (endpoints/openrtb2/auction.go:938, exchange/exchange.go)
+    steps:
+      - method: POST
+        path: /openrtb2/auction
+        json:
+          id: rh-usp-invalid
+          site: {page: "https://p.test", publisher: {id: parity-account}}
+          regs: {us_privacy: bogus}
+          imp: [{id: i, banner: {format: [{w: 300, h: 250}]}, ext: {prebid: {bidder: {appnexus: {placementId: 1}}}}}]
+        expect:
+          status: 200
+          json:
+            $.ext.errors.prebid: []
+            $.ext.errors.appnexus[0].code: 4
+            $.ext.warnings.general[1].code: 10001
+            $.ext.warnings.general[1].message: "CCPA consent is invalid and will be ignored. (request.regs.ext.us_privacy must contain 4 characters)"
+            $.ext.warnings.prebid[0].code: 10001
+            $.ext.warnings.prebid[0].message: request.regs.ext.us_privacy must contain 4 characters
+
+  - name: a CCPA opt-out scrubs the bidder request only where the account enforces CCPA
+    why: rh-ccpa-account sets ccpa.enabled, so 1YYY masks the IP and removes ifa, buyeruid and user.id; parity-account sends them unchanged (privacy/ccpa/policy.go, exchange/utils.go)
+    steps:
+      - method: POST
+        path: /openrtb2/auction
+        json:
+          id: rh-ccpa-enforced
+          test: 1
+          site: {page: "https://p.test", publisher: {id: rh-ccpa-account}}
+          device: {ip: 203.0.113.9, ifa: rh-ifa}
+          user: {buyeruid: rh-buyer, id: rh-user}
+          regs: {us_privacy: 1YYY}
+          imp: [{id: i, banner: {format: [{w: 300, h: 250}]}, ext: {prebid: {bidder: {appnexus: {placementId: 1}}}}}]
+        expect:
+          status: 200
+          json:
+            $.ext.debug.resolvedrequest.device.ifa: rh-ifa
+            $.ext.debug.resolvedrequest.user.buyeruid: rh-buyer
+          contains: ['\"ip\":\"203.0.113.0\"},\"user\":{}', '\"regs\":{\"ext\":{\"us_privacy\":\"1YYY\"}}']
+          not_contains: ['\"ifa\":\"rh-ifa\"', '\"buyeruid\":\"rh-buyer\"']
+      - method: POST
+        path: /openrtb2/auction
+        json:
+          id: rh-ccpa-not-enforced
+          test: 1
+          site: {page: "https://p.test", publisher: {id: parity-account}}
+          device: {ip: 203.0.113.9, ifa: rh-ifa}
+          user: {buyeruid: rh-buyer, id: rh-user}
+          regs: {us_privacy: 1YYY}
+          imp: [{id: i, banner: {format: [{w: 300, h: 250}]}, ext: {prebid: {bidder: {appnexus: {placementId: 1}}}}}]
+        expect:
+          status: 200
+          contains: ['\"ip\":\"203.0.113.9\",\"ifa\":\"rh-ifa\"},\"user\":{\"id\":\"rh-user\",\"buyeruid\":\"rh-buyer\"}']
+
+  - name: GPP section 6 drives CCPA and is downgraded for the bidder
+    why: gpp_sid [6] makes the GPP USP string the CCPA signal; the bidder request gets regs.ext.gdpr 0, regs.ext.us_privacy and user.ext.consent copied out of the GPP string (privacy/gpp, openrtb_ext/convert_down.go)
+    steps:
+      - method: POST
+        path: /openrtb2/auction
+        json:
+          id: rh-gpp-usp
+          test: 1
+          site: {page: "https://p.test", publisher: {id: rh-ccpa-account}}
+          device: {ip: 203.0.113.9, ifa: rh-ifa}
+          user: {buyeruid: rh-buyer}
+          regs: {gpp: "DBACNYA~CPXxRfAPXxRfAAfKABENB-CgAAAAAAAAAAYgAAAAAAAA~1YYN", gpp_sid: [6]}
+          imp: [{id: i, banner: {format: [{w: 300, h: 250}]}, ext: {prebid: {bidder: {appnexus: {placementId: 1}}}}}]
+        expect:
+          status: 200
+          contains:
+            - '\"ip\":\"203.0.113.0\"'
+            - '\"user\":{\"ext\":{\"consent\":\"CPXxRfAPXxRfAAfKABENB-CgAAAAAAAAAAYgAAAAAAAA\"}'
+            - '\"gpp_sid\":[6],\"ext\":{\"gdpr\":0,\"us_privacy\":'
+          not_contains: ['\"ifa\":\"rh-ifa\"']
+
+  - name: GPP section 2 makes GDPR apply
+    why: gpp_sid containing 2 sets the GDPR signal, so appnexus is dropped as with regs.gdpr 1 (privacy/gpp)
+    steps:
+      - method: POST
+        path: /openrtb2/auction
+        json:
+          id: rh-gpp-tcf
+          test: 1
+          site: {page: "https://p.test", publisher: {id: parity-account}}
+          regs: {gpp: "DBACNYA~CPXxRfAPXxRfAAfKABENB-CgAAAAAAAAAAYgAAAAAAAA~1YNN", gpp_sid: [2, 6]}
+          imp: [{id: i, banner: {format: [{w: 300, h: 250}]}, ext: {prebid: {bidder: {appnexus: {placementId: 1}}}}}]
+        expect:
+          status: 200
+          json:
+            $.nbr: 2
+            $.ext.debug.resolvedrequest.regs.gpp_sid: [2, 6]
+
+  - name: a bad GPP string and a conflicting regs.gdpr only warn
+    why: an unparsable GPP string and a regs.gdpr that disagrees with gpp_sid each give a 10001 warning, and gpp_sid 2 still applies GDPR (endpoints/openrtb2/auction.go:899, 1397)
+    steps:
+      - method: POST
+        path: /openrtb2/auction
+        json:
+          id: rh-gpp-bad
+          site: {page: "https://p.test", publisher: {id: parity-account}}
+          regs: {gpp: garbage, gpp_sid: [2]}
+          imp: [{id: i, banner: {format: [{w: 300, h: 250}]}, ext: {prebid: {bidder: {appnexus: {placementId: 1}}}}}]
+        expect:
+          status: 200
+          json:
+            $.nbr: 2
+            $.ext.warnings.general[1].code: 10001
+            $.ext.warnings.general[1].message: "GPP consent string is invalid and will be ignored. (error parsing GPP header, header must have type=3)"
+      - method: POST
+        path: /openrtb2/auction
+        json:
+          id: rh-gpp-conflict
+          site: {page: "https://p.test", publisher: {id: parity-account}}
+          regs: {gdpr: 0, gpp: "DBACNYA~CPXxRfAPXxRfAAfKABENB-CgAAAAAAAAAAYgAAAAAAAA~1YNN", gpp_sid: [2]}
+          imp: [{id: i, banner: {format: [{w: 300, h: 250}]}, ext: {prebid: {bidder: {appnexus: {placementId: 1}}}}}]
+        expect:
+          status: 200
+          json:
+            $.nbr: 2
+            $.ext.warnings.general[1].message: regs.gdpr signal conflicts with GPP (regs.gpp_sid) and will be ignored
+
+  - name: regs.gdpr must be 0 or 1
+    why: validateRegs rejects other values (endpoints/openrtb2/auction.go:1404)
+    steps:
+      - method: POST
+        path: /openrtb2/auction
+        json: {id: rh-gdpr-2, site: {page: "https://p.test"}, regs: {gdpr: 2}, imp: [{id: i, banner: {format: [{w: 300, h: 250}]}, ext: {prebid: {bidder: {appnexus: {placementId: 1}}}}}]}
+        expect: {status: 400, contains: ["Invalid request: request.regs.gdpr must be either 0 or 1\n"]}

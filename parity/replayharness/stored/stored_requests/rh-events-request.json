@@ -1,0 +1,21 @@
+{
+  "id": "rh-events-request",
+  "site": {
+    "page": "https://parity.test/events",
+    "publisher": {
+      "id": "rh-events-account"
+    }
+  },
+  "ext": {
+    "prebid": {
+      "targeting": {
+        "pricegranularity": "low"
+      },
+      "cache": {
+        "bids": {},
+        "vastxml": {}
+      },
+      "events": {}
+    }
+  }
+}

@@ -2,8 +2,11 @@ package runner
 
 import (
 	"context"
+	"errors"
+	"html"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -248,6 +251,119 @@ func TestRunBudget(t *testing.T) {
 	}
 	if cs := mustCase(t, res.Run, caseOracle); cs.Reason != reasonBudget {
 		t.Errorf("reason = %q", cs.Reason)
+	}
+}
+
+// TestServersGetTheirOwnTempDir: every server runs with TMPDIR set to its
+// own directory next to its log, whatever TMPDIR the runner has, and the
+// directory is gone once the server stops, so what a server writes there
+// (Go's glog files) neither lands in the runner's temporary directory nor
+// stays behind.
+func TestServersGetTheirOwnTempDir(t *testing.T) {
+	opts := testOptions(t, fakeImpl(t, parity.ImplGo, fakeGo), Impl{}, "all")
+	inherited := t.TempDir()
+	t.Setenv("TMPDIR", inherited)
+	res, _, err := SelfTest(context.Background(), opts)
+	if err != nil {
+		t.Fatalf("SelfTest: %v", err)
+	}
+	if left, err := os.ReadDir(inherited); err != nil || len(left) != 0 {
+		t.Errorf("the servers wrote to the runner's TMPDIR: %v (%v)", left, err)
+	}
+	dir := res.Run.Layout.Path("servers")
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	logs := 0
+	for _, e := range entries {
+		if e.IsDir() {
+			t.Errorf("%s was left behind", e.Name())
+			continue
+		}
+		raw, err := os.ReadFile(filepath.Join(dir, e.Name()))
+		if err != nil {
+			t.Fatal(err)
+		}
+		logs++
+		want := "fake server: temporary directory " + filepath.Join(dir, strings.TrimSuffix(e.Name(), ".log")+".tmp") + "\n"
+		if !strings.Contains(string(raw), want) {
+			t.Errorf("%s lacks %q:\n%s", e.Name(), want, raw)
+		}
+	}
+	if logs == 0 {
+		t.Errorf("no server log in %s", dir)
+	}
+}
+
+// TestRunRefusesCorpusErrors: a corpus with load errors is not run, so the
+// cases of a file the loader skipped cannot go uncompared unnoticed; the
+// error names every load error.
+func TestRunRefusesCorpusErrors(t *testing.T) {
+	opts := testOptions(t, fakeImpl(t, parity.ImplGo, fakeGo), fakeImpl(t, parity.ImplRust, fakeGo), "all")
+	opts.Corpus.Errors = []error{errors.New("replays: usersync.yaml: invalid replay"), errors.New("profiles: video: no case")}
+	_, err := Run(context.Background(), opts)
+	if err == nil {
+		t.Fatal("Run ran a corpus with load errors")
+	}
+	for _, want := range []string{"2 load errors", "usersync.yaml: invalid replay", "video: no case"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("error %q lacks %q", err, want)
+		}
+	}
+	if _, statErr := os.Stat(opts.OutDir); !errors.Is(statErr, os.ErrNotExist) {
+		t.Errorf("the refused run wrote %s (%v)", opts.OutDir, statErr)
+	}
+}
+
+// TestRunReportsNotCompared: the requests a corpus does not compare are
+// reported under every base profile with status not-compared and the
+// reason "<tag>: <reason>": counted in run.json, listed in summary.md,
+// skipped in junit.xml, with a case summary and no index entry. They count
+// as neither compared nor skipped, so a budget that skips every case leaves
+// them as they are.
+func TestRunReportsNotCompared(t *testing.T) {
+	opts := testOptions(t, fakeImpl(t, parity.ImplGo, fakeGo), fakeImpl(t, parity.ImplRust, fakeGo), "all")
+	opts.Profiles = []string{DefaultProfile, "floors"}
+	opts.Budget = time.Nanosecond
+	opts.Corpus.NotCompared = []corpus.NotCompared{{
+		ID: "parity/replayharness#post:/cookie_sync:0123456789abcdef", Corpus: corpus.CorpusReplayHarness, Kind: corpus.KindEndpoint,
+		FixturePath: corpus.RootReplayHarness, Endpoint: "/cookie_sync POST", Request: "POST /cookie_sync",
+		Sources: []string{"traffic.jsonl:7"}, Tag: corpus.RHTruncated, Reason: "the recorder cut the body",
+	}}
+	res, err := Run(context.Background(), opts)
+	if err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	c := res.Run.Summary.Counts
+	if c.NotCompared != 2 || c.Skipped != c.Total-2 || c.Compared() != 0 {
+		t.Errorf("counts = %+v", c)
+	}
+	reason := corpus.RHTruncated + ": the recorder cut the body"
+	for _, id := range []string{opts.Corpus.NotCompared[0].ID, opts.Corpus.NotCompared[0].ID + "@floors"} {
+		cs := mustCase(t, res.Run, id)
+		if cs.Status != report.CaseNotCompared || cs.Reason != reason || cs.Corpus != corpus.CorpusReplayHarness || cs.Endpoint != "/cookie_sync POST" ||
+			!slices.Equal(cs.Notes, []string{"request POST /cookie_sync", "from traffic.jsonl:7"}) {
+			t.Errorf("%s = %+v", id, cs)
+		}
+	}
+	for _, e := range res.Run.Index.Cases {
+		if strings.HasPrefix(e.CaseID, corpus.RootReplayHarness) {
+			t.Errorf("index.json has an entry for the not-compared request %s", e.CaseID)
+		}
+	}
+	files := map[string]string{report.FileRun: `"not_compared": 2`, report.FileSummaryMD: "| 2 | " + reason + " |", report.FileJUnit: `message="not-compared: ` + reason}
+	for name, want := range files {
+		raw, err := os.ReadFile(res.Run.Layout.Path(name))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !strings.Contains(html.UnescapeString(string(raw)), want) {
+			t.Errorf("%s lacks %q:\n%s", name, want, raw)
+		}
+	}
+	if v := Judge(res.Run); v.OK || !v.Incomplete || !strings.Contains(strings.Join(v.Reasons, "; "), "2 not compared") {
+		t.Errorf("verdict = %+v", v)
 	}
 }
 

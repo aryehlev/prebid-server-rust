@@ -12,7 +12,8 @@
     "mismatch": 0,
     "not_yet_instrumented": 8390,
     "error": 0,
-    "skipped": 4
+    "skipped": 4,
+    "not_compared": 0
   },
   "rows": [
     {
@@ -115,7 +116,8 @@
       "mismatch": 0,
       "not_yet_instrumented": 3696,
       "error": 0,
-      "skipped": 0
+      "skipped": 0,
+      "not_compared": 0
     },
     {
       "endpoint": "/__parity/config",
@@ -125,7 +127,8 @@
       "mismatch": 0,
       "not_yet_instrumented": 42,
       "error": 0,
-      "skipped": 0
+      "skipped": 0,
+      "not_compared": 0
     },
     {
       "endpoint": "/bidders/params",
@@ -135,7 +138,8 @@
       "mismatch": 0,
       "not_yet_instrumented": 1,
       "error": 0,
-      "skipped": 0
+      "skipped": 0,
+      "not_compared": 0
     },
     {
       "endpoint": "/openrtb2/amp",
@@ -145,7 +149,8 @@
       "mismatch": 0,
       "not_yet_instrumented": 20,
       "error": 0,
-      "skipped": 0
+      "skipped": 0,
+      "not_compared": 0
     },
     {
       "endpoint": "/openrtb2/auction",
@@ -155,7 +160,8 @@
       "mismatch": 0,
       "not_yet_instrumented": 4622,
       "error": 0,
-      "skipped": 4
+      "skipped": 4,
+      "not_compared": 0
     },
     {
       "endpoint": "/openrtb2/video",
@@ -165,7 +171,8 @@
       "mismatch": 0,
       "not_yet_instrumented": 9,
       "error": 0,
-      "skipped": 0
+      "skipped": 0,
+      "not_compared": 0
     }
   ],
   "bidders": [

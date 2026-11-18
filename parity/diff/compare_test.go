@@ -5,6 +5,8 @@ import (
 	"compress/gzip"
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
+	"slices"
 	"strings"
 	"testing"
 
@@ -218,6 +220,46 @@ func TestKeyedEntries(t *testing.T) {
 	}
 	if got := ids(doc); !equalStrings(got, want) {
 		t.Fatalf("got %v, want %v", got, want)
+	}
+}
+
+// TestNotesFollowStageAndKeyOrder: the notes of a comparison follow the stage
+// names, then the entry keys, never map iteration order, so the reports of an
+// A/A run are byte-identical whatever its shard count.
+func TestNotesFollowStageAndKeyOrder(t *testing.T) {
+	e := newTestEngine(t)
+	stages := []parity.StageID{parity.StageRequestValidated, parity.StageBidderRequest, parity.StageAuctionSetup, parity.StagePrivacyBidder}
+	keys := map[parity.StageID][]string{
+		parity.StageRequestValidated: {parity.UnkeyedStage}, parity.StageAuctionSetup: {parity.UnkeyedStage},
+		parity.StageBidderRequest: {"rubicon", "appnexus", "openx"}, parity.StagePrivacyBidder: {"openx", "rubicon", "appnexus"},
+	}
+	semantic := parity.StageEntry{Seq: 1, Writes: 1, JSON: json.RawMessage(`{"a":1}`), Errors: []parity.ErrorRecord{}, Warnings: []parity.ErrorRecord{}}
+	build := func(impl string) *parity.Trace {
+		tr := newTrace(impl)
+		for _, stage := range stages {
+			tr.Stages[stage] = map[string]parity.StageEntry{}
+			for _, key := range keys[stage] {
+				tr.Stages[stage][key] = semantic
+			}
+		}
+		return tr
+	}
+	var want []string
+	for _, impl := range []string{parity.ImplGo, parity.ImplRust} {
+		for _, stage := range slices.Sorted(slices.Values(stages)) {
+			for _, key := range slices.Sorted(slices.Values(keys[stage])) {
+				want = append(want, fmt.Sprintf("%s: stage %s[%s] has no raw bytes; lexical comparison skipped", impl, stage, key))
+			}
+		}
+	}
+	for range 20 {
+		res, err := e.CompareTraces(Case{CaseID: "notes"}, build(parity.ImplGo), build(parity.ImplRust))
+		if err != nil {
+			t.Fatalf("CompareTraces: %v", err)
+		}
+		if !slices.Equal(res.Notes, want) {
+			t.Fatalf("notes\n%s\nwant\n%s", strings.Join(res.Notes, "\n"), strings.Join(want, "\n"))
+		}
 	}
 }
 
