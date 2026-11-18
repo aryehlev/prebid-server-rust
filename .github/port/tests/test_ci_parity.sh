@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 # ci-parity.sh on a fake parity-harness checkout: a fake upstream at the pin, parity/ with a seams
 # patch, fake go, gofmt, cargo and seams.sh that log what they are asked in one log, in order.
+#   - the vendored contract: crates/parity/contract must hold a byte-identical regular file for
+#     every JSON file of parity/schema and no other JSON file (other files are not compared), or
+#     the job fails before anything else runs and names each file that differs, is missing or is
+#     extra;
 #   - the checks of the Go side: gofmt -s of the Go files the patch leaves, seams.sh check, the
 #     parity scripts' own module, the harness, and go test of every package the patch touches
 #     (from the patch's file list: a new package, a deleted file, a file with no Go beside it)
@@ -94,6 +98,14 @@ EOF
 chmod +x "${ws}/parity/scripts/seams.sh"
 mkdir -p "${ws}/crates/parity/testdata/go"
 printf 'module example.com/paritytool\n\ngo 1.25.0\n' > "${ws}/crates/parity/testdata/go/go.mod"
+# The contract: two JSON files in parity/schema (one in examples/) beside Go code, and their
+# copies in crates/parity/contract beside its README.
+for name in common.schema.json examples/health.json; do
+  t_put "${ws}" "parity/schema/${name}" "{\"name\": \"${name}\"}"
+  t_put "${ws}" "crates/parity/contract/${name}" "{\"name\": \"${name}\"}"
+done
+t_put "${ws}" parity/schema/schema.go 'package schema // embeds the JSON files'
+t_put "${ws}" crates/parity/contract/README.md '# Vendored parity contract'
 export RUNNER_TEMP="${T_ROOT}/runner"
 mkdir -p "${RUNNER_TEMP}" "${T_ROOT}/tmp"
 assembled="${RUNNER_TEMP}/parity-go"
@@ -142,6 +154,8 @@ t_has "no server: the notice says why" "${T_OUT}" \
   "::notice::parity run skipped: the workspace has no bin target named pbs-server (cargo metadata)"
 last=$(tail -n 1 <<< "${T_OUT}")
 t_eq "no server: the last line is the assembled copy" "${assembled}" "${last}"
+t_has "the vendored contract is checked, other files left out" "${T_OUT}" \
+  "ci-parity: crates/parity/contract holds the 2 JSON file(s) of parity/schema, byte for byte"
 t_lacks "no server: no parity run" "${CALLS}" "parity run"
 t_lacks "no server: nothing is built" "${CALLS}" "| build --release"
 t_has "no server: the selftest still runs" "${CALLS}" "go ${assembled} | run ./parity/cmd/parity selftest"
@@ -238,6 +252,62 @@ parity stale FAKE_CARGO_METADATA="${none}"
 t_eq "a patch that does not apply: refused" 1 "${T_RC}"
 t_has "a patch that does not apply: said" "${T_ERR}" "does not apply to upstream ${pin:0:12}"
 cp "${T_ROOT}/seams.keep" "${ws}/parity/upstream-seams.patch"
+
+# --- The vendored contract differs from parity/schema: the job fails first ---------------------
+contract="${ws}/crates/parity/contract"
+cp "${contract}/common.schema.json" "${T_ROOT}/common.keep"
+t_put "${ws}" crates/parity/contract/common.schema.json '{"name": "stale"}'
+rm -rf -- "${assembled}"
+parity contract-differs FAKE_CARGO_METADATA="${none}"
+t_eq "contract: a file that differs fails the job" 1 "${T_RC}"
+t_has "contract: the error says what to do" "${T_ERR}" \
+  "crates/parity/contract is not a copy of parity/schema: refresh it as crates/parity/contract/README.md says"
+t_has "contract: the file is named" "${T_ERR}" "differs from parity/schema: common.schema.json"
+t_eq "contract: nothing else runs" "" "${CALLS}"
+if [[ -e "${assembled}" ]]; then
+  t_fail "contract: nothing is assembled"
+else
+  t_ok "contract: nothing is assembled"
+fi
+cp "${T_ROOT}/common.keep" "${contract}/common.schema.json"
+
+mv "${contract}/examples/health.json" "${T_ROOT}/health.keep"
+ln -s ../../../../parity/schema/examples/health.json "${contract}/examples/health.json"
+parity contract-symlink FAKE_CARGO_METADATA="${none}"
+t_eq "contract: a symbolic link, even to the same bytes, fails" 1 "${T_RC}"
+t_has "contract: the link is named" "${T_ERR}" "differs from parity/schema: examples/health.json"
+rm "${contract}/examples/health.json"
+parity contract-missing FAKE_CARGO_METADATA="${none}"
+t_eq "contract: a missing file fails" 1 "${T_RC}"
+t_has "contract: the missing file is named" "${T_ERR}" "missing from crates/parity/contract: examples/health.json"
+mv "${T_ROOT}/health.keep" "${contract}/examples/health.json"
+
+t_put "${ws}" crates/parity/contract/extra.json '{}'
+t_put "${ws}" parity/schema/examples/new.json '{}'
+parity contract-extra FAKE_CARGO_METADATA="${none}"
+t_eq "contract: an extra file and a missing one fail" 1 "${T_RC}"
+t_has "contract: the extra file is named" "${T_ERR}" "not in parity/schema: extra.json"
+t_has "contract: so is the new schema file" "${T_ERR}" "missing from crates/parity/contract: examples/new.json"
+rm "${contract}/extra.json" "${ws}/parity/schema/examples/new.json"
+
+t_put "${ws}" crates/parity/contract/NOTES.md 'not compared'
+t_put "${ws}" parity/schema/registries_test.go 'package schema // not compared'
+parity ok-contract-other-files FAKE_CARGO_METADATA="${none}"
+t_eq "contract: files other than JSON are not compared" 0 "${T_RC}"
+rm "${contract}/NOTES.md" "${ws}/parity/schema/registries_test.go"
+
+mv "${contract}" "${T_ROOT}/contract.keep"
+parity contract-absent FAKE_CARGO_METADATA="${none}"
+t_eq "contract: no crates/parity/contract fails" 1 "${T_RC}"
+t_has "contract: absent, said" "${T_ERR}" "crates/parity/contract does not exist"
+mv "${T_ROOT}/contract.keep" "${contract}"
+mv "${ws}/parity/schema" "${T_ROOT}/schema.keep"
+parity schema-absent FAKE_CARGO_METADATA="${none}"
+t_eq "contract: no parity/schema fails" 1 "${T_RC}"
+t_has "contract: parity/schema absent, said" "${T_ERR}" "parity/schema does not exist"
+mv "${T_ROOT}/schema.keep" "${ws}/parity/schema"
+parity ok-contract-restored FAKE_CARGO_METADATA="${none}"
+t_eq "contract: restored, the job passes again" 0 "${T_RC}"
 
 # --- No parity/: nothing to run ---------------------------------------------------------------
 mv "${ws}/parity" "${T_ROOT}/parity.keep"
