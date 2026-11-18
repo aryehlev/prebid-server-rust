@@ -161,6 +161,83 @@ func TestBuildGoGuardsTheTree(t *testing.T) {
 	}
 }
 
+// TestBuildGoIgnoresAHooksRepository: git gives a hook of a linked worktree
+// GIT_DIR and GIT_INDEX_FILE, which would point every git -C of build-go.sh
+// and seams.sh at that worktree's repository: the checkout of the tree would
+// move its HEAD to the pin and write the upstream files into its index. The
+// scripts clear them. With both naming a repository that has the pinned
+// commit, build-go.sh assembles the tree, seams.sh diff prints the patch, and
+// that repository's HEAD, branch and index stay as they were.
+func TestBuildGoIgnoresAHooksRepository(t *testing.T) {
+	bash := requireBash(t)
+	ws, err := filepath.EvalSymlinks(filepath.Join("..", ".."))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ws, err = filepath.Abs(ws); err != nil {
+		t.Fatal(err)
+	}
+	reference := goRootFor(t, ws)
+	base, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	// The hook's repository borrows the Go root's objects, so it has the pin.
+	hooked := filepath.Join(base, "hooked")
+	git(t, base, nil, "init", "--quiet", hooked)
+	objects := git(t, reference, nil, "rev-parse", "--path-format=absolute", "--git-path", "objects")
+	if err := os.WriteFile(filepath.Join(hooked, ".git", "objects", "info", "alternates"), []byte(objects+"\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(hooked, "file"), []byte("the hook's repository\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	git(t, hooked, nil, "add", "file")
+	git(t, hooked, nil, "-c", "user.name=parity", "-c", "user.email=parity@example.invalid", "-c", "commit.gpgsign=false",
+		"commit", "--quiet", "--no-verify", "-m", "hooked")
+	state := func() string {
+		t.Helper()
+		return git(t, hooked, nil, "rev-parse", "HEAD", "--symbolic-full-name", "HEAD") + "\n" +
+			git(t, hooked, nil, "ls-files", "--stage")
+	}
+	before := state()
+	hook := []string{"GIT_DIR=" + filepath.Join(hooked, ".git"), "GIT_INDEX_FILE=" + filepath.Join(hooked, ".git", "index")}
+
+	tree := filepath.Join(base, "tree")
+	out, code := runScriptEnv(t, bash, hook, "build-go.sh", "--no-build", "--tree", tree)
+	if code != 0 {
+		t.Fatalf("build-go.sh --no-build with a hook's git variables: exit code %d; output:\n%s", code, out)
+	}
+	if after := state(); after != before {
+		t.Fatalf("build-go.sh changed the hook's repository:\nbefore %.500s\nafter  %.500s", before, after)
+	}
+	if head := git(t, tree, nil, "rev-parse", "HEAD"); head != pin(t, ws) {
+		t.Errorf("the tree is at %s, not at the pin", head)
+	}
+	out, code = runScriptEnv(t, bash, hook, "seams.sh", "diff", "--tree", tree)
+	if code != 0 || out != readFile(t, filepath.Join("..", "upstream-seams.patch")) {
+		t.Errorf("seams.sh diff with a hook's git variables: exit code %d, and the output is not the patch:\n%.2000s", code, out)
+	}
+	if after := state(); after != before {
+		t.Errorf("seams.sh changed the hook's repository:\nbefore %.500s\nafter  %.500s", before, after)
+	}
+}
+
+// goRootFor returns the pinned upstream checkout the scripts read: $PBS_GO_ROOT
+// (a relative path is taken from the workspace ws), else ws/.upstream.
+func goRootFor(t *testing.T, ws string) string {
+	t.Helper()
+	reference := os.Getenv("PBS_GO_ROOT")
+	switch {
+	case reference == "":
+		return filepath.Join(ws, ".upstream")
+	case !filepath.IsAbs(reference):
+		return filepath.Join(ws, reference)
+	default:
+		return reference
+	}
+}
+
 // TestBuildGoBorrowsTheGoRootsObjects: the tree sees every object of the Go
 // root, even one no ref reaches, such as a blob of the previous pin after
 // fetch-upstream.sh moved a shallow checkout to a new one: git apply --3way
@@ -176,13 +253,7 @@ func TestBuildGoBorrowsTheGoRootsObjects(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	reference := os.Getenv("PBS_GO_ROOT")
-	switch {
-	case reference == "":
-		reference = filepath.Join(ws, ".upstream")
-	case !filepath.IsAbs(reference):
-		reference = filepath.Join(ws, reference)
-	}
+	reference := goRootFor(t, ws)
 	base, err := filepath.EvalSymlinks(t.TempDir())
 	if err != nil {
 		t.Fatal(err)
@@ -203,7 +274,9 @@ func TestBuildGoBorrowsTheGoRootsObjects(t *testing.T) {
 	if code != 0 {
 		t.Fatalf("build-go.sh --no-build with the shallow Go root: exit code %d; output:\n%s", code, out)
 	}
-	if err := exec.Command("git", "-C", tree, "cat-file", "-e", blob).Run(); err != nil {
+	catFile := exec.Command("git", "-C", tree, "cat-file", "-e", blob)
+	catFile.Env = inheritedEnv(t)
+	if err := catFile.Run(); err != nil {
 		t.Errorf("the tree does not see the blob %s, which no ref of the Go root reaches: %v", blob, err)
 	}
 	if head := git(t, goRoot, nil, "rev-parse", "HEAD"); head != pin(t, ws) {
@@ -230,6 +303,7 @@ func TestBuildGoBorrowsTheGoRootsObjects(t *testing.T) {
 func git(t *testing.T, dir string, stdin *strings.Reader, args ...string) string {
 	t.Helper()
 	cmd := exec.Command("git", append([]string{"-C", dir}, args...)...)
+	cmd.Env = inheritedEnv(t)
 	if stdin != nil {
 		cmd.Stdin = stdin
 	}
@@ -295,7 +369,7 @@ func runScriptEnv(t *testing.T, bash string, extra []string, args ...string) (st
 		drop[strings.ToUpper(name)] = true
 	}
 	var env []string
-	for _, kv := range os.Environ() {
+	for _, kv := range inheritedEnv(t) {
 		name, _, _ := strings.Cut(kv, "=")
 		if drop[strings.ToUpper(name)] {
 			continue
@@ -323,6 +397,33 @@ func runScriptEnv(t *testing.T, bash string, extra []string, args ...string) (st
 		t.Errorf("%v left %v in $TMPDIR", args, left)
 	}
 	return out.String(), code
+}
+
+// inheritedEnv returns the test's environment without the variables with
+// which git points a command at one repository (git rev-parse
+// --local-env-vars, but for the configuration passed down), which git sets
+// for a hook or a git rebase --exec command of a linked worktree. With them,
+// git in these tests and in scripts such as scripts/fetch-upstream.sh would
+// act on that worktree's repository.
+func inheritedEnv(t *testing.T) []string {
+	t.Helper()
+	out, err := exec.Command("git", "rev-parse", "--local-env-vars").Output()
+	if err != nil {
+		t.Fatalf("git rev-parse --local-env-vars: %v", err)
+	}
+	drop := map[string]bool{}
+	for _, name := range strings.Fields(string(out)) {
+		if name != "GIT_CONFIG_PARAMETERS" && name != "GIT_CONFIG_COUNT" {
+			drop[name] = true
+		}
+	}
+	var env []string
+	for _, kv := range os.Environ() {
+		if name, _, _ := strings.Cut(kv, "="); !drop[name] {
+			env = append(env, kv)
+		}
+	}
+	return env
 }
 
 // requireBash returns bash, or skips the test where the scripts cannot run.

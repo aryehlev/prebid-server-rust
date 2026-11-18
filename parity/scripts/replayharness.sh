@@ -75,8 +75,23 @@
 # directory, and the build must record that commit, unmodified, in
 # its Go build info. Builds happen before the proxy guard is set, so they may
 # fetch modules; nothing after them may leave loopback.
+#
+# As in build-go.sh, the variables with which git points a command at one
+# repository (GIT_DIR, GIT_INDEX_FILE, ...) are cleared first, so the
+# ReplayHarness checkout is a checkout of its own.
 set -euo pipefail
 shopt -s inherit_errexit
+
+# Clear the variables with which git points a command at one repository,
+# as git does before it runs a command in another repository (a submodule),
+# keeping the configuration passed down.
+git_variables=$(git rev-parse --local-env-vars)
+while IFS= read -r variable; do
+  case "${variable}" in
+    "" | GIT_CONFIG_PARAMETERS | GIT_CONFIG_COUNT) ;;
+    *) unset "${variable}" ;;
+  esac
+done <<< "${git_variables}"
 
 rh_commit=f61ab1997f27b0044eeb801caea62810d75e2d76
 rh_src=${REPLAYHARNESS_SRC:-https://github.com/aryehlev/ReplayHarness.git}

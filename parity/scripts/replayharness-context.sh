@@ -25,8 +25,23 @@
 # Usage: parity/scripts/replayharness-context.sh [report-file]
 #   REPLAYHARNESS  the ReplayHarness CLI (default: replayharness on PATH)
 #   report-file    where to keep the full context report (default: not kept)
+#
+# As in build-go.sh, the variables with which git points a command at one
+# repository (GIT_DIR, GIT_INDEX_FILE, ...) are cleared first, so git grep
+# searches the tree.
 set -euo pipefail
 shopt -s inherit_errexit
+
+# Clear the variables with which git points a command at one repository,
+# as git does before it runs a command in another repository (a submodule),
+# keeping the configuration passed down.
+git_variables=$(git rev-parse --local-env-vars)
+while IFS= read -r variable; do
+  case "${variable}" in
+    "" | GIT_CONFIG_PARAMETERS | GIT_CONFIG_COUNT) ;;
+    *) unset "${variable}" ;;
+  esac
+done <<< "${git_variables}"
 
 script_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 ws=$(cd "${script_dir}/../.." && pwd -P)

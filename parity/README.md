@@ -111,6 +111,12 @@ from any directory inside it or inside this repository, so the runner works
 from the repository root, and relative paths given to it (`--baseline
 parity/baseline.json`) name this repository's files.
 
+The scripts clear the variables with which git points a command at one
+repository (`GIT_DIR`, `GIT_INDEX_FILE` and the rest of `git rev-parse
+--local-env-vars`), which git sets for a hook of a linked worktree and for
+the command of `git rebase --exec` there, so they work on the tree and never
+on that worktree's repository.
+
 Edit the harness here, never in the tree: the tree's copy of this directory
 is replaced on every run, so run `build-go.sh` again after an edit. The tree
 also holds no `scripts/`: the scripts' tests are a Go module of their own
