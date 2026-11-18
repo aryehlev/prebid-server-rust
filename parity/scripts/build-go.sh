@@ -210,7 +210,7 @@ if [[ -n "${entry}" ]]; then
   fi
 fi
 
-tmp=$(mktemp -d)
+tmp=$(mktemp -d "${TMPDIR:-/tmp}/build-go.XXXXXX")
 trap 'rm -rf -- "${tmp}"' EXIT
 
 # 2. The pinned upstream files. The tree is a repository of its own that borrows every object of

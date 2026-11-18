@@ -105,7 +105,7 @@ case "${command}" in
     ;;
   write)
     dir=$(tree_dir "${tree:-${root}/parity/out/tree}")
-    tmp=$(mktemp -d)
+    tmp=$(mktemp -d "${TMPDIR:-/tmp}/seams.XXXXXX")
     trap 'rm -rf -- "${tmp}"' EXIT
     canonical_diff "${dir}" > "${tmp}/seams.patch"
     [[ -s "${tmp}/seams.patch" ]] || die "${dir} has no changes to upstream files"
@@ -125,7 +125,7 @@ case "${command}" in
     fi
     patch_dir=$(cd "${patch_dir:-/}" && pwd -P)
     patch="${patch_dir}/${patch##*/}"
-    tmp=$(mktemp -d)
+    tmp=$(mktemp -d "${TMPDIR:-/tmp}/seams.XXXXXX")
     trap 'rm -rf -- "${tmp}"' EXIT
     "${here}/build-go.sh" --no-build --patch "${patch}" --tree "${tmp}/tree" > /dev/null
     canonical_diff "${tmp}/tree" > "${tmp}/seams.patch"
