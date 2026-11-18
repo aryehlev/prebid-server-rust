@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"maps"
+	"os"
 	"path/filepath"
 	"reflect"
 	"slices"
@@ -46,6 +47,48 @@ func TestRunUsage(t *testing.T) {
 				t.Errorf("stderr = %q, want %q", stderr.String(), tc.wantErr)
 			}
 		})
+	}
+}
+
+// TestStaleTreeIsRefused: every subcommand that reads the assembled tree
+// refuses one that the workspace it names has moved past, here by holding
+// another patch, before it reads the tree or a run, and says to assemble the
+// tree again.
+func TestStaleTreeIsRefused(t *testing.T) {
+	const pin = "4e296450de2fcc62741340b2e5f7d1df6c1744a5"
+	ws := t.TempDir()
+	write := func(rel, data string) {
+		t.Helper()
+		p := filepath.Join(ws, filepath.FromSlash(rel))
+		if err := os.MkdirAll(filepath.Dir(p), 0o700); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(p, []byte(data), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	write("UPSTREAM_SYNC", pin+"\n")
+	write("parity/upstream-seams.patch", "diff --git a/main.go b/main.go\n")
+	write(corpus.DefaultTree+"/go.mod", "module github.com/prebid/prebid-server/v4\n")
+	write(corpus.DefaultTree+"/parity/README.md", "")
+	// e69de29b... is the blob ID of an empty patch, which the workspace no
+	// longer holds.
+	write(corpus.DefaultTree+"/"+corpus.TreeMarker,
+		"workspace="+ws+"\nupstream="+pin+"\npatch=e69de29bb2d1d6434b8b29ae775ad8c2e48c5391\nseams=none\n")
+	tree := filepath.Join(ws, filepath.FromSlash(corpus.DefaultTree))
+	runDir := filepath.Join(ws, "no-run")
+	for _, args := range [][]string{
+		{"corpus", "--repo", tree},
+		{"run", "--no-build", "--repo", tree},
+		{"selftest", "--no-build", "--repo", tree},
+		{"minimize", "--run", runDir, "--repo", tree},
+		{"matrix", "--run", runDir, "--repo", tree},
+	} {
+		var stdout, stderr bytes.Buffer
+		code := run(context.Background(), args, &stdout, &stderr)
+		if code != exitUsage || !strings.Contains(stderr.String(), "assemble the tree again with parity/scripts/build-go.sh") {
+			t.Errorf("parity %v: exit code %d, want %d and a pointer to build-go.sh; stderr:\n%s", args, code, exitUsage, stderr.String())
+		}
 	}
 }
 

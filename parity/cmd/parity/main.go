@@ -109,13 +109,13 @@ func (c *common) register(fs *flag.FlagSet) {
 	fs.BoolVar(&c.verbose, "v", false, "log progress to stderr")
 }
 
-// repoRoot resolves --repo to the assembled tree.
+// repoRoot resolves --repo to the assembled tree. Like roots, it refuses a
+// tree that the workspace it was assembled from has moved past
+// (corpus.Repo.HarnessRoot), so no subcommand reads the corpus of another
+// upstream commit or other seams than the workspace names.
 func (c *common) repoRoot() (string, error) {
-	repo, err := c.find()
-	if err != nil {
-		return "", err
-	}
-	return repo.Root(), nil
+	tree, _, err := c.roots()
+	return tree, err
 }
 
 // roots resolves --repo to the assembled tree and its harness root.
