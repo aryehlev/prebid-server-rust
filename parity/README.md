@@ -229,7 +229,12 @@ decision carries a note. A decision is recorded only when the site is reached.
 For example, `floors.skip` is not consulted when every skip rate is 0. In Go,
 the helpers are `Session.Decide`, `Session.DecideBool`, `Session.Intn` and
 `Session.DecideString` (`trace/decide.go`). With no case in flight, each helper
-runs the original random draw unchanged.
+runs the original random draw unchanged, except at a site whose registry entry
+has `outside_case`: in parity mode that site takes the `outside_case` value
+when no case is in flight. `usersync.shuffle` has `outside_case: "identity"`
+(`usersync/shuffler.go:30`), so a Go server in parity mode keeps the
+chooser's order of the syncers on its main port too, and two of them answer
+`POST /cookie_sync` alike. Outside parity mode it shuffles.
 
 `randomizeList`, which sets the bidder fan-out order, is deliberately not a
 decision point: any order is Go-compatible, so `seatbid` order is normalized
@@ -253,6 +258,19 @@ them up through small branch-only seams. The seams are listed in
 | `uuid` | `30470a14-2949-4110-abce-b62d57304ad5` | flipp fixtures |
 
 `envelope.fakes`, and `fakes` on adapter inputs, override them for one case.
+
+**Server sites.** The server itself reads `now_unix_ms` at the sites in the
+`server_sites` member of `schema/fakes.json`: the `Expires` of the `uids`
+Set-Cookie (`usersync/cookie.go:100`, and the size check at `:72`), the
+expiry of each uid a sync writes (`:129`), whether a uid of the request's
+cookie is live (`:174`, `:205`), and the `Expires` of the
+`receive-cookie-deprecation` cookie that `/cookie_sync` sets
+(`endpoints/cookie_sync.go:584`). Parity mode installs the sources for the
+whole process, so these sites read the parity clock on the main port as
+well as in a case: in the default profile a `uids` Set-Cookie always ends
+`Expires=Thu, 18 Nov 2021 15:28:50 GMT` (90 days), and a uid synced in a
+case or on the main port expires `2021-09-03T15:28:50.823Z`.
+
 Outside parity mode `fakes.Now()` is `time.Now()`, `fakes.Int()` is
 `rand.Int()`, and the Builders keep their production sources. The runner
 starts both servers with `TZ=UTC`, because huaweiads formats local time.
@@ -286,6 +304,17 @@ imposes the orders in the `orders` member of `schema/fakes.json`:
   (`adapters/gumgum/gumgum.go:45-46`). Whether another bidder sends the
   original ID or gumgum's then depends on scheduling. Name order is one of
   the schedules Go can take.
+* Cookie sync lists the syncers of the known bidders in bidder name order
+  (`usersync/chooser.go:23`), the order `usersync.shuffle` then keeps or
+  shuffles. Go ranges over the bidder-to-syncer map there, so without this
+  two processes chose different syncers to report under a limit, and a
+  different `debug` list.
+* The `user.data` entries that `Sec-Browsing-Topics` adds come in ascending
+  `segtax`, then `segclass` order, and the segment IDs of each entry, also
+  those merged into an entry the request has, in ascending order
+  (`privacysandbox/topics.go:140`, `:142`, `:155` and `:220`). Go groups the
+  header's topics in maps and ranges over them, so two processes sent the
+  bidders the same segments in different orders.
 * First party data is resolved for the bidders in name order
   (`firstpartydata/first_party_data.go:142`). Go appends the errors per
   bidder in map order, keeps a bidder only while no error has occurred, and
@@ -545,7 +574,11 @@ is a no-op and `/__parity/*` is ordinary application traffic.
 | `exchange/parity_stages.go`, `exchange/parity_turns.go` | the exchange recorders and the bidder turns (harness code living in package `exchange`) |
 | `firstpartydata/first_party_data.go` | the `ResolveFPD` bidder loop ranges over `fakes.MapKeys(...)` |
 | `floors/{floors,rule,enforce}.go`, `floors/parity.go` | `floors.enrich` after `updateFloorsInRequest` rebuilds the request; the four `floors.*` decisions (the rate-driven ones honour the envelope only where the rate leaves the outcome to chance) |
-| `usersync/shuffler.go` | `usersync.shuffle` |
+| `usersync/shuffler.go` | `usersync.shuffle`, the identity in parity mode with no case in flight |
+| `usersync/chooser.go` | the bidder-to-syncer loop ranges over `fakes.MapKeys(...)` |
+| `usersync/cookie.go` | `time.Now()` replaced by `fakes.Now()` in `PrepareCookieForWrite`, `WriteCookie`, `Sync`, `GetUID` and `HasAnyLiveSyncs` |
+| `privacysandbox/topics.go` | the segtax, segclass and segment ID loops of `UpdateUserDataWithTopics` and `findNewSegIDs` range over `fakes.MapKeys(...)` |
+| `endpoints/cookie_sync.go` | the endpoint's clock is `fakes.Active()` in parity mode, for the `receive-cookie-deprecation` cookie's `Expires` |
 | `pbs/usersync.go` | `transport.WrapProcess` on the transport `VerifyRecaptcha` builds per call |
 
 ### The `/__parity/*` routes (PH-07)
@@ -600,7 +633,12 @@ The routes behave as follows:
   `127.0.0.1:0` and host `127.0.0.1` unless `remote_addr`, `host` or a `Host`
   header says otherwise. A chunked `Transfer-Encoding` moves to
   `Request.TransferEncoding`, as `net/http` does. Any other
-  `Transfer-Encoding` is rejected.
+  `Transfer-Encoding` is rejected. The body returns `io.EOF` together with
+  its last bytes and fails a read after `Close` with
+  `http.ErrBodyReadAfterClose`, as the `net/http` server's body does
+  (`parity/server/request.go`). A handler that reads one byte past a limit,
+  as the auction's `max_request_size` check does, therefore sees what it
+  sees on the main port.
 * **`http_in`.** This stage echoes the envelope request and its wire bytes.
 * **`http_response`.** This stage is the handler chain's response as the
   `net/http` server would send it, minus the connection framing (`Date`,
@@ -710,6 +748,21 @@ the affected cases are not-yet-instrumented, with the reason, and the run still
 writes every report. `--budget` stops starting cases after the given time; the
 remaining cases are skipped.
 
+The health document's `endpoints` member lists every route of the main
+router as httprouter patterns; an empty list stands for every route. The Go
+server lists the stored-request event API's route first when
+`stored_requests` `cache_events` is on (`parity/server/introspect.go`). The
+runner matches a case's path against these routes as httprouter v1.3.0 does:
+`:name` matches up to the next slash and `*name` the rest
+(`parity/runner/routes.go`).
+
+* A path that a route of each side matches is dispatched.
+* A path that only one side's routes match is not yet instrumented, and the
+  reason names the route.
+* A path that no route matches is dispatched when both sides list the same
+  routes, because the router itself answers it: 404, 405 with `Allow`, a
+  redirect or `OPTIONS`.
+
 ### Run artifacts
 
 `parity/out/<run-id>/` contains the following. The runner writes
@@ -790,12 +843,16 @@ per-endpoint, per-bidder and per-stage tables.
    dispatches on the `schema` member.
 3. Record every stage in `stages.json` at the equivalent site. Report
    `unimplemented` for stages that have no site yet.
-4. Read `envelope.decisions` at the seven decision sites. Inject the
-   `fakes.json` values into the 8 adapters. Generate case UUIDs from the
+4. Read `envelope.decisions` at the seven decision sites, and take a site's
+   `outside_case` value when no case is in flight. Inject the `fakes.json`
+   values into the 8 adapters, and read `now_unix_ms` at the `server_sites`
+   on the main port as well as in a case. Generate case UUIDs from the
    `generated_uuids` stream. Impose the `orders`.
-5. Route every outbound call through an oracle-proxy or inline transport with
+5. List every route of the main router in the health document's
+   `endpoints`, as httprouter patterns.
+6. Route every outbound call through an oracle-proxy or inline transport with
    identical kinds, classification and `X-Parity-Meta`.
-6. Produce Go's error codes (`error_codes.json`) and Prometheus names, labels
+7. Produce Go's error codes (`error_codes.json`) and Prometheus names, labels
    and deltas.
 
 ## Tests
@@ -805,6 +862,7 @@ go test ./parity/...                 # schemas, examples, registries, contract c
 go test -race ./parity/trace/... ./parity/transport/... ./parity/diff/...
 go test -race ./parity/runner/... ./parity/minimize/... ./parity/report/... ./parity/matrix/...
 go test ./config ./router ./server ./exchange
+go test ./usersync ./endpoints ./privacysandbox   # the user sync and topics seams in parity mode
 ```
 
 Package `parity` checks that the Contents table at the top of this file
@@ -826,7 +884,10 @@ server it checks the following:
   adapter outputs and introspection dumps.
 
 It also loads every profile's generated `pbs.yaml` through `config.New`, and
-encodes a `case.json` for every case of the repository corpus.
+encodes a `case.json` for every case of the repository corpus. Its route
+matcher must agree with httprouter's own lookup on the Go server's routes and
+on every path of the `replayharness` corpus
+(`TestRouteMatchIsHTTPRouterLookup`).
 
 `parity/schema` checks the following:
 
@@ -836,8 +897,11 @@ encodes a `case.json` for every case of the repository corpus.
   constants;
 * every normalization rule cites a Go source;
 * `error_codes.json` matches `errortypes`;
-* `fakes.json` matches `fakes.Defaults()`, and each of its `orders` names a
-  Go file that holds the seam;
+* `fakes.json` matches `fakes.Defaults()`, each of its `orders` names a Go
+  file that holds the seam, and each of its `server_sites` names Go lines
+  that hold it;
+* only `usersync.shuffle` has an `outside_case` value, and it is one of its
+  values;
 * a trace produced by the real Go recorders validates against
   `trace.schema.json`.
 
@@ -868,6 +932,10 @@ encodes a `case.json` for every case of the repository corpus.
   router 404 and router 405;
 * the inbound request is rebuilt exactly: query, header order, host, remote
   address, byte-exact b64 and content-encoded bodies, and chunked framing;
+* a body around a `LimitedReader` limit reaches a handler through exec as it
+  does through a real `net/http` server (`TestExecBodyEndsLikeTheWire`);
+* the health document lists every route of the main router, with the
+  stored-request event routes when `cache_events` is on;
 * stages, inline `http_out`, decisions, fakes and `metrics_delta` reach the
   trace, and `capture` limits them;
 * invalid envelopes are rejected, and the aliases check their fixed method and
@@ -930,12 +998,17 @@ The notes also give the parity facts a replay needs:
 * the endpoints the profiles switch off (video, the stored-request event API);
 * how to send a `uids` cookie, with ready-made values.
 
-Two parity hazards were found while mapping:
+Two parity hazards were found while mapping. Parity mode now takes both
+out, on the main port as well as in a case (see "Deterministic fakes" and
+"Decision points"):
 
-* the `uids` Set-Cookie depends on the wall clock;
-* `/cookie_sync` without `bidders` returns the syncers in map order. Outside
-  a parity case, which is how ReplayHarness requests arrive, Go shuffles them
-  at random, so with a limit two runs can sync different bidders.
+* the `uids` Set-Cookie depended on the wall clock; it now reads the parity
+  clock;
+* `/cookie_sync` without `bidders` returned the syncers in map order, and
+  outside a parity case, which is how ReplayHarness requests arrive, Go
+  shuffled them at random, so with a limit two runs could sync different
+  bidders. The chooser now lists them in bidder name order and the shuffle
+  keeps that order.
 
 `/__parity/*` is left out on purpose: it is the harness, not the product.
 
@@ -971,14 +1044,17 @@ or handler changes, update `api.yaml` and run the script again.
 
 ```sh
 REPLAYHARNESS=/path/to/replayharness parity/scripts/replayharness-replay.sh \
-    [--baseline] [--record] [--serve] [--profile NAME] [--out DIR] [--keep-state]
+    [--baseline] [--record] [--serve] [--profile NAME] [--case-profile NAME] \
+    [--out DIR] [--keep-state]
 ```
 
 The script starts the Go server with `rhtool serve`
 (`parity/replayharness/rhtool`), which uses the runner's own steps:
 
 * `runner.LoadProfiles` and `BuildConfig` with the base profile (`default`
-  unless `--profile` names another) and the oracle's URL;
+  unless `--profile` names another), the case profile of
+  `parity/replayharness/profiles/NAME` when `--case-profile` names one
+  (`rhtool serve -case-profile`), and the oracle's URL;
 * `runner.PrepareWorkdir` with `fixtures/stored` plus
   `parity/replayharness/stored`;
 * `runner.StartServer` on ports from the free-port helper, in parity mode on
@@ -1005,18 +1081,22 @@ The steps, in order:
 2. **Replays.** `replayharness replay parity/replayharness/replays`. Every
    replay must pass.
 3. **`--baseline`.** The probes against two Go servers. Any divergence fails
-   the run, except a shape divergence on `POST /cookie_sync`: Go shuffles the
-   syncers it evaluates (`usersync/chooser.go`, `usersync/shuffler.go`), so
-   with a limit or without a bidder list two runs pick different bidders and
-   `debug` comes and goes, which changes the shape of the body. That
-   divergence is printed but does not fail. A status divergence there fails
-   the run, as it does on any other endpoint.
+   the run, on `POST /cookie_sync` as on every other endpoint: in parity mode
+   Go lists the syncers in bidder name order and keeps that order on its
+   main port, so two Go servers answer it alike.
 4. **`--record`.** `replayharness record` on a spare loopback port, the probes
    and the replays through it, then `replayharness replay <recording>
    --mutate` through the same proxy. `rhtool traffic` then writes
    `parity/replayharness/traffic.jsonl` (see below).
 
 `--serve` only starts the stack, prints the URLs and waits for Ctrl-C.
+
+With `--case-profile NAME`, the server also takes
+`parity/replayharness/profiles/NAME/profile.json`, and only the replays of
+`parity/replayharness/profiles/NAME/replays` run: no probes, and
+`--baseline` and `--record` are refused, since the probes run under no case
+profile and a case profile's replays are not recorded (see "Case
+profiles").
 
 The state directory holds the token file, `rhtool serve`'s `state.env`,
 outbound log and server logs, the raw recording and the `rhtool` build. The
@@ -1039,14 +1119,14 @@ loaded next to it. All IDs start with `rh-`.
 
 | Kind | IDs |
 | --- | --- |
-| stored requests | `rh-amp-banner`, `rh-amp-stored-bid`, `rh-amp-two-imps`, `rh-amp-app`, `rh-events-request` |
-| stored imps | `rh-imp-stored-bid`, `rh-imp-video-stored-bid` |
-| stored responses | `rh-appnexus-banner` and `rh-appnexus-video` (appnexus wire bids for stored bid responses), `rh-seatbid-banner` (a seatbid for stored auction responses) |
-| accounts | `rh-events-account` (events on), `rh-no-debug-account` (`debug_allow` false), `rh-ccpa-account` (CCPA enforced), `rh-cookie-sync-account` (limit 1), `rh-sandbox-account` (cookie deprecation on), `rh-malformed-account` (`disabled: "yes"`, which does not parse) |
+| stored requests | `rh-amp-banner`, `rh-amp-stored-bid`, `rh-amp-two-imps`, `rh-amp-app`, `rh-amp-topics` (for `rh-topics-account`), `rh-events-request`, `rh-video-pods` (two ad pods, for the `video` case profile) |
+| stored imps | `rh-imp-stored-bid`, `rh-imp-video-stored-bid`, `rh-imp-video-pod` (legacy `imp.ext.appnexus` params and a stored bid response), `rh-imp-video-live` (an appnexus video imp with no stored bid) |
+| stored responses | `rh-appnexus-banner`, `rh-appnexus-video` and `rh-appnexus-deal` (appnexus wire bids for stored bid responses, the last with a deal ID), `rh-seatbid-banner` (a seatbid for stored auction responses) |
+| accounts | `rh-events-account` (events on), `rh-no-debug-account` (`debug_allow` false), `rh-ccpa-account` (CCPA enforced), `rh-cookie-sync-account` (limit 1), `rh-sandbox-account` (cookie deprecation on), `rh-topics-account` (a topics domain and cookie deprecation), `rh-malformed-account` (`disabled: "yes"`, which does not parse) |
 
 ### The replays
 
-`parity/replayharness/replays` holds 174 replays in the ReplayHarness format
+`parity/replayharness/replays` holds 200 replays in the ReplayHarness format
 (`agents/replayharness-replay.md` in the ReplayHarness repository). Each one
 states what Go does, and its `why` cites the Go code.
 
@@ -1054,16 +1134,17 @@ states what Go does, and its `why` cites the Go code.
 | --- | --- | --- |
 | `auction.yaml` | 25 | validation errors, debug and test, aliases, disabled bidders, accounts, currency, Content-Encoding |
 | `stored.yaml` | 15 | stored requests, imps, bid responses and auction responses, targeting, currency conversion, bid adjustment |
-| `amp.yaml` | 15 | tag_id, query overrides, consent types, origin headers, the targeting response |
+| `amp.yaml` | 16 | tag_id, query overrides, consent types, origin headers, True-Client-IP, Sec-Cookie-Deprecation and Sec-Browsing-Topics, the targeting response |
 | `video.yaml` | 4 | the deprecated endpoint, video validation, ad pod keys |
-| `usersync.yaml` | 18 | setuid to getuids to cookie_sync with the saved cookie, cookie attributes, opt-out, filters, limits, privacy |
-| `events.yaml` | 13 | `/event` parameters and accounts, `/vtrack` validation and cache puts |
+| `usersync.yaml` | 19 | setuid to getuids to cookie_sync with the saved cookie, cookie attributes, opt-out, filters, limits, privacy, `/optout` with a `uids` cookie |
+| `events.yaml` | 14 | `/event` parameters and accounts, `/vtrack` validation, cache puts and put keys |
 | `privacy.yaml` | 10 | GDPR, CCPA and GPP in the auction |
 | `headers.yaml` | 11 | Referer, User-Agent, X-Forwarded-For, X-Real-IP, DNT, Sec-GPC, Sec-Browsing-Topics, Origin |
 | `json.yaml` | 25 | malformed and borderline JSON bodies |
 | `limits.yaml` | 6 | bodies at, one byte over and two bytes over `max_request_size` |
 | `info.yaml` | 12 | `/info/bidders`, `/bidders/params`, `/status`, `/version`, `/` and `/static` |
 | `router.yaml` | 8 | 404, 405, redirects, OPTIONS, the CORS preflight, admin-only routes |
+| `prebid.yaml` | 23 | the `ext.prebid` and `imp[].ext.prebid` options no other replay sent, chosen for what they change in the bidder request or the response: `bidderparams`, `schains`, `bidderconfig`, `data` and `eidpermissions`, `currency`, `floors`, `adservertargeting`, `alternatebiddercodes`, `nosale`, `bidadjustments`, `biddercontrols`, `aliasgvlids`, `events`, `sdk` (with `analytics`, `macros` and `experiment`), `multibid`, `supportdeals`, `trace`, the imp's `options`, `floors` and `imp`, `wlangb`, Sec-Browsing-Topics on the auction |
 | `fields.yaml` | 12 | inputs nothing else sent: the `uids` cookie in the auction and AMP, Sec-GPC on the bidder request, True-Client-IP, X-Real-IP and Referer in AMP, Sec-Cookie-Deprecation, DOOH, the OpenRTB fields Go passes through, `passthrough`, `is_rewarded_inventory`, `adunitcode`, a client `ext.prebid.server` |
 
 Things to know when editing them:
@@ -1075,8 +1156,52 @@ Things to know when editing them:
 * In a YAML flow mapping, a key with `[` must be quoted:
   `{"$.debug[0].error": ...}`.
 * ReplayHarness treats an empty response header as missing.
-* The `uids` cookie expires by the wall clock. A flow saves `header:Set-Cookie`
-  and sends it back as `Cookie`; Go reads `uids=` and skips the attributes.
+* The `uids` cookie's `Expires` and uid expiries come from the parity clock
+  (see "Deterministic fakes"), so a replay may state a whole Set-Cookie, as
+  the `host-cookie` case profile's do. A flow saves `header:Set-Cookie` and
+  sends it back as `Cookie`; Go reads `uids=` and skips the attributes.
+* A bidder request shows in the response only as the escaped JSON string
+  `ext.debug.httpcalls.<bidder>[0].requestbody`, next to
+  `ext.debug.resolvedrequest`, which holds the request before the bidder
+  copies. A `not_contains` meant for the bidder request therefore names the
+  escaped form, such as `'\"source\":\"rh.test\"'`.
+
+### Case profiles
+
+Some handlers' real paths need host config that no base profile sets. A
+directory of `parity/replayharness/profiles` holds a case profile:
+`profile.json` is a `corpus.Profile` (`corpus.ReadReplayHarnessProfile`
+rejects an unknown member, an empty profile, and `currency_rates` and
+`default_request`, which are not config settings), and `replays/` holds
+replays that state what Go answers under it.
+
+| Profile | Settings | Replays | Covers |
+| --- | --- | --- | --- |
+| `host-cookie` | `host_cookie`: cookie `rh_host` for the syncer key `adnxs`, opt-out cookie `rh_optout=1`, domain `parity.test`, 30 day TTL | 5 | the host cookie in `/getuids`, `/setuid` (with the whole Set-Cookie), `/cookie_sync`, the auction and AMP; the host opt-out cookie |
+| `status-response` | `status_response: ok` | 1 | `GET /status` answering 200 with the body |
+| `video` | `video.enable_deprecated_endpoint` | 4 | `/openrtb2/video` past the 501: stored request merge, ad pods and pod errors, validation and account errors, the refusal of stored bid responses |
+
+They reach the code three ways:
+
+* The corpus builds a case from every step, under the case profile
+  (`Case.Profile`), and the runner runs those cases on servers started with
+  it, as it does the cases of any other profile. The case ID hashes the
+  profile directory's name with the request, so a request sent under two
+  profiles is two cases. A step that sends a saved value is not rebuilt:
+  `saved.jsonl` holds the default profile's answers.
+* `replayharness.sh baseline` runs each profile's replays on a side B
+  started with it (`rhtool serve -case-profile`).
+* `replayharness-replay.sh --case-profile NAME` runs them against Go.
+
+The profiles' replays are not recorded: their cases come from the steps,
+rebuilt as the default replays' are, whose fidelity to what ReplayHarness
+sends `TestReplayHarnessRebuildsWhatReplayHarnessSent` checks.
+`stored_requests` `cache_events` has no case profile. Without an in-memory
+cache nothing reads its event API's updates, so a `POST` never returns
+(`stored_requests/config/config.go:77-81`,
+`stored_requests/events/api/api.go:52`). With one, an update stays in the
+cache for the rest of the process, so one case would change what the cases
+after it see, and `/__parity/reset` does not clear it.
 
 ### The recorded traffic
 
@@ -1094,8 +1219,8 @@ ReplayHarness wrote it, and drops:
 
 It fails when a line holds the parity token or a credential header, or when
 the result is over 5 MB. The recorder already leaves out Cookie,
-Set-Cookie and Authorization. The last run read 4728 exchanges and kept 2535
-on 278 endpoints, in 4185132 bytes. It dropped 2159 repeated requests, 17
+Set-Cookie and Authorization. The last run read 4797 exchanges and kept 2569
+on 278 endpoints, in 4264664 bytes. It dropped 2194 repeated requests, 17
 request bodies over 64 KiB and 17 repeated large responses.
 
 The recording comes from the unmodified pinned build: every request that
@@ -1141,6 +1266,32 @@ A port must copy these, even where they look wrong:
   Impression tag is put to the cache as unquoted XML
   (`endpoints/events/vtrack.go:320-333`). The cache answers 400 and
   `/vtrack` answers 500.
+* **Video** (the `video` case profile). Errors are `text/plain` with status
+  500, 403 for a disabled account, and every message joined after one
+  space each, so the text after `Critical error while running the video
+  endpoint:` starts with two spaces. A pod whose `configid` names no stored
+  imp is reported in `adPods` with `"targeting":null`, and the request fails
+  only when every pod does. A video imp cannot use a stored bid response:
+  the endpoint validates the request without them.
+* **`/vtrack` put keys.** A put's `key` becomes the cache key and is written
+  into the cache request without escaping, so a key with a quote makes the
+  cache answer 400 and `/vtrack` 500; an empty key is left out, and the cache
+  makes one up.
+* **Privacy sandbox.** For an account with a topics domain,
+  `Sec-Browsing-Topics` fills `user.data` with one entry per taxonomy and
+  model version (`segtax` 599 plus the taxonomy version, `segclass` the
+  model version; `privacysandbox/topics.go:90`).
+  In parity mode the entries and their segment IDs come in ascending order
+  (see "Deterministic fakes"); outside it, in map order. Every request that
+  sends the header is answered `Observe-Browsing-Topics: ?1`. A topic set it
+  cannot read is warning 10012, shown only with debug. A `Sec-Cookie-Deprecation`
+  label over 100 characters is warning 10011 and is dropped. AMP reads both
+  headers, and `True-Client-IP`, as the auction does.
+* **Host cookie** (the `host-cookie` case profile). A host cookie fills the
+  host syncer's uid in `/getuids`, `/setuid` and the auctions' buyer uid
+  unless the `uids` cookie already has one. With the host opt-out cookie,
+  `/setuid` and `/cookie_sync` answer 401 `User has opted out`, and the
+  auctions send no buyer uid.
 * **Request ids.** A `{{UUID}}` request id is replaced only when it comes
   from the stored request (`endpoints/openrtb2/auction.go:1736`). Sent in the
   body, it is kept.
@@ -1173,7 +1324,7 @@ read goes through `Repo.Resolve`, as every other loader's does. A file whose
 symlink leaves the approved roots is refused with `ErrOutsideCorpus`, not
 read.
 
-The corpus takes its requests from two sources:
+The corpus takes its requests from three sources:
 
 * every exchange in `traffic.jsonl`;
 * every step of the replays in `replays/`. Package
@@ -1181,7 +1332,9 @@ The corpus takes its requests from two sources:
   pinned ReplayHarness sends it. That covers the query encoding, `json`
   bodies written by `json.Marshal`, `{{name}}` values, and the `User-Agent`
   of the build that recorded `traffic.jsonl`. As a result, a step and its line
-  in the recording are the same request.
+  in the recording are the same request;
+* every step of the replays of each case profile in `profiles/`, rebuilt the
+  same way, as cases of that profile (see "Case profiles").
 
 Each distinct request is one case:
 
@@ -1213,11 +1366,15 @@ Each distinct request is one case:
   `from traffic.jsonl:12` or `from replays/auction.yaml: replay "...", step 1`.
 * The case ID is `parity/replayharness#<method>:<path>:<hash>`. The path is
   cut at 40 bytes. The hash is the first 16 hex digits of a SHA-256 of the
-  request. The ID depends on nothing but the request, so it stays the same
-  across runs and file orders, and changes when the request changes.
+  request; for a case profile's step, of the profile directory's name, a
+  newline and the request's SHA-256 in hex. The ID depends on nothing but
+  the request and its profile, so it stays the same across runs and file
+  orders, and changes when the request changes.
 * The envelope:
-  * uses the `default` profile, plus the exec defaults for the host and the
-    remote address (127.0.0.1);
+  * uses the `default` profile, or for a case profile's step that profile's
+    name (`Profile.Name`, such as `video-3d9ce2ee`; the reports show it
+    after the base profile, as `default+video-3d9ce2ee`), plus the exec
+    defaults for the host and the remote address (127.0.0.1);
   * pins every decision point, with `usersync.shuffle` set to identity;
   * carries `parity/replayharness/stored` as the case's stored data;
   * names its imp IDs for the oracle, for an auction, AMP or video request.
@@ -1232,10 +1389,11 @@ from `/setuid`. Such a step gets the value Go answered, from `saved.jsonl`.
    the status, the saved headers, and the body when a JSON path is saved.
    It fails if the parity token would be kept.
 
-The saved `uids` cookie gives its uid an expiry 14 days after the recording
-(`2026-12-01` in the checked-in file). After that, both servers treat the uid
-as expired. The cases still compare, but they no longer test a live uid, so
-run `record-saved` again.
+The saved `uids` cookie was recorded before the cookie code read the parity
+clock, so its uid expires `2026-12-01T12:00:11.992254Z`, 14 days after the
+recording. A parity-mode server judges a uid live by the parity clock
+(2021-08-20), so the uid stays live in every run. A `record-saved` run now
+records the expiry `2021-09-03T15:28:50.823Z`, which is live as well.
 
 ### What the corpus does not compare
 
@@ -1254,29 +1412,34 @@ each gets a `summary.json`, but no `index.json` entry.
 
 | Tag | Requests | Last run |
 | --- | --- | --- |
-| `wall_clock` | `GET /setuid` when Go may set the `uids` cookie: its `Expires`, and the per-uid expiry inside it, come from the wall clock (`usersync/cookie.go`). Also `POST /cookie_sync` for an account with cookie deprecation on and no `receive-cookie-deprecation` cookie: Go sets that cookie with an `Expires` from the wall clock (`endpoints/cookie_sync.go`). | 51 |
-| `map_order` | `POST /cookie_sync` without a bidder list, or with `coopSync`. Go evaluates the syncers in map order (`usersync/chooser.go`), and that order differs between two processes. | 5 |
 | `side_port` | An API map endpoint served only on the admin or Prometheus port. `/__parity/exec` dispatches to the main router only. The requests to these paths are still cases, and they check the main port's answer. | 7 |
-| `exec_framing` | An auction body of exactly `max_request_size` + 1 bytes. net/http hands over the last byte with `io.EOF`. `/__parity/exec` reads the body from a `bytes.Reader`, which does not, so the case would test the harness. | 1 |
 | `request_line` | A request the envelope cannot carry as sent: an invalid method, target or header. | 0 |
 | `truncated_body` | A body that the recorder cut at 1 MiB. | 0 |
 | `not_rebuilt` | A replay step that cannot be rebuilt offline. | 0 |
 
-The last run had 2495 cases and 64 requests not compared.
+Three tags are gone, with the reasons for them:
 
-The runner reports 944 of those cases as not-yet-instrumented
-(`exec cannot dispatch to <path>`). Its check matches a case's path exactly
-against the routes in the health document, and those routes are httprouter
-patterns. The 944 break down as follows:
+* `wall_clock` (51 requests): `/setuid` and `/cookie_sync` answers whose
+  cookie `Expires` or uid expiry came from the wall clock. They read the
+  parity clock now (see "Deterministic fakes").
+* `map_order` (5): `/cookie_sync` without a bidder list, or with `coopSync`,
+  which evaluated the syncers in map order. In parity mode the chooser lists
+  them in bidder name order now.
+* `exec_framing` (1): the auction body of exactly `max_request_size` + 1
+  bytes. net/http hands over the last byte with `io.EOF`, and
+  `/__parity/exec` now ends a body the same way
+  (`parity/server/request.go`).
 
-* 293 are concrete paths of `/info/bidders/:bidderName` and
-  `/static/*filepath`;
-* 651 are paths that no route registers as written: unknown paths, trailing
-  slashes, the admin-only paths, and the stored-request event API, which is
-  off in the default profile.
+The last run had 2613 cases and 7 requests not compared. 2589 cases run
+under the `default` profile, and 24 under the case profiles: 11 under
+`host-cookie`, 3 under `status-response` and 10 under `video`.
 
-They will be compared once the runner matches the patterns and dispatches
-the other paths to the router, which answers them 404 or with a redirect.
+No case is not yet instrumented. The runner used to report 944 of them
+(`exec cannot dispatch to <path>`): it matched a case's path exactly against
+the routes in the health document, which are httprouter patterns, so it
+left out every concrete path of `/info/bidders/:bidderName` and
+`/static/*filepath` and every path no route registers. It now matches them
+as httprouter does (see "Batches and processes").
 
 ### The ReplayHarness parity script
 
@@ -1288,7 +1451,7 @@ parity/scripts/replayharness.sh baseline|parity|selftest|canary|record-saved|cli
 
 | Command | What it does |
 | --- | --- |
-| `baseline` | Starts side A (Go) and side B with `rhtool serve -servers 2`, both under one profile and with the mock oracle. Then it runs three steps: the probes on side A alone; `replayharness run parity/replayharness/api.yaml --target B --baseline A --fail-on warning --junit ... --json ...`; and `replayharness replay parity/replayharness/replays --target B`. `rhtool gate` judges the reports (see below). |
+| `baseline` | Starts side A (Go) and side B with `rhtool serve -servers 2`, both under one profile and with the mock oracle. Then it runs three steps: the probes on side A alone; `replayharness run parity/replayharness/api.yaml --target B --baseline A --fail-on warning --junit ... --json ...`; and `replayharness replay parity/replayharness/replays --target B`. `rhtool gate` judges the reports (see below). Last, for each case profile, it starts both sides again with `rhtool serve -case-profile` and runs that profile's replays on side B (`replays-NAME.txt` and `.junit.xml`). |
 | `parity` | Runs `parity run --corpus replayharness`, with side B set by `--impl-b` and `--bin-b`, and lists what the corpus leaves out. The runner's exit code is the result: it fails on any mismatch or error. Flags after `--` go to `parity run`; with `-baseline`, the ratchet decides the result. |
 | `selftest` | An A/A run: `parity selftest --corpus replayharness`, then `baseline` with Go on both sides. Neither may find a difference. |
 | `canary` | Builds a Go side B with two seeded bugs, through a build overlay, so the checkout does not change. The first bug drops the `X-Prebid` header from `/openrtb2/auction`. The second renames `status` to `state` in `/info/bidders/{name}`. Both `parity` and `baseline` must fail. |
@@ -1363,24 +1526,19 @@ with side A's probe run:
 * A finding that only one side draws on a probe fails the run. This check
   ignores `divergence`, `slow`, `timeout` and `connection` findings, which
   depend on the run, not on the server.
-* On `POST /cookie_sync`, a shape divergence is printed with its reason and
-  not counted. Go evaluates the syncers in an order it draws (see
-  `map_order`), so two Go servers sync different bidders and `debug` comes
-  and goes. That order changes the shape of the body, never the status, so
-  everything else on that endpoint counts: a status divergence, a probe side
-  B does not answer, and a finding only one side draws. At the pinned commit
-  ReplayHarness reports a status divergence at severity `error` and a shape
-  divergence at severity `warning` with the message `response shape differs
-  from the baseline` (`internal/check/check.go`, func `baseline`). The gate
-  leaves a divergence out only when both the severity and the message say
-  it is a shape divergence.
+* `POST /cookie_sync` counts like every other endpoint. The gate used to
+  print its shape divergences without counting them, because two Go servers
+  evaluated the syncers in different orders and synced different bidders. A
+  parity-mode Go server lists them in bidder name order and keeps that order
+  on its main port, so two of them answer alike.
 * The run is incomplete (exit 3) if any of these holds:
   * the report has no baseline;
   * the run was interrupted or has no results;
   * the ReplayHarness versions differ;
   * a probe is missing from side A's run.
 
-After the gate, every replay must pass on side B.
+After the gate, every replay must pass on side B, and every case profile's
+replays must pass on a side B started with that profile.
 
 ### Limits of the baseline
 
@@ -1391,67 +1549,87 @@ After the gate, every replay must pass on side B.
   therefore answers bidder calls 404, and the only bids come from stored
   responses. Through `/__parity/exec`, a parity case's bidder calls carry
   the case label, and the oracle answers them from its templates.
-* Neither tool compares the 64 requests listed as not compared.
-* The parity runner does not yet run the 944 not-yet-instrumented cases. On
-  their routes, only the baseline's probes and the replays compare anything.
+* Neither tool compares the 7 requests listed as not compared.
+* The probes run under no case profile: on the handlers that only a case
+  profile turns on, only the parity runner and that profile's replays
+  compare anything.
 
 ### Results: A/A run and canary
 
 The A/A run is `parity/scripts/replayharness.sh selftest`, with Go on both
-sides. The last run, on the recording described above, gave:
+sides. Two runs on the current corpus each gave:
 
-* `parity selftest --corpus replayharness`: 2495 cases, of which 1551
-  passed, 0 mismatched, 944 were not yet instrumented, and 0 errored. The
-  64 requests not compared are reported next to them, so `run.json` counts
-  2559 entries.
+* `parity selftest --corpus replayharness`: 2613 cases, all passed: 0
+  mismatched, 0 were not yet instrumented, and 0 errored. The 7 requests
+  not compared are reported next to them, so `run.json` counts 2620
+  entries.
 * `baseline`, Go against Go:
   * 1199 probes: 0 divergences, 0 findings drawn by only one side, and 465
     findings drawn by both;
-  * one or two `POST /cookie_sync` shape divergences, printed and not
-    counted (the number changes from run to run, as `map_order` explains;
-    this run printed one);
-  * 174 of 174 replays passed.
+  * 200 of 200 replays passed;
+  * every case profile's replays passed on a side B started with it: 5 of
+    5 for `host-cookie`, 1 of 1 for `status-response` and 4 of 4 for
+    `video`.
 
 The canary is `parity/scripts/replayharness.sh canary`. Both tools caught it:
 
-* The parity run found 269 mismatching cases in one cluster: the `X-Prebid`
-  header of `/openrtb2/auction`.
+* The parity run found 336 mismatching cases:
+  * 298 auction cases, in one cluster: the `X-Prebid` header of
+    `/openrtb2/auction`;
+  * 38 cases of `/info/bidders/{bidderName}`, where `$.status` is missing
+    and `$.state` is new. The 37 answers for one bidder make two clusters,
+    one per member, and the answer of `/info/bidders/ALL` makes two per
+    bidder (794), since each bidder's member has its own path.
 * The baseline found 4 divergences, on the shape of
   `/info/bidders/{bidderName}`.
-* 4 replays failed: two on `X-Prebid` and two on `status`.
+* 4 replays failed: two on `X-Prebid` and two on `status`. The case
+  profiles' replays passed.
 
-The two tools caught different bugs:
-
-* The baseline missed the dropped header, because it does not compare
-  headers.
-* The parity runner missed the renamed member, because
-  `/info/bidders/{bidderName}` is among the not-yet-instrumented cases.
-
-So the final gate needs both.
+The baseline missed the dropped header, because it does not compare
+headers. The parity runner used to miss the renamed member, when
+`/info/bidders/{bidderName}` was among its not-yet-instrumented cases; it
+now catches both bugs.
 
 ### What the corpus does not exercise
 
 A review listed what each handler reads (query parameters, headers, cookies
 and body members) and checked which of them some case sends.
-`replays/fields.yaml` covers the gaps it found first. These inputs are still
-never sent:
+`replays/fields.yaml` covered the gaps it found first. The inputs it still
+listed are now sent too:
 
-* `POST /openrtb2/auction`: most of `ext.prebid`: `adservertargeting`,
-  `aliasgvlids`, `alternatebiddercodes`, `analytics`, `bidadjustments`,
-  `biddercontrols`, `bidderconfig`, `bidderparams`, `currency`, `data`,
-  `events`, `experiment`, `floors`, `macros`, `multibid`, `nosale`,
-  `schains`, `sdk`, `supportdeals` and `trace`. Also
-  `imp[].ext.prebid.options`, `imp[].ext.prebid.floors`,
-  `imp[].ext.prebid.imp` and `wlangb`.
-* `GET /openrtb2/amp`: `True-Client-IP`, `Sec-Cookie-Deprecation` and
-  `Sec-Browsing-Topics`. The auction cases send the first two.
-* `POST /vtrack`: `puts[].key`.
-* `GET /setuid`: `gdpr_consent`.
-* `GET` and `POST /optout`: the `uids` cookie.
+| Input | Sent by |
+| --- | --- |
+| `POST /openrtb2/auction`: `ext.prebid` `adservertargeting`, `aliasgvlids`, `alternatebiddercodes`, `analytics`, `bidadjustments`, `biddercontrols`, `bidderconfig`, `bidderparams`, `currency`, `data`, `events`, `experiment`, `floors`, `macros`, `multibid`, `nosale`, `schains`, `sdk`, `supportdeals` and `trace`; `imp[].ext.prebid.options`, `.floors` and `.imp`; `wlangb` | `replays/prebid.yaml` |
+| `GET /openrtb2/amp`: `True-Client-IP`, `Sec-Cookie-Deprecation` and `Sec-Browsing-Topics` | `amp.yaml`, "AMP reads True-Client-IP, Sec-Cookie-Deprecation and Sec-Browsing-Topics like the auction" |
+| `POST /vtrack`: `puts[].key` | `events.yaml`, "a vtrack put key becomes the cache key, written into the put unescaped" |
+| `GET /setuid`: `gdpr_consent` | `usersync.yaml`, "setuid accepts GDPR consent strings it cannot parse"; `traffic.jsonl` holds 7 such requests, which the review missed |
+| `GET` and `POST /optout`: the `uids` cookie | `usersync.yaml`, "optout reads no cookie before the captcha passes" |
+| `POST /openrtb2/video`, past the 501 | the `video` case profile |
+| `status_response` and `host_cookie` | the `status-response` and `host-cookie` case profiles |
 
-`POST /openrtb2/video` reads many inputs that no case sends, but Go answers
-every video request in the traffic 501 (`The video endpoint is deprecated
-and will be removed in 5.0.`).
+These paths are still not reached:
+
+* **The `/setuid` host vendor check.** The parity profiles leave
+  `gdpr.host_vendor_id` unset, so `/setuid` accepts any consent string
+  without asking the TCF permissions whether the host may set a cookie
+  (`endpoints/setuid.go:406-427`).
+* **`/optout` past the captcha.** Go asks Google's siteverify whether the
+  captcha passed, and the oracle answers that call 404, so every `/optout`
+  with a `g-recaptcha-response` answers 401 before it reads the cookie
+  (`pbs/usersync.go:71-90`). Reaching the cookie code needs an oracle answer
+  for siteverify.
+* **`stored_requests` `cache_events`.** It has no case profile (see "Case
+  profiles").
+* **Video bids from a bidder call, and `includebrandcategory`.** On the main
+  port the oracle answers bidder calls 404, so the video replays see bids
+  from stored data only. With `includebrandcategory`, Go's ad pod targeting
+  is not deterministic: `findTargetingByKey` ranges over the targeting map
+  and returns the first key whose part from the first `_` on starts the key
+  it looks for, and for `hb_pb_cat_dur` that is `_pb_cat_dur_<seat>`, which
+  `hb_pb` matches as well as `hb_pb_cat_dur_<seat>` does
+  (`endpoints/openrtb2/video_auction.go:594-595`, `:643-652`). Two Go runs
+  can answer differently, so no replay or case uses it (see "Known gaps" in
+  `SELFTEST.md`).
 
 The recorder leaves out `Cookie`, so the lines that the cookie replays left
 in `traffic.jsonl` carry no cookie. The cases built from those replays' steps
@@ -1488,45 +1666,66 @@ sends a header twice (it uses `Header.Set`), and the recorder joins repeated
 values with `, `, so a case sends one header line. A recording has no header
 order; a case sends its headers sorted by name, the same way to both sides.
 
-**Determinism.** Three A/A runs of the runner, with `-shards 1`, `2` and
-`4`, gave the same status and summary for every case. Only the order of some
-cases' notes changed (14 and 15 cases): `parity/diff/view.go` built them by
-ranging over a map. It now visits the stages in name order and each stage's
-entries in key order (`TestNotesFollowStageAndKeyOrder`). Three new runs,
-each with the same `-out` and `-run-id`, wrote byte-identical `index.json`,
-`clusters.json` and case directories; in the 2495 case summaries only
-`duration_ms` differs. Each run had 1551 cases passing, 944 not yet
-instrumented, no mismatch and no error. In 24 of those cases the notes name
-two or more stage entries of a side, so their order came from the map.
-`run.json`, `summary.md`, `matrix.*` and `junit.xml` differ only in times,
-the shard count and the list of servers, one pair per shard.
+**Determinism.** On the current corpus, two A/A runs (see "Results: A/A
+run and canary"), each with its own `-out`, wrote byte-identical
+`clusters.json`, `not-compared.json` and case `diff.json` files. Their
+`index.json`, `matrix.json` and 2620 case summaries differ only in times
+and in the paths of the output directory. Their baselines drew the same 465
+findings on both sides. Before the topics seam, the second of two such runs
+had found one case whose `user.data` segments Go ordered by map iteration
+(`SELFTEST.md`, S8).
+
+On the earlier recording, three A/A runs of the runner, with `-shards 1`,
+`2` and `4`, gave the same status and summary for every case. Only the order
+of some cases' notes changed (14 and 15 cases): `parity/diff/view.go` built
+them by ranging over a map. It now visits the stages in name order and each
+stage's entries in key order (`TestNotesFollowStageAndKeyOrder`). Three new
+runs, each with the same `-out` and `-run-id`, wrote byte-identical
+`index.json`, `clusters.json` and case directories; in the 2495 case
+summaries only `duration_ms` differs. Each run had 1551 cases passing, 944
+not yet instrumented, no mismatch and no error. In 24 of those cases the
+notes name two or more stage entries of a side, so their order came from the
+map. `run.json`, `summary.md`, `matrix.*` and `junit.xml` differ only in
+times, the shard count and the list of servers, one pair per shard.
 
 **Detection.** Each bug below was seeded into a Go side B with a build
-overlay, as the canary is, and run through `parity` and `baseline`:
+overlay, as the canary is, on the current tree, and run through `parity`
+and `baseline` on the current corpus. The Replays column counts the failing
+replays of `replays/`; every case profile's replays passed for every bug.
 
 | Bug | Parity runner | Baseline probes | Replays |
 | --- | --- | --- | --- |
-| `/status` answers 200 instead of 204 | 10 cases (status) | 4 divergences | 1 failed |
-| `/cookie_sync` writes `type` before `url` in `usersync` | 84 cases (member order) | nothing | nothing |
-| Bidder requests always carry `Content-Type: application/json` | 99 cases | nothing | nothing |
-| `Sec-GPC` is not forwarded to bidders | 1 case (the AMP one) | nothing | 1 failed |
-| `/cookie_sync` answers 422 instead of 400 to a bad body | 95 cases (status) | 86 status divergences and 86 findings only side B draws, all counted | 2 failed |
-| Responses are gzipped whatever `enable_gzip` says | 1551 cases (`Vary`; 55 also `Content-Encoding`) | nothing | nothing |
-| `/info/bidders/{name}` renames `status` to `state` | nothing (not yet instrumented) | 4 divergences (the canary) | 2 failed (the canary) |
+| `/status` answers 200 instead of 204 | 10 cases (status) | 4 status divergences | 1 failed |
+| `/cookie_sync` writes `type` before `url` in `usersync` | 91 cases (member order), one of them under `host-cookie` | nothing | nothing |
+| Bidder requests always carry `Content-Type: application/json` | 125 cases: 112 auctions, 12 AMP requests and 1 video request under `video` | nothing | nothing |
+| `Sec-GPC` is not forwarded to bidders | 2 cases (an AMP request and an auction) | nothing | 2 failed |
+| `/cookie_sync` answers 422 instead of 400 to a bad body | 95 cases (status) | 86 status divergences and 86 findings only side B draws | 2 failed |
+| Responses are gzipped whatever `enable_gzip` says | all 2613 cases (`Vary`; 80 also `Content-Encoding`) | nothing | nothing |
+| The same, but only for requests that send `Accept-Encoding` | 2609 cases (`Vary`; 80 also `Content-Encoding`) | nothing | nothing |
+| `/info/bidders/{name}` renames `status` to `state` | 38 cases (the canary's renamed member) | 4 shape divergences (the canary) | 2 failed (the canary) |
 
 What the table shows:
 
-* Neither tool catches every bug. The runner misses what happens on the
-  not-yet-instrumented paths; the baseline misses headers, member order and
-  values.
-* The baseline's gate used to count nothing on `POST /cookie_sync`, not
-  even a status divergence, which map order cannot cause: it printed 173
-  differences for the 422 bug and counted none, so only the replays caught
-  it. It now leaves out only the shape divergences there, and the same bug
-  fails the gate with 86 status divergences and 86 `undocumented-status`
-  findings only side B draws.
-* The `Sec-GPC` bug reached one case only. `fields.yaml` now also checks
-  `Sec-GPC` on an auction's bidder request.
+* The parity runner catches all eight bugs. It missed the renamed member
+  while `/info/bidders/{bidderName}` was among its not-yet-instrumented
+  cases; it now runs those cases. The baseline's probes catch the three
+  bugs that change a status or a response's shape, and miss headers, member
+  order and values. The replays catch four. No bug is caught by the
+  baseline or the replays alone. The baseline is still the check that runs
+  on the server's own listener rather than through `/__parity/exec`, and
+  the one a server without `/__parity/*` can pass.
+* The cases left out of the second gzip bug are the four that send no
+  `Accept-Encoding`: three `HEAD` requests and a `Range` request, which
+  Go's HTTP client sends without it.
+* The baseline's gate used to count nothing on `POST /cookie_sync`, not even
+  a status divergence: it printed 173 differences for the 422 bug and
+  counted none, so only the replays caught it. It then left out only the
+  shape divergences there; it now counts everything (see "The baseline
+  gate"). The same bug fails it with 86 status divergences and 86
+  `undocumented-status` findings only side B draws.
+* The `Sec-GPC` bug reached one case, the AMP one, before `fields.yaml`
+  also checked `Sec-GPC` on an auction's bidder request. It now reaches two
+  cases and fails two replays.
 
 **Provenance.** The `User-Agent` of the lines in `traffic.jsonl` named a
 modified build of the pinned commit
@@ -1541,12 +1740,20 @@ Go answered every one with the same status. The answers differ only in the
 random transaction IDs, the `User-Agent` that debug output echoes, and the
 syncers that `POST /cookie_sync` lists in map order (`map_order`). The ID
 of every case that sends the recorder's `User-Agent` changed with it, since
-an ID hashes the whole request. The corpus still has 2495 cases and 64
-requests not compared, with the same tags. The other numbers in this review
-were measured on the earlier recording, before the runner reported the
-requests not compared. On the new recording, the A/A run in "Results: A/A
-run and canary" has the same 1551 passing and 944 not-yet-instrumented
-cases as the determinism runs.
+an ID hashes the whole request. The corpus then still had 2495 cases and 64
+requests not compared, with the same tags.
+
+The file was recorded again, with the same clean pinned build and the same
+compaction rules, once `prebid.yaml` and the new replays of `amp.yaml`,
+`events.yaml` and `usersync.yaml` existed. It holds every request of the
+previous recording, unchanged, and 34 more: the steps of `prebid.yaml` (26
+auction requests), of the AMP privacy sandbox replay (4) and of the
+`/vtrack` put key replay (4). The `/optout` replay's requests differ from
+earlier ones only in their cookie, which the recorder leaves out, so they
+are lines the file already had. All 200 replays passed on Go during the
+recording, and the two Go servers showed no divergence on the probes. The
+recorded answers to the topics requests predate the topics seam; the corpus
+uses only the requests.
 
 ### The Go-vs-Rust gate
 
@@ -1564,9 +1771,13 @@ following holds:
   the not-yet-instrumented count and the not-compared list; a Rust server
   without `/__parity/exec` passes no case and exits 3.
 * `baseline`: no divergence, no finding drawn by only one side, and every
-  replay passing on Rust.
+  replay passing on Rust, the case profiles' replays included.
 
 `baseline` needs `--bin-b` for Rust. It needs only the main port, so it can
-run before the Rust server implements `/__parity/*`. The replays state what
-Go answers under the `default` profile, so run `baseline` under that profile;
-`parity --profile NAME` compares the cases under another base profile.
+run before the Rust server implements `/__parity/*`. The replays in
+`replays/` state what Go answers under the `default` profile, and each case
+profile's replays what it answers with that profile on top, so run
+`baseline` under the `default` profile; `parity --profile NAME` compares the
+cases under another base profile. The case profiles start the Rust server
+with `video.enable_deprecated_endpoint`, `status_response` or `host_cookie`
+in its `pbs.yaml`, so it must read them as Go does.

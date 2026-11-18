@@ -242,6 +242,30 @@ seats the same way (`exchange/exchange.go:1092`). The "earlier" bid of the
 `category.dedupe` decision therefore depended on map order too.
 *The seam:* both visit the seats in bidder name order.
 
+**S7. `usersync_bidders`.**
+*The race:* the user sync chooser listed the syncers in map order, and
+`/cookie_sync` without a bidder list, or with `coopSync`, evaluates them in
+that order, so under a limit two processes synced different bidders. On the
+main port, where no envelope pins `usersync.shuffle`, Go also shuffled them
+with its real random source. The `replayharness` corpus therefore kept 5
+such requests out of its cases (`map_order`), and its baseline left the
+shape divergences of `POST /cookie_sync` uncounted.
+*The seam:* in parity mode the chooser lists the bidders in name order
+(`usersync/chooser.go:23`), and `usersync.shuffle` keeps that order when no
+case is in flight (`outside_case: "identity"` in `schema/decisions.json`).
+
+**S8. `topics_user_data`.**
+*The race:* `UpdateUserDataWithTopics` groups the `Sec-Browsing-Topics`
+topics by segtax, segclass and segment ID in nested maps and ranges over
+them. Once the `replayharness` replays sent the header, the second of two
+A/A runs found one case, an AMP request with two topic sets, whose
+`user.data[*].segment` came in a different order on the two sides, in 13
+stage records. The first run had passed it.
+*The seam:* the added entries come in ascending segtax, then segclass
+order, and the segment IDs of every entry, new or merged into one the
+request has, in ascending order (`privacysandbox/topics.go:140`, `:142`,
+`:155` and `:220`).
+
 ## Go nondeterminism: normalization rules
 
 These Go orders and values do not change any other outcome. The differ sorts
@@ -300,7 +324,14 @@ mismatch.
   exchange, firstpartydata and adapter code. Sites no generated case
   reaches, or that no scan pattern matches, stay nondeterministic in Go. One
   known example is `exchange/utils.go:693`, which merges imp FPD per bidder
-  and returns the first error in map order.
+  and returns the first error in map order. Another is the video endpoint's
+  `findTargetingByKey` (`endpoints/openrtb2/video_auction.go:643-652`): it
+  returns the value of the first targeting key, in map order, whose part
+  from the first `_` on starts the key it looks for. For an ad pod's
+  `hb_pb_cat_dur` it looks for `_pb_cat_dur_<seat>`, which `hb_pb` matches
+  as well as `hb_pb_cat_dur_<seat>`, so with `includebrandcategory` the value
+  is sometimes the price alone. No replay or case turns brand category on
+  in a video request.
 * **MakeBids can still race.** The turns of S1 order only the request phase.
   An adapter whose `MakeBids` writes an object shared with another bidder
   would still race.
