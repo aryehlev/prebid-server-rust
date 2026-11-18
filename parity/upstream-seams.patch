@@ -384,7 +384,7 @@ index 0bda7b36872825d21e1be8aee7a856562527fb4f..4cc7bdd3fa12e01be400a65783691351
  		reqJson, err := json.Marshal(request)
  
 diff --git a/config/config.go b/config/config.go
-index 940c0e41c5eb33f55b91a75980c960609e19ee1c..36357df0e510a4dc6bd7033ee29ede0f417e709c 100644
+index 940c0e41c5eb33f55b91a75980c960609e19ee1c..a1430830a99bfb69064fca2b38f2f10b55a3cf5b 100644
 --- a/config/config.go
 +++ b/config/config.go
 @@ -108,6 +108,8 @@ type Configuration struct {
@@ -404,23 +404,22 @@ index 940c0e41c5eb33f55b91a75980c960609e19ee1c..36357df0e510a4dc6bd7033ee29ede0f
  
  	return errs
  }
-@@ -1298,6 +1301,10 @@ func SetupViper(v *viper.Viper, filename string, bidderInfos BidderInfos) {
+@@ -1298,6 +1301,9 @@ func SetupViper(v *viper.Viper, filename string, bidderInfos BidderInfos) {
  	v.SetDefault("tmax_adjustments.pbs_response_preparation_duration_ms", 0)
  
  	v.SetDefault("tmax_default", 0)
 +	v.SetDefault("parity.enabled", false)
 +	v.SetDefault("parity.token", "")
 +	v.SetDefault("parity.oracle_url", "")
-+	v.SetDefault("parity.allow_non_loopback", false)
  
  	/* IPv4
  	/*  Site Local: 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16
 diff --git a/config/parity.go b/config/parity.go
 new file mode 100644
-index 0000000000000000000000000000000000000000..7395d41bd5a63a12cdf1d2f44ba63906cfe3793d
+index 0000000000000000000000000000000000000000..bffa6e0c3342a9d8236ea14686aa1cada4c7f4d5
 --- /dev/null
 +++ b/config/parity.go
-@@ -0,0 +1,76 @@
+@@ -0,0 +1,77 @@
 +package config
 +
 +import (
@@ -438,7 +437,11 @@ index 0000000000000000000000000000000000000000..7395d41bd5a63a12cdf1d2f44ba63906
 +// enabled on a production host: when enabled the server exposes its full
 +// configuration and an arbitrary request-dispatch endpoint under /__parity/*,
 +// routes every outbound call to the parity oracle and injects deterministic
-+// fakes into adapters that use wall-clock time or randomness.
++// fakes into adapters that use wall-clock time or randomness. In parity mode
++// host must be a loopback address (every TCP listener binds it), oracle_url
++// must point at loopback, and /__parity/* answers loopback callers only (or
++// peers of the unix socket when that is the main listener). No setting lifts
++// these restrictions.
 +type ParityConfig struct {
 +	// Enabled turns parity mode on.
 +	Enabled bool `mapstructure:"enabled"`
@@ -449,9 +452,6 @@ index 0000000000000000000000000000000000000000..7395d41bd5a63a12cdf1d2f44ba63906
 +	// http://127.0.0.1:7999. Without it only inline-mocked cases can make
 +	// outbound calls; everything else fails with "parity: network disabled".
 +	OracleURL string `mapstructure:"oracle_url"`
-+	// AllowNonLoopback lifts the loopback-only restriction on host, oracle_url
-+	// and /__parity/* callers.
-+	AllowNonLoopback bool `mapstructure:"allow_non_loopback"`
 +}
 +
 +// validate enforces the parity startup guards. It reports nothing when parity
@@ -463,8 +463,8 @@ index 0000000000000000000000000000000000000000..7395d41bd5a63a12cdf1d2f44ba63906
 +	if len(cfg.Token) < ParityMinTokenLength {
 +		errs = append(errs, fmt.Errorf("parity.token must be at least %d characters when parity.enabled is true", ParityMinTokenLength))
 +	}
-+	if !cfg.AllowNonLoopback && !IsLoopbackHost(host) {
-+		errs = append(errs, fmt.Errorf("parity.enabled requires host to be a loopback address, got %q (set parity.allow_non_loopback to override)", host))
++	if !IsLoopbackHost(host) {
++		errs = append(errs, fmt.Errorf("parity.enabled requires host to be a loopback address, got %q", host))
 +	}
 +	return cfg.validateOracleURL(errs)
 +}
@@ -480,8 +480,8 @@ index 0000000000000000000000000000000000000000..7395d41bd5a63a12cdf1d2f44ba63906
 +	if u.Scheme != "http" || u.Hostname() == "" {
 +		return append(errs, fmt.Errorf("parity.oracle_url must be an absolute http URL, got %q", cfg.OracleURL))
 +	}
-+	if !cfg.AllowNonLoopback && !IsLoopbackHost(u.Hostname()) {
-+		return append(errs, fmt.Errorf("parity.oracle_url must point at a loopback address, got %q (set parity.allow_non_loopback to override)", cfg.OracleURL))
++	if !IsLoopbackHost(u.Hostname()) {
++		return append(errs, fmt.Errorf("parity.oracle_url must point at a loopback address, got %q", cfg.OracleURL))
 +	}
 +	return errs
 +}
@@ -499,10 +499,10 @@ index 0000000000000000000000000000000000000000..7395d41bd5a63a12cdf1d2f44ba63906
 +}
 diff --git a/config/parity_test.go b/config/parity_test.go
 new file mode 100644
-index 0000000000000000000000000000000000000000..a9b691c5ce04daf265fd109392abcf9b8740dd5c
+index 0000000000000000000000000000000000000000..e20db3b5714d62f4f21f16b99279c4fc527c96b3
 --- /dev/null
 +++ b/config/parity_test.go
-@@ -0,0 +1,147 @@
+@@ -0,0 +1,190 @@
 +package config
 +
 +import (
@@ -534,11 +534,16 @@ index 0000000000000000000000000000000000000000..a9b691c5ce04daf265fd109392abcf9b
 +		{name: "short token", cfg: ParityConfig{Enabled: true, Token: "short"}, host: "127.0.0.1", wantErrs: []string{"parity.token"}},
 +		{name: "all interfaces rejected", cfg: ParityConfig{Enabled: true, Token: testParityToken}, host: "", wantErrs: []string{"requires host to be a loopback address"}},
 +		{name: "wildcard host rejected", cfg: ParityConfig{Enabled: true, Token: testParityToken}, host: "0.0.0.0", wantErrs: []string{"requires host to be a loopback address"}},
-+		{name: "public host allowed by override", cfg: ParityConfig{Enabled: true, Token: testParityToken, AllowNonLoopback: true}, host: "0.0.0.0"},
++		{name: "ipv6 wildcard host rejected", cfg: ParityConfig{Enabled: true, Token: testParityToken}, host: "::", wantErrs: []string{"requires host to be a loopback address"}},
++		{name: "public ipv4 host rejected", cfg: ParityConfig{Enabled: true, Token: testParityToken}, host: "203.0.113.1", wantErrs: []string{"requires host to be a loopback address"}},
++		{name: "public ipv6 host rejected", cfg: ParityConfig{Enabled: true, Token: testParityToken}, host: "2001:db8::1", wantErrs: []string{"requires host to be a loopback address"}},
++		{name: "host name rejected", cfg: ParityConfig{Enabled: true, Token: testParityToken}, host: "prebid.example", wantErrs: []string{"requires host to be a loopback address"}},
 +		{name: "https oracle rejected", cfg: ParityConfig{Enabled: true, Token: testParityToken, OracleURL: "https://127.0.0.1:7999"}, host: "127.0.0.1", wantErrs: []string{"absolute http URL"}},
 +		{name: "relative oracle rejected", cfg: ParityConfig{Enabled: true, Token: testParityToken, OracleURL: "127.0.0.1:7999"}, host: "127.0.0.1", wantErrs: []string{"oracle_url"}},
 +		{name: "remote oracle rejected", cfg: ParityConfig{Enabled: true, Token: testParityToken, OracleURL: "http://10.0.0.8:7999"}, host: "127.0.0.1", wantErrs: []string{"must point at a loopback address"}},
-+		{name: "remote oracle allowed by override", cfg: ParityConfig{Enabled: true, Token: testParityToken, OracleURL: "http://10.0.0.8:7999", AllowNonLoopback: true}, host: "127.0.0.1"},
++		{name: "wildcard oracle rejected", cfg: ParityConfig{Enabled: true, Token: testParityToken, OracleURL: "http://0.0.0.0:7999"}, host: "127.0.0.1", wantErrs: []string{"must point at a loopback address"}},
++		{name: "remote ipv6 oracle rejected", cfg: ParityConfig{Enabled: true, Token: testParityToken, OracleURL: "http://[2001:db8::1]:7999"}, host: "127.0.0.1", wantErrs: []string{"must point at a loopback address"}},
++		{name: "oracle host name rejected", cfg: ParityConfig{Enabled: true, Token: testParityToken, OracleURL: "http://localhost.example:7999"}, host: "127.0.0.1", wantErrs: []string{"must point at a loopback address"}},
 +		{name: "invalid oracle url", cfg: ParityConfig{Enabled: true, Token: testParityToken, OracleURL: "http://[::1"}, host: "127.0.0.1", wantErrs: []string{"parity.oracle_url is invalid"}},
 +		{
 +			name:     "errors accumulate",
@@ -589,6 +594,31 @@ index 0000000000000000000000000000000000000000..a9b691c5ce04daf265fd109392abcf9b
 +	assert.Equal(t, ParityConfig{}, cfg.Parity)
 +}
 +
++// TestParitySettingsCannotLiftLoopback pins the parity settings to enabled,
++// token and oracle_url. None of them lifts the loopback restrictions, and there
++// is no other parity.* setting (a config key or a PBS_PARITY_* variable) that
++// could.
++func TestParitySettingsCannotLiftLoopback(t *testing.T) {
++	want := []string{"enabled", "token", "oracle_url"}
++
++	var fields []string
++	typ := reflect.TypeOf(ParityConfig{})
++	for i := 0; i < typ.NumField(); i++ {
++		fields = append(fields, typ.Field(i).Tag.Get("mapstructure"))
++	}
++	assert.Equal(t, want, fields, "ParityConfig fields")
++
++	v := viper.New()
++	SetupViper(v, "", bidderInfos)
++	var keys []string
++	for _, key := range v.AllKeys() {
++		if name, ok := strings.CutPrefix(key, "parity."); ok {
++			keys = append(keys, name)
++		}
++	}
++	assert.ElementsMatch(t, want, keys, "parity.* defaults")
++}
++
 +// TestParityStartupGuardsFromEnv drives the real config loading path with the
 +// PBS_PARITY_* environment variables an operator would set.
 +func TestParityStartupGuardsFromEnv(t *testing.T) {
@@ -607,6 +637,19 @@ index 0000000000000000000000000000000000000000..a9b691c5ce04daf265fd109392abcf9b
 +			name:    "enabled on all interfaces fails",
 +			env:     map[string]string{"PBS_PARITY_ENABLED": "true", "PBS_PARITY_TOKEN": testParityToken, "PBS_HOST": "0.0.0.0"},
 +			wantErr: "loopback",
++		},
++		{
++			name:    "enabled on a public address fails",
++			env:     map[string]string{"PBS_PARITY_ENABLED": "true", "PBS_PARITY_TOKEN": testParityToken, "PBS_HOST": "203.0.113.1"},
++			wantErr: "requires host to be a loopback address",
++		},
++		{
++			name: "enabled with a remote oracle fails",
++			env: map[string]string{
++				"PBS_PARITY_ENABLED": "true", "PBS_PARITY_TOKEN": testParityToken, "PBS_HOST": "127.0.0.1",
++				"PBS_PARITY_ORACLE_URL": "http://203.0.113.1:7999",
++			},
++			wantErr: "parity.oracle_url must point at a loopback address",
 +		},
 +		{
 +			name: "enabled on loopback starts",

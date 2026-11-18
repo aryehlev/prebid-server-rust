@@ -670,10 +670,9 @@ network.
 
 ```yaml
 parity:
-  enabled: false            # PBS_PARITY_ENABLED
-  token: ""                 # PBS_PARITY_TOKEN, >= 16 chars, logged as <REDACTED>
-  oracle_url: ""            # PBS_PARITY_ORACLE_URL, absolute http URL
-  allow_non_loopback: false # PBS_PARITY_ALLOW_NON_LOOPBACK
+  enabled: false   # PBS_PARITY_ENABLED
+  token: ""        # PBS_PARITY_TOKEN, >= 16 chars, logged as <REDACTED>
+  oracle_url: ""   # PBS_PARITY_ORACLE_URL, absolute http URL
 ```
 
 When parity is enabled, startup fails in these cases:
@@ -683,7 +682,9 @@ When parity is enabled, startup fails in these cases:
   fails);
 * `oracle_url` is not an absolute `http` URL on loopback.
 
-`allow_non_loopback` lifts the loopback restrictions.
+These are the only parity settings, and none of them lifts the loopback
+restrictions: a parity-mode server listens on loopback, sends outbound calls
+only to an oracle on loopback, and answers `/__parity/*` from loopback only.
 
 `/__parity/*` is served on the main port, ahead of `NoCache` and CORS. A caller
 must be on loopback, or on the unix socket when that is the main listener;

@@ -38,8 +38,9 @@ func registeredRoutes() RoutesFactory {
 
 // Mount returns app unchanged unless parity is enabled. In parity mode it
 // intercepts /__parity/* before NoCache and CORS, checks that the caller is on
-// loopback (unless parity.allow_non_loopback) and sent the right X-Parity-Token,
-// and hands the request to the registered routes. Every other path goes to app.
+// loopback (or on the unix socket that is the main listener) and sent the
+// right X-Parity-Token, and hands the request to the registered routes. No
+// setting lifts the loopback check. Every other path goes to app.
 func Mount(cfg *config.Configuration, deps Deps, app, dispatch http.Handler) http.Handler {
 	if cfg == nil || !cfg.Parity.Enabled {
 		return app
@@ -49,20 +50,18 @@ func Mount(cfg *config.Configuration, deps Deps, app, dispatch http.Handler) htt
 		routes = f(deps, dispatch, app)
 	}
 	return &interceptor{
-		app:              app,
-		routes:           routes,
-		token:            []byte(cfg.Parity.Token),
-		allowNonLoopback: cfg.Parity.AllowNonLoopback,
-		unixSocket:       cfg.UnixSocketEnable,
+		app:        app,
+		routes:     routes,
+		token:      []byte(cfg.Parity.Token),
+		unixSocket: cfg.UnixSocketEnable,
 	}
 }
 
 type interceptor struct {
-	app              http.Handler
-	routes           http.Handler
-	token            []byte
-	allowNonLoopback bool
-	unixSocket       bool
+	app        http.Handler
+	routes     http.Handler
+	token      []byte
+	unixSocket bool
 }
 
 func (i *interceptor) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -70,7 +69,7 @@ func (i *interceptor) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		i.app.ServeHTTP(w, r)
 		return
 	}
-	if !i.allowNonLoopback && !i.localCaller(r.RemoteAddr) {
+	if !i.localCaller(r.RemoteAddr) {
 		WriteError(w, http.StatusForbidden, "parity: /__parity/* only accepts loopback callers")
 		return
 	}

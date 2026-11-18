@@ -73,6 +73,9 @@ func TestMountGuards(t *testing.T) {
 	}{
 		{name: "non parity path passes through", path: "/openrtb2/auction", remoteAddr: "203.0.113.1:1", wantStatus: http.StatusTeapot, wantBody: "app"},
 		{name: "remote caller forbidden", path: "/__parity/health", remoteAddr: "203.0.113.1:1", token: testToken, wantStatus: http.StatusForbidden, wantBody: "loopback"},
+		{name: "remote ipv6 caller forbidden", path: "/__parity/health", remoteAddr: "[2001:db8::1]:1", token: testToken, wantStatus: http.StatusForbidden, wantBody: "loopback"},
+		{name: "private network caller forbidden", path: "/__parity/reset", remoteAddr: "10.0.0.8:1", token: testToken, wantStatus: http.StatusForbidden, wantBody: "loopback"},
+		{name: "wildcard caller forbidden", path: "/__parity/exec", remoteAddr: "0.0.0.0:1", token: testToken, wantStatus: http.StatusForbidden, wantBody: "loopback"},
 		{name: "bare prefix is guarded", path: "/__parity", remoteAddr: "203.0.113.1:1", wantStatus: http.StatusForbidden},
 		{name: "missing token unauthorized", path: "/__parity/health", remoteAddr: "127.0.0.1:5", wantStatus: http.StatusUnauthorized, wantBody: parity.TokenHeader},
 		{name: "wrong token unauthorized", path: "/__parity/health", remoteAddr: "[::1]:5", token: "0123456789abcdeX", wantStatus: http.StatusUnauthorized},
@@ -88,14 +91,24 @@ func TestMountGuards(t *testing.T) {
 			wantStatus: http.StatusOK, wantBody: "routes:127.0.0.1",
 		},
 		{
-			name: "allow_non_loopback accepts remote callers",
+			name: "remote callers are forbidden even when the routes are linked",
+			path: "/__parity/health", remoteAddr: "203.0.113.1:1", token: testToken,
+			routes: func(deps Deps, dispatch, app http.Handler) http.Handler {
+				return http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+					_, _ = io.WriteString(w, "routes")
+				})
+			},
+			wantStatus: http.StatusForbidden, wantBody: "loopback",
+		},
+		{
+			name: "remote callers are forbidden on a unix socket listener too",
 			cfg: func() *config.Configuration {
 				c := enabledConfig("")
-				c.Parity.AllowNonLoopback = true
+				c.UnixSocketEnable = true
 				return c
 			},
 			path: "/__parity/health", remoteAddr: "203.0.113.1:1", token: testToken,
-			wantStatus: http.StatusNotImplemented,
+			wantStatus: http.StatusForbidden, wantBody: "loopback",
 		},
 		{
 			name: "unix socket peers are local when the listener is a socket",

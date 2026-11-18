@@ -2,7 +2,7 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://prebid.org/pbs-parity/schema/v1/introspection.schema.json",
   "title": "pbs-parity introspection documents",
-  "description": "Responses of GET /__parity/health, GET /__parity/config, GET /__parity/bidders, POST /__parity/reset and the error document every /__parity/* route returns on failure. All routes require the X-Parity-Token header, answer application/json, are served on the main port before CORS/NoCache, and only accept loopback callers unless parity.allow_non_loopback is set.",
+  "description": "Responses of GET /__parity/health, GET /__parity/config, GET /__parity/bidders, POST /__parity/reset and the error document every /__parity/* route returns on failure. All routes require the X-Parity-Token header, answer application/json, are served on the main port before CORS/NoCache, and only accept loopback callers (or peers of the unix socket when that is the main listener); no setting lifts this.",
   "oneOf": [
     {"$ref": "#/definitions/Health"},
     {"$ref": "#/definitions/ConfigDump"},
