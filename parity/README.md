@@ -17,7 +17,12 @@ that tree, or uses the binaries built from it.
 
 This README is the contract the Rust side implements. The JSON Schemas under
 [`schema/`](schema/) are normative; the Go types in package `parity` mirror
-them, and `go test ./parity/schema/...` keeps the two in sync.
+them, and `go test ./parity/schema/...` keeps the two in sync. The Rust crate
+`pbs-parity` keeps a byte-for-byte copy of every JSON file of `schema/` in
+`crates/parity/contract`, and the CI parity job
+(`.github/port/scripts/ci-parity.sh`) fails, before anything else, when that
+copy differs: after a change here, refresh it as its README says and
+regenerate the crate's goldens with `crates/parity/testdata/go/run.sh`.
 
 ## Contents
 
