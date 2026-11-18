@@ -151,7 +151,7 @@ func main() {
 	}
 
 	out := output{
-		Generator: "pbs-devtools go-dump config-defaults (rust/crates/devtools/go/configdefaults)",
+		Generator: "pbs-devtools go-dump config-defaults (crates/devtools/go/configdefaults)",
 		GoCommit:  opts.GoCommit,
 		Notes: []string{
 			"keys: sorted viper.AllKeys() after config.SetupViper(v, \"pbs\", bidderInfos), no config file, no PBS_* env; adapters.<bidder>.* keys are folded into bidder_keys.",

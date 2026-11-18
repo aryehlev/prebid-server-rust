@@ -443,7 +443,7 @@ func runDump(opts dump.Options) {
 
 	var b bytes.Buffer
 	b.WriteString("{\n")
-	fmt.Fprintf(&b, "  \"generator\": %s,\n", dump.Raw("pbs-devtools go-dump struct-meta (rust/crates/devtools/go/structmeta)"))
+	fmt.Fprintf(&b, "  \"generator\": %s,\n", dump.Raw("pbs-devtools go-dump struct-meta (crates/devtools/go/structmeta)"))
 	fmt.Fprintf(&b, "  \"go_commit\": %s,\n", dump.Raw(opts.GoCommit))
 	fmt.Fprintf(&b, "  \"notes\": %s,\n", dump.Raw([]string{
 		"packages sorted by import path; types sorted by name; fields in declaration order; consts in source order.",

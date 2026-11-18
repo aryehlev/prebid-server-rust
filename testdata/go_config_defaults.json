@@ -1,5 +1,5 @@
 {
-  "generator": "pbs-devtools go-dump config-defaults (rust/crates/devtools/go/configdefaults)",
+  "generator": "pbs-devtools go-dump config-defaults (crates/devtools/go/configdefaults)",
   "go_commit": "4e296450de2fcc62741340b2e5f7d1df6c1744a5",
   "notes": [
     "keys: sorted viper.AllKeys() after config.SetupViper(v, \"pbs\", bidderInfos), no config file, no PBS_* env; adapters.<bidder>.* keys are folded into bidder_keys.",

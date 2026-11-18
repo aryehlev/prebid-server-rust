@@ -1,5 +1,5 @@
 {
-  "generator": "pbs-devtools go-dump bidder-infos (rust/crates/devtools/go/bidderinfos)",
+  "generator": "pbs-devtools go-dump bidder-infos (crates/devtools/go/bidderinfos)",
   "go_commit": "4e296450de2fcc62741340b2e5f7d1df6c1744a5",
   "notes": [
     "bidder_infos is cfg.BidderInfos after main.go's startup path with no host config; it equals LoadBidderInfoFromDisk's result (checked).",
