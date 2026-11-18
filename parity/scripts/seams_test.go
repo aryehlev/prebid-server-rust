@@ -161,6 +161,74 @@ func TestBuildGoGuardsTheTree(t *testing.T) {
 	}
 }
 
+// TestBuildGoBorrowsTheGoRootsObjects: the tree sees every object of the Go
+// root, even one no ref reaches, such as a blob of the previous pin after
+// fetch-upstream.sh moved a shallow checkout to a new one: git apply --3way
+// needs those blobs to refresh the seams (parity/README.md, "When the pin
+// moves"). A clone of a shallow Go root would copy only what its HEAD
+// reaches. The Go root is a shallow checkout fetch-upstream.sh makes from the
+// one the other tests use, and build-go.sh leaves it as it was.
+func TestBuildGoBorrowsTheGoRootsObjects(t *testing.T) {
+	bash := requireBash(t)
+	ws, err := filepath.Abs(filepath.Join("..", ".."))
+	if err != nil {
+		t.Fatal(err)
+	}
+	reference := os.Getenv("PBS_GO_ROOT")
+	switch {
+	case reference == "":
+		reference = filepath.Join(ws, ".upstream")
+	case !filepath.IsAbs(reference):
+		reference = filepath.Join(ws, reference)
+	}
+	base, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	goRoot := filepath.Join(base, "upstream")
+	out, code := runScriptEnv(t, bash, []string{"PBS_UPSTREAM_REFERENCE=" + reference},
+		filepath.Join(ws, "scripts", "fetch-upstream.sh"), "--dir", goRoot)
+	if code != 0 {
+		t.Fatalf("fetch-upstream.sh --dir %s: exit code %d; output:\n%s", goRoot, code, out)
+	}
+	if shallow := git(t, goRoot, nil, "rev-parse", "--is-shallow-repository"); shallow != "true" {
+		t.Fatalf("fetch-upstream.sh made a checkout that is not shallow (%s)", shallow)
+	}
+	blob := git(t, goRoot, strings.NewReader("a blob no ref of the Go root reaches\n"), "hash-object", "-w", "--stdin")
+
+	tree := filepath.Join(base, "tree")
+	out, code = runScriptEnv(t, bash, []string{"PBS_GO_ROOT=" + goRoot}, "build-go.sh", "--no-build", "--tree", tree)
+	if code != 0 {
+		t.Fatalf("build-go.sh --no-build with the shallow Go root: exit code %d; output:\n%s", code, out)
+	}
+	if err := exec.Command("git", "-C", tree, "cat-file", "-e", blob).Run(); err != nil {
+		t.Errorf("the tree does not see the blob %s, which no ref of the Go root reaches: %v", blob, err)
+	}
+	if head := git(t, goRoot, nil, "rev-parse", "HEAD"); head != pin(t, ws) {
+		t.Errorf("the Go root moved to %s", head)
+	}
+	if status := git(t, goRoot, nil, "status", "--porcelain"); status != "" {
+		t.Errorf("build-go.sh changed the Go root:\n%s", status)
+	}
+}
+
+// git runs git in dir with stdin and returns its trimmed output, failing the
+// test when git fails.
+func git(t *testing.T, dir string, stdin *strings.Reader, args ...string) string {
+	t.Helper()
+	cmd := exec.Command("git", append([]string{"-C", dir}, args...)...)
+	if stdin != nil {
+		cmd.Stdin = stdin
+	}
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+	out, err := cmd.Output()
+	if err != nil {
+		t.Fatalf("git %v in %s: %v\n%s", args, dir, err, stderr.String())
+	}
+	return strings.TrimSpace(string(out))
+}
+
 // staleContext returns the patch with its first context line changed, so it
 // no longer applies.
 func staleContext(t *testing.T, patch []byte) []byte {
@@ -200,16 +268,28 @@ func pin(t *testing.T, ws string) string {
 // loopback port. It returns the script's output and exit code.
 func runScript(t *testing.T, bash string, args ...string) (string, int) {
 	t.Helper()
+	return runScriptEnv(t, bash, nil, args...)
+}
+
+// runScriptEnv is runScript with the NAME=VALUE pairs of extra set in the
+// script's environment, in place of any value inherited.
+func runScriptEnv(t *testing.T, bash string, extra []string, args ...string) (string, int) {
+	t.Helper()
 	tmp := t.TempDir()
+	drop := map[string]bool{"TMPDIR": true, "HTTP_PROXY": true, "HTTPS_PROXY": true, "NO_PROXY": true}
+	for _, kv := range extra {
+		name, _, _ := strings.Cut(kv, "=")
+		drop[strings.ToUpper(name)] = true
+	}
 	var env []string
 	for _, kv := range os.Environ() {
 		name, _, _ := strings.Cut(kv, "=")
-		switch strings.ToUpper(name) {
-		case "TMPDIR", "HTTP_PROXY", "HTTPS_PROXY", "NO_PROXY":
+		if drop[strings.ToUpper(name)] {
 			continue
 		}
 		env = append(env, kv)
 	}
+	env = append(env, extra...)
 	env = append(env, "TMPDIR="+tmp,
 		"HTTP_PROXY=http://127.0.0.1:9", "HTTPS_PROXY=http://127.0.0.1:9", "NO_PROXY=127.0.0.1,localhost",
 		"http_proxy=http://127.0.0.1:9", "https_proxy=http://127.0.0.1:9", "no_proxy=127.0.0.1,localhost",

@@ -25,8 +25,9 @@
 #      root), else .upstream at the repository root, where scripts/fetch-upstream.sh checks it out.
 #      It must be a git checkout of github.com/prebid/prebid-server/v4 that has the commit
 #      UPSTREAM_SYNC pins. Nothing in it is written.
-#   2. The tree is a git clone --shared of the Go root, checked out at that commit whatever the Go
-#      root has checked out, so it holds exactly the pinned upstream files. .parity-tree at its
+#   2. The tree is a git repository that borrows every object of the Go root, checked out at that
+#      commit whatever the Go root has checked out, so it holds exactly the pinned upstream files
+#      and, for --3way, the blobs of earlier pins the Go root still has. .parity-tree at its
 #      top names this repository, the upstream commit and the seams. The harness writes its
 #      reports into this repository's parity/out/ and finds the Rust build here (parity/corpus
 #      Repo.HarnessRoot).
@@ -212,11 +213,23 @@ fi
 tmp=$(mktemp -d)
 trap 'rm -rf -- "${tmp}"' EXIT
 
-# 2. The pinned upstream files. The clone borrows the Go root's objects (--shared) and runs no
-# hooks; the checkout converts no line endings, so the patch sees the committed bytes.
+# 2. The pinned upstream files. The tree is a repository of its own that borrows every object of
+# the Go root (objects/info/alternates), not a clone of it: a clone of a shallow Go root, which is
+# what fetch-upstream.sh makes, copies only the objects its HEAD reaches, and git apply --3way
+# needs the blobs of the previous pin, which the Go root keeps after a move but no ref reaches.
+# The Go root's shallow file comes along, so git knows where the borrowed history stops. git init
+# copies no templates and the checkout runs no hooks and converts no line endings, so the patch
+# sees the committed bytes.
 say "assembling ${tree} from ${go_root} at ${pin}"
+objects=$(git -C "${go_root}" rev-parse --path-format=absolute --git-path objects)
+shallow=$(git -C "${go_root}" rev-parse --path-format=absolute --git-path shallow)
 find "${tree}" -mindepth 1 -maxdepth 1 -exec rm -rf -- {} +
-git -c core.hooksPath=/dev/null clone --quiet --shared --no-checkout -- "${go_root}" "${tree}"
+git init --quiet --template= --initial-branch=parity-tree -- "${tree}"
+mkdir -p "${tree}/.git/objects/info" "${tree}/.git/info"
+printf '%s\n' "${objects}" > "${tree}/.git/objects/info/alternates"
+if [[ -f "${shallow}" ]]; then
+  cp -- "${shallow}" "${tree}/.git/shallow"
+fi
 git -C "${tree}" -c core.hooksPath=/dev/null -c core.autocrlf=false -c advice.detachedHead=false \
   checkout --quiet --detach "${pin}"
 head=$(git -C "${tree}" rev-parse HEAD)

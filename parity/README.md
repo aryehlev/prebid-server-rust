@@ -74,9 +74,12 @@ in one tree:
 1. the pinned upstream checkout, the Go root: `$PBS_GO_ROOT` when it is set
    (a relative path is taken from the repository root), else `.upstream`,
    where `scripts/fetch-upstream.sh` checks out the commit `UPSTREAM_SYNC`
-   pins. The script never writes to it: the tree is a `git clone --shared` of
-   it, checked out at the pinned commit, whatever the Go root has checked
-   out;
+   pins. The script never writes to it: the tree is a git repository that
+   borrows every object of the Go root (`objects/info/alternates`), checked
+   out at the pinned commit, whatever the Go root has checked out. It is not
+   a clone, because a clone of a shallow checkout, which `fetch-upstream.sh`
+   makes, copies only what the checkout's `HEAD` reaches, and a refresh
+   needs the blobs of the previous pin (see "When the pin moves");
 2. the seams, `upstream-seams.patch`, applied with `git apply --index`. They
    must apply cleanly;
 3. a copy of this directory, its tracked files and its untracked files that
@@ -133,16 +136,22 @@ is a seam too: `seams.sh` stages every change but `parity/`, which the tree's
 `.git/info/exclude` lists. `build-go.sh` refuses to replace a tree that holds
 seam edits the patch lacks, so a run never discards them.
 `scripts/seams_test.go` runs `seams.sh check`, checks that it refuses a patch
-that does not apply and one that applies in another form, and that
-`build-go.sh` refuses the trees it must not replace.
+that does not apply and one that applies in another form, that
+`build-go.sh` refuses the trees it must not replace, and that a tree
+assembled from a shallow checkout sees an object of it that no ref reaches.
 
 **When the pin moves.** A new `UPSTREAM_SYNC` can leave the patch unable to
-apply, and `build-go.sh` then stops and points here. Refresh it with a
-three-way merge, from the repository root:
+apply, and `build-go.sh` then stops and points here. A patch that applies
+may still have changed form: other line numbers, or other upstream blob IDs
+in its `index` lines. `seams.sh check` reports that, and
+`build-go.sh --no-build` followed by `seams.sh write` records the new form.
+A patch that does not apply is refreshed with a three-way merge, from the
+repository root:
 
-1. Check that the Go root holds the old pin: `--3way` reads the blobs the
-   patch was made against from it. `scripts/fetch-upstream.sh` keeps them
-   when it moves a checkout to a new pin; in a fresh checkout, run
+1. Check that the Go root holds the old pin (`git -C .upstream cat-file -e
+   OLD_PIN`): `--3way` reads the blobs the patch was made against from it,
+   through the tree. `scripts/fetch-upstream.sh` keeps them when it moves a
+   checkout to a new pin; in a fresh checkout, run
    `scripts/fetch-upstream.sh --sha OLD_PIN` first.
 2. Update `UPSTREAM_SYNC` and run `scripts/fetch-upstream.sh`.
 3. Run `parity/scripts/build-go.sh --3way`. It applies the patch with
@@ -1028,7 +1037,7 @@ The scripts' tests run in `parity/scripts`, a Go module of its own. From the
 repository root:
 
 ```sh
-(cd parity/scripts && go test ./...)   # seams.sh check, build-go.sh's guards, the scripts' state directories
+(cd parity/scripts && go test ./...)   # seams.sh check, build-go.sh's guards and tree, the scripts' state directories
 ```
 
 Package `parity` checks that the Contents table at the top of this file
