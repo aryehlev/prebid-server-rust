@@ -344,10 +344,23 @@ check "a port branch that merged main" 0 "guard: ok" --ref "${ref}" --base "${ma
 
 # Upstream changes its LICENSE: the copy the port ships may stay at the older text (a version its
 # upstream file had) or take the new one, while the old text at another path is still a copy.
+# Upstream also adds two fixtures and removes them again, so only its history has them.
 git -C "${up}" switch -q master
+t_put "${up}" static/tiny.json 'null'
+t_put "${up}" static/old.json '{"an old upstream fixture": true}'
+t_commit "${up}" "Add two fixtures" > /dev/null
+rm -f "${up}/static/tiny.json" "${up}/static/old.json"
 t_put "${up}" LICENSE 'Apache License, Version 2.0 (test copy, reworded)'
-u4=$(t_commit "${up}" "Reword the license")
+u4=$(t_commit "${up}" "Reword the license; drop the fixtures")
 t_sync_upstream "${dir}"
+branch history-tiny
+t_put "${fork}" testdata/null.json 'null'
+ref=$(t_commit "${fork}" "A tiny golden that an old upstream fixture also held")
+check "a file under 16 bytes that only upstream history has" 0 "guard: ok" --ref "${ref}" --base "${main}"
+branch history-removed
+t_put "${fork}" testdata/old.json '{"an old upstream fixture": true}'
+ref=$(t_commit "${fork}" "A copy of a removed upstream fixture")
+check "a copy of a file upstream has removed" 1 "its upstream file): testdata/old.json" --ref "${ref}" --base "${main}"
 branch license-old
 t_advance "${fork}" "${u4}"
 ref=$(t_commit "${fork}" "Advance the pin over the license change")

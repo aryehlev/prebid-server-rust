@@ -39,9 +39,10 @@ Go server file:
 - only the top-level paths of `lib.sh port_top_level_paths` (plus `parity/` on `parity-harness`);
 - Go code only in the Go tooling modules (and `parity/` on `parity-harness`);
 - no symbolic link, submodule, `.gitmodules`, `go.work` or `vendor/` directory;
-- no file byte-identical to a file of upstream history (any blob the mirror's branch and tags
-  reach, so an older version of an upstream file counts too), except an empty file and the entries
-  of `lib.sh port_upstream_copies`: `LICENSE` (the same Apache 2.0 text) and
+- no file byte-identical to a file of the upstream tree at the pin (or the pin the change started
+  from), or to any file of 16 bytes or more in upstream history (any blob the mirror's branch and
+  tags reach, so an older or removed version of an upstream file counts too), except an empty file
+  and the entries of `lib.sh port_upstream_copies`: `LICENSE` (the same Apache 2.0 text) and
   `crates/util/src/httputil/pixel.png` (the 86-byte pixel Go serves). Each entry names its upstream
   file and covers only the bytes that file has had, not whatever is put at the path.
 

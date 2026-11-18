@@ -23,9 +23,11 @@
 #                   lib.sh port_top_level_paths (and parity/ on the parity-harness branch); Go code
 #                   only in the Go tooling modules (and parity/); no symbolic link, submodule,
 #                   .gitmodules, go.work or vendor/ directory of a Go module; and no file
-#                   byte-identical to a file of upstream history (any blob the mirror's branch
-#                   and tags reach, so an older version is a copy too), except an empty file or
-#                   a lib.sh port_upstream_copies entry that holds the bytes of its upstream file
+#                   byte-identical to a file of the upstream trees pinned at REF and at the
+#                   merge-base, or to any file of 16 bytes or more in upstream history (any blob
+#                   the mirror's branch and tags reach, so an older version is a copy too), except
+#                   an empty file or a lib.sh port_upstream_copies entry that holds the bytes of
+#                   its upstream file
 #   local-state     no tracked agent configuration or local tool state (.claude/, .omx/, ...)
 #   marker          UPSTREAM_SYNC pins one upstream commit, on the upstream branch, and the pin
 #                   did not move backwards from the merge-base's
@@ -158,8 +160,8 @@ for path in "${bot_paths[@]}"; do
   outside_bot+=(":(top,exclude)${path}")
 done
 
-# marker: the pins of REF and of the merge-base. The known-list rule reads the pinned tree, so this
-# rule runs first.
+# marker: the pins of REF and of the merge-base. The upstream-files and known-list rules read the
+# pinned trees, so this rule runs first.
 marker=$(port_marker "${ref}")
 base_marker=$(port_marker "${change_base}")
 marker_ok=false
@@ -215,12 +217,21 @@ if [[ -n "${found}" ]]; then
   list=$(joined "${found}")
   violation upstream-files "a .gitmodules, go.work or vendor/ directory brings in code from elsewhere: ${list}"
 fi
-# Every blob of upstream history, not only of the pinned trees: a copy of an older version of an
-# upstream file is still an upstream file. The mirror is a repository of its own, so its refs (the
-# upstream branch and its tags) reach upstream objects only.
+# Every blob of upstream history of at least 16 bytes, and every blob of the trees pinned at REF and
+# at the merge-base whatever its size: a copy of an older version of an upstream file is still an
+# upstream file, while a few bytes such as "{}" or "null" that some old upstream fixture held are
+# no upstream file. The mirror is a repository of its own, so its refs (the upstream branch and its
+# tags) reach upstream objects only.
 port_up rev-list --objects --all | cut -d ' ' -f 1 \
-  | port_up cat-file --batch-check='%(objecttype) %(objectname)' | sed -n 's/^blob //p' \
-  | sort -u > "${tmp}/upstream-blobs"
+  | port_up cat-file --batch-check='%(objecttype) %(objectname) %(objectsize)' \
+  | awk '$1 == "blob" && $3 >= 16 { print $2 }' > "${tmp}/upstream-blobs"
+for pin in "${marker}" "${base_marker}"; do
+  if [[ -n "${pin}" ]] && git --git-dir="${UPSTREAM_GIT}" cat-file -e "${pin}^{commit}" 2> /dev/null; then
+    port_up ls-tree -r --full-tree "${pin}" | sed -n -E 's/^[0-9]+ blob ([0-9a-f]+)\t.*$/\1/p' \
+      >> "${tmp}/upstream-blobs"
+  fi
+done
+sort -u "${tmp}/upstream-blobs" -o "${tmp}/upstream-blobs"
 # The allowed copies, as "PATH<TAB>BLOB": every version its upstream file had.
 : > "${tmp}/allowed-copies"
 copies_listing=$(port_upstream_copies)
