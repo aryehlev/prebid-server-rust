@@ -84,7 +84,9 @@ does, not against a description of it.
   the upstream module at the pinned commit and replaces it with `.upstream/`, so a plain `go run`
   builds against that checkout even when `PBS_GO_ROOT` names another one (`pbs-devtools` runs its
   own programs against the Go root). Its doc comment gives the command that regenerates its
-  goldens.
+  goldens. `pbs-parity`'s goldens are the exception: its program needs the Go parity harness,
+  which only the `parity-harness` branch holds, so they are regenerated on that branch
+  (`crates/parity/testdata/go/run.sh` there).
 - **Ground truth from Go.** `pbs-devtools` writes `testdata/`: the adapter test manifest, reflected
   struct metadata, viper defaults, bidder infos and bidder names. It also generates Rust types from
   Go packages. `cargo run -p pbs-devtools -- all --check` fails when any of it is stale.
