@@ -68,10 +68,11 @@ func TestSeamsCheck(t *testing.T) {
 }
 
 // TestBuildGoGuardsTheTree: build-go.sh assembles a tree that holds the
-// seams and the harness and names this repository in its .parity-tree. It
-// assembles anew over a tree it assembled, but refuses one that holds seam
-// edits the patch lacks, a directory it did not assemble, and a place inside
-// the repository outside parity/out, and changes none of them.
+// seams and the harness and names this repository, the pin and the patch in
+// its .parity-tree. It assembles anew over a tree it assembled, but refuses
+// one that holds seam edits the patch lacks, a directory it did not assemble,
+// and a place inside the repository outside parity/out, and changes none of
+// them.
 func TestBuildGoGuardsTheTree(t *testing.T) {
 	bash := requireBash(t)
 	ws, err := filepath.EvalSymlinks(filepath.Join("..", ".."))
@@ -99,7 +100,8 @@ func TestBuildGoGuardsTheTree(t *testing.T) {
 		t.Errorf("the last line of output is not the tree %s:\n%s", tree, out)
 	}
 	marker := readFile(t, filepath.Join(tree, ".parity-tree"))
-	for _, want := range []string{"workspace=" + ws + "\n", "upstream=" + pin(t, ws) + "\n"} {
+	patchBlob := git(t, tree, nil, "hash-object", "--no-filters", "--", filepath.Join(ws, "parity", "upstream-seams.patch"))
+	for _, want := range []string{"workspace=" + ws + "\n", "upstream=" + pin(t, ws) + "\n", "patch=" + patchBlob + "\n"} {
 		if !strings.Contains(marker, want) {
 			t.Errorf(".parity-tree does not hold %q:\n%s", want, marker)
 		}

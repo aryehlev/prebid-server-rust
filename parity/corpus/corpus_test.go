@@ -345,7 +345,8 @@ func TestFindRepoInTheWorkspaceLayout(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, tree, root, "no marker: the checkout is its own harness root")
 
-	write(DefaultTree+"/"+TreeMarker, "workspace="+ws+"\nupstream=4e296450de2fcc62741340b2e5f7d1df6c1744a5\nseams=x\n")
+	// e69de29b... is the blob ID git gives the workspace's empty patch.
+	write(DefaultTree+"/"+TreeMarker, "workspace="+ws+"\nupstream=4e296450de2fcc62741340b2e5f7d1df6c1744a5\npatch=e69de29bb2d1d6434b8b29ae775ad8c2e48c5391\nseams=x\n")
 	root, err = repo.HarnessRoot()
 	require.NoError(t, err)
 	assert.Equal(t, ws, root)
@@ -353,6 +354,66 @@ func TestFindRepoInTheWorkspaceLayout(t *testing.T) {
 	write(DefaultTree+"/"+TreeMarker, "workspace="+filepath.Join(ws, "gone")+"\n")
 	_, err = repo.HarnessRoot()
 	assert.Error(t, err, "a marker naming no workspace")
+}
+
+// TestHarnessRootRefusesAStaleTree: a tree assembled at another upstream
+// commit, or with another patch, than the workspace its marker names now holds
+// is refused with a pointer to build-go.sh; so is a marker that records no
+// patch. UPSTREAM_SYNC is read as build-go.sh reads it.
+func TestHarnessRootRefusesAStaleTree(t *testing.T) {
+	const (
+		pin   = "4e296450de2fcc62741340b2e5f7d1df6c1744a5"
+		other = "99009c08000000000000000000000000000000aa"
+	)
+	seams := "diff --git a/main.go b/main.go\n"
+	ws, err := filepath.EvalSymlinks(t.TempDir())
+	require.NoError(t, err)
+	write := func(rel, data string) {
+		p := filepath.Join(ws, filepath.FromSlash(rel))
+		require.NoError(t, os.MkdirAll(filepath.Dir(p), 0o700))
+		require.NoError(t, os.WriteFile(p, []byte(data), 0o600))
+	}
+	write(workspacePin, "# The pinned commit.\n\n  "+pin+"  \n")
+	write(workspaceSeams, seams)
+	write(DefaultTree+"/go.mod", "module github.com/prebid/prebid-server/v4\n")
+	write(DefaultTree+"/parity/README.md", "")
+	repo, err := OpenRepo(filepath.Join(ws, filepath.FromSlash(DefaultTree)))
+	require.NoError(t, err)
+	marker := func(upstream, patch string) string {
+		m := "workspace=" + ws + "\nupstream=" + upstream + "\n"
+		if patch != "" {
+			m += "patch=" + patch + "\n"
+		}
+		return m + "seams=" + blobID([]byte(seams)) + "\n"
+	}
+
+	assert.Equal(t, "c1b0730e0133447badcfd47fd144e254807b06e1", blobID([]byte("x")), "git hash-object of x")
+	write(DefaultTree+"/"+TreeMarker, marker(pin, blobID([]byte(seams))))
+	root, err := repo.HarnessRoot()
+	require.NoError(t, err)
+	assert.Equal(t, ws, root)
+
+	tests := []struct {
+		name, marker, want string
+	}{
+		{"another upstream commit", marker(other, blobID([]byte(seams))), "pins " + pin},
+		{"another patch", marker(pin, blobID([]byte("x"))), "upstream-seams.patch is blob " + blobID([]byte(seams))},
+		{"no patch recorded", marker(pin, ""), `patch blob ""`},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			write(DefaultTree+"/"+TreeMarker, tc.marker)
+			_, err := repo.HarnessRoot()
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), tc.want)
+			assert.Contains(t, err.Error(), buildScript)
+		})
+	}
+
+	write(DefaultTree+"/"+TreeMarker, marker(pin, blobID([]byte(seams))))
+	write(workspacePin, pin+"\n"+other+"\n")
+	_, err = repo.HarnessRoot()
+	assert.ErrorContains(t, err, "exactly one non-comment line", "UPSTREAM_SYNC with two pins")
 }
 
 func TestOpenRepoRequiresPrebidModule(t *testing.T) {

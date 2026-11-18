@@ -105,14 +105,18 @@ the three builds before it builds them, so a build that fails leaves none of
 an earlier tree's, and the last line it prints is the tree's path.
 
 `.parity-tree`, at the top of the tree, names this repository, the upstream
-commit and the seams the tree was assembled with. The harness reads the
-corpora, `static/` and its own fixtures from the tree, and resolves its
-outputs against the repository it names, the harness root
+commit, the patch (its blob ID) and the seams the tree was assembled with.
+The harness reads the corpora, `static/` and its own fixtures from the tree,
+and resolves its outputs against the repository it names, the harness root
 (`corpus.Repo.HarnessRoot`): runs go to `parity/out/<run-id>`, the matrix
 snapshot to `parity/matrix`, the Go build to `parity/out/bin/pbs-go`, and the
-Rust server is `target/release/pbs-server`. `corpus.FindRepo` finds the tree
-from any directory inside it or inside this repository, so the runner works
-from the repository root, and relative paths given to it (`--baseline
+Rust server is `target/release/pbs-server`. Once that repository pins another
+commit in `UPSTREAM_SYNC` or holds another `upstream-seams.patch` (a pull, a
+branch switch, `seams.sh write` from another tree), the harness refuses the
+tree and says to run `build-go.sh` again, rather than run another upstream
+commit or other seams than the repository names. `corpus.FindRepo` finds the
+tree from any directory inside it or inside this repository, so the runner
+works from the repository root, and relative paths given to it (`--baseline
 parity/baseline.json`) name this repository's files.
 
 The scripts clear the variables with which git points a command at one

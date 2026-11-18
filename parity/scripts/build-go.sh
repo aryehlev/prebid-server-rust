@@ -32,9 +32,10 @@
 #   2. The tree is a git repository that borrows every object of the Go root, checked out at that
 #      commit whatever the Go root has checked out, so it holds exactly the pinned upstream files
 #      and, for --3way, the blobs of earlier pins the Go root still has. .parity-tree at its
-#      top names this repository, the upstream commit and the seams. The harness writes its
-#      reports into this repository's parity/out/ and finds the Rust build here (parity/corpus
-#      Repo.HarnessRoot).
+#      top names this repository, the upstream commit, the patch it applies (its blob ID) and the
+#      seams. The harness writes its reports into this repository's parity/out/ and finds the
+#      Rust build here (parity/corpus Repo.HarnessRoot), and it refuses the tree once this
+#      repository pins another commit or holds another patch than the tree was assembled with.
 #   3. The seams are applied with git apply --index, and must apply cleanly. The tree's index then
 #      holds them: parity/scripts/seams.sh diff prints them, and .parity-tree records the blob ID
 #      of what it prints.
@@ -280,8 +281,11 @@ head=$(git -C "${tree}" rev-parse HEAD)
 [[ "${head}" == "${pin}" ]] || die "the tree is at ${head}, not ${pin}"
 [[ ! -e "${tree}/parity" ]] || die "upstream ${pin} has a parity/ of its own; the harness cannot be copied in"
 printf '/parity/\n/%s\n' "${marker}" >> "${tree}/.git/info/exclude"
+# The blob ID of the patch's bytes, which parity/corpus compares with the patch this repository
+# holds when the harness runs.
+patch_blob=$(git -C "${tree}" hash-object --no-filters -- "${patch}")
 # Until the seams are recorded, the tree counts as holding edits (a --3way refresh in progress).
-printf 'workspace=%s\nupstream=%s\nseams=none\n' "${root}" "${pin}" > "${tree}/${marker}"
+printf 'workspace=%s\nupstream=%s\npatch=%s\nseams=none\n' "${root}" "${pin}" "${patch_blob}" > "${tree}/${marker}"
 
 # 3. The seams.
 if [[ "${three_way}" -eq 1 ]]; then
@@ -306,7 +310,7 @@ if ! git -C "${tree}" apply --index -- "${patch}"; then
 fi
 "${here}/seams.sh" diff --tree "${tree}" > "${tree}/.git/parity-seams"
 seams=$(git hash-object -- "${tree}/.git/parity-seams")
-printf 'workspace=%s\nupstream=%s\nseams=%s\n' "${root}" "${pin}" "${seams}" > "${tree}/${marker}"
+printf 'workspace=%s\nupstream=%s\npatch=%s\nseams=%s\n' "${root}" "${pin}" "${patch_blob}" "${seams}" > "${tree}/${marker}"
 
 # 4. The harness.
 list="${tmp}/parity-files"

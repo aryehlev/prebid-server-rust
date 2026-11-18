@@ -1,6 +1,8 @@
 package corpus
 
 import (
+	"crypto/sha1"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"io/fs"
@@ -61,8 +63,9 @@ func ApprovedRoots() []string {
 // from that tree; reports go to the workspace (Repo.HarnessRoot).
 const (
 	// TreeMarker is the file build-go.sh writes at the top of the tree it
-	// assembles: "workspace=", "upstream=" and "seams=" lines naming the
-	// workspace, the upstream commit and the seams it applied.
+	// assembles: "workspace=", "upstream=", "patch=" and "seams=" lines naming
+	// the workspace, the upstream commit, the blob ID of the patch it applied
+	// and that of the seams the tree holds.
 	TreeMarker = ".parity-tree"
 	// DefaultTree is where build-go.sh assembles the tree, relative to the
 	// workspace.
@@ -148,6 +151,13 @@ func FindRepo(start string) (*Repo, error) {
 // and receives the reports (parity/out): the workspace TreeMarker names, for
 // an assembled tree, or else the checkout itself. In the workspace the Rust
 // build is under target/.
+//
+// An assembled tree must still be the one build-go.sh would assemble from the
+// workspace now, at the commit its UPSTREAM_SYNC pins and with its
+// parity/upstream-seams.patch: once either moved, the corpus, the profiles and
+// every Go build of the tree would be another upstream commit or other seams
+// than the workspace names, so HarnessRoot fails and says to assemble the tree
+// again.
 func (r *Repo) HarnessRoot() (string, error) {
 	marker := filepath.Join(r.root, TreeMarker)
 	raw, err := os.ReadFile(marker)
@@ -157,17 +167,67 @@ func (r *Repo) HarnessRoot() (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("corpus: reading %s: %w", marker, err)
 	}
+	fields := map[string]string{}
 	for _, line := range strings.Split(string(raw), "\n") {
-		ws, ok := strings.CutPrefix(line, "workspace=")
-		if !ok {
-			continue
+		if key, value, ok := strings.Cut(line, "="); ok {
+			if _, seen := fields[key]; !seen {
+				fields[key] = value
+			}
 		}
-		if !filepath.IsAbs(ws) || !IsWorkspace(ws) {
-			return "", fmt.Errorf("corpus: %s names %q, which is not the workspace (any more); assemble the tree again with %s", marker, ws, buildScript)
-		}
-		return ws, nil
 	}
-	return "", fmt.Errorf("corpus: %s names no workspace; assemble the tree again with %s", marker, buildScript)
+	ws, ok := fields["workspace"]
+	if !ok {
+		return "", fmt.Errorf("corpus: %s names no workspace; assemble the tree again with %s", marker, buildScript)
+	}
+	if !filepath.IsAbs(ws) || !IsWorkspace(ws) {
+		return "", fmt.Errorf("corpus: %s names %q, which is not the workspace (any more); assemble the tree again with %s", marker, ws, buildScript)
+	}
+	pinFile := filepath.Join(ws, workspacePin)
+	pin, err := readPin(pinFile)
+	if err != nil {
+		return "", err
+	}
+	if fields["upstream"] != pin {
+		return "", fmt.Errorf("corpus: %s was assembled at upstream commit %q, but %s pins %s; assemble the tree again with %s", marker, fields["upstream"], pinFile, pin, buildScript)
+	}
+	seamsFile := filepath.Join(ws, filepath.FromSlash(workspaceSeams))
+	seams, err := os.ReadFile(seamsFile)
+	if err != nil {
+		return "", fmt.Errorf("corpus: reading %s: %w", seamsFile, err)
+	}
+	if want := blobID(seams); fields["patch"] != want {
+		return "", fmt.Errorf("corpus: %s was assembled with the patch blob %q, but %s is blob %s; assemble the tree again with %s", marker, fields["patch"], seamsFile, want, buildScript)
+	}
+	return ws, nil
+}
+
+// readPin returns the commit an UPSTREAM_SYNC file pins: its one line that is
+// neither blank nor a comment, trimmed, as build-go.sh reads it.
+func readPin(path string) (string, error) {
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		return "", fmt.Errorf("corpus: reading %s: %w", path, err)
+	}
+	var pins []string
+	for _, line := range strings.Split(string(raw), "\n") {
+		line = strings.TrimSpace(line)
+		if line != "" && !strings.HasPrefix(line, "#") {
+			pins = append(pins, line)
+		}
+	}
+	if len(pins) != 1 {
+		return "", fmt.Errorf("corpus: %s must hold exactly one non-comment line, the pinned commit", path)
+	}
+	return pins[0], nil
+}
+
+// blobID returns the ID git gives a blob of raw (git hash-object
+// --no-filters), which build-go.sh records for the patch it applies.
+func blobID(raw []byte) string {
+	h := sha1.New()
+	fmt.Fprintf(h, "blob %d\x00", len(raw))
+	h.Write(raw)
+	return hex.EncodeToString(h.Sum(nil))
 }
 
 // Root returns the absolute repository root.

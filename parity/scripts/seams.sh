@@ -14,7 +14,8 @@
 # files against the pinned commit, its HEAD: diff and write stage them first (git add -A, which
 # leaves parity/ out, since the tree's .git/info/exclude lists it), so a file added to the tree is
 # part of the seams too. write also records the new patch in the tree's .parity-tree, so
-# build-go.sh knows the tree holds no seam edits the patch lacks.
+# build-go.sh knows the tree holds no seam edits the patch lacks, and the harness knows the tree
+# holds the patch this repository now has.
 #
 # The form: git diff with every option that git config could change set explicitly (prefixes,
 # full blob IDs, no renames, the myers algorithm with the indent heuristic, three lines of context,
@@ -124,7 +125,8 @@ case "${command}" in
     [[ -s "${tmp}/seams.patch" ]] || die "${dir} has no changes to upstream files"
     cp -- "${tmp}/seams.patch" "${patch_file}"
     seams=$(git hash-object -- "${patch_file}")
-    sed -i.bak -e "s/^seams=.*/seams=${seams}/" "${dir}/${marker}"
+    patch_blob=$(git -C "${dir}" hash-object --no-filters -- "${patch_file}")
+    sed -i.bak -e "s/^seams=.*/seams=${seams}/" -e "s/^patch=.*/patch=${patch_blob}/" "${dir}/${marker}"
     rm -f -- "${dir}/${marker}.bak"
     files=$(grep -c '^diff --git ' "${patch_file}" || true)
     printf 'seams: wrote %s (%s files, blob %s)\n' "${patch_file}" "${files}" "${seams}" >&2
