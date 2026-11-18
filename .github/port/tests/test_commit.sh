@@ -206,4 +206,24 @@ t_run_in "${repo}" env "${bot[@]}" CTX="${ctx}" START_SHA="${start}" BASE_SHA="$
   ACTION=repair "${T_SCRIPTS}/commit.sh"
 t_eq "HEAD other than START_SHA is refused" 1 "${T_RC}"
 
+# A CI skip marker in an upstream subject would make GitHub run no workflow on the port branch:
+# the subject line and the per-commit lines carry it defused.
+s6=ffffffffffffffffffffffffffffffffffffffff
+jq -n --arg s6 "${s6}" '{commits: [{sha: $s6, subject: "Fix the docs [skip ci] [Actions Skip]", classes: ["docs-infra"], adapter_dirs: [], needs_claude: false}]}' \
+  > "${ctx}/plan.json"
+t_put "${repo}" crates/x/src/lib.rs '//! x after the docs fix'
+run skipci "${s6}" ACTION=advance RUN_MODE=auto
+t_eq "a CI skip marker: exit status" 0 "${T_RC}"
+message=$(git -C "${repo}" log -1 --format=%B)
+t_has "a CI skip marker: the subject keeps the words" "${message}" "port: Fix the docs (skip ci) (Actions Skip)"
+t_has "a CI skip marker: the commit line keeps the words" "${message}" \
+  "upstream ffffffffffff Fix the docs (skip ci) (Actions Skip) (no_change_needed)"
+# shellcheck source=../scripts/lib.sh
+source "${T_SCRIPTS}/lib.sh"
+skip_re=$(port_ci_skip_re)
+skip_hit=$(grep -Ei -e "${skip_re}" <<< "${message}" || true)
+t_eq "a CI skip marker: no marker is left for GitHub" "" "${skip_hit}"
+sanitized=$(printf 'Notes\n\n\nskip-checks: true\n' | port_sanitize)
+t_eq "a skip-checks trailer is replaced" $'Notes\n\n\n[removed: CI skip marker]' "${sanitized}"
+
 t_done

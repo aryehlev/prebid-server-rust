@@ -34,6 +34,9 @@
 #   known-strict    no known failures are added for the --strict-dirs adapters
 #   attribution     no AI attribution in the messages or identities of the first-parent commits
 #                   of BASE..REF, nor in --pr-text
+#   ci-skip         REF's message carries no CI skip marker (lib.sh port_ci_skip_re): GitHub runs
+#                   no workflow for a head commit that has one, so neither CI nor this guard would
+#                   check it, and the port pull request would wait for a ci-ok that never comes
 # Bot rules (--bot), measured against merge-base(REF, default branch) so that merges of the
 # default branch into the port branch do not count
 #   bot-merge      merge commits only merge the default branch
@@ -319,6 +322,14 @@ if [[ -n "${pr_text}" ]]; then
   if [[ -n "${hit}" ]]; then
     violation attribution "the pull request title or body carries AI attribution: ${hit}"
   fi
+fi
+
+# ci-skip: GitHub reads the markers from the head commit of a push or a pull request only.
+skip_re=$(port_ci_skip_re)
+head_body=$(git log -1 --format=%B "${ref}")
+hit=$(grep -Ei -m 1 -e "${skip_re}" <<< "${head_body}" || true)
+if [[ -n "${hit}" ]]; then
+  violation ci-skip "commit ${ref:0:12} carries a CI skip marker, so GitHub would run no workflow on it: ${hit}"
 fi
 
 # bot rules

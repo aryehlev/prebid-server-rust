@@ -261,12 +261,28 @@ port_ai_email_re() {
   printf '%s\n' 'anthropic\.com|claude\[bot\]'
 }
 
+# port_ci_skip_re: an extended regular expression (matched case-insensitively) for the markers that
+# make GitHub run no workflow for a push or a pull request whose head commit message carries one:
+# [skip ci], [ci skip], [no ci], [skip actions], [actions skip] and a skip-checks trailer.
+port_ci_skip_re() {
+  printf '%s\n' '\[(skip ci|ci skip|no ci|skip actions|actions skip)\]|^[[:space:]]*skip-checks[[:space:]]*:'
+}
+
 # port_sanitize: copy stdin to stdout with every line that carries AI attribution replaced, so
-# text that ends up in commits or pull requests never carries it.
+# text that ends up in commits or pull requests never carries it, and with CI skip markers
+# defused: an upstream subject such as "Fix a typo [skip ci]" in a port commit message would stop
+# GitHub from running CI on the port branch. "[skip ci]" becomes "(skip ci)"; a skip-checks
+# trailer line is replaced.
 port_sanitize() {
   local re
   re=$(port_attribution_re)
-  PORT_RE=${re} perl -ne 'BEGIN { $re = qr/$ENV{PORT_RE}/i } print(/$re/ ? "[removed: AI attribution]\n" : $_)'
+  PORT_RE=${re} perl -ne '
+    BEGIN { $re = qr/$ENV{PORT_RE}/i }
+    if (/$re/) { print "[removed: AI attribution]\n"; next }
+    if (/\A\s*skip-checks\s*:/i) { print "[removed: CI skip marker]\n"; next }
+    s/\[(\s*(?:skip\s*ci|ci\s*skip|no\s*ci|skip\s*actions|actions\s*skip)\s*)\]/($1)/gi;
+    print;
+  '
 }
 
 # port_output NAME VALUE: set a single-line step output.

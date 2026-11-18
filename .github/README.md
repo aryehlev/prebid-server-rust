@@ -71,7 +71,7 @@ pointing at it.
 | Job | What it checks |
 | --- | --- |
 | `changes` | the compared range; the adapter directories the change touches (upstream files changed between the two pins, read from the upstream mirror, and Rust adapter files); whether it is the port pull request or the parity harness |
-| `guard` | the repository invariants (`.github/port/scripts/guard.sh`): no upstream file (above), no committed agent configuration or local state, the pin (one upstream `master` commit that never moves backwards), the known-failures list, no AI attribution in commits or pull request text, and on the port pull request the bot rules |
+| `guard` | the repository invariants (`.github/port/scripts/guard.sh`): no upstream file (above), no committed agent configuration or local state, the pin (one upstream `master` commit that never moves backwards), the known-failures list, no AI attribution in commits or pull request text, no CI skip marker on the head commit, and on the port pull request the bot rules |
 | `rust-fmt` | `cargo +<nightly> fmt --all -- --check`. The nightly comes from `rustfmt.toml` through `scripts/rustfmt-toolchain.sh`. |
 | `rust-clippy` | `cargo clippy --workspace --all-targets --locked -- -D warnings` |
 | `rust-doc` | `RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps --locked` |
@@ -262,6 +262,12 @@ Upstream commits never enter the repository; some carry such trailers. Text from
 or from agents passes through `port_sanitize` before it reaches a commit or a pull request. Lines
 about this repository's own generator, such as "Generated with `cargo run -p pbs-devtools -- all`",
 are fine.
+
+`port_sanitize` also defuses CI skip markers: an upstream subject such as "Fix a typo [skip ci]"
+would otherwise make GitHub run no workflow on the port branch, and the pull request would wait
+for a `ci-ok` that never comes. `[skip ci]` and its variants become `(skip ci)`, and a
+`skip-checks:` trailer line is replaced. The guard fails any head commit that still carries one
+(the `ci-skip` rule), in the port and publish jobs as in CI.
 
 ## Runbook
 

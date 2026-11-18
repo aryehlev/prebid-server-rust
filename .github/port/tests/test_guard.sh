@@ -219,6 +219,28 @@ branch committer
 t_put "${fork}" crates/x/src/lib.rs '//! by claude bot'
 ref=$(t_commit_as "${fork}" "claude[bot]" "claude[bot]@users.noreply.github.com" "Port foo")
 check "a commit by claude[bot]" 1 "[attribution]" --ref "${ref}" --base "${main}"
+# CI skip markers: GitHub runs no workflow on a head commit that carries one, so nothing would check
+# it. Only the head counts, as only the head counts for GitHub.
+for case in \
+  "skip ci|Port foo [skip ci]" \
+  "ci skip in capitals|Port foo [CI SKIP]" \
+  "no ci|Port foo [no ci]" \
+  "skip actions|Port foo [skip actions]" \
+  "actions skip|Port foo [actions skip]" \
+  "skip-checks trailer|$(printf 'Port foo\n\n\nskip-checks: true')"; do
+  name=${case%%|*}
+  message=${case#*|}
+  branch skip
+  t_put "${fork}" crates/x/src/lib.rs "//! ${name}"
+  ref=$(t_commit "${fork}" "${message}")
+  check "a head commit with a CI skip marker (${name})" 1 "[ci-skip]" --ref "${ref}" --base "${main}"
+done
+branch skip-earlier
+t_put "${fork}" crates/x/src/lib.rs '//! skipped'
+t_commit "${fork}" "Port foo [skip ci]" > /dev/null
+t_put "${fork}" crates/x/src/lib.rs '//! checked'
+ref=$(t_commit "${fork}" "Port foo (skip ci) after all")
+check "a CI skip marker before the head, and a defused one at the head" 0 "guard: ok" --ref "${ref}" --base "${main}"
 printf 'Upstream port\n\nAll fine.\n' > "${T_ROOT}/pr-ok.txt"
 printf 'Upstream port\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n' > "${T_ROOT}/pr-bad.txt"
 check "clean pull request text" 0 "guard: ok" --ref main --base "${f0}" --pr-text "${T_ROOT}/pr-ok.txt"
