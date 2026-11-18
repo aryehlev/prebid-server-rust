@@ -1,12 +1,19 @@
 # Go-vs-Rust live differential parity harness
 
 This directory holds the parity harness between the Go Prebid Server (the
-source of truth) and its Rust port under `rust/`. Both servers run side by side
-in parity mode. A runner sends the same case to both and compares everything
-they observed: the HTTP response, every internal stage, every outbound call,
-every random decision, the analytics calls and the Prometheus deltas. Any
-difference that the normalization allowlist does not explicitly cover is a
-mismatch.
+source of truth) and its Rust port, the Cargo workspace of this repository.
+Both servers run side by side in parity mode. A runner sends the same case to
+both and compares everything they observed: the HTTP response, every internal
+stage, every outbound call, every random decision, the analytics calls and the
+Prometheus deltas. Any difference that the normalization allowlist does not
+explicitly cover is a mismatch.
+
+The harness is Go code of the upstream module, and it needs hooks in upstream
+files. This repository never holds an upstream Go file, so the hooks are a
+patch, `upstream-seams.patch`, and the harness compiles only in a tree that
+`scripts/build-go.sh` assembles from the pinned upstream checkout, the patch
+and this directory (see "The assembled tree"). Every Go command below runs in
+that tree, or uses the binaries built from it.
 
 This README is the contract the Rust side implements. The JSON Schemas under
 [`schema/`](schema/) are normative; the Go types in package `parity` mirror
@@ -17,6 +24,7 @@ them, and `go test ./parity/schema/...` keeps the two in sync.
 | Path | What it is |
 |---|---|
 | `contracts.go`, `ids.go`, `envelope.go`, `trace.go`, `body.go`, `adapterio.go`, `errorcodes.go` | Go mirror of the contract (package `parity`, standard library only, safe to import from product code). |
+| `upstream-seams.patch` | The seams: every change the harness makes to upstream files (the hook lines of "Go hook lines" and the harness files that live in upstream packages), as a patch on the commit `UPSTREAM_SYNC` pins (see "The upstream seams"). |
 | `SELFTEST.md` | The A/A self-test runs at scale, and what each mismatch class they found turned out to be. |
 | `schema/*.schema.json` | JSON Schemas (draft-07), `$id` prefix `https://prebid.org/pbs-parity/schema/v1/`. |
 | `schema/{stages,decisions,normalization,fakes,error_codes}.json` | Registries: stage IDs, decision points, normalization allowlist, deterministic fakes, error codes. |
@@ -54,7 +62,98 @@ them, and `go test ./parity/schema/...` keeps the two in sync.
 | `replayharness/traffic/` | Compacts ReplayHarness recordings into `traffic.jsonl`. Harness-only. |
 | `replayharness/rhgate/` | Judges a `replayharness run --baseline` report of side B against side A, the Go server. Harness-only. |
 | `replayharness/rhtool/` | The command the scripts drive: `serve` boots the Go server as the runner does, `traffic` and `saved` keep what ReplayHarness recorded, `cases` lists what the corpus compares and leaves out, and `gate` judges a baseline run. Harness-only. |
-| `scripts/` | `replayharness.sh` (the parity, A/A, baseline and canary runs on the ReplayHarness requests), `replayharness-replay.sh` (the probes and replays against Go, and the recording), `replayharness-context.sh` (checks the API map against the Go source), and the scripts' tests. |
+| `scripts/` | `build-go.sh` (assembles the tree and builds the Go server, the runner and `rhtool` from it), `seams.sh` (prints, writes and checks `upstream-seams.patch`), `replayharness.sh` (the parity, A/A, baseline and canary runs on the ReplayHarness requests), `replayharness-replay.sh` (the probes and replays against Go, and the recording), `replayharness-context.sh` (checks the API map against the Go source), and the scripts' tests, a Go module of their own that stays out of the tree. |
+
+## The assembled tree
+
+The harness's packages are `github.com/prebid/prebid-server/v4/parity/...`,
+inside the upstream module, and the server it instruments is the upstream
+server with the seams applied. `scripts/build-go.sh` puts the three together
+in one tree:
+
+1. the pinned upstream checkout, the Go root: `$PBS_GO_ROOT` when it is set
+   (a relative path is taken from the repository root), else `.upstream`,
+   where `scripts/fetch-upstream.sh` checks out the commit `UPSTREAM_SYNC`
+   pins. The script never writes to it: the tree is a `git clone --shared` of
+   it, checked out at the pinned commit, whatever the Go root has checked
+   out;
+2. the seams, `upstream-seams.patch`, applied with `git apply --index`. They
+   must apply cleanly;
+3. a copy of this directory, its tracked files and its untracked files that
+   git does not ignore, without `scripts/`, `out/` and the patch.
+
+From the repository root:
+
+```sh
+scripts/fetch-upstream.sh     # once: the pinned upstream checkout, in .upstream/
+parity/scripts/build-go.sh    # the tree in parity/out/tree, the builds in parity/out/bin
+```
+
+The builds are `pbs-go`, the instrumented server, `parity`, the runner
+(`cmd/parity`), and `rhtool` (`replayharness/rhtool`), built in the tree with
+`GOWORK=off` and `-buildvcs=false`. `--no-build` assembles the tree only.
+`--tree DIR` and `--bin DIR` put the tree and the builds elsewhere. A tree
+inside this repository must be under `parity/out/`, which git ignores, so the
+upstream code never reaches the lint scans. The script deletes and assembles
+the tree on every run, and the last line it prints is the tree's path.
+
+`.parity-tree`, at the top of the tree, names this repository, the upstream
+commit and the seams the tree was assembled with. The harness reads the
+corpora, `static/` and its own fixtures from the tree, and resolves its
+outputs against the repository it names, the harness root
+(`corpus.Repo.HarnessRoot`): runs go to `parity/out/<run-id>`, the matrix
+snapshot to `parity/matrix`, the Go build to `parity/out/bin/pbs-go`, and the
+Rust server is `target/release/pbs-server`. `corpus.FindRepo` finds the tree
+from any directory inside it or inside this repository, so the runner works
+from the repository root, and relative paths given to it (`--baseline
+parity/baseline.json`) name this repository's files.
+
+Edit the harness here, never in the tree: the tree's copy of this directory
+is replaced on every run, so run `build-go.sh` again after an edit. The tree
+also holds no `scripts/`: the scripts' tests are a Go module of their own
+(`scripts/go.mod`) and run from that directory (see "Tests").
+
+### The upstream seams
+
+`upstream-seams.patch` holds every change the harness makes to upstream
+files, in one form: `git diff` against the pinned commit with every option
+that git config could change set explicitly, full blob IDs, no renames and
+three lines of context, so the same changes always give the same bytes.
+`scripts/seams.sh` keeps it in step with the tree:
+
+```sh
+parity/scripts/seams.sh diff  [--tree DIR]     # print the tree's seams in that form
+parity/scripts/seams.sh write [--tree DIR]     # write them to parity/upstream-seams.patch
+parity/scripts/seams.sh check [--patch FILE]   # the patch applies cleanly to the pin, in that form
+```
+
+To change a seam, edit the upstream file in the tree (`parity/out/tree`),
+run `seams.sh write` and commit the patch. A new file in an upstream package
+is a seam too: `seams.sh` stages every change but `parity/`, which the tree's
+`.git/info/exclude` lists. `build-go.sh` refuses to replace a tree that holds
+seam edits the patch lacks, so a run never discards them.
+`scripts/seams_test.go` runs `seams.sh check`, checks that it refuses a patch
+that does not apply and one that applies in another form, and that
+`build-go.sh` refuses the trees it must not replace.
+
+**When the pin moves.** A new `UPSTREAM_SYNC` can leave the patch unable to
+apply, and `build-go.sh` then stops and points here. Refresh it with a
+three-way merge, from the repository root:
+
+1. Check that the Go root holds the old pin: `--3way` reads the blobs the
+   patch was made against from it. `scripts/fetch-upstream.sh` keeps them
+   when it moves a checkout to a new pin; in a fresh checkout, run
+   `scripts/fetch-upstream.sh --sha OLD_PIN` first.
+2. Update `UPSTREAM_SYNC` and run `scripts/fetch-upstream.sh`.
+3. Run `parity/scripts/build-go.sh --3way`. It applies the patch with
+   `git apply --3way`, lists the files whose seams conflict with the new
+   upstream code, and builds nothing.
+4. Resolve the conflict markers in those files in `parity/out/tree`, keeping
+   what each seam does ("Go hook lines" says what that is), and adapt the
+   harness in this directory to upstream changes the same way.
+5. Run `parity/scripts/seams.sh write` and `parity/scripts/seams.sh check`.
+6. Run `parity/scripts/build-go.sh`, the tests and the self-tests (see
+   "Tests" and `SELFTEST.md`), and commit the patch with `UPSTREAM_SYNC`.
 
 ## Versioning
 
@@ -568,6 +667,10 @@ is a no-op and `/__parity/*` is ordinary application traffic.
 
 ## Go hook lines (branch only)
 
+These lines are the seams: they live in `upstream-seams.patch`, and the
+paths are those of the upstream files the patch changes (see "The upstream
+seams").
+
 | File | Hook |
 |---|---|
 | `config/config.go` | `Parity ParityConfig` field, `SetDefault("parity.*")`, `cfg.Parity.validate` |
@@ -686,20 +789,25 @@ The routes behave as follows:
 
 ## Runner
 
+From the repository root, after `parity/scripts/build-go.sh` (see "The
+assembled tree"):
+
 ```sh
-go run ./parity/cmd/parity selftest --corpus sample-requests,adapters,exchangetest
-go run ./parity/cmd/parity run --impl-b rust --bin-b rust/target/release/pbs-server --baseline parity/baseline.json
-go run ./parity/cmd/parity run --corpus all --gen 5000 --seed 42 --shards 4
-go run ./parity/cmd/parity minimize --run parity/out/<run-id>
-go run ./parity/cmd/parity report --run parity/out/<run-id> --baseline parity/baseline.json
-go run ./parity/cmd/parity matrix --run parity/out/<run-id>
+parity/out/bin/parity selftest --corpus sample-requests,adapters,exchangetest
+parity/out/bin/parity run --impl-b rust --bin-b target/release/pbs-server --baseline parity/baseline.json
+parity/out/bin/parity run --corpus all --gen 5000 --seed 42 --shards 4
+parity/out/bin/parity minimize --run parity/out/<run-id>
+parity/out/bin/parity report --run parity/out/<run-id> --baseline parity/baseline.json
+parity/out/bin/parity matrix --run parity/out/<run-id>
 ```
 
 `--impl-a` and `--impl-b` name the sides (`go` or `rust`). `--bin-a` and
-`--bin-b` give their binaries. Without `--bin-*`, a Go side is built into
-`parity/out/bin/pbs-go`. A Rust side uses `rust/target/release/pbs-server`
+`--bin-b` give their binaries. Without `--bin-*`, a Go side is built from the
+tree into `parity/out/bin/pbs-go`. A Rust side uses `target/release/pbs-server`
 when it exists. Otherwise the Rust side is not run, and every case is
-not-yet-instrumented.
+not-yet-instrumented. `--repo` names the tree, or a directory inside it or
+inside this repository; by default the runner finds it from the working
+directory.
 
 Exit codes:
 
@@ -900,7 +1008,11 @@ per-endpoint, per-bidder and per-stage tables.
 
 ## Tests
 
+The harness's tests run in the tree, from its top:
+
 ```sh
+parity/scripts/build-go.sh --no-build   # assemble parity/out/tree
+cd parity/out/tree
 go test ./parity/...                 # schemas, examples, registries, contract conformance, /__parity/* routes
 go test -race ./parity/trace/... ./parity/transport/... ./parity/diff/...
 go test -race ./parity/runner/... ./parity/minimize/... ./parity/report/... ./parity/matrix/...
@@ -908,9 +1020,22 @@ go test ./config ./router ./server ./exchange
 go test ./usersync ./endpoints ./privacysandbox   # the user sync and topics seams in parity mode
 ```
 
+Set `GOWORK=off` when a `go.work` above the repository could reach the
+tree. Tests that run upstream code in process leave the glog files of their
+test binaries in `TMPDIR`, so give them a `TMPDIR` of their own.
+
+The scripts' tests run in `parity/scripts`, a Go module of its own. From the
+repository root:
+
+```sh
+(cd parity/scripts && go test ./...)   # seams.sh check, build-go.sh's guards, the scripts' state directories
+```
+
 Package `parity` checks that the Contents table at the top of this file
-names every directory of `parity/` down to two levels and every file at its
-top level, and that every path the table names exists.
+names every directory of this repository's `parity/` down to two levels and
+every file at its top level, and that every path the table names exists. It
+reads the `parity/` of the harness root, so `scripts/` and the patch, which
+the tree leaves out, count.
 
 `parity/runner` runs its own test binary as a fake parity server, built on
 `parity/trace`, which makes one oracle call per oracle-mode case. With that
@@ -927,7 +1052,7 @@ server it checks the following:
   adapter outputs and introspection dumps.
 
 It also loads every profile's generated `pbs.yaml` through `config.New`, and
-encodes a `case.json` for every case of the repository corpus. Its route
+encodes a `case.json` for every case of the tree's corpus. Its route
 matcher must agree with httprouter's own lookup on the Go server's routes and
 on every path of the `replayharness` corpus
 (`TestRouteMatchIsHTTPRouterLookup`).
@@ -1065,19 +1190,23 @@ every outbound call. Never pass `--allow-remote` to ReplayHarness.
 REPLAYHARNESS=/path/to/replayharness parity/scripts/replayharness-context.sh [report.md]
 ```
 
-The script reads the repository and sends no requests:
+The script reads the Go source of the server the harness instruments, and
+sends no requests:
 
-1. It builds a scan root in a temporary directory outside the repository. The
-   root holds every non-test Go file that could register a route, without
-   `rust/` and `parity/`. Full-line `//` comments are blanked, with line
-   numbers kept, so documentation examples such as
-   `stored_requests/events/api/api.go:22-23` are not taken for routes.
-2. It copies the map into that root as `.replayharness/api.yaml`.
-3. It runs `replayharness context` on the root. The script fails when the
+1. It assembles a tree in a temporary directory outside the repository
+   (`build-go.sh --no-build`): the pinned upstream checkout with the seams
+   and `parity/`.
+2. It builds a scan root next to it. The root holds every non-test Go file of
+   the tree that could register a route, without `parity/`. Full-line `//`
+   comments are blanked, with line numbers kept, so documentation examples
+   such as `stored_requests/events/api/api.go:22-23` are not taken for
+   routes.
+3. It copies the map into that root as `.replayharness/api.yaml`.
+4. It runs `replayharness context` on the root. The script fails when the
    report has a "Spec drift" section, that is, when the code registers a route
    the map misses or the map lists a route with no handler.
-4. It checks that every `file:line` the map cites is inside an existing
-   repository file.
+5. It checks that every `file:line` the map cites is inside an existing file
+   of the tree.
 
 It exits 0 when there is no drift and every citation is valid, and 1
 otherwise. The optional argument keeps the full context report. After a route
@@ -1091,8 +1220,10 @@ REPLAYHARNESS=/path/to/replayharness parity/scripts/replayharness-replay.sh \
     [--out DIR] [--keep-state]
 ```
 
-The script starts the Go server with `rhtool serve`
-(`parity/replayharness/rhtool`), which uses the runner's own steps:
+The script assembles a tree in its state directory and builds the Go server
+and `rhtool` from it (`build-go.sh --tree --bin`). It starts the Go server
+with `rhtool serve` (`parity/replayharness/rhtool`), which uses the runner's
+own steps:
 
 * `runner.LoadProfiles` and `BuildConfig` with the base profile (`default`
   unless `--profile` names another), the case profile of
@@ -1142,12 +1273,14 @@ profile and a case profile's replays are not recorded (see "Case
 profiles").
 
 The state directory holds the token file, `rhtool serve`'s `state.env`,
-outbound log and server logs, the raw recording and the `rhtool` build. The
-script deletes it on every exit: on success, on failure, and on `INT`,
-`TERM` or `HUP`. With `--keep-state`, it keeps the directory without the
-builds and prints its path. The reports go to `--out`, or to a new temporary
-directory outside the state directory, which is kept. The script never prints
-the token.
+outbound log and server logs, the raw recording, and the builds: the tree and
+the binaries built from it. The script deletes it on every exit: on success,
+on failure, and on `INT`, `TERM` or `HUP`. With `--keep-state`, it keeps the
+directory without the builds and prints its path. The reports go to `--out`,
+or to a new temporary directory outside the state directory, which is kept.
+The script never prints the token. The probes, the replays and the case
+profiles are read from this repository's `parity/replayharness`, and
+`--record` writes `traffic.jsonl` there.
 
 Requests sent straight to the main port carry no parity case. The exchange
 therefore labels bidder calls as general calls, and the oracle answers them
@@ -1511,7 +1644,7 @@ parity/scripts/replayharness.sh baseline|parity|selftest|canary|record-saved|cli
 | `baseline` | Starts side A (Go) and side B with `rhtool serve -servers 2`, both under one profile and with the mock oracle. Then it runs three steps: the probes on side A alone; `replayharness run parity/replayharness/api.yaml --target B --baseline A --fail-on warning --junit ... --json ...`; and `replayharness replay parity/replayharness/replays --target B`. `rhtool gate` judges the reports (see below). Last, for each case profile, it starts both sides again with `rhtool serve -case-profile` and runs that profile's replays on side B (`replays-NAME.txt` and `.junit.xml`). |
 | `parity` | Runs `parity run --corpus replayharness`, with side B set by `--impl-b` and `--bin-b`, and lists what the corpus leaves out. The runner's exit code is the result: it fails on any mismatch or error. Flags after `--` go to `parity run`; with `-baseline`, the ratchet decides the result. |
 | `selftest` | An A/A run: `parity selftest --corpus replayharness`, then `baseline` with Go on both sides. Neither may find a difference. |
-| `canary` | Builds a Go side B with two seeded bugs, through a build overlay, so the checkout does not change. The first bug drops the `X-Prebid` header from `/openrtb2/auction`. The second renames `status` to `state` in `/info/bidders/{name}`. Both `parity` and `baseline` must fail. |
+| `canary` | Builds a Go side B with two seeded bugs from the tree, through a build overlay, so the tree does not change. The first bug drops the `X-Prebid` header from `/openrtb2/auction`. The second renames `status` to `state` in `/info/bidders/{name}`. Both `parity` and `baseline` must fail. |
 | `record-saved` | Writes `parity/replayharness/saved.jsonl` (see above). |
 | `cli` | Builds the pinned ReplayHarness CLI into the reports directory and prints its path. |
 
@@ -1529,19 +1662,22 @@ and a corpus test checks that the two agree. The build works like this:
 Set `REPLAYHARNESS=/path/to/replayharness` to use a CLI that is already
 built. The script warns when that CLI is not the pinned build.
 
-The Go server, `rhtool`, the runner, the canary and the ReplayHarness CLI are
-built into the state directory, a new temporary directory. It also holds the
-parity token file and, for each stack `rhtool serve` starts, the
-`state.env`, the outbound log and the server logs. The script deletes it on
-every exit: on success, on failure, and on `INT`, `TERM` or `HUP`. With
-`--keep-state`, it keeps the directory without the builds and prints its
-path. The reports go to `--out`, or to a new temporary directory outside the
-state directory, which is kept. The script never prints the token.
-`parity/scripts/state_test.go` checks this with stubs for `go` and the CLI:
-for this script on success (`cli`), on a failed build, on `TERM` and with
-`--keep-state`, and for `replayharness-replay.sh` in the last three cases.
-The script writes nothing in the checkout except `saved.jsonl`, and only
-`record-saved` writes that.
+The script assembles a tree in the state directory, a new temporary
+directory, and builds the Go server, `rhtool` and the runner from it
+(`build-go.sh --tree --bin`); the canary and the ReplayHarness CLI are built
+there too. The state directory also holds the parity token file and, for
+each stack `rhtool serve` starts, the `state.env`, the outbound log and the
+server logs. The script deletes it on every exit: on success, on failure,
+and on `INT`, `TERM` or `HUP`. With `--keep-state`, it keeps the directory
+without the builds and prints its path. The reports go to `--out`, or to a
+new temporary directory outside the state directory, which is kept. The
+script never prints the token. `parity/scripts/state_test.go` checks this
+with stubs for `go` and the CLI: for this script on success (`cli`), on a
+failed build, on `TERM` and with `--keep-state`, and for
+`replayharness-replay.sh` in the last three cases. The probes, replays and
+case profiles are read from this repository's `parity/replayharness`. The
+script writes no tracked file except `saved.jsonl`, and only `record-saved`
+writes that.
 
 The builds run first, and they may fetch modules. After the builds, the
 script guards every process:
@@ -1960,8 +2096,8 @@ empty.
 Build the Rust server, then run from the repository root:
 
 ```sh
-parity/scripts/replayharness.sh parity   --impl-b rust --bin-b rust/target/release/pbs-server
-parity/scripts/replayharness.sh baseline --impl-b rust --bin-b rust/target/release/pbs-server
+parity/scripts/replayharness.sh parity   --impl-b rust --bin-b target/release/pbs-server
+parity/scripts/replayharness.sh baseline --impl-b rust --bin-b target/release/pbs-server
 ```
 
 On this traffic, Rust can replace Go when both commands exit 0 and the

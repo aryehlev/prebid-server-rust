@@ -31,20 +31,29 @@ accept their faithful encoding. The runner never runs them, in A/A or in
 Go-vs-Rust. After `ph/break` was merged there are 14 (see "After merging
 `ph/break`" below).
 
-**Disabled mode.** The full upstream suite, `go test ./...`, passes on this
-branch: 387 packages are `ok` and none fail. Without `parity.enabled` the
+**Disabled mode.** The full upstream suite with the seams applied, `go test
+./...` at the top of the assembled tree, passes: 387 packages are `ok` and
+none fail. Without `parity.enabled` the
 seams below do what the original code did. `fakes.MapKeys` returns the keys
 in map order, `parityTurns` returns the context unchanged, and `inCallOrder`
 returns the channel unchanged.
 
 ## Reproducing
 
+From the repository root, with the pinned upstream checkout in `.upstream`
+(`scripts/fetch-upstream.sh`) or named by `PBS_GO_ROOT`:
+
 ```sh
-go build -o parity/out/bin/pbs-go .
-go build -o parity/out/bin/parity ./parity/cmd/parity
+parity/scripts/build-go.sh    # the tree in parity/out/tree; pbs-go and parity in parity/out/bin
 ./parity/out/bin/parity selftest --corpus all --gen 5000 --seed 7 --shards 8 \
   --bin-a parity/out/bin/pbs-go --run-id aa-final-seed7
 ```
+
+`build-go.sh` assembles the server the runs compare: the upstream commit
+`UPSTREAM_SYNC` pins, with `upstream-seams.patch` applied and the harness
+copied in (README, "The assembled tree"). The runs below were made before the
+harness moved out of the upstream checkout, on the same commit with the same
+seams in place.
 
 `selftest` exits 0 only when there are no mismatches, no harness errors and
 no failing fixtures. The reports go to `parity/out/<run-id>/`:
