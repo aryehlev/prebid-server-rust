@@ -17,8 +17,8 @@ workspace = true
 [dependencies]
 pbs-gocompat = { path = "../gocompat", version = "0.1.0" }
 pbs-logger = { path = "../logger", version = "0.1.0" }
-socket2 = "0.6.3"
-tokio = { version = "1.54.1", default-features = false, features = ["fs", "io-util", "macros", "net", "rt", "sync", "time"] }
+socket2 = { workspace = true }
+tokio = { workspace = true, features = ["fs"] }
 
 [dev-dependencies]
-tokio = { version = "1.54.1", default-features = false, features = ["fs", "io-util", "macros", "net", "rt", "rt-multi-thread", "sync", "time"] }
+tokio = { workspace = true, features = ["fs"] }

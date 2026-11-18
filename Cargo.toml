@@ -38,6 +38,73 @@ keywords = ["prebid", "openrtb", "header-bidding", "adtech"]
 categories = ["web-programming::http-server"]
 publish = false
 
+# The single source of dependency versions. Every crate names its dependencies with
+# `workspace = true` (adding features or `optional` only), so each crate has one version and one
+# base feature set. Entries join only when every gate passes with them: one version per package
+# in Cargo.lock (clippy::multiple_crate_versions, `cargo tree --duplicates`), deny.toml's licences
+# and advisories with no exception, proc macros on syn 3 only, and offline builds.
+[workspace.dependencies]
+# Dev-only: the key pairs rcgen signs test certificates with.
+aws-lc-rs = { version = "1.19.0", default-features = false, features = ["alloc", "aws-lc-sys"] }
+axum = { version = "0.8.9", features = ["http2"] }
+base64 = "0.23.1"
+bytes = "1.12.1"
+# The build dependency of the 51Degrees FFI crate; aws-lc-sys already locks it.
+cc = "1.11.2"
+# Only the JSON format: the yaml feature pulls yaml-rust2 -> hashlink -> hashbrown 0.16 beside
+# indexmap's 0.17. YAML goes through a serde-saphyr Format instead.
+config = { version = "0.15.27", default-features = false, features = ["json"] }
+# No features: Go writes and reads cookie values raw, and percent-encode's encoded() would turn
+# the base64 padding of the uids value into %3D.
+cookie = "0.18.2"
+flate2 = "1.1.11"
+futures-util = "0.3.34"
+hmac = "0.13.0"
+# pbs-server's HTTP/1.1-only connection builder (Go's header limit and read budget, which
+# axum::serve does not set) and the loopback test servers; axum already locks it.
+hyper-util = { version = "0.1.21", features = ["server-auto", "tokio"] }
+ipnet = "2.12.2"
+log = "0.4.35"
+md-5 = "0.11.0"
+moka = { version = "0.12.16", features = ["sync"] }
+proc-macro2 = "1.0.107"
+# No protobuf: the default feature pulls protobuf 3.7 -> thiserror 1 (syn 2) beside thiserror 2.
+prometheus = { version = "0.14.0", default-features = false }
+psl = "2.1.257"
+quote = "1.0.47"
+rand = "0.10.4"
+# Dev-only: test certificates. rcgen's own aws_lc_rs feature names `x509-parser?/verify-aws`,
+# which puts x509-parser and untrusted 0.7.1 beside 0.9.0 into `cargo metadata`, so rcgen has no
+# crypto feature and signs through an aws-lc-rs key.
+rcgen = { version = "0.14.10", default-features = false }
+regex = "1.13.2"
+# No system-proxy (core-foundation 0.9 through system-configuration, beside 0.10): Go reads only
+# the proxy environment variables. No charset. reqwest's gzip feature pins tower-http to 0.6.
+reqwest = { version = "0.13.5", default-features = false, features = ["gzip", "http2", "json", "rustls"] }
+# The TLS test servers; reqwest configures its own rustls. pbs-gohttp-client, which reqwest
+# replaces, adds tls12 and prefer-post-quantum.
+rustls = { version = "0.23.46", default-features = false, features = ["aws_lc_rs", "std"] }
+semver = "1.0.28"
+serde = { version = "1.0.229", features = ["derive"] }
+serde-saphyr = { version = "2.2.0", default-features = false, features = ["deserialize", "serialize"] }
+# float_roundtrip: decimal numbers parse to the f64 Go's strconv.ParseFloat gives (without it
+# serde_json may be one ulp off). Never enable preserve_order or arbitrary_precision anywhere:
+# Go sorts map keys, and arbitrary_precision changes what a Value number is.
+serde_json = { version = "1.0.154", features = ["float_roundtrip", "raw_value"] }
+sha2 = "0.11.1"
+socket2 = "0.6.5"
+syn = "3.0.10"
+time = { version = "0.3.55", features = ["formatting", "macros", "parsing"] }
+tokio = { version = "1.54.1", features = ["io-util", "macros", "net", "rt-multi-thread", "signal", "sync", "time"] }
+tokio-rustls = { version = "0.26.6", default-features = false, features = ["aws_lc_rs"] }
+# 0.6, not 0.7: reqwest 0.13.5's gzip feature depends on tower-http 0.6.
+tower-http = { version = "0.6.11", features = ["compression-gzip", "cors", "limit", "timeout"] }
+# No attributes feature: tracing-attributes is on syn 2.
+tracing = { version = "0.1.44", default-features = false, features = ["std"] }
+tracing-subscriber = { version = "0.3.23", features = ["env-filter"] }
+url = "2.5.8"
+uuid = { version = "1.29.3", features = ["v4"] }
+
 # Lint policy. Every crate opts in with `[lints] workspace = true`.
 # Suppressing a lint is forbidden everywhere: no #[allow], #![allow], #[expect],
 # cfg_attr(..., allow(...)), or "allow" levels in any [lints] table. Fix the code instead.

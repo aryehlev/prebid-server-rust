@@ -18,4 +18,4 @@ workspace = true
 pbs-gocompat = { path = "../gocompat", version = "0.1.0" }
 pbs-gojson = { path = "../gojson", version = "0.1.0" }
 pbs-goyaml = { path = "../goyaml", version = "0.1.0" }
-serde_json = { version = "1.0.154", default-features = false, features = ["std"] }
+serde_json = { workspace = true }
