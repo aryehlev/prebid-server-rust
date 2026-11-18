@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # rustfmt-toolchain.sh: print the nightly toolchain that checks formatting. It is pinned once, in
-# the header comment of rust/rustfmt.toml that reads
+# the header comment of rustfmt.toml that reads
 #   cargo +nightly-YYYY-MM-DD fmt --all -- --check
 # so CI, the port gates and developers all use the same rustfmt.
 set -euo pipefail

@@ -3,14 +3,14 @@
 # formatter or analyzer finding. The policy is to fix the finding; nothing may silence it.
 #
 # Usage:
-#   rust/scripts/check-no-lint-suppression.sh             scan the git work tree (tracked files and
-#                                                         untracked files that are not ignored)
-#   rust/scripts/check-no-lint-suppression.sh --root DIR  scan every file under DIR, laid out like the
-#                                                         repository (used by rust/scripts/tests/run.sh)
+#   scripts/check-no-lint-suppression.sh             scan the git work tree (tracked files and
+#                                                    untracked files that are not ignored)
+#   scripts/check-no-lint-suppression.sh --root DIR  scan every file under DIR, laid out like the
+#                                                    repository (used by scripts/tests/run.sh)
 #
-# Scope: rust/, .github/, .planning/, AGENTS.md, CLAUDE.md and parity/. The upstream Go server is
-# never scanned. rust/legacy/ is skipped: it is not compiled, and it is deleted once every
-# replacement crate has landed (rust/README.md).
+# Scope: every file of the repository, which holds only the Rust port and its tooling. Only build
+# output (target/) is skipped. The upstream Go server is never scanned: it is the .upstream/
+# checkout that scripts/fetch-upstream.sh makes, which git ignores and a --root scan skips.
 #
 # Rules (the bracketed id is printed with every finding):
 #   Rust sources, with comments and string literals removed first
@@ -19,7 +19,8 @@
 #     rust-cfg-attr-lint    cfg_attr(.., allow(..)) or cfg_attr(.., expect(..)), at any nesting
 #     rustfmt-skip          rustfmt::skip in any form (raw identifiers too), and the old rustfmt_skip
 #     rust-cfg-tool         cfg(..)/cfg_attr(..)/cfg!(..) predicates on clippy or rustfmt
-#     rust-include-legacy   #[path] or include!() that pulls rust/legacy/ code into a crate
+#     rust-include-legacy   #[path] or include!() that pulls legacy/ code (the Rust code that preceded
+#                           the port) into a crate
 #     rust-include          include!() or #[path] naming anything but a .rs file by a plain string
 #                           literal (generated code in OUT_DIR, other extensions): code no scan reads
 #     rust-macro-attr       an attribute a macro assembles from its input, which launders a lint
@@ -38,16 +39,16 @@
 #     crate-lints           a package whose [lints] is not exactly `workspace = true`
 #     machete-ignore        package.metadata/workspace.metadata cargo-machete `ignored` lists
 #     rust-version          a package rust-version that is not `workspace = true`, or a workspace
-#                           rust-version other than the rust/rust-toolchain.toml channel (clippy
-#                           takes it as the MSRV and turns off the lints for newer features)
-#   other configuration
+#                           rust-version other than the rust-toolchain.toml channel (clippy takes
+#                           it as the MSRV and turns off the lints for newer features)
+#   other configuration (the one allowed file of each kind is at the repository root)
 #     toml-parse            a TOML file the checks above cannot parse
-#     clippy-config         clippy configs other than rust/clippy.toml (a nested one replaces it for
-#                           the crates below it), and allow-* / *-allowed-* and msrv options
-#     rust-toolchain        toolchain files other than rust/rust-toolchain.toml (a legacy
-#                           rust/rust-toolchain wins over it and can pick a toolchain without lints)
-#     rustfmt-config        rustfmt configs other than rust/rustfmt.toml, and options that skip files
-#     deny-config           cargo-deny configs other than rust/deny.toml, and ignore/skip/exception lists
+#     clippy-config         clippy configs other than clippy.toml (a nested one replaces it for the
+#                           crates below it), and allow-* / *-allowed-* and msrv options
+#     rust-toolchain        toolchain files other than rust-toolchain.toml (a legacy rust-toolchain
+#                           wins over it and can pick a toolchain without lints)
+#     rustfmt-config        rustfmt configs other than rustfmt.toml, and options that skip files
+#     deny-config           cargo-deny configs other than deny.toml, and ignore/skip/exception lists
 #     cargo-config          rustflags, rustc / rustc-wrapper / rustc-workspace-wrapper / runner
 #                           overrides, lint-related [env] entries (including RUSTC_WRAPPER), build.
 #                           warnings and lint-command aliases in .cargo/config and .cargo/config.toml
@@ -109,22 +110,20 @@ root=$(cd "${root}" && pwd)
 work=$(mktemp -d)
 trap 'rm -rf -- "${work}"' EXIT
 
-# 1. Collect the candidate files as repository-relative paths.
+# 1. Collect the candidate files as repository-relative paths: every file but build output and, in
+#    a --root scan, the fetched upstream checkout (.gitignore keeps it out of the git listing).
 if [[ "${mode}" == git ]]; then
-  git -C "${root}" ls-files -z --cached --others --exclude-standard -- \
-    rust .github .planning AGENTS.md CLAUDE.md parity > "${work}/all"
+  git -C "${root}" ls-files -z --cached --others --exclude-standard > "${work}/all"
 else
-  (cd "${root}" && find . -type d \( -name .git -o -name target \) -prune -o -type f -print0) \
-    | perl -0 -pe 's{\A\./}{}' > "${work}/all"
+  (cd "${root}" && find . -type d \( -name .git -o -name target -o -path ./.upstream \) -prune \
+    -o -type f -print0) | perl -0 -pe 's{\A\./}{}' > "${work}/all"
 fi
 
 # 2. Classify them. Each output line is "<kind>\t<path>".
 perl -0 -ne '
   chomp;
   my $p = $_;
-  next if $p =~ m{\Arust/legacy/};
   next if $p =~ m{(?:\A|/)target/};
-  next unless $p =~ m{\A(?:rust/|\.github/|\.planning/|parity/|AGENTS\.md\z|CLAUDE\.md\z)};
   my ($base) = $p =~ m{([^/]+)\z};
   my $kind;
   if    ($p =~ /\.rs\z/)                                      { $kind = "rust" }
@@ -295,7 +294,7 @@ sub check_rust {
     my $eol = index($src, "\n", $at);
     $eol = length($src) if $eol < 0;
     if (substr($src, $at, $eol - $at) =~ m{\blegacy/}) {
-      finding($path, line_at($code, $at), "rust-include-legacy", "rust/legacy/ is not linted and must not be compiled into a crate");
+      finding($path, line_at($code, $at), "rust-include-legacy", "legacy/ code, which preceded the port, must not be compiled into a crate");
     }
   }
   # include! and #[path] may only name a .rs file with a plain literal: anything else (generated
@@ -431,7 +430,7 @@ sub check_script_text {
       finding($path, $n, "sh-options", "shellcheck option that skips checks or lowers the severity");
     }
     if ($line =~ m{\b(?:CARGO_ENCODED_)?RUST[F]LAGS\b|\bCARGO_BUILD_RUST[F]LAGS\b|\bCARGO_TARGET_[A-Z0-9_]+_RUST[F]LAGS\b|\bCARGO_(?:ENCODED|BUILD)_RUSTDOC[F]LAGS\b|\bCLIPPY_CONF_DI[R]\b|\bCLIPPY_ARG[S]\b}) {
-      finding($path, $n, "rustflags-env", "compiler flag variables can lower lint levels; lint policy lives in rust/Cargo.toml");
+      finding($path, $n, "rustflags-env", "compiler flag variables can lower lint levels; lint policy lives in Cargo.toml");
     }
     if ($line =~ m{\bRUSTDOC[F]LAGS\b}
         && $line !~ m{\bRUSTDOC[F]LAGS\s*[:=]\s*(["\x27]?)(?:-D\s*warnings|--deny[=\s]warnings)\1\s*(?:\z|[;\s\}]|\\)}) {
@@ -490,8 +489,8 @@ for my $entry (@entries) {
 for my $entry (@entries) {
   my ($kind, $path) = @{$entry};
   if ($kind eq "toolchain") {
-    if ($path ne "rust/rust-toolchain.toml") {
-      finding($path, 1, "rust-toolchain", "only rust/rust-toolchain.toml may pick the toolchain");
+    if ($path ne "rust-toolchain.toml") {
+      finding($path, 1, "rust-toolchain", "only rust-toolchain.toml at the repository root may pick the toolchain");
     }
     next;
   }
@@ -548,13 +547,13 @@ toml_rules() {
       else empty end),
       (.workspace.package["rust-version"] // null | select(. != null) as $msrv
         | select(($channel | minor) != "" and ($msrv | minor) != ($channel | minor))
-        | "rust-version\tworkspace.package.rust-version \($msrv | tostring) is not the rust/rust-toolchain.toml channel \($channel): clippy takes it as the MSRV and turns off the lints for newer features")
+        | "rust-version\tworkspace.package.rust-version \($msrv | tostring) is not the rust-toolchain.toml channel \($channel): clippy takes it as the MSRV and turns off the lints for newer features")
     elif $kind == "clippy" then
-      (if $path != "rust/clippy.toml" then "clippy-config\tonly rust/clippy.toml may configure clippy; a nested config replaces it for the crates below it" else empty end),
+      (if $path != "clippy.toml" then "clippy-config\tonly clippy.toml at the repository root may configure clippy; a nested config replaces it for the crates below it" else empty end),
       (keys[] | select(test("(^|-)allow")) | "clippy-config\t`\(.)` relaxes clippy lints"),
       (keys[] | select(test("msrv")) | "clippy-config\t`\(.)` lowers the Rust version clippy assumes, which turns off the lints that suggest newer features")
     elif $kind == "rustfmt" then
-      (if $path != "rust/rustfmt.toml" then "rustfmt-config\tonly rust/rustfmt.toml may configure rustfmt" else empty end),
+      (if $path != "rustfmt.toml" then "rustfmt-config\tonly rustfmt.toml at the repository root may configure rustfmt" else empty end),
       (if .disable_all_formatting == true then "rustfmt-config\tdisable_all_formatting turns rustfmt off" else empty end),
       (if (.ignore | nonempty) then "rustfmt-config\t`ignore` skips files" else empty end),
       (if .skip_children == true then "rustfmt-config\tskip_children skips modules" else empty end),
@@ -563,7 +562,7 @@ toml_rules() {
       (if .error_on_line_overflow == false then "rustfmt-config\terror_on_line_overflow must stay true" else empty end),
       (if .error_on_unformatted == false then "rustfmt-config\terror_on_unformatted must stay true" else empty end)
     elif $kind == "deny" then
-      (if $path != "rust/deny.toml" then "deny-config\tonly rust/deny.toml may configure cargo-deny" else empty end),
+      (if $path != "deny.toml" then "deny-config\tonly deny.toml at the repository root may configure cargo-deny" else empty end),
       (if (.advisories.ignore | nonempty) then "deny-config\tadvisories.ignore hides advisories" else empty end),
       (if (.bans.skip | nonempty) then "deny-config\tbans.skip hides duplicate versions" else empty end),
       (if (.bans["skip-tree"] | nonempty) then "deny-config\tbans.skip-tree hides duplicate versions" else empty end),
@@ -571,7 +570,7 @@ toml_rules() {
       (if (.sources["allow-git"] | nonempty) then "deny-config\tsources.allow-git admits git dependencies" else empty end),
       (if (.sources["allow-org"] | nonempty) then "deny-config\tsources.allow-org admits git dependencies" else empty end)
     elif $kind == "cargoconfig" then
-      (paths | select(.[-1] | tostring | test("^rust(doc)?flags$")) | "cargo-config\t`\(map(tostring) | join("."))` sets compiler flags; lint policy lives in rust/Cargo.toml"),
+      (paths | select(.[-1] | tostring | test("^rust(doc)?flags$")) | "cargo-config\t`\(map(tostring) | join("."))` sets compiler flags; lint policy lives in Cargo.toml"),
       (paths | select(.[-1] | tostring | test("^(rustc|rustc-wrapper|rustc-workspace-wrapper|runner)$")) | "cargo-config\t`\(map(tostring) | join("."))` overrides the compiler or the test runner, which can strip lint flags or run code"),
       ((.env // {}) | keys[] | select(test("^(CARGO_ENCODED_)?RUST(DOC)?FLAGS$|^CARGO_BUILD_RUST(DOC)?FLAGS$|^CARGO_TARGET_.*_RUST[F]LAGS$|^CLIPPY_|^CARGO_BUILD_WARNINGS$|^RUSTC(_WRAPPER|_WORKSPACE_WRAPPER)?$")) | "cargo-config\t[env] \(.) can lower lint levels or run code"),
       (if (.build.warnings // "deny") != "deny" then "cargo-config\tbuild.warnings must be deny if set" else empty end),
@@ -587,8 +586,8 @@ toml_rules() {
 
 # The pinned toolchain channel, which the workspace rust-version (the MSRV clippy assumes) must match.
 channel=""
-if [[ -f "${root}/rust/rust-toolchain.toml" ]]; then
-  channel=$(taplo get -f "${root}/rust/rust-toolchain.toml" toolchain.channel 2> /dev/null) || channel=""
+if [[ -f "${root}/rust-toolchain.toml" ]]; then
+  channel=$(taplo get -f "${root}/rust-toolchain.toml" toolchain.channel 2> /dev/null) || channel=""
 fi
 
 while IFS=$'\t' read -r kind path; do
@@ -607,7 +606,7 @@ if [[ -s "${work}/findings" ]]; then
   count=$(sort -u "${work}/findings" | wc -l)
   count=${count//[[:space:]]/}
   printf '\ncheck-no-lint-suppression: %s finding(s) in %s scanned file(s).\n' "${count}" "${scanned}"
-  printf 'Suppressing lints is forbidden in this repository: fix the code instead (rust/PORTING.md).\n'
+  printf 'Suppressing lints is forbidden in this repository: fix the code instead (PORTING.md).\n'
   exit 1
 fi
 printf 'check-no-lint-suppression: no suppressions in %s scanned file(s).\n' "${scanned}"

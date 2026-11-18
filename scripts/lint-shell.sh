@@ -3,11 +3,11 @@
 # optional check enabled, style severity, sourced files followed, and no rc file (so nothing can
 # turn a check off).
 #
-# Usage: rust/scripts/lint-shell.sh   (from anywhere in the repository)
+# Usage: scripts/lint-shell.sh   (from anywhere in the repository)
 #
-# Scripts: *.sh and *.bash under rust/ (except rust/legacy/), .github/ and parity/. The upstream
-# Go server's scripts are never linted. Every script must also be committed executable, because
-# the workflows run them directly.
+# Scripts: every *.sh and *.bash file of the repository (tracked, or untracked and not ignored).
+# The upstream Go server's scripts are never linted: its .upstream/ checkout is ignored. Every
+# script must also be committed executable, because the workflows run them directly.
 set -euo pipefail
 shopt -s inherit_errexit
 
@@ -20,14 +20,10 @@ if ! command -v shellcheck > /dev/null; then
   exit 2
 fi
 
-listing=$(git ls-files --cached --others --exclude-standard -- \
-  'rust/*.sh' 'rust/*.bash' '.github/*.sh' '.github/*.bash' 'parity/*.sh' 'parity/*.bash')
+listing=$(git ls-files --cached --others --exclude-standard -- '*.sh' '*.bash')
 scripts=()
 while IFS= read -r path; do
-  case "${path}" in
-    "" | rust/legacy/*) ;;
-    *) if [[ -f "${path}" ]]; then scripts+=("${path}"); fi ;;
-  esac
+  if [[ -n "${path}" && -f "${path}" ]]; then scripts+=("${path}"); fi
 done <<< "${listing}"
 
 if [[ "${#scripts[@]}" -eq 0 ]]; then

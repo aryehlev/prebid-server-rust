@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # cargo-machete.sh: fail if any workspace member declares a dependency it does not use.
-# The member list comes from `cargo metadata`, so only real workspace members are analyzed
-# (rust/legacy/ is not one). --with-metadata resolves renamed dependencies correctly.
+# The member list comes from `cargo metadata`, so only real workspace members are analyzed.
+# --with-metadata resolves renamed dependencies correctly.
 set -euo pipefail
 shopt -s inherit_errexit
 

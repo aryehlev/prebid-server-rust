@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Self-tests for rust/scripts/check-no-lint-suppression.sh.
+# Self-tests for scripts/check-no-lint-suppression.sh.
 #
 # Every directory under fixtures/ is one case:
 #   tree/         files laid out like the repository. Each file has an extra .in suffix, which is
