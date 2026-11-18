@@ -14,7 +14,10 @@
 #                 that still finds the objects it borrows from the Go root and holds no seam
 #                 edits that the patch lacks (see seams.sh). Inside this repository it must be
 #                 under parity/out/, which git ignores.
-#   --bin DIR     where the builds go (default parity/out/bin)
+#   --bin DIR     where the builds go (default parity/out/bin). It must not be inside the Go root,
+#                 which nothing writes, or inside the tree, where the next run would take the
+#                 builds for seam edits; inside parity/ it must be under parity/out/, or the next
+#                 run would copy the builds into the tree as harness files.
 #   --patch FILE  the seams to apply (default parity/upstream-seams.patch)
 #   --3way        apply the seams with git apply --3way, to refresh them after UPSTREAM_SYNC moved
 #                 (parity/README.md, "The upstream seams"); it stops after the patch, conflicts
@@ -44,6 +47,7 @@
 #        pbs-go   the instrumented server (the module root, .)
 #        parity   the runner (./parity/cmd/parity)
 #        rhtool   the ReplayHarness tool (./parity/replayharness/rhtool)
+#      The three are deleted first, so a build that fails leaves no binary of an earlier tree.
 #
 # Edit the harness in parity/ and the seams in the tree, and save seam edits with seams.sh write
 # before the next run: the tree's copy of parity/ is replaced every time.
@@ -199,7 +203,6 @@ physical() {
 # unsaved seam edits, and inside this repository only under parity/out/, which git ignores (the
 # lint scans must never see upstream code). Its place is checked before anything is created.
 tree=$(physical "${tree:-${root}/parity/out/tree}")
-bin=${bin:-${root}/parity/out/bin}
 if [[ -e "${tree}" && ! -d "${tree}" ]]; then
   die "${tree} exists and is not a directory"
 fi
@@ -209,6 +212,25 @@ case "${tree}/" in
   "${root}/"*) die "the tree ${tree} is inside the repository but not under parity/out/" ;;
   *) ;;
 esac
+# The builds' place is checked the same way (see --bin), whether or not this run builds.
+bin=$(physical "${bin:-${root}/parity/out/bin}")
+case "${bin}/" in
+  "${go_root}/"*) die "the builds ${bin} would be inside the Go root ${go_root}" ;;
+  "${tree}/"*) die "the builds ${bin} would be inside the tree ${tree}" ;;
+  "${root}/parity/out/"*) ;;
+  "${root}/parity/"*) die "the builds ${bin} would be inside parity/ but not under parity/out/, so the next run would copy them into the tree" ;;
+  *) ;;
+esac
+targets=("pbs-go=." "parity=./parity/cmd/parity" "rhtool=./parity/replayharness/rhtool")
+if [[ "${build}" -eq 1 ]]; then
+  for target in "${targets[@]}"; do
+    output="${bin}/${target%%=*}"
+    # go build -o writes into a directory it is given, and step 5 could not delete one.
+    if [[ -d "${output}" && ! -L "${output}" ]]; then
+      die "the build ${output} would replace a directory"
+    fi
+  done
+fi
 mkdir -p "${root}/parity/out"
 if [[ ! -f "${root}/parity/out/.gitignore" ]]; then
   printf '*\n' > "${root}/parity/out/.gitignore"
@@ -314,11 +336,14 @@ done < "${tmp}/listed"
 (cd "${root}" && COPYFILE_DISABLE=1 tar -c -f - --null -T "${list}") | tar -x -f - -C "${tree}"
 say "applied the seams (blob ${seams}) and copied ${copied} harness files"
 
-# 5. The builds.
+# 5. The builds. The binaries of an earlier run go first: built from another tree, they must not
+# stay beside this tree's when one of its builds fails.
 if [[ "${build}" -eq 1 ]]; then
   mkdir -p "${bin}"
-  bin=$(cd "${bin}" && pwd -P)
-  for target in "pbs-go=." "parity=./parity/cmd/parity" "rhtool=./parity/replayharness/rhtool"; do
+  for target in "${targets[@]}"; do
+    rm -f -- "${bin}/${target%%=*}"
+  done
+  for target in "${targets[@]}"; do
     name=${target%%=*}
     package=${target#*=}
     say "building ${bin}/${name} from ${package}"

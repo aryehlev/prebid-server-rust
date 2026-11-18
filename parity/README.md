@@ -97,8 +97,12 @@ The builds are `pbs-go`, the instrumented server, `parity`, the runner
 `GOWORK=off` and `-buildvcs=false`. `--no-build` assembles the tree only.
 `--tree DIR` and `--bin DIR` put the tree and the builds elsewhere. A tree
 inside this repository must be under `parity/out/`, which git ignores, so the
-upstream code never reaches the lint scans. The script deletes and assembles
-the tree on every run, and the last line it prints is the tree's path.
+upstream code never reaches the lint scans. The builds may not go inside the
+Go root, inside the tree (the next run would take them for seam edits) or
+inside `parity/` but outside `parity/out/` (the next run would copy them into
+the tree). The script deletes and assembles the tree on every run, deletes
+the three builds before it builds them, so a build that fails leaves none of
+an earlier tree's, and the last line it prints is the tree's path.
 
 `.parity-tree`, at the top of the tree, names this repository, the upstream
 commit and the seams the tree was assembled with. The harness reads the

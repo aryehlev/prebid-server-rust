@@ -161,6 +161,89 @@ func TestBuildGoGuardsTheTree(t *testing.T) {
 	}
 }
 
+// TestBuildGoGuardsTheBuilds: build-go.sh refuses to put its builds inside
+// the Go root, inside the tree (the next run would take them for seam edits),
+// or inside parity/ but not under parity/out/ (the next run would copy them
+// into the tree), and to replace a directory with a build, and creates
+// nothing for any of them. Before it builds, it deletes the binaries an
+// earlier run left, so a build that fails, here with a go that fails every
+// build, leaves none of them beside the new tree.
+func TestBuildGoGuardsTheBuilds(t *testing.T) {
+	bash := requireBash(t)
+	ws, err := filepath.EvalSymlinks(filepath.Join("..", ".."))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ws, err = filepath.Abs(ws); err != nil {
+		t.Fatal(err)
+	}
+	reference := goRootFor(t, ws)
+	base, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	tree := filepath.Join(base, "tree")
+	occupied := filepath.Join(base, "occupied")
+	if err := os.MkdirAll(filepath.Join(occupied, "rhtool"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	refused := []struct {
+		name, bin, want string
+		build           bool
+	}{
+		{"inside the Go root", filepath.Join(reference, "parity-builds"), "would be inside the Go root", false},
+		{"inside the tree", filepath.Join(tree, "bin"), "would be inside the tree", false},
+		{"inside parity/", filepath.Join(ws, "parity", "builds-test"), "inside parity/ but not under parity/out/", false},
+		{"over a directory", occupied, "would replace a directory", true},
+	}
+	for _, tc := range refused {
+		t.Run(tc.name, func(t *testing.T) {
+			args := []string{"build-go.sh", "--tree", tree, "--bin", tc.bin}
+			if !tc.build {
+				args = append(args, "--no-build")
+			}
+			out, code := runScript(t, bash, args...)
+			if code == 0 || !strings.Contains(out, tc.want) {
+				t.Errorf("build-go.sh --bin %s: exit code %d, want a refusal with %q; output:\n%s", tc.bin, code, tc.want, out)
+			}
+			for _, p := range []string{tree, filepath.Join(tc.bin, "pbs-go")} {
+				if _, err := os.Lstat(p); !errors.Is(err, os.ErrNotExist) {
+					t.Errorf("build-go.sh --bin %s created %s (%v)", tc.bin, p, err)
+				}
+			}
+		})
+	}
+
+	stub := filepath.Join(base, "stub")
+	if err := os.MkdirAll(stub, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	goStub := "#!/bin/sh\nif [ \"$1\" = version ]; then echo 'go version stub'; exit 0; fi\nexit 1\n"
+	if err := os.WriteFile(filepath.Join(stub, "go"), []byte(goStub), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	bin := filepath.Join(base, "bin")
+	if err := os.MkdirAll(bin, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	builds := []string{"pbs-go", "parity", "rhtool"}
+	for _, name := range builds {
+		if err := os.WriteFile(filepath.Join(bin, name), []byte("an earlier tree's build\n"), 0o700); err != nil {
+			t.Fatal(err)
+		}
+	}
+	path := "PATH=" + stub + string(os.PathListSeparator) + os.Getenv("PATH")
+	out, code := runScriptEnv(t, bash, []string{path}, "build-go.sh", "--tree", tree, "--bin", bin)
+	if code == 0 {
+		t.Fatalf("build-go.sh with a go that fails every build: exit code 0; output:\n%s", out)
+	}
+	for _, name := range builds {
+		if _, err := os.Lstat(filepath.Join(bin, name)); !errors.Is(err, os.ErrNotExist) {
+			t.Errorf("a failed build left the earlier %s (%v); output:\n%s", name, err, out)
+		}
+	}
+}
+
 // TestBuildGoIgnoresAHooksRepository: git gives a hook of a linked worktree
 // GIT_DIR and GIT_INDEX_FILE, which would point every git -C of build-go.sh
 // and seams.sh at that worktree's repository: the checkout of the tree would
