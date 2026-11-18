@@ -56,6 +56,7 @@ type spec struct {
 	sigEdit    func([]byte) []byte // re-encodes the signature
 	noExtField bool
 	rawDER     []byte
+	exportKey  bool // writes the private key to the golden's keys
 }
 
 type built struct {
@@ -66,6 +67,7 @@ type built struct {
 
 var certs = map[string]*built{}
 var order []string
+var exported []string
 
 func defaultAlg(k *keyPair) string {
 	switch k.kind {
@@ -109,6 +111,9 @@ func make1(s spec) {
 			kind = "ecdsa256"
 		}
 		key = newKey(s.name, kind)
+	}
+	if s.exportKey {
+		exported = append(exported, s.name)
 	}
 	subject := s.subject
 	if subject == nil {
@@ -250,11 +255,20 @@ func main() {
 	for _, n := range order {
 		pems[n] = string(pemOf(n))
 	}
+	keys := map[string]string{}
+	for _, n := range exported {
+		der, err := x509.MarshalPKCS8PrivateKey(certs[n].key.priv)
+		if err != nil {
+			log.Fatal(err)
+		}
+		keys[n] = string(pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: der}))
+	}
 	g := struct {
 		Certs map[string]string `json:"certs"`
+		Keys  map[string]string `json:"keys"`
 		Cases []verifyCase      `json:"cases"`
 		Now   int64             `json:"now"`
-	}{pems, cases, now.Unix()}
+	}{pems, keys, cases, now.Unix()}
 	data, err := json.MarshalIndent(g, "", " ")
 	if err != nil {
 		log.Fatal(err)

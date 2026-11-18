@@ -36,8 +36,10 @@ use pbs_gocompat::{
 use rustls::{
     CertificateError, DigitallySignedStruct, Error as TlsError, OtherError, SignatureScheme,
     client::danger::{HandshakeSignatureValid, ServerCertVerified, ServerCertVerifier},
-    crypto::{WebPkiSupportedAlgorithms, verify_tls12_signature, verify_tls13_signature},
-    pki_types::{AlgorithmIdentifier, CertificateDer, ServerName, UnixTime, alg_id},
+    crypto::WebPkiSupportedAlgorithms,
+    pki_types::{
+        AlgorithmIdentifier, CertificateDer, InvalidSignature, ServerName, UnixTime, alg_id,
+    },
 };
 
 use self::{
@@ -71,6 +73,11 @@ const MAX_NAMES_INCLUDED: usize = 100;
 const MAX_SIGNATURE_CHECKS: usize = 100;
 /// Go: `crypto/tls`'s `checkKeySize` limit for a presented RSA key (`tlsmaxrsasize` unset).
 const MAX_RSA_BITS: usize = 8192;
+/// Go: the start of the error for a handshake signature the server's key does not verify.
+const INVALID_HANDSHAKE_SIGNATURE: &str = "tls: invalid signature by the server certificate: ";
+/// Go: the error for a handshake signature scheme the client did not offer or, in TLS 1.3, that
+/// the server's key cannot use.
+const INVALID_SIGNATURE_ALGORITHM: &str = "tls: certificate used with invalid signature algorithm";
 
 /// Go's error for a server certificate the TLS client rejects.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -310,14 +317,13 @@ impl Roots {
         }
         self.verify_chains(&leaf, &presented, host, now)
             .map_err(Rejection::Verify)?;
-        let key_type = match leaf.public_key {
-            PublicKey::Rsa | PublicKey::Ecdsa(_) | PublicKey::Ed25519 => return Ok(()),
-            PublicKey::Dsa => "*dsa.PublicKey",
-            PublicKey::Unknown => "<nil>",
-        };
-        Err(Rejection::Key(format!(
-            "tls: server's certificate contains an unsupported type of public key: {key_type}"
-        )))
+        match leaf.public_key {
+            PublicKey::Rsa | PublicKey::Ecdsa(_) | PublicKey::Ed25519 => Ok(()),
+            key @ (PublicKey::Dsa | PublicKey::Unknown) => Err(Rejection::Key(format!(
+                "tls: server's certificate contains an unsupported type of public key: {}",
+                go_type(key)
+            ))),
+        }
     }
 
     /// Go: `Certificate.Verify` from the leaf's checks on.
@@ -510,6 +516,17 @@ enum KeyAlgorithm {
 }
 
 impl KeyAlgorithm {
+    /// The algorithm of a key Go reads.
+    const fn of(key: PublicKey) -> Self {
+        match key {
+            PublicKey::Unknown => Self::Unknown,
+            PublicKey::Rsa => Self::Rsa,
+            PublicKey::Dsa => Self::Dsa,
+            PublicKey::Ecdsa(_) => Self::Ecdsa,
+            PublicKey::Ed25519 => Self::Ed25519,
+        }
+    }
+
     const fn name(self) -> &'static str {
         match self {
             Self::Unknown => "0",
@@ -546,30 +563,48 @@ const fn details(alg: SignatureAlgorithm) -> (&'static str, Hash, KeyAlgorithm) 
     }
 }
 
+/// Go's `%T` of a key it reads.
+const fn go_type(key: PublicKey) -> &'static str {
+    match key {
+        PublicKey::Unknown => "<nil>",
+        PublicKey::Rsa => "*rsa.PublicKey",
+        PublicKey::Dsa => "*dsa.PublicKey",
+        PublicKey::Ecdsa(_) => "*ecdsa.PublicKey",
+        PublicKey::Ed25519 => "ed25519.PublicKey",
+    }
+}
+
+/// The rustls (aws-lc-rs) identifier of a key's algorithm; `None` for a key rustls does not
+/// verify with (P-224, DSA).
+const fn key_alg_id(key: PublicKey) -> Option<AlgorithmIdentifier> {
+    match key {
+        PublicKey::Rsa => Some(alg_id::RSA_ENCRYPTION),
+        PublicKey::Ecdsa(Curve::P256) => Some(alg_id::ECDSA_P256),
+        PublicKey::Ecdsa(Curve::P384) => Some(alg_id::ECDSA_P384),
+        PublicKey::Ecdsa(Curve::P521) => Some(alg_id::ECDSA_P521),
+        PublicKey::Ed25519 => Some(alg_id::ED25519),
+        PublicKey::Ecdsa(Curve::P224) | PublicKey::Dsa | PublicKey::Unknown => None,
+    }
+}
+
 /// The rustls (aws-lc-rs) algorithm for a signature Go would verify: the key's and the
 /// signature's algorithm identifiers. `None` for what rustls does not offer (P-224 keys).
 fn rustls_algorithm(alg: SignatureAlgorithm, key: PublicKey) -> Option<[AlgorithmIdentifier; 2]> {
     use SignatureAlgorithm as S;
-    let curve = |c| match c {
-        Curve::P256 => Some(alg_id::ECDSA_P256),
-        Curve::P384 => Some(alg_id::ECDSA_P384),
-        Curve::P521 => Some(alg_id::ECDSA_P521),
-        Curve::P224 => None,
-    };
-    let ids = match (alg, key) {
-        (S::Sha256WithRsa, PublicKey::Rsa) => [alg_id::RSA_ENCRYPTION, alg_id::RSA_PKCS1_SHA256],
-        (S::Sha384WithRsa, PublicKey::Rsa) => [alg_id::RSA_ENCRYPTION, alg_id::RSA_PKCS1_SHA384],
-        (S::Sha512WithRsa, PublicKey::Rsa) => [alg_id::RSA_ENCRYPTION, alg_id::RSA_PKCS1_SHA512],
-        (S::Sha256WithRsaPss, PublicKey::Rsa) => [alg_id::RSA_ENCRYPTION, alg_id::RSA_PSS_SHA256],
-        (S::Sha384WithRsaPss, PublicKey::Rsa) => [alg_id::RSA_ENCRYPTION, alg_id::RSA_PSS_SHA384],
-        (S::Sha512WithRsaPss, PublicKey::Rsa) => [alg_id::RSA_ENCRYPTION, alg_id::RSA_PSS_SHA512],
-        (S::EcdsaWithSha256, PublicKey::Ecdsa(c)) => [curve(c)?, alg_id::ECDSA_SHA256],
-        (S::EcdsaWithSha384, PublicKey::Ecdsa(c)) => [curve(c)?, alg_id::ECDSA_SHA384],
-        (S::EcdsaWithSha512, PublicKey::Ecdsa(c)) => [curve(c)?, alg_id::ECDSA_SHA512],
-        (S::PureEd25519, PublicKey::Ed25519) => [alg_id::ED25519, alg_id::ED25519],
+    let signature = match (alg, key) {
+        (S::Sha256WithRsa, PublicKey::Rsa) => alg_id::RSA_PKCS1_SHA256,
+        (S::Sha384WithRsa, PublicKey::Rsa) => alg_id::RSA_PKCS1_SHA384,
+        (S::Sha512WithRsa, PublicKey::Rsa) => alg_id::RSA_PKCS1_SHA512,
+        (S::Sha256WithRsaPss, PublicKey::Rsa) => alg_id::RSA_PSS_SHA256,
+        (S::Sha384WithRsaPss, PublicKey::Rsa) => alg_id::RSA_PSS_SHA384,
+        (S::Sha512WithRsaPss, PublicKey::Rsa) => alg_id::RSA_PSS_SHA512,
+        (S::EcdsaWithSha256, PublicKey::Ecdsa(_)) => alg_id::ECDSA_SHA256,
+        (S::EcdsaWithSha384, PublicKey::Ecdsa(_)) => alg_id::ECDSA_SHA384,
+        (S::EcdsaWithSha512, PublicKey::Ecdsa(_)) => alg_id::ECDSA_SHA512,
+        (S::PureEd25519, PublicKey::Ed25519) => alg_id::ED25519,
         _ => return None,
     };
-    Some(ids)
+    Some([key_alg_id(key)?, signature])
 }
 
 /// Verifies `child`'s signature with `parent`'s key using the rustls algorithm for it.
@@ -608,29 +643,18 @@ fn check_signature(
         }
         Hash::None | Hash::Sha256 | Hash::Sha384 | Hash::Sha512 => {}
     }
-    let (want, key_type, failure) = match parent.public_key {
-        PublicKey::Rsa => (
-            KeyAlgorithm::Rsa,
-            "*rsa.PublicKey",
-            "crypto/rsa: verification error",
-        ),
-        PublicKey::Ecdsa(_) => (
-            KeyAlgorithm::Ecdsa,
-            "*ecdsa.PublicKey",
-            "x509: ECDSA verification failure",
-        ),
-        PublicKey::Ed25519 => (
-            KeyAlgorithm::Ed25519,
-            "ed25519.PublicKey",
-            "x509: Ed25519 verification failure",
-        ),
+    let failure = match parent.public_key {
+        PublicKey::Rsa => "crypto/rsa: verification error",
+        PublicKey::Ecdsa(_) => "x509: ECDSA verification failure",
+        PublicKey::Ed25519 => "x509: Ed25519 verification failure",
         PublicKey::Dsa | PublicKey::Unknown => return Err(UNSUPPORTED_ALGORITHM.to_owned()),
     };
-    if key_algorithm != want {
+    if key_algorithm != KeyAlgorithm::of(parent.public_key) {
         return Err(format!(
             "x509: signature algorithm specifies an {} public key, but have public key of type \
-             {key_type}",
-            key_algorithm.name()
+             {}",
+            key_algorithm.name(),
+            go_type(parent.public_key)
         ));
     }
     if let Some(rsa) = parent.rsa {
@@ -800,6 +824,89 @@ fn match_hostnames(pattern: &str, host: &str) -> bool {
             .all(|(i, (p, h))| (i == 0 && *p == "*") || p == h)
 }
 
+/// Go: for a handshake signature scheme Go and rustls both verify, the type of key it takes
+/// (`typeAndHashFromSignatureScheme`), whether TLS 1.3 offers it (`supportedSignatureAlgorithms`)
+/// and the text of a signature with it that does not verify.
+const fn scheme_details(scheme: SignatureScheme) -> Option<(KeyAlgorithm, bool, &'static str)> {
+    use SignatureScheme as S;
+    const RSA: &str = "crypto/rsa: verification error";
+    let details = match scheme {
+        S::RSA_PKCS1_SHA256 | S::RSA_PKCS1_SHA384 | S::RSA_PKCS1_SHA512 => {
+            (KeyAlgorithm::Rsa, false, RSA)
+        }
+        S::RSA_PSS_SHA256 | S::RSA_PSS_SHA384 | S::RSA_PSS_SHA512 => (KeyAlgorithm::Rsa, true, RSA),
+        S::ECDSA_NISTP256_SHA256 | S::ECDSA_NISTP384_SHA384 | S::ECDSA_NISTP521_SHA512 => {
+            (KeyAlgorithm::Ecdsa, true, "ECDSA verification failure")
+        }
+        S::ED25519 => (KeyAlgorithm::Ed25519, true, "Ed25519 verification failure"),
+        // SHA-1 (Go: `tlssha1` off), Ed448 and ML-DSA: Go does not offer them.
+        S::RSA_PKCS1_SHA1
+        | S::ECDSA_SHA1_Legacy
+        | S::ED448
+        | S::ML_DSA_44
+        | S::ML_DSA_65
+        | S::ML_DSA_87
+        | S::Unknown(_)
+        | _ => return None,
+    };
+    Some(details)
+}
+
+/// A rejection as rustls carries it, from which the `tls` module reports Go's text.
+fn rejected(rejection: Rejection) -> TlsError {
+    TlsError::InvalidCertificate(CertificateError::Other(OtherError(Arc::new(rejection))))
+}
+
+/// Go: the server's handshake signature (TLS 1.3 `CertificateVerify`, TLS 1.2
+/// `ServerKeyExchange`), checked with the leaf's key as `ParseCertificate` reads it.
+///
+/// rustls's `verify_tls12_signature` and `verify_tls13_signature` would read the leaf again with
+/// rustls-webpki, which refuses leaves Go verifies (critical certificate policies, key
+/// identifiers or authority information access). The algorithms are rustls's for the scheme; in
+/// TLS 1.3 only the first, whose curve the scheme fixes (Go: `signatureSchemesForPublicKey`).
+fn verify_handshake_signature(
+    message: &[u8],
+    leaf: &CertificateDer<'_>,
+    scheme: SignatureScheme,
+    signature: &[u8],
+    algs: &WebPkiSupportedAlgorithms,
+    tls13: bool,
+) -> Result<(), Rejection> {
+    let invalid = || Rejection::Key(INVALID_SIGNATURE_ALGORITHM.to_owned());
+    let leaf = cert::parse(leaf).map_err(Rejection::Parse)?;
+    let (expected, failure) = scheme_details(scheme)
+        .filter(|&(_, in_tls13, _)| !tls13 || in_tls13)
+        .map(|(expected, _, failure)| (expected, failure))
+        .ok_or_else(invalid)?;
+    let candidates = algs
+        .mapping
+        .iter()
+        .find(|&&(offered, _)| offered == scheme)
+        .map(|&(_, candidates)| candidates)
+        .ok_or_else(invalid)?;
+    if !tls13 && KeyAlgorithm::of(leaf.public_key) != expected {
+        return Err(Rejection::Key(format!(
+            "{INVALID_HANDSHAKE_SIGNATURE}expected an {} public key, got {}",
+            expected.name(),
+            go_type(leaf.public_key)
+        )));
+    }
+    let failed = || Rejection::Key(format!("{INVALID_HANDSHAKE_SIGNATURE}{failure}"));
+    let usable = if tls13 {
+        candidates.get(..1).unwrap_or_default()
+    } else {
+        candidates
+    };
+    let key = key_alg_id(leaf.public_key);
+    let Some(alg) = usable.iter().find(|a| Some(a.public_key_alg_id()) == key) else {
+        // TLS 1.3: the scheme is not one for this key. TLS 1.2: a key rustls does not verify
+        // with (P-224), which Go would.
+        return Err(if tls13 { invalid() } else { failed() });
+    };
+    alg.verify_signature(&leaf.public_key_bytes, message, signature)
+        .map_err(|InvalidSignature| failed())
+}
+
 /// The rustls verifier for a handshake: Go's checks against `host` (Go: `Config.ServerName`,
 /// or the dialed host).
 #[derive(Debug)]
@@ -833,9 +940,7 @@ impl ServerCertVerifier for ServerVerifier {
         self.roots
             .verify(end_entity, intermediates, &host, &Time::now())
             .map(|()| ServerCertVerified::assertion())
-            .map_err(|r| {
-                TlsError::InvalidCertificate(CertificateError::Other(OtherError(Arc::new(r))))
-            })
+            .map_err(rejected)
     }
 
     fn verify_tls12_signature(
@@ -844,7 +949,10 @@ impl ServerCertVerifier for ServerVerifier {
         cert: &CertificateDer<'_>,
         dss: &DigitallySignedStruct,
     ) -> Result<HandshakeSignatureValid, TlsError> {
-        verify_tls12_signature(message, cert, dss, &self.roots.algs)
+        let (scheme, signature) = (dss.scheme, dss.signature());
+        verify_handshake_signature(message, cert, scheme, signature, &self.roots.algs, false)
+            .map(|()| HandshakeSignatureValid::assertion())
+            .map_err(rejected)
     }
 
     fn verify_tls13_signature(
@@ -853,7 +961,10 @@ impl ServerCertVerifier for ServerVerifier {
         cert: &CertificateDer<'_>,
         dss: &DigitallySignedStruct,
     ) -> Result<HandshakeSignatureValid, TlsError> {
-        verify_tls13_signature(message, cert, dss, &self.roots.algs)
+        let (scheme, signature) = (dss.scheme, dss.signature());
+        verify_handshake_signature(message, cert, scheme, signature, &self.roots.algs, true)
+            .map(|()| HandshakeSignatureValid::assertion())
+            .map_err(rejected)
     }
 
     fn supported_verify_schemes(&self) -> Vec<SignatureScheme> {

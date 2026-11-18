@@ -17,19 +17,23 @@ use std::{collections::BTreeMap, fs, path::Path};
 
 use pbs_gocompat::time::Time;
 use rustls::{
+    SignatureScheme,
     crypto::aws_lc_rs,
-    pki_types::{CertificateDer, pem::PemObject as _},
+    pki_types::{CertificateDer, PrivateKeyDer, pem::PemObject as _},
 };
 use serde_json::Value;
 
-use super::{Roots, hostname_error, match_hostnames, valid_hostname, verify_hostname};
+use super::{
+    INVALID_HANDSHAKE_SIGNATURE, INVALID_SIGNATURE_ALGORITHM, Roots, hostname_error,
+    match_hostnames, valid_hostname, verify_handshake_signature, verify_hostname,
+};
 use crate::testutil::ensure_eq;
 
 /// The number of cases in `x509.json`: a truncated file fails the test.
 const CASES: usize = 61;
 
 /// The number of cases in `x509_adversarial.json`.
-const ADVERSARIAL_CASES: usize = 191;
+const ADVERSARIAL_CASES: usize = 192;
 
 /// The cases where the port knowingly reports something else than Go (the crate docs list the
 /// differences), with what it reports.
@@ -67,13 +71,27 @@ fn ders(
         .collect()
 }
 
-/// Replays `testdata/golden/<file>`, which must hold `count` cases.
-fn replay(file: &str, count: usize, divergences: &[(&str, &str)]) -> Result<(), String> {
+/// `testdata/golden/<file>`.
+fn golden(file: &str) -> Result<Value, String> {
     let path = Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("testdata/golden")
         .join(file);
     let content = fs::read(&path).map_err(|e| format!("{}: {e}", path.display()))?;
-    let golden: Value = serde_json::from_slice(&content).map_err(|e| e.to_string())?;
+    serde_json::from_slice(&content).map_err(|e| e.to_string())
+}
+
+/// The PEM text at `pointer` in a golden.
+fn pem<'a>(golden: &'a Value, pointer: &str) -> Result<&'a [u8], String> {
+    golden
+        .pointer(pointer)
+        .and_then(Value::as_str)
+        .map(str::as_bytes)
+        .ok_or_else(|| format!("missing {pointer}"))
+}
+
+/// Replays `testdata/golden/<file>`, which must hold `count` cases.
+fn replay(file: &str, count: usize, divergences: &[(&str, &str)]) -> Result<(), String> {
+    let golden = golden(file)?;
     let now = golden
         .get("now")
         .and_then(Value::as_i64)
@@ -159,14 +177,9 @@ fn system_roots_error() -> Result<(), String> {
         ),
         "parsing comes first",
     )?;
-    let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("testdata/golden/x509.json");
-    let content = fs::read(&path).map_err(|e| format!("{}: {e}", path.display()))?;
-    let golden: Value = serde_json::from_slice(&content).map_err(|e| e.to_string())?;
-    let pem = golden
-        .pointer("/certs/ok")
-        .and_then(Value::as_str)
-        .ok_or("missing ok")?;
-    let leaf = CertificateDer::from_pem_slice(pem.as_bytes()).map_err(|e| e.to_string())?;
+    let golden = golden("x509.json")?;
+    let leaf =
+        CertificateDer::from_pem_slice(pem(&golden, "/certs/ok")?).map_err(|e| e.to_string())?;
     ensure_eq(
         &roots
             .verify(&leaf, &[], "localhost", &now)
@@ -177,6 +190,67 @@ fn system_roots_error() -> Result<(), String> {
                 .to_owned(),
         ),
         "system roots error",
+    )
+}
+
+/// Go checks the server's handshake signature with the leaf's key as it parsed the leaf, so a leaf
+/// rustls-webpki will not read (one with critical certificate policies, which Go verifies in the
+/// adversarial golden) still signs; the scheme has to fit the key as Go's clients require.
+#[test]
+fn handshake_signatures() -> Result<(), String> {
+    let golden = golden("x509_adversarial.json")?;
+    let leaf = CertificateDer::from_pem_slice(pem(&golden, "/certs/l_hs_policies")?)
+        .map_err(|e| e.to_string())?;
+    let key = PrivateKeyDer::from_pem_slice(pem(&golden, "/keys/l_hs_policies")?)
+        .map_err(|e| e.to_string())?;
+    let signer = aws_lc_rs::sign::any_supported_type(&key)
+        .map_err(|e| e.to_string())?
+        .choose_scheme(&[SignatureScheme::ECDSA_NISTP256_SHA256])
+        .ok_or("no P-256 signer")?;
+    let message = b"handshake transcript";
+    let signature = signer.sign(message).map_err(|e| e.to_string())?;
+    let mut corrupt = signature.clone();
+    // A bit of r (after the SEQUENCE and INTEGER headers).
+    let byte = corrupt.get_mut(8).ok_or("short signature")?;
+    *byte ^= 1;
+    let algs = aws_lc_rs::default_provider().signature_verification_algorithms;
+    let check = |scheme, sig: &[u8], tls13| {
+        verify_handshake_signature(message, &leaf, scheme, sig, &algs, tls13)
+            .map_err(|e| e.to_string())
+    };
+    let invalid = Err(INVALID_SIGNATURE_ALGORITHM.to_owned());
+    let failure = |text: &str| Err(format!("{INVALID_HANDSHAKE_SIGNATURE}{text}"));
+    let p256 = SignatureScheme::ECDSA_NISTP256_SHA256;
+    let p384 = SignatureScheme::ECDSA_NISTP384_SHA384;
+    ensure_eq(&check(p256, &signature, true), &Ok(()), "TLS 1.3")?;
+    ensure_eq(&check(p256, &signature, false), &Ok(()), "TLS 1.2")?;
+    ensure_eq(
+        &check(p256, &corrupt, true),
+        &failure("ECDSA verification failure"),
+        "corrupt signature",
+    )?;
+    // TLS 1.3 ties the curve to the scheme and has no PKCS #1 v1.5; TLS 1.2 takes the scheme's
+    // hash on any curve, and wants the scheme's type of key.
+    ensure_eq(&check(p384, &signature, true), &invalid, "TLS 1.3 curve")?;
+    ensure_eq(
+        &check(SignatureScheme::RSA_PKCS1_SHA256, &signature, true),
+        &invalid,
+        "TLS 1.3 PKCS #1 v1.5",
+    )?;
+    ensure_eq(
+        &check(p384, &signature, false),
+        &failure("ECDSA verification failure"),
+        "TLS 1.2 other hash",
+    )?;
+    ensure_eq(
+        &check(SignatureScheme::RSA_PSS_SHA256, &signature, false),
+        &failure("expected an RSA public key, got *ecdsa.PublicKey"),
+        "TLS 1.2 key type",
+    )?;
+    ensure_eq(
+        &check(SignatureScheme::ED448, &signature, false),
+        &invalid,
+        "scheme not offered",
     )
 }
 

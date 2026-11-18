@@ -71,9 +71,10 @@
 //! - aws-lc-rs judges encodings at the edges of its algorithms (a non-canonical Ed25519 key, for
 //!   one) by its own rules, not those of Go's `crypto/ed25519`, `crypto/ecdsa` and `crypto/rsa`.
 //! - The handshake's own signature (TLS 1.3 `CertificateVerify`, TLS 1.2 `ServerKeyExchange`) is
-//!   verified by rustls, which reads the leaf with rustls-webpki: a leaf that Go's verifier accepts
-//!   but webpki does not read (a version 1 or 2 certificate, or a critical extension webpki does
-//!   not know, such as certificate policies) fails the handshake there, with another error.
+//!   checked with the leaf's key as the port parses it, by the same aws-lc-rs algorithms: a key
+//!   they do not take (RSA under 2048 bits, P-224) fails with Go's text for a signature that does
+//!   not verify. What rustls checks first (the scheme against the TLS 1.2 cipher suite, the message
+//!   encodings) fails with rustls's errors.
 //! - Go's `net.ParseIP` (for the server name and URI name constraints) is approximated by Rust's
 //!   `IpAddr` parser, which takes no zones; rustls's `ServerName` refuses some names Go would send
 //!   (an IPv6 address with a zone, a name with a space) before the handshake.

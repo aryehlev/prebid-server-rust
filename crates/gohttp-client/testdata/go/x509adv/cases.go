@@ -341,6 +341,9 @@ func buildSpecs() {
 		spec{name: "l_sig_ec_trailing", parent: "root", exts: leafExts(), sigEdit: func(b []byte) []byte { return append(b, 0) }},
 		spec{name: "l_sig_ec_extra_int", parent: "root", exts: leafExts(), sigEdit: ecExtraInteger},
 		spec{name: "l_sig_ed_short", parent: "root_ed", exts: leafExts(), sigEdit: func(b []byte) []byte { return b[:len(b)-1] }},
+		// Go handles critical certificate policies in a leaf, which rustls-webpki refuses to read;
+		// its key signs the handshake in the Rust tests.
+		spec{name: "l_hs_policies", parent: "root", exts: leafExts(policiesExt(true, anyPolicy)), exportKey: true},
 	)
 	// buildChains stops after 100 signature checks: issuers that share a name and fail count.
 	for i := 0; i < 100; i++ {
@@ -575,6 +578,7 @@ func buildCases() []verifyCase {
 		one("sig_ec_trailing", r, "localhost", "l_sig_ec_trailing"),
 		one("sig_ec_extra_int", r, "localhost", "l_sig_ec_extra_int"),
 		one("sig_ed_short", []string{"root_ed"}, "localhost", "l_sig_ed_short"),
+		one("hs_policies", r, "localhost", "l_hs_policies"),
 	}
 	for _, n := range []string{
 		"wrapper_long", "wrapper_short", "wrapper_spill", "wrapper_primitive",
