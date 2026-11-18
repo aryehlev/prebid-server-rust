@@ -3,7 +3,9 @@
 # The uids cookie is base64 JSON. In parity mode its expiry comes from the
 # parity clock (parity/schema/fakes.json server_sites), but these replays
 # were written when it came from the wall clock: they save the cookie and
-# send it back, or decode it through /getuids, rather than state it. Cookie
+# send it back, or decode it through /getuids, rather than state it. The
+# replay of the Chrome versions states the Expires the parity clock gives
+# the default profile's 90-day ttl, Thu, 18 Nov 2021 15:28:50 GMT. Cookie
 # sync lists the bidders in name order and keeps that order in parity mode
 # (usersync/chooser.go, usersync/shuffler.go); replays with several bidders
 # still check counts only.
@@ -72,6 +74,30 @@ replays:
         expect:
           status: 200
           headers: {Content-Type: text/html, Set-Cookie: "uids="}
+
+  - name: setuid adds SameSite=None from Chrome 67 on, and for CriOS
+    why: siteCookieCheck reads the number after the first Chrome/ (else after CriOS/) up to the next dot or the end, Atoi turning anything else into 0, and adds Secure and SameSite=None when it is at least 67 (endpoints/setuid.go:378-404, usersync/cookie.go:108-111). The steps without SameSite=None state only what every answer has; the parity cases compare the whole Set-Cookie
+    steps:
+      - method: GET
+        path: /setuid?bidder=appnexus&uid=rh-uid-chrome-66
+        headers: {User-Agent: "Mozilla/5.0 Chrome/66.0.3359.181"}
+        expect: {status: 200, headers: {Set-Cookie: "Expires=Thu, 18 Nov 2021 15:28:50 GMT"}}
+      - method: GET
+        path: /setuid?bidder=appnexus&uid=rh-uid-chrome-67
+        headers: {User-Agent: "Mozilla/5.0 Chrome/67.0.3396.87"}
+        expect: {status: 200, headers: {Set-Cookie: "GMT; Secure; SameSite=None"}}
+      - method: GET
+        path: /setuid?bidder=appnexus&uid=rh-uid-crios-67
+        headers: {User-Agent: "Mozilla/5.0 (iPhone) CriOS/67.0.3396.87 Mobile"}
+        expect: {status: 200, headers: {Set-Cookie: "GMT; Secure; SameSite=None"}}
+      - method: GET
+        path: /setuid?bidder=appnexus&uid=rh-uid-chrome-nodot
+        headers: {User-Agent: "Mozilla/5.0 Chrome/70"}
+        expect: {status: 200, headers: {Set-Cookie: "GMT; Secure; SameSite=None"}}
+      - method: GET
+        path: /setuid?bidder=appnexus&uid=rh-uid-chrome-word
+        headers: {User-Agent: "Mozilla/5.0 Chrome/beta.1 CriOS/90.0"}
+        expect: {status: 200, headers: {Set-Cookie: "Expires=Thu, 18 Nov 2021 15:28:50 GMT"}}
 
   - name: setuid parameter errors are plain 400s
     why: getSyncer, getResponseFormat and the GDPR and GPP parsers each return their own text (endpoints/setuid.go:100, 217, 261, 325, 331, 372)
