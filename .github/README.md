@@ -21,8 +21,11 @@ The daily upstream-port workflow advances that pin over new upstream commits and
   `crates/<crate>/testdata/go/` that write goldens from the real Go code, and the dump programs in
   `crates/devtools/go/`. Each module requires `github.com/prebid/prebid-server/v4` at the pin's
   pseudo-version (`.github/port/scripts/pin-version.sh` derives it the way the go command does)
-  and replaces it with a relative path to `.upstream`. The port workflow updates the versions
-  together with the pin (`advance-pin.sh`).
+  and replaces it with a relative path to `.upstream`. It has upstream's `go` line, no
+  `toolchain` line, and requires other modules only at the versions upstream's `go.mod` requires
+  them at (`pbs-devtools` checks all of it). The port workflow moves the upstream version together
+  with the pin (`advance-pin.sh`), then syncs the `go` line and the dependency versions with the
+  new pin's `go.mod` and tidies each module (`sync-go-modules.sh`).
 - **The port log.** `upstream-port-log.jsonl` gets one line per upstream commit the pin advanced
   over: its status (`ported`, `partial`, `blocked`, `no_change_needed`, `skipped` or
   `pinned-not-ported`), the Go behaviour left unported, and the run. It only grows: the guard
@@ -86,7 +89,7 @@ pointing at it.
 | `go-tooling` | the Go tooling modules (`.github/port/scripts/go-tooling.sh`): `gofmt -s -l` prints nothing, and `go build ./...` and `go test ./...` pass with `GOFLAGS=-mod=readonly` in every `crates/**/go.mod` module except `crates/parity/testdata/go`, which needs `parity/` and runs in the `parity` job |
 | `lint-policy` | `scripts/check-no-lint-suppression.sh` (no `#[allow]`, `#[expect]`, lint caps or "allow" levels anywhere, including attributes a macro assembles, which clippy does not see) and its self-tests `scripts/tests/run.sh` |
 | `lint-config` | `taplo fmt --check`, shellcheck of every script with every optional check at style severity (`scripts/lint-shell.sh`), and actionlint |
-| `port-tests` | `.github/port/tests/run-all.sh`: the port tooling, tested in temporary repositories, with an upstream mirror for the checks of real upstream commits |
+| `port-tests` | `.github/port/tests/run-all.sh`: the port tooling, tested in temporary repositories, with an upstream mirror for the checks of real upstream commits and Go for the module sync test |
 | `deny` | `cargo deny --locked check --deny warnings`: advisories, bans, licenses, sources (crates.io only, no duplicate versions) |
 | `machete` | unused dependencies (`scripts/cargo-machete.sh`) |
 | `parity` | `parity-harness` only: `.github/port/scripts/ci-parity.sh` assembles the pinned upstream tree, `parity/` and the seams patch in a temporary copy, then checks `gofmt -s -l` over the Go files the patch touches, `parity/scripts/seams.sh check`, the parity scripts' own module (`parity/scripts`), `go test ./parity/...` (and `-race` on the concurrent packages), `go test` of every upstream package the patch touches (from its file list) and of the root package, the `crates/parity/testdata/go` module, and the harness selftest. The Go-versus-Rust run follows `cargo metadata`: while the workspace has no bin target named `pbs-server` (it has none yet), the run is skipped with a notice that says so; once it has one, the job builds it and always runs the harness against it (`--bin-b`, ratcheted against `parity/baseline.json` when the branch has one), and any nonzero exit fails, 3 (incomplete) included |
@@ -128,6 +131,13 @@ Three jobs, each with its own trust level. One run at a time.
    - `advance-pin.sh` moves `UPSTREAM_SYNC` and the Go tooling modules to the new pin.
    - `build-context.sh` gives the agents the plan, each upstream commit's patch and message, the
      whole Go diff between the pins, the failing CI log of a repair and the Go-to-Rust path map.
+   - `sync-go-modules.sh` (trusted, with network; the agents have neither `go mod` nor network)
+     gives every Go tooling module the new pin's `go` line and the versions its `go.mod` requires,
+     and runs `go mod tidy` in each, so an upstream dependency bump or Go upgrade does not leave
+     the modules unbuildable under `-mod=readonly`. It fails the job, naming the module, when a
+     module cannot be tidied or still requires something upstream does not.
+     `crates/parity/testdata/go` imports the parity packages, which `main` does not have: it gets
+     the `go` line and the versions without a tidy. The summary goes into the port commit.
    - Crates and Go modules are prefetched; the gates run (`gates.sh`: the CI checks above).
 
    Then the agent sessions run:
@@ -321,7 +331,9 @@ linked run. Nothing was pushed. The next scheduled run plans again from scratch.
 
 ## Local commands
 
-The scripts need bash 4.4 or newer, git, jq and perl. On macOS, install bash with Homebrew.
+The scripts need bash 4.4 or newer, git, jq and perl, and the port tooling tests also need Go
+(`test_sync_go_modules.sh` runs `go mod tidy` against a module proxy in a temporary directory, with
+no network). On macOS, install bash with Homebrew.
 
 ```sh
 scripts/fetch-upstream.sh                      # .upstream/ at the pinned commit

@@ -10,7 +10,11 @@
 #              makes CI run again. Without it a repair that finds nothing would be planned again
 #              every day and never escalate.
 # Only the writable paths and the port records (lib.sh port_writable_paths, port_record_paths)
-# are staged; check-worktree.sh has already reverted everything else.
+# are staged; check-worktree.sh has already reverted everything else. The Go tooling modules'
+# go.mod and go.sum files that sync-go-modules.sh brought in line with the new pin's go.mod before
+# the sessions are under crates/ and are committed with the rest; the summary it left in
+# ${CTX}/go-sync.txt goes into the message, and a file that still holds what the sync left
+# (${CTX}/go-sync-files.tsv) does not count as a Rust change.
 #
 # Env: ACTION RUN_MODE CTX START_SHA BASE_SHA TARGET_SHA PIN_VERSION RUN_URL, PORT_JSON / FIX_JSON
 #      (structured output of the port and fix sessions, may be empty), and the commit identity in
@@ -96,15 +100,30 @@ if git diff --cached --quiet; then
   empty=(--allow-empty)
 fi
 
-# The Rust changes: everything staged except the records and Go tooling go.mod files whose only
-# change is the upstream version advance-pin.sh wrote.
+# The Rust changes: everything staged except the records, the Go tooling go.mod and go.sum files
+# that still hold what sync-go-modules.sh left, and go.mod files whose only change is the upstream
+# version advance-pin.sh wrote.
 module=$(port_go_module)
 module_re="^[-+][[:space:]]*(require[[:space:]]+)?${module//./[.]}[[:space:]]+v"
+declare -A synced=()
+if [[ -f "${ctx}/go-sync-files.tsv" ]]; then
+  while IFS=$'\t' read -r path blob; do
+    if [[ -n "${path}" ]]; then
+      synced[${path}]=${blob}
+    fi
+  done < "${ctx}/go-sync-files.tsv"
+fi
 staged=$(git diff --cached --name-only -- ':(top)' ':(top,exclude)UPSTREAM_SYNC' ":(top,exclude)${log_path}")
 code_changes=""
 while IFS= read -r path; do
   if [[ -z "${path}" ]]; then
     continue
+  fi
+  if [[ -n "${synced[${path}]:-}" ]]; then
+    staged_blob=$(git rev-parse --verify --quiet ":${path}" || true)
+    if [[ "${staged_blob}" == "${synced[${path}]}" ]]; then
+      continue
+    fi
   fi
   if [[ "${path}" == */go.mod || "${path}" == go.mod ]]; then
     hunk=$(git diff --cached -U0 -- ":(top)${path}")
@@ -150,8 +169,16 @@ else
   printf 'port: %s\n\n' "${first_subject}" > "${message}"
 fi
 if [[ "${action}" == advance ]]; then
+  jq -r '"upstream \(.upstream[0:12]) \(.subject) (\(.status))"' <<< "${statuses}" | port_sanitize >> "${message}"
+fi
+if [[ -s "${ctx}/go-sync.txt" ]]; then
   {
-    jq -r '"upstream \(.upstream[0:12]) \(.subject) (\(.status))"' <<< "${statuses}" | port_sanitize
+    printf '\n'
+    port_sanitize < "${ctx}/go-sync.txt"
+  } >> "${message}"
+fi
+if [[ "${action}" == advance ]]; then
+  {
     printf '\nUpstream-Range: %s..%s\n' "${base:0:12}" "${target:0:12}"
     printf 'Upstream-Version: %s\n' "${PIN_VERSION}"
   } >> "${message}"

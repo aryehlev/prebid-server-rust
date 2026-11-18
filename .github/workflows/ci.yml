@@ -423,6 +423,11 @@ jobs:
         run: |
           mirror=$(.github/port/scripts/upstream-mirror.sh "${RUNNER_TEMP}/upstream.git")
           printf 'PORT_TESTS_UPSTREAM_GIT=%s\n' "${mirror}" >> "${GITHUB_ENV}"
+      - name: Install Go (the module sync test runs go mod tidy against a local module proxy)
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: crates/devtools/go/go.mod
+          cache: false
       - name: Run the tests
         run: .github/port/tests/run-all.sh
 

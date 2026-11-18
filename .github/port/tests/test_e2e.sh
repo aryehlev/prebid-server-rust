@@ -100,8 +100,8 @@ EOF
 
 # Fake tools. cargo logs where it runs and what; clippy and test fail while a crate source says
 # CLIPPY_FAILS or TEST_FAILS; cargo fetch fails while ${E2E_FAIL_FETCH} exists; metadata lists no
-# go_fixtures harness. go logs its calls and answers go env GOMODCACHE; gofmt finds nothing to
-# change.
+# go_fixtures harness. go logs its calls, answers go env GOMODCACHE and go mod edit -json, and
+# changes nothing otherwise; gofmt finds nothing to change.
 cat > "${T_ROOT}/bin/cargo" << 'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
@@ -135,6 +135,28 @@ set -euo pipefail
 printf '%s | %s\n' "${PWD}" "$*" >> "${E2E_GO_LOG:?}"
 if [[ "${1:-} ${2:-}" == "env GOMODCACHE" ]]; then
   printf '%s\n' "${E2E_GOMODCACHE:?}"
+fi
+# go mod edit -json [FILE]: the go line and the requirements of a go.mod, as go prints them.
+if [[ "${1:-} ${2:-} ${3:-}" == "mod edit -json" ]]; then
+  perl -e '
+    my $file = $ARGV[0];
+    open(my $fh, "<", $file) or die "$file: $!\n";
+    my ($go, $block, @require) = ("", "");
+    while (my $line = <$fh>) {
+      $line =~ s{//.*}{};
+      $line =~ s/^\s+|\s+$//g;
+      next if $line eq "";
+      if ($block ne "") {
+        if ($line eq ")") { $block = ""; } elsif ($block eq "require") { push @require, [split /\s+/, $line]; }
+        next;
+      }
+      if ($line =~ /^go\s+(\S+)$/) { $go = $1; }
+      elsif ($line =~ /^(require|replace)\s*\($/) { $block = $1; }
+      elsif ($line =~ /^require\s+(\S+)\s+(\S+)$/) { push @require, [$1, $2]; }
+    }
+    my @items = map { "{\"Path\": \"$_->[0]\", \"Version\": \"$_->[1]\"}" } @require;
+    print "{\"Go\": \"$go\", \"Require\": [" . join(", ", @items) . "]}\n";
+  ' "${4:-go.mod}"
 fi
 EOF
 printf '#!/usr/bin/env bash\nexit 0\n' > "${T_ROOT}/bin/gofmt"
@@ -482,6 +504,7 @@ port_job() {
   # Installing Go, the Rust toolchains, taplo and cargo-machete and restoring the cache are
   # actions and downloads; the fake tools stand in for them.
   run_step "${wf}" port "Build the porting context"
+  run_step "${wf}" port "Sync the Go tooling modules with the new pin's go.mod (network, before the agents)"
   run_step "${wf}" port "Prefetch dependencies (the last network use before the agents)"
   run_step "${wf}" port "Gates before the agents"
   run_step "${wf}" port "Render the agent inputs"
@@ -885,6 +908,11 @@ contains "the agents get the whole Go change" "${upstream_diff}" "adapters/bar/b
 check "final gates" pass "${FINAL_STATUS}"
 go_tests=$(grep -c -F -e "${D}/port/crates/x/testdata/go | test ./..." "${E2E_GO_LOG}" || true)
 check "the gates test the Go tooling module before, after and at the end" 3 "${go_tests}"
+# The Go calls in the port job's tooling module before its first build: the sync's.
+sync_calls=$(grep -F -e "${D}/port/crates/x/testdata/go | " "${E2E_GO_LOG}" | sed -e 's/^.* | //' -e '/^build /,$d' || true)
+contains "before the gates, the port job gives the Go tooling module the new pin's go line" "${sync_calls}" \
+  "mod edit -go=1.25.0 -toolchain=none"
+contains "before the gates, the port job tidies the Go tooling module" "${sync_calls}" "mod tidy"
 port1=$(branch_head)
 main_now=$(git -C "${origin}" rev-parse refs/heads/main)
 parents=$(git -C "${origin}" rev-list --parents -n 1 "${port1}")

@@ -222,6 +222,8 @@ jobs:
           cache-on-failure: "true"
       - name: Build the porting context
         run: '"${T}/build-context.sh"'
+      - name: Sync the Go tooling modules with the new pin's go.mod (network, before the agents)
+        run: '"${T}/sync-go-modules.sh" --out "${CTX}"'
       - name: Prefetch dependencies (the last network use before the agents)
         run: |
           cargo fetch --locked

@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # commit.sh: the pin (UPSTREAM_SYNC and the Go tooling modules' upstream version) and the port log
-# for advance runs (ported, no change needed, pin-only), the repair message, the bot identity, no
-# AI attribution, only the writable paths and the records staged, and nothing committed when
-# nothing changed.
+# for advance runs (ported, no change needed, pin-only), the Go tooling modules synced with the new
+# pin's go.mod, the repair message, the bot identity, no AI attribution, only the writable paths
+# and the records staged, and nothing committed when nothing changed.
 set -euo pipefail
 shopt -s inherit_errexit
 # shellcheck source=lib.sh
@@ -134,6 +134,47 @@ printf 'require github.com/stretchr/testify v1.8.1\n' >> "${repo}/${gomod}"
 run gomod "${s4}" ACTION=advance RUN_MODE=auto
 subject=$(git -C "${repo}" log -1 --format=%s)
 t_eq "a go.mod change is a code change" "port: Bump a dependency" "${subject}"
+
+# The Go tooling modules that sync-go-modules.sh brought in line with the new pin's go.mod before
+# the sessions are committed with the run, its summary goes into the message, and a file that
+# still holds what the sync left is not a Rust change; a session's change on top of it is.
+s7=7777777777777777777777777777777777777777
+jq -n --arg s7 "${s7}" '{commits: [{sha: $s7, subject: "Bump Go and a dependency", classes: ["dependency"], adapter_dirs: [], needs_claude: true}]}' \
+  > "${ctx}/plan.json"
+gosum=crates/x/testdata/go/go.sum
+# sync_files: the sync's file list, as sync-go-modules.sh --out writes it after advance-pin.sh.
+sync_files() {
+  local version mod_blob sum_blob
+  version=$(ver "${s7}")
+  (cd "${repo}" && "${T_SCRIPTS}/advance-pin.sh" "${s7}" "${version}") > /dev/null
+  perl -pi -e 's/^go 1\.25\.0$/go 1.26.0/' "${repo}/${gomod}"
+  printf 'example.com/dep v1.1.0 h1:synced\n' > "${repo}/${gosum}"
+  mod_blob=$(git -C "${repo}" hash-object -- "${gomod}")
+  sum_blob=$(git -C "${repo}" hash-object -- "${gosum}")
+  printf '%s\t%s\n%s\t%s\n' "${gomod}" "${mod_blob}" "${gosum}" "${sum_blob}" > "${ctx}/go-sync-files.tsv"
+  printf 'Go tooling modules synced with the upstream go.mod (1 module(s) changed):\n  go 1.25.0 -> 1.26.0\n  example.com/dep v1.1.0 (added)\n' \
+    > "${ctx}/go-sync.txt"
+}
+head=$(git -C "${repo}" rev-parse HEAD)
+sync_files
+run gosync "${s7}" ACTION=advance RUN_MODE=auto
+t_eq "go sync: exit status" 0 "${T_RC}"
+files=$(git -C "${repo}" show --name-only --format= HEAD)
+t_eq "go sync: the synced go.mod and go.sum are committed with the pin and the log" \
+  $'UPSTREAM_SYNC\ncrates/x/testdata/go/go.mod\ncrates/x/testdata/go/go.sum\nupstream-port-log.jsonl' "${files}"
+subject=$(git -C "${repo}" log -1 --format=%s)
+t_eq "go sync: the files the sync left are not Rust changes" \
+  "port: advance upstream pin to 777777777777 (no Rust changes; 1 commit(s) not ported)" "${subject}"
+message=$(git -C "${repo}" log -1 --format=%B)
+t_has "go sync: the summary is in the message, before the trailers" "${message}" \
+  $'\n\nGo tooling modules synced with the upstream go.mod (1 module(s) changed):\n  go 1.25.0 -> 1.26.0\n  example.com/dep v1.1.0 (added)\n\nUpstream-Range: '
+git -C "${repo}" reset -q --hard "${head}"
+sync_files
+printf 'example.com/other v1.0.0 h1:by-a-session\n' >> "${repo}/${gosum}"
+run gosync-edited "${s7}" ACTION=advance RUN_MODE=auto
+subject=$(git -C "${repo}" log -1 --format=%s)
+t_eq "go sync: a session's change to a synced file is a code change" "port: Bump Go and a dependency" "${subject}"
+rm -f "${ctx}/go-sync-files.tsv" "${ctx}/go-sync.txt"
 
 # Pin-only runs advance the pin and log every commit as pinned, not ported.
 s5=eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee

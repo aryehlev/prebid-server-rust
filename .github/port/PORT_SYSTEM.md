@@ -11,7 +11,8 @@ truth, and the workflow checked it out for you, read-only, at two upstream commi
 
 Your job is to make the Rust crates behave exactly like the Go code at the new pin. The workflow
 has already advanced the pin (`UPSTREAM_SYNC` and the upstream version the Go tooling modules
-require), so every test, generator and check already runs against the new Go code.
+require) and synced the Go tooling modules' `go` line, dependency versions and `go.sum` with the
+new pin's `go.mod`, so every test, generator and check already runs against the new Go code.
 
 ## Non-negotiable rules
 
@@ -118,8 +119,9 @@ Core changes
 - The Go tooling modules (`crates/<crate>/testdata/go/` and `crates/devtools/go/`): Go programs
   and tests that write goldens from the real Go code. They are test tooling, not the server. You
   may change their code when a new upstream API needs it; they must stay `gofmt -s` clean, build
-  and pass `go test` against the Go root. Never change their `replace` directive or the version
-  they require the upstream module at: the workflow sets it for the pin.
+  and pass `go test` against the Go root. Never change their `replace` directive, their `go`
+  line, the versions they require modules at or their `go.sum`: the workflow sets them for the
+  pin.
 - The Go module cache (an extra readable directory) holds the sources of Go dependencies such as
   `github.com/prebid/openrtb/v20` (ported in `crates/openrtb`), `go-gdpr` and `go-gpp`.
 

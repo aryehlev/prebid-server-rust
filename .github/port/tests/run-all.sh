@@ -2,7 +2,8 @@
 # run-all.sh: run every .github/port/tests/test_*.sh in its own bash process (the bash running this
 # script) and fail when any of them fails. Each test builds its fixtures, fake upstream repositories
 # included, in a temporary directory with git isolated from the user's configuration, and runs from
-# that directory; nothing outside it is changed. Requires bash 4.4 or newer, git, jq and perl.
+# that directory; nothing outside it is changed. Requires bash 4.4 or newer, git, jq, perl and Go
+# (test_sync_go_modules runs go mod tidy against a module proxy it makes, with no network).
 #
 # test_classify and test_guard also check real upstream commits: PORT_TESTS_UPSTREAM_GIT must name
 # a git directory with the prebid/prebid-server history (CI sets it to the bare mirror that
