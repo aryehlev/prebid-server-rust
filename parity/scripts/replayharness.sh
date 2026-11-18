@@ -53,10 +53,17 @@
 #
 # The state directory, a new temporary directory, holds the parity token
 # file, rhtool serve's state.env, outbound log and server logs, and the
-# builds. It is deleted on every exit, unless --keep-state is given; the
-# script never prints the token.
+# builds: the tree parity/scripts/build-go.sh assembles from the pinned
+# upstream checkout (PBS_GO_ROOT, else .upstream), the seams and parity/, and
+# the Go server, rhtool and the parity runner built from it. It is deleted on
+# every exit, unless --keep-state is given, which deletes only the builds; the
+# script never prints the token. The probes, the replays and the case
+# profiles are read from this checkout's parity/replayharness, and
+# record-saved writes its saved.jsonl there.
 #
 # Environment:
+#   PBS_GO_ROOT        the pinned upstream checkout (default .upstream, which
+#                      scripts/fetch-upstream.sh checks out)
 #   REPLAYHARNESS      a ReplayHarness CLI to use instead of building the pin;
 #                      the script warns when its build info does not name the
 #                      pinned commit, unmodified
@@ -69,16 +76,20 @@
 # its Go build info. Builds happen before the proxy guard is set, so they may
 # fetch modules; nothing after them may leave loopback.
 set -euo pipefail
+shopt -s inherit_errexit
 
 rh_commit=f61ab1997f27b0044eeb801caea62810d75e2d76
 rh_src=${REPLAYHARNESS_SRC:-https://github.com/aryehlev/ReplayHarness.git}
 
 script_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-repo=$(cd "$script_dir/../.." && pwd)
-map="$repo/parity/replayharness/api.yaml"
-replays="$repo/parity/replayharness/replays"
-profiles="$repo/parity/replayharness/profiles"
-saved="$repo/parity/replayharness/saved.jsonl"
+# ws is this checkout, the workspace; the Go code runs from the tree that
+# build_tools assembles (tree, below).
+ws=$(cd "${script_dir}/../.." && pwd -P)
+map="${ws}/parity/replayharness/api.yaml"
+replays="${ws}/parity/replayharness/replays"
+profiles="${ws}/parity/replayharness/profiles"
+saved="${ws}/parity/replayharness/saved.jsonl"
+tree=""
 
 usage() {
   echo "usage: $0 baseline|parity|selftest|canary|record-saved|cli [--bin-b FILE] [--impl-b go|rust]" \
@@ -89,7 +100,7 @@ usage() {
 (($# > 0)) || usage
 command=$1
 shift
-case "$command" in
+case "${command}" in
   baseline | parity | selftest | canary | record-saved | cli) ;;
   *) usage ;;
 esac
@@ -129,22 +140,27 @@ while (($# > 0)); do
   shift
 done
 
-case "$impl_b" in
+case "${impl_b}" in
   go | rust) ;;
   *) usage ;;
 esac
-if [[ "$impl_b" == rust && -z "$bin_b" ]]; then
-  echo "$0: --impl-b rust needs --bin-b, for example rust/target/release/pbs-server" >&2
+if [[ "${impl_b}" == rust && -z "${bin_b}" ]]; then
+  echo "$0: --impl-b rust needs --bin-b, for example target/release/pbs-server" >&2
   exit 2
 fi
-if [[ -n "$bin_b" ]]; then
-  if [[ ! -f "$bin_b" || ! -x "$bin_b" ]]; then
-    echo "$0: --bin-b $bin_b is not an executable file" >&2
+if [[ -n "${bin_b}" ]]; then
+  if [[ ! -f "${bin_b}" || ! -x "${bin_b}" ]]; then
+    echo "$0: --bin-b ${bin_b} is not an executable file" >&2
     exit 2
   fi
-  bin_b="$(cd "$(dirname "$bin_b")" && pwd)/$(basename "$bin_b")"
+  bin_dir=.
+  if [[ "${bin_b}" == */* ]]; then
+    bin_dir=${bin_b%/*}
+  fi
+  bin_dir=$(cd "${bin_dir:-/}" && pwd)
+  bin_b="${bin_dir}/${bin_b##*/}"
 fi
-if ((${#parity_flags[@]} > 0)) && [[ "$command" != parity ]]; then
+if ((${#parity_flags[@]} > 0)) && [[ "${command}" != parity ]]; then
   echo "$0: flags after -- are for the parity command" >&2
   exit 2
 fi
@@ -184,7 +200,7 @@ descendants() {
   local child
   echo "$1"
   while IFS= read -r child; do
-    descendants "$child"
+    descendants "${child}"
   done < <(pgrep -P "$1" 2>/dev/null || true)
 }
 
@@ -192,13 +208,13 @@ descendants() {
 # still runs with the start time it was seen with.
 sweep() {
   local pid started now
-  [[ -n "$seen_file" && -f "$seen_file" ]] || return 0
+  [[ -n "${seen_file}" && -f "${seen_file}" ]] || return 0
   while IFS=$'\t' read -r pid started; do
-    now=$(ps -o lstart= -p "$pid" 2>/dev/null || true)
-    if [[ -n "$now" && "$now" == "$started" ]]; then
-      kill "-$1" "$pid" 2>/dev/null || true
+    now=$(ps -o lstart= -p "${pid}" 2>/dev/null || true)
+    if [[ -n "${now}" && "${now}" == "${started}" ]]; then
+      kill "-$1" "${pid}" 2>/dev/null || true
     fi
-  done <"$seen_file"
+  done <"${seen_file}"
 }
 
 # cleanup stops what the script started and deletes the state directory,
@@ -206,23 +222,23 @@ sweep() {
 cleanup() {
   local status=$?
   set +e
-  stop_pid "$watch_pid" TERM
-  stop_pid "$proxy_pid" INT
-  stop_pid "$runner_pid" INT
-  stop_pid "$serve_pid" INT
+  stop_pid "${watch_pid}" TERM
+  stop_pid "${proxy_pid}" INT
+  stop_pid "${runner_pid}" INT
+  stop_pid "${serve_pid}" INT
   sweep KILL
-  if [[ -n "$state" ]]; then
+  if [[ -n "${state}" ]]; then
     if ((keep_state)); then
-      rm -rf "${state:?}/bin" "${state:?}/canary" "${state:?}/replayharness"
-      say "state kept in $state; it holds the parity token file, so delete it when done"
+      rm -rf "${state:?}/bin" "${state:?}/tree" "${state:?}/canary" "${state:?}/replayharness"
+      say "state kept in ${state}; it holds the parity token file, so delete it when done"
     else
       rm -rf "${state:?}"
     fi
   fi
-  if [[ -n "$out" ]]; then
-    say "reports in $out"
+  if [[ -n "${out}" ]]; then
+    say "reports in ${out}"
   fi
-  exit "$status"
+  exit "${status}"
 }
 trap cleanup EXIT
 trap 'exit 130' INT TERM
@@ -233,26 +249,27 @@ state=$(mktemp -d "${TMPDIR:-/tmp}/replayharness.XXXXXX")
 # every process under them. seen lists each process the watchdog saw, with
 # its start time, so the cleanup can kill what is left without killing a
 # process that reused a pid.
-roots_file="$state/roots"
-seen_file="$state/seen"
-: >"$roots_file"
-: >"$seen_file"
-if [[ -z "$out" ]]; then
+roots_file="${state}/roots"
+seen_file="${state}/seen"
+: >"${roots_file}"
+: >"${seen_file}"
+if [[ -z "${out}" ]]; then
   out=$(mktemp -d "${TMPDIR:-/tmp}/replayharness-out.XXXXXX")
 fi
-mkdir -p "$out"
-out=$(cd "$out" && pwd)
+mkdir -p "${out}"
+out=$(cd "${out}" && pwd)
 
 # off_loopback prints the sockets of pid whose local or remote address is
 # not 127.0.0.0/8 or ::1, one per line. lsof -F n prints one n<name> line
-# per socket: <host>:<port>, optionally followed by -><host>:<port>.
+# per socket: <host>:<port>, optionally followed by -><host>:<port>. lsof
+# exits 1 for a process with no socket, which must not stop the watchdog.
 off_loopback() {
-  lsof -nP -a -p "$1" -i -F n 2>/dev/null | sed -n 's/^n//p' | while IFS= read -r name; do
+  { lsof -nP -a -p "$1" -i -F n 2>/dev/null || true; } | sed -n 's/^n//p' | while IFS= read -r name; do
     read -r -a ends <<<"${name//->/ }"
     for end in "${ends[@]}"; do
-      case "$end" in
+      case "${end}" in
         127.*:* | '[::1]':*) ;;
-        *) echo "$name" ;;
+        *) echo "${name}" ;;
       esac
     done
   done
@@ -262,15 +279,15 @@ off_loopback() {
 watched() {
   local root
   while IFS= read -r root; do
-    descendants "$root"
-  done <"$roots_file"
+    descendants "${root}"
+  done <"${roots_file}"
 }
 
 kill_watched() {
   local victims pid
   victims=$(watched)
-  for pid in $victims; do
-    kill -KILL "$pid" 2>/dev/null || true
+  for pid in ${victims}; do
+    kill -KILL "${pid}" 2>/dev/null || true
   done
 }
 
@@ -278,16 +295,16 @@ watchdog() {
   local pid bad started
   while sleep 1; do
     for pid in $(watched); do
-      kill -0 "$pid" 2>/dev/null || continue
-      if ! grep -q "^$pid"$'\t' "$seen_file"; then
-        started=$(ps -o lstart= -p "$pid" 2>/dev/null || true)
-        printf '%s\t%s\n' "$pid" "$started" >>"$seen_file"
+      kill -0 "${pid}" 2>/dev/null || continue
+      if ! grep -q "^${pid}"$'\t' "${seen_file}"; then
+        started=$(ps -o lstart= -p "${pid}" 2>/dev/null || true)
+        printf '%s\t%s\n' "${pid}" "${started}" >>"${seen_file}"
       fi
-      bad=$(off_loopback "$pid" | sort -u)
-      if [[ -n "$bad" ]]; then
-        say "process $pid has sockets off loopback; killing every process the script started:"
-        echo "$bad" >&2
-        echo "$pid $bad" >>"$state/breach"
+      bad=$(off_loopback "${pid}" | sort -u)
+      if [[ -n "${bad}" ]]; then
+        say "process ${pid} has sockets off loopback; killing every process the script started:"
+        echo "${bad}" >&2
+        echo "${pid} ${bad}" >>"${state}/breach"
         kill_watched
         return 1
       fi
@@ -296,7 +313,7 @@ watchdog() {
 }
 
 check_breach() {
-  if [[ -f "$state/breach" ]]; then
+  if [[ -f "${state}/breach" ]]; then
     die "a process opened a socket off loopback; stopped"
   fi
 }
@@ -305,17 +322,17 @@ check_breach() {
 # starts the watchdog. Requests to 127.0.0.1 never use a proxy.
 guard() {
   export HTTP_PROXY=http://127.0.0.1:9 HTTPS_PROXY=http://127.0.0.1:9 NO_PROXY=127.0.0.1,localhost
-  export http_proxy=$HTTP_PROXY https_proxy=$HTTPS_PROXY no_proxy=$NO_PROXY
+  export http_proxy=${HTTP_PROXY} https_proxy=${HTTPS_PROXY} no_proxy=${NO_PROXY}
   watchdog &
   watch_pid=$!
 }
 
+# build_tools assembles the tree in the state directory and builds the Go
+# server, rhtool and the parity runner from it (parity/scripts/build-go.sh).
 build_tools() {
-  say "building the Go server, rhtool and the parity runner"
-  mkdir -p "$state/bin"
-  (cd "$repo" && go build -o "$state/bin/pbs-go" . &&
-    go build -o "$state/bin/rhtool" ./parity/replayharness/rhtool &&
-    go build -o "$state/bin/parity" ./parity/cmd/parity)
+  say "assembling the tree and building the Go server, rhtool and the parity runner"
+  "${script_dir}/build-go.sh" --tree "${state}/tree" --bin "${state}/bin" >/dev/null
+  tree="${state}/tree"
 }
 
 # cli_check prints why the CLI at $1 is not the pinned commit, unmodified,
@@ -324,40 +341,42 @@ cli_check() {
   local info
   if ! info=$(go version -m "$1" 2>/dev/null); then
     echo "it has no Go build info"
-  elif ! grep -Eq "path[[:space:]]+github.com/aryehlev/ReplayHarness/cmd/replayharness$" <<<"$info"; then
+  elif ! grep -Eq "path[[:space:]]+github.com/aryehlev/ReplayHarness/cmd/replayharness$" <<<"${info}"; then
     echo "it is not github.com/aryehlev/ReplayHarness/cmd/replayharness"
-  elif ! grep -q "vcs.revision=$rh_commit" <<<"$info"; then
-    echo "its build info does not name commit $rh_commit"
-  elif ! grep -q "vcs.modified=false" <<<"$info"; then
-    echo "it was built from uncommitted changes on top of commit $rh_commit"
+  elif ! grep -q "vcs.revision=${rh_commit}" <<<"${info}"; then
+    echo "its build info does not name commit ${rh_commit}"
+  elif ! grep -q "vcs.modified=false" <<<"${info}"; then
+    echo "it was built from uncommitted changes on top of commit ${rh_commit}"
   fi
 }
 
 # replayharness_cli sets cli to the pinned ReplayHarness CLI, building it
 # unless REPLAYHARNESS names one.
 replayharness_cli() {
-  local dir="$state/replayharness" why
+  local dir="${state}/replayharness" why head version
   if [[ -n "${REPLAYHARNESS:-}" ]]; then
-    cli=$REPLAYHARNESS
-    why=$(cli_check "$cli")
-    if [[ -n "$why" ]]; then
-      say "warning: REPLAYHARNESS=$cli: $why"
+    cli=${REPLAYHARNESS}
+    why=$(cli_check "${cli}")
+    if [[ -n "${why}" ]]; then
+      say "warning: REPLAYHARNESS=${cli}: ${why}"
     fi
   else
-    say "building ReplayHarness $rh_commit from $rh_src"
-    git clone --quiet --no-checkout --no-hardlinks -- "$rh_src" "$dir/src"
-    git -C "$dir/src" -c advice.detachedHead=false checkout --quiet --detach "$rh_commit"
-    if [[ "$(git -C "$dir/src" rev-parse HEAD)" != "$rh_commit" ]]; then
-      die "the ReplayHarness checkout is not at $rh_commit"
+    say "building ReplayHarness ${rh_commit} from ${rh_src}"
+    git clone --quiet --no-checkout --no-hardlinks -- "${rh_src}" "${dir}/src"
+    git -C "${dir}/src" -c advice.detachedHead=false checkout --quiet --detach "${rh_commit}"
+    head=$(git -C "${dir}/src" rev-parse HEAD)
+    if [[ "${head}" != "${rh_commit}" ]]; then
+      die "the ReplayHarness checkout is not at ${rh_commit}"
     fi
-    (cd "$dir/src" && go build -trimpath -o "$dir/replayharness" ./cmd/replayharness)
-    why=$(cli_check "$dir/replayharness")
-    if [[ -n "$why" ]]; then
-      die "the ReplayHarness build does not verify: $why"
+    (cd "${dir}/src" && go build -trimpath -o "${dir}/replayharness" ./cmd/replayharness)
+    why=$(cli_check "${dir}/replayharness")
+    if [[ -n "${why}" ]]; then
+      die "the ReplayHarness build does not verify: ${why}"
     fi
-    cli="$dir/replayharness"
+    cli="${dir}/replayharness"
   fi
-  say "$("$cli" --version)"
+  version=$("${cli}" --version)
+  say "${version}"
 }
 
 # start_stack starts rhtool serve with $1 servers into the stack directory
@@ -365,33 +384,33 @@ replayharness_cli() {
 start_stack() {
   local servers=$1 stack=$2
   shift 2
-  local args=(serve -repo "$repo" -dir "$stack" -bin "$state/bin/pbs-go" -profile "$profile"
-    -servers "$servers" -spare-ports 1 "$@")
+  local args=(serve -repo "${tree}" -dir "${stack}" -bin "${state}/bin/pbs-go" -profile "${profile}"
+    -servers "${servers}" -spare-ports 1 "$@")
   if ((servers == 2)); then
-    args+=(-impl-b "$impl_b")
-    if [[ -n "$bin_b" ]]; then
-      args+=(-bin-b "$bin_b")
+    args+=(-impl-b "${impl_b}")
+    if [[ -n "${bin_b}" ]]; then
+      args+=(-bin-b "${bin_b}")
     fi
   fi
-  "$state/bin/rhtool" "${args[@]}" >"$stack.log" 2>&1 &
+  "${state}/bin/rhtool" "${args[@]}" >"${stack}.log" 2>&1 &
   serve_pid=$!
-  echo "$serve_pid" >>"$roots_file"
+  echo "${serve_pid}" >>"${roots_file}"
   for _ in $(seq 1 600); do
-    [[ -f "$stack/state.env" ]] && break
-    if ! kill -0 "$serve_pid" 2>/dev/null; then
-      cat "$stack.log" >&2
+    [[ -f "${stack}/state.env" ]] && break
+    if ! kill -0 "${serve_pid}" 2>/dev/null; then
+      cat "${stack}.log" >&2
       die "rhtool serve exited"
     fi
     sleep 0.5
   done
-  [[ -f "$stack/state.env" ]] || die "the servers did not start within 5 minutes"
+  [[ -f "${stack}/state.env" ]] || die "the servers did not start within 5 minutes"
   # Let the watchdog see the servers before they get a request.
   sleep 2
   check_breach
 }
 
 stop_stack() {
-  stop_pid "$serve_pid" INT
+  stop_pid "${serve_pid}" INT
   serve_pid=""
 }
 
@@ -402,83 +421,88 @@ value() { sed -n "s/^$1=//p" "$2/state.env"; }
 # cannot show it.
 run_baseline() {
   local label=$1
-  local dir="$out/$label" stack="$state/stack-$label" a b rh_status=0 replay_status=0 gate_status=0
-  mkdir -p "$dir"
-  say "$label: starting side A (go) and side B ($impl_b${bin_b:+ $bin_b}) with profile $profile"
-  start_stack 2 "$stack"
-  a=$(value RH_SIDE_A "$stack")
-  b=$(value RH_SIDE_B "$stack")
-  say "$label: side A on $a, side B on $b"
+  local dir="${out}/${label}" stack="${state}/stack-${label}" a b rh_status=0 replay_status=0 gate_status=0 result
+  mkdir -p "${dir}"
+  say "${label}: starting side A (go) and side B (${impl_b}${bin_b:+ ${bin_b}}) with profile ${profile}"
+  start_stack 2 "${stack}"
+  a=$(value RH_SIDE_A "${stack}")
+  b=$(value RH_SIDE_B "${stack}")
+  say "${label}: side A on ${a}, side B on ${b}"
 
-  say "$label: probes on side A alone"
-  "$cli" run "$map" --target "$a" --fail-on never --no-color --json "$dir/probes-a.json" >"$dir/probes-a.txt"
+  say "${label}: probes on side A alone"
+  "${cli}" run "${map}" --target "${a}" --fail-on never --no-color --json "${dir}/probes-a.json" >"${dir}/probes-a.txt"
   check_breach
 
-  say "$label: probes on side B against side A"
-  "$cli" run "$map" --target "$b" --baseline "$a" --fail-on warning --no-color \
-    --junit "$dir/baseline.junit.xml" --json "$dir/baseline.json" >"$dir/baseline.txt" || rh_status=$?
+  say "${label}: probes on side B against side A"
+  "${cli}" run "${map}" --target "${b}" --baseline "${a}" --fail-on warning --no-color \
+    --junit "${dir}/baseline.junit.xml" --json "${dir}/baseline.json" >"${dir}/baseline.txt" || rh_status=$?
   check_breach
-  case "$rh_status" in
+  case "${rh_status}" in
     0) ;;
-    1) say "$label: replayharness run exits 1 under --fail-on warning: side B draws errors or warnings;" \
+    1) say "${label}: replayharness run exits 1 under --fail-on warning: side B draws errors or warnings;" \
       "the gate below compares them with side A's" ;;
-    *) die "$label: replayharness run failed with status $rh_status (see $dir/baseline.txt)" ;;
+    *) die "${label}: replayharness run failed with status ${rh_status} (see ${dir}/baseline.txt)" ;;
   esac
 
-  say "$label: replays on side B"
-  "$cli" replay "$replays" --target "$b" --no-color --junit "$dir/replays.junit.xml" >"$dir/replays.txt" ||
+  say "${label}: replays on side B"
+  "${cli}" replay "${replays}" --target "${b}" --no-color --junit "${dir}/replays.junit.xml" >"${dir}/replays.txt" ||
     replay_status=$?
   check_breach
   if ((replay_status == 0)); then
-    tail -n 1 "$dir/replays.txt" >&2
+    tail -n 1 "${dir}/replays.txt" >&2
   else
-    failures "$dir/replays.txt"
+    failures "${dir}/replays.txt"
   fi
 
   stop_stack
   check_breach
 
-  run_profile_replays "$label" || replay_status=$?
+  run_profile_replays "${label}"
+  if ((profile_status != 0)); then
+    replay_status=1
+  fi
 
-  "$state/bin/rhtool" gate -report "$dir/baseline.json" -reference "$dir/probes-a.json" \
-    -json "$dir/gate.json" >"$dir/gate.txt" || gate_status=$?
-  sed "s/^/replayharness: $label: /" "$dir/gate.txt" >&2
-  case "$gate_status" in
+  "${state}/bin/rhtool" gate -report "${dir}/baseline.json" -reference "${dir}/probes-a.json" \
+    -json "${dir}/gate.json" >"${dir}/gate.txt" || gate_status=$?
+  sed "s/^/replayharness: ${label}: /" "${dir}/gate.txt" >&2
+  case "${gate_status}" in
     0 | 1 | 3) ;;
-    *) die "$label: rhtool gate failed with status $gate_status" ;;
+    *) die "${label}: rhtool gate failed with status ${gate_status}" ;;
   esac
 
-  baseline_status=$gate_status
+  baseline_status=${gate_status}
   if ((replay_status != 0)); then
     baseline_status=1
   fi
-  say "$label: $(verdict "$baseline_status")"
+  result=$(verdict "${baseline_status}")
+  say "${label}: ${result}"
 }
 
 # run_profile_replays runs the replays of every case profile on a side B
-# started with it, into $out/$1/replays-NAME.txt. It returns 1 when one fails.
+# started with it, into $out/$1/replays-NAME.txt. It sets profile_status to 1
+# when one fails, else to 0.
 run_profile_replays() {
   local label=$1
-  local dir="$out/$label" p name stack b failed=0
-  for p in "$profiles"/*; do
-    [[ -f "$p/profile.json" ]] || continue
-    name=$(basename "$p")
-    stack="$state/stack-$label-$name"
-    say "$label: replays of the case profile $name on side B"
-    start_stack 2 "$stack" -case-profile "$p/profile.json"
-    b=$(value RH_SIDE_B "$stack")
-    if "$cli" replay "$p/replays" --target "$b" --no-color --junit "$dir/replays-$name.junit.xml" \
-      >"$dir/replays-$name.txt"; then
-      tail -n 1 "$dir/replays-$name.txt" >&2
+  local dir="${out}/${label}" p name stack b
+  profile_status=0
+  for p in "${profiles}"/*; do
+    [[ -f "${p}/profile.json" ]] || continue
+    name=$(basename "${p}")
+    stack="${state}/stack-${label}-${name}"
+    say "${label}: replays of the case profile ${name} on side B"
+    start_stack 2 "${stack}" -case-profile "${p}/profile.json"
+    b=$(value RH_SIDE_B "${stack}")
+    if "${cli}" replay "${p}/replays" --target "${b}" --no-color --junit "${dir}/replays-${name}.junit.xml" \
+      >"${dir}/replays-${name}.txt"; then
+      tail -n 1 "${dir}/replays-${name}.txt" >&2
     else
-      failures "$dir/replays-$name.txt"
-      failed=1
+      failures "${dir}/replays-${name}.txt"
+      profile_status=1
     fi
     check_breach
     stop_stack
     check_breach
   done
-  return "$failed"
 }
 
 # run_parity runs parity $2 (run or selftest) on the replayharness corpus
@@ -487,28 +511,30 @@ run_profile_replays() {
 # ratchet decides parity run's exit code instead.
 run_parity() {
   local label=$1 sub=$2
-  local dir="$out/$label"
-  local args=("$sub" -repo "$repo" -corpus replayharness -bin-a "$state/bin/pbs-go" -profiles "$profile"
-    -out "$dir" -run-id "$label")
-  if [[ "$sub" == run ]]; then
-    args+=(-impl-b "$impl_b")
-    if [[ -n "$bin_b" ]]; then
-      args+=(-bin-b "$bin_b")
-    elif [[ "$impl_b" == go ]]; then
-      # Without -bin-b the runner builds a Go side B into parity/out.
-      args+=(-bin-b "$state/bin/pbs-go")
+  local dir="${out}/${label}" result
+  local args=("${sub}" -repo "${tree}" -corpus replayharness -bin-a "${state}/bin/pbs-go" -profiles "${profile}"
+    -out "${dir}" -run-id "${label}")
+  if [[ "${sub}" == run ]]; then
+    args+=(-impl-b "${impl_b}")
+    if [[ -n "${bin_b}" ]]; then
+      args+=(-bin-b "${bin_b}")
+    elif [[ "${impl_b}" == go ]]; then
+      # Without -bin-b the runner builds a Go side B into the workspace's
+      # parity/out.
+      args+=(-bin-b "${state}/bin/pbs-go")
     fi
   fi
-  say "$label: parity $sub --corpus replayharness (side B: ${impl_b}${bin_b:+ $bin_b})"
+  say "${label}: parity ${sub} --corpus replayharness (side B: ${impl_b}${bin_b:+ ${bin_b}})"
   parity_status=0
-  "$state/bin/parity" "${args[@]}" ${parity_flags[@]+"${parity_flags[@]}"} >"$dir.log" 2>&1 &
+  "${state}/bin/parity" "${args[@]}" ${parity_flags[@]+"${parity_flags[@]}"} >"${dir}.log" 2>&1 &
   runner_pid=$!
-  echo "$runner_pid" >>"$roots_file"
-  wait "$runner_pid" || parity_status=$?
+  echo "${runner_pid}" >>"${roots_file}"
+  wait "${runner_pid}" || parity_status=$?
   runner_pid=""
   check_breach
-  tail -n 15 "$dir.log" | sed "s/^/replayharness: $label: /" >&2
-  say "$label: $(verdict "$parity_status")"
+  tail -n 15 "${dir}.log" | sed "s/^/replayharness: ${label}: /" >&2
+  result=$(verdict "${parity_status}")
+  say "${label}: ${result}"
 }
 
 verdict() {
@@ -526,58 +552,58 @@ run_json_count() {
 }
 
 not_compared() {
-  "$state/bin/rhtool" cases -repo "$repo" -json "$out/not-compared.json" >"$out/not-compared.txt"
-  head -n 1 "$out/not-compared.txt" | sed 's/^/replayharness: /' >&2
-  say "the list, with each reason: $out/not-compared.json"
+  "${state}/bin/rhtool" cases -repo "${tree}" -json "${out}/not-compared.json" >"${out}/not-compared.txt"
+  head -n 1 "${out}/not-compared.txt" | sed 's/^/replayharness: /' >&2
+  say "the list, with each reason: ${out}/not-compared.json"
 }
 
-# build_canary builds a Go server with two seeded bugs through a build
-# overlay, so nothing in the checkout changes.
+# build_canary builds a Go server with two seeded bugs from the tree through
+# a build overlay, so nothing in the tree changes.
 build_canary() {
-  local c="$state/canary"
-  local auction="$repo/endpoints/openrtb2/auction.go" info="$repo/endpoints/info/bidders_detail.go"
-  mkdir -p "$c"
+  local c="${state}/canary"
+  local auction="${tree}/endpoints/openrtb2/auction.go" info="${tree}/endpoints/info/bidders_detail.go"
+  mkdir -p "${c}"
   sed 's|w.Header().Set("X-Prebid", version.BuildXPrebidHeader(version.Ver))|_ = version.BuildXPrebidHeader(version.Ver)|' \
-    "$auction" >"$c/auction.go"
-  sed '/^[[:space:]]*Status[[:space:]]/s|json:"status"|json:"state"|' "$info" >"$c/bidders_detail.go"
-  if cmp -s "$auction" "$c/auction.go" || cmp -s "$info" "$c/bidders_detail.go"; then
+    "${auction}" >"${c}/auction.go"
+  sed '/^[[:space:]]*Status[[:space:]]/s|json:"status"|json:"state"|' "${info}" >"${c}/bidders_detail.go"
+  if cmp -s "${auction}" "${c}/auction.go" || cmp -s "${info}" "${c}/bidders_detail.go"; then
     die "a canary patch did not apply"
   fi
-  printf '{"Replace": {"%s": "%s", "%s": "%s"}}\n' "$auction" "$c/auction.go" "$info" "$c/bidders_detail.go" \
-    >"$c/overlay.json"
+  printf '{"Replace": {"%s": "%s", "%s": "%s"}}\n' "${auction}" "${c}/auction.go" "${info}" "${c}/bidders_detail.go" \
+    >"${c}/overlay.json"
   say "building the canary: X-Prebid dropped from /openrtb2/auction, status renamed state in /info/bidders/{name}"
-  (cd "$repo" && go build -overlay "$c/overlay.json" -o "$state/bin/pbs-go-canary" .)
+  (cd "${tree}" && GOWORK=off go build -buildvcs=false -overlay "${c}/overlay.json" -o "${state}/bin/pbs-go-canary" .)
 }
 
 record_saved() {
-  local stack="$state/stack-record" target token_file port raw="$state/saved.raw.jsonl"
-  say "record-saved: starting the Go server with profile $profile"
-  start_stack 1 "$stack"
-  target=$(value RH_TARGET "$stack")
-  token_file=$(value RH_TOKEN_FILE "$stack")
-  port=$(value RH_SPARE_PORTS "$stack")
-  say "record-saved: recording the replays through 127.0.0.1:$port"
-  "$cli" record --upstream "$target" --listen "127.0.0.1:$port" -o "$raw" -q --keep-secrets 2>"$state/record.log" &
+  local stack="${state}/stack-record" target token_file port raw="${state}/saved.raw.jsonl"
+  say "record-saved: starting the Go server with profile ${profile}"
+  start_stack 1 "${stack}"
+  target=$(value RH_TARGET "${stack}")
+  token_file=$(value RH_TOKEN_FILE "${stack}")
+  port=$(value RH_SPARE_PORTS "${stack}")
+  say "record-saved: recording the replays through 127.0.0.1:${port}"
+  "${cli}" record --upstream "${target}" --listen "127.0.0.1:${port}" -o "${raw}" -q --keep-secrets 2>"${state}/record.log" &
   proxy_pid=$!
-  echo "$proxy_pid" >>"$roots_file"
+  echo "${proxy_pid}" >>"${roots_file}"
   for _ in $(seq 1 100); do
-    grep -q '^Recording ' "$state/record.log" 2>/dev/null && break
-    kill -0 "$proxy_pid" 2>/dev/null || break
+    grep -q '^Recording ' "${state}/record.log" 2>/dev/null && break
+    kill -0 "${proxy_pid}" 2>/dev/null || break
     sleep 0.1
   done
-  if ! grep -q '^Recording ' "$state/record.log"; then
-    cat "$state/record.log" >&2
+  if ! grep -q '^Recording ' "${state}/record.log"; then
+    cat "${state}/record.log" >&2
     die "the recording proxy did not start"
   fi
   sleep 2
   check_breach
-  "$cli" replay "$replays" --target "http://127.0.0.1:$port" --fail-on never --no-color >"$out/record-saved.txt"
-  tail -n 1 "$out/record-saved.txt" >&2
-  stop_pid "$proxy_pid" INT
+  "${cli}" replay "${replays}" --target "http://127.0.0.1:${port}" --fail-on never --no-color >"${out}/record-saved.txt"
+  tail -n 1 "${out}/record-saved.txt" >&2
+  stop_pid "${proxy_pid}" INT
   proxy_pid=""
   check_breach
-  "$state/bin/rhtool" saved -repo "$repo" -token-file "$token_file" -o "$saved" "$raw" >&2
-  rm -f "$raw"
+  "${state}/bin/rhtool" saved -repo "${tree}" -token-file "${token_file}" -o "${saved}" "${raw}" >&2
+  rm -f "${raw}"
   stop_stack
   check_breach
 }
@@ -585,29 +611,29 @@ record_saved() {
 baseline_status=0
 parity_status=0
 
-case "$command" in
+case "${command}" in
   cli)
     replayharness_cli
-    if [[ "$cli" == "$state/"* ]]; then
+    if [[ "${cli}" == "${state}/"* ]]; then
       # The state directory goes on exit; the CLI stays with the reports.
-      mv "$cli" "$out/replayharness"
-      cli="$out/replayharness"
+      mv "${cli}" "${out}/replayharness"
+      cli="${out}/replayharness"
     fi
-    echo "$cli"
+    echo "${cli}"
     ;;
   baseline)
     build_tools
     replayharness_cli
     guard
     run_baseline baseline
-    exit "$baseline_status"
+    exit "${baseline_status}"
     ;;
   parity)
     build_tools
     guard
     run_parity parity run
     not_compared
-    exit "$parity_status"
+    exit "${parity_status}"
     ;;
   selftest)
     impl_b=go
@@ -616,14 +642,16 @@ case "$command" in
     replayharness_cli
     guard
     run_parity selftest selftest
-    selftest_status=$parity_status
+    selftest_status=${parity_status}
     run_baseline baseline-aa
     not_compared
-    say "selftest: parity $(verdict "$selftest_status"); baseline $(verdict "$baseline_status")"
+    selftest_result=$(verdict "${selftest_status}")
+    baseline_result=$(verdict "${baseline_status}")
+    say "selftest: parity ${selftest_result}; baseline ${baseline_result}"
     if ((selftest_status != 0)); then
-      exit "$selftest_status"
+      exit "${selftest_status}"
     fi
-    exit "$baseline_status"
+    exit "${baseline_status}"
     ;;
   canary)
     build_tools
@@ -631,11 +659,11 @@ case "$command" in
     replayharness_cli
     guard
     impl_b=go
-    bin_b="$state/bin/pbs-go-canary"
+    bin_b="${state}/bin/pbs-go-canary"
     run_parity canary-parity run
-    mismatches=$(run_json_count "$out/canary-parity" mismatch)
+    mismatches=$(run_json_count "${out}/canary-parity" mismatch)
     run_baseline canary-baseline
-    say "canary: parity status $parity_status with ${mismatches:-no} mismatching cases; baseline status $baseline_status"
+    say "canary: parity status ${parity_status} with ${mismatches:-no} mismatching cases; baseline status ${baseline_status}"
     if ((parity_status == 1 && ${mismatches:-0} > 0 && baseline_status == 1)); then
       say "canary: caught by both"
       exit 0
@@ -648,4 +676,5 @@ case "$command" in
     guard
     record_saved
     ;;
+  *) usage ;;
 esac

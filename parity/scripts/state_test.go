@@ -8,7 +8,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"syscall"
 	"testing"
@@ -21,7 +20,8 @@ import (
 // the outbound log and a server log. With STUB_HOLD set, it then creates
 // $STUB_HOLD.started and waits for $STUB_HOLD, so a test can signal a script
 // in the middle of a step, and succeeds. Otherwise, as go it fails, so the
-// script's first build fails, and as replayharness it prints a version.
+// script's first build fails (build-go.sh runs go version before anything
+// else), and as replayharness it prints a version.
 const stub = `#!/bin/sh
 for d in "$TMPDIR"/replayharness.* "$TMPDIR"/replayharness-replay.*; do
   [ -d "$d" ] || continue
@@ -60,13 +60,7 @@ const (
 // get SIGTERM, unless --keep-state is given. The reports stay outside it, and
 // neither script prints the token.
 func TestScriptsDeleteTheirState(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		t.Skip("the scripts need a POSIX shell")
-	}
-	bash, err := exec.LookPath("bash")
-	if err != nil {
-		t.Skip("no bash on PATH")
-	}
+	bash := requireBash(t)
 	tests := []struct {
 		name   string
 		script string
@@ -167,7 +161,7 @@ func scriptEnv(tmp, bin, token string, term bool, hold string) []string {
 
 // checkState checks what is left of the script's state directory under tmp:
 // nothing, or with --keep-state the directory with the stack files and
-// without the builds.
+// without the builds (bin/, and tree/, the tree build-go.sh assembles).
 func checkState(t *testing.T, tmp, script string, keep bool, output string) {
 	t.Helper()
 	prefix := statePrefix
@@ -198,7 +192,7 @@ func checkState(t *testing.T, tmp, script string, keep bool, output string) {
 			t.Errorf("--keep-state did not keep stack/%s: %v", f, err)
 		}
 	}
-	for _, f := range []string{"bin", "rhtool"} {
+	for _, f := range []string{"bin", "tree"} {
 		if _, err := os.Stat(filepath.Join(state, f)); !errors.Is(err, os.ErrNotExist) {
 			t.Errorf("--keep-state kept the build %s (%v)", f, err)
 		}

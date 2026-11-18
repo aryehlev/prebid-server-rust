@@ -37,6 +37,8 @@
 # Usage: parity/scripts/replayharness-replay.sh [--baseline] [--record] [--serve]
 #            [--profile NAME] [--case-profile NAME] [--out DIR] [--keep-state]
 #   REPLAYHARNESS  the ReplayHarness CLI (default: replayharness on PATH)
+#   PBS_GO_ROOT    the pinned upstream checkout (default .upstream, which
+#                  scripts/fetch-upstream.sh checks out)
 #   --profile      the parity base profile (default: default)
 #   --case-profile a case profile of parity/replayharness/profiles (default: none)
 #   --out          where to keep the reports (default: a new temporary directory)
@@ -44,16 +46,24 @@
 #
 # The state directory, a new temporary directory, holds the parity token
 # file, rhtool serve's state.env, outbound log and server logs, the raw
-# recording and the rhtool build. It is deleted on every exit, unless
-# --keep-state is given; the script never prints the token.
+# recording and the builds: the tree parity/scripts/build-go.sh assembles
+# from the pinned upstream checkout, the seams and parity/, and the Go
+# server and rhtool built from it. It is deleted on every exit, unless
+# --keep-state is given, which deletes only the builds; the script never
+# prints the token. The probes, the replays and the case profiles are read
+# from this checkout's parity/replayharness, and --record writes its
+# traffic.jsonl there.
 set -euo pipefail
+shopt -s inherit_errexit
 
 script_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-repo=$(cd "$script_dir/../.." && pwd)
+# ws is this checkout, the workspace; the Go code runs from the tree built
+# into the state directory.
+ws=$(cd "${script_dir}/../.." && pwd -P)
 cli=${REPLAYHARNESS:-replayharness}
-map="$repo/parity/replayharness/api.yaml"
-replays="$repo/parity/replayharness/replays"
-traffic="$repo/parity/replayharness/traffic.jsonl"
+map="${ws}/parity/replayharness/api.yaml"
+replays="${ws}/parity/replayharness/replays"
+traffic="${ws}/parity/replayharness/traffic.jsonl"
 
 baseline=0
 record=0
@@ -90,18 +100,18 @@ while (($# > 0)); do
 done
 
 serve_args=()
-if [[ -n "$case_profile" ]]; then
+if [[ -n "${case_profile}" ]]; then
   if ((baseline || record)); then
     echo "$0: --baseline and --record do not go with --case-profile" >&2
     exit 2
   fi
-  case_dir="$repo/parity/replayharness/profiles/$case_profile"
-  if [[ ! -f "$case_dir/profile.json" ]]; then
-    echo "$0: no case profile $case_dir/profile.json" >&2
+  case_dir="${ws}/parity/replayharness/profiles/${case_profile}"
+  if [[ ! -f "${case_dir}/profile.json" ]]; then
+    echo "$0: no case profile ${case_dir}/profile.json" >&2
     exit 2
   fi
-  replays="$case_dir/replays"
-  serve_args=(-case-profile "$case_dir/profile.json")
+  replays="${case_dir}/replays"
+  serve_args=(-case-profile "${case_dir}/profile.json")
 fi
 
 say() { echo "replayharness-replay: $*" >&2; }
@@ -124,101 +134,104 @@ watch_pid=""
 cleanup() {
   local status=$?
   set +e
-  if [[ -n "$watch_pid" ]]; then
-    kill "$watch_pid" 2>/dev/null || true
-    wait "$watch_pid" 2>/dev/null || true
+  if [[ -n "${watch_pid}" ]]; then
+    kill "${watch_pid}" 2>/dev/null || true
+    wait "${watch_pid}" 2>/dev/null || true
   fi
-  if [[ -n "$proxy_pid" ]]; then
-    kill -INT "$proxy_pid" 2>/dev/null || true
-    wait "$proxy_pid" 2>/dev/null || true
+  if [[ -n "${proxy_pid}" ]]; then
+    kill -INT "${proxy_pid}" 2>/dev/null || true
+    wait "${proxy_pid}" 2>/dev/null || true
   fi
-  if [[ -n "$serve_pid" ]]; then
-    kill -INT "$serve_pid" 2>/dev/null || true
-    wait "$serve_pid" 2>/dev/null || true
+  if [[ -n "${serve_pid}" ]]; then
+    kill -INT "${serve_pid}" 2>/dev/null || true
+    wait "${serve_pid}" 2>/dev/null || true
   fi
-  if [[ -n "$state" ]]; then
+  if [[ -n "${state}" ]]; then
     if ((keep_state)); then
-      rm -f "${state:?}/rhtool" "${state:?}/stack/pbs-go"
-      say "state kept in $state; it holds the parity token file, so delete it when done"
+      rm -rf "${state:?}/bin" "${state:?}/tree"
+      say "state kept in ${state}; it holds the parity token file, so delete it when done"
     else
       rm -rf "${state:?}"
     fi
   fi
-  if [[ -n "$out" ]]; then
-    say "reports in $out"
+  if [[ -n "${out}" ]]; then
+    say "reports in ${out}"
   fi
-  exit "$status"
+  exit "${status}"
 }
 trap cleanup EXIT
 trap 'exit 130' INT TERM
 trap 'exit 129' HUP
 
 state=$(mktemp -d "${TMPDIR:-/tmp}/replayharness-replay.XXXXXX")
-if [[ -z "$out" ]]; then
+if [[ -z "${out}" ]]; then
   out=$(mktemp -d "${TMPDIR:-/tmp}/replayharness-replay-out.XXXXXX")
 fi
-mkdir -p "$out"
+mkdir -p "${out}"
 
 # Every process this script starts gets the proxy guard; requests to
 # 127.0.0.1 never use a proxy.
 export HTTP_PROXY=http://127.0.0.1:9 HTTPS_PROXY=http://127.0.0.1:9 NO_PROXY=127.0.0.1,localhost
-export http_proxy=$HTTP_PROXY https_proxy=$HTTPS_PROXY no_proxy=$NO_PROXY
+export http_proxy=${HTTP_PROXY} https_proxy=${HTTPS_PROXY} no_proxy=${NO_PROXY}
 
-say "building rhtool"
-(cd "$repo" && go build -o "$state/rhtool" ./parity/replayharness/rhtool)
+say "assembling the tree and building the Go server and rhtool"
+"${script_dir}/build-go.sh" --tree "${state}/tree" --bin "${state}/bin" >/dev/null
+tree="${state}/tree"
 
 servers=1
 if ((baseline)); then
   servers=2
 fi
-say "starting $servers Go server(s) with profile $profile${case_profile:+ and case profile $case_profile}" \
-  "(the first start builds the server)"
-"$state/rhtool" serve -repo "$repo" -dir "$state/stack" -profile "$profile" -servers "$servers" -spare-ports 1 \
-  ${serve_args[@]+"${serve_args[@]}"} >"$state/serve.log" 2>&1 &
+say "starting ${servers} Go server(s) with profile ${profile}${case_profile:+ and case profile ${case_profile}}"
+"${state}/bin/rhtool" serve -repo "${tree}" -dir "${state}/stack" -bin "${state}/bin/pbs-go" -profile "${profile}" \
+  -servers "${servers}" -spare-ports 1 ${serve_args[@]+"${serve_args[@]}"} >"${state}/serve.log" 2>&1 &
 serve_pid=$!
 
 for _ in $(seq 1 600); do
-  [[ -f "$state/stack/state.env" ]] && break
-  if ! kill -0 "$serve_pid" 2>/dev/null; then
+  [[ -f "${state}/stack/state.env" ]] && break
+  if ! kill -0 "${serve_pid}" 2>/dev/null; then
     say "rhtool serve exited:"
-    cat "$state/serve.log" >&2
+    cat "${state}/serve.log" >&2
     exit 1
   fi
   sleep 0.5
 done
-if [[ ! -f "$state/stack/state.env" ]]; then
+if [[ ! -f "${state}/stack/state.env" ]]; then
   say "the servers did not start within 5 minutes"
   exit 1
 fi
 
-value() { sed -n "s/^$1=//p" "$state/stack/state.env"; }
+value() { sed -n "s/^$1=//p" "${state}/stack/state.env"; }
 target=$(value RH_TARGET)
 baseline_url=$(value RH_BASELINE)
 token_file=$(value RH_TOKEN_FILE)
-read -r -a main_ports <<<"$(value RH_MAIN_PORTS)"
-read -r -a spare_ports <<<"$(value RH_SPARE_PORTS)"
+main_ports_value=$(value RH_MAIN_PORTS)
+spare_ports_value=$(value RH_SPARE_PORTS)
+read -r -a main_ports <<<"${main_ports_value}"
+read -r -a spare_ports <<<"${spare_ports_value}"
 
-pids_file="$state/pids"
-echo "$serve_pid" >"$pids_file"
+pids_file="${state}/pids"
+echo "${serve_pid}" >"${pids_file}"
 for port in "${main_ports[@]}"; do
-  pid=$(lsof -nP -iTCP:"$port" -sTCP:LISTEN -t | head -n 1 || true)
-  if [[ -z "$pid" ]]; then
-    say "no process listens on 127.0.0.1:$port"
+  pid=$(lsof -nP -iTCP:"${port}" -sTCP:LISTEN -t | head -n 1 || true)
+  if [[ -z "${pid}" ]]; then
+    say "no process listens on 127.0.0.1:${port}"
     exit 1
   fi
-  echo "$pid" >>"$pids_file"
+  echo "${pid}" >>"${pids_file}"
 done
 
 # off_loopback prints the sockets of pid whose local or remote address is
 # not 127.0.0.0/8 or ::1, one per line. lsof -F n prints one n<name> line
-# per socket: <host>:<port>, optionally followed by -><host>:<port>.
+# per socket: <host>:<port>, optionally followed by -><host>:<port>. lsof
+# exits 1 for a process with no socket, which must not stop the watchdog.
 off_loopback() {
-  lsof -nP -a -p "$1" -i -F n 2>/dev/null | sed -n 's/^n//p' | while IFS= read -r name; do
+  { lsof -nP -a -p "$1" -i -F n 2>/dev/null || true; } | sed -n 's/^n//p' | while IFS= read -r name; do
     read -r -a ends <<<"${name//->/ }"
     for end in "${ends[@]}"; do
-      case "$end" in
+      case "${end}" in
         127.*:* | '[::1]':*) ;;
-        *) echo "$name" ;;
+        *) echo "${name}" ;;
       esac
     done
   done
@@ -227,51 +240,51 @@ off_loopback() {
 watchdog() {
   while sleep 1; do
     while IFS= read -r pid; do
-      kill -0 "$pid" 2>/dev/null || continue
-      bad=$(off_loopback "$pid" | sort -u)
-      if [[ -n "$bad" ]]; then
-        say "process $pid has sockets off loopback; killing every server:"
-        echo "$bad" >&2
-        echo "$pid $bad" >>"$state/breach"
+      kill -0 "${pid}" 2>/dev/null || continue
+      bad=$(off_loopback "${pid}" | sort -u)
+      if [[ -n "${bad}" ]]; then
+        say "process ${pid} has sockets off loopback; killing every server:"
+        echo "${bad}" >&2
+        echo "${pid} ${bad}" >>"${state}/breach"
         while IFS= read -r victim; do
-          kill -KILL "$victim" 2>/dev/null || true
-        done <"$pids_file"
+          kill -KILL "${victim}" 2>/dev/null || true
+        done <"${pids_file}"
         return 1
       fi
-    done <"$pids_file"
+    done <"${pids_file}"
   done
 }
 watchdog &
 watch_pid=$!
 
 check_breach() {
-  if [[ -f "$state/breach" ]]; then
+  if [[ -f "${state}/breach" ]]; then
     say "a server opened a socket off loopback; stopped"
     exit 1
   fi
 }
 
-say "Go server on $target${baseline_url:+, baseline Go server on $baseline_url}"
+say "Go server on ${target}${baseline_url:+, baseline Go server on ${baseline_url}}"
 if ((serve_only)); then
-  say "serving until Ctrl-C; the token is in $token_file, which goes when the script exits"
-  wait "$serve_pid"
+  say "serving until Ctrl-C; the token is in ${token_file}, which goes when the script exits"
+  wait "${serve_pid}"
   exit 0
 fi
 
 status=0
 
-if [[ -z "$case_profile" ]]; then
-  say "probes on $target"
-  "$cli" run "$map" --target "$target" --fail-on never --no-color --json "$out/probes.json" >"$out/probes.txt"
-  tail -n 2 "$out/probes.txt" >&2
+if [[ -z "${case_profile}" ]]; then
+  say "probes on ${target}"
+  "${cli}" run "${map}" --target "${target}" --fail-on never --no-color --json "${out}/probes.json" >"${out}/probes.txt"
+  tail -n 2 "${out}/probes.txt" >&2
   check_breach
 fi
 
-say "replays on $target"
-if "$cli" replay "$replays" --target "$target" --no-color --junit "$out/replays.junit.xml" >"$out/replays.txt"; then
-  tail -n 1 "$out/replays.txt" >&2
+say "replays on ${target}"
+if "${cli}" replay "${replays}" --target "${target}" --no-color --junit "${out}/replays.junit.xml" >"${out}/replays.txt"; then
+  tail -n 1 "${out}/replays.txt" >&2
 else
-  failures "$out/replays.txt"
+  failures "${out}/replays.txt"
   status=1
 fi
 check_breach
@@ -289,17 +302,17 @@ check_breach
 divergences() {
   awk '
     /^[A-Z]+ \// { section = $0; next }
-    /^ +[^ ]+ (error|warning) +divergence / { print section ":" $0; getline; print }' "$out/baseline.txt"
+    /^ +[^ ]+ (error|warning) +divergence / { print section ":" $0; getline; print }' "${out}/baseline.txt"
 }
 
 if ((baseline)); then
-  say "probes on $target against the baseline $baseline_url"
-  "$cli" run "$map" --target "$target" --baseline "$baseline_url" --fail-on never --no-color \
-    --json "$out/baseline.json" >"$out/baseline.txt"
+  say "probes on ${target} against the baseline ${baseline_url}"
+  "${cli}" run "${map}" --target "${target}" --baseline "${baseline_url}" --fail-on never --no-color \
+    --json "${out}/baseline.json" >"${out}/baseline.txt"
   found=$(divergences)
-  if [[ -n "$found" ]]; then
+  if [[ -n "${found}" ]]; then
     say "divergence between the two Go servers:"
-    echo "$found" >&2
+    echo "${found}" >&2
     status=1
   else
     say "no divergence between the two Go servers"
@@ -309,33 +322,33 @@ fi
 
 if ((record)); then
   proxy="http://127.0.0.1:${spare_ports[0]}"
-  raw="$state/traffic.raw.jsonl"
-  say "recording through $proxy"
-  "$cli" record --upstream "$target" --listen "127.0.0.1:${spare_ports[0]}" -o "$raw" -q 2>"$state/record.log" &
+  raw="${state}/traffic.raw.jsonl"
+  say "recording through ${proxy}"
+  "${cli}" record --upstream "${target}" --listen "127.0.0.1:${spare_ports[0]}" -o "${raw}" -q 2>"${state}/record.log" &
   proxy_pid=$!
-  echo "$proxy_pid" >>"$pids_file"
+  echo "${proxy_pid}" >>"${pids_file}"
   for _ in $(seq 1 100); do
-    grep -q '^Recording ' "$state/record.log" 2>/dev/null && break
-    kill -0 "$proxy_pid" 2>/dev/null || break
+    grep -q '^Recording ' "${state}/record.log" 2>/dev/null && break
+    kill -0 "${proxy_pid}" 2>/dev/null || break
     sleep 0.1
   done
-  if ! grep -q '^Recording ' "$state/record.log"; then
+  if ! grep -q '^Recording ' "${state}/record.log"; then
     say "the recording proxy did not start:"
-    cat "$state/record.log" >&2
+    cat "${state}/record.log" >&2
     exit 1
   fi
-  "$cli" run "$map" --target "$proxy" --fail-on never --no-color >"$out/record-probes.txt"
-  "$cli" replay "$replays" --target "$proxy" --fail-on never --no-color >"$out/record-replays.txt"
-  say "replaying the recording with --mutate through $proxy"
-  "$cli" replay "$raw" --target "$proxy" --mutate --fail-on never --no-color >"$out/record-mutate.txt"
-  kill -INT "$proxy_pid"
-  wait "$proxy_pid" || true
+  "${cli}" run "${map}" --target "${proxy}" --fail-on never --no-color >"${out}/record-probes.txt"
+  "${cli}" replay "${replays}" --target "${proxy}" --fail-on never --no-color >"${out}/record-replays.txt"
+  say "replaying the recording with --mutate through ${proxy}"
+  "${cli}" replay "${raw}" --target "${proxy}" --mutate --fail-on never --no-color >"${out}/record-mutate.txt"
+  kill -INT "${proxy_pid}"
+  wait "${proxy_pid}" || true
   proxy_pid=""
   check_breach
-  "$state/rhtool" traffic -token-file "$token_file" -o "$traffic" "$raw" >&2
+  "${state}/rhtool" traffic -token-file "${token_file}" -o "${traffic}" "${raw}" >&2
 fi
 
 check_breach
 if ((status != 0)); then
-  exit "$status"
+  exit "${status}"
 fi
