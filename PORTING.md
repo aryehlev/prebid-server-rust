@@ -28,6 +28,12 @@ can port in parallel without diverging from Go or from each other.
   versions. Prefer the standard library; add a dependency only when it is mature and reproducing it
   would be unreasonable.
 - Mirror the Go package structure: one Rust module per Go file where practical, named after it.
+- `rust/patches/ring` replaces ring through `[patch.crates-io]` in `rust/Cargo.toml`. Nothing
+  builds ring (rustls uses aws-lc-rs), but rustls-webpki's weak `ring?/alloc` feature keeps it in
+  `Cargo.lock`, where clippy's `multiple_crate_versions` would count its windows-sys 0.52 beside
+  tokio's 0.61. The stand-in has no dependencies and its `lib.rs` is a `compile_error!`, so a crate
+  that enables ring stops the build. Delete both once rustls 0.24 and rustls-webpki 0.104, which
+  have no ring feature, are adopted; the `pbs_gohttp_client::tls` docs give the details.
 
 ## 3. Go-compatibility building blocks
 

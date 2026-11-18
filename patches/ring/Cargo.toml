@@ -1,0 +1,32 @@
+# A stand-in for ring 0.17.14 that is never built (rust/PORTING.md section 2). rustls-webpki's
+# `alloc` feature names `ring?/alloc`, so Cargo.lock lists ring although nothing enables it, and
+# clippy::multiple_crate_versions then counts ring's windows-sys 0.52 beside tokio's 0.61. This
+# package has no dependencies and takes ring's place through `[patch.crates-io]` in
+# rust/Cargo.toml. If a crate ever enables ring, src/lib.rs stops the build. The package and the
+# patch entry go once rustls 0.24 and rustls-webpki 0.104, which have no ring feature, are adopted.
+[package]
+name = "ring"
+version = "0.17.14"
+description = "Never-built stand-in for ring: pbs-gohttp-client uses aws-lc-rs"
+edition.workspace = true
+rust-version.workspace = true
+license = "Apache-2.0 AND ISC"
+publish = false
+
+[lints]
+workspace = true
+
+# ring 0.17.14's features, so that a crate that enables one still resolves and reaches the
+# compile_error! in src/lib.rs.
+[features]
+alloc = []
+default = ["alloc", "dev_urandom_fallback"]
+dev_urandom_fallback = []
+less-safe-getrandom-custom-or-rdrand = []
+less-safe-getrandom-espidf = []
+slow_tests = []
+std = ["alloc"]
+test_logging = []
+unstable-testing-arm-no-hw = []
+unstable-testing-arm-no-neon = []
+wasm32_unknown_unknown_js = []
