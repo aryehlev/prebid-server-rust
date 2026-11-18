@@ -117,8 +117,10 @@ fn conn_line(sc: &mut Scenario, key: &str, rest: &str) -> Result<(), String> {
     Ok(())
 }
 
-/// Parses `shutdown.golden` (Go: `writeDrainGolden`).
-pub(super) fn parse_golden(text: &str) -> Result<Vec<Scenario>, String> {
+/// Parses `shutdown.golden` (Go: `writeDrainGolden`): the GOOS the generator ran on (its `goos`
+/// line) and the scenarios.
+pub(super) fn parse_golden(text: &str) -> Result<(String, Vec<Scenario>), String> {
+    let mut generated_on = None;
     let mut scenarios: Vec<Scenario> = Vec::new();
     for (no, line) in text.lines().enumerate() {
         if line.is_empty() || line.starts_with('#') {
@@ -126,6 +128,13 @@ pub(super) fn parse_golden(text: &str) -> Result<Vec<Scenario>, String> {
         }
         let bad = |why: &str| format!("{GOLDEN}:{}: {line}: {why}", no + 1);
         let (key, rest) = line.split_once(' ').ok_or_else(|| bad("no value"))?;
+        if key == "goos" {
+            if generated_on.is_some() || !scenarios.is_empty() {
+                return Err(bad("goos is one line before the first scenario"));
+            }
+            generated_on = Some(rest.to_owned());
+            continue;
+        }
         if key == "scenario" {
             scenarios.push(Scenario {
                 name: rest.to_owned(),
@@ -157,7 +166,8 @@ pub(super) fn parse_golden(text: &str) -> Result<Vec<Scenario>, String> {
             _ => conn_line(sc, key, rest).map_err(|e| bad(&e))?,
         }
     }
-    Ok(scenarios)
+    let generated_on = generated_on.ok_or_else(|| format!("{GOLDEN}: no goos line"))?;
+    Ok((generated_on, scenarios))
 }
 
 /// Go: the listener of `runDrainScenario`, with Prebid's connection metrics.

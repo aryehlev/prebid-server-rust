@@ -18,6 +18,11 @@
 // is compared exactly, together with how the connection ended: "eof" (the server closed it),
 // "reset", or "open" (still open after the case's quiet period). The corpus is run twice and the
 // program fails if Go itself answers a case differently the second time.
+//
+// Both goldens record the GOOS the program ran on ("goos"). A case whose bytes depend on the GOOS
+// has one expect block per GOOS the generator knows Go's values for: the block of the GOOS it ran
+// on is observed, the others are derived from Go's source (goos.go), and the wire module's test
+// checks the block of the GOOS it runs on against real Go.
 package main
 
 import (
@@ -92,7 +97,11 @@ func run(out, drainOut string) error {
 				first[i].response, first[i].end, second[i].response, second[i].end)
 		}
 	}
-	if err := writeGolden(out, cases, first); err != nil {
+	byGOOS, err := runByGOOS(targets, cases, first)
+	if err != nil {
+		return err
+	}
+	if err := writeGolden(out, cases, first, byGOOS); err != nil {
 		return err
 	}
 
@@ -170,26 +179,37 @@ func (c *connCounts) String() string {
 		c.accepted.Load(), c.acceptFailed.Load(), c.closed.Load(), c.closeFailed.Load())
 }
 
+// serverSpec is one server startServers starts. The connections of a copy for a goos report
+// what Go reports on that GOOS (goosListener).
+type serverSpec struct {
+	name      string
+	network   string
+	address   string
+	monitored bool
+	goos      string
+	srv       *http.Server
+}
+
 // startServers starts Prebid's listeners: the main server (15s read and write timeouts, as
 // server.go's newMainServer, on a listener with connection metrics), the same handler on a
 // Unix socket (newSocketServer, also with metrics), the admin server (no timeouts, no metrics,
 // newAdminServer), the main handler on a listener without metrics ("plain"), and a server with
-// short timeouts for the timeout cases.
+// short timeouts for the timeout cases. For every GOOS of goosValues it also starts a copy of the
+// Unix socket server that answers as Go does there ("unix@<goos>").
 func startServers(static, socket string) (map[string]target, func(), error) {
 	quiet := log.New(io.Discard, "", 0)
 	public := newMainHandler(static)
-	servers := []struct {
-		name      string
-		network   string
-		address   string
-		monitored bool
-		srv       *http.Server
-	}{
-		{"main", "tcp", "127.0.0.1:0", true, &http.Server{Handler: public, ReadTimeout: 15 * time.Second, WriteTimeout: 15 * time.Second, ErrorLog: quiet}},
-		{"unix", "unix", socket, true, &http.Server{Handler: public, ReadTimeout: 15 * time.Second, WriteTimeout: 15 * time.Second, ErrorLog: quiet}},
-		{"plain", "tcp", "127.0.0.1:0", false, &http.Server{Handler: public, ReadTimeout: 15 * time.Second, WriteTimeout: 15 * time.Second, ErrorLog: quiet}},
-		{"admin", "tcp", "127.0.0.1:0", false, &http.Server{Handler: newAdminHandler(), ErrorLog: quiet}},
-		{"short", "tcp", "127.0.0.1:0", false, &http.Server{Handler: newShortHandler(), ReadTimeout: 300 * time.Millisecond, WriteTimeout: time.Second, ErrorLog: quiet}},
+	servers := []serverSpec{
+		{"main", "tcp", "127.0.0.1:0", true, "", &http.Server{Handler: public, ReadTimeout: 15 * time.Second, WriteTimeout: 15 * time.Second, ErrorLog: quiet}},
+		{"unix", "unix", socket, true, "", &http.Server{Handler: public, ReadTimeout: 15 * time.Second, WriteTimeout: 15 * time.Second, ErrorLog: quiet}},
+		{"plain", "tcp", "127.0.0.1:0", false, "", &http.Server{Handler: public, ReadTimeout: 15 * time.Second, WriteTimeout: 15 * time.Second, ErrorLog: quiet}},
+		{"admin", "tcp", "127.0.0.1:0", false, "", &http.Server{Handler: newAdminHandler(), ErrorLog: quiet}},
+		{"short", "tcp", "127.0.0.1:0", false, "", &http.Server{Handler: newShortHandler(), ReadTimeout: 300 * time.Millisecond, WriteTimeout: time.Second, ErrorLog: quiet}},
+	}
+	for _, goos := range goosNames() {
+		address := strings.TrimSuffix(socket, ".sock") + "-" + goos + ".sock"
+		servers = append(servers, serverSpec{goosTarget("unix", goos), "unix", address, true, goos,
+			&http.Server{Handler: public, ReadTimeout: 15 * time.Second, WriteTimeout: 15 * time.Second, ErrorLog: quiet}})
 	}
 	targets := map[string]target{}
 	var started []*http.Server
@@ -205,6 +225,9 @@ func startServers(static, socket string) (map[string]target, func(), error) {
 			return nil, nil, err
 		}
 		targets[s.name] = target{network: s.network, address: l.Addr().String()}
+		if s.goos != "" {
+			l = goosListener{Listener: l, peer: goosValues[s.goos].unnamedUnixPeer}
+		}
 		if s.monitored {
 			l = monitoredListener{Listener: l}
 		}
@@ -370,10 +393,20 @@ func isLowerHex(b []byte) bool {
 	return true
 }
 
-func writeGolden(path string, cases []wireCase, results []result) error {
+// goosHeader is the line of both goldens that records the GOOS the generator ran on.
+func goosHeader() string {
+	return "goos " + runtime.GOOS + "\n"
+}
+
+// writeGolden writes the cases with their results; a case of byGOOS (by its index) gets one
+// expect block per GOOS instead.
+func writeGolden(path string, cases []wireCase, results []result, byGOOS map[int]map[string]result) error {
 	var b strings.Builder
 	b.WriteString("# Generated by rust/crates/gohttp-server/testdata/go/wire; do not edit.\n")
 	b.WriteString("# GOTOOLCHAIN=go1.26.2 go run ./rust/crates/gohttp-server/testdata/go/wire\n")
+	b.WriteString("# A case with expect blocks answers differently by GOOS: the block of the goos below was\n")
+	b.WriteString("# observed, the others are derived from Go's source (goos.go of the generator).\n")
+	b.WriteString(goosHeader())
 	for i, c := range cases {
 		fmt.Fprintf(&b, "\ncase %s\nserver %s\nwait %d\n", c.name, c.server, c.wait)
 		for _, s := range c.steps {
@@ -385,6 +418,13 @@ func writeGolden(path string, cases []wireCase, results []result) error {
 			default:
 				fmt.Fprintf(&b, "send %s\n", strconv.Quote(s.data))
 			}
+		}
+		if perGOOS, ok := byGOOS[i]; ok {
+			for _, goos := range goosNames() {
+				r := perGOOS[goos]
+				fmt.Fprintf(&b, "expect %s\nresponse %s\nend %s\n", goos, strconv.Quote(string(r.response)), r.end)
+			}
+			continue
 		}
 		fmt.Fprintf(&b, "response %s\nend %s\n", strconv.Quote(string(results[i].response)), results[i].end)
 	}
