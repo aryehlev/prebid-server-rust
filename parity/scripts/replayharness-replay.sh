@@ -357,7 +357,7 @@ if ((record)); then
   wait "${proxy_pid}" || true
   proxy_pid=""
   check_breach
-  "${state}/rhtool" traffic -token-file "${token_file}" -o "${traffic}" "${raw}" >&2
+  "${state}/bin/rhtool" traffic -token-file "${token_file}" -o "${traffic}" "${raw}" >&2
 fi
 
 check_breach
