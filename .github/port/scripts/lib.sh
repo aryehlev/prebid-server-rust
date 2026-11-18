@@ -129,13 +129,15 @@ port_agent_config_paths() {
     .omx
 }
 
-# port_upstream_copies: the files that may be byte-identical to a file of the pinned upstream
-# tree, one "PATH<TAB>REASON" line each. Every other tracked file that equals an upstream blob
-# fails guard.sh's upstream-files rule. An empty file is always allowed: it holds no content.
+# port_upstream_copies: the files that may be byte-identical to an upstream file, one
+# "PATH<TAB>UPSTREAM_PATH<TAB>REASON" line each. PATH may hold only bytes that UPSTREAM_PATH held
+# at some upstream commit: the exception covers that one file, not whatever is put at PATH. Every
+# other tracked file that equals a blob of upstream history fails guard.sh's upstream-files rule.
+# An empty file is always allowed: it holds no content.
 port_upstream_copies() {
-  printf '%s\t%s\n' \
-    LICENSE "the Apache License 2.0 text, which the port ships under the same license as upstream" \
-    crates/util/src/httputil/pixel.png "the 86-byte transparent pixel Go serves from util/httputil; the port serves the same bytes"
+  printf '%s\t%s\t%s\n' \
+    LICENSE LICENSE "the Apache License 2.0 text, which the port ships under the same license as upstream" \
+    crates/util/src/httputil/pixel.png util/httputil/pixel.png "the 86-byte transparent pixel Go serves from util/httputil; the port serves the same bytes"
 }
 
 # port_go_dir_re [parity]: an extended regular expression for the paths Go code may live at: the

@@ -58,7 +58,7 @@ cp "${up}/main.go" "${fork}/main.go"
 ref=$(t_commit "${fork}" "Bring in the upstream main package")
 check "an upstream file at the top level" 1 "top-level paths outside the allowed set (lib.sh port_top_level_paths): main.go" \
   --ref "${ref}" --base "${main}"
-t_has "an upstream file at the top level: the copy is named" "${T_ERR}" "files byte-identical to the pinned upstream tree"
+t_has "an upstream file at the top level: the copy is named" "${T_ERR}" "files byte-identical to an upstream file"
 branch crate-go
 t_put "${fork}" crates/x/src/gen.go 'package x'
 ref=$(t_commit "${fork}" "Go next to the Rust code")
@@ -107,7 +107,7 @@ check "a go.work file" 1 "brings in code from elsewhere: crates/x/testdata/go/go
 branch copy
 cp "${up}/adapters/foo/footest/exemplary/a.json" "${fork}/testdata/foo-a.json"
 ref=$(t_commit "${fork}" "Copy an upstream fixture")
-check "a renamed copy of an upstream file" 1 "byte-identical to the pinned upstream tree (upstream code is read from the Go root, never copied; lib.sh port_upstream_copies lists the exceptions): testdata/foo-a.json" \
+check "a renamed copy of an upstream file" 1 "byte-identical to an upstream file (upstream code is read from the Go root, never copied; lib.sh port_upstream_copies lists the exceptions, each for the bytes of its upstream file): testdata/foo-a.json" \
   --ref "${ref}" --base "${main}"
 branch empty
 : > "${fork}/testdata/.gitkeep"
@@ -120,6 +120,25 @@ t_advance "${fork}" "${u2}"
 t_put "${fork}" crates/x/testdata/go/foo.go 'package foo // v1'
 ref=$(t_commit "${fork}" "Advance the pin and keep the old foo")
 check "a copy of a file of the old pin" 1 "crates/x/testdata/go/foo.go" --ref "${ref}" --base "${f0}"
+# Any version in upstream history counts, not only the pinned trees: neither main's pin (u2) nor
+# this change's has foo.go v1 any more.
+branch history-copy
+t_put "${fork}" crates/x/testdata/go/foo.go 'package foo // v1'
+ref=$(t_commit "${fork}" "Keep a copy of an old upstream foo")
+check "a copy of an older upstream version that no pin has" 1 \
+  "its upstream file): crates/x/testdata/go/foo.go" --ref "${ref}" --base "${main}"
+# An allowed copy covers the bytes of its own upstream file, not whatever is put at its path.
+branch license-other
+cp "${up}/main.go" "${fork}/LICENSE"
+ref=$(t_commit "${fork}" "Put another upstream file at the license path")
+check "an allowed path holding another upstream file" 1 "its upstream file): LICENSE" \
+  --ref "${ref}" --base "${main}"
+branch license-pixel
+mkdir -p "${fork}/crates/util/src/httputil"
+cp "${up}/exchange/exchange.go" "${fork}/crates/util/src/httputil/pixel.png"
+ref=$(t_commit "${fork}" "Put upstream code at the pixel path")
+check "an allowed path whose upstream file never had these bytes" 1 \
+  "its upstream file): crates/util/src/httputil/pixel.png" --ref "${ref}" --base "${main}"
 
 # Pin rules.
 branch pin-missing
@@ -300,6 +319,24 @@ env GIT_AUTHOR_NAME="${T_BOT_NAME}" GIT_AUTHOR_EMAIL="${T_BOT_EMAIL}" GIT_COMMIT
   GIT_COMMITTER_EMAIL="${T_BOT_EMAIL}" git -C "${fork}" merge -q --no-ff -m "Merge main into port/upstream-sync" "${main2}"
 ref=$(git -C "${fork}" rev-parse HEAD)
 check "a port branch that merged main" 0 "guard: ok" --ref "${ref}" --base "${main}" --bot
+
+# Upstream changes its LICENSE: the copy the port ships may stay at the older text (a version its
+# upstream file had) or take the new one, while the old text at another path is still a copy.
+git -C "${up}" switch -q master
+t_put "${up}" LICENSE 'Apache License, Version 2.0 (test copy, reworded)'
+u4=$(t_commit "${up}" "Reword the license")
+t_sync_upstream "${dir}"
+branch license-old
+t_advance "${fork}" "${u4}"
+ref=$(t_commit "${fork}" "Advance the pin over the license change")
+check "the allowed copy at an older version of its upstream file" 0 "guard: ok" --ref "${ref}" --base "${main}"
+cp "${up}/LICENSE" "${fork}/LICENSE"
+ref=$(t_commit "${fork}" "Take the new license text")
+check "the allowed copy at the new version" 0 "guard: ok" --ref "${ref}" --base "${main}"
+git -C "${fork}" show "${main}:LICENSE" > "${fork}/testdata/LICENSE.old"
+ref=$(t_commit "${fork}" "Keep the old license text elsewhere")
+check "an older upstream license at another path" 1 "its upstream file): testdata/LICENSE.old" \
+  --ref "${ref}" --base "${main}"
 
 # The attribution pattern matches the real upstream messages, which the guard never reads: they
 # stay in the upstream mirror.

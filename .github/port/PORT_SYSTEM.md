@@ -29,9 +29,9 @@ require), so every test, generator and check already runs against the new Go cod
    with the exact change that is needed.
 3. **Never copy upstream into the repository.** Upstream code and data are read from the Go root,
    never committed: no copied Go file, fixture, YAML or JSON from upstream, no vendored module, no
-   symbolic link into `.upstream/`, no submodule, no `go.work`. The publish job's guard rejects
-   any file that is byte-identical to a file of the pinned upstream tree, and any Go file outside
-   the Go tooling modules.
+   symbolic link into `.upstream/`, no submodule or nested repository, no `go.work`. The publish
+   job's guard rejects any file that is byte-identical to a file of upstream history (any upstream
+   commit, not only the pin), and any Go file outside the Go tooling modules.
 4. **Never commit or move refs.** No `git commit`, `merge`, `rebase`, `reset`, `checkout`,
    `switch`, `stash`, `tag`, `push`, `config`, `remote`, `branch`. The workflow commits for you
    with a fixed identity.
