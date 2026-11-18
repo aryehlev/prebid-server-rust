@@ -23,8 +23,10 @@ Early. The foundations are ported, but the server itself is not, and nothing ser
 
 ## Getting started
 
-You need git and a Rust toolchain installed with rustup (`rust-toolchain.toml` pins the version,
-and rustup installs it on first use). Regenerating or checking goldens also needs Go.
+You need git, bash 4.4 or newer and a Rust toolchain installed with rustup (`rust-toolchain.toml`
+pins the version, and rustup installs it on first use). The scripts in `scripts/` need that bash:
+on macOS, `/bin/bash` is 3.2 and they stop at once, so put a newer bash first on `PATH`.
+Regenerating or checking goldens also needs Go.
 
 ```sh
 git clone https://github.com/aryehlev/prebid-server-rust.git
@@ -46,19 +48,25 @@ Tests and tools read upstream sources, corpora and static files from the *Go roo
 when it is set, else `.upstream/`. They never search for it. If it is missing, they fail and say to
 run the script.
 
-CI runs these checks, all at full strictness:
+A change must pass these checks, all at full strictness:
 
 ```sh
 cargo build --workspace --locked
 cargo test --workspace --locked
 cargo clippy --workspace --all-targets --locked -- -D warnings
 RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps
-cargo +nightly-2026-11-13 fmt --all -- --check    # rustfmt.toml uses unstable options
+cargo +nightly-2026-11-13 fmt --all -- --check     # rustfmt.toml uses unstable options
 cargo deny --locked check --deny warnings
 cargo machete
 taplo fmt --check
-cargo run -p pbs-devtools -- all --check           # every golden and generated file is current
+cargo run -p pbs-devtools -- all --check           # the testdata/ ground truth and generated types
+scripts/check-no-lint-suppression.sh               # nothing suppresses a lint
+scripts/tests/run.sh                               # the self-tests of that scanner
+scripts/lint-shell.sh                              # shellcheck at its strictest on every script
 ```
+
+The workflows under `.github/` do not run them yet: they come from the original fork, which kept
+the port in `rust/` beside the Go server, and have not been moved to this layout.
 
 No lint is ever suppressed: there is no `#[allow]` or `#[expect]` anywhere. `PORTING.md` has the
 whole policy.
@@ -72,9 +80,11 @@ does, not against a description of it.
   `crates/<crate>/testdata/go/`. It runs the real Go code (Prebid Server's packages, the standard
   library, the exact versions of jsoniter, viper, yaml.v3, go-gdpr and the other dependencies)
   over hand-picked, adversarial and seeded random inputs and writes the results as goldens. The
-  Rust tests replay them byte for byte. Each program is its own Go module. It requires the upstream
-  module at the pinned commit and builds against the Go root. Its doc comment gives the command
-  that regenerates its goldens.
+  Rust tests replay them byte for byte. Each program is its own Go module. Its `go.mod` requires
+  the upstream module at the pinned commit and replaces it with `.upstream/`, so a plain `go run`
+  builds against that checkout even when `PBS_GO_ROOT` names another one (`pbs-devtools` runs its
+  own programs against the Go root). Its doc comment gives the command that regenerates its
+  goldens.
 - **Ground truth from Go.** `pbs-devtools` writes `testdata/`: the adapter test manifest, reflected
   struct metadata, viper defaults, bidder infos and bidder names. It also generates Rust types from
   Go packages. `cargo run -p pbs-devtools -- all --check` fails when any of it is stale.
@@ -88,13 +98,16 @@ lint policy and performance rules.
 
 ## The daily upstream port
 
-A scheduled workflow, `.github/workflows/upstream-port.yml`, keeps the port in step with upstream.
-It takes the upstream commits after `UPSTREAM_SYNC` and checks them out with
-`scripts/fetch-upstream.sh`. Agents port the behaviour changes and write differential tests for
-them, and the workflow advances the pin. It then opens a pull request, which must pass the same CI.
-`upstream-port-log.jsonl` records every upstream commit the workflow handled and the Go behaviour
-it left unported. Upstream commits are never copied into this repository. `.github/README.md`
-describes the workflows.
+The plan is a scheduled workflow that keeps the port in step with upstream. It takes the upstream
+commits after `UPSTREAM_SYNC` and checks them out with `scripts/fetch-upstream.sh`. Agents port
+the behaviour changes and write differential tests for them, and the workflow advances the pin.
+It then opens a pull request, which must pass the same checks. `upstream-port-log.jsonl` is where
+it records every upstream commit it handled and the Go behaviour it left unported. Upstream
+commits are never copied into this repository.
+
+That workflow does not exist yet. `.github/workflows/upstream-port.yml` and the scripts in
+`.github/port/` are the original fork's, which merged upstream into the fork; `.github/README.md`
+describes them.
 
 ## License
 
