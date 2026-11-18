@@ -38,6 +38,38 @@ replays:
           ext: {prebid: {storedrequest: {id: parity-stored-request}}}
         expect: {status: 200, json: {$.id: parity-stored-request}}
 
+  - name: a stored request with the id {{UUID}} gets a new id and wins over the body
+    why: when the stored request's id is {{UUID}}, processStoredRequests merges the stored request, its id replaced by a generated UUID, over the body, the reverse of every other stored request (endpoints/openrtb2/auction.go:1736-1750 against :1752), so rh-uuid-request's tmax and site.page replace the body's, and the body's id is gone
+    steps:
+      - method: POST
+        path: /openrtb2/auction
+        json:
+          id: rh-uuid-body-id
+          test: 1
+          tmax: 300
+          site: {page: "https://parity.test/body", publisher: {id: parity-account}}
+          imp: [{id: imp-1, banner: {format: [{w: 300, h: 250}]}, ext: {prebid: {bidder: {appnexus: {placementId: 1}}, storedauctionresponse: {id: rh-seatbid-banner}}}}]
+          ext: {prebid: {storedrequest: {id: rh-uuid-request}}}
+        expect:
+          status: 200
+          json:
+            $.id: <string>
+            $.ext.debug.resolvedrequest.tmax: 700
+            $.ext.debug.resolvedrequest.site.page: "https://parity.test/uuid"
+            $.ext.debug.resolvedrequest.imp[0].id: imp-1
+          not_contains: [rh-uuid-body-id]
+      - method: POST
+        path: /openrtb2/auction
+        json:
+          test: 1
+          imp: [{id: imp-1, banner: {format: [{w: 300, h: 250}]}, ext: {prebid: {bidder: {appnexus: {placementId: 1}}, storedauctionresponse: {id: rh-seatbid-banner}}}}]
+          ext: {prebid: {storedrequest: {id: rh-uuid-request}}}
+        expect:
+          status: 200
+          json:
+            $.id: <string>
+            $.ext.debug.resolvedrequest.tmax: 700
+
   - name: an unknown stored request id is a 400
     why: the fetcher reports NotFound for the id (stored_requests/fetcher.go)
     steps:

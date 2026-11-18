@@ -1,0 +1,10 @@
+{
+  "id": "{{UUID}}",
+  "tmax": 700,
+  "site": {
+    "page": "https://parity.test/uuid",
+    "publisher": {
+      "id": "parity-account"
+    }
+  }
+}

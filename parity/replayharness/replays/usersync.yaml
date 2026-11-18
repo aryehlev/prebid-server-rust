@@ -13,6 +13,16 @@
 #     {"tempUIDs":{"adnxs":{"uid":"rh-adnxs-uid","expires":"2099-01-01T00:00:00Z"}}}
 #   uids=eyJvcHRvdXQiOnRydWV9
 #     {"optout":true}
+#   uids=eyJ0ZW1wVUlEcyI6eyJhZG54cyI6eyJ1aWQiOiJyaC11aWQtMjAyNCIsImV4cGlyZXMiOiIyMDI0LTAxLTAxVDAwOjAwOjAwWiJ9fX0=
+#     {"tempUIDs":{"adnxs":{"uid":"rh-uid-2024","expires":"2024-01-01T00:00:00Z"}}}
+#   uids=eyJ0ZW1wVUlEcyI6eyJhZG54cyI6eyJ1aWQiOiJyaC11aWQtYXQtY2xvY2siLCJleHBpcmVzIjoiMjAyMS0wOC0yMFQxNToyODo1MC44MjNaIn19fQ==
+#     {"tempUIDs":{"adnxs":{"uid":"rh-uid-at-clock","expires":"2021-08-20T15:28:50.823Z"}}}
+#   uids=eyJ0ZW1wVUlEcyI6eyJhZG54cyI6eyJ1aWQiOiJyaC11aWQtYWZ0ZXItY2xvY2siLCJleHBpcmVzIjoiMjAyMS0wOC0yMFQxNToyODo1MC44MjRaIn19fQ==
+#     {"tempUIDs":{"adnxs":{"uid":"rh-uid-after-clock","expires":"2021-08-20T15:28:50.824Z"}}}
+#   The last three expire between the parity clock (2021-08-20T15:28:50.823Z)
+#   and the wall clock, at the parity clock's instant, and a millisecond after
+#   it, so a server that judges a uid live by the wall clock, or with <=,
+#   answers them differently.
 replays:
   - name: setuid then getuids then cookie_sync with the saved cookie
     why: setuid stores the uid under the appnexus syncer key adnxs, getuids decodes it, and cookie_sync then reports appnexus as already in sync (endpoints/setuid.go, endpoints/getuids.go, endpoints/cookie_sync.go)
@@ -277,3 +287,57 @@ replays:
           Cookie: "uids=eyJ0ZW1wVUlEcyI6eyJhZG54cyI6eyJ1aWQiOiJyaC1hZG54cy11aWQiLCJleHBpcmVzIjoiMjA5OS0wMS0wMVQwMDowMDowMFoifX19"
         body: optout=1&g-recaptcha-response=rh
         expect: {status: 401, headers: {Content-Length: "0", Set-Cookie: <absent>}}
+
+  - name: a uid is live while the parity clock is before its expires
+    why: in parity mode GetUID and HasAnyLiveSyncs compare a uid's expires with the parity clock, also on the main port (usersync/cookie.go:174, :205; fakes.json server_sites uid_liveness), and time.Before is strict. A uid that expired by the wall clock in 2024 is in sync, one that expires at the clock's instant is not, so the cookie has no live sync (status no_cookie, endpoints/cookie_sync.go:513), and one a millisecond later is
+    steps:
+      - method: POST
+        path: /cookie_sync
+        headers: {Cookie: "uids=eyJ0ZW1wVUlEcyI6eyJhZG54cyI6eyJ1aWQiOiJyaC11aWQtMjAyNCIsImV4cGlyZXMiOiIyMDI0LTAxLTAxVDAwOjAwOjAwWiJ9fX0="}
+        json: {bidders: [appnexus], debug: true}
+        expect:
+          status: 200
+          json:
+            $.status: ok
+            $.bidder_status: []
+            $.debug[0].bidder: appnexus
+            $.debug[0].error: Already in sync
+      - method: POST
+        path: /cookie_sync
+        headers: {Cookie: "uids=eyJ0ZW1wVUlEcyI6eyJhZG54cyI6eyJ1aWQiOiJyaC11aWQtYXQtY2xvY2siLCJleHBpcmVzIjoiMjAyMS0wOC0yMFQxNToyODo1MC44MjNaIn19fQ=="}
+        json: {bidders: [appnexus], debug: true}
+        expect:
+          status: 200
+          json:
+            $.status: no_cookie
+            $.bidder_status[0].bidder: appnexus
+            $.bidder_status[0].no_cookie: true
+            $.debug: <absent>
+      - method: POST
+        path: /cookie_sync
+        headers: {Cookie: "uids=eyJ0ZW1wVUlEcyI6eyJhZG54cyI6eyJ1aWQiOiJyaC11aWQtYWZ0ZXItY2xvY2siLCJleHBpcmVzIjoiMjAyMS0wOC0yMFQxNToyODo1MC44MjRaIn19fQ=="}
+        json: {bidders: [appnexus], debug: true}
+        expect:
+          status: 200
+          json:
+            $.status: ok
+            $.bidder_status: []
+            $.debug[0].bidder: appnexus
+            $.debug[0].error: Already in sync
+
+  - name: a uid that is no longer live still becomes the bidder's buyeruid
+    why: prepareUser takes the cookie's uid whether or not it is live (exchange/utils.go:779-786); only the request's cookie metrics label follows liveness (endpoints/openrtb2/auction.go:233-237)
+    steps:
+      - method: POST
+        path: /openrtb2/auction
+        headers: {Cookie: "uids=eyJ0ZW1wVUlEcyI6eyJhZG54cyI6eyJ1aWQiOiJyaC11aWQtYXQtY2xvY2siLCJleHBpcmVzIjoiMjAyMS0wOC0yMFQxNToyODo1MC44MjNaIn19fQ=="}
+        json:
+          id: rh-cookie-at-clock
+          test: 1
+          tmax: 500
+          site: {page: "https://parity.test/"}
+          imp: [{id: i, banner: {format: [{w: 300, h: 250}]}, ext: {prebid: {bidder: {appnexus: {placementId: 1}}}}}]
+        expect:
+          status: 200
+          json: {$.ext.debug.httpcalls.appnexus.length: 1}
+          contains: ['\"user\":{\"buyeruid\":\"rh-uid-at-clock\"}']
