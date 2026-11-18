@@ -861,9 +861,10 @@ fn rejected(rejection: Rejection) -> TlsError {
 /// `ServerKeyExchange`), checked with the leaf's key as `ParseCertificate` reads it.
 ///
 /// rustls's `verify_tls12_signature` and `verify_tls13_signature` would read the leaf again with
-/// rustls-webpki, which refuses leaves Go verifies (critical certificate policies, key
-/// identifiers or authority information access). The algorithms are rustls's for the scheme; in
-/// TLS 1.3 only the first, whose curve the scheme fixes (Go: `signatureSchemesForPublicKey`).
+/// rustls-webpki, which refuses leaves Go verifies: a critical certificate policies, policy
+/// mappings, policy constraints or inhibit anyPolicy extension, which Go handles and webpki does
+/// not know. The algorithms are rustls's for the scheme; in TLS 1.3 only the first, whose curve
+/// the scheme fixes (Go: `signatureSchemesForPublicKey`).
 fn verify_handshake_signature(
     message: &[u8],
     leaf: &CertificateDer<'_>,
