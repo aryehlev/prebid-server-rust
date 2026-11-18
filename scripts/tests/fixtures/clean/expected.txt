@@ -1,4 +1,6 @@
 # The clean tree holds near misses that must not be reported: lint-like text in comments, string,
 # raw string and char literals, expect()/allow() method calls, cfg(doc), warn/deny attributes,
-# workspace lint levels warn/deny/forbid, empty ignore lists, allowed workflow and script forms, and
-# suppressions inside target/ and the fetched upstream checkout .upstream/, which are not scanned.
+# workspace lint levels warn/deny/forbid, empty ignore lists, allowed workflow and script forms
+# (--config of other tools, reads of the cargo configuration home, variables that merely contain a
+# compiler name), and suppressions inside the root target/ and the fetched upstream checkout
+# .upstream/, which are not scanned.

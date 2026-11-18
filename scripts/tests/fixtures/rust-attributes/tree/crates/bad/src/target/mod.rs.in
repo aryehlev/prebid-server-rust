@@ -1,0 +1,3 @@
+//! A module in a target/ directory of a crate is compiled like any other, so it is scanned.
+#[expect(dead_code)]
+fn hidden_in_a_nested_target_dir() {}

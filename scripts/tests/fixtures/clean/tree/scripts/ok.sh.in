@@ -10,3 +10,7 @@ cargo deny --locked check --deny warnings
 git add -A -- rust
 grep -A 3 pattern file.txt
 export CARGO_BUILD_WARNINGS=deny
+taplo fmt --check --config taplo.toml
+cargo fmt --all -- --check && taplo fmt --config taplo.toml
+printf '%s\n' "${CARGO_HOME:-${HOME}/.cargo}/bin"
+export PBS_RUSTC_NOTE=fine RUSTDOC_NOTES=fine

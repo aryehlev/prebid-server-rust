@@ -41,3 +41,5 @@ crates/bad/src/lib.rs:115: [rust-include]
 # A proc macro that names or spells a suppressing attribute in a string.
 crates/derive/src/lib.rs:3: [rust-macro-string]
 crates/derive/src/lib.rs:6: [rust-macro-string]
+# A target/ directory inside a crate is source, not build output: only the root target/ is skipped.
+crates/bad/src/target/mod.rs:2: [rust-lint-attr]

@@ -8,9 +8,11 @@
 #   scripts/check-no-lint-suppression.sh --root DIR  scan every file under DIR, laid out like the
 #                                                    repository (used by scripts/tests/run.sh)
 #
-# Scope: every file of the repository, which holds only the Rust port and its tooling. Only build
-# output (target/) is skipped. The upstream Go server is never scanned: it is the .upstream/
-# checkout that scripts/fetch-upstream.sh makes, which git ignores and a --root scan skips.
+# Scope: every file of the repository, which holds only the Rust port and its tooling. Only the
+# build output at the root (target/, which git ignores) is skipped: a target/ directory anywhere
+# else is source like any other (cargo compiles a module there), so it is scanned. The upstream Go
+# server is never scanned: it is the .upstream/ checkout that scripts/fetch-upstream.sh makes,
+# which git ignores and a --root scan skips.
 #
 # Rules (the bracketed id is printed with every finding):
 #   Rust sources, with comments and string literals removed first
@@ -48,10 +50,13 @@
 #     rust-toolchain        toolchain files other than rust-toolchain.toml (a legacy rust-toolchain
 #                           wins over it and can pick a toolchain without lints)
 #     rustfmt-config        rustfmt configs other than rustfmt.toml, and options that skip files
-#     deny-config           cargo-deny configs other than deny.toml, and ignore/skip/exception lists
+#     deny-config           cargo-deny configs other than deny.toml; ignore, skip, exception,
+#                           exclude, clarify and bypass lists; extra registries and git sources;
+#                           and any check level set weaker than the strictest
 #     cargo-config          rustflags, rustc / rustc-wrapper / rustc-workspace-wrapper / runner
-#                           overrides, lint-related [env] entries (including RUSTC_WRAPPER), build.
-#                           warnings and lint-command aliases in .cargo/config and .cargo/config.toml
+#                           overrides, lint-related [env] entries (the compiler and its wrappers
+#                           too), build.warnings and lint-command aliases in .cargo/config and
+#                           .cargo/config.toml
 #   Go code we author
 #     go-nolint             nolint, lint:ignore, lint:file-ignore, nosec and revive:disable comments
 #     go-build-tag          //go:build and // +build constraints, which keep a file out of the
@@ -65,9 +70,13 @@
 #     sh-options            shell linter options that exclude checks, include only some, or
 #                           lower the severity
 #     rustflags-env         compiler flag variables that can lower lint levels
+#     compiler-env          variables that replace the compiler, its wrappers, the test runner,
+#                           cargo's configuration home or a cargo command (CARGO_ALIAS_*)
 #     rustdocflags-env      the rustdoc flags variable set to anything but "-D warnings"
 #     cargo-warnings-env    cargo's build-warnings variable set to anything but deny
 #     lint-flag             allow, warn, force-warn or cap-lints flags on a cargo or rustc command
+#     cargo-config-arg      cargo --config, which sets rustflags, a wrapper, a runner or an alias
+#                           from the command line, past the reviewed configuration files
 #     actionlint-ignore     actionlint's ignore flag, and ignore entries in an actionlint config
 #     ci-continue-on-error  continue-on-error in .github/workflows/ci.yml
 #
@@ -111,12 +120,13 @@ root=$(cd "${root}" && pwd)
 work=$(mktemp -d)
 trap 'rm -rf -- "${work}"' EXIT
 
-# 1. Collect the candidate files as repository-relative paths: every file but build output and, in
-#    a --root scan, the fetched upstream checkout (.gitignore keeps it out of the git listing).
+# 1. Collect the candidate files as repository-relative paths: every file but the build output at
+#    the root and, in a --root scan, the fetched upstream checkout (.gitignore keeps both out of the
+#    git listing; a tracked file is listed wherever it is).
 if [[ "${mode}" == git ]]; then
   git -C "${root}" ls-files -z --cached --others --exclude-standard > "${work}/all"
 else
-  (cd "${root}" && find . -type d \( -name .git -o -name target -o -path ./.upstream \) -prune \
+  (cd "${root}" && find . -type d \( -name .git -o -path ./target -o -path ./.upstream \) -prune \
     -o -type f -print0) | perl -0 -pe 's{\A\./}{}' > "${work}/all"
 fi
 
@@ -124,7 +134,6 @@ fi
 perl -0 -ne '
   chomp;
   my $p = $_;
-  next if $p =~ m{(?:\A|/)target/};
   my ($base) = $p =~ m{([^/]+)\z};
   my $kind;
   if    ($p =~ /\.rs\z/)                                      { $kind = "rust" }
@@ -417,6 +426,12 @@ sub check_script_text {
     if ($line =~ m{\b(?:CARGO_ENCODED_)?RUST[F]LAGS\b|\bCARGO_BUILD_RUST[F]LAGS\b|\bCARGO_TARGET_[A-Z0-9_]+_RUST[F]LAGS\b|\bCARGO_(?:ENCODED|BUILD)_RUSTDOC[F]LAGS\b|\bCLIPPY_CONF_DI[R]\b|\bCLIPPY_ARG[S]\b}) {
       finding($path, $n, "rustflags-env", "compiler flag variables can lower lint levels; lint policy lives in Cargo.toml");
     }
+    # The compiler, rustdoc, a compiler wrapper, the test runner, nightly features on a stable
+    # toolchain, the directory cargo reads its configuration from, or a cargo command (an alias
+    # can turn clippy into check): each can strip lint flags or skip a check.
+    if ($line =~ m{\b(?:CARGO_BUILD_)?RUST[C](?:_WRAPPER|_WORKSPACE_WRAPPER|_BOOTSTRAP)?\b|\bCARGO_BUILD_RUSTDO[C]\b|\bCARGO_TARGET_[A-Z0-9_]+_RUNNE[R]\b|\bCARGO_ALIAS_[A-Z0-9_]+|\bCARGO_HOM[E](?:=|:=|:\s)|\bexport\s+CARGO_HOM[E]\b}) {
+      finding($path, $n, "compiler-env", "a variable that replaces the compiler, a compiler wrapper, the test runner, the cargo configuration home or a cargo command can strip lint flags or skip a check");
+    }
     if ($line =~ m{\bRUSTDOC[F]LAGS\b}
         && $line !~ m{\bRUSTDOC[F]LAGS\s*[:=]\s*(["\x27]?)(?:-D\s*warnings|--deny[=\s]warnings)\1\s*(?:\z|[;\s\}]|\\)}) {
       finding($path, $n, "rustdocflags-env", "the rustdoc flags variable may only be -D warnings");
@@ -427,6 +442,11 @@ sub check_script_text {
     if ($line =~ m{\b(?:cargo|rustc|rustdoc|clippy-driver|cargo-clippy)\b.*\s(?:-A|-W)(?:\s|[a-z]|=|\z)}
         || $line =~ m{\b(?:cargo|rustc|rustdoc|clippy-driver|cargo-clippy)\b.*\s(?:--allo[w]|--war[n]|--force-war[n]|--cap-lint[s])(?:\s|=|\z)}) {
       finding($path, $n, "lint-flag", "command-line lint level flags override the workspace lint policy");
+    }
+    # A --config KEY=VALUE or --config FILE option of cargo sets rustflags, wrappers, runners and
+    # aliases where the cargo-config rules (which read .cargo/config.toml) never see them.
+    if ($line =~ m{\bcargo\b[^|;&\n]*\s--confi[g](?:\s|=|\z)}) {
+      finding($path, $n, "cargo-config-arg", "cargo \x2d\x2dconfig can set rustflags, a compiler wrapper, a test runner or an alias past the reviewed configuration files");
     }
     if ($line =~ m{actionlint} && $line =~ m{\s-ignor[e]\b}) {
       finding($path, $n, "actionlint-ignore", "the actionlint ignore flag hides findings");
@@ -553,11 +573,33 @@ toml_rules() {
       (if (.bans["skip-tree"] | nonempty) then "deny-config\tbans.skip-tree hides duplicate versions" else empty end),
       (if (.licenses.exceptions | nonempty) then "deny-config\tlicenses.exceptions allows licenses per crate" else empty end),
       (if (.sources["allow-git"] | nonempty) then "deny-config\tsources.allow-git admits git dependencies" else empty end),
-      (if (.sources["allow-org"] | nonempty) then "deny-config\tsources.allow-org admits git dependencies" else empty end)
+      (if (.sources["allow-org"] | nonempty) then "deny-config\tsources.allow-org admits git dependencies" else empty end),
+      (if (.graph.exclude | nonempty) then "deny-config\tgraph.exclude removes crates from every check" else empty end),
+      (if (.licenses.clarify | nonempty) then "deny-config\tlicenses.clarify overrides the license found for a crate" else empty end),
+      (if (try .bans.build.bypass catch null | nonempty) then "deny-config\tbans.build.bypass exempts crates from the build-script checks" else empty end),
+      ((.sources["allow-registry"] // []) | (if type == "array" then .[] else . end)
+        | select(. != "https://github.com/rust-lang/crates.io-index" and . != "sparse+https://index.crates.io/")
+        | "deny-config\tsources.allow-registry admits the registry \(tostring)"),
+      ((.advisories["db-urls"] // []) | (if type == "array" then .[] else . end)
+        | select(. != "https://github.com/rustsec/advisory-db")
+        | "deny-config\tadvisories.db-urls reads advisories from \(tostring) instead of the RustSec database"),
+      # A check level may only be set to its strictest value (CI also passes --deny warnings).
+      (. as $doc
+      | ([["advisories", "yanked"], "deny"], [["advisories", "unmaintained"], "all"],
+       [["advisories", "unsound"], "all"], [["bans", "multiple-versions"], "deny"],
+       [["bans", "multiple-versions-include-dev"], true], [["bans", "wildcards"], "deny"],
+       [["bans", "allow-wildcard-paths"], false], [["sources", "unknown-registry"], "deny"],
+       [["sources", "unknown-git"], "deny"], [["licenses", "unused-allowed-license"], "deny"],
+       [["licenses", "private", "ignore"], false], [["graph", "exclude-dev"], false],
+       [["graph", "exclude-unpublished"], false])
+      | . as [$key, $strict]
+      | ($doc | try getpath($key) catch null) as $value
+      | select($value != null and $value != $strict)
+      | "deny-config\t\($key | join(".")) = \($value | tojson) is weaker than \($strict | tojson), the strictest setting")
     elif $kind == "cargoconfig" then
       (paths | select(.[-1] | tostring | test("^rust(doc)?flags$")) | "cargo-config\t`\(map(tostring) | join("."))` sets compiler flags; lint policy lives in Cargo.toml"),
       (paths | select(.[-1] | tostring | test("^(rustc|rustc-wrapper|rustc-workspace-wrapper|runner)$")) | "cargo-config\t`\(map(tostring) | join("."))` overrides the compiler or the test runner, which can strip lint flags or run code"),
-      ((.env // {}) | keys[] | select(test("^(CARGO_ENCODED_)?RUST(DOC)?FLAGS$|^CARGO_BUILD_RUST(DOC)?FLAGS$|^CARGO_TARGET_.*_RUST[F]LAGS$|^CLIPPY_|^CARGO_BUILD_WARNINGS$|^RUSTC(_WRAPPER|_WORKSPACE_WRAPPER)?$")) | "cargo-config\t[env] \(.) can lower lint levels or run code"),
+      ((.env // {}) | keys[] | select(test("^(CARGO_ENCODED_)?RUST(DOC)?FLAGS$|^CARGO_BUILD_RUST(DOC)?FLAGS$|^CARGO_TARGET_.*_RUST[F]LAGS$|^CLIPPY_|^CARGO_BUILD_WARNINGS$|^RUST[C](_WRAPPER|_WORKSPACE_WRAPPER|_BOOTSTRAP)?$")) | "cargo-config\t[env] \(.) can lower lint levels or run code"),
       (if (.build.warnings // "deny") != "deny" then "cargo-config\tbuild.warnings must be deny if set" else empty end),
       ((.alias // {}) | to_entries[]
         | select((.key | test("^(build|check|clippy|doc|fmt|test|rustdoc|deny|machete)$"))
