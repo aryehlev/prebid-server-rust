@@ -55,9 +55,10 @@
       "id": "usersync.shuffle",
       "domain": "enum",
       "values": {"identity": "keep the bidder order (no shuffle)"},
-      "go_site": "usersync/shuffler.go:14 rand.Shuffle",
+      "go_site": "usersync/shuffler.go:30 rand.Shuffle",
       "consulted_when": "every cookie_sync request that chooses bidders to sync",
-      "rng_equivalent": "rand.Shuffle; recorded with value \"rng\""
+      "rng_equivalent": "rand.Shuffle; recorded with value \"rng\"",
+      "outside_case": "identity"
     }
   ],
   "not_decisions": [

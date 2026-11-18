@@ -2,12 +2,15 @@
 
 Byte-for-byte copies of the JSON files under `parity/schema/` (and `parity/schema/examples/`) on
 the `parity-harness` branch, which is the source of truth for the cross-language contract. They
-were taken from commit `abad587d` (`schema_version` 1.0.0).
+were taken from commit `37a78907` (`schema_version` 1.0.0).
 
 `pbs-parity`'s tests check the Rust registries against them (stage and decision IDs with their
-order, domains and keys, outbound kinds, error codes, fake defaults, order sites), and the Go
-golden program (`../testdata/go`) fails when a vendored file differs from the copy embedded in the
-`parity/schema` package it is built against.
+order, domains and keys, the decisions' `outside_case` values, outbound kinds, error codes, fake
+defaults, order sites), and the Go golden program (`../testdata/go`) fails when a vendored file
+differs from the copy embedded in the `parity/schema` package it is built against. On the
+`parity-harness` branch the CI parity job (`.github/port/scripts/ci-parity.sh`) also fails, before
+anything else, when this directory is not a copy of `parity/schema`: a JSON file that differs or
+is not a regular file, one that is missing, or one that `parity/schema` does not have.
 
 To refresh after the contract changes, from the repository root:
 

@@ -340,6 +340,24 @@ impl DecisionId {
         }
     }
 
+    /// The value a parity-mode server (fakes installed) takes at the site for a request outside
+    /// an exec case, on its main port, where no envelope pins the point and nothing is recorded
+    /// (`decisions.json` `outside_case`). `None` means the site draws from the random source
+    /// there, as in production. Only `usersync.shuffle` has one, `identity`, so two parity-mode
+    /// servers answer `/cookie_sync` alike (Go: the `usersync/shuffler.go` seam).
+    #[must_use]
+    pub const fn outside_case(self) -> Option<&'static str> {
+        match self {
+            Self::UsersyncShuffle => Some(USERSYNC_SHUFFLE_IDENTITY),
+            Self::FloorsSkip
+            | Self::FloorsDataRate
+            | Self::FloorsModelGroup
+            | Self::FloorsEnforce
+            | Self::CategoryDedupe
+            | Self::PriceGranularityTimesplit => None,
+        }
+    }
+
     /// The decision point with ID `name`, or `None` when it is not registered.
     #[must_use]
     pub fn from_name(name: &str) -> Option<Self> {

@@ -3,7 +3,7 @@
     "files": {
       "adapter_io.schema.json": "d52f42088ef25218169b88bd065fba0ccdbc44f77dac5567ede15d71ee12a2a6",
       "common.schema.json": "d4a9d6a547cbb5bd7e1b4629193aa7b569f2469385a8e2467edb9ad6dbbb84b5",
-      "decisions.json": "a99413259e0274c43cf1da1a0e223d3421fa526f52cb769c2d2fba065f5f6f0c",
+      "decisions.json": "58c6096a33ccf031283558995c9c6c23af5f39e8369288bf13e5bf9aa49394ed",
       "envelope.schema.json": "8fb7cc9114a7bc09673f9e9f428c0ecb6312de8e1aeeefea65b33780ed97ed32",
       "error_codes.json": "ad8108f3b187133f5ea847f5644f9802c1356827c48dc65841def1eae4a516cf",
       "examples/adapter_bids_input.json": "2a3df8cb9ec13636a03ab2ddb2da1a9d42e32ffdbea8d8e73721147d08e36271",
@@ -22,15 +22,15 @@
       "examples/outbound_meta.json": "850674d95125ecce324d88cc5fad014b202c2422f832a8e619bd8d3117410a89",
       "examples/reset.json": "b4dec27e16b2f12c0f9e6eaa525eade66c317f8fe986358ffa76c5f061d5dc69",
       "examples/trace.json": "1812a4aba460ef747f4c7fc8ee8cb21c8e0fb7cdc379fc2caab483ef5037f3fb",
-      "fakes.json": "1f7e85851d2fd80708237ddd72d7663b8bbbc8afa3d2843fce83cc71029c699b",
+      "fakes.json": "cb908c3640a2551d44d85944f626d0c10003fa5211a8dc654e1d05479baea854",
       "index.schema.json": "4248ea97092d14e19b4896351a0850cc5215388dcb0a216c8498792af1752471",
-      "introspection.schema.json": "cec253502bcf9d56b4633ae47ac18ddeb24ad97e63b55bd1c7ac21a1107d878a",
+      "introspection.schema.json": "2cda43058ba812d10c101a16ff5fa05eab56f6c49bb96ea841585d2633d70966",
       "mismatch.schema.json": "1d81d088d7d574b3546a929f2840ee4494d6f596092edaa3474a00a2d660d943",
       "normalization.json": "c7f261f53bad1d098843cb80fcdd3ea4840121c00814aea5c83827ba68444f94",
-      "registries.schema.json": "97611b7325d13d7e723991d9eced49570c39347ba6179c1d8ea84fd6097336b0",
+      "registries.schema.json": "e8a6864c633ee399ea4edccbe315f08cfe71441476e3f49598f59e00707f4bd1",
       "stages.json": "f1641f2dcfb9b1c2c9630bccc03f081f5becb88d3bf1b27eb4343414917c4e71",
       "trace.schema.json": "5184c94beb25fda7663b2c2c5b6d3929d70f2ef48cdf339dca7885afbced329a"
     }
   },
-  "parity_ref": "abad587d4f6302094ae9b9b4bf347bbb3422e6b7"
+  "parity_ref": "37a789075e271c5d06d2027a6d19a1bb0cb83afd"
 }
