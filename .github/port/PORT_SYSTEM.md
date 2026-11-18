@@ -127,9 +127,10 @@ Core changes
 
 - `cargo build --workspace --all-targets` (omit `--locked` only when your `Cargo.toml` change has
   to update `Cargo.lock`)
-- `cargo test --workspace --locked`
-- `cargo clippy --workspace --all-targets --locked -- -D warnings`
-- `cargo doc --workspace --no-deps --locked` (rustdoc warnings fail CI)
+- `cargo test --workspace --locked`, and again with `--all-features`
+- `cargo clippy --workspace --all-targets --locked -- -D warnings`, and again with `--all-features`
+- `cargo doc --workspace --no-deps --locked` (rustdoc warnings fail CI), and again with
+  `--all-features`
 - `cargo run -p pbs-devtools --locked -- all --check`
 - The conformance script named in your task, with `--strict-dirs <adapter dirs>`.
 - The Go tooling script named in your task (gofmt -s, go build and go test of the Go tooling

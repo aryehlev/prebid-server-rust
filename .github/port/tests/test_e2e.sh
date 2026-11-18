@@ -652,7 +652,8 @@ ci() {
     go_status=pass
   fi
   t_run_in "${WS}" env "${JOB_ENV[@]}" .github/port/scripts/gates.sh --out "${RUNNER_TEMP}/gates.json" \
-    --strict-dirs "${CI_DIRS}" --only fmt,clippy,doc,test,suppression,taplo,machete,devtools,conformance
+    --strict-dirs "${CI_DIRS}" \
+    --only fmt,clippy,clippy-all-features,doc,doc-all-features,test,test-all-features,suppression,taplo,machete,devtools,conformance
   if [[ "${T_RC}" -eq 0 ]]; then
     gates_status=pass
   fi

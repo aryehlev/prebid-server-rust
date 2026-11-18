@@ -78,9 +78,9 @@ pointing at it.
 | `changes` | the compared range, and whether a push names no commit before it (a new branch or repository, so the guard checks the whole history); the adapter directories the change touches (upstream files changed between the two pins, read from the upstream mirror, and Rust adapter files); whether it is the port pull request; whether it is on the parity-harness branch, for a push, a pull request, a merge queue run or a manual run |
 | `guard` | the repository invariants (`.github/port/scripts/guard.sh`): no upstream file (above), no committed agent configuration or local state, the pin (one upstream `master` commit that never moves backwards), the known-failures list, no AI attribution in any commit the change brings or in pull request text, no CI skip marker on the head commit, and on the port pull request the bot rules |
 | `rust-fmt` | `cargo +<nightly> fmt --all -- --check`. The nightly comes from `rustfmt.toml` through `scripts/rustfmt-toolchain.sh`. |
-| `rust-clippy` | `cargo clippy --workspace --all-targets --locked -- -D warnings` |
-| `rust-doc` | `RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps --locked` |
-| `rust-test` | `cargo test --workspace --locked`, against the pinned upstream checkout |
+| `rust-clippy` | `cargo clippy --workspace --all-targets --locked -- -D warnings`, then the same with `--all-features` |
+| `rust-doc` | `RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps --locked`, then the same with `--all-features` |
+| `rust-test` | `cargo test --workspace --locked`, then the same with `--all-features`, against the pinned upstream checkout |
 | `conformance` | the Go fixture ratchet (`.github/port/scripts/conformance.sh`). Fixtures of touched adapters must all pass. |
 | `devtools` | `cargo run -p pbs-devtools --locked -- all --check`: the generated files match Go, with the Go version of the upstream `Dockerfile` |
 | `go-tooling` | the Go tooling modules (`.github/port/scripts/go-tooling.sh`): `gofmt -s -l` prints nothing, and `go build ./...` and `go test ./...` pass with `GOFLAGS=-mod=readonly` in every `crates/**/go.mod` module except `crates/parity/testdata/go`, which needs `parity/` and runs in the `parity` job |

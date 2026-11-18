@@ -51,6 +51,26 @@ t_has "doc: rustdoc warnings denied" "${cargo_log}" "doc --workspace --no-deps -
 t_has "test: the whole workspace without stopping early" "${cargo_log}" "test --workspace --locked --no-fail-fast"
 t_has "devtools: generated files are checked" "${cargo_log}" "run -p pbs-devtools --locked -- all --check"
 
+# Every feature on: the same clippy, rustdoc and test runs, next to the default ones.
+: > "${calls}"
+t_run_in "${T_TOP}" "${T_SCRIPTS}/gates.sh" --out "${out}" --only doc-all-features,test-all-features,clippy-all-features
+t_eq "all features: a failing clippy fails the gates" 1 "${T_RC}"
+status=$(jq -c '[.status, .failed]' "${out}")
+t_eq "all features: report" '["fail",["clippy-all-features"]]' "${status}"
+cargo_log=$(cat "${calls}")
+t_has "clippy-all-features: every target and feature, locked, warnings denied" "${cargo_log}" \
+  "clippy --workspace --all-targets --all-features --locked -- -D warnings"
+t_has "doc-all-features: rustdoc warnings denied" "${cargo_log}" \
+  "doc --workspace --no-deps --all-features --locked | doc flags: -D warnings"
+t_has "test-all-features: the whole workspace without stopping early" "${cargo_log}" \
+  "test --workspace --all-features --locked --no-fail-fast"
+# Without --only, both runs of each are made.
+default_set=$(sed -n -E '/^all_checks=\(/,/\)$/p' "${T_SCRIPTS}/gates.sh")
+default_set=" ${default_set//[$'\n()']/ } "
+for name in clippy clippy-all-features doc doc-all-features test test-all-features; do
+  t_has "the default checks include ${name}" "${default_set}" " ${name} "
+done
+
 t_run_in "${T_TOP}" "${T_SCRIPTS}/gates.sh" --out "${out}" --only fmt,test,taplo
 t_eq "passing checks pass the gates" 0 "${T_RC}"
 t_has "the summary line" "${T_OUT}" "gates: pass"
