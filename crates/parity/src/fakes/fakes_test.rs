@@ -97,6 +97,16 @@ fn orders_match_the_registry() -> TestResult {
         check_eq(&OrderSite::from_name(site.name()), &Some(site), "from_name")?;
     }
     check_eq(&OrderSite::from_name("nope"), &None, "unknown")?;
+    // Every order whose Go seam is fakes.MapKeys is a map_keys site; the two others order
+    // concurrent work.
+    for (site, order) in OrderSite::ALL.iter().zip(&orders) {
+        let seam = order.string("go_seam")?;
+        check_eq(
+            &site.is_map_keys(),
+            &seam.contains("MapKeys("),
+            &format!("{} is a map-key site", site.name()),
+        )?;
+    }
     check(
         !OrderSite::BidderRequestPhase.is_map_keys()
             && !OrderSite::BidderResponseOrder.is_map_keys()

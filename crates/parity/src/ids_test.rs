@@ -136,6 +136,18 @@ fn decisions_match_the_registry() -> TestResult {
                 "binary values",
             )?;
         }
+        let outside_case = spec.opt("outside_case").map(|v| v.text()).transpose()?;
+        check_eq(
+            &point.outside_case().map(str::to_owned),
+            &outside_case,
+            &format!("{id} outside_case"),
+        )?;
+        if let Some(value) = point.outside_case() {
+            check(
+                values.iter().any(|v| v == value),
+                &format!("{id} outside_case is one of its values"),
+            )?;
+        }
     }
     Ok(())
 }

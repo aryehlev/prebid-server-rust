@@ -37,6 +37,14 @@ pub enum OrderSite {
     /// `bid_adjustment_factors_validation`: `ext.prebid.bidadjustmentfactors` are checked in
     /// ascending bidder order.
     BidAdjustmentFactorsValidation,
+    /// `usersync_bidders`: the user sync chooser lists the bidders that have a syncer in
+    /// ascending byte order of their names (Go string comparison, so `appStockSSP` comes before
+    /// `appnexus`), the order `/cookie_sync` evaluates them in before `usersync.shuffle`.
+    UsersyncBidders,
+    /// `topics_user_data`: the `user.data` entries the `Sec-Browsing-Topics` header adds come in
+    /// ascending segtax, then ascending segclass (byte) order, and the segment IDs of each added
+    /// or merged entry in ascending numeric order.
+    TopicsUserData,
     /// `auction_winners`: the auction visits the seats in ascending bidder name order when it
     /// picks each imp's winning bid.
     AuctionWinners,
@@ -60,7 +68,7 @@ pub enum OrderSite {
 
 impl OrderSite {
     /// Every order in registry order.
-    pub const ALL: [Self; 16] = [
+    pub const ALL: [Self; 18] = [
         Self::BidderRequestPhase,
         Self::FpdBidders,
         Self::BidderResponseOrder,
@@ -69,6 +77,8 @@ impl OrderSite {
         Self::AliasValidation,
         Self::AliasGvlidValidation,
         Self::BidAdjustmentFactorsValidation,
+        Self::UsersyncBidders,
+        Self::TopicsUserData,
         Self::AuctionWinners,
         Self::CategoryDedupe,
         Self::Adtarget,
@@ -91,6 +101,8 @@ impl OrderSite {
             Self::AliasValidation => "alias_validation",
             Self::AliasGvlidValidation => "alias_gvlid_validation",
             Self::BidAdjustmentFactorsValidation => "bid_adjustment_factors_validation",
+            Self::UsersyncBidders => "usersync_bidders",
+            Self::TopicsUserData => "topics_user_data",
             Self::AuctionWinners => "auction_winners",
             Self::CategoryDedupe => "category_dedupe",
             Self::Adtarget => "adtarget",
