@@ -23,7 +23,6 @@ use std::{
 use bytes::Bytes;
 use pbs_gocompat::{base64, http::Header, strconv::quote, url::Url};
 use pbs_util::iputil::net::{join_host_port, split_host_port};
-use rustls::ClientConfig;
 use tokio::{
     io::{AsyncRead as _, ReadBuf, empty},
     runtime::Handle,
@@ -47,7 +46,7 @@ use crate::{
     request::{Body, BodyReader, Request},
     response::{Response, ResponseBody, ResponseHead, ResponseHeadReader},
     textproto::MimeHeaderReader,
-    tls::{TlsConfig, handshake},
+    tls::{TlsClient, TlsConfig, handshake},
     transfer::{
         Framing, ProbeResult, ResponseTransfer, TransferWriter, read_transfer,
         request_method_usually_lacks_body,
@@ -321,7 +320,7 @@ struct Pool {
 
 struct Inner {
     opts: TransportOptions,
-    tls: OnceLock<Result<Arc<ClientConfig>, HttpError>>,
+    tls: OnceLock<Result<TlsClient, HttpError>>,
     pool: Mutex<Pool>,
     reaper: Arc<Notify>,
 }
@@ -1071,20 +1070,22 @@ async fn add_tls(
     trace: Option<&Arc<Traces>>,
     (local, remote): (Option<&String>, Option<&String>),
 ) -> Result<(Box<dyn Conn>, ConnectionState), HttpError> {
-    let tls_cfg = inner.opts.tls_client_config.clone().unwrap_or_default();
-    let config = match inner.tls.get_or_init(|| tls_cfg.client_config()) {
-        Ok(c) => Arc::clone(c),
+    let tls_cfg = inner.opts.tls_client_config.as_ref();
+    let client = match inner
+        .tls
+        .get_or_init(|| tls_cfg.map_or_else(|| TlsConfig::default().client(), TlsConfig::client))
+    {
+        Ok(c) => c,
         Err(e) => return Err(e.clone()),
     };
-    let server_name = if tls_cfg.server_name.is_empty() {
-        name.to_owned()
-    } else {
-        tls_cfg.server_name
-    };
+    let server_name = tls_cfg
+        .map(|c| c.server_name.as_str())
+        .filter(|n| !n.is_empty())
+        .unwrap_or(name);
     if let Some(t) = trace {
         t.tls_handshake_start();
     }
-    let hs = handshake(config, conn, &server_name, local, remote);
+    let hs = handshake(client, conn, server_name, local, remote);
     let result = if inner.opts.tls_handshake_timeout.is_zero() {
         hs.await
     } else {

@@ -50,6 +50,44 @@
 //! HTTP/2 is not implemented: Prebid's transports set `DialContext` (and `TLSClientConfig`)
 //! without `ForceAttemptHTTP2`, which disables HTTP/2 in Go as well. Go's `DefaultTransport`
 //! would negotiate HTTP/2 with TLS servers; [`client::default_transport`] does not.
+//!
+//! On macOS Go ignores `SSL_CERT_FILE` and `SSL_CERT_DIR` and verifies with the platform verifier
+//! (Security.framework, so keychain roots and trust settings apply); it runs its own verifier only
+//! when that one fails and certificates were appended to the system pool. [`CertPool::system`]
+//! reads the Linux locations on every platform, which on macOS finds the `/etc/ssl/cert.pem`
+//! bundle. The [`tls`] module docs explain the choice of TLS stack.
+//!
+//! [`x509`] is a port of Go 1.26's server certificate verification (`crypto/tls`'s
+//! `verifyServerCertificate` over `crypto/x509`'s parser and `Certificate.Verify`): Go's parsing
+//! rules, chain building, policy, extended key usage and name constraint checks, and error texts.
+//! `testdata/golden/x509.json` and `testdata/golden/x509_adversarial.json`, written by Go, pin
+//! them. What differs:
+//!
+//! - Signatures are verified with rustls's aws-lc-rs algorithms, whose RSA ones take keys of 2048
+//!   to 8192 bits and which have no ECDSA on P-224. Go verifies RSA signatures from 1024 bits (a
+//!   root's key has no upper limit) and P-224 ones. The port fails such a signature with `x509:
+//!   cannot verify signature: algorithm unimplemented`, so the chain fails as one whose issuer is
+//!   unknown, with that error as the candidate's.
+//! - aws-lc-rs judges encodings at the edges of its algorithms (a non-canonical Ed25519 key, for
+//!   one) by its own rules, not those of Go's `crypto/ed25519`, `crypto/ecdsa` and `crypto/rsa`.
+//! - The handshake's own signature (TLS 1.3 `CertificateVerify`, TLS 1.2 `ServerKeyExchange`) is
+//!   checked with the leaf's key as the port parses it, by the same aws-lc-rs algorithms: a key
+//!   they do not take (RSA under 2048 bits, P-224) fails with Go's text for a signature that does
+//!   not verify. What rustls checks first (the scheme against the TLS 1.2 cipher suite, the message
+//!   encodings) fails with rustls's errors.
+//! - Go's `net.ParseIP` (for the server name and URI name constraints) is approximated by Rust's
+//!   `IpAddr` parser, which takes no zones; rustls's `ServerName` refuses some names Go would send
+//!   (an IPv6 address with a zone, a name with a space) before the handshake.
+//! - Go sorts the constraints of one name type with `slices.SortFunc`, which is not stable past
+//!   twelve elements; the port sorts stably, so among many constraints that compare equal, the one
+//!   quoted in an error may differ.
+//! - PEM is decoded by rustls-pki-types, not Go's `encoding/pem`: a block with headers, or text Go
+//!   skips between blocks, may be read differently.
+//! - A P-256 coordinate that is not below the prime gets the text of Go's amd64 and arm64 builds
+//!   (`invalid P256 element encoding`); other architectures say `invalid P256Element encoding`.
+//! - The TLS alert sent for a rejected certificate is `certificate_unknown`, where Go sends
+//!   `bad_certificate`, `decode_error` for a certificate it cannot parse, or
+//!   `unsupported_certificate` for a leaf key it does not sign with.
 
 pub mod bufio;
 pub mod chunked;
@@ -72,6 +110,7 @@ pub mod textproto;
 pub mod tls;
 pub mod transfer;
 pub mod transport;
+pub mod x509;
 
 pub use client::{CheckRedirect, Client};
 pub use context::{CancelCauseFunc, CancelFunc, Context};
