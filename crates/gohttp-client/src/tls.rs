@@ -34,8 +34,8 @@
 //! names `ring?/alloc`, and Cargo's lock resolution keeps an optional dependency that a weak
 //! feature names. `cargo tree` and `cargo deny` leave ring out, but `cargo metadata`, which
 //! clippy's `multiple_crate_versions` reads, includes it, so that lint would count ring's
-//! windows-sys 0.52 beside tokio's 0.61. `rust/Cargo.toml` therefore patches ring with
-//! `rust/patches/ring`: the same version, with ring's features, no dependencies, and a `lib.rs`
+//! windows-sys 0.52 beside tokio's 0.61. The workspace `Cargo.toml` therefore patches ring with
+//! `patches/ring`: the same version, with ring's features, no dependencies, and a `lib.rs`
 //! that is only a `compile_error!`. The lock then holds one windows-sys, and a crate that enables
 //! ring stops the build with an error that says what to do. The other way out, tokio 1.46, mio
 //! 1.0.3 and socket2 0.5.10 (the last releases on windows-sys 0.52), is worse: tokio 1.46 is not

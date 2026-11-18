@@ -1,6 +1,6 @@
 // Command x509adv writes testdata/golden/x509_adversarial.json, the adversarial server
 // certificate verification goldens that pbs-gohttp-client's verifier replays
-// (rust/crates/gohttp-client/src/x509).
+// (crates/gohttp-client/src/x509).
 //
 // x509.CreateCertificate refuses much of what a server can send, so these certificates are
 // encoded by hand (der.go): name constraint values, certificate policies, keys and signature
@@ -11,7 +11,7 @@
 // signatures are deterministic (keys.go), so every run writes the same bytes. Run it from the
 // repository root with Go 1.26.2:
 //
-//	go run ./rust/crates/gohttp-client/testdata/go/x509adv
+//	GOTOOLCHAIN=go1.26.2 go run ./x509adv
 package main
 
 import (
@@ -244,7 +244,7 @@ func goVerify(c verifyCase) string {
 }
 
 func main() {
-	out := flag.String("out", "rust/crates/gohttp-client/testdata/golden/x509_adversarial.json", "output file")
+	out := flag.String("out", "../golden/x509_adversarial.json", "output file")
 	flag.Parse()
 	buildSpecs()
 	cases := buildCases()

@@ -1,13 +1,13 @@
 //! Differential replay of the Go certificate verification goldens.
 //!
-//! Two Go programs write them, run from the repository root with Go 1.26.2:
+//! Two Go programs write them, run from `crates/gohttp-client/testdata/go` with Go 1.26.2:
 //!
-//! - `go run ./rust/crates/gohttp-client/testdata/go/x509` writes `testdata/golden/x509.json`:
-//!   chains `x509.CreateCertificate` makes (names, validity, usages, pools, pinned leaves).
-//! - `go run ./rust/crates/gohttp-client/testdata/go/x509adv` writes
-//!   `testdata/golden/x509_adversarial.json`: certificates encoded by hand to reach what
-//!   `CreateCertificate` will not make (name constraint values, policies, keys and signature
-//!   algorithms Go rejects, encodings at the edges of Go's parser, cross-signed and looping paths).
+//! - `go run ./x509` writes `testdata/golden/x509.json`: chains `x509.CreateCertificate` makes
+//!   (names, validity, usages, pools, pinned leaves).
+//! - `go run ./x509adv` writes `testdata/golden/x509_adversarial.json`: certificates encoded by
+//!   hand to reach what `CreateCertificate` will not make (name constraint values, policies, keys
+//!   and signature algorithms Go rejects, encodings at the edges of Go's parser, cross-signed and
+//!   looping paths).
 //!
 //! Each case is a server chain, a root pool and a server name, with the error Go's TLS client
 //! reports for it (empty when the chain verifies) at the golden's fixed time plus the case's

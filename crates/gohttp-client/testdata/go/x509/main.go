@@ -1,5 +1,5 @@
 // Command x509golden writes testdata/golden/x509.json, the server certificate verification
-// goldens that pbs-gohttp-client's verifier replays (rust/crates/gohttp-client/src/x509).
+// goldens that pbs-gohttp-client's verifier replays (crates/gohttp-client/src/x509).
 //
 // Each case is a server certificate chain (leaf first), a root pool and a server name. The golden
 // records the error crypto/tls's client reports for it (verifyServerCertificate in
@@ -7,9 +7,9 @@
 // error of crypto/x509's Certificate.Verify with the options the client passes, at a fixed time.
 // An empty error means the chain verifies. Keys are derived from the certificate names and ECDSA
 // signs deterministically (RFC 6979), so every run writes the same bytes. Run it from the
-// repository root with Go 1.26.2:
+// directory of its module (crates/gohttp-client/testdata/go) with Go 1.26.2:
 //
-//	go run ./rust/crates/gohttp-client/testdata/go/x509
+//	GOTOOLCHAIN=go1.26.2 go run ./x509
 package main
 
 import (
@@ -454,7 +454,7 @@ func build(now time.Time) (golden, error) {
 }
 
 func main() {
-	out := flag.String("out", "rust/crates/gohttp-client/testdata/golden/x509.json", "output file")
+	out := flag.String("out", "../golden/x509.json", "output file")
 
 	flag.Parse()
 
