@@ -15,3 +15,7 @@ categories = ["parser-implementations"]
 workspace = true
 
 [dependencies]
+regex = "1.12.3"
+
+[dev-dependencies]
+pbs-devtools = { path = "../devtools", version = "0.1.0" }

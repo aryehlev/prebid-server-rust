@@ -1,0 +1,11 @@
+//! Go package `openrtb2`: `OpenRTB` 2.6 types.
+//!
+//! <https://iabtechlab.com/standards/openrtb/>
+//!
+//! <https://iabtechlab.com/wp-content/uploads/2022/04/OpenRTB-2-6_FINAL.pdf>
+
+mod generated;
+mod ptr;
+
+pub use generated::*;
+pub use ptr::{int8_ptr, int64_ptr};

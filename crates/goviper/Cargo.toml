@@ -1,0 +1,21 @@
+[package]
+name = "pbs-goviper"
+description = "spf13/viper v1.12 configuration semantics used by Prebid Server"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+readme.workspace = true
+keywords.workspace = true
+publish.workspace = true
+categories.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+pbs-gocompat = { path = "../gocompat", version = "0.1.0" }
+pbs-gojson = { path = "../gojson", version = "0.1.0" }
+pbs-goyaml = { path = "../goyaml", version = "0.1.0" }
+serde_json = { version = "1.0.154", default-features = false, features = ["std"] }

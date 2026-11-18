@@ -1,0 +1,21 @@
+# Go suppression directives in each place we author Go (crate testdata, devtools, parity/), the
+# exclusion settings golangci-lint offers, and a golangci-lint config outside .github/linters/.
+.github/linters/golangci.yml:3: [golangci-config]
+.github/linters/golangci.yml:5: [golangci-config]
+.github/linters/golangci.yml:6: [golangci-config]
+.github/linters/golangci.yml:12: [golangci-config]
+.github/linters/golangci.yml:15: [golangci-config]
+parity/diff/diff.go:3: [go-nolint]
+.golangci.yml:1: [golangci-config]
+crates/devtools/go/dump/dump.go:4: [go-nolint]
+# Build constraints keep a file out of the lint run.
+crates/devtools/go/dump/gen.go:1: [go-build-tag]
+crates/devtools/go/dump/gen.go:2: [go-build-tag]
+crates/x/testdata/go/main.go:3: [go-nolint]
+crates/x/testdata/go/main.go:4: [go-nolint]
+crates/x/testdata/go/main.go:5: [go-nolint]
+crates/x/testdata/go/main.go:6: [go-nolint]
+crates/x/testdata/go/main.go:7: [go-nolint]
+crates/x/testdata/go/main.go:8: [go-nolint]
+crates/x/testdata/go/main.go:9: [go-nolint]
+crates/x/testdata/go/main.go:10: [go-nolint]

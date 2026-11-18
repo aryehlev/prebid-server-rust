@@ -1,0 +1,113 @@
+//! Developer tools for the Prebid Server Rust port: they extract ground truth from the upstream Go
+//! server into JSON goldens under `testdata/`, which the Rust ports replay.
+//!
+//! # Two roots
+//!
+//! The *workspace* is this repository, where goldens and generated sources are written. The *Go
+//! root* is a checkout of the upstream Go server at the commit `UPSTREAM_SYNC` pins, which the Go
+//! programs build against and whose sources and static files are read: `--go-root DIR`, else
+//! `$PBS_GO_ROOT`, else `.upstream` in the workspace, where `scripts/fetch-upstream.sh` puts it
+//! ([`repo`]). It is never searched for; when it is missing, commands and tests fail and say to
+//! run the script.
+//!
+//! # Commands
+//!
+//! Run from anywhere inside the workspace:
+//!
+//! ```text
+//! cargo run -p pbs-devtools -- adapter-manifest          # testdata/go_fixture_manifest.json
+//! cargo run -p pbs-devtools -- go-dump struct-meta       # testdata/go_struct_meta.json
+//! cargo run -p pbs-devtools -- go-dump config-defaults   # testdata/go_config_defaults.json
+//! cargo run -p pbs-devtools -- go-dump bidder-infos      # testdata/go_bidder_infos.json
+//! cargo run -p pbs-devtools -- go-dump bidder-names      # testdata/go_bidder_names.json
+//! cargo run -p pbs-devtools -- go-dump all               # all four Go dumps
+//! cargo run -p pbs-devtools -- typegen                   # Rust types for */typegen.json
+//! cargo run -p pbs-devtools -- all                       # everything
+//! cargo run -p pbs-devtools -- all --check               # fail if any committed file is stale
+//! ```
+//!
+//! Every file records `go_commit`: `--go-commit`, else `PBS_GO_COMMIT`, else the pinned commit,
+//! and the Go root must be a clean checkout of exactly that commit. `--check` regenerates in
+//! memory and fails, naming each stale file, when the committed copy differs; the daily
+//! upstream-port job runs `all --check`.
+//!
+//! # `adapter-manifest`
+//!
+//! [`manifest`] reads `adapters/*/*_test.go` with a Go tokenizer ([`golex`]) and a small parser
+//! ([`goparse`]) and records, for each `adapterstest.RunJSONBidderTest(t, dir, bidder)` call, the
+//! fixture root, the bidder name and the `config.Adapter`/`config.Server` passed to `Builder`
+//! (following locals, `if bidder, err := Builder(...); err == nil { ... }` init statements, helper
+//! functions, package constants and `+` concatenation), or the struct literal for adapters built
+//! directly. Statements that alter the bidder after construction must be matched by an entry in
+//! the hand-maintained overlay `testdata/go_fixture_hooks.json` ([`hooks`]), which also pins
+//! the expected totals (282 runs and the per-kind fixture counts at the time of writing). An
+//! unresolved run, an unmatched statement, a changed test file or a changed total fails
+//! generation with a message saying what to review.
+//!
+//! Generation also refuses what it cannot follow: a call outside the statements of a function
+//! `go test` runs (methods, function literals, helpers, `Testlower`), a call guarded by anything
+//! but `err == nil` on the error its init statement binds, more than one call per test, a file
+//! with a build constraint, and a construction that reads a package variable some function or
+//! initializer of the package assigns or takes the address of. A `return` before the call is
+//! setup. `testdata/manifest_synth.json` is the evidence: `testdata/go/manifestsynth` generates a
+//! few hundred adapter tests, runs them under `go test` against a fake `adapterstest`, and records
+//! what Go passed; the crate's tests require an exact match or a refusal for every one.
+//! Regenerate it with `go run ./manifestsynth` from `crates/devtools/testdata/go`.
+//!
+//! The typed [`manifest::Manifest`] can be deserialized by other crates' test harnesses.
+//!
+//! # Go modules
+//!
+//! The fork's Go code is test tooling only. Each tooling root (`crates/devtools/go` and every
+//! `crates/<crate>/testdata/go`) is its own Go module that requires the upstream module at the
+//! pinned commit's pseudo-version and replaces it with `.upstream`; its `go.sum` is tidy, so it
+//! builds offline from the module cache. [`Repo::go`](repo::Repo::go) runs Go in such a module
+//! with a temporary `go.work` that points the replacement at the Go root. A test checks that
+//! every tooling module keeps the upstream `go` version and dependency versions.
+//!
+//! # `go-dump`
+//!
+//! [`godump`] runs Go programs of the `crates/devtools/go` module (so they can import
+//! prebid-server packages):
+//!
+//! - `structmeta`: reflect metadata for every named type in openrtb2, openrtb3, native1 (and its
+//!   request/response packages), adcom1, `openrtb_ext`, adapters (and every adapter package,
+//!   unexported types included) and config, plus exported typed constants. Go cannot enumerate
+//!   types at run time, so a `-plan` step writes `go build -overlay` files that register each
+//!   declaration from inside its own package.
+//! - `configdefaults`: `config.SetupViper` exactly as `main.go` calls it, every key with its
+//!   default, Go type and verified `PBS_*` variable (plus the un-prefixed fallback, such as
+//!   `GDPR_DEFAULT_VALUE`, that a `BindEnv` made before `SetEnvPrefix` adds), and the `config.New`
+//!   result.
+//! - `bidderinfos`: `static/bidder-info` through `config.LoadBidderInfoFromDisk` and `config.New`.
+//! - `biddernames`: the `openrtb_ext` bidder name constants, `CoreBidderNames()`, reserved-name
+//!   predicates and the `NormalizeBidderName` table.
+//!
+//! The programs clear `PBS_*` variables (`configdefaults` also clears those un-prefixed
+//! fallbacks), run viper from an empty directory, and route glog to stderr, which is shown only
+//! when a dump fails.
+//!
+//! # `typegen`
+//!
+//! [`typegen`] generates the Rust types of Go packages (every struct, named type, constant and
+//! alias, with `#[derive(GoJson)]` attributes carrying the Go names and JSON tags verbatim, and
+//! Go's doc comments) from each crate's `typegen.json`, using a go/types describer under
+//! `crates/devtools/go/typegen`. It also writes the crate's Rust and Go type indexes for its
+//! parity tests. See the module documentation for the type mapping and the overrides file.
+
+pub mod cli;
+pub mod error;
+pub mod fixtures;
+pub mod godump;
+#[cfg(test)]
+mod goldens;
+pub mod golex;
+#[cfg(test)]
+mod gomods;
+pub mod goparse;
+pub mod hooks;
+pub mod manifest;
+pub mod repo;
+#[cfg(test)]
+pub mod testutil;
+pub mod typegen;

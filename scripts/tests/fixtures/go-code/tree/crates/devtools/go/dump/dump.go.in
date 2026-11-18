@@ -1,0 +1,4 @@
+package dump
+
+// Dump writes one value.
+func Dump() error { return nil } //nolint:wrapcheck

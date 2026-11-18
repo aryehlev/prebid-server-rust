@@ -1,0 +1,113 @@
+{
+  "notes": [
+    "Hand-maintained overlay for go_fixture_manifest.json; pbs-devtools adapter-manifest merges it and validates it.",
+    "runs: keyed \"<go_pkg>/<go_test>\". setup must equal the statements the generator detects, opaque_fields the struct-literal fields it cannot evaluate, and go_test_file_sha256 the SHA-256 of go_test_file; any mismatch fails generation until the entry is re-reviewed against the Go test.",
+    "hooks vocabulary: clock_utc (RFC 3339 UTC), random_int63, random_intn, uuid, testing_flag, cache_buster, week, package_vars ({Go name: value}), version_ver.",
+    "expected_totals: what the Go tree must produce; update after reviewing added or removed adapters and fixtures."
+  ],
+  "expected_totals": {
+    "runs": 282,
+    "fixture_runs": {
+      "amp": 8,
+      "exemplary": 1500,
+      "supplemental": 2162,
+      "video": 15,
+      "videosupplemental": 11
+    },
+    "fixture_runs_total": 3696,
+    "distinct_fixture_files": 3649
+  },
+  "global_hooks": {
+    "version_ver": ""
+  },
+  "runs": {
+    "adnuntius/TestJsonSamples": {
+      "hooks": {
+        "clock_utc": "2016-01-01T12:30:15Z"
+      },
+      "setup": [
+        "assertTzo(t, bidder)",
+        "AssignDefaultValues(bidder)"
+      ],
+      "go_test_file_sha256": "52cc0d07da4ae2c5c03b7969bcf199135199ed600ec684690a5133b320875172",
+      "notes": "adnuntius_test.go:44-49 AssignDefaultValues replaces adapter.time with a FakeTime fixed at time.Date(2016, 1, 1, 12, 30, 15, 0, time.UTC); assertTzo only asserts the field is set."
+    },
+    "appnexus/TestJsonSamples": {
+      "hooks": {
+        "random_int63": 10,
+        "random_intn": 10
+      },
+      "setup": [
+        "bidderAppNexus, _ := bidder.(*adapter)",
+        "bidderAppNexus.randomGenerator = FakeRandomNumberGenerator{Number: 10}"
+      ],
+      "go_test_file_sha256": "9ed7ea4350a0af9b8a005d6cb62e1c7c4dbaf1887022470dd09090363e109eb6",
+      "notes": "appnexus_test.go:22-23 replaces adapter.randomGenerator; FakeRandomNumberGenerator (appnexus_test.go:46-55) returns Number (10) from both GenerateInt63() and Intn(n)."
+    },
+    "cadent_aperture_mx/TestJsonSamples": {
+      "hooks": {
+        "testing_flag": true
+      },
+      "setup": [
+        "setTesting(bidder)"
+      ],
+      "go_test_file_sha256": "82f1ba1c3e889ad3383251dcab910d7e54e29f866f25947f0e4e07eaa5ce147e",
+      "notes": "cadentaperturemx_test.go:24-27 sets adapter.testing = true; buildEndpoint (cadentaperturemx.go:26-34) then returns endpoint + \"?t=1000&ts=2060541160\" instead of using the request tmax and time.Now()."
+    },
+    "eplanning/TestJsonSamples": {
+      "hooks": {
+        "testing_flag": true
+      },
+      "setup": [
+        "setTesting(bidder)"
+      ],
+      "go_test_file_sha256": "ed5808eb089ff044e5df865d77c2e3beccb6065512dc3f3e9b3e35c328928cad",
+      "notes": "eplanning_test.go:24-27 sets EPlanningAdapter.testing = true; MakeRequests (eplanning.go:173-180) then sends body \"{}\" and omits the rnd query parameter (rand.Int())."
+    },
+    "flipp/TestJsonSamples": {
+      "hooks": {
+        "uuid": "30470a14-2949-4110-abce-b62d57304ad5"
+      },
+      "setup": [
+        "setFakeUUIDGenerator(bidder)"
+      ],
+      "go_test_file_sha256": "24de6f72710c26a41b25be1c8544b4f881fe9b515a1e5ec30d40040cbd356cf4",
+      "notes": "flipp_test.go:37-40 replaces adapter.uuidGenerator with TestUUIDGenerator, whose Generate() returns fakeUuid (flipp_test.go:15) and a nil error."
+    },
+    "sharethrough/TestJsonSamples": {
+      "hooks": {
+        "package_vars": {
+          "adapterVersion": "10.0"
+        }
+      },
+      "setup": [
+        "adapterVersion = \"10.0\""
+      ],
+      "go_test_file_sha256": "b283af0f97469fa0491bb38dbfcd712a1ec372f836a2f5c28c7af000ca5518ce",
+      "notes": "sharethrough_test.go:12 assigns the package var adapterVersion (declared \"10.0\" in sharethrough.go:18, so the value is unchanged today); it is sent as source.ext.str next to version.Ver."
+    },
+    "smaato/TestJsonSamples": {
+      "hooks": {
+        "clock_utc": "2021-06-25T10:00:00Z"
+      },
+      "setup": [
+        "adapter, _ := bidder.(*adapter)",
+        "adapter.clock = &mockTime{time: time.Date(2021, 6, 25, 10, 00, 0, 0, time.UTC)}"
+      ],
+      "go_test_file_sha256": "a867808464397ae253ba9c014378f24d44e9e7d2a064e0b38dd14d50a7b2cf19",
+      "notes": "smaato_test.go:28-30 replaces adapter.clock (timeutil.Time) with a mockTime fixed at 2021-06-25T10:00:00Z; smaato.go:288 uses it for bid expiry."
+    },
+    "yieldlab/TestJsonSamples": {
+      "hooks": {
+        "cache_buster": "testing",
+        "week": "33"
+      },
+      "opaque_fields": [
+        "cacheBuster",
+        "getWeek"
+      ],
+      "go_test_file_sha256": "423075c77e84b6b094ae6d7925b95d2cef3d2f29c4b1e01f1feee9465891488b",
+      "notes": "yieldlab_test.go:16-32 builds &YieldlabAdapter{endpoint: testURL, cacheBuster: testCacheBuster, getWeek: testWeekGenerator} without Builder; testCacheBuster returns \"testing\" and testWeekGenerator returns \"33\". There is no bidder name."
+    }
+  }
+}

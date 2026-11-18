@@ -15,3 +15,7 @@ categories = ["parser-implementations"]
 workspace = true
 
 [dependencies]
+
+[dev-dependencies]
+# Only used to read the Go-generated golden files under testdata/.
+serde_json = "1.0.149"

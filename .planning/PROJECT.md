@@ -2,7 +2,7 @@
 
 ## What This Is
 
-This project is to finish porting the existing Go Prebid Server codebase to Rust under `rust/`. The goal is a Rust implementation that can replace the Go server for production traffic while preserving the current server's business behavior, configuration shape, and operational expectations. Longer term, this creates an open source Rust Prebid Server base that can later carry client-side code.
+This project is to finish porting the existing Go Prebid Server codebase to Rust. This repository holds only the Rust port; the upstream Go server is the behavior reference, checked out at a pinned commit as test input and never committed. The goal is a Rust implementation that can replace the Go server for production traffic while preserving the current server's business behavior, configuration shape, and operational expectations. Longer term, this creates an open source Rust Prebid Server base that can later carry client-side code.
 
 ## Core Value
 
@@ -35,7 +35,7 @@ The Rust server can replace the Go server for production traffic without changin
 
 ## Context
 
-This is a brownfield port of the existing Prebid Server repository. The Go codebase remains the canonical behavior reference, while the Rust work lives under `rust/`. Existing codebase analysis shows the Go server already has a centralized auction core, broad adapter and module surfaces, configuration and bidder metadata loading, stored-request infrastructure, and cache-related support services. The current parity gaps called out for the Rust port are caching, auction flow, adapters, bidders, and modules.
+This is a brownfield port of the existing Prebid Server repository. The Go codebase remains the canonical behavior reference. This repository holds only the Rust port: `UPSTREAM_SYNC` pins the upstream commit it covers, and `scripts/fetch-upstream.sh` checks that commit out into the git-ignored `.upstream/` for tests and tools to read. Existing codebase analysis shows the Go server already has a centralized auction core, broad adapter and module surfaces, configuration and bidder metadata loading, stored-request infrastructure, and cache-related support services. The current parity gaps called out for the Rust port are caching, auction flow, adapters, bidders, and modules.
 
 The immediate audience for this effort is the team building and operating an open source Rust Prebid Server. The follow-on motivation is to have a Rust server base that can later incorporate prebid client code, but that extension is not part of the current project scope.
 
@@ -50,7 +50,7 @@ The immediate audience for this effort is the team building and operating an ope
 
 | Decision | Rationale | Outcome |
 |----------|-----------|---------|
-| Build the parity target in `rust/` against the existing Go repository | Keeps the canonical implementation available as the behavior reference during the port | — Pending |
+| Keep only the Rust port in this repository, and fetch the upstream Go server at the pinned commit as test input | Keeps the canonical implementation available as the behavior reference during the port without carrying the Go tree | — Pending |
 | Require production-replacement parity, not partial feature coverage | The project only succeeds when the Rust server can stand in for the Go server | — Pending |
 | Port every bidder, adapter, and module rather than only a production subset | The stated goal is full server parity, not a deployment-specific slice | — Pending |
 | Defer performance, reliability, deployment/tooling cleanup, and docs cleanup | These do not directly complete business-feature parity and would dilute focus | — Pending |

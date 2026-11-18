@@ -1,0 +1,30 @@
+{
+  "schema": "pbs-parity-adapter-bids-input/1",
+  "schema_version": "1.0.0",
+  "case_id": "adapters/appnexus/appnexustest/exemplary/simple-banner.json#bids",
+  "fixture_path": "adapters/appnexus/appnexustest/exemplary/simple-banner.json",
+  "build": {"bidder": "appnexus", "wrap": "info_aware"},
+  "request": {
+    "id": "test-request-id",
+    "imp": [{"id": "test-imp-id", "banner": {"format": [{"w": 300, "h": 250}]}, "ext": {"bidder": {"member": "103", "inv_code": "abc"}}}]
+  },
+  "request_data": {
+    "method": "POST",
+    "uri": "http://ib.adnxs.com/openrtb2?member_id=103",
+    "headers": [["Content-Type", "application/json;charset=utf-8"]],
+    "body": {"json": {"id": "test-request-id"}},
+    "imp_ids": ["test-imp-id"]
+  },
+  "response": {
+    "status": 200,
+    "headers": [["Content-Type", "application/json"]],
+    "body": {
+      "json": {
+        "id": "test-request-id",
+        "seatbid": [{"seat": "958", "bid": [{"id": "7706636740145184841", "impid": "test-imp-id", "price": 0.5, "adm": "some-test-ad", "crid": "29681110", "w": 300, "h": 250, "ext": {"appnexus": {"brand_id": 1, "auction_id": 8189378542222915032, "bidder_id": 2, "bid_ad_type": 0}}}]}],
+        "cur": "USD"
+      }
+    }
+  },
+  "extra_info": {}
+}

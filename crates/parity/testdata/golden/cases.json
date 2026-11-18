@@ -1,0 +1,2297 @@
+{
+  "golden": [
+    {
+      "envelope": null,
+      "ops": [
+        {
+          "op": "new_v4"
+        },
+        {
+          "op": "new_v4"
+        },
+        {
+          "op": "new_v4"
+        },
+        {
+          "op": "values"
+        },
+        {
+          "op": "new_v4"
+        },
+        {
+          "op": "uuidutil"
+        },
+        {
+          "op": "generate"
+        },
+        {
+          "op": "now"
+        },
+        {
+          "op": "int"
+        },
+        {
+          "op": "int63"
+        },
+        {
+          "op": "intn",
+          "n": 3
+        },
+        {
+          "op": "intn"
+        },
+        {
+          "op": "intn",
+          "n": -1
+        },
+        {
+          "op": "map_keys",
+          "keys": [
+            "b",
+            "c",
+            "a",
+            "ab",
+            ""
+          ]
+        }
+      ],
+      "results": [
+        "0b1b705d-5a17-494f-872e-a858a0fc3200",
+        "2329f45a-e73e-4f17-87bb-876e809c0196",
+        "f4115b74-ceda-46eb-94dc-5b099ad1d7e6",
+        {
+          "now_unix_ms": 1629473330823,
+          "int63": 10,
+          "uuid": "30470a14-2949-4110-abce-b62d57304ad5"
+        },
+        "6f08cfeb-c8f9-4f51-87d6-44da4fdf54ef",
+        "df664569-e77c-46db-8df5-f5eccca4dd2d",
+        "30470a14-2949-4110-abce-b62d57304ad5",
+        {
+          "format": "2021-08-20T15:28:50.823Z",
+          "huaweiads": "2021-08-20 15:28:50.823",
+          "unix": 1629473330,
+          "unix_milli": 1629473330823,
+          "weekday": 5,
+          "year_day": 232
+        },
+        10,
+        10,
+        1,
+        0,
+        0,
+        [
+          "",
+          "a",
+          "ab",
+          "b",
+          "c"
+        ]
+      ]
+    },
+    {
+      "envelope": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"a\",\"request\":{\"method\":\"POST\",\"path\":\"/openrtb2/auction\",\"query\":\"\",\"headers\":[]},\"mock\":{},\"capture\":{},\"fakes\":{\"now_unix_ms\":1000,\"int63\":7,\"uuid\":\"case-a\"}}",
+      "ops": [
+        {
+          "op": "new_v4"
+        },
+        {
+          "op": "new_v4"
+        },
+        {
+          "op": "new_v4"
+        },
+        {
+          "op": "values"
+        },
+        {
+          "op": "new_v4"
+        },
+        {
+          "op": "uuidutil"
+        },
+        {
+          "op": "generate"
+        },
+        {
+          "op": "now"
+        },
+        {
+          "op": "int"
+        },
+        {
+          "op": "int63"
+        },
+        {
+          "op": "intn",
+          "n": 3
+        },
+        {
+          "op": "intn"
+        },
+        {
+          "op": "intn",
+          "n": -1
+        },
+        {
+          "op": "map_keys",
+          "keys": [
+            "b",
+            "c",
+            "a",
+            "ab",
+            ""
+          ]
+        }
+      ],
+      "results": [
+        "3c086d0b-35de-4010-a6f7-03ef2f8e5a2b",
+        "ba64787d-90ff-4e9f-ab01-3c587f0fac64",
+        "762dc7fe-30b2-4d23-b4e2-aa49fa2742ab",
+        {
+          "now_unix_ms": 1000,
+          "int63": 7,
+          "uuid": "case-a"
+        },
+        "731e03d2-a51c-46e0-a36e-58cb5c1f7f1b",
+        "64a41789-bb29-4f38-a35b-6becbe1c5026",
+        "case-a",
+        {
+          "format": "1970-01-01T00:00:01Z",
+          "huaweiads": "1970-01-01 00:00:01.000",
+          "unix": 1,
+          "unix_milli": 1000,
+          "weekday": 4,
+          "year_day": 1
+        },
+        7,
+        7,
+        1,
+        0,
+        0,
+        [
+          "",
+          "a",
+          "ab",
+          "b",
+          "c"
+        ]
+      ]
+    },
+    {
+      "envelope": null,
+      "ops": [
+        {
+          "op": "new_v4"
+        },
+        {
+          "op": "new_v4"
+        }
+      ],
+      "results": [
+        "0b1b705d-5a17-494f-872e-a858a0fc3200",
+        "2329f45a-e73e-4f17-87bb-876e809c0196"
+      ]
+    },
+    {
+      "envelope": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"b\",\"request\":{\"method\":\"POST\",\"path\":\"/openrtb2/auction\",\"query\":\"\",\"headers\":[]},\"mock\":{},\"capture\":{}}",
+      "ops": [
+        {
+          "op": "new_v4"
+        },
+        {
+          "op": "new_v4"
+        },
+        {
+          "op": "values"
+        },
+        {
+          "op": "new_v4"
+        },
+        {
+          "op": "uuidutil"
+        },
+        {
+          "op": "generate"
+        },
+        {
+          "op": "now"
+        },
+        {
+          "op": "int"
+        },
+        {
+          "op": "int63"
+        },
+        {
+          "op": "intn",
+          "n": 3
+        },
+        {
+          "op": "intn"
+        },
+        {
+          "op": "intn",
+          "n": -1
+        },
+        {
+          "op": "map_keys",
+          "keys": [
+            "b",
+            "c",
+            "a",
+            "ab",
+            ""
+          ]
+        }
+      ],
+      "results": [
+        "0b1b705d-5a17-494f-872e-a858a0fc3200",
+        "2329f45a-e73e-4f17-87bb-876e809c0196",
+        {
+          "now_unix_ms": 1629473330823,
+          "int63": 10,
+          "uuid": "30470a14-2949-4110-abce-b62d57304ad5"
+        },
+        "f4115b74-ceda-46eb-94dc-5b099ad1d7e6",
+        "6f08cfeb-c8f9-4f51-87d6-44da4fdf54ef",
+        "30470a14-2949-4110-abce-b62d57304ad5",
+        {
+          "format": "2021-08-20T15:28:50.823Z",
+          "huaweiads": "2021-08-20 15:28:50.823",
+          "unix": 1629473330,
+          "unix_milli": 1629473330823,
+          "weekday": 5,
+          "year_day": 232
+        },
+        10,
+        10,
+        1,
+        0,
+        0,
+        [
+          "",
+          "a",
+          "ab",
+          "b",
+          "c"
+        ]
+      ]
+    },
+    {
+      "envelope": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"c\",\"request\":{\"method\":\"POST\",\"path\":\"/openrtb2/auction\",\"query\":\"\",\"headers\":[]},\"mock\":{},\"capture\":{},\"fakes\":{\"uuid\":\"case-c\"}}",
+      "ops": [
+        {
+          "op": "new_v4"
+        },
+        {
+          "op": "set",
+          "set": {
+            "int63": 5,
+            "uuid": "mid"
+          }
+        },
+        {
+          "op": "new_v4"
+        },
+        {
+          "op": "new_v4"
+        },
+        {
+          "op": "uuidutil"
+        },
+        {
+          "op": "int"
+        },
+        {
+          "op": "values"
+        },
+        {
+          "op": "reset"
+        },
+        {
+          "op": "new_v4"
+        },
+        {
+          "op": "values"
+        },
+        {
+          "op": "set",
+          "set": {}
+        },
+        {
+          "op": "new_v4"
+        }
+      ],
+      "results": [
+        "827dcbf5-7814-4823-98bd-a922f19e77dd",
+        null,
+        "0e3aa989-7e93-4ea1-bc3a-448065c4e1fd",
+        "fe316cbb-b545-467e-904d-1ecbf1f927bf",
+        "88b3054d-2970-45a4-a843-96dc2f137b50",
+        5,
+        {
+          "now_unix_ms": 1629473330823,
+          "int63": 5,
+          "uuid": "mid"
+        },
+        null,
+        "0b1b705d-5a17-494f-872e-a858a0fc3200",
+        {
+          "now_unix_ms": 1629473330823,
+          "int63": 10,
+          "uuid": "30470a14-2949-4110-abce-b62d57304ad5"
+        },
+        null,
+        "0b1b705d-5a17-494f-872e-a858a0fc3200"
+      ]
+    },
+    {
+      "envelope": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"d\",\"request\":{\"method\":\"POST\",\"path\":\"/openrtb2/auction\",\"query\":\"\",\"headers\":[]},\"mock\":{},\"capture\":{},\"fakes\":{}}",
+      "ops": [
+        {
+          "op": "values"
+        },
+        {
+          "op": "new_v4"
+        }
+      ],
+      "results": [
+        {
+          "now_unix_ms": 1629473330823,
+          "int63": 10,
+          "uuid": "30470a14-2949-4110-abce-b62d57304ad5"
+        },
+        "0b1b705d-5a17-494f-872e-a858a0fc3200"
+      ]
+    },
+    {
+      "envelope": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"e\",\"request\":{\"method\":\"POST\",\"path\":\"/openrtb2/auction\",\"query\":\"\",\"headers\":[]},\"mock\":{},\"capture\":{},\"fakes\":{\"now_unix_ms\":-1,\"int63\":-9223372036854775808,\"uuid\":\"é\"}}",
+      "ops": [
+        {
+          "op": "now"
+        },
+        {
+          "op": "int"
+        },
+        {
+          "op": "int63"
+        },
+        {
+          "op": "intn",
+          "n": 7
+        },
+        {
+          "op": "intn",
+          "n": 1
+        },
+        {
+          "op": "new_v4"
+        },
+        {
+          "op": "generate"
+        }
+      ],
+      "results": [
+        {
+          "format": "1969-12-31T23:59:59.999Z",
+          "huaweiads": "1969-12-31 23:59:59.999",
+          "unix": -1,
+          "unix_milli": -1,
+          "weekday": 3,
+          "year_day": 365
+        },
+        -9223372036854775808,
+        -9223372036854775808,
+        -1,
+        0,
+        "6136fedb-a772-4c69-bb2d-5e0699118ce1",
+        "é"
+      ]
+    },
+    {
+      "envelope": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"f\",\"request\":{\"method\":\"POST\",\"path\":\"/openrtb2/auction\",\"query\":\"\",\"headers\":[]},\"mock\":{},\"capture\":{},\"fakes\":null}",
+      "ops": [
+        {
+          "op": "new_v4"
+        }
+      ],
+      "results": [
+        "0b1b705d-5a17-494f-872e-a858a0fc3200"
+      ]
+    },
+    {
+      "envelope": null,
+      "ops": [
+        {
+          "op": "new_v4"
+        },
+        {
+          "op": "values"
+        }
+      ],
+      "results": [
+        "0b1b705d-5a17-494f-872e-a858a0fc3200",
+        {
+          "now_unix_ms": 1629473330823,
+          "int63": 10,
+          "uuid": "30470a14-2949-4110-abce-b62d57304ad5"
+        }
+      ]
+    },
+    {
+      "envelope": null,
+      "ops": [
+        {
+          "op": "uuidutil"
+        },
+        {
+          "op": "new_v4"
+        },
+        {
+          "op": "int"
+        },
+        {
+          "op": "new_v4"
+        },
+        {
+          "op": "new_v4"
+        }
+      ],
+      "results": [
+        "2329f45a-e73e-4f17-87bb-876e809c0196",
+        "f4115b74-ceda-46eb-94dc-5b099ad1d7e6",
+        10,
+        "6f08cfeb-c8f9-4f51-87d6-44da4fdf54ef",
+        "df664569-e77c-46db-8df5-f5eccca4dd2d"
+      ]
+    },
+    {
+      "envelope": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"fuzz-1\",\"request\":{\"method\":\"POST\",\"path\":\"/openrtb2/auction\",\"query\":\"\",\"headers\":[]},\"mock\":{},\"capture\":{},\"fakes\":{\"now_unix_ms\":3674747811081,\"int63\":-294104031098457283,\"uuid\":\"x-0\\u2029%%\\u003c\"}}",
+      "ops": [
+        {
+          "op": "now"
+        },
+        {
+          "op": "new_v4"
+        },
+        {
+          "op": "int"
+        },
+        {
+          "op": "values"
+        },
+        {
+          "op": "new_v4"
+        },
+        {
+          "op": "intn",
+          "n": -1
+        }
+      ],
+      "results": [
+        {
+          "format": "2086-06-12T19:16:51.081Z",
+          "huaweiads": "2086-06-12 19:16:51.081",
+          "unix": 3674747811,
+          "unix_milli": 3674747811081,
+          "weekday": 3,
+          "year_day": 163
+        },
+        "c653eeff-d12b-47c8-b5be-7846c85f0851",
+        -294104031098457283,
+        {
+          "now_unix_ms": 3674747811081,
+          "int63": -294104031098457283,
+          "uuid": "x-0\u2029%%\u003c"
+        },
+        "665e2bd2-7f5c-4469-9877-2a4fb939149f",
+        0
+      ]
+    },
+    {
+      "envelope": null,
+      "ops": [
+        {
+          "op": "generate"
+        },
+        {
+          "op": "generate"
+        },
+        {
+          "op": "uuidutil"
+        },
+        {
+          "op": "new_v4"
+        },
+        {
+          "op": "int63"
+        },
+        {
+          "op": "generate"
+        },
+        {
+          "op": "new_v4"
+        },
+        {
+          "op": "new_v4"
+        },
+        {
+          "op": "new_v4"
+        },
+        {
+          "op": "int63"
+        },
+        {
+          "op": "reset"
+        }
+      ],
+      "results": [
+        "30470a14-2949-4110-abce-b62d57304ad5",
+        "30470a14-2949-4110-abce-b62d57304ad5",
+        "0b1b705d-5a17-494f-872e-a858a0fc3200",
+        "2329f45a-e73e-4f17-87bb-876e809c0196",
+        10,
+        "30470a14-2949-4110-abce-b62d57304ad5",
+        "f4115b74-ceda-46eb-94dc-5b099ad1d7e6",
+        "6f08cfeb-c8f9-4f51-87d6-44da4fdf54ef",
+        "df664569-e77c-46db-8df5-f5eccca4dd2d",
+        10,
+        null
+      ]
+    },
+    {
+      "envelope": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"fuzz-3\",\"request\":{\"method\":\"POST\",\"path\":\"/openrtb2/auction\",\"query\":\"\",\"headers\":[]},\"mock\":{},\"capture\":{},\"fakes\":{\"int63\":-1,\"uuid\":\"x\\\\\\t\"}}",
+      "ops": [
+        {
+          "op": "map_keys",
+          "keys": [
+            "é0",
+            "b1",
+            "appnexus2",
+            "aa3",
+            "a4"
+          ]
+        },
+        {
+          "op": "new_v4"
+        },
+        {
+          "op": "set",
+          "set": {}
+        },
+        {
+          "op": "new_v4"
+        },
+        {
+          "op": "new_v4"
+        },
+        {
+          "op": "new_v4"
+        }
+      ],
+      "results": [
+        [
+          "a4",
+          "aa3",
+          "appnexus2",
+          "b1",
+          "é0"
+        ],
+        "4e44a7c3-6f7e-4b73-a384-bd55453c685a",
+        null,
+        "0b1b705d-5a17-494f-872e-a858a0fc3200",
+        "2329f45a-e73e-4f17-87bb-876e809c0196",
+        "f4115b74-ceda-46eb-94dc-5b099ad1d7e6"
+      ]
+    },
+    {
+      "envelope": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"fuzz-4\",\"request\":{\"method\":\"POST\",\"path\":\"/openrtb2/auction\",\"query\":\"\",\"headers\":[]},\"mock\":{},\"capture\":{},\"fakes\":{}}",
+      "ops": [
+        {
+          "op": "int"
+        },
+        {
+          "op": "new_v4"
+        },
+        {
+          "op": "new_v4"
+        },
+        {
+          "op": "map_keys"
+        },
+        {
+          "op": "int"
+        },
+        {
+          "op": "new_v4"
+        }
+      ],
+      "results": [
+        10,
+        "0b1b705d-5a17-494f-872e-a858a0fc3200",
+        "2329f45a-e73e-4f17-87bb-876e809c0196",
+        [],
+        10,
+        "f4115b74-ceda-46eb-94dc-5b099ad1d7e6"
+      ]
+    },
+    {
+      "envelope": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"fuzz-5\",\"request\":{\"method\":\"POST\",\"path\":\"/openrtb2/auction\",\"query\":\"\",\"headers\":[]},\"mock\":{},\"capture\":{},\"fakes\":{\"int63\":-2482844137715026781,\"uuid\":\"case-seednull/\"}}",
+      "ops": [
+        {
+          "op": "intn"
+        },
+        {
+          "op": "values"
+        },
+        {
+          "op": "new_v4"
+        },
+        {
+          "op": "new_v4"
+        }
+      ],
+      "results": [
+        0,
+        {
+          "now_unix_ms": 1629473330823,
+          "int63": -2482844137715026781,
+          "uuid": "case-seednull/"
+        },
+        "c8a39b78-4df5-4e56-9eda-109db7d9fe1a",
+        "d84b2335-71fb-40f7-9dc1-d3a615aa1cd3"
+      ]
+    },
+    {
+      "envelope": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"fuzz-6\",\"request\":{\"method\":\"POST\",\"path\":\"/openrtb2/auction\",\"query\":\"\",\"headers\":[]},\"mock\":{},\"capture\":{},\"fakes\":{\"int63\":-9223372036854775808}}",
+      "ops": [
+        {
+          "op": "int63"
+        },
+        {
+          "op": "int"
+        },
+        {
+          "op": "set",
+          "set": {}
+        }
+      ],
+      "results": [
+        -9223372036854775808,
+        -9223372036854775808,
+        null
+      ]
+    },
+    {
+      "envelope": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"fuzz-7\",\"request\":{\"method\":\"POST\",\"path\":\"/openrtb2/auction\",\"query\":\"\",\"headers\":[]},\"mock\":{},\"capture\":{},\"fakes\":{\"now_unix_ms\":1629473330823,\"int63\":6914722033870662170,\"uuid\":\"xnullé\"}}",
+      "ops": [
+        {
+          "op": "new_v4"
+        },
+        {
+          "op": "new_v4"
+        },
+        {
+          "op": "new_v4"
+        },
+        {
+          "op": "new_v4"
+        },
+        {
+          "op": "reset"
+        },
+        {
+          "op": "uuidutil"
+        },
+        {
+          "op": "new_v4"
+        }
+      ],
+      "results": [
+        "e96dcce9-c42d-49b2-8fe9-97230331d93e",
+        "1c3cd1fc-77ed-42fb-b562-e50775ae4a04",
+        "7aa6bea0-38ac-4712-a08f-97a146c63af0",
+        "3b6c752c-677d-41a1-a8b0-8217b0dd0e83",
+        null,
+        "0b1b705d-5a17-494f-872e-a858a0fc3200",
+        "2329f45a-e73e-4f17-87bb-876e809c0196"
+      ]
+    },
+    {
+      "envelope": null,
+      "ops": [
+        {
+          "op": "values"
+        },
+        {
+          "op": "generate"
+        },
+        {
+          "op": "new_v4"
+        }
+      ],
+      "results": [
+        {
+          "now_unix_ms": 1629473330823,
+          "int63": 10,
+          "uuid": "30470a14-2949-4110-abce-b62d57304ad5"
+        },
+        "30470a14-2949-4110-abce-b62d57304ad5",
+        "0b1b705d-5a17-494f-872e-a858a0fc3200"
+      ]
+    },
+    {
+      "envelope": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"fuzz-9\",\"request\":{\"method\":\"POST\",\"path\":\"/openrtb2/auction\",\"query\":\"\",\"headers\":[]},\"mock\":{},\"capture\":{},\"fakes\":{\"now_unix_ms\":3459745646174,\"uuid\":\"30470a14-2949-4110-abce-b62d57304ad5 % \"}}",
+      "ops": [
+        {
+          "op": "new_v4"
+        },
+        {
+          "op": "int63"
+        },
+        {
+          "op": "map_keys",
+          "keys": [
+            "é0",
+            "1",
+            "b2",
+            "appnexus3",
+            "Rubicon4"
+          ]
+        },
+        {
+          "op": "int"
+        }
+      ],
+      "results": [
+        "dec2d03a-abe9-49e6-82a4-d5466e2e912b",
+        10,
+        [
+          "1",
+          "Rubicon4",
+          "appnexus3",
+          "b2",
+          "é0"
+        ],
+        10
+      ]
+    },
+    {
+      "envelope": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"fuzz-10\",\"request\":{\"method\":\"POST\",\"path\":\"/openrtb2/auction\",\"query\":\"\",\"headers\":[]},\"mock\":{},\"capture\":{},\"fakes\":{\"now_unix_ms\":1195334754686,\"int63\":300,\"uuid\":\"case-seed\\u2028:\"}}",
+      "ops": [
+        {
+          "op": "new_v4"
+        },
+        {
+          "op": "new_v4"
+        }
+      ],
+      "results": [
+        "6a442caa-1fdc-4f01-a5c9-0b5b3945c8fe",
+        "341c3617-0b5d-4337-a4bc-c5cba47eda3f"
+      ]
+    },
+    {
+      "envelope": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"fuzz-11\",\"request\":{\"method\":\"POST\",\"path\":\"/openrtb2/auction\",\"query\":\"\",\"headers\":[]},\"mock\":{},\"capture\":{},\"fakes\":{\"now_unix_ms\":3151951865727}}",
+      "ops": [
+        {
+          "op": "values"
+        },
+        {
+          "op": "map_keys",
+          "keys": [
+            "aa0",
+            "aa1",
+            "2",
+            "Rubicon3"
+          ]
+        },
+        {
+          "op": "map_keys",
+          "keys": [
+            "b0",
+            "b1",
+            "c2",
+            "c3"
+          ]
+        },
+        {
+          "op": "int63"
+        },
+        {
+          "op": "new_v4"
+        },
+        {
+          "op": "intn",
+          "n": 2
+        },
+        {
+          "op": "map_keys",
+          "keys": [
+            "a0"
+          ]
+        },
+        {
+          "op": "values"
+        },
+        {
+          "op": "new_v4"
+        },
+        {
+          "op": "generate"
+        }
+      ],
+      "results": [
+        {
+          "now_unix_ms": 3151951865727,
+          "int63": 10,
+          "uuid": "30470a14-2949-4110-abce-b62d57304ad5"
+        },
+        [
+          "2",
+          "Rubicon3",
+          "aa0",
+          "aa1"
+        ],
+        [
+          "b0",
+          "b1",
+          "c2",
+          "c3"
+        ],
+        10,
+        "0b1b705d-5a17-494f-872e-a858a0fc3200",
+        0,
+        [
+          "a0"
+        ],
+        {
+          "now_unix_ms": 3151951865727,
+          "int63": 10,
+          "uuid": "30470a14-2949-4110-abce-b62d57304ad5"
+        },
+        "2329f45a-e73e-4f17-87bb-876e809c0196",
+        "30470a14-2949-4110-abce-b62d57304ad5"
+      ]
+    },
+    {
+      "envelope": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"fuzz-12\",\"request\":{\"method\":\"POST\",\"path\":\"/openrtb2/auction\",\"query\":\"\",\"headers\":[]},\"mock\":{},\"capture\":{},\"fakes\":{\"int63\":-8676711621891408976}}",
+      "ops": [
+        {
+          "op": "new_v4"
+        },
+        {
+          "op": "int"
+        },
+        {
+          "op": "generate"
+        },
+        {
+          "op": "set",
+          "set": {}
+        },
+        {
+          "op": "values"
+        }
+      ],
+      "results": [
+        "0b1b705d-5a17-494f-872e-a858a0fc3200",
+        -8676711621891408976,
+        "30470a14-2949-4110-abce-b62d57304ad5",
+        null,
+        {
+          "now_unix_ms": 1629473330823,
+          "int63": 10,
+          "uuid": "30470a14-2949-4110-abce-b62d57304ad5"
+        }
+      ]
+    },
+    {
+      "envelope": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"fuzz-13\",\"request\":{\"method\":\"POST\",\"path\":\"/openrtb2/auction\",\"query\":\"\",\"headers\":[]},\"mock\":{},\"capture\":{},\"fakes\":{\"int63\":4169325764724163672,\"uuid\":\"case-seed-0:\"}}",
+      "ops": [
+        {
+          "op": "values"
+        },
+        {
+          "op": "new_v4"
+        },
+        {
+          "op": "map_keys",
+          "keys": [
+            "rubicon0",
+            "rubicon1",
+            "Rubicon2",
+            "appnexus3",
+            "a4"
+          ]
+        },
+        {
+          "op": "new_v4"
+        },
+        {
+          "op": "new_v4"
+        },
+        {
+          "op": "generate"
+        },
+        {
+          "op": "uuidutil"
+        },
+        {
+          "op": "new_v4"
+        },
+        {
+          "op": "intn",
+          "n": -5
+        }
+      ],
+      "results": [
+        {
+          "now_unix_ms": 1629473330823,
+          "int63": 4169325764724163672,
+          "uuid": "case-seed-0:"
+        },
+        "0f47fecb-d813-43e8-b331-656e0dae2baa",
+        [
+          "Rubicon2",
+          "a4",
+          "appnexus3",
+          "rubicon0",
+          "rubicon1"
+        ],
+        "e57f801a-f612-4432-afb5-431309ad1c05",
+        "1d31f427-9463-49db-8f17-3ee61a4832bf",
+        "case-seed-0:",
+        "b0caab42-827d-4bd7-9cf1-09ce34225a0a",
+        "9bb2c01f-003e-4fb0-8ba1-4af2d8c4e5c9",
+        0
+      ]
+    },
+    {
+      "envelope": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"fuzz-14\",\"request\":{\"method\":\"POST\",\"path\":\"/openrtb2/auction\",\"query\":\"\",\"headers\":[]},\"mock\":{},\"capture\":{},\"fakes\":{\"now_unix_ms\":392495526600,\"int63\":-311,\"uuid\":\"30470a14-2949-4110-abce-b62d57304ad5 \"}}",
+      "ops": [
+        {
+          "op": "now"
+        },
+        {
+          "op": "map_keys",
+          "keys": [
+            "c0",
+            "1",
+            "b2"
+          ]
+        },
+        {
+          "op": "set",
+          "set": {
+            "int63": -781,
+            "uuid": "a:1[\r"
+          }
+        },
+        {
+          "op": "uuidutil"
+        },
+        {
+          "op": "reset"
+        },
+        {
+          "op": "int"
+        },
+        {
+          "op": "values"
+        },
+        {
+          "op": "intn",
+          "n": 2
+        }
+      ],
+      "results": [
+        {
+          "format": "1982-06-09T18:32:06.6Z",
+          "huaweiads": "1982-06-09 18:32:06.600",
+          "unix": 392495526,
+          "unix_milli": 392495526600,
+          "weekday": 3,
+          "year_day": 160
+        },
+        [
+          "1",
+          "b2",
+          "c0"
+        ],
+        null,
+        "c569ce7c-3a6d-4be2-ad7d-191ea9f5e43b",
+        null,
+        10,
+        {
+          "now_unix_ms": 1629473330823,
+          "int63": 10,
+          "uuid": "30470a14-2949-4110-abce-b62d57304ad5"
+        },
+        0
+      ]
+    },
+    {
+      "envelope": null,
+      "ops": [
+        {
+          "op": "now"
+        },
+        {
+          "op": "new_v4"
+        },
+        {
+          "op": "new_v4"
+        }
+      ],
+      "results": [
+        {
+          "format": "2021-08-20T15:28:50.823Z",
+          "huaweiads": "2021-08-20 15:28:50.823",
+          "unix": 1629473330,
+          "unix_milli": 1629473330823,
+          "weekday": 5,
+          "year_day": 232
+        },
+        "0b1b705d-5a17-494f-872e-a858a0fc3200",
+        "2329f45a-e73e-4f17-87bb-876e809c0196"
+      ]
+    },
+    {
+      "envelope": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"fuzz-16\",\"request\":{\"method\":\"POST\",\"path\":\"/openrtb2/auction\",\"query\":\"\",\"headers\":[]},\"mock\":{},\"capture\":{},\"fakes\":{\"now_unix_ms\":1700000000000,\"int63\":1}}",
+      "ops": [
+        {
+          "op": "int63"
+        },
+        {
+          "op": "new_v4"
+        },
+        {
+          "op": "generate"
+        },
+        {
+          "op": "int"
+        },
+        {
+          "op": "values"
+        },
+        {
+          "op": "int"
+        },
+        {
+          "op": "values"
+        },
+        {
+          "op": "intn",
+          "n": 3
+        },
+        {
+          "op": "int"
+        }
+      ],
+      "results": [
+        1,
+        "0b1b705d-5a17-494f-872e-a858a0fc3200",
+        "30470a14-2949-4110-abce-b62d57304ad5",
+        1,
+        {
+          "now_unix_ms": 1700000000000,
+          "int63": 1,
+          "uuid": "30470a14-2949-4110-abce-b62d57304ad5"
+        },
+        1,
+        {
+          "now_unix_ms": 1700000000000,
+          "int63": 1,
+          "uuid": "30470a14-2949-4110-abce-b62d57304ad5"
+        },
+        1,
+        1
+      ]
+    },
+    {
+      "envelope": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"fuzz-17\",\"request\":{\"method\":\"POST\",\"path\":\"/openrtb2/auction\",\"query\":\"\",\"headers\":[]},\"mock\":{},\"capture\":{},\"fakes\":{\"now_unix_ms\":1700000000000,\"int63\":2,\"uuid\":\"case-seed😀\"}}",
+      "ops": [
+        {
+          "op": "uuidutil"
+        },
+        {
+          "op": "values"
+        },
+        {
+          "op": "new_v4"
+        },
+        {
+          "op": "intn",
+          "n": 7
+        },
+        {
+          "op": "now"
+        }
+      ],
+      "results": [
+        "f6f94c8c-2c72-48bc-a423-2006998fcb18",
+        {
+          "now_unix_ms": 1700000000000,
+          "int63": 2,
+          "uuid": "case-seed😀"
+        },
+        "281133ab-8788-47cb-b22a-bf1feeecd581",
+        2,
+        {
+          "format": "2023-11-14T22:13:20Z",
+          "huaweiads": "2023-11-14 22:13:20.000",
+          "unix": 1700000000,
+          "unix_milli": 1700000000000,
+          "weekday": 2,
+          "year_day": 318
+        }
+      ]
+    },
+    {
+      "envelope": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"fuzz-18\",\"request\":{\"method\":\"POST\",\"path\":\"/openrtb2/auction\",\"query\":\"\",\"headers\":[]},\"mock\":{},\"capture\":{}}",
+      "ops": [
+        {
+          "op": "reset"
+        },
+        {
+          "op": "intn",
+          "n": -1
+        },
+        {
+          "op": "map_keys",
+          "keys": [
+            "aa0",
+            "1",
+            "rubicon2",
+            "é3",
+            "Rubicon4"
+          ]
+        },
+        {
+          "op": "int63"
+        },
+        {
+          "op": "now"
+        },
+        {
+          "op": "intn",
+          "n": 3
+        },
+        {
+          "op": "generate"
+        },
+        {
+          "op": "now"
+        },
+        {
+          "op": "generate"
+        },
+        {
+          "op": "int63"
+        },
+        {
+          "op": "int63"
+        },
+        {
+          "op": "new_v4"
+        }
+      ],
+      "results": [
+        null,
+        0,
+        [
+          "1",
+          "Rubicon4",
+          "aa0",
+          "rubicon2",
+          "é3"
+        ],
+        10,
+        {
+          "format": "2021-08-20T15:28:50.823Z",
+          "huaweiads": "2021-08-20 15:28:50.823",
+          "unix": 1629473330,
+          "unix_milli": 1629473330823,
+          "weekday": 5,
+          "year_day": 232
+        },
+        1,
+        "30470a14-2949-4110-abce-b62d57304ad5",
+        {
+          "format": "2021-08-20T15:28:50.823Z",
+          "huaweiads": "2021-08-20 15:28:50.823",
+          "unix": 1629473330,
+          "unix_milli": 1629473330823,
+          "weekday": 5,
+          "year_day": 232
+        },
+        "30470a14-2949-4110-abce-b62d57304ad5",
+        10,
+        10,
+        "0b1b705d-5a17-494f-872e-a858a0fc3200"
+      ]
+    },
+    {
+      "envelope": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"fuzz-19\",\"request\":{\"method\":\"POST\",\"path\":\"/openrtb2/auction\",\"query\":\"\",\"headers\":[]},\"mock\":{},\"capture\":{},\"fakes\":{\"now_unix_ms\":2402676114681,\"uuid\":\"30470a14-2949-4110-abce-b62d57304ad5\"}}",
+      "ops": [
+        {
+          "op": "generate"
+        },
+        {
+          "op": "uuidutil"
+        },
+        {
+          "op": "generate"
+        },
+        {
+          "op": "int63"
+        },
+        {
+          "op": "generate"
+        },
+        {
+          "op": "map_keys",
+          "keys": [
+            "aa0",
+            "é1",
+            "a2",
+            "b3",
+            "Rubicon4"
+          ]
+        },
+        {
+          "op": "int63"
+        },
+        {
+          "op": "generate"
+        },
+        {
+          "op": "int"
+        },
+        {
+          "op": "now"
+        },
+        {
+          "op": "reset"
+        }
+      ],
+      "results": [
+        "30470a14-2949-4110-abce-b62d57304ad5",
+        "0b1b705d-5a17-494f-872e-a858a0fc3200",
+        "30470a14-2949-4110-abce-b62d57304ad5",
+        10,
+        "30470a14-2949-4110-abce-b62d57304ad5",
+        [
+          "Rubicon4",
+          "a2",
+          "aa0",
+          "b3",
+          "é1"
+        ],
+        10,
+        "30470a14-2949-4110-abce-b62d57304ad5",
+        10,
+        {
+          "format": "2046-02-19T18:01:54.681Z",
+          "huaweiads": "2046-02-19 18:01:54.681",
+          "unix": 2402676114,
+          "unix_milli": 2402676114681,
+          "weekday": 1,
+          "year_day": 50
+        },
+        null
+      ]
+    },
+    {
+      "envelope": null,
+      "ops": [
+        {
+          "op": "intn",
+          "n": 3
+        },
+        {
+          "op": "map_keys",
+          "keys": [
+            "rubicon0",
+            "b1",
+            "é2",
+            "rubicon3"
+          ]
+        },
+        {
+          "op": "values"
+        },
+        {
+          "op": "new_v4"
+        },
+        {
+          "op": "generate"
+        },
+        {
+          "op": "int63"
+        },
+        {
+          "op": "int63"
+        },
+        {
+          "op": "map_keys",
+          "keys": [
+            "rubicon0",
+            "Rubicon1",
+            "2",
+            "a3",
+            "Rubicon4"
+          ]
+        },
+        {
+          "op": "int"
+        },
+        {
+          "op": "new_v4"
+        },
+        {
+          "op": "new_v4"
+        },
+        {
+          "op": "new_v4"
+        }
+      ],
+      "results": [
+        1,
+        [
+          "b1",
+          "rubicon0",
+          "rubicon3",
+          "é2"
+        ],
+        {
+          "now_unix_ms": 1629473330823,
+          "int63": 10,
+          "uuid": "30470a14-2949-4110-abce-b62d57304ad5"
+        },
+        "0b1b705d-5a17-494f-872e-a858a0fc3200",
+        "30470a14-2949-4110-abce-b62d57304ad5",
+        10,
+        10,
+        [
+          "2",
+          "Rubicon1",
+          "Rubicon4",
+          "a3",
+          "rubicon0"
+        ],
+        10,
+        "2329f45a-e73e-4f17-87bb-876e809c0196",
+        "f4115b74-ceda-46eb-94dc-5b099ad1d7e6",
+        "6f08cfeb-c8f9-4f51-87d6-44da4fdf54ef"
+      ]
+    },
+    {
+      "envelope": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"fuzz-21\",\"request\":{\"method\":\"POST\",\"path\":\"/openrtb2/auction\",\"query\":\"\",\"headers\":[]},\"mock\":{},\"capture\":{}}",
+      "ops": [
+        {
+          "op": "new_v4"
+        },
+        {
+          "op": "now"
+        },
+        {
+          "op": "new_v4"
+        },
+        {
+          "op": "set",
+          "set": {
+            "now_unix_ms": 1700000000000,
+            "int63": 2
+          }
+        },
+        {
+          "op": "map_keys",
+          "keys": [
+            "b0",
+            "a1"
+          ]
+        },
+        {
+          "op": "new_v4"
+        },
+        {
+          "op": "new_v4"
+        },
+        {
+          "op": "uuidutil"
+        },
+        {
+          "op": "new_v4"
+        },
+        {
+          "op": "new_v4"
+        },
+        {
+          "op": "new_v4"
+        }
+      ],
+      "results": [
+        "0b1b705d-5a17-494f-872e-a858a0fc3200",
+        {
+          "format": "2021-08-20T15:28:50.823Z",
+          "huaweiads": "2021-08-20 15:28:50.823",
+          "unix": 1629473330,
+          "unix_milli": 1629473330823,
+          "weekday": 5,
+          "year_day": 232
+        },
+        "2329f45a-e73e-4f17-87bb-876e809c0196",
+        null,
+        [
+          "a1",
+          "b0"
+        ],
+        "0b1b705d-5a17-494f-872e-a858a0fc3200",
+        "2329f45a-e73e-4f17-87bb-876e809c0196",
+        "f4115b74-ceda-46eb-94dc-5b099ad1d7e6",
+        "6f08cfeb-c8f9-4f51-87d6-44da4fdf54ef",
+        "df664569-e77c-46db-8df5-f5eccca4dd2d",
+        "c6fa7f08-a591-4cc4-9579-68e3c3888773"
+      ]
+    },
+    {
+      "envelope": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"fuzz-22\",\"request\":{\"method\":\"POST\",\"path\":\"/openrtb2/auction\",\"query\":\"\",\"headers\":[]},\"mock\":{},\"capture\":{},\"fakes\":{\"now_unix_ms\":4102444800000,\"int63\":9223372036854775807}}",
+      "ops": [
+        {
+          "op": "intn",
+          "n": 1000
+        },
+        {
+          "op": "reset"
+        }
+      ],
+      "results": [
+        807,
+        null
+      ]
+    },
+    {
+      "envelope": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"fuzz-23\",\"request\":{\"method\":\"POST\",\"path\":\"/openrtb2/auction\",\"query\":\"\",\"headers\":[]},\"mock\":{},\"capture\":{},\"fakes\":{\"int63\":-9007199254740993,\"uuid\":\"a:1\\f​%v\"}}",
+      "ops": [
+        {
+          "op": "intn",
+          "n": 1000
+        },
+        {
+          "op": "new_v4"
+        }
+      ],
+      "results": [
+        -993,
+        "fd4526b5-efbc-4942-8507-d658f49ac44d"
+      ]
+    },
+    {
+      "envelope": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"fuzz-24\",\"request\":{\"method\":\"POST\",\"path\":\"/openrtb2/auction\",\"query\":\"\",\"headers\":[]},\"mock\":{},\"capture\":{},\"fakes\":{\"int63\":-693,\"uuid\":\"30470a14-2949-4110-abce-b62d57304ad5\\u0026amp;%s\"}}",
+      "ops": [
+        {
+          "op": "new_v4"
+        },
+        {
+          "op": "new_v4"
+        },
+        {
+          "op": "new_v4"
+        },
+        {
+          "op": "new_v4"
+        },
+        {
+          "op": "intn",
+          "n": 3
+        },
+        {
+          "op": "set",
+          "set": {
+            "int63": 5946723892180131253,
+            "uuid": "a:1�😀"
+          }
+        }
+      ],
+      "results": [
+        "c61d5a18-e80a-4686-899e-8c70d45a419a",
+        "2b191e3b-7836-474e-a39f-2e76b629cbe7",
+        "c3fa24e2-c1e7-4406-b46c-0a2569f8fdcd",
+        "45c94792-d566-47f9-8e1d-53f900158ade",
+        0,
+        null
+      ]
+    },
+    {
+      "envelope": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"fuzz-25\",\"request\":{\"method\":\"POST\",\"path\":\"/openrtb2/auction\",\"query\":\"\",\"headers\":[]},\"mock\":{},\"capture\":{},\"fakes\":{\"now_unix_ms\":4102444800000,\"int63\":531}}",
+      "ops": [
+        {
+          "op": "intn",
+          "n": -5
+        },
+        {
+          "op": "now"
+        },
+        {
+          "op": "new_v4"
+        },
+        {
+          "op": "new_v4"
+        },
+        {
+          "op": "reset"
+        },
+        {
+          "op": "new_v4"
+        }
+      ],
+      "results": [
+        0,
+        {
+          "format": "2100-01-01T00:00:00Z",
+          "huaweiads": "2100-01-01 00:00:00.000",
+          "unix": 4102444800,
+          "unix_milli": 4102444800000,
+          "weekday": 5,
+          "year_day": 1
+        },
+        "0b1b705d-5a17-494f-872e-a858a0fc3200",
+        "2329f45a-e73e-4f17-87bb-876e809c0196",
+        null,
+        "0b1b705d-5a17-494f-872e-a858a0fc3200"
+      ]
+    },
+    {
+      "envelope": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"fuzz-26\",\"request\":{\"method\":\"POST\",\"path\":\"/openrtb2/auction\",\"query\":\"\",\"headers\":[]},\"mock\":{},\"capture\":{},\"fakes\":{\"now_unix_ms\":2683871987903,\"int63\":-5038160632102967101,\"uuid\":\"case-seed﻿0\\u0000é\"}}",
+      "ops": [
+        {
+          "op": "int"
+        },
+        {
+          "op": "uuidutil"
+        },
+        {
+          "op": "uuidutil"
+        },
+        {
+          "op": "map_keys",
+          "keys": [
+            "aa0",
+            "1",
+            "2"
+          ]
+        },
+        {
+          "op": "new_v4"
+        }
+      ],
+      "results": [
+        -5038160632102967101,
+        "49700e26-fdd1-484e-9ddd-a68d549b639f",
+        "d9f00096-ce4c-44dc-a8b0-bad3e25cf165",
+        [
+          "1",
+          "2",
+          "aa0"
+        ],
+        "3288fcb3-43d1-435a-8df5-2480fc108dcd"
+      ]
+    },
+    {
+      "envelope": null,
+      "ops": [
+        {
+          "op": "new_v4"
+        },
+        {
+          "op": "reset"
+        },
+        {
+          "op": "new_v4"
+        },
+        {
+          "op": "new_v4"
+        },
+        {
+          "op": "map_keys",
+          "keys": [
+            "aa0"
+          ]
+        },
+        {
+          "op": "now"
+        },
+        {
+          "op": "uuidutil"
+        }
+      ],
+      "results": [
+        "0b1b705d-5a17-494f-872e-a858a0fc3200",
+        null,
+        "0b1b705d-5a17-494f-872e-a858a0fc3200",
+        "2329f45a-e73e-4f17-87bb-876e809c0196",
+        [
+          "aa0"
+        ],
+        {
+          "format": "2021-08-20T15:28:50.823Z",
+          "huaweiads": "2021-08-20 15:28:50.823",
+          "unix": 1629473330,
+          "unix_milli": 1629473330823,
+          "weekday": 5,
+          "year_day": 232
+        },
+        "f4115b74-ceda-46eb-94dc-5b099ad1d7e6"
+      ]
+    },
+    {
+      "envelope": null,
+      "ops": [
+        {
+          "op": "int63"
+        },
+        {
+          "op": "int"
+        },
+        {
+          "op": "new_v4"
+        },
+        {
+          "op": "set",
+          "set": {
+            "int63": -8991514941662107120,
+            "uuid": "30470a14-2949-4110-abce-b62d57304ad5﻿😀Z\u003cscript\u003e"
+          }
+        },
+        {
+          "op": "now"
+        },
+        {
+          "op": "new_v4"
+        },
+        {
+          "op": "new_v4"
+        },
+        {
+          "op": "set",
+          "set": {
+            "now_unix_ms": 1569878843233,
+            "int63": 8103128425484876346,
+            "uuid": "a:1 :\u0026\u2029"
+          }
+        },
+        {
+          "op": "new_v4"
+        }
+      ],
+      "results": [
+        10,
+        10,
+        "6f08cfeb-c8f9-4f51-87d6-44da4fdf54ef",
+        null,
+        {
+          "format": "2021-08-20T15:28:50.823Z",
+          "huaweiads": "2021-08-20 15:28:50.823",
+          "unix": 1629473330,
+          "unix_milli": 1629473330823,
+          "weekday": 5,
+          "year_day": 232
+        },
+        "b37c26f2-c7d6-4d75-ac20-add8d7604a3c",
+        "3161a2db-5c50-4cef-98ac-de74aa300cb2",
+        null,
+        "8c5472fe-3c77-4426-ac9e-12412bd86c82"
+      ]
+    },
+    {
+      "envelope": null,
+      "ops": [
+        {
+          "op": "intn",
+          "n": 10
+        },
+        {
+          "op": "values"
+        },
+        {
+          "op": "values"
+        },
+        {
+          "op": "generate"
+        },
+        {
+          "op": "new_v4"
+        },
+        {
+          "op": "now"
+        },
+        {
+          "op": "now"
+        },
+        {
+          "op": "new_v4"
+        },
+        {
+          "op": "map_keys",
+          "keys": [
+            "0",
+            "a1",
+            "c2"
+          ]
+        }
+      ],
+      "results": [
+        6,
+        {
+          "now_unix_ms": 1569878843233,
+          "int63": 8103128425484876346,
+          "uuid": "a:1 :\u0026\u2029"
+        },
+        {
+          "now_unix_ms": 1569878843233,
+          "int63": 8103128425484876346,
+          "uuid": "a:1 :\u0026\u2029"
+        },
+        "a:1 :\u0026\u2029",
+        "8b13dbd4-1c6a-4f98-9f2d-7353affe4c84",
+        {
+          "format": "2019-09-30T21:27:23.233Z",
+          "huaweiads": "2019-09-30 21:27:23.233",
+          "unix": 1569878843,
+          "unix_milli": 1569878843233,
+          "weekday": 1,
+          "year_day": 273
+        },
+        {
+          "format": "2019-09-30T21:27:23.233Z",
+          "huaweiads": "2019-09-30 21:27:23.233",
+          "unix": 1569878843,
+          "unix_milli": 1569878843233,
+          "weekday": 1,
+          "year_day": 273
+        },
+        "624ff427-0105-4de3-ad49-4cbab199c53b",
+        [
+          "0",
+          "a1",
+          "c2"
+        ]
+      ]
+    },
+    {
+      "envelope": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"fuzz-30\",\"request\":{\"method\":\"POST\",\"path\":\"/openrtb2/auction\",\"query\":\"\",\"headers\":[]},\"mock\":{},\"capture\":{}}",
+      "ops": [
+        {
+          "op": "generate"
+        },
+        {
+          "op": "int63"
+        },
+        {
+          "op": "new_v4"
+        },
+        {
+          "op": "new_v4"
+        },
+        {
+          "op": "int"
+        },
+        {
+          "op": "values"
+        },
+        {
+          "op": "new_v4"
+        },
+        {
+          "op": "generate"
+        },
+        {
+          "op": "generate"
+        },
+        {
+          "op": "new_v4"
+        }
+      ],
+      "results": [
+        "30470a14-2949-4110-abce-b62d57304ad5",
+        10,
+        "0b1b705d-5a17-494f-872e-a858a0fc3200",
+        "2329f45a-e73e-4f17-87bb-876e809c0196",
+        10,
+        {
+          "now_unix_ms": 1629473330823,
+          "int63": 10,
+          "uuid": "30470a14-2949-4110-abce-b62d57304ad5"
+        },
+        "f4115b74-ceda-46eb-94dc-5b099ad1d7e6",
+        "30470a14-2949-4110-abce-b62d57304ad5",
+        "30470a14-2949-4110-abce-b62d57304ad5",
+        "6f08cfeb-c8f9-4f51-87d6-44da4fdf54ef"
+      ]
+    },
+    {
+      "envelope": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"fuzz-31\",\"request\":{\"method\":\"POST\",\"path\":\"/openrtb2/auction\",\"query\":\"\",\"headers\":[]},\"mock\":{},\"capture\":{},\"fakes\":{\"int63\":-715}}",
+      "ops": [
+        {
+          "op": "new_v4"
+        },
+        {
+          "op": "new_v4"
+        },
+        {
+          "op": "values"
+        },
+        {
+          "op": "new_v4"
+        },
+        {
+          "op": "uuidutil"
+        },
+        {
+          "op": "new_v4"
+        },
+        {
+          "op": "reset"
+        },
+        {
+          "op": "intn",
+          "n": -5
+        }
+      ],
+      "results": [
+        "0b1b705d-5a17-494f-872e-a858a0fc3200",
+        "2329f45a-e73e-4f17-87bb-876e809c0196",
+        {
+          "now_unix_ms": 1629473330823,
+          "int63": -715,
+          "uuid": "30470a14-2949-4110-abce-b62d57304ad5"
+        },
+        "f4115b74-ceda-46eb-94dc-5b099ad1d7e6",
+        "6f08cfeb-c8f9-4f51-87d6-44da4fdf54ef",
+        "df664569-e77c-46db-8df5-f5eccca4dd2d",
+        null,
+        0
+      ]
+    },
+    {
+      "envelope": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"fuzz-32\",\"request\":{\"method\":\"POST\",\"path\":\"/openrtb2/auction\",\"query\":\"\",\"headers\":[]},\"mock\":{},\"capture\":{},\"fakes\":{\"int63\":10,\"uuid\":\"a:1{\\u0000-0\"}}",
+      "ops": [
+        {
+          "op": "uuidutil"
+        },
+        {
+          "op": "uuidutil"
+        },
+        {
+          "op": "map_keys",
+          "keys": [
+            "a0",
+            "é1",
+            "é2"
+          ]
+        },
+        {
+          "op": "new_v4"
+        },
+        {
+          "op": "new_v4"
+        },
+        {
+          "op": "uuidutil"
+        },
+        {
+          "op": "intn",
+          "n": -5
+        },
+        {
+          "op": "generate"
+        },
+        {
+          "op": "now"
+        },
+        {
+          "op": "intn",
+          "n": 1
+        },
+        {
+          "op": "uuidutil"
+        },
+        {
+          "op": "generate"
+        }
+      ],
+      "results": [
+        "8c2053ca-4e57-457c-ae3d-9bcebb5d1b45",
+        "a537edf9-fb44-4ee4-a549-ba8dd4fbba84",
+        [
+          "a0",
+          "é1",
+          "é2"
+        ],
+        "8527aab2-27a3-4db5-bf92-3a0246f937e2",
+        "d4420413-3f77-46d3-989e-9a4aca057668",
+        "3dd163f1-7310-4312-b672-846968ed5ed5",
+        0,
+        "a:1{\u0000-0",
+        {
+          "format": "2021-08-20T15:28:50.823Z",
+          "huaweiads": "2021-08-20 15:28:50.823",
+          "unix": 1629473330,
+          "unix_milli": 1629473330823,
+          "weekday": 5,
+          "year_day": 232
+        },
+        0,
+        "b27c1b33-7ea2-4c77-bbd6-c0f212b1ed0c",
+        "a:1{\u0000-0"
+      ]
+    },
+    {
+      "envelope": null,
+      "ops": [
+        {
+          "op": "new_v4"
+        },
+        {
+          "op": "values"
+        },
+        {
+          "op": "generate"
+        },
+        {
+          "op": "int63"
+        },
+        {
+          "op": "set",
+          "set": {
+            "int63": -4659687462950240138
+          }
+        },
+        {
+          "op": "new_v4"
+        },
+        {
+          "op": "new_v4"
+        },
+        {
+          "op": "set",
+          "set": {
+            "uuid": "a:1\u003cscript\u003ea#0"
+          }
+        },
+        {
+          "op": "intn",
+          "n": 1000
+        }
+      ],
+      "results": [
+        "0b1b705d-5a17-494f-872e-a858a0fc3200",
+        {
+          "now_unix_ms": 1629473330823,
+          "int63": 10,
+          "uuid": "30470a14-2949-4110-abce-b62d57304ad5"
+        },
+        "30470a14-2949-4110-abce-b62d57304ad5",
+        10,
+        null,
+        "0b1b705d-5a17-494f-872e-a858a0fc3200",
+        "2329f45a-e73e-4f17-87bb-876e809c0196",
+        null,
+        10
+      ]
+    },
+    {
+      "envelope": null,
+      "ops": [
+        {
+          "op": "uuidutil"
+        },
+        {
+          "op": "uuidutil"
+        },
+        {
+          "op": "now"
+        },
+        {
+          "op": "uuidutil"
+        },
+        {
+          "op": "new_v4"
+        },
+        {
+          "op": "map_keys",
+          "keys": [
+            "é0",
+            "c1",
+            "aa2"
+          ]
+        },
+        {
+          "op": "uuidutil"
+        },
+        {
+          "op": "map_keys"
+        },
+        {
+          "op": "now"
+        },
+        {
+          "op": "values"
+        },
+        {
+          "op": "new_v4"
+        }
+      ],
+      "results": [
+        "4979c117-3cfe-4ad3-ab95-55d7918445b7",
+        "ac7c41d5-9170-41e7-afcc-ddbbbf2298f4",
+        {
+          "format": "2021-08-20T15:28:50.823Z",
+          "huaweiads": "2021-08-20 15:28:50.823",
+          "unix": 1629473330,
+          "unix_milli": 1629473330823,
+          "weekday": 5,
+          "year_day": 232
+        },
+        "0457772a-2b13-4ace-ba15-049d71e4b679",
+        "ae93f45e-0645-4e86-97bb-cd9f424f995e",
+        [
+          "aa2",
+          "c1",
+          "é0"
+        ],
+        "207a8606-1fd1-44c1-ae3a-5f7629373629",
+        [],
+        {
+          "format": "2021-08-20T15:28:50.823Z",
+          "huaweiads": "2021-08-20 15:28:50.823",
+          "unix": 1629473330,
+          "unix_milli": 1629473330823,
+          "weekday": 5,
+          "year_day": 232
+        },
+        {
+          "now_unix_ms": 1629473330823,
+          "int63": 10,
+          "uuid": "a:1\u003cscript\u003ea#0"
+        },
+        "be440e00-809a-4f07-bfe0-d3d226651910"
+      ]
+    },
+    {
+      "envelope": null,
+      "ops": [
+        {
+          "op": "now"
+        },
+        {
+          "op": "values"
+        },
+        {
+          "op": "now"
+        }
+      ],
+      "results": [
+        {
+          "format": "2021-08-20T15:28:50.823Z",
+          "huaweiads": "2021-08-20 15:28:50.823",
+          "unix": 1629473330,
+          "unix_milli": 1629473330823,
+          "weekday": 5,
+          "year_day": 232
+        },
+        {
+          "now_unix_ms": 1629473330823,
+          "int63": 10,
+          "uuid": "a:1\u003cscript\u003ea#0"
+        },
+        {
+          "format": "2021-08-20T15:28:50.823Z",
+          "huaweiads": "2021-08-20 15:28:50.823",
+          "unix": 1629473330,
+          "unix_milli": 1629473330823,
+          "weekday": 5,
+          "year_day": 232
+        }
+      ]
+    },
+    {
+      "envelope": null,
+      "ops": [
+        {
+          "op": "now"
+        }
+      ],
+      "results": [
+        {
+          "format": "2021-08-20T15:28:50.823Z",
+          "huaweiads": "2021-08-20 15:28:50.823",
+          "unix": 1629473330,
+          "unix_milli": 1629473330823,
+          "weekday": 5,
+          "year_day": 232
+        }
+      ]
+    },
+    {
+      "envelope": null,
+      "ops": [
+        {
+          "op": "uuidutil"
+        },
+        {
+          "op": "now"
+        },
+        {
+          "op": "generate"
+        },
+        {
+          "op": "map_keys",
+          "keys": [
+            "Rubicon0",
+            "é1"
+          ]
+        },
+        {
+          "op": "set",
+          "set": {
+            "now_unix_ms": 4102444800000,
+            "int63": -5470938549821655595,
+            "uuid": "30470a14-2949-4110-abce-b62d57304ad5\u2028\u0001"
+          }
+        },
+        {
+          "op": "values"
+        }
+      ],
+      "results": [
+        "e080e17a-f865-45fb-b09a-ec8b66aac3ab",
+        {
+          "format": "2021-08-20T15:28:50.823Z",
+          "huaweiads": "2021-08-20 15:28:50.823",
+          "unix": 1629473330,
+          "unix_milli": 1629473330823,
+          "weekday": 5,
+          "year_day": 232
+        },
+        "a:1\u003cscript\u003ea#0",
+        [
+          "Rubicon0",
+          "é1"
+        ],
+        null,
+        {
+          "now_unix_ms": 4102444800000,
+          "int63": -5470938549821655595,
+          "uuid": "30470a14-2949-4110-abce-b62d57304ad5\u2028\u0001"
+        }
+      ]
+    },
+    {
+      "envelope": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"fuzz-38\",\"request\":{\"method\":\"POST\",\"path\":\"/openrtb2/auction\",\"query\":\"\",\"headers\":[]},\"mock\":{},\"capture\":{},\"fakes\":{\"now_unix_ms\":2783683726958,\"int63\":2,\"uuid\":\"é\\u0026日本�\"}}",
+      "ops": [
+        {
+          "op": "now"
+        },
+        {
+          "op": "new_v4"
+        },
+        {
+          "op": "values"
+        },
+        {
+          "op": "new_v4"
+        },
+        {
+          "op": "values"
+        },
+        {
+          "op": "int"
+        },
+        {
+          "op": "now"
+        },
+        {
+          "op": "new_v4"
+        },
+        {
+          "op": "reset"
+        }
+      ],
+      "results": [
+        {
+          "format": "2058-03-18T13:28:46.958Z",
+          "huaweiads": "2058-03-18 13:28:46.958",
+          "unix": 2783683726,
+          "unix_milli": 2783683726958,
+          "weekday": 1,
+          "year_day": 77
+        },
+        "ee6cccaf-d5da-467a-a287-0ef930976a44",
+        {
+          "now_unix_ms": 2783683726958,
+          "int63": 2,
+          "uuid": "é\u0026日本�"
+        },
+        "41612773-9506-4a66-9a4f-43e73872f0fb",
+        {
+          "now_unix_ms": 2783683726958,
+          "int63": 2,
+          "uuid": "é\u0026日本�"
+        },
+        2,
+        {
+          "format": "2058-03-18T13:28:46.958Z",
+          "huaweiads": "2058-03-18 13:28:46.958",
+          "unix": 2783683726,
+          "unix_milli": 2783683726958,
+          "weekday": 1,
+          "year_day": 77
+        },
+        "0e28d5aa-db27-414a-9e0c-a9f32693082a",
+        null
+      ]
+    },
+    {
+      "envelope": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"fuzz-39\",\"request\":{\"method\":\"POST\",\"path\":\"/openrtb2/auction\",\"query\":\"\",\"headers\":[]},\"mock\":{},\"capture\":{},\"fakes\":{\"now_unix_ms\":1629473330823,\"int63\":108}}",
+      "ops": [
+        {
+          "op": "new_v4"
+        },
+        {
+          "op": "new_v4"
+        },
+        {
+          "op": "map_keys",
+          "keys": [
+            "0"
+          ]
+        },
+        {
+          "op": "intn",
+          "n": 10
+        },
+        {
+          "op": "new_v4"
+        },
+        {
+          "op": "int"
+        }
+      ],
+      "results": [
+        "0b1b705d-5a17-494f-872e-a858a0fc3200",
+        "2329f45a-e73e-4f17-87bb-876e809c0196",
+        [
+          "0"
+        ],
+        8,
+        "f4115b74-ceda-46eb-94dc-5b099ad1d7e6",
+        108
+      ]
+    }
+  ],
+  "parity_ref": "abad587d4f6302094ae9b9b4bf347bbb3422e6b7"
+}

@@ -1,0 +1,117 @@
+{
+  "schema": "pbs-parity-fakes/1",
+  "schema_version": "1.0.0",
+  "description": "Deterministic values parity mode injects into the adapters that read the wall clock or a random source. They are installed process-wide at startup when parity.enabled is true (Go: parity/fakes.Install from parity/wiring.Bootstrap) and set per case from envelope.fakes (omitted or zero fields take these defaults). Outside parity mode every seam behaves exactly like the original code. The clock is a fixed instant whose location is UTC; code that explicitly converts to local time (huaweiads getClientTime .Local()) depends on the process time zone, so the runner starts both servers with TZ=UTC. The Rust server must inject the same values at the same sites.",
+  "defaults": {
+    "now_unix_ms": 1629473330823,
+    "int63": 10,
+    "uuid": "30470a14-2949-4110-abce-b62d57304ad5"
+  },
+  "derived": {
+    "now_rfc3339": "2021-08-20T15:28:50.823Z",
+    "now_unix_seconds": 1629473330,
+    "now_iso_week": 33
+  },
+  "provenance": {
+    "now_unix_ms": "adapters/huaweiads/huaweiadstest fixtures nonce=1629473330823; ISO week 33 like the yieldlab test week generator",
+    "int63": "adapters/appnexus FakeRandomNumberGenerator (adpod_id \"10\")",
+    "uuid": "adapters/flipp test UUID generator"
+  },
+  "generated_uuids": {
+    "description": "In parity mode every random v4 UUID the server generates (Go: every uuid.NewV4 in the process) is drawn from this deterministic stream instead. Go generates them on the request path for {{UUID}} request ids, source.tid and imp[].ext.tid, generated bid ids and cache keys. The differ still numbers them with <uuid#n> placeholders, but a placeholder cannot reach inside a gzip-compressed bidder request: random tids change the compressed length, so without the stream two Go processes send different Content-Length headers for the same case. The stream restarts whenever the fake values are set: at the start and at the end of every case, and on /__parity/reset. Concurrent draws get distinct values from the same stream, in draw order.",
+    "algorithm": "The n-th UUID (n = 1, 2, ...) is the first 16 bytes of SHA-256 over the UTF-8 bytes of seed + \":\" + n in decimal, with byte 6 set to (byte6 & 0x0f) | 0x40 (version 4) and byte 8 set to (byte8 & 0x3f) | 0x80 (RFC 4122 variant), written as lowercase 8-4-4-4-12 hex.",
+    "seed": "uuid",
+    "first": [
+      "0b1b705d-5a17-494f-872e-a858a0fc3200",
+      "2329f45a-e73e-4f17-87bb-876e809c0196",
+      "f4115b74-ceda-46eb-94dc-5b099ad1d7e6"
+    ],
+    "go_seam": "parity/fakes uuids.go: fakes.Install replaces uuid.DefaultGenerator (gofrs/uuid) with a generator whose NewV4 draws from the installed Source",
+    "go_sites": [
+      "endpoints/openrtb2/auction.go:2055 uuidGenerator.Generate() (util/uuidutil/uuidutil.go:14 uuid.NewV4) for {{UUID}} request ids",
+      "endpoints/openrtb2/amp_auction.go:594 deps.uuidGenerator.Generate() for generated AMP request ids",
+      "endpoints/openrtb2/auction.go:976 uuid.NewV4() for source.tid",
+      "endpoints/openrtb2/auction.go:986 uuid.NewV4() for imp[].ext.tid",
+      "exchange/exchange.go:128 uuid.NewV4() in bidIDGenerator.New",
+      "exchange/auction.go:82 uuid.NewV4() for the debug log cache key",
+      "exchange/auction.go:220 uuid.NewV4() for the competitive-exclusion cache id",
+      "endpoints/openrtb2/video_auction.go:442 uuid.NewV4() for the video debug cache key"
+    ]
+  },
+  "orders": [
+    {"name": "bidder_request_phase", "order": "The bidders of one auction build their requests one at a time in bidder name order: a bidder's bidder-request hook stage and MakeRequests start after MakeRequests of every bidder before it returned (or its goroutine ended), and HTTP calls and MakeBids still run concurrently. Values an adapter writes through objects its request shares with other bidders' requests reach the bidders after it, as when Go schedules them in that order. Without a parity case, with one bidder, or with a repeated bidder name the bidders run freely.", "go_seam": "exchange/parity_turns.go parityTurns, parityTakeTurn; ended in parityBidderTrace.adapterRequests", "go_site": "exchange/exchange.go:791 ctx = parityTurns(ctx, bidderRequests) and :797 defer parityTakeTurn(ctx, bidderRequest.BidderName)(); the shared write it orders: adapters/gumgum/gumgum.go:45-46 siteCopy.Publisher.ID = ... (Site copied, Publisher shared)"},
+    {"name": "fpd_bidders", "order": "first party data is resolved for the bidders in ascending name order, so the errors and the bidders resolved before the first error follow that order", "go_seam": "parity/fakes order.go MapKeys(allBiddersTable, cmp.Less[string])", "go_site": "firstpartydata/first_party_data.go:142 (errors appended per bidder at :147-167, a bidder kept only while no error occurred at :171, errors joined with \",\" at exchange/exchange.go:329-336)"},
+    {"name": "bidder_response_order", "order": "A bidder's responses reach MakeBids in call order: the MakeRequests output order, then the stored bid responses by imp ID, whatever order they complete in. requestBid waits for all of them first; every call answers by the request deadline.", "go_seam": "exchange/parity_stages.go parityBidderTrace.inCallOrder", "go_site": "exchange/bidder.go:287 responseChannel = pt.inCallOrder(responseChannel, dataLen); outcomes depend on the order at exchange/bidder.go:327-329 (empty request cur set to USD after the first MakeBids, read by adgeneration) and adapters/flipp/flipp.go:37 (MakeBids keeps imp params in a package variable)"},
+    {"name": "bidder_params_validation", "order": "imp ext validation checks the imp's bidders in ascending name order, so the first bidder whose params fail validation (the one reported) and the warnings for disabled and unknown bidders follow that order", "go_seam": "parity/fakes order.go MapKeys(prebid.Bidder, cmp.Less[string])", "go_site": "ortb/request_validator.go:127 (returns the first failure at :137)"},
+    {"name": "stored_bid_responses_validation", "order": "the bidders of an imp's stored bid responses are checked in ascending name order, so the first unrecognized or unrequested bidder (the one reported) follows that order", "go_seam": "parity/fakes order.go MapKeys(bidResponses, cmp.Less[string])", "go_site": "ortb/request_validator.go:184 (returns the first failure at :186 or :189)"},
+    {"name": "alias_validation", "order": "request.ext.prebid.aliases are checked in ascending alias order, so the first invalid alias (the one reported) follows that order", "go_seam": "parity/fakes order.go MapKeys(aliases, cmp.Less[string])", "go_site": "endpoints/openrtb2/auction.go:1086 (returns the first failure at :1092, :1094, :1098 or :1102)"},
+    {"name": "alias_gvlid_validation", "order": "request.ext.prebid.aliasgvlids are checked in ascending alias order, so the first invalid entry (the one reported) follows that order", "go_seam": "parity/fakes order.go MapKeys(aliasesGVLIDs, cmp.Less[string])", "go_site": "endpoints/openrtb2/auction.go:1110 (returns the first failure at :1114 or :1118)"},
+    {"name": "bid_adjustment_factors_validation", "order": "request.ext.prebid.bidadjustmentfactors are checked in ascending bidder order, so the first invalid factor (the one reported) follows that order", "go_seam": "parity/fakes order.go MapKeys(adjustmentFactors, cmp.Less[string])", "go_site": "endpoints/openrtb2/auction.go:1000 (returns the first failure at :1003, :1013 or :1020)"},
+    {"name": "auction_winners", "order": "the auction visits the seats in ascending bidder name order when it picks each imp's winning bid, so of two bids with the same price (and the same deal status when deals are preferred) the one from the bidder with the smaller name wins", "go_seam": "parity/fakes order.go MapKeys(seatBids, cmp.Less[openrtb_ext.BidderName])", "go_site": "exchange/auction.go:116 (a later bid replaces the winner only when isNewWinningBid, a strictly higher price, at :121-122)"},
+    {"name": "category_dedupe", "order": "category mapping visits the seats in ascending bidder name order, so between two bids with the same category/duration key the earlier (dupe) bid of the category.dedupe decision belongs to the bidder with the smaller name", "go_seam": "parity/fakes order.go MapKeys(seatBids, cmp.Less[openrtb_ext.BidderName])", "go_site": "exchange/exchange.go:1092 (the earlier bid is recorded at :1205, compared at :1158-1176)"},
+    {"name": "adtarget", "order": "imp groups ascending by sourceId (aid)", "go_seam": "parity/fakes order.go MapKeys(imp2source, cmp.Less[int])", "go_site": "adapters/adtarget/adtarget.go:62 (MakeBids reads the request whose Imp holds the last group)"},
+    {"name": "bidmatic", "order": "imp groups ascending by sourceId", "go_seam": "parity/fakes order.go MapKeys(imp2source, cmp.Less[int])", "go_site": "adapters/bidmatic/bidmatic.go:58 (MakeBids reads the request whose Imp holds the last group)"},
+    {"name": "adtelligent", "order": "imp groups ascending by sourceId (aid)", "go_seam": "parity/fakes order.go MapKeys(imp2source, cmp.Less[int])", "go_site": "adapters/adtelligent/adtelligent.go:62 (MakeBids reads the request whose Imp holds the last group)"},
+    {"name": "datablocks", "order": "imp groups ascending by sourceId", "go_seam": "parity/fakes order.go MapKeys(reqImps, fakes.LessDatablocks)", "go_site": "adapters/datablocks/datablocks.go:41 (MakeBids getMediaType reads internalRequest.Imp)"},
+    {"name": "trafficgate", "order": "imp groups ascending by (placementId, host)", "go_seam": "parity/fakes order.go MapKeys(reqImps, fakes.LessTrafficGate)", "go_site": "adapters/trafficgate/trafficgate.go:46 (MakeBids reads internalRequest.Imp)"},
+    {"name": "zeroclickfraud", "order": "imp groups ascending by (sourceId, host)", "go_seam": "parity/fakes order.go MapKeys(reqImps, fakes.LessZeroClickFraud)", "go_site": "adapters/zeroclickfraud/zeroclickfraud.go:42 (MakeBids getMediaType reads internalRequest.Imp)"}
+  ],
+  "adapters": [
+    {
+      "bidder": "adnuntius",
+      "value": "now_unix_ms",
+      "use": "time zone offset of the clock (tzo= query parameter); UTC clock gives tzo=0",
+      "go_seam": "adapters/adnuntius/adnuntius.go Builder: bidder.time = fakes.Active() (timeutil.Time)",
+      "go_site": "adapters/adnuntius/adnuntius_utils.go:67 a.time.Now().Zone()"
+    },
+    {
+      "bidder": "appnexus",
+      "value": "int63",
+      "use": "request.ext.appnexus.adpod_id for video ad pods",
+      "go_seam": "adapters/appnexus/appnexus.go Builder: bidder.randomGenerator = fakes.Active() (randomutil.RandomGenerator)",
+      "go_site": "adapters/appnexus/appnexus.go:504 a.randomGenerator.GenerateInt63()"
+    },
+    {
+      "bidder": "cadent_aperture_mx",
+      "value": "now_unix_ms",
+      "use": "ts= endpoint query parameter in Unix seconds",
+      "go_seam": "adapters/cadent_aperture_mx/cadentaperturemx.go buildEndpoint: fakes.Now().Unix()",
+      "go_site": "adapters/cadent_aperture_mx/cadentaperturemx.go:35"
+    },
+    {
+      "bidder": "eplanning",
+      "value": "int63",
+      "use": "t= cache-buster query parameter (rand.Int())",
+      "go_seam": "adapters/eplanning/eplanning.go: fakes.Int()",
+      "go_site": "adapters/eplanning/eplanning.go:177"
+    },
+    {
+      "bidder": "flipp",
+      "value": "uuid",
+      "use": "user key when no user id is available",
+      "go_seam": "adapters/flipp/flipp.go Builder: bidder.uuidGenerator = fakes.Active() (uuidutil.UUIDGenerator)",
+      "go_site": "adapters/flipp/flipp.go:149 a.uuidGenerator.Generate()"
+    },
+    {
+      "bidder": "huaweiads",
+      "value": "now_unix_ms",
+      "use": "clientTime (format 2006-01-02 15:04:05.000 plus the local zone) and the digest-auth nonce in Unix milliseconds",
+      "go_seam": "adapters/huaweiads/huaweiads.go getClientTime and getDigestAuthorization: fakes.Now()",
+      "go_site": "adapters/huaweiads/huaweiads.go:743-757, :1629"
+    },
+    {
+      "bidder": "tappx",
+      "value": "now_unix_ms",
+      "use": "ts= endpoint query parameter in Unix milliseconds",
+      "go_seam": "adapters/tappx/tappx.go buildEndpointURL: fakes.Now()",
+      "go_site": "adapters/tappx/tappx.go:187"
+    },
+    {
+      "bidder": "yieldlab",
+      "value": "now_unix_ms",
+      "use": "ts= cache buster in Unix seconds and the ISO week number in the targeting/creative ids",
+      "go_seam": "adapters/yieldlab/types.go defaultCacheBuster and defaultWeekGenerator: fakes.Now()",
+      "go_site": "adapters/yieldlab/types.go:66-74"
+    }
+  ]
+}

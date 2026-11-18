@@ -1,0 +1,17 @@
+*errortypes.Timeout	1	1	0	1	0	m
+*errortypes.TmaxTimeout	12	1	0	1	0	m
+*errortypes.BadInput	2	1	0	1	0	m
+*errortypes.BlockedApp	3	1	0	1	0	m
+*errortypes.AccountDisabled	7	1	0	1	0	m
+*errortypes.AcctRequired	8	1	0	1	0	m
+*errortypes.BadServerResponse	4	1	0	1	0	m
+*errortypes.FailedToRequestBids	5	1	0	1	0	m
+*errortypes.BidderTemporarilyDisabled	6	2	0	0	1	m
+*errortypes.BidderThrottled	16	2	0	0	1	m
+*errortypes.MalformedAcct	10	1	0	1	0	m
+*errortypes.Warning	10005	2	0	0	1	m
+*errortypes.FailedToUnmarshal	14	1	0	1	0	m
+*errortypes.FailedToMarshal	13	1	0	1	0	m
+*errortypes.DebugWarning	10003	2	1	0	1	m
+*errortypes.InvalidImpFirstPartyData	15	1	0	1	0	m
+*errors.errorString	999	-1	0	1	0	m

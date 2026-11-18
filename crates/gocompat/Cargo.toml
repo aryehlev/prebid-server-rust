@@ -1,6 +1,6 @@
 [package]
 name = "pbs-gocompat"
-description = "Go standard library behaviour (net/http, net/url, strconv, fmt, text/template) for Prebid Server parity"
+description = "Go standard library behaviour (net/http, net/url, strconv, fmt, text/template, time, strings, encoding/base64, math) for Prebid Server parity"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true

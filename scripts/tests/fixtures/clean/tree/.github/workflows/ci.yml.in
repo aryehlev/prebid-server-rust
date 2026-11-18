@@ -1,0 +1,16 @@
+name: CI
+on: [push]
+env:
+  RUSTDOCFLAGS: -D warnings
+  CARGO_BUILD_WARNINGS: deny
+  SHELLCHECK_OPTS: --enable=all --severity=style
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          cargo build --workspace --all-targets --locked
+          cargo clippy --workspace --all-targets --locked -- -D warnings
+          RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps --locked
+          cargo machete --with-metadata crates
+          actionlint -color

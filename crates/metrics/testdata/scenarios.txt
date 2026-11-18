@@ -1,0 +1,266 @@
+# Differential scenarios for the Prometheus engine. The Go generator in go/main.go and the Rust
+# test in src/prometheus/golden_test.rs both replay this file; the Go output is in golden/.
+# Values are percent-decoded (%20 space, %22 quote, %5C backslash, %0A newline, %25 percent).
+# Every argument not given is the Go zero value.
+
+# The startup scrape with Go's viper defaults for metrics.disabled_metrics (config/config.go).
+scenario startup_viper_defaults
+namespace pbs
+subsystem srv
+disabled account_adapter_details=false account_debug=true account_stored_responses=true adapter_connections_metrics=true adapter_connections_dial_metrics=true adapter_buyeruid_scrubbed=true adapter_gdpr_request_blocked=false
+syncer adnxs rubicon pubmatic 33across ix
+module prebid_ortb2blocking bidder_request raw_bidder_response
+module prebid_rulesengine processed_auction_request
+module fiftyonedegrees_devicedetection entrypoint raw_auction_request
+module scope3_rtd entrypoint processed_auction_request auction_response
+
+# The configuration the Go unit tests use (createMetricsForTesting) and every engine method.
+scenario all_methods
+namespace prebid
+subsystem server
+syncer keyA keyB
+module foobar entry raw
+module another_module raw auction
+RecordConnectionAccept success=true
+RecordConnectionAccept success=true
+RecordConnectionAccept success=false
+RecordConnectionClose success=true
+RecordConnectionClose success=false
+RecordConnectionClose success=false
+RecordTMaxTimeout
+RecordTMaxTimeout
+RecordRequest source=web rtype=openrtb2-web pub=acct1 cookie=exists status=ok size=1024
+RecordRequest source=app rtype=openrtb2-app pub=acct1 cookie=no status=badinput size=100
+RecordRequest source=dooh rtype=openrtb2-dooh pub=unknown cookie=unknown status=err size=75000
+RecordRequest rtype=amp pub=acct2 cookie=no status=blockedapp size=2048
+RecordRequest rtype=video pub=acct2 cookie=exists status=networkerr size=75001
+RecordRequest rtype=video pub= cookie=no status=queuetimeout size=1
+RecordRequest status=acctconfigerr size=99 pub=unknown
+RecordRequest rtype=openrtb2-web pub=quote%22back%5Cslash%0Anewline cookie=no status=ok size=0
+RecordRequest rtype=openrtb2-web pub=%C3%A9t%C3%A9%20space%3Dequals%25pct status=ok size=1000000000
+RecordImps banner=true
+RecordImps video=true audio=true
+RecordImps banner=true video=true audio=true native=true
+RecordImps
+RecordImps native=true
+RecordRequestTime rtype=openrtb2-web status=ok d=500000000
+RecordRequestTime rtype=openrtb2-web status=ok d=50000000
+RecordRequestTime rtype=openrtb2-web status=err d=500000000
+RecordRequestTime rtype=amp status=ok d=1000000000
+RecordRequestTime rtype=video status=ok d=1000000001
+RecordRequestTime rtype=openrtb2-app status=ok d=0
+RecordRequestTime status=ok d=3
+RecordOverheadTime type=pre-bidder d=500000000
+RecordOverheadTime type=pre-bidder d=400000000
+RecordOverheadTime type=make-auction-response d=60000000
+RecordOverheadTime type=make-bidder-requests d=2000000000
+RecordAdapterRequest adapter=AppNexus cookie=exists bids=bid
+RecordAdapterRequest adapter=appnexus cookie=no bids=nobid errors=badinput,timeout
+RecordAdapterRequest adapter=PubMatic cookie=unknown bids=bid errors=badserverresponse
+RecordAdapterRequest adapter=33Across errors=failedtorequestbid,validation,tmaxtimeout,unknown_error
+RecordAdapterRequest adapter=NotACoreBidder cookie=exists bids=bid
+RecordAdapterConnections adapter=AppNexus reused=true d=1000
+RecordAdapterConnections adapter=AppNexus reused=false d=5000000000
+RecordAdapterConnections adapter=NewOne reused=false d=100000000
+RecordDNSTime d=5000000000
+RecordDNSTime d=0
+RecordTLSHandshakeTime d=150000000
+RecordBidderServerResponseTime d=400000000
+RecordBidderServerResponseTime d=500000000
+RecordAdapterPanic adapter=RuBiCon
+RecordAdapterPanic adapter=rubicon
+RecordAdapterBidReceived adapter=AppNexus bidtype=banner adm=true
+RecordAdapterBidReceived adapter=AppNexus bidtype=video adm=false
+RecordAdapterBidReceived adapter=Other bidtype=native adm=true
+RecordAdapterPrice adapter=AppNexus cpm=42
+RecordAdapterPrice adapter=AppNexus cpm=250
+RecordAdapterPrice adapter=AppNexus cpm=250.00000000000003
+RecordAdapterPrice adapter=AppNexus cpm=4000
+RecordAdapterPrice adapter=AppNexus cpm=4000.5
+RecordAdapterPrice adapter=pubmatic cpm=0.1
+RecordAdapterPrice adapter=pubmatic cpm=0.1
+RecordAdapterPrice adapter=pubmatic cpm=0.1
+RecordAdapterPrice adapter=pubmatic cpm=0.1
+RecordAdapterPrice adapter=pubmatic cpm=0.1
+RecordAdapterPrice adapter=pubmatic cpm=0.1
+RecordAdapterPrice adapter=pubmatic cpm=0.1
+RecordAdapterPrice adapter=pubmatic cpm=0.1
+RecordAdapterPrice adapter=pubmatic cpm=0.1
+RecordAdapterPrice adapter=pubmatic cpm=0.1
+RecordAdapterPrice adapter=bigprice cpm=1e21
+RecordAdapterPrice adapter=bigprice cpm=123456789
+RecordAdapterPrice adapter=tinyprice cpm=1e-7
+RecordAdapterPrice adapter=tinyprice cpm=0.00012
+RecordAdapterPrice adapter=negprice cpm=-1
+RecordAdapterPrice adapter=negprice cpm=-0.5
+RecordAdapterPrice adapter=nanprice cpm=NaN
+RecordAdapterPrice adapter=infprice cpm=+Inf
+RecordAdapterPrice adapter=neginfprice cpm=-Inf
+RecordAdapterTime adapter=AppNexus d=500000000
+RecordAdapterTime adapter=AppNexus d=500000000 errors=timeout
+RecordAdapterTime adapter=Brand_New d=75000000
+RecordCookieSync status=ok
+RecordCookieSync status=bad_request
+RecordCookieSync status=opt_out
+RecordCookieSync status=gdpr_blocked_host_cookie
+RecordCookieSync status=acct_blocked
+RecordCookieSync status=acct_config_malformed
+RecordCookieSync status=acct_invalid
+RecordCookieSync status=ok
+RecordSyncerRequest key=keyA status=ok
+RecordSyncerRequest key=keyA status=privacy_blocked
+RecordSyncerRequest key=keyB status=already_synced
+RecordSyncerRequest key=keyC status=rejected_by_filter
+RecordSetUid status=ok
+RecordSetUid status=bad_request
+RecordSetUid status=opt_out
+RecordSetUid status=gdpr_blocked_host_cookie
+RecordSetUid status=acct_blocked
+RecordSetUid status=acct_config_malformed
+RecordSetUid status=acct_invalid
+RecordSetUid status=syncer_unknown
+RecordSyncerSet key=keyA status=ok
+RecordSyncerSet key=keyB status=cleared
+RecordSyncerSet key=Other%20Key status=ok
+RecordStoredReqCacheResult result=hit inc=42
+RecordStoredReqCacheResult result=miss inc=108
+RecordStoredReqCacheResult result=miss inc=0
+RecordStoredImpCacheResult result=hit inc=41
+RecordStoredImpCacheResult result=miss inc=107
+RecordAccountCacheResult result=hit inc=37
+RecordAccountCacheResult result=miss inc=92
+RecordStoredDataFetchTime type=account fetch=all d=500000000
+RecordStoredDataFetchTime type=amp fetch=delta d=100000000
+RecordStoredDataFetchTime type=category fetch=all d=250000000
+RecordStoredDataFetchTime type=request fetch=delta d=1
+RecordStoredDataFetchTime type=video fetch=all d=10000000000
+RecordStoredDataFetchTime type=response fetch=delta d=300000000
+RecordStoredDataFetchTime type= fetch=all d=300000000
+RecordStoredDataError type=account error=network
+RecordStoredDataError type=amp error=undefined
+RecordStoredDataError type=category error=network
+RecordStoredDataError type=request error=undefined
+RecordStoredDataError type=video error=network
+RecordStoredDataError type=response error=network
+RecordStoredDataError type= error=network
+RecordFetcherResult subsystem=account result=hit
+RecordFetcherResult subsystem=account result=hit
+RecordFetcherResult subsystem=account result=miss
+RecordFetcherResult subsystem=account result=negative
+RecordFetcherResult subsystem=stored_request result=hit
+RecordFetcherBackendFetch subsystem=account operation=get result=ok d=1000000
+RecordFetcherBackendFetch subsystem=account operation=start result=notfound d=1000000
+RecordFetcherBackendFetch subsystem=account operation=background_refresh result=error d=2000000000
+RecordFetcherBackendFetch subsystem=account operation=get result=ok d=60000000
+RecordPrebidCacheRequestTime success=true d=100000000
+RecordPrebidCacheRequestTime success=false d=200000000
+RecordPrebidCacheRequestTime success=true d=1000
+RecordRequestQueueTime success=true rtype=video d=2000000000
+RecordRequestQueueTime success=false rtype=video d=50000000000
+RecordRequestQueueTime success=false rtype=video d=1
+RecordRequestQueueTime success=true rtype=openrtb2-web d=-5000000000
+RecordRequestQueueTime success=true rtype=amp d=400000000000
+RecordTimeoutNotice success=true
+RecordTimeoutNotice success=true
+RecordTimeoutNotice success=false
+RecordRequestPrivacy ccpa_enforced=true ccpa_provided=true
+RecordRequestPrivacy ccpa_enforced=true ccpa_provided=false
+RecordRequestPrivacy ccpa_enforced=false ccpa_provided=true
+RecordRequestPrivacy coppa=true
+RecordRequestPrivacy lmt=true
+RecordRequestPrivacy gdpr=true tcf=err
+RecordRequestPrivacy gdpr=true tcf=v2
+RecordRequestPrivacy gdpr=true
+RecordRequestPrivacy gdpr=false tcf=v2
+RecordRequestPrivacy ccpa_enforced=true ccpa_provided=true coppa=true gdpr=true tcf=v2 lmt=true
+RecordAdapterBuyerUIDScrubbed adapter=AnyName
+RecordAdapterBuyerUIDScrubbed adapter=appnexus
+RecordAdapterGDPRRequestBlocked adapter=AnyName
+RecordDebugRequest enabled=true pub=acct-id
+RecordDebugRequest enabled=false pub=acct-id
+RecordDebugRequest enabled=true pub=unknown
+RecordDebugRequest enabled=true pub=
+RecordStoredResponse pub=acct-id
+RecordStoredResponse pub=unknown
+RecordGvlListRequest
+RecordLiveGVLFetch success=true
+RecordLiveGVLFetch success=true
+RecordLiveGVLFetch success=false
+RecordAdsCertReq success=true
+RecordAdsCertReq success=false
+RecordAdsCertReq success=false
+RecordAdsCertSignTime d=5000000000
+RecordAdsCertSignTime d=5000000
+RecordAdsCertSignTime d=0
+RecordBidValidationCreativeSizeError adapter=AnyName account=acct-id
+RecordBidValidationCreativeSizeError adapter=AnyName account=unknown
+RecordBidValidationCreativeSizeWarn adapter=AppNexus account=acct-id
+RecordBidValidationSecureMarkupError adapter=AnyName account=acct-id
+RecordBidValidationSecureMarkupWarn adapter=AnyName account=
+RecordModuleCalled module=foobar stage=entry account=acct d=1000000
+RecordModuleCalled module=foobar stage=raw d=250000000
+RecordModuleCalled module=another_module stage=auction d=2000000000
+RecordModuleCalled module=another_module stage=new_stage d=1
+RecordModuleFailed module=foobar stage=entry
+RecordModuleSuccessNooped module=foobar stage=raw
+RecordModuleSuccessUpdated module=another_module stage=raw
+RecordModuleSuccessRejected module=another_module stage=auction
+RecordModuleExecutionError module=foobar stage=entry
+RecordModuleTimeout module=another_module stage=raw
+RecordModuleTimeout module=another_module stage=raw
+RecordAdapterThrottled adapter=AppNexus
+RecordAdapterThrottled adapter=Throttled
+RecordAdapterConnectionDialError adapter=AppNexus
+RecordAdapterConnectionDialError adapter=Dialer
+RecordAdapterConnectionDialTime adapter=AppNexus d=1000000000
+RecordAdapterConnectionDialTime adapter=AppNexus d=12000000000
+RecordAdapterConnectionDialTime adapter=AppNexus d=45000000000
+
+# No prefix at all and every optional metric disabled: the disabled families are not registered
+# and the account-level toggles suppress the account series.
+scenario no_prefix_all_disabled
+disabled account_adapter_details=true account_debug=true account_stored_responses=true adapter_connections_metrics=true adapter_connections_dial_metrics=true adapter_buyeruid_scrubbed=true adapter_gdpr_request_blocked=true account_modules_metrics=true
+RecordRequest rtype=openrtb2-web pub=acct status=ok cookie=no size=500
+RecordDebugRequest enabled=true pub=acct
+RecordStoredResponse pub=acct
+RecordAdapterConnections adapter=AppNexus reused=true d=1000
+RecordAdapterBuyerUIDScrubbed adapter=AppNexus
+RecordAdapterGDPRRequestBlocked adapter=AppNexus
+RecordBidValidationCreativeSizeError adapter=AppNexus account=acct
+RecordBidValidationCreativeSizeWarn adapter=AppNexus account=acct
+RecordBidValidationSecureMarkupError adapter=AppNexus account=acct
+RecordBidValidationSecureMarkupWarn adapter=AppNexus account=acct
+
+# Connection metrics on but dial metrics off: the dial families are nested and stay absent.
+scenario subsystem_only_conn_without_dial
+subsystem sub
+disabled adapter_connections_metrics=false adapter_connections_dial_metrics=true
+RecordAdapterConnections adapter=AppNexus reused=true d=1000
+RecordAdapterConnections adapter=AppNexus reused=false d=60000000
+RecordAdapterConnections adapter=Unknown reused=true d=0
+
+# A namespace alone, duplicate syncer keys, and a module without stages.
+scenario namespace_only_edge_preload
+namespace ns
+syncer dup dup other
+module emptymod
+module onestage exitpoint
+RecordModuleCalled module=emptymod stage=entrypoint d=10
+RecordModuleCalled module=onestage stage=exitpoint d=5000000
+
+# Counter and histogram values that need exponent notation in Go's float formatting.
+scenario large_values
+namespace big
+RecordStoredReqCacheResult result=hit inc=999999
+RecordStoredReqCacheResult result=miss inc=1000000
+RecordStoredImpCacheResult result=hit inc=1234567
+RecordStoredImpCacheResult result=miss inc=9007199254740993
+RecordAccountCacheResult result=hit inc=123456789012345678
+RecordAccountCacheResult result=hit inc=1
+RecordAccountCacheResult result=miss inc=100000000000000000
+RecordRequest rtype=openrtb2-web status=ok size=123456789
+RecordRequestTime rtype=openrtb2-web status=ok d=9223372036854775807
+RecordRequestTime rtype=openrtb2-app status=ok d=-9223372036854775808
+RecordDNSTime d=100
+RecordDNSTime d=10000
+RecordTLSHandshakeTime d=1

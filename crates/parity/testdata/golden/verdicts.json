@@ -1,0 +1,130 @@
+{
+  "golden": [
+    {
+      "error": null,
+      "file": "adapter_bids_input.json",
+      "sha256": "ca1819f39d29be45b932109c0202a57de1d453a917af0cd11a3b949838b4812a"
+    },
+    {
+      "error": null,
+      "file": "adapter_bids_output.json",
+      "sha256": "01f2d33d8c07e55ffb2dd5beb0e213c75dfec01c2a02ac0629f7026a2f4a9fb9"
+    },
+    {
+      "error": null,
+      "file": "adapter_requests_input.json",
+      "sha256": "d64111966672fddabe1086a7c172ac972e6ac6fdfa1187359adaa719085e58b5"
+    },
+    {
+      "error": null,
+      "file": "adapter_requests_output.json",
+      "sha256": "d73d7a27c094f9a9e915c1371200c6c8c9b806e5b0f5ab31a8fa49b0d57908b6"
+    },
+    {
+      "error": null,
+      "file": "bidders.json",
+      "sha256": "006e4f1984a86df0aa435b093a942c48911c65c4c827ef37c5f552aa50ab63c0"
+    },
+    {
+      "error": null,
+      "file": "config.json",
+      "sha256": "f7bd308bfaccc25de2abc8d291a72dfda389c722a2919c5d41f213691963afa8"
+    },
+    {
+      "error": null,
+      "file": "envelope.bidder_response.json",
+      "sha256": "e5b19040c209436bc71e2921a7de6fb4d342e499fa3f3342d64a049273530c30"
+    },
+    {
+      "error": null,
+      "file": "envelope.inline.json",
+      "sha256": "e115373d5a520ebc496ad1d242e482f67c1874d2c80aa46ffa20fa371ee4c3fa"
+    },
+    {
+      "error": null,
+      "file": "envelope.oracle.json",
+      "sha256": "cf8913e6c93175e11e451b774351221539089025b2cb9ab580045eb2d8e5ed17"
+    },
+    {
+      "error": null,
+      "file": "error.json",
+      "sha256": "820326749dd59df936311883ae379a4a36b1e452ebfece99a56b7dbd9c889cb9"
+    },
+    {
+      "error": null,
+      "file": "health.json",
+      "sha256": "dcd92a39ae427461a0d38b1ff93d0873e32b51e10382643e83b9a2846c9e4f70"
+    },
+    {
+      "error": null,
+      "file": "health.rust.json",
+      "sha256": "2082f915bfcadc3a8f78170b51332925682a93300f285a983baaf24c30b1424e"
+    },
+    {
+      "error": null,
+      "file": "outbound_meta.json",
+      "sha256": "ff7f15fd8f5d3da6587143785084d3fb26b3d50f1aae42435a84b9a23d481dc1"
+    },
+    {
+      "error": null,
+      "file": "reset.json",
+      "sha256": "1422fca0f9a5a2ce0926185078fd28ba6b130ecb0e538de0d1a7770183321d6f"
+    },
+    {
+      "error": null,
+      "file": "trace.json",
+      "sha256": "bfa9891229f8a64931e62561f5a5b5f68cebe751c21789011776140388e08c71"
+    },
+    {
+      "error": null,
+      "file": "trace.session.analytics_without_stage.json",
+      "sha256": "63e3ab2c6ab6a4b6aaf899d8c517068a6e73d7d3bef6759f8800afb21b2502f4"
+    },
+    {
+      "error": null,
+      "file": "trace.session.bad_filter.json",
+      "sha256": "4f83588ee017d639d4b13f7d21e942bb7bc8ebdb38530f1b90c813a87b793d4b"
+    },
+    {
+      "error": null,
+      "file": "trace.session.bad_filter_object.json",
+      "sha256": "b073bb5d823a95dfdcffb6d9a88bca4c945085e03da9e5d4b475bb17a8f66cd2"
+    },
+    {
+      "error": null,
+      "file": "trace.session.decisions.json",
+      "sha256": "3b94c2562d08227881c2112ddafd380bc7606ed5e18ec8fda864a30ea44782c2"
+    },
+    {
+      "error": null,
+      "file": "trace.session.decisions_chance.json",
+      "sha256": "5a652adee3fc806be56cbe21aeba70cee4866460a47ef781ae567bba8b1b21a4"
+    },
+    {
+      "error": null,
+      "file": "trace.session.empty.json",
+      "sha256": "83f667cccf098c2f88c031bc5adb0f2e3c882e8e6536db23fe0a2f2301003141"
+    },
+    {
+      "error": null,
+      "file": "trace.session.errors.json",
+      "sha256": "ef74be3a9290e92e6262a7db40f4c9c35b5527d814a11042f686b5b1a9501a2e"
+    },
+    {
+      "error": null,
+      "file": "trace.session.filter.json",
+      "sha256": "b16c68463651e4542b53f48ed35c2ae3e66e9ab06b44347857ac6a2086e02771"
+    },
+    {
+      "error": null,
+      "file": "trace.session.lexical.json",
+      "sha256": "813d0642e1a4a73cef05a6e7d66e7c512b046a64d6f568fcacc410b66736a722"
+    },
+    {
+      "error": null,
+      "file": "trace.session.outbound_analytics.json",
+      "sha256": "9d8deec2fdbbb4611b80cac23c8a384762a2d28eda1338abf142bd581a322824"
+    }
+  ],
+  "parity_ref": "abad587d4f6302094ae9b9b4bf347bbb3422e6b7"
+}

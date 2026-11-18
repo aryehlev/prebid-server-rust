@@ -1,1 +1,6 @@
+# Cargo build output.
 /target/
+# The upstream Go checkout that scripts/fetch-upstream.sh makes. The second pattern also matches
+# a symbolic link to a checkout kept elsewhere, which the first (a directory pattern) does not.
+/.upstream/
+/.upstream

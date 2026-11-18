@@ -1,0 +1,7 @@
+ignore = ["src/generated.rs"]
+disable_all_formatting = true
+skip_children = true
+format_generated_files = false
+skip_macro_invocations = ["*"]
+error_on_line_overflow = false
+error_on_unformatted = false

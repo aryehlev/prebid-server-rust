@@ -1,0 +1,910 @@
+# HELP account_cache_performance Count of account cache lookups by hits or miss.
+# TYPE account_cache_performance counter
+account_cache_performance{cache_result="hit"} 0
+account_cache_performance{cache_result="miss"} 0
+# HELP account_requests Count of total requests to Prebid Server labeled by account.
+# TYPE account_requests counter
+account_requests{account="acct"} 1
+# HELP adapter_bids Count of bids labeled by adapter and markup delivery type (adm or nurl).
+# TYPE adapter_bids counter
+adapter_bids{adapter="33across",delivery="adm"} 0
+adapter_bids{adapter="33across",delivery="nurl"} 0
+adapter_bids{adapter="adkerneladn",delivery="adm"} 0
+adapter_bids{adapter="adkerneladn",delivery="nurl"} 0
+adapter_bids{adapter="appnexus",delivery="adm"} 0
+adapter_bids{adapter="appnexus",delivery="nurl"} 0
+adapter_bids{adapter="pubmatic",delivery="adm"} 0
+adapter_bids{adapter="pubmatic",delivery="nurl"} 0
+adapter_bids{adapter="rubicon",delivery="adm"} 0
+adapter_bids{adapter="rubicon",delivery="nurl"} 0
+adapter_bids{adapter="zmaticoo",delivery="adm"} 0
+adapter_bids{adapter="zmaticoo",delivery="nurl"} 0
+# HELP adapter_errors Count of errors labeled by adapter and error type.
+# TYPE adapter_errors counter
+adapter_errors{adapter="33across",adapter_error="badinput"} 0
+adapter_errors{adapter="33across",adapter_error="badserverresponse"} 0
+adapter_errors{adapter="33across",adapter_error="failedtorequestbid"} 0
+adapter_errors{adapter="33across",adapter_error="timeout"} 0
+adapter_errors{adapter="33across",adapter_error="tmaxtimeout"} 0
+adapter_errors{adapter="33across",adapter_error="unknown_error"} 0
+adapter_errors{adapter="33across",adapter_error="validation"} 0
+adapter_errors{adapter="adkerneladn",adapter_error="badinput"} 0
+adapter_errors{adapter="adkerneladn",adapter_error="badserverresponse"} 0
+adapter_errors{adapter="adkerneladn",adapter_error="failedtorequestbid"} 0
+adapter_errors{adapter="adkerneladn",adapter_error="timeout"} 0
+adapter_errors{adapter="adkerneladn",adapter_error="tmaxtimeout"} 0
+adapter_errors{adapter="adkerneladn",adapter_error="unknown_error"} 0
+adapter_errors{adapter="adkerneladn",adapter_error="validation"} 0
+adapter_errors{adapter="appnexus",adapter_error="badinput"} 0
+adapter_errors{adapter="appnexus",adapter_error="badserverresponse"} 0
+adapter_errors{adapter="appnexus",adapter_error="failedtorequestbid"} 0
+adapter_errors{adapter="appnexus",adapter_error="timeout"} 0
+adapter_errors{adapter="appnexus",adapter_error="tmaxtimeout"} 0
+adapter_errors{adapter="appnexus",adapter_error="unknown_error"} 0
+adapter_errors{adapter="appnexus",adapter_error="validation"} 0
+adapter_errors{adapter="pubmatic",adapter_error="badinput"} 0
+adapter_errors{adapter="pubmatic",adapter_error="badserverresponse"} 0
+adapter_errors{adapter="pubmatic",adapter_error="failedtorequestbid"} 0
+adapter_errors{adapter="pubmatic",adapter_error="timeout"} 0
+adapter_errors{adapter="pubmatic",adapter_error="tmaxtimeout"} 0
+adapter_errors{adapter="pubmatic",adapter_error="unknown_error"} 0
+adapter_errors{adapter="pubmatic",adapter_error="validation"} 0
+adapter_errors{adapter="rubicon",adapter_error="badinput"} 0
+adapter_errors{adapter="rubicon",adapter_error="badserverresponse"} 0
+adapter_errors{adapter="rubicon",adapter_error="failedtorequestbid"} 0
+adapter_errors{adapter="rubicon",adapter_error="timeout"} 0
+adapter_errors{adapter="rubicon",adapter_error="tmaxtimeout"} 0
+adapter_errors{adapter="rubicon",adapter_error="unknown_error"} 0
+adapter_errors{adapter="rubicon",adapter_error="validation"} 0
+adapter_errors{adapter="zmaticoo",adapter_error="badinput"} 0
+adapter_errors{adapter="zmaticoo",adapter_error="badserverresponse"} 0
+adapter_errors{adapter="zmaticoo",adapter_error="failedtorequestbid"} 0
+adapter_errors{adapter="zmaticoo",adapter_error="timeout"} 0
+adapter_errors{adapter="zmaticoo",adapter_error="tmaxtimeout"} 0
+adapter_errors{adapter="zmaticoo",adapter_error="unknown_error"} 0
+adapter_errors{adapter="zmaticoo",adapter_error="validation"} 0
+# HELP adapter_panics Count of panics labeled by adapter.
+# TYPE adapter_panics counter
+adapter_panics{adapter="33across"} 0
+adapter_panics{adapter="adkerneladn"} 0
+adapter_panics{adapter="appnexus"} 0
+adapter_panics{adapter="pubmatic"} 0
+adapter_panics{adapter="rubicon"} 0
+adapter_panics{adapter="zmaticoo"} 0
+# HELP adapter_prices Monetary value of the bids labeled by adapter.
+# TYPE adapter_prices histogram
+adapter_prices_bucket{adapter="33across",le="250"} 0
+adapter_prices_bucket{adapter="33across",le="500"} 0
+adapter_prices_bucket{adapter="33across",le="750"} 0
+adapter_prices_bucket{adapter="33across",le="1000"} 0
+adapter_prices_bucket{adapter="33across",le="1500"} 0
+adapter_prices_bucket{adapter="33across",le="2000"} 0
+adapter_prices_bucket{adapter="33across",le="2500"} 0
+adapter_prices_bucket{adapter="33across",le="3000"} 0
+adapter_prices_bucket{adapter="33across",le="3500"} 0
+adapter_prices_bucket{adapter="33across",le="4000"} 0
+adapter_prices_bucket{adapter="33across",le="+Inf"} 0
+adapter_prices_sum{adapter="33across"} 0
+adapter_prices_count{adapter="33across"} 0
+adapter_prices_bucket{adapter="adkerneladn",le="250"} 0
+adapter_prices_bucket{adapter="adkerneladn",le="500"} 0
+adapter_prices_bucket{adapter="adkerneladn",le="750"} 0
+adapter_prices_bucket{adapter="adkerneladn",le="1000"} 0
+adapter_prices_bucket{adapter="adkerneladn",le="1500"} 0
+adapter_prices_bucket{adapter="adkerneladn",le="2000"} 0
+adapter_prices_bucket{adapter="adkerneladn",le="2500"} 0
+adapter_prices_bucket{adapter="adkerneladn",le="3000"} 0
+adapter_prices_bucket{adapter="adkerneladn",le="3500"} 0
+adapter_prices_bucket{adapter="adkerneladn",le="4000"} 0
+adapter_prices_bucket{adapter="adkerneladn",le="+Inf"} 0
+adapter_prices_sum{adapter="adkerneladn"} 0
+adapter_prices_count{adapter="adkerneladn"} 0
+adapter_prices_bucket{adapter="appnexus",le="250"} 0
+adapter_prices_bucket{adapter="appnexus",le="500"} 0
+adapter_prices_bucket{adapter="appnexus",le="750"} 0
+adapter_prices_bucket{adapter="appnexus",le="1000"} 0
+adapter_prices_bucket{adapter="appnexus",le="1500"} 0
+adapter_prices_bucket{adapter="appnexus",le="2000"} 0
+adapter_prices_bucket{adapter="appnexus",le="2500"} 0
+adapter_prices_bucket{adapter="appnexus",le="3000"} 0
+adapter_prices_bucket{adapter="appnexus",le="3500"} 0
+adapter_prices_bucket{adapter="appnexus",le="4000"} 0
+adapter_prices_bucket{adapter="appnexus",le="+Inf"} 0
+adapter_prices_sum{adapter="appnexus"} 0
+adapter_prices_count{adapter="appnexus"} 0
+adapter_prices_bucket{adapter="pubmatic",le="250"} 0
+adapter_prices_bucket{adapter="pubmatic",le="500"} 0
+adapter_prices_bucket{adapter="pubmatic",le="750"} 0
+adapter_prices_bucket{adapter="pubmatic",le="1000"} 0
+adapter_prices_bucket{adapter="pubmatic",le="1500"} 0
+adapter_prices_bucket{adapter="pubmatic",le="2000"} 0
+adapter_prices_bucket{adapter="pubmatic",le="2500"} 0
+adapter_prices_bucket{adapter="pubmatic",le="3000"} 0
+adapter_prices_bucket{adapter="pubmatic",le="3500"} 0
+adapter_prices_bucket{adapter="pubmatic",le="4000"} 0
+adapter_prices_bucket{adapter="pubmatic",le="+Inf"} 0
+adapter_prices_sum{adapter="pubmatic"} 0
+adapter_prices_count{adapter="pubmatic"} 0
+adapter_prices_bucket{adapter="rubicon",le="250"} 0
+adapter_prices_bucket{adapter="rubicon",le="500"} 0
+adapter_prices_bucket{adapter="rubicon",le="750"} 0
+adapter_prices_bucket{adapter="rubicon",le="1000"} 0
+adapter_prices_bucket{adapter="rubicon",le="1500"} 0
+adapter_prices_bucket{adapter="rubicon",le="2000"} 0
+adapter_prices_bucket{adapter="rubicon",le="2500"} 0
+adapter_prices_bucket{adapter="rubicon",le="3000"} 0
+adapter_prices_bucket{adapter="rubicon",le="3500"} 0
+adapter_prices_bucket{adapter="rubicon",le="4000"} 0
+adapter_prices_bucket{adapter="rubicon",le="+Inf"} 0
+adapter_prices_sum{adapter="rubicon"} 0
+adapter_prices_count{adapter="rubicon"} 0
+adapter_prices_bucket{adapter="zmaticoo",le="250"} 0
+adapter_prices_bucket{adapter="zmaticoo",le="500"} 0
+adapter_prices_bucket{adapter="zmaticoo",le="750"} 0
+adapter_prices_bucket{adapter="zmaticoo",le="1000"} 0
+adapter_prices_bucket{adapter="zmaticoo",le="1500"} 0
+adapter_prices_bucket{adapter="zmaticoo",le="2000"} 0
+adapter_prices_bucket{adapter="zmaticoo",le="2500"} 0
+adapter_prices_bucket{adapter="zmaticoo",le="3000"} 0
+adapter_prices_bucket{adapter="zmaticoo",le="3500"} 0
+adapter_prices_bucket{adapter="zmaticoo",le="4000"} 0
+adapter_prices_bucket{adapter="zmaticoo",le="+Inf"} 0
+adapter_prices_sum{adapter="zmaticoo"} 0
+adapter_prices_count{adapter="zmaticoo"} 0
+# HELP adapter_request_time_seconds Seconds to resolve each successful request labeled by adapter.
+# TYPE adapter_request_time_seconds histogram
+adapter_request_time_seconds_bucket{adapter="33across",le="0.05"} 0
+adapter_request_time_seconds_bucket{adapter="33across",le="0.1"} 0
+adapter_request_time_seconds_bucket{adapter="33across",le="0.15"} 0
+adapter_request_time_seconds_bucket{adapter="33across",le="0.2"} 0
+adapter_request_time_seconds_bucket{adapter="33across",le="0.25"} 0
+adapter_request_time_seconds_bucket{adapter="33across",le="0.3"} 0
+adapter_request_time_seconds_bucket{adapter="33across",le="0.4"} 0
+adapter_request_time_seconds_bucket{adapter="33across",le="0.5"} 0
+adapter_request_time_seconds_bucket{adapter="33across",le="0.75"} 0
+adapter_request_time_seconds_bucket{adapter="33across",le="1"} 0
+adapter_request_time_seconds_bucket{adapter="33across",le="+Inf"} 0
+adapter_request_time_seconds_sum{adapter="33across"} 0
+adapter_request_time_seconds_count{adapter="33across"} 0
+adapter_request_time_seconds_bucket{adapter="adkerneladn",le="0.05"} 0
+adapter_request_time_seconds_bucket{adapter="adkerneladn",le="0.1"} 0
+adapter_request_time_seconds_bucket{adapter="adkerneladn",le="0.15"} 0
+adapter_request_time_seconds_bucket{adapter="adkerneladn",le="0.2"} 0
+adapter_request_time_seconds_bucket{adapter="adkerneladn",le="0.25"} 0
+adapter_request_time_seconds_bucket{adapter="adkerneladn",le="0.3"} 0
+adapter_request_time_seconds_bucket{adapter="adkerneladn",le="0.4"} 0
+adapter_request_time_seconds_bucket{adapter="adkerneladn",le="0.5"} 0
+adapter_request_time_seconds_bucket{adapter="adkerneladn",le="0.75"} 0
+adapter_request_time_seconds_bucket{adapter="adkerneladn",le="1"} 0
+adapter_request_time_seconds_bucket{adapter="adkerneladn",le="+Inf"} 0
+adapter_request_time_seconds_sum{adapter="adkerneladn"} 0
+adapter_request_time_seconds_count{adapter="adkerneladn"} 0
+adapter_request_time_seconds_bucket{adapter="appnexus",le="0.05"} 0
+adapter_request_time_seconds_bucket{adapter="appnexus",le="0.1"} 0
+adapter_request_time_seconds_bucket{adapter="appnexus",le="0.15"} 0
+adapter_request_time_seconds_bucket{adapter="appnexus",le="0.2"} 0
+adapter_request_time_seconds_bucket{adapter="appnexus",le="0.25"} 0
+adapter_request_time_seconds_bucket{adapter="appnexus",le="0.3"} 0
+adapter_request_time_seconds_bucket{adapter="appnexus",le="0.4"} 0
+adapter_request_time_seconds_bucket{adapter="appnexus",le="0.5"} 0
+adapter_request_time_seconds_bucket{adapter="appnexus",le="0.75"} 0
+adapter_request_time_seconds_bucket{adapter="appnexus",le="1"} 0
+adapter_request_time_seconds_bucket{adapter="appnexus",le="+Inf"} 0
+adapter_request_time_seconds_sum{adapter="appnexus"} 0
+adapter_request_time_seconds_count{adapter="appnexus"} 0
+adapter_request_time_seconds_bucket{adapter="pubmatic",le="0.05"} 0
+adapter_request_time_seconds_bucket{adapter="pubmatic",le="0.1"} 0
+adapter_request_time_seconds_bucket{adapter="pubmatic",le="0.15"} 0
+adapter_request_time_seconds_bucket{adapter="pubmatic",le="0.2"} 0
+adapter_request_time_seconds_bucket{adapter="pubmatic",le="0.25"} 0
+adapter_request_time_seconds_bucket{adapter="pubmatic",le="0.3"} 0
+adapter_request_time_seconds_bucket{adapter="pubmatic",le="0.4"} 0
+adapter_request_time_seconds_bucket{adapter="pubmatic",le="0.5"} 0
+adapter_request_time_seconds_bucket{adapter="pubmatic",le="0.75"} 0
+adapter_request_time_seconds_bucket{adapter="pubmatic",le="1"} 0
+adapter_request_time_seconds_bucket{adapter="pubmatic",le="+Inf"} 0
+adapter_request_time_seconds_sum{adapter="pubmatic"} 0
+adapter_request_time_seconds_count{adapter="pubmatic"} 0
+adapter_request_time_seconds_bucket{adapter="rubicon",le="0.05"} 0
+adapter_request_time_seconds_bucket{adapter="rubicon",le="0.1"} 0
+adapter_request_time_seconds_bucket{adapter="rubicon",le="0.15"} 0
+adapter_request_time_seconds_bucket{adapter="rubicon",le="0.2"} 0
+adapter_request_time_seconds_bucket{adapter="rubicon",le="0.25"} 0
+adapter_request_time_seconds_bucket{adapter="rubicon",le="0.3"} 0
+adapter_request_time_seconds_bucket{adapter="rubicon",le="0.4"} 0
+adapter_request_time_seconds_bucket{adapter="rubicon",le="0.5"} 0
+adapter_request_time_seconds_bucket{adapter="rubicon",le="0.75"} 0
+adapter_request_time_seconds_bucket{adapter="rubicon",le="1"} 0
+adapter_request_time_seconds_bucket{adapter="rubicon",le="+Inf"} 0
+adapter_request_time_seconds_sum{adapter="rubicon"} 0
+adapter_request_time_seconds_count{adapter="rubicon"} 0
+adapter_request_time_seconds_bucket{adapter="zmaticoo",le="0.05"} 0
+adapter_request_time_seconds_bucket{adapter="zmaticoo",le="0.1"} 0
+adapter_request_time_seconds_bucket{adapter="zmaticoo",le="0.15"} 0
+adapter_request_time_seconds_bucket{adapter="zmaticoo",le="0.2"} 0
+adapter_request_time_seconds_bucket{adapter="zmaticoo",le="0.25"} 0
+adapter_request_time_seconds_bucket{adapter="zmaticoo",le="0.3"} 0
+adapter_request_time_seconds_bucket{adapter="zmaticoo",le="0.4"} 0
+adapter_request_time_seconds_bucket{adapter="zmaticoo",le="0.5"} 0
+adapter_request_time_seconds_bucket{adapter="zmaticoo",le="0.75"} 0
+adapter_request_time_seconds_bucket{adapter="zmaticoo",le="1"} 0
+adapter_request_time_seconds_bucket{adapter="zmaticoo",le="+Inf"} 0
+adapter_request_time_seconds_sum{adapter="zmaticoo"} 0
+adapter_request_time_seconds_count{adapter="zmaticoo"} 0
+# HELP adapter_requests Count of requests labeled by adapter, if has a cookie, and if it resulted in bids.
+# TYPE adapter_requests counter
+adapter_requests{adapter="33across",cookie="exists",has_bids="false"} 0
+adapter_requests{adapter="33across",cookie="exists",has_bids="true"} 0
+adapter_requests{adapter="33across",cookie="no",has_bids="false"} 0
+adapter_requests{adapter="33across",cookie="no",has_bids="true"} 0
+adapter_requests{adapter="33across",cookie="unknown",has_bids="false"} 0
+adapter_requests{adapter="33across",cookie="unknown",has_bids="true"} 0
+adapter_requests{adapter="adkerneladn",cookie="exists",has_bids="false"} 0
+adapter_requests{adapter="adkerneladn",cookie="exists",has_bids="true"} 0
+adapter_requests{adapter="adkerneladn",cookie="no",has_bids="false"} 0
+adapter_requests{adapter="adkerneladn",cookie="no",has_bids="true"} 0
+adapter_requests{adapter="adkerneladn",cookie="unknown",has_bids="false"} 0
+adapter_requests{adapter="adkerneladn",cookie="unknown",has_bids="true"} 0
+adapter_requests{adapter="appnexus",cookie="exists",has_bids="false"} 0
+adapter_requests{adapter="appnexus",cookie="exists",has_bids="true"} 0
+adapter_requests{adapter="appnexus",cookie="no",has_bids="false"} 0
+adapter_requests{adapter="appnexus",cookie="no",has_bids="true"} 0
+adapter_requests{adapter="appnexus",cookie="unknown",has_bids="false"} 0
+adapter_requests{adapter="appnexus",cookie="unknown",has_bids="true"} 0
+adapter_requests{adapter="pubmatic",cookie="exists",has_bids="false"} 0
+adapter_requests{adapter="pubmatic",cookie="exists",has_bids="true"} 0
+adapter_requests{adapter="pubmatic",cookie="no",has_bids="false"} 0
+adapter_requests{adapter="pubmatic",cookie="no",has_bids="true"} 0
+adapter_requests{adapter="pubmatic",cookie="unknown",has_bids="false"} 0
+adapter_requests{adapter="pubmatic",cookie="unknown",has_bids="true"} 0
+adapter_requests{adapter="rubicon",cookie="exists",has_bids="false"} 0
+adapter_requests{adapter="rubicon",cookie="exists",has_bids="true"} 0
+adapter_requests{adapter="rubicon",cookie="no",has_bids="false"} 0
+adapter_requests{adapter="rubicon",cookie="no",has_bids="true"} 0
+adapter_requests{adapter="rubicon",cookie="unknown",has_bids="false"} 0
+adapter_requests{adapter="rubicon",cookie="unknown",has_bids="true"} 0
+adapter_requests{adapter="zmaticoo",cookie="exists",has_bids="false"} 0
+adapter_requests{adapter="zmaticoo",cookie="exists",has_bids="true"} 0
+adapter_requests{adapter="zmaticoo",cookie="no",has_bids="false"} 0
+adapter_requests{adapter="zmaticoo",cookie="no",has_bids="true"} 0
+adapter_requests{adapter="zmaticoo",cookie="unknown",has_bids="false"} 0
+adapter_requests{adapter="zmaticoo",cookie="unknown",has_bids="true"} 0
+# HELP adapter_response_validation_secure_err Count that tracks number of bids removed from bid response that had a invalid bidAdm
+# TYPE adapter_response_validation_secure_err counter
+adapter_response_validation_secure_err{adapter="33across",success="false"} 0
+adapter_response_validation_secure_err{adapter="33across",success="true"} 0
+adapter_response_validation_secure_err{adapter="adkerneladn",success="false"} 0
+adapter_response_validation_secure_err{adapter="adkerneladn",success="true"} 0
+adapter_response_validation_secure_err{adapter="appnexus",success="false"} 0
+adapter_response_validation_secure_err{adapter="appnexus",success="success"} 1
+adapter_response_validation_secure_err{adapter="appnexus",success="true"} 0
+adapter_response_validation_secure_err{adapter="pubmatic",success="false"} 0
+adapter_response_validation_secure_err{adapter="pubmatic",success="true"} 0
+adapter_response_validation_secure_err{adapter="rubicon",success="false"} 0
+adapter_response_validation_secure_err{adapter="rubicon",success="true"} 0
+adapter_response_validation_secure_err{adapter="zmaticoo",success="false"} 0
+adapter_response_validation_secure_err{adapter="zmaticoo",success="true"} 0
+# HELP adapter_response_validation_secure_warn Count that tracks number of bids removed from bid response that had a invalid bidAdm (warn)
+# TYPE adapter_response_validation_secure_warn counter
+adapter_response_validation_secure_warn{adapter="33across",success="false"} 0
+adapter_response_validation_secure_warn{adapter="33across",success="true"} 0
+adapter_response_validation_secure_warn{adapter="adkerneladn",success="false"} 0
+adapter_response_validation_secure_warn{adapter="adkerneladn",success="true"} 0
+adapter_response_validation_secure_warn{adapter="appnexus",success="false"} 0
+adapter_response_validation_secure_warn{adapter="appnexus",success="success"} 1
+adapter_response_validation_secure_warn{adapter="appnexus",success="true"} 0
+adapter_response_validation_secure_warn{adapter="pubmatic",success="false"} 0
+adapter_response_validation_secure_warn{adapter="pubmatic",success="true"} 0
+adapter_response_validation_secure_warn{adapter="rubicon",success="false"} 0
+adapter_response_validation_secure_warn{adapter="rubicon",success="true"} 0
+adapter_response_validation_secure_warn{adapter="zmaticoo",success="false"} 0
+adapter_response_validation_secure_warn{adapter="zmaticoo",success="true"} 0
+# HELP adapter_response_validation_size_err Count that tracks number of bids removed from bid response that had a creative size greater than maxWidth/maxHeight
+# TYPE adapter_response_validation_size_err counter
+adapter_response_validation_size_err{adapter="33across",success="false"} 0
+adapter_response_validation_size_err{adapter="33across",success="true"} 0
+adapter_response_validation_size_err{adapter="adkerneladn",success="false"} 0
+adapter_response_validation_size_err{adapter="adkerneladn",success="true"} 0
+adapter_response_validation_size_err{adapter="appnexus",success="false"} 0
+adapter_response_validation_size_err{adapter="appnexus",success="success"} 1
+adapter_response_validation_size_err{adapter="appnexus",success="true"} 0
+adapter_response_validation_size_err{adapter="pubmatic",success="false"} 0
+adapter_response_validation_size_err{adapter="pubmatic",success="true"} 0
+adapter_response_validation_size_err{adapter="rubicon",success="false"} 0
+adapter_response_validation_size_err{adapter="rubicon",success="true"} 0
+adapter_response_validation_size_err{adapter="zmaticoo",success="false"} 0
+adapter_response_validation_size_err{adapter="zmaticoo",success="true"} 0
+# HELP adapter_response_validation_size_warn Count that tracks number of bids removed from bid response that had a creative size greater than maxWidth/maxHeight (warn)
+# TYPE adapter_response_validation_size_warn counter
+adapter_response_validation_size_warn{adapter="33across",success="false"} 0
+adapter_response_validation_size_warn{adapter="33across",success="true"} 0
+adapter_response_validation_size_warn{adapter="adkerneladn",success="false"} 0
+adapter_response_validation_size_warn{adapter="adkerneladn",success="true"} 0
+adapter_response_validation_size_warn{adapter="appnexus",success="false"} 0
+adapter_response_validation_size_warn{adapter="appnexus",success="success"} 1
+adapter_response_validation_size_warn{adapter="appnexus",success="true"} 0
+adapter_response_validation_size_warn{adapter="pubmatic",success="false"} 0
+adapter_response_validation_size_warn{adapter="pubmatic",success="true"} 0
+adapter_response_validation_size_warn{adapter="rubicon",success="false"} 0
+adapter_response_validation_size_warn{adapter="rubicon",success="true"} 0
+adapter_response_validation_size_warn{adapter="zmaticoo",success="false"} 0
+adapter_response_validation_size_warn{adapter="zmaticoo",success="true"} 0
+# HELP ads_cert_requests Count of AdsCert request, and if they were successfully sent.
+# TYPE ads_cert_requests counter
+ads_cert_requests{success="false"} 0
+ads_cert_requests{success="true"} 0
+# HELP ads_cert_sign_time Seconds to generate an AdsCert header
+# TYPE ads_cert_sign_time histogram
+ads_cert_sign_time_bucket{le="0.05"} 0
+ads_cert_sign_time_bucket{le="0.1"} 0
+ads_cert_sign_time_bucket{le="0.15"} 0
+ads_cert_sign_time_bucket{le="0.2"} 0
+ads_cert_sign_time_bucket{le="0.25"} 0
+ads_cert_sign_time_bucket{le="0.3"} 0
+ads_cert_sign_time_bucket{le="0.4"} 0
+ads_cert_sign_time_bucket{le="0.5"} 0
+ads_cert_sign_time_bucket{le="0.75"} 0
+ads_cert_sign_time_bucket{le="1"} 0
+ads_cert_sign_time_bucket{le="+Inf"} 0
+ads_cert_sign_time_sum 0
+ads_cert_sign_time_count 0
+# HELP bidder_server_response_time_seconds Duration needed to send HTTP request and receive response back from bidder server.
+# TYPE bidder_server_response_time_seconds histogram
+bidder_server_response_time_seconds_bucket{le="0.05"} 0
+bidder_server_response_time_seconds_bucket{le="0.1"} 0
+bidder_server_response_time_seconds_bucket{le="0.15"} 0
+bidder_server_response_time_seconds_bucket{le="0.2"} 0
+bidder_server_response_time_seconds_bucket{le="0.25"} 0
+bidder_server_response_time_seconds_bucket{le="0.3"} 0
+bidder_server_response_time_seconds_bucket{le="0.4"} 0
+bidder_server_response_time_seconds_bucket{le="0.5"} 0
+bidder_server_response_time_seconds_bucket{le="0.75"} 0
+bidder_server_response_time_seconds_bucket{le="1"} 0
+bidder_server_response_time_seconds_bucket{le="+Inf"} 0
+bidder_server_response_time_seconds_sum 0
+bidder_server_response_time_seconds_count 0
+# HELP connections_closed Count of successful connections closed to Prebid Server.
+# TYPE connections_closed counter
+connections_closed 0
+# HELP connections_error Count of errors for connection open and close attempts to Prebid Server labeled by type.
+# TYPE connections_error counter
+connections_error{connection_error="accept"} 0
+connections_error{connection_error="close"} 0
+# HELP connections_opened Count of successful connections opened to Prebid Server.
+# TYPE connections_opened counter
+connections_opened 0
+# HELP cookie_sync_requests Count of cookie sync requests to Prebid Server.
+# TYPE cookie_sync_requests counter
+cookie_sync_requests{status="acct_blocked"} 0
+cookie_sync_requests{status="acct_config_malformed"} 0
+cookie_sync_requests{status="acct_invalid"} 0
+cookie_sync_requests{status="bad_request"} 0
+cookie_sync_requests{status="gdpr_blocked_host_cookie"} 0
+cookie_sync_requests{status="ok"} 0
+cookie_sync_requests{status="opt_out"} 0
+# HELP debug_requests Count of total requests to Prebid Server that have debug enabled
+# TYPE debug_requests counter
+debug_requests 1
+# HELP dns_lookup_time Seconds to resolve DNS
+# TYPE dns_lookup_time histogram
+dns_lookup_time_bucket{le="0.05"} 0
+dns_lookup_time_bucket{le="0.1"} 0
+dns_lookup_time_bucket{le="0.15"} 0
+dns_lookup_time_bucket{le="0.2"} 0
+dns_lookup_time_bucket{le="0.25"} 0
+dns_lookup_time_bucket{le="0.3"} 0
+dns_lookup_time_bucket{le="0.4"} 0
+dns_lookup_time_bucket{le="0.5"} 0
+dns_lookup_time_bucket{le="0.75"} 0
+dns_lookup_time_bucket{le="1"} 0
+dns_lookup_time_bucket{le="+Inf"} 0
+dns_lookup_time_sum 0
+dns_lookup_time_count 0
+# HELP gvl_requests Count number of times GVL list is fetched
+# TYPE gvl_requests counter
+gvl_requests 0
+# HELP impressions_requests Count of requested impressions to Prebid Server labeled by type.
+# TYPE impressions_requests counter
+impressions_requests{audio="false",banner="false",native="false",video="false"} 0
+impressions_requests{audio="false",banner="false",native="false",video="true"} 0
+impressions_requests{audio="false",banner="false",native="true",video="false"} 0
+impressions_requests{audio="false",banner="false",native="true",video="true"} 0
+impressions_requests{audio="false",banner="true",native="false",video="false"} 0
+impressions_requests{audio="false",banner="true",native="false",video="true"} 0
+impressions_requests{audio="false",banner="true",native="true",video="false"} 0
+impressions_requests{audio="false",banner="true",native="true",video="true"} 0
+impressions_requests{audio="true",banner="false",native="false",video="false"} 0
+impressions_requests{audio="true",banner="false",native="false",video="true"} 0
+impressions_requests{audio="true",banner="false",native="true",video="false"} 0
+impressions_requests{audio="true",banner="false",native="true",video="true"} 0
+impressions_requests{audio="true",banner="true",native="false",video="false"} 0
+impressions_requests{audio="true",banner="true",native="false",video="true"} 0
+impressions_requests{audio="true",banner="true",native="true",video="false"} 0
+impressions_requests{audio="true",banner="true",native="true",video="true"} 0
+# HELP overhead_time_seconds Seconds to prepare adapter request or resolve adapter response
+# TYPE overhead_time_seconds histogram
+overhead_time_seconds_bucket{overhead_type="make-auction-response",le="0.05"} 0
+overhead_time_seconds_bucket{overhead_type="make-auction-response",le="0.06"} 0
+overhead_time_seconds_bucket{overhead_type="make-auction-response",le="0.07"} 0
+overhead_time_seconds_bucket{overhead_type="make-auction-response",le="0.08"} 0
+overhead_time_seconds_bucket{overhead_type="make-auction-response",le="0.09"} 0
+overhead_time_seconds_bucket{overhead_type="make-auction-response",le="0.1"} 0
+overhead_time_seconds_bucket{overhead_type="make-auction-response",le="0.2"} 0
+overhead_time_seconds_bucket{overhead_type="make-auction-response",le="0.3"} 0
+overhead_time_seconds_bucket{overhead_type="make-auction-response",le="0.4"} 0
+overhead_time_seconds_bucket{overhead_type="make-auction-response",le="0.5"} 0
+overhead_time_seconds_bucket{overhead_type="make-auction-response",le="0.6"} 0
+overhead_time_seconds_bucket{overhead_type="make-auction-response",le="0.7"} 0
+overhead_time_seconds_bucket{overhead_type="make-auction-response",le="0.8"} 0
+overhead_time_seconds_bucket{overhead_type="make-auction-response",le="0.9"} 0
+overhead_time_seconds_bucket{overhead_type="make-auction-response",le="1"} 0
+overhead_time_seconds_bucket{overhead_type="make-auction-response",le="+Inf"} 0
+overhead_time_seconds_sum{overhead_type="make-auction-response"} 0
+overhead_time_seconds_count{overhead_type="make-auction-response"} 0
+overhead_time_seconds_bucket{overhead_type="make-bidder-requests",le="0.05"} 0
+overhead_time_seconds_bucket{overhead_type="make-bidder-requests",le="0.06"} 0
+overhead_time_seconds_bucket{overhead_type="make-bidder-requests",le="0.07"} 0
+overhead_time_seconds_bucket{overhead_type="make-bidder-requests",le="0.08"} 0
+overhead_time_seconds_bucket{overhead_type="make-bidder-requests",le="0.09"} 0
+overhead_time_seconds_bucket{overhead_type="make-bidder-requests",le="0.1"} 0
+overhead_time_seconds_bucket{overhead_type="make-bidder-requests",le="0.2"} 0
+overhead_time_seconds_bucket{overhead_type="make-bidder-requests",le="0.3"} 0
+overhead_time_seconds_bucket{overhead_type="make-bidder-requests",le="0.4"} 0
+overhead_time_seconds_bucket{overhead_type="make-bidder-requests",le="0.5"} 0
+overhead_time_seconds_bucket{overhead_type="make-bidder-requests",le="0.6"} 0
+overhead_time_seconds_bucket{overhead_type="make-bidder-requests",le="0.7"} 0
+overhead_time_seconds_bucket{overhead_type="make-bidder-requests",le="0.8"} 0
+overhead_time_seconds_bucket{overhead_type="make-bidder-requests",le="0.9"} 0
+overhead_time_seconds_bucket{overhead_type="make-bidder-requests",le="1"} 0
+overhead_time_seconds_bucket{overhead_type="make-bidder-requests",le="+Inf"} 0
+overhead_time_seconds_sum{overhead_type="make-bidder-requests"} 0
+overhead_time_seconds_count{overhead_type="make-bidder-requests"} 0
+overhead_time_seconds_bucket{overhead_type="pre-bidder",le="0.05"} 0
+overhead_time_seconds_bucket{overhead_type="pre-bidder",le="0.06"} 0
+overhead_time_seconds_bucket{overhead_type="pre-bidder",le="0.07"} 0
+overhead_time_seconds_bucket{overhead_type="pre-bidder",le="0.08"} 0
+overhead_time_seconds_bucket{overhead_type="pre-bidder",le="0.09"} 0
+overhead_time_seconds_bucket{overhead_type="pre-bidder",le="0.1"} 0
+overhead_time_seconds_bucket{overhead_type="pre-bidder",le="0.2"} 0
+overhead_time_seconds_bucket{overhead_type="pre-bidder",le="0.3"} 0
+overhead_time_seconds_bucket{overhead_type="pre-bidder",le="0.4"} 0
+overhead_time_seconds_bucket{overhead_type="pre-bidder",le="0.5"} 0
+overhead_time_seconds_bucket{overhead_type="pre-bidder",le="0.6"} 0
+overhead_time_seconds_bucket{overhead_type="pre-bidder",le="0.7"} 0
+overhead_time_seconds_bucket{overhead_type="pre-bidder",le="0.8"} 0
+overhead_time_seconds_bucket{overhead_type="pre-bidder",le="0.9"} 0
+overhead_time_seconds_bucket{overhead_type="pre-bidder",le="1"} 0
+overhead_time_seconds_bucket{overhead_type="pre-bidder",le="+Inf"} 0
+overhead_time_seconds_sum{overhead_type="pre-bidder"} 0
+overhead_time_seconds_count{overhead_type="pre-bidder"} 0
+# HELP prebidcache_write_time_seconds Seconds to write to Prebid Cache labeled by success or failure. Failure timing is limited by Prebid Server enforced timeouts.
+# TYPE prebidcache_write_time_seconds histogram
+prebidcache_write_time_seconds_bucket{success="false",le="0.001"} 0
+prebidcache_write_time_seconds_bucket{success="false",le="0.002"} 0
+prebidcache_write_time_seconds_bucket{success="false",le="0.005"} 0
+prebidcache_write_time_seconds_bucket{success="false",le="0.01"} 0
+prebidcache_write_time_seconds_bucket{success="false",le="0.025"} 0
+prebidcache_write_time_seconds_bucket{success="false",le="0.05"} 0
+prebidcache_write_time_seconds_bucket{success="false",le="0.1"} 0
+prebidcache_write_time_seconds_bucket{success="false",le="0.2"} 0
+prebidcache_write_time_seconds_bucket{success="false",le="0.3"} 0
+prebidcache_write_time_seconds_bucket{success="false",le="0.4"} 0
+prebidcache_write_time_seconds_bucket{success="false",le="0.5"} 0
+prebidcache_write_time_seconds_bucket{success="false",le="1"} 0
+prebidcache_write_time_seconds_bucket{success="false",le="+Inf"} 0
+prebidcache_write_time_seconds_sum{success="false"} 0
+prebidcache_write_time_seconds_count{success="false"} 0
+prebidcache_write_time_seconds_bucket{success="true",le="0.001"} 0
+prebidcache_write_time_seconds_bucket{success="true",le="0.002"} 0
+prebidcache_write_time_seconds_bucket{success="true",le="0.005"} 0
+prebidcache_write_time_seconds_bucket{success="true",le="0.01"} 0
+prebidcache_write_time_seconds_bucket{success="true",le="0.025"} 0
+prebidcache_write_time_seconds_bucket{success="true",le="0.05"} 0
+prebidcache_write_time_seconds_bucket{success="true",le="0.1"} 0
+prebidcache_write_time_seconds_bucket{success="true",le="0.2"} 0
+prebidcache_write_time_seconds_bucket{success="true",le="0.3"} 0
+prebidcache_write_time_seconds_bucket{success="true",le="0.4"} 0
+prebidcache_write_time_seconds_bucket{success="true",le="0.5"} 0
+prebidcache_write_time_seconds_bucket{success="true",le="1"} 0
+prebidcache_write_time_seconds_bucket{success="true",le="+Inf"} 0
+prebidcache_write_time_seconds_sum{success="true"} 0
+prebidcache_write_time_seconds_count{success="true"} 0
+# HELP privacy_ccpa Count of total requests to Prebid Server where CCPA was provided by source and opt-out .
+# TYPE privacy_ccpa counter
+privacy_ccpa{opt_out="false",source="request"} 0
+privacy_ccpa{opt_out="true",source="request"} 0
+# HELP privacy_coppa Count of total requests to Prebid Server where the COPPA flag was set by source
+# TYPE privacy_coppa counter
+privacy_coppa{source="request"} 0
+# HELP privacy_lmt Count of total requests to Prebid Server where the LMT flag was set by source
+# TYPE privacy_lmt counter
+privacy_lmt{source="request"} 0
+# HELP privacy_tcf Count of TCF versions for requests where GDPR was enforced by source and version.
+# TYPE privacy_tcf counter
+privacy_tcf{source="request",version="err"} 0
+privacy_tcf{source="request",version="v2"} 0
+# HELP request_queue_time Seconds request was waiting in queue
+# TYPE request_queue_time histogram
+request_queue_time_bucket{request_status="requestAcceptedLabel",request_type="video",le="0"} 0
+request_queue_time_bucket{request_status="requestAcceptedLabel",request_type="video",le="1"} 0
+request_queue_time_bucket{request_status="requestAcceptedLabel",request_type="video",le="5"} 0
+request_queue_time_bucket{request_status="requestAcceptedLabel",request_type="video",le="30"} 0
+request_queue_time_bucket{request_status="requestAcceptedLabel",request_type="video",le="60"} 0
+request_queue_time_bucket{request_status="requestAcceptedLabel",request_type="video",le="120"} 0
+request_queue_time_bucket{request_status="requestAcceptedLabel",request_type="video",le="180"} 0
+request_queue_time_bucket{request_status="requestAcceptedLabel",request_type="video",le="240"} 0
+request_queue_time_bucket{request_status="requestAcceptedLabel",request_type="video",le="300"} 0
+request_queue_time_bucket{request_status="requestAcceptedLabel",request_type="video",le="+Inf"} 0
+request_queue_time_sum{request_status="requestAcceptedLabel",request_type="video"} 0
+request_queue_time_count{request_status="requestAcceptedLabel",request_type="video"} 0
+request_queue_time_bucket{request_status="requestRejectedLabel",request_type="video",le="0"} 0
+request_queue_time_bucket{request_status="requestRejectedLabel",request_type="video",le="1"} 0
+request_queue_time_bucket{request_status="requestRejectedLabel",request_type="video",le="5"} 0
+request_queue_time_bucket{request_status="requestRejectedLabel",request_type="video",le="30"} 0
+request_queue_time_bucket{request_status="requestRejectedLabel",request_type="video",le="60"} 0
+request_queue_time_bucket{request_status="requestRejectedLabel",request_type="video",le="120"} 0
+request_queue_time_bucket{request_status="requestRejectedLabel",request_type="video",le="180"} 0
+request_queue_time_bucket{request_status="requestRejectedLabel",request_type="video",le="240"} 0
+request_queue_time_bucket{request_status="requestRejectedLabel",request_type="video",le="300"} 0
+request_queue_time_bucket{request_status="requestRejectedLabel",request_type="video",le="+Inf"} 0
+request_queue_time_sum{request_status="requestRejectedLabel",request_type="video"} 0
+request_queue_time_count{request_status="requestRejectedLabel",request_type="video"} 0
+# HELP request_size_bytes Count that keeps track of incoming request size in bytes labeled by endpoint.
+# TYPE request_size_bytes histogram
+request_size_bytes_bucket{request_size="auction",le="100"} 0
+request_size_bytes_bucket{request_size="auction",le="500"} 1
+request_size_bytes_bucket{request_size="auction",le="750"} 1
+request_size_bytes_bucket{request_size="auction",le="1000"} 1
+request_size_bytes_bucket{request_size="auction",le="2000"} 1
+request_size_bytes_bucket{request_size="auction",le="4000"} 1
+request_size_bytes_bucket{request_size="auction",le="7000"} 1
+request_size_bytes_bucket{request_size="auction",le="10000"} 1
+request_size_bytes_bucket{request_size="auction",le="15000"} 1
+request_size_bytes_bucket{request_size="auction",le="20000"} 1
+request_size_bytes_bucket{request_size="auction",le="50000"} 1
+request_size_bytes_bucket{request_size="auction",le="75000"} 1
+request_size_bytes_bucket{request_size="auction",le="+Inf"} 1
+request_size_bytes_sum{request_size="auction"} 500
+request_size_bytes_count{request_size="auction"} 1
+# HELP request_time_seconds Seconds to resolve successful Prebid Server requests labeled by type.
+# TYPE request_time_seconds histogram
+request_time_seconds_bucket{request_type="amp",le="0.05"} 0
+request_time_seconds_bucket{request_type="amp",le="0.1"} 0
+request_time_seconds_bucket{request_type="amp",le="0.15"} 0
+request_time_seconds_bucket{request_type="amp",le="0.2"} 0
+request_time_seconds_bucket{request_type="amp",le="0.25"} 0
+request_time_seconds_bucket{request_type="amp",le="0.3"} 0
+request_time_seconds_bucket{request_type="amp",le="0.4"} 0
+request_time_seconds_bucket{request_type="amp",le="0.5"} 0
+request_time_seconds_bucket{request_type="amp",le="0.75"} 0
+request_time_seconds_bucket{request_type="amp",le="1"} 0
+request_time_seconds_bucket{request_type="amp",le="+Inf"} 0
+request_time_seconds_sum{request_type="amp"} 0
+request_time_seconds_count{request_type="amp"} 0
+request_time_seconds_bucket{request_type="openrtb2-app",le="0.05"} 0
+request_time_seconds_bucket{request_type="openrtb2-app",le="0.1"} 0
+request_time_seconds_bucket{request_type="openrtb2-app",le="0.15"} 0
+request_time_seconds_bucket{request_type="openrtb2-app",le="0.2"} 0
+request_time_seconds_bucket{request_type="openrtb2-app",le="0.25"} 0
+request_time_seconds_bucket{request_type="openrtb2-app",le="0.3"} 0
+request_time_seconds_bucket{request_type="openrtb2-app",le="0.4"} 0
+request_time_seconds_bucket{request_type="openrtb2-app",le="0.5"} 0
+request_time_seconds_bucket{request_type="openrtb2-app",le="0.75"} 0
+request_time_seconds_bucket{request_type="openrtb2-app",le="1"} 0
+request_time_seconds_bucket{request_type="openrtb2-app",le="+Inf"} 0
+request_time_seconds_sum{request_type="openrtb2-app"} 0
+request_time_seconds_count{request_type="openrtb2-app"} 0
+request_time_seconds_bucket{request_type="openrtb2-dooh",le="0.05"} 0
+request_time_seconds_bucket{request_type="openrtb2-dooh",le="0.1"} 0
+request_time_seconds_bucket{request_type="openrtb2-dooh",le="0.15"} 0
+request_time_seconds_bucket{request_type="openrtb2-dooh",le="0.2"} 0
+request_time_seconds_bucket{request_type="openrtb2-dooh",le="0.25"} 0
+request_time_seconds_bucket{request_type="openrtb2-dooh",le="0.3"} 0
+request_time_seconds_bucket{request_type="openrtb2-dooh",le="0.4"} 0
+request_time_seconds_bucket{request_type="openrtb2-dooh",le="0.5"} 0
+request_time_seconds_bucket{request_type="openrtb2-dooh",le="0.75"} 0
+request_time_seconds_bucket{request_type="openrtb2-dooh",le="1"} 0
+request_time_seconds_bucket{request_type="openrtb2-dooh",le="+Inf"} 0
+request_time_seconds_sum{request_type="openrtb2-dooh"} 0
+request_time_seconds_count{request_type="openrtb2-dooh"} 0
+request_time_seconds_bucket{request_type="openrtb2-web",le="0.05"} 0
+request_time_seconds_bucket{request_type="openrtb2-web",le="0.1"} 0
+request_time_seconds_bucket{request_type="openrtb2-web",le="0.15"} 0
+request_time_seconds_bucket{request_type="openrtb2-web",le="0.2"} 0
+request_time_seconds_bucket{request_type="openrtb2-web",le="0.25"} 0
+request_time_seconds_bucket{request_type="openrtb2-web",le="0.3"} 0
+request_time_seconds_bucket{request_type="openrtb2-web",le="0.4"} 0
+request_time_seconds_bucket{request_type="openrtb2-web",le="0.5"} 0
+request_time_seconds_bucket{request_type="openrtb2-web",le="0.75"} 0
+request_time_seconds_bucket{request_type="openrtb2-web",le="1"} 0
+request_time_seconds_bucket{request_type="openrtb2-web",le="+Inf"} 0
+request_time_seconds_sum{request_type="openrtb2-web"} 0
+request_time_seconds_count{request_type="openrtb2-web"} 0
+request_time_seconds_bucket{request_type="video",le="0.05"} 0
+request_time_seconds_bucket{request_type="video",le="0.1"} 0
+request_time_seconds_bucket{request_type="video",le="0.15"} 0
+request_time_seconds_bucket{request_type="video",le="0.2"} 0
+request_time_seconds_bucket{request_type="video",le="0.25"} 0
+request_time_seconds_bucket{request_type="video",le="0.3"} 0
+request_time_seconds_bucket{request_type="video",le="0.4"} 0
+request_time_seconds_bucket{request_type="video",le="0.5"} 0
+request_time_seconds_bucket{request_type="video",le="0.75"} 0
+request_time_seconds_bucket{request_type="video",le="1"} 0
+request_time_seconds_bucket{request_type="video",le="+Inf"} 0
+request_time_seconds_sum{request_type="video"} 0
+request_time_seconds_count{request_type="video"} 0
+# HELP requests Count of total requests to Prebid Server labeled by type and status.
+# TYPE requests counter
+requests{request_status="acctconfigerr",request_type="amp"} 0
+requests{request_status="acctconfigerr",request_type="openrtb2-app"} 0
+requests{request_status="acctconfigerr",request_type="openrtb2-dooh"} 0
+requests{request_status="acctconfigerr",request_type="openrtb2-web"} 0
+requests{request_status="acctconfigerr",request_type="video"} 0
+requests{request_status="badinput",request_type="amp"} 0
+requests{request_status="badinput",request_type="openrtb2-app"} 0
+requests{request_status="badinput",request_type="openrtb2-dooh"} 0
+requests{request_status="badinput",request_type="openrtb2-web"} 0
+requests{request_status="badinput",request_type="video"} 0
+requests{request_status="blockedapp",request_type="amp"} 0
+requests{request_status="blockedapp",request_type="openrtb2-app"} 0
+requests{request_status="blockedapp",request_type="openrtb2-dooh"} 0
+requests{request_status="blockedapp",request_type="openrtb2-web"} 0
+requests{request_status="blockedapp",request_type="video"} 0
+requests{request_status="err",request_type="amp"} 0
+requests{request_status="err",request_type="openrtb2-app"} 0
+requests{request_status="err",request_type="openrtb2-dooh"} 0
+requests{request_status="err",request_type="openrtb2-web"} 0
+requests{request_status="err",request_type="video"} 0
+requests{request_status="networkerr",request_type="amp"} 0
+requests{request_status="networkerr",request_type="openrtb2-app"} 0
+requests{request_status="networkerr",request_type="openrtb2-dooh"} 0
+requests{request_status="networkerr",request_type="openrtb2-web"} 0
+requests{request_status="networkerr",request_type="video"} 0
+requests{request_status="ok",request_type="amp"} 0
+requests{request_status="ok",request_type="openrtb2-app"} 0
+requests{request_status="ok",request_type="openrtb2-dooh"} 0
+requests{request_status="ok",request_type="openrtb2-web"} 1
+requests{request_status="ok",request_type="video"} 0
+requests{request_status="queuetimeout",request_type="amp"} 0
+requests{request_status="queuetimeout",request_type="openrtb2-app"} 0
+requests{request_status="queuetimeout",request_type="openrtb2-dooh"} 0
+requests{request_status="queuetimeout",request_type="openrtb2-web"} 0
+requests{request_status="queuetimeout",request_type="video"} 0
+# HELP requests_without_cookie Count of total requests to Prebid Server without a cookie labeled by type.
+# TYPE requests_without_cookie counter
+requests_without_cookie{request_type="amp"} 0
+requests_without_cookie{request_type="openrtb2-app"} 0
+requests_without_cookie{request_type="openrtb2-dooh"} 0
+requests_without_cookie{request_type="openrtb2-web"} 1
+requests_without_cookie{request_type="video"} 0
+# HELP setuid_requests Count of set uid requests to Prebid Server.
+# TYPE setuid_requests counter
+setuid_requests{status="acct_blocked"} 0
+setuid_requests{status="acct_config_malformed"} 0
+setuid_requests{status="acct_invalid"} 0
+setuid_requests{status="bad_request"} 0
+setuid_requests{status="gdpr_blocked_host_cookie"} 0
+setuid_requests{status="ok"} 0
+setuid_requests{status="opt_out"} 0
+setuid_requests{status="syncer_unknown"} 0
+# HELP stored_account_errors Count of stored account errors by error type
+# TYPE stored_account_errors counter
+stored_account_errors{stored_data_error="network"} 0
+stored_account_errors{stored_data_error="undefined"} 0
+# HELP stored_account_fetch_time_seconds Seconds to fetch stored accounts labeled by fetch type
+# TYPE stored_account_fetch_time_seconds histogram
+stored_account_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="0.05"} 0
+stored_account_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="0.1"} 0
+stored_account_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="0.15"} 0
+stored_account_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="0.2"} 0
+stored_account_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="0.25"} 0
+stored_account_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="0.3"} 0
+stored_account_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="0.4"} 0
+stored_account_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="0.5"} 0
+stored_account_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="0.75"} 0
+stored_account_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="1"} 0
+stored_account_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="+Inf"} 0
+stored_account_fetch_time_seconds_sum{stored_data_fetch_type="all"} 0
+stored_account_fetch_time_seconds_count{stored_data_fetch_type="all"} 0
+stored_account_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="0.05"} 0
+stored_account_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="0.1"} 0
+stored_account_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="0.15"} 0
+stored_account_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="0.2"} 0
+stored_account_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="0.25"} 0
+stored_account_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="0.3"} 0
+stored_account_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="0.4"} 0
+stored_account_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="0.5"} 0
+stored_account_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="0.75"} 0
+stored_account_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="1"} 0
+stored_account_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="+Inf"} 0
+stored_account_fetch_time_seconds_sum{stored_data_fetch_type="delta"} 0
+stored_account_fetch_time_seconds_count{stored_data_fetch_type="delta"} 0
+# HELP stored_amp_errors Count of stored AMP errors by error type
+# TYPE stored_amp_errors counter
+stored_amp_errors{stored_data_error="network"} 0
+stored_amp_errors{stored_data_error="undefined"} 0
+# HELP stored_amp_fetch_time_seconds Seconds to fetch stored AMP requests labeled by fetch type
+# TYPE stored_amp_fetch_time_seconds histogram
+stored_amp_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="0.05"} 0
+stored_amp_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="0.1"} 0
+stored_amp_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="0.15"} 0
+stored_amp_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="0.2"} 0
+stored_amp_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="0.25"} 0
+stored_amp_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="0.3"} 0
+stored_amp_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="0.4"} 0
+stored_amp_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="0.5"} 0
+stored_amp_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="0.75"} 0
+stored_amp_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="1"} 0
+stored_amp_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="+Inf"} 0
+stored_amp_fetch_time_seconds_sum{stored_data_fetch_type="all"} 0
+stored_amp_fetch_time_seconds_count{stored_data_fetch_type="all"} 0
+stored_amp_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="0.05"} 0
+stored_amp_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="0.1"} 0
+stored_amp_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="0.15"} 0
+stored_amp_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="0.2"} 0
+stored_amp_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="0.25"} 0
+stored_amp_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="0.3"} 0
+stored_amp_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="0.4"} 0
+stored_amp_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="0.5"} 0
+stored_amp_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="0.75"} 0
+stored_amp_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="1"} 0
+stored_amp_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="+Inf"} 0
+stored_amp_fetch_time_seconds_sum{stored_data_fetch_type="delta"} 0
+stored_amp_fetch_time_seconds_count{stored_data_fetch_type="delta"} 0
+# HELP stored_category_errors Count of stored category errors by error type
+# TYPE stored_category_errors counter
+stored_category_errors{stored_data_error="network"} 0
+stored_category_errors{stored_data_error="undefined"} 0
+# HELP stored_category_fetch_time_seconds Seconds to fetch stored categories labeled by fetch type
+# TYPE stored_category_fetch_time_seconds histogram
+stored_category_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="0.05"} 0
+stored_category_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="0.1"} 0
+stored_category_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="0.15"} 0
+stored_category_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="0.2"} 0
+stored_category_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="0.25"} 0
+stored_category_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="0.3"} 0
+stored_category_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="0.4"} 0
+stored_category_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="0.5"} 0
+stored_category_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="0.75"} 0
+stored_category_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="1"} 0
+stored_category_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="+Inf"} 0
+stored_category_fetch_time_seconds_sum{stored_data_fetch_type="all"} 0
+stored_category_fetch_time_seconds_count{stored_data_fetch_type="all"} 0
+stored_category_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="0.05"} 0
+stored_category_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="0.1"} 0
+stored_category_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="0.15"} 0
+stored_category_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="0.2"} 0
+stored_category_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="0.25"} 0
+stored_category_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="0.3"} 0
+stored_category_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="0.4"} 0
+stored_category_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="0.5"} 0
+stored_category_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="0.75"} 0
+stored_category_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="1"} 0
+stored_category_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="+Inf"} 0
+stored_category_fetch_time_seconds_sum{stored_data_fetch_type="delta"} 0
+stored_category_fetch_time_seconds_count{stored_data_fetch_type="delta"} 0
+# HELP stored_impressions_cache_performance Count of stored impression cache requests attempts by hits or miss.
+# TYPE stored_impressions_cache_performance counter
+stored_impressions_cache_performance{cache_result="hit"} 0
+stored_impressions_cache_performance{cache_result="miss"} 0
+# HELP stored_request_cache_performance Count of stored request cache requests attempts by hits or miss.
+# TYPE stored_request_cache_performance counter
+stored_request_cache_performance{cache_result="hit"} 0
+stored_request_cache_performance{cache_result="miss"} 0
+# HELP stored_request_errors Count of stored request errors by error type
+# TYPE stored_request_errors counter
+stored_request_errors{stored_data_error="network"} 0
+stored_request_errors{stored_data_error="undefined"} 0
+# HELP stored_request_fetch_time_seconds Seconds to fetch stored requests labeled by fetch type
+# TYPE stored_request_fetch_time_seconds histogram
+stored_request_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="0.05"} 0
+stored_request_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="0.1"} 0
+stored_request_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="0.15"} 0
+stored_request_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="0.2"} 0
+stored_request_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="0.25"} 0
+stored_request_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="0.3"} 0
+stored_request_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="0.4"} 0
+stored_request_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="0.5"} 0
+stored_request_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="0.75"} 0
+stored_request_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="1"} 0
+stored_request_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="+Inf"} 0
+stored_request_fetch_time_seconds_sum{stored_data_fetch_type="all"} 0
+stored_request_fetch_time_seconds_count{stored_data_fetch_type="all"} 0
+stored_request_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="0.05"} 0
+stored_request_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="0.1"} 0
+stored_request_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="0.15"} 0
+stored_request_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="0.2"} 0
+stored_request_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="0.25"} 0
+stored_request_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="0.3"} 0
+stored_request_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="0.4"} 0
+stored_request_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="0.5"} 0
+stored_request_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="0.75"} 0
+stored_request_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="1"} 0
+stored_request_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="+Inf"} 0
+stored_request_fetch_time_seconds_sum{stored_data_fetch_type="delta"} 0
+stored_request_fetch_time_seconds_count{stored_data_fetch_type="delta"} 0
+# HELP stored_response_errors Count of stored video errors by error type
+# TYPE stored_response_errors counter
+stored_response_errors{stored_data_error="network"} 0
+stored_response_errors{stored_data_error="undefined"} 0
+# HELP stored_response_fetch_time_seconds Seconds to fetch stored responses labeled by fetch type
+# TYPE stored_response_fetch_time_seconds histogram
+stored_response_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="0.05"} 0
+stored_response_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="0.1"} 0
+stored_response_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="0.15"} 0
+stored_response_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="0.2"} 0
+stored_response_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="0.25"} 0
+stored_response_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="0.3"} 0
+stored_response_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="0.4"} 0
+stored_response_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="0.5"} 0
+stored_response_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="0.75"} 0
+stored_response_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="1"} 0
+stored_response_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="+Inf"} 0
+stored_response_fetch_time_seconds_sum{stored_data_fetch_type="all"} 0
+stored_response_fetch_time_seconds_count{stored_data_fetch_type="all"} 0
+stored_response_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="0.05"} 0
+stored_response_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="0.1"} 0
+stored_response_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="0.15"} 0
+stored_response_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="0.2"} 0
+stored_response_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="0.25"} 0
+stored_response_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="0.3"} 0
+stored_response_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="0.4"} 0
+stored_response_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="0.5"} 0
+stored_response_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="0.75"} 0
+stored_response_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="1"} 0
+stored_response_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="+Inf"} 0
+stored_response_fetch_time_seconds_sum{stored_data_fetch_type="delta"} 0
+stored_response_fetch_time_seconds_count{stored_data_fetch_type="delta"} 0
+# HELP stored_responses Count of total requests to Prebid Server that have stored responses
+# TYPE stored_responses counter
+stored_responses 1
+# HELP stored_video_errors Count of stored video errors by error type
+# TYPE stored_video_errors counter
+stored_video_errors{stored_data_error="network"} 0
+stored_video_errors{stored_data_error="undefined"} 0
+# HELP stored_video_fetch_time_seconds Seconds to fetch stored video labeled by fetch type
+# TYPE stored_video_fetch_time_seconds histogram
+stored_video_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="0.05"} 0
+stored_video_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="0.1"} 0
+stored_video_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="0.15"} 0
+stored_video_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="0.2"} 0
+stored_video_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="0.25"} 0
+stored_video_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="0.3"} 0
+stored_video_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="0.4"} 0
+stored_video_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="0.5"} 0
+stored_video_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="0.75"} 0
+stored_video_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="1"} 0
+stored_video_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="+Inf"} 0
+stored_video_fetch_time_seconds_sum{stored_data_fetch_type="all"} 0
+stored_video_fetch_time_seconds_count{stored_data_fetch_type="all"} 0
+stored_video_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="0.05"} 0
+stored_video_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="0.1"} 0
+stored_video_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="0.15"} 0
+stored_video_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="0.2"} 0
+stored_video_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="0.25"} 0
+stored_video_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="0.3"} 0
+stored_video_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="0.4"} 0
+stored_video_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="0.5"} 0
+stored_video_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="0.75"} 0
+stored_video_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="1"} 0
+stored_video_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="+Inf"} 0
+stored_video_fetch_time_seconds_sum{stored_data_fetch_type="delta"} 0
+stored_video_fetch_time_seconds_count{stored_data_fetch_type="delta"} 0
+# HELP tls_handshake_time Seconds to perform TLS Handshake
+# TYPE tls_handshake_time histogram
+tls_handshake_time_bucket{le="0.05"} 0
+tls_handshake_time_bucket{le="0.1"} 0
+tls_handshake_time_bucket{le="0.15"} 0
+tls_handshake_time_bucket{le="0.2"} 0
+tls_handshake_time_bucket{le="0.25"} 0
+tls_handshake_time_bucket{le="0.3"} 0
+tls_handshake_time_bucket{le="0.4"} 0
+tls_handshake_time_bucket{le="0.5"} 0
+tls_handshake_time_bucket{le="0.75"} 0
+tls_handshake_time_bucket{le="1"} 0
+tls_handshake_time_bucket{le="+Inf"} 0
+tls_handshake_time_sum 0
+tls_handshake_time_count 0
+# HELP tmax_timeout Count of requests rejected due to Tmax timeout exceed.
+# TYPE tmax_timeout counter
+tmax_timeout 0

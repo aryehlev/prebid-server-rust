@@ -1,0 +1,178 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://prebid.org/pbs-parity/schema/v1/adapter_io.schema.json",
+  "title": "pbs-parity adapter I/O",
+  "description": "Inputs and outputs of the pure adapter endpoints POST /__parity/adapter/{bidder}/requests (MakeRequests) and POST /__parity/adapter/{bidder}/bids (MakeBids). These map 1:1 to the adapterstest JSON fixtures. The document kind is selected by its 'schema' member.",
+  "oneOf": [
+    {"$ref": "#/definitions/RequestsInput"},
+    {"$ref": "#/definitions/RequestsOutput"},
+    {"$ref": "#/definitions/BidsInput"},
+    {"$ref": "#/definitions/BidsOutput"}
+  ],
+  "definitions": {
+    "Build": {
+      "description": "Adapter under test. wrap=raw calls the Builder's result directly (what adapterstest fixtures exercise); wrap=info_aware wraps it with adapters.BuildInfoAwareBidder (what the exchange uses). Omitted adapter_config/server fall back to what the server derives from its bidder info and host config.",
+      "type": "object",
+      "required": ["bidder", "wrap"],
+      "properties": {
+        "bidder": {"type": "string", "minLength": 1},
+        "wrap": {"type": "string", "enum": ["raw", "info_aware"]},
+        "adapter_config": {"$ref": "#/definitions/AdapterConfig"},
+        "server": {"$ref": "#/definitions/ServerConfig"}
+      },
+      "additionalProperties": false
+    },
+    "AdapterConfig": {
+      "description": "Mirror of config.Adapter.",
+      "type": "object",
+      "required": ["endpoint"],
+      "properties": {
+        "endpoint": {"type": "string"},
+        "extra_info": {"type": "string"},
+        "platform_id": {"type": "string"},
+        "app_secret": {"type": "string"},
+        "xapi": {
+          "type": "object",
+          "properties": {
+            "username": {"type": "string"},
+            "password": {"type": "string"},
+            "tracker": {"type": "string"}
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "ServerConfig": {
+      "description": "Mirror of config.Server.",
+      "type": "object",
+      "required": ["external_url", "gvl_id", "datacenter"],
+      "properties": {
+        "external_url": {"type": "string"},
+        "gvl_id": {"type": "integer"},
+        "datacenter": {"type": "string"}
+      },
+      "additionalProperties": false
+    },
+    "ExtraInfo": {
+      "description": "Mirror of adapters.ExtraRequestInfo. pbs_entry_point uses Go metrics.RequestType values (openrtb2-web, openrtb2-app, openrtb2-dooh, amp, video).",
+      "type": "object",
+      "properties": {
+        "pbs_entry_point": {"type": "string"},
+        "global_privacy_control_header": {"type": "string"},
+        "currency_rates": {
+          "type": "object",
+          "required": ["conversions"],
+          "properties": {
+            "conversions": {
+              "type": "object",
+              "additionalProperties": {"type": "object", "additionalProperties": {"type": "number"}}
+            }
+          },
+          "additionalProperties": false
+        },
+        "preferred_media_type": {"type": "string", "enum": ["", "banner", "video", "audio", "native"]}
+      },
+      "additionalProperties": false
+    },
+    "RequestData": {
+      "description": "Mirror of adapters.RequestData. Headers are sorted by canonical name (http.Header has no order).",
+      "type": "object",
+      "required": ["method", "uri", "headers", "body", "imp_ids"],
+      "properties": {
+        "method": {"type": "string"},
+        "uri": {"type": "string"},
+        "headers": {"$ref": "common.schema.json#/definitions/HeaderList"},
+        "body": {"$ref": "common.schema.json#/definitions/Body"},
+        "imp_ids": {"type": ["array", "null"], "items": {"type": "string"}}
+      },
+      "additionalProperties": false
+    },
+    "RequestsInput": {
+      "type": "object",
+      "required": ["schema", "schema_version", "case_id", "build", "request", "extra_info"],
+      "properties": {
+        "schema": {"const": "pbs-parity-adapter-requests-input/1"},
+        "schema_version": {"$ref": "common.schema.json#/definitions/SchemaVersion"},
+        "case_id": {"type": "string"},
+        "fixture_path": {"type": "string"},
+        "build": {"$ref": "#/definitions/Build"},
+        "request": {"type": "object", "description": "OpenRTB 2.x BidRequest passed to MakeRequests."},
+        "extra_info": {"$ref": "#/definitions/ExtraInfo"},
+        "fakes": {"$ref": "common.schema.json#/definitions/FakeValues"}
+      },
+      "additionalProperties": false
+    },
+    "RequestsOutput": {
+      "description": "requests and errors are always both present.",
+      "type": "object",
+      "required": ["schema", "schema_version", "impl", "case_id", "bidder", "requests", "errors"],
+      "properties": {
+        "schema": {"const": "pbs-parity-adapter-requests-output/1"},
+        "schema_version": {"$ref": "common.schema.json#/definitions/SchemaVersion"},
+        "impl": {"$ref": "common.schema.json#/definitions/Impl"},
+        "case_id": {"type": "string"},
+        "bidder": {"type": "string"},
+        "requests": {"type": "array", "items": {"$ref": "#/definitions/RequestData"}},
+        "errors": {"$ref": "common.schema.json#/definitions/ErrorRecordList"}
+      },
+      "additionalProperties": false
+    },
+    "BidsInput": {
+      "type": "object",
+      "required": ["schema", "schema_version", "case_id", "build", "request", "request_data", "response", "extra_info"],
+      "properties": {
+        "schema": {"const": "pbs-parity-adapter-bids-input/1"},
+        "schema_version": {"$ref": "common.schema.json#/definitions/SchemaVersion"},
+        "case_id": {"type": "string"},
+        "fixture_path": {"type": "string"},
+        "build": {"$ref": "#/definitions/Build"},
+        "request": {"type": "object", "description": "OpenRTB 2.x BidRequest passed to MakeBids as internalRequest."},
+        "request_data": {"$ref": "#/definitions/RequestData"},
+        "response": {
+          "description": "Mirror of adapters.ResponseData.",
+          "type": "object",
+          "required": ["status", "headers", "body"],
+          "properties": {
+            "status": {"type": "integer"},
+            "headers": {"$ref": "common.schema.json#/definitions/HeaderList"},
+            "body": {"$ref": "common.schema.json#/definitions/Body"}
+          },
+          "additionalProperties": false
+        },
+        "extra_info": {"$ref": "#/definitions/ExtraInfo"},
+        "fakes": {"$ref": "common.schema.json#/definitions/FakeValues"}
+      },
+      "additionalProperties": false
+    },
+    "BidsOutput": {
+      "description": "bidder_response and errors are always both present: Go's MakeBids returns bids and errors together.",
+      "type": "object",
+      "required": ["schema", "schema_version", "impl", "case_id", "bidder", "bidder_response", "errors"],
+      "properties": {
+        "schema": {"const": "pbs-parity-adapter-bids-output/1"},
+        "schema_version": {"$ref": "common.schema.json#/definitions/SchemaVersion"},
+        "impl": {"$ref": "common.schema.json#/definitions/Impl"},
+        "case_id": {"type": "string"},
+        "bidder": {"type": "string"},
+        "bidder_response": {
+          "oneOf": [
+            {"type": "null"},
+            {
+              "type": "object",
+              "required": ["currency", "bids"],
+              "properties": {
+                "currency": {"type": "string"},
+                "bids": {"type": "array", "items": {"$ref": "common.schema.json#/definitions/TypedBid"}},
+                "fledge_auction_configs": {"type": ["array", "null"]}
+              },
+              "additionalProperties": false
+            }
+          ]
+        },
+        "errors": {"$ref": "common.schema.json#/definitions/ErrorRecordList"}
+      },
+      "additionalProperties": false
+    }
+  }
+}

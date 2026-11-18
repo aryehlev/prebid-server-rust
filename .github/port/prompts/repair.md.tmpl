@@ -1,0 +1,19 @@
+The open upstream-port pull request #${PR_NUMBER} (branch ${PORT_BRANCH}) fails CI. Do NOT port new
+upstream commits. Fix the failures so that CI passes WITHOUT weakening any check: no skipped,
+ignored or deleted tests, no fixture edits, no new known_failures.txt entries, no lint overrides,
+and no changes outside rust/.
+
+Run: ${RUN_URL}
+Failing CI log (tail): ${CTX}/ci-failures.log
+Gates on the current tree: ${CTX}/gates-before.json
+Upstream commits already on this pull request, and their patches: ${CTX}/plan.json, ${CTX}/commits/
+(upstream ${BASE_SHA}..${TARGET_SHA}).
+Current tree: ${MERGED_SHA}. Adapter directories on this pull request: ${ADAPTER_DIRS}
+Conformance script: `${CONFORMANCE} --strict-dirs <dirs>`.
+Formatter: `rustfmt +${RUSTFMT_TOOLCHAIN} --edition 2024 <files you changed>`.
+
+Reproduce each failure first with the command CI used (PORT_SYSTEM.md "How to verify"), fix the
+Rust code so it matches Go, run it again, and return the structured result: one entry per upstream
+commit, with the CI check each change fixes in its notes.
+
+Budget: at most ${MAX_TURNS} turns.

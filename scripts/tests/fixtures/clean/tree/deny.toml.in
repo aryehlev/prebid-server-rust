@@ -1,0 +1,12 @@
+[advisories]
+yanked = "deny"
+ignore = []
+
+[bans]
+multiple-versions = "deny"
+skip = []
+skip-tree = []
+
+[licenses]
+allow = ["MIT"]
+exceptions = []

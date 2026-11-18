@@ -1,0 +1,119 @@
+#![allow(dead_code)]
+#![expect(clippy::pedantic)]
+#[allow(unused)]
+fn a() {}
+#[expect(clippy::unwrap_used, reason = "every form is banned, with or without a reason")]
+fn b() {}
+# [ allow ( clippy::all ) ]
+fn c() {}
+#[
+    allow(dead_code)
+]
+fn d() {}
+#[cfg_attr(test, allow(clippy::unwrap_used))]
+fn e() {}
+#[cfg_attr(
+    all(test, feature = "x"),
+    expect(dead_code)
+)]
+fn f() {}
+#[cfg_attr(test, cfg_attr(unix, allow(unused)))]
+fn g() {}
+#[rustfmt::skip]
+fn h() {}
+#[rustfmt :: skip :: macros(vec)]
+fn i() {}
+#[cfg_attr(rustfmt, rustfmt_skip)]
+fn j() {}
+#[cfg(not(clippy))]
+fn k() {}
+fn l() -> bool {
+    cfg!(clippy)
+}
+#[path = "../../legacy/old.rs"]
+mod m;
+include!("../../../legacy/n.rs");
+fn o() {
+    let s = "a string, then code"; #[allow(unused_variables)] let t = 1;
+}
+macro_rules! quiet {
+    () => {
+        #[allow(dead_code)]
+        fn generated() {}
+    };
+}
+#[r#allow(clippy::unwrap_used)]
+fn raw_allow() {}
+#[r#expect(dead_code, reason = "raw identifiers are banned too")]
+fn raw_expect() {}
+#[rustfmt::r#skip]
+fn raw_skip() {}
+macro_rules! launder {
+    ($a:meta) => {
+        #[$a]
+        fn laundered() {}
+    };
+}
+macro_rules! forward_attrs {
+    ($(#[$m:meta])*) => {
+        $(#[$m])*
+        fn forwarded() {}
+    };
+}
+macro_rules! repetition {
+    ($($a:tt)*) => {
+        #[$($a)*]
+        fn repeated() {}
+    };
+}
+macro_rules! cfg_attr_meta {
+    ($a:meta) => {
+        #[cfg_attr(all(), $a)]
+        fn cfg_attr_laundered() {}
+    };
+}
+macro_rules! forwards_one {
+    (#[$a:meta]) => {
+        #[$a]
+        fn forwarded_one() {}
+    };
+}
+macro_rules! launders_same_name {
+    ($a:meta) => {
+        #[$a]
+        fn laundered_same_name() {}
+    };
+}
+macro_rules! forwards_tokens {
+    (#[$($t:tt)*]) => {
+        #[$($t)*]
+        fn forwarded_tokens() {}
+    };
+}
+macro_rules! outer {
+    ($(#[$m:meta])*) => {
+        macro_rules! inner {
+            () => {
+                $(#[$m])*
+                fn nested_forward() {}
+            };
+        }
+    };
+}
+fn generated() -> proc_macro2::TokenStream {
+    quote::quote! { #[#lint(dead_code)] fn quoted() {} }
+}
+fn generated_cfg() -> proc_macro2::TokenStream {
+    quote::quote! { #[cfg_attr(test, #lint(unused))] fn quoted_cfg() {} }
+}
+#[clippy::msrv = "1.0"]
+fn old_msrv() {}
+#[automatically_derived]
+impl Clone for Thing {}
+include!(concat!(env!("OUT_DIR"), "/generated.rs"));
+include!("generated.txt");
+#[path = "module.txt"]
+mod renamed;
+#[path = "ok.rs"]
+mod fine;
+include!("fine.rs");

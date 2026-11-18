@@ -1,0 +1,9 @@
+// Package main prints values for a differential test; no linter directives appear here.
+package main
+
+import "fmt"
+
+func main() {
+	// Lint findings are fixed, never silenced.
+	fmt.Println("ok")
+}

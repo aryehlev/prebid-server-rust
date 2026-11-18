@@ -1,0 +1,11 @@
+package main
+
+func a() {} //nolint
+func b() {} // nolint:errcheck
+//nolint:all
+//lint:ignore SA1000 the differential program needs this
+//lint:file-ignore U1000 the differential program needs this
+var x = y // #nosec G404
+//nosec
+//revive:disable:unused-parameter
+func main() {}

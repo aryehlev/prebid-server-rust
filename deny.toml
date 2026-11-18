@@ -1,0 +1,36 @@
+# cargo-deny policy for the Rust workspace. CI runs, from the workspace root:
+#   cargo deny --locked check --deny warnings
+# There are no exceptions anywhere in this file: no advisory ignores, no skipped duplicate
+# versions, no per-crate license exceptions. scripts/check-no-lint-suppression.sh fails CI
+# if one is added, and the upstream-port bot may not change this file at all.
+
+[graph]
+all-features = true
+exclude-dev = false
+
+[advisories]
+yanked = "deny"
+unmaintained = "all"
+unsound = "all"
+
+[licenses]
+# Permissive licenses only. ISC and BSD-3-Clause come from the TLS stack (ring, untrusted,
+# rustls-webpki, webpki-roots' dependencies) used by pbs-gohttp-client.
+allow = ["Apache-2.0", "BSD-3-Clause", "ISC", "MIT", "Unicode-3.0"]
+confidence-threshold = 0.95
+unused-allowed-license = "deny"
+
+[licenses.private]
+ignore = false
+
+[bans]
+multiple-versions = "deny"
+multiple-versions-include-dev = true
+wildcards = "deny"
+allow-wildcard-paths = false
+highlight = "all"
+
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]

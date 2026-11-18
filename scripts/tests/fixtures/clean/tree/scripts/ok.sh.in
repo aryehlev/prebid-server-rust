@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+# A script that uses only allowed forms.
+set -euo pipefail
+# shellcheck source=lib.sh
+source "lib.sh"
+shellcheck --enable=all --severity=style --external-sources x.sh
+cargo test --workspace --locked --all-targets
+cargo publish --allow-dirty --dry-run
+cargo deny --locked check --deny warnings
+git add -A -- rust
+grep -A 3 pattern file.txt
+export CARGO_BUILD_WARNINGS=deny

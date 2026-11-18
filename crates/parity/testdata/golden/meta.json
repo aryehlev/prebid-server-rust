@@ -1,0 +1,77 @@
+{
+  "golden": {
+    "decoded": [
+      {
+        "header": "eyJ2IjoxLCJjYXNlIjoiZ2VuOjQyOjc6ZHJvcChpbXBbMF0uYmFubmVyKSIsImltcGwiOiJydXN0Iiwia2luZCI6ImJpZGRlciIsImJpZGRlciI6ImFwcG5leHVzIiwib3JpZ191cmwiOiJodHRwczovL2liLmFkbnhzLmNvbS94P2E9XHUwMDNjYlx1MDAzZVx1MDAyNmMiLCJzZXEiOjZ9",
+        "meta": {
+          "v": 1,
+          "case": "gen:42:7:drop(imp[0].banner)",
+          "impl": "rust",
+          "kind": "bidder",
+          "bidder": "appnexus",
+          "orig_url": "https://ib.adnxs.com/x?a=\u003cb\u003e\u0026c",
+          "seq": 6
+        }
+      },
+      {
+        "error": "parity: decoding X-Parity-Meta base64: illegal base64 data at input byte 0",
+        "header": "!!"
+      },
+      {
+        "error": "parity: decoding X-Parity-Meta JSON: invalid character 'o' in literal null (expecting 'u')",
+        "header": "bm90IGpzb24="
+      },
+      {
+        "error": "parity: unsupported X-Parity-Meta version 2",
+        "header": "eyJ2IjoyfQ=="
+      },
+      {
+        "error": "parity: decoding X-Parity-Meta JSON: json: cannot unmarshal string into Go struct field OutboundMeta.seq of type int",
+        "header": "eyJ2IjoxLCJzZXEiOiJ4In0="
+      },
+      {
+        "header": "eyJ2IjoxLCJjYXNlIjoiYyIsImV4dHJhIjp0cnVlfQ==",
+        "meta": {
+          "v": 1,
+          "case": "c",
+          "impl": "",
+          "kind": "",
+          "bidder": "",
+          "orig_url": "",
+          "seq": 0
+        }
+      },
+      {
+        "error": "parity: decoding X-Parity-Meta JSON: unexpected end of JSON input",
+        "header": ""
+      }
+    ],
+    "encoded": [
+      {
+        "header": "eyJ2IjoxLCJjYXNlIjoiZ2VuOjQyOjc6ZHJvcChpbXBbMF0uYmFubmVyKSIsImltcGwiOiJydXN0Iiwia2luZCI6ImJpZGRlciIsImJpZGRlciI6ImFwcG5leHVzIiwib3JpZ191cmwiOiJodHRwczovL2liLmFkbnhzLmNvbS94P2E9XHUwMDNjYlx1MDAzZVx1MDAyNmMiLCJzZXEiOjZ9",
+        "meta": {
+          "v": 1,
+          "case": "gen:42:7:drop(imp[0].banner)",
+          "impl": "rust",
+          "kind": "bidder",
+          "bidder": "appnexus",
+          "orig_url": "https://ib.adnxs.com/x?a=\u003cb\u003e\u0026c",
+          "seq": 6
+        }
+      },
+      {
+        "header": "eyJ2IjowLCJjYXNlIjoiIiwiaW1wbCI6IiIsImtpbmQiOiIiLCJiaWRkZXIiOiIiLCJvcmlnX3VybCI6IiIsInNlcSI6MH0=",
+        "meta": {
+          "v": 0,
+          "case": "",
+          "impl": "",
+          "kind": "",
+          "bidder": "",
+          "orig_url": "",
+          "seq": 0
+        }
+      }
+    ]
+  },
+  "parity_ref": "abad587d4f6302094ae9b9b4bf347bbb3422e6b7"
+}

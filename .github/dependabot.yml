@@ -1,0 +1,14 @@
+# Keeps the SHA-pinned actions in .github/workflows current; Dependabot updates the SHA and the
+# version comment together. Rust and Go dependencies are not updated here: the Rust lock file is
+# changed by people (cargo-deny reviews it), and Go follows upstream.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: ci
+    groups:
+      actions:
+        patterns: ["*"]

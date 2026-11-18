@@ -1,0 +1,6 @@
+package server
+
+// The upstream server has lint directives of its own. Its checkout is never scanned.
+func closeQuietly(c interface{ Close() error }) {
+	c.Close() //nolint: errcheck
+}

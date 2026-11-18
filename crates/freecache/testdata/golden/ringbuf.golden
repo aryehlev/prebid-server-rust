@@ -1,0 +1,34 @@
+ringbuf	write 16 <nil> [size:16, start:0, end:16, index:0]
+ringbuf	write 9 <nil> [size:16, start:9, end:25, index:9] "fghibbbbccccddde"
+ringbuf	evacuate 25 [size:16, start:12, end:28, index:12] "fghibbbbccccddde"
+ringbuf	evacuate 28 [size:16, start:17, end:33, index:1] "ighibbbbccccefgh"
+ringbuf	resize [size:64, start:17, end:33, index:0] "ghibbbbccccefghi\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"
+ringbuf	resize [size:32, start:17, end:33, index:0] "ghibbbbccccefghi\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"
+ringbuf	readat 5 <nil> "efghi"
+ringbuf	readat 5 EOF
+ringbuf	readat 0 out of range
+ringbuf	slice "efghi" <nil>
+ringbuf	equalat true false
+ringbuf	writeat 2 <nil> "ghibbbbccccXYghi\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"
+ringbuf	writeat 0 out of range
+ringbuf	evacuate -1
+ringbuf	write 0 out of range
+ringbuf	skip [size:32, start:41, end:73, index:8]
+ringbuf	reset [size:32, start:0, end:0, index:0]
+ringbuf	write 16 <nil> [size:32, start:0, end:16, index:16]
+ringbuf	write 9 <nil> [size:32, start:0, end:25, index:25] "fghibbbbccccdddefghibbbbc\x00\x00\x00\x00\x00\x00\x00"
+ringbuf	evacuate 25 [size:16, start:12, end:28, index:3] "cccdddefghibbbbc"
+ringbuf	evacuate 28 [size:16, start:17, end:33, index:8] "cccefghighibbbbc"
+ringbuf	resize [size:64, start:17, end:33, index:0] "ghibbbbccccefghi\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"
+ringbuf	resize [size:32, start:17, end:33, index:0] "ghibbbbccccefghi\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"
+ringbuf	readat 5 <nil> "efghi"
+ringbuf	readat 5 EOF
+ringbuf	readat 0 out of range
+ringbuf	slice "efghi" <nil>
+ringbuf	equalat true false
+ringbuf	writeat 2 <nil> "ghibbbbccccXYghi\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"
+ringbuf	writeat 0 out of range
+ringbuf	evacuate -1
+ringbuf	write 0 out of range
+ringbuf	skip [size:32, start:41, end:73, index:8]
+ringbuf	reset [size:32, start:0, end:0, index:0]

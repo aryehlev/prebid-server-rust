@@ -1,0 +1,10 @@
+# Clippy configuration for the workspace. Nothing here allows or skips a lint: allow-*,
+# *-allowed-*, allowed-duplicate-crates and msrv keys are rejected by
+# scripts/check-no-lint-suppression.sh.
+#
+# max-struct-bools: the ported types mirror Go structs field for field (PORTING.md section 1), and
+# Go keeps independent flags as plain bools. The largest such struct ported so far is
+# openrtb_ext.ExtRequestTargeting (openrtb_ext/request.go: IncludeFormat, PreferDeals,
+# AppendBidderNames, AlwaysIncludeDeals). Raise this only to the largest Go struct actually
+# ported, and name it here.
+max-struct-bools = 4

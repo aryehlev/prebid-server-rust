@@ -15,3 +15,9 @@ categories = ["encoding", "parser-implementations"]
 workspace = true
 
 [dependencies]
+pbs-gojson-derive = { path = "../gojson-derive", version = "0.1.0" }
+serde_json = { version = "1.0.154", default-features = false, features = ["std"] }
+
+[dev-dependencies]
+# The jsonutil.MergeClone goldens (tests/mergeclone.rs) decode real openrtb2 types.
+pbs-openrtb = { path = "../openrtb", version = "0.1.0" }

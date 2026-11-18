@@ -1,0 +1,1152 @@
+# HELP pbs_srv_account_cache_performance Count of account cache lookups by hits or miss.
+# TYPE pbs_srv_account_cache_performance counter
+pbs_srv_account_cache_performance{cache_result="hit"} 0
+pbs_srv_account_cache_performance{cache_result="miss"} 0
+# HELP pbs_srv_adapter_bids Count of bids labeled by adapter and markup delivery type (adm or nurl).
+# TYPE pbs_srv_adapter_bids counter
+pbs_srv_adapter_bids{adapter="33across",delivery="adm"} 0
+pbs_srv_adapter_bids{adapter="33across",delivery="nurl"} 0
+pbs_srv_adapter_bids{adapter="adkerneladn",delivery="adm"} 0
+pbs_srv_adapter_bids{adapter="adkerneladn",delivery="nurl"} 0
+pbs_srv_adapter_bids{adapter="appnexus",delivery="adm"} 0
+pbs_srv_adapter_bids{adapter="appnexus",delivery="nurl"} 0
+pbs_srv_adapter_bids{adapter="pubmatic",delivery="adm"} 0
+pbs_srv_adapter_bids{adapter="pubmatic",delivery="nurl"} 0
+pbs_srv_adapter_bids{adapter="rubicon",delivery="adm"} 0
+pbs_srv_adapter_bids{adapter="rubicon",delivery="nurl"} 0
+pbs_srv_adapter_bids{adapter="zmaticoo",delivery="adm"} 0
+pbs_srv_adapter_bids{adapter="zmaticoo",delivery="nurl"} 0
+# HELP pbs_srv_adapter_errors Count of errors labeled by adapter and error type.
+# TYPE pbs_srv_adapter_errors counter
+pbs_srv_adapter_errors{adapter="33across",adapter_error="badinput"} 0
+pbs_srv_adapter_errors{adapter="33across",adapter_error="badserverresponse"} 0
+pbs_srv_adapter_errors{adapter="33across",adapter_error="failedtorequestbid"} 0
+pbs_srv_adapter_errors{adapter="33across",adapter_error="timeout"} 0
+pbs_srv_adapter_errors{adapter="33across",adapter_error="tmaxtimeout"} 0
+pbs_srv_adapter_errors{adapter="33across",adapter_error="unknown_error"} 0
+pbs_srv_adapter_errors{adapter="33across",adapter_error="validation"} 0
+pbs_srv_adapter_errors{adapter="adkerneladn",adapter_error="badinput"} 0
+pbs_srv_adapter_errors{adapter="adkerneladn",adapter_error="badserverresponse"} 0
+pbs_srv_adapter_errors{adapter="adkerneladn",adapter_error="failedtorequestbid"} 0
+pbs_srv_adapter_errors{adapter="adkerneladn",adapter_error="timeout"} 0
+pbs_srv_adapter_errors{adapter="adkerneladn",adapter_error="tmaxtimeout"} 0
+pbs_srv_adapter_errors{adapter="adkerneladn",adapter_error="unknown_error"} 0
+pbs_srv_adapter_errors{adapter="adkerneladn",adapter_error="validation"} 0
+pbs_srv_adapter_errors{adapter="appnexus",adapter_error="badinput"} 0
+pbs_srv_adapter_errors{adapter="appnexus",adapter_error="badserverresponse"} 0
+pbs_srv_adapter_errors{adapter="appnexus",adapter_error="failedtorequestbid"} 0
+pbs_srv_adapter_errors{adapter="appnexus",adapter_error="timeout"} 0
+pbs_srv_adapter_errors{adapter="appnexus",adapter_error="tmaxtimeout"} 0
+pbs_srv_adapter_errors{adapter="appnexus",adapter_error="unknown_error"} 0
+pbs_srv_adapter_errors{adapter="appnexus",adapter_error="validation"} 0
+pbs_srv_adapter_errors{adapter="pubmatic",adapter_error="badinput"} 0
+pbs_srv_adapter_errors{adapter="pubmatic",adapter_error="badserverresponse"} 0
+pbs_srv_adapter_errors{adapter="pubmatic",adapter_error="failedtorequestbid"} 0
+pbs_srv_adapter_errors{adapter="pubmatic",adapter_error="timeout"} 0
+pbs_srv_adapter_errors{adapter="pubmatic",adapter_error="tmaxtimeout"} 0
+pbs_srv_adapter_errors{adapter="pubmatic",adapter_error="unknown_error"} 0
+pbs_srv_adapter_errors{adapter="pubmatic",adapter_error="validation"} 0
+pbs_srv_adapter_errors{adapter="rubicon",adapter_error="badinput"} 0
+pbs_srv_adapter_errors{adapter="rubicon",adapter_error="badserverresponse"} 0
+pbs_srv_adapter_errors{adapter="rubicon",adapter_error="failedtorequestbid"} 0
+pbs_srv_adapter_errors{adapter="rubicon",adapter_error="timeout"} 0
+pbs_srv_adapter_errors{adapter="rubicon",adapter_error="tmaxtimeout"} 0
+pbs_srv_adapter_errors{adapter="rubicon",adapter_error="unknown_error"} 0
+pbs_srv_adapter_errors{adapter="rubicon",adapter_error="validation"} 0
+pbs_srv_adapter_errors{adapter="zmaticoo",adapter_error="badinput"} 0
+pbs_srv_adapter_errors{adapter="zmaticoo",adapter_error="badserverresponse"} 0
+pbs_srv_adapter_errors{adapter="zmaticoo",adapter_error="failedtorequestbid"} 0
+pbs_srv_adapter_errors{adapter="zmaticoo",adapter_error="timeout"} 0
+pbs_srv_adapter_errors{adapter="zmaticoo",adapter_error="tmaxtimeout"} 0
+pbs_srv_adapter_errors{adapter="zmaticoo",adapter_error="unknown_error"} 0
+pbs_srv_adapter_errors{adapter="zmaticoo",adapter_error="validation"} 0
+# HELP pbs_srv_adapter_gdpr_requests_blocked Count of total bidder requests blocked due to unsatisfied GDPR purpose 2 legal basis
+# TYPE pbs_srv_adapter_gdpr_requests_blocked counter
+pbs_srv_adapter_gdpr_requests_blocked{adapter="33across"} 0
+pbs_srv_adapter_gdpr_requests_blocked{adapter="adkerneladn"} 0
+pbs_srv_adapter_gdpr_requests_blocked{adapter="appnexus"} 0
+pbs_srv_adapter_gdpr_requests_blocked{adapter="pubmatic"} 0
+pbs_srv_adapter_gdpr_requests_blocked{adapter="rubicon"} 0
+pbs_srv_adapter_gdpr_requests_blocked{adapter="zmaticoo"} 0
+# HELP pbs_srv_adapter_panics Count of panics labeled by adapter.
+# TYPE pbs_srv_adapter_panics counter
+pbs_srv_adapter_panics{adapter="33across"} 0
+pbs_srv_adapter_panics{adapter="adkerneladn"} 0
+pbs_srv_adapter_panics{adapter="appnexus"} 0
+pbs_srv_adapter_panics{adapter="pubmatic"} 0
+pbs_srv_adapter_panics{adapter="rubicon"} 0
+pbs_srv_adapter_panics{adapter="zmaticoo"} 0
+# HELP pbs_srv_adapter_prices Monetary value of the bids labeled by adapter.
+# TYPE pbs_srv_adapter_prices histogram
+pbs_srv_adapter_prices_bucket{adapter="33across",le="250"} 0
+pbs_srv_adapter_prices_bucket{adapter="33across",le="500"} 0
+pbs_srv_adapter_prices_bucket{adapter="33across",le="750"} 0
+pbs_srv_adapter_prices_bucket{adapter="33across",le="1000"} 0
+pbs_srv_adapter_prices_bucket{adapter="33across",le="1500"} 0
+pbs_srv_adapter_prices_bucket{adapter="33across",le="2000"} 0
+pbs_srv_adapter_prices_bucket{adapter="33across",le="2500"} 0
+pbs_srv_adapter_prices_bucket{adapter="33across",le="3000"} 0
+pbs_srv_adapter_prices_bucket{adapter="33across",le="3500"} 0
+pbs_srv_adapter_prices_bucket{adapter="33across",le="4000"} 0
+pbs_srv_adapter_prices_bucket{adapter="33across",le="+Inf"} 0
+pbs_srv_adapter_prices_sum{adapter="33across"} 0
+pbs_srv_adapter_prices_count{adapter="33across"} 0
+pbs_srv_adapter_prices_bucket{adapter="adkerneladn",le="250"} 0
+pbs_srv_adapter_prices_bucket{adapter="adkerneladn",le="500"} 0
+pbs_srv_adapter_prices_bucket{adapter="adkerneladn",le="750"} 0
+pbs_srv_adapter_prices_bucket{adapter="adkerneladn",le="1000"} 0
+pbs_srv_adapter_prices_bucket{adapter="adkerneladn",le="1500"} 0
+pbs_srv_adapter_prices_bucket{adapter="adkerneladn",le="2000"} 0
+pbs_srv_adapter_prices_bucket{adapter="adkerneladn",le="2500"} 0
+pbs_srv_adapter_prices_bucket{adapter="adkerneladn",le="3000"} 0
+pbs_srv_adapter_prices_bucket{adapter="adkerneladn",le="3500"} 0
+pbs_srv_adapter_prices_bucket{adapter="adkerneladn",le="4000"} 0
+pbs_srv_adapter_prices_bucket{adapter="adkerneladn",le="+Inf"} 0
+pbs_srv_adapter_prices_sum{adapter="adkerneladn"} 0
+pbs_srv_adapter_prices_count{adapter="adkerneladn"} 0
+pbs_srv_adapter_prices_bucket{adapter="appnexus",le="250"} 0
+pbs_srv_adapter_prices_bucket{adapter="appnexus",le="500"} 0
+pbs_srv_adapter_prices_bucket{adapter="appnexus",le="750"} 0
+pbs_srv_adapter_prices_bucket{adapter="appnexus",le="1000"} 0
+pbs_srv_adapter_prices_bucket{adapter="appnexus",le="1500"} 0
+pbs_srv_adapter_prices_bucket{adapter="appnexus",le="2000"} 0
+pbs_srv_adapter_prices_bucket{adapter="appnexus",le="2500"} 0
+pbs_srv_adapter_prices_bucket{adapter="appnexus",le="3000"} 0
+pbs_srv_adapter_prices_bucket{adapter="appnexus",le="3500"} 0
+pbs_srv_adapter_prices_bucket{adapter="appnexus",le="4000"} 0
+pbs_srv_adapter_prices_bucket{adapter="appnexus",le="+Inf"} 0
+pbs_srv_adapter_prices_sum{adapter="appnexus"} 0
+pbs_srv_adapter_prices_count{adapter="appnexus"} 0
+pbs_srv_adapter_prices_bucket{adapter="pubmatic",le="250"} 0
+pbs_srv_adapter_prices_bucket{adapter="pubmatic",le="500"} 0
+pbs_srv_adapter_prices_bucket{adapter="pubmatic",le="750"} 0
+pbs_srv_adapter_prices_bucket{adapter="pubmatic",le="1000"} 0
+pbs_srv_adapter_prices_bucket{adapter="pubmatic",le="1500"} 0
+pbs_srv_adapter_prices_bucket{adapter="pubmatic",le="2000"} 0
+pbs_srv_adapter_prices_bucket{adapter="pubmatic",le="2500"} 0
+pbs_srv_adapter_prices_bucket{adapter="pubmatic",le="3000"} 0
+pbs_srv_adapter_prices_bucket{adapter="pubmatic",le="3500"} 0
+pbs_srv_adapter_prices_bucket{adapter="pubmatic",le="4000"} 0
+pbs_srv_adapter_prices_bucket{adapter="pubmatic",le="+Inf"} 0
+pbs_srv_adapter_prices_sum{adapter="pubmatic"} 0
+pbs_srv_adapter_prices_count{adapter="pubmatic"} 0
+pbs_srv_adapter_prices_bucket{adapter="rubicon",le="250"} 0
+pbs_srv_adapter_prices_bucket{adapter="rubicon",le="500"} 0
+pbs_srv_adapter_prices_bucket{adapter="rubicon",le="750"} 0
+pbs_srv_adapter_prices_bucket{adapter="rubicon",le="1000"} 0
+pbs_srv_adapter_prices_bucket{adapter="rubicon",le="1500"} 0
+pbs_srv_adapter_prices_bucket{adapter="rubicon",le="2000"} 0
+pbs_srv_adapter_prices_bucket{adapter="rubicon",le="2500"} 0
+pbs_srv_adapter_prices_bucket{adapter="rubicon",le="3000"} 0
+pbs_srv_adapter_prices_bucket{adapter="rubicon",le="3500"} 0
+pbs_srv_adapter_prices_bucket{adapter="rubicon",le="4000"} 0
+pbs_srv_adapter_prices_bucket{adapter="rubicon",le="+Inf"} 0
+pbs_srv_adapter_prices_sum{adapter="rubicon"} 0
+pbs_srv_adapter_prices_count{adapter="rubicon"} 0
+pbs_srv_adapter_prices_bucket{adapter="zmaticoo",le="250"} 0
+pbs_srv_adapter_prices_bucket{adapter="zmaticoo",le="500"} 0
+pbs_srv_adapter_prices_bucket{adapter="zmaticoo",le="750"} 0
+pbs_srv_adapter_prices_bucket{adapter="zmaticoo",le="1000"} 0
+pbs_srv_adapter_prices_bucket{adapter="zmaticoo",le="1500"} 0
+pbs_srv_adapter_prices_bucket{adapter="zmaticoo",le="2000"} 0
+pbs_srv_adapter_prices_bucket{adapter="zmaticoo",le="2500"} 0
+pbs_srv_adapter_prices_bucket{adapter="zmaticoo",le="3000"} 0
+pbs_srv_adapter_prices_bucket{adapter="zmaticoo",le="3500"} 0
+pbs_srv_adapter_prices_bucket{adapter="zmaticoo",le="4000"} 0
+pbs_srv_adapter_prices_bucket{adapter="zmaticoo",le="+Inf"} 0
+pbs_srv_adapter_prices_sum{adapter="zmaticoo"} 0
+pbs_srv_adapter_prices_count{adapter="zmaticoo"} 0
+# HELP pbs_srv_adapter_request_time_seconds Seconds to resolve each successful request labeled by adapter.
+# TYPE pbs_srv_adapter_request_time_seconds histogram
+pbs_srv_adapter_request_time_seconds_bucket{adapter="33across",le="0.05"} 0
+pbs_srv_adapter_request_time_seconds_bucket{adapter="33across",le="0.1"} 0
+pbs_srv_adapter_request_time_seconds_bucket{adapter="33across",le="0.15"} 0
+pbs_srv_adapter_request_time_seconds_bucket{adapter="33across",le="0.2"} 0
+pbs_srv_adapter_request_time_seconds_bucket{adapter="33across",le="0.25"} 0
+pbs_srv_adapter_request_time_seconds_bucket{adapter="33across",le="0.3"} 0
+pbs_srv_adapter_request_time_seconds_bucket{adapter="33across",le="0.4"} 0
+pbs_srv_adapter_request_time_seconds_bucket{adapter="33across",le="0.5"} 0
+pbs_srv_adapter_request_time_seconds_bucket{adapter="33across",le="0.75"} 0
+pbs_srv_adapter_request_time_seconds_bucket{adapter="33across",le="1"} 0
+pbs_srv_adapter_request_time_seconds_bucket{adapter="33across",le="+Inf"} 0
+pbs_srv_adapter_request_time_seconds_sum{adapter="33across"} 0
+pbs_srv_adapter_request_time_seconds_count{adapter="33across"} 0
+pbs_srv_adapter_request_time_seconds_bucket{adapter="adkerneladn",le="0.05"} 0
+pbs_srv_adapter_request_time_seconds_bucket{adapter="adkerneladn",le="0.1"} 0
+pbs_srv_adapter_request_time_seconds_bucket{adapter="adkerneladn",le="0.15"} 0
+pbs_srv_adapter_request_time_seconds_bucket{adapter="adkerneladn",le="0.2"} 0
+pbs_srv_adapter_request_time_seconds_bucket{adapter="adkerneladn",le="0.25"} 0
+pbs_srv_adapter_request_time_seconds_bucket{adapter="adkerneladn",le="0.3"} 0
+pbs_srv_adapter_request_time_seconds_bucket{adapter="adkerneladn",le="0.4"} 0
+pbs_srv_adapter_request_time_seconds_bucket{adapter="adkerneladn",le="0.5"} 0
+pbs_srv_adapter_request_time_seconds_bucket{adapter="adkerneladn",le="0.75"} 0
+pbs_srv_adapter_request_time_seconds_bucket{adapter="adkerneladn",le="1"} 0
+pbs_srv_adapter_request_time_seconds_bucket{adapter="adkerneladn",le="+Inf"} 0
+pbs_srv_adapter_request_time_seconds_sum{adapter="adkerneladn"} 0
+pbs_srv_adapter_request_time_seconds_count{adapter="adkerneladn"} 0
+pbs_srv_adapter_request_time_seconds_bucket{adapter="appnexus",le="0.05"} 0
+pbs_srv_adapter_request_time_seconds_bucket{adapter="appnexus",le="0.1"} 0
+pbs_srv_adapter_request_time_seconds_bucket{adapter="appnexus",le="0.15"} 0
+pbs_srv_adapter_request_time_seconds_bucket{adapter="appnexus",le="0.2"} 0
+pbs_srv_adapter_request_time_seconds_bucket{adapter="appnexus",le="0.25"} 0
+pbs_srv_adapter_request_time_seconds_bucket{adapter="appnexus",le="0.3"} 0
+pbs_srv_adapter_request_time_seconds_bucket{adapter="appnexus",le="0.4"} 0
+pbs_srv_adapter_request_time_seconds_bucket{adapter="appnexus",le="0.5"} 0
+pbs_srv_adapter_request_time_seconds_bucket{adapter="appnexus",le="0.75"} 0
+pbs_srv_adapter_request_time_seconds_bucket{adapter="appnexus",le="1"} 0
+pbs_srv_adapter_request_time_seconds_bucket{adapter="appnexus",le="+Inf"} 0
+pbs_srv_adapter_request_time_seconds_sum{adapter="appnexus"} 0
+pbs_srv_adapter_request_time_seconds_count{adapter="appnexus"} 0
+pbs_srv_adapter_request_time_seconds_bucket{adapter="pubmatic",le="0.05"} 0
+pbs_srv_adapter_request_time_seconds_bucket{adapter="pubmatic",le="0.1"} 0
+pbs_srv_adapter_request_time_seconds_bucket{adapter="pubmatic",le="0.15"} 0
+pbs_srv_adapter_request_time_seconds_bucket{adapter="pubmatic",le="0.2"} 0
+pbs_srv_adapter_request_time_seconds_bucket{adapter="pubmatic",le="0.25"} 0
+pbs_srv_adapter_request_time_seconds_bucket{adapter="pubmatic",le="0.3"} 0
+pbs_srv_adapter_request_time_seconds_bucket{adapter="pubmatic",le="0.4"} 0
+pbs_srv_adapter_request_time_seconds_bucket{adapter="pubmatic",le="0.5"} 0
+pbs_srv_adapter_request_time_seconds_bucket{adapter="pubmatic",le="0.75"} 0
+pbs_srv_adapter_request_time_seconds_bucket{adapter="pubmatic",le="1"} 0
+pbs_srv_adapter_request_time_seconds_bucket{adapter="pubmatic",le="+Inf"} 0
+pbs_srv_adapter_request_time_seconds_sum{adapter="pubmatic"} 0
+pbs_srv_adapter_request_time_seconds_count{adapter="pubmatic"} 0
+pbs_srv_adapter_request_time_seconds_bucket{adapter="rubicon",le="0.05"} 0
+pbs_srv_adapter_request_time_seconds_bucket{adapter="rubicon",le="0.1"} 0
+pbs_srv_adapter_request_time_seconds_bucket{adapter="rubicon",le="0.15"} 0
+pbs_srv_adapter_request_time_seconds_bucket{adapter="rubicon",le="0.2"} 0
+pbs_srv_adapter_request_time_seconds_bucket{adapter="rubicon",le="0.25"} 0
+pbs_srv_adapter_request_time_seconds_bucket{adapter="rubicon",le="0.3"} 0
+pbs_srv_adapter_request_time_seconds_bucket{adapter="rubicon",le="0.4"} 0
+pbs_srv_adapter_request_time_seconds_bucket{adapter="rubicon",le="0.5"} 0
+pbs_srv_adapter_request_time_seconds_bucket{adapter="rubicon",le="0.75"} 0
+pbs_srv_adapter_request_time_seconds_bucket{adapter="rubicon",le="1"} 0
+pbs_srv_adapter_request_time_seconds_bucket{adapter="rubicon",le="+Inf"} 0
+pbs_srv_adapter_request_time_seconds_sum{adapter="rubicon"} 0
+pbs_srv_adapter_request_time_seconds_count{adapter="rubicon"} 0
+pbs_srv_adapter_request_time_seconds_bucket{adapter="zmaticoo",le="0.05"} 0
+pbs_srv_adapter_request_time_seconds_bucket{adapter="zmaticoo",le="0.1"} 0
+pbs_srv_adapter_request_time_seconds_bucket{adapter="zmaticoo",le="0.15"} 0
+pbs_srv_adapter_request_time_seconds_bucket{adapter="zmaticoo",le="0.2"} 0
+pbs_srv_adapter_request_time_seconds_bucket{adapter="zmaticoo",le="0.25"} 0
+pbs_srv_adapter_request_time_seconds_bucket{adapter="zmaticoo",le="0.3"} 0
+pbs_srv_adapter_request_time_seconds_bucket{adapter="zmaticoo",le="0.4"} 0
+pbs_srv_adapter_request_time_seconds_bucket{adapter="zmaticoo",le="0.5"} 0
+pbs_srv_adapter_request_time_seconds_bucket{adapter="zmaticoo",le="0.75"} 0
+pbs_srv_adapter_request_time_seconds_bucket{adapter="zmaticoo",le="1"} 0
+pbs_srv_adapter_request_time_seconds_bucket{adapter="zmaticoo",le="+Inf"} 0
+pbs_srv_adapter_request_time_seconds_sum{adapter="zmaticoo"} 0
+pbs_srv_adapter_request_time_seconds_count{adapter="zmaticoo"} 0
+# HELP pbs_srv_adapter_requests Count of requests labeled by adapter, if has a cookie, and if it resulted in bids.
+# TYPE pbs_srv_adapter_requests counter
+pbs_srv_adapter_requests{adapter="33across",cookie="exists",has_bids="false"} 0
+pbs_srv_adapter_requests{adapter="33across",cookie="exists",has_bids="true"} 0
+pbs_srv_adapter_requests{adapter="33across",cookie="no",has_bids="false"} 0
+pbs_srv_adapter_requests{adapter="33across",cookie="no",has_bids="true"} 0
+pbs_srv_adapter_requests{adapter="33across",cookie="unknown",has_bids="false"} 0
+pbs_srv_adapter_requests{adapter="33across",cookie="unknown",has_bids="true"} 0
+pbs_srv_adapter_requests{adapter="adkerneladn",cookie="exists",has_bids="false"} 0
+pbs_srv_adapter_requests{adapter="adkerneladn",cookie="exists",has_bids="true"} 0
+pbs_srv_adapter_requests{adapter="adkerneladn",cookie="no",has_bids="false"} 0
+pbs_srv_adapter_requests{adapter="adkerneladn",cookie="no",has_bids="true"} 0
+pbs_srv_adapter_requests{adapter="adkerneladn",cookie="unknown",has_bids="false"} 0
+pbs_srv_adapter_requests{adapter="adkerneladn",cookie="unknown",has_bids="true"} 0
+pbs_srv_adapter_requests{adapter="appnexus",cookie="exists",has_bids="false"} 0
+pbs_srv_adapter_requests{adapter="appnexus",cookie="exists",has_bids="true"} 0
+pbs_srv_adapter_requests{adapter="appnexus",cookie="no",has_bids="false"} 0
+pbs_srv_adapter_requests{adapter="appnexus",cookie="no",has_bids="true"} 0
+pbs_srv_adapter_requests{adapter="appnexus",cookie="unknown",has_bids="false"} 0
+pbs_srv_adapter_requests{adapter="appnexus",cookie="unknown",has_bids="true"} 0
+pbs_srv_adapter_requests{adapter="pubmatic",cookie="exists",has_bids="false"} 0
+pbs_srv_adapter_requests{adapter="pubmatic",cookie="exists",has_bids="true"} 0
+pbs_srv_adapter_requests{adapter="pubmatic",cookie="no",has_bids="false"} 0
+pbs_srv_adapter_requests{adapter="pubmatic",cookie="no",has_bids="true"} 0
+pbs_srv_adapter_requests{adapter="pubmatic",cookie="unknown",has_bids="false"} 0
+pbs_srv_adapter_requests{adapter="pubmatic",cookie="unknown",has_bids="true"} 0
+pbs_srv_adapter_requests{adapter="rubicon",cookie="exists",has_bids="false"} 0
+pbs_srv_adapter_requests{adapter="rubicon",cookie="exists",has_bids="true"} 0
+pbs_srv_adapter_requests{adapter="rubicon",cookie="no",has_bids="false"} 0
+pbs_srv_adapter_requests{adapter="rubicon",cookie="no",has_bids="true"} 0
+pbs_srv_adapter_requests{adapter="rubicon",cookie="unknown",has_bids="false"} 0
+pbs_srv_adapter_requests{adapter="rubicon",cookie="unknown",has_bids="true"} 0
+pbs_srv_adapter_requests{adapter="zmaticoo",cookie="exists",has_bids="false"} 0
+pbs_srv_adapter_requests{adapter="zmaticoo",cookie="exists",has_bids="true"} 0
+pbs_srv_adapter_requests{adapter="zmaticoo",cookie="no",has_bids="false"} 0
+pbs_srv_adapter_requests{adapter="zmaticoo",cookie="no",has_bids="true"} 0
+pbs_srv_adapter_requests{adapter="zmaticoo",cookie="unknown",has_bids="false"} 0
+pbs_srv_adapter_requests{adapter="zmaticoo",cookie="unknown",has_bids="true"} 0
+# HELP pbs_srv_adapter_response_validation_secure_err Count that tracks number of bids removed from bid response that had a invalid bidAdm
+# TYPE pbs_srv_adapter_response_validation_secure_err counter
+pbs_srv_adapter_response_validation_secure_err{adapter="33across",success="false"} 0
+pbs_srv_adapter_response_validation_secure_err{adapter="33across",success="true"} 0
+pbs_srv_adapter_response_validation_secure_err{adapter="adkerneladn",success="false"} 0
+pbs_srv_adapter_response_validation_secure_err{adapter="adkerneladn",success="true"} 0
+pbs_srv_adapter_response_validation_secure_err{adapter="appnexus",success="false"} 0
+pbs_srv_adapter_response_validation_secure_err{adapter="appnexus",success="true"} 0
+pbs_srv_adapter_response_validation_secure_err{adapter="pubmatic",success="false"} 0
+pbs_srv_adapter_response_validation_secure_err{adapter="pubmatic",success="true"} 0
+pbs_srv_adapter_response_validation_secure_err{adapter="rubicon",success="false"} 0
+pbs_srv_adapter_response_validation_secure_err{adapter="rubicon",success="true"} 0
+pbs_srv_adapter_response_validation_secure_err{adapter="zmaticoo",success="false"} 0
+pbs_srv_adapter_response_validation_secure_err{adapter="zmaticoo",success="true"} 0
+# HELP pbs_srv_adapter_response_validation_secure_warn Count that tracks number of bids removed from bid response that had a invalid bidAdm (warn)
+# TYPE pbs_srv_adapter_response_validation_secure_warn counter
+pbs_srv_adapter_response_validation_secure_warn{adapter="33across",success="false"} 0
+pbs_srv_adapter_response_validation_secure_warn{adapter="33across",success="true"} 0
+pbs_srv_adapter_response_validation_secure_warn{adapter="adkerneladn",success="false"} 0
+pbs_srv_adapter_response_validation_secure_warn{adapter="adkerneladn",success="true"} 0
+pbs_srv_adapter_response_validation_secure_warn{adapter="appnexus",success="false"} 0
+pbs_srv_adapter_response_validation_secure_warn{adapter="appnexus",success="true"} 0
+pbs_srv_adapter_response_validation_secure_warn{adapter="pubmatic",success="false"} 0
+pbs_srv_adapter_response_validation_secure_warn{adapter="pubmatic",success="true"} 0
+pbs_srv_adapter_response_validation_secure_warn{adapter="rubicon",success="false"} 0
+pbs_srv_adapter_response_validation_secure_warn{adapter="rubicon",success="true"} 0
+pbs_srv_adapter_response_validation_secure_warn{adapter="zmaticoo",success="false"} 0
+pbs_srv_adapter_response_validation_secure_warn{adapter="zmaticoo",success="true"} 0
+# HELP pbs_srv_adapter_response_validation_size_err Count that tracks number of bids removed from bid response that had a creative size greater than maxWidth/maxHeight
+# TYPE pbs_srv_adapter_response_validation_size_err counter
+pbs_srv_adapter_response_validation_size_err{adapter="33across",success="false"} 0
+pbs_srv_adapter_response_validation_size_err{adapter="33across",success="true"} 0
+pbs_srv_adapter_response_validation_size_err{adapter="adkerneladn",success="false"} 0
+pbs_srv_adapter_response_validation_size_err{adapter="adkerneladn",success="true"} 0
+pbs_srv_adapter_response_validation_size_err{adapter="appnexus",success="false"} 0
+pbs_srv_adapter_response_validation_size_err{adapter="appnexus",success="true"} 0
+pbs_srv_adapter_response_validation_size_err{adapter="pubmatic",success="false"} 0
+pbs_srv_adapter_response_validation_size_err{adapter="pubmatic",success="true"} 0
+pbs_srv_adapter_response_validation_size_err{adapter="rubicon",success="false"} 0
+pbs_srv_adapter_response_validation_size_err{adapter="rubicon",success="true"} 0
+pbs_srv_adapter_response_validation_size_err{adapter="zmaticoo",success="false"} 0
+pbs_srv_adapter_response_validation_size_err{adapter="zmaticoo",success="true"} 0
+# HELP pbs_srv_adapter_response_validation_size_warn Count that tracks number of bids removed from bid response that had a creative size greater than maxWidth/maxHeight (warn)
+# TYPE pbs_srv_adapter_response_validation_size_warn counter
+pbs_srv_adapter_response_validation_size_warn{adapter="33across",success="false"} 0
+pbs_srv_adapter_response_validation_size_warn{adapter="33across",success="true"} 0
+pbs_srv_adapter_response_validation_size_warn{adapter="adkerneladn",success="false"} 0
+pbs_srv_adapter_response_validation_size_warn{adapter="adkerneladn",success="true"} 0
+pbs_srv_adapter_response_validation_size_warn{adapter="appnexus",success="false"} 0
+pbs_srv_adapter_response_validation_size_warn{adapter="appnexus",success="true"} 0
+pbs_srv_adapter_response_validation_size_warn{adapter="pubmatic",success="false"} 0
+pbs_srv_adapter_response_validation_size_warn{adapter="pubmatic",success="true"} 0
+pbs_srv_adapter_response_validation_size_warn{adapter="rubicon",success="false"} 0
+pbs_srv_adapter_response_validation_size_warn{adapter="rubicon",success="true"} 0
+pbs_srv_adapter_response_validation_size_warn{adapter="zmaticoo",success="false"} 0
+pbs_srv_adapter_response_validation_size_warn{adapter="zmaticoo",success="true"} 0
+# HELP pbs_srv_ads_cert_requests Count of AdsCert request, and if they were successfully sent.
+# TYPE pbs_srv_ads_cert_requests counter
+pbs_srv_ads_cert_requests{success="false"} 0
+pbs_srv_ads_cert_requests{success="true"} 0
+# HELP pbs_srv_ads_cert_sign_time Seconds to generate an AdsCert header
+# TYPE pbs_srv_ads_cert_sign_time histogram
+pbs_srv_ads_cert_sign_time_bucket{le="0.05"} 0
+pbs_srv_ads_cert_sign_time_bucket{le="0.1"} 0
+pbs_srv_ads_cert_sign_time_bucket{le="0.15"} 0
+pbs_srv_ads_cert_sign_time_bucket{le="0.2"} 0
+pbs_srv_ads_cert_sign_time_bucket{le="0.25"} 0
+pbs_srv_ads_cert_sign_time_bucket{le="0.3"} 0
+pbs_srv_ads_cert_sign_time_bucket{le="0.4"} 0
+pbs_srv_ads_cert_sign_time_bucket{le="0.5"} 0
+pbs_srv_ads_cert_sign_time_bucket{le="0.75"} 0
+pbs_srv_ads_cert_sign_time_bucket{le="1"} 0
+pbs_srv_ads_cert_sign_time_bucket{le="+Inf"} 0
+pbs_srv_ads_cert_sign_time_sum 0
+pbs_srv_ads_cert_sign_time_count 0
+# HELP pbs_srv_bidder_server_response_time_seconds Duration needed to send HTTP request and receive response back from bidder server.
+# TYPE pbs_srv_bidder_server_response_time_seconds histogram
+pbs_srv_bidder_server_response_time_seconds_bucket{le="0.05"} 0
+pbs_srv_bidder_server_response_time_seconds_bucket{le="0.1"} 0
+pbs_srv_bidder_server_response_time_seconds_bucket{le="0.15"} 0
+pbs_srv_bidder_server_response_time_seconds_bucket{le="0.2"} 0
+pbs_srv_bidder_server_response_time_seconds_bucket{le="0.25"} 0
+pbs_srv_bidder_server_response_time_seconds_bucket{le="0.3"} 0
+pbs_srv_bidder_server_response_time_seconds_bucket{le="0.4"} 0
+pbs_srv_bidder_server_response_time_seconds_bucket{le="0.5"} 0
+pbs_srv_bidder_server_response_time_seconds_bucket{le="0.75"} 0
+pbs_srv_bidder_server_response_time_seconds_bucket{le="1"} 0
+pbs_srv_bidder_server_response_time_seconds_bucket{le="+Inf"} 0
+pbs_srv_bidder_server_response_time_seconds_sum 0
+pbs_srv_bidder_server_response_time_seconds_count 0
+# HELP pbs_srv_connections_closed Count of successful connections closed to Prebid Server.
+# TYPE pbs_srv_connections_closed counter
+pbs_srv_connections_closed 0
+# HELP pbs_srv_connections_error Count of errors for connection open and close attempts to Prebid Server labeled by type.
+# TYPE pbs_srv_connections_error counter
+pbs_srv_connections_error{connection_error="accept"} 0
+pbs_srv_connections_error{connection_error="close"} 0
+# HELP pbs_srv_connections_opened Count of successful connections opened to Prebid Server.
+# TYPE pbs_srv_connections_opened counter
+pbs_srv_connections_opened 0
+# HELP pbs_srv_cookie_sync_requests Count of cookie sync requests to Prebid Server.
+# TYPE pbs_srv_cookie_sync_requests counter
+pbs_srv_cookie_sync_requests{status="acct_blocked"} 0
+pbs_srv_cookie_sync_requests{status="acct_config_malformed"} 0
+pbs_srv_cookie_sync_requests{status="acct_invalid"} 0
+pbs_srv_cookie_sync_requests{status="bad_request"} 0
+pbs_srv_cookie_sync_requests{status="gdpr_blocked_host_cookie"} 0
+pbs_srv_cookie_sync_requests{status="ok"} 0
+pbs_srv_cookie_sync_requests{status="opt_out"} 0
+# HELP pbs_srv_debug_requests Count of total requests to Prebid Server that have debug enabled
+# TYPE pbs_srv_debug_requests counter
+pbs_srv_debug_requests 0
+# HELP pbs_srv_dns_lookup_time Seconds to resolve DNS
+# TYPE pbs_srv_dns_lookup_time histogram
+pbs_srv_dns_lookup_time_bucket{le="0.05"} 0
+pbs_srv_dns_lookup_time_bucket{le="0.1"} 0
+pbs_srv_dns_lookup_time_bucket{le="0.15"} 0
+pbs_srv_dns_lookup_time_bucket{le="0.2"} 0
+pbs_srv_dns_lookup_time_bucket{le="0.25"} 0
+pbs_srv_dns_lookup_time_bucket{le="0.3"} 0
+pbs_srv_dns_lookup_time_bucket{le="0.4"} 0
+pbs_srv_dns_lookup_time_bucket{le="0.5"} 0
+pbs_srv_dns_lookup_time_bucket{le="0.75"} 0
+pbs_srv_dns_lookup_time_bucket{le="1"} 0
+pbs_srv_dns_lookup_time_bucket{le="+Inf"} 0
+pbs_srv_dns_lookup_time_sum 0
+pbs_srv_dns_lookup_time_count 0
+# HELP pbs_srv_gvl_requests Count number of times GVL list is fetched
+# TYPE pbs_srv_gvl_requests counter
+pbs_srv_gvl_requests 0
+# HELP pbs_srv_impressions_requests Count of requested impressions to Prebid Server labeled by type.
+# TYPE pbs_srv_impressions_requests counter
+pbs_srv_impressions_requests{audio="false",banner="false",native="false",video="false"} 0
+pbs_srv_impressions_requests{audio="false",banner="false",native="false",video="true"} 0
+pbs_srv_impressions_requests{audio="false",banner="false",native="true",video="false"} 0
+pbs_srv_impressions_requests{audio="false",banner="false",native="true",video="true"} 0
+pbs_srv_impressions_requests{audio="false",banner="true",native="false",video="false"} 0
+pbs_srv_impressions_requests{audio="false",banner="true",native="false",video="true"} 0
+pbs_srv_impressions_requests{audio="false",banner="true",native="true",video="false"} 0
+pbs_srv_impressions_requests{audio="false",banner="true",native="true",video="true"} 0
+pbs_srv_impressions_requests{audio="true",banner="false",native="false",video="false"} 0
+pbs_srv_impressions_requests{audio="true",banner="false",native="false",video="true"} 0
+pbs_srv_impressions_requests{audio="true",banner="false",native="true",video="false"} 0
+pbs_srv_impressions_requests{audio="true",banner="false",native="true",video="true"} 0
+pbs_srv_impressions_requests{audio="true",banner="true",native="false",video="false"} 0
+pbs_srv_impressions_requests{audio="true",banner="true",native="false",video="true"} 0
+pbs_srv_impressions_requests{audio="true",banner="true",native="true",video="false"} 0
+pbs_srv_impressions_requests{audio="true",banner="true",native="true",video="true"} 0
+# HELP pbs_srv_modules_fiftyonedegrees_devicedetection_called Count of module calls labeled by stage name.
+# TYPE pbs_srv_modules_fiftyonedegrees_devicedetection_called counter
+pbs_srv_modules_fiftyonedegrees_devicedetection_called{stage="entrypoint"} 0
+pbs_srv_modules_fiftyonedegrees_devicedetection_called{stage="raw_auction_request"} 0
+# HELP pbs_srv_modules_fiftyonedegrees_devicedetection_duration Amount of seconds a module processed a hook labeled by stage name.
+# TYPE pbs_srv_modules_fiftyonedegrees_devicedetection_duration histogram
+pbs_srv_modules_fiftyonedegrees_devicedetection_duration_bucket{stage="entrypoint",le="0.05"} 0
+pbs_srv_modules_fiftyonedegrees_devicedetection_duration_bucket{stage="entrypoint",le="0.1"} 0
+pbs_srv_modules_fiftyonedegrees_devicedetection_duration_bucket{stage="entrypoint",le="0.15"} 0
+pbs_srv_modules_fiftyonedegrees_devicedetection_duration_bucket{stage="entrypoint",le="0.2"} 0
+pbs_srv_modules_fiftyonedegrees_devicedetection_duration_bucket{stage="entrypoint",le="0.25"} 0
+pbs_srv_modules_fiftyonedegrees_devicedetection_duration_bucket{stage="entrypoint",le="0.3"} 0
+pbs_srv_modules_fiftyonedegrees_devicedetection_duration_bucket{stage="entrypoint",le="0.4"} 0
+pbs_srv_modules_fiftyonedegrees_devicedetection_duration_bucket{stage="entrypoint",le="0.5"} 0
+pbs_srv_modules_fiftyonedegrees_devicedetection_duration_bucket{stage="entrypoint",le="0.75"} 0
+pbs_srv_modules_fiftyonedegrees_devicedetection_duration_bucket{stage="entrypoint",le="1"} 0
+pbs_srv_modules_fiftyonedegrees_devicedetection_duration_bucket{stage="entrypoint",le="+Inf"} 0
+pbs_srv_modules_fiftyonedegrees_devicedetection_duration_sum{stage="entrypoint"} 0
+pbs_srv_modules_fiftyonedegrees_devicedetection_duration_count{stage="entrypoint"} 0
+pbs_srv_modules_fiftyonedegrees_devicedetection_duration_bucket{stage="raw_auction_request",le="0.05"} 0
+pbs_srv_modules_fiftyonedegrees_devicedetection_duration_bucket{stage="raw_auction_request",le="0.1"} 0
+pbs_srv_modules_fiftyonedegrees_devicedetection_duration_bucket{stage="raw_auction_request",le="0.15"} 0
+pbs_srv_modules_fiftyonedegrees_devicedetection_duration_bucket{stage="raw_auction_request",le="0.2"} 0
+pbs_srv_modules_fiftyonedegrees_devicedetection_duration_bucket{stage="raw_auction_request",le="0.25"} 0
+pbs_srv_modules_fiftyonedegrees_devicedetection_duration_bucket{stage="raw_auction_request",le="0.3"} 0
+pbs_srv_modules_fiftyonedegrees_devicedetection_duration_bucket{stage="raw_auction_request",le="0.4"} 0
+pbs_srv_modules_fiftyonedegrees_devicedetection_duration_bucket{stage="raw_auction_request",le="0.5"} 0
+pbs_srv_modules_fiftyonedegrees_devicedetection_duration_bucket{stage="raw_auction_request",le="0.75"} 0
+pbs_srv_modules_fiftyonedegrees_devicedetection_duration_bucket{stage="raw_auction_request",le="1"} 0
+pbs_srv_modules_fiftyonedegrees_devicedetection_duration_bucket{stage="raw_auction_request",le="+Inf"} 0
+pbs_srv_modules_fiftyonedegrees_devicedetection_duration_sum{stage="raw_auction_request"} 0
+pbs_srv_modules_fiftyonedegrees_devicedetection_duration_count{stage="raw_auction_request"} 0
+# HELP pbs_srv_modules_fiftyonedegrees_devicedetection_execution_errors Count of module execution errors labeled by stage name.
+# TYPE pbs_srv_modules_fiftyonedegrees_devicedetection_execution_errors counter
+pbs_srv_modules_fiftyonedegrees_devicedetection_execution_errors{stage="entrypoint"} 0
+pbs_srv_modules_fiftyonedegrees_devicedetection_execution_errors{stage="raw_auction_request"} 0
+# HELP pbs_srv_modules_fiftyonedegrees_devicedetection_failed Count of module fails labeled by stage name.
+# TYPE pbs_srv_modules_fiftyonedegrees_devicedetection_failed counter
+pbs_srv_modules_fiftyonedegrees_devicedetection_failed{stage="entrypoint"} 0
+pbs_srv_modules_fiftyonedegrees_devicedetection_failed{stage="raw_auction_request"} 0
+# HELP pbs_srv_modules_fiftyonedegrees_devicedetection_success_noops Count of module successful noops labeled by stage name.
+# TYPE pbs_srv_modules_fiftyonedegrees_devicedetection_success_noops counter
+pbs_srv_modules_fiftyonedegrees_devicedetection_success_noops{stage="entrypoint"} 0
+pbs_srv_modules_fiftyonedegrees_devicedetection_success_noops{stage="raw_auction_request"} 0
+# HELP pbs_srv_modules_fiftyonedegrees_devicedetection_success_rejects Count of module successful rejects labeled by stage name.
+# TYPE pbs_srv_modules_fiftyonedegrees_devicedetection_success_rejects counter
+pbs_srv_modules_fiftyonedegrees_devicedetection_success_rejects{stage="entrypoint"} 0
+pbs_srv_modules_fiftyonedegrees_devicedetection_success_rejects{stage="raw_auction_request"} 0
+# HELP pbs_srv_modules_fiftyonedegrees_devicedetection_success_updates Count of module successful updates labeled by stage name.
+# TYPE pbs_srv_modules_fiftyonedegrees_devicedetection_success_updates counter
+pbs_srv_modules_fiftyonedegrees_devicedetection_success_updates{stage="entrypoint"} 0
+pbs_srv_modules_fiftyonedegrees_devicedetection_success_updates{stage="raw_auction_request"} 0
+# HELP pbs_srv_modules_fiftyonedegrees_devicedetection_timeouts Count of module timeouts labeled by stage name.
+# TYPE pbs_srv_modules_fiftyonedegrees_devicedetection_timeouts counter
+pbs_srv_modules_fiftyonedegrees_devicedetection_timeouts{stage="entrypoint"} 0
+pbs_srv_modules_fiftyonedegrees_devicedetection_timeouts{stage="raw_auction_request"} 0
+# HELP pbs_srv_modules_prebid_ortb2blocking_called Count of module calls labeled by stage name.
+# TYPE pbs_srv_modules_prebid_ortb2blocking_called counter
+pbs_srv_modules_prebid_ortb2blocking_called{stage="bidder_request"} 0
+pbs_srv_modules_prebid_ortb2blocking_called{stage="raw_bidder_response"} 0
+# HELP pbs_srv_modules_prebid_ortb2blocking_duration Amount of seconds a module processed a hook labeled by stage name.
+# TYPE pbs_srv_modules_prebid_ortb2blocking_duration histogram
+pbs_srv_modules_prebid_ortb2blocking_duration_bucket{stage="bidder_request",le="0.05"} 0
+pbs_srv_modules_prebid_ortb2blocking_duration_bucket{stage="bidder_request",le="0.1"} 0
+pbs_srv_modules_prebid_ortb2blocking_duration_bucket{stage="bidder_request",le="0.15"} 0
+pbs_srv_modules_prebid_ortb2blocking_duration_bucket{stage="bidder_request",le="0.2"} 0
+pbs_srv_modules_prebid_ortb2blocking_duration_bucket{stage="bidder_request",le="0.25"} 0
+pbs_srv_modules_prebid_ortb2blocking_duration_bucket{stage="bidder_request",le="0.3"} 0
+pbs_srv_modules_prebid_ortb2blocking_duration_bucket{stage="bidder_request",le="0.4"} 0
+pbs_srv_modules_prebid_ortb2blocking_duration_bucket{stage="bidder_request",le="0.5"} 0
+pbs_srv_modules_prebid_ortb2blocking_duration_bucket{stage="bidder_request",le="0.75"} 0
+pbs_srv_modules_prebid_ortb2blocking_duration_bucket{stage="bidder_request",le="1"} 0
+pbs_srv_modules_prebid_ortb2blocking_duration_bucket{stage="bidder_request",le="+Inf"} 0
+pbs_srv_modules_prebid_ortb2blocking_duration_sum{stage="bidder_request"} 0
+pbs_srv_modules_prebid_ortb2blocking_duration_count{stage="bidder_request"} 0
+pbs_srv_modules_prebid_ortb2blocking_duration_bucket{stage="raw_bidder_response",le="0.05"} 0
+pbs_srv_modules_prebid_ortb2blocking_duration_bucket{stage="raw_bidder_response",le="0.1"} 0
+pbs_srv_modules_prebid_ortb2blocking_duration_bucket{stage="raw_bidder_response",le="0.15"} 0
+pbs_srv_modules_prebid_ortb2blocking_duration_bucket{stage="raw_bidder_response",le="0.2"} 0
+pbs_srv_modules_prebid_ortb2blocking_duration_bucket{stage="raw_bidder_response",le="0.25"} 0
+pbs_srv_modules_prebid_ortb2blocking_duration_bucket{stage="raw_bidder_response",le="0.3"} 0
+pbs_srv_modules_prebid_ortb2blocking_duration_bucket{stage="raw_bidder_response",le="0.4"} 0
+pbs_srv_modules_prebid_ortb2blocking_duration_bucket{stage="raw_bidder_response",le="0.5"} 0
+pbs_srv_modules_prebid_ortb2blocking_duration_bucket{stage="raw_bidder_response",le="0.75"} 0
+pbs_srv_modules_prebid_ortb2blocking_duration_bucket{stage="raw_bidder_response",le="1"} 0
+pbs_srv_modules_prebid_ortb2blocking_duration_bucket{stage="raw_bidder_response",le="+Inf"} 0
+pbs_srv_modules_prebid_ortb2blocking_duration_sum{stage="raw_bidder_response"} 0
+pbs_srv_modules_prebid_ortb2blocking_duration_count{stage="raw_bidder_response"} 0
+# HELP pbs_srv_modules_prebid_ortb2blocking_execution_errors Count of module execution errors labeled by stage name.
+# TYPE pbs_srv_modules_prebid_ortb2blocking_execution_errors counter
+pbs_srv_modules_prebid_ortb2blocking_execution_errors{stage="bidder_request"} 0
+pbs_srv_modules_prebid_ortb2blocking_execution_errors{stage="raw_bidder_response"} 0
+# HELP pbs_srv_modules_prebid_ortb2blocking_failed Count of module fails labeled by stage name.
+# TYPE pbs_srv_modules_prebid_ortb2blocking_failed counter
+pbs_srv_modules_prebid_ortb2blocking_failed{stage="bidder_request"} 0
+pbs_srv_modules_prebid_ortb2blocking_failed{stage="raw_bidder_response"} 0
+# HELP pbs_srv_modules_prebid_ortb2blocking_success_noops Count of module successful noops labeled by stage name.
+# TYPE pbs_srv_modules_prebid_ortb2blocking_success_noops counter
+pbs_srv_modules_prebid_ortb2blocking_success_noops{stage="bidder_request"} 0
+pbs_srv_modules_prebid_ortb2blocking_success_noops{stage="raw_bidder_response"} 0
+# HELP pbs_srv_modules_prebid_ortb2blocking_success_rejects Count of module successful rejects labeled by stage name.
+# TYPE pbs_srv_modules_prebid_ortb2blocking_success_rejects counter
+pbs_srv_modules_prebid_ortb2blocking_success_rejects{stage="bidder_request"} 0
+pbs_srv_modules_prebid_ortb2blocking_success_rejects{stage="raw_bidder_response"} 0
+# HELP pbs_srv_modules_prebid_ortb2blocking_success_updates Count of module successful updates labeled by stage name.
+# TYPE pbs_srv_modules_prebid_ortb2blocking_success_updates counter
+pbs_srv_modules_prebid_ortb2blocking_success_updates{stage="bidder_request"} 0
+pbs_srv_modules_prebid_ortb2blocking_success_updates{stage="raw_bidder_response"} 0
+# HELP pbs_srv_modules_prebid_ortb2blocking_timeouts Count of module timeouts labeled by stage name.
+# TYPE pbs_srv_modules_prebid_ortb2blocking_timeouts counter
+pbs_srv_modules_prebid_ortb2blocking_timeouts{stage="bidder_request"} 0
+pbs_srv_modules_prebid_ortb2blocking_timeouts{stage="raw_bidder_response"} 0
+# HELP pbs_srv_modules_prebid_rulesengine_called Count of module calls labeled by stage name.
+# TYPE pbs_srv_modules_prebid_rulesengine_called counter
+pbs_srv_modules_prebid_rulesengine_called{stage="processed_auction_request"} 0
+# HELP pbs_srv_modules_prebid_rulesengine_duration Amount of seconds a module processed a hook labeled by stage name.
+# TYPE pbs_srv_modules_prebid_rulesengine_duration histogram
+pbs_srv_modules_prebid_rulesengine_duration_bucket{stage="processed_auction_request",le="0.05"} 0
+pbs_srv_modules_prebid_rulesengine_duration_bucket{stage="processed_auction_request",le="0.1"} 0
+pbs_srv_modules_prebid_rulesengine_duration_bucket{stage="processed_auction_request",le="0.15"} 0
+pbs_srv_modules_prebid_rulesengine_duration_bucket{stage="processed_auction_request",le="0.2"} 0
+pbs_srv_modules_prebid_rulesengine_duration_bucket{stage="processed_auction_request",le="0.25"} 0
+pbs_srv_modules_prebid_rulesengine_duration_bucket{stage="processed_auction_request",le="0.3"} 0
+pbs_srv_modules_prebid_rulesengine_duration_bucket{stage="processed_auction_request",le="0.4"} 0
+pbs_srv_modules_prebid_rulesengine_duration_bucket{stage="processed_auction_request",le="0.5"} 0
+pbs_srv_modules_prebid_rulesengine_duration_bucket{stage="processed_auction_request",le="0.75"} 0
+pbs_srv_modules_prebid_rulesengine_duration_bucket{stage="processed_auction_request",le="1"} 0
+pbs_srv_modules_prebid_rulesengine_duration_bucket{stage="processed_auction_request",le="+Inf"} 0
+pbs_srv_modules_prebid_rulesengine_duration_sum{stage="processed_auction_request"} 0
+pbs_srv_modules_prebid_rulesengine_duration_count{stage="processed_auction_request"} 0
+# HELP pbs_srv_modules_prebid_rulesengine_execution_errors Count of module execution errors labeled by stage name.
+# TYPE pbs_srv_modules_prebid_rulesengine_execution_errors counter
+pbs_srv_modules_prebid_rulesengine_execution_errors{stage="processed_auction_request"} 0
+# HELP pbs_srv_modules_prebid_rulesengine_failed Count of module fails labeled by stage name.
+# TYPE pbs_srv_modules_prebid_rulesengine_failed counter
+pbs_srv_modules_prebid_rulesengine_failed{stage="processed_auction_request"} 0
+# HELP pbs_srv_modules_prebid_rulesengine_success_noops Count of module successful noops labeled by stage name.
+# TYPE pbs_srv_modules_prebid_rulesengine_success_noops counter
+pbs_srv_modules_prebid_rulesengine_success_noops{stage="processed_auction_request"} 0
+# HELP pbs_srv_modules_prebid_rulesengine_success_rejects Count of module successful rejects labeled by stage name.
+# TYPE pbs_srv_modules_prebid_rulesengine_success_rejects counter
+pbs_srv_modules_prebid_rulesengine_success_rejects{stage="processed_auction_request"} 0
+# HELP pbs_srv_modules_prebid_rulesengine_success_updates Count of module successful updates labeled by stage name.
+# TYPE pbs_srv_modules_prebid_rulesengine_success_updates counter
+pbs_srv_modules_prebid_rulesengine_success_updates{stage="processed_auction_request"} 0
+# HELP pbs_srv_modules_prebid_rulesengine_timeouts Count of module timeouts labeled by stage name.
+# TYPE pbs_srv_modules_prebid_rulesengine_timeouts counter
+pbs_srv_modules_prebid_rulesengine_timeouts{stage="processed_auction_request"} 0
+# HELP pbs_srv_modules_scope3_rtd_called Count of module calls labeled by stage name.
+# TYPE pbs_srv_modules_scope3_rtd_called counter
+pbs_srv_modules_scope3_rtd_called{stage="auction_response"} 0
+pbs_srv_modules_scope3_rtd_called{stage="entrypoint"} 0
+pbs_srv_modules_scope3_rtd_called{stage="processed_auction_request"} 0
+# HELP pbs_srv_modules_scope3_rtd_duration Amount of seconds a module processed a hook labeled by stage name.
+# TYPE pbs_srv_modules_scope3_rtd_duration histogram
+pbs_srv_modules_scope3_rtd_duration_bucket{stage="auction_response",le="0.05"} 0
+pbs_srv_modules_scope3_rtd_duration_bucket{stage="auction_response",le="0.1"} 0
+pbs_srv_modules_scope3_rtd_duration_bucket{stage="auction_response",le="0.15"} 0
+pbs_srv_modules_scope3_rtd_duration_bucket{stage="auction_response",le="0.2"} 0
+pbs_srv_modules_scope3_rtd_duration_bucket{stage="auction_response",le="0.25"} 0
+pbs_srv_modules_scope3_rtd_duration_bucket{stage="auction_response",le="0.3"} 0
+pbs_srv_modules_scope3_rtd_duration_bucket{stage="auction_response",le="0.4"} 0
+pbs_srv_modules_scope3_rtd_duration_bucket{stage="auction_response",le="0.5"} 0
+pbs_srv_modules_scope3_rtd_duration_bucket{stage="auction_response",le="0.75"} 0
+pbs_srv_modules_scope3_rtd_duration_bucket{stage="auction_response",le="1"} 0
+pbs_srv_modules_scope3_rtd_duration_bucket{stage="auction_response",le="+Inf"} 0
+pbs_srv_modules_scope3_rtd_duration_sum{stage="auction_response"} 0
+pbs_srv_modules_scope3_rtd_duration_count{stage="auction_response"} 0
+pbs_srv_modules_scope3_rtd_duration_bucket{stage="entrypoint",le="0.05"} 0
+pbs_srv_modules_scope3_rtd_duration_bucket{stage="entrypoint",le="0.1"} 0
+pbs_srv_modules_scope3_rtd_duration_bucket{stage="entrypoint",le="0.15"} 0
+pbs_srv_modules_scope3_rtd_duration_bucket{stage="entrypoint",le="0.2"} 0
+pbs_srv_modules_scope3_rtd_duration_bucket{stage="entrypoint",le="0.25"} 0
+pbs_srv_modules_scope3_rtd_duration_bucket{stage="entrypoint",le="0.3"} 0
+pbs_srv_modules_scope3_rtd_duration_bucket{stage="entrypoint",le="0.4"} 0
+pbs_srv_modules_scope3_rtd_duration_bucket{stage="entrypoint",le="0.5"} 0
+pbs_srv_modules_scope3_rtd_duration_bucket{stage="entrypoint",le="0.75"} 0
+pbs_srv_modules_scope3_rtd_duration_bucket{stage="entrypoint",le="1"} 0
+pbs_srv_modules_scope3_rtd_duration_bucket{stage="entrypoint",le="+Inf"} 0
+pbs_srv_modules_scope3_rtd_duration_sum{stage="entrypoint"} 0
+pbs_srv_modules_scope3_rtd_duration_count{stage="entrypoint"} 0
+pbs_srv_modules_scope3_rtd_duration_bucket{stage="processed_auction_request",le="0.05"} 0
+pbs_srv_modules_scope3_rtd_duration_bucket{stage="processed_auction_request",le="0.1"} 0
+pbs_srv_modules_scope3_rtd_duration_bucket{stage="processed_auction_request",le="0.15"} 0
+pbs_srv_modules_scope3_rtd_duration_bucket{stage="processed_auction_request",le="0.2"} 0
+pbs_srv_modules_scope3_rtd_duration_bucket{stage="processed_auction_request",le="0.25"} 0
+pbs_srv_modules_scope3_rtd_duration_bucket{stage="processed_auction_request",le="0.3"} 0
+pbs_srv_modules_scope3_rtd_duration_bucket{stage="processed_auction_request",le="0.4"} 0
+pbs_srv_modules_scope3_rtd_duration_bucket{stage="processed_auction_request",le="0.5"} 0
+pbs_srv_modules_scope3_rtd_duration_bucket{stage="processed_auction_request",le="0.75"} 0
+pbs_srv_modules_scope3_rtd_duration_bucket{stage="processed_auction_request",le="1"} 0
+pbs_srv_modules_scope3_rtd_duration_bucket{stage="processed_auction_request",le="+Inf"} 0
+pbs_srv_modules_scope3_rtd_duration_sum{stage="processed_auction_request"} 0
+pbs_srv_modules_scope3_rtd_duration_count{stage="processed_auction_request"} 0
+# HELP pbs_srv_modules_scope3_rtd_execution_errors Count of module execution errors labeled by stage name.
+# TYPE pbs_srv_modules_scope3_rtd_execution_errors counter
+pbs_srv_modules_scope3_rtd_execution_errors{stage="auction_response"} 0
+pbs_srv_modules_scope3_rtd_execution_errors{stage="entrypoint"} 0
+pbs_srv_modules_scope3_rtd_execution_errors{stage="processed_auction_request"} 0
+# HELP pbs_srv_modules_scope3_rtd_failed Count of module fails labeled by stage name.
+# TYPE pbs_srv_modules_scope3_rtd_failed counter
+pbs_srv_modules_scope3_rtd_failed{stage="auction_response"} 0
+pbs_srv_modules_scope3_rtd_failed{stage="entrypoint"} 0
+pbs_srv_modules_scope3_rtd_failed{stage="processed_auction_request"} 0
+# HELP pbs_srv_modules_scope3_rtd_success_noops Count of module successful noops labeled by stage name.
+# TYPE pbs_srv_modules_scope3_rtd_success_noops counter
+pbs_srv_modules_scope3_rtd_success_noops{stage="auction_response"} 0
+pbs_srv_modules_scope3_rtd_success_noops{stage="entrypoint"} 0
+pbs_srv_modules_scope3_rtd_success_noops{stage="processed_auction_request"} 0
+# HELP pbs_srv_modules_scope3_rtd_success_rejects Count of module successful rejects labeled by stage name.
+# TYPE pbs_srv_modules_scope3_rtd_success_rejects counter
+pbs_srv_modules_scope3_rtd_success_rejects{stage="auction_response"} 0
+pbs_srv_modules_scope3_rtd_success_rejects{stage="entrypoint"} 0
+pbs_srv_modules_scope3_rtd_success_rejects{stage="processed_auction_request"} 0
+# HELP pbs_srv_modules_scope3_rtd_success_updates Count of module successful updates labeled by stage name.
+# TYPE pbs_srv_modules_scope3_rtd_success_updates counter
+pbs_srv_modules_scope3_rtd_success_updates{stage="auction_response"} 0
+pbs_srv_modules_scope3_rtd_success_updates{stage="entrypoint"} 0
+pbs_srv_modules_scope3_rtd_success_updates{stage="processed_auction_request"} 0
+# HELP pbs_srv_modules_scope3_rtd_timeouts Count of module timeouts labeled by stage name.
+# TYPE pbs_srv_modules_scope3_rtd_timeouts counter
+pbs_srv_modules_scope3_rtd_timeouts{stage="auction_response"} 0
+pbs_srv_modules_scope3_rtd_timeouts{stage="entrypoint"} 0
+pbs_srv_modules_scope3_rtd_timeouts{stage="processed_auction_request"} 0
+# HELP pbs_srv_overhead_time_seconds Seconds to prepare adapter request or resolve adapter response
+# TYPE pbs_srv_overhead_time_seconds histogram
+pbs_srv_overhead_time_seconds_bucket{overhead_type="make-auction-response",le="0.05"} 0
+pbs_srv_overhead_time_seconds_bucket{overhead_type="make-auction-response",le="0.06"} 0
+pbs_srv_overhead_time_seconds_bucket{overhead_type="make-auction-response",le="0.07"} 0
+pbs_srv_overhead_time_seconds_bucket{overhead_type="make-auction-response",le="0.08"} 0
+pbs_srv_overhead_time_seconds_bucket{overhead_type="make-auction-response",le="0.09"} 0
+pbs_srv_overhead_time_seconds_bucket{overhead_type="make-auction-response",le="0.1"} 0
+pbs_srv_overhead_time_seconds_bucket{overhead_type="make-auction-response",le="0.2"} 0
+pbs_srv_overhead_time_seconds_bucket{overhead_type="make-auction-response",le="0.3"} 0
+pbs_srv_overhead_time_seconds_bucket{overhead_type="make-auction-response",le="0.4"} 0
+pbs_srv_overhead_time_seconds_bucket{overhead_type="make-auction-response",le="0.5"} 0
+pbs_srv_overhead_time_seconds_bucket{overhead_type="make-auction-response",le="0.6"} 0
+pbs_srv_overhead_time_seconds_bucket{overhead_type="make-auction-response",le="0.7"} 0
+pbs_srv_overhead_time_seconds_bucket{overhead_type="make-auction-response",le="0.8"} 0
+pbs_srv_overhead_time_seconds_bucket{overhead_type="make-auction-response",le="0.9"} 0
+pbs_srv_overhead_time_seconds_bucket{overhead_type="make-auction-response",le="1"} 0
+pbs_srv_overhead_time_seconds_bucket{overhead_type="make-auction-response",le="+Inf"} 0
+pbs_srv_overhead_time_seconds_sum{overhead_type="make-auction-response"} 0
+pbs_srv_overhead_time_seconds_count{overhead_type="make-auction-response"} 0
+pbs_srv_overhead_time_seconds_bucket{overhead_type="make-bidder-requests",le="0.05"} 0
+pbs_srv_overhead_time_seconds_bucket{overhead_type="make-bidder-requests",le="0.06"} 0
+pbs_srv_overhead_time_seconds_bucket{overhead_type="make-bidder-requests",le="0.07"} 0
+pbs_srv_overhead_time_seconds_bucket{overhead_type="make-bidder-requests",le="0.08"} 0
+pbs_srv_overhead_time_seconds_bucket{overhead_type="make-bidder-requests",le="0.09"} 0
+pbs_srv_overhead_time_seconds_bucket{overhead_type="make-bidder-requests",le="0.1"} 0
+pbs_srv_overhead_time_seconds_bucket{overhead_type="make-bidder-requests",le="0.2"} 0
+pbs_srv_overhead_time_seconds_bucket{overhead_type="make-bidder-requests",le="0.3"} 0
+pbs_srv_overhead_time_seconds_bucket{overhead_type="make-bidder-requests",le="0.4"} 0
+pbs_srv_overhead_time_seconds_bucket{overhead_type="make-bidder-requests",le="0.5"} 0
+pbs_srv_overhead_time_seconds_bucket{overhead_type="make-bidder-requests",le="0.6"} 0
+pbs_srv_overhead_time_seconds_bucket{overhead_type="make-bidder-requests",le="0.7"} 0
+pbs_srv_overhead_time_seconds_bucket{overhead_type="make-bidder-requests",le="0.8"} 0
+pbs_srv_overhead_time_seconds_bucket{overhead_type="make-bidder-requests",le="0.9"} 0
+pbs_srv_overhead_time_seconds_bucket{overhead_type="make-bidder-requests",le="1"} 0
+pbs_srv_overhead_time_seconds_bucket{overhead_type="make-bidder-requests",le="+Inf"} 0
+pbs_srv_overhead_time_seconds_sum{overhead_type="make-bidder-requests"} 0
+pbs_srv_overhead_time_seconds_count{overhead_type="make-bidder-requests"} 0
+pbs_srv_overhead_time_seconds_bucket{overhead_type="pre-bidder",le="0.05"} 0
+pbs_srv_overhead_time_seconds_bucket{overhead_type="pre-bidder",le="0.06"} 0
+pbs_srv_overhead_time_seconds_bucket{overhead_type="pre-bidder",le="0.07"} 0
+pbs_srv_overhead_time_seconds_bucket{overhead_type="pre-bidder",le="0.08"} 0
+pbs_srv_overhead_time_seconds_bucket{overhead_type="pre-bidder",le="0.09"} 0
+pbs_srv_overhead_time_seconds_bucket{overhead_type="pre-bidder",le="0.1"} 0
+pbs_srv_overhead_time_seconds_bucket{overhead_type="pre-bidder",le="0.2"} 0
+pbs_srv_overhead_time_seconds_bucket{overhead_type="pre-bidder",le="0.3"} 0
+pbs_srv_overhead_time_seconds_bucket{overhead_type="pre-bidder",le="0.4"} 0
+pbs_srv_overhead_time_seconds_bucket{overhead_type="pre-bidder",le="0.5"} 0
+pbs_srv_overhead_time_seconds_bucket{overhead_type="pre-bidder",le="0.6"} 0
+pbs_srv_overhead_time_seconds_bucket{overhead_type="pre-bidder",le="0.7"} 0
+pbs_srv_overhead_time_seconds_bucket{overhead_type="pre-bidder",le="0.8"} 0
+pbs_srv_overhead_time_seconds_bucket{overhead_type="pre-bidder",le="0.9"} 0
+pbs_srv_overhead_time_seconds_bucket{overhead_type="pre-bidder",le="1"} 0
+pbs_srv_overhead_time_seconds_bucket{overhead_type="pre-bidder",le="+Inf"} 0
+pbs_srv_overhead_time_seconds_sum{overhead_type="pre-bidder"} 0
+pbs_srv_overhead_time_seconds_count{overhead_type="pre-bidder"} 0
+# HELP pbs_srv_prebidcache_write_time_seconds Seconds to write to Prebid Cache labeled by success or failure. Failure timing is limited by Prebid Server enforced timeouts.
+# TYPE pbs_srv_prebidcache_write_time_seconds histogram
+pbs_srv_prebidcache_write_time_seconds_bucket{success="false",le="0.001"} 0
+pbs_srv_prebidcache_write_time_seconds_bucket{success="false",le="0.002"} 0
+pbs_srv_prebidcache_write_time_seconds_bucket{success="false",le="0.005"} 0
+pbs_srv_prebidcache_write_time_seconds_bucket{success="false",le="0.01"} 0
+pbs_srv_prebidcache_write_time_seconds_bucket{success="false",le="0.025"} 0
+pbs_srv_prebidcache_write_time_seconds_bucket{success="false",le="0.05"} 0
+pbs_srv_prebidcache_write_time_seconds_bucket{success="false",le="0.1"} 0
+pbs_srv_prebidcache_write_time_seconds_bucket{success="false",le="0.2"} 0
+pbs_srv_prebidcache_write_time_seconds_bucket{success="false",le="0.3"} 0
+pbs_srv_prebidcache_write_time_seconds_bucket{success="false",le="0.4"} 0
+pbs_srv_prebidcache_write_time_seconds_bucket{success="false",le="0.5"} 0
+pbs_srv_prebidcache_write_time_seconds_bucket{success="false",le="1"} 0
+pbs_srv_prebidcache_write_time_seconds_bucket{success="false",le="+Inf"} 0
+pbs_srv_prebidcache_write_time_seconds_sum{success="false"} 0
+pbs_srv_prebidcache_write_time_seconds_count{success="false"} 0
+pbs_srv_prebidcache_write_time_seconds_bucket{success="true",le="0.001"} 0
+pbs_srv_prebidcache_write_time_seconds_bucket{success="true",le="0.002"} 0
+pbs_srv_prebidcache_write_time_seconds_bucket{success="true",le="0.005"} 0
+pbs_srv_prebidcache_write_time_seconds_bucket{success="true",le="0.01"} 0
+pbs_srv_prebidcache_write_time_seconds_bucket{success="true",le="0.025"} 0
+pbs_srv_prebidcache_write_time_seconds_bucket{success="true",le="0.05"} 0
+pbs_srv_prebidcache_write_time_seconds_bucket{success="true",le="0.1"} 0
+pbs_srv_prebidcache_write_time_seconds_bucket{success="true",le="0.2"} 0
+pbs_srv_prebidcache_write_time_seconds_bucket{success="true",le="0.3"} 0
+pbs_srv_prebidcache_write_time_seconds_bucket{success="true",le="0.4"} 0
+pbs_srv_prebidcache_write_time_seconds_bucket{success="true",le="0.5"} 0
+pbs_srv_prebidcache_write_time_seconds_bucket{success="true",le="1"} 0
+pbs_srv_prebidcache_write_time_seconds_bucket{success="true",le="+Inf"} 0
+pbs_srv_prebidcache_write_time_seconds_sum{success="true"} 0
+pbs_srv_prebidcache_write_time_seconds_count{success="true"} 0
+# HELP pbs_srv_privacy_ccpa Count of total requests to Prebid Server where CCPA was provided by source and opt-out .
+# TYPE pbs_srv_privacy_ccpa counter
+pbs_srv_privacy_ccpa{opt_out="false",source="request"} 0
+pbs_srv_privacy_ccpa{opt_out="true",source="request"} 0
+# HELP pbs_srv_privacy_coppa Count of total requests to Prebid Server where the COPPA flag was set by source
+# TYPE pbs_srv_privacy_coppa counter
+pbs_srv_privacy_coppa{source="request"} 0
+# HELP pbs_srv_privacy_lmt Count of total requests to Prebid Server where the LMT flag was set by source
+# TYPE pbs_srv_privacy_lmt counter
+pbs_srv_privacy_lmt{source="request"} 0
+# HELP pbs_srv_privacy_tcf Count of TCF versions for requests where GDPR was enforced by source and version.
+# TYPE pbs_srv_privacy_tcf counter
+pbs_srv_privacy_tcf{source="request",version="err"} 0
+pbs_srv_privacy_tcf{source="request",version="v2"} 0
+# HELP pbs_srv_request_queue_time Seconds request was waiting in queue
+# TYPE pbs_srv_request_queue_time histogram
+pbs_srv_request_queue_time_bucket{request_status="requestAcceptedLabel",request_type="video",le="0"} 0
+pbs_srv_request_queue_time_bucket{request_status="requestAcceptedLabel",request_type="video",le="1"} 0
+pbs_srv_request_queue_time_bucket{request_status="requestAcceptedLabel",request_type="video",le="5"} 0
+pbs_srv_request_queue_time_bucket{request_status="requestAcceptedLabel",request_type="video",le="30"} 0
+pbs_srv_request_queue_time_bucket{request_status="requestAcceptedLabel",request_type="video",le="60"} 0
+pbs_srv_request_queue_time_bucket{request_status="requestAcceptedLabel",request_type="video",le="120"} 0
+pbs_srv_request_queue_time_bucket{request_status="requestAcceptedLabel",request_type="video",le="180"} 0
+pbs_srv_request_queue_time_bucket{request_status="requestAcceptedLabel",request_type="video",le="240"} 0
+pbs_srv_request_queue_time_bucket{request_status="requestAcceptedLabel",request_type="video",le="300"} 0
+pbs_srv_request_queue_time_bucket{request_status="requestAcceptedLabel",request_type="video",le="+Inf"} 0
+pbs_srv_request_queue_time_sum{request_status="requestAcceptedLabel",request_type="video"} 0
+pbs_srv_request_queue_time_count{request_status="requestAcceptedLabel",request_type="video"} 0
+pbs_srv_request_queue_time_bucket{request_status="requestRejectedLabel",request_type="video",le="0"} 0
+pbs_srv_request_queue_time_bucket{request_status="requestRejectedLabel",request_type="video",le="1"} 0
+pbs_srv_request_queue_time_bucket{request_status="requestRejectedLabel",request_type="video",le="5"} 0
+pbs_srv_request_queue_time_bucket{request_status="requestRejectedLabel",request_type="video",le="30"} 0
+pbs_srv_request_queue_time_bucket{request_status="requestRejectedLabel",request_type="video",le="60"} 0
+pbs_srv_request_queue_time_bucket{request_status="requestRejectedLabel",request_type="video",le="120"} 0
+pbs_srv_request_queue_time_bucket{request_status="requestRejectedLabel",request_type="video",le="180"} 0
+pbs_srv_request_queue_time_bucket{request_status="requestRejectedLabel",request_type="video",le="240"} 0
+pbs_srv_request_queue_time_bucket{request_status="requestRejectedLabel",request_type="video",le="300"} 0
+pbs_srv_request_queue_time_bucket{request_status="requestRejectedLabel",request_type="video",le="+Inf"} 0
+pbs_srv_request_queue_time_sum{request_status="requestRejectedLabel",request_type="video"} 0
+pbs_srv_request_queue_time_count{request_status="requestRejectedLabel",request_type="video"} 0
+# HELP pbs_srv_request_time_seconds Seconds to resolve successful Prebid Server requests labeled by type.
+# TYPE pbs_srv_request_time_seconds histogram
+pbs_srv_request_time_seconds_bucket{request_type="amp",le="0.05"} 0
+pbs_srv_request_time_seconds_bucket{request_type="amp",le="0.1"} 0
+pbs_srv_request_time_seconds_bucket{request_type="amp",le="0.15"} 0
+pbs_srv_request_time_seconds_bucket{request_type="amp",le="0.2"} 0
+pbs_srv_request_time_seconds_bucket{request_type="amp",le="0.25"} 0
+pbs_srv_request_time_seconds_bucket{request_type="amp",le="0.3"} 0
+pbs_srv_request_time_seconds_bucket{request_type="amp",le="0.4"} 0
+pbs_srv_request_time_seconds_bucket{request_type="amp",le="0.5"} 0
+pbs_srv_request_time_seconds_bucket{request_type="amp",le="0.75"} 0
+pbs_srv_request_time_seconds_bucket{request_type="amp",le="1"} 0
+pbs_srv_request_time_seconds_bucket{request_type="amp",le="+Inf"} 0
+pbs_srv_request_time_seconds_sum{request_type="amp"} 0
+pbs_srv_request_time_seconds_count{request_type="amp"} 0
+pbs_srv_request_time_seconds_bucket{request_type="openrtb2-app",le="0.05"} 0
+pbs_srv_request_time_seconds_bucket{request_type="openrtb2-app",le="0.1"} 0
+pbs_srv_request_time_seconds_bucket{request_type="openrtb2-app",le="0.15"} 0
+pbs_srv_request_time_seconds_bucket{request_type="openrtb2-app",le="0.2"} 0
+pbs_srv_request_time_seconds_bucket{request_type="openrtb2-app",le="0.25"} 0
+pbs_srv_request_time_seconds_bucket{request_type="openrtb2-app",le="0.3"} 0
+pbs_srv_request_time_seconds_bucket{request_type="openrtb2-app",le="0.4"} 0
+pbs_srv_request_time_seconds_bucket{request_type="openrtb2-app",le="0.5"} 0
+pbs_srv_request_time_seconds_bucket{request_type="openrtb2-app",le="0.75"} 0
+pbs_srv_request_time_seconds_bucket{request_type="openrtb2-app",le="1"} 0
+pbs_srv_request_time_seconds_bucket{request_type="openrtb2-app",le="+Inf"} 0
+pbs_srv_request_time_seconds_sum{request_type="openrtb2-app"} 0
+pbs_srv_request_time_seconds_count{request_type="openrtb2-app"} 0
+pbs_srv_request_time_seconds_bucket{request_type="openrtb2-dooh",le="0.05"} 0
+pbs_srv_request_time_seconds_bucket{request_type="openrtb2-dooh",le="0.1"} 0
+pbs_srv_request_time_seconds_bucket{request_type="openrtb2-dooh",le="0.15"} 0
+pbs_srv_request_time_seconds_bucket{request_type="openrtb2-dooh",le="0.2"} 0
+pbs_srv_request_time_seconds_bucket{request_type="openrtb2-dooh",le="0.25"} 0
+pbs_srv_request_time_seconds_bucket{request_type="openrtb2-dooh",le="0.3"} 0
+pbs_srv_request_time_seconds_bucket{request_type="openrtb2-dooh",le="0.4"} 0
+pbs_srv_request_time_seconds_bucket{request_type="openrtb2-dooh",le="0.5"} 0
+pbs_srv_request_time_seconds_bucket{request_type="openrtb2-dooh",le="0.75"} 0
+pbs_srv_request_time_seconds_bucket{request_type="openrtb2-dooh",le="1"} 0
+pbs_srv_request_time_seconds_bucket{request_type="openrtb2-dooh",le="+Inf"} 0
+pbs_srv_request_time_seconds_sum{request_type="openrtb2-dooh"} 0
+pbs_srv_request_time_seconds_count{request_type="openrtb2-dooh"} 0
+pbs_srv_request_time_seconds_bucket{request_type="openrtb2-web",le="0.05"} 0
+pbs_srv_request_time_seconds_bucket{request_type="openrtb2-web",le="0.1"} 0
+pbs_srv_request_time_seconds_bucket{request_type="openrtb2-web",le="0.15"} 0
+pbs_srv_request_time_seconds_bucket{request_type="openrtb2-web",le="0.2"} 0
+pbs_srv_request_time_seconds_bucket{request_type="openrtb2-web",le="0.25"} 0
+pbs_srv_request_time_seconds_bucket{request_type="openrtb2-web",le="0.3"} 0
+pbs_srv_request_time_seconds_bucket{request_type="openrtb2-web",le="0.4"} 0
+pbs_srv_request_time_seconds_bucket{request_type="openrtb2-web",le="0.5"} 0
+pbs_srv_request_time_seconds_bucket{request_type="openrtb2-web",le="0.75"} 0
+pbs_srv_request_time_seconds_bucket{request_type="openrtb2-web",le="1"} 0
+pbs_srv_request_time_seconds_bucket{request_type="openrtb2-web",le="+Inf"} 0
+pbs_srv_request_time_seconds_sum{request_type="openrtb2-web"} 0
+pbs_srv_request_time_seconds_count{request_type="openrtb2-web"} 0
+pbs_srv_request_time_seconds_bucket{request_type="video",le="0.05"} 0
+pbs_srv_request_time_seconds_bucket{request_type="video",le="0.1"} 0
+pbs_srv_request_time_seconds_bucket{request_type="video",le="0.15"} 0
+pbs_srv_request_time_seconds_bucket{request_type="video",le="0.2"} 0
+pbs_srv_request_time_seconds_bucket{request_type="video",le="0.25"} 0
+pbs_srv_request_time_seconds_bucket{request_type="video",le="0.3"} 0
+pbs_srv_request_time_seconds_bucket{request_type="video",le="0.4"} 0
+pbs_srv_request_time_seconds_bucket{request_type="video",le="0.5"} 0
+pbs_srv_request_time_seconds_bucket{request_type="video",le="0.75"} 0
+pbs_srv_request_time_seconds_bucket{request_type="video",le="1"} 0
+pbs_srv_request_time_seconds_bucket{request_type="video",le="+Inf"} 0
+pbs_srv_request_time_seconds_sum{request_type="video"} 0
+pbs_srv_request_time_seconds_count{request_type="video"} 0
+# HELP pbs_srv_requests Count of total requests to Prebid Server labeled by type and status.
+# TYPE pbs_srv_requests counter
+pbs_srv_requests{request_status="acctconfigerr",request_type="amp"} 0
+pbs_srv_requests{request_status="acctconfigerr",request_type="openrtb2-app"} 0
+pbs_srv_requests{request_status="acctconfigerr",request_type="openrtb2-dooh"} 0
+pbs_srv_requests{request_status="acctconfigerr",request_type="openrtb2-web"} 0
+pbs_srv_requests{request_status="acctconfigerr",request_type="video"} 0
+pbs_srv_requests{request_status="badinput",request_type="amp"} 0
+pbs_srv_requests{request_status="badinput",request_type="openrtb2-app"} 0
+pbs_srv_requests{request_status="badinput",request_type="openrtb2-dooh"} 0
+pbs_srv_requests{request_status="badinput",request_type="openrtb2-web"} 0
+pbs_srv_requests{request_status="badinput",request_type="video"} 0
+pbs_srv_requests{request_status="blockedapp",request_type="amp"} 0
+pbs_srv_requests{request_status="blockedapp",request_type="openrtb2-app"} 0
+pbs_srv_requests{request_status="blockedapp",request_type="openrtb2-dooh"} 0
+pbs_srv_requests{request_status="blockedapp",request_type="openrtb2-web"} 0
+pbs_srv_requests{request_status="blockedapp",request_type="video"} 0
+pbs_srv_requests{request_status="err",request_type="amp"} 0
+pbs_srv_requests{request_status="err",request_type="openrtb2-app"} 0
+pbs_srv_requests{request_status="err",request_type="openrtb2-dooh"} 0
+pbs_srv_requests{request_status="err",request_type="openrtb2-web"} 0
+pbs_srv_requests{request_status="err",request_type="video"} 0
+pbs_srv_requests{request_status="networkerr",request_type="amp"} 0
+pbs_srv_requests{request_status="networkerr",request_type="openrtb2-app"} 0
+pbs_srv_requests{request_status="networkerr",request_type="openrtb2-dooh"} 0
+pbs_srv_requests{request_status="networkerr",request_type="openrtb2-web"} 0
+pbs_srv_requests{request_status="networkerr",request_type="video"} 0
+pbs_srv_requests{request_status="ok",request_type="amp"} 0
+pbs_srv_requests{request_status="ok",request_type="openrtb2-app"} 0
+pbs_srv_requests{request_status="ok",request_type="openrtb2-dooh"} 0
+pbs_srv_requests{request_status="ok",request_type="openrtb2-web"} 0
+pbs_srv_requests{request_status="ok",request_type="video"} 0
+pbs_srv_requests{request_status="queuetimeout",request_type="amp"} 0
+pbs_srv_requests{request_status="queuetimeout",request_type="openrtb2-app"} 0
+pbs_srv_requests{request_status="queuetimeout",request_type="openrtb2-dooh"} 0
+pbs_srv_requests{request_status="queuetimeout",request_type="openrtb2-web"} 0
+pbs_srv_requests{request_status="queuetimeout",request_type="video"} 0
+# HELP pbs_srv_requests_without_cookie Count of total requests to Prebid Server without a cookie labeled by type.
+# TYPE pbs_srv_requests_without_cookie counter
+pbs_srv_requests_without_cookie{request_type="amp"} 0
+pbs_srv_requests_without_cookie{request_type="openrtb2-app"} 0
+pbs_srv_requests_without_cookie{request_type="openrtb2-dooh"} 0
+pbs_srv_requests_without_cookie{request_type="openrtb2-web"} 0
+pbs_srv_requests_without_cookie{request_type="video"} 0
+# HELP pbs_srv_setuid_requests Count of set uid requests to Prebid Server.
+# TYPE pbs_srv_setuid_requests counter
+pbs_srv_setuid_requests{status="acct_blocked"} 0
+pbs_srv_setuid_requests{status="acct_config_malformed"} 0
+pbs_srv_setuid_requests{status="acct_invalid"} 0
+pbs_srv_setuid_requests{status="bad_request"} 0
+pbs_srv_setuid_requests{status="gdpr_blocked_host_cookie"} 0
+pbs_srv_setuid_requests{status="ok"} 0
+pbs_srv_setuid_requests{status="opt_out"} 0
+pbs_srv_setuid_requests{status="syncer_unknown"} 0
+# HELP pbs_srv_stored_account_errors Count of stored account errors by error type
+# TYPE pbs_srv_stored_account_errors counter
+pbs_srv_stored_account_errors{stored_data_error="network"} 0
+pbs_srv_stored_account_errors{stored_data_error="undefined"} 0
+# HELP pbs_srv_stored_account_fetch_time_seconds Seconds to fetch stored accounts labeled by fetch type
+# TYPE pbs_srv_stored_account_fetch_time_seconds histogram
+pbs_srv_stored_account_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="0.05"} 0
+pbs_srv_stored_account_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="0.1"} 0
+pbs_srv_stored_account_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="0.15"} 0
+pbs_srv_stored_account_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="0.2"} 0
+pbs_srv_stored_account_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="0.25"} 0
+pbs_srv_stored_account_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="0.3"} 0
+pbs_srv_stored_account_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="0.4"} 0
+pbs_srv_stored_account_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="0.5"} 0
+pbs_srv_stored_account_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="0.75"} 0
+pbs_srv_stored_account_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="1"} 0
+pbs_srv_stored_account_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="+Inf"} 0
+pbs_srv_stored_account_fetch_time_seconds_sum{stored_data_fetch_type="all"} 0
+pbs_srv_stored_account_fetch_time_seconds_count{stored_data_fetch_type="all"} 0
+pbs_srv_stored_account_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="0.05"} 0
+pbs_srv_stored_account_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="0.1"} 0
+pbs_srv_stored_account_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="0.15"} 0
+pbs_srv_stored_account_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="0.2"} 0
+pbs_srv_stored_account_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="0.25"} 0
+pbs_srv_stored_account_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="0.3"} 0
+pbs_srv_stored_account_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="0.4"} 0
+pbs_srv_stored_account_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="0.5"} 0
+pbs_srv_stored_account_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="0.75"} 0
+pbs_srv_stored_account_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="1"} 0
+pbs_srv_stored_account_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="+Inf"} 0
+pbs_srv_stored_account_fetch_time_seconds_sum{stored_data_fetch_type="delta"} 0
+pbs_srv_stored_account_fetch_time_seconds_count{stored_data_fetch_type="delta"} 0
+# HELP pbs_srv_stored_amp_errors Count of stored AMP errors by error type
+# TYPE pbs_srv_stored_amp_errors counter
+pbs_srv_stored_amp_errors{stored_data_error="network"} 0
+pbs_srv_stored_amp_errors{stored_data_error="undefined"} 0
+# HELP pbs_srv_stored_amp_fetch_time_seconds Seconds to fetch stored AMP requests labeled by fetch type
+# TYPE pbs_srv_stored_amp_fetch_time_seconds histogram
+pbs_srv_stored_amp_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="0.05"} 0
+pbs_srv_stored_amp_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="0.1"} 0
+pbs_srv_stored_amp_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="0.15"} 0
+pbs_srv_stored_amp_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="0.2"} 0
+pbs_srv_stored_amp_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="0.25"} 0
+pbs_srv_stored_amp_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="0.3"} 0
+pbs_srv_stored_amp_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="0.4"} 0
+pbs_srv_stored_amp_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="0.5"} 0
+pbs_srv_stored_amp_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="0.75"} 0
+pbs_srv_stored_amp_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="1"} 0
+pbs_srv_stored_amp_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="+Inf"} 0
+pbs_srv_stored_amp_fetch_time_seconds_sum{stored_data_fetch_type="all"} 0
+pbs_srv_stored_amp_fetch_time_seconds_count{stored_data_fetch_type="all"} 0
+pbs_srv_stored_amp_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="0.05"} 0
+pbs_srv_stored_amp_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="0.1"} 0
+pbs_srv_stored_amp_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="0.15"} 0
+pbs_srv_stored_amp_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="0.2"} 0
+pbs_srv_stored_amp_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="0.25"} 0
+pbs_srv_stored_amp_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="0.3"} 0
+pbs_srv_stored_amp_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="0.4"} 0
+pbs_srv_stored_amp_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="0.5"} 0
+pbs_srv_stored_amp_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="0.75"} 0
+pbs_srv_stored_amp_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="1"} 0
+pbs_srv_stored_amp_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="+Inf"} 0
+pbs_srv_stored_amp_fetch_time_seconds_sum{stored_data_fetch_type="delta"} 0
+pbs_srv_stored_amp_fetch_time_seconds_count{stored_data_fetch_type="delta"} 0
+# HELP pbs_srv_stored_category_errors Count of stored category errors by error type
+# TYPE pbs_srv_stored_category_errors counter
+pbs_srv_stored_category_errors{stored_data_error="network"} 0
+pbs_srv_stored_category_errors{stored_data_error="undefined"} 0
+# HELP pbs_srv_stored_category_fetch_time_seconds Seconds to fetch stored categories labeled by fetch type
+# TYPE pbs_srv_stored_category_fetch_time_seconds histogram
+pbs_srv_stored_category_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="0.05"} 0
+pbs_srv_stored_category_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="0.1"} 0
+pbs_srv_stored_category_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="0.15"} 0
+pbs_srv_stored_category_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="0.2"} 0
+pbs_srv_stored_category_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="0.25"} 0
+pbs_srv_stored_category_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="0.3"} 0
+pbs_srv_stored_category_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="0.4"} 0
+pbs_srv_stored_category_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="0.5"} 0
+pbs_srv_stored_category_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="0.75"} 0
+pbs_srv_stored_category_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="1"} 0
+pbs_srv_stored_category_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="+Inf"} 0
+pbs_srv_stored_category_fetch_time_seconds_sum{stored_data_fetch_type="all"} 0
+pbs_srv_stored_category_fetch_time_seconds_count{stored_data_fetch_type="all"} 0
+pbs_srv_stored_category_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="0.05"} 0
+pbs_srv_stored_category_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="0.1"} 0
+pbs_srv_stored_category_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="0.15"} 0
+pbs_srv_stored_category_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="0.2"} 0
+pbs_srv_stored_category_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="0.25"} 0
+pbs_srv_stored_category_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="0.3"} 0
+pbs_srv_stored_category_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="0.4"} 0
+pbs_srv_stored_category_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="0.5"} 0
+pbs_srv_stored_category_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="0.75"} 0
+pbs_srv_stored_category_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="1"} 0
+pbs_srv_stored_category_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="+Inf"} 0
+pbs_srv_stored_category_fetch_time_seconds_sum{stored_data_fetch_type="delta"} 0
+pbs_srv_stored_category_fetch_time_seconds_count{stored_data_fetch_type="delta"} 0
+# HELP pbs_srv_stored_impressions_cache_performance Count of stored impression cache requests attempts by hits or miss.
+# TYPE pbs_srv_stored_impressions_cache_performance counter
+pbs_srv_stored_impressions_cache_performance{cache_result="hit"} 0
+pbs_srv_stored_impressions_cache_performance{cache_result="miss"} 0
+# HELP pbs_srv_stored_request_cache_performance Count of stored request cache requests attempts by hits or miss.
+# TYPE pbs_srv_stored_request_cache_performance counter
+pbs_srv_stored_request_cache_performance{cache_result="hit"} 0
+pbs_srv_stored_request_cache_performance{cache_result="miss"} 0
+# HELP pbs_srv_stored_request_errors Count of stored request errors by error type
+# TYPE pbs_srv_stored_request_errors counter
+pbs_srv_stored_request_errors{stored_data_error="network"} 0
+pbs_srv_stored_request_errors{stored_data_error="undefined"} 0
+# HELP pbs_srv_stored_request_fetch_time_seconds Seconds to fetch stored requests labeled by fetch type
+# TYPE pbs_srv_stored_request_fetch_time_seconds histogram
+pbs_srv_stored_request_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="0.05"} 0
+pbs_srv_stored_request_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="0.1"} 0
+pbs_srv_stored_request_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="0.15"} 0
+pbs_srv_stored_request_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="0.2"} 0
+pbs_srv_stored_request_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="0.25"} 0
+pbs_srv_stored_request_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="0.3"} 0
+pbs_srv_stored_request_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="0.4"} 0
+pbs_srv_stored_request_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="0.5"} 0
+pbs_srv_stored_request_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="0.75"} 0
+pbs_srv_stored_request_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="1"} 0
+pbs_srv_stored_request_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="+Inf"} 0
+pbs_srv_stored_request_fetch_time_seconds_sum{stored_data_fetch_type="all"} 0
+pbs_srv_stored_request_fetch_time_seconds_count{stored_data_fetch_type="all"} 0
+pbs_srv_stored_request_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="0.05"} 0
+pbs_srv_stored_request_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="0.1"} 0
+pbs_srv_stored_request_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="0.15"} 0
+pbs_srv_stored_request_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="0.2"} 0
+pbs_srv_stored_request_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="0.25"} 0
+pbs_srv_stored_request_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="0.3"} 0
+pbs_srv_stored_request_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="0.4"} 0
+pbs_srv_stored_request_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="0.5"} 0
+pbs_srv_stored_request_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="0.75"} 0
+pbs_srv_stored_request_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="1"} 0
+pbs_srv_stored_request_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="+Inf"} 0
+pbs_srv_stored_request_fetch_time_seconds_sum{stored_data_fetch_type="delta"} 0
+pbs_srv_stored_request_fetch_time_seconds_count{stored_data_fetch_type="delta"} 0
+# HELP pbs_srv_stored_response_errors Count of stored video errors by error type
+# TYPE pbs_srv_stored_response_errors counter
+pbs_srv_stored_response_errors{stored_data_error="network"} 0
+pbs_srv_stored_response_errors{stored_data_error="undefined"} 0
+# HELP pbs_srv_stored_response_fetch_time_seconds Seconds to fetch stored responses labeled by fetch type
+# TYPE pbs_srv_stored_response_fetch_time_seconds histogram
+pbs_srv_stored_response_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="0.05"} 0
+pbs_srv_stored_response_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="0.1"} 0
+pbs_srv_stored_response_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="0.15"} 0
+pbs_srv_stored_response_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="0.2"} 0
+pbs_srv_stored_response_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="0.25"} 0
+pbs_srv_stored_response_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="0.3"} 0
+pbs_srv_stored_response_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="0.4"} 0
+pbs_srv_stored_response_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="0.5"} 0
+pbs_srv_stored_response_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="0.75"} 0
+pbs_srv_stored_response_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="1"} 0
+pbs_srv_stored_response_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="+Inf"} 0
+pbs_srv_stored_response_fetch_time_seconds_sum{stored_data_fetch_type="all"} 0
+pbs_srv_stored_response_fetch_time_seconds_count{stored_data_fetch_type="all"} 0
+pbs_srv_stored_response_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="0.05"} 0
+pbs_srv_stored_response_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="0.1"} 0
+pbs_srv_stored_response_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="0.15"} 0
+pbs_srv_stored_response_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="0.2"} 0
+pbs_srv_stored_response_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="0.25"} 0
+pbs_srv_stored_response_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="0.3"} 0
+pbs_srv_stored_response_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="0.4"} 0
+pbs_srv_stored_response_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="0.5"} 0
+pbs_srv_stored_response_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="0.75"} 0
+pbs_srv_stored_response_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="1"} 0
+pbs_srv_stored_response_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="+Inf"} 0
+pbs_srv_stored_response_fetch_time_seconds_sum{stored_data_fetch_type="delta"} 0
+pbs_srv_stored_response_fetch_time_seconds_count{stored_data_fetch_type="delta"} 0
+# HELP pbs_srv_stored_responses Count of total requests to Prebid Server that have stored responses
+# TYPE pbs_srv_stored_responses counter
+pbs_srv_stored_responses 0
+# HELP pbs_srv_stored_video_errors Count of stored video errors by error type
+# TYPE pbs_srv_stored_video_errors counter
+pbs_srv_stored_video_errors{stored_data_error="network"} 0
+pbs_srv_stored_video_errors{stored_data_error="undefined"} 0
+# HELP pbs_srv_stored_video_fetch_time_seconds Seconds to fetch stored video labeled by fetch type
+# TYPE pbs_srv_stored_video_fetch_time_seconds histogram
+pbs_srv_stored_video_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="0.05"} 0
+pbs_srv_stored_video_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="0.1"} 0
+pbs_srv_stored_video_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="0.15"} 0
+pbs_srv_stored_video_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="0.2"} 0
+pbs_srv_stored_video_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="0.25"} 0
+pbs_srv_stored_video_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="0.3"} 0
+pbs_srv_stored_video_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="0.4"} 0
+pbs_srv_stored_video_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="0.5"} 0
+pbs_srv_stored_video_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="0.75"} 0
+pbs_srv_stored_video_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="1"} 0
+pbs_srv_stored_video_fetch_time_seconds_bucket{stored_data_fetch_type="all",le="+Inf"} 0
+pbs_srv_stored_video_fetch_time_seconds_sum{stored_data_fetch_type="all"} 0
+pbs_srv_stored_video_fetch_time_seconds_count{stored_data_fetch_type="all"} 0
+pbs_srv_stored_video_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="0.05"} 0
+pbs_srv_stored_video_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="0.1"} 0
+pbs_srv_stored_video_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="0.15"} 0
+pbs_srv_stored_video_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="0.2"} 0
+pbs_srv_stored_video_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="0.25"} 0
+pbs_srv_stored_video_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="0.3"} 0
+pbs_srv_stored_video_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="0.4"} 0
+pbs_srv_stored_video_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="0.5"} 0
+pbs_srv_stored_video_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="0.75"} 0
+pbs_srv_stored_video_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="1"} 0
+pbs_srv_stored_video_fetch_time_seconds_bucket{stored_data_fetch_type="delta",le="+Inf"} 0
+pbs_srv_stored_video_fetch_time_seconds_sum{stored_data_fetch_type="delta"} 0
+pbs_srv_stored_video_fetch_time_seconds_count{stored_data_fetch_type="delta"} 0
+# HELP pbs_srv_syncer_requests Count of cookie sync requests where a syncer is a candidate to be synced labeled by syncer key and status.
+# TYPE pbs_srv_syncer_requests counter
+pbs_srv_syncer_requests{status="already_synced",syncer="33across"} 0
+pbs_srv_syncer_requests{status="already_synced",syncer="adnxs"} 0
+pbs_srv_syncer_requests{status="already_synced",syncer="ix"} 0
+pbs_srv_syncer_requests{status="already_synced",syncer="pubmatic"} 0
+pbs_srv_syncer_requests{status="already_synced",syncer="rubicon"} 0
+pbs_srv_syncer_requests{status="ok",syncer="33across"} 0
+pbs_srv_syncer_requests{status="ok",syncer="adnxs"} 0
+pbs_srv_syncer_requests{status="ok",syncer="ix"} 0
+pbs_srv_syncer_requests{status="ok",syncer="pubmatic"} 0
+pbs_srv_syncer_requests{status="ok",syncer="rubicon"} 0
+pbs_srv_syncer_requests{status="privacy_blocked",syncer="33across"} 0
+pbs_srv_syncer_requests{status="privacy_blocked",syncer="adnxs"} 0
+pbs_srv_syncer_requests{status="privacy_blocked",syncer="ix"} 0
+pbs_srv_syncer_requests{status="privacy_blocked",syncer="pubmatic"} 0
+pbs_srv_syncer_requests{status="privacy_blocked",syncer="rubicon"} 0
+pbs_srv_syncer_requests{status="rejected_by_filter",syncer="33across"} 0
+pbs_srv_syncer_requests{status="rejected_by_filter",syncer="adnxs"} 0
+pbs_srv_syncer_requests{status="rejected_by_filter",syncer="ix"} 0
+pbs_srv_syncer_requests{status="rejected_by_filter",syncer="pubmatic"} 0
+pbs_srv_syncer_requests{status="rejected_by_filter",syncer="rubicon"} 0
+# HELP pbs_srv_syncer_sets Count of setuid set requests for a syncer labeled by syncer key and status.
+# TYPE pbs_srv_syncer_sets counter
+pbs_srv_syncer_sets{status="cleared",syncer="33across"} 0
+pbs_srv_syncer_sets{status="cleared",syncer="adnxs"} 0
+pbs_srv_syncer_sets{status="cleared",syncer="ix"} 0
+pbs_srv_syncer_sets{status="cleared",syncer="pubmatic"} 0
+pbs_srv_syncer_sets{status="cleared",syncer="rubicon"} 0
+pbs_srv_syncer_sets{status="ok",syncer="33across"} 0
+pbs_srv_syncer_sets{status="ok",syncer="adnxs"} 0
+pbs_srv_syncer_sets{status="ok",syncer="ix"} 0
+pbs_srv_syncer_sets{status="ok",syncer="pubmatic"} 0
+pbs_srv_syncer_sets{status="ok",syncer="rubicon"} 0
+# HELP pbs_srv_tls_handshake_time Seconds to perform TLS Handshake
+# TYPE pbs_srv_tls_handshake_time histogram
+pbs_srv_tls_handshake_time_bucket{le="0.05"} 0
+pbs_srv_tls_handshake_time_bucket{le="0.1"} 0
+pbs_srv_tls_handshake_time_bucket{le="0.15"} 0
+pbs_srv_tls_handshake_time_bucket{le="0.2"} 0
+pbs_srv_tls_handshake_time_bucket{le="0.25"} 0
+pbs_srv_tls_handshake_time_bucket{le="0.3"} 0
+pbs_srv_tls_handshake_time_bucket{le="0.4"} 0
+pbs_srv_tls_handshake_time_bucket{le="0.5"} 0
+pbs_srv_tls_handshake_time_bucket{le="0.75"} 0
+pbs_srv_tls_handshake_time_bucket{le="1"} 0
+pbs_srv_tls_handshake_time_bucket{le="+Inf"} 0
+pbs_srv_tls_handshake_time_sum 0
+pbs_srv_tls_handshake_time_count 0
+# HELP pbs_srv_tmax_timeout Count of requests rejected due to Tmax timeout exceed.
+# TYPE pbs_srv_tmax_timeout counter
+pbs_srv_tmax_timeout 0
