@@ -903,6 +903,15 @@ naming the file. The error lists every load error.
    directory, about 0.8 MB per server. `rhtool serve` starts its servers
    the same way, so they now go with the scripts' state directory.
 5. `--shards N` starts N pairs of servers per batch on free loopback ports.
+   The runner reserves each server's three ports by listening on
+   127.0.0.1:0 and closes them before the server binds them, so another
+   process can bind one in between. A server that then exits before it
+   answers health, with a bind failure ("address already in use") on one
+   of its ports in its log, is started again on fresh ports, up to four
+   starts; when every start fails, the error names each one. Any other
+   start failure is not retried. Within the runner's own process a port
+   stays leased to its server until the server stops, so the servers that
+   start together are never given the same port.
    Each pair runs its share of the cases one at a time, in the same order on
    both sides, and calls `/__parity/reset` before every envelope. The cases
    of a batch run in case ID order, and a shard takes every Nth of them.
@@ -1291,7 +1300,9 @@ The steps, in order:
    the run, on `POST /cookie_sync` as on every other endpoint: in parity mode
    Go lists the syncers in bidder name order and keeps that order on its
    main port, so two Go servers answer it alike.
-4. **`--record`.** `replayharness record` on a spare loopback port, the probes
+4. **`--record`.** `replayharness record` on a loopback port the kernel
+   picks (`--listen 127.0.0.1:0`; the script reads the proxy's URL from
+   its `Recording http://ADDR` line), the probes
    and the replays through it, then `replayharness replay <recording>
    --mutate` through the same proxy. `rhtool traffic` then writes
    `parity/replayharness/traffic.jsonl` (see below).

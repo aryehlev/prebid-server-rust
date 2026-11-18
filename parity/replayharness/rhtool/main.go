@@ -1,7 +1,7 @@
 // Command rhtool runs the Go Prebid Server for ReplayHarness and keeps what
 // ReplayHarness recorded.
 //
-//	rhtool serve   -dir DIR [-bin FILE] [-profile NAME] [-servers N] [-spare-ports N]
+//	rhtool serve   -dir DIR [-bin FILE] [-profile NAME] [-servers N]
 //	               [-bin-b FILE] [-impl-b go|rust]
 //	rhtool traffic -token-file FILE -o FILE [-max-bytes N] RECORDING...
 //	rhtool saved   -token-file FILE -o FILE [-repo DIR] RECORDING

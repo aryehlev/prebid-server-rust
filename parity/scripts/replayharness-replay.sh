@@ -124,6 +124,18 @@ failures() {
   LC_ALL=C grep -a -v '^✓' "$1" | LC_ALL=C tr -d '\000-\010\013-\037\177' >&2 || true
 }
 
+# recording_url prints the URL of the recording proxy whose log is $1, once
+# the proxy listens. It listens on a port the kernel picks (--listen
+# 127.0.0.1:0) and names it in the line it starts with, "Recording
+# http://ADDR -> UPSTREAM into FILE" (ReplayHarness cmd/replayharness,
+# cmdRecord), so no other process can take the port before the proxy binds
+# it.
+recording_url() {
+  if [[ -f "$1" ]]; then
+    sed -n 's|^Recording \(http://127\.0\.0\.1:[0-9][0-9]*\) -> .*|\1|p' "$1"
+  fi
+}
+
 state=""
 serve_pid=""
 proxy_pid=""
@@ -184,7 +196,7 @@ if ((baseline)); then
 fi
 say "starting ${servers} Go server(s) with profile ${profile}${case_profile:+ and case profile ${case_profile}}"
 "${state}/bin/rhtool" serve -repo "${tree}" -dir "${state}/stack" -bin "${state}/bin/pbs-go" -profile "${profile}" \
-  -servers "${servers}" -spare-ports 1 ${serve_args[@]+"${serve_args[@]}"} >"${state}/serve.log" 2>&1 &
+  -servers "${servers}" ${serve_args[@]+"${serve_args[@]}"} >"${state}/serve.log" 2>&1 &
 serve_pid=$!
 
 for _ in $(seq 1 600); do
@@ -206,9 +218,7 @@ target=$(value RH_TARGET)
 baseline_url=$(value RH_BASELINE)
 token_file=$(value RH_TOKEN_FILE)
 main_ports_value=$(value RH_MAIN_PORTS)
-spare_ports_value=$(value RH_SPARE_PORTS)
 read -r -a main_ports <<<"${main_ports_value}"
-read -r -a spare_ports <<<"${spare_ports_value}"
 
 pids_file="${state}/pids"
 echo "${serve_pid}" >"${pids_file}"
@@ -321,22 +331,24 @@ if ((baseline)); then
 fi
 
 if ((record)); then
-  proxy="http://127.0.0.1:${spare_ports[0]}"
   raw="${state}/traffic.raw.jsonl"
-  say "recording through ${proxy}"
-  "${cli}" record --upstream "${target}" --listen "127.0.0.1:${spare_ports[0]}" -o "${raw}" -q 2>"${state}/record.log" &
+  "${cli}" record --upstream "${target}" --listen 127.0.0.1:0 -o "${raw}" -q 2>"${state}/record.log" &
   proxy_pid=$!
   echo "${proxy_pid}" >>"${pids_file}"
+  proxy=""
   for _ in $(seq 1 100); do
-    grep -q '^Recording ' "${state}/record.log" 2>/dev/null && break
-    kill -0 "${proxy_pid}" 2>/dev/null || break
+    proxy=$(recording_url "${state}/record.log")
+    if [[ -n "${proxy}" ]] || ! kill -0 "${proxy_pid}" 2>/dev/null; then
+      break
+    fi
     sleep 0.1
   done
-  if ! grep -q '^Recording ' "${state}/record.log"; then
+  if [[ -z "${proxy}" ]]; then
     say "the recording proxy did not start:"
     cat "${state}/record.log" >&2
     exit 1
   fi
+  say "recording through ${proxy}"
   "${cli}" run "${map}" --target "${proxy}" --fail-on never --no-color >"${out}/record-probes.txt"
   "${cli}" replay "${replays}" --target "${proxy}" --fail-on never --no-color >"${out}/record-replays.txt"
   say "replaying the recording with --mutate through ${proxy}"

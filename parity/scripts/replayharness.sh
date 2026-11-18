@@ -194,6 +194,18 @@ failures() {
   LC_ALL=C grep -a -v '^✓' "$1" | LC_ALL=C tr -d '\000-\010\013-\037\177' >&2 || true
 }
 
+# recording_url prints the URL of the recording proxy whose log is $1, once
+# the proxy listens. It listens on a port the kernel picks (--listen
+# 127.0.0.1:0) and names it in the line it starts with, "Recording
+# http://ADDR -> UPSTREAM into FILE" (ReplayHarness cmd/replayharness,
+# cmdRecord), so no other process can take the port before the proxy binds
+# it.
+recording_url() {
+  if [[ -f "$1" ]]; then
+    sed -n 's|^Recording \(http://127\.0\.0\.1:[0-9][0-9]*\) -> .*|\1|p' "$1"
+  fi
+}
+
 state=""
 roots_file=""
 seen_file=""
@@ -400,7 +412,7 @@ start_stack() {
   local servers=$1 stack=$2
   shift 2
   local args=(serve -repo "${tree}" -dir "${stack}" -bin "${state}/bin/pbs-go" -profile "${profile}"
-    -servers "${servers}" -spare-ports 1 "$@")
+    -servers "${servers}" "$@")
   if ((servers == 2)); then
     args+=(-impl-b "${impl_b}")
     if [[ -n "${bin_b}" ]]; then
@@ -591,28 +603,29 @@ build_canary() {
 }
 
 record_saved() {
-  local stack="${state}/stack-record" target token_file port raw="${state}/saved.raw.jsonl"
+  local stack="${state}/stack-record" target token_file proxy="" raw="${state}/saved.raw.jsonl"
   say "record-saved: starting the Go server with profile ${profile}"
   start_stack 1 "${stack}"
   target=$(value RH_TARGET "${stack}")
   token_file=$(value RH_TOKEN_FILE "${stack}")
-  port=$(value RH_SPARE_PORTS "${stack}")
-  say "record-saved: recording the replays through 127.0.0.1:${port}"
-  "${cli}" record --upstream "${target}" --listen "127.0.0.1:${port}" -o "${raw}" -q --keep-secrets 2>"${state}/record.log" &
+  "${cli}" record --upstream "${target}" --listen 127.0.0.1:0 -o "${raw}" -q --keep-secrets 2>"${state}/record.log" &
   proxy_pid=$!
   echo "${proxy_pid}" >>"${roots_file}"
   for _ in $(seq 1 100); do
-    grep -q '^Recording ' "${state}/record.log" 2>/dev/null && break
-    kill -0 "${proxy_pid}" 2>/dev/null || break
+    proxy=$(recording_url "${state}/record.log")
+    if [[ -n "${proxy}" ]] || ! kill -0 "${proxy_pid}" 2>/dev/null; then
+      break
+    fi
     sleep 0.1
   done
-  if ! grep -q '^Recording ' "${state}/record.log"; then
+  if [[ -z "${proxy}" ]]; then
     cat "${state}/record.log" >&2
     die "the recording proxy did not start"
   fi
+  say "record-saved: recording the replays through ${proxy}"
   sleep 2
   check_breach
-  "${cli}" replay "${replays}" --target "http://127.0.0.1:${port}" --fail-on never --no-color >"${out}/record-saved.txt"
+  "${cli}" replay "${replays}" --target "${proxy}" --fail-on never --no-color >"${out}/record-saved.txt"
   tail -n 1 "${out}/record-saved.txt" >&2
   stop_pid "${proxy_pid}" INT
   proxy_pid=""

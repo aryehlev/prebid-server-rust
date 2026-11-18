@@ -64,7 +64,6 @@ type serveOptions struct {
 	profile     string
 	caseProfile string
 	servers     int
-	sparePorts  int
 }
 
 func parseServe(args []string, stderr io.Writer) (serveOptions, error) {
@@ -80,7 +79,6 @@ func parseServe(args []string, stderr io.Writer) (serveOptions, error) {
 	fs.StringVar(&o.profile, "profile", runner.DefaultProfile, "parity base profile (parity/fixtures/profiles)")
 	fs.StringVar(&o.caseProfile, "case-profile", "", "a case profile applied over the base profile, as parity/replayharness/profiles/NAME/profile.json (default: none)")
 	fs.IntVar(&o.servers, "servers", 1, "servers to start: 1, or 2 for a ReplayHarness --baseline pair (side A, then side B)")
-	fs.IntVar(&o.sparePorts, "spare-ports", 1, "extra free loopback ports to reserve for the caller (the recording proxy)")
 
 	if err := fs.Parse(args); err != nil {
 		return o, fmt.Errorf("parsing flags: %w", err)
@@ -99,8 +97,6 @@ func (o serveOptions) check() error {
 		return usageError{"-dir is required"}
 	case o.servers < 1 || o.servers > maxServers:
 		return usageError{"-servers must be 1 or 2"}
-	case o.sparePorts < 0:
-		return usageError{"-spare-ports must not be negative"}
 	}
 
 	return o.checkSideB()
@@ -148,7 +144,6 @@ type stack struct {
 	repo     string
 	oracle   *oracle.Oracle
 	servers  []*runner.Server
-	spare    []int
 	outbound *os.File
 	counts   map[string]int
 }
@@ -188,10 +183,6 @@ func (s *stack) start(ctx context.Context, opts serveOptions) error {
 	}
 
 	if err := s.startServers(ctx, opts, bin, workdir, token); err != nil {
-		return err
-	}
-
-	if s.spare, err = freePorts(ctx, opts.sparePorts); err != nil {
 		return err
 	}
 
@@ -387,43 +378,7 @@ func proxyGuard(oracleURL string) []string {
 	return append(env, "NO_PROXY=127.0.0.1,localhost", "no_proxy=127.0.0.1,localhost")
 }
 
-// freePorts reserves n loopback ports and releases them for the caller, the
-// way the parity runner picks server ports (parity/runner/procs.go).
-func freePorts(ctx context.Context, n int) ([]int, error) {
-	ports := make([]int, 0, n)
-	lns := make([]net.Listener, 0, n)
-
-	defer func() {
-		for _, ln := range lns {
-			_ = ln.Close()
-		}
-	}()
-
-	var lc net.ListenConfig
-
-	for range n {
-		ln, err := lc.Listen(ctx, "tcp", "127.0.0.1:0")
-		if err != nil {
-			return nil, fmt.Errorf("reserving a port: %w", err)
-		}
-
-		lns = append(lns, ln)
-
-		addr, ok := ln.Addr().(*net.TCPAddr)
-		if !ok {
-			return nil, errNoTCPAddr
-		}
-
-		ports = append(ports, addr.Port)
-	}
-
-	return ports, nil
-}
-
-var (
-	errNoTCPAddr = errors.New("a listener has no TCP address")
-	errBadStored = errors.New("parity/replayharness/stored holds data the runner cannot write")
-)
+var errBadStored = errors.New("parity/replayharness/stored holds data the runner cannot write")
 
 // writeState writes state.env: KEY=VALUE lines for the script, written to a
 // temporary name first so a reader never sees half of it.
@@ -437,7 +392,6 @@ func (s *stack) writeState(workdir string) error {
 		"RH_TOKEN_FILE=" + filepath.Join(s.root.Name(), tokenFile),
 		"RH_OUTBOUND=" + filepath.Join(s.root.Name(), outboundFile),
 		"RH_MAIN_PORTS=" + s.mainPorts(),
-		"RH_SPARE_PORTS=" + joinPorts(s.spare),
 	}
 	if len(s.servers) > 1 {
 		// Side A is the first server, the Go reference; side B the second.

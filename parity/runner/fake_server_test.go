@@ -36,8 +36,14 @@ const (
 	// fakeOffContract answers like fakeGo with a trace that has a member the
 	// trace schema does not know (a misspelt http_out), which decoding drops.
 	fakeOffContract = "off_contract"
+	// fakeExit exits before it listens, with an error that is not a bind
+	// failure.
+	fakeExit = "exit"
 	// fakeTrigger is the request member that makes the bug mode diverge.
 	fakeTrigger = `"trigger"`
+	// fakeListenEnv, when set, is the address the fake listens on in place
+	// of 127.0.0.1:PBS_PORT.
+	fakeListenEnv = "PARITY_RUNNER_FAKE_LISTEN"
 )
 
 func TestMain(m *testing.M) {
@@ -60,9 +66,17 @@ func runFakeServer(mode string) int {
 		fmt.Fprintln(os.Stderr, "fake server:", err)
 		return 2
 	}
+	if mode == fakeExit {
+		fmt.Fprintln(os.Stderr, "fake server: exiting before it listens")
+		return 1
+	}
+	addr := "127.0.0.1:" + strconv.Itoa(f.ports["port"])
+	if listen := os.Getenv(fakeListenEnv); listen != "" {
+		addr = listen
+	}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer stop()
-	srv := &http.Server{Addr: "127.0.0.1:" + strconv.Itoa(f.ports["port"]), Handler: f, ReadHeaderTimeout: 5 * time.Second}
+	srv := &http.Server{Addr: addr, Handler: f, ReadHeaderTimeout: 5 * time.Second}
 	go func() {
 		<-ctx.Done()
 		shutdown, cancel := context.WithTimeout(context.Background(), 2*time.Second)
