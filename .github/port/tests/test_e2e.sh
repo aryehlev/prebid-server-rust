@@ -9,8 +9,9 @@
 # upstream is a local repository that the workflows mirror and check out with
 # scripts/fetch-upstream.sh, exactly as they would the real one.
 #
-# One scheduled run is a "day". The story: no new upstream commits; a session that copies
-# upstream code into the crates (the guard fails the port job) and one that changes a read-only
+# One scheduled run is a "day". The story: no new upstream commits; a session that copies,
+# symlinks, hard-links and vendors upstream code into the crates and nests a repository there (the
+# guard fails the port job) and one that changes a read-only
 # upstream tree (check-worktree.sh fails it); a small Go change, with upstream agent configuration
 # and an upstream commit carrying Claude trailers, ported by a misbehaving agent; a conflict with
 # main that rebuilds the branch; a huge change split into chunks (a fixture, a heavy core commit,
@@ -412,6 +413,12 @@ agent() {
       mkdir -p "${vendor}"
       cp "${WS}/.upstream/go.mod" "${vendor}/go.mod"
       printf 'go 1.25.0\n\nuse .\n' > "${WS}/crates/x/testdata/go/go.work"
+      # A nested repository, which git stages as a gitlink, and a hard link to a file of the
+      # read-only upstream tree, which git stores as a copy of its bytes.
+      git init -q "${WS}/crates/x/nested"
+      t_put "${WS}/crates/x/nested" README.md 'a repository of its own'
+      t_commit "${WS}/crates/x/nested" "A repository of its own" > /dev/null
+      ln "${WS}/.upstream/adapters/foo/footest/exemplary/a.json" "${WS}/crates/x/testdata/a-link.json"
       ;;
     tamper)
       # The session gets around the read-only new pin's tree and edits it.
@@ -836,7 +843,9 @@ contains "the guard: Go code outside the Go tooling modules" "${COMMIT_LOG}" "Go
 contains "the guard: the copied Go file" "${COMMIT_LOG}" "crates/x/src/foo.go"
 contains "the guard: copies of upstream files" "${COMMIT_LOG}" "files byte-identical to an upstream file"
 contains "the guard: the copied fixture" "${COMMIT_LOG}" "testdata/foo/a.json"
-contains "the guard: a symbolic link" "${COMMIT_LOG}" "symbolic links and submodules are not allowed: crates/x/src/upstream (120000)"
+contains "the guard: a nested repository" "${COMMIT_LOG}" "symbolic links and submodules are not allowed: crates/x/nested (160000)"
+contains "the guard: a symbolic link" "${COMMIT_LOG}" "crates/x/src/upstream (120000)"
+contains "the guard: a hard link into the upstream tree" "${COMMIT_LOG}" "crates/x/testdata/a-link.json"
 contains "the guard: vendor/ and go.work" "${COMMIT_LOG}" "a .gitmodules, go.work or vendor/ directory brings in code from elsewhere"
 vendor_head=$(branch_head)
 check "nothing is pushed" "" "${vendor_head}"
