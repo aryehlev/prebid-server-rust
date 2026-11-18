@@ -27,7 +27,9 @@
 #                   merge-base, or to any file of 16 bytes or more in upstream history (any blob
 #                   the mirror's branch and tags reach, so an older version is a copy too), except
 #                   an empty file or a lib.sh port_upstream_copies entry that holds the bytes of
-#                   its upstream file
+#                   its upstream file; and no Go file that is a modified copy of an upstream Go
+#                   file of the pinned trees (10 or more of its significant lines are that file's,
+#                   and either half of them or 40 or more)
 #   local-state     no tracked agent configuration or local tool state (.claude/, .omx/, ...)
 #   marker          UPSTREAM_SYNC pins one upstream commit, on the upstream branch, and the pin
 #                   did not move backwards from the merge-base's
@@ -262,6 +264,91 @@ found=$(PORT_EMPTY=${empty_blob} perl -e '
 if [[ -n "${found}" ]]; then
   list=$(joined "${found}")
   violation upstream-files "files byte-identical to an upstream file (upstream code is read from the Go root, never copied; lib.sh port_upstream_copies lists the exceptions, each for the bytes of its upstream file): ${list}"
+fi
+# A modified copy of an upstream Go file, which no byte comparison sees: a Go file of REF that
+# shares 10 or more significant lines with one Go file of the pinned trees, and either half or
+# more of its own significant lines or 40 or more of them. A significant line has 24 or more
+# characters after trimming and is no comment, import, package clause or lone string. Hand-written
+# tooling shares only a few such lines with any one upstream file.
+sed -n -E 's/^[0-9]+ blob ([0-9a-f]+)\t(.*\.go)$/\1 \2/p' "${tmp}/tree" > "${tmp}/go-ref"
+found=""
+if [[ -s "${tmp}/go-ref" ]]; then
+  : > "${tmp}/go-up"
+  for pin in "${marker}" "${base_marker}"; do
+    if [[ -n "${pin}" ]] && git --git-dir="${UPSTREAM_GIT}" cat-file -e "${pin}^{commit}" 2> /dev/null; then
+      port_up ls-tree -r --full-tree "${pin}" | sed -n -E 's/^[0-9]+ blob ([0-9a-f]+)\t(.*\.go)$/\1 \2/p' \
+        >> "${tmp}/go-up"
+    fi
+  done
+  cut -d ' ' -f 1 "${tmp}/go-ref" | sort -u | git cat-file --batch > "${tmp}/go-ref.batch"
+  found=$(cut -d ' ' -f 1 "${tmp}/go-up" | sort -u | port_up cat-file --batch | perl -e '
+    use strict;
+    use warnings;
+    my ($up_list, $ref_list, $ref_batch) = @ARGV;
+    # names FILE: blob => the first path of "BLOB PATH" lines that has it.
+    sub names {
+      my ($file) = @_;
+      open(my $fh, "<", $file) or die "$file: $!";
+      my %names;
+      while (my $line = <$fh>) {
+        chomp $line;
+        my ($blob, $path) = split / /, $line, 2;
+        $names{$blob} //= $path;
+      }
+      return \%names;
+    }
+    # next_blob FH: the next blob and its contents in git cat-file --batch output, or ().
+    sub next_blob {
+      my ($fh) = @_;
+      while (my $header = <$fh>) {
+        my ($blob, undef, $size) = split / /, $header;
+        next unless defined $size;
+        read($fh, my $body, $size) == $size or die "short git cat-file --batch output";
+        read($fh, my $newline, 1);
+        return ($blob, $body);
+      }
+      return;
+    }
+    sub significant {
+      my %lines;
+      for my $line (split /\n/, $_[0]) {
+        $line =~ s/\A\s+|\s+\z//g;
+        next if length($line) < 24 || $line =~ m{\A(?://|/\*|\*|import\b|package\b|(?:[\w.]+\s+)?"[^"]*"\z)};
+        $lines{$line} = 1;
+      }
+      return [keys %lines];
+    }
+    my ($up_names, $ref_names) = (names($up_list), names($ref_list));
+    open(my $batch, "<:raw", $ref_batch) or die "$ref_batch: $!";
+    my (%refs_of, %total, %best);
+    while (my ($blob, $body) = next_blob($batch)) {
+      my $lines = significant($body);
+      $total{$blob} = @{$lines};
+      $refs_of{$_}{$blob} = 1 for @{$lines};
+    }
+    binmode STDIN, ":raw";
+    while (my ($blob, $body) = next_blob(\*STDIN)) {
+      my %shared;
+      for my $line (@{ significant($body) }) {
+        $shared{$_}++ for keys %{ $refs_of{$line} || {} };
+      }
+      for my $ref (keys %shared) {
+        my $best = $best{$ref};
+        if (!$best || $shared{$ref} > $best->[0] || ($shared{$ref} == $best->[0] && $blob lt $best->[1])) {
+          $best{$ref} = [$shared{$ref}, $blob];
+        }
+      }
+    }
+    for my $ref (sort { $ref_names->{$a} cmp $ref_names->{$b} } keys %best) {
+      my ($n, $blob) = @{ $best{$ref} };
+      next unless $n >= 10 && (2 * $n >= $total{$ref} || $n >= 40);
+      printf "%s (%d of its %d significant lines are in upstream %s)\n", $ref_names->{$ref}, $n, $total{$ref}, $up_names->{$blob};
+    }
+  ' "${tmp}/go-up" "${tmp}/go-ref" "${tmp}/go-ref.batch")
+fi
+if [[ -n "${found}" ]]; then
+  list=$(joined "${found}")
+  violation upstream-files "Go files that are modified copies of upstream Go files (the tooling modules import upstream packages from the Go root; they never copy upstream code): ${list}"
 fi
 
 # local-state: no committed agent configuration (Claude settings/hooks/MCP, ripgrep config) or

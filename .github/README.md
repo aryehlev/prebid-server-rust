@@ -44,7 +44,11 @@ Go server file:
   tags reach, so an older or removed version of an upstream file counts too), except an empty file
   and the entries of `lib.sh port_upstream_copies`: `LICENSE` (the same Apache 2.0 text) and
   `crates/util/src/httputil/pixel.png` (the 86-byte pixel Go serves). Each entry names its upstream
-  file and covers only the bytes that file has had, not whatever is put at the path.
+  file and covers only the bytes that file has had, not whatever is put at the path;
+- no modified copy of an upstream Go file: no Go file that shares 10 or more significant lines
+  (24 characters or more, not a comment, import or lone string) with one Go file of the pinned
+  upstream trees, and either half of its own significant lines or 40 or more of them. Hand-written
+  tooling shares only a few such lines with any one upstream file.
 
 A Go change belongs upstream; the port picks it up when the pin advances.
 

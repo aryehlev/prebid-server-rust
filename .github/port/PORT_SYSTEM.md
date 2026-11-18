@@ -31,7 +31,8 @@ require), so every test, generator and check already runs against the new Go cod
    never committed: no copied Go file, fixture, YAML or JSON from upstream, no vendored module, no
    symbolic link into `.upstream/`, no submodule or nested repository, no `go.work`. The publish
    job's guard rejects any file that is byte-identical to an upstream file (of the pin, or of any
-   upstream commit), and any Go file outside the Go tooling modules.
+   upstream commit), any Go file that is a modified copy of an upstream Go file (the tooling
+   imports upstream packages instead), and any Go file outside the Go tooling modules.
 4. **Never commit or move refs.** No `git commit`, `merge`, `rebase`, `reset`, `checkout`,
    `switch`, `stash`, `tag`, `push`, `config`, `remote`, `branch`. The workflow commits for you
    with a fixed identity.

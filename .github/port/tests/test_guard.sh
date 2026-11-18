@@ -2,8 +2,9 @@
 # guard.sh: every repository invariant on a fake upstream (read from its mirror) and a fake
 # repository in this repository's layout: no upstream file (top-level paths, Go outside the
 # tooling modules, .upstream, symbolic links, submodules, go.work, vendored code, byte-identical
-# copies, the allowed copies), the pin, the known-failures list, AI attribution (with and without
-# the devtools "Generated with" line), the bot rules and the parity-harness exemption.
+# copies, the allowed copies, modified copies of upstream Go files), the pin, the known-failures
+# list, CI skip markers, AI attribution (with and without the devtools "Generated with" line), the
+# bot rules and the parity-harness exemption.
 set -euo pipefail
 shopt -s inherit_errexit
 # shellcheck source=lib.sh
@@ -344,14 +345,26 @@ check "a port branch that merged main" 0 "guard: ok" --ref "${ref}" --base "${ma
 
 # Upstream changes its LICENSE: the copy the port ships may stay at the older text (a version its
 # upstream file had) or take the new one, while the old text at another path is still a copy.
-# Upstream also adds two fixtures and removes them again, so only its history has them.
+# Upstream also adds two fixtures and removes them again, so only its history has them, and adds
+# a Go file of 45 significant lines.
+# go_lines KEY FROM TO: one significant Go line for each number from FROM to TO.
+go_lines() {
+  local key=${1:?} i
+  for ((i = ${2:?}; i <= ${3:?}; i++)); do
+    printf '\tkeys[prefix+"%s_%02d"] = formatPrice(bid.Price, %d)\n' "${key}" "${i}" "${i}"
+  done
+}
 git -C "${up}" switch -q master
 t_put "${up}" static/tiny.json 'null'
 t_put "${up}" static/old.json '{"an old upstream fixture": true}'
 t_commit "${up}" "Add two fixtures" > /dev/null
 rm -f "${up}/static/tiny.json" "${up}/static/old.json"
 t_put "${up}" LICENSE 'Apache License, Version 2.0 (test copy, reworded)'
-u4=$(t_commit "${up}" "Reword the license; drop the fixtures")
+{
+  printf 'package exchange\n\n// Upstream code that the port reads from the Go root.\n'
+  go_lines hb_upstream 1 45
+} > "${up}/exchange/targeting.go"
+u4=$(t_commit "${up}" "Reword the license; drop the fixtures; add targeting")
 t_sync_upstream "${dir}"
 branch history-tiny
 t_put "${fork}" testdata/null.json 'null'
@@ -372,6 +385,41 @@ git -C "${fork}" show "${main}:LICENSE" > "${fork}/testdata/LICENSE.old"
 ref=$(t_commit "${fork}" "Keep the old license text elsewhere")
 check "an older upstream license at another path" 1 "its upstream file): testdata/LICENSE.old" \
   --ref "${ref}" --base "${main}"
+
+# A modified copy of an upstream Go file, which no byte comparison sees.
+branch near-copy
+t_advance "${fork}" "${u4}"
+sed -e 's/^package exchange$/package main/' -e 's/"hb_upstream_01"/"hb_own_01"/' "${up}/exchange/targeting.go" \
+  > "${fork}/crates/x/testdata/go/targeting.go"
+ref=$(t_commit "${fork}" "Tooling that reworks an upstream file")
+check "a modified copy of an upstream Go file" 1 "Go files that are modified copies of upstream Go files (the tooling modules import upstream packages from the Go root; they never copy upstream code): crates/x/testdata/go/targeting.go (44 of its 45 significant lines are in upstream exchange/targeting.go)" \
+  --ref "${ref}" --base "${main}"
+# near SHARED OWN EXPECTED: a tooling file with SHARED lines of upstream targeting.go and OWN of
+# its own. It is a copy from 10 shared lines when they are half of its lines, and from 40 always.
+near() {
+  local shared=${1:?} own=${2:?} expected=${3:?} needle="guard: ok" total
+  total=$((shared + own))
+  if [[ "${expected}" == 1 ]]; then
+    needle="crates/x/testdata/go/keys.go (${shared} of its ${total} significant lines are in upstream exchange/targeting.go)"
+  fi
+  branch "near-${shared}-${own}"
+  t_advance "${fork}" "${u4}"
+  {
+    printf 'package main\n\n'
+    go_lines hb_upstream 1 "${shared}"
+    if [[ "${own}" -gt 0 ]]; then
+      go_lines hb_own 1 "${own}"
+    fi
+  } > "${fork}/crates/x/testdata/go/keys.go"
+  ref=$(t_commit "${fork}" "Tooling that shares ${shared} lines with upstream")
+  check "${shared} of ${total} significant lines shared with an upstream Go file" "${expected}" "${needle}" \
+    --ref "${ref}" --base "${main}"
+}
+near 9 3 0
+near 10 10 1
+near 10 11 0
+near 39 60 0
+near 40 60 1
 
 # The attribution pattern matches the real upstream messages, which the guard never reads: they
 # stay in the upstream mirror.
