@@ -1029,6 +1029,7 @@ go test -race ./parity/trace/... ./parity/transport/... ./parity/diff/...
 go test -race ./parity/runner/... ./parity/minimize/... ./parity/report/... ./parity/matrix/...
 go test ./config ./router ./server ./exchange
 go test ./usersync ./endpoints ./privacysandbox   # the user sync and topics seams in parity mode
+go test ./...                        # the whole upstream suite with the seams, parity disabled (SELFTEST.md)
 ```
 
 Set `GOWORK=off` when a `go.work` above the repository could reach the

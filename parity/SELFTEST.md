@@ -31,9 +31,15 @@ accept their faithful encoding. The runner never runs them, in A/A or in
 Go-vs-Rust. After `ph/break` was merged there are 14 (see "After merging
 `ph/break`" below).
 
-**Disabled mode.** The full upstream suite with the seams applied, `go test
-./...` at the top of the assembled tree, passes: 387 packages are `ok` and
-none fail. Without `parity.enabled` the
+**Disabled mode.** The full upstream suite passes with the seams applied and
+parity disabled, as it is by default. `go test ./...` at the top of the
+assembled tree, with every connection held to loopback, reports 390 packages
+`ok`, 368 of upstream and 22 of the harness, and one failure:
+`TestInterStageContextCommunication` in `hooks/hookexecution`. That test
+gives its hooks 10 ms, which one of them can overrun under the load of the
+whole suite. No seam touches `hooks/`, the package passes when run again,
+and under the same kind of load the test fails in the unpatched upstream
+checkout too (once in 640 runs, 16 at a time). Without `parity.enabled` the
 seams below do what the original code did. `fakes.MapKeys` returns the keys
 in map order, `parityTurns` returns the context unchanged, and `inCallOrder`
 returns the channel unchanged.
