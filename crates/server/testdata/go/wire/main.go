@@ -116,7 +116,8 @@ func budgetsOf(s *http.Server, gzip bool) budgets {
 // result is a case and what the client read: the header block of the first answer (its Date
 // value replaced by "<date>"), the bytes after it (as text when they are valid UTF-8 and at most
 // 8 KiB, with their length and CRC-32 always), the gunzipped body of a gzip answer, and how the
-// connection ended: "eof", "reset" or "open" (still open when the window passed).
+// connection ended: "eof", "reset", "open" (still open when the window passed) or
+// "client_closed" (the script closed it).
 type result struct {
 	wireCase
 	Head      string `json:"head"`
@@ -162,6 +163,11 @@ func run(addr string, c wireCase) result {
 		// write errors that follow are expected.
 		for _, s := range c.Steps {
 			switch {
+			case s.Close == "rst":
+				conn.(*net.TCPConn).SetLinger(0)
+				conn.Close()
+			case s.Close != "":
+				conn.Close()
 			case s.Text != "":
 				conn.Write([]byte(s.Text))
 			case s.Fill > 0 && s.Chunk > 0:
@@ -181,6 +187,8 @@ func run(addr string, c wireCase) result {
 	var ne net.Error
 	switch {
 	case err == nil:
+	case errors.Is(err, net.ErrClosed):
+		end = "client_closed"
 	case errors.As(err, &ne) && ne.Timeout():
 		end = "open"
 	case errors.Is(err, syscall.ECONNRESET):

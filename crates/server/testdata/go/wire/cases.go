@@ -20,13 +20,16 @@ const headerLimit = 1<<20 + 4096
 const host = "pbs.example"
 
 // step is one thing the client does, in order: write Text, write Fill bytes of 'a' (in writes
-// of Chunk bytes with ChunkPauseMs between them when Chunk is set), or pause PauseMs.
+// of Chunk bytes with ChunkPauseMs between them when Chunk is set), pause PauseMs, or close the
+// connection (Close "fin" closes it, "rst" closes it with SO_LINGER 0, so the server reads a
+// reset) and stop reading.
 type step struct {
 	Text         string `json:"text,omitempty"`
 	Fill         int    `json:"fill,omitempty"`
 	Chunk        int    `json:"chunk,omitempty"`
 	ChunkPauseMs int    `json:"chunk_pause_ms,omitempty"`
 	PauseMs      int    `json:"pause_ms,omitempty"`
+	Close        string `json:"close,omitempty"`
 }
 
 // wireCase is one connection: the server it goes to, what the client sends, and how long the
@@ -39,10 +42,11 @@ type wireCase struct {
 	WindowMs int    `json:"window_ms"`
 }
 
-func text(s string) step      { return step{Text: s} }
-func pause(ms int) step       { return step{PauseMs: ms} }
-func fill(n int) step         { return step{Fill: n} }
-func paced(n, chunk int) step { return step{Fill: n, Chunk: chunk, ChunkPauseMs: 2} }
+func text(s string) step        { return step{Text: s} }
+func pause(ms int) step         { return step{PauseMs: ms} }
+func closeWith(how string) step { return step{Close: how} }
+func fill(n int) step           { return step{Fill: n} }
+func paced(n, chunk int) step   { return step{Fill: n, Chunk: chunk, ChunkPauseMs: 2} }
 
 // get is a GET request for target that closes the connection after its answer.
 func get(target string, headers ...string) string {
@@ -164,6 +168,19 @@ func allCases() []wireCase {
 		wireCase{Group: "timeouts", Name: "slow_handler", Server: "scaled", Steps: []step{text(get(fmt.Sprintf("/sleep?ms=%d", 3*budget)))}, WindowMs: 5 * budget},
 		wireCase{Group: "timeouts", Name: "slow_handler_admin", Server: "admin", Steps: []step{text(get(fmt.Sprintf("/sleep?ms=%d", 3*budget)))}, WindowMs: 5 * budget},
 	)
+
+	// A client that goes away while its request is served: the handler runs on to its end (its
+	// mark is set), and a second connection asks for the mark after it.
+	for _, how := range []string{"fin", "rst"} {
+		cs = append(cs,
+			wireCase{Group: "client_gone", Name: "gone_" + how, Server: "main", Steps: []step{
+				text(get(fmt.Sprintf("/sleep?ms=%d&mark=gone_%s", budget/2, how))), pause(budget / 10), closeWith(how),
+			}, WindowMs: 1000},
+			wireCase{Group: "client_gone", Name: "check_" + how, Server: "main", Steps: []step{
+				pause(budget + budget/2), text(get("/mark?id=gone_" + how)),
+			}, WindowMs: 2000},
+		)
+	}
 
 	for _, accept := range []string{"gzip", ""} {
 		var hs []string

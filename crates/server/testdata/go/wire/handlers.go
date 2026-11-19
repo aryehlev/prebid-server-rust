@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/julienschmidt/httprouter"
@@ -28,8 +29,10 @@ import (
 //	/typed    writes {"a":1} with Content-Type application/json
 //	/echo     reads the body and writes "body=<bytes read>" and " error=timeout" when the read
 //	          hit a deadline (or " error=<text>" for another error)
-//	/sleep    sleeps the query's ms and writes "late"
+//	/sleep    sleeps the query's ms, sets the query's mark (when it has one) and writes "late"
+//	/mark     writes "completed" when a /sleep set the query's id as its mark, else "pending"
 func standIns() http.Handler {
+	var marks sync.Map
 	mux := http.NewServeMux()
 	mux.HandleFunc("/headers", func(w http.ResponseWriter, _ *http.Request) {
 		h := w.Header()
@@ -68,7 +71,17 @@ func standIns() http.Handler {
 	mux.HandleFunc("/sleep", func(w http.ResponseWriter, r *http.Request) {
 		ms, _ := strconv.Atoi(r.URL.Query().Get("ms"))
 		time.Sleep(time.Duration(ms) * time.Millisecond)
+		if mark := r.URL.Query().Get("mark"); mark != "" {
+			marks.Store(mark, true)
+		}
 		io.WriteString(w, "late")
+	})
+	mux.HandleFunc("/mark", func(w http.ResponseWriter, r *http.Request) {
+		if _, ok := marks.Load(r.URL.Query().Get("id")); ok {
+			io.WriteString(w, "completed")
+			return
+		}
+		io.WriteString(w, "pending")
 	})
 	return mux
 }
