@@ -67,7 +67,11 @@ func proxyProbeEnvs() []map[string]string {
 		"", "*", "foo,*,bar", "example.com", ".example.com", "*.example.com", "example.com:8080",
 		"sub.example.com:8080", "EXAMPLE.COM", " example.com , ,foo.bar.org ", "example.com.",
 		"example.com:abc", "10.0.0.0/8", "1.2.3.4:8080,1.2.3.4:443", "[2001:db8::1]:443",
-		"2001:db8::1", "2001:db8::/32,fe80::/10", "::ffff:10.0.0.0/104", "127.0.0.1,localhost",
+		"2001:db8::1", "2001:db8::/32,fe80::/10", "::ffff:10.0.0.0/104",
+		// ParseCIDR masks the address: under a mask shorter than 96 bits the ::ffff: prefix
+		// goes, and the network is an IPv6 one, which IPNet.Contains never matches an IPv4
+		// address against.
+		"::ffff:10.0.0.0/80", "::ffff:10.0.0.0/95", "::ffff:10.0.0.0/96", "127.0.0.1,localhost",
 		"bücher.test", "BÜCHER.TEST", "\u00a0\u0130.test\u00a0", "xn--bcher-kva.test",
 		":8080,[]:80,.,*.", "[fe80::1]", "fe80::1%en0",
 	}
@@ -101,8 +105,8 @@ func proxyProbeURLs() []string {
 		"example.com", "EXAMPLE.COM", "sub.example.com", "example.com.", "notexample.com",
 		"foo.bar.org", "localhost", "LocalHost", "127.0.0.1", "127.9.9.9", "[::1]",
 		"[::1%25lo0]", "[fe80::1%25en0]", "[fe80::1]", "[::ffff:127.0.0.1]", "[::ffff:10.1.2.3]",
-		"10.1.2.3", "1.2.3.4", "[2001:db8::1]", "bücher.test", "xn--bcher-kva.test", "i.test",
-		"a.i.test",
+		"10.1.2.3", "1.2.3.4", "[2001:db8::1]", "[::a:b]", "bücher.test", "xn--bcher-kva.test",
+		"i.test", "a.i.test",
 	}
 	var urls []string
 	for _, h := range hosts {

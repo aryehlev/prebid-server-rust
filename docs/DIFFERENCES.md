@@ -341,7 +341,7 @@ No entry names the classes `other` and `unrecorded` or the kinds `stage_missing`
 - **Harness:** none: a mismatch here is unexpected
 - **Pin:** `crates/http-client/tests/proxy.rs::proxy_env_like_go`
 - **Rule B:** Rule B (c): the operator interface (config keys, defaults, `PBS_` variables, CLI flags, metric names, labels and types)
-- **How Go's behaviour is kept:** pbs-http-client reads the variables once into a `ProxyEnv` and picks each request's proxy with a port of httpproxy's rules behind `Proxy::custom`; over 36 environments and 97 URLs it picks Go's proxy, but for http-client.proxy-exceptions. Loopback is never proxied, which also keeps parity traffic on the machine.
+- **How Go's behaviour is kept:** pbs-http-client reads the variables once into a `ProxyEnv` and picks each request's proxy with a port of httpproxy's rules behind `Proxy::custom`; over 39 environments and 101 URLs it picks Go's proxy, but for http-client.proxy-exceptions. Loopback is never proxied, which also keeps parity traffic on the machine.
 - **Restore pin:** `crates/http-client/tests/proxy.rs::proxy_env_like_go` (requests_reach_the_proxy_like_go shows what a proxy receives: the absolute-form request and the CONNECT with Go's `User-Agent`.)
 - **Recorded in:** `crates/http-client/differences.toml`
 

@@ -358,8 +358,11 @@ fn split_host_port(hostport: &str) -> Option<(&str, &str)> {
     Some((host, port))
 }
 
-/// Go's `net.ParseCIDR`, as `IPNet.Contains` then reads the network: an IPv4-mapped IPv6 network
-/// covers IPv4 addresses under its last 32 bits of mask, and nothing else.
+/// Go's `net.ParseCIDR`, as `IPNet.Contains` then reads the network. `ParseCIDR` masks the
+/// address, so an IPv4-mapped network keeps its `::ffff:` prefix only under a mask of 96 bits or
+/// more, and then covers the IPv4 addresses under its last 32 bits of mask; under a shorter mask
+/// it is an IPv6 network, which covers no IPv4 address (`Contains` compares an IPv4 address's 4
+/// bytes with the network's 16).
 fn parse_cidr(text: &str) -> Option<IpNet> {
     let (addr, prefix) = text.split_once('/')?;
     if prefix.is_empty() || !prefix.bytes().all(|b| b.is_ascii_digit()) {
@@ -370,11 +373,10 @@ fn parse_cidr(text: &str) -> Option<IpNet> {
         IpAddr::V4(ip) => Ipv4Net::new(ip, prefix).ok().map(IpNet::V4),
         IpAddr::V6(ip) => {
             let net = Ipv6Net::new(ip, prefix).ok()?;
-            ip.to_ipv4_mapped().map_or(Some(IpNet::V6(net)), |v4| {
-                Ipv4Net::new(v4, prefix.saturating_sub(96))
-                    .ok()
-                    .map(IpNet::V4)
-            })
+            match (ip.to_ipv4_mapped(), prefix.checked_sub(96)) {
+                (Some(v4), Some(v4_prefix)) => Ipv4Net::new(v4, v4_prefix).ok().map(IpNet::V4),
+                _ => Some(IpNet::V6(net)),
+            }
         }
     }
 }

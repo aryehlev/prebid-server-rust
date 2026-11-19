@@ -157,10 +157,10 @@ mod tests {
         )?;
         // Go proxies `LocalHost` wherever a proxy is set and NO_PROXY does not name it; the
         // url crate has lower-cased it, and the clients never proxy localhost.
-        check_eq(&compared.localhost, &118, "LocalHost picks Go proxies")?;
+        check_eq(&compared.localhost, &130, "LocalHost picks Go proxies")?;
         // Go's String() escapes the path it read `bogus url` as; the clients refuse the value
         // when they send (socks_proxy_refused), and Go's dial fails.
-        check_eq(&compared.bogus, &32, "picks of the bogus value")
+        check_eq(&compared.bogus, &34, "picks of the bogus value")
     }
 
     /// A loopback proxy that reads one request and answers it with `status`, and the head it

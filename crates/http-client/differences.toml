@@ -232,7 +232,7 @@ visible_in = "Where outbound requests go when the operator sets proxy variables"
 pin = "crates/http-client/tests/proxy.rs::proxy_env_like_go"
 restore = """\
     pbs-http-client reads the variables once into a `ProxyEnv` and picks each request's proxy \
-    with a port of httpproxy's rules behind `Proxy::custom`; over 36 environments and 97 URLs it \
+    with a port of httpproxy's rules behind `Proxy::custom`; over 39 environments and 101 URLs it \
     picks Go's proxy, but for http-client.proxy-exceptions. Loopback is never proxied, which \
     also keeps parity traffic on the machine."""
 rule_b = "c"
