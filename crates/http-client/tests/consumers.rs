@@ -25,7 +25,7 @@ mod tests {
         Response, Trace, Transport,
         reqwest::{
             Body, Method, Request, StatusCode, Url, Version,
-            header::{ACCEPT, CONTENT_TYPE, HeaderMap, HeaderName, HeaderValue},
+            header::{ACCEPT, CONTENT_TYPE, HeaderMap, HeaderName, HeaderValue, LOCATION},
         },
     };
     use serde_json::Value;
@@ -995,6 +995,50 @@ mod tests {
                     ),
                 ],
                 "what the client returns for each mock",
+            )
+        })
+    }
+
+    // Go: net/http/client.go:597-755 (Client.do: whatever the RoundTripper, the client follows
+    // its redirect answer, calling it again for the next hop, so the parity transport under it
+    // sees each hop, parity/transport/transport.go:80-88). The client returns a transport's
+    // answer as it is: a Builder's transport follows redirects itself, and another's redirect
+    // comes back unfollowed (http-client.transport-redirects).
+    #[test]
+    fn a_transports_redirect_comes_back() -> TestResult {
+        run(async {
+            let urls = Arc::new(Mutex::new(Vec::new()));
+            let client = scripted({
+                let urls = Arc::clone(&urls);
+                move |request, _| {
+                    urls.lock()
+                        .unwrap_or_else(PoisonError::into_inner)
+                        .push(request.url().to_string());
+                    let mut headers = HeaderMap::new();
+                    drop(headers.insert(
+                        LOCATION,
+                        HeaderValue::from_static("http://bidder.test/next"),
+                    ));
+                    Ok(Response::new(
+                        request.url().clone(),
+                        StatusCode::TEMPORARY_REDIRECT,
+                        headers,
+                        Bytes::new(),
+                    ))
+                }
+            });
+            let status = client
+                .send(request("GET", "http://bidder.test/first")?, None, None)
+                .await?
+                .status();
+            let seen = urls.lock().unwrap_or_else(PoisonError::into_inner).clone();
+            check_eq(
+                &(status, seen),
+                &(
+                    StatusCode::TEMPORARY_REDIRECT,
+                    vec!["http://bidder.test/first".to_owned()],
+                ),
+                "the transport's redirect, unfollowed, from one call (Go: 2 calls)",
             )
         })
     }

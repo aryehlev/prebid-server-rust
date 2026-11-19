@@ -20,7 +20,7 @@ Rule B's cases: (a) input real production traffic sends that the crate would rej
 | Configuration loading | 0 | 0 | 3 |
 | Cookies | 0 | 1 | 0 |
 | Gzip | 0 | 1 | 0 |
-| HTTP client | 0 | 17 | 5 |
+| HTTP client | 0 | 18 | 5 |
 | JSON | 0 | 8 | 3 |
 | Logging | 0 | 1 | 0 |
 | Prometheus metrics | 0 | 1 | 0 |
@@ -31,7 +31,7 @@ Rule B's cases: (a) input real production traffic sends that the crate would rej
 | TLS | 0 | 2 | 1 |
 | URLs | 0 | 1 | 0 |
 | YAML | 0 | 1 | 0 |
-| All | 1 | 36 | 15 |
+| All | 1 | 37 | 15 |
 
 ## Decisions pending
 
@@ -337,6 +337,17 @@ No entry names the classes `other` and `unrecorded` or the kinds `stage_missing`
 - **Harness:** none
 - **Pin:** `crates/http-client/tests/limits.rs::handshake_bounded_by_deadline`
 - **Note:** `expect_continue_timeout_seconds` has no counterpart either: only a request with `Expect: 100-continue` waits for a `100 Continue`, and Prebid sends none.
+- **Recorded in:** `crates/http-client/differences.toml`
+
+#### `http-client.transport-redirects`: Redirects through a caller's transport: Go's Client follows them hop by hop, the client leaves them to the transport
+
+- **Go:** `Client.do` follows a redirect whatever the RoundTripper, calling it again for each hop, so a RoundTripper under the client, as the parity transport is, sees every hop as a call of its own, and an answer it makes with a `Location` is followed (net/http/client.go:597-755).
+- **Rust:** `Client::send` returns the transport's answer as it is. A Builder's transport follows redirects inside reqwest, so a transport wrapped around it sees the chain as one call, and the redirect answer of a transport that does not go to the network comes back unfollowed.
+- **Who notices:** none
+- **Visible in:** The parity harness's outbound calls for a bidder that redirects, and a mocked answer with a redirect; router.go's clients follow redirects as `http-client.redirects` says
+- **Harness:** none
+- **Pin:** `crates/http-client/tests/consumers.rs::a_transports_redirect_comes_back`
+- **Restore option:** `Client::send` follows each redirect, calling its transport again for the next hop under Go's `CheckRedirect` rules, and a Builder's transport follows none itself: the redirect rules move from reqwest's policy into the client.
 - **Recorded in:** `crates/http-client/differences.toml`
 
 ### Go behaviour kept

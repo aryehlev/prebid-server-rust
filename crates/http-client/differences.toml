@@ -421,6 +421,31 @@ id = "http-client.timeout-classification"
 pin = "crates/http-client/tests/errors.rs::deadline_is_timeout"
 
 [[difference]]
+id = "http-client.transport-redirects"
+category = "http-client"
+status = "ledgered"
+title = """\
+    Redirects through a caller's transport: Go's Client follows them hop by hop, the client \
+    leaves them to the transport"""
+go = """\
+    `Client.do` follows a redirect whatever the RoundTripper, calling it again for each hop, so \
+    a RoundTripper under the client, as the parity transport is, sees every hop as a call of \
+    its own, and an answer it makes with a `Location` is followed (net/http/client.go:597-755)."""
+rust = """\
+    `Client::send` returns the transport's answer as it is. A Builder's transport follows \
+    redirects inside reqwest, so a transport wrapped around it sees the chain as one call, and \
+    the redirect answer of a transport that does not go to the network comes back unfollowed."""
+who = ["none"]
+visible_in = """\
+    The parity harness's outbound calls for a bidder that redirects, and a mocked answer with a \
+    redirect; router.go's clients follow redirects as `http-client.redirects` says"""
+pin = "crates/http-client/tests/consumers.rs::a_transports_redirect_comes_back"
+restore = """\
+    `Client::send` follows each redirect, calling its transport again for the next hop under \
+    Go's `CheckRedirect` rules, and a Builder's transport follows none itself: the redirect \
+    rules move from reqwest's policy into the client."""
+
+[[difference]]
 id = "http-client.unreachable-classification"
 category = "http-client"
 status = "restored"

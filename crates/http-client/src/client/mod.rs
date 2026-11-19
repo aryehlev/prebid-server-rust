@@ -110,7 +110,8 @@ impl Builder {
     /// its oracle as the proxy ([`proxy_url`](Self::proxy_url),
     /// parity/transport/transport.go:119-173). It fails as Go's `RoundTrip` does, without the
     /// `url.Error` that the [`Client`] around it adds with the URL of the request it was handed,
-    /// and it follows redirects itself, under the rules Go's Client applies.
+    /// and it follows redirects itself, as Go's Client does (`http-client.redirects`), so a
+    /// transport around it sees a redirect chain as one call (`http-client.transport-redirects`).
     ///
     /// # Errors
     ///
@@ -180,8 +181,9 @@ impl Builder {
 /// scopes with tokio's `task_local!` reaches the transport, as Go's request context values reach
 /// a `RoundTripper` (the bidder the parity transport labels a call with,
 /// parity/trace/context.go:10-21). The client follows no redirect itself: a [`Builder`]'s
-/// transport follows them, under the rules Go's Client applies, and another transport's redirect
-/// answer comes back as it is.
+/// transport follows them inside reqwest (`http-client.redirects`), and another transport's
+/// redirect answer comes back as it is, where Go's Client calls the `RoundTripper` again for the
+/// next hop (`http-client.transport-redirects`).
 pub trait Transport: fmt::Debug + Send + Sync {
     /// Sends `request` and waits for the response head, before `deadline` (none: no bound),
     /// recording its connection events in `trace`.
