@@ -467,6 +467,28 @@ jobs:
       - name: cargo machete
         run: scripts/cargo-machete.sh
 
+  # The differences ledger: every crates/*/differences.toml validates (ids, categories, pins that
+  # name existing tests, harness patterns) and docs/DIFFERENCES.md and docs/differences.json are
+  # what pbs-differences writes from them.
+  differences:
+    name: Differences ledger
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install the toolchain from rust-toolchain.toml
+        run: rustup toolchain install
+      - name: Cache
+        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        with:
+          workspaces: ". -> target"
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+      - name: pbs-differences --check
+        run: cargo run -p pbs-differences --locked -- --check
+
   parity:
     name: Parity harness
     needs: changes
@@ -532,7 +554,7 @@ jobs:
   ci-ok:
     name: ci-ok
     if: always()
-    needs: [changes, guard, rust-fmt, rust-clippy, rust-doc, rust-test, conformance, devtools, go-tooling, lint-policy, lint-config, port-tests, deny, machete, parity]
+    needs: [changes, guard, rust-fmt, rust-clippy, rust-doc, rust-test, conformance, devtools, go-tooling, lint-policy, lint-config, port-tests, deny, machete, differences, parity]
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:

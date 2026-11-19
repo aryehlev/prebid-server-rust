@@ -84,6 +84,11 @@ syn = "3.0.10"
 time = { version = "0.3.55", features = ["formatting", "macros", "parsing"] }
 tokio = { version = "1.54.1", features = ["io-util", "macros", "net", "rt-multi-thread", "signal", "sync", "time"] }
 tokio-rustls = { version = "0.26.6", default-features = false, features = ["aws_lc_rs"] }
+# The differences ledger's fragments (crates/<crate>/differences.toml), which pbs-differences
+# reads. Reading into serde types needs only parse, serde and std; a crate that writes TOML adds
+# display. json-patch does not join: 0.3.0 through 4.1.0 need thiserror 1, on syn 2; 0.2.7,
+# which needs only serde and serde_json, is for DECISIONS to weigh.
+toml = { version = "1.2.1", default-features = false, features = ["parse", "serde", "std"] }
 # 0.6, not 0.7: reqwest 0.13.5's gzip feature depends on tower-http 0.6.
 tower-http = { version = "0.6.11", features = ["compression-gzip", "cors", "limit", "timeout"] }
 # No attributes feature: tracing-attributes is on syn 2.
@@ -114,11 +119,6 @@ url = "2.5.8"
 # # crypto feature and signs through an aws-lc-rs key.
 # rcgen = { version = "0.14.10", default-features = false }
 # semver = "1.0.28"
-# # The differences ledger's fragments (crates/<crate>/differences.toml), which pbs-differences
-# # reads. Reading into serde types needs only parse, serde and std; a crate that writes TOML adds
-# # display. json-patch does not join: 0.3.0 through 4.1.0 need thiserror 1, on syn 2; 0.2.7,
-# # which needs only serde and serde_json, is for DECISIONS to weigh.
-# toml = { version = "1.2.1", default-features = false, features = ["parse", "serde", "std"] }
 # uuid = { version = "1.29.3", features = ["v4"] }
 
 # Lint policy. Every crate opts in with `[lints] workspace = true`.
