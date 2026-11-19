@@ -22,7 +22,7 @@ Rule B's cases: (a) input real production traffic sends that the crate would rej
 | Cookies | 0 | 1 | 0 |
 | Global vendor list | 0 | 1 | 0 |
 | Gzip | 0 | 1 | 0 |
-| HTTP client | 0 | 1 | 1 |
+| HTTP client | 0 | 18 | 5 |
 | JSON | 4 | 32 | 5 |
 | Logging | 0 | 1 | 0 |
 | Prometheus metrics | 0 | 1 | 0 |
@@ -30,9 +30,10 @@ Rule B's cases: (a) input real production traffic sends that the crate would rej
 | Regular expressions | 0 | 0 | 2 |
 | HTTP server | 0 | 2 | 0 |
 | Time formatting | 0 | 0 | 1 |
+| TLS | 0 | 2 | 1 |
 | URLs | 0 | 1 | 0 |
 | YAML | 0 | 1 | 0 |
-| All | 5 | 43 | 13 |
+| All | 5 | 62 | 18 |
 
 ## Decisions pending
 
@@ -47,7 +48,6 @@ Rule B's cases: (a) input real production traffic sends that the crate would rej
 - `config.env-bool-spellings`: brought by CONFIG-LOADER.
 - `config.file-bool-spellings`: brought by CONFIG-LOADER.
 - `config.key-case`: brought by CONFIG-LOADER.
-- `http-client.user-agent`: brought by HTTP-CLIENT.
 - `regex.quote-meta`: brought by UTIL-CRATES.
 - `regex.unicode-classes`: brought by UTIL-CRATES.
 - `time.rfc3339-fraction`: brought by UTIL-CRATES.
@@ -196,6 +196,28 @@ No entry names the classes `other` and `unrecorded` or the kinds `stage_missing`
 
 ### Ledgered
 
+#### `http-client.accept-encoding`: Caller-set Accept-Encoding or Range: Go's Transport leaves the response compressed, reqwest decompresses it
+
+- **Go:** The Transport asks for gzip and decompresses only when the request has neither `Accept-Encoding` nor `Range`; an adapter that sets `Accept-Encoding` itself (gamma.go:136) or sends a `Range` gets the compressed body with `Content-Encoding` and `Content-Length` (net/http/transport.go `persistConn.roundTrip`).
+- **Rust:** reqwest's gzip asks for gzip unless the caller set `Accept-Encoding`, even beside a `Range`, and decompresses every gzip response, so such an adapter gets the decompressed body without `Content-Encoding` or `Content-Length`.
+- **Who notices:** bidder, publisher
+- **Visible in:** Bids of adapters that set Accept-Encoding or Range, when the bidder answers with gzip
+- **Harness:** none
+- **Pin:** `crates/http-client/tests/compression.rs::caller_accept_encoding_body_decompressed`
+- **Restore option:** A second client with gzip off for requests whose adapter set Accept-Encoding (not planned).
+- **Recorded in:** `crates/http-client/differences.toml`
+
+#### `http-client.connection-metrics`: Connection metrics: httptrace hooks in Go, reconstructed events here
+
+- **Go:** bidder.go's httptrace hooks (exchange/bidder.go:732-798) take `GetConn` to `GotConn` as the connection wait with its `Reused` flag, which also moves a bidder's `http_client.throttle` health when the connection was reused, `DNSStart` to `DNSDone` as the DNS time, `TLSHandshakeStart` to `TLSHandshakeDone` as the TLS handshake time and, when `metrics.disabled_metrics.adapter_connections_dial_metrics` is false, `ConnectStart` to `ConnectDone` as the adapter's dial time, a dial that fails counting as a dial error.
+- **Rust:** The clients report `Event::Dns` from their resolver and `Event::GotConn` off the response, its reuse read from the connection's addresses and its wait the wait for the `max_connections_per_host` slot alone, so a new connection's wait leaves out its dial and a request that fails before its response head reports no `GotConn`; there is no dial or TLS handshake event, so no TLS handshake time, dial time or dial error is recorded.
+- **Who notices:** operator
+- **Visible in:** The adapter connection created, reused, wait, dial time and dial error metrics, the DNS and TLS handshake time metrics, and bidder throttling under `http_client.throttle`
+- **Harness:** none
+- **Pin:** `crates/http-client/tests/metrics.rs::events_recorded`
+- **Restore option:** A connector layer that times dials and TLS handshakes, once tower-layer and tower-service are in the crate stack.
+- **Recorded in:** `crates/http-client/differences.toml`
+
 #### `http-client.default-accept`: Default Accept: reqwest sends `Accept: */*`, net/http sends none
 
 - **Go:** `net/http` adds no `Accept`, so the currency and vendor-list GETs and the adapter requests that set none carry no `Accept` (currency/rate_converter.go:53).
@@ -207,7 +229,217 @@ No entry names the classes `other` and `unrecorded` or the kinds `stage_missing`
 - **Restore option:** None in reqwest's API: `ClientBuilder::default_headers` only adds to the defaults and cannot drop one. Accepted under Rule A (orchestrator ruling 9); HTTP-CLIENT may add a crate-level pin.
 - **Recorded in:** `crates/differences/differences.toml`
 
+#### `http-client.default-transport-h2`: Currency and analytics client: Go's DefaultTransport negotiates HTTP/2, the plain client stays on HTTP/1.1
+
+- **Go:** `http.DefaultTransport`, which the currency fetch (main.go:72) and the analytics client (analytics/clients/http.go) use, offers h2 over TLS and, to a server that takes it, sends HTTP/2 with `User-Agent: Go-http-client/2.0`.
+- **Rust:** The plain client speaks HTTP/1.1 to every server and sends `User-Agent: Go-http-client/1.1`; HTTP-H2 gives h2 to the bidder client only.
+- **Who notices:** operator, analytics
+- **Visible in:** Requests of the currency fetch and the analytics modules to servers that offer h2
+- **Harness:** none
+- **Pin:** `crates/http-client/tests/protocol.rs::plain_client_stays_on_http1`
+- **Recorded in:** `crates/http-client/differences.toml`
+
+#### `http-client.empty-body-length`: A POST, PUT or PATCH without a body: Go sends `Content-Length: 0`, hyper sends no length
+
+- **Go:** `Request.write` writes `Content-Length: 0` for a POST, PUT or PATCH whose body is empty (`transferWriter.shouldSendContentLength`), as bidder.go's `bytes.NewBuffer(req.Body)` of an empty body is, and no length for another method without a body.
+- **Rust:** hyper writes no `Content-Length` for a request whose body is empty, whatever its method; the clients drop a caller's `Content-Length` entry, as Go does.
+- **Who notices:** bidder
+- **Visible in:** Requests without a body sent with POST, PUT or PATCH, which a server that requires a length refuses (`411 Length Required`)
+- **Harness:** none
+- **Pin:** `crates/http-client/tests/headers.rs::empty_body_unframed`
+- **Restore option:** Set `Content-Length: 0` in the clients' pass over the caller's headers for those methods when the body is empty, which hyper then writes (not planned: no Rule B case).
+- **Recorded in:** `crates/http-client/differences.toml`
+
+#### `http-client.error-texts`: Error texts: Go's `*url.Error` texts, reqwest's error chains
+
+- **Go:** A request that fails reads `Post "http://127.0.0.1:PORT/e": EOF` when the server closes the connection, `Post "http://127.0.0.1:PORT/e": dial tcp 127.0.0.1:PORT: connect: connection refused` when nothing listens, and `Get "https://bidder.test/p?q=1": Forbidden` when a proxy refuses the CONNECT, in bidder errors and debug output. The URL is the request's as `URL.String` writes it back, `http://127.0.0.1:PORT?x=1` for one without a path, or the hop that failed after a redirect (net/http/client.go `Client.do`).
+- **Rust:** The same `<Method> "<url>"` shape, then reqwest's chain: `error sending request: client error (SendRequest): connection closed before message completed`, `error sending request: client error (Connect): tcp connect error: Connection refused (os error 111)` on Linux, and `error sending request: client error (Connect): tunnel error: unsuccessful`. The URL is the url crate's serialisation, which writes a URL without a path with `/` (`http://127.0.0.1:PORT/?x=1`), and a hop that fails after a redirect goes by the first request's URL, the only one reqwest's error keeps. A deadline stays `context deadline exceeded`, which bidder.go:616-620 reports.
+- **Who notices:** publisher, operator
+- **Visible in:** Bidder error messages in the response's `ext` with debug on, and the logs
+- **Harness:** none
+- **Pin:** `crates/http-client/tests/errors.rs::texts_differ_kind_same`
+- **Recorded in:** `crates/http-client/differences.toml`
+
+#### `http-client.gzip-edges`: Gzip responses at the edges: upper case, empty bodies and corrupt streams
+
+- **Go:** The Transport decompresses a `Content-Encoding` of `gzip` in any case (`GZIP`), keeps `Content-Encoding` and `Content-Length` on a gzip response without a body (a 204, or `Content-Length: 0`), and reads a gzip body too short for its header as `unexpected EOF`.
+- **Rust:** reqwest decompresses a lower-case `gzip` only, so a `GZIP` body reaches the adapter compressed; it drops `Content-Encoding` and `Content-Length` of the empty responses; and a corrupt body reads as `error decoding response body: Invalid gzip header`.
+- **Who notices:** bidder
+- **Visible in:** Bidder responses with an upper-case gzip Content-Encoding, an empty gzip body or a corrupt one
+- **Harness:** none
+- **Pin:** `crates/http-client/tests/compression.rs::gzip_edges_differ`
+- **Recorded in:** `crates/http-client/differences.toml`
+
+#### `http-client.header-case`: Header names: Go writes them canonicalised, hyper in lower case
+
+- **Go:** `Header.Set` canonicalises names (`Content-Type`), and `Request.write` writes each name as the map holds it.
+- **Rust:** hyper writes every name as the `HeaderMap` holds it, in lower case, on HTTP/1.1 and HTTP/2.
+- **Who notices:** bidder
+- **Visible in:** The header names of every outbound request
+- **Harness:** wire `header_case` at `$[*].request.headers.**`
+- **Pin:** `crates/http-client/tests/headers.rs::lower_case_names`
+- **Decision:** D-HDRCASE
+- **Restore option:** reqwest's `http1_title_case_headers`, one builder line (not planned).
+- **Recorded in:** `crates/http-client/differences.toml`
+
+#### `http-client.header-order`: Header order: Go sorts the headers, hyper keeps the order they were set in
+
+- **Go:** `Request.write` writes `Host`, `User-Agent` and `Content-Length` first, then the other headers sorted by name, then the Transport's `Accept-Encoding`.
+- **Rust:** hyper writes the caller's headers in the order they were set, then `User-Agent`, `Accept` and `Accept-Encoding`, then `Host` and `Content-Length`.
+- **Who notices:** bidder
+- **Visible in:** The header order of every outbound request
+- **Harness:** wire `header_order` at `$[*].request.headers`
+- **Pin:** `crates/http-client/tests/headers.rs::wire_order`
+- **Recorded in:** `crates/http-client/differences.toml`
+
+#### `http-client.header-value-space`: Header values: Go trims the white space around each one, hyper writes them as set
+
+- **Go:** `Request.write` writes every header value without the spaces and tabs around it (`Header.writeSubset`, `textproto.TrimString`), so a value of `  padded value  ` goes out as `padded value` and one of spaces as an empty value.
+- **Rust:** hyper writes each value as the `HeaderMap` holds it, spaces and tabs included; the clients trim `User-Agent` alone (http-client.user-agent).
+- **Who notices:** bidder
+- **Visible in:** The header values of bidder requests whose adapter copies a publisher value with white space around it (a page URL, a user agent, an IP) into a header other than User-Agent
+- **Harness:** none
+- **Pin:** `crates/http-client/tests/headers.rs::values_untrimmed`
+- **Restore option:** Trim every value in the clients' pass over the caller's headers, as `User-Agent`'s is (not planned: no Rule B case).
+- **Recorded in:** `crates/http-client/differences.toml`
+
+#### `http-client.host-header`: Host line: Go writes the URL's host as written, hyper the url crate's normal form
+
+- **Go:** `Request.write` writes the URL's host as written, port included (`Bidder.Example.COM:80`), and never a `Host` entry of the header map; bidder-info endpoints such as logan's `http://USeast2.logan.ai/pserver` have upper-case letters in their host.
+- **Rust:** The url crate lower-cases the host and drops the scheme's default port (url.host-normalization), so hyper writes `bidder.example.com`.
+- **Who notices:** bidder
+- **Visible in:** The Host header of requests to endpoints whose host has upper-case letters or names its scheme's port
+- **Harness:** none
+- **Pin:** `crates/http-client/tests/headers.rs::host_normalised`
+- **Recorded in:** `crates/http-client/differences.toml`
+
+#### `http-client.max-idle-global`: max_idle_connections: Go caps idle connections across hosts, reqwest per host only
+
+- **Go:** `MaxIdleConns` caps the idle connections of all hosts together and closes the oldest when another goes idle past the cap.
+- **Rust:** reqwest caps idle connections per host only, so with `max_idle_connections: 1` a client keeps an idle connection to each host and reuses it.
+- **Who notices:** operator
+- **Visible in:** Open connections and new dials of clients that reach many hosts
+- **Harness:** none
+- **Pin:** `crates/http-client/tests/limits.rs::no_global_idle_cap`
+- **Recorded in:** `crates/http-client/differences.toml`
+
+#### `http-client.proxy-exceptions`: Proxy picks that still differ: `LocalHost`, IPv6 zones and proxy values without a URL's host
+
+- **Go:** httpproxy compares the host with `localhost` before it lower-cases it, so it proxies `http://LocalHost/`; `url.Parse` reads an IPv6 zone in a request's URL (`http://[fe80::1%25en0]/`) or a proxy's; a proxy value such as `bogus url` is used as the URL `bogus%20url`, whose dial fails; and the Transport dials a proxy whose host `url.Parse` reads as empty on the local machine (net/http/transport.go `canonicalAddr`): `:3128`, read as `http://:3128`, at port 3128, and `//proxy.test:8080`, `/proxy` or `http:proxy.test` at port 80.
+- **Rust:** The url crate lower-cases the host, and the clients never proxy localhost in any case; it parses no IPv6 zone, so such a URL makes no request and such a proxy is refused; the clients refuse a proxy value the url crate reads as no http or https URL with a host (`bogus url`, `http://:3128`); and the url crate takes the host of `http:////proxy.test:8080`, `http:///proxy` and `http:proxy.test` from what follows the scheme, so the clients dial `proxy.test:8080`, `proxy:80` and `proxy.test:80`.
+- **Who notices:** operator
+- **Visible in:** Requests to `LocalHost` or a zoned IPv6 address under a proxy environment, and proxy variables that hold no URL, a zoned IPv6 proxy or a URL whose host Go reads as empty
+- **Harness:** none
+- **Pin:** `crates/http-client/tests/proxy.rs::proxy_exceptions_differ`
+- **Recorded in:** `crates/http-client/differences.toml`
+
+#### `http-client.redirects`: Redirects: Go's default CheckRedirect and reqwest's policy differ on methods, headers and the error
+
+- **Go:** At most 10 redirects; 301 and 302 turn every method but GET and HEAD into a GET without a body, as 303 does, and 307 and 308 resend both; the content headers go with the body; `Authorization` and `Cookie` reach the first request's host and its subdomains on any port; a caller's `Referer` is kept; and the 11th redirect fails with `Get "/r/10": stopped after 10 redirects`, the Location as the server wrote it (net/http/client.go).
+- **Rust:** The same limit and 303, 307 and 308 rules, but a PUT keeps its method and body on a 301 or 302, a GET keeps its content headers, the sensitive headers are dropped on any change of host, port or scheme from the previous hop (a subdomain or another port included), the previous URL replaces the caller's `Referer`, and the error names the absolute URL.
+- **Who notices:** bidder, operator
+- **Visible in:** Bidder requests whose endpoint answers with a redirect
+- **Harness:** none
+- **Pin:** `crates/http-client/tests/redirects.rs::matrix_like_go`
+- **Recorded in:** `crates/http-client/differences.toml`
+
+#### `http-client.request-target`: Request-target: Go writes `url.Parse` then `RequestURI`, reqwest the url crate's WHATWG serialisation
+
+- **Go:** Go sends the path re-escaped only where it is no valid encoding (`|`, `^` and a backslash escaped, dot segments kept) and the query as written, so a space, quote, apostrophe, `<`, `>` or non-ASCII byte in it goes out raw; it refuses a URL with a control character or a malformed escape in the path.
+- **Rust:** The url crate escapes those query bytes, resolves dot segments, reads a backslash as a slash, keeps `|` and `^`, drops tabs and newlines and keeps a malformed escape. Over the 409 adapter fixture URIs and the 393 rendered bidder-info endpoints every target is Go's.
+- **Who notices:** bidder
+- **Visible in:** The request line of bidder requests whose URL holds such bytes, which adapters that write publisher values into their URL unescaped can send
+- **Harness:** none
+- **Pin:** `crates/http-client/tests/target.rs::fixture_targets_differ`
+- **Restore option:** Build the request's Url from Go's escaped target (not planned: the 2026-11-19 ruling accepts the crate).
+- **Recorded in:** `crates/http-client/differences.toml`
+
+#### `http-client.socks-proxy`: SOCKS proxies: Go's Transport dials them, the clients refuse them
+
+- **Go:** A `socks5://` or `socks5h://` value of `HTTP_PROXY` or `HTTPS_PROXY` sends requests through that SOCKS5 proxy (net/http/transport.go `Transport.dialConn`).
+- **Rust:** The clients refuse such a request with `HTTP_PROXY names a "socks5" proxy, and only http and https proxies are supported`, the value left out as it may hold credentials; reqwest's socks feature is not in the crate stack.
+- **Who notices:** operator
+- **Visible in:** Every outbound request when the proxy variables name a SOCKS proxy
+- **Harness:** none
+- **Pin:** `crates/http-client/tests/proxy.rs::socks_proxy_refused`
+- **Restore option:** reqwest's socks feature (tokio-socks) through STACK, with the proxy rules handing it the socks URLs (not planned).
+- **Recorded in:** `crates/http-client/differences.toml`
+
+#### `http-client.timeouts-other`: TLS handshake timeout: Go's Transport has one, reqwest has none
+
+- **Go:** `TLSHandshakeTimeout` (`tls_handshake_timeout_seconds`, 10 s by default for each of router.go's clients, router/router.go:155) ends a stalled handshake with `Get "https://...": net/http: TLS handshake timeout`, which bidder.go does not count as a timeout.
+- **Rust:** reqwest has no handshake timeout: `dialer.timeout_seconds` (30 s by default), which reqwest applies to the dial and the handshake together, and the request's deadline bound it, so under a deadline longer than the handshake timeout a stalled handshake ends as `context deadline exceeded`, a timeout. A shorter deadline ends it so in both.
+- **Who notices:** operator
+- **Visible in:** Requests to a server that stalls the TLS handshake under a deadline longer than the handshake timeout: their errors and the timeout metrics
+- **Harness:** none
+- **Pin:** `crates/http-client/tests/limits.rs::handshake_bounded_by_deadline`
+- **Note:** `expect_continue_timeout_seconds` has no counterpart either: only a request with `Expect: 100-continue` waits for a `100 Continue`, and Prebid sends none.
+- **Recorded in:** `crates/http-client/differences.toml`
+
+#### `http-client.transport-redirects`: Redirects through a caller's transport: Go's Client follows them hop by hop, the client leaves them to the transport
+
+- **Go:** `Client.do` follows a redirect whatever the RoundTripper, calling it again for each hop, so a RoundTripper under the client, as the parity transport is, sees every hop as a call of its own, and an answer it makes with a `Location` is followed (net/http/client.go:597-755).
+- **Rust:** `Client::send` returns the transport's answer as it is. A Builder's transport follows redirects inside reqwest, so a transport wrapped around it sees the chain as one call, and the redirect answer of a transport that does not go to the network comes back unfollowed.
+- **Who notices:** none
+- **Visible in:** The parity harness's outbound calls for a bidder that redirects, and a mocked answer with a redirect; router.go's clients follow redirects as `http-client.redirects` says
+- **Harness:** none
+- **Pin:** `crates/http-client/tests/consumers.rs::a_transports_redirect_comes_back`
+- **Restore option:** `Client::send` follows each redirect, calling its transport again for the next hop under Go's `CheckRedirect` rules, and a Builder's transport follows none itself: the redirect rules move from reqwest's policy into the client.
+- **Recorded in:** `crates/http-client/differences.toml`
+
 ### Go behaviour kept
+
+#### `http-client.max-conns-per-host`: max_connections_per_host: Go's Transport waits at the limit, reqwest has no limit
+
+- **Go:** `MaxConnsPerHost` lets a host have that many connections, and a request that needs one more waits until one is free.
+- **Rust:** reqwest has no per-host connection limit.
+- **Who notices:** bidder, operator
+- **Visible in:** Bidder request latency and connection counts under `max_connections_per_host`
+- **Harness:** none: a mismatch here is unexpected
+- **Pin:** `crates/http-client/tests/limits.rs::per_host_limit_waits`
+- **Rule B:** Rule B (c): the operator interface (config keys, defaults, `PBS_` variables, CLI flags, metric names, labels and types)
+- **How Go's behaviour is kept:** pbs-http-client keeps a semaphore per connect key (proxy, scheme and address, as Go keys its connections) whose slot a request holds from its send until its body is read: with a limit of 1, three concurrent requests run one after the other on one connection, as Go's do. The slots count requests in flight where Go counts connections, which over HTTP/1.1 carry one request at a time.
+- **Restore pin:** `crates/http-client/tests/limits.rs::per_host_limit_waits`
+- **Recorded in:** `crates/http-client/differences.toml`
+
+#### `http-client.proxy`: Proxy environment: Go's ProxyFromEnvironment rules, reqwest's own
+
+- **Go:** `http.ProxyFromEnvironment` (golang.org/x/net/http/httpproxy) reads `HTTP_PROXY` and `HTTPS_PROXY`, the upper-case names first, excepts the hosts, domains, IPs and CIDRs of `NO_PROXY`, never proxies `localhost` or a loopback address, does not read `ALL_PROXY`, and refuses `HTTP_PROXY` under `REQUEST_METHOD`.
+- **Rust:** reqwest's system proxies read `ALL_PROXY` too, match `NO_PROXY` by their own rules and proxy loopback addresses that `NO_PROXY` does not name.
+- **Who notices:** operator
+- **Visible in:** Where outbound requests go when the operator sets proxy variables
+- **Harness:** none: a mismatch here is unexpected
+- **Pin:** `crates/http-client/tests/proxy.rs::proxy_env_like_go`
+- **Rule B:** Rule B (c): the operator interface (config keys, defaults, `PBS_` variables, CLI flags, metric names, labels and types)
+- **How Go's behaviour is kept:** pbs-http-client reads the variables once into a `ProxyEnv` and picks each request's proxy with a port of httpproxy's rules behind `Proxy::custom`; over 39 environments and 101 URLs it picks Go's proxy, but for http-client.proxy-exceptions. Loopback is never proxied, which also keeps parity traffic on the machine.
+- **Restore pin:** `crates/http-client/tests/proxy.rs::proxy_env_like_go` (requests_reach_the_proxy_like_go shows what a proxy receives: the absolute-form request and the CONNECT with Go's `User-Agent`.)
+- **Recorded in:** `crates/http-client/differences.toml`
+
+#### `http-client.timeout-classification`: Deadline errors: Go's are `context.DeadlineExceeded`, reqwest's are its own
+
+- **Go:** A request that runs past its context deadline fails with `context deadline exceeded` (ctxhttp returns `ctx.Err()`), which bidder.go reports as `errortypes.Timeout` and counts in the timeout metrics (exchange/bidder.go:616-620). A caller that calls `client.Do` itself gets `Post "<url>": context deadline exceeded`, and a client with a `Timeout` that ends first adds ` (Client.Timeout exceeded while awaiting headers)`, or ` (Client.Timeout or context cancellation while reading body)` to a body error (net/http/client.go).
+- **Rust:** reqwest's own timeout fails with `operation timed out` inside its error chain, and the caller tells it apart with `reqwest::Error::is_timeout`.
+- **Who notices:** publisher, operator
+- **Visible in:** Bidder timeout errors in responses, and the timeout metrics
+- **Harness:** none: a mismatch here is unexpected
+- **Pin:** `crates/http-client/tests/errors.rs::deadline_is_timeout`
+- **Rule B:** Rule B (c): the operator interface (config keys, defaults, `PBS_` variables, CLI flags, metric names, labels and types)
+- **How Go's behaviour is kept:** pbs-http-client sends each request and reads its body under the deadline, and ends one past it with `ErrorKind::DeadlineExceeded`, which reads `context deadline exceeded` and whose `is_timeout` is bidder.go's test; Prebid's error codes and timeout metrics follow it for a send error, and a body error stays unclassified, as bidder.go returns it. `RequestError::do_text` keeps `client.Do`'s text for the callers that call it (the floors fetcher, the currency fetch, scope3), and `Client::with_timeout` is Go's `Client.Timeout`, failing with `ErrorKind::ClientTimeout` and Go's texts.
+- **Restore pin:** `crates/http-client/tests/errors.rs::deadline_is_timeout`
+- **Recorded in:** `crates/http-client/differences.toml`
+
+#### `http-client.unreachable-classification`: Unreachable bidders: Go's errors hold `ECONNREFUSED` and `*net.DNSError`, reqwest's say only that the connect failed
+
+- **Go:** bidder.go reports a failed request as seat non-bid code 103, an unreachable bidder, when `errors.Is(err, syscall.ECONNREFUSED)` holds or `errors.As` finds a `*net.DNSError` whose `IsNotFound` holds, as Go's resolvers set it for a name that does not exist or has no address, and as 100 otherwise (exchange/non_bid_reason.go:41-57, net/cgo_unix.go:189-190).
+- **Rust:** reqwest's errors say only that the connect failed, and std turns getaddrinfo's code into `gai_strerror`'s text, so neither cause can be read off them: every such request would be 100.
+- **Who notices:** publisher, analytics
+- **Visible in:** `ext.seatnonbid` status codes, 103 against 100, for bidder requests refused at the connect or sent to a host name that does not exist
+- **Harness:** none: a mismatch here is unexpected
+- **Pin:** `crates/http-client/tests/errors.rs::unreachable_like_go`
+- **Rule B:** Rule B (d): Prebid-authored texts and bytes
+- **How Go's behaviour is kept:** pbs-http-client keeps each error's causes behind `Error::source`: `RequestError::is_connection_refused` finds the refused dial's I/O error, and the clients' resolver fails with a `DnsError`, not found for the texts glibc and macOS give `EAI_NONAME` and `EAI_NODATA` and musl gives `EAI_NONAME`, an empty answer and a `.invalid` name, which `RequestError::is_dns_not_found` finds; a transport of the caller's makes either cause itself.
+- **Restore pin:** `crates/http-client/tests/errors.rs::unreachable_like_go`
+- **Recorded in:** `crates/http-client/differences.toml`
 
 #### `http-client.user-agent`: Default User-Agent: net/http sends `Go-http-client/1.1`, reqwest sends none
 
@@ -219,7 +451,7 @@ No entry names the classes `other` and `unrecorded` or the kinds `stage_missing`
 - **Pin:** `crates/differences/tests/http_client.rs::go_difference_no_default_user_agent`
 - **Decision:** D-UA
 - **How Go's behaviour is kept:** HTTP-CLIENT sets `Go-http-client/1.1` when the caller set none, one line of client config (D-UA, orchestrator ruling 5), and HTTP-H2 keeps it on HTTP/2.
-- **Restore pin:** pending, brought by HTTP-CLIENT
+- **Restore pin:** `crates/http-client/tests/headers.rs::default_user_agent_is_go` (The general client writes Go's `User-Agent` line for every case of headers.json: `Go-http-client/1.1` when the caller set none, the first of two values, and none for an empty one.)
 - **Recorded in:** `crates/differences/differences.toml`
 
 ## JSON
@@ -840,6 +1072,48 @@ No entry names the classes `other` and `unrecorded` or the kinds `stage_missing`
 - **How Go's behaviour is kept:** UTIL-CRATES: format descriptions for the RFC3339 and RFC3339Nano layouts Prebid's code picks. This is Prebid's formatting choice ported in place, as ruling 4 does for floats; the uids cookie's times are Rule B (b).
 - **Restore pin:** pending, brought by UTIL-CRATES
 - **Recorded in:** `crates/differences/differences.toml`
+
+## TLS
+
+### Ledgered
+
+#### `tls.acceptance`: Certificate verification: crypto/x509 and webpki verify different chains
+
+- **Go:** crypto/x509, through crypto/tls, verifies 81 of the 192 adversarial chains of x509_adversarial.json, among them leaves with a critical certificate-policies or inhibit-anyPolicy extension, URI, email and directory-name constraints, an empty EKU, 1024-bit RSA, RSA-PSS parameters in other encodings and paths deeper than webpki's limit.
+- **Rust:** webpki, rustls-platform-verifier's verifier on Linux, refuses 32 of those, and verifies 36 that Go refuses: policy constraints and mappings Go enforces, key and constraint encodings Go rejects even in certificates it does not use, X25519 and unknown leaf keys, validity bounds within the second its clock truncates, and paths through other cross-signed certificates. A bidder with such a chain stops receiving requests, or starts.
+- **Who notices:** bidder, operator
+- **Visible in:** Bidder requests to endpoints whose certificate chain is like one of those cases
+- **Harness:** none
+- **Pin:** `crates/http-client/tests/tls.rs::x509_goldens`
+- **Decision:** D-TLS
+- **Note:** The pin runs webpki, the verifier rustls-platform-verifier uses on Linux, where the server runs; macOS and Windows verify with the platform's own.
+- **Recorded in:** `crates/http-client/differences.toml`
+
+#### `tls.client-hello`: ClientHello: crypto/tls and rustls offer different suites, groups, schemes and ALPN
+
+- **Go:** router.go's Transports send no ALPN (they set DialContext, so they offer no h2) and offer, beside the AEAD suites, ECDHE with AES-CBC-SHA on TLS 1.2 (`TLS_ECDHE_{ECDSA,RSA}_WITH_AES_{128,256}_CBC_SHA`) and the P-521 group, so a TLS 1.2 server that takes only those completes the handshake.
+- **Rust:** rustls on aws-lc-rs sends ALPN `http/1.1`, offers no CBC suite and no P-521, and adds the renegotiation SCSV and the ML-DSA signature schemes, so a server that takes only a CBC suite or P-521 fails the handshake.
+- **Who notices:** bidder, operator
+- **Visible in:** Requests to bidders, Prebid Cache or a floors endpoint whose TLS server takes only TLS 1.2 CBC suites or P-521, and the TLS fingerprints (JA3, JA4) a server records
+- **Harness:** none
+- **Pin:** `crates/http-client/tests/tls.rs::client_hello_differs`
+- **Restore option:** Not restorable on rustls, which implements no CBC suite; ALPN could be left out with a rustls config of the clients' own (not planned: no Rule B case).
+- **Recorded in:** `crates/http-client/differences.toml`
+
+### Go behaviour kept
+
+#### `tls.certificates-file`: certificates_file: Go appends the file's PEM certificates to the system roots
+
+- **Go:** router.go reads `certificates_file` with `os.ReadFile` and adds each `CERTIFICATE` block without headers that `pem.Decode` finds and `x509.ParseCertificate` reads to the general client's system roots (router/router.go:131-141, server/ssl/ssl.go), and logs `Could not read certificates file: ...` when it cannot read the file.
+- **Rust:** reqwest takes extra roots as `Certificate` values, and its PEM bundle reader follows rustls-pki-types' PEM rules rather than Go's `pem.Decode`.
+- **Who notices:** operator
+- **Visible in:** Which bidder endpoints a `certificates_file` makes trusted
+- **Harness:** none: a mismatch here is unexpected
+- **Pin:** `crates/http-client/tests/tls.rs::certificates_file_like_go`
+- **Rule B:** Rule B (c): the operator interface (config keys, defaults, `PBS_` variables, CLI flags, metric names, labels and types)
+- **How Go's behaviour is kept:** pbs-http-client ports Go 1.26's `pem.Decode` and `AppendCertsFromPEM` (`Roots::from_pem`), rustls' trust-anchor parse standing for `x509.ParseCertificate`, and merges the roots into the platform verifier: `certificates_file` is an operator key.
+- **Restore pin:** `crates/http-client/tests/tls.rs::certificates_file_like_go`
+- **Recorded in:** `crates/http-client/differences.toml`
 
 ## URLs
 

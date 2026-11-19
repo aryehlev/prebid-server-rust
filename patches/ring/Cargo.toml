@@ -7,7 +7,7 @@
 [package]
 name = "ring"
 version = "0.17.14"
-description = "Never-built stand-in for ring: pbs-gohttp-client uses aws-lc-rs"
+description = "Never-built stand-in for ring: the workspace's rustls uses aws-lc-rs"
 edition.workspace = true
 rust-version.workspace = true
 license = "Apache-2.0 AND ISC"

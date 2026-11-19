@@ -1,0 +1,361 @@
+{
+  "header": {
+    "go_version": "go1.26.2",
+    "goarch": "amd64",
+    "upstream": "v4.11.2-0.20261112141353-4e296450de2f",
+    "modules": {},
+    "generator": "crates/http-client/testdata/go"
+  },
+  "cases": [
+    {
+      "name": "get_bare",
+      "method": "GET",
+      "url": "http://127.0.0.1:PORT/p?q=1",
+      "headers": null,
+      "head": [
+        "GET /p?q=1 HTTP/1.1",
+        "Host: 127.0.0.1:PORT",
+        "User-Agent: Go-http-client/1.1",
+        "Accept-Encoding: gzip"
+      ]
+    },
+    {
+      "name": "post_json",
+      "method": "POST",
+      "url": "http://127.0.0.1:PORT/p?q=1",
+      "body": "{\"id\":\"r\"}",
+      "headers": [
+        {
+          "op": "set",
+          "name": "Content-Type",
+          "value": "application/json;charset=utf-8"
+        },
+        {
+          "op": "set",
+          "name": "Accept",
+          "value": "application/json"
+        }
+      ],
+      "head": [
+        "POST /p?q=1 HTTP/1.1",
+        "Host: 127.0.0.1:PORT",
+        "User-Agent: Go-http-client/1.1",
+        "Content-Length: 10",
+        "Accept: application/json",
+        "Content-Type: application/json;charset=utf-8",
+        "Accept-Encoding: gzip"
+      ]
+    },
+    {
+      "name": "caller_user_agent",
+      "method": "GET",
+      "url": "http://127.0.0.1:PORT/p?q=1",
+      "headers": [
+        {
+          "op": "set",
+          "name": "User-Agent",
+          "value": "Mozilla/5.0 (pbs test)"
+        }
+      ],
+      "head": [
+        "GET /p?q=1 HTTP/1.1",
+        "Host: 127.0.0.1:PORT",
+        "User-Agent: Mozilla/5.0 (pbs test)",
+        "Accept-Encoding: gzip"
+      ]
+    },
+    {
+      "name": "empty_user_agent",
+      "method": "GET",
+      "url": "http://127.0.0.1:PORT/p?q=1",
+      "headers": [
+        {
+          "op": "set",
+          "name": "User-Agent",
+          "value": ""
+        }
+      ],
+      "head": [
+        "GET /p?q=1 HTTP/1.1",
+        "Host: 127.0.0.1:PORT",
+        "Accept-Encoding: gzip"
+      ]
+    },
+    {
+      "name": "two_user_agents",
+      "method": "GET",
+      "url": "http://127.0.0.1:PORT/p?q=1",
+      "headers": [
+        {
+          "op": "add",
+          "name": "User-Agent",
+          "value": "first"
+        },
+        {
+          "op": "add",
+          "name": "User-Agent",
+          "value": "second"
+        }
+      ],
+      "head": [
+        "GET /p?q=1 HTTP/1.1",
+        "Host: 127.0.0.1:PORT",
+        "User-Agent: first",
+        "Accept-Encoding: gzip"
+      ]
+    },
+    {
+      "name": "header_case",
+      "method": "POST",
+      "url": "http://127.0.0.1:PORT/p?q=1",
+      "body": "{\"id\":\"r\"}",
+      "headers": [
+        {
+          "op": "add",
+          "name": "x-openrtb-version",
+          "value": "2.5"
+        },
+        {
+          "op": "set",
+          "name": "dnt",
+          "value": "1"
+        },
+        {
+          "op": "raw",
+          "name": "x-raw-lower",
+          "value": "1"
+        },
+        {
+          "op": "raw",
+          "name": "X-RAW-UPPER",
+          "value": "2"
+        },
+        {
+          "op": "add",
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "head": [
+        "POST /p?q=1 HTTP/1.1",
+        "Host: 127.0.0.1:PORT",
+        "User-Agent: Go-http-client/1.1",
+        "Content-Length: 10",
+        "Content-Type: application/json",
+        "Dnt: 1",
+        "X-Openrtb-Version: 2.5",
+        "X-RAW-UPPER: 2",
+        "x-raw-lower: 1",
+        "Accept-Encoding: gzip"
+      ]
+    },
+    {
+      "name": "header_order",
+      "method": "POST",
+      "url": "http://127.0.0.1:PORT/p?q=1",
+      "body": "{\"id\":\"r\"}",
+      "headers": [
+        {
+          "op": "add",
+          "name": "Zeta",
+          "value": "z"
+        },
+        {
+          "op": "add",
+          "name": "X-Forwarded-For",
+          "value": "203.0.113.7"
+        },
+        {
+          "op": "add",
+          "name": "Accept-Language",
+          "value": "en"
+        },
+        {
+          "op": "add",
+          "name": "Content-Type",
+          "value": "application/json"
+        },
+        {
+          "op": "add",
+          "name": "Alpha",
+          "value": "a"
+        }
+      ],
+      "head": [
+        "POST /p?q=1 HTTP/1.1",
+        "Host: 127.0.0.1:PORT",
+        "User-Agent: Go-http-client/1.1",
+        "Content-Length: 10",
+        "Accept-Language: en",
+        "Alpha: a",
+        "Content-Type: application/json",
+        "X-Forwarded-For: 203.0.113.7",
+        "Zeta: z",
+        "Accept-Encoding: gzip"
+      ]
+    },
+    {
+      "name": "multi_value",
+      "method": "GET",
+      "url": "http://127.0.0.1:PORT/p?q=1",
+      "headers": [
+        {
+          "op": "add",
+          "name": "X-Multi",
+          "value": "a"
+        },
+        {
+          "op": "add",
+          "name": "X-Multi",
+          "value": "b"
+        }
+      ],
+      "head": [
+        "GET /p?q=1 HTTP/1.1",
+        "Host: 127.0.0.1:PORT",
+        "User-Agent: Go-http-client/1.1",
+        "X-Multi: a",
+        "X-Multi: b",
+        "Accept-Encoding: gzip"
+      ]
+    },
+    {
+      "name": "value_whitespace",
+      "method": "GET",
+      "url": "http://127.0.0.1:PORT/p?q=1",
+      "headers": [
+        {
+          "op": "add",
+          "name": "X-Padded",
+          "value": "  padded value  "
+        },
+        {
+          "op": "add",
+          "name": "X-Tabbed",
+          "value": "\ttabbed\t"
+        },
+        {
+          "op": "add",
+          "name": "X-Blank",
+          "value": "  "
+        }
+      ],
+      "head": [
+        "GET /p?q=1 HTTP/1.1",
+        "Host: 127.0.0.1:PORT",
+        "User-Agent: Go-http-client/1.1",
+        "X-Blank: ",
+        "X-Padded: padded value",
+        "X-Tabbed: tabbed",
+        "Accept-Encoding: gzip"
+      ]
+    },
+    {
+      "name": "host_header_entry",
+      "method": "GET",
+      "url": "http://127.0.0.1:PORT/p?q=1",
+      "headers": [
+        {
+          "op": "add",
+          "name": "Host",
+          "value": "other.test"
+        }
+      ],
+      "head": [
+        "GET /p?q=1 HTTP/1.1",
+        "Host: 127.0.0.1:PORT",
+        "User-Agent: Go-http-client/1.1",
+        "Accept-Encoding: gzip"
+      ]
+    },
+    {
+      "name": "host_as_written",
+      "method": "GET",
+      "url": "http://Bidder.Example.COM:80/p",
+      "headers": null,
+      "head": [
+        "GET /p HTTP/1.1",
+        "Host: Bidder.Example.COM:80",
+        "User-Agent: Go-http-client/1.1",
+        "Accept-Encoding: gzip"
+      ]
+    },
+    {
+      "name": "host_idna",
+      "method": "GET",
+      "url": "http://bücher.test:PORT/p",
+      "headers": null,
+      "head": [
+        "GET /p HTTP/1.1",
+        "Host: xn--bcher-kva.test:PORT",
+        "User-Agent: Go-http-client/1.1",
+        "Accept-Encoding: gzip"
+      ]
+    },
+    {
+      "name": "post_empty",
+      "method": "POST",
+      "url": "http://127.0.0.1:PORT/p?q=1",
+      "headers": null,
+      "head": [
+        "POST /p?q=1 HTTP/1.1",
+        "Host: 127.0.0.1:PORT",
+        "User-Agent: Go-http-client/1.1",
+        "Content-Length: 0",
+        "Accept-Encoding: gzip"
+      ]
+    },
+    {
+      "name": "put_empty",
+      "method": "PUT",
+      "url": "http://127.0.0.1:PORT/p?q=1",
+      "headers": null,
+      "head": [
+        "PUT /p?q=1 HTTP/1.1",
+        "Host: 127.0.0.1:PORT",
+        "User-Agent: Go-http-client/1.1",
+        "Content-Length: 0",
+        "Accept-Encoding: gzip"
+      ]
+    },
+    {
+      "name": "patch_empty",
+      "method": "PATCH",
+      "url": "http://127.0.0.1:PORT/p?q=1",
+      "headers": null,
+      "head": [
+        "PATCH /p?q=1 HTTP/1.1",
+        "Host: 127.0.0.1:PORT",
+        "User-Agent: Go-http-client/1.1",
+        "Content-Length: 0",
+        "Accept-Encoding: gzip"
+      ]
+    },
+    {
+      "name": "delete_empty",
+      "method": "DELETE",
+      "url": "http://127.0.0.1:PORT/p?q=1",
+      "headers": null,
+      "head": [
+        "DELETE /p?q=1 HTTP/1.1",
+        "Host: 127.0.0.1:PORT",
+        "User-Agent: Go-http-client/1.1",
+        "Accept-Encoding: gzip"
+      ]
+    },
+    {
+      "name": "get_with_body",
+      "method": "GET",
+      "url": "http://127.0.0.1:PORT/p?q=1",
+      "body": "{\"id\":\"r\"}",
+      "headers": null,
+      "head": [
+        "GET /p?q=1 HTTP/1.1",
+        "Host: 127.0.0.1:PORT",
+        "User-Agent: Go-http-client/1.1",
+        "Content-Length: 10",
+        "Accept-Encoding: gzip"
+      ]
+    }
+  ]
+}

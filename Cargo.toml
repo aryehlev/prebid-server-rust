@@ -11,7 +11,6 @@ members = [
     "crates/freecache",
     "crates/gocompat",
     "crates/gogzip",
-    "crates/gohttp-client",
     "crates/gohttp-server",
     "crates/gojson",
     "crates/gojson-derive",
@@ -19,6 +18,7 @@ members = [
     "crates/goyaml",
     "crates/goyaml-derive",
     "crates/gpp",
+    "crates/http-client",
     "crates/jsonutil",
     "crates/logger",
     "crates/metrics",
@@ -50,6 +50,8 @@ publish = false
 # cargo warns about one that no member uses (R1 check 17); the stack's entries that wait for their
 # first user are commented out at the end of the table.
 [workspace.dependencies]
+# Dev-only: the key pairs rcgen signs test certificates with.
+aws-lc-rs = { version = "1.19.0", default-features = false, features = ["alloc", "aws-lc-sys"] }
 axum = { version = "0.8.9", features = ["http2"] }
 base64 = "0.23.1"
 bytes = "1.12.1"
@@ -60,6 +62,11 @@ config = { version = "0.15.27", default-features = false, features = ["json"] }
 # the base64 padding of the uids value into %3D.
 cookie = "0.18.2"
 flate2 = "1.1.11"
+futures-util = "0.3.34"
+# pbs-server's HTTP/1.1-only connection builder (Go's header limit and read budget, which
+# axum::serve does not set) and the loopback test servers; axum already locks it.
+hyper-util = { version = "0.1.21", features = ["server-auto", "tokio"] }
+ipnet = "2.12.2"
 # RFC 7386 merge only (JSONUTIL). The diff feature pulls treediff; 0.3.0 through 4.1.0 need
 # thiserror 1, on syn 2.
 json-patch = { version = "0.2.7", default-features = false }
@@ -70,12 +77,17 @@ proc-macro2 = "1.0.107"
 prometheus = { version = "0.14.0", default-features = false }
 psl = "2.1.257"
 quote = "1.0.47"
+# Dev-only: test certificates. rcgen's own aws_lc_rs feature names `x509-parser?/verify-aws`,
+# which puts x509-parser and untrusted 0.7.1 beside 0.9.0 into `cargo metadata`, so rcgen has no
+# crypto feature and signs through an aws-lc-rs key.
+rcgen = { version = "0.14.10", default-features = false }
 regex = "1.13.2"
 # No system-proxy (core-foundation 0.9 through system-configuration, beside 0.10): Go reads only
 # the proxy environment variables. No charset. reqwest's gzip feature pins tower-http to 0.6.
 reqwest = { version = "0.13.5", default-features = false, features = ["gzip", "http2", "json", "rustls"] }
-# The TLS test servers; reqwest configures its own rustls. pbs-gohttp-client, which reqwest
-# replaces, adds tls12 and prefer-post-quantum.
+# pbs-http-client reads certificates_file roots with rustls (RootCertStore's trust-anchor parse
+# and CertificateDer) before reqwest, which configures its own rustls with tls12, takes them;
+# rustls also serves the TLS test servers.
 rustls = { version = "0.23.46", default-features = false, features = ["aws_lc_rs", "std"] }
 serde = { version = "1.0.229", features = ["derive"] }
 serde-saphyr = { version = "2.2.0", default-features = false, features = ["deserialize", "serialize"] }
@@ -109,14 +121,11 @@ url = "2.5.8"
 # # Shared state a background task replaces while requests read it (currency rates, vendor lists,
 # # stored data).
 # arc-swap = "1.9.5"
-# # Dev-only: the key pairs rcgen signs test certificates with.
-# aws-lc-rs = { version = "1.19.0", default-features = false, features = ["alloc", "aws-lc-sys"] }
 # # The build dependency of the 51Degrees FFI crate; aws-lc-sys already locks it.
 # cc = "1.11.2"
 # # Dev-only: COW's benches. Cargo.lock must keep half at 2.6.0: half 2.7.1 depends on zerocopy,
 # # whose zerocopy-derive is on syn 2.
 # criterion = { version = "0.8.2", default-features = false }
-# futures-util = "0.3.34"
 # # glog's nine flags in Go's flag syntax (LOGGING). The default unicode feature resolves to the
 # # unicode-width 0.2.3 that serde-saphyr's annotate-snippets already locks.
 # getopts = "0.2.24"
@@ -126,12 +135,8 @@ url = "2.5.8"
 # # ads.cert's TXT discovery (D-DNS). No system-config: it pulls core-foundation 0.9 beside 0.10.
 # hickory-resolver = { version = "0.26.3", default-features = false, features = ["tokio"] }
 # hmac = "0.13.0"
-# # pbs-server's HTTP/1.1-only connection builder (Go's header limit and read budget, which
-# # axum::serve does not set) and the loopback test servers; axum already locks it.
-# hyper-util = { version = "0.1.21", features = ["server-auto", "tokio"] }
 # # The InfluxDB reporter's line protocol and writes (D-INFLUX), over pbs-http-client's reqwest.
 # influxdb = { version = "0.8.0", default-features = false, features = ["rustls"] }
-# ipnet = "2.12.2"
 # # golang-lru's simplelru (FETCHER). No default features: they pull foldhash, licensed Zlib.
 # lru = { version = "0.19.0", default-features = false }
 # md-5 = "0.11.0"
@@ -142,10 +147,6 @@ url = "2.5.8"
 # # The VAST tokenizer (D-XML). The injector writes Go's encoder output itself (Rule B (d)).
 # quick-xml = { version = "0.42.0", default-features = false }
 # rand = "0.10.4"
-# # Dev-only: test certificates. rcgen's own aws_lc_rs feature names `x509-parser?/verify-aws`,
-# # which puts x509-parser and untrusted 0.7.1 beside 0.9.0 into `cargo metadata`, so rcgen has no
-# # crypto feature and signs through an aws-lc-rs key.
-# rcgen = { version = "0.14.10", default-features = false }
 # # Reads /etc/resolv.conf, the file Go's resolver reads, for hickory-resolver (D-DNS).
 # resolv-conf = "0.7.6"
 # semver = "1.0.28"
@@ -279,7 +280,7 @@ debug = "line-tables-only"
 [profile.test]
 debug = "line-tables-only"
 
-# Nothing builds ring: pbs-gohttp-client's rustls uses aws-lc-rs. rustls-webpki's weak `ring?/alloc`
+# Nothing builds ring: the workspace's rustls uses aws-lc-rs. rustls-webpki's weak `ring?/alloc`
 # feature still keeps ring in Cargo.lock, and clippy's multiple_crate_versions, which reads
 # `cargo metadata`, would count ring's windows-sys 0.52 beside tokio's 0.61. patches/ring is a
 # stand-in without dependencies whose lib.rs is a compile_error!, so the build stops if a crate
