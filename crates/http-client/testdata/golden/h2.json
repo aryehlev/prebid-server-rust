@@ -1,0 +1,198 @@
+{
+  "header": {
+    "go_version": "go1.26.2",
+    "goarch": "amd64",
+    "upstream": "v4.11.2-0.20261112141353-4e296450de2f",
+    "modules": {
+      "golang.org/x/net": "v0.55.0"
+    },
+    "generator": "crates/http-client/testdata/go"
+  },
+  "selection": [
+    {
+      "client": "general",
+      "server": "https_h2",
+      "protos": [
+        "HTTP/1.1",
+        "HTTP/1.1"
+      ],
+      "handled": [
+        "POST /bid HTTP/1.1 ua=Go-http-client/1.1 body=10",
+        "POST /bid HTTP/1.1 ua=Go-http-client/1.1 body=10"
+      ],
+      "connections": 1
+    },
+    {
+      "client": "http2",
+      "server": "https_h2",
+      "protos": [
+        "HTTP/2.0",
+        "HTTP/2.0"
+      ],
+      "handled": [
+        "POST /bid HTTP/2.0 ua=Go-http-client/2.0 body=10",
+        "POST /bid HTTP/2.0 ua=Go-http-client/2.0 body=10"
+      ],
+      "connections": 1
+    },
+    {
+      "client": "general",
+      "server": "https_http1",
+      "protos": [
+        "HTTP/1.1",
+        "HTTP/1.1"
+      ],
+      "handled": [
+        "POST /bid HTTP/1.1 ua=Go-http-client/1.1 body=10",
+        "POST /bid HTTP/1.1 ua=Go-http-client/1.1 body=10"
+      ],
+      "connections": 1
+    },
+    {
+      "client": "http2",
+      "server": "https_http1",
+      "protos": [
+        "HTTP/1.1",
+        "HTTP/1.1"
+      ],
+      "handled": [
+        "POST /bid HTTP/1.1 ua=Go-http-client/1.1 body=10",
+        "POST /bid HTTP/1.1 ua=Go-http-client/1.1 body=10"
+      ],
+      "connections": 1
+    },
+    {
+      "client": "general",
+      "server": "h2c",
+      "protos": [
+        "HTTP/1.1",
+        "HTTP/1.1"
+      ],
+      "handled": [
+        "POST /bid HTTP/1.1 ua=Go-http-client/1.1 body=10",
+        "POST /bid HTTP/1.1 ua=Go-http-client/1.1 body=10"
+      ],
+      "connections": 1
+    },
+    {
+      "client": "http2",
+      "server": "h2c",
+      "protos": [
+        "HTTP/2.0",
+        "HTTP/2.0"
+      ],
+      "handled": [
+        "POST /bid HTTP/2.0 ua=Go-http-client/2.0 body=10",
+        "POST /bid HTTP/2.0 ua=Go-http-client/2.0 body=10"
+      ],
+      "connections": 1
+    },
+    {
+      "client": "general",
+      "server": "http1",
+      "protos": [
+        "HTTP/1.1",
+        "HTTP/1.1"
+      ],
+      "handled": [
+        "POST /bid HTTP/1.1 ua=Go-http-client/1.1 body=10",
+        "POST /bid HTTP/1.1 ua=Go-http-client/1.1 body=10"
+      ],
+      "connections": 1
+    },
+    {
+      "client": "http2",
+      "server": "http1",
+      "protos": [
+        "Post \"http://127.0.0.1:PORT/bid\": http2: failed reading the frame payload: http2: frame too large, note that the frame header looked like an HTTP/1.1 header",
+        "Post \"http://127.0.0.1:PORT/bid\": http2: failed reading the frame payload: http2: frame too large, note that the frame header looked like an HTTP/1.1 header"
+      ],
+      "handled": [
+        "PRI * HTTP/2.0 ua= body=0",
+        "PRI * HTTP/2.0 ua= body=0"
+      ],
+      "connections": 2
+    }
+  ],
+  "probe": {
+    "hello": "505249202a20485454502f322e300d0a0d0a534d0d0a0d0a000000040000000000",
+    "goodbye": "0000080700000000000000000000000000",
+    "servers": [
+      {
+        "server": "h2c",
+        "first": "00001e040000000000",
+        "settings": "0005001000000003000000fa000600100140000100001000000400100000",
+        "closed": true,
+        "handled": []
+      },
+      {
+        "server": "http1_mux",
+        "first": "485454502f312e3120",
+        "answer": "HTTP/1.1 400 Bad Request\r\nConnection: close\r\nDate: DATE\r\nContent-Length: 0\r\n\r\n",
+        "closed": true,
+        "handled": []
+      },
+      {
+        "server": "http1_handler",
+        "first": "485454502f312e3120",
+        "answer": "HTTP/1.1 200 OK\r\nDate: DATE\r\nContent-Length: 2\r\nContent-Type: text/plain; charset=utf-8\r\nConnection: close\r\n\r\nok",
+        "closed": true,
+        "handled": [
+          "PRI * HTTP/2.0 ua= body=0"
+        ]
+      }
+    ]
+  },
+  "answers": [
+    {
+      "server": "http1_mux",
+      "first": "485454502f312e3120",
+      "answer": "HTTP/1.1 400 Bad Request\r\nConnection: close\r\nDate: DATE\r\nContent-Length: 0\r\n\r\n",
+      "closed": true,
+      "handled": []
+    },
+    {
+      "server": "http1_handler",
+      "first": "485454502f312e3120",
+      "answer": "HTTP/1.1 200 OK\r\nDate: DATE\r\nContent-Length: 2\r\nContent-Type: text/plain; charset=utf-8\r\nConnection: close\r\n\r\nok",
+      "closed": true,
+      "handled": [
+        "PRI * HTTP/2.0 ua= body=0"
+      ]
+    }
+  ],
+  "requests": [
+    {
+      "transport": "h2",
+      "pseudo": [
+        ":authority: 127.0.0.1:PORT",
+        ":method: POST",
+        ":path: /bid",
+        ":scheme: https"
+      ],
+      "fields": [
+        "accept-encoding: gzip",
+        "content-length: 10",
+        "content-type: application/json;charset=utf-8",
+        "user-agent: Go-http-client/2.0"
+      ],
+      "body": "{\"id\":\"r\"}"
+    },
+    {
+      "transport": "h2c",
+      "pseudo": [
+        ":authority: 127.0.0.1:PORT",
+        ":method: POST",
+        ":path: /bid",
+        ":scheme: http"
+      ],
+      "fields": [
+        "accept-encoding: gzip",
+        "content-length: 10",
+        "content-type: application/json;charset=utf-8",
+        "user-agent: Go-http-client/2.0"
+      ],
+      "body": "{\"id\":\"r\"}"
+    }
+  ]
+}
