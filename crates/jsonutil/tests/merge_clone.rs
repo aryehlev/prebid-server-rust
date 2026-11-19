@@ -1,8 +1,9 @@
 //! `merge_clone` against Go's `jsonutil.MergeClone` (`testdata/golden/merge_clone.json`):
 //! `merge_test.go`'s cases with the values they build, the edges of a type with a field of every
 //! kind Go's merge decoders treat differently (null into each, the custom decoders, raw merges,
-//! repeated, unknown and mistyped members), and 50,000 seeded pairs of an existing value and a
-//! patch compared through their batches' digests.
+//! repeated, unknown and mistyped members), 50,000 seeded pairs of an existing value and a patch
+//! compared through their batches' digests, and `merge_test.go`'s pointer identities over the
+//! shared pointers of the generated types (`Option<Arc<T>>`).
 
 #[cfg(test)]
 pub mod seeded;
@@ -11,7 +12,10 @@ pub mod support;
 
 #[cfg(test)]
 mod tests {
-    use std::collections::{BTreeMap, BTreeSet};
+    use std::{
+        collections::{BTreeMap, BTreeSet},
+        sync::Arc,
+    };
 
     use pbs_jsonutil::{
         IntString, MergeClone, MergeCloneError, StringInt, is_nil_or_empty, is_zero, marshal,
@@ -729,5 +733,163 @@ mod tests {
             let merged = outcome(&existing, &patch)?;
             Ok((format!("{existing}\t{patch}"), merged))
         })
+    }
+
+    /// Go's `openrtb2.Banner`, behind a pointer other values share.
+    #[derive(Debug, Clone, Default)]
+    struct SharedBanner {
+        id: String,
+    }
+
+    merge_clone_fields!(SharedBanner, "openrtb2.Banner", { "id" => id as "ID" });
+
+    /// Go's `openrtb2.Video`, behind a pointer other values share.
+    #[derive(Debug, Clone, Default)]
+    struct SharedVideo {
+        podid: String,
+    }
+
+    merge_clone_fields!(SharedVideo, "openrtb2.Video", { "podid" => podid as "PodID" });
+
+    /// Go's `openrtb2.Imp` with its pointers to structs as the generated types hold them
+    /// (`Option<Arc<T>>`, D-COW) and a pointer to an integer.
+    #[derive(Debug, Clone, Default)]
+    struct SharedImp {
+        id: String,
+        banner: Option<Arc<SharedBanner>>,
+        video: Option<Arc<SharedVideo>>,
+        clickbrowser: Option<i8>,
+    }
+
+    merge_clone_fields!(SharedImp, "openrtb2.Imp", {
+        "id" => id as "ID",
+        "banner" => banner as "Banner",
+        "video" => video as "Video",
+        "clickbrowser" => clickbrowser as "ClickBrowser",
+    });
+
+    /// `TestMergeCloneCombinations`' holders: a slice of pointers, a pointer and a map of pointers.
+    #[derive(Debug, Clone, Default)]
+    struct SharedHolders {
+        imps: Option<Vec<Option<Arc<SharedImp>>>>,
+        imp: Option<Arc<SharedImp>>,
+        by_id: Option<BTreeMap<String, Option<Arc<SharedImp>>>>,
+    }
+
+    merge_clone_fields!(SharedHolders, "main.holders", {
+        "imps" => imps as "Imps",
+        "imp" => imp as "Imp",
+        "by_id" => by_id as "ByID",
+    });
+
+    /// Whether `field` points to the struct `original` points to (Go's `assert.Same`).
+    fn shares<T>(field: Option<&Arc<T>>, original: &Arc<T>) -> bool {
+        field.is_some_and(|pointer| Arc::ptr_eq(pointer, original))
+    }
+
+    /// `TestMergeClonePtr` over shared pointers: a struct the patch writes into is cloned first, so
+    /// a copy that shares the pointer (Go's `impCopy := imp` before `mergeImpFPD`) keeps its value,
+    /// and a pointer the patch does not reach stays shared; null sets the pointer to nil, and a
+    /// nil one gets a new struct. A malformed patch merges nothing. A struct no other value holds
+    /// is merged where it is, which no one can tell from Go's clone.
+    // Go: util/jsonutil/merge.go:70-89 (ptrCloneDecoder), merge_test.go:13-97;
+    // exchange/utils.go:686-689, 719-727 (impCopy, mergeImpFPD)
+    #[test]
+    fn shared_pointers_cloned_where_written() -> TestResult {
+        let banner = Arc::new(SharedBanner { id: "1".to_owned() });
+        let video = Arc::new(SharedVideo {
+            podid: "a".to_owned(),
+        });
+        let imp = SharedImp {
+            banner: Some(Arc::clone(&banner)),
+            video: Some(Arc::clone(&video)),
+            ..SharedImp::default()
+        };
+
+        let mut merged = imp.clone();
+        merge_clone(&mut merged, br#"{"banner":{"id":"2"}}"#)?;
+        let written = merged.banner.as_ref().ok_or("banner-nil")?;
+        ensure_eq(&Arc::ptr_eq(written, &banner), &false, "banner-ref")?;
+        ensure_eq(&written.id.as_str(), &"2", "id-clone")?;
+        ensure_eq(&banner.id.as_str(), &"1", "id-original")?;
+        ensure_eq(&shares(merged.video.as_ref(), &video), &true, "video-ref")?;
+        ensure_eq(&shares(imp.banner.as_ref(), &banner), &true, "imp-banner")?;
+
+        let mut nil_banner = imp.clone();
+        merge_clone(&mut nil_banner, br#"{"banner":null}"#)?;
+        ensure_eq(&nil_banner.banner.is_none(), &true, "banner-nil")?;
+        ensure_eq(&shares(nil_banner.video.as_ref(), &video), &true, "video")?;
+        ensure_eq(&shares(imp.banner.as_ref(), &banner), &true, "imp-banner")?;
+
+        let mut malformed = imp;
+        let outcome = merge_clone(&mut malformed, br#"{"banner":nul}"#);
+        ensure_eq(&outcome.is_err(), &true, "invalid-null")?;
+        let kept = shares(malformed.banner.as_ref(), &banner);
+        ensure_eq(&kept, &true, "nothing merged")?;
+
+        let mut clicks = SharedImp {
+            clickbrowser: Some(1),
+            ..SharedImp::default()
+        };
+        merge_clone(&mut clicks, br#"{"clickbrowser":2,"video":{"podid":"b"}}"#)?;
+        ensure_eq(&clicks.clickbrowser, &Some(2), "clickbrowser-val")?;
+        let podid = clicks.video.as_ref().map(|added| added.podid.as_str());
+        ensure_eq(&podid, &Some("b"), "a new video")?;
+
+        let mut alone = SharedImp {
+            banner: Some(Arc::new(SharedBanner::default())),
+            ..SharedImp::default()
+        };
+        let before = alone.banner.as_ref().map(Arc::as_ptr);
+        merge_clone(&mut alone, br#"{"banner":{"id":"3"}}"#)?;
+        ensure_eq(
+            &alone.banner.as_ref().map(Arc::as_ptr),
+            &before,
+            "merged in place",
+        )
+    }
+
+    /// `TestMergeCloneCombinations` over shared pointers: a slice and a map of pointers get new
+    /// structs for the elements and entries the patch names, and a pointer field is cloned before
+    /// the merge, so the struct the holder shared keeps its value.
+    // Go: util/jsonutil/merge.go:70-142 (ptrCloneDecoder, sliceCloneDecoder, mapCloneDecoder),
+    // merge_test.go:396-470
+    #[test]
+    fn shared_pointer_combinations() -> TestResult {
+        let imp = Arc::new(SharedImp {
+            id: "1".to_owned(),
+            ..SharedImp::default()
+        });
+        let mut holders = SharedHolders {
+            imps: Some(vec![Some(Arc::clone(&imp))]),
+            imp: Some(Arc::clone(&imp)),
+            by_id: Some(BTreeMap::from([("a".to_owned(), Some(Arc::clone(&imp)))])),
+        };
+        merge_clone(
+            &mut holders,
+            br#"{"imps":[{"id":"2"}],"imp":{"id":"2"},"by_id":{"a":{"id":"2"}}}"#,
+        )?;
+        let element = holders
+            .imps
+            .as_ref()
+            .and_then(|imps| imps.first())
+            .and_then(Option::as_ref)
+            .ok_or("slice-len")?;
+        let field = holders.imp.as_ref().ok_or("imp-nil")?;
+        let entry = holders
+            .by_id
+            .as_ref()
+            .and_then(|by_id| by_id.get("a"))
+            .and_then(Option::as_ref)
+            .ok_or("map-len")?;
+        for (what, merged) in [
+            ("slice-of-ptr", element),
+            ("struct-ptr", field),
+            ("map-of-ptrs", entry),
+        ] {
+            ensure_eq(&Arc::ptr_eq(merged, &imp), &false, what)?;
+            ensure_eq(&merged.id.as_str(), &"2", what)?;
+        }
+        ensure_eq(&imp.id.as_str(), &"1", "original-val")
     }
 }

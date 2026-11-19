@@ -10,9 +10,10 @@
 //!   [`marshal_raw`] returns those bytes as the `RawValue` a `json.RawMessage` field holds.
 //! - [`find_element`] and [`drop_element`]: `FindElement` and `DropElement`, byte for byte.
 //! - [`merge_clone`] and the [`MergeClone`] trait the generated types implement with
-//!   [`merge_struct`] and [`merge_field`]: Go's `MergeClone` rules.
+//!   [`merge_struct`] and [`merge_field`]: Go's `MergeClone` rules, cloning a shared
+//!   `Option<Arc<T>>` where Go clones a pointer.
 //! - [`merge_patch`]: the RFC 7386 merge `json-patch` implements, where Go calls evanphx's
-//!   `MergePatch`.
+//!   `MergePatch`; its errors convert into the plain Go errors evanphx returns.
 //! - [`StringInt`], [`IntString`] and [`parse_into_string`]: Prebid's lenient readers.
 //! - The serde helpers: [`null_default`] and [`raw_keep_null`] for nulls, [`raw_compact`] for the
 //!   writer of `json.RawMessage` (Prebid's `RawMessageExtension`), and [`is_zero`] and

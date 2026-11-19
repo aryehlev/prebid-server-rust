@@ -2,19 +2,21 @@
 //! Go's clone rules (`util/jsonutil/merge.go`).
 //!
 //! Go clones what a pointer, map or slice reaches before it writes there, so the merge never
-//! changes a value it shares with another request. Rust values own their data, so the clones are
-//! implicit; what the port keeps are the rules themselves, which [`MergeClone`]'s implementations
-//! apply: null sets a pointer, slice or map to nil and leaves a value field as it is (a string
-//! becomes empty); objects merge into structs member by member and into maps entry by entry, each
-//! named entry replaced by a new value; arrays replace slices; and a `json.RawMessage` merges by
-//! RFC 7386 merge patch. The generated types implement the trait with [`merge_struct`] and
-//! [`merge_field`].
+//! changes a value it shares with another request. Rust values own their data, so most clones are
+//! implicit; a pointer to a struct the value shares (`Option<Arc<T>>`, D-COW) is cloned through
+//! `Arc::make_mut` where Go's `ptrCloneDecoder` clones it. The rules themselves are what
+//! [`MergeClone`]'s implementations apply: null sets a pointer, slice or map to nil and leaves a
+//! value field as it is (a string becomes empty); objects merge into structs member by member and
+//! into maps entry by entry, each named entry replaced by a new value; arrays replace slices; and a
+//! `json.RawMessage` merges by RFC 7386 merge patch. The generated types implement the trait with
+//! [`merge_struct`] and [`merge_field`].
 
 use std::{
     collections::BTreeMap,
     error::Error,
     fmt::{self, Display},
     marker::PhantomData,
+    sync::Arc,
 };
 
 use pbs_errortypes::GoError;
@@ -343,6 +345,17 @@ impl<K: Ord + DeserializeOwned, V: MergeClone + Default> MergeClone for BTreeMap
             let _replaced = self.insert(key, fresh);
         }
         Ok(())
+    }
+}
+
+/// Go: a pointer to a struct that other values may share (`ptrCloneDecoder`): what it points to
+/// is cloned before the value is merged into it, so the values sharing it keep theirs.
+/// `Arc::make_mut` clones only while the struct is shared, which no one else can tell from Go's
+/// clone every time. `Option<Arc<T>>` adds Go's nil: null sets it to `None` and a value merges
+/// into a new `T` when it is `None`.
+impl<T: MergeClone + Clone> MergeClone for Arc<T> {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        Self::make_mut(self).merge_clone(patch)
     }
 }
 

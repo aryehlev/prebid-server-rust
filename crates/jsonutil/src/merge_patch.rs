@@ -10,6 +10,7 @@ use std::{
     fmt::{self, Display},
 };
 
+use pbs_errortypes::GoError;
 use serde_json::Value;
 
 use crate::replace_lone_surrogates;
@@ -33,6 +34,15 @@ impl Display for MergePatchError {
 }
 
 impl Error for MergePatchError {}
+
+/// Go: evanphx's `ErrBadJSONDoc` and `ErrBadJSONPatch` are `fmt.Errorf` values, so a caller that
+/// returns or collects them passes on an error that is no `errortypes.Coder` (code 999), with its
+/// text.
+impl From<MergePatchError> for GoError {
+    fn from(error: MergePatchError) -> Self {
+        Self::generic(error.to_string())
+    }
+}
 
 /// Go: `jsonpatch.MergePatch(doc, patch)`: `patch` merged into `doc` by RFC 7386, written as
 /// compact JSON with object members sorted by key.
