@@ -156,6 +156,9 @@ impl Problems<'_> {
     fn pin(&mut self, field: &str, text: &str, sources: &mut Sources) -> String {
         match Pin::parse(text).and_then(|pin| sources.find(&pin)) {
             Ok(Found::Test) => {}
+            Ok(Found::Ignored) => self.add(&format!(
+                "{field} {text}: the test is marked #[ignore], so cargo test never runs it"
+            )),
             Ok(Found::NoTest) => self.add(&format!(
                 "{field} {text}: the file has no test function of that name"
             )),

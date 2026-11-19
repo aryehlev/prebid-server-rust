@@ -29,6 +29,15 @@ mod tests {
     async fn restore_one() {}
 
     fn helper() {}
+
+    #[test]
+    #[ignore]
+    fn go_difference_skipped() {}
+
+    /*
+    #[test]
+    fn go_difference_commented() {}
+    */
 }
 ";
 
@@ -233,9 +242,21 @@ fn a_missing_pin_fails() -> TestResult {
             "crates/x/tests/pins.rs::helper",
             "the file has no test function of that name",
         ),
+        (
+            "crates/x/tests/pins.rs::go_difference_commented",
+            "the file has no test function of that name",
+        ),
+        (
+            "crates/x/tests/pins.rs::go_difference_skipped",
+            "the test is marked #[ignore], so cargo test never runs it",
+        ),
         ("crates/x/tests/gone.rs::go_difference_one", "no such file"),
         ("crates/x/tests/pins.rs", "is not <file>::<test>"),
         ("../x/tests/pins.rs::go_difference_one", "under crates/"),
+        (
+            "crates/x/testdata/pins.rs::go_difference_one",
+            "where cargo test finds tests",
+        ),
     ] {
         scratch.fragment(
             "x",

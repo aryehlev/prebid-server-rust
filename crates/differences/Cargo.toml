@@ -14,13 +14,14 @@ publish.workspace = true
 [lints]
 workspace = true
 
-# The ledger generator (fragments read through toml into serde types, the document and JSON
-# written with serde_json) and the test support the pins share: golden reading, the YAML options
-# and the test runtime.
+# The ledger generator (fragments read through toml into serde types, the files that hold the
+# pinned tests parsed with syn, the document and JSON written with serde_json) and the test
+# support the pins share: golden reading, the YAML options and the test runtime.
 [dependencies]
 serde = { workspace = true }
 serde-saphyr = { workspace = true }
 serde_json = { workspace = true }
+syn = { workspace = true, features = ["full"] }
 tokio = { workspace = true }
 toml = { workspace = true }
 

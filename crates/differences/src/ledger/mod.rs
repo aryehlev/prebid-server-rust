@@ -4,7 +4,8 @@
 //! `[[difference]]` tables with `id` (dotted, its first segment the category), `category`,
 //! `status` (`ledgered`, `restored` or `decision-pending`), `title`, `go`, `rust`, `who`
 //! (`publisher`, `bidder`, `operator`, `analytics` or `none`), `visible_in`, `pin` (the test that
-//! shows both behaviours, `crates/<crate>/<path>.rs::<test>`), and as the status needs them
+//! shows both behaviours, `crates/<crate>/tests/<path>.rs::<test>` or under the crate's `src/`, a
+//! test function `cargo test` runs, not `#[ignore]`d), and as the status needs them
 //! `restore`, `default`, `decision`, `rule_b` (`a`, `b`, `c`, `d` or `prebid-logic`),
 //! `restore_by` and `note`, with `[[difference.harness]]` patterns (`kind`, `lexical_class`,
 //! `path` and `input`) that tell the parity harness which mismatches the entry accounts for. A
