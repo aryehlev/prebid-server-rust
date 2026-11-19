@@ -1,0 +1,4467 @@
+{
+  "header": {
+    "go_version": "go1.26.2",
+    "goarch": "amd64",
+    "upstream": "v4.11.2-0.20261112141353-4e296450de2f",
+    "modules": {
+      "github.com/mitchellh/mapstructure": "v1.5.0",
+      "github.com/spf13/viper": "v1.12.0"
+    },
+    "generator": "crates/config/testdata/go"
+  },
+  "notes": [
+    "Written by crates/config/testdata/go (go run .); do not edit.",
+    "types: every Go type reachable from the roots by reflection, keyed by reflect.Type.String().",
+    "kind: the reflect kind as mapstructure groups it (int, uint and float carry their bits; int is 64 bits on amd64).",
+    "fields: the exported fields in declaration order; name is mapstructure's key (tag name, else the Go name), json and yaml the encoding/json and yaml.v3 keys (null when the tag hides the field).",
+    "hook: account_modules marks config.AccountModules, which AccountModulesHookFunc converts (config/account_module_decoder.go:16)."
+  ],
+  "roots": {
+    "configuration": "config.Configuration",
+    "unmarshal_key": "*bool"
+  },
+  "types": {
+    "*bool": {
+      "kind": "ptr",
+      "elem": "bool"
+    },
+    "*config.AccountDSA": {
+      "kind": "ptr",
+      "elem": "config.AccountDSA"
+    },
+    "*config.AccountGDPRPurpose": {
+      "kind": "ptr",
+      "elem": "config.AccountGDPRPurpose"
+    },
+    "*config.AllowActivities": {
+      "kind": "ptr",
+      "elem": "config.AllowActivities"
+    },
+    "*config.CapabilitiesInfo": {
+      "kind": "ptr",
+      "elem": "config.CapabilitiesInfo"
+    },
+    "*config.DebugInfo": {
+      "kind": "ptr",
+      "elem": "config.DebugInfo"
+    },
+    "*config.MaintainerInfo": {
+      "kind": "ptr",
+      "elem": "config.MaintainerInfo"
+    },
+    "*config.OpenRTBInfo": {
+      "kind": "ptr",
+      "elem": "config.OpenRTBInfo"
+    },
+    "*config.PlatformInfo": {
+      "kind": "ptr",
+      "elem": "config.PlatformInfo"
+    },
+    "*config.SkipWhen": {
+      "kind": "ptr",
+      "elem": "config.SkipWhen"
+    },
+    "*config.Syncer": {
+      "kind": "ptr",
+      "elem": "config.Syncer"
+    },
+    "*config.SyncerEndpoint": {
+      "kind": "ptr",
+      "elem": "config.SyncerEndpoint"
+    },
+    "*config.TCF2Purpose": {
+      "kind": "ptr",
+      "elem": "config.TCF2Purpose"
+    },
+    "*int": {
+      "kind": "ptr",
+      "elem": "int"
+    },
+    "*int8": {
+      "kind": "ptr",
+      "elem": "int8"
+    },
+    "*openrtb2.SupplyChainNode": {
+      "kind": "ptr",
+      "elem": "openrtb2.SupplyChainNode"
+    },
+    "*openrtb_ext.ExtAlternateBidderCodes": {
+      "kind": "ptr",
+      "elem": "openrtb_ext.ExtAlternateBidderCodes"
+    },
+    "*openrtb_ext.ExtRegsDSA": {
+      "kind": "ptr",
+      "elem": "openrtb_ext.ExtRegsDSA"
+    },
+    "*openrtb_ext.ExtRequestPrebidBidAdjustments": {
+      "kind": "ptr",
+      "elem": "openrtb_ext.ExtRequestPrebidBidAdjustments"
+    },
+    "[][]string": {
+      "kind": "slice",
+      "elem": "[]string"
+    },
+    "[]config.ActivityRule": {
+      "kind": "slice",
+      "elem": "config.ActivityRule"
+    },
+    "[]config.AgmaAnalyticsAccount": {
+      "kind": "slice",
+      "elem": "config.AgmaAnalyticsAccount"
+    },
+    "[]config.HookExecutionGroup": {
+      "kind": "slice",
+      "elem": "config.HookExecutionGroup"
+    },
+    "[]config.VASTEvent": {
+      "kind": "slice",
+      "elem": "config.VASTEvent"
+    },
+    "[]int": {
+      "kind": "slice",
+      "elem": "int"
+    },
+    "[]net.IPNet": {
+      "kind": "slice",
+      "elem": "net.IPNet"
+    },
+    "[]openrtb_ext.Adjustment": {
+      "kind": "slice",
+      "elem": "openrtb_ext.Adjustment"
+    },
+    "[]openrtb_ext.BidType": {
+      "kind": "slice",
+      "elem": "openrtb_ext.BidType"
+    },
+    "[]openrtb_ext.BidderName": {
+      "kind": "slice",
+      "elem": "openrtb_ext.BidderName"
+    },
+    "[]openrtb_ext.ExtBidDSATransparency": {
+      "kind": "slice",
+      "elem": "openrtb_ext.ExtBidDSATransparency"
+    },
+    "[]string": {
+      "kind": "slice",
+      "elem": "string"
+    },
+    "[]struct { ModuleCode string \"mapstructure:\\\"module_code\\\" json:\\\"module_code\\\"\"; HookImplCode string \"mapstructure:\\\"hook_impl_code\\\" json:\\\"hook_impl_code\\\"\" }": {
+      "kind": "slice",
+      "elem": "struct { ModuleCode string \"mapstructure:\\\"module_code\\\" json:\\\"module_code\\\"\"; HookImplCode string \"mapstructure:\\\"hook_impl_code\\\" json:\\\"hook_impl_code\\\"\" }"
+    },
+    "bool": {
+      "kind": "bool"
+    },
+    "config.Account": {
+      "kind": "struct",
+      "fields": [
+        {
+          "go": "ID",
+          "name": "id",
+          "json": "id",
+          "yaml": "id",
+          "type": "string"
+        },
+        {
+          "go": "Disabled",
+          "name": "disabled",
+          "json": "disabled",
+          "yaml": "disabled",
+          "type": "bool"
+        },
+        {
+          "go": "CacheTTL",
+          "name": "cache_ttl",
+          "json": "cache_ttl",
+          "yaml": "cachettl",
+          "type": "config.DefaultTTLs"
+        },
+        {
+          "go": "CCPA",
+          "name": "ccpa",
+          "json": "ccpa",
+          "yaml": "ccpa",
+          "type": "config.AccountCCPA"
+        },
+        {
+          "go": "GDPR",
+          "name": "gdpr",
+          "json": "gdpr",
+          "yaml": "gdpr",
+          "type": "config.AccountGDPR"
+        },
+        {
+          "go": "DebugAllow",
+          "name": "debug_allow",
+          "json": "debug_allow",
+          "yaml": "debugallow",
+          "type": "bool"
+        },
+        {
+          "go": "DefaultIntegration",
+          "name": "default_integration",
+          "json": "default_integration",
+          "yaml": "defaultintegration",
+          "type": "string"
+        },
+        {
+          "go": "CookieSync",
+          "name": "cookie_sync",
+          "json": "cookie_sync",
+          "yaml": "cookiesync",
+          "type": "config.AccountCookieSync"
+        },
+        {
+          "go": "Events",
+          "name": "events",
+          "json": "events",
+          "yaml": "events",
+          "type": "config.Events"
+        },
+        {
+          "go": "TruncateTargetAttribute",
+          "name": "truncate_target_attr",
+          "json": "truncate_target_attr",
+          "yaml": "truncatetargetattribute",
+          "type": "*int"
+        },
+        {
+          "go": "AlternateBidderCodes",
+          "name": "alternatebiddercodes",
+          "json": "alternatebiddercodes",
+          "yaml": "alternatebiddercodes",
+          "type": "*openrtb_ext.ExtAlternateBidderCodes"
+        },
+        {
+          "go": "Hooks",
+          "name": "hooks",
+          "json": "hooks",
+          "yaml": "hooks",
+          "type": "config.AccountHooks"
+        },
+        {
+          "go": "PriceFloors",
+          "name": "price_floors",
+          "json": "price_floors",
+          "yaml": "pricefloors",
+          "type": "config.AccountPriceFloors"
+        },
+        {
+          "go": "Validations",
+          "name": "validations",
+          "json": "validations",
+          "yaml": "validations",
+          "type": "config.Validations"
+        },
+        {
+          "go": "DefaultBidLimit",
+          "name": "default_bid_limit",
+          "json": "default_bid_limit",
+          "yaml": "defaultbidlimit",
+          "type": "int"
+        },
+        {
+          "go": "BidAdjustments",
+          "name": "bidadjustments",
+          "json": "bidadjustments",
+          "yaml": "bidadjustments",
+          "type": "*openrtb_ext.ExtRequestPrebidBidAdjustments"
+        },
+        {
+          "go": "BidRounding",
+          "name": "bid_rounding",
+          "json": "bid_rounding",
+          "yaml": "bidrounding",
+          "type": "config.BidRoundingMode"
+        },
+        {
+          "go": "Privacy",
+          "name": "privacy",
+          "json": "privacy",
+          "yaml": "privacy",
+          "type": "config.AccountPrivacy"
+        },
+        {
+          "go": "PreferredMediaType",
+          "name": "preferredmediatype",
+          "json": "preferredmediatype",
+          "yaml": "preferredmediatype",
+          "type": "openrtb_ext.PreferredMediaType"
+        },
+        {
+          "go": "TargetingPrefix",
+          "name": "targeting_prefix",
+          "json": "targeting_prefix",
+          "yaml": "targetingprefix",
+          "type": "string"
+        }
+      ]
+    },
+    "config.AccountCCPA": {
+      "kind": "struct",
+      "fields": [
+        {
+          "go": "Enabled",
+          "name": "enabled",
+          "json": "enabled",
+          "yaml": "enabled",
+          "type": "*bool"
+        },
+        {
+          "go": "ChannelEnabled",
+          "name": "channel_enabled",
+          "json": "channel_enabled",
+          "yaml": "channelenabled",
+          "type": "config.AccountChannel"
+        }
+      ]
+    },
+    "config.AccountChannel": {
+      "kind": "struct",
+      "fields": [
+        {
+          "go": "AMP",
+          "name": "amp",
+          "json": "amp",
+          "yaml": "amp",
+          "type": "*bool"
+        },
+        {
+          "go": "App",
+          "name": "app",
+          "json": "app",
+          "yaml": "app",
+          "type": "*bool"
+        },
+        {
+          "go": "Video",
+          "name": "video",
+          "json": "video",
+          "yaml": "video",
+          "type": "*bool"
+        },
+        {
+          "go": "Web",
+          "name": "web",
+          "json": "web",
+          "yaml": "web",
+          "type": "*bool"
+        },
+        {
+          "go": "DOOH",
+          "name": "dooh",
+          "json": "dooh",
+          "yaml": "dooh",
+          "type": "*bool"
+        }
+      ]
+    },
+    "config.AccountCookieSync": {
+      "kind": "struct",
+      "fields": [
+        {
+          "go": "DefaultLimit",
+          "name": "default_limit",
+          "json": "default_limit",
+          "yaml": "defaultlimit",
+          "type": "*int"
+        },
+        {
+          "go": "MaxLimit",
+          "name": "max_limit",
+          "json": "max_limit",
+          "yaml": "maxlimit",
+          "type": "*int"
+        },
+        {
+          "go": "DefaultCoopSync",
+          "name": "default_coop_sync",
+          "json": "default_coop_sync",
+          "yaml": "defaultcoopsync",
+          "type": "*bool"
+        },
+        {
+          "go": "PriorityGroups",
+          "name": "priority_groups",
+          "json": "priority_groups",
+          "yaml": "prioritygroups",
+          "type": "[][]string"
+        },
+        {
+          "go": "PriorityGroupsOnly",
+          "name": "priority_groups_only",
+          "json": "priority_groups_only",
+          "yaml": "prioritygroupsonly",
+          "type": "*bool"
+        },
+        {
+          "go": "DisabledIFrameBidders",
+          "name": "disabled_iframe_bidders",
+          "json": "disabled_iframe_bidders",
+          "yaml": "disablediframebidders",
+          "type": "[]string"
+        }
+      ]
+    },
+    "config.AccountDSA": {
+      "kind": "struct",
+      "fields": [
+        {
+          "go": "Default",
+          "name": "default",
+          "json": "default",
+          "yaml": "default",
+          "type": "string"
+        },
+        {
+          "go": "DefaultUnpacked",
+          "name": "DefaultUnpacked",
+          "json": "DefaultUnpacked",
+          "yaml": "defaultunpacked",
+          "type": "*openrtb_ext.ExtRegsDSA"
+        },
+        {
+          "go": "GDPROnly",
+          "name": "gdpr_only",
+          "json": "gdpr_only",
+          "yaml": "gdpronly",
+          "type": "bool"
+        }
+      ]
+    },
+    "config.AccountFloorFetch": {
+      "kind": "struct",
+      "fields": [
+        {
+          "go": "Enabled",
+          "name": "enabled",
+          "json": "enabled",
+          "yaml": "enabled",
+          "type": "bool"
+        },
+        {
+          "go": "URL",
+          "name": "url",
+          "json": "url",
+          "yaml": "url",
+          "type": "string"
+        },
+        {
+          "go": "Timeout",
+          "name": "timeout_ms",
+          "json": "timeout_ms",
+          "yaml": "timeout",
+          "type": "int"
+        },
+        {
+          "go": "MaxFileSizeKB",
+          "name": "max_file_size_kb",
+          "json": "max_file_size_kb",
+          "yaml": "maxfilesizekb",
+          "type": "int"
+        },
+        {
+          "go": "MaxRules",
+          "name": "max_rules",
+          "json": "max_rules",
+          "yaml": "maxrules",
+          "type": "int"
+        },
+        {
+          "go": "MaxAge",
+          "name": "max_age_sec",
+          "json": "max_age_sec",
+          "yaml": "maxage",
+          "type": "int"
+        },
+        {
+          "go": "Period",
+          "name": "period_sec",
+          "json": "period_sec",
+          "yaml": "period",
+          "type": "int"
+        },
+        {
+          "go": "MaxSchemaDims",
+          "name": "max_schema_dims",
+          "json": "max_schema_dims",
+          "yaml": "maxschemadims",
+          "type": "int"
+        },
+        {
+          "go": "AccountID",
+          "name": "accountID",
+          "json": "accountID",
+          "yaml": "accountid",
+          "type": "string"
+        }
+      ]
+    },
+    "config.AccountGDPR": {
+      "kind": "struct",
+      "fields": [
+        {
+          "go": "Enabled",
+          "name": "enabled",
+          "json": "enabled",
+          "yaml": "enabled",
+          "type": "*bool"
+        },
+        {
+          "go": "ChannelEnabled",
+          "name": "channel_enabled",
+          "json": "channel_enabled",
+          "yaml": "channelenabled",
+          "type": "config.AccountChannel"
+        },
+        {
+          "go": "BasicEnforcementVendors",
+          "name": "basic_enforcement_vendors",
+          "json": "basic_enforcement_vendors",
+          "yaml": "basicenforcementvendors",
+          "type": "[]string"
+        },
+        {
+          "go": "BasicEnforcementVendorsMap",
+          "name": "BasicEnforcementVendorsMap",
+          "json": "BasicEnforcementVendorsMap",
+          "yaml": "basicenforcementvendorsmap",
+          "type": "map[string]struct {}"
+        },
+        {
+          "go": "Purpose1",
+          "name": "purpose1",
+          "json": "purpose1",
+          "yaml": "purpose1",
+          "type": "config.AccountGDPRPurpose"
+        },
+        {
+          "go": "Purpose2",
+          "name": "purpose2",
+          "json": "purpose2",
+          "yaml": "purpose2",
+          "type": "config.AccountGDPRPurpose"
+        },
+        {
+          "go": "Purpose3",
+          "name": "purpose3",
+          "json": "purpose3",
+          "yaml": "purpose3",
+          "type": "config.AccountGDPRPurpose"
+        },
+        {
+          "go": "Purpose4",
+          "name": "purpose4",
+          "json": "purpose4",
+          "yaml": "purpose4",
+          "type": "config.AccountGDPRPurpose"
+        },
+        {
+          "go": "Purpose5",
+          "name": "purpose5",
+          "json": "purpose5",
+          "yaml": "purpose5",
+          "type": "config.AccountGDPRPurpose"
+        },
+        {
+          "go": "Purpose6",
+          "name": "purpose6",
+          "json": "purpose6",
+          "yaml": "purpose6",
+          "type": "config.AccountGDPRPurpose"
+        },
+        {
+          "go": "Purpose7",
+          "name": "purpose7",
+          "json": "purpose7",
+          "yaml": "purpose7",
+          "type": "config.AccountGDPRPurpose"
+        },
+        {
+          "go": "Purpose8",
+          "name": "purpose8",
+          "json": "purpose8",
+          "yaml": "purpose8",
+          "type": "config.AccountGDPRPurpose"
+        },
+        {
+          "go": "Purpose9",
+          "name": "purpose9",
+          "json": "purpose9",
+          "yaml": "purpose9",
+          "type": "config.AccountGDPRPurpose"
+        },
+        {
+          "go": "Purpose10",
+          "name": "purpose10",
+          "json": "purpose10",
+          "yaml": "purpose10",
+          "type": "config.AccountGDPRPurpose"
+        },
+        {
+          "go": "PurposeConfigs",
+          "name": "PurposeConfigs",
+          "json": "PurposeConfigs",
+          "yaml": "purposeconfigs",
+          "type": "map[consentconstants.Purpose]*config.AccountGDPRPurpose"
+        },
+        {
+          "go": "PurposeOneTreatment",
+          "name": "purpose_one_treatment",
+          "json": "purpose_one_treatment",
+          "yaml": "purposeonetreatment",
+          "type": "config.AccountGDPRPurposeOneTreatment"
+        },
+        {
+          "go": "SpecialFeature1",
+          "name": "special_feature1",
+          "json": "special_feature1",
+          "yaml": "specialfeature1",
+          "type": "config.AccountGDPRSpecialFeature"
+        },
+        {
+          "go": "EEACountries",
+          "name": "eea_countries",
+          "json": "eea_countries",
+          "yaml": "eeacountries",
+          "type": "[]string"
+        }
+      ]
+    },
+    "config.AccountGDPRPurpose": {
+      "kind": "struct",
+      "fields": [
+        {
+          "go": "EnforceAlgo",
+          "name": "enforce_algo",
+          "json": "enforce_algo",
+          "yaml": "enforcealgo",
+          "type": "string"
+        },
+        {
+          "go": "EnforceAlgoID",
+          "name": "EnforceAlgoID",
+          "json": "EnforceAlgoID",
+          "yaml": "enforcealgoid",
+          "type": "config.TCF2EnforcementAlgo"
+        },
+        {
+          "go": "EnforcePurpose",
+          "name": "enforce_purpose",
+          "json": "enforce_purpose",
+          "yaml": "enforcepurpose",
+          "type": "*bool"
+        },
+        {
+          "go": "EnforceVendors",
+          "name": "enforce_vendors",
+          "json": "enforce_vendors",
+          "yaml": "enforcevendors",
+          "type": "*bool"
+        },
+        {
+          "go": "VendorExceptions",
+          "name": "vendor_exceptions",
+          "json": "vendor_exceptions",
+          "yaml": "vendorexceptions",
+          "type": "[]string"
+        },
+        {
+          "go": "VendorExceptionMap",
+          "name": "VendorExceptionMap",
+          "json": "VendorExceptionMap",
+          "yaml": "vendorexceptionmap",
+          "type": "map[string]struct {}"
+        }
+      ]
+    },
+    "config.AccountGDPRPurposeOneTreatment": {
+      "kind": "struct",
+      "fields": [
+        {
+          "go": "Enabled",
+          "name": "enabled",
+          "json": "Enabled",
+          "yaml": "enabled",
+          "type": "*bool"
+        },
+        {
+          "go": "AccessAllowed",
+          "name": "access_allowed",
+          "json": "AccessAllowed",
+          "yaml": "accessallowed",
+          "type": "*bool"
+        }
+      ]
+    },
+    "config.AccountGDPRSpecialFeature": {
+      "kind": "struct",
+      "fields": [
+        {
+          "go": "Enforce",
+          "name": "enforce",
+          "json": "enforce",
+          "yaml": "enforce",
+          "type": "*bool"
+        },
+        {
+          "go": "VendorExceptions",
+          "name": "vendor_exceptions",
+          "json": "vendor_exceptions",
+          "yaml": "vendorexceptions",
+          "type": "[]openrtb_ext.BidderName"
+        },
+        {
+          "go": "VendorExceptionMap",
+          "name": "VendorExceptionMap",
+          "json": "VendorExceptionMap",
+          "yaml": "vendorexceptionmap",
+          "type": "map[openrtb_ext.BidderName]struct {}"
+        }
+      ]
+    },
+    "config.AccountHooks": {
+      "kind": "struct",
+      "fields": [
+        {
+          "go": "Modules",
+          "name": "modules",
+          "json": "modules",
+          "yaml": "modules",
+          "type": "config.AccountModules"
+        },
+        {
+          "go": "ExecutionPlan",
+          "name": "execution_plan",
+          "json": "execution_plan",
+          "yaml": "executionplan",
+          "type": "config.HookExecutionPlan"
+        }
+      ]
+    },
+    "config.AccountModules": {
+      "kind": "map",
+      "elem": "map[string]json.RawMessage",
+      "key": "string",
+      "hook": "account_modules"
+    },
+    "config.AccountPriceFloors": {
+      "kind": "struct",
+      "fields": [
+        {
+          "go": "Enabled",
+          "name": "enabled",
+          "json": "enabled",
+          "yaml": "enabled",
+          "type": "bool"
+        },
+        {
+          "go": "EnforceFloorsRate",
+          "name": "enforce_floors_rate",
+          "json": "enforce_floors_rate",
+          "yaml": "enforcefloorsrate",
+          "type": "int"
+        },
+        {
+          "go": "AdjustForBidAdjustment",
+          "name": "adjust_for_bid_adjustment",
+          "json": "adjust_for_bid_adjustment",
+          "yaml": "adjustforbidadjustment",
+          "type": "bool"
+        },
+        {
+          "go": "EnforceDealFloors",
+          "name": "enforce_deal_floors",
+          "json": "enforce_deal_floors",
+          "yaml": "enforcedealfloors",
+          "type": "bool"
+        },
+        {
+          "go": "UseDynamicData",
+          "name": "use_dynamic_data",
+          "json": "use_dynamic_data",
+          "yaml": "usedynamicdata",
+          "type": "bool"
+        },
+        {
+          "go": "MaxRule",
+          "name": "max_rules",
+          "json": "max_rules",
+          "yaml": "maxrule",
+          "type": "int"
+        },
+        {
+          "go": "MaxSchemaDims",
+          "name": "max_schema_dims",
+          "json": "max_schema_dims",
+          "yaml": "maxschemadims",
+          "type": "int"
+        },
+        {
+          "go": "Fetcher",
+          "name": "fetch",
+          "json": "fetch",
+          "yaml": "fetcher",
+          "type": "config.AccountFloorFetch"
+        }
+      ]
+    },
+    "config.AccountPrivacy": {
+      "kind": "struct",
+      "fields": [
+        {
+          "go": "AllowActivities",
+          "name": "allowactivities",
+          "json": "allowactivities",
+          "yaml": "allowactivities",
+          "type": "*config.AllowActivities"
+        },
+        {
+          "go": "DSA",
+          "name": "dsa",
+          "json": "dsa",
+          "yaml": "dsa",
+          "type": "*config.AccountDSA"
+        },
+        {
+          "go": "IPv6Config",
+          "name": "ipv6",
+          "json": "ipv6",
+          "yaml": "ipv6config",
+          "type": "config.IPv6"
+        },
+        {
+          "go": "IPv4Config",
+          "name": "ipv4",
+          "json": "ipv4",
+          "yaml": "ipv4config",
+          "type": "config.IPv4"
+        },
+        {
+          "go": "PrivacySandbox",
+          "name": "privacysandbox",
+          "json": "privacysandbox",
+          "yaml": "privacysandbox",
+          "type": "config.PrivacySandbox"
+        }
+      ]
+    },
+    "config.Activity": {
+      "kind": "struct",
+      "fields": [
+        {
+          "go": "Default",
+          "name": "default",
+          "json": "default",
+          "yaml": "default",
+          "type": "*bool"
+        },
+        {
+          "go": "Rules",
+          "name": "rules",
+          "json": "rules",
+          "yaml": "rules",
+          "type": "[]config.ActivityRule"
+        }
+      ]
+    },
+    "config.ActivityCondition": {
+      "kind": "struct",
+      "fields": [
+        {
+          "go": "ComponentName",
+          "name": "componentName",
+          "json": "componentName",
+          "yaml": "componentname",
+          "type": "[]string"
+        },
+        {
+          "go": "ComponentType",
+          "name": "componentType",
+          "json": "componentType",
+          "yaml": "componenttype",
+          "type": "[]string"
+        }
+      ]
+    },
+    "config.ActivityRule": {
+      "kind": "struct",
+      "fields": [
+        {
+          "go": "Condition",
+          "name": "condition",
+          "json": "condition",
+          "yaml": "condition",
+          "type": "config.ActivityCondition"
+        },
+        {
+          "go": "Allow",
+          "name": "allow",
+          "json": "allow",
+          "yaml": "allow",
+          "type": "bool"
+        }
+      ]
+    },
+    "config.AdapterXAPI": {
+      "kind": "struct",
+      "fields": [
+        {
+          "go": "Username",
+          "name": "username",
+          "json": "Username",
+          "yaml": "username",
+          "type": "string"
+        },
+        {
+          "go": "Password",
+          "name": "password",
+          "json": "Password",
+          "yaml": "password",
+          "type": "string"
+        },
+        {
+          "go": "Tracker",
+          "name": "tracker",
+          "json": "Tracker",
+          "yaml": "tracker",
+          "type": "string"
+        }
+      ]
+    },
+    "config.Admin": {
+      "kind": "struct",
+      "fields": [
+        {
+          "go": "Enabled",
+          "name": "enabled",
+          "json": "Enabled",
+          "yaml": "enabled",
+          "type": "bool"
+        }
+      ]
+    },
+    "config.AdsCertInProcess": {
+      "kind": "struct",
+      "fields": [
+        {
+          "go": "Origin",
+          "name": "origin",
+          "json": "Origin",
+          "yaml": "origin",
+          "type": "string"
+        },
+        {
+          "go": "PrivateKey",
+          "name": "key",
+          "json": "PrivateKey",
+          "yaml": "privatekey",
+          "type": "string"
+        },
+        {
+          "go": "DNSCheckIntervalInSeconds",
+          "name": "domain_check_interval_seconds",
+          "json": "DNSCheckIntervalInSeconds",
+          "yaml": "dnscheckintervalinseconds",
+          "type": "int"
+        },
+        {
+          "go": "DNSRenewalIntervalInSeconds",
+          "name": "domain_renewal_interval_seconds",
+          "json": "DNSRenewalIntervalInSeconds",
+          "yaml": "dnsrenewalintervalinseconds",
+          "type": "int"
+        }
+      ]
+    },
+    "config.AdsCertRemote": {
+      "kind": "struct",
+      "fields": [
+        {
+          "go": "Url",
+          "name": "url",
+          "json": "Url",
+          "yaml": "url",
+          "type": "string"
+        },
+        {
+          "go": "SigningTimeoutMs",
+          "name": "signing_timeout_ms",
+          "json": "SigningTimeoutMs",
+          "yaml": "signingtimeoutms",
+          "type": "int"
+        }
+      ]
+    },
+    "config.AgmaAnalytics": {
+      "kind": "struct",
+      "fields": [
+        {
+          "go": "Enabled",
+          "name": "enabled",
+          "json": "Enabled",
+          "yaml": "enabled",
+          "type": "bool"
+        },
+        {
+          "go": "Endpoint",
+          "name": "endpoint",
+          "json": "Endpoint",
+          "yaml": "endpoint",
+          "type": "config.AgmaAnalyticsHttpEndpoint"
+        },
+        {
+          "go": "Buffers",
+          "name": "buffers",
+          "json": "Buffers",
+          "yaml": "buffers",
+          "type": "config.AgmaAnalyticsBuffer"
+        },
+        {
+          "go": "Accounts",
+          "name": "accounts",
+          "json": "Accounts",
+          "yaml": "accounts",
+          "type": "[]config.AgmaAnalyticsAccount"
+        }
+      ]
+    },
+    "config.AgmaAnalyticsAccount": {
+      "kind": "struct",
+      "fields": [
+        {
+          "go": "Code",
+          "name": "code",
+          "json": "Code",
+          "yaml": "code",
+          "type": "string"
+        },
+        {
+          "go": "PublisherId",
+          "name": "publisher_id",
+          "json": "PublisherId",
+          "yaml": "publisherid",
+          "type": "string"
+        },
+        {
+          "go": "SiteAppId",
+          "name": "site_app_id",
+          "json": "SiteAppId",
+          "yaml": "siteappid",
+          "type": "string"
+        }
+      ]
+    },
+    "config.AgmaAnalyticsBuffer": {
+      "kind": "struct",
+      "fields": [
+        {
+          "go": "BufferSize",
+          "name": "size",
+          "json": "BufferSize",
+          "yaml": "buffersize",
+          "type": "string"
+        },
+        {
+          "go": "EventCount",
+          "name": "count",
+          "json": "EventCount",
+          "yaml": "eventcount",
+          "type": "int"
+        },
+        {
+          "go": "Timeout",
+          "name": "timeout",
+          "json": "Timeout",
+          "yaml": "timeout",
+          "type": "string"
+        }
+      ]
+    },
+    "config.AgmaAnalyticsHttpEndpoint": {
+      "kind": "struct",
+      "fields": [
+        {
+          "go": "Url",
+          "name": "url",
+          "json": "Url",
+          "yaml": "url",
+          "type": "string"
+        },
+        {
+          "go": "Timeout",
+          "name": "timeout",
+          "json": "Timeout",
+          "yaml": "timeout",
+          "type": "string"
+        },
+        {
+          "go": "Gzip",
+          "name": "gzip",
+          "json": "Gzip",
+          "yaml": "gzip",
+          "type": "bool"
+        }
+      ]
+    },
+    "config.AllowActivities": {
+      "kind": "struct",
+      "fields": [
+        {
+          "go": "SyncUser",
+          "name": "syncUser",
+          "json": "syncUser",
+          "yaml": "syncuser",
+          "type": "config.Activity"
+        },
+        {
+          "go": "FetchBids",
+          "name": "fetchBids",
+          "json": "fetchBids",
+          "yaml": "fetchbids",
+          "type": "config.Activity"
+        },
+        {
+          "go": "EnrichUserFPD",
+          "name": "enrichUfpd",
+          "json": "enrichUfpd",
+          "yaml": "enrichuserfpd",
+          "type": "config.Activity"
+        },
+        {
+          "go": "ReportAnalytics",
+          "name": "reportAnalytics",
+          "json": "reportAnalytics",
+          "yaml": "reportanalytics",
+          "type": "config.Activity"
+        },
+        {
+          "go": "TransmitUserFPD",
+          "name": "transmitUfpd",
+          "json": "transmitUfpd",
+          "yaml": "transmituserfpd",
+          "type": "config.Activity"
+        },
+        {
+          "go": "TransmitPreciseGeo",
+          "name": "transmitPreciseGeo",
+          "json": "transmitPreciseGeo",
+          "yaml": "transmitprecisegeo",
+          "type": "config.Activity"
+        },
+        {
+          "go": "TransmitUniqueRequestIds",
+          "name": "transmitUniqueRequestIds",
+          "json": "transmitUniqueRequestIds",
+          "yaml": "transmituniquerequestids",
+          "type": "config.Activity"
+        },
+        {
+          "go": "TransmitTids",
+          "name": "transmitTid",
+          "json": "transmitTid",
+          "yaml": "transmittids",
+          "type": "config.Activity"
+        }
+      ]
+    },
+    "config.Analytics": {
+      "kind": "struct",
+      "fields": [
+        {
+          "go": "File",
+          "name": "file",
+          "json": "File",
+          "yaml": "file",
+          "type": "config.FileLogs"
+        },
+        {
+          "go": "Agma",
+          "name": "agma",
+          "json": "Agma",
+          "yaml": "agma",
+          "type": "config.AgmaAnalytics"
+        },
+        {
+          "go": "Pubstack",
+          "name": "pubstack",
+          "json": "Pubstack",
+          "yaml": "pubstack",
+          "type": "config.Pubstack"
+        }
+      ]
+    },
+    "config.AuctionTimeouts": {
+      "kind": "struct",
+      "fields": [
+        {
+          "go": "Default",
+          "name": "default",
+          "json": "Default",
+          "yaml": "default",
+          "type": "uint64"
+        },
+        {
+          "go": "Max",
+          "name": "max",
+          "json": "Max",
+          "yaml": "max",
+          "type": "uint64"
+        }
+      ]
+    },
+    "config.BidRoundingMode": {
+      "kind": "string"
+    },
+    "config.BidderAdsCert": {
+      "kind": "struct",
+      "fields": [
+        {
+          "go": "Enabled",
+          "name": "enabled",
+          "json": "Enabled",
+          "yaml": "enabled",
+          "type": "bool"
+        }
+      ]
+    },
+    "config.BidderInfo": {
+      "kind": "struct",
+      "fields": [
+        {
+          "go": "AliasOf",
+          "name": "aliasOf",
+          "json": "AliasOf",
+          "yaml": "aliasOf",
+          "type": "string"
+        },
+        {
+          "go": "WhiteLabelOnly",
+          "name": "whiteLabelOnly",
+          "json": "WhiteLabelOnly",
+          "yaml": "whiteLabelOnly",
+          "type": "bool"
+        },
+        {
+          "go": "Disabled",
+          "name": "disabled",
+          "json": "Disabled",
+          "yaml": "disabled",
+          "type": "bool"
+        },
+        {
+          "go": "Endpoint",
+          "name": "endpoint",
+          "json": "Endpoint",
+          "yaml": "endpoint",
+          "type": "string"
+        },
+        {
+          "go": "ExtraAdapterInfo",
+          "name": "extra_info",
+          "json": "ExtraAdapterInfo",
+          "yaml": "extra_info",
+          "type": "string"
+        },
+        {
+          "go": "OpenRTB",
+          "name": "openrtb",
+          "json": "OpenRTB",
+          "yaml": "openrtb",
+          "type": "*config.OpenRTBInfo"
+        },
+        {
+          "go": "Maintainer",
+          "name": "maintainer",
+          "json": "Maintainer",
+          "yaml": "maintainer",
+          "type": "*config.MaintainerInfo"
+        },
+        {
+          "go": "Capabilities",
+          "name": "capabilities",
+          "json": "Capabilities",
+          "yaml": "capabilities",
+          "type": "*config.CapabilitiesInfo"
+        },
+        {
+          "go": "ModifyingVastXmlAllowed",
+          "name": "modifyingVastXmlAllowed",
+          "json": "ModifyingVastXmlAllowed",
+          "yaml": "modifyingVastXmlAllowed",
+          "type": "bool"
+        },
+        {
+          "go": "Debug",
+          "name": "debug",
+          "json": "Debug",
+          "yaml": "debug",
+          "type": "*config.DebugInfo"
+        },
+        {
+          "go": "Geoscope",
+          "name": "geoscope",
+          "json": "Geoscope",
+          "yaml": "geoscope",
+          "type": "[]string"
+        },
+        {
+          "go": "GVLVendorID",
+          "name": "gvlVendorID",
+          "json": "GVLVendorID",
+          "yaml": "gvlVendorID",
+          "type": "uint16"
+        },
+        {
+          "go": "Syncer",
+          "name": "userSync",
+          "json": "Syncer",
+          "yaml": "userSync",
+          "type": "*config.Syncer"
+        },
+        {
+          "go": "Experiment",
+          "name": "experiment",
+          "json": "Experiment",
+          "yaml": "experiment",
+          "type": "config.BidderInfoExperiment"
+        },
+        {
+          "go": "XAPI",
+          "name": "xapi",
+          "json": "XAPI",
+          "yaml": "xapi",
+          "type": "config.AdapterXAPI"
+        },
+        {
+          "go": "PlatformID",
+          "name": "platform_id",
+          "json": "PlatformID",
+          "yaml": "platform_id",
+          "type": "string"
+        },
+        {
+          "go": "AppSecret",
+          "name": "app_secret",
+          "json": "AppSecret",
+          "yaml": "app_secret",
+          "type": "string"
+        },
+        {
+          "go": "EndpointCompression",
+          "name": "endpointCompression",
+          "json": "EndpointCompression",
+          "yaml": "endpointCompression",
+          "type": "string"
+        }
+      ]
+    },
+    "config.BidderInfoExperiment": {
+      "kind": "struct",
+      "fields": [
+        {
+          "go": "AdsCert",
+          "name": "adsCert",
+          "json": "AdsCert",
+          "yaml": "adsCert",
+          "type": "config.BidderAdsCert"
+        }
+      ]
+    },
+    "config.BidderInfos": {
+      "kind": "map",
+      "elem": "config.BidderInfo",
+      "key": "string"
+    },
+    "config.CCPA": {
+      "kind": "struct",
+      "fields": [
+        {
+          "go": "Enforce",
+          "name": "enforce",
+          "json": "Enforce",
+          "yaml": "enforce",
+          "type": "bool"
+        }
+      ]
+    },
+    "config.Cache": {
+      "kind": "struct",
+      "fields": [
+        {
+          "go": "Scheme",
+          "name": "scheme",
+          "json": "Scheme",
+          "yaml": "scheme",
+          "type": "string"
+        },
+        {
+          "go": "Host",
+          "name": "host",
+          "json": "Host",
+          "yaml": "host",
+          "type": "string"
+        },
+        {
+          "go": "Query",
+          "name": "query",
+          "json": "Query",
+          "yaml": "query",
+          "type": "string"
+        },
+        {
+          "go": "ExpectedTimeMillis",
+          "name": "expected_millis",
+          "json": "ExpectedTimeMillis",
+          "yaml": "expectedtimemillis",
+          "type": "int"
+        },
+        {
+          "go": "DefaultTTLs",
+          "name": "default_ttl_seconds",
+          "json": "DefaultTTLs",
+          "yaml": "defaultttls",
+          "type": "config.DefaultTTLs"
+        }
+      ]
+    },
+    "config.CacheEventsConfig": {
+      "kind": "struct",
+      "fields": [
+        {
+          "go": "Enabled",
+          "name": "enabled",
+          "json": "Enabled",
+          "yaml": "enabled",
+          "type": "bool"
+        },
+        {
+          "go": "Endpoint",
+          "name": "endpoint",
+          "json": "Endpoint",
+          "yaml": "endpoint",
+          "type": "string"
+        }
+      ]
+    },
+    "config.CapabilitiesInfo": {
+      "kind": "struct",
+      "fields": [
+        {
+          "go": "App",
+          "name": "app",
+          "json": "App",
+          "yaml": "app",
+          "type": "*config.PlatformInfo"
+        },
+        {
+          "go": "Site",
+          "name": "site",
+          "json": "Site",
+          "yaml": "site",
+          "type": "*config.PlatformInfo"
+        },
+        {
+          "go": "DOOH",
+          "name": "dooh",
+          "json": "DOOH",
+          "yaml": "dooh",
+          "type": "*config.PlatformInfo"
+        }
+      ]
+    },
+    "config.Compression": {
+      "kind": "struct",
+      "fields": [
+        {
+          "go": "Request",
+          "name": "request",
+          "json": "Request",
+          "yaml": "request",
+          "type": "config.CompressionInfo"
+        },
+        {
+          "go": "Response",
+          "name": "response",
+          "json": "Response",
+          "yaml": "response",
+          "type": "config.CompressionInfo"
+        }
+      ]
+    },
+    "config.CompressionInfo": {
+      "kind": "struct",
+      "fields": [
+        {
+          "go": "GZIP",
+          "name": "enable_gzip",
+          "json": "GZIP",
+          "yaml": "gzip",
+          "type": "bool"
+        }
+      ]
+    },
+    "config.Configuration": {
+      "kind": "struct",
+      "fields": [
+        {
+          "go": "ExternalURL",
+          "name": "external_url",
+          "json": "ExternalURL",
+          "yaml": "externalurl",
+          "type": "string"
+        },
+        {
+          "go": "Host",
+          "name": "host",
+          "json": "Host",
+          "yaml": "host",
+          "type": "string"
+        },
+        {
+          "go": "Port",
+          "name": "port",
+          "json": "Port",
+          "yaml": "port",
+          "type": "int"
+        },
+        {
+          "go": "UnixSocketEnable",
+          "name": "unix_socket_enable",
+          "json": "UnixSocketEnable",
+          "yaml": "unixsocketenable",
+          "type": "bool"
+        },
+        {
+          "go": "UnixSocketName",
+          "name": "unix_socket_name",
+          "json": "UnixSocketName",
+          "yaml": "unixsocketname",
+          "type": "string"
+        },
+        {
+          "go": "Client",
+          "name": "http_client",
+          "json": "Client",
+          "yaml": "client",
+          "type": "config.HTTPClient"
+        },
+        {
+          "go": "CacheClient",
+          "name": "http_client_cache",
+          "json": "CacheClient",
+          "yaml": "cacheclient",
+          "type": "config.HTTPClient"
+        },
+        {
+          "go": "Admin",
+          "name": "admin",
+          "json": "Admin",
+          "yaml": "admin",
+          "type": "config.Admin"
+        },
+        {
+          "go": "AdminPort",
+          "name": "admin_port",
+          "json": "AdminPort",
+          "yaml": "adminport",
+          "type": "int"
+        },
+        {
+          "go": "Compression",
+          "name": "compression",
+          "json": "Compression",
+          "yaml": "compression",
+          "type": "config.Compression"
+        },
+        {
+          "go": "GarbageCollectorThreshold",
+          "name": "garbage_collector_threshold",
+          "json": "GarbageCollectorThreshold",
+          "yaml": "garbagecollectorthreshold",
+          "type": "int"
+        },
+        {
+          "go": "StatusResponse",
+          "name": "status_response",
+          "json": "StatusResponse",
+          "yaml": "statusresponse",
+          "type": "string"
+        },
+        {
+          "go": "AuctionTimeouts",
+          "name": "auction_timeouts_ms",
+          "json": "AuctionTimeouts",
+          "yaml": "auctiontimeouts",
+          "type": "config.AuctionTimeouts"
+        },
+        {
+          "go": "TmaxAdjustments",
+          "name": "tmax_adjustments",
+          "json": "TmaxAdjustments",
+          "yaml": "tmaxadjustments",
+          "type": "config.TmaxAdjustments"
+        },
+        {
+          "go": "TmaxDefault",
+          "name": "tmax_default",
+          "json": "TmaxDefault",
+          "yaml": "tmaxdefault",
+          "type": "int"
+        },
+        {
+          "go": "CacheURL",
+          "name": "cache",
+          "json": "CacheURL",
+          "yaml": "cacheurl",
+          "type": "config.Cache"
+        },
+        {
+          "go": "ExtCacheURL",
+          "name": "external_cache",
+          "json": "ExtCacheURL",
+          "yaml": "extcacheurl",
+          "type": "config.ExternalCache"
+        },
+        {
+          "go": "RecaptchaSecret",
+          "name": "recaptcha_secret",
+          "json": "RecaptchaSecret",
+          "yaml": "recaptchasecret",
+          "type": "string"
+        },
+        {
+          "go": "HostCookie",
+          "name": "host_cookie",
+          "json": "HostCookie",
+          "yaml": "hostcookie",
+          "type": "config.HostCookie"
+        },
+        {
+          "go": "Metrics",
+          "name": "metrics",
+          "json": "Metrics",
+          "yaml": "metrics",
+          "type": "config.Metrics"
+        },
+        {
+          "go": "StoredRequests",
+          "name": "stored_requests",
+          "json": "StoredRequests",
+          "yaml": "storedrequests",
+          "type": "config.StoredRequests"
+        },
+        {
+          "go": "StoredRequestsAMP",
+          "name": "stored_amp_req",
+          "json": "StoredRequestsAMP",
+          "yaml": "storedrequestsamp",
+          "type": "config.StoredRequests"
+        },
+        {
+          "go": "CategoryMapping",
+          "name": "category_mapping",
+          "json": "CategoryMapping",
+          "yaml": "categorymapping",
+          "type": "config.StoredRequests"
+        },
+        {
+          "go": "VTrack",
+          "name": "vtrack",
+          "json": "VTrack",
+          "yaml": "vtrack",
+          "type": "config.VTrack"
+        },
+        {
+          "go": "Event",
+          "name": "event",
+          "json": "Event",
+          "yaml": "event",
+          "type": "config.Event"
+        },
+        {
+          "go": "Video",
+          "name": "video",
+          "json": "Video",
+          "yaml": "video",
+          "type": "config.Video"
+        },
+        {
+          "go": "Accounts",
+          "name": "accounts",
+          "json": "Accounts",
+          "yaml": "accounts",
+          "type": "config.StoredRequests"
+        },
+        {
+          "go": "UserSync",
+          "name": "user_sync",
+          "json": "UserSync",
+          "yaml": "usersync",
+          "type": "config.UserSync"
+        },
+        {
+          "go": "CookieSync",
+          "name": "cookie_sync",
+          "json": "CookieSync",
+          "yaml": "cookiesync",
+          "type": "config.CookieSync"
+        },
+        {
+          "go": "StoredVideo",
+          "name": "stored_video_req",
+          "json": "StoredVideo",
+          "yaml": "storedvideo",
+          "type": "config.StoredRequests"
+        },
+        {
+          "go": "StoredResponses",
+          "name": "stored_responses",
+          "json": "StoredResponses",
+          "yaml": "storedresponses",
+          "type": "config.StoredRequests"
+        },
+        {
+          "go": "StoredRequestsTimeout",
+          "name": "stored_requests_timeout_ms",
+          "json": "StoredRequestsTimeout",
+          "yaml": "storedrequeststimeout",
+          "type": "int"
+        },
+        {
+          "go": "MaxRequestSize",
+          "name": "max_request_size",
+          "json": "MaxRequestSize",
+          "yaml": "maxrequestsize",
+          "type": "int64"
+        },
+        {
+          "go": "Analytics",
+          "name": "analytics",
+          "json": "Analytics",
+          "yaml": "analytics",
+          "type": "config.Analytics"
+        },
+        {
+          "go": "AMPTimeoutAdjustment",
+          "name": "amp_timeout_adjustment_ms",
+          "json": "AMPTimeoutAdjustment",
+          "yaml": "amptimeoutadjustment",
+          "type": "int64"
+        },
+        {
+          "go": "GDPR",
+          "name": "gdpr",
+          "json": "GDPR",
+          "yaml": "gdpr",
+          "type": "config.GDPR"
+        },
+        {
+          "go": "CCPA",
+          "name": "ccpa",
+          "json": "CCPA",
+          "yaml": "ccpa",
+          "type": "config.CCPA"
+        },
+        {
+          "go": "LMT",
+          "name": "lmt",
+          "json": "LMT",
+          "yaml": "lmt",
+          "type": "config.LMT"
+        },
+        {
+          "go": "CurrencyConverter",
+          "name": "currency_converter",
+          "json": "CurrencyConverter",
+          "yaml": "currencyconverter",
+          "type": "config.CurrencyConverter"
+        },
+        {
+          "go": "DefReqConfig",
+          "name": "default_request",
+          "json": "DefReqConfig",
+          "yaml": "defreqconfig",
+          "type": "config.DefReqConfig"
+        },
+        {
+          "go": "VideoStoredRequestRequired",
+          "name": "video_stored_request_required",
+          "json": "VideoStoredRequestRequired",
+          "yaml": "videostoredrequestrequired",
+          "type": "bool"
+        },
+        {
+          "go": "BlockedApps",
+          "name": "blocked_apps",
+          "json": "BlockedApps",
+          "yaml": "blockedapps",
+          "type": "[]string"
+        },
+        {
+          "go": "BlockedAppsLookup",
+          "name": "BlockedAppsLookup",
+          "json": "BlockedAppsLookup",
+          "yaml": "blockedappslookup",
+          "type": "map[string]bool"
+        },
+        {
+          "go": "AccountRequired",
+          "name": "account_required",
+          "json": "AccountRequired",
+          "yaml": "accountrequired",
+          "type": "bool"
+        },
+        {
+          "go": "AccountDefaults",
+          "name": "account_defaults",
+          "json": "AccountDefaults",
+          "yaml": "accountdefaults",
+          "type": "config.Account"
+        },
+        {
+          "go": "PemCertsFile",
+          "name": "certificates_file",
+          "json": "PemCertsFile",
+          "yaml": "pemcertsfile",
+          "type": "string"
+        },
+        {
+          "go": "RequestTimeoutHeaders",
+          "name": "request_timeout_headers",
+          "json": "RequestTimeoutHeaders",
+          "yaml": "requesttimeoutheaders",
+          "type": "config.RequestTimeoutHeaders"
+        },
+        {
+          "go": "Debug",
+          "name": "debug",
+          "json": "Debug",
+          "yaml": "debug",
+          "type": "config.Debug"
+        },
+        {
+          "go": "RequestValidation",
+          "name": "request_validation",
+          "json": "RequestValidation",
+          "yaml": "requestvalidation",
+          "type": "config.RequestValidation"
+        },
+        {
+          "go": "AutoGenSourceTID",
+          "name": "auto_gen_source_tid",
+          "json": "AutoGenSourceTID",
+          "yaml": "autogensourcetid",
+          "type": "bool"
+        },
+        {
+          "go": "GenerateBidID",
+          "name": "generate_bid_id",
+          "json": "GenerateBidID",
+          "yaml": "generatebidid",
+          "type": "bool"
+        },
+        {
+          "go": "GenerateRequestID",
+          "name": "generate_request_id",
+          "json": "GenerateRequestID",
+          "yaml": "generaterequestid",
+          "type": "bool"
+        },
+        {
+          "go": "HostSChainNode",
+          "name": "host_schain_node",
+          "json": "HostSChainNode",
+          "yaml": "hostschainnode",
+          "type": "*openrtb2.SupplyChainNode"
+        },
+        {
+          "go": "Experiment",
+          "name": "experiment",
+          "json": "Experiment",
+          "yaml": "experiment",
+          "type": "config.Experiment"
+        },
+        {
+          "go": "DataCenter",
+          "name": "datacenter",
+          "json": "DataCenter",
+          "yaml": "datacenter",
+          "type": "string"
+        },
+        {
+          "go": "BidderInfos",
+          "name": "adapters",
+          "json": "BidderInfos",
+          "yaml": "bidderinfos",
+          "type": "config.BidderInfos"
+        },
+        {
+          "go": "Hooks",
+          "name": "hooks",
+          "json": "Hooks",
+          "yaml": "hooks",
+          "type": "config.Hooks"
+        },
+        {
+          "go": "Validations",
+          "name": "validations",
+          "json": "Validations",
+          "yaml": "validations",
+          "type": "config.Validations"
+        },
+        {
+          "go": "PriceFloors",
+          "name": "price_floors",
+          "json": "PriceFloors",
+          "yaml": "pricefloors",
+          "type": "config.PriceFloors"
+        }
+      ]
+    },
+    "config.Cookie": {
+      "kind": "struct",
+      "fields": [
+        {
+          "go": "Name",
+          "name": "name",
+          "json": "Name",
+          "yaml": "name",
+          "type": "string"
+        },
+        {
+          "go": "Value",
+          "name": "value",
+          "json": "Value",
+          "yaml": "value",
+          "type": "string"
+        }
+      ]
+    },
+    "config.CookieDeprecation": {
+      "kind": "struct",
+      "fields": [
+        {
+          "go": "Enabled",
+          "name": "enabled",
+          "json": "Enabled",
+          "yaml": "enabled",
+          "type": "bool"
+        },
+        {
+          "go": "TTLSec",
+          "name": "ttl_sec",
+          "json": "TTLSec",
+          "yaml": "ttlsec",
+          "type": "int"
+        }
+      ]
+    },
+    "config.CookieSync": {
+      "kind": "struct",
+      "fields": [
+        {
+          "go": "DisabledIFrameBidders",
+          "name": "disabled_iframe_bidders",
+          "json": "disabled_iframe_bidders",
+          "yaml": "disablediframebidders",
+          "type": "[]string"
+        }
+      ]
+    },
+    "config.CurrencyConverter": {
+      "kind": "struct",
+      "fields": [
+        {
+          "go": "FetchURL",
+          "name": "fetch_url",
+          "json": "FetchURL",
+          "yaml": "fetchurl",
+          "type": "string"
+        },
+        {
+          "go": "FetchTimeoutMilliseconds",
+          "name": "fetch_timeout_ms",
+          "json": "FetchTimeoutMilliseconds",
+          "yaml": "fetchtimeoutmilliseconds",
+          "type": "int"
+        },
+        {
+          "go": "FetchIntervalSeconds",
+          "name": "fetch_interval_seconds",
+          "json": "FetchIntervalSeconds",
+          "yaml": "fetchintervalseconds",
+          "type": "int"
+        },
+        {
+          "go": "StaleRatesSeconds",
+          "name": "stale_rates_seconds",
+          "json": "StaleRatesSeconds",
+          "yaml": "staleratesseconds",
+          "type": "int"
+        }
+      ]
+    },
+    "config.DatabaseCacheInitializer": {
+      "kind": "struct",
+      "fields": [
+        {
+          "go": "Timeout",
+          "name": "timeout_ms",
+          "json": "Timeout",
+          "yaml": "timeout",
+          "type": "int"
+        },
+        {
+          "go": "Query",
+          "name": "query",
+          "json": "Query",
+          "yaml": "query",
+          "type": "string"
+        },
+        {
+          "go": "AmpQuery",
+          "name": "amp_query",
+          "json": "AmpQuery",
+          "yaml": "ampquery",
+          "type": "string"
+        }
+      ]
+    },
+    "config.DatabaseConfig": {
+      "kind": "struct",
+      "fields": [
+        {
+          "go": "ConnectionInfo",
+          "name": "connection",
+          "json": "ConnectionInfo",
+          "yaml": "connectioninfo",
+          "type": "config.DatabaseConnection"
+        },
+        {
+          "go": "FetcherQueries",
+          "name": "fetcher",
+          "json": "FetcherQueries",
+          "yaml": "fetcherqueries",
+          "type": "config.DatabaseFetcherQueries"
+        },
+        {
+          "go": "CacheInitialization",
+          "name": "initialize_caches",
+          "json": "CacheInitialization",
+          "yaml": "cacheinitialization",
+          "type": "config.DatabaseCacheInitializer"
+        },
+        {
+          "go": "PollUpdates",
+          "name": "poll_for_updates",
+          "json": "PollUpdates",
+          "yaml": "pollupdates",
+          "type": "config.DatabaseUpdatePolling"
+        }
+      ]
+    },
+    "config.DatabaseConnection": {
+      "kind": "struct",
+      "fields": [
+        {
+          "go": "Driver",
+          "name": "driver",
+          "json": "Driver",
+          "yaml": "driver",
+          "type": "string"
+        },
+        {
+          "go": "Database",
+          "name": "dbname",
+          "json": "Database",
+          "yaml": "database",
+          "type": "string"
+        },
+        {
+          "go": "Host",
+          "name": "host",
+          "json": "Host",
+          "yaml": "host",
+          "type": "string"
+        },
+        {
+          "go": "Port",
+          "name": "port",
+          "json": "Port",
+          "yaml": "port",
+          "type": "int"
+        },
+        {
+          "go": "Username",
+          "name": "user",
+          "json": "Username",
+          "yaml": "username",
+          "type": "string"
+        },
+        {
+          "go": "Password",
+          "name": "password",
+          "json": "Password",
+          "yaml": "password",
+          "type": "string"
+        },
+        {
+          "go": "QueryString",
+          "name": "query_string",
+          "json": "QueryString",
+          "yaml": "querystring",
+          "type": "string"
+        },
+        {
+          "go": "TLS",
+          "name": "tls",
+          "json": "TLS",
+          "yaml": "tls",
+          "type": "config.TLS"
+        }
+      ]
+    },
+    "config.DatabaseFetcherQueries": {
+      "kind": "struct",
+      "fields": [
+        {
+          "go": "QueryTemplate",
+          "name": "query",
+          "json": "QueryTemplate",
+          "yaml": "querytemplate",
+          "type": "string"
+        },
+        {
+          "go": "AmpQueryTemplate",
+          "name": "amp_query",
+          "json": "AmpQueryTemplate",
+          "yaml": "ampquerytemplate",
+          "type": "string"
+        }
+      ]
+    },
+    "config.DatabaseUpdatePolling": {
+      "kind": "struct",
+      "fields": [
+        {
+          "go": "RefreshRate",
+          "name": "refresh_rate_seconds",
+          "json": "RefreshRate",
+          "yaml": "refreshrate",
+          "type": "int"
+        },
+        {
+          "go": "Timeout",
+          "name": "timeout_ms",
+          "json": "Timeout",
+          "yaml": "timeout",
+          "type": "int"
+        },
+        {
+          "go": "Query",
+          "name": "query",
+          "json": "Query",
+          "yaml": "query",
+          "type": "string"
+        },
+        {
+          "go": "AmpQuery",
+          "name": "amp_query",
+          "json": "AmpQuery",
+          "yaml": "ampquery",
+          "type": "string"
+        }
+      ]
+    },
+    "config.Debug": {
+      "kind": "struct",
+      "fields": [
+        {
+          "go": "TimeoutNotification",
+          "name": "timeout_notification",
+          "json": "TimeoutNotification",
+          "yaml": "timeoutnotification",
+          "type": "config.TimeoutNotification"
+        },
+        {
+          "go": "OverrideToken",
+          "name": "override_token",
+          "json": "OverrideToken",
+          "yaml": "overridetoken",
+          "type": "string"
+        }
+      ]
+    },
+    "config.DebugInfo": {
+      "kind": "struct",
+      "fields": [
+        {
+          "go": "Allow",
+          "name": "allow",
+          "json": "Allow",
+          "yaml": "allow",
+          "type": "bool"
+        }
+      ]
+    },
+    "config.DefReqConfig": {
+      "kind": "struct",
+      "fields": [
+        {
+          "go": "Type",
+          "name": "type",
+          "json": "Type",
+          "yaml": "type",
+          "type": "string"
+        },
+        {
+          "go": "FileSystem",
+          "name": "file",
+          "json": "FileSystem",
+          "yaml": "filesystem",
+          "type": "config.DefReqFiles"
+        },
+        {
+          "go": "AliasInfo",
+          "name": "alias_info",
+          "json": "AliasInfo",
+          "yaml": "aliasinfo",
+          "type": "bool"
+        }
+      ]
+    },
+    "config.DefReqFiles": {
+      "kind": "struct",
+      "fields": [
+        {
+          "go": "FileName",
+          "name": "name",
+          "json": "FileName",
+          "yaml": "filename",
+          "type": "string"
+        }
+      ]
+    },
+    "config.DefaultTTLs": {
+      "kind": "struct",
+      "fields": [
+        {
+          "go": "Banner",
+          "name": "banner",
+          "json": "Banner",
+          "yaml": "banner",
+          "type": "int"
+        },
+        {
+          "go": "Video",
+          "name": "video",
+          "json": "Video",
+          "yaml": "video",
+          "type": "int"
+        },
+        {
+          "go": "Native",
+          "name": "native",
+          "json": "Native",
+          "yaml": "native",
+          "type": "int"
+        },
+        {
+          "go": "Audio",
+          "name": "audio",
+          "json": "Audio",
+          "yaml": "audio",
+          "type": "int"
+        }
+      ]
+    },
+    "config.Dialer": {
+      "kind": "struct",
+      "fields": [
+        {
+          "go": "TimeoutSeconds",
+          "name": "timeout_seconds",
+          "json": "TimeoutSeconds",
+          "yaml": "timeoutseconds",
+          "type": "int"
+        },
+        {
+          "go": "KeepAliveSeconds",
+          "name": "keep_alive_seconds",
+          "json": "KeepAliveSeconds",
+          "yaml": "keepaliveseconds",
+          "type": "int"
+        }
+      ]
+    },
+    "config.DisabledMetrics": {
+      "kind": "struct",
+      "fields": [
+        {
+          "go": "AccountAdapterDetails",
+          "name": "account_adapter_details",
+          "json": "AccountAdapterDetails",
+          "yaml": "accountadapterdetails",
+          "type": "bool"
+        },
+        {
+          "go": "AccountDebug",
+          "name": "account_debug",
+          "json": "AccountDebug",
+          "yaml": "accountdebug",
+          "type": "bool"
+        },
+        {
+          "go": "AccountStoredResponses",
+          "name": "account_stored_responses",
+          "json": "AccountStoredResponses",
+          "yaml": "accountstoredresponses",
+          "type": "bool"
+        },
+        {
+          "go": "AdapterConnectionMetrics",
+          "name": "adapter_connections_metrics",
+          "json": "AdapterConnectionMetrics",
+          "yaml": "adapterconnectionmetrics",
+          "type": "bool"
+        },
+        {
+          "go": "AdapterConnectionDialMetrics",
+          "name": "adapter_connections_dial_metrics",
+          "json": "AdapterConnectionDialMetrics",
+          "yaml": "adapterconnectiondialmetrics",
+          "type": "bool"
+        },
+        {
+          "go": "AdapterBuyerUIDScrubbed",
+          "name": "adapter_buyeruid_scrubbed",
+          "json": "AdapterBuyerUIDScrubbed",
+          "yaml": "adapterbuyeruidscrubbed",
+          "type": "bool"
+        },
+        {
+          "go": "AdapterGDPRRequestBlocked",
+          "name": "adapter_gdpr_request_blocked",
+          "json": "AdapterGDPRRequestBlocked",
+          "yaml": "adaptergdprrequestblocked",
+          "type": "bool"
+        },
+        {
+          "go": "AccountModulesMetrics",
+          "name": "account_modules_metrics",
+          "json": "AccountModulesMetrics",
+          "yaml": "accountmodulesmetrics",
+          "type": "bool"
+        }
+      ]
+    },
+    "config.Event": {
+      "kind": "struct",
+      "fields": [
+        {
+          "go": "TimeoutMS",
+          "name": "timeout_ms",
+          "json": "TimeoutMS",
+          "yaml": "timeoutms",
+          "type": "int64"
+        }
+      ]
+    },
+    "config.Events": {
+      "kind": "struct",
+      "fields": [
+        {
+          "go": "Enabled",
+          "name": "enabled",
+          "json": "enabled",
+          "yaml": "enabled",
+          "type": "bool"
+        },
+        {
+          "go": "DefaultURL",
+          "name": "default_url",
+          "json": "default_url",
+          "yaml": "defaulturl",
+          "type": "string"
+        },
+        {
+          "go": "VASTEvents",
+          "name": "vast_events",
+          "json": "vast_events",
+          "yaml": "vastevents",
+          "type": "[]config.VASTEvent"
+        }
+      ]
+    },
+    "config.Experiment": {
+      "kind": "struct",
+      "fields": [
+        {
+          "go": "AdCerts",
+          "name": "adscert",
+          "json": "AdCerts",
+          "yaml": "adcerts",
+          "type": "config.ExperimentAdsCert"
+        }
+      ]
+    },
+    "config.ExperimentAdsCert": {
+      "kind": "struct",
+      "fields": [
+        {
+          "go": "Mode",
+          "name": "mode",
+          "json": "Mode",
+          "yaml": "mode",
+          "type": "string"
+        },
+        {
+          "go": "InProcess",
+          "name": "inprocess",
+          "json": "InProcess",
+          "yaml": "inprocess",
+          "type": "config.AdsCertInProcess"
+        },
+        {
+          "go": "Remote",
+          "name": "remote",
+          "json": "Remote",
+          "yaml": "remote",
+          "type": "config.AdsCertRemote"
+        }
+      ]
+    },
+    "config.ExternalCache": {
+      "kind": "struct",
+      "fields": [
+        {
+          "go": "Scheme",
+          "name": "scheme",
+          "json": "Scheme",
+          "yaml": "scheme",
+          "type": "string"
+        },
+        {
+          "go": "Host",
+          "name": "host",
+          "json": "Host",
+          "yaml": "host",
+          "type": "string"
+        },
+        {
+          "go": "Path",
+          "name": "path",
+          "json": "Path",
+          "yaml": "path",
+          "type": "string"
+        }
+      ]
+    },
+    "config.FetcherConfig": {
+      "kind": "struct",
+      "fields": [
+        {
+          "go": "Type",
+          "name": "type",
+          "json": "Type",
+          "yaml": "type",
+          "type": "string"
+        },
+        {
+          "go": "MaxEntries",
+          "name": "max_entries",
+          "json": "MaxEntries",
+          "yaml": "maxentries",
+          "type": "int"
+        },
+        {
+          "go": "TTLSeconds",
+          "name": "ttl_seconds",
+          "json": "TTLSeconds",
+          "yaml": "ttlseconds",
+          "type": "int"
+        },
+        {
+          "go": "Refresh",
+          "name": "refresh",
+          "json": "Refresh",
+          "yaml": "refresh",
+          "type": "config.RefreshMode"
+        },
+        {
+          "go": "CoalesceRequests",
+          "name": "coalesce_requests",
+          "json": "CoalesceRequests",
+          "yaml": "coalescerequests",
+          "type": "bool"
+        },
+        {
+          "go": "ServeStale",
+          "name": "serve_stale",
+          "json": "ServeStale",
+          "yaml": "servestale",
+          "type": "bool"
+        },
+        {
+          "go": "BackgroundRefreshTimeoutSeconds",
+          "name": "background_refresh_timeout_seconds",
+          "json": "BackgroundRefreshTimeoutSeconds",
+          "yaml": "backgroundrefreshtimeoutseconds",
+          "type": "int"
+        },
+        {
+          "go": "BackgroundRefreshBackoffSeconds",
+          "name": "background_refresh_backoff_seconds",
+          "json": "BackgroundRefreshBackoffSeconds",
+          "yaml": "backgroundrefreshbackoffseconds",
+          "type": "int"
+        },
+        {
+          "go": "Negative",
+          "name": "negative",
+          "json": "Negative",
+          "yaml": "negative",
+          "type": "config.NegativeCacheConfig"
+        }
+      ]
+    },
+    "config.FileFetcherConfig": {
+      "kind": "struct",
+      "fields": [
+        {
+          "go": "Enabled",
+          "name": "enabled",
+          "json": "Enabled",
+          "yaml": "enabled",
+          "type": "bool"
+        },
+        {
+          "go": "Path",
+          "name": "directorypath",
+          "json": "Path",
+          "yaml": "path",
+          "type": "string"
+        }
+      ]
+    },
+    "config.FileLogs": {
+      "kind": "struct",
+      "fields": [
+        {
+          "go": "Filename",
+          "name": "filename",
+          "json": "Filename",
+          "yaml": "filename",
+          "type": "string"
+        }
+      ]
+    },
+    "config.GDPR": {
+      "kind": "struct",
+      "fields": [
+        {
+          "go": "Enabled",
+          "name": "enabled",
+          "json": "Enabled",
+          "yaml": "enabled",
+          "type": "bool"
+        },
+        {
+          "go": "HostVendorID",
+          "name": "host_vendor_id",
+          "json": "HostVendorID",
+          "yaml": "hostvendorid",
+          "type": "int"
+        },
+        {
+          "go": "DefaultValue",
+          "name": "default_value",
+          "json": "DefaultValue",
+          "yaml": "defaultvalue",
+          "type": "string"
+        },
+        {
+          "go": "Timeouts",
+          "name": "timeouts_ms",
+          "json": "Timeouts",
+          "yaml": "timeouts",
+          "type": "config.GDPRTimeouts"
+        },
+        {
+          "go": "NonStandardPublishers",
+          "name": "non_standard_publishers",
+          "json": "NonStandardPublishers",
+          "yaml": "nonstandardpublishers",
+          "type": "[]string"
+        },
+        {
+          "go": "NonStandardPublisherMap",
+          "name": "NonStandardPublisherMap",
+          "json": "NonStandardPublisherMap",
+          "yaml": "nonstandardpublishermap",
+          "type": "map[string]struct {}"
+        },
+        {
+          "go": "TCF2",
+          "name": "tcf2",
+          "json": "TCF2",
+          "yaml": "tcf2",
+          "type": "config.TCF2"
+        },
+        {
+          "go": "AMPException",
+          "name": "amp_exception",
+          "json": "AMPException",
+          "yaml": "ampexception",
+          "type": "bool"
+        },
+        {
+          "go": "LiveGVLRefreshInterval",
+          "name": "live_gvl_refresh_interval_seconds",
+          "json": "LiveGVLRefreshInterval",
+          "yaml": "livegvlrefreshinterval",
+          "type": "int"
+        },
+        {
+          "go": "EEACountries",
+          "name": "eea_countries",
+          "json": "EEACountries",
+          "yaml": "eeacountries",
+          "type": "[]string"
+        },
+        {
+          "go": "EEACountriesMap",
+          "name": "EEACountriesMap",
+          "json": "EEACountriesMap",
+          "yaml": "eeacountriesmap",
+          "type": "map[string]struct {}"
+        }
+      ]
+    },
+    "config.GDPRTimeouts": {
+      "kind": "struct",
+      "fields": [
+        {
+          "go": "InitVendorlistFetch",
+          "name": "init_vendorlist_fetches",
+          "json": "InitVendorlistFetch",
+          "yaml": "initvendorlistfetch",
+          "type": "int"
+        },
+        {
+          "go": "ActiveVendorlistFetch",
+          "name": "active_vendorlist_fetch",
+          "json": "ActiveVendorlistFetch",
+          "yaml": "activevendorlistfetch",
+          "type": "int"
+        }
+      ]
+    },
+    "config.HTTPClient": {
+      "kind": "struct",
+      "fields": [
+        {
+          "go": "MaxConnsPerHost",
+          "name": "max_connections_per_host",
+          "json": "MaxConnsPerHost",
+          "yaml": "maxconnsperhost",
+          "type": "int"
+        },
+        {
+          "go": "MaxIdleConns",
+          "name": "max_idle_connections",
+          "json": "MaxIdleConns",
+          "yaml": "maxidleconns",
+          "type": "int"
+        },
+        {
+          "go": "MaxIdleConnsPerHost",
+          "name": "max_idle_connections_per_host",
+          "json": "MaxIdleConnsPerHost",
+          "yaml": "maxidleconnsperhost",
+          "type": "int"
+        },
+        {
+          "go": "IdleConnTimeout",
+          "name": "idle_connection_timeout_seconds",
+          "json": "IdleConnTimeout",
+          "yaml": "idleconntimeout",
+          "type": "int"
+        },
+        {
+          "go": "TLSHandshakeTimeout",
+          "name": "tls_handshake_timeout_seconds",
+          "json": "TLSHandshakeTimeout",
+          "yaml": "tlshandshaketimeout",
+          "type": "int"
+        },
+        {
+          "go": "ExpectContinueTimeout",
+          "name": "expect_continue_timeout_seconds",
+          "json": "ExpectContinueTimeout",
+          "yaml": "expectcontinuetimeout",
+          "type": "int"
+        },
+        {
+          "go": "Dialer",
+          "name": "dialer",
+          "json": "Dialer",
+          "yaml": "dialer",
+          "type": "config.Dialer"
+        },
+        {
+          "go": "Throttle",
+          "name": "throttle",
+          "json": "Throttle",
+          "yaml": "throttle",
+          "type": "config.HTTPThrottle"
+        }
+      ]
+    },
+    "config.HTTPEventsConfig": {
+      "kind": "struct",
+      "fields": [
+        {
+          "go": "Endpoint",
+          "name": "endpoint",
+          "json": "Endpoint",
+          "yaml": "endpoint",
+          "type": "string"
+        },
+        {
+          "go": "RefreshRate",
+          "name": "refresh_rate_seconds",
+          "json": "RefreshRate",
+          "yaml": "refreshrate",
+          "type": "int64"
+        },
+        {
+          "go": "Timeout",
+          "name": "timeout_ms",
+          "json": "Timeout",
+          "yaml": "timeout",
+          "type": "int"
+        },
+        {
+          "go": "AmpEndpoint",
+          "name": "amp_endpoint",
+          "json": "AmpEndpoint",
+          "yaml": "ampendpoint",
+          "type": "string"
+        }
+      ]
+    },
+    "config.HTTPFetcherConfig": {
+      "kind": "struct",
+      "fields": [
+        {
+          "go": "Endpoint",
+          "name": "endpoint",
+          "json": "Endpoint",
+          "yaml": "endpoint",
+          "type": "string"
+        },
+        {
+          "go": "AmpEndpoint",
+          "name": "amp_endpoint",
+          "json": "AmpEndpoint",
+          "yaml": "ampendpoint",
+          "type": "string"
+        },
+        {
+          "go": "UseRfcCompliantBuilder",
+          "name": "use_rfc3986_compliant_request_builder",
+          "json": "UseRfcCompliantBuilder",
+          "yaml": "userfccompliantbuilder",
+          "type": "bool"
+        }
+      ]
+    },
+    "config.HTTPThrottle": {
+      "kind": "struct",
+      "fields": [
+        {
+          "go": "EnableThrottling",
+          "name": "enable_throttling",
+          "json": "EnableThrottling",
+          "yaml": "enablethrottling",
+          "type": "bool"
+        },
+        {
+          "go": "SimulateThrottlingOnly",
+          "name": "simulate_throttling_only",
+          "json": "SimulateThrottlingOnly",
+          "yaml": "simulatethrottlingonly",
+          "type": "bool"
+        },
+        {
+          "go": "LongQueueWaitThresholdMS",
+          "name": "long_queue_wait_threshold_ms",
+          "json": "LongQueueWaitThresholdMS",
+          "yaml": "longqueuewaitthresholdms",
+          "type": "int"
+        },
+        {
+          "go": "ShortQueueWaitThresholdMS",
+          "name": "short_queue_wait_threshold_ms",
+          "json": "ShortQueueWaitThresholdMS",
+          "yaml": "shortqueuewaitthresholdms",
+          "type": "int"
+        },
+        {
+          "go": "ThrottleWindow",
+          "name": "throttle_window",
+          "json": "ThrottleWindow",
+          "yaml": "throttlewindow",
+          "type": "int"
+        }
+      ]
+    },
+    "config.HookExecutionGroup": {
+      "kind": "struct",
+      "fields": [
+        {
+          "go": "Timeout",
+          "name": "timeout",
+          "json": "timeout",
+          "yaml": "timeout",
+          "type": "int"
+        },
+        {
+          "go": "HookSequence",
+          "name": "hook_sequence",
+          "json": "hook_sequence",
+          "yaml": "hooksequence",
+          "type": "[]struct { ModuleCode string \"mapstructure:\\\"module_code\\\" json:\\\"module_code\\\"\"; HookImplCode string \"mapstructure:\\\"hook_impl_code\\\" json:\\\"hook_impl_code\\\"\" }"
+        }
+      ]
+    },
+    "config.HookExecutionPlan": {
+      "kind": "struct",
+      "fields": [
+        {
+          "go": "Endpoints",
+          "name": "endpoints",
+          "json": "endpoints",
+          "yaml": "endpoints",
+          "type": "map[string]struct { Stages map[string]struct { Groups []config.HookExecutionGroup \"mapstructure:\\\"groups\\\" json:\\\"groups\\\"\" } \"mapstructure:\\\"stages\\\" json:\\\"stages\\\"\" }"
+        }
+      ]
+    },
+    "config.Hooks": {
+      "kind": "struct",
+      "fields": [
+        {
+          "go": "Enabled",
+          "name": "enabled",
+          "json": "Enabled",
+          "yaml": "enabled",
+          "type": "bool"
+        },
+        {
+          "go": "Modules",
+          "name": "modules",
+          "json": "Modules",
+          "yaml": "modules",
+          "type": "config.Modules"
+        },
+        {
+          "go": "HostExecutionPlan",
+          "name": "host_execution_plan",
+          "json": "HostExecutionPlan",
+          "yaml": "hostexecutionplan",
+          "type": "config.HookExecutionPlan"
+        },
+        {
+          "go": "DefaultAccountExecutionPlan",
+          "name": "default_account_execution_plan",
+          "json": "DefaultAccountExecutionPlan",
+          "yaml": "defaultaccountexecutionplan",
+          "type": "config.HookExecutionPlan"
+        }
+      ]
+    },
+    "config.HostCookie": {
+      "kind": "struct",
+      "fields": [
+        {
+          "go": "Domain",
+          "name": "domain",
+          "json": "Domain",
+          "yaml": "domain",
+          "type": "string"
+        },
+        {
+          "go": "Family",
+          "name": "family",
+          "json": "Family",
+          "yaml": "family",
+          "type": "string"
+        },
+        {
+          "go": "CookieName",
+          "name": "cookie_name",
+          "json": "CookieName",
+          "yaml": "cookiename",
+          "type": "string"
+        },
+        {
+          "go": "OptOutURL",
+          "name": "opt_out_url",
+          "json": "OptOutURL",
+          "yaml": "optouturl",
+          "type": "string"
+        },
+        {
+          "go": "OptInURL",
+          "name": "opt_in_url",
+          "json": "OptInURL",
+          "yaml": "optinurl",
+          "type": "string"
+        },
+        {
+          "go": "MaxCookieSizeBytes",
+          "name": "max_cookie_size_bytes",
+          "json": "MaxCookieSizeBytes",
+          "yaml": "maxcookiesizebytes",
+          "type": "int"
+        },
+        {
+          "go": "OptOutCookie",
+          "name": "optout_cookie",
+          "json": "OptOutCookie",
+          "yaml": "optoutcookie",
+          "type": "config.Cookie"
+        },
+        {
+          "go": "TTL",
+          "name": "ttl_days",
+          "json": "TTL",
+          "yaml": "ttl",
+          "type": "int64"
+        }
+      ]
+    },
+    "config.IPv4": {
+      "kind": "struct",
+      "fields": [
+        {
+          "go": "AnonKeepBits",
+          "name": "anon_keep_bits",
+          "json": "anon_keep_bits",
+          "yaml": "anonkeepbits",
+          "type": "int"
+        }
+      ]
+    },
+    "config.IPv6": {
+      "kind": "struct",
+      "fields": [
+        {
+          "go": "AnonKeepBits",
+          "name": "anon_keep_bits",
+          "json": "anon_keep_bits",
+          "yaml": "anonkeepbits",
+          "type": "int"
+        }
+      ]
+    },
+    "config.InMemoryCache": {
+      "kind": "struct",
+      "fields": [
+        {
+          "go": "Type",
+          "name": "type",
+          "json": "Type",
+          "yaml": "type",
+          "type": "string"
+        },
+        {
+          "go": "TTL",
+          "name": "ttl_seconds",
+          "json": "TTL",
+          "yaml": "ttl",
+          "type": "int"
+        },
+        {
+          "go": "Size",
+          "name": "size_bytes",
+          "json": "Size",
+          "yaml": "size",
+          "type": "int"
+        },
+        {
+          "go": "RequestCacheSize",
+          "name": "request_cache_size_bytes",
+          "json": "RequestCacheSize",
+          "yaml": "requestcachesize",
+          "type": "int"
+        },
+        {
+          "go": "ImpCacheSize",
+          "name": "imp_cache_size_bytes",
+          "json": "ImpCacheSize",
+          "yaml": "impcachesize",
+          "type": "int"
+        },
+        {
+          "go": "RespCacheSize",
+          "name": "resp_cache_size_bytes",
+          "json": "RespCacheSize",
+          "yaml": "respcachesize",
+          "type": "int"
+        }
+      ]
+    },
+    "config.InfluxMetrics": {
+      "kind": "struct",
+      "fields": [
+        {
+          "go": "Host",
+          "name": "host",
+          "json": "Host",
+          "yaml": "host",
+          "type": "string"
+        },
+        {
+          "go": "Database",
+          "name": "database",
+          "json": "Database",
+          "yaml": "database",
+          "type": "string"
+        },
+        {
+          "go": "Measurement",
+          "name": "measurement",
+          "json": "Measurement",
+          "yaml": "measurement",
+          "type": "string"
+        },
+        {
+          "go": "Username",
+          "name": "username",
+          "json": "Username",
+          "yaml": "username",
+          "type": "string"
+        },
+        {
+          "go": "Password",
+          "name": "password",
+          "json": "Password",
+          "yaml": "password",
+          "type": "string"
+        },
+        {
+          "go": "AlignTimestamps",
+          "name": "align_timestamps",
+          "json": "AlignTimestamps",
+          "yaml": "aligntimestamps",
+          "type": "bool"
+        },
+        {
+          "go": "MetricSendInterval",
+          "name": "metric_send_interval",
+          "json": "MetricSendInterval",
+          "yaml": "metricsendinterval",
+          "type": "int"
+        }
+      ]
+    },
+    "config.LMT": {
+      "kind": "struct",
+      "fields": [
+        {
+          "go": "Enforce",
+          "name": "enforce",
+          "json": "Enforce",
+          "yaml": "enforce",
+          "type": "bool"
+        }
+      ]
+    },
+    "config.MaintainerInfo": {
+      "kind": "struct",
+      "fields": [
+        {
+          "go": "Email",
+          "name": "email",
+          "json": "Email",
+          "yaml": "email",
+          "type": "string"
+        }
+      ]
+    },
+    "config.Metrics": {
+      "kind": "struct",
+      "fields": [
+        {
+          "go": "Influxdb",
+          "name": "influxdb",
+          "json": "Influxdb",
+          "yaml": "influxdb",
+          "type": "config.InfluxMetrics"
+        },
+        {
+          "go": "Prometheus",
+          "name": "prometheus",
+          "json": "Prometheus",
+          "yaml": "prometheus",
+          "type": "config.PrometheusMetrics"
+        },
+        {
+          "go": "Disabled",
+          "name": "disabled_metrics",
+          "json": "Disabled",
+          "yaml": "disabled",
+          "type": "config.DisabledMetrics"
+        }
+      ]
+    },
+    "config.Modules": {
+      "kind": "map",
+      "elem": "map[string]interface {}",
+      "key": "string"
+    },
+    "config.NegativeCacheConfig": {
+      "kind": "struct",
+      "fields": [
+        {
+          "go": "Enabled",
+          "name": "enabled",
+          "json": "Enabled",
+          "yaml": "enabled",
+          "type": "bool"
+        },
+        {
+          "go": "Type",
+          "name": "type",
+          "json": "Type",
+          "yaml": "type",
+          "type": "string"
+        },
+        {
+          "go": "MaxEntries",
+          "name": "max_entries",
+          "json": "MaxEntries",
+          "yaml": "maxentries",
+          "type": "int"
+        },
+        {
+          "go": "TTLSeconds",
+          "name": "ttl_seconds",
+          "json": "TTLSeconds",
+          "yaml": "ttlseconds",
+          "type": "int"
+        }
+      ]
+    },
+    "config.OpenRTBInfo": {
+      "kind": "struct",
+      "fields": [
+        {
+          "go": "Version",
+          "name": "version",
+          "json": "Version",
+          "yaml": "version",
+          "type": "string"
+        },
+        {
+          "go": "GPPSupported",
+          "name": "gpp-supported",
+          "json": "GPPSupported",
+          "yaml": "gpp-supported",
+          "type": "bool"
+        },
+        {
+          "go": "MultiformatSupported",
+          "name": "multiformat-supported",
+          "json": "MultiformatSupported",
+          "yaml": "multiformat-supported",
+          "type": "*bool"
+        }
+      ]
+    },
+    "config.PlatformInfo": {
+      "kind": "struct",
+      "fields": [
+        {
+          "go": "MediaTypes",
+          "name": "mediaTypes",
+          "json": "MediaTypes",
+          "yaml": "mediaTypes",
+          "type": "[]openrtb_ext.BidType"
+        }
+      ]
+    },
+    "config.PriceFloorFetcher": {
+      "kind": "struct",
+      "fields": [
+        {
+          "go": "HttpClient",
+          "name": "http_client",
+          "json": "HttpClient",
+          "yaml": "httpclient",
+          "type": "config.HTTPClient"
+        },
+        {
+          "go": "CacheSize",
+          "name": "cache_size_mb",
+          "json": "CacheSize",
+          "yaml": "cachesize",
+          "type": "int"
+        },
+        {
+          "go": "Worker",
+          "name": "worker",
+          "json": "Worker",
+          "yaml": "worker",
+          "type": "int"
+        },
+        {
+          "go": "Capacity",
+          "name": "capacity",
+          "json": "Capacity",
+          "yaml": "capacity",
+          "type": "int"
+        },
+        {
+          "go": "MaxRetries",
+          "name": "max_retries",
+          "json": "MaxRetries",
+          "yaml": "maxretries",
+          "type": "int"
+        }
+      ]
+    },
+    "config.PriceFloors": {
+      "kind": "struct",
+      "fields": [
+        {
+          "go": "Enabled",
+          "name": "enabled",
+          "json": "Enabled",
+          "yaml": "enabled",
+          "type": "bool"
+        },
+        {
+          "go": "Fetcher",
+          "name": "fetcher",
+          "json": "Fetcher",
+          "yaml": "fetcher",
+          "type": "config.PriceFloorFetcher"
+        }
+      ]
+    },
+    "config.PrivacySandbox": {
+      "kind": "struct",
+      "fields": [
+        {
+          "go": "TopicsDomain",
+          "name": "topicsdomain",
+          "json": "TopicsDomain",
+          "yaml": "topicsdomain",
+          "type": "string"
+        },
+        {
+          "go": "CookieDeprecation",
+          "name": "cookiedeprecation",
+          "json": "CookieDeprecation",
+          "yaml": "cookiedeprecation",
+          "type": "config.CookieDeprecation"
+        }
+      ]
+    },
+    "config.PrometheusMetrics": {
+      "kind": "struct",
+      "fields": [
+        {
+          "go": "Port",
+          "name": "port",
+          "json": "Port",
+          "yaml": "port",
+          "type": "int"
+        },
+        {
+          "go": "Namespace",
+          "name": "namespace",
+          "json": "Namespace",
+          "yaml": "namespace",
+          "type": "string"
+        },
+        {
+          "go": "Subsystem",
+          "name": "subsystem",
+          "json": "Subsystem",
+          "yaml": "subsystem",
+          "type": "string"
+        },
+        {
+          "go": "TimeoutMillisRaw",
+          "name": "timeout_ms",
+          "json": "TimeoutMillisRaw",
+          "yaml": "timeoutmillisraw",
+          "type": "int"
+        }
+      ]
+    },
+    "config.Pubstack": {
+      "kind": "struct",
+      "fields": [
+        {
+          "go": "Enabled",
+          "name": "enabled",
+          "json": "Enabled",
+          "yaml": "enabled",
+          "type": "bool"
+        },
+        {
+          "go": "ScopeId",
+          "name": "scopeid",
+          "json": "ScopeId",
+          "yaml": "scopeid",
+          "type": "string"
+        },
+        {
+          "go": "IntakeUrl",
+          "name": "endpoint",
+          "json": "IntakeUrl",
+          "yaml": "intakeurl",
+          "type": "string"
+        },
+        {
+          "go": "Buffers",
+          "name": "buffers",
+          "json": "Buffers",
+          "yaml": "buffers",
+          "type": "config.PubstackBuffer"
+        },
+        {
+          "go": "ConfRefresh",
+          "name": "configuration_refresh_delay",
+          "json": "ConfRefresh",
+          "yaml": "confrefresh",
+          "type": "string"
+        }
+      ]
+    },
+    "config.PubstackBuffer": {
+      "kind": "struct",
+      "fields": [
+        {
+          "go": "BufferSize",
+          "name": "size",
+          "json": "BufferSize",
+          "yaml": "buffersize",
+          "type": "string"
+        },
+        {
+          "go": "EventCount",
+          "name": "count",
+          "json": "EventCount",
+          "yaml": "eventcount",
+          "type": "int"
+        },
+        {
+          "go": "Timeout",
+          "name": "timeout",
+          "json": "Timeout",
+          "yaml": "timeout",
+          "type": "string"
+        }
+      ]
+    },
+    "config.RefreshMode": {
+      "kind": "string"
+    },
+    "config.RequestTimeoutHeaders": {
+      "kind": "struct",
+      "fields": [
+        {
+          "go": "RequestTimeInQueue",
+          "name": "request_time_in_queue",
+          "json": "RequestTimeInQueue",
+          "yaml": "requesttimeinqueue",
+          "type": "string"
+        },
+        {
+          "go": "RequestTimeoutInQueue",
+          "name": "request_timeout_in_queue",
+          "json": "RequestTimeoutInQueue",
+          "yaml": "requesttimeoutinqueue",
+          "type": "string"
+        }
+      ]
+    },
+    "config.RequestValidation": {
+      "kind": "struct",
+      "fields": [
+        {
+          "go": "IPv4PrivateNetworks",
+          "name": "ipv4_private_networks",
+          "json": "IPv4PrivateNetworks",
+          "yaml": "ipv4privatenetworks",
+          "type": "[]string"
+        },
+        {
+          "go": "IPv4PrivateNetworksParsed",
+          "name": "IPv4PrivateNetworksParsed",
+          "json": "IPv4PrivateNetworksParsed",
+          "yaml": "ipv4privatenetworksparsed",
+          "type": "[]net.IPNet"
+        },
+        {
+          "go": "IPv6PrivateNetworks",
+          "name": "ipv6_private_networks",
+          "json": "IPv6PrivateNetworks",
+          "yaml": "ipv6privatenetworks",
+          "type": "[]string"
+        },
+        {
+          "go": "IPv6PrivateNetworksParsed",
+          "name": "IPv6PrivateNetworksParsed",
+          "json": "IPv6PrivateNetworksParsed",
+          "yaml": "ipv6privatenetworksparsed",
+          "type": "[]net.IPNet"
+        }
+      ]
+    },
+    "config.SkipWhen": {
+      "kind": "struct",
+      "fields": [
+        {
+          "go": "GDPR",
+          "name": "gdpr",
+          "json": "GDPR",
+          "yaml": "gdpr",
+          "type": "bool"
+        },
+        {
+          "go": "GPPSID",
+          "name": "gpp_sid",
+          "json": "GPPSID",
+          "yaml": "gpp_sid",
+          "type": "[]string"
+        }
+      ]
+    },
+    "config.StoredRequests": {
+      "kind": "struct",
+      "fields": [
+        {
+          "go": "Files",
+          "name": "filesystem",
+          "json": "Files",
+          "yaml": "files",
+          "type": "config.FileFetcherConfig"
+        },
+        {
+          "go": "Database",
+          "name": "database",
+          "json": "Database",
+          "yaml": "database",
+          "type": "config.DatabaseConfig"
+        },
+        {
+          "go": "HTTP",
+          "name": "http",
+          "json": "HTTP",
+          "yaml": "http",
+          "type": "config.HTTPFetcherConfig"
+        },
+        {
+          "go": "InMemoryCache",
+          "name": "in_memory_cache",
+          "json": "InMemoryCache",
+          "yaml": "inmemorycache",
+          "type": "config.InMemoryCache"
+        },
+        {
+          "go": "CacheEvents",
+          "name": "cache_events",
+          "json": "CacheEvents",
+          "yaml": "cacheevents",
+          "type": "config.CacheEventsConfig"
+        },
+        {
+          "go": "HTTPEvents",
+          "name": "http_events",
+          "json": "HTTPEvents",
+          "yaml": "httpevents",
+          "type": "config.HTTPEventsConfig"
+        },
+        {
+          "go": "V2Enabled",
+          "name": "v2_enabled",
+          "json": "V2Enabled",
+          "yaml": "v2enabled",
+          "type": "bool"
+        },
+        {
+          "go": "CacheV2",
+          "name": "cache",
+          "json": "CacheV2",
+          "yaml": "cachev2",
+          "type": "config.FetcherConfig"
+        }
+      ]
+    },
+    "config.Syncer": {
+      "kind": "struct",
+      "fields": [
+        {
+          "go": "Key",
+          "name": "key",
+          "json": "Key",
+          "yaml": "key",
+          "type": "string"
+        },
+        {
+          "go": "Supports",
+          "name": "supports",
+          "json": "Supports",
+          "yaml": "supports",
+          "type": "[]string"
+        },
+        {
+          "go": "IFrame",
+          "name": "iframe",
+          "json": "IFrame",
+          "yaml": "iframe",
+          "type": "*config.SyncerEndpoint"
+        },
+        {
+          "go": "Redirect",
+          "name": "redirect",
+          "json": "Redirect",
+          "yaml": "redirect",
+          "type": "*config.SyncerEndpoint"
+        },
+        {
+          "go": "ExternalURL",
+          "name": "external_url",
+          "json": "ExternalURL",
+          "yaml": "externalUrl",
+          "type": "string"
+        },
+        {
+          "go": "FormatOverride",
+          "name": "format_override",
+          "json": "FormatOverride",
+          "yaml": "formatOverride",
+          "type": "string"
+        },
+        {
+          "go": "Enabled",
+          "name": "enabled",
+          "json": "Enabled",
+          "yaml": "enabled",
+          "type": "*bool"
+        },
+        {
+          "go": "SkipWhen",
+          "name": "skipwhen",
+          "json": "SkipWhen",
+          "yaml": "skipwhen",
+          "type": "*config.SkipWhen"
+        }
+      ]
+    },
+    "config.SyncerEndpoint": {
+      "kind": "struct",
+      "fields": [
+        {
+          "go": "URL",
+          "name": "url",
+          "json": "URL",
+          "yaml": "url",
+          "type": "string"
+        },
+        {
+          "go": "RedirectURL",
+          "name": "redirect_url",
+          "json": "RedirectURL",
+          "yaml": "redirectUrl",
+          "type": "string"
+        },
+        {
+          "go": "ExternalURL",
+          "name": "external_url",
+          "json": "ExternalURL",
+          "yaml": "externalUrl",
+          "type": "string"
+        },
+        {
+          "go": "UserMacro",
+          "name": "user_macro",
+          "json": "UserMacro",
+          "yaml": "userMacro",
+          "type": "string"
+        }
+      ]
+    },
+    "config.TCF2": {
+      "kind": "struct",
+      "fields": [
+        {
+          "go": "Enabled",
+          "name": "enabled",
+          "json": "Enabled",
+          "yaml": "enabled",
+          "type": "bool"
+        },
+        {
+          "go": "Purpose1",
+          "name": "purpose1",
+          "json": "Purpose1",
+          "yaml": "purpose1",
+          "type": "config.TCF2Purpose"
+        },
+        {
+          "go": "Purpose2",
+          "name": "purpose2",
+          "json": "Purpose2",
+          "yaml": "purpose2",
+          "type": "config.TCF2Purpose"
+        },
+        {
+          "go": "Purpose3",
+          "name": "purpose3",
+          "json": "Purpose3",
+          "yaml": "purpose3",
+          "type": "config.TCF2Purpose"
+        },
+        {
+          "go": "Purpose4",
+          "name": "purpose4",
+          "json": "Purpose4",
+          "yaml": "purpose4",
+          "type": "config.TCF2Purpose"
+        },
+        {
+          "go": "Purpose5",
+          "name": "purpose5",
+          "json": "Purpose5",
+          "yaml": "purpose5",
+          "type": "config.TCF2Purpose"
+        },
+        {
+          "go": "Purpose6",
+          "name": "purpose6",
+          "json": "Purpose6",
+          "yaml": "purpose6",
+          "type": "config.TCF2Purpose"
+        },
+        {
+          "go": "Purpose7",
+          "name": "purpose7",
+          "json": "Purpose7",
+          "yaml": "purpose7",
+          "type": "config.TCF2Purpose"
+        },
+        {
+          "go": "Purpose8",
+          "name": "purpose8",
+          "json": "Purpose8",
+          "yaml": "purpose8",
+          "type": "config.TCF2Purpose"
+        },
+        {
+          "go": "Purpose9",
+          "name": "purpose9",
+          "json": "Purpose9",
+          "yaml": "purpose9",
+          "type": "config.TCF2Purpose"
+        },
+        {
+          "go": "Purpose10",
+          "name": "purpose10",
+          "json": "Purpose10",
+          "yaml": "purpose10",
+          "type": "config.TCF2Purpose"
+        },
+        {
+          "go": "PurposeConfigs",
+          "name": "PurposeConfigs",
+          "json": "PurposeConfigs",
+          "yaml": "purposeconfigs",
+          "type": "map[consentconstants.Purpose]*config.TCF2Purpose"
+        },
+        {
+          "go": "SpecialFeature1",
+          "name": "special_feature1",
+          "json": "SpecialFeature1",
+          "yaml": "specialfeature1",
+          "type": "config.TCF2SpecialFeature"
+        },
+        {
+          "go": "PurposeOneTreatment",
+          "name": "purpose_one_treatment",
+          "json": "PurposeOneTreatment",
+          "yaml": "purposeonetreatment",
+          "type": "config.TCF2PurposeOneTreatment"
+        }
+      ]
+    },
+    "config.TCF2EnforcementAlgo": {
+      "kind": "int",
+      "bits": 64
+    },
+    "config.TCF2Purpose": {
+      "kind": "struct",
+      "fields": [
+        {
+          "go": "EnforceAlgo",
+          "name": "enforce_algo",
+          "json": "EnforceAlgo",
+          "yaml": "enforcealgo",
+          "type": "string"
+        },
+        {
+          "go": "EnforceAlgoID",
+          "name": "EnforceAlgoID",
+          "json": "EnforceAlgoID",
+          "yaml": "enforcealgoid",
+          "type": "config.TCF2EnforcementAlgo"
+        },
+        {
+          "go": "EnforcePurpose",
+          "name": "enforce_purpose",
+          "json": "EnforcePurpose",
+          "yaml": "enforcepurpose",
+          "type": "bool"
+        },
+        {
+          "go": "EnforceVendors",
+          "name": "enforce_vendors",
+          "json": "EnforceVendors",
+          "yaml": "enforcevendors",
+          "type": "bool"
+        },
+        {
+          "go": "VendorExceptions",
+          "name": "vendor_exceptions",
+          "json": "VendorExceptions",
+          "yaml": "vendorexceptions",
+          "type": "[]string"
+        },
+        {
+          "go": "VendorExceptionMap",
+          "name": "VendorExceptionMap",
+          "json": "VendorExceptionMap",
+          "yaml": "vendorexceptionmap",
+          "type": "map[string]struct {}"
+        }
+      ]
+    },
+    "config.TCF2PurposeOneTreatment": {
+      "kind": "struct",
+      "fields": [
+        {
+          "go": "Enabled",
+          "name": "enabled",
+          "json": "Enabled",
+          "yaml": "enabled",
+          "type": "bool"
+        },
+        {
+          "go": "AccessAllowed",
+          "name": "access_allowed",
+          "json": "AccessAllowed",
+          "yaml": "accessallowed",
+          "type": "bool"
+        }
+      ]
+    },
+    "config.TCF2SpecialFeature": {
+      "kind": "struct",
+      "fields": [
+        {
+          "go": "Enforce",
+          "name": "enforce",
+          "json": "Enforce",
+          "yaml": "enforce",
+          "type": "bool"
+        },
+        {
+          "go": "VendorExceptions",
+          "name": "vendor_exceptions",
+          "json": "VendorExceptions",
+          "yaml": "vendorexceptions",
+          "type": "[]openrtb_ext.BidderName"
+        },
+        {
+          "go": "VendorExceptionMap",
+          "name": "VendorExceptionMap",
+          "json": "VendorExceptionMap",
+          "yaml": "vendorexceptionmap",
+          "type": "map[openrtb_ext.BidderName]struct {}"
+        }
+      ]
+    },
+    "config.TLS": {
+      "kind": "struct",
+      "fields": [
+        {
+          "go": "RootCert",
+          "name": "root_cert",
+          "json": "RootCert",
+          "yaml": "rootcert",
+          "type": "string"
+        },
+        {
+          "go": "ClientCert",
+          "name": "client_cert",
+          "json": "ClientCert",
+          "yaml": "clientcert",
+          "type": "string"
+        },
+        {
+          "go": "ClientKey",
+          "name": "client_key",
+          "json": "ClientKey",
+          "yaml": "clientkey",
+          "type": "string"
+        }
+      ]
+    },
+    "config.TimeoutNotification": {
+      "kind": "struct",
+      "fields": [
+        {
+          "go": "Log",
+          "name": "log",
+          "json": "Log",
+          "yaml": "log",
+          "type": "bool"
+        },
+        {
+          "go": "SamplingRate",
+          "name": "sampling_rate",
+          "json": "SamplingRate",
+          "yaml": "samplingrate",
+          "type": "float32"
+        },
+        {
+          "go": "FailOnly",
+          "name": "fail_only",
+          "json": "FailOnly",
+          "yaml": "failonly",
+          "type": "bool"
+        }
+      ]
+    },
+    "config.TmaxAdjustments": {
+      "kind": "struct",
+      "fields": [
+        {
+          "go": "Enabled",
+          "name": "enabled",
+          "json": "Enabled",
+          "yaml": "enabled",
+          "type": "bool"
+        },
+        {
+          "go": "BidderNetworkLatencyBuffer",
+          "name": "bidder_network_latency_buffer_ms",
+          "json": "BidderNetworkLatencyBuffer",
+          "yaml": "biddernetworklatencybuffer",
+          "type": "uint"
+        },
+        {
+          "go": "PBSResponsePreparationDuration",
+          "name": "pbs_response_preparation_duration_ms",
+          "json": "PBSResponsePreparationDuration",
+          "yaml": "pbsresponsepreparationduration",
+          "type": "uint"
+        },
+        {
+          "go": "BidderResponseDurationMin",
+          "name": "bidder_response_duration_min_ms",
+          "json": "BidderResponseDurationMin",
+          "yaml": "bidderresponsedurationmin",
+          "type": "uint"
+        }
+      ]
+    },
+    "config.TrackingEventType": {
+      "kind": "string"
+    },
+    "config.UserSync": {
+      "kind": "struct",
+      "fields": [
+        {
+          "go": "Cooperative",
+          "name": "coop_sync",
+          "json": "Cooperative",
+          "yaml": "cooperative",
+          "type": "config.UserSyncCooperative"
+        },
+        {
+          "go": "ExternalURL",
+          "name": "external_url",
+          "json": "ExternalURL",
+          "yaml": "externalurl",
+          "type": "string"
+        },
+        {
+          "go": "RedirectURL",
+          "name": "redirect_url",
+          "json": "RedirectURL",
+          "yaml": "redirecturl",
+          "type": "string"
+        },
+        {
+          "go": "PriorityGroups",
+          "name": "priority_groups",
+          "json": "PriorityGroups",
+          "yaml": "prioritygroups",
+          "type": "[][]string"
+        }
+      ]
+    },
+    "config.UserSyncCooperative": {
+      "kind": "struct",
+      "fields": [
+        {
+          "go": "EnabledByDefault",
+          "name": "default",
+          "json": "EnabledByDefault",
+          "yaml": "enabledbydefault",
+          "type": "bool"
+        }
+      ]
+    },
+    "config.VASTEvent": {
+      "kind": "struct",
+      "fields": [
+        {
+          "go": "CreateElement",
+          "name": "create_element",
+          "json": "create_element",
+          "yaml": "createelement",
+          "type": "config.VASTEventElement"
+        },
+        {
+          "go": "Type",
+          "name": "type",
+          "json": "type",
+          "yaml": "type",
+          "type": "config.TrackingEventType"
+        },
+        {
+          "go": "ExcludeDefaultURL",
+          "name": "exclude_default_url",
+          "json": "exclude_default_url",
+          "yaml": "excludedefaulturl",
+          "type": "bool"
+        },
+        {
+          "go": "URLs",
+          "name": "urls",
+          "json": "urls",
+          "yaml": "urls",
+          "type": "[]string"
+        }
+      ]
+    },
+    "config.VASTEventElement": {
+      "kind": "string"
+    },
+    "config.VTrack": {
+      "kind": "struct",
+      "fields": [
+        {
+          "go": "TimeoutMS",
+          "name": "timeout_ms",
+          "json": "TimeoutMS",
+          "yaml": "timeoutms",
+          "type": "int64"
+        },
+        {
+          "go": "AllowUnknownBidder",
+          "name": "allow_unknown_bidder",
+          "json": "AllowUnknownBidder",
+          "yaml": "allowunknownbidder",
+          "type": "bool"
+        },
+        {
+          "go": "Enabled",
+          "name": "enabled",
+          "json": "Enabled",
+          "yaml": "enabled",
+          "type": "bool"
+        }
+      ]
+    },
+    "config.Validations": {
+      "kind": "struct",
+      "fields": [
+        {
+          "go": "BannerCreativeMaxSize",
+          "name": "banner_creative_max_size",
+          "json": "banner_creative_max_size",
+          "yaml": "bannercreativemaxsize",
+          "type": "string"
+        },
+        {
+          "go": "SecureMarkup",
+          "name": "secure_markup",
+          "json": "secure_markup",
+          "yaml": "securemarkup",
+          "type": "string"
+        },
+        {
+          "go": "MaxCreativeWidth",
+          "name": "max_creative_width",
+          "json": "max_creative_width",
+          "yaml": "maxcreativewidth",
+          "type": "int64"
+        },
+        {
+          "go": "MaxCreativeHeight",
+          "name": "max_creative_height",
+          "json": "max_creative_height",
+          "yaml": "maxcreativeheight",
+          "type": "int64"
+        }
+      ]
+    },
+    "config.Video": {
+      "kind": "struct",
+      "fields": [
+        {
+          "go": "EnableDeprecatedEndpoint",
+          "name": "enable_deprecated_endpoint",
+          "json": "EnableDeprecatedEndpoint",
+          "yaml": "enabledeprecatedendpoint",
+          "type": "bool"
+        }
+      ]
+    },
+    "consentconstants.Purpose": {
+      "kind": "uint",
+      "bits": 8
+    },
+    "float32": {
+      "kind": "float",
+      "bits": 32
+    },
+    "float64": {
+      "kind": "float",
+      "bits": 64
+    },
+    "int": {
+      "kind": "int",
+      "bits": 64
+    },
+    "int64": {
+      "kind": "int",
+      "bits": 64
+    },
+    "int8": {
+      "kind": "int",
+      "bits": 8
+    },
+    "interface {}": {
+      "kind": "interface"
+    },
+    "json.RawMessage": {
+      "kind": "slice",
+      "elem": "uint8",
+      "raw_message": true
+    },
+    "map[consentconstants.Purpose]*config.AccountGDPRPurpose": {
+      "kind": "map",
+      "elem": "*config.AccountGDPRPurpose",
+      "key": "consentconstants.Purpose"
+    },
+    "map[consentconstants.Purpose]*config.TCF2Purpose": {
+      "kind": "map",
+      "elem": "*config.TCF2Purpose",
+      "key": "consentconstants.Purpose"
+    },
+    "map[openrtb_ext.BidderName]openrtb_ext.AdjustmentsByDealID": {
+      "kind": "map",
+      "elem": "openrtb_ext.AdjustmentsByDealID",
+      "key": "openrtb_ext.BidderName"
+    },
+    "map[openrtb_ext.BidderName]struct {}": {
+      "kind": "map",
+      "elem": "struct {}",
+      "key": "openrtb_ext.BidderName"
+    },
+    "map[string]bool": {
+      "kind": "map",
+      "elem": "bool",
+      "key": "string"
+    },
+    "map[string]interface {}": {
+      "kind": "map",
+      "elem": "interface {}",
+      "key": "string"
+    },
+    "map[string]json.RawMessage": {
+      "kind": "map",
+      "elem": "json.RawMessage",
+      "key": "string"
+    },
+    "map[string]openrtb_ext.ExtAdapterAlternateBidderCodes": {
+      "kind": "map",
+      "elem": "openrtb_ext.ExtAdapterAlternateBidderCodes",
+      "key": "string"
+    },
+    "map[string]struct { Groups []config.HookExecutionGroup \"mapstructure:\\\"groups\\\" json:\\\"groups\\\"\" }": {
+      "kind": "map",
+      "elem": "struct { Groups []config.HookExecutionGroup \"mapstructure:\\\"groups\\\" json:\\\"groups\\\"\" }",
+      "key": "string"
+    },
+    "map[string]struct { Stages map[string]struct { Groups []config.HookExecutionGroup \"mapstructure:\\\"groups\\\" json:\\\"groups\\\"\" } \"mapstructure:\\\"stages\\\" json:\\\"stages\\\"\" }": {
+      "kind": "map",
+      "elem": "struct { Stages map[string]struct { Groups []config.HookExecutionGroup \"mapstructure:\\\"groups\\\" json:\\\"groups\\\"\" } \"mapstructure:\\\"stages\\\" json:\\\"stages\\\"\" }",
+      "key": "string"
+    },
+    "map[string]struct {}": {
+      "kind": "map",
+      "elem": "struct {}",
+      "key": "string"
+    },
+    "net.IP": {
+      "kind": "slice",
+      "elem": "uint8"
+    },
+    "net.IPMask": {
+      "kind": "slice",
+      "elem": "uint8"
+    },
+    "net.IPNet": {
+      "kind": "struct",
+      "fields": [
+        {
+          "go": "IP",
+          "name": "IP",
+          "json": "IP",
+          "yaml": "ip",
+          "type": "net.IP"
+        },
+        {
+          "go": "Mask",
+          "name": "Mask",
+          "json": "Mask",
+          "yaml": "mask",
+          "type": "net.IPMask"
+        }
+      ]
+    },
+    "openrtb2.SupplyChainNode": {
+      "kind": "struct",
+      "fields": [
+        {
+          "go": "ASI",
+          "name": "ASI",
+          "json": "asi",
+          "yaml": "asi",
+          "type": "string"
+        },
+        {
+          "go": "SID",
+          "name": "SID",
+          "json": "sid",
+          "yaml": "sid",
+          "type": "string"
+        },
+        {
+          "go": "RID",
+          "name": "RID",
+          "json": "rid",
+          "yaml": "rid",
+          "type": "string"
+        },
+        {
+          "go": "Name",
+          "name": "Name",
+          "json": "name",
+          "yaml": "name",
+          "type": "string"
+        },
+        {
+          "go": "Domain",
+          "name": "Domain",
+          "json": "domain",
+          "yaml": "domain",
+          "type": "string"
+        },
+        {
+          "go": "HP",
+          "name": "HP",
+          "json": "hp",
+          "yaml": "hp",
+          "type": "*int8"
+        },
+        {
+          "go": "Ext",
+          "name": "Ext",
+          "json": "ext",
+          "yaml": "ext",
+          "type": "json.RawMessage"
+        }
+      ]
+    },
+    "openrtb_ext.Adjustment": {
+      "kind": "struct",
+      "fields": [
+        {
+          "go": "Type",
+          "name": "adjtype",
+          "json": "adjtype",
+          "yaml": "type",
+          "type": "string"
+        },
+        {
+          "go": "Value",
+          "name": "value",
+          "json": "value",
+          "yaml": "value",
+          "type": "float64"
+        },
+        {
+          "go": "Currency",
+          "name": "currency",
+          "json": "currency",
+          "yaml": "currency",
+          "type": "string"
+        }
+      ]
+    },
+    "openrtb_ext.AdjustmentsByDealID": {
+      "kind": "map",
+      "elem": "[]openrtb_ext.Adjustment",
+      "key": "string"
+    },
+    "openrtb_ext.BidType": {
+      "kind": "string"
+    },
+    "openrtb_ext.BidderName": {
+      "kind": "string"
+    },
+    "openrtb_ext.ExtAdapterAlternateBidderCodes": {
+      "kind": "struct",
+      "fields": [
+        {
+          "go": "Enabled",
+          "name": "enabled",
+          "json": "enabled",
+          "yaml": "enabled",
+          "type": "bool"
+        },
+        {
+          "go": "AllowedBidderCodes",
+          "name": "allowedbiddercodes",
+          "json": "allowedbiddercodes",
+          "yaml": "allowedbiddercodes",
+          "type": "[]string"
+        }
+      ]
+    },
+    "openrtb_ext.ExtAlternateBidderCodes": {
+      "kind": "struct",
+      "fields": [
+        {
+          "go": "Enabled",
+          "name": "enabled",
+          "json": "enabled",
+          "yaml": "enabled",
+          "type": "bool"
+        },
+        {
+          "go": "Bidders",
+          "name": "bidders",
+          "json": "bidders",
+          "yaml": "bidders",
+          "type": "map[string]openrtb_ext.ExtAdapterAlternateBidderCodes"
+        }
+      ]
+    },
+    "openrtb_ext.ExtBidDSATransparency": {
+      "kind": "struct",
+      "fields": [
+        {
+          "go": "Domain",
+          "name": "Domain",
+          "json": "domain",
+          "yaml": "domain",
+          "type": "string"
+        },
+        {
+          "go": "Params",
+          "name": "Params",
+          "json": "dsaparams",
+          "yaml": "params",
+          "type": "[]int"
+        }
+      ]
+    },
+    "openrtb_ext.ExtRegsDSA": {
+      "kind": "struct",
+      "fields": [
+        {
+          "go": "Required",
+          "name": "Required",
+          "json": "dsarequired",
+          "yaml": "required",
+          "type": "*int8"
+        },
+        {
+          "go": "PubRender",
+          "name": "PubRender",
+          "json": "pubrender",
+          "yaml": "pubrender",
+          "type": "*int8"
+        },
+        {
+          "go": "DataToPub",
+          "name": "DataToPub",
+          "json": "datatopub",
+          "yaml": "datatopub",
+          "type": "*int8"
+        },
+        {
+          "go": "Transparency",
+          "name": "Transparency",
+          "json": "transparency",
+          "yaml": "transparency",
+          "type": "[]openrtb_ext.ExtBidDSATransparency"
+        }
+      ]
+    },
+    "openrtb_ext.ExtRequestPrebidBidAdjustments": {
+      "kind": "struct",
+      "fields": [
+        {
+          "go": "MediaType",
+          "name": "mediatype",
+          "json": "mediatype",
+          "yaml": "mediatype",
+          "type": "openrtb_ext.MediaType"
+        }
+      ]
+    },
+    "openrtb_ext.MediaType": {
+      "kind": "struct",
+      "fields": [
+        {
+          "go": "Banner",
+          "name": "banner",
+          "json": "banner",
+          "yaml": "banner",
+          "type": "map[openrtb_ext.BidderName]openrtb_ext.AdjustmentsByDealID"
+        },
+        {
+          "go": "VideoInstream",
+          "name": "video-instream",
+          "json": "video-instream",
+          "yaml": "videoinstream",
+          "type": "map[openrtb_ext.BidderName]openrtb_ext.AdjustmentsByDealID"
+        },
+        {
+          "go": "VideoOutstream",
+          "name": "video-outstream",
+          "json": "video-outstream",
+          "yaml": "videooutstream",
+          "type": "map[openrtb_ext.BidderName]openrtb_ext.AdjustmentsByDealID"
+        },
+        {
+          "go": "Audio",
+          "name": "audio",
+          "json": "audio",
+          "yaml": "audio",
+          "type": "map[openrtb_ext.BidderName]openrtb_ext.AdjustmentsByDealID"
+        },
+        {
+          "go": "Native",
+          "name": "native",
+          "json": "native",
+          "yaml": "native",
+          "type": "map[openrtb_ext.BidderName]openrtb_ext.AdjustmentsByDealID"
+        },
+        {
+          "go": "WildCard",
+          "name": "*",
+          "json": "*",
+          "yaml": "wildcard",
+          "type": "map[openrtb_ext.BidderName]openrtb_ext.AdjustmentsByDealID"
+        }
+      ]
+    },
+    "openrtb_ext.PreferredMediaType": {
+      "kind": "map",
+      "elem": "openrtb_ext.BidType",
+      "key": "openrtb_ext.BidderName"
+    },
+    "string": {
+      "kind": "string"
+    },
+    "struct { Groups []config.HookExecutionGroup \"mapstructure:\\\"groups\\\" json:\\\"groups\\\"\" }": {
+      "kind": "struct",
+      "fields": [
+        {
+          "go": "Groups",
+          "name": "groups",
+          "json": "groups",
+          "yaml": "groups",
+          "type": "[]config.HookExecutionGroup"
+        }
+      ]
+    },
+    "struct { ModuleCode string \"mapstructure:\\\"module_code\\\" json:\\\"module_code\\\"\"; HookImplCode string \"mapstructure:\\\"hook_impl_code\\\" json:\\\"hook_impl_code\\\"\" }": {
+      "kind": "struct",
+      "fields": [
+        {
+          "go": "ModuleCode",
+          "name": "module_code",
+          "json": "module_code",
+          "yaml": "modulecode",
+          "type": "string"
+        },
+        {
+          "go": "HookImplCode",
+          "name": "hook_impl_code",
+          "json": "hook_impl_code",
+          "yaml": "hookimplcode",
+          "type": "string"
+        }
+      ]
+    },
+    "struct { Stages map[string]struct { Groups []config.HookExecutionGroup \"mapstructure:\\\"groups\\\" json:\\\"groups\\\"\" } \"mapstructure:\\\"stages\\\" json:\\\"stages\\\"\" }": {
+      "kind": "struct",
+      "fields": [
+        {
+          "go": "Stages",
+          "name": "stages",
+          "json": "stages",
+          "yaml": "stages",
+          "type": "map[string]struct { Groups []config.HookExecutionGroup \"mapstructure:\\\"groups\\\" json:\\\"groups\\\"\" }"
+        }
+      ]
+    },
+    "struct {}": {
+      "kind": "struct"
+    },
+    "uint": {
+      "kind": "uint",
+      "bits": 64
+    },
+    "uint16": {
+      "kind": "uint",
+      "bits": 16
+    },
+    "uint64": {
+      "kind": "uint",
+      "bits": 64
+    },
+    "uint8": {
+      "kind": "uint",
+      "bits": 8
+    }
+  }
+}

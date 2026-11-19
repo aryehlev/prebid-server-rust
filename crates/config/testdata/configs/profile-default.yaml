@@ -1,0 +1,12 @@
+gdpr:
+  default_value: "0"
+cache:
+  scheme: http
+  host: prebid-cache.parity.test
+  query: uuid=%PBS_CACHE_UUID%
+http_client:
+  throttle:
+    enable_throttling: false
+experiment:
+  adscert:
+    mode: "off"

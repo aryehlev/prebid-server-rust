@@ -18,7 +18,7 @@ Rule B's cases: (a) input real production traffic sends that the crate would rej
 |---|---:|---:|---:|
 | Base64 | 0 | 0 | 1 |
 | In-memory caches | 0 | 1 | 0 |
-| Configuration loading | 0 | 0 | 3 |
+| Configuration loading | 0 | 8 | 7 |
 | Cookies | 0 | 1 | 0 |
 | Global vendor list | 0 | 1 | 0 |
 | Gzip | 0 | 1 | 0 |
@@ -32,8 +32,8 @@ Rule B's cases: (a) input real production traffic sends that the crate would rej
 | Time formatting | 0 | 0 | 1 |
 | TLS | 0 | 2 | 1 |
 | URLs | 0 | 1 | 0 |
-| YAML | 0 | 1 | 0 |
-| All | 5 | 62 | 18 |
+| YAML | 0 | 3 | 0 |
+| All | 5 | 72 | 22 |
 
 ## Decisions pending
 
@@ -45,9 +45,6 @@ Rule B's cases: (a) input real production traffic sends that the crate would rej
 
 ## Restore pins still to land
 
-- `config.env-bool-spellings`: brought by CONFIG-LOADER.
-- `config.file-bool-spellings`: brought by CONFIG-LOADER.
-- `config.key-case`: brought by CONFIG-LOADER.
 - `regex.quote-meta`: brought by UTIL-CRATES.
 - `regex.unicode-classes`: brought by UTIL-CRATES.
 - `time.rfc3339-fraction`: brought by UTIL-CRATES.
@@ -106,6 +103,100 @@ No entry names the classes `other` and `unrecorded` or the kinds `stage_missing`
 
 ## Configuration loading
 
+### Ledgered
+
+#### `config.error-texts`: Config decode errors: mapstructure's words, with values printed as Rust prints them
+
+- **Go:** `config.New` wraps mapstructure's error as `viper failed to unmarshal app config: ...` (config/config.go:758-760) and main.go:42 logs it fatally: mapstructure lists every field that fails, sorted, as `2 error(s) decoding:` and lines such as `* cannot parse 'account_defaults.cookie_sync.max_limit' as int: strconv.ParseInt: parsing "\u00a0x": invalid syntax`, printing values with fmt's `%v` (`[1e+06 1e-05]`) and quoting strings with `strconv.Quote`.
+- **Rust:** The loader gives the same wrapper and the same failures in the same order and words, but prints a float as Rust spells it (`[1000000 0.00001]`), quotes a string as Rust quotes it (`"\u{a0}x"`), and lists the keys of a `map[interface{}]interface{}` value in the order of their text.
+- **Who notices:** operator
+- **Visible in:** The startup error for a configuration whose values do not decode into `config.Configuration`, where a value it prints holds a float Go prints with an exponent, a character `strconv.Quote` escapes otherwise than Rust, or a map whose keys are not strings
+- **Harness:** none
+- **Pin:** `crates/config/tests/loader.rs::go_difference_error_texts`
+- **Restore option:** Port fmt's `%v` and `strconv.Quote` with Go's Unicode tables; not planned (orchestrator ruling 2 ledgers library error wording).
+- **Note:** The wrapper is Prebid's text and stays exact (`error_wrapper_exact`), and the other decode errors of `loads.json`, `matrix.json` and `scalars.json` are Go's texts but for the quoting of the one `scalars.json` input holding U+00A0 and U+2003 (`weak_decode_matches_mapstructure`).
+- **Recorded in:** `crates/config/differences.toml`
+
+#### `config.formats`: Config file formats: Viper reads twelve extensions, the loader JSON, TOML and YAML
+
+- **Go:** Viper looks for `pbs.<ext>` in `.` and then in `/etc/config` over `json`, `toml`, `yaml`, `yml`, `properties`, `props`, `prop`, `hcl`, `tfvars`, `dotenv`, `env` and `ini` (viper.go:419, viper_go1_15.go:16-45) and reads the first file found with that format's reader (config/config.go:936-940).
+- **Rust:** The loader searches the same way and reads JSON, TOML and YAML; when the first file found is in another format, the load fails with an error that names the file and the formats it reads.
+- **Who notices:** operator
+- **Visible in:** Startup with a pbs.properties, pbs.props, pbs.prop, pbs.hcl, pbs.tfvars, pbs.dotenv, pbs.env or pbs.ini that Viper would read
+- **Harness:** none
+- **Pin:** `crates/config/tests/loader.rs::unsupported_format_fails_loudly`
+- **Decision:** D-VIPERFMT
+- **Restore option:** Port the remaining readers (magiconair/properties, hashicorp/hcl, subosito/gotenv and gopkg.in/ini.v1); not planned.
+- **Recorded in:** `crates/config/differences.toml`
+
+#### `config.hook-panic`: Account modules with a key that is not a string: Go panics at startup, the loader fails
+
+- **Go:** The account modules hook asserts `data.(map[string]interface{})` (config/account_module_decoder.go:16-23), so a list under `account_defaults.hooks.modules` whose element has a key that is not a string (a `map[interface{}]interface{}` from yaml.v3) panics in `v.Unmarshal`: the process dies with `panic: interface conversion: interface {} is map[interface {}]interface {}, not map[string]interface {}`, a goroutine trace and exit status 2.
+- **Rust:** The load fails with a decode error, `viper failed to unmarshal app config: 1 error(s) decoding:` and `* error decoding 'account_defaults.hooks.modules[0]': interface conversion: ...` with the same conversion text, which the server reports as any configuration error.
+- **Who notices:** operator
+- **Visible in:** Startup with `account_defaults.hooks.modules` given as a list holding a map with a key that is not a string: both refuse to start, with different output
+- **Harness:** none
+- **Pin:** `crates/config/tests/loader.rs::go_difference_hook_panic`
+- **Restore option:** Report the load as a Go panic for the server to crash on; not planned.
+- **Recorded in:** `crates/config/differences.toml`
+
+#### `config.json-reader`: pbs.json: encoding/json reads documents serde_json refuses, and the two word their errors each their own way
+
+- **Go:** Viper reads pbs.json with encoding/json into `map[string]interface{}`, every number a `float64`: invalid UTF-8 and a lone surrogate escape each become U+FFFD, and 200 levels of nesting read (encoding/json takes 10000). A file that does not parse is ignored with encoding/json's error (`unexpected end of JSON input`), which Prebid drops (config/config.go:1322).
+- **Rust:** The loader reads pbs.json with serde_json, every number a `float64` too: a document holding invalid UTF-8 or a lone surrogate escape, or nesting 128 levels or more, does not parse, so the file is ignored and the defaults stay; a file neither reads is ignored with serde_json's error (`EOF while parsing an object at line 1 column 13`).
+- **Who notices:** operator
+- **Visible in:** Startup with a pbs.json that holds invalid UTF-8 or a lone surrogate escape, or nests 128 levels or more: its settings are not applied
+- **Harness:** none
+- **Pin:** `crates/config/tests/loader.rs::go_difference_json_reader`
+- **Restore option:** Rewrite lone surrogate escapes with pbs-jsonutil's `replace_lone_surrogates` before serde_json reads the file (orchestrator ruling 7), once pbs-config's base holds pbs-jsonutil; invalid UTF-8 and the depth stay as D-DECODE leaves them for requests (json.invalid-utf8, json.nesting-depth).
+- **Note:** json.lone-surrogates restores lone surrogates where Go decodes request-time input; this unit's base predates the JSONUTIL merge that holds the rewrite.
+- **Recorded in:** `crates/config/differences.toml`
+
+#### `config.key-unicode`: Key case: Go maps letters by Unicode 15.0.0, the loader by std's later Unicode tables
+
+- **Go:** Viper lower-cases the keys of the configuration file and upper-cases the `PBS_` names with `strings.ToLower` and `strings.ToUpper` (viper.go insensitiviseMap and mergeWithEnvPrefix, v1.12.0), and mapstructure matches keys to fields with `strings.EqualFold`; go1.26.2's tables are Unicode 15.0.0's, so a letter whose case pair a later version added, such as U+A7CB, U+10D50 or U+1C89, stays as it is.
+- **Rust:** The loader maps each character by its simple mapping as Go does, from std's tables, which are a later Unicode version's: those letters map to their pairs (U+A7CB to U+0264, U+10D50 to U+10D70, U+1C89 to U+1C8A).
+- **Who notices:** operator
+- **Visible in:** A key of the configuration file, such as a module's setting under `hooks.modules`, that holds a letter Unicode gave a case pair after 15.0.0
+- **Harness:** none
+- **Pin:** `crates/config/src/loader/tests.rs::case_mapping_matches_go`
+- **Restore option:** Carry Unicode 15.0.0's case tables for keys; not planned.
+- **Recorded in:** `crates/config/differences.toml`
+
+#### `config.map-order`: Map order in the config tree: Go's varies from run to run, the loader's is sorted
+
+- **Go:** Where `AllSettings` writes a key and a key under it (a file value under a key with a default, such as `port:` with `a: 1` below it, or `{a: 1}` for a list key) or a `null` file section with `PBS_` variables under it, the tree it builds and the decode of it depend on the order Go iterates a map in, which varies from run to run (viper.go:1940-1957 and 2021-2038). So does the vendor the account modules hook names when several modules do not marshal (config/account_module_decoder.go:16-50).
+- **Rust:** The loader takes the keys in sorted order, which gives one of Go's outcomes, the same on every run.
+- **Who notices:** operator
+- **Visible in:** Startup with a configuration that gives a key a value and keys under it, or a null section with `PBS_` variables under it, and the startup error for account modules of which several do not marshal
+- **Harness:** none
+- **Pin:** `crates/config/tests/loader.rs::map_order_is_sorted`
+- **Restore option:** None: any one order is an order Go can take.
+- **Recorded in:** `crates/config/differences.toml`
+
+#### `config.module-json`: Account module config bytes: jsonutil.Marshal escapes HTML and spells floats as strconv does, serde_json writes its own way
+
+- **Go:** `AccountModulesHookFunc` marshals each module's configuration with `jsonutil.Marshal` into a `json.RawMessage` (config/account_module_decoder.go:16-61): keys sorted, `<`, `>` and `&` as `\u003c`, `\u003e` and `\u0026`, and floats as strconv spells them: `3` for 3.0, `100000000000000000000` for 1e20, `1e-07` and `-0` (`1e+21` as serde_json writes it).
+- **Rust:** The loader writes the bytes with serde_json: keys sorted, and a whole float that fits an i64 or a u64 as the integer Go writes (`3`, `12345678901234567000`), but the characters as they are and the other floats in serde_json's spelling (`1e+20`, `1e-7`); -0 is `0`.
+- **Who notices:** none
+- **Visible in:** Only the bytes a module receives for `account_defaults.hooks.modules`: a module that parses them reads the same values
+- **Harness:** none
+- **Pin:** `crates/config/tests/loader.rs::go_difference_module_json`
+- **Restore option:** Write the bytes with Go's escaping and float spelling, which json.html-escape and json.float-format leave as they are; not planned.
+- **Recorded in:** `crates/config/differences.toml`
+
+#### `config.toml-reader`: pbs.toml dates and times: go-toml gives Go time types, the toml crate their text
+
+- **Go:** Viper reads pbs.toml with go-toml v2.0.1: an offset date-time is a `time.Time` and a local date, time or date-time go-toml's `LocalDate`, `LocalTime` or `LocalDateTime`, which mapstructure refuses for a string field (`expected type 'string', got unconvertible type 'time.Time'`) and the account modules hook writes as JSON. A file that does not parse is ignored, with go-toml's error text, which Prebid drops (config/config.go:1322).
+- **Rust:** The config crate's TOML reader (the toml crate) gives every date and time as its TOML text, which a string field takes. A file that does not parse is ignored as in Go, with the toml crate's error text.
+- **Who notices:** operator
+- **Visible in:** Startup with a pbs.toml that holds a date or time value
+- **Harness:** none
+- **Pin:** `crates/config/tests/loader.rs::toml_reads_like_go_toml`
+- **Decision:** D-VIPERFMT
+- **Restore option:** Port go-toml v2.0.1's date and time types; not planned.
+- **Recorded in:** `crates/config/differences.toml`
+
 ### Go behaviour kept
 
 #### `config.env-bool-spellings`: Boolean `PBS_` variables: Viper converts them with `cast.ToBool`, the config crate with its own spellings
@@ -118,8 +209,21 @@ No entry names the classes `other` and `unrecorded` or the kinds `stage_missing`
 - **Pin:** `crates/differences/tests/config.rs::go_difference_env_bool_spellings`
 - **Rule B:** Rule B (c): the operator interface (config keys, defaults, `PBS_` variables, CLI flags, metric names, labels and types)
 - **How Go's behaviour is kept:** CONFIG-LOADER converts as Viper does: `cast.ToBool` for keys with a bool default, and mapstructure's weak decode for keys bound only with `BindEnv` (`adapters.<bidder>.disabled`, `.debug.allow`, `.experiment.adsCert.enabled`, `.modifyingVastXmlAllowed`, `account_defaults.privacy.dsa.gdpr_only` and the others the defaults table marks), each path against a Go golden of its own (orchestrator ruling 8).
-- **Restore pin:** pending, brought by CONFIG-LOADER
+- **Restore pin:** `crates/config/tests/loader.rs::bools_convert_like_viper`
 - **Recorded in:** `crates/differences/differences.toml`
+
+#### `config.env-names`: Environment variable names: Viper reads `PBS_` and the upper-case key and the `BindEnv` fallbacks, the config crate its own mapping
+
+- **Go:** Viper reads `PBS_` and the key upper-cased with `.` replaced by `_`, by its exact name (config/config.go:1318-1321), and the un-prefixed name of each key bound before the prefix is set (`GDPR_DEFAULT_VALUE` and four others, config/config.go:1167-1168, 1192 and 1258-1259); an empty variable is unset, and a variable set for a section hides the keys under it.
+- **Rust:** The config crate's `Environment` source with the prefix `PBS` and `_` as the separator matches names in any case, makes every `_` a level (`PBS_GDPR_DEFAULT_VALUE` sets `gdpr.default.value`), reads no name without the prefix and keeps an empty value.
+- **Who notices:** operator
+- **Visible in:** Startup with `PBS_` or fallback environment variables
+- **Harness:** none: a mismatch here is unexpected
+- **Pin:** `crates/config/tests/loader.rs::go_difference_env_names`
+- **Rule B:** Rule B (c): the operator interface (config keys, defaults, `PBS_` variables, CLI flags, metric names, labels and types)
+- **How Go's behaviour is kept:** CONFIG-LOADER reads, from a snapshot of the environment, the variables Viper reads by their exact names, with the fallbacks of the defaults table, and drops empty ones.
+- **Restore pin:** `crates/config/tests/loader.rs::env_matrix`
+- **Recorded in:** `crates/config/differences.toml`
 
 #### `config.file-bool-spellings`: Booleans in pbs.yaml: Viper converts yaml.v3's untyped value with `cast.ToBool`, the config crate takes serde-saphyr's
 
@@ -131,8 +235,21 @@ No entry names the classes `other` and `unrecorded` or the kinds `stage_missing`
 - **Pin:** `crates/differences/tests/config.rs::go_difference_file_bool_spellings`
 - **Rule B:** Rule B (c): the operator interface (config keys, defaults, `PBS_` variables, CLI flags, metric names, labels and types)
 - **How Go's behaviour is kept:** CONFIG-LOADER converts pbs.yaml values as Viper does: `cast.ToBool` after yaml.v3's untyped resolution (orchestrator ruling 8).
-- **Restore pin:** pending, brought by CONFIG-LOADER
+- **Restore pin:** `crates/config/tests/loader.rs::bools_convert_like_viper`
 - **Recorded in:** `crates/differences/differences.toml`
+
+#### `config.file-search`: The config file: Viper reads the first `pbs.<ext>` of its search, the config crate merges every file source
+
+- **Go:** Viper looks in `.` and then in `/etc/config` for `pbs.<ext>` in its extension order (`json` before `toml`), skipping a directory, reads the first file found and no other, and ignores a file that does not parse (config/config.go:936-940 and 1322).
+- **Rust:** The config crate reads every file source it is given and merges them, tries its own formats in its order at each (`toml` before `json`), and fails the build on a file that does not parse.
+- **Who notices:** operator
+- **Visible in:** Startup with config files in both directories, with more than one `pbs.<ext>`, or with one that does not parse
+- **Harness:** none: a mismatch here is unexpected
+- **Pin:** `crates/config/tests/loader.rs::go_difference_file_search`
+- **Rule B:** Rule B (c): the operator interface (config keys, defaults, `PBS_` variables, CLI flags, metric names, labels and types)
+- **How Go's behaviour is kept:** CONFIG-LOADER searches as Viper does and reads the one file found, keeping its parse error and the defaults when it does not parse.
+- **Restore pin:** `crates/config/tests/loader.rs::file_search_like_viper`
+- **Recorded in:** `crates/config/differences.toml`
 
 #### `config.key-case`: Config keys: Viper lower-cases them, the config crate keeps file keys as written
 
@@ -144,8 +261,34 @@ No entry names the classes `other` and `unrecorded` or the kinds `stage_missing`
 - **Pin:** `crates/differences/tests/config.rs::go_difference_key_case`
 - **Rule B:** Rule B (c): the operator interface (config keys, defaults, `PBS_` variables, CLI flags, metric names, labels and types)
 - **How Go's behaviour is kept:** CONFIG-LOADER lower-cases file and environment keys, as Viper does.
-- **Restore pin:** pending, brought by CONFIG-LOADER
+- **Restore pin:** `crates/config/src/loader/tests.rs::case_mapping_matches_go` (`strings.ToLower`, `strings.ToUpper` and `strings.EqualFold` of non-ASCII keys, against Go's own results.); `crates/config/tests/loader.rs::keys_lower_cased`
 - **Recorded in:** `crates/differences/differences.toml`
+
+#### `config.layering`: Layers: Viper resolves each key over the defaults, the file and the environment, the config crate merges its sources into one tree
+
+- **Go:** Viper's `Get` takes a key from the environment, then the file, then the defaults (viper.go:1220-1354): a `null` file value leaves the default (`port: ~` keeps 8000), and a dotted key inside a section sets the key under it (`gdpr:` with `tcf2.enabled: false` sets `gdpr.tcf2.enabled`).
+- **Rust:** The config crate merges its sources into one tree, a later source's value replacing an earlier one at its path, so a `null` replaces the default and fails the read; a dotted key below the top level is a key of its own, so the default stays.
+- **Who notices:** operator
+- **Visible in:** Startup with a configuration that has `null` values or dotted keys inside sections, or `PBS_` variables for sections
+- **Harness:** none: a mismatch here is unexpected
+- **Pin:** `crates/config/tests/loader.rs::go_difference_layering`
+- **Rule B:** Rule B (c): the operator interface (config keys, defaults, `PBS_` variables, CLI flags, metric names, labels and types)
+- **How Go's behaviour is kept:** CONFIG-LOADER resolves each key as Viper's `find`, `IsSet`, `AllKeys` and `AllSettings` do and decodes Viper's tree.
+- **Restore pin:** `crates/config/tests/loader.rs::loads_match_viper` (Every load of `loads.json`, the layering ones among them.)
+- **Recorded in:** `crates/config/differences.toml`
+
+#### `config.weak-typing`: Config values into typed fields: Viper casts by the default's type and mapstructure decodes weakly, the config crate converts by the type serde asks for
+
+- **Go:** Viper casts a value with spf13/cast by the type of the key's default (`SetTypeByDefaultValue`, config/config.go:1319), dropping cast's error, and `v.Unmarshal` decodes the tree with mapstructure's `WeaklyTypedInput` and `AccountModulesHookFunc` (config/config.go:758): `0x10` is 16, `4x2` is 0 for a key with a default, 4.5 is 4, a scalar is a one-element list, a list of maps merges into a map, and a number is cut to the field's size.
+- **Rust:** The config crate converts by the type serde asks for: a string into a number in decimal only (`0x10` and `4x2` fail the load), a float into an integer rounded (4.5 is 5), and never a scalar into a list.
+- **Who notices:** operator
+- **Visible in:** Startup with a pbs.yaml, pbs.json, pbs.toml or `PBS_` variables whose values are not of the field's type
+- **Harness:** none: a mismatch here is unexpected
+- **Pin:** `crates/config/tests/loader.rs::go_difference_weak_typing`
+- **Rule B:** Rule B (c): the operator interface (config keys, defaults, `PBS_` variables, CLI flags, metric names, labels and types)
+- **How Go's behaviour is kept:** CONFIG-LOADER ports cast's conversions as Viper's `Get` applies them and mapstructure's weak decode over the Go types of `config.Configuration`, with the account modules hook.
+- **Restore pin:** `crates/config/src/loader/tests.rs::cast_matches_spf13_cast` (Each cast Viper's `Get` applies, against spf13/cast's own results.); `crates/config/src/loader/tests.rs::weak_decode_matches_mapstructure` (Every input kind into every target kind, against mapstructure's own results.); `crates/config/tests/loader.rs::weak_typing_matrix`
+- **Recorded in:** `crates/config/differences.toml`
 
 ## Cookies
 
@@ -1143,3 +1286,25 @@ No entry names the classes `other` and `unrecorded` or the kinds `stage_missing`
 - **Harness:** none
 - **Pin:** `crates/differences/tests/yaml.rs::go_difference_boolean_case`
 - **Recorded in:** `crates/differences/differences.toml`
+
+#### `yaml.error-texts`: YAML parse errors: yaml.v3 and serde-saphyr word them differently
+
+- **Go:** yaml.v3 v3.0.1 words its errors as `yaml: line 2: found character that cannot start any token` or `yaml: unmarshal errors:` with the lines below it.
+- **Rust:** serde-saphyr words them its own way, with the line and column, as `tabs disallowed within this context (block indentation) at line 2, column 2`; the same documents fail.
+- **Who notices:** none
+- **Visible in:** Nowhere: Prebid drops the error of a pbs.yaml that does not parse (config/config.go:1322), and only the verdict, which is the same, shows
+- **Harness:** none
+- **Pin:** `crates/config/tests/yaml.rs::errors_same_verdict`
+- **Restore option:** Port yaml.v3's scanner and its messages; not planned.
+- **Recorded in:** `crates/config/differences.toml`
+
+#### `yaml.scalars`: YAML scalars: yaml.v3 and serde-saphyr resolve some plain scalars to different types
+
+- **Go:** yaml.v3 v3.0.1 parses integers with `strconv.ParseInt` base 0, so `0X1F`, `0O17`, `0B101`, `1_` and `1__0` are numbers, and floats after removing underscores (`1_000.5`); it keeps an out-of-range float such as `1e400` a string, makes YAML 1.1 timestamps such as `2001-12-14` `time.Time` (a string key then gets `2001-12-14 00:00:00 +0000 UTC`), keeps the text of a scalar with a custom tag, and fails on `!!null x`.
+- **Rust:** serde-saphyr keeps those numbers and timestamps strings, reads `1e400` as infinity, resolves a scalar with a custom tag as if untagged (`!e!x 1` is the number 1) and reads `!!null x` as null.
+- **Who notices:** operator
+- **Visible in:** Startup with a pbs.yaml that writes such a scalar; none of the 398 bidder-info files of the pinned upstream does
+- **Harness:** none
+- **Pin:** `crates/config/tests/yaml.rs::scalars_resolve_like_yaml_v3`
+- **Restore option:** Resolve plain scalars from serde-saphyr's events with yaml.v3's rules; not planned.
+- **Recorded in:** `crates/config/differences.toml`

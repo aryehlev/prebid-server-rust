@@ -4,6 +4,7 @@ resolver = "3"
 # a unit that needs a new crate or a workspace-level change reports it instead.
 members = [
     "crates/bidder-params",
+    "crates/config",
     "crates/currency",
     "crates/devtools",
     "crates/differences",
@@ -14,9 +15,6 @@ members = [
     "crates/gohttp-server",
     "crates/gojson",
     "crates/gojson-derive",
-    "crates/goviper",
-    "crates/goyaml",
-    "crates/goyaml-derive",
     "crates/gpp",
     "crates/http-client",
     "crates/jsonutil",
@@ -55,9 +53,11 @@ aws-lc-rs = { version = "1.19.0", default-features = false, features = ["alloc",
 axum = { version = "0.8.9", features = ["http2"] }
 base64 = "0.23.1"
 bytes = "1.12.1"
-# Only the JSON format: the yaml feature pulls yaml-rust2 -> hashlink -> hashbrown 0.16 beside
-# indexmap's 0.17. YAML goes through a serde-saphyr Format instead.
-config = { version = "0.15.27", default-features = false, features = ["json"] }
+# JSON and TOML (D-VIPERFMT: the toml feature reads pbs.toml with the toml 1.2.1 already locked).
+# The yaml feature pulls yaml-rust2 -> hashlink -> hashbrown 0.16 beside indexmap's 0.17, so YAML
+# goes through a serde-saphyr Format instead; the ini feature pulls rust-ini with getrandom 0.2 and
+# hashbrown 0.14, so pbs.ini fails startup like viper's other formats (config.formats).
+config = { version = "0.15.27", default-features = false, features = ["json", "toml"] }
 # No features: Go writes and reads cookie values raw, and percent-encode's encoded() would turn
 # the base64 padding of the uids value into %3D.
 cookie = "0.18.2"

@@ -1,0 +1,14 @@
+{
+  "host_cookie": {
+    "family": "adnxs",
+    "cookie_name": "rh_host",
+    "domain": "parity.test",
+    "optout_cookie": {
+      "name": "rh_optout",
+      "value": "1"
+    },
+    "opt_out_url": "https://parity.test/opted-out",
+    "opt_in_url": "https://parity.test/opted-in",
+    "ttl_days": 30
+  }
+}
