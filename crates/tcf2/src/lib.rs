@@ -1,8 +1,8 @@
 //! IAB TCF v2 consent string and global vendor list parsing compatible with prebid/go-gdpr.
 //!
 //! This crate ports `github.com/prebid/go-gdpr` v1.12.0 as prebid-server uses it, keeping Go's
-//! observable behaviour: accessor results, accepted and rejected inputs, and byte-identical error
-//! text.
+//! observable behaviour for consent strings: accessor results, accepted and rejected inputs, and
+//! byte-identical error text. Vendor lists are read with `serde_json` (see below).
 //!
 //! | Go package | Rust module |
 //! |---|---|
@@ -21,8 +21,8 @@
 //! [`vendorlist2::parse_eagerly`]. Parsed values implement the [`api::VendorConsents`],
 //! [`api::VendorList`] and [`api::Vendor`] traits.
 //!
-//! Errors from the consent parsers are [`ConsentError`]; vendor list errors are
-//! [`vendorlist2::VendorListError`]. Their `Display` output is Go's `err.Error()`.
+//! Errors from the consent parsers are [`ConsentError`], whose `Display` output is Go's
+//! `err.Error()`; vendor list errors are [`vendorlist2::VendorListError`].
 //!
 //! Not ported, because prebid-server never calls them: `vendorconsent.ParseVersion`, the lazy
 //! vendor list parsers (`vendorlist2.ParseLazily`, `vendorlist.ParseLazily`) and the TCF 1
@@ -38,6 +38,10 @@
 //! - A vendor list that lists the same vendor ID under several keys gives a random winner in Go
 //!   (map iteration order); see [`vendorlist2::parse_eagerly`] for the deterministic choice made
 //!   here.
+//! - Vendor lists are read with `serde_json`, not `encoding/json`: member names match exactly, a
+//!   repeated member, a base64 string for a list of ids and a key that is not UTF-8 are refused,
+//!   and the JSON error texts are `serde_json`'s (`gvl.json-leniency` in the differences ledger).
+//!   Every GVL fixture of go-gdpr and prebid-server reads as in Go.
 
 /// Test-only `assert_eq!` that returns an error from the enclosing test instead of panicking.
 #[cfg(test)]

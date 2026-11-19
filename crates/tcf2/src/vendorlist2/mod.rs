@@ -2,22 +2,20 @@
 //! versions 2 and 3).
 //!
 //! Go: `vendorlist2/eager-parsing.go`. `ParseLazily` is not ported because prebid-server never
-//! calls it. Go's `json.Unmarshal` into `vendorListContract` is reproduced by the private
-//! `scanner` (Go `encoding/json/scanner.go`) and `decode` (Go `encoding/json/decode.go`)
-//! modules, so that the accepted documents, the decoded values and the error messages all match.
+//! calls it. Go reads the document with `json.Unmarshal` into go-gdpr's `vendorListContract`;
+//! here `serde_json` reads it into the same contract, a plain serde type, so documents that only
+//! `encoding/json`'s leniency accepts read otherwise (`gvl.json-leniency` in the differences
+//! ledger, crates/tcf2/differences.toml). What go-gdpr does with the contract is ported as is.
 
-mod decode;
 mod error;
-mod scanner;
 
-#[cfg(test)]
-mod golden_tests;
 #[cfg(test)]
 mod tests;
 
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 
-use self::decode::{VendorContract, unmarshal};
+use serde::Deserialize;
+
 pub use self::error::VendorListError;
 use crate::{
     api::{Vendor, VendorList},
@@ -26,37 +24,72 @@ use crate::{
 
 /// Go: `vendorlist2.ParseEagerly`: parses and validates a vendor list up front.
 ///
-/// The document is decoded as Go's `encoding/json` decodes it into go-gdpr's contract: unknown
-/// fields are ignored, keys match case-insensitively, `purposes`-style fields may also be base64
-/// strings, and so on (see the `decode` module).
+/// `serde_json` reads the document into go-gdpr's contract: unknown fields are ignored, and a
+/// `null` (or the `null` document) leaves the zero value, as in Go; keys match exactly, and
+/// `encoding/json`'s other leniencies are not reproduced (see the module documentation).
 ///
 /// When several entries of `vendors` carry the same `id`, Go keeps whichever its randomised map
-/// iteration visits last. This port is deterministic: it keeps the entry of the map key that
-/// first appears latest in the document (a repeated key replaces its earlier value in place, as
-/// in Go's map).
+/// iteration visits last. Here the entries are visited in ascending key order, so the entry
+/// under the greatest key wins.
 ///
 /// # Errors
 ///
-/// Returns Go's error: a JSON syntax error, the first type mismatch or base64 error met while
-/// decoding, or [`VendorListError::InvalidVersion`] when `vendorListVersion` is 0 or missing.
+/// Returns [`VendorListError::Json`] when `serde_json` cannot read the document into the contract,
+/// and [`VendorListError::InvalidVersion`] when `vendorListVersion` is 0 or missing.
 pub fn parse_eagerly(data: &[u8]) -> Result<ParsedVendorList, VendorListError> {
-    let contract = unmarshal(data)?;
+    // Go: vendorlist2/eager-parsing.go:20-23.
+    let contract = serde_json::from_slice::<Option<VendorListContract>>(data)
+        .map_err(VendorListError::Json)?
+        .unwrap_or_default();
 
-    if contract.version == 0 {
+    // Go: vendorlist2/eager-parsing.go:25-27.
+    let version = contract.version.unwrap_or_default();
+    if version == 0 {
         return Err(VendorListError::InvalidVersion);
     }
 
-    let mut vendors = HashMap::with_capacity(contract.vendors.values().len());
-    for vendor in contract.vendors.values() {
-        let _previous = vendors.insert(vendor.id, ParsedVendor::new(vendor));
+    // Go: vendorlist2/eager-parsing.go:29-37.
+    let contracts = contract.vendors.unwrap_or_default();
+    let mut vendors = HashMap::with_capacity(contracts.len());
+    for vendor in contracts.into_values().map(Option::unwrap_or_default) {
+        let _previous = vendors.insert(vendor.id.unwrap_or_default(), ParsedVendor::new(&vendor));
     }
 
     Ok(ParsedVendorList {
-        spec_version: contract.gvl_specification_version,
-        version: contract.version,
+        spec_version: contract.gvl_specification_version.unwrap_or_default(),
+        version,
         vendors,
     })
 }
+
+/// Go: `vendorListContract` (vendorlist2/eager-parsing.go:146-150). Every member, map value and
+/// element that Go reads `null` into keeps its zero value there, so each is an `Option` here.
+#[derive(Debug, Default, Deserialize)]
+struct VendorListContract {
+    #[serde(rename = "gvlSpecificationVersion")]
+    gvl_specification_version: Option<u16>,
+    #[serde(rename = "vendorListVersion")]
+    version: Option<u16>,
+    vendors: Option<BTreeMap<String, Option<VendorListVendorContract>>>,
+}
+
+/// Go: `vendorListVendorContract` (vendorlist2/eager-parsing.go:152-159).
+#[derive(Debug, Default, Deserialize)]
+struct VendorListVendorContract {
+    id: Option<u16>,
+    purposes: Ids,
+    #[serde(rename = "legIntPurposes")]
+    legitimate_interests: Ids,
+    #[serde(rename = "flexiblePurposes")]
+    flexible_purposes: Ids,
+    #[serde(rename = "specialPurposes")]
+    special_purposes: Ids,
+    #[serde(rename = "specialFeatures")]
+    special_features: Ids,
+}
+
+/// A `[]uint8` member of [`VendorListVendorContract`].
+type Ids = Option<Vec<Option<u8>>>;
 
 /// Go: `parsedVendorList`, the [`VendorList`] that [`parse_eagerly`] returns.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -87,10 +120,11 @@ impl VendorList for ParsedVendorList {
 struct IdSet([u64; 4]);
 
 impl IdSet {
-    /// Go: `mapifyPurpose` and `mapifySpecialFeature`.
-    fn new(ids: &[u8]) -> Self {
+    /// Go: `mapifyPurpose` and `mapifySpecialFeature` (vendorlist2/eager-parsing.go:54-70); a
+    /// `null` element is Go's zero.
+    fn new(ids: &Ids) -> Self {
         let mut set = Self::default();
-        for &id in ids {
+        for id in ids.iter().flatten().map(|id| id.unwrap_or_default()) {
             if let Some(word) = set.0.get_mut(usize::from(id >> 6)) {
                 *word |= 1 << (id & 63);
             }
@@ -116,14 +150,14 @@ pub struct ParsedVendor {
 }
 
 impl ParsedVendor {
-    /// Go: `parseVendor`.
-    fn new(contract: &VendorContract) -> Self {
+    /// Go: `parseVendor` (vendorlist2/eager-parsing.go:42-52).
+    fn new(contract: &VendorListVendorContract) -> Self {
         Self {
-            purposes: IdSet::new(contract.purposes.values()),
-            legitimate_interests: IdSet::new(contract.legitimate_interests.values()),
-            flexible_purposes: IdSet::new(contract.flexible_purposes.values()),
-            special_purposes: IdSet::new(contract.special_purposes.values()),
-            special_features: IdSet::new(contract.special_features.values()),
+            purposes: IdSet::new(&contract.purposes),
+            legitimate_interests: IdSet::new(&contract.legitimate_interests),
+            flexible_purposes: IdSet::new(&contract.flexible_purposes),
+            special_purposes: IdSet::new(&contract.special_purposes),
+            special_features: IdSet::new(&contract.special_features),
         }
     }
 }

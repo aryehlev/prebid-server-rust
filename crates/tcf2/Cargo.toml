@@ -14,8 +14,8 @@ categories = ["parser-implementations"]
 [lints]
 workspace = true
 
+# serde and serde_json read the global vendor list into go-gdpr's contract (and the Go goldens in
+# tests).
 [dependencies]
-
-[dev-dependencies]
-# Only used to read the Go-generated golden files under testdata/.
+serde = { workspace = true }
 serde_json = { workspace = true }

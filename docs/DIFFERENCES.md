@@ -19,6 +19,7 @@ Rule B's cases: (a) input real production traffic sends that the crate would rej
 | In-memory caches | 0 | 1 | 0 |
 | Configuration loading | 0 | 0 | 3 |
 | Cookies | 0 | 1 | 0 |
+| Global vendor list | 0 | 1 | 0 |
 | Gzip | 0 | 1 | 0 |
 | HTTP client | 0 | 1 | 1 |
 | JSON | 0 | 8 | 3 |
@@ -30,7 +31,7 @@ Rule B's cases: (a) input real production traffic sends that the crate would rej
 | Time formatting | 0 | 0 | 1 |
 | URLs | 0 | 1 | 0 |
 | YAML | 0 | 1 | 0 |
-| All | 1 | 18 | 10 |
+| All | 1 | 19 | 10 |
 
 ## Decisions pending
 
@@ -140,6 +141,22 @@ No entry names the classes `other` and `unrecorded` or the kinds `stage_missing`
 - **Pin:** `crates/differences/tests/cookie.rs::go_difference_set_cookie_attribute_order`
 - **Note:** The cookie's value, the uids JSON in base64, keeps Go's format under Rule B (b), and the harness compares it as JSON after base64 decoding.
 - **Recorded in:** `crates/differences/differences.toml`
+
+## Global vendor list
+
+### Ledgered
+
+#### `gvl.json-leniency`: Global vendor lists: Go reads them with `encoding/json`, the port with serde
+
+- **Go:** go-gdpr's `vendorlist2.ParseEagerly` reads a fetched list with `json.Unmarshal` into its contract: member names match ignoring case (`ſ` and the Kelvin sign as `s` and `k`), a repeated member is read again (a second `vendors` adds its vendors), a string where a list of ids belongs is decoded as standard base64 (`"purposes":"AQID"` is 1, 2 and 3), a key that is not UTF-8 or holds a lone surrogate escape reads with U+FFFD, a skipped member nested past 10000 levels and an array where an object of the contract belongs are refused, and the errors are `encoding/json`'s (`invalid character 'm' looking for beginning of value`).
+- **Rust:** serde_json reads it into the same contract, so the json.* entries apply: member names match exactly (`json.key-case`), and a repeated member (`json.duplicate-keys`), a key that is not UTF-8 (`json.invalid-utf8`) or holds a lone surrogate (`json.lone-surrogates`) and a string where a list of ids belongs are refused; a skipped member is read at any depth (`json.nesting-depth`); an array of a contract's members, in their order, is read as the contract; and the errors are serde_json's (`expected value at line 1 column 1`). A `null` leaves Go's zero value, and IAB's lists are well-formed: every GVL fixture of go-gdpr and prebid-server reads as in Go.
+- **Who notices:** operator
+- **Visible in:** Whether a fetched vendor list is kept for GDPR enforcement, and the error of the `GET ... returned malformed JSON` log line (gdpr/vendorlist-fetching.go:150-154)
+- **Harness:** none
+- **Pin:** `crates/tcf2/tests/vendorlist.rs::gvl_fixtures`
+- **Restore option:** A Go-compatible JSON reader for the vendor list; not planned (orchestrator ruling 2), since IAB publishes well-formed lists.
+- **Note:** `crates/tcf2/tests/vendorlist.rs::gvl_corpus` counts, per reason, how the 5,017 documents of the two Go corpora read beside Go. Reading the list through JSONUTIL's decode entry for outside bytes, once it merges (orchestrator ruling 7), would restore keys with a lone surrogate.
+- **Recorded in:** `crates/tcf2/differences.toml`
 
 ## Gzip
 
