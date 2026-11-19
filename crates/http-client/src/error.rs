@@ -3,8 +3,9 @@
 //!
 //! bidder.go sends through `ctxhttp.Do`, which returns `ctx.Err()` once the request's context is
 //! done, so a request that runs past its deadline fails with Go's bare `context deadline
-//! exceeded`, whatever the Transport was doing; bidder.go then turns every error that is
-//! `context.DeadlineExceeded` under `errors.Is` into `errortypes.Timeout`.
+//! exceeded`, whatever the Transport was doing; bidder.go then turns a send error that is
+//! `context.DeadlineExceeded` under `errors.Is` into `errortypes.Timeout`, and returns an error
+//! reading the body as it is (exchange/bidder.go:641-646), a deadline included.
 //! [`RequestError::is_timeout`] is that test, and [`ErrorKind::DeadlineExceeded`] keeps Go's text
 //! (`http-client.timeout-classification`, restored; pin
 //! `crates/http-client/tests/errors.rs::deadline_is_timeout` against
@@ -68,7 +69,9 @@ impl RequestError {
     }
 
     /// Whether Go's `errors.Is(err, context.DeadlineExceeded)` holds: the request ran past its
-    /// deadline or its dial timed out. bidder.go reports such an error as `errortypes.Timeout`.
+    /// deadline or its dial timed out. bidder.go reports such an error from
+    /// [`Client::send`](crate::Client::send) as `errortypes.Timeout`, and returns one from
+    /// [`Response::bytes`](crate::Response::bytes) unclassified.
     #[must_use]
     pub const fn is_timeout(&self) -> bool {
         matches!(

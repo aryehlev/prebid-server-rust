@@ -249,7 +249,8 @@ impl Response {
         self.inner.url()
     }
 
-    /// The whole body, read before the request's deadline: bidder.go's `io.ReadAll`.
+    /// The whole body, read before the request's deadline: bidder.go's `io.ReadAll`, whose error
+    /// bidder.go returns unclassified, a deadline included (exchange/bidder.go:641-646).
     ///
     /// # Errors
     ///

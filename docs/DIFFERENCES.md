@@ -172,10 +172,10 @@ No entry names the classes `other` and `unrecorded` or the kinds `stage_missing`
 
 #### `http-client.connection-metrics`: Connection metrics: httptrace hooks in Go, reconstructed events here
 
-- **Go:** bidder.go's httptrace hooks (exchange/bidder.go:732-798) take `GetConn` to `GotConn` as the connection wait with its `Reused` flag, `DNSStart` to `DNSDone` as the DNS time and `TLSHandshakeStart` to `TLSHandshakeDone` as the TLS handshake time.
-- **Rust:** The clients report `Event::Dns` from their resolver and `Event::GotConn` off the response, its reuse read from the connection's addresses and its wait the wait for the `max_connections_per_host` slot alone, so a new connection's wait leaves out its dial and a request that fails before its response head reports no `GotConn`; there is no dial or TLS handshake event, so no TLS handshake time is recorded.
+- **Go:** bidder.go's httptrace hooks (exchange/bidder.go:732-798) take `GetConn` to `GotConn` as the connection wait with its `Reused` flag, which also moves a bidder's `http_client.throttle` health when the connection was reused, `DNSStart` to `DNSDone` as the DNS time, `TLSHandshakeStart` to `TLSHandshakeDone` as the TLS handshake time and, when `metrics.disabled_metrics.adapter_connections_dial_metrics` is false, `ConnectStart` to `ConnectDone` as the adapter's dial time, a dial that fails counting as a dial error.
+- **Rust:** The clients report `Event::Dns` from their resolver and `Event::GotConn` off the response, its reuse read from the connection's addresses and its wait the wait for the `max_connections_per_host` slot alone, so a new connection's wait leaves out its dial and a request that fails before its response head reports no `GotConn`; there is no dial or TLS handshake event, so no TLS handshake time, dial time or dial error is recorded.
 - **Who notices:** operator
-- **Visible in:** The adapter connection created, reused and wait metrics and the DNS and TLS handshake time metrics
+- **Visible in:** The adapter connection created, reused, wait, dial time and dial error metrics, the DNS and TLS handshake time metrics, and bidder throttling under `http_client.throttle`
 - **Harness:** none
 - **Pin:** `crates/http-client/tests/metrics.rs::events_recorded`
 - **Restore option:** A connector layer that times dials and TLS handshakes, once tower-layer and tower-service are in the crate stack.
@@ -365,7 +365,7 @@ No entry names the classes `other` and `unrecorded` or the kinds `stage_missing`
 - **Harness:** none: a mismatch here is unexpected
 - **Pin:** `crates/http-client/tests/errors.rs::deadline_is_timeout`
 - **Rule B:** Rule B (c): the operator interface (config keys, defaults, `PBS_` variables, CLI flags, metric names, labels and types)
-- **How Go's behaviour is kept:** pbs-http-client sends each request and reads its body under the deadline, and ends one past it with `ErrorKind::DeadlineExceeded`, which reads `context deadline exceeded` and whose `is_timeout` is bidder.go's test; Prebid's error codes and timeout metrics follow it.
+- **How Go's behaviour is kept:** pbs-http-client sends each request and reads its body under the deadline, and ends one past it with `ErrorKind::DeadlineExceeded`, which reads `context deadline exceeded` and whose `is_timeout` is bidder.go's test; Prebid's error codes and timeout metrics follow it for a send error, and a body error stays unclassified, as bidder.go returns it.
 - **Restore pin:** `crates/http-client/tests/errors.rs::deadline_is_timeout`
 - **Recorded in:** `crates/http-client/differences.toml`
 
