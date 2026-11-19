@@ -472,6 +472,10 @@ func decodeCases() []loadInput {
 		yamlFile("account modules inner not a map", "account_defaults:\n  hooks:\n    modules:\n      vendor: 5\n"),
 		yamlFile("account modules not a map", "account_defaults:\n  hooks:\n    modules: 5\n"),
 		yamlFile("account modules as a list", "account_defaults:\n  hooks:\n    modules:\n      - vendor:\n          m:\n            a: 1\n"),
+		// The hook's data.(map[string]interface{}) panics on a list element with a key that is
+		// not a string, which yaml.v3 gives as map[interface{}]interface{}.
+		yamlFile("account modules as a list with a key that is not a string",
+			"account_defaults:\n  hooks:\n    modules:\n      - 1:\n          m:\n            a: 1\n"),
 		yamlFile("host modules", "hooks:\n  enabled: true\n  modules:\n    vendor:\n      module:\n        enabled: true\n        n: 1.5\n        list: [1, a]\n"),
 		yamlFile("host execution plan", "hooks:\n  host_execution_plan:\n    endpoints:\n      /openrtb2/auction:\n        stages:\n          entrypoint:\n            groups:\n              - timeout: 5\n                hook_sequence:\n                  - module_code: vendor.module\n                    hook_impl_code: code\n"),
 		yamlFile("struct from a scalar", "host_schain_node: x\n"),

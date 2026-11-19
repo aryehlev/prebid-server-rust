@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"fmt"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -183,10 +184,15 @@ func sanitize(text, dir, second string) string {
 	return text
 }
 
-// decode is config.New's decode (config/config.go:758).
-func decode(v *viper.Viper) (config.Configuration, error) {
-	var c config.Configuration
-	err := v.Unmarshal(&c, viper.DecodeHook(config.AccountModulesHookFunc()))
+// decode is config.New's decode (config/config.go:758). A panic, which crashes Prebid Server at
+// startup, is recorded as an error: "panic: " and the panic's value.
+func decode(v *viper.Viper) (c config.Configuration, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("panic: %v", r)
+		}
+	}()
+	err = v.Unmarshal(&c, viper.DecodeHook(config.AccountModulesHookFunc()))
 	return c, err
 }
 
@@ -326,6 +332,7 @@ func loadsGolden() loadsDoc {
 			"Values are in the compact form of encode.go: an int is an integer, a float a number with a '.' or an exponent, int64 and uint64 are tagged.",
 			"With second, the file is searched in the working directory and then a second directory standing for /etc/config.",
 			"unordered holds loads whose result depends on the order Go iterates maps in (Viper's AllSettings), with every outcome seen in 200 runs.",
+			"An error \"panic: ...\" is a panic of the decode, which crashes Prebid Server at startup.",
 		},
 		SupportedExts: viper.SupportedExts,
 		Defaults: defaultsOutput{

@@ -460,6 +460,10 @@ mod tests {
         ("toml local date in modules", "config.toml-reader"),
         ("yaml timestamps", "yaml.scalars"),
         ("failing values are printed", "config.error-texts"),
+        (
+            "account modules as a list with a key that is not a string",
+            "config.hook-panic",
+        ),
     ];
 
     /// The ledger entry of a load whose result differs from Go's.
@@ -1492,6 +1496,35 @@ mod tests {
             &rows,
             &want.map(|row| row.map(str::to_owned)).to_vec(),
             "the variables; Viper's Get; the keys config collects",
+        )
+    }
+
+    /// The account modules hook asserts that its data is a `map[string]interface{}`, which panics
+    /// for a list element whose keys are not all strings and crashes Go at startup; the loader
+    /// fails the load with a decode error that names the key and the same conversion.
+    // Go: config/account_module_decoder.go:16-23 (AccountModulesHookFunc), mapstructure.go v1.5.0
+    // (decodeMapFromSlice, DecodeHookExec), config/config.go:758 (config.New)
+    #[test]
+    fn go_difference_hook_panic() -> TestResult {
+        let doc = golden("loads.json")?;
+        let name = "account modules as a list with a key that is not a string";
+        let (load, got) = load_named(&doc, name)?;
+        check_eq(
+            text(&load, "/error")?,
+            "panic: interface conversion: interface {} is map[interface {}]interface {}, not \
+             map[string]interface {}",
+            "Go's panic",
+        )?;
+        let rust = loaded(name, &got)?.decode().err().map(|e| e.to_string());
+        check_eq(
+            &rust,
+            &Some(
+                "viper failed to unmarshal app config: 1 error(s) decoding:\n\n\
+                 * error decoding 'account_defaults.hooks.modules[0]': interface conversion: \
+                 interface {} is map[interface {}]interface {}, not map[string]interface {}"
+                    .to_owned(),
+            ),
+            "the loader's error",
         )
     }
 

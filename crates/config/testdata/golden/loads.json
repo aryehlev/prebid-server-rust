@@ -18,7 +18,8 @@
     "settings is v.AllSettings() and decoded the decoded config.Configuration (its non-zero exported fields under their mapstructure keys, recursively), each as a diff against the defaults load: set lists the leaves (a path and a value) that differ from or are missing in the defaults, unset the defaults' leaf paths the load lacks. A leaf is a value that is not a non-empty object; tagged values ({\"$float64\": ...}) are leaves.",
     "Values are in the compact form of encode.go: an int is an integer, a float a number with a '.' or an exponent, int64 and uint64 are tagged.",
     "With second, the file is searched in the working directory and then a second directory standing for /etc/config.",
-    "unordered holds loads whose result depends on the order Go iterates maps in (Viper's AllSettings), with every outcome seen in 200 runs."
+    "unordered holds loads whose result depends on the order Go iterates maps in (Viper's AllSettings), with every outcome seen in 200 runs.",
+    "An error \"panic: ...\" is a panic of the decode, which crashes Prebid Server at startup."
   ],
   "supported_exts": [
     "json",
@@ -15503,6 +15504,45 @@
             "value": {
               "$bytes": "{\"a\":1}"
             }
+          }
+        ],
+        "unset": []
+      }
+    },
+    {
+      "name": "account modules as a list with a key that is not a string",
+      "files": {
+        "pbs.yaml": "account_defaults:\n  hooks:\n    modules:\n      - 1:\n          m:\n            a: 1\n"
+      },
+      "bidders": [
+        "appnexus",
+        "rubicon"
+      ],
+      "read_error": "",
+      "file_used": "first:pbs.yaml",
+      "error": "panic: interface conversion: interface {} is map[interface {}]interface {}, not map[string]interface {}",
+      "settings": {
+        "set": [
+          {
+            "path": [
+              "account_defaults",
+              "hooks",
+              "modules"
+            ],
+            "value": [
+              {
+                "$imap": [
+                  [
+                    1,
+                    {
+                      "m": {
+                        "a": 1
+                      }
+                    }
+                  ]
+                ]
+              }
+            ]
           }
         ],
         "unset": []
