@@ -29,5 +29,55 @@
       "domain": "Example.co.uk",
       "err": ""
     }
+  ],
+  "referrers": [
+    {
+      "referrer": "http://example.com./article",
+      "host": "example.com.",
+      "domain": "",
+      "err": "publicsuffix: empty label in domain \"example.com.\""
+    },
+    {
+      "referrer": "https://www.example.com./",
+      "host": "www.example.com.",
+      "domain": "",
+      "err": "publicsuffix: empty label in domain \"www.example.com.\""
+    },
+    {
+      "referrer": "http://.example.com/",
+      "host": ".example.com",
+      "domain": "",
+      "err": "publicsuffix: empty label in domain \".example.com\""
+    },
+    {
+      "referrer": "http://example..com/",
+      "host": "example..com",
+      "domain": "",
+      "err": "publicsuffix: empty label in domain \"example..com\""
+    },
+    {
+      "referrer": "http://a..b.example.co.uk/",
+      "host": "a..b.example.co.uk",
+      "domain": "",
+      "err": "publicsuffix: empty label in domain \"a..b.example.co.uk\""
+    },
+    {
+      "referrer": "http://192.168.1.1/",
+      "host": "192.168.1.1",
+      "domain": "",
+      "err": "publicsuffix: cannot derive eTLD+1 for domain \"192.168.1.1\""
+    },
+    {
+      "referrer": "http://192.168.1.1:8080/",
+      "host": "192.168.1.1:8080",
+      "domain": "1.1:8080",
+      "err": ""
+    },
+    {
+      "referrer": "http://[::1]:8080/",
+      "host": "[::1]:8080",
+      "domain": "",
+      "err": "publicsuffix: cannot derive eTLD+1 for domain \"[::1]:8080\""
+    }
   ]
 }
