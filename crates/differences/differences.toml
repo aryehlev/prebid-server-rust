@@ -274,12 +274,14 @@ status = "ledgered"
 title = "HTML escaping: Go writes `<`, `>` and `&` as `\\u` escapes, serde_json as they are"
 go = """\
     `jsonutil.Marshal` (jsoniter's `ConfigCompatibleWithStandardLibrary`), `json.Marshal` and \
-    Encoders with default settings write `<`, `>` and `&` as `\\u003c`, `\\u003e` and `\\u0026`, \
-    inside a `json.RawMessage` too, and U+2028 and U+2029 as `\\u2028` and `\\u2029`. The \
-    endpoints' Encoders turn HTML escaping off (`SetEscapeHTML(false)` at \
-    endpoints/openrtb2/auction.go:384, endpoints/openrtb2/amp_auction.go:408, \
-    endpoints/cookie_sync.go:561 and exchange/exchange.go:986) and still escape U+2028 and \
-    U+2029."""
+    Encoders with default settings write `<`, `>` and `&` in strings as `\\u003c`, `\\u003e` and \
+    `\\u0026`, and U+2028 and U+2029 as `\\u2028` and `\\u2029`. Inside a `json.RawMessage` only \
+    `json.Marshal` and such Encoders escape: `jsonutil.Marshal` writes one through the \
+    `RawMessageExtension` main.go:23-25 registers, which compacts it and escapes nothing \
+    (`json.raw-not-compacted`). The endpoints' Encoders turn HTML escaping off \
+    (`SetEscapeHTML(false)` at endpoints/openrtb2/auction.go:384, \
+    endpoints/openrtb2/amp_auction.go:408, endpoints/cookie_sync.go:561 and \
+    exchange/exchange.go:986) and still escape U+2028 and U+2029 in strings."""
 rust = """\
     serde_json writes all five characters as they are. Strings the endpoints' Encoders write \
     themselves, such as a bid's `adm`, differ only in U+2028 and U+2029; the `<`, `>` and `&` \
