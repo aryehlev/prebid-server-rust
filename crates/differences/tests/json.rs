@@ -609,7 +609,7 @@ mod tests {
     /// and into a `Value` alike. Such escapes reach the server when a client cuts a string inside
     /// an escaped emoji.
     // Go: util/jsonutil/jsonutil.go:136-155 (jsoniter's readEscapedChar, which appends a lone
-    // surrogate through appendRune as utf8.RuneError) and encoding/json's unquote
+    // surrogate through appendRune as U+FFFD) and encoding/json's unquote
     #[test]
     fn go_difference_lone_surrogates() -> TestResult {
         let doc = golden("json.json")?;
