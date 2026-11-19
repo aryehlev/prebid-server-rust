@@ -19,6 +19,7 @@ members = [
     "crates/goyaml",
     "crates/goyaml-derive",
     "crates/gpp",
+    "crates/http-client",
     "crates/logger",
     "crates/metrics",
     "crates/openrtb",
@@ -49,7 +50,10 @@ publish = false
 # cargo warns about one that no member uses (R1 check 17); the stack's entries that wait for their
 # first user are commented out at the end of the table.
 [workspace.dependencies]
+# Dev-only: the key pairs rcgen signs test certificates with.
+aws-lc-rs = { version = "1.19.0", default-features = false, features = ["alloc", "aws-lc-sys"] }
 axum = { version = "0.8.9", features = ["http2"] }
+base64 = "0.23.1"
 bytes = "1.12.1"
 # Only the JSON format: the yaml feature pulls yaml-rust2 -> hashlink -> hashbrown 0.16 beside
 # indexmap's 0.17. YAML goes through a serde-saphyr Format instead.
@@ -58,6 +62,10 @@ config = { version = "0.15.27", default-features = false, features = ["json"] }
 # the base64 padding of the uids value into %3D.
 cookie = "0.18.2"
 flate2 = "1.1.11"
+# pbs-server's HTTP/1.1-only connection builder (Go's header limit and read budget, which
+# axum::serve does not set) and the loopback test servers; axum already locks it.
+hyper-util = { version = "0.1.21", features = ["server-auto", "tokio"] }
+ipnet = "2.12.2"
 log = "0.4.35"
 moka = { version = "0.12.16", features = ["sync"] }
 proc-macro2 = "1.0.107"
@@ -65,6 +73,10 @@ proc-macro2 = "1.0.107"
 prometheus = { version = "0.14.0", default-features = false }
 psl = "2.1.257"
 quote = "1.0.47"
+# Dev-only: test certificates. rcgen's own aws_lc_rs feature names `x509-parser?/verify-aws`,
+# which puts x509-parser and untrusted 0.7.1 beside 0.9.0 into `cargo metadata`, so rcgen has no
+# crypto feature and signs through an aws-lc-rs key.
+rcgen = { version = "0.14.10", default-features = false }
 regex = "1.13.2"
 # No system-proxy (core-foundation 0.9 through system-configuration, beside 0.10): Go reads only
 # the proxy environment variables. No charset. reqwest's gzip feature pins tower-http to 0.6.
@@ -101,23 +113,12 @@ url = "2.5.8"
 # up into the table unchanged (the "# " removed, version and features as written, in name order);
 # CLEANUP and FINAL-LINT remove an entry that loses its last user.
 #
-# # Dev-only: the key pairs rcgen signs test certificates with.
-# aws-lc-rs = { version = "1.19.0", default-features = false, features = ["alloc", "aws-lc-sys"] }
-# base64 = "0.23.1"
 # # The build dependency of the 51Degrees FFI crate; aws-lc-sys already locks it.
 # cc = "1.11.2"
 # futures-util = "0.3.34"
 # hmac = "0.13.0"
-# # pbs-server's HTTP/1.1-only connection builder (Go's header limit and read budget, which
-# # axum::serve does not set) and the loopback test servers; axum already locks it.
-# hyper-util = { version = "0.1.21", features = ["server-auto", "tokio"] }
-# ipnet = "2.12.2"
 # md-5 = "0.11.0"
 # rand = "0.10.4"
-# # Dev-only: test certificates. rcgen's own aws_lc_rs feature names `x509-parser?/verify-aws`,
-# # which puts x509-parser and untrusted 0.7.1 beside 0.9.0 into `cargo metadata`, so rcgen has no
-# # crypto feature and signs through an aws-lc-rs key.
-# rcgen = { version = "0.14.10", default-features = false }
 # semver = "1.0.28"
 # uuid = { version = "1.29.3", features = ["v4"] }
 

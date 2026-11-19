@@ -1,0 +1,428 @@
+# pbs-http-client's entries in the differences ledger (see the pbs_differences ledger module for
+# the schema): where router.go's clients on reqwest differ from Go's net/http clients, and where
+# the crate keeps Go's behaviour. Each pin compares the clients with a golden written by
+# testdata/go. After a change run
+#   cargo run -p pbs-differences --locked --offline -- --write
+
+[[restoration]]
+id = "http-client.user-agent"
+pin = "crates/http-client/tests/headers.rs::default_user_agent_is_go"
+note = """\
+    The general client writes Go's `User-Agent` line for every case of headers.json: \
+    `Go-http-client/1.1` when the caller set none, the first of two values, and none for an \
+    empty one."""
+
+[[difference]]
+id = "http-client.accept-encoding"
+category = "http-client"
+status = "ledgered"
+title = """\
+    Caller-set Accept-Encoding or Range: Go's Transport leaves the response compressed, reqwest \
+    decompresses it"""
+go = """\
+    The Transport asks for gzip and decompresses only when the request has neither \
+    `Accept-Encoding` nor `Range`; an adapter that sets `Accept-Encoding` itself (gamma.go:136) \
+    or sends a `Range` gets the compressed body with `Content-Encoding` and `Content-Length` \
+    (net/http/transport.go `persistConn.roundTrip`)."""
+rust = """\
+    reqwest's gzip asks for gzip unless the caller set `Accept-Encoding`, even beside a `Range`, \
+    and decompresses every gzip response, so such an adapter gets the decompressed body without \
+    `Content-Encoding` or `Content-Length`."""
+who = ["bidder", "publisher"]
+visible_in = "Bids of adapters that set Accept-Encoding or Range, when the bidder answers with gzip"
+pin = "crates/http-client/tests/compression.rs::caller_accept_encoding_body_decompressed"
+restore = """\
+    A second client with gzip off for requests whose adapter set Accept-Encoding (not planned)."""
+
+[[difference]]
+id = "http-client.connection-metrics"
+category = "http-client"
+status = "ledgered"
+title = "Connection metrics: httptrace hooks in Go, reconstructed events here"
+go = """\
+    bidder.go's httptrace hooks (exchange/bidder.go:732-798) take `GetConn` to `GotConn` as the \
+    connection wait with its `Reused` flag, `DNSStart` to `DNSDone` as the DNS time and \
+    `TLSHandshakeStart` to `TLSHandshakeDone` as the TLS handshake time."""
+rust = """\
+    The clients report `Event::Dns` from their resolver and `Event::GotConn` off the response, \
+    its reuse read from the connection's addresses and its wait the wait for the \
+    `max_connections_per_host` slot alone, so a new connection's wait leaves out its dial and a \
+    request that fails before its response head reports no `GotConn`; there is no dial or TLS \
+    handshake event, so no TLS handshake time is recorded."""
+who = ["operator"]
+visible_in = """\
+    The adapter connection created, reused and wait metrics and the DNS and TLS handshake time \
+    metrics"""
+pin = "crates/http-client/tests/metrics.rs::events_recorded"
+restore = """\
+    A connector layer that times dials and TLS handshakes, once tower-layer and tower-service \
+    are in the crate stack."""
+
+[[difference]]
+id = "http-client.default-transport-h2"
+category = "http-client"
+status = "ledgered"
+title = """\
+    Currency and analytics client: Go's DefaultTransport negotiates HTTP/2, the plain client \
+    stays on HTTP/1.1"""
+go = """\
+    `http.DefaultTransport`, which the currency fetch (main.go:72) and the analytics client \
+    (analytics/clients/http.go) use, offers h2 over TLS and, to a server that takes it, sends \
+    HTTP/2 with `User-Agent: Go-http-client/2.0`."""
+rust = """\
+    The plain client speaks HTTP/1.1 to every server and sends `User-Agent: \
+    Go-http-client/1.1`; HTTP-H2 gives h2 to the bidder client only."""
+who = ["operator", "analytics"]
+visible_in = "Requests of the currency fetch and the analytics modules to servers that offer h2"
+pin = "crates/http-client/tests/protocol.rs::plain_client_stays_on_http1"
+
+[[difference]]
+id = "http-client.error-texts"
+category = "http-client"
+status = "ledgered"
+title = "Error texts: Go's `*url.Error` texts, reqwest's error chains"
+go = """\
+    A request that fails reads `Post \"http://127.0.0.1:PORT/e\": EOF` when the server closes \
+    the connection, `Post \"http://127.0.0.1:PORT/e\": dial tcp 127.0.0.1:PORT: connect: \
+    connection refused` when nothing listens, and `Get \"https://bidder.test/p?q=1\": Forbidden` \
+    when a proxy refuses the CONNECT, in bidder errors and debug output."""
+rust = """\
+    The same `<Method> \"<url>\"` prefix, then reqwest's chain: `error sending request: client \
+    error (SendRequest): connection closed before message completed`, `error sending request: \
+    client error (Connect): tcp connect error: Connection refused (os error 111)` on Linux, and \
+    `error sending request: client error (Connect): tunnel error: unsuccessful`. A deadline stays \
+    `context deadline exceeded`, which bidder.go:616-620 reports."""
+who = ["publisher", "operator"]
+visible_in = "Bidder error messages in the response's `ext` with debug on, and the logs"
+pin = "crates/http-client/tests/errors.rs::texts_differ_kind_same"
+
+[[difference]]
+id = "http-client.gzip-edges"
+category = "http-client"
+status = "ledgered"
+title = "Gzip responses at the edges: upper case, empty bodies and corrupt streams"
+go = """\
+    The Transport decompresses a `Content-Encoding` of `gzip` in any case (`GZIP`), keeps \
+    `Content-Encoding` and `Content-Length` on a gzip response without a body (a 204, or \
+    `Content-Length: 0`), and reads a gzip body too short for its header as `unexpected EOF`."""
+rust = """\
+    reqwest decompresses a lower-case `gzip` only, so a `GZIP` body reaches the adapter \
+    compressed; it drops `Content-Encoding` and `Content-Length` of the empty responses; and a \
+    corrupt body reads as `error decoding response body: Invalid gzip header`."""
+who = ["bidder"]
+visible_in = """\
+    Bidder responses with an upper-case gzip Content-Encoding, an empty gzip body or a corrupt \
+    one"""
+pin = "crates/http-client/tests/compression.rs::gzip_edges_differ"
+
+[[difference]]
+id = "http-client.header-case"
+category = "http-client"
+status = "ledgered"
+title = "Header names: Go writes them canonicalised, hyper in lower case"
+go = """\
+    `Header.Set` canonicalises names (`Content-Type`), and `Request.write` writes each name as \
+    the map holds it."""
+rust = """\
+    hyper writes every name as the `HeaderMap` holds it, in lower case, on HTTP/1.1 and \
+    HTTP/2."""
+who = ["bidder"]
+visible_in = "The header names of every outbound request"
+pin = "crates/http-client/tests/headers.rs::lower_case_names"
+restore = "reqwest's `http1_title_case_headers`, one builder line (not planned)."
+decision = "D-HDRCASE"
+
+[[difference.harness]]
+kind = "wire"
+lexical_class = "header_case"
+path = "$[*].request.headers.**"
+
+[[difference]]
+id = "http-client.header-order"
+category = "http-client"
+status = "ledgered"
+title = "Header order: Go sorts the headers, hyper keeps the order they were set in"
+go = """\
+    `Request.write` writes `Host`, `User-Agent` and `Content-Length` first, then the other \
+    headers sorted by name, then the Transport's `Accept-Encoding`."""
+rust = """\
+    hyper writes the caller's headers in the order they were set, then `User-Agent`, `Accept` \
+    and `Accept-Encoding`, then `Host` and `Content-Length`."""
+who = ["bidder"]
+visible_in = "The header order of every outbound request"
+pin = "crates/http-client/tests/headers.rs::wire_order"
+
+[[difference.harness]]
+kind = "wire"
+lexical_class = "header_order"
+path = "$[*].request.headers"
+
+[[difference]]
+id = "http-client.host-header"
+category = "http-client"
+status = "ledgered"
+title = "Host line: Go writes the URL's host as written, hyper the url crate's normal form"
+go = """\
+    `Request.write` writes the URL's host as written, port included (`Bidder.Example.COM:80`), \
+    and never a `Host` entry of the header map; bidder-info endpoints such as logan's \
+    `http://USeast2.logan.ai/pserver` have upper-case letters in their host."""
+rust = """\
+    The url crate lower-cases the host and drops the scheme's default port \
+    (url.host-normalization), so hyper writes `bidder.example.com`."""
+who = ["bidder"]
+visible_in = """\
+    The Host header of requests to endpoints whose host has upper-case letters or names its \
+    scheme's port"""
+pin = "crates/http-client/tests/headers.rs::host_normalised"
+
+[[difference]]
+id = "http-client.max-conns-per-host"
+category = "http-client"
+status = "restored"
+title = "max_connections_per_host: Go's Transport waits at the limit, reqwest has no limit"
+go = """\
+    `MaxConnsPerHost` lets a host have that many connections, and a request that needs one more \
+    waits until one is free."""
+rust = "reqwest has no per-host connection limit."
+who = ["bidder", "operator"]
+visible_in = "Bidder request latency and connection counts under `max_connections_per_host`"
+pin = "crates/http-client/tests/limits.rs::per_host_limit_waits"
+restore = """\
+    pbs-http-client keeps a semaphore per connect key (proxy, scheme and address, as Go keys its \
+    connections) whose slot a request holds from its send until its body is read: with a limit \
+    of 1, three concurrent requests run one after the other on one connection, as Go's do. The \
+    slots count requests in flight where Go counts connections, which over HTTP/1.1 carry one \
+    request at a time."""
+rule_b = "c"
+
+[[restoration]]
+id = "http-client.max-conns-per-host"
+pin = "crates/http-client/tests/limits.rs::per_host_limit_waits"
+
+[[difference]]
+id = "http-client.max-idle-global"
+category = "http-client"
+status = "ledgered"
+title = "max_idle_connections: Go caps idle connections across hosts, reqwest per host only"
+go = """\
+    `MaxIdleConns` caps the idle connections of all hosts together and closes the oldest when \
+    another goes idle past the cap."""
+rust = """\
+    reqwest caps idle connections per host only, so with `max_idle_connections: 1` a client \
+    keeps an idle connection to each host and reuses it."""
+who = ["operator"]
+visible_in = "Open connections and new dials of clients that reach many hosts"
+pin = "crates/http-client/tests/limits.rs::no_global_idle_cap"
+
+[[difference]]
+id = "http-client.proxy"
+category = "http-client"
+status = "restored"
+title = "Proxy environment: Go's ProxyFromEnvironment rules, reqwest's own"
+go = """\
+    `http.ProxyFromEnvironment` (golang.org/x/net/http/httpproxy) reads `HTTP_PROXY` and \
+    `HTTPS_PROXY`, the upper-case names first, excepts the hosts, domains, IPs and CIDRs of \
+    `NO_PROXY`, never proxies `localhost` or a loopback address, does not read `ALL_PROXY`, and \
+    refuses `HTTP_PROXY` under `REQUEST_METHOD`."""
+rust = """\
+    reqwest's system proxies read `ALL_PROXY` too, match `NO_PROXY` by their own rules and proxy \
+    loopback addresses that `NO_PROXY` does not name."""
+who = ["operator"]
+visible_in = "Where outbound requests go when the operator sets proxy variables"
+pin = "crates/http-client/tests/proxy.rs::proxy_env_like_go"
+restore = """\
+    pbs-http-client reads the variables once into a `ProxyEnv` and picks each request's proxy \
+    with a port of httpproxy's rules behind `Proxy::custom`; over 36 environments and 97 URLs it \
+    picks Go's proxy, but for http-client.proxy-exceptions. Loopback is never proxied, which \
+    also keeps parity traffic on the machine."""
+rule_b = "c"
+
+[[restoration]]
+id = "http-client.proxy"
+pin = "crates/http-client/tests/proxy.rs::proxy_env_like_go"
+note = """\
+    requests_reach_the_proxy_like_go shows what a proxy receives: the absolute-form request and \
+    the CONNECT with Go's `User-Agent`."""
+
+[[difference]]
+id = "http-client.proxy-exceptions"
+category = "http-client"
+status = "ledgered"
+title = "Proxy picks that still differ: `LocalHost`, IPv6 zones and a value that is no URL"
+go = """\
+    httpproxy compares the host with `localhost` before it lower-cases it, so it proxies \
+    `http://LocalHost/`; `url.Parse` reads a URL with an IPv6 zone (`http://[fe80::1%25en0]/`); \
+    and a proxy value such as `bogus url` is used as the URL `bogus%20url`, whose dial fails."""
+rust = """\
+    The url crate lower-cases the host, and the clients never proxy localhost in any case; it \
+    parses no IPv6 zone, so such a URL makes no request; and the clients refuse a proxy value \
+    that is no http or https URL."""
+who = ["operator"]
+visible_in = """\
+    Requests to `LocalHost` or a zoned IPv6 address under a proxy environment, and proxy \
+    variables that hold no URL"""
+pin = "crates/http-client/tests/proxy.rs::proxy_exceptions_differ"
+
+[[difference]]
+id = "http-client.redirects"
+category = "http-client"
+status = "ledgered"
+title = """\
+    Redirects: Go's default CheckRedirect and reqwest's policy differ on methods, headers and \
+    the error"""
+go = """\
+    At most 10 redirects; 301 and 302 turn every method but GET and HEAD into a GET without a \
+    body, as 303 does, and 307 and 308 resend both; the content headers go with the body; \
+    `Authorization` and `Cookie` reach the first request's host and its subdomains on any port; \
+    a caller's `Referer` is kept; and the 11th redirect fails with `Get \"/r/10\": stopped \
+    after 10 redirects`, the Location as the server wrote it (net/http/client.go)."""
+rust = """\
+    The same limit and 303, 307 and 308 rules, but a PUT keeps its method and body on a 301 or \
+    302, a GET keeps its content headers, the sensitive headers are dropped on any change of \
+    host, port or scheme from the previous hop (a subdomain or another port included), the \
+    previous URL replaces the caller's `Referer`, and the error names the absolute URL."""
+who = ["bidder", "operator"]
+visible_in = "Bidder requests whose endpoint answers with a redirect"
+pin = "crates/http-client/tests/redirects.rs::matrix_like_go"
+
+[[difference]]
+id = "http-client.request-target"
+category = "http-client"
+status = "ledgered"
+title = """\
+    Request-target: Go writes `url.Parse` then `RequestURI`, reqwest the url crate's WHATWG \
+    serialisation"""
+go = """\
+    Go sends the path re-escaped only where it is no valid encoding (`|`, `^` and a backslash \
+    escaped, dot segments kept) and the query as written, so a space, quote, apostrophe, `<`, \
+    `>` or non-ASCII byte in it goes out raw; it refuses a URL with a control character or a \
+    malformed escape in the path."""
+rust = """\
+    The url crate escapes those query bytes, resolves dot segments, reads a backslash as a \
+    slash, keeps `|` and `^`, drops tabs and newlines and keeps a malformed escape. Over the 409 \
+    adapter fixture URIs and the 393 rendered bidder-info endpoints every target is Go's."""
+who = ["bidder"]
+visible_in = """\
+    The request line of bidder requests whose URL holds such bytes, which adapters that write \
+    publisher values into their URL unescaped can send"""
+pin = "crates/http-client/tests/target.rs::fixture_targets_differ"
+restore = """\
+    Build the request's Url from Go's escaped target (not planned: the 2026-11-19 ruling accepts \
+    the crate)."""
+
+[[difference]]
+id = "http-client.socks-proxy"
+category = "http-client"
+status = "ledgered"
+title = "SOCKS proxies: Go's Transport dials them, the clients refuse them"
+go = """\
+    A `socks5://` or `socks5h://` value of `HTTP_PROXY` or `HTTPS_PROXY` sends requests through \
+    that SOCKS5 proxy (net/http/transport.go `Transport.dialConn`)."""
+rust = """\
+    The clients refuse such a request with `HTTP_PROXY names a \"socks5\" proxy, and only http \
+    and https proxies are supported`, the value left out as it may hold credentials; reqwest's \
+    socks feature is not in the crate stack."""
+who = ["operator"]
+visible_in = "Every outbound request when the proxy variables name a SOCKS proxy"
+pin = "crates/http-client/tests/proxy.rs::socks_proxy_refused"
+restore = """\
+    reqwest's socks feature (tokio-socks) through STACK, with the proxy rules handing it the \
+    socks URLs (not planned)."""
+
+[[difference]]
+id = "http-client.timeout-classification"
+category = "http-client"
+status = "restored"
+title = "Deadline errors: Go's are `context.DeadlineExceeded`, reqwest's are its own"
+go = """\
+    A request that runs past its context deadline fails with `context deadline exceeded` \
+    (ctxhttp returns `ctx.Err()`), which bidder.go reports as `errortypes.Timeout` and counts \
+    in the timeout metrics (exchange/bidder.go:616-620)."""
+rust = """\
+    reqwest's own timeout fails with `operation timed out` inside its error chain, and the \
+    caller tells it apart with `reqwest::Error::is_timeout`."""
+who = ["publisher", "operator"]
+visible_in = "Bidder timeout errors in responses, and the timeout metrics"
+pin = "crates/http-client/tests/errors.rs::deadline_is_timeout"
+restore = """\
+    pbs-http-client sends each request and reads its body under the deadline, and ends one past \
+    it with `ErrorKind::DeadlineExceeded`, which reads `context deadline exceeded` and whose \
+    `is_timeout` is bidder.go's test; Prebid's error codes and timeout metrics follow it."""
+rule_b = "c"
+
+[[restoration]]
+id = "http-client.timeout-classification"
+pin = "crates/http-client/tests/errors.rs::deadline_is_timeout"
+
+[[difference]]
+id = "http-client.timeouts-other"
+category = "http-client"
+status = "ledgered"
+title = "TLS handshake timeout: Go's Transport has one, reqwest has none"
+go = """\
+    `TLSHandshakeTimeout` (`tls_handshake_timeout_seconds`, 10 s by default for each of \
+    router.go's clients, router/router.go:155) ends a stalled handshake with `Get \"https://...\": \
+    net/http: TLS handshake timeout`, which bidder.go does not count as a timeout."""
+rust = """\
+    reqwest has no handshake timeout: `dialer.timeout_seconds` (30 s by default), which reqwest \
+    applies to the dial and the handshake together, and the request's deadline bound it, so \
+    under a deadline longer than the handshake timeout a stalled handshake ends as `context \
+    deadline exceeded`, a timeout. A shorter deadline ends it so in both."""
+who = ["operator"]
+visible_in = """\
+    Requests to a server that stalls the TLS handshake under a deadline longer than the \
+    handshake timeout: their errors and the timeout metrics"""
+pin = "crates/http-client/tests/limits.rs::handshake_bounded_by_deadline"
+note = """\
+    `expect_continue_timeout_seconds` has no counterpart either: only a request with `Expect: \
+    100-continue` waits for a `100 Continue`, and Prebid sends none."""
+
+[[difference]]
+id = "tls.acceptance"
+category = "tls"
+status = "ledgered"
+title = "Certificate verification: crypto/x509 and webpki verify different chains"
+go = """\
+    crypto/x509, through crypto/tls, verifies 81 of the 192 adversarial chains of \
+    x509_adversarial.json, among them leaves with a critical certificate-policies or \
+    inhibit-anyPolicy extension, URI, email and directory-name constraints, an empty EKU, \
+    1024-bit RSA, RSA-PSS parameters in other encodings and paths deeper than webpki's limit."""
+rust = """\
+    webpki, rustls-platform-verifier's verifier on Linux, refuses 32 of those, and verifies 36 \
+    that Go refuses: policy constraints and mappings Go enforces, key and constraint encodings \
+    Go rejects even in certificates it does not use, X25519 and unknown leaf keys, validity \
+    bounds within the second its clock truncates, and paths through other cross-signed \
+    certificates. A bidder with such a chain stops receiving requests, or starts."""
+who = ["bidder", "operator"]
+visible_in = "Bidder requests to endpoints whose certificate chain is like one of those cases"
+pin = "crates/http-client/tests/tls.rs::x509_goldens"
+decision = "D-TLS"
+note = """\
+    The pin runs webpki, the verifier rustls-platform-verifier uses on Linux, where the server \
+    runs; macOS and Windows verify with the platform's own."""
+
+[[difference]]
+id = "tls.certificates-file"
+category = "tls"
+status = "restored"
+title = "certificates_file: Go appends the file's PEM certificates to the system roots"
+go = """\
+    router.go reads `certificates_file` with `os.ReadFile` and adds each `CERTIFICATE` block \
+    without headers that `pem.Decode` finds and `x509.ParseCertificate` reads to the general \
+    client's system roots (router/router.go:131-141, server/ssl/ssl.go), and logs `Could not \
+    read certificates file: ...` when it cannot read the file."""
+rust = """\
+    reqwest takes extra roots as `Certificate` values, and its PEM bundle reader follows \
+    rustls-pki-types' PEM rules rather than Go's `pem.Decode`."""
+who = ["operator"]
+visible_in = "Which bidder endpoints a `certificates_file` makes trusted"
+pin = "crates/http-client/tests/tls.rs::certificates_file_like_go"
+restore = """\
+    pbs-http-client ports Go 1.26's `pem.Decode` and `AppendCertsFromPEM` (`Roots::from_pem`), \
+    rustls' trust-anchor parse standing for `x509.ParseCertificate`, and merges the roots into \
+    the platform verifier: `certificates_file` is an operator key."""
+rule_b = "c"
+
+[[restoration]]
+id = "tls.certificates-file"
+pin = "crates/http-client/tests/tls.rs::certificates_file_like_go"

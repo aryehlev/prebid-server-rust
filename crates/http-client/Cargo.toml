@@ -1,0 +1,37 @@
+[package]
+name = "pbs-http-client"
+description = "The Go server's outbound HTTP clients (router.go's bidder, cache, floors and plain clients) on reqwest"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+readme.workspace = true
+keywords.workspace = true
+publish.workspace = true
+categories.workspace = true
+
+[lints]
+workspace = true
+
+# reqwest does the HTTP; bytes, url and hyper-util (the connection info reqwest puts on each
+# response) name its types; rustls checks certificates_file roots before reqwest takes them;
+# base64 decodes their PEM blocks; ipnet matches NO_PROXY's CIDR entries; tokio gives the
+# deadlines, the per-host semaphore and the resolver's lookups.
+[dependencies]
+base64 = { workspace = true }
+bytes = { workspace = true }
+hyper-util = { workspace = true, features = ["client-legacy"] }
+ipnet = { workspace = true }
+reqwest = { workspace = true }
+rustls = { workspace = true }
+tokio = { workspace = true }
+url = { workspace = true }
+
+# The loopback servers (plain TCP, and TLS through tokio-rustls with rcgen certificates signed by
+# aws-lc-rs keys) and the goldens, read with serde_json.
+[dev-dependencies]
+aws-lc-rs = { workspace = true }
+rcgen = { workspace = true }
+serde_json = { workspace = true }
+tokio-rustls = { workspace = true }
