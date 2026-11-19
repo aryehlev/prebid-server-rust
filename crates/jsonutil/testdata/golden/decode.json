@@ -87,6 +87,12 @@
       "input": "{\"ext\": 1E+2 }",
       "result": "{\"ext\":1E+2}",
       "err": ""
+    },
+    {
+      "name": "jsonutil.Marshal",
+      "input": "{\"ext\": [\"\\ud800\", \"x\\udc00\"] }",
+      "result": "{\"ext\":[\"\\ud800\",\"x\\udc00\"]}",
+      "err": ""
     }
   ],
   "nil_raw": [
@@ -770,6 +776,48 @@
       "name": "jsonutil.ParseIntoString",
       "input": "1.50",
       "result": "\"1.5\"",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.ParseIntoString",
+      "input": " {\"a\":1} ",
+      "result": "\"{\\\"a\\\":1} \"",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.ParseIntoString",
+      "input": "\"abc",
+      "result": "\"abc\"",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.ParseIntoString",
+      "input": "1x",
+      "result": "\"0\"",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.ParseIntoString",
+      "input": "+5",
+      "result": "\"5\"",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.ParseIntoString",
+      "input": "nan",
+      "result": "\"NaN\"",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.ParseIntoString",
+      "input": "tru",
+      "result": "\"true\"",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.ParseIntoString",
+      "input": "x",
+      "result": "nil",
       "err": ""
     },
     {

@@ -159,6 +159,7 @@ func rawCompact() []row {
 		`{"ext":` + encodeBlob + `}`,
 		"{\"ext\": \"\\u00e9 \\/\" }",
 		`{"ext": 1E+2 }`,
+		"{\"ext\": [\"\\ud800\", \"x\\udc00\"] }",
 	} {
 		var v rawOmit
 		err := jsonutil.Unmarshal([]byte(in), &v)
@@ -282,7 +283,7 @@ func intStrings() []row {
 
 func parseIntoStrings() []row {
 	var rows []row
-	for _, in := range []string{``, `"1"`, `1`, `null`, `"null"`, `"hello"`, `true`, `{"a":1}`, `[1]`, ` "x" `, `1.50`} {
+	for _, in := range []string{``, `"1"`, `1`, `null`, `"null"`, `"hello"`, `true`, `{"a":1}`, `[1]`, ` "x" `, `1.50`, ` {"a":1} `, `"abc`, `1x`, `+5`, `nan`, `tru`, `x`} {
 		var got *string
 		err := jsonutil.ParseIntoString([]byte(in), &got)
 		result := "nil"
