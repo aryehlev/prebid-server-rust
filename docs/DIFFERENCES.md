@@ -20,7 +20,7 @@ Rule B's cases: (a) input real production traffic sends that the crate would rej
 | Configuration loading | 0 | 0 | 3 |
 | Cookies | 0 | 1 | 0 |
 | Gzip | 0 | 1 | 0 |
-| HTTP client | 0 | 16 | 4 |
+| HTTP client | 0 | 17 | 4 |
 | JSON | 0 | 8 | 3 |
 | Logging | 0 | 1 | 0 |
 | Prometheus metrics | 0 | 1 | 0 |
@@ -31,7 +31,7 @@ Rule B's cases: (a) input real production traffic sends that the crate would rej
 | TLS | 0 | 1 | 1 |
 | URLs | 0 | 1 | 0 |
 | YAML | 0 | 1 | 0 |
-| All | 1 | 34 | 14 |
+| All | 1 | 35 | 14 |
 
 ## Decisions pending
 
@@ -200,6 +200,17 @@ No entry names the classes `other` and `unrecorded` or the kinds `stage_missing`
 - **Visible in:** Requests of the currency fetch and the analytics modules to servers that offer h2
 - **Harness:** none
 - **Pin:** `crates/http-client/tests/protocol.rs::plain_client_stays_on_http1`
+- **Recorded in:** `crates/http-client/differences.toml`
+
+#### `http-client.empty-body-length`: A POST, PUT or PATCH without a body: Go sends `Content-Length: 0`, hyper sends no length
+
+- **Go:** `Request.write` writes `Content-Length: 0` for a POST, PUT or PATCH whose body is empty (`transferWriter.shouldSendContentLength`), as bidder.go's `bytes.NewBuffer(req.Body)` of an empty body is, and no length for another method without a body.
+- **Rust:** hyper writes no `Content-Length` for a request whose body is empty, whatever its method; the clients drop a caller's `Content-Length` entry, as Go does.
+- **Who notices:** bidder
+- **Visible in:** Requests without a body sent with POST, PUT or PATCH, which a server that requires a length refuses (`411 Length Required`)
+- **Harness:** none
+- **Pin:** `crates/http-client/tests/headers.rs::empty_body_unframed`
+- **Restore option:** Set `Content-Length: 0` in the clients' pass over the caller's headers for those methods when the body is empty, which hyper then writes (not planned: no Rule B case).
 - **Recorded in:** `crates/http-client/differences.toml`
 
 #### `http-client.error-texts`: Error texts: Go's `*url.Error` texts, reqwest's error chains

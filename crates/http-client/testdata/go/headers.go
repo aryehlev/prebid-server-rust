@@ -105,6 +105,14 @@ func headerCases() []headerCase {
 		// The Host header as the endpoint URL writes it: upper case and the default port.
 		{Name: "host_as_written", Method: http.MethodGet, URL: "http://Bidder.Example.COM:80/p"},
 		{Name: "host_idna", Method: http.MethodGet, URL: "http://bücher.test:PORT/p"},
+		// The body's framing, bidder.go sending bytes.NewBuffer(req.Body) whatever the method:
+		// Content-Length for a body, and Content-Length: 0 for a POST, PUT or PATCH without one
+		// (net/http/transfer.go transferWriter.shouldSendContentLength).
+		{Name: "post_empty", Method: http.MethodPost, URL: local},
+		{Name: "put_empty", Method: http.MethodPut, URL: local},
+		{Name: "patch_empty", Method: http.MethodPatch, URL: local},
+		{Name: "delete_empty", Method: http.MethodDelete, URL: local},
+		{Name: "get_with_body", Method: http.MethodGet, URL: local, Body: body},
 	}
 }
 

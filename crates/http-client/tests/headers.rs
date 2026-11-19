@@ -1,7 +1,7 @@
 //! Pins of the request head the general client writes against the one Go's general Transport
 //! writes for the same request (`testdata/golden/headers.json`, `testdata/go/headers.go`): the
 //! `User-Agent` (restored, D-UA), the header names' case (D-HDRCASE), their order, the `Host`
-//! line, and the white space around values.
+//! line, the white space around values, and the length of an empty body.
 
 #[cfg(test)]
 pub mod support;
@@ -174,6 +174,11 @@ mod tests {
                 // The Host line is http-client.host-header's (host_normalised).
                 go.retain(|(name, _)| name != "host");
                 rust.retain(|(name, _)| name != "host");
+                // An empty body's `Content-Length: 0` is http-client.empty-body-length's
+                // (empty_body_unframed).
+                if values(&heads.rust, "content-length").is_empty() {
+                    go.retain(|(name, value)| name != "content-length" || value != "0");
+                }
                 go.sort();
                 rust.sort();
                 check_eq(&rust, &go, &format!("{}: the header fields", heads.name))?;
@@ -277,6 +282,29 @@ mod tests {
                     ("x-tabbed", "\ttabbed\t"),
                 ]),
                 "hyper writes each value as it was set",
+            )
+        })
+    }
+
+    // Go: net/http/transfer.go newTransferWriter and transferWriter.shouldSendContentLength
+    // (Content-Length: 0 for a POST, PUT or PATCH without a body, none for another method).
+    #[test]
+    fn empty_body_unframed() -> TestResult {
+        run(async {
+            let mut differ = Vec::new();
+            for heads in all_heads().await? {
+                let go = values(&heads.go, "content-length");
+                let rust = values(&heads.rust, "content-length");
+                if go != rust {
+                    differ.push((heads.name, go, rust));
+                }
+            }
+            check_eq(
+                &differ,
+                &["post_empty", "put_empty", "patch_empty"]
+                    .map(|name| (name.to_owned(), vec!["0".to_owned()], Vec::new()))
+                    .to_vec(),
+                "the cases whose Content-Length differs (Go's, hyper's)",
             )
         })
     }

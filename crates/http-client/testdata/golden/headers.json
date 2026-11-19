@@ -291,6 +291,71 @@
         "User-Agent: Go-http-client/1.1",
         "Accept-Encoding: gzip"
       ]
+    },
+    {
+      "name": "post_empty",
+      "method": "POST",
+      "url": "http://127.0.0.1:PORT/p?q=1",
+      "headers": null,
+      "head": [
+        "POST /p?q=1 HTTP/1.1",
+        "Host: 127.0.0.1:PORT",
+        "User-Agent: Go-http-client/1.1",
+        "Content-Length: 0",
+        "Accept-Encoding: gzip"
+      ]
+    },
+    {
+      "name": "put_empty",
+      "method": "PUT",
+      "url": "http://127.0.0.1:PORT/p?q=1",
+      "headers": null,
+      "head": [
+        "PUT /p?q=1 HTTP/1.1",
+        "Host: 127.0.0.1:PORT",
+        "User-Agent: Go-http-client/1.1",
+        "Content-Length: 0",
+        "Accept-Encoding: gzip"
+      ]
+    },
+    {
+      "name": "patch_empty",
+      "method": "PATCH",
+      "url": "http://127.0.0.1:PORT/p?q=1",
+      "headers": null,
+      "head": [
+        "PATCH /p?q=1 HTTP/1.1",
+        "Host: 127.0.0.1:PORT",
+        "User-Agent: Go-http-client/1.1",
+        "Content-Length: 0",
+        "Accept-Encoding: gzip"
+      ]
+    },
+    {
+      "name": "delete_empty",
+      "method": "DELETE",
+      "url": "http://127.0.0.1:PORT/p?q=1",
+      "headers": null,
+      "head": [
+        "DELETE /p?q=1 HTTP/1.1",
+        "Host: 127.0.0.1:PORT",
+        "User-Agent: Go-http-client/1.1",
+        "Accept-Encoding: gzip"
+      ]
+    },
+    {
+      "name": "get_with_body",
+      "method": "GET",
+      "url": "http://127.0.0.1:PORT/p?q=1",
+      "body": "{\"id\":\"r\"}",
+      "headers": null,
+      "head": [
+        "GET /p?q=1 HTTP/1.1",
+        "Host: 127.0.0.1:PORT",
+        "User-Agent: Go-http-client/1.1",
+        "Content-Length: 10",
+        "Accept-Encoding: gzip"
+      ]
     }
   ]
 }

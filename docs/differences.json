@@ -289,6 +289,29 @@
       "fragment": "crates/http-client/differences.toml"
     },
     {
+      "id": "http-client.empty-body-length",
+      "category": "http-client",
+      "status": "ledgered",
+      "title": "A POST, PUT or PATCH without a body: Go sends `Content-Length: 0`, hyper sends no length",
+      "go": "`Request.write` writes `Content-Length: 0` for a POST, PUT or PATCH whose body is empty (`transferWriter.shouldSendContentLength`), as bidder.go's `bytes.NewBuffer(req.Body)` of an empty body is, and no length for another method without a body.",
+      "rust": "hyper writes no `Content-Length` for a request whose body is empty, whatever its method; the clients drop a caller's `Content-Length` entry, as Go does.",
+      "who": [
+        "bidder"
+      ],
+      "visible_in": "Requests without a body sent with POST, PUT or PATCH, which a server that requires a length refuses (`411 Length Required`)",
+      "harness": [],
+      "pin": "crates/http-client/tests/headers.rs::empty_body_unframed",
+      "restore": "Set `Content-Length: 0` in the clients' pass over the caller's headers for those methods when the body is empty, which hyper then writes (not planned: no Rule B case).",
+      "default": null,
+      "decision": null,
+      "rule_b": null,
+      "restore_by": [],
+      "restorations": [],
+      "restore_pending": false,
+      "note": null,
+      "fragment": "crates/http-client/differences.toml"
+    },
+    {
       "id": "http-client.error-texts",
       "category": "http-client",
       "status": "ledgered",
