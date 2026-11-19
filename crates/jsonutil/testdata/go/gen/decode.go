@@ -518,6 +518,65 @@ func nullElements() []row {
 	return rows
 }
 
+// trailingNuls is json.trailing-nul: jsoniter's nextToken returns 0 for a NUL byte as at the end
+// of the input, and Unmarshal takes a 0 after the value for the end, so jsonutil.Unmarshal,
+// UnmarshalValid and MergeClone stop at a NUL after the document and ignore every byte after it.
+// encoding/json rejects any byte after the value but whitespace. A NUL before or inside the value
+// fails everywhere.
+func trailingNuls() []row {
+	var rows []row
+	for _, in := range []string{
+		"{\"id\":\"x\"}\x00",
+		"{\"id\":\"x\"} \x00 not JSON",
+		"\x00{\"id\":\"x\"}",
+		"{\"id\":\"x\"\x00}",
+	} {
+		var a idTarget
+		err := jsonutil.Unmarshal([]byte(in), &a)
+		rows = append(rows, row{Name: "jsonutil.Unmarshal", Input: in, Result: marshalled(a), Err: errText(err)})
+		var b idTarget
+		err = jsonutil.UnmarshalValid([]byte(in), &b)
+		rows = append(rows, row{Name: "jsonutil.UnmarshalValid", Input: in, Result: marshalled(b), Err: errText(err)})
+		var c idTarget
+		err = json.Unmarshal([]byte(in), &c)
+		rows = append(rows, row{Name: "json.Unmarshal", Input: in, Result: marshalled(c), Err: errText(err)})
+		var d idTarget
+		err = jsonutil.MergeClone(&d, []byte(in))
+		rows = append(rows, row{Name: "jsonutil.MergeClone", Input: in, Result: marshalled(d), Err: errText(err)})
+	}
+	return rows
+}
+
+// floatTarget has a float64, a float32 and an int.
+type floatTarget struct {
+	F   float64 `json:"f"`
+	F32 float32 `json:"f32"`
+	I   int     `json:"i"`
+}
+
+// plusFloats is json.plus-float: jsoniter's float decoders pass a number that starts with
+// neither a digit, a minus nor a dot to strconv.ParseFloat, which accepts a leading +, so +1.5
+// reads into a float64 or float32 field (and -+1 as -1). An integer field, a skipped member and
+// encoding/json reject it.
+func plusFloats() []row {
+	var rows []row
+	for _, in := range []string{`{"f":+1.5}`, `{"f32":+2}`, `{"f":+.5}`, `{"f":-+1}`, `{"f":+1e2}`, `{"i":+1}`, `{"zz":+1,"f":1}`, `{"f":+}`} {
+		var a floatTarget
+		err := jsonutil.Unmarshal([]byte(in), &a)
+		rows = append(rows, row{Name: "jsonutil.Unmarshal", Input: in, Result: marshalled(a), Err: errText(err)})
+		var b floatTarget
+		err = jsonutil.UnmarshalValid([]byte(in), &b)
+		rows = append(rows, row{Name: "jsonutil.UnmarshalValid", Input: in, Result: marshalled(b), Err: errText(err)})
+		var c floatTarget
+		err = json.Unmarshal([]byte(in), &c)
+		rows = append(rows, row{Name: "json.Unmarshal", Input: in, Result: marshalled(c), Err: errText(err)})
+		var d floatTarget
+		err = jsonutil.MergeClone(&d, []byte(in))
+		rows = append(rows, row{Name: "jsonutil.MergeClone", Input: in, Result: marshalled(d), Err: errText(err)})
+	}
+	return rows
+}
+
 type decodeDoc struct {
 	Header           header `json:"header"`
 	NullIntoValue    []row  `json:"null_into_value"`
@@ -539,6 +598,8 @@ type decodeDoc struct {
 	ControlChars     []row  `json:"control_characters"`
 	NullDocuments    []row  `json:"null_documents"`
 	NullElements     []row  `json:"null_elements"`
+	TrailingNuls     []row  `json:"trailing_nuls"`
+	PlusFloats       []row  `json:"plus_floats"`
 }
 
 func decodeGolden() decodeDoc {
@@ -563,5 +624,7 @@ func decodeGolden() decodeDoc {
 		ControlChars:     controlCharacters(),
 		NullDocuments:    nullDocuments(),
 		NullElements:     nullElements(),
+		TrailingNuls:     trailingNuls(),
+		PlusFloats:       plusFloats(),
 	}
 }

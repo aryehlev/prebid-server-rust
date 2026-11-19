@@ -1822,5 +1822,297 @@
       "result": "{\"ms\":{\"a\":\"\"}}",
       "err": ""
     }
+  ],
+  "trailing_nuls": [
+    {
+      "name": "jsonutil.Unmarshal",
+      "input": "{\"id\":\"x\"}\u0000",
+      "result": "{\"id\":\"x\",\"n\":0}",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.UnmarshalValid",
+      "input": "{\"id\":\"x\"}\u0000",
+      "result": "{\"id\":\"x\",\"n\":0}",
+      "err": ""
+    },
+    {
+      "name": "json.Unmarshal",
+      "input": "{\"id\":\"x\"}\u0000",
+      "result": "{\"id\":\"\",\"n\":0}",
+      "err": "invalid character '\\x00' after top-level value"
+    },
+    {
+      "name": "jsonutil.MergeClone",
+      "input": "{\"id\":\"x\"}\u0000",
+      "result": "{\"id\":\"x\",\"n\":0}",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.Unmarshal",
+      "input": "{\"id\":\"x\"} \u0000 not JSON",
+      "result": "{\"id\":\"x\",\"n\":0}",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.UnmarshalValid",
+      "input": "{\"id\":\"x\"} \u0000 not JSON",
+      "result": "{\"id\":\"x\",\"n\":0}",
+      "err": ""
+    },
+    {
+      "name": "json.Unmarshal",
+      "input": "{\"id\":\"x\"} \u0000 not JSON",
+      "result": "{\"id\":\"\",\"n\":0}",
+      "err": "invalid character '\\x00' after top-level value"
+    },
+    {
+      "name": "jsonutil.MergeClone",
+      "input": "{\"id\":\"x\"} \u0000 not JSON",
+      "result": "{\"id\":\"x\",\"n\":0}",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.Unmarshal",
+      "input": "\u0000{\"id\":\"x\"}",
+      "result": "{\"id\":\"\",\"n\":0}",
+      "err": "expect { or n, but found \u0000"
+    },
+    {
+      "name": "jsonutil.UnmarshalValid",
+      "input": "\u0000{\"id\":\"x\"}",
+      "result": "{\"id\":\"\",\"n\":0}",
+      "err": "expect { or n, but found \u0000"
+    },
+    {
+      "name": "json.Unmarshal",
+      "input": "\u0000{\"id\":\"x\"}",
+      "result": "{\"id\":\"\",\"n\":0}",
+      "err": "invalid character '\\x00' looking for beginning of value"
+    },
+    {
+      "name": "jsonutil.MergeClone",
+      "input": "\u0000{\"id\":\"x\"}",
+      "result": "{\"id\":\"\",\"n\":0}",
+      "err": "expect { or n, but found \u0000"
+    },
+    {
+      "name": "jsonutil.Unmarshal",
+      "input": "{\"id\":\"x\"\u0000}",
+      "result": "{\"id\":\"x\",\"n\":0}",
+      "err": "object ended prematurely, unexpected char \u0000"
+    },
+    {
+      "name": "jsonutil.UnmarshalValid",
+      "input": "{\"id\":\"x\"\u0000}",
+      "result": "{\"id\":\"x\",\"n\":0}",
+      "err": "object ended prematurely, unexpected char \u0000"
+    },
+    {
+      "name": "json.Unmarshal",
+      "input": "{\"id\":\"x\"\u0000}",
+      "result": "{\"id\":\"\",\"n\":0}",
+      "err": "invalid character '\\x00' after object key:value pair"
+    },
+    {
+      "name": "jsonutil.MergeClone",
+      "input": "{\"id\":\"x\"\u0000}",
+      "result": "{\"id\":\"x\",\"n\":0}",
+      "err": "object ended prematurely, unexpected char \u0000"
+    }
+  ],
+  "plus_floats": [
+    {
+      "name": "jsonutil.Unmarshal",
+      "input": "{\"f\":+1.5}",
+      "result": "{\"f\":1.5,\"f32\":0,\"i\":0}",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.UnmarshalValid",
+      "input": "{\"f\":+1.5}",
+      "result": "{\"f\":1.5,\"f32\":0,\"i\":0}",
+      "err": ""
+    },
+    {
+      "name": "json.Unmarshal",
+      "input": "{\"f\":+1.5}",
+      "result": "{\"f\":0,\"f32\":0,\"i\":0}",
+      "err": "invalid character '+' looking for beginning of value"
+    },
+    {
+      "name": "jsonutil.MergeClone",
+      "input": "{\"f\":+1.5}",
+      "result": "{\"f\":1.5,\"f32\":0,\"i\":0}",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.Unmarshal",
+      "input": "{\"f32\":+2}",
+      "result": "{\"f\":0,\"f32\":2,\"i\":0}",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.UnmarshalValid",
+      "input": "{\"f32\":+2}",
+      "result": "{\"f\":0,\"f32\":2,\"i\":0}",
+      "err": ""
+    },
+    {
+      "name": "json.Unmarshal",
+      "input": "{\"f32\":+2}",
+      "result": "{\"f\":0,\"f32\":0,\"i\":0}",
+      "err": "invalid character '+' looking for beginning of value"
+    },
+    {
+      "name": "jsonutil.MergeClone",
+      "input": "{\"f32\":+2}",
+      "result": "{\"f\":0,\"f32\":2,\"i\":0}",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.Unmarshal",
+      "input": "{\"f\":+.5}",
+      "result": "{\"f\":0.5,\"f32\":0,\"i\":0}",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.UnmarshalValid",
+      "input": "{\"f\":+.5}",
+      "result": "{\"f\":0.5,\"f32\":0,\"i\":0}",
+      "err": ""
+    },
+    {
+      "name": "json.Unmarshal",
+      "input": "{\"f\":+.5}",
+      "result": "{\"f\":0,\"f32\":0,\"i\":0}",
+      "err": "invalid character '+' looking for beginning of value"
+    },
+    {
+      "name": "jsonutil.MergeClone",
+      "input": "{\"f\":+.5}",
+      "result": "{\"f\":0.5,\"f32\":0,\"i\":0}",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.Unmarshal",
+      "input": "{\"f\":-+1}",
+      "result": "{\"f\":-1,\"f32\":0,\"i\":0}",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.UnmarshalValid",
+      "input": "{\"f\":-+1}",
+      "result": "{\"f\":-1,\"f32\":0,\"i\":0}",
+      "err": ""
+    },
+    {
+      "name": "json.Unmarshal",
+      "input": "{\"f\":-+1}",
+      "result": "{\"f\":0,\"f32\":0,\"i\":0}",
+      "err": "invalid character '+' in numeric literal"
+    },
+    {
+      "name": "jsonutil.MergeClone",
+      "input": "{\"f\":-+1}",
+      "result": "{\"f\":-1,\"f32\":0,\"i\":0}",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.Unmarshal",
+      "input": "{\"f\":+1e2}",
+      "result": "{\"f\":100,\"f32\":0,\"i\":0}",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.UnmarshalValid",
+      "input": "{\"f\":+1e2}",
+      "result": "{\"f\":100,\"f32\":0,\"i\":0}",
+      "err": ""
+    },
+    {
+      "name": "json.Unmarshal",
+      "input": "{\"f\":+1e2}",
+      "result": "{\"f\":0,\"f32\":0,\"i\":0}",
+      "err": "invalid character '+' looking for beginning of value"
+    },
+    {
+      "name": "jsonutil.MergeClone",
+      "input": "{\"f\":+1e2}",
+      "result": "{\"f\":100,\"f32\":0,\"i\":0}",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.Unmarshal",
+      "input": "{\"i\":+1}",
+      "result": "{\"f\":0,\"f32\":0,\"i\":0}",
+      "err": "cannot unmarshal main.floatTarget.I: unexpected character: \ufffd"
+    },
+    {
+      "name": "jsonutil.UnmarshalValid",
+      "input": "{\"i\":+1}",
+      "result": "{\"f\":0,\"f32\":0,\"i\":0}",
+      "err": "cannot unmarshal main.floatTarget.I: unexpected character: \ufffd"
+    },
+    {
+      "name": "json.Unmarshal",
+      "input": "{\"i\":+1}",
+      "result": "{\"f\":0,\"f32\":0,\"i\":0}",
+      "err": "invalid character '+' looking for beginning of value"
+    },
+    {
+      "name": "jsonutil.MergeClone",
+      "input": "{\"i\":+1}",
+      "result": "{\"f\":0,\"f32\":0,\"i\":0}",
+      "err": "cannot unmarshal main.floatTarget.I: unexpected character: \ufffd"
+    },
+    {
+      "name": "jsonutil.Unmarshal",
+      "input": "{\"zz\":+1,\"f\":1}",
+      "result": "{\"f\":0,\"f32\":0,\"i\":0}",
+      "err": "do not know how to skip: 43"
+    },
+    {
+      "name": "jsonutil.UnmarshalValid",
+      "input": "{\"zz\":+1,\"f\":1}",
+      "result": "{\"f\":0,\"f32\":0,\"i\":0}",
+      "err": "do not know how to skip: 43"
+    },
+    {
+      "name": "json.Unmarshal",
+      "input": "{\"zz\":+1,\"f\":1}",
+      "result": "{\"f\":0,\"f32\":0,\"i\":0}",
+      "err": "invalid character '+' looking for beginning of value"
+    },
+    {
+      "name": "jsonutil.MergeClone",
+      "input": "{\"zz\":+1,\"f\":1}",
+      "result": "{\"f\":0,\"f32\":0,\"i\":0}",
+      "err": "do not know how to skip: 43"
+    },
+    {
+      "name": "jsonutil.Unmarshal",
+      "input": "{\"f\":+}",
+      "result": "{\"f\":0,\"f32\":0,\"i\":0}",
+      "err": "main.floatTarget.F: strconv.ParseFloat: parsing \"+\": invalid syntax"
+    },
+    {
+      "name": "jsonutil.UnmarshalValid",
+      "input": "{\"f\":+}",
+      "result": "{\"f\":0,\"f32\":0,\"i\":0}",
+      "err": "main.floatTarget.F: strconv.ParseFloat: parsing \"+\": invalid syntax"
+    },
+    {
+      "name": "json.Unmarshal",
+      "input": "{\"f\":+}",
+      "result": "{\"f\":0,\"f32\":0,\"i\":0}",
+      "err": "invalid character '+' looking for beginning of value"
+    },
+    {
+      "name": "jsonutil.MergeClone",
+      "input": "{\"f\":+}",
+      "result": "{\"f\":0,\"f32\":0,\"i\":0}",
+      "err": "main.floatTarget.F: strconv.ParseFloat: parsing \"+\": invalid syntax"
+    }
   ]
 }

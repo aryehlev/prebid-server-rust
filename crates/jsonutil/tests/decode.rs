@@ -1,8 +1,9 @@
 //! Decoding against Go (`testdata/golden/decode.json`): null into value and `json.RawMessage`
 //! fields, numbers into `interface{}`, malformed raw values, lone surrogates, numbers beyond
 //! `f64`'s range, Prebid's lenient readers (`StringInt`, `IntString`, `ParseIntoString`), Go's
-//! typed integers, `-0` read into integers, raw control characters in strings, and null as a
-//! whole document and as a slice element or map value.
+//! typed integers, `-0` read into integers, raw control characters in strings, null as a whole
+//! document and as a slice element or map value, a NUL byte after the document and floats written
+//! with a leading `+`.
 
 #[cfg(test)]
 pub mod support;
@@ -1048,6 +1049,105 @@ mod tests {
                 r#"{"t":[null,5]}"#,
             ],
             "inputs serde rejects",
+        )
+    }
+
+    /// A NUL byte after the document fails it (`trailing characters`), as `encoding/json` fails
+    /// it, where jsoniter (`jsonutil.Unmarshal`, `UnmarshalValid` and `MergeClone`) takes the NUL
+    /// for the end of the input and ignores every byte after it (`json.trailing-nul`). A NUL
+    /// before or inside the value fails on both sides.
+    // Go: jsoniter config.go:345-357 (Unmarshal ends at the 0 nextToken returns), iter.go:181-197
+    // (nextToken returns a NUL byte as it returns the end); util/jsonutil/merge.go:31-39
+    // (MergeClone); gen/decode.go trailingNuls
+    #[test]
+    fn trailing_nul_rejected() -> TestResult {
+        let doc = golden("decode.json")?;
+        let rows = rows(&doc, "/trailing_nuls")?;
+        let mut go_reads = BTreeSet::new();
+        for row in &rows {
+            let what = format!("{} {:?}", row.name, row.input);
+            let error = if row.name == "jsonutil.MergeClone" {
+                merge_clone(&mut IdTarget::default(), row.input.as_bytes())
+                    .err()
+                    .map(GoError::into_message)
+            } else {
+                decode::<IdTarget>(row).err()
+            };
+            let error = error.ok_or_else(|| format!("{what}: read"))?;
+            if row.err.is_empty() {
+                ensure_eq(&error.starts_with("trailing characters"), &true, &what)?;
+                let _new = go_reads.insert(row.input);
+            }
+        }
+        ensure_eq(&rows.len(), &16, "rows")?;
+        ensure_eq(
+            &go_reads.into_iter().collect::<Vec<_>>(),
+            &vec!["{\"id\":\"x\"}\u{0}", "{\"id\":\"x\"} \u{0} not JSON"],
+            "inputs jsoniter reads",
+        )
+    }
+
+    /// Go's `floatTarget`.
+    #[derive(Debug, Default, Deserialize)]
+    #[serde(default)]
+    struct FloatTarget {
+        #[serde(deserialize_with = "null_default")]
+        f: f64,
+        #[serde(deserialize_with = "null_default")]
+        f32: f32,
+        #[serde(deserialize_with = "null_default")]
+        i: i64,
+    }
+
+    impl MergeClone for FloatTarget {
+        fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+            merge_struct(patch, |key, value| match key {
+                "f" => merge_field(&mut self.f, value, "main.floatTarget", "F"),
+                "f32" => merge_field(&mut self.f32, value, "main.floatTarget", "F32"),
+                "i" => merge_field(&mut self.i, value, "main.floatTarget", "I"),
+                _ => Ok(()),
+            })
+        }
+    }
+
+    /// A number written with a leading `+` fails the document, as `encoding/json` fails it,
+    /// where jsoniter (`jsonutil.Unmarshal`, `UnmarshalValid` and `MergeClone`) reads it into a
+    /// float field through `strconv.ParseFloat`: `+1.5`, `+.5`, `+1e2`, and `-+1` as -1
+    /// (`json.plus-float`). An integer field and a skipped member reject it on both sides.
+    // Go: jsoniter iter_float.go:207-214 (ReadFloat64), :299-337 (readFloat64SlowPath and
+    // validateFloat), iter_skip.go:72-96 (Skip); gen/decode.go plusFloats
+    #[test]
+    fn plus_floats_rejected() -> TestResult {
+        let doc = golden("decode.json")?;
+        let rows = rows(&doc, "/plus_floats")?;
+        let mut go_reads = BTreeSet::new();
+        for row in &rows {
+            let what = format!("{} {}", row.name, row.input);
+            let error = if row.name == "jsonutil.MergeClone" {
+                merge_clone(&mut FloatTarget::default(), row.input.as_bytes())
+                    .err()
+                    .map(GoError::into_message)
+            } else {
+                decode::<FloatTarget>(row).err()
+            };
+            let error = error.ok_or_else(|| format!("{what}: read"))?;
+            let syntax = error.starts_with("expected value") || error.starts_with("invalid number");
+            ensure_eq(&syntax, &true, &what)?;
+            if row.err.is_empty() {
+                let _new = go_reads.insert(row.input);
+            }
+        }
+        ensure_eq(&rows.len(), &32, "rows")?;
+        ensure_eq(
+            &go_reads.into_iter().collect::<Vec<_>>(),
+            &vec![
+                r#"{"f":+.5}"#,
+                r#"{"f":+1.5}"#,
+                r#"{"f":+1e2}"#,
+                r#"{"f":-+1}"#,
+                r#"{"f32":+2}"#,
+            ],
+            "inputs jsoniter reads",
         )
     }
 }
