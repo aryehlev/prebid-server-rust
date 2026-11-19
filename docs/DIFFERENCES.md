@@ -26,11 +26,11 @@ Rule B's cases: (a) input real production traffic sends that the crate would rej
 | Prometheus metrics | 0 | 1 | 0 |
 | Public suffix list | 1 | 0 | 0 |
 | Regular expressions | 0 | 0 | 2 |
-| HTTP server | 0 | 2 | 0 |
+| HTTP server | 0 | 20 | 4 |
 | Time formatting | 0 | 0 | 1 |
 | URLs | 0 | 1 | 0 |
 | YAML | 0 | 1 | 0 |
-| All | 5 | 42 | 12 |
+| All | 5 | 60 | 16 |
 
 ## Decisions pending
 
@@ -766,6 +766,26 @@ No entry names the classes `other` and `unrecorded` or the kinds `stage_missing`
 
 ### Ledgered
 
+#### `server.bad-requests`: Malformed requests: net/http answers with its status text and `Connection: close`, hyper with an empty body, and they refuse different requests
+
+- **Go:** net/http refuses a request it cannot read before any handler runs, with its status text as the body, `Content-Type: text/plain; charset=utf-8` and `Connection: close` (`conn.serve`, net/http/server.go:2003-2042): 400, some with a reason such as `missing required Host header`, 431 past the head limit, 505 for an unknown version and 501 for an unknown transfer coding. It refuses a request without `Host`, with two or after a blank line, and serves a folded header line.
+- **Rust:** hyper's refusals have an empty body. It serves a request without `Host`, with two or after a blank line, refuses a folded header line with 400, and answers 400 where net/http has 505 and 501. A broken chunked body reaches the handler as an error on both, in the library's words. The HTTP/2 preface is `server.h2c`.
+- **Who notices:** publisher
+- **Visible in:** Answers to malformed HTTP requests
+- **Harness:** none
+- **Pin:** `crates/server/tests/wire.rs::malformed_request`
+- **Recorded in:** `crates/server/differences.toml`
+
+#### `server.content-sniffing`: Answers without a type: net/http sniffs one, a Rust handler's response type sets it
+
+- **Go:** net/http sniffs the `Content-Type` of an answer whose handler set none (`http.DetectContentType` on its first bytes, net/http/server.go:1456): JSON and plain text get `text/plain; charset=utf-8`, HTML `text/html; charset=utf-8`, XML `text/xml; charset=utf-8`, other bytes `application/octet-stream`, and an empty answer none.
+- **Rust:** Nothing is sniffed: the response type sets the type (`String` `text/plain; charset=utf-8`, `Json` `application/json`, bytes `application/octet-stream`, empty bytes included). A type the handler sets is sent as set on both.
+- **Who notices:** publisher
+- **Visible in:** The `Content-Type` of answers whose Go handler sets none; an endpoint that sets the type Go's sniffing gives (Prebid logic) answers alike
+- **Harness:** none
+- **Pin:** `crates/server/tests/wire.rs::no_generic_sniffing`
+- **Recorded in:** `crates/server/differences.toml`
+
 #### `server.cors-actual-requests`: CORS on other requests: tower-http writes credentials on every answer, the origin for any method and a three-name Vary
 
 - **Go:** rs/cors, as `router.SupportCORS` configures it (router/router.go:377-385), writes `Vary: Origin` on every answer that is not a preflight, and `Access-Control-Allow-Origin` and `Access-Control-Allow-Credentials: true` only when the request has an Origin and a method it allows (GET, POST and HEAD, and OPTIONS always); an OPTIONS without `Access-Control-Request-Method` goes on to the router.
@@ -787,6 +807,230 @@ No entry names the classes `other` and `unrecorded` or the kinds `stage_missing`
 - **Pin:** `crates/differences/tests/server.rs::go_difference_preflight_status_and_headers`
 - **Restore option:** A CORS layer of our own that answers as rs/cors does; not planned (orchestrator ruling 5 accepts and ledgers the difference).
 - **Recorded in:** `crates/differences/differences.toml`
+
+#### `server.decoded-path`: Escaped paths: httprouter routes the decoded path, axum the path as written
+
+- **Go:** httprouter routes `req.URL.Path`, which net/url decodes (httprouter v1.3.0 router.go:383; `setPath`, net/url/url.go:659): `/st%61tus` is `/status`, `%2F` is a slash, so `/info/bidders/a%2Fb` matches no route and an escaped trailing slash redirects (`server.redirects`). net/http answers a path with an invalid escape (`%zz`) with 400 `Bad Request` before any handler, without `NoCache`'s headers.
+- **Rust:** axum matches the path as written: an escape in a literal segment misses the route (`/st%61tus` gets 404), `%2F` stays inside its segment (`/info/bidders/a%2Fb` is routed with `bidderName` `a/b`), and a path with an invalid escape is routed as written, to its 404. The parameter values handlers read through axum's `Path` are decoded on both.
+- **Who notices:** publisher
+- **Visible in:** Answers to requests whose path holds percent escapes
+- **Harness:** none
+- **Pin:** `crates/router/tests/routing.rs::raw_path_routing`
+- **Decision:** D-ROUTER
+- **Recorded in:** `crates/router/differences.toml`
+
+#### `server.framing`: Response framing: net/http chunks long bodies and leaves some unframed, hyper sends a length for every full body
+
+- **Go:** net/http gives an answer whose handler wrote at most 2,048 bytes a `Content-Length` and chunks a longer one (`bufferBeforeChunkingSize`, net/http/server.go:341); over HTTP/1.0 a longer answer is unframed and the closed connection ends it, a HEAD answer gets no length unless the handler's bytes fit the buffer, and a gzip answer whose compressed bytes fit it gets their length.
+- **Rust:** hyper sends `content-length` for every full body, over HTTP/1.0 and to HEAD too, and chunks what tower-http compresses.
+- **Who notices:** publisher
+- **Visible in:** The framing of answers longer than 2,048 bytes, of HTTP/1.0 and HEAD answers, and of gzip answers
+- **Harness:** wire `framing` at `$['@headers'].**`
+- **Pin:** `crates/server/tests/wire.rs::content_length_always`
+- **Recorded in:** `crates/server/differences.toml`
+
+#### `server.gzip-bytes`: Gzip answers: compress/gzip and flate2 write different streams of the same body
+
+- **Go:** gziphandler compresses at `gzip.DefaultCompression` through compress/gzip (gziphandler v1.1.1 gzip.go:443-446, from `startGzip`, gzip.go:150).
+- **Rust:** tower-http compresses through flate2: another valid stream, of another length, and chunked (`server.framing`). Both gunzip to the handler's bytes, and the same answers are compressed, with the same status, encoding and type.
+- **Who notices:** publisher
+- **Visible in:** The bytes and length of gzip-compressed answers
+- **Harness:** none
+- **Pin:** `crates/server/tests/compression.rs::gzip_bytes_differ`
+- **Recorded in:** `crates/server/differences.toml`
+
+#### `server.gzip-negotiation`: Which Accept-Encoding values get gzip: gziphandler's parser and tower-http's RFC 9110 reading disagree on 542 of the golden's 1,556 values
+
+- **Go:** gziphandler compresses when its own parser gives gzip a q above 0 (`acceptsGzip`, gziphandler v1.1.1 gzip.go:450-453, over `parseEncodings` and `parseCoding`, gzip.go:483-532): it trims Unicode spaces and lower-cases Unicode (`gzİp` is gzip), ignores `x-gzip` and `identity`, keeps the last q of a repeated gzip and of repeated parameters, reads q with `ParseFloat`'s syntax clamped to 0 to 1, and ignores `Q=` and other parameters.
+- **Rust:** tower-http reads the header with RFC 9110's grammar: a value with a byte outside visible ASCII and tab is ignored whole, `x-gzip` is gzip, a repeated gzip takes its best q, a coding with a parameter that is not one strict q-value is dropped, and identity is preferred to a gzip of lower q. Of the golden's values, 456 get gzip from gziphandler only and 86 from tower-http only; the 345 values with none of those features never differ.
+- **Who notices:** publisher
+- **Visible in:** Whether answers of 1,400 bytes or more are gzipped for requests with unusual Accept-Encoding values, when gzip compression is on
+- **Harness:** none
+- **Pin:** `crates/server/tests/compression.rs::gzip_negotiation`
+- **Recorded in:** `crates/server/differences.toml`
+
+#### `server.head-method`: HEAD: httprouter answers 405 on Prebid's GET routes, axum runs the GET handler
+
+- **Go:** router/router.go routes no HEAD (router/router.go:285-318) and httprouter adds a route to its own method's tree only (httprouter v1.3.0 router.go:244), so HEAD on a GET route gets the 405 of `server.method-not-allowed` with `Allow: GET, OPTIONS` and its 19-byte length, and HEAD on an unrouted path the 404 with its length.
+- **Rust:** axum's GET routes take HEAD: the GET handler runs and its head is sent without the body, with the GET answer's type and length. HEAD on a POST route gets axum's empty 405 with `Allow: POST`, and on an unrouted path the empty 404.
+- **Who notices:** publisher, operator
+- **Visible in:** Answers to HEAD requests, such as health checks of `/status`, and the work, logs and metrics of the GET handlers they run
+- **Harness:** none
+- **Pin:** `crates/router/tests/routing.rs::head_runs_get`
+- **Decision:** D-ROUTER
+- **Recorded in:** `crates/router/differences.toml`
+
+#### `server.header-case`: Response header names: net/http writes them canonical, hyper in lower case
+
+- **Go:** net/http writes canonical names (`Content-Type`), as `Header.Set` and `Header.Add` store them (`textproto.CanonicalMIMEHeaderKey`).
+- **Rust:** hyper writes every name in lower case (`content-type`); ignoring case, the names are the same.
+- **Who notices:** publisher
+- **Visible in:** The header names of every response
+- **Harness:** wire `header_case` at `$['@headers'].**`
+- **Pin:** `crates/server/tests/wire.rs::lower_case_names`
+- **Decision:** D-HDRCASE
+- **Restore option:** hyper's `title_case_headers`, one line of pbs-server's connection builder; not planned (D-HDRCASE).
+- **Recorded in:** `crates/server/differences.toml`
+
+#### `server.header-count`: Header fields per request: net/http reads any number, hyper at most 100
+
+- **Go:** net/http bounds a request head by its bytes only (`textproto.Reader.ReadMIMEHeader` reads any number of fields), so heads with 101 or 1,000 fields are served.
+- **Rust:** hyper refuses a request with more than 100 header fields, `Host` and `Connection` counted, with 431.
+- **Who notices:** publisher
+- **Visible in:** Requests with more than 100 header fields
+- **Harness:** none
+- **Pin:** `crates/server/tests/wire.rs::header_count_limit`
+- **Restore option:** A higher `max_headers` on pbs-server's connection builder, which moves hyper's header array from the stack to a heap allocation per request; not planned, an orchestrator decision.
+- **Recorded in:** `crates/server/differences.toml`
+
+#### `server.header-limit-edge`: A head just over the limit: net/http counts every byte, hyper serves one that ends in the read that crosses the limit
+
+- **Go:** net/http limits the connection's reader to 1 MiB + 4,096 bytes (`setReadLimit`), so a head one byte over gets 431 however its bytes arrive.
+- **Rust:** hyper parses what it has read before it checks the buffer's size, so a head over the limit whose last bytes arrive in the read that crosses it is served.
+- **Who notices:** publisher
+- **Visible in:** Requests whose heads end just past 1 MiB + 4,096 bytes
+- **Harness:** none
+- **Pin:** `crates/server/tests/wire.rs::header_limit_edge_differs`
+- **Recorded in:** `crates/server/differences.toml`
+
+#### `server.header-order`: Response header order: net/http sorts the handler's headers by name, hyper keeps the order they were set in
+
+- **Go:** net/http writes the handler's header fields sorted by name (`Header.writeSubset` over `sortedKeyValues`, net/http/header.go:179-190), then `Date`, `Content-Length` and `Connection` (`chunkWriter.writeHeader`, net/http/server.go:1258).
+- **Rust:** hyper writes them in the order the handler set them, then `content-length`, `connection` and `date`.
+- **Who notices:** publisher
+- **Visible in:** The header block of every response
+- **Harness:** wire `header_order` at `$['@headers'].**`
+- **Pin:** `crates/server/tests/wire.rs::header_order`
+- **Recorded in:** `crates/server/differences.toml`
+
+#### `server.long-request-target`: Long request targets: net/http takes any the head limit allows, hyper refuses one over 65,534 bytes
+
+- **Go:** net/http reads the request line within the head limit (`readRequest`, net/http/request.go), so targets of 65,535 and 100,000 bytes are served.
+- **Rust:** hyper refuses a request target longer than 65,534 bytes with 414 `URI Too Long`; it has no setting for the limit.
+- **Who notices:** publisher
+- **Visible in:** Requests whose path and query are longer than 65,534 bytes
+- **Harness:** none
+- **Pin:** `crates/server/tests/wire.rs::long_request_target`
+- **Recorded in:** `crates/server/differences.toml`
+
+#### `server.method-not-allowed`: Wrong methods and OPTIONS: httprouter's 405 text and `Allow`, axum's empty 405 and its own `Allow`, and a CORS answer to every OPTIONS
+
+- **Go:** For a method no route of the path takes, httprouter answers 405 with the text `Method Not Allowed` and an `Allow` listing the path's methods sorted, joined with `, `, OPTIONS added (`GET, OPTIONS`), and it answers an OPTIONS on a routed path itself, 200 with that `Allow` (`HandleMethodNotAllowed` and `HandleOPTIONS`, on by default; httprouter v1.3.0 router.go:422-444). An OPTIONS on an unrouted path gets the 404, and net/http answers `OPTIONS *` before any handler, 200 without `NoCache`'s headers (net/http/server.go:3302-3312).
+- **Rust:** axum answers 405 with an empty body and an `Allow` of the path's methods in the order they were routed, joined with `,`, with HEAD beside every GET (`GET,HEAD`). tower-http's CorsLayer answers every OPTIONS, `*` and unrouted paths included, 200 with an empty body, and axum adds its `Allow` where the path is routed.
+- **Who notices:** publisher
+- **Visible in:** Answers to requests with a method the path's routes do not take, and to OPTIONS requests that are not CORS preflights
+- **Harness:** none
+- **Pin:** `crates/router/tests/routing.rs::method_not_allowed_differs`
+- **Decision:** D-ROUTER
+- **Note:** The CORS headers of the OPTIONS answers are `server.cors-preflight` and `server.cors-actual-requests`, whose `Allow` pattern takes the `Allow` mismatches of OPTIONS cases.
+- **Recorded in:** `crates/router/differences.toml`
+
+#### `server.not-found`: Unrouted paths: httprouter answers net/http's `404 page not found`, axum an empty 404
+
+- **Go:** httprouter answers a path no route matches with `http.NotFound` (httprouter v1.3.0 router.go:446-451): 404 with the body `404 page not found` and a line break, `Content-Type: text/plain; charset=utf-8` and `X-Content-Type-Options: nosniff` (net/http/server.go:2301-2322).
+- **Rust:** axum's fallback answers 404 with an empty body and neither header. `NoCache`'s headers are on both answers.
+- **Who notices:** publisher
+- **Visible in:** Answers to requests for paths no route matches
+- **Harness:** none
+- **Pin:** `crates/router/tests/routing.rs::not_found_differs`
+- **Decision:** D-ROUTER
+- **Recorded in:** `crates/router/differences.toml`
+
+#### `server.redirects`: Near-miss paths: httprouter redirects them to the route, axum answers 404
+
+- **Go:** httprouter redirects a path that a route matches but for a trailing slash, its letter case or its cleaning (`//`, `..`): 301 for GET and 307 for any other method, with the route's path and the request's query in `Location` (`RedirectTrailingSlash` and `RedirectFixedPath`, on by default; httprouter v1.3.0 router.go:389-418).
+- **Rust:** axum redirects nothing: each of those paths gets the 404 of `server.not-found`.
+- **Who notices:** publisher
+- **Visible in:** Answers to requests for a route's path with a trailing slash added or dropped, in other letter case, or with `//` or `..` in it
+- **Harness:** none
+- **Pin:** `crates/router/tests/routing.rs::no_redirects`
+- **Decision:** D-ROUTER
+- **Recorded in:** `crates/router/differences.toml`
+
+#### `server.shutdown-new-connections`: Graceful shutdown: net/http drops a first request still arriving and keeps a silent connection up to 5 s, hyper serves the one and closes the other
+
+- **Go:** `shutdownAfterSignals` stops each server with `Server.Shutdown` and a 10 s deadline (server/server.go:196-207): the listener and idle connections close, and running and pipelined requests are answered with `Connection: close`, as on hyper. A first request whose head was still arriving is read and dropped without an answer (`conn.serve`'s `shuttingDown` check, net/http/server.go:2000), and a connection that has sent nothing is kept until it is 5 s old (`closeIdleConns`, net/http/server.go:3207-3212).
+- **Rust:** hyper's graceful shutdown serves a first head that was arriving, with `connection: close`, and closes a connection that has sent nothing at once.
+- **Who notices:** publisher, operator
+- **Visible in:** Connections on their first request when the server stops on SIGTERM or SIGINT
+- **Harness:** none
+- **Pin:** `crates/server/tests/wire.rs::shutdown_new_connections`
+- **Recorded in:** `crates/server/differences.toml`
+
+#### `server.timeouts`: Read and write budgets: net/http's `ReadTimeout` and `WriteTimeout`, pbs-server's head, idle and body budgets with no write deadline
+
+- **Go:** The main and Unix-socket servers set a 15 s `ReadTimeout` and `WriteTimeout` (server/server.go:103-116), the admin and Prometheus servers neither. `ReadTimeout` is one deadline for the head and the body from the start of the request, and with `IdleTimeout` unset it also ends an idle keep-alive connection; past `WriteTimeout` the handler still runs, but its answer is lost and the connection closes, so the client gets no status.
+- **Rust:** The same listeners get a 15 s budget from hyper's header read timeout, which bounds the head and the idle wait, and from tower-http's request-body timeout, which bounds each wait between body reads, so a body trickled within the budget is read whole. Nothing bounds the handler (no 408 or 503 `TimeoutLayer`), so a late answer is still sent. The admin listener has no budget, as on Go.
+- **Who notices:** operator, publisher
+- **Visible in:** Clients that send slowly, connections left idle, and answers that take longer than 15 s, on the main and Unix-socket listeners
+- **Harness:** none
+- **Pin:** `crates/server/tests/wire.rs::timeouts`
+- **Recorded in:** `crates/server/differences.toml`
+
+#### `server.vary`: Vary with gzip on: gziphandler adds `Vary: Accept-Encoding` to every answer, tower-http only to answers it would compress
+
+- **Go:** With `compression.response.enable_gzip` on, gziphandler adds `Vary: Accept-Encoding` to every answer of the main and Unix-socket servers (gziphandler v1.1.1 gzip.go:324), whatever its size and whether or not the request accepts gzip.
+- **Rust:** tower-http's compression layer adds `vary: accept-encoding` only to answers it would compress (1,400 bytes or more, not already encoded and not a range), whether or not the request accepts gzip. The bodies it compresses gunzip to Go's.
+- **Who notices:** publisher
+- **Visible in:** The Vary header of answers under 1,400 bytes when gzip compression is on
+- **Harness:** none
+- **Pin:** `crates/server/tests/wire.rs::vary_only_on_compressible`
+- **Note:** The `Vary` pattern of `server.cors-actual-requests`, whose CORS Vary differs on every answer, takes these mismatches.
+- **Recorded in:** `crates/server/differences.toml`
+
+### Go behaviour kept
+
+#### `server.body-limit`: Request body size: net/http sets no limit, axum's `DefaultBodyLimit` refuses bodies over 2 MiB
+
+- **Go:** net/http reads request bodies without a limit; the auction, video and vtrack endpoints read at most `max_request_size` themselves and answer with Prebid's text (endpoints/openrtb2/auction.go:440-457, video_auction.go:178, endpoints/events/vtrack.go:88).
+- **Rust:** `axum::serve` as it comes keeps axum's 2 MiB `DefaultBodyLimit`, so a 3 MiB auction body gets 413 `Failed to buffer the request body: length limit exceeded` before the handler runs.
+- **Who notices:** publisher, operator
+- **Visible in:** Requests with bodies over 2 MiB where `max_request_size` lets Go's endpoints read them
+- **Harness:** none: a mismatch here is unexpected
+- **Pin:** `crates/router/tests/routing.rs::no_library_body_limit`
+- **Rule B:** Rule B (a): input real production traffic sends that the crate would reject or misread
+- **How Go's behaviour is kept:** pbs-server turns `DefaultBodyLimit` off on every router it serves (crates/server/src/serve/limits.rs), and tower-http's `RequestBodyLimitLayer` (413) stays off Prebid's routes, so the endpoints apply the operator's `max_request_size` with Prebid's texts (Rule B (a), and (c) for `max_request_size`).
+- **Restore pin:** `crates/router/tests/routing.rs::no_library_body_limit` (A 3 MiB auction body reaches the handler on pbs-server, as the routing golden records it on net/http.)
+- **Recorded in:** `crates/server/differences.toml`
+
+#### `server.client-disconnect`: A client that goes away mid-request: net/http lets the handler finish, hyper as it comes drops it
+
+- **Go:** net/http does not stop a handler whose client closed its connection, with a FIN or a reset, and Prebid's handlers run from `context.Background()` (endpoints/openrtb2/auction.go:210), so the auction, its bidder calls, analytics and metrics run to their end.
+- **Rust:** hyper's connection as it comes notices the close and drops the handler at its next await, so the rest of the request's work never runs.
+- **Who notices:** publisher, bidder, operator, analytics
+- **Visible in:** Requests whose client disconnects before the answer: the bidder calls, events, analytics records and metrics the rest of the handler makes
+- **Harness:** none: a mismatch here is unexpected
+- **Pin:** `crates/server/tests/wire.rs::handler_outlives_client`
+- **Rule B:** Prebid's own logic ported onto the crate, not glue
+- **How Go's behaviour is kept:** pbs-server's connections keep a half-closed connection open (`half_close`, crate configuration, no glue), so the handler runs to its end as on Go.
+- **Restore pin:** `crates/server/tests/wire.rs::handler_outlives_client` (The wire golden's handlers whose clients close with a FIN or a reset complete on pbs-server as on net/http.)
+- **Recorded in:** `crates/server/differences.toml`
+
+#### `server.h2c`: HTTP/2 without TLS: net/http serves none, hyper-util's builder as it comes does
+
+- **Go:** Prebid's servers set no `Protocols` (server/server.go:90-118), so net/http serves no unencrypted HTTP/2: it answers the prior-knowledge preface as a malformed HTTP/1.1 request, with 400, and serves a request asking to upgrade to h2c as HTTP/1.1.
+- **Rust:** hyper-util's connection builder as it comes speaks HTTP/2 to a client that opens with the preface, and answers with its SETTINGS frame.
+- **Who notices:** publisher
+- **Visible in:** Connections that open with the HTTP/2 preface over plain TCP
+- **Harness:** none: a mismatch here is unexpected
+- **Pin:** `crates/server/tests/wire.rs::no_h2c`
+- **Rule B:** Prebid's own logic ported onto the crate, not glue
+- **How Go's behaviour is kept:** pbs-server's connection builder is HTTP/1.1 only (`http1_only`, crate configuration, no glue): it serves the upgrade request as HTTP/1.1, and closes a connection at the preface without an answer, where net/http writes its 400.
+- **Restore pin:** `crates/server/tests/wire.rs::no_h2c` (The wire golden's upgrade request is served as HTTP/1.1 on pbs-server as on net/http, and the preface gets no HTTP/2 answer.)
+- **Recorded in:** `crates/server/differences.toml`
+
+#### `server.max-header-bytes`: Request head size: net/http reads heads up to 1 MiB + 4,096 bytes, hyper's default buffer up to 408 KiB
+
+- **Go:** Prebid's servers set no `MaxHeaderBytes` (server/server.go:90-118), so net/http reads a request head up to `DefaultMaxHeaderBytes`, 1 MiB, plus 4,096 bytes of slack (net/http/server.go:895-906): a 600 KiB or 1 MiB head is served, and a longer one gets 431.
+- **Rust:** hyper's default read buffer, 408 KiB (`8192 + 4096 * 100` bytes), refuses the 600 KiB and 1 MiB heads with 431.
+- **Who notices:** publisher
+- **Visible in:** Requests with large heads: long cookies, referers or query strings
+- **Harness:** none: a mismatch here is unexpected
+- **Pin:** `crates/server/tests/wire.rs::header_limit_like_go`
+- **Rule B:** Rule B (a): input real production traffic sends that the crate would reject or misread
+- **How Go's behaviour is kept:** pbs-server's connection builder sets hyper's `max_buf_size` to 1 MiB + 4,096 bytes (crates/server/src/serve/limits.rs), so the heads Go serves are served and longer ones get 431. The 431's form is `server.bad-requests`, and a head whose last read crosses the limit is `server.header-limit-edge`.
+- **Restore pin:** `crates/server/tests/wire.rs::header_limit_like_go` (The wire golden's 600 KiB, 1 MiB and at-limit heads get 200 on pbs-server as on net/http, and its paced heads past the limit 431.)
+- **Recorded in:** `crates/server/differences.toml`
 
 ## Time formatting
 

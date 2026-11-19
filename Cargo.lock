@@ -1201,6 +1201,21 @@ name = "pbs-router"
 version = "0.1.0"
 dependencies = [
  "axum",
+ "pbs-server",
+ "serde_json",
+ "tokio",
+ "tower-http",
+]
+
+[[package]]
+name = "pbs-server"
+version = "0.1.0"
+dependencies = [
+ "axum",
+ "flate2",
+ "hyper-util",
+ "serde_json",
+ "tokio",
  "tower-http",
 ]
 

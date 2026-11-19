@@ -17,3 +17,9 @@ workspace = true
 [dependencies]
 axum = { workspace = true }
 tower-http = { workspace = true }
+
+# The routing pins serve router.go's route table on pbs-server over loopback and read Go's golden.
+[dev-dependencies]
+pbs-server = { path = "../server", version = "0.1.0" }
+serde_json = { workspace = true }
+tokio = { workspace = true }

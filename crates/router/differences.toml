@@ -1,0 +1,111 @@
+# pbs-router's differences from Go (see the pbs_differences ledger module for the schema): Prebid's
+# routes on axum's router where Go has httprouter v1.3.0 (D-ROUTER), each pinned in
+# tests/routing.rs against what httprouter and net/http answered. pbs-differences validates this
+# file and writes docs/DIFFERENCES.md and docs/differences.json from every fragment.
+
+[[difference]]
+id = "server.not-found"
+category = "server"
+status = "ledgered"
+title = "Unrouted paths: httprouter answers net/http's `404 page not found`, axum an empty 404"
+go = """\
+    httprouter answers a path no route matches with `http.NotFound` (httprouter v1.3.0 \
+    router.go:446-451): 404 with the body `404 page not found` and a line break, `Content-Type: \
+    text/plain; charset=utf-8` and `X-Content-Type-Options: nosniff` (net/http/server.go:2301-2322)."""
+rust = """\
+    axum's fallback answers 404 with an empty body and neither header. `NoCache`'s headers are on \
+    both answers."""
+who = ["publisher"]
+visible_in = "Answers to requests for paths no route matches"
+pin = "crates/router/tests/routing.rs::not_found_differs"
+decision = "D-ROUTER"
+
+[[difference]]
+id = "server.redirects"
+category = "server"
+status = "ledgered"
+title = "Near-miss paths: httprouter redirects them to the route, axum answers 404"
+go = """\
+    httprouter redirects a path that a route matches but for a trailing slash, its letter case or \
+    its cleaning (`//`, `..`): 301 for GET and 307 for any other method, with the route's path and \
+    the request's query in `Location` (`RedirectTrailingSlash` and `RedirectFixedPath`, on by \
+    default; httprouter v1.3.0 router.go:389-418)."""
+rust = "axum redirects nothing: each of those paths gets the 404 of `server.not-found`."
+who = ["publisher"]
+visible_in = """\
+    Answers to requests for a route's path with a trailing slash added or dropped, in other letter \
+    case, or with `//` or `..` in it"""
+pin = "crates/router/tests/routing.rs::no_redirects"
+decision = "D-ROUTER"
+
+[[difference]]
+id = "server.method-not-allowed"
+category = "server"
+status = "ledgered"
+title = """\
+    Wrong methods and OPTIONS: httprouter's 405 text and `Allow`, axum's empty 405 and its own \
+    `Allow`, and a CORS answer to every OPTIONS"""
+go = """\
+    For a method no route of the path takes, httprouter answers 405 with the text `Method Not \
+    Allowed` and an `Allow` listing the path's methods sorted, joined with `, `, OPTIONS added \
+    (`GET, OPTIONS`), and it answers an OPTIONS on a routed path itself, 200 with that `Allow` \
+    (`HandleMethodNotAllowed` and `HandleOPTIONS`, on by default; httprouter v1.3.0 \
+    router.go:422-444). An OPTIONS on an unrouted path gets the 404, and net/http answers \
+    `OPTIONS *` before any handler, 200 without `NoCache`'s headers (net/http/server.go:3302-3312)."""
+rust = """\
+    axum answers 405 with an empty body and an `Allow` of the path's methods in the order they \
+    were routed, joined with `,`, with HEAD beside every GET (`GET,HEAD`). tower-http's CorsLayer \
+    answers every OPTIONS, `*` and unrouted paths included, 200 with an empty body, and axum adds \
+    its `Allow` where the path is routed."""
+who = ["publisher"]
+visible_in = """\
+    Answers to requests with a method the path's routes do not take, and to OPTIONS requests that \
+    are not CORS preflights"""
+pin = "crates/router/tests/routing.rs::method_not_allowed_differs"
+decision = "D-ROUTER"
+note = """\
+    The CORS headers of the OPTIONS answers are `server.cors-preflight` and \
+    `server.cors-actual-requests`, whose `Allow` pattern takes the `Allow` mismatches of OPTIONS \
+    cases."""
+
+[[difference]]
+id = "server.head-method"
+category = "server"
+status = "ledgered"
+title = "HEAD: httprouter answers 405 on Prebid's GET routes, axum runs the GET handler"
+go = """\
+    router/router.go routes no HEAD (router/router.go:285-318) and httprouter adds a route to its \
+    own method's tree only (httprouter v1.3.0 router.go:244), so HEAD on a GET route gets the 405 \
+    of `server.method-not-allowed` with `Allow: GET, OPTIONS` and its 19-byte length, and HEAD on \
+    an unrouted path the 404 with its length."""
+rust = """\
+    axum's GET routes take HEAD: the GET handler runs and its head is sent without the body, with \
+    the GET answer's type and length. HEAD on a POST route gets axum's empty 405 with `Allow: \
+    POST`, and on an unrouted path the empty 404."""
+who = ["publisher", "operator"]
+visible_in = """\
+    Answers to HEAD requests, such as health checks of `/status`, and the work, logs and metrics \
+    of the GET handlers they run"""
+pin = "crates/router/tests/routing.rs::head_runs_get"
+decision = "D-ROUTER"
+
+[[difference]]
+id = "server.decoded-path"
+category = "server"
+status = "ledgered"
+title = "Escaped paths: httprouter routes the decoded path, axum the path as written"
+go = """\
+    httprouter routes `req.URL.Path`, which net/url decodes (httprouter v1.3.0 router.go:383; \
+    `setPath`, net/url/url.go:659): `/st%61tus` is `/status`, `%2F` is a slash, so \
+    `/info/bidders/a%2Fb` matches no route and an escaped trailing slash redirects \
+    (`server.redirects`). net/http answers a path with an invalid escape (`%zz`) with 400 `Bad \
+    Request` before any handler, without `NoCache`'s headers."""
+rust = """\
+    axum matches the path as written: an escape in a literal segment misses the route \
+    (`/st%61tus` gets 404), `%2F` stays inside its segment (`/info/bidders/a%2Fb` is routed with \
+    `bidderName` `a/b`), and a path with an invalid escape is routed as written, to its 404. The \
+    parameter values handlers read through axum's `Path` are decoded on both."""
+who = ["publisher"]
+visible_in = "Answers to requests whose path holds percent escapes"
+pin = "crates/router/tests/routing.rs::raw_path_routing"
+decision = "D-ROUTER"

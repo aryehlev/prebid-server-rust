@@ -1,0 +1,27 @@
+[package]
+name = "pbs-server"
+description = "Prebid Server's listeners on axum, hyper-util and tower-http: server/server.go's budgets, header limit, gzip compression and graceful shutdown, with the differences from net/http pinned against Go goldens"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+readme.workspace = true
+keywords.workspace = true
+publish.workspace = true
+categories.workspace = true
+
+[lints]
+workspace = true
+
+# hyper-util's graceful shutdown and its adapter from the router's tower service to hyper's.
+[dependencies]
+axum = { workspace = true }
+hyper-util = { workspace = true, features = ["server-graceful", "service"] }
+tokio = { workspace = true }
+tower-http = { workspace = true }
+
+# The wire pins read Go's goldens, check CRC-32s and gunzip with flate2.
+[dev-dependencies]
+flate2 = { workspace = true }
+serde_json = { workspace = true }
