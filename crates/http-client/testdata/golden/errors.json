@@ -14,50 +14,132 @@
       "method": "POST",
       "url": "http://127.0.0.1:PORT/e",
       "deadline_ms": 200,
+      "client_timeout_ms": 0,
       "do_error": "Post \"http://127.0.0.1:PORT/e\": context deadline exceeded",
       "error": "context deadline exceeded",
       "stage": "send",
-      "timeout": true
+      "timeout": true,
+      "unreachable": false
     },
     {
       "name": "deadline_reading_body",
       "method": "POST",
       "url": "http://127.0.0.1:PORT/e",
       "deadline_ms": 200,
+      "client_timeout_ms": 0,
       "do_error": "context deadline exceeded",
       "error": "context deadline exceeded",
       "stage": "body",
-      "timeout": true
+      "timeout": true,
+      "unreachable": false
     },
     {
       "name": "server_closes",
       "method": "POST",
       "url": "http://127.0.0.1:PORT/e",
       "deadline_ms": 1000,
+      "client_timeout_ms": 0,
       "do_error": "Post \"http://127.0.0.1:PORT/e\": EOF",
       "error": "Post \"http://127.0.0.1:PORT/e\": EOF",
       "stage": "send",
-      "timeout": false
+      "timeout": false,
+      "unreachable": false
     },
     {
       "name": "connection_refused",
       "method": "POST",
       "url": "http://127.0.0.1:PORT/e",
       "deadline_ms": 1000,
+      "client_timeout_ms": 0,
       "do_error": "Post \"http://127.0.0.1:PORT/e\": dial tcp 127.0.0.1:PORT: connect: connection refused",
       "error": "Post \"http://127.0.0.1:PORT/e\": dial tcp 127.0.0.1:PORT: connect: connection refused",
       "stage": "send",
-      "timeout": false
+      "timeout": false,
+      "unreachable": true
     },
     {
       "name": "cgi_http_proxy",
       "method": "GET",
       "url": "http://127.0.0.1:PORT/e",
       "deadline_ms": 1000,
+      "client_timeout_ms": 0,
       "do_error": "Get \"http://127.0.0.1:PORT/e\": refusing to use HTTP_PROXY value in CGI environment; see golang.org/s/cgihttpproxy",
       "error": "Get \"http://127.0.0.1:PORT/e\": refusing to use HTTP_PROXY value in CGI environment; see golang.org/s/cgihttpproxy",
       "stage": "send",
-      "timeout": false
+      "timeout": false,
+      "unreachable": false
+    },
+    {
+      "name": "client_timeout_awaiting_headers",
+      "method": "POST",
+      "url": "http://127.0.0.1:PORT/e",
+      "deadline_ms": 0,
+      "client_timeout_ms": 200,
+      "do_error": "Post \"http://127.0.0.1:PORT/e\": context deadline exceeded (Client.Timeout exceeded while awaiting headers)",
+      "error": "Post \"http://127.0.0.1:PORT/e\": context deadline exceeded (Client.Timeout exceeded while awaiting headers)",
+      "stage": "send",
+      "timeout": true,
+      "unreachable": false
+    },
+    {
+      "name": "deadline_before_client_timeout",
+      "method": "POST",
+      "url": "http://127.0.0.1:PORT/e",
+      "deadline_ms": 200,
+      "client_timeout_ms": 2000,
+      "do_error": "Post \"http://127.0.0.1:PORT/e\": context deadline exceeded",
+      "error": "context deadline exceeded",
+      "stage": "send",
+      "timeout": true,
+      "unreachable": false
+    },
+    {
+      "name": "client_timeout_reading_body",
+      "method": "POST",
+      "url": "http://127.0.0.1:PORT/e",
+      "deadline_ms": 0,
+      "client_timeout_ms": 200,
+      "do_error": "context deadline exceeded (Client.Timeout or context cancellation while reading body)",
+      "error": "context deadline exceeded (Client.Timeout or context cancellation while reading body)",
+      "stage": "body",
+      "timeout": true,
+      "unreachable": false
+    },
+    {
+      "name": "dns_not_found",
+      "method": "POST",
+      "url": "http://nosuch.invalid:PORT/e",
+      "deadline_ms": 1000,
+      "client_timeout_ms": 0,
+      "do_error": "Post \"http://nosuch.invalid:PORT/e\": dial tcp: lookup nosuch.invalid: no such host",
+      "error": "Post \"http://nosuch.invalid:PORT/e\": dial tcp: lookup nosuch.invalid: no such host",
+      "stage": "send",
+      "timeout": false,
+      "unreachable": true
+    },
+    {
+      "name": "empty_path_refused",
+      "method": "POST",
+      "url": "http://127.0.0.1:PORT?x=1",
+      "deadline_ms": 1000,
+      "client_timeout_ms": 0,
+      "do_error": "Post \"http://127.0.0.1:PORT?x=1\": dial tcp 127.0.0.1:PORT: connect: connection refused",
+      "error": "Post \"http://127.0.0.1:PORT?x=1\": dial tcp 127.0.0.1:PORT: connect: connection refused",
+      "stage": "send",
+      "timeout": false,
+      "unreachable": true
+    },
+    {
+      "name": "redirect_then_refused",
+      "method": "POST",
+      "url": "http://127.0.0.1:PORT/e",
+      "deadline_ms": 1000,
+      "client_timeout_ms": 0,
+      "do_error": "Post \"http://127.0.0.1:CLOSED/next\": dial tcp 127.0.0.1:CLOSED: connect: connection refused",
+      "error": "Post \"http://127.0.0.1:CLOSED/next\": dial tcp 127.0.0.1:CLOSED: connect: connection refused",
+      "stage": "send",
+      "timeout": false,
+      "unreachable": true
     }
   ]
 }

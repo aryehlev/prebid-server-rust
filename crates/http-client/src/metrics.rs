@@ -52,8 +52,10 @@ impl Trace {
         Self(Arc::new(record))
     }
 
-    /// Records `event`.
-    pub(crate) fn emit(&self, event: Event) {
+    /// Records `event`: what the client's resolver and connections report, and what a
+    /// [`Transport`](crate::Transport) that does not go through them reports in their place (a
+    /// test's `RoundTripper` calling `trace.DNSDone`, `exchange/bidder_test.go:2113-2127`).
+    pub fn emit(&self, event: Event) {
         (self.0)(event);
     }
 }

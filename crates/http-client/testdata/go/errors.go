@@ -2,11 +2,13 @@ package main
 
 import (
 	"context"
+	"errors"
 	"io"
 	"net"
 	"net/http"
 	"net/url"
 	"strings"
+	"syscall"
 	"time"
 
 	"golang.org/x/net/context/ctxhttp"
@@ -22,6 +24,9 @@ type errorCase struct {
 	URL    string `json:"url"`
 	// DeadlineMs is the context deadline (none when zero).
 	DeadlineMs int `json:"deadline_ms"`
+	// ClientTimeoutMs is the client's Timeout (none when zero), as scope3's client has one
+	// (modules/scope3/rtd/module.go:77-80).
+	ClientTimeoutMs int `json:"client_timeout_ms"`
 	// DoError is the text of client.Do's error, the *url.Error a caller without ctxhttp sees;
 	// Error the text bidder.go sees (ctxhttp's, which is ctx.Err() once the context is done);
 	// Stage says whether it came from sending the request or reading the body.
@@ -31,6 +36,9 @@ type errorCase struct {
 	// Timeout is errors.Is(Error, context.DeadlineExceeded), the test bidder.go applies to a send
 	// error (exchange/bidder.go:619; a body error goes back unclassified, bidder.go:641-646).
 	Timeout bool `json:"timeout"`
+	// Unreachable is isBidderUnreachableError of Error (exchange/non_bid_reason.go:53-57): a
+	// refused connection or a host name that does not exist, seat non-bid code 103.
+	Unreachable bool `json:"unreachable"`
 }
 
 type errorsDoc struct {
@@ -41,8 +49,16 @@ type errorsDoc struct {
 // send runs one case's request against the loopback port with transport, the bidder's way and
 // the plain client.Do way.
 func send(c errorCase, port string, transport *http.Transport) errorCase {
+	return sendNaming(c, port, nil, transport)
+}
+
+// sendNaming is send, with the ports of other names the texts hold written as those names.
+func sendNaming(c errorCase, port string, names map[string]string, transport *http.Transport) errorCase {
 	url := strings.ReplaceAll(c.URL, "PORT", port)
 	ports := map[string]string{port: "PORT"}
+	for other, name := range names {
+		ports[other] = name
+	}
 	ctx := context.Background()
 	if c.DeadlineMs > 0 {
 		var cancel context.CancelFunc
@@ -55,7 +71,7 @@ func send(c errorCase, port string, transport *http.Transport) errorCase {
 		}
 		return nil
 	}
-	client := &http.Client{Transport: transport}
+	client := &http.Client{Transport: transport, Timeout: time.Duration(c.ClientTimeoutMs) * time.Millisecond}
 	// bidder.go's way.
 	req, err := http.NewRequest(c.Method, url, body())
 	if err != nil {
@@ -70,6 +86,7 @@ func send(c errorCase, port string, transport *http.Transport) errorCase {
 	}
 	c.Error = withPorts(errText(err), ports)
 	c.Timeout = isDeadline(err)
+	c.Unreachable = isUnreachable(err)
 	// The plain client.Do way, under a fresh deadline of the same length.
 	doCtx := context.Background()
 	if c.DeadlineMs > 0 {
@@ -89,6 +106,24 @@ func send(c errorCase, port string, transport *http.Transport) errorCase {
 	c.DoError = withPorts(errText(err), ports)
 	client.CloseIdleConnections()
 	return c
+}
+
+// isUnreachable is bidder.go's isBidderUnreachableError (exchange/non_bid_reason.go:53-57).
+func isUnreachable(err error) bool {
+	var dnsErr *net.DNSError
+	isNoSuchHost := errors.As(err, &dnsErr) && dnsErr.IsNotFound
+	return errors.Is(err, syscall.ECONNREFUSED) || isNoSuchHost
+}
+
+// noSuchHost is a dial that fails as Go's dialer does when the system resolver finds no such
+// name (net/cgo_unix.go:189-190 and net/dial.go resolveAddrList), so no lookup leaves the
+// machine: the host of a .invalid URL never resolves (RFC 6761).
+func noSuchHost(_ context.Context, network, addr string) (net.Conn, error) {
+	host, _, err := net.SplitHostPort(addr)
+	if err != nil {
+		panic(err)
+	}
+	return nil, &net.OpError{Op: "dial", Net: network, Err: &net.DNSError{Err: "no such host", Name: host, IsNotFound: true}}
 }
 
 func errorsGolden() errorsDoc {
@@ -137,5 +172,49 @@ func errorsGolden() errorsDoc {
 	doc.Cases = append(doc.Cases, send(errorCase{Name: "cgi_http_proxy", Method: http.MethodGet,
 		URL: "http://127.0.0.1:PORT/e", DeadlineMs: 1000}, cgi.port, transport))
 	cgi.close()
+
+	// Go's Client.Timeout passes while the client awaits the head, or reads the body, with no
+	// context deadline; then a context deadline earlier than the client's timeout, which the
+	// timeout leaves alone (net/http/client.go setRequestCancel).
+	silent = newRawServer(func(conn *rawConn) { conn.drain() })
+	doc.Cases = append(doc.Cases, send(errorCase{Name: "client_timeout_awaiting_headers", Method: http.MethodPost,
+		URL: "http://127.0.0.1:PORT/e", ClientTimeoutMs: 200}, silent.port, generalTransport(nil)))
+	doc.Cases = append(doc.Cases, send(errorCase{Name: "deadline_before_client_timeout", Method: http.MethodPost,
+		URL: "http://127.0.0.1:PORT/e", DeadlineMs: 200, ClientTimeoutMs: 2000}, silent.port, generalTransport(nil)))
+	silent.close()
+	stalling = newRawServer(func(conn *rawConn) {
+		if _, ok := conn.readRequest(); !ok {
+			return
+		}
+		conn.write("HTTP/1.1 200 OK\r\nContent-Length: 100\r\n\r\n0123456789")
+		conn.drain()
+	})
+	doc.Cases = append(doc.Cases, send(errorCase{Name: "client_timeout_reading_body", Method: http.MethodPost,
+		URL: "http://127.0.0.1:PORT/e", ClientTimeoutMs: 200}, stalling.port, generalTransport(nil)))
+	stalling.close()
+
+	// The bidder's host name does not exist.
+	transport = generalTransport(nil)
+	transport.DialContext = noSuchHost
+	doc.Cases = append(doc.Cases, send(errorCase{Name: "dns_not_found", Method: http.MethodPost,
+		URL: "http://nosuch.invalid:PORT/e", DeadlineMs: 1000}, closedPort, transport))
+
+	// The url.Error's URL: one without a path, as URL.String writes it back; and the hop that
+	// failed when a redirect leads to a port nothing listens on (net/http/client.go Client.do).
+	doc.Cases = append(doc.Cases, send(errorCase{Name: "empty_path_refused", Method: http.MethodPost,
+		URL: "http://127.0.0.1:PORT?x=1", DeadlineMs: 1000}, closedPort, generalTransport(nil)))
+	redirecting := newRawServer(func(conn *rawConn) {
+		for {
+			if _, ok := conn.readRequest(); !ok {
+				return
+			}
+			conn.write("HTTP/1.1 307 Temporary Redirect\r\nLocation: http://127.0.0.1:" + closedPort +
+				"/next\r\nContent-Length: 0\r\n\r\n")
+		}
+	})
+	doc.Cases = append(doc.Cases, sendNaming(errorCase{Name: "redirect_then_refused", Method: http.MethodPost,
+		URL: "http://127.0.0.1:PORT/e", DeadlineMs: 1000}, redirecting.port, map[string]string{closedPort: "CLOSED"},
+		generalTransport(nil)))
+	redirecting.close()
 	return doc
 }

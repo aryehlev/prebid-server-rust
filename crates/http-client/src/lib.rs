@@ -12,8 +12,15 @@
 //! - proxies from the environment by Go's rules ([`proxy`], Rule B (c)), loopback never proxied;
 //! - `max_connections_per_host` through a per-host semaphore (Rule B (c));
 //! - deadlines that end a request with Go's `context deadline exceeded`, classified as a timeout
-//!   ([`RequestError::is_timeout`]);
+//!   ([`RequestError::is_timeout`]), and Go's `Client.Timeout` ([`Client::with_timeout`]);
+//! - the refused connections and missing host names bidder.go reports as unreachable bidders
+//!   ([`RequestError::is_connection_refused`], [`RequestError::is_dns_not_found`]);
 //! - the connection events bidder.go's httptrace hooks record ([`metrics`]).
+//!
+//! A [`Client`] sends through a [`Transport`], Go's `http.RoundTripper`, so a test or the parity
+//! harness can stand in for the network with responses and errors of its own
+//! ([`Response::new`], [`RequestError::new`]), or wrap the transport a [`Builder`] builds
+//! ([`Builder::build_transport`], Go's `http.Transport`).
 //!
 //! Every client speaks HTTP/1.1, as router.go's do. `docs/DIFFERENCES.md` lists where the clients
 //! differ from Go's (its `http-client` and `tls` categories).
@@ -25,9 +32,10 @@ pub mod roots;
 pub mod settings;
 
 mod client;
+mod unreachable;
 
-pub use client::{Builder, Client, GO_USER_AGENT, Response};
-pub use error::{ErrorKind, RequestError};
+pub use client::{Builder, Client, GO_USER_AGENT, Response, Transport};
+pub use error::{DnsError, ErrorKind, RequestError};
 pub use metrics::{Event, Trace};
 pub use proxy::ProxyEnv;
 pub use reqwest;

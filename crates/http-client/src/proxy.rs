@@ -155,9 +155,11 @@ impl Matcher {
     }
 }
 
-/// httpproxy's `config`: the proxies and `NO_PROXY`'s matchers.
+/// httpproxy's `config`: the proxies and `NO_PROXY`'s matchers; or one proxy for every request.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct ProxyRules {
+    /// Go's `http.ProxyURL`: this proxy for every request, whatever the environment.
+    fixed: Option<ProxyUrl>,
     cgi: bool,
     http_proxy: Option<ProxyUrl>,
     https_proxy: Option<ProxyUrl>,
@@ -226,15 +228,34 @@ impl ProxyRules {
         rules
     }
 
+    /// Every request through `proxy`, loopback ones included, whatever the environment: Go's
+    /// `http.ProxyURL(proxy)`, the proxy the parity harness gives its oracle transport
+    /// (parity/transport/transport.go:159-173). This is reqwest's `Proxy::all` read through the
+    /// same rules as the environment's proxies, so the per-host limit and the loopback guard see
+    /// it.
+    #[must_use]
+    pub fn fixed(proxy: Url) -> Self {
+        Self {
+            fixed: Some(ProxyUrl {
+                text: proxy.to_string(),
+                url: Some(proxy),
+            }),
+            ..Self::default()
+        }
+    }
+
     /// Whether the environment names a proxy at all.
     #[must_use]
     pub const fn has_proxies(&self) -> bool {
-        self.http_proxy.is_some() || self.https_proxy.is_some()
+        self.fixed.is_some() || self.http_proxy.is_some() || self.https_proxy.is_some()
     }
 
-    /// Where a request for `url` goes: httpproxy's `proxyForURL`.
+    /// Where a request for `url` goes: httpproxy's `proxyForURL`, or the fixed proxy.
     #[must_use]
     pub fn choose(&self, url: &Url) -> Choice<'_> {
+        if let Some(proxy) = &self.fixed {
+            return Choice::Proxy(proxy);
+        }
         let proxy = match url.scheme() {
             "https" => self.https_proxy.as_ref(),
             "http" => {

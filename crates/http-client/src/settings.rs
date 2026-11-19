@@ -100,6 +100,22 @@ impl HttpClientSettings {
             keep_alive_seconds: 15,
         },
     };
+    /// Go's zero `http.Transport` with a zero `net.Dialer`, which a client that builds its own
+    /// Transport without these fields has: no per-host limit, two idle connections per host kept
+    /// for as long as the server keeps them, no dial timeout and 15-second keep-alives (the
+    /// `/optout` recaptcha check, pbs/usersync.go:37-44).
+    pub const ZERO: Self = Self {
+        max_connections_per_host: 0,
+        max_idle_connections: 0,
+        max_idle_connections_per_host: 0,
+        idle_connection_timeout_seconds: 0,
+        tls_handshake_timeout_seconds: 0,
+        expect_continue_timeout_seconds: 0,
+        dialer: DialerSettings {
+            timeout_seconds: 0,
+            keep_alive_seconds: 0,
+        },
+    };
 
     /// The per-host request limit, when there is one.
     pub(crate) fn per_host_limit(&self) -> Option<usize> {

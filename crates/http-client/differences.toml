@@ -88,13 +88,18 @@ go = """\
     A request that fails reads `Post \"http://127.0.0.1:PORT/e\": EOF` when the server closes \
     the connection, `Post \"http://127.0.0.1:PORT/e\": dial tcp 127.0.0.1:PORT: connect: \
     connection refused` when nothing listens, and `Get \"https://bidder.test/p?q=1\": Forbidden` \
-    when a proxy refuses the CONNECT, in bidder errors and debug output."""
+    when a proxy refuses the CONNECT, in bidder errors and debug output. The URL is the request's \
+    as `URL.String` writes it back, `http://127.0.0.1:PORT?x=1` for one without a path, or the hop \
+    that failed after a redirect (net/http/client.go `Client.do`)."""
 rust = """\
-    The same `<Method> \"<url>\"` prefix, then reqwest's chain: `error sending request: client \
+    The same `<Method> \"<url>\"` shape, then reqwest's chain: `error sending request: client \
     error (SendRequest): connection closed before message completed`, `error sending request: \
     client error (Connect): tcp connect error: Connection refused (os error 111)` on Linux, and \
-    `error sending request: client error (Connect): tunnel error: unsuccessful`. A deadline stays \
-    `context deadline exceeded`, which bidder.go:616-620 reports."""
+    `error sending request: client error (Connect): tunnel error: unsuccessful`. The URL is the \
+    url crate's serialisation, which writes a URL without a path with `/` \
+    (`http://127.0.0.1:PORT/?x=1`), and a hop that fails after a redirect goes by the first \
+    request's URL, the only one reqwest's error keeps. A deadline stays `context deadline \
+    exceeded`, which bidder.go:616-620 reports."""
 who = ["publisher", "operator"]
 visible_in = "Bidder error messages in the response's `ext` with debug on, and the logs"
 pin = "crates/http-client/tests/errors.rs::texts_differ_kind_same"
@@ -391,7 +396,10 @@ title = "Deadline errors: Go's are `context.DeadlineExceeded`, reqwest's are its
 go = """\
     A request that runs past its context deadline fails with `context deadline exceeded` \
     (ctxhttp returns `ctx.Err()`), which bidder.go reports as `errortypes.Timeout` and counts \
-    in the timeout metrics (exchange/bidder.go:616-620)."""
+    in the timeout metrics (exchange/bidder.go:616-620). A caller that calls `client.Do` itself \
+    gets `Post \"<url>\": context deadline exceeded`, and a client with a `Timeout` that ends \
+    first adds ` (Client.Timeout exceeded while awaiting headers)`, or ` (Client.Timeout or \
+    context cancellation while reading body)` to a body error (net/http/client.go)."""
 rust = """\
     reqwest's own timeout fails with `operation timed out` inside its error chain, and the \
     caller tells it apart with `reqwest::Error::is_timeout`."""
@@ -402,12 +410,49 @@ restore = """\
     pbs-http-client sends each request and reads its body under the deadline, and ends one past \
     it with `ErrorKind::DeadlineExceeded`, which reads `context deadline exceeded` and whose \
     `is_timeout` is bidder.go's test; Prebid's error codes and timeout metrics follow it for a \
-    send error, and a body error stays unclassified, as bidder.go returns it."""
+    send error, and a body error stays unclassified, as bidder.go returns it. \
+    `RequestError::do_text` keeps `client.Do`'s text for the callers that call it (the floors \
+    fetcher, the currency fetch, scope3), and `Client::with_timeout` is Go's `Client.Timeout`, \
+    failing with `ErrorKind::ClientTimeout` and Go's texts."""
 rule_b = "c"
 
 [[restoration]]
 id = "http-client.timeout-classification"
 pin = "crates/http-client/tests/errors.rs::deadline_is_timeout"
+
+[[difference]]
+id = "http-client.unreachable-classification"
+category = "http-client"
+status = "restored"
+title = """\
+    Unreachable bidders: Go's errors hold `ECONNREFUSED` and `*net.DNSError`, reqwest's say only \
+    that the connect failed"""
+go = """\
+    bidder.go reports a failed request as seat non-bid code 103, an unreachable bidder, when \
+    `errors.Is(err, syscall.ECONNREFUSED)` holds or `errors.As` finds a `*net.DNSError` whose \
+    `IsNotFound` holds, as Go's resolvers set it for a name that does not exist or has no \
+    address, and as 100 otherwise (exchange/non_bid_reason.go:41-57, net/cgo_unix.go:189-190)."""
+rust = """\
+    reqwest's errors say only that the connect failed, and std turns getaddrinfo's code into \
+    `gai_strerror`'s text, so neither cause can be read off them: every such request would be \
+    100."""
+who = ["publisher", "analytics"]
+visible_in = """\
+    `ext.seatnonbid` status codes, 103 against 100, for bidder requests refused at the connect \
+    or sent to a host name that does not exist"""
+pin = "crates/http-client/tests/errors.rs::unreachable_like_go"
+restore = """\
+    pbs-http-client keeps each error's causes behind `Error::source`: \
+    `RequestError::is_connection_refused` finds the refused dial's I/O error, and the clients' \
+    resolver fails with a `DnsError`, not found for the texts glibc and macOS give `EAI_NONAME` \
+    and `EAI_NODATA` and musl gives `EAI_NONAME`, an empty answer and a `.invalid` name, which \
+    `RequestError::is_dns_not_found` finds; a transport of the caller's makes either cause \
+    itself."""
+rule_b = "d"
+
+[[restoration]]
+id = "http-client.unreachable-classification"
+pin = "crates/http-client/tests/errors.rs::unreachable_like_go"
 
 [[difference]]
 id = "http-client.timeouts-other"
