@@ -1,0 +1,19 @@
+gdpr:
+  default_value: "0"
+cache:
+  scheme: http
+  host: prebid-cache.parity.test
+  query: uuid=%PBS_CACHE_UUID%
+  default_ttl_seconds:
+    banner: 300
+    video: 1500
+http_client:
+  throttle:
+    enable_throttling: false
+experiment:
+  adscert:
+    mode: "off"
+external_url: http://pbs.parity.test
+account_defaults:
+  events:
+    enabled: true

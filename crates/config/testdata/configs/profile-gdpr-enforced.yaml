@@ -1,0 +1,16 @@
+gdpr:
+  default_value: "1"
+  enabled: true
+  host_vendor_id: 0
+  tcf2:
+    enabled: true
+cache:
+  scheme: http
+  host: prebid-cache.parity.test
+  query: uuid=%PBS_CACHE_UUID%
+http_client:
+  throttle:
+    enable_throttling: false
+experiment:
+  adscert:
+    mode: "off"
