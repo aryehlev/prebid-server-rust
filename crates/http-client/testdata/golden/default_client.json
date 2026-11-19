@@ -1,0 +1,35 @@
+{
+  "header": {
+    "go_version": "go1.26.2",
+    "goarch": "amd64",
+    "upstream": "v4.11.2-0.20261112141353-4e296450de2f",
+    "modules": {},
+    "generator": "crates/http-client/testdata/go"
+  },
+  "cases": [
+    {
+      "client": "default",
+      "server_h2": true,
+      "proto": "HTTP/2.0",
+      "user_agent": "Go-http-client/2.0"
+    },
+    {
+      "client": "general",
+      "server_h2": true,
+      "proto": "HTTP/1.1",
+      "user_agent": "Go-http-client/1.1"
+    },
+    {
+      "client": "default",
+      "server_h2": false,
+      "proto": "HTTP/1.1",
+      "user_agent": "Go-http-client/1.1"
+    },
+    {
+      "client": "general",
+      "server_h2": false,
+      "proto": "HTTP/1.1",
+      "user_agent": "Go-http-client/1.1"
+    }
+  ]
+}

@@ -1,0 +1,175 @@
+{
+  "header": {
+    "go_version": "go1.26.2",
+    "goarch": "amd64",
+    "upstream": "v4.11.2-0.20261112141353-4e296450de2f",
+    "modules": {},
+    "generator": "crates/http-client/testdata/go"
+  },
+  "cases": [
+    {
+      "name": "auto_gzip",
+      "headers": null,
+      "response_head": [
+        "HTTP/1.1 200 OK",
+        "Content-Type: application/json",
+        "Content-Encoding: gzip",
+        "Content-Length: 45"
+      ],
+      "response_body_hex": "1f8b08000000000000ffaa56ca4c51b2522a52d2512a4e4d2c4902f1a2636b01010000ffff016e180217000000",
+      "accept_encoding": "Accept-Encoding: gzip",
+      "status": 200,
+      "content_encoding": [],
+      "content_length": [],
+      "body_hex": "7b226964223a2272222c2273656174626964223a5b5d7d",
+      "read_error": ""
+    },
+    {
+      "name": "caller_accept_encoding",
+      "headers": [
+        {
+          "op": "add",
+          "name": "Accept-Encoding",
+          "value": "gzip, deflate"
+        }
+      ],
+      "response_head": [
+        "HTTP/1.1 200 OK",
+        "Content-Type: application/json",
+        "Content-Encoding: gzip",
+        "Content-Length: 45"
+      ],
+      "response_body_hex": "1f8b08000000000000ffaa56ca4c51b2522a52d2512a4e4d2c4902f1a2636b01010000ffff016e180217000000",
+      "accept_encoding": "Accept-Encoding: gzip, deflate",
+      "status": 200,
+      "content_encoding": [
+        "gzip"
+      ],
+      "content_length": [
+        "45"
+      ],
+      "body_hex": "1f8b08000000000000ffaa56ca4c51b2522a52d2512a4e4d2c4902f1a2636b01010000ffff016e180217000000",
+      "read_error": ""
+    },
+    {
+      "name": "caller_range",
+      "headers": [
+        {
+          "op": "set",
+          "name": "Range",
+          "value": "bytes=0-"
+        }
+      ],
+      "response_head": [
+        "HTTP/1.1 200 OK",
+        "Content-Type: application/json",
+        "Content-Encoding: gzip",
+        "Content-Length: 45"
+      ],
+      "response_body_hex": "1f8b08000000000000ffaa56ca4c51b2522a52d2512a4e4d2c4902f1a2636b01010000ffff016e180217000000",
+      "accept_encoding": "",
+      "status": 200,
+      "content_encoding": [
+        "gzip"
+      ],
+      "content_length": [
+        "45"
+      ],
+      "body_hex": "1f8b08000000000000ffaa56ca4c51b2522a52d2512a4e4d2c4902f1a2636b01010000ffff016e180217000000",
+      "read_error": ""
+    },
+    {
+      "name": "upper_case_gzip",
+      "headers": null,
+      "response_head": [
+        "HTTP/1.1 200 OK",
+        "Content-Type: application/json",
+        "Content-Encoding: GZIP",
+        "Content-Length: 45"
+      ],
+      "response_body_hex": "1f8b08000000000000ffaa56ca4c51b2522a52d2512a4e4d2c4902f1a2636b01010000ffff016e180217000000",
+      "accept_encoding": "Accept-Encoding: gzip",
+      "status": 200,
+      "content_encoding": [],
+      "content_length": [],
+      "body_hex": "7b226964223a2272222c2273656174626964223a5b5d7d",
+      "read_error": ""
+    },
+    {
+      "name": "no_content_gzip",
+      "headers": null,
+      "response_head": [
+        "HTTP/1.1 204 No Content",
+        "Content-Encoding: gzip"
+      ],
+      "response_body_hex": "",
+      "accept_encoding": "Accept-Encoding: gzip",
+      "status": 204,
+      "content_encoding": [
+        "gzip"
+      ],
+      "content_length": [],
+      "body_hex": "",
+      "read_error": ""
+    },
+    {
+      "name": "empty_gzip_body",
+      "headers": null,
+      "response_head": [
+        "HTTP/1.1 200 OK",
+        "Content-Type: application/json",
+        "Content-Encoding: gzip",
+        "Content-Length: 0"
+      ],
+      "response_body_hex": "",
+      "accept_encoding": "Accept-Encoding: gzip",
+      "status": 200,
+      "content_encoding": [
+        "gzip"
+      ],
+      "content_length": [
+        "0"
+      ],
+      "body_hex": "",
+      "read_error": ""
+    },
+    {
+      "name": "corrupt_gzip",
+      "headers": null,
+      "response_head": [
+        "HTTP/1.1 200 OK",
+        "Content-Type: application/json",
+        "Content-Encoding: gzip",
+        "Content-Length: 5"
+      ],
+      "response_body_hex": "68656c6c6f",
+      "accept_encoding": "Accept-Encoding: gzip",
+      "status": 200,
+      "content_encoding": [],
+      "content_length": [],
+      "body_hex": "",
+      "read_error": "unexpected EOF"
+    },
+    {
+      "name": "unrequested_deflate",
+      "headers": null,
+      "response_head": [
+        "HTTP/1.1 200 OK",
+        "Content-Type: application/json",
+        "Content-Encoding: deflate",
+        "Content-Length: 5"
+      ],
+      "response_body_hex": "706c61696e",
+      "accept_encoding": "Accept-Encoding: gzip",
+      "status": 200,
+      "content_encoding": [
+        "deflate"
+      ],
+      "content_length": [
+        "5"
+      ],
+      "body_hex": "706c61696e",
+      "read_error": ""
+    }
+  ]
+}

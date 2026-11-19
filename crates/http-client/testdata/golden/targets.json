@@ -1,0 +1,4809 @@
+{
+  "header": {
+    "go_version": "go1.26.2",
+    "goarch": "amd64",
+    "upstream": "v4.11.2-0.20261112141353-4e296450de2f",
+    "modules": {},
+    "generator": "crates/http-client/testdata/go"
+  },
+  "fixtures": [
+    {
+      "uri": "",
+      "target": "/",
+      "host": ""
+    },
+    {
+      "uri": "//host",
+      "target": "/",
+      "host": "host"
+    },
+    {
+      "uri": "http://127.0.0.1/1",
+      "target": "/1",
+      "host": "127.0.0.1"
+    },
+    {
+      "uri": "http://127.0.0.2/1",
+      "target": "/1",
+      "host": "127.0.0.2"
+    },
+    {
+      "uri": "http://adapter.bidmatic.io/pbs/ortb?source=1000",
+      "target": "/pbs/ortb?source=1000",
+      "host": "adapter.bidmatic.io"
+    },
+    {
+      "uri": "http://ads.servenobid.com/ortb_adreq?tek=pbs",
+      "target": "/ortb_adreq?tek=pbs",
+      "host": "ads.servenobid.com"
+    },
+    {
+      "uri": "http://any.url",
+      "target": "/",
+      "host": "any.url"
+    },
+    {
+      "uri": "http://any.url?member_id=103",
+      "target": "/?member_id=103",
+      "host": "any.url"
+    },
+    {
+      "uri": "http://any.url?member_id=958",
+      "target": "/?member_id=958",
+      "host": "any.url"
+    },
+    {
+      "uri": "http://backend.andbeyond.media/pserver",
+      "target": "/pserver",
+      "host": "backend.andbeyond.media"
+    },
+    {
+      "uri": "http://bid306.rtbsrv.com/bidder/?bid=f3xtet&zone=9999",
+      "target": "/bidder/?bid=f3xtet&zone=9999",
+      "host": "bid306.rtbsrv.com"
+    },
+    {
+      "uri": "http://bidder.pulsepoint.com",
+      "target": "/",
+      "host": "bidder.pulsepoint.com"
+    },
+    {
+      "uri": "http://bidder_us.escalax.io/?partner=sourceId&token=accountId&type=pbs",
+      "target": "/?partner=sourceId&token=accountId&type=pbs",
+      "host": "bidder_us.escalax.io"
+    },
+    {
+      "uri": "http://biddertest.url/bid",
+      "target": "/bid",
+      "host": "biddertest.url"
+    },
+    {
+      "uri": "http://delta.adprime.com/pserver",
+      "target": "/pserver",
+      "host": "delta.adprime.com"
+    },
+    {
+      "uri": "http://dev.mobkoi.com/bid",
+      "target": "/bid",
+      "host": "dev.mobkoi.com"
+    },
+    {
+      "uri": "http://display.whatever.com/12/publisher-id",
+      "target": "/12/publisher-id",
+      "host": "display.whatever.com"
+    },
+    {
+      "uri": "http://dsp.rcoreads.com/api/vidmate?pid=vidmate_android_banner",
+      "target": "/api/vidmate?pid=vidmate_android_banner",
+      "host": "dsp.rcoreads.com"
+    },
+    {
+      "uri": "http://endpoint",
+      "target": "/",
+      "host": "endpoint"
+    },
+    {
+      "uri": "http://endpoint.bidmyadz.com/c0f68227d14ed938c6c49f3967cbe9bc",
+      "target": "/c0f68227d14ed938c6c49f3967cbe9bc",
+      "host": "endpoint.bidmyadz.com"
+    },
+    {
+      "uri": "http://endpoint1.kiviads.com/pserver",
+      "target": "/pserver",
+      "host": "endpoint1.kiviads.com"
+    },
+    {
+      "uri": "http://endpoint1.logan.com/pserver",
+      "target": "/pserver",
+      "host": "endpoint1.logan.com"
+    },
+    {
+      "uri": "http://ep1.example.com/bid?rtb_seat_id=partner&secret_key=hash",
+      "target": "/bid?rtb_seat_id=partner&secret_key=hash",
+      "host": "ep1.example.com"
+    },
+    {
+      "uri": "http://ep1.example.com/bid?token=hash",
+      "target": "/bid?token=hash",
+      "host": "ep1.example.com"
+    },
+    {
+      "uri": "http://eu.example.com/api/dsp/bid/0",
+      "target": "/api/dsp/bid/0",
+      "host": "eu.example.com"
+    },
+    {
+      "uri": "http://eu.example.com/api/dsp/bid/1",
+      "target": "/api/dsp/bid/1",
+      "host": "eu.example.com"
+    },
+    {
+      "uri": "http://example.bc-plugin.com/?c=o&m=rtb",
+      "target": "/?c=o&m=rtb",
+      "host": "example.bc-plugin.com"
+    },
+    {
+      "uri": "http://example.com",
+      "target": "/",
+      "host": "example.com"
+    },
+    {
+      "uri": "http://example.com/?c=o&m=ortb",
+      "target": "/?c=o&m=ortb",
+      "host": "example.com"
+    },
+    {
+      "uri": "http://example.com/?c=o&m=ortb&key=__key__",
+      "target": "/?c=o&m=ortb&key=__key__",
+      "host": "example.com"
+    },
+    {
+      "uri": "http://example.com/?c=o&m=rtb",
+      "target": "/?c=o&m=rtb",
+      "host": "example.com"
+    },
+    {
+      "uri": "http://example.com/?c=rtb&m=req&key=2",
+      "target": "/?c=rtb&m=req&key=2",
+      "host": "example.com"
+    },
+    {
+      "uri": "http://example.com/?c=rtb&m=req&key=6",
+      "target": "/?c=rtb&m=req&key=6",
+      "host": "example.com"
+    },
+    {
+      "uri": "http://example.com/?c=rtb&m=req&key=7",
+      "target": "/?c=rtb&m=req&key=7",
+      "host": "example.com"
+    },
+    {
+      "uri": "http://example.com/?c=rtb&m=req&key=8",
+      "target": "/?c=rtb&m=req&key=8",
+      "host": "example.com"
+    },
+    {
+      "uri": "http://example.com/?t=test-api-key",
+      "target": "/?t=test-api-key",
+      "host": "example.com"
+    },
+    {
+      "uri": "http://example.com/bid",
+      "target": "/bid",
+      "host": "example.com"
+    },
+    {
+      "uri": "http://example.com/go/testzone",
+      "target": "/go/testzone",
+      "host": "example.com"
+    },
+    {
+      "uri": "http://example.com/go/zone_code_test_display",
+      "target": "/go/zone_code_test_display",
+      "host": "example.com"
+    },
+    {
+      "uri": "http://example.com/go/zone_code_test_video",
+      "target": "/go/zone_code_test_video",
+      "host": "example.com"
+    },
+    {
+      "uri": "http://example.com/hb",
+      "target": "/hb",
+      "host": "example.com"
+    },
+    {
+      "uri": "http://example.com/operaads/ortb/v2/pub00000?ep=ep00000",
+      "target": "/operaads/ortb/v2/pub00000?ep=ep00000",
+      "host": "example.com"
+    },
+    {
+      "uri": "http://example.com/operaads/ortb/v2/pub123?ep=ep19978",
+      "target": "/operaads/ortb/v2/pub123?ep=ep19978",
+      "host": "example.com"
+    },
+    {
+      "uri": "http://example.com/operaads/ortb/v2/pub456?ep=ep19979",
+      "target": "/operaads/ortb/v2/pub456?ep=ep19979",
+      "host": "example.com"
+    },
+    {
+      "uri": "http://example.com/prebid",
+      "target": "/prebid",
+      "host": "example.com"
+    },
+    {
+      "uri": "http://example.com/prebid?apptoken=4fd53a12b78af4b39835de9e449c3082&zoneid=1",
+      "target": "/prebid?apptoken=4fd53a12b78af4b39835de9e449c3082&zoneid=1",
+      "host": "example.com"
+    },
+    {
+      "uri": "http://example.com/pserver",
+      "target": "/pserver",
+      "host": "example.com"
+    },
+    {
+      "uri": "http://example.com?dc=eu-west-1",
+      "target": "/?dc=eu-west-1",
+      "host": "example.com"
+    },
+    {
+      "uri": "http://example.com?dc=us-east-2",
+      "target": "/?dc=us-east-2",
+      "host": "example.com"
+    },
+    {
+      "uri": "http://example.com?dc=us-west-2",
+      "target": "/?dc=us-west-2",
+      "host": "example.com"
+    },
+    {
+      "uri": "http://exchange.example.com/bid/777XYZ123",
+      "target": "/bid/777XYZ123",
+      "host": "exchange.example.com"
+    },
+    {
+      "uri": "http://fake.endpoint",
+      "target": "/",
+      "host": "fake.endpoint"
+    },
+    {
+      "uri": "http://fast.nexx360.io/prebid-server?placement=test",
+      "target": "/prebid-server?placement=test",
+      "host": "fast.nexx360.io"
+    },
+    {
+      "uri": "http://fast.nexx360.io/prebid-server?placement=test&tag_id=testnexx",
+      "target": "/prebid-server?placement=test&tag_id=testnexx",
+      "host": "fast.nexx360.io"
+    },
+    {
+      "uri": "http://fast.nexx360.io/prebid-server?tag_id=testnex1",
+      "target": "/prebid-server?tag_id=testnex1",
+      "host": "fast.nexx360.io"
+    },
+    {
+      "uri": "http://fast.nexx360.io/prebid-server?tag_id=testnexx",
+      "target": "/prebid-server?tag_id=testnexx",
+      "host": "fast.nexx360.io"
+    },
+    {
+      "uri": "http://gdpr.url?consentString=CONSENT_STRING&format=prebidServer&gdpr=1&tzo=0",
+      "target": "/?consentString=CONSENT_STRING&format=prebidServer&gdpr=1&tzo=0",
+      "host": "gdpr.url"
+    },
+    {
+      "uri": "http://ghb.adtelligent.com/pbs/ortb?aid=1000",
+      "target": "/pbs/ortb?aid=1000",
+      "host": "ghb.adtelligent.com"
+    },
+    {
+      "uri": "http://ghb.console.adtarget.com.tr/pbs/ortb?aid=1000",
+      "target": "/pbs/ortb?aid=1000",
+      "host": "ghb.console.adtarget.com.tr"
+    },
+    {
+      "uri": "http://hb-test.collectiveaudience.co/rtb/bid?nid=aaaaaaaaaaaaaaaaaaaaaaaa&nptnid=1234",
+      "target": "/rtb/bid?nid=aaaaaaaaaaaaaaaaaaaaaaaa&nptnid=1234",
+      "host": "hb-test.collectiveaudience.co"
+    },
+    {
+      "uri": "http://hb-test.collectiveaudience.co/rtb/bid?pid=aaaaaaaaaaaaaaaaaaaaaaaa",
+      "target": "/rtb/bid?pid=aaaaaaaaaaaaaaaaaaaaaaaa",
+      "host": "hb-test.collectiveaudience.co"
+    },
+    {
+      "uri": "http://host/endpoint",
+      "target": "/endpoint",
+      "host": "host"
+    },
+    {
+      "uri": "http://ib.adnxs.com/openrtb2",
+      "target": "/openrtb2",
+      "host": "ib.adnxs.com"
+    },
+    {
+      "uri": "http://ib.adnxs.com/openrtb2?member_id=103",
+      "target": "/openrtb2?member_id=103",
+      "host": "ib.adnxs.com"
+    },
+    {
+      "uri": "http://inv-nets.admixer.net/pbs.aspx",
+      "target": "/pbs.aspx",
+      "host": "inv-nets.admixer.net"
+    },
+    {
+      "uri": "http://lb-east.intenze.co/?pass=accountId",
+      "target": "/?pass=accountId",
+      "host": "lb-east.intenze.co"
+    },
+    {
+      "uri": "http://localhost/1234/pbs",
+      "target": "/1234/pbs",
+      "host": "localhost"
+    },
+    {
+      "uri": "http://localhost/bid?sspuid=prebid",
+      "target": "/bid?sspuid=prebid",
+      "host": "localhost"
+    },
+    {
+      "uri": "http://localhost/br?publisher_id=123&supply_id=ssp-1",
+      "target": "/br?publisher_id=123&supply_id=ssp-1",
+      "host": "localhost"
+    },
+    {
+      "uri": "http://localhost/br?publisher_id=app-pub-1&supply_id=ssp-1",
+      "target": "/br?publisher_id=app-pub-1&supply_id=ssp-1",
+      "host": "localhost"
+    },
+    {
+      "uri": "http://localhost/br?publisher_id=app-pub-new&supply_id=ssp-1",
+      "target": "/br?publisher_id=app-pub-new&supply_id=ssp-1",
+      "host": "localhost"
+    },
+    {
+      "uri": "http://localhost/br?publisher_id=pub%26123&supply_id=ssp+1",
+      "target": "/br?publisher_id=pub%26123&supply_id=ssp+1",
+      "host": "localhost"
+    },
+    {
+      "uri": "http://localhost/br?publisher_id=pub-123&supply_id=ssp-1",
+      "target": "/br?publisher_id=pub-123&supply_id=ssp-1",
+      "host": "localhost"
+    },
+    {
+      "uri": "http://localhost/br?publisher_id=pub-new&supply_id=ssp-1",
+      "target": "/br?publisher_id=pub-new&supply_id=ssp-1",
+      "host": "localhost"
+    },
+    {
+      "uri": "http://localhost/pbs",
+      "target": "/pbs",
+      "host": "localhost"
+    },
+    {
+      "uri": "http://localhost/prebid",
+      "target": "/prebid",
+      "host": "localhost"
+    },
+    {
+      "uri": "http://localhost/prebid_server",
+      "target": "/prebid_server",
+      "host": "localhost"
+    },
+    {
+      "uri": "http://localhost/prebid_server?publisher_id=72720",
+      "target": "/prebid_server?publisher_id=72720",
+      "host": "localhost"
+    },
+    {
+      "uri": "http://localhost/prebid_server?publisher_id=72721",
+      "target": "/prebid_server?publisher_id=72721",
+      "host": "localhost"
+    },
+    {
+      "uri": "http://localhost/s2sdsh",
+      "target": "/s2sdsh",
+      "host": "localhost"
+    },
+    {
+      "uri": "http://localhost/ssp?s=123456789&prebid",
+      "target": "/ssp?s=123456789&prebid",
+      "host": "localhost"
+    },
+    {
+      "uri": "http://localhost/ssp?s=432198765&prebid",
+      "target": "/ssp?s=432198765&prebid",
+      "host": "localhost"
+    },
+    {
+      "uri": "http://localhost/ssp?s=987654321&prebid",
+      "target": "/ssp?s=987654321&prebid",
+      "host": "localhost"
+    },
+    {
+      "uri": "http://localhost:8080/bidder/?identifier=5krH8Q",
+      "target": "/bidder/?identifier=5krH8Q",
+      "host": "localhost:8080"
+    },
+    {
+      "uri": "http://localhost:8080/bidder/?identifier=test",
+      "target": "/bidder/?identifier=test",
+      "host": "localhost:8080"
+    },
+    {
+      "uri": "http://localhost:8080/bidder/?pid=a",
+      "target": "/bidder/?pid=a",
+      "host": "localhost:8080"
+    },
+    {
+      "uri": "http://loopme.example.com",
+      "target": "/",
+      "host": "loopme.example.com"
+    },
+    {
+      "uri": "http://market-east.smrtb.com/json/publisher/rtb?pubid=test",
+      "target": "/json/publisher/rtb?pubid=test",
+      "host": "market-east.smrtb.com"
+    },
+    {
+      "uri": "http://mfx.mobilefuse.com/openrtb",
+      "target": "/openrtb",
+      "host": "mfx.mobilefuse.com"
+    },
+    {
+      "uri": "http://mock-adserver.url",
+      "target": "/",
+      "host": "mock-adserver.url"
+    },
+    {
+      "uri": "http://native.whatever.com/12/publisher-id",
+      "target": "/12/publisher-id",
+      "host": "native.whatever.com"
+    },
+    {
+      "uri": "http://nep.advangelists.com/xp/get?pubid=19f1b372c7548ec1fe734d2c9f8dc688",
+      "target": "/xp/get?pubid=19f1b372c7548ec1fe734d2c9f8dc688",
+      "host": "nep.advangelists.com"
+    },
+    {
+      "uri": "http://ogury.example.com",
+      "target": "/",
+      "host": "ogury.example.com"
+    },
+    {
+      "uri": "http://pbs-dev.amxrtb.com/auction/openrtb?v=pbs1.3",
+      "target": "/auction/openrtb?v=pbs1.3",
+      "host": "pbs-dev.amxrtb.com"
+    },
+    {
+      "uri": "http://pbs.adksrv.com/hb?zone=101",
+      "target": "/hb?zone=101",
+      "host": "pbs.adksrv.com"
+    },
+    {
+      "uri": "http://pbs.adksrv.com/hb?zone=102",
+      "target": "/hb?zone=102",
+      "host": "pbs.adksrv.com"
+    },
+    {
+      "uri": "http://pbs.admatic.com.tr?host=layer.serve.admatic.com.tr",
+      "target": "/?host=layer.serve.admatic.com.tr",
+      "host": "pbs.admatic.com.tr"
+    },
+    {
+      "uri": "http://pbs.admatic.com.tr?host=layer2.serve.admatic.com.tr",
+      "target": "/?host=layer2.serve.admatic.com.tr",
+      "host": "pbs.admatic.com.tr"
+    },
+    {
+      "uri": "http://pbs.kiviads.live/?pid=533faf0754cd43ceab591077781b902&host=kivi-stage",
+      "target": "/?pid=533faf0754cd43ceab591077781b902&host=kivi-stage",
+      "host": "pbs.kiviads.live"
+    },
+    {
+      "uri": "http://pbs.kiviads.live/?pid=533faf0754cd43ceab591077781b909b&host=kivi-stage",
+      "target": "/?pid=533faf0754cd43ceab591077781b909b&host=kivi-stage",
+      "host": "pbs.kiviads.live"
+    },
+    {
+      "uri": "http://pbs.kiviads.live/?pid=dc230510f7eb516f0eb9a10e5913d3b5&host=kivi-stage",
+      "target": "/?pid=dc230510f7eb516f0eb9a10e5913d3b5&host=kivi-stage",
+      "host": "pbs.kiviads.live"
+    },
+    {
+      "uri": "http://pbs.technoratimedia.com/openrtb/bids/prebid?src=pbs-go%2F1.0.0&adapter=imds",
+      "target": "/openrtb/bids/prebid?src=pbs-go%2F1.0.0&adapter=imds",
+      "host": "pbs.technoratimedia.com"
+    },
+    {
+      "uri": "http://pbserver.dblks.net/openrtb2?sid=123",
+      "target": "/openrtb2?sid=123",
+      "host": "pbserver.dblks.net"
+    },
+    {
+      "uri": "http://pbserver.dblks.net/openrtb2?sid=906295",
+      "target": "/openrtb2?sid=906295",
+      "host": "pbserver.dblks.net"
+    },
+    {
+      "uri": "http://point.braveglobal.tv/?t=3&partner=f897beb0daba0253d8e59a098eef9311",
+      "target": "/?t=3&partner=f897beb0daba0253d8e59a098eef9311",
+      "host": "point.braveglobal.tv"
+    },
+    {
+      "uri": "http://point.contextualadv.com/?t=3&partner=f897beb0daba0253d8e59a098eef9311",
+      "target": "/?t=3&partner=f897beb0daba0253d8e59a098eef9311",
+      "host": "point.contextualadv.com"
+    },
+    {
+      "uri": "http://prebid-server.cootlogix.com/openrtb/test_cid_123",
+      "target": "/openrtb/test_cid_123",
+      "host": "prebid-server.cootlogix.com"
+    },
+    {
+      "uri": "http://prebid-srv.mtflll-system.live/?pid=533faf0754cd43ceab591077781b902&host=mtflll-stage",
+      "target": "/?pid=533faf0754cd43ceab591077781b902&host=mtflll-stage",
+      "host": "prebid-srv.mtflll-system.live"
+    },
+    {
+      "uri": "http://prebid-srv.mtflll-system.live/?pid=533faf0754cd43ceab591077781b909b&host=mtflll-stage",
+      "target": "/?pid=533faf0754cd43ceab591077781b909b&host=mtflll-stage",
+      "host": "prebid-srv.mtflll-system.live"
+    },
+    {
+      "uri": "http://prebid-srv.mtflll-system.live/?pid=dc230510f7eb516f0eb9a10e5913d3b5&host=mtflll-stage",
+      "target": "/?pid=dc230510f7eb516f0eb9a10e5913d3b5&host=mtflll-stage",
+      "host": "prebid-srv.mtflll-system.live"
+    },
+    {
+      "uri": "http://prebid-srv.xe.works/?pid=533faf0754cd43ceab591077781b902&host=xe-stage",
+      "target": "/?pid=533faf0754cd43ceab591077781b902&host=xe-stage",
+      "host": "prebid-srv.xe.works"
+    },
+    {
+      "uri": "http://prebid-srv.xe.works/?pid=533faf0754cd43ceab591077781b909b&host=xe-stage",
+      "target": "/?pid=533faf0754cd43ceab591077781b909b&host=xe-stage",
+      "host": "prebid-srv.xe.works"
+    },
+    {
+      "uri": "http://prebid-srv.xe.works/?pid=dc230510f7eb516f0eb9a10e5913d3b5&host=xe-stage",
+      "target": "/?pid=dc230510f7eb516f0eb9a10e5913d3b5&host=xe-stage",
+      "host": "prebid-srv.xe.works"
+    },
+    {
+      "uri": "http://prebid.axis-marketplace.com/pbserver",
+      "target": "/pbserver",
+      "host": "prebid.axis-marketplace.com"
+    },
+    {
+      "uri": "http://prebidsrvr.kueezrtb.com/openrtb/test_cid_123",
+      "target": "/openrtb/test_cid_123",
+      "host": "prebidsrvr.kueezrtb.com"
+    },
+    {
+      "uri": "http://pub.admanmedia.com/?c=o&m=ortb",
+      "target": "/?c=o&m=ortb",
+      "host": "pub.admanmedia.com"
+    },
+    {
+      "uri": "http://q.0cf.io/openrtb2?sid=123",
+      "target": "/openrtb2?sid=123",
+      "host": "q.0cf.io"
+    },
+    {
+      "uri": "http://q.0cf.io/openrtb2?sid=906295",
+      "target": "/openrtb2?sid=906295",
+      "host": "q.0cf.io"
+    },
+    {
+      "uri": "http://rt.marphezis.com/pbs?publisherId=12345",
+      "target": "/pbs?publisherId=12345",
+      "host": "rt.marphezis.com"
+    },
+    {
+      "uri": "http://rtb.boldwin.live/?pid=3163e2c9e034770c0daaa98c7613b573&host=&pbs=1",
+      "target": "/?pid=3163e2c9e034770c0daaa98c7613b573&host=&pbs=1",
+      "host": "rtb.boldwin.live"
+    },
+    {
+      "uri": "http://rtb.boldwin.live/?pid=3163e2c9e034770c0daaa98c7613b573&host=boldwinx-stage&pbs=1",
+      "target": "/?pid=3163e2c9e034770c0daaa98c7613b573&host=boldwinx-stage&pbs=1",
+      "host": "rtb.boldwin.live"
+    },
+    {
+      "uri": "http://rtb.driftpixel.live/?pid=3163e2c9e034770c0daaa98c7613b573&host=&pbs=1",
+      "target": "/?pid=3163e2c9e034770c0daaa98c7613b573&host=&pbs=1",
+      "host": "rtb.driftpixel.live"
+    },
+    {
+      "uri": "http://rtb.driftpixel.live/?pid=3163e2c9e034770c0daaa98c7613b573&host=driftpixel-prod&pbs=1",
+      "target": "/?pid=3163e2c9e034770c0daaa98c7613b573&host=driftpixel-prod&pbs=1",
+      "host": "rtb.driftpixel.live"
+    },
+    {
+      "uri": "http://rtb.driftpixel.live/?pid=3163e2c9e034770c0daaa98c7613b573&host=driftpixel-stage&pbs=1",
+      "target": "/?pid=3163e2c9e034770c0daaa98c7613b573&host=driftpixel-stage&pbs=1",
+      "host": "rtb.driftpixel.live"
+    },
+    {
+      "uri": "http://rtb.e-planning.net/pbs/1/12345/1/FILE/ROS?e=300x250%3A300x250&ncb=1&sch=1.0%2C1%21exchange1.com%2C1234%2C%2Cbid-request%2Cpublisher1%252C%2520Inc.%2C%2C&ur=FILE",
+      "target": "/pbs/1/12345/1/FILE/ROS?e=300x250%3A300x250&ncb=1&sch=1.0%2C1%21exchange1.com%2C1234%2C%2Cbid-request%2Cpublisher1%252C%2520Inc.%2C%2C&ur=FILE",
+      "host": "rtb.e-planning.net"
+    },
+    {
+      "uri": "http://rtb.e-planning.net/pbs/1/12345/1/FILE/ROS?e=300x250%3A300x250&ncb=1&sch=1.0%2C1%21exchange1.com%2C1234%2C1%2C%2C%2C%2C%2522text%2522%21exchange2.com%2Cabcd%2C3%2Cbid-request-2%2C%2Cintermediary.com%2C&ur=FILE",
+      "target": "/pbs/1/12345/1/FILE/ROS?e=300x250%3A300x250&ncb=1&sch=1.0%2C1%21exchange1.com%2C1234%2C1%2C%2C%2C%2C%2522text%2522%21exchange2.com%2Cabcd%2C3%2Cbid-request-2%2C%2Cintermediary.com%2C&ur=FILE",
+      "host": "rtb.e-planning.net"
+    },
+    {
+      "uri": "http://rtb.e-planning.net/pbs/1/12345/1/FILE/ROS?e=300x250%3A300x250&ncb=1&sch=1.0%2C1%21exchange1.com%2C1234%2C1%2C%2C%2C%2C%2522text%2522&ur=FILE",
+      "target": "/pbs/1/12345/1/FILE/ROS?e=300x250%3A300x250&ncb=1&sch=1.0%2C1%21exchange1.com%2C1234%2C1%2C%2C%2C%2C%2522text%2522&ur=FILE",
+      "host": "rtb.e-planning.net"
+    },
+    {
+      "uri": "http://rtb.e-planning.net/pbs/1/12345/1/FILE/ROS?e=300x250%3A300x250&ncb=1&ur=FILE",
+      "target": "/pbs/1/12345/1/FILE/ROS?e=300x250%3A300x250&ncb=1&ur=FILE",
+      "host": "rtb.e-planning.net"
+    },
+    {
+      "uri": "http://rtb.e-planning.net/pbs/1/12345/1/FILE/ROS?e=320x50%3A320x50&ncb=1&ur=FILE",
+      "target": "/pbs/1/12345/1/FILE/ROS?e=320x50%3A320x50&ncb=1&ur=FILE",
+      "host": "rtb.e-planning.net"
+    },
+    {
+      "uri": "http://rtb.e-planning.net/pbs/1/12345/1/FILE/ROS?e=970x250%3A970x250&ncb=1&ur=FILE",
+      "target": "/pbs/1/12345/1/FILE/ROS?e=970x250%3A970x250&ncb=1&ur=FILE",
+      "host": "rtb.e-planning.net"
+    },
+    {
+      "uri": "http://rtb.e-planning.net/pbs/1/12345/1/FILE/ROS?e=testadun_itco_de%3A600x300&ip=123.123.123.123&ncb=1&uid=2154987&ur=FILE",
+      "target": "/pbs/1/12345/1/FILE/ROS?e=testadun_itco_de%3A600x300&ip=123.123.123.123&ncb=1&uid=2154987&ur=FILE",
+      "host": "rtb.e-planning.net"
+    },
+    {
+      "uri": "http://rtb.e-planning.net/pbs/1/12345/1/FILE/ROS?e=testadunitcode%3A600x300%2B300x250%3A300x250&ip=123.123.123.123&ncb=1&ur=FILE",
+      "target": "/pbs/1/12345/1/FILE/ROS?e=testadunitcode%3A600x300%2B300x250%3A300x250&ip=123.123.123.123&ncb=1&ur=FILE",
+      "host": "rtb.e-planning.net"
+    },
+    {
+      "uri": "http://rtb.e-planning.net/pbs/1/12345/1/FILE/ROS?e=testadunitcode%3A600x300&ncb=1&ur=FILE",
+      "target": "/pbs/1/12345/1/FILE/ROS?e=testadunitcode%3A600x300&ncb=1&ur=FILE",
+      "host": "rtb.e-planning.net"
+    },
+    {
+      "uri": "http://rtb.e-planning.net/pbs/1/12345/1/FILE/ROS?e=testadunitcodenosize%3A1x1&ncb=1&ur=FILE",
+      "target": "/pbs/1/12345/1/FILE/ROS?e=testadunitcodenosize%3A1x1&ncb=1&ur=FILE",
+      "host": "rtb.e-planning.net"
+    },
+    {
+      "uri": "http://rtb.e-planning.net/pbs/1/12345/1/FILE/ROS?e=video_300x150_0%3A300x150%3B1&ncb=1&ur=FILE&vctx=1&vv=3",
+      "target": "/pbs/1/12345/1/FILE/ROS?e=video_300x150_0%3A300x150%3B1&ncb=1&ur=FILE&vctx=1&vv=3",
+      "host": "rtb.e-planning.net"
+    },
+    {
+      "uri": "http://rtb.e-planning.net/pbs/1/12345/1/FILE/ROS?e=video_300x150_0%3A300x150%3B1&ncb=1&ur=FILE&vctx=2&vv=3",
+      "target": "/pbs/1/12345/1/FILE/ROS?e=video_300x150_0%3A300x150%3B1&ncb=1&ur=FILE&vctx=2&vv=3",
+      "host": "rtb.e-planning.net"
+    },
+    {
+      "uri": "http://rtb.e-planning.net/pbs/1/12345/1/FILE/ROS?e=video_640x480_0%3A640x480%3B1%2Bvideo_640x480_1%3A640x480%3B1&ncb=1&ur=FILE&vctx=1&vv=3",
+      "target": "/pbs/1/12345/1/FILE/ROS?e=video_640x480_0%3A640x480%3B1%2Bvideo_640x480_1%3A640x480%3B1&ncb=1&ur=FILE&vctx=1&vv=3",
+      "host": "rtb.e-planning.net"
+    },
+    {
+      "uri": "http://rtb.e-planning.net/pbs/1/12345/1/FILE/ROS?e=video_640x480_0%3A640x480%3B1&ncb=1&ur=FILE&vctx=2&vv=3",
+      "target": "/pbs/1/12345/1/FILE/ROS?e=video_640x480_0%3A640x480%3B1&ncb=1&ur=FILE&vctx=2&vv=3",
+      "host": "rtb.e-planning.net"
+    },
+    {
+      "uri": "http://rtb.e-planning.net/pbs/1/12345/1/mx.com.xeu/ROS?app=1&appid=%5Ba-f0-9%5D%7B16%7D&appn=MobileExchange&e=testadunitcode%3A600x300&ifa=3B8E2335-Z049&ip=123.123.123.123&ncb=1",
+      "target": "/pbs/1/12345/1/mx.com.xeu/ROS?app=1&appid=%5Ba-f0-9%5D%7B16%7D&appn=MobileExchange&e=testadunitcode%3A600x300&ifa=3B8E2335-Z049&ip=123.123.123.123&ncb=1",
+      "host": "rtb.e-planning.net"
+    },
+    {
+      "uri": "http://rtb.e-planning.net/pbs/1/12345/1/www.publisher.com/ROS?e=testadunitcode%3A600x300&ncb=1&ur=http%3A%2F%2Fwww.publisher.com%2Fawesome%2Fsite%3Fwith%3Dsome%26parameters%3Dhere",
+      "target": "/pbs/1/12345/1/www.publisher.com/ROS?e=testadunitcode%3A600x300&ncb=1&ur=http%3A%2F%2Fwww.publisher.com%2Fawesome%2Fsite%3Fwith%3Dsome%26parameters%3Dhere",
+      "host": "rtb.e-planning.net"
+    },
+    {
+      "uri": "http://rtb.e-planning.net/pbs/1/6789/1/FILE/ROS?e=video_640x480_0%3A640x480%3B1&ncb=1&ur=FILE&vctx=1&vv=3",
+      "target": "/pbs/1/6789/1/FILE/ROS?e=video_640x480_0%3A640x480%3B1&ncb=1&ur=FILE&vctx=1&vv=3",
+      "host": "rtb.e-planning.net"
+    },
+    {
+      "uri": "http://rtb.e-planning.net/pbs/1/6789/1/FILE/ROS?e=video_640x480_0%3A640x480%3B1&ncb=1&ur=FILE&vctx=2&vv=3",
+      "target": "/pbs/1/6789/1/FILE/ROS?e=video_640x480_0%3A640x480%3B1&ncb=1&ur=FILE&vctx=2&vv=3",
+      "host": "rtb.e-planning.net"
+    },
+    {
+      "uri": "http://rtb.iqzone.com/?pid=3163e2c9e034770c0daaa98c7613b573&host=iqzonex-stage&pbs=1",
+      "target": "/?pid=3163e2c9e034770c0daaa98c7613b573&host=iqzonex-stage&pbs=1",
+      "host": "rtb.iqzone.com"
+    },
+    {
+      "uri": "http://rtb.lunamedia.live/?pid=19f1b372c7548ec1fe734d2c9f8dc688",
+      "target": "/?pid=19f1b372c7548ec1fe734d2c9f8dc688",
+      "host": "rtb.lunamedia.live"
+    },
+    {
+      "uri": "http://rtb.lunamedia.live/?pid=yu",
+      "target": "/?pid=yu",
+      "host": "rtb.lunamedia.live"
+    },
+    {
+      "uri": "http://rtb.openx.net/prebid",
+      "target": "/prebid",
+      "host": "rtb.openx.net"
+    },
+    {
+      "uri": "http://rtb.vrtcal.com/bidder_prebid.vap?ssp=1804",
+      "target": "/bidder_prebid.vap?ssp=1804",
+      "host": "rtb.vrtcal.com"
+    },
+    {
+      "uri": "http://sa-lb.deliverimp.com/pserver",
+      "target": "/pserver",
+      "host": "sa-lb.deliverimp.com"
+    },
+    {
+      "uri": "http://service.e-volution.ai/pbserver",
+      "target": "/pbserver",
+      "host": "service.e-volution.ai"
+    },
+    {
+      "uri": "http://smartssp-us-east.iqzone.com/pserver",
+      "target": "/pserver",
+      "host": "smartssp-us-east.iqzone.com"
+    },
+    {
+      "uri": "http://somecoolurlfor.vox",
+      "target": "/",
+      "host": "somecoolurlfor.vox"
+    },
+    {
+      "uri": "http://sovrn.com/test/endpoint",
+      "target": "/test/endpoint",
+      "host": "sovrn.com"
+    },
+    {
+      "uri": "http://ssc.33across.com",
+      "target": "/",
+      "host": "ssc.33across.com"
+    },
+    {
+      "uri": "http://ssp.api.tappx.com/rtb/v2/VZ123456PS?tappxkey=pub-12345-android-9876&type_cnn=prebid&v=1.6",
+      "target": "/rtb/v2/VZ123456PS?tappxkey=pub-12345-android-9876&type_cnn=prebid&v=1.6",
+      "host": "ssp.api.tappx.com"
+    },
+    {
+      "uri": "http://ssp.api.tappx.com/rtb/v2/VZ123456PS?tappxkey=pub-12345-site-9876&type_cnn=prebid&v=1.6",
+      "target": "/rtb/v2/VZ123456PS?tappxkey=pub-12345-site-9876&type_cnn=prebid&v=1.6",
+      "host": "ssp.api.tappx.com"
+    },
+    {
+      "uri": "http://ssp.api.tappx.com/rtb/v2/ZZ123456PS?tappxkey=pub-12345-android-9876&type_cnn=prebid&v=1.6",
+      "target": "/rtb/v2/ZZ123456PS?tappxkey=pub-12345-android-9876&type_cnn=prebid&v=1.6",
+      "host": "ssp.api.tappx.com"
+    },
+    {
+      "uri": "http://ssp.api.tappx.com/rtb/v2/ZZ123456PS?tappxkey=pub-12345-site-9876&type_cnn=prebid&v=1.6",
+      "target": "/rtb/v2/ZZ123456PS?tappxkey=pub-12345-site-9876&type_cnn=prebid&v=1.6",
+      "host": "ssp.api.tappx.com"
+    },
+    {
+      "uri": "http://ssp.videowalldirect.com/pserver",
+      "target": "/pserver",
+      "host": "ssp.videowalldirect.com"
+    },
+    {
+      "uri": "http://ssp.wp.test/bidder/?bdver=6.0",
+      "target": "/bidder/?bdver=6.0",
+      "host": "ssp.wp.test"
+    },
+    {
+      "uri": "http://t-us.blasto.ai/bid?rtb_seat_id=sourceId&secret_key=accountId",
+      "target": "/bid?rtb_seat_id=sourceId&secret_key=accountId",
+      "host": "t-us.blasto.ai"
+    },
+    {
+      "uri": "http://targeting.unrulymedia.com/unruly_prebid_server",
+      "target": "/unruly_prebid_server",
+      "host": "targeting.unrulymedia.com"
+    },
+    {
+      "uri": "http://test-request.com/prebid",
+      "target": "/prebid",
+      "host": "test-request.com"
+    },
+    {
+      "uri": "http://test.adelement.com/openrtb2/auction?supply_id=1",
+      "target": "/openrtb2/auction?supply_id=1",
+      "host": "test.adelement.com"
+    },
+    {
+      "uri": "http://test.com/pserver",
+      "target": "/pserver",
+      "host": "test.com"
+    },
+    {
+      "uri": "http://test.ortb.net/openrtb/123456?host=audio.ortb.net",
+      "target": "/openrtb/123456?host=audio.ortb.net",
+      "host": "test.ortb.net"
+    },
+    {
+      "uri": "http://test.ortb.net/openrtb/123456?host=banner.ortb.net",
+      "target": "/openrtb/123456?host=banner.ortb.net",
+      "host": "test.ortb.net"
+    },
+    {
+      "uri": "http://test.ortb.net/openrtb/123456?host=native.ortb.net",
+      "target": "/openrtb/123456?host=native.ortb.net",
+      "host": "test.ortb.net"
+    },
+    {
+      "uri": "http://test.ortb.net/openrtb/123456?host=video.ortb.net",
+      "target": "/openrtb/123456?host=video.ortb.net",
+      "host": "test.ortb.net"
+    },
+    {
+      "uri": "http://test.ortb.net/openrtb/456789?host=video.ortb.net",
+      "target": "/openrtb/456789?host=video.ortb.net",
+      "host": "test.ortb.net"
+    },
+    {
+      "uri": "http://test.smrtconnect.com/openrtb2/auction?supply_id=1",
+      "target": "/openrtb2/auction?supply_id=1",
+      "host": "test.smrtconnect.com"
+    },
+    {
+      "uri": "http://tlx.3lift.net/s2s/auction?sra=1&supplier_id=20",
+      "target": "/s2s/auction?sra=1&supplier_id=20",
+      "host": "tlx.3lift.net"
+    },
+    {
+      "uri": "http://tlx.3lift.net/s2sn/auction?supplier_id=20",
+      "target": "/s2sn/auction?supplier_id=20",
+      "host": "tlx.3lift.net"
+    },
+    {
+      "uri": "http://undertone-test/bid",
+      "target": "/bid",
+      "host": "undertone-test"
+    },
+    {
+      "uri": "http://url.seedtag.com",
+      "target": "/",
+      "host": "url.seedtag.com"
+    },
+    {
+      "uri": "http://us.clydo.io/rh7cnxlpvbjqU5ff",
+      "target": "/rh7cnxlpvbjqU5ff",
+      "host": "us.clydo.io"
+    },
+    {
+      "uri": "http://us.example.com/?k=accountId&name=placementId",
+      "target": "/?k=accountId&name=placementId",
+      "host": "us.example.com"
+    },
+    {
+      "uri": "http://us.example.com/bid?uqhash=hash",
+      "target": "/bid?uqhash=hash",
+      "host": "us.example.com"
+    },
+    {
+      "uri": "http://whatever.url",
+      "target": "/",
+      "host": "whatever.url"
+    },
+    {
+      "uri": "http://whatever.url?eids=%5B%7B%22source%22%3A%22adserver.org%22%2C%22uids%22%3A%5B%7B%22id%22%3A%22111111111111%22%2C%22atype%22%3A1%2C%22ext%22%3A%7B+%22rtiPartner%22%3A+%22TDID%22+%7D%7D%5D%7D%2C%7B%22source%22%3A%22pubcid.org%22%2C%22uids%22%3A%5B%7B%22id%22%3A%2222222222-2222-2222-2222-222222222222%22%2C%22atype%22%3A1%7D%5D%7D%5D&format=prebidServer&tzo=0",
+      "target": "/?eids=%5B%7B%22source%22%3A%22adserver.org%22%2C%22uids%22%3A%5B%7B%22id%22%3A%22111111111111%22%2C%22atype%22%3A1%2C%22ext%22%3A%7B+%22rtiPartner%22%3A+%22TDID%22+%7D%7D%5D%7D%2C%7B%22source%22%3A%22pubcid.org%22%2C%22uids%22%3A%5B%7B%22id%22%3A%2222222222-2222-2222-2222-222222222222%22%2C%22atype%22%3A1%7D%5D%7D%5D&format=prebidServer&tzo=0",
+      "host": "whatever.url"
+    },
+    {
+      "uri": "http://whatever.url?format=prebidServer&noCookies=true&tzo=0",
+      "target": "/?format=prebidServer&noCookies=true&tzo=0",
+      "host": "whatever.url"
+    },
+    {
+      "uri": "http://whatever.url?format=prebidServer&tzo=0",
+      "target": "/?format=prebidServer&tzo=0",
+      "host": "whatever.url"
+    },
+    {
+      "uri": "http://www.biddertest.com",
+      "target": "/",
+      "host": "www.biddertest.com"
+    },
+    {
+      "uri": "http://xsp.lijit.com/json/rtb/prebid/server",
+      "target": "/json/rtb/prebid/server",
+      "host": "xsp.lijit.com"
+    },
+    {
+      "uri": "http://zz123456ps.pub.tappx.com/rtb/?tappxkey=pub-12345-android-9876&type_cnn=prebid&v=1.6",
+      "target": "/rtb/?tappxkey=pub-12345-android-9876&type_cnn=prebid&v=1.6",
+      "host": "zz123456ps.pub.tappx.com"
+    },
+    {
+      "uri": "https://REGION.mediago.io/api/bid?tn=f9f2b1ef23fe2759c2cad0953029a94b",
+      "target": "/api/bid?tn=f9f2b1ef23fe2759c2cad0953029a94b",
+      "host": "REGION.mediago.io"
+    },
+    {
+      "uri": "https://aadx.tradplusad.com/fake-account-id/pserver",
+      "target": "/fake-account-id/pserver",
+      "host": "aadx.tradplusad.com"
+    },
+    {
+      "uri": "https://acd.op.hicloud.com/ppsadx/getResult",
+      "target": "/ppsadx/getResult",
+      "host": "acd.op.hicloud.com"
+    },
+    {
+      "uri": "https://ad.yieldlab.net/testing/12345,67890?content=json&ids=ylid%3A34a53e82-0dc3-4815-8b7e-b725ede0361c&lat=51.499488&lon=-0.128953&pvid=true&sizes=12345%3A728x90%2C67890%3A300x250&t=key1%3Dvalue1%26key2%3Dvalue2&ts=testing&yl_rtb_connectiontype=6&yl_rtb_devicetype=4&yl_rtb_ifa=hello-ads",
+      "target": "/testing/12345,67890?content=json&ids=ylid%3A34a53e82-0dc3-4815-8b7e-b725ede0361c&lat=51.499488&lon=-0.128953&pvid=true&sizes=12345%3A728x90%2C67890%3A300x250&t=key1%3Dvalue1%26key2%3Dvalue2&ts=testing&yl_rtb_connectiontype=6&yl_rtb_devicetype=4&yl_rtb_ifa=hello-ads",
+      "host": "ad.yieldlab.net"
+    },
+    {
+      "uri": "https://ad.yieldlab.net/testing/12345?content=json&dsadatatopub=2&dsapubrender=0&dsarequired=3&dsatransparency=platform1domain.com~1~~SSP2domain.com~1_2&gdpr=1&gdpr_consent=BOlOrv1OlOr2EAAABADECg-AAAApp7v______9______9uz_Ov_v_f__33e8__9v_l_7_-___u_-3zd4u_1vf99yfm1-7etr3tp_87ues2_Xur__79__3z3_9phP78k89r7337Ew-v02&ids=ylid%3A34a53e82-0dc3-4815-8b7e-b725ede0361c&lat=51.499488&lon=-0.128953&pvid=true&sizes=12345%3A728x90&t=key1%3Dvalue1%26key2%3Dvalue2&ts=testing&yl_rtb_connectiontype=6&yl_rtb_devicetype=4&yl_rtb_ifa=hello-ads",
+      "target": "/testing/12345?content=json&dsadatatopub=2&dsapubrender=0&dsarequired=3&dsatransparency=platform1domain.com~1~~SSP2domain.com~1_2&gdpr=1&gdpr_consent=BOlOrv1OlOr2EAAABADECg-AAAApp7v______9______9uz_Ov_v_f__33e8__9v_l_7_-___u_-3zd4u_1vf99yfm1-7etr3tp_87ues2_Xur__79__3z3_9phP78k89r7337Ew-v02&ids=ylid%3A34a53e82-0dc3-4815-8b7e-b725ede0361c&lat=51.499488&lon=-0.128953&pvid=true&sizes=12345%3A728x90&t=key1%3Dvalue1%26key2%3Dvalue2&ts=testing&yl_rtb_connectiontype=6&yl_rtb_devicetype=4&yl_rtb_ifa=hello-ads",
+      "host": "ad.yieldlab.net"
+    },
+    {
+      "uri": "https://ad.yieldlab.net/testing/12345?content=json&gdpr=1&gdpr_consent=BOlOrv1OlOr2EAAABADECg-AAAApp7v______9______9uz_Ov_v_f__33e8__9v_l_7_-___u_-3zd4u_1vf99yfm1-7etr3tp_87ues2_Xur__79__3z3_9phP78k89r7337Ew-v02&ids=ylid%3A34a53e82-0dc3-4815-8b7e-b725ede0361c&lat=51.499488&lon=-0.128953&pvid=true&sizes=12345%3A728x90&t=key1%3Dvalue1%26key2%3Dvalue2&ts=testing&yl_rtb_connectiontype=6&yl_rtb_devicetype=4&yl_rtb_ifa=hello-ads",
+      "target": "/testing/12345?content=json&gdpr=1&gdpr_consent=BOlOrv1OlOr2EAAABADECg-AAAApp7v______9______9uz_Ov_v_f__33e8__9v_l_7_-___u_-3zd4u_1vf99yfm1-7etr3tp_87ues2_Xur__79__3z3_9phP78k89r7337Ew-v02&ids=ylid%3A34a53e82-0dc3-4815-8b7e-b725ede0361c&lat=51.499488&lon=-0.128953&pvid=true&sizes=12345%3A728x90&t=key1%3Dvalue1%26key2%3Dvalue2&ts=testing&yl_rtb_connectiontype=6&yl_rtb_devicetype=4&yl_rtb_ifa=hello-ads",
+      "host": "ad.yieldlab.net"
+    },
+    {
+      "uri": "https://ad.yieldlab.net/testing/12345?content=json&ids=ylid%3A34a53e82-0dc3-4815-8b7e-b725ede0361c&lat=51.499488&lon=-0.128953&pubappname=Awesome+App&pubbundlename=com.app.awesome&pvid=true&t=key1%3Dvalue1%26key2%3Dvalue2&ts=testing&yl_rtb_connectiontype=6&yl_rtb_devicetype=4&yl_rtb_ifa=hello-ads",
+      "target": "/testing/12345?content=json&ids=ylid%3A34a53e82-0dc3-4815-8b7e-b725ede0361c&lat=51.499488&lon=-0.128953&pubappname=Awesome+App&pubbundlename=com.app.awesome&pvid=true&t=key1%3Dvalue1%26key2%3Dvalue2&ts=testing&yl_rtb_connectiontype=6&yl_rtb_devicetype=4&yl_rtb_ifa=hello-ads",
+      "host": "ad.yieldlab.net"
+    },
+    {
+      "uri": "https://ad.yieldlab.net/testing/12345?content=json&ids=ylid%3A34a53e82-0dc3-4815-8b7e-b725ede0361c&lat=51.499488&lon=-0.128953&pvid=true&schain=1.0%2C1%21exchange1.com%2C1234%2521abcd%2C1%2Cbid%2Brequest%2526%25251%2Cpublisher%2Cpublisher.com%2C%257B%2522freeFormData%2522%253A1%252C%2522nested%2522%253A%257B%2522isTrue%2522%253Atrue%257D%257D&sizes=12345%3A728x90&t=key1%3Dvalue1%26key2%3Dvalue2&ts=testing&yl_rtb_connectiontype=6&yl_rtb_devicetype=4&yl_rtb_ifa=hello-ads",
+      "target": "/testing/12345?content=json&ids=ylid%3A34a53e82-0dc3-4815-8b7e-b725ede0361c&lat=51.499488&lon=-0.128953&pvid=true&schain=1.0%2C1%21exchange1.com%2C1234%2521abcd%2C1%2Cbid%2Brequest%2526%25251%2Cpublisher%2Cpublisher.com%2C%257B%2522freeFormData%2522%253A1%252C%2522nested%2522%253A%257B%2522isTrue%2522%253Atrue%257D%257D&sizes=12345%3A728x90&t=key1%3Dvalue1%26key2%3Dvalue2&ts=testing&yl_rtb_connectiontype=6&yl_rtb_devicetype=4&yl_rtb_ifa=hello-ads",
+      "host": "ad.yieldlab.net"
+    },
+    {
+      "uri": "https://ad.yieldlab.net/testing/12345?content=json&ids=ylid%3A34a53e82-0dc3-4815-8b7e-b725ede0361c&lat=51.499488&lon=-0.128953&pvid=true&schain=1.0%2C1%21exchange1.com%2C1234%2C1%2C%2C%2C%2C%2522text%2522%21exchange2.com%2Cabcd%2C1%2C%2C%2C%2C1&sizes=12345%3A728x90&t=key1%3Dvalue1%26key2%3Dvalue2&ts=testing&yl_rtb_connectiontype=6&yl_rtb_devicetype=4&yl_rtb_ifa=hello-ads",
+      "target": "/testing/12345?content=json&ids=ylid%3A34a53e82-0dc3-4815-8b7e-b725ede0361c&lat=51.499488&lon=-0.128953&pvid=true&schain=1.0%2C1%21exchange1.com%2C1234%2C1%2C%2C%2C%2C%2522text%2522%21exchange2.com%2Cabcd%2C1%2C%2C%2C%2C1&sizes=12345%3A728x90&t=key1%3Dvalue1%26key2%3Dvalue2&ts=testing&yl_rtb_connectiontype=6&yl_rtb_devicetype=4&yl_rtb_ifa=hello-ads",
+      "host": "ad.yieldlab.net"
+    },
+    {
+      "uri": "https://ad.yieldlab.net/testing/12345?content=json&ids=ylid%3A34a53e82-0dc3-4815-8b7e-b725ede0361c&lat=51.499488&lon=-0.128953&pvid=true&sizes=12345%3A728x90%7C800x300&t=key1%3Dvalue1%26key2%3Dvalue2&ts=testing&yl_rtb_connectiontype=6&yl_rtb_devicetype=4&yl_rtb_ifa=hello-ads",
+      "target": "/testing/12345?content=json&ids=ylid%3A34a53e82-0dc3-4815-8b7e-b725ede0361c&lat=51.499488&lon=-0.128953&pvid=true&sizes=12345%3A728x90%7C800x300&t=key1%3Dvalue1%26key2%3Dvalue2&ts=testing&yl_rtb_connectiontype=6&yl_rtb_devicetype=4&yl_rtb_ifa=hello-ads",
+      "host": "ad.yieldlab.net"
+    },
+    {
+      "uri": "https://ad.yieldlab.net/testing/12345?content=json&ids=ylid%3A34a53e82-0dc3-4815-8b7e-b725ede0361c&lat=51.499488&lon=-0.128953&pvid=true&t=key1%3Dvalue1%26key2%3Dvalue2&ts=testing&yl_rtb_connectiontype=6&yl_rtb_devicetype=4&yl_rtb_ifa=hello-ads",
+      "target": "/testing/12345?content=json&ids=ylid%3A34a53e82-0dc3-4815-8b7e-b725ede0361c&lat=51.499488&lon=-0.128953&pvid=true&t=key1%3Dvalue1%26key2%3Dvalue2&ts=testing&yl_rtb_connectiontype=6&yl_rtb_devicetype=4&yl_rtb_ifa=hello-ads",
+      "host": "ad.yieldlab.net"
+    },
+    {
+      "uri": "https://adapter.endpoint/?macro=101",
+      "target": "/?macro=101",
+      "host": "adapter.endpoint"
+    },
+    {
+      "uri": "https://adapter.endpoint/?macro=2020",
+      "target": "/?macro=2020",
+      "host": "adapter.endpoint"
+    },
+    {
+      "uri": "https://adapter.endpoint/?macro=5050",
+      "target": "/?macro=5050",
+      "host": "adapter.endpoint"
+    },
+    {
+      "uri": "https://ads.exchange.odeeo.io/v1/bidrequest/prebids2s",
+      "target": "/v1/bidrequest/prebids2s",
+      "host": "ads.exchange.odeeo.io"
+    },
+    {
+      "uri": "https://ads.tremorhub.com/ad/rtb/prebid",
+      "target": "/ad/rtb/prebid",
+      "host": "ads.tremorhub.com"
+    },
+    {
+      "uri": "https://ads.yieldmo.com/openrtb2",
+      "target": "/openrtb2",
+      "host": "ads.yieldmo.com"
+    },
+    {
+      "uri": "https://adx-dra.op.hicloud.com/ppsadx/getResult",
+      "target": "/ppsadx/getResult",
+      "host": "adx-dra.op.hicloud.com"
+    },
+    {
+      "uri": "https://adx-dre.op.hicloud.com/ppsadx/getResult",
+      "target": "/ppsadx/getResult",
+      "host": "adx-dre.op.hicloud.com"
+    },
+    {
+      "uri": "https://adx-drru.op.hicloud.com/ppsadx/getResult",
+      "target": "/ppsadx/getResult",
+      "host": "adx-drru.op.hicloud.com"
+    },
+    {
+      "uri": "https://adx.adform.net/adx/openrtb",
+      "target": "/adx/openrtb",
+      "host": "adx.adform.net"
+    },
+    {
+      "uri": "https://adx.tradplusad.com/fake-account-id/pserver",
+      "target": "/fake-account-id/pserver",
+      "host": "adx.tradplusad.com"
+    },
+    {
+      "uri": "https://an.epom.com/ortb",
+      "target": "/ortb",
+      "host": "an.epom.com"
+    },
+    {
+      "uri": "https://an.facebook.com/placementbid.ortb",
+      "target": "/placementbid.ortb",
+      "host": "an.facebook.com"
+    },
+    {
+      "uri": "https://apac.xyz.test.com?sid=testSid&token=testToken",
+      "target": "/?sid=testSid&token=testToken",
+      "host": "apac.xyz.test.com"
+    },
+    {
+      "uri": "https://apex.go.sonobi.com/prebid?partnerid=71d9d3d8af",
+      "target": "/prebid?partnerid=71d9d3d8af",
+      "host": "apex.go.sonobi.com"
+    },
+    {
+      "uri": "https://api-eu.bidmachine.io/auction/rtb/v2/1",
+      "target": "/auction/rtb/v2/1",
+      "host": "api-eu.bidmachine.io"
+    },
+    {
+      "uri": "https://api-us.bidmachine.io/auction/rtb/v2/1",
+      "target": "/auction/rtb/v2/1",
+      "host": "api-us.bidmachine.io"
+    },
+    {
+      "uri": "https://api.imotech.tech/Ad/GetAdOut?sspid=sspid",
+      "target": "/Ad/GetAdOut?sspid=sspid",
+      "host": "api.imotech.tech"
+    },
+    {
+      "uri": "https://api.proxistore.com/v3/rtb/openrtb",
+      "target": "/v3/rtb/openrtb",
+      "host": "api.proxistore.com"
+    },
+    {
+      "uri": "https://api.w.inmobi.com/showad/openrtb/bidder/prebid",
+      "target": "/showad/openrtb/bidder/prebid",
+      "host": "api.w.inmobi.com"
+    },
+    {
+      "uri": "https://axonix.com/supply/prebid-server/supply-test",
+      "target": "/supply/prebid-server/supply-test",
+      "host": "axonix.com"
+    },
+    {
+      "uri": "https://backend.pubrise.ai/pserver",
+      "target": "/pserver",
+      "host": "backend.pubrise.ai"
+    },
+    {
+      "uri": "https://bid-service.dev.essrtb.com/bid/prebid_server_rtb_call",
+      "target": "/bid/prebid_server_rtb_call",
+      "host": "bid-service.dev.essrtb.com"
+    },
+    {
+      "uri": "https://bid-test.sparteo.com/s2s-auction?network_id=networkId&app_domain=dev.sparteo.com&bundle=com.sparteo.app",
+      "target": "/s2s-auction?network_id=networkId&app_domain=dev.sparteo.com&bundle=com.sparteo.app",
+      "host": "bid-test.sparteo.com"
+    },
+    {
+      "uri": "https://bid-test.sparteo.com/s2s-auction?network_id=networkId&site_domain=dev.sparteo.com",
+      "target": "/s2s-auction?network_id=networkId&site_domain=dev.sparteo.com",
+      "host": "bid-test.sparteo.com"
+    },
+    {
+      "uri": "https://bid.adview.com/agent/thirdAdxService/accountid01",
+      "target": "/agent/thirdAdxService/accountid01",
+      "host": "bid.adview.com"
+    },
+    {
+      "uri": "https://bid.showheroes.com/api/v1/bid",
+      "target": "/api/v1/bid",
+      "host": "bid.showheroes.com"
+    },
+    {
+      "uri": "https://bid.smartclip.net/bid/1005",
+      "target": "/bid/1005",
+      "host": "bid.smartclip.net"
+    },
+    {
+      "uri": "https://bid.staging.avct.cloud/ortb/bid/5e722ee9bd6df11d063a8013",
+      "target": "/ortb/bid/5e722ee9bd6df11d063a8013",
+      "host": "bid.staging.avct.cloud"
+    },
+    {
+      "uri": "https://bid.videostep.com/bid/ServerBidAdContent",
+      "target": "/bid/ServerBidAdContent",
+      "host": "bid.videostep.com"
+    },
+    {
+      "uri": "https://bid.zmaticoo.com/prebid/bid",
+      "target": "/prebid/bid",
+      "host": "bid.zmaticoo.com"
+    },
+    {
+      "uri": "https://bid2.videostep.com/bid/ServerBidAdContent",
+      "target": "/bid/ServerBidAdContent",
+      "host": "bid2.videostep.com"
+    },
+    {
+      "uri": "https://bid5.videostep.com/bid/ServerBidAdContent",
+      "target": "/bid/ServerBidAdContent",
+      "host": "bid5.videostep.com"
+    },
+    {
+      "uri": "https://bidder.connectad.io/API?src=pbs",
+      "target": "/API?src=pbs",
+      "host": "bidder.connectad.io"
+    },
+    {
+      "uri": "https://bidder.east2.pubwise.io/bid/pubwisedirect",
+      "target": "/bid/pubwisedirect",
+      "host": "bidder.east2.pubwise.io"
+    },
+    {
+      "uri": "https://bidder2.adquery.io/prebid/bid",
+      "target": "/prebid/bid",
+      "host": "bidder2.adquery.io"
+    },
+    {
+      "uri": "https://bidders-us.adelphic.net/rtb/v25/viant-prebid-server/bidder",
+      "target": "/rtb/v25/viant-prebid-server/bidder",
+      "host": "bidders-us.adelphic.net"
+    },
+    {
+      "uri": "https://bidding2.test.io/pserver",
+      "target": "/pserver",
+      "host": "bidding2.test.io"
+    },
+    {
+      "uri": "https://bids.concert.io/bids/openrtb",
+      "target": "/bids/openrtb",
+      "host": "bids.concert.io"
+    },
+    {
+      "uri": "https://bs-metadsp.yandex.ru/prebid/111?imp-id=1&ssp-cur=USD&ssp-id=10500&target-ref=http%3A%2F%2Fwww.example.com",
+      "target": "/prebid/111?imp-id=1&ssp-cur=USD&ssp-id=10500&target-ref=http%3A%2F%2Fwww.example.com",
+      "host": "bs-metadsp.yandex.ru"
+    },
+    {
+      "uri": "https://bs-metadsp.yandex.ru/prebid/123?imp-id=456&ssp-id=10500&target-ref=http%3A%2F%2Fexample.com",
+      "target": "/prebid/123?imp-id=456&ssp-id=10500&target-ref=http%3A%2F%2Fexample.com",
+      "host": "bs-metadsp.yandex.ru"
+    },
+    {
+      "uri": "https://bs-metadsp.yandex.ru/prebid/134001?imp-id=1&ssp-cur=USD&ssp-id=10500&target-ref=http%3A%2F%2Fwww.example.com",
+      "target": "/prebid/134001?imp-id=1&ssp-cur=USD&ssp-id=10500&target-ref=http%3A%2F%2Fwww.example.com",
+      "host": "bs-metadsp.yandex.ru"
+    },
+    {
+      "uri": "https://bs-metadsp.yandex.ru/prebid/134001?imp-id=1&ssp-cur=USD&ssp-id=10500&target-ref=http%3A%2F%2Fwww.example.com%2Fpath%3Fquery%3Dvalue",
+      "target": "/prebid/134001?imp-id=1&ssp-cur=USD&ssp-id=10500&target-ref=http%3A%2F%2Fwww.example.com%2Fpath%3Fquery%3Dvalue",
+      "host": "bs-metadsp.yandex.ru"
+    },
+    {
+      "uri": "https://bs-metadsp.yandex.ru/prebid/222?imp-id=2&ssp-cur=USD&ssp-id=10500&target-ref=http%3A%2F%2Fwww.example.com",
+      "target": "/prebid/222?imp-id=2&ssp-cur=USD&ssp-id=10500&target-ref=http%3A%2F%2Fwww.example.com",
+      "host": "bs-metadsp.yandex.ru"
+    },
+    {
+      "uri": "https://bs-metadsp.yandex.ru/prebid/222?imp-id=4&ssp-cur=USD&ssp-id=10500&target-ref=http%3A%2F%2Fwww.example.com",
+      "target": "/prebid/222?imp-id=4&ssp-cur=USD&ssp-id=10500&target-ref=http%3A%2F%2Fwww.example.com",
+      "host": "bs-metadsp.yandex.ru"
+    },
+    {
+      "uri": "https://cwi.re/prebid/adapter-endpoint",
+      "target": "/prebid/adapter-endpoint",
+      "host": "cwi.re"
+    },
+    {
+      "uri": "https://d.socdm.com/adsv/v1?adapterver=1.0.3&advertising_id=advertising_id&appname=adgneration&currency=JPY&hb=true&id=58278&posall=SSPLOC&sdkname=prebidserver&sdktype=1&sizes=300x250&t=json3&tp=http%3A%2F%2Fexample.com%2Ftest.html",
+      "target": "/adsv/v1?adapterver=1.0.3&advertising_id=advertising_id&appname=adgneration&currency=JPY&hb=true&id=58278&posall=SSPLOC&sdkname=prebidserver&sdktype=1&sizes=300x250&t=json3&tp=http%3A%2F%2Fexample.com%2Ftest.html",
+      "host": "d.socdm.com"
+    },
+    {
+      "uri": "https://d.socdm.com/adsv/v1?adapterver=1.0.3&appbundle=adgneration&currency=JPY&hb=true&id=58278&idfa=idfa&posall=SSPLOC&sdkname=prebidserver&sdktype=2&sizes=300x250&t=json3&tp=http%3A%2F%2Fexample.com%2Ftest.html",
+      "target": "/adsv/v1?adapterver=1.0.3&appbundle=adgneration&currency=JPY&hb=true&id=58278&idfa=idfa&posall=SSPLOC&sdkname=prebidserver&sdktype=2&sizes=300x250&t=json3&tp=http%3A%2F%2Fexample.com%2Ftest.html",
+      "host": "d.socdm.com"
+    },
+    {
+      "uri": "https://d.socdm.com/adsv/v1?adapterver=1.0.3&currency=JPY&hb=true&id=58278&posall=SSPLOC&sdkname=prebidserver&sdktype=0&sizes=300x250&t=json3&tp=http%3A%2F%2Fexample.com%2Ftest.html",
+      "target": "/adsv/v1?adapterver=1.0.3&currency=JPY&hb=true&id=58278&posall=SSPLOC&sdkname=prebidserver&sdktype=0&sizes=300x250&t=json3&tp=http%3A%2F%2Fexample.com%2Ftest.html",
+      "host": "d.socdm.com"
+    },
+    {
+      "uri": "https://d.socdm.com/adsv/v1?adapterver=1.0.3&currency=JPY&hb=true&id=58278&posall=SSPLOC&sdkname=prebidserver&sdktype=0&sizes=300x250&t=json3&tp=http%3A%2F%2Fexample.com%2Ftest.html&transactionid=transactionid",
+      "target": "/adsv/v1?adapterver=1.0.3&currency=JPY&hb=true&id=58278&posall=SSPLOC&sdkname=prebidserver&sdktype=0&sizes=300x250&t=json3&tp=http%3A%2F%2Fexample.com%2Ftest.html&transactionid=transactionid",
+      "host": "d.socdm.com"
+    },
+    {
+      "uri": "https://delivery.clickonometrics.pl/ortb/prebid/bid",
+      "target": "/ortb/prebid/bid",
+      "host": "delivery.clickonometrics.pl"
+    },
+    {
+      "uri": "https://demo.foo.bar/",
+      "target": "/",
+      "host": "demo.foo.bar"
+    },
+    {
+      "uri": "https://direct.adsrvr.org/bid/bidder/pub_abc",
+      "target": "/bid/bidder/pub_abc",
+      "host": "direct.adsrvr.org"
+    },
+    {
+      "uri": "https://direct.adsrvr.org/bid/bidder/publisher_xyz",
+      "target": "/bid/bidder/publisher_xyz",
+      "host": "direct.adsrvr.org"
+    },
+    {
+      "uri": "https://direct.adsrvr.org/bid/bidder/ttd",
+      "target": "/bid/bidder/ttd",
+      "host": "direct.adsrvr.org"
+    },
+    {
+      "uri": "https://ds.uncn.jp",
+      "target": "/",
+      "host": "ds.uncn.jp"
+    },
+    {
+      "uri": "https://dsp.adotmob.com/headerbidding/bidrequest",
+      "target": "/headerbidding/bidrequest",
+      "host": "dsp.adotmob.com"
+    },
+    {
+      "uri": "https://dsp.adotmob.com/headerbidding/hubvisor/bidrequest",
+      "target": "/headerbidding/hubvisor/bidrequest",
+      "host": "dsp.adotmob.com"
+    },
+    {
+      "uri": "https://dsp.readpeak.com/header/prebid",
+      "target": "/header/prebid",
+      "host": "dsp.readpeak.com"
+    },
+    {
+      "uri": "https://eu-adx-admixer.rtb-stack.com/pbs?ssp=200&endpoint=500&client=a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+      "target": "/pbs?ssp=200&endpoint=500&client=a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+      "host": "eu-adx-admixer.rtb-stack.com"
+    },
+    {
+      "uri": "https://eu-adx-admixer.rtb-stack.com/pbs?ssp=400&endpoint=300&client=client-b",
+      "target": "/pbs?ssp=400&endpoint=300&client=client-b",
+      "host": "eu-adx-admixer.rtb-stack.com"
+    },
+    {
+      "uri": "https://eu.a.viddea.com/edge_direct",
+      "target": "/edge_direct",
+      "host": "eu.a.viddea.com"
+    },
+    {
+      "uri": "https://euc.xyz.test.com?sid=testSid&token=testToken",
+      "target": "/?sid=testSid&token=testToken",
+      "host": "euc.xyz.test.com"
+    },
+    {
+      "uri": "https://example-dc.com/?exchange=ex",
+      "target": "/?exchange=ex",
+      "host": "example-dc.com"
+    },
+    {
+      "uri": "https://example.aax.media/rtb/prebid?src=http%3A%2F%2Flocalhost%3A8080%2Fextrnal_url",
+      "target": "/rtb/prebid?src=http%3A%2F%2Flocalhost%3A8080%2Fextrnal_url",
+      "host": "example.aax.media"
+    },
+    {
+      "uri": "https://example.com",
+      "target": "/",
+      "host": "example.com"
+    },
+    {
+      "uri": "https://example.com/1/prebid/requests",
+      "target": "/1/prebid/requests",
+      "host": "example.com"
+    },
+    {
+      "uri": "https://example.com/api/pbs",
+      "target": "/api/pbs",
+      "host": "example.com"
+    },
+    {
+      "uri": "https://example.com/auction?id=1&auth=tokenExample1",
+      "target": "/auction?id=1&auth=tokenExample1",
+      "host": "example.com"
+    },
+    {
+      "uri": "https://example.com/auction?id=18&auth=fb71a1ec1d4c0b7e3f0a21703fece91d8b65be44",
+      "target": "/auction?id=18&auth=fb71a1ec1d4c0b7e3f0a21703fece91d8b65be44",
+      "host": "example.com"
+    },
+    {
+      "uri": "https://example.com/auction?id=2&auth=tokenExample2",
+      "target": "/auction?id=2&auth=tokenExample2",
+      "host": "example.com"
+    },
+    {
+      "uri": "https://example.com/auction?id=3&auth=qwerty",
+      "target": "/auction?id=3&auth=qwerty",
+      "host": "example.com"
+    },
+    {
+      "uri": "https://example.com/auction?id=520&auth=tokenExample1",
+      "target": "/auction?id=520&auth=tokenExample1",
+      "host": "example.com"
+    },
+    {
+      "uri": "https://example.com/prebid-server/386276e072",
+      "target": "/prebid-server/386276e072",
+      "host": "example.com"
+    },
+    {
+      "uri": "https://example.com/rtb/bid",
+      "target": "/rtb/bid",
+      "host": "example.com"
+    },
+    {
+      "uri": "https://example.com/rtb/v2/bid?publisher_id=386276e072",
+      "target": "/rtb/v2/bid?publisher_id=386276e072",
+      "host": "example.com"
+    },
+    {
+      "uri": "https://example.com?pid=test-audio-placement",
+      "target": "/?pid=test-audio-placement",
+      "host": "example.com"
+    },
+    {
+      "uri": "https://example.com?pid=test-no-bids-placement",
+      "target": "/?pid=test-no-bids-placement",
+      "host": "example.com"
+    },
+    {
+      "uri": "https://example.com?pid=test-placement",
+      "target": "/?pid=test-placement",
+      "host": "example.com"
+    },
+    {
+      "uri": "https://example.com?pid=test-video-placement",
+      "target": "/?pid=test-video-placement",
+      "host": "example.com"
+    },
+    {
+      "uri": "https://example.com?pid=test-zero-price-placement",
+      "target": "/?pid=test-zero-price-placement",
+      "host": "example.com"
+    },
+    {
+      "uri": "https://example.endpoint/",
+      "target": "/",
+      "host": "example.endpoint"
+    },
+    {
+      "uri": "https://example.endpoint/999",
+      "target": "/999",
+      "host": "example.endpoint"
+    },
+    {
+      "uri": "https://example.media.net/rtb/prebid?src=http%3A%2F%2Flocalhost%3A8080%2Fextrnal_url",
+      "target": "/rtb/prebid?src=http%3A%2F%2Flocalhost%3A8080%2Fextrnal_url",
+      "host": "example.media.net"
+    },
+    {
+      "uri": "https://example.trustedstack.com/rtb/prebid?src=http%3A%2F%2Fhosturl.com",
+      "target": "/rtb/prebid?src=http%3A%2F%2Fhosturl.com",
+      "host": "example.trustedstack.com"
+    },
+    {
+      "uri": "https://exchange.alkimi-onboarding.com/server/bid",
+      "target": "/server/bid",
+      "host": "exchange.alkimi-onboarding.com"
+    },
+    {
+      "uri": "https://fake.test.io/pserver",
+      "target": "/pserver",
+      "host": "fake.test.io"
+    },
+    {
+      "uri": "https://fakeHost.relevant-digital.com/openrtb2/auction",
+      "target": "/openrtb2/auction",
+      "host": "fakeHost.relevant-digital.com"
+    },
+    {
+      "uri": "https://fakezero.aidemsrv.com/ortb/v2.6/bid/request?billing_id=1234",
+      "target": "/ortb/v2.6/bid/request?billing_id=1234",
+      "host": "fakezero.aidemsrv.com"
+    },
+    {
+      "uri": "https://ferio.bid/bidder",
+      "target": "/bidder",
+      "host": "ferio.bid"
+    },
+    {
+      "uri": "https://foo.io/?src=prebid",
+      "target": "/?src=prebid",
+      "host": "foo.io"
+    },
+    {
+      "uri": "https://fran.frvr.com/api/v1/openrtb",
+      "target": "/api/v1/openrtb",
+      "host": "fran.frvr.com"
+    },
+    {
+      "uri": "https://g.ezoic.net/ezoic/prebid/adapter/ortb",
+      "target": "/ezoic/prebid/adapter/ortb",
+      "host": "g.ezoic.net"
+    },
+    {
+      "uri": "https://g2.gumgum.com/providers/prbds2s/bid",
+      "target": "/providers/prbds2s/bid",
+      "host": "g2.gumgum.com"
+    },
+    {
+      "uri": "https://gat.tpmn.io/ortb/pbs_bidder",
+      "target": "/ortb/pbs_bidder",
+      "host": "gat.tpmn.io"
+    },
+    {
+      "uri": "https://gold.bach/prebid/adapter-endpoint",
+      "target": "/prebid/adapter-endpoint",
+      "host": "gold.bach"
+    },
+    {
+      "uri": "https://gw-sin-bid.yeahtargeter.com/prebid/bid",
+      "target": "/prebid/bid",
+      "host": "gw-sin-bid.yeahtargeter.com"
+    },
+    {
+      "uri": "https://hb.emxdgt.com?t=1000&ts=2060541160",
+      "target": "/?t=1000&ts=2060541160",
+      "host": "hb.emxdgt.com"
+    },
+    {
+      "uri": "https://hb.gammaplatform.com/adx/request/?id=sample-id&zid=sample-zone-id&wid=sample-web-id&bidid=test-imp-id&hb=pbmobile",
+      "target": "/adx/request/?id=sample-id&zid=sample-zone-id&wid=sample-web-id&bidid=test-imp-id&hb=pbmobile",
+      "host": "hb.gammaplatform.com"
+    },
+    {
+      "uri": "https://hb.gammaplatform.com/adx/request/?id=sample-id&zid=sample-zone-id&wid=sample-web-id&bidid=test-imp-id&hb=pbmobile&device_ip=test-device-ip&device_model=test-device-model&device_os=test-device-os&device_ua=test-device-ua&device_ifa=test-device-ifa&app_id=test-app-id&app_bundle=test-app-bundle&app_name=test-app-name",
+      "target": "/adx/request/?id=sample-id&zid=sample-zone-id&wid=sample-web-id&bidid=test-imp-id&hb=pbmobile&device_ip=test-device-ip&device_model=test-device-model&device_os=test-device-os&device_ua=test-device-ua&device_ifa=test-device-ifa&app_id=test-app-id&app_bundle=test-app-bundle&app_name=test-app-name",
+      "host": "hb.gammaplatform.com"
+    },
+    {
+      "uri": "https://hb.gammaplatform.com/adx/request/?id=sample-id&zid=sample-zone-id&wid=sample-web-id&bidid=test-imp-video-id&hb=pbmobile",
+      "target": "/adx/request/?id=sample-id&zid=sample-zone-id&wid=sample-web-id&bidid=test-imp-video-id&hb=pbmobile",
+      "host": "hb.gammaplatform.com"
+    },
+    {
+      "uri": "https://hb.jixie.io/v2/hbsvrpost",
+      "target": "/v2/hbsvrpost",
+      "host": "hb.jixie.io"
+    },
+    {
+      "uri": "https://hb.metaxads.com/prebid?sid=10000000&adunit=100000&source=prebid-server",
+      "target": "/prebid?sid=10000000&adunit=100000&source=prebid-server",
+      "host": "hb.metaxads.com"
+    },
+    {
+      "uri": "https://hbopenbid.pubmatic.com/translator?source=prebid-server",
+      "target": "/translator?source=prebid-server",
+      "host": "hbopenbid.pubmatic.com"
+    },
+    {
+      "uri": "https://ib.beintoo.com",
+      "target": "/",
+      "host": "ib.beintoo.com"
+    },
+    {
+      "uri": "https://insticator-app.example.com/v1/pbs?publisherId=test-publisher-id",
+      "target": "/v1/pbs?publisherId=test-publisher-id",
+      "host": "insticator-app.example.com"
+    },
+    {
+      "uri": "https://insticator.example.com/v1/pbs?publisherId=test-publisher-id",
+      "target": "/v1/pbs?publisherId=test-publisher-id",
+      "host": "insticator.example.com"
+    },
+    {
+      "uri": "https://ittr.eskimi.com/prebidjs",
+      "target": "/prebidjs",
+      "host": "ittr.eskimi.com"
+    },
+    {
+      "uri": "https://jp.a.viddea.com/edge_direct",
+      "target": "/edge_direct",
+      "host": "jp.a.viddea.com"
+    },
+    {
+      "uri": "https://localhost/adrequest/prebidserver",
+      "target": "/adrequest/prebidserver",
+      "host": "localhost"
+    },
+    {
+      "uri": "https://localhost/bid/4",
+      "target": "/bid/4",
+      "host": "localhost"
+    },
+    {
+      "uri": "https://lockerdome.com/ladbid/prebidserver/openrtb2",
+      "target": "/ladbid/prebidserver/openrtb2",
+      "host": "lockerdome.com"
+    },
+    {
+      "uri": "https://market.foo.bar/",
+      "target": "/",
+      "host": "market.foo.bar"
+    },
+    {
+      "uri": "https://mobile.mng-ads.com/bidrequest/1111111/banner",
+      "target": "/bidrequest/1111111/banner",
+      "host": "mobile.mng-ads.com"
+    },
+    {
+      "uri": "https://mobile.mng-ads.com/bidrequest/1111111/video",
+      "target": "/bidrequest/1111111/video",
+      "host": "mobile.mng-ads.com"
+    },
+    {
+      "uri": "https://mock.videobyte.com?nid=exampleNetworkId&pid=examplePublisherId&placementId=examplePlacementId&source=pbs",
+      "target": "/?nid=exampleNetworkId&pid=examplePublisherId&placementId=examplePlacementId&source=pbs",
+      "host": "mock.videobyte.com"
+    },
+    {
+      "uri": "https://mock.videobyte.com?nid=exampleNetworkId-1&pid=examplePublisherId-1&placementId=examplePlacementId-1&source=pbs",
+      "target": "/?nid=exampleNetworkId-1&pid=examplePublisherId-1&placementId=examplePlacementId-1&source=pbs",
+      "host": "mock.videobyte.com"
+    },
+    {
+      "uri": "https://mock.videobyte.com?nid=exampleNetworkId-2&pid=examplePublisherId-2&placementId=examplePlacementId-2&source=pbs",
+      "target": "/?nid=exampleNetworkId-2&pid=examplePublisherId-2&placementId=examplePlacementId-2&source=pbs",
+      "host": "mock.videobyte.com"
+    },
+    {
+      "uri": "https://mock.videobyte.com?pid=examplePublisherId&source=pbs",
+      "target": "/?pid=examplePublisherId&source=pbs",
+      "host": "mock.videobyte.com"
+    },
+    {
+      "uri": "https://mockup.seeding-alliance.de/?ssp=123",
+      "target": "/?ssp=123",
+      "host": "mockup.seeding-alliance.de"
+    },
+    {
+      "uri": "https://mockup.seeding-alliance.de/?ssp=pbs",
+      "target": "/?ssp=pbs",
+      "host": "mockup.seeding-alliance.de"
+    },
+    {
+      "uri": "https://mp-ams.4dex.io/pbserver",
+      "target": "/pbserver",
+      "host": "mp-ams.4dex.io"
+    },
+    {
+      "uri": "https://orbidder-test",
+      "target": "/",
+      "host": "orbidder-test"
+    },
+    {
+      "uri": "https://ortb.richaudience.com/ortb/?bidder=pbs",
+      "target": "/ortb/?bidder=pbs",
+      "host": "ortb.richaudience.com"
+    },
+    {
+      "uri": "https://pangle.io/api/get_ads",
+      "target": "/api/get_ads",
+      "host": "pangle.io"
+    },
+    {
+      "uri": "https://panxo-sys.com/openrtb/2.6/bid?key=abc%26source%3Devil+123&source=prebid-server",
+      "target": "/openrtb/2.6/bid?key=abc%26source%3Devil+123&source=prebid-server",
+      "host": "panxo-sys.com"
+    },
+    {
+      "uri": "https://panxo-sys.com/openrtb/2.6/bid?key=abc123def456&source=prebid-server",
+      "target": "/openrtb/2.6/bid?key=abc123def456&source=prebid-server",
+      "host": "panxo-sys.com"
+    },
+    {
+      "uri": "https://panxo-sys.com/openrtb/2.6/bid?key=different999key&source=prebid-server",
+      "target": "/openrtb/2.6/bid?key=different999key&source=prebid-server",
+      "host": "panxo-sys.com"
+    },
+    {
+      "uri": "https://panxo-sys.com/openrtb/2.6/bid?key=property-1&source=prebid-server",
+      "target": "/openrtb/2.6/bid?key=property-1&source=prebid-server",
+      "host": "panxo-sys.com"
+    },
+    {
+      "uri": "https://panxo-sys.com/openrtb/2.6/bid?key=property-ctv&source=prebid-server",
+      "target": "/openrtb/2.6/bid?key=property-ctv&source=prebid-server",
+      "host": "panxo-sys.com"
+    },
+    {
+      "uri": "https://panxo-sys.com/openrtb/2.6/bid?key=property-eu-1&source=prebid-server",
+      "target": "/openrtb/2.6/bid?key=property-eu-1&source=prebid-server",
+      "host": "panxo-sys.com"
+    },
+    {
+      "uri": "https://pbs-front.mediasquare.fr/msq_prebid",
+      "target": "/msq_prebid",
+      "host": "pbs-front.mediasquare.fr"
+    },
+    {
+      "uri": "https://pbs.elementaltv.io/processHeaderBid/unit1",
+      "target": "/processHeaderBid/unit1",
+      "host": "pbs.elementaltv.io"
+    },
+    {
+      "uri": "https://pbs.elementaltv.io/processHeaderBid/unit2",
+      "target": "/processHeaderBid/unit2",
+      "host": "pbs.elementaltv.io"
+    },
+    {
+      "uri": "https://pbs.elementaltv.io/processHeaderBid/unit3",
+      "target": "/processHeaderBid/unit3",
+      "host": "pbs.elementaltv.io"
+    },
+    {
+      "uri": "https://pbs.nextmillmedia.com/openrtb2/auction",
+      "target": "/openrtb2/auction",
+      "host": "pbs.nextmillmedia.com"
+    },
+    {
+      "uri": "https://pbs.openwebmp.com/pbs?publisher_id=777",
+      "target": "/pbs?publisher_id=777",
+      "host": "pbs.openwebmp.com"
+    },
+    {
+      "uri": "https://pbs.optidigital.com/bidder/openrtb2",
+      "target": "/bidder/openrtb2",
+      "host": "pbs.optidigital.com"
+    },
+    {
+      "uri": "https://pbs.prebid-ownadx.com/bidder/bid/2/11?token=126151698247",
+      "target": "/bidder/bid/2/11?token=126151698247",
+      "host": "pbs.prebid-ownadx.com"
+    },
+    {
+      "uri": "https://pbs2.adksrv.com/rtbpub?account=101",
+      "target": "/rtbpub?account=101",
+      "host": "pbs2.adksrv.com"
+    },
+    {
+      "uri": "https://pbs2.adksrv.com/rtbpub?account=102",
+      "target": "/rtbpub?account=102",
+      "host": "pbs2.adksrv.com"
+    },
+    {
+      "uri": "https://prd-prebid-bidder.adrino.io/openrtb/bid",
+      "target": "/openrtb/bid",
+      "host": "prd-prebid-bidder.adrino.io"
+    },
+    {
+      "uri": "https://prebid-global.smartadserver.com/ortb",
+      "target": "/ortb",
+      "host": "prebid-global.smartadserver.com"
+    },
+    {
+      "uri": "https://prebid-server-aws.dianomi.com/openrtb2/auction",
+      "target": "/openrtb2/auction",
+      "host": "prebid-server-aws.dianomi.com"
+    },
+    {
+      "uri": "https://prebid-server.ioadx.com/bidRequest/?partnerId=d9e56d418c4825d466ee96c7a31bf1da6b62fa04",
+      "target": "/bidRequest/?partnerId=d9e56d418c4825d466ee96c7a31bf1da6b62fa04",
+      "host": "prebid-server.ioadx.com"
+    },
+    {
+      "uri": "https://prebid.deepintent.com/prebid",
+      "target": "/prebid",
+      "host": "prebid.deepintent.com"
+    },
+    {
+      "uri": "https://prebid.ecdrsvc.com/pbs",
+      "target": "/pbs",
+      "host": "prebid.ecdrsvc.com"
+    },
+    {
+      "uri": "https://prebid.example.com/pbserver?partnerName=partnertest&seat=9Q20EdGxzgWdfPYShScl&token=zpl5iB5Ugpe9ofVTzi44WzfjZZYq1yer",
+      "target": "/pbserver?partnerName=partnertest&seat=9Q20EdGxzgWdfPYShScl&token=zpl5iB5Ugpe9ofVTzi44WzfjZZYq1yer",
+      "host": "prebid.example.com"
+    },
+    {
+      "uri": "https://prebid.mgid.com/prebid/123",
+      "target": "/prebid/123",
+      "host": "prebid.mgid.com"
+    },
+    {
+      "uri": "https://prebid.receptivity.io/v1/pbs/BUYERUID123/bid",
+      "target": "/v1/pbs/BUYERUID123/bid",
+      "host": "prebid.receptivity.io"
+    },
+    {
+      "uri": "https://prebid.receptivity.io/v1/pbs/DEMO123/bid",
+      "target": "/v1/pbs/DEMO123/bid",
+      "host": "prebid.receptivity.io"
+    },
+    {
+      "uri": "https://prebid.receptivity.io/v1/pbs/EMPTY123/bid",
+      "target": "/v1/pbs/EMPTY123/bid",
+      "host": "prebid.receptivity.io"
+    },
+    {
+      "uri": "https://prebid.receptivity.io/v1/pbs/INVALID123/bid",
+      "target": "/v1/pbs/INVALID123/bid",
+      "host": "prebid.receptivity.io"
+    },
+    {
+      "uri": "https://prebid.receptivity.io/v1/pbs/NOMEDIA123/bid",
+      "target": "/v1/pbs/NOMEDIA123/bid",
+      "host": "prebid.receptivity.io"
+    },
+    {
+      "uri": "https://prebid.receptivity.io/v1/pbs/TRACE123/bid",
+      "target": "/v1/pbs/TRACE123/bid",
+      "host": "prebid.receptivity.io"
+    },
+    {
+      "uri": "https://prebid/bidder",
+      "target": "/bidder",
+      "host": "prebid"
+    },
+    {
+      "uri": "https://psrv.teads.tv/prebid-server/bid-request",
+      "target": "/prebid-server/bid-request",
+      "host": "psrv.teads.tv"
+    },
+    {
+      "uri": "https://qa.beachrtb.com/bid.json?exchange_id=videoAppId1",
+      "target": "/bid.json?exchange_id=videoAppId1",
+      "host": "qa.beachrtb.com"
+    },
+    {
+      "uri": "https://qa.beachrtb.com/bid.json?exchange_id=videoAppId1&prebidserver",
+      "target": "/bid.json?exchange_id=videoAppId1&prebidserver",
+      "host": "qa.beachrtb.com"
+    },
+    {
+      "uri": "https://qa.beachrtb.com/prebid_display",
+      "target": "/prebid_display",
+      "host": "qa.beachrtb.com"
+    },
+    {
+      "uri": "https://rtb-eu.superedge.co.jp/bid?sk=f9f2b1ef23fe2759c2cad0953029a94b",
+      "target": "/bid?sk=f9f2b1ef23fe2759c2cad0953029a94b",
+      "host": "rtb-eu.superedge.co.jp"
+    },
+    {
+      "uri": "https://rtb-sg.superedge.co.jp/bid?sk=f9f2b1ef23fe2759c2cad0953029a94b",
+      "target": "/bid?sk=f9f2b1ef23fe2759c2cad0953029a94b",
+      "host": "rtb-sg.superedge.co.jp"
+    },
+    {
+      "uri": "https://rtb-us.superedge.co.jp/bid?sk=f9f2b1ef23fe2759c2cad0953029a94b",
+      "target": "/bid?sk=f9f2b1ef23fe2759c2cad0953029a94b",
+      "host": "rtb-us.superedge.co.jp"
+    },
+    {
+      "uri": "https://rtb.beardfleet.com/auction/bid?pid=publisher123&tid=placement123",
+      "target": "/auction/bid?pid=publisher123&tid=placement123",
+      "host": "rtb.beardfleet.com"
+    },
+    {
+      "uri": "https://rtb.conative.network/openrtb2/auction",
+      "target": "/openrtb2/auction",
+      "host": "rtb.conative.network"
+    },
+    {
+      "uri": "https://rtb.gamoshi.io/r/1707/bidr?bidder=prebid-server",
+      "target": "/r/1707/bidr?bidder=prebid-server",
+      "host": "rtb.gamoshi.io"
+    },
+    {
+      "uri": "https://s2s.prebid.bid-eu.ads.aps.amazon-adsystem.com/e/pb/bid",
+      "target": "/e/pb/bid",
+      "host": "s2s.prebid.bid-eu.ads.aps.amazon-adsystem.com"
+    },
+    {
+      "uri": "https://s2s.prebid.bid-na.ads.aps.amazon-adsystem.com/e/pb/bid",
+      "target": "/e/pb/bid",
+      "host": "s2s.prebid.bid-na.ads.aps.amazon-adsystem.com"
+    },
+    {
+      "uri": "https://s2s.prebid.bid-na.ads.aps.amazon-adsystem.com/e/pb/bid?amzn_debug_mode=1",
+      "target": "/e/pb/bid?amzn_debug_mode=1",
+      "host": "s2s.prebid.bid-na.ads.aps.amazon-adsystem.com"
+    },
+    {
+      "uri": "https://server.playdigo.com/pserver",
+      "target": "/pserver",
+      "host": "server.playdigo.com"
+    },
+    {
+      "uri": "https://sg-adx-admixer.rtb-stack.com/pbs?ssp=88&endpoint=777&client=f9e8d7c6-b5a4-3210-fedc-ba0987654321",
+      "target": "/pbs?ssp=88&endpoint=777&client=f9e8d7c6-b5a4-3210-fedc-ba0987654321",
+      "host": "sg-adx-admixer.rtb-stack.com"
+    },
+    {
+      "uri": "https://snt1.afront.io/?rsd=sourceId&sk=accountId",
+      "target": "/?rsd=sourceId&sk=accountId",
+      "host": "snt1.afront.io"
+    },
+    {
+      "uri": "https://sonic.impactify.media/bidder",
+      "target": "/bidder",
+      "host": "sonic.impactify.media"
+    },
+    {
+      "uri": "https://srv.aso1.net/pbs/bidder?zid=12345",
+      "target": "/pbs/bidder?zid=12345",
+      "host": "srv.aso1.net"
+    },
+    {
+      "uri": "https://srv.aso1.net/pbs/bidder?zid=123456",
+      "target": "/pbs/bidder?zid=123456",
+      "host": "srv.aso1.net"
+    },
+    {
+      "uri": "https://srv.aso1.net/pbs/bidder?zid=123457",
+      "target": "/pbs/bidder?zid=123457",
+      "host": "srv.aso1.net"
+    },
+    {
+      "uri": "https://srv.scalibur.io/adserver/ortb?type=prebid-server",
+      "target": "/adserver/ortb?type=prebid-server",
+      "host": "srv.scalibur.io"
+    },
+    {
+      "uri": "https://ssb.smartadserver.com/api/bid?callerId=5",
+      "target": "/api/bid?callerId=5",
+      "host": "ssb.smartadserver.com"
+    },
+    {
+      "uri": "https://ssp-bidder.criteo.com/openrtb/pbs/auction/request?profile=230",
+      "target": "/openrtb/pbs/auction/request?profile=230",
+      "host": "ssp-bidder.criteo.com"
+    },
+    {
+      "uri": "https://ssp.disqus.com/bid/prebid-server?sid=0",
+      "target": "/bid/prebid-server?sid=0",
+      "host": "ssp.disqus.com"
+    },
+    {
+      "uri": "https://ssp.disqus.com/bid/prebid-server?sid=11",
+      "target": "/bid/prebid-server?sid=11",
+      "host": "ssp.disqus.com"
+    },
+    {
+      "uri": "https://ssp.theadx.com/request",
+      "target": "/request",
+      "host": "ssp.theadx.com"
+    },
+    {
+      "uri": "https://test.endpoint.com/api/rtbs/adx/rtb?x-net-id=1111&x-net-token=66668888",
+      "target": "/api/rtbs/adx/rtb?x-net-id=1111&x-net-token=66668888",
+      "host": "test.endpoint.com"
+    },
+    {
+      "uri": "https://test.endpoint.com/api/rtbs/adx/rtb?x-net-id=2222&x-net-token=22223333",
+      "target": "/api/rtbs/adx/rtb?x-net-id=2222&x-net-token=22223333",
+      "host": "test.endpoint.com"
+    },
+    {
+      "uri": "https://test.example.com/bid",
+      "target": "/bid",
+      "host": "test.example.com"
+    },
+    {
+      "uri": "https://test.infy.tv/pbs/openrtb",
+      "target": "/pbs/openrtb",
+      "host": "test.infy.tv"
+    },
+    {
+      "uri": "https://test.lemmaurl.com/lemma/servad?src=prebid&pid=1&aid=1",
+      "target": "/lemma/servad?src=prebid&pid=1&aid=1",
+      "host": "test.lemmaurl.com"
+    },
+    {
+      "uri": "https://test.localhost.com",
+      "target": "/",
+      "host": "test.localhost.com"
+    },
+    {
+      "uri": "https://test.localhost.com?company_id=9876543",
+      "target": "/?company_id=9876543",
+      "host": "test.localhost.com"
+    },
+    {
+      "uri": "https://test.localhost.com?company_id=test",
+      "target": "/?company_id=test",
+      "host": "test.localhost.com"
+    },
+    {
+      "uri": "https://test.prebid.bluesea?pubid=test-pubid&token=test-pub-token",
+      "target": "/?pubid=test-pubid&token=test-pub-token",
+      "host": "test.prebid.bluesea"
+    },
+    {
+      "uri": "https://testfreewheel.com",
+      "target": "/",
+      "host": "testfreewheel.com"
+    },
+    {
+      "uri": "https://testjsonsample.com",
+      "target": "/",
+      "host": "testjsonsample.com"
+    },
+    {
+      "uri": "https://trends.revcontent.com/rtb?userId=1234&apiKey=abcd",
+      "target": "/rtb?userId=1234&apiKey=abcd",
+      "host": "trends.revcontent.com"
+    },
+    {
+      "uri": "https://us-adx-admixer.rtb-stack.com/pbs?ssp=145&endpoint=309&client=c4527281-5aa5-4c8e-bc53-a80bb3f99470",
+      "target": "/pbs?ssp=145&endpoint=309&client=c4527281-5aa5-4c8e-bc53-a80bb3f99470",
+      "host": "us-adx-admixer.rtb-stack.com"
+    },
+    {
+      "uri": "https://us-adx-admixer.rtb-stack.com/pbs?ssp=20&endpoint=10&client=client-good",
+      "target": "/pbs?ssp=20&endpoint=10&client=client-good",
+      "host": "us-adx-admixer.rtb-stack.com"
+    },
+    {
+      "uri": "https://us-adx-admixer.rtb-stack.com/pbs?ssp=200&endpoint=100&client=client-a",
+      "target": "/pbs?ssp=200&endpoint=100&client=client-a",
+      "host": "us-adx-admixer.rtb-stack.com"
+    },
+    {
+      "uri": "https://us-adx-admixer.rtb-stack.com/pbs?ssp=600&endpoint=500&client=client-x",
+      "target": "/pbs?ssp=600&endpoint=500&client=client-x",
+      "host": "us-adx-admixer.rtb-stack.com"
+    },
+    {
+      "uri": "https://us-adx.tradplusad.com/fake-account-id/pserver",
+      "target": "/fake-account-id/pserver",
+      "host": "us-adx.tradplusad.com"
+    },
+    {
+      "uri": "https://us-e.floxis.tech/pbs?seat=pub-seat-1",
+      "target": "/pbs?seat=pub-seat-1",
+      "host": "us-e.floxis.tech"
+    },
+    {
+      "uri": "https://us-e.floxis.tech/pbs?seat=pub-seat-apac",
+      "target": "/pbs?seat=pub-seat-apac",
+      "host": "us-e.floxis.tech"
+    },
+    {
+      "uri": "https://us-e.floxis.tech/pbs?seat=pub-seat-eu",
+      "target": "/pbs?seat=pub-seat-eu",
+      "host": "us-e.floxis.tech"
+    },
+    {
+      "uri": "https://us-e.floxis.tech/pbs?seat=seat-eu",
+      "target": "/pbs?seat=seat-eu",
+      "host": "us-e.floxis.tech"
+    },
+    {
+      "uri": "https://us-e.floxis.tech/pbs?seat=seat-other",
+      "target": "/pbs?seat=seat-other",
+      "host": "us-e.floxis.tech"
+    },
+    {
+      "uri": "https://us-east-1.loyal.app/pserver",
+      "target": "/pserver",
+      "host": "us-east-1.loyal.app"
+    },
+    {
+      "uri": "https://us.a.viddea.com/edge_direct",
+      "target": "/edge_direct",
+      "host": "us.a.viddea.com"
+    },
+    {
+      "uri": "https://us.matterfull.co/?uqhash=LUN2gcJFHRwysZVTm8p3",
+      "target": "/?uqhash=LUN2gcJFHRwysZVTm8p3",
+      "host": "us.matterfull.co"
+    },
+    {
+      "uri": "https://us.matterfull.co/?uqhash=pub-abc-12345678901234",
+      "target": "/?uqhash=pub-abc-12345678901234",
+      "host": "us.matterfull.co"
+    },
+    {
+      "uri": "https://us.matterfull.co/?uqhash=pub-def-12345678901234",
+      "target": "/?uqhash=pub-def-12345678901234",
+      "host": "us.matterfull.co"
+    },
+    {
+      "uri": "https://us1.rapidtag.net/api/v1/bid?sid=tunnl_x_g",
+      "target": "/api/v1/bid?sid=tunnl_x_g",
+      "host": "us1.rapidtag.net"
+    },
+    {
+      "uri": "https://use.xyz.test.com?sid=testSid&token=testToken",
+      "target": "/?sid=testSid&token=testToken",
+      "host": "use.xyz.test.com"
+    },
+    {
+      "uri": "https://vungle.io/bit/t",
+      "target": "/bit/t",
+      "host": "vungle.io"
+    },
+    {
+      "uri": "https://xyz.test.com?sid=testSid&token=testToken",
+      "target": "/?sid=testSid&token=testToken",
+      "host": "xyz.test.com"
+    },
+    {
+      "uri": "uri?tk_xint=pbs-test-tracker",
+      "target": "uri?tk_xint=pbs-test-tracker",
+      "host": ""
+    }
+  ],
+  "endpoints": [
+    {
+      "bidder": "152media",
+      "template": "http://pbs.adksrv.com/hb?zone={{.ZoneID}}",
+      "uri": "http://pbs.adksrv.com/hb?zone=anyZoneID",
+      "target": "/hb?zone=anyZoneID",
+      "host": "pbs.adksrv.com"
+    },
+    {
+      "bidder": "1accord",
+      "template": "http://fast.nexx360.io/prebid-server",
+      "uri": "http://fast.nexx360.io/prebid-server",
+      "target": "/prebid-server",
+      "host": "fast.nexx360.io"
+    },
+    {
+      "bidder": "33across",
+      "template": "https://ssc.33across.com/api/v1/s2s",
+      "uri": "https://ssc.33across.com/api/v1/s2s",
+      "target": "/api/v1/s2s",
+      "host": "ssc.33across.com"
+    },
+    {
+      "bidder": "360playvid",
+      "template": "https://ssp.360playvid.com/pserver",
+      "uri": "https://ssp.360playvid.com/pserver",
+      "target": "/pserver",
+      "host": "ssp.360playvid.com"
+    },
+    {
+      "bidder": "9dotsmedialtd",
+      "template": "http://ads-dot-pbs.ortb.net/openrtb/{{.PublisherID}}",
+      "uri": "http://ads-dot-pbs.ortb.net/openrtb/anyPublisherID",
+      "target": "/openrtb/anyPublisherID",
+      "host": "ads-dot-pbs.ortb.net"
+    },
+    {
+      "bidder": "aax",
+      "template": "https://prebid.aaxads.com/rtb/pb/aax-prebid",
+      "uri": "https://prebid.aaxads.com/rtb/pb/aax-prebid",
+      "target": "/rtb/pb/aax-prebid",
+      "host": "prebid.aaxads.com"
+    },
+    {
+      "bidder": "aceex",
+      "template": "http://bl-us.aceex.io/?uqhash={{.AccountID}}",
+      "uri": "http://bl-us.aceex.io/?uqhash=anyAccountID",
+      "target": "/?uqhash=anyAccountID",
+      "host": "bl-us.aceex.io"
+    },
+    {
+      "bidder": "acuityads",
+      "template": "http://{{.Host}}.admanmedia.com/bid?token={{.AccountID}}",
+      "uri": "http://anyHost.admanmedia.com/bid?token=anyAccountID",
+      "target": "/bid?token=anyAccountID",
+      "host": "anyHost.admanmedia.com"
+    },
+    {
+      "bidder": "adagio",
+      "template": "https://mp-REGION.4dex.io/pbserver",
+      "uri": "https://mp-REGION.4dex.io/pbserver",
+      "target": "/pbserver",
+      "host": "mp-REGION.4dex.io"
+    },
+    {
+      "bidder": "adastra",
+      "template": "https://adastra-prebid.attekmi.co/pbserver/?seat={{.AccountID}}&token={{.SourceId}}",
+      "uri": "https://adastra-prebid.attekmi.co/pbserver/?seat=anyAccountID&token=anySourceID",
+      "target": "/pbserver/?seat=anyAccountID&token=anySourceID",
+      "host": "adastra-prebid.attekmi.co"
+    },
+    {
+      "bidder": "addigi",
+      "template": "https://addigi-prebid.attekmi.co/pbserver/?seat={{.AccountID}}&token={{.SourceId}}",
+      "uri": "https://addigi-prebid.attekmi.co/pbserver/?seat=anyAccountID&token=anySourceID",
+      "target": "/pbserver/?seat=anyAccountID&token=anySourceID",
+      "host": "addigi-prebid.attekmi.co"
+    },
+    {
+      "bidder": "adelement",
+      "template": "https://amp.adelement.com/openrtb2/auction?supply_id={{.SupplyId}}",
+      "uri": "https://amp.adelement.com/openrtb2/auction?supply_id=",
+      "target": "/openrtb2/auction?supply_id=",
+      "host": "amp.adelement.com"
+    },
+    {
+      "bidder": "adf",
+      "template": "https://adx.adform.net/adx/openrtb",
+      "uri": "https://adx.adform.net/adx/openrtb",
+      "target": "/adx/openrtb",
+      "host": "adx.adform.net"
+    },
+    {
+      "bidder": "adform",
+      "template": "https://adx.adform.net/adx/openrtb",
+      "uri": "https://adx.adform.net/adx/openrtb",
+      "target": "/adx/openrtb",
+      "host": "adx.adform.net"
+    },
+    {
+      "bidder": "adgeneration",
+      "template": "https://d.socdm.com/adsv/v1",
+      "uri": "https://d.socdm.com/adsv/v1",
+      "target": "/adsv/v1",
+      "host": "d.socdm.com"
+    },
+    {
+      "bidder": "adhese",
+      "template": "https://ads-{{.AccountID}}.adhese.com/openrtb2",
+      "uri": "https://ads-anyAccountID.adhese.com/openrtb2",
+      "target": "/openrtb2",
+      "host": "ads-anyAccountID.adhese.com"
+    },
+    {
+      "bidder": "adinify",
+      "template": "https://adinify-prebid.attekmi.co/pbserver/?seat={{.AccountID}}&token={{.SourceId}}",
+      "uri": "https://adinify-prebid.attekmi.co/pbserver/?seat=anyAccountID&token=anySourceID",
+      "target": "/pbserver/?seat=anyAccountID&token=anySourceID",
+      "host": "adinify-prebid.attekmi.co"
+    },
+    {
+      "bidder": "adipolo",
+      "template": "http://rtb.adipolo.live?pid={{.SourceId}}&host={{.Host}}&pbs=1",
+      "uri": "http://rtb.adipolo.live?pid=anySourceID&host=anyHost&pbs=1",
+      "target": "/?pid=anySourceID&host=anyHost&pbs=1",
+      "host": "rtb.adipolo.live"
+    },
+    {
+      "bidder": "adkernel",
+      "template": "http://pbs.adksrv.com/hb?zone={{.ZoneID}}",
+      "uri": "http://pbs.adksrv.com/hb?zone=anyZoneID",
+      "target": "/hb?zone=anyZoneID",
+      "host": "pbs.adksrv.com"
+    },
+    {
+      "bidder": "adkernelAdn",
+      "template": "https://pbs2.adksrv.com/rtbpub?account={{.PublisherID}}",
+      "uri": "https://pbs2.adksrv.com/rtbpub?account=anyPublisherID",
+      "target": "/rtbpub?account=anyPublisherID",
+      "host": "pbs2.adksrv.com"
+    },
+    {
+      "bidder": "adklip",
+      "template": "https://srv.adklip.net/pbs/bidder?zid={{.ZoneID}}",
+      "uri": "https://srv.adklip.net/pbs/bidder?zid=anyZoneID",
+      "target": "/pbs/bidder?zid=anyZoneID",
+      "host": "srv.adklip.net"
+    },
+    {
+      "bidder": "adman",
+      "template": "http://pub.admanmedia.com/?c=o&m=ortb",
+      "uri": "http://pub.admanmedia.com/?c=o&m=ortb",
+      "target": "/?c=o&m=ortb",
+      "host": "pub.admanmedia.com"
+    },
+    {
+      "bidder": "admatic",
+      "template": "http://pbs.admatic.com.tr?host={{.Host}}",
+      "uri": "http://pbs.admatic.com.tr?host=anyHost",
+      "target": "/?host=anyHost",
+      "host": "pbs.admatic.com.tr"
+    },
+    {
+      "bidder": "admaticde",
+      "template": "http://pbs.admatic.com.tr?host={{.Host}}",
+      "uri": "http://pbs.admatic.com.tr?host=anyHost",
+      "target": "/?host=anyHost",
+      "host": "pbs.admatic.com.tr"
+    },
+    {
+      "bidder": "admixer",
+      "template": "http://inv-nets.admixer.net/pbs.aspx",
+      "uri": "http://inv-nets.admixer.net/pbs.aspx",
+      "target": "/pbs.aspx",
+      "host": "inv-nets.admixer.net"
+    },
+    {
+      "bidder": "adnimation",
+      "template": "https://exchange.adnimation.com/openrtb/",
+      "uri": "https://exchange.adnimation.com/openrtb/",
+      "target": "/openrtb/",
+      "host": "exchange.adnimation.com"
+    },
+    {
+      "bidder": "adnuntius",
+      "template": "https://ads.adnuntius.delivery/i",
+      "uri": "https://ads.adnuntius.delivery/i",
+      "target": "/i",
+      "host": "ads.adnuntius.delivery"
+    },
+    {
+      "bidder": "adot",
+      "template": "https://dsp.adotmob.com/headerbidding{PUBLISHER_PATH}/bidrequest",
+      "uri": "https://dsp.adotmob.com/headerbidding{PUBLISHER_PATH}/bidrequest",
+      "target": "/headerbidding%7BPUBLISHER_PATH%7D/bidrequest",
+      "host": "dsp.adotmob.com"
+    },
+    {
+      "bidder": "adpone",
+      "template": "http://rtb.adpone.com/bid-request?src=prebid_server",
+      "uri": "http://rtb.adpone.com/bid-request?src=prebid_server",
+      "target": "/bid-request?src=prebid_server",
+      "host": "rtb.adpone.com"
+    },
+    {
+      "bidder": "adport",
+      "template": "https://adport.pbsadverxo.com/auction?id={{.AdUnit}}&auth={{.TokenID}}",
+      "uri": "https://adport.pbsadverxo.com/auction?id=anyAdUnit&auth=",
+      "target": "/auction?id=anyAdUnit&auth=",
+      "host": "adport.pbsadverxo.com"
+    },
+    {
+      "bidder": "adprime",
+      "template": "http://delta.adprime.com/pserver",
+      "uri": "http://delta.adprime.com/pserver",
+      "target": "/pserver",
+      "host": "delta.adprime.com"
+    },
+    {
+      "bidder": "adquery",
+      "template": "https://bidder2.adquery.io/prebid/bid",
+      "uri": "https://bidder2.adquery.io/prebid/bid",
+      "target": "/prebid/bid",
+      "host": "bidder2.adquery.io"
+    },
+    {
+      "bidder": "adrino",
+      "template": "https://prd-prebid-bidder.adrino.io/openrtb/bid",
+      "uri": "https://prd-prebid-bidder.adrino.io/openrtb/bid",
+      "target": "/openrtb/bid",
+      "host": "prd-prebid-bidder.adrino.io"
+    },
+    {
+      "bidder": "adrubi",
+      "template": "http://pbs.admatic.com.tr?host={{.Host}}",
+      "uri": "http://pbs.admatic.com.tr?host=anyHost",
+      "target": "/?host=anyHost",
+      "host": "pbs.admatic.com.tr"
+    },
+    {
+      "bidder": "ads_interactive",
+      "template": "https://bntb.adsinteractive.com/pserver",
+      "uri": "https://bntb.adsinteractive.com/pserver",
+      "target": "/pserver",
+      "host": "bntb.adsinteractive.com"
+    },
+    {
+      "bidder": "adsinteractive",
+      "template": "https://bntb.adsinteractive.com/pserver",
+      "uri": "https://bntb.adsinteractive.com/pserver",
+      "target": "/pserver",
+      "host": "bntb.adsinteractive.com"
+    },
+    {
+      "bidder": "adsmovil",
+      "template": "https://tag-ssp.adsmovil.com/pserver",
+      "uri": "https://tag-ssp.adsmovil.com/pserver",
+      "target": "/pserver",
+      "host": "tag-ssp.adsmovil.com"
+    },
+    {
+      "bidder": "adsyield",
+      "template": "http://ads-pbs.open-adsyield.com/openrtb/{{.PublisherID}}?host={{.Host}}",
+      "uri": "http://ads-pbs.open-adsyield.com/openrtb/anyPublisherID?host=anyHost",
+      "target": "/openrtb/anyPublisherID?host=anyHost",
+      "host": "ads-pbs.open-adsyield.com"
+    },
+    {
+      "bidder": "adt",
+      "template": "http://pbs.admatic.com.tr?host={{.Host}}",
+      "uri": "http://pbs.admatic.com.tr?host=anyHost",
+      "target": "/?host=anyHost",
+      "host": "pbs.admatic.com.tr"
+    },
+    {
+      "bidder": "adtarget",
+      "template": "http://ghb.console.adtarget.com.tr/pbs/ortb",
+      "uri": "http://ghb.console.adtarget.com.tr/pbs/ortb",
+      "target": "/pbs/ortb",
+      "host": "ghb.console.adtarget.com.tr"
+    },
+    {
+      "bidder": "adtelligent",
+      "template": "http://ghb.adtelligent.com/pbs/ortb",
+      "uri": "http://ghb.adtelligent.com/pbs/ortb",
+      "target": "/pbs/ortb",
+      "host": "ghb.adtelligent.com"
+    },
+    {
+      "bidder": "adtg_org",
+      "template": "http://ads-pbs.rtb.adtarget.org/openrtb/{{.PublisherID}}?host={{.Host}}",
+      "uri": "http://ads-pbs.rtb.adtarget.org/openrtb/anyPublisherID?host=anyHost",
+      "target": "/openrtb/anyPublisherID?host=anyHost",
+      "host": "ads-pbs.rtb.adtarget.org"
+    },
+    {
+      "bidder": "adtonos",
+      "template": "https://exchange.adtonos.com/bid/{{.PublisherID}}",
+      "uri": "https://exchange.adtonos.com/bid/anyPublisherID",
+      "target": "/bid/anyPublisherID",
+      "host": "exchange.adtonos.com"
+    },
+    {
+      "bidder": "adtrgtme",
+      "template": "https://z.cdn.adtarget.market/ssp",
+      "uri": "https://z.cdn.adtarget.market/ssp",
+      "target": "/ssp",
+      "host": "z.cdn.adtarget.market"
+    },
+    {
+      "bidder": "aduptech",
+      "template": "https://rtb.d.adup-tech.com/rtb/bid",
+      "uri": "https://rtb.d.adup-tech.com/rtb/bid",
+      "target": "/rtb/bid",
+      "host": "rtb.d.adup-tech.com"
+    },
+    {
+      "bidder": "advangelists",
+      "template": "http://nep.advangelists.com/xp/get?pubid={{.PublisherID}}",
+      "uri": "http://nep.advangelists.com/xp/get?pubid=anyPublisherID",
+      "target": "/xp/get?pubid=anyPublisherID",
+      "host": "nep.advangelists.com"
+    },
+    {
+      "bidder": "adverxo",
+      "template": "https://pbsadverxo.com/auction?id={{.AdUnit}}&auth={{.TokenID}}",
+      "uri": "https://pbsadverxo.com/auction?id=anyAdUnit&auth=",
+      "target": "/auction?id=anyAdUnit&auth=",
+      "host": "pbsadverxo.com"
+    },
+    {
+      "bidder": "adview",
+      "template": "https://bid.adview.com/agent/thirdAdxService/{{.AccountID}}",
+      "uri": "https://bid.adview.com/agent/thirdAdxService/anyAccountID",
+      "target": "/agent/thirdAdxService/anyAccountID",
+      "host": "bid.adview.com"
+    },
+    {
+      "bidder": "adyoulike",
+      "template": "https://hb-ss.omnitagjs.com/broker/bid?partnerId=19340f4f097d16f41f34fc0274981ca4",
+      "uri": "https://hb-ss.omnitagjs.com/broker/bid?partnerId=19340f4f097d16f41f34fc0274981ca4",
+      "target": "/broker/bid?partnerId=19340f4f097d16f41f34fc0274981ca4",
+      "host": "hb-ss.omnitagjs.com"
+    },
+    {
+      "bidder": "afront",
+      "template": "https://snt1.afront.io/?rsd={{.SourceId}}&sk={{.AccountID}}",
+      "uri": "https://snt1.afront.io/?rsd=anySourceID&sk=anyAccountID",
+      "target": "/?rsd=anySourceID&sk=anyAccountID",
+      "host": "snt1.afront.io"
+    },
+    {
+      "bidder": "aidem",
+      "template": "https://zero.aidemsrv.com/ortb/v2.6/bid/request?billing_id={{.PublisherID}}",
+      "uri": "https://zero.aidemsrv.com/ortb/v2.6/bid/request?billing_id=anyPublisherID",
+      "target": "/ortb/v2.6/bid/request?billing_id=anyPublisherID",
+      "host": "zero.aidemsrv.com"
+    },
+    {
+      "bidder": "aja",
+      "template": "https://ad.as.amanad.adtdp.com/v1/bid/4",
+      "uri": "https://ad.as.amanad.adtdp.com/v1/bid/4",
+      "target": "/v1/bid/4",
+      "host": "ad.as.amanad.adtdp.com"
+    },
+    {
+      "bidder": "akcelo",
+      "template": "https://s2s.sportslocalmedia.com/openrtb2/auction",
+      "uri": "https://s2s.sportslocalmedia.com/openrtb2/auction",
+      "target": "/openrtb2/auction",
+      "host": "s2s.sportslocalmedia.com"
+    },
+    {
+      "bidder": "alchemyx",
+      "template": "https://alchemyx.live/auction?id={{.AdUnit}}&auth={{.TokenID}}",
+      "uri": "https://alchemyx.live/auction?id=anyAdUnit&auth=",
+      "target": "/auction?id=anyAdUnit&auth=",
+      "host": "alchemyx.live"
+    },
+    {
+      "bidder": "algorix",
+      "template": "https://{{.Host}}.svr-algorix.com/rtb/sa?sid={{.SourceId}}&token={{.AccountID}}",
+      "uri": "https://anyHost.svr-algorix.com/rtb/sa?sid=anySourceID&token=anyAccountID",
+      "target": "/rtb/sa?sid=anySourceID&token=anyAccountID",
+      "host": "anyHost.svr-algorix.com"
+    },
+    {
+      "bidder": "alkimi",
+      "template": "https://exchange.alkimi-onboarding.com/server/bid",
+      "uri": "https://exchange.alkimi-onboarding.com/server/bid",
+      "target": "/server/bid",
+      "host": "exchange.alkimi-onboarding.com"
+    },
+    {
+      "bidder": "alliance_gravity",
+      "template": "https://pbs.production.agrvt.com/openrtb2/auction",
+      "uri": "https://pbs.production.agrvt.com/openrtb2/auction",
+      "target": "/openrtb2/auction",
+      "host": "pbs.production.agrvt.com"
+    },
+    {
+      "bidder": "altstar",
+      "template": "http://ads-pbs.ads-altstarmedia.com/openrtb/{{.PublisherID}}?host={{.Host}}",
+      "uri": "http://ads-pbs.ads-altstarmedia.com/openrtb/anyPublisherID?host=anyHost",
+      "target": "/openrtb/anyPublisherID?host=anyHost",
+      "host": "ads-pbs.ads-altstarmedia.com"
+    },
+    {
+      "bidder": "amcom",
+      "template": "https://amcom-prebid.attekmi.co/pbserver/?seat={{.AccountID}}&token={{.SourceId}}",
+      "uri": "https://amcom-prebid.attekmi.co/pbserver/?seat=anyAccountID&token=anySourceID",
+      "target": "/pbserver/?seat=anyAccountID&token=anySourceID",
+      "host": "amcom-prebid.attekmi.co"
+    },
+    {
+      "bidder": "amx",
+      "template": "http://pbs.amxrtb.com/auction/openrtb",
+      "uri": "http://pbs.amxrtb.com/auction/openrtb",
+      "target": "/auction/openrtb",
+      "host": "pbs.amxrtb.com"
+    },
+    {
+      "bidder": "anzuDSP",
+      "template": "https://rtb.anzu-rtb.live/?pid={{.SourceId}}&host={{.Host}}&pbs=1",
+      "uri": "https://rtb.anzu-rtb.live/?pid=anySourceID&host=anyHost&pbs=1",
+      "target": "/?pid=anySourceID&host=anyHost&pbs=1",
+      "host": "rtb.anzu-rtb.live"
+    },
+    {
+      "bidder": "anzuExchange",
+      "template": "http://ads-pbs.marketplace-anzu.io/openrtb/{{.PublisherID}}?host={{.Host}}",
+      "uri": "http://ads-pbs.marketplace-anzu.io/openrtb/anyPublisherID?host=anyHost",
+      "target": "/openrtb/anyPublisherID?host=anyHost",
+      "host": "ads-pbs.marketplace-anzu.io"
+    },
+    {
+      "bidder": "anzuSSP",
+      "template": "http://endpoint.anzumarketplace.com/pserver",
+      "uri": "http://endpoint.anzumarketplace.com/pserver",
+      "target": "/pserver",
+      "host": "endpoint.anzumarketplace.com"
+    },
+    {
+      "bidder": "apacdex",
+      "template": "http://useast.quantumdex.io/auction/pbs",
+      "uri": "http://useast.quantumdex.io/auction/pbs",
+      "target": "/auction/pbs",
+      "host": "useast.quantumdex.io"
+    },
+    {
+      "bidder": "apester",
+      "template": "https://bidder.apester.com/openrtb/",
+      "uri": "https://bidder.apester.com/openrtb/",
+      "target": "/openrtb/",
+      "host": "bidder.apester.com"
+    },
+    {
+      "bidder": "appMonstaMedia",
+      "template": "https://ssp-us.appmonsta.ai/pserver",
+      "uri": "https://ssp-us.appmonsta.ai/pserver",
+      "target": "/pserver",
+      "host": "ssp-us.appmonsta.ai"
+    },
+    {
+      "bidder": "appStockSSP",
+      "template": "https://#{REGION}#.al-ad.com/pserver",
+      "uri": "https://#{REGION}#.al-ad.com/pserver",
+      "target": "/",
+      "host": ""
+    },
+    {
+      "bidder": "appnexus",
+      "template": "http://ib.adnxs.com/openrtb2",
+      "uri": "http://ib.adnxs.com/openrtb2",
+      "target": "/openrtb2",
+      "host": "ib.adnxs.com"
+    },
+    {
+      "bidder": "appstock",
+      "template": "http://ads-pbs.pre.vr-tb.com/openrtb/{{.PublisherID}}?host={{.Host}}",
+      "uri": "http://ads-pbs.pre.vr-tb.com/openrtb/anyPublisherID?host=anyHost",
+      "target": "/openrtb/anyPublisherID?host=anyHost",
+      "host": "ads-pbs.pre.vr-tb.com"
+    },
+    {
+      "bidder": "appush",
+      "template": "http://hb.appush.com/pserver",
+      "uri": "http://hb.appush.com/pserver",
+      "target": "/pserver",
+      "host": "hb.appush.com"
+    },
+    {
+      "bidder": "aps",
+      "template": "https://s2s.prebid.bid-{{.Region}}.ads.aps.amazon-adsystem.com/e/pb/bid",
+      "uri": "https://s2s.prebid.bid-anyRegion.ads.aps.amazon-adsystem.com/e/pb/bid",
+      "target": "/e/pb/bid",
+      "host": "s2s.prebid.bid-anyRegion.ads.aps.amazon-adsystem.com"
+    },
+    {
+      "bidder": "artechnology",
+      "template": "https://artechnology-prebid.attekmi.co/pbserver/?seat={{.AccountID}}&token={{.SourceId}}",
+      "uri": "https://artechnology-prebid.attekmi.co/pbserver/?seat=anyAccountID&token=anySourceID",
+      "target": "/pbserver/?seat=anyAccountID&token=anySourceID",
+      "host": "artechnology-prebid.attekmi.co"
+    },
+    {
+      "bidder": "aso",
+      "template": "https://srv.aso1.net/pbs/bidder?zid={{.ZoneID}}",
+      "uri": "https://srv.aso1.net/pbs/bidder?zid=anyZoneID",
+      "target": "/pbs/bidder?zid=anyZoneID",
+      "host": "srv.aso1.net"
+    },
+    {
+      "bidder": "audienceNetwork",
+      "template": "https://an.facebook.com/placementbid.ortb",
+      "uri": "https://an.facebook.com/placementbid.ortb",
+      "target": "/placementbid.ortb",
+      "host": "an.facebook.com"
+    },
+    {
+      "bidder": "automatad",
+      "template": "https://s2s.atmtd.com",
+      "uri": "https://s2s.atmtd.com",
+      "target": "/",
+      "host": "s2s.atmtd.com"
+    },
+    {
+      "bidder": "axis",
+      "template": "http://prebid.axis-marketplace.com/pbserver",
+      "uri": "http://prebid.axis-marketplace.com/pbserver",
+      "target": "/pbserver",
+      "host": "prebid.axis-marketplace.com"
+    },
+    {
+      "bidder": "axonix",
+      "template": "https://openrtb-us-east-1.axonix.com/supply/prebid-server/{{.AccountID}}",
+      "uri": "https://openrtb-us-east-1.axonix.com/supply/prebid-server/anyAccountID",
+      "target": "/supply/prebid-server/anyAccountID",
+      "host": "openrtb-us-east-1.axonix.com"
+    },
+    {
+      "bidder": "balancex",
+      "template": "http://ads-pbs.ssp.balance-x.com/openrtb/{{.PublisherID}}?host={{.Host}}",
+      "uri": "http://ads-pbs.ssp.balance-x.com/openrtb/anyPublisherID?host=anyHost",
+      "target": "/openrtb/anyPublisherID?host=anyHost",
+      "host": "ads-pbs.ssp.balance-x.com"
+    },
+    {
+      "bidder": "bcmint",
+      "template": "https://srv.datacygnal.io/pbs/bidder?zid={{.ZoneID}}",
+      "uri": "https://srv.datacygnal.io/pbs/bidder?zid=anyZoneID",
+      "target": "/pbs/bidder?zid=anyZoneID",
+      "host": "srv.datacygnal.io"
+    },
+    {
+      "bidder": "beachfront",
+      "template": "https://display.bfmio.com/prebid_display",
+      "uri": "https://display.bfmio.com/prebid_display",
+      "target": "/prebid_display",
+      "host": "display.bfmio.com"
+    },
+    {
+      "bidder": "beintoo",
+      "template": "https://ib.beintoo.com/um",
+      "uri": "https://ib.beintoo.com/um",
+      "target": "/um",
+      "host": "ib.beintoo.com"
+    },
+    {
+      "bidder": "bematterfull",
+      "template": "http://prebid-srv.mtflll-system.live/?pid={{.SourceId}}&host={{.Host}}",
+      "uri": "http://prebid-srv.mtflll-system.live/?pid=anySourceID&host=anyHost",
+      "target": "/?pid=anySourceID&host=anyHost",
+      "host": "prebid-srv.mtflll-system.live"
+    },
+    {
+      "bidder": "beop",
+      "template": "https://hb.collectiveaudience.co/rtb/bid",
+      "uri": "https://hb.collectiveaudience.co/rtb/bid",
+      "target": "/rtb/bid",
+      "host": "hb.collectiveaudience.co"
+    },
+    {
+      "bidder": "between",
+      "template": "http://{{.Host}}.betweendigital.com/openrtb_bid?sspId={{.PublisherID}}",
+      "uri": "http://anyHost.betweendigital.com/openrtb_bid?sspId=anyPublisherID",
+      "target": "/openrtb_bid?sspId=anyPublisherID",
+      "host": "anyHost.betweendigital.com"
+    },
+    {
+      "bidder": "beyondmedia",
+      "template": "http://backend.andbeyond.media/pserver",
+      "uri": "http://backend.andbeyond.media/pserver",
+      "target": "/pserver",
+      "host": "backend.andbeyond.media"
+    },
+    {
+      "bidder": "bidfuse",
+      "template": "https://bn.bidfuse.com/pserver",
+      "uri": "https://bn.bidfuse.com/pserver",
+      "target": "/pserver",
+      "host": "bn.bidfuse.com"
+    },
+    {
+      "bidder": "bidgency",
+      "template": "https://srv.bidgx.com/pbs/bidder?zid={{.ZoneID}}",
+      "uri": "https://srv.bidgx.com/pbs/bidder?zid=anyZoneID",
+      "target": "/pbs/bidder?zid=anyZoneID",
+      "host": "srv.bidgx.com"
+    },
+    {
+      "bidder": "bidmachine",
+      "template": "https://{{.Host}}.bidmachine.io",
+      "uri": "https://anyHost.bidmachine.io",
+      "target": "/",
+      "host": "anyHost.bidmachine.io"
+    },
+    {
+      "bidder": "bidmatic",
+      "template": "http://adapter.bidmatic.io/pbs/ortb",
+      "uri": "http://adapter.bidmatic.io/pbs/ortb",
+      "target": "/pbs/ortb",
+      "host": "adapter.bidmatic.io"
+    },
+    {
+      "bidder": "bidmyadz",
+      "template": "http://endpoint.bidmyadz.com/c0f68227d14ed938c6c49f3967cbe9bc",
+      "uri": "http://endpoint.bidmyadz.com/c0f68227d14ed938c6c49f3967cbe9bc",
+      "target": "/c0f68227d14ed938c6c49f3967cbe9bc",
+      "host": "endpoint.bidmyadz.com"
+    },
+    {
+      "bidder": "bidscube",
+      "template": "http://supply.bidscube.com/?c=o&m=rtb",
+      "uri": "http://supply.bidscube.com/?c=o&m=rtb",
+      "target": "/?c=o&m=rtb",
+      "host": "supply.bidscube.com"
+    },
+    {
+      "bidder": "bidsmind",
+      "template": "https://bidsmind.pbsadverxo.com/auction?id={{.AdUnit}}&auth={{.TokenID}}",
+      "uri": "https://bidsmind.pbsadverxo.com/auction?id=anyAdUnit&auth=",
+      "target": "/auction?id=anyAdUnit&auth=",
+      "host": "bidsmind.pbsadverxo.com"
+    },
+    {
+      "bidder": "bidstack",
+      "template": "https://server.bidstack.com/openrtb",
+      "uri": "https://server.bidstack.com/openrtb",
+      "target": "/openrtb",
+      "host": "server.bidstack.com"
+    },
+    {
+      "bidder": "bidtheatre",
+      "template": "https://client-bids.adsby.bidtheatre.com/prebidjsbid",
+      "uri": "https://client-bids.adsby.bidtheatre.com/prebidjsbid",
+      "target": "/prebidjsbid",
+      "host": "client-bids.adsby.bidtheatre.com"
+    },
+    {
+      "bidder": "bigoad",
+      "template": "https://api.imotech.tech/Ad/GetAdOut?sspid={{.SspId}}",
+      "uri": "https://api.imotech.tech/Ad/GetAdOut?sspid=",
+      "target": "/Ad/GetAdOut?sspid=",
+      "host": "api.imotech.tech"
+    },
+    {
+      "bidder": "blasto",
+      "template": "http://t-us.blasto.ai/bid?rtb_seat_id={{.SourceId}}&secret_key={{.AccountID}}",
+      "uri": "http://t-us.blasto.ai/bid?rtb_seat_id=anySourceID&secret_key=anyAccountID",
+      "target": "/bid?rtb_seat_id=anySourceID&secret_key=anyAccountID",
+      "host": "t-us.blasto.ai"
+    },
+    {
+      "bidder": "bliink",
+      "template": "https://engine.bliink.io/bid",
+      "uri": "https://engine.bliink.io/bid",
+      "target": "/bid",
+      "host": "engine.bliink.io"
+    },
+    {
+      "bidder": "blis",
+      "template": "https://prebid.lb.infinity.blismedia.com/rtb/213/{{.SupplyId}}",
+      "uri": "https://prebid.lb.infinity.blismedia.com/rtb/213/",
+      "target": "/rtb/213/",
+      "host": "prebid.lb.infinity.blismedia.com"
+    },
+    {
+      "bidder": "blue",
+      "template": "https://prebid-us-east-1.getblue.io/?src=prebid",
+      "uri": "https://prebid-us-east-1.getblue.io/?src=prebid",
+      "target": "/?src=prebid",
+      "host": "prebid-us-east-1.getblue.io"
+    },
+    {
+      "bidder": "bluesea",
+      "template": "https://bid.bluevoox.com/rtb/prebid",
+      "uri": "https://bid.bluevoox.com/rtb/prebid",
+      "target": "/rtb/prebid",
+      "host": "bid.bluevoox.com"
+    },
+    {
+      "bidder": "bmtm",
+      "template": "https://one.elitebidder.com/api/pbs",
+      "uri": "https://one.elitebidder.com/api/pbs",
+      "target": "/api/pbs",
+      "host": "one.elitebidder.com"
+    },
+    {
+      "bidder": "boldwin",
+      "template": "http://ssp.videowalldirect.com/pserver",
+      "uri": "http://ssp.videowalldirect.com/pserver",
+      "target": "/pserver",
+      "host": "ssp.videowalldirect.com"
+    },
+    {
+      "bidder": "boldwin_rapid",
+      "template": "https://rtb.beardfleet.com/auction/bid?pid={{.PublisherID}}&tid={{.PlacementID}}",
+      "uri": "https://rtb.beardfleet.com/auction/bid?pid=anyPublisherID&tid=",
+      "target": "/auction/bid?pid=anyPublisherID&tid=",
+      "host": "rtb.beardfleet.com"
+    },
+    {
+      "bidder": "brave",
+      "template": "http://point.braveglobal.tv/?t=3&partner={{.PublisherID}}",
+      "uri": "http://point.braveglobal.tv/?t=3&partner=anyPublisherID",
+      "target": "/?t=3&partner=anyPublisherID",
+      "host": "point.braveglobal.tv"
+    },
+    {
+      "bidder": "bwx",
+      "template": "http://rtb.boldwin.live?pid={{.SourceId}}&host={{.Host}}&pbs=1",
+      "uri": "http://rtb.boldwin.live?pid=anySourceID&host=anyHost&pbs=1",
+      "target": "/?pid=anySourceID&host=anyHost&pbs=1",
+      "host": "rtb.boldwin.live"
+    },
+    {
+      "bidder": "cadent_aperture_mx",
+      "template": "https://hb.emxdgt.com",
+      "uri": "https://hb.emxdgt.com",
+      "target": "/",
+      "host": "hb.emxdgt.com"
+    },
+    {
+      "bidder": "ccx",
+      "template": "https://delivery.clickonometrics.pl/ortb/prebid/bid",
+      "uri": "https://delivery.clickonometrics.pl/ortb/prebid/bid",
+      "target": "/ortb/prebid/bid",
+      "host": "delivery.clickonometrics.pl"
+    },
+    {
+      "bidder": "clydo",
+      "template": "http://{{.Region}}.clydo.io/{{.PartnerId}}",
+      "uri": "http://anyRegion.clydo.io/anyPartnerId",
+      "target": "/anyPartnerId",
+      "host": "anyRegion.clydo.io"
+    },
+    {
+      "bidder": "cointraffic",
+      "template": "https://apps.adsgravity.io/pbs/v1/request",
+      "uri": "https://apps.adsgravity.io/pbs/v1/request",
+      "target": "/pbs/v1/request",
+      "host": "apps.adsgravity.io"
+    },
+    {
+      "bidder": "coinzilla",
+      "template": "http://request-global.czilladx.com/serve/prebid-server.php",
+      "uri": "http://request-global.czilladx.com/serve/prebid-server.php",
+      "target": "/serve/prebid-server.php",
+      "host": "request-global.czilladx.com"
+    },
+    {
+      "bidder": "colossus",
+      "template": "http://colossusssp.com/?c=o&m=rtb",
+      "uri": "http://colossusssp.com/?c=o&m=rtb",
+      "target": "/?c=o&m=rtb",
+      "host": "colossusssp.com"
+    },
+    {
+      "bidder": "compass",
+      "template": "http://sa-lb.deliverimp.com/pserver",
+      "uri": "http://sa-lb.deliverimp.com/pserver",
+      "target": "/pserver",
+      "host": "sa-lb.deliverimp.com"
+    },
+    {
+      "bidder": "concert",
+      "template": "https://bids.concert.io/bids/openrtb",
+      "uri": "https://bids.concert.io/bids/openrtb",
+      "target": "/bids/openrtb",
+      "host": "bids.concert.io"
+    },
+    {
+      "bidder": "connatix",
+      "template": "https://capi.connatix.com/rtb/ortb",
+      "uri": "https://capi.connatix.com/rtb/ortb",
+      "target": "/rtb/ortb",
+      "host": "capi.connatix.com"
+    },
+    {
+      "bidder": "connectad",
+      "template": "https://bidder.connectad.io/API?src=pbs",
+      "uri": "https://bidder.connectad.io/API?src=pbs",
+      "target": "/API?src=pbs",
+      "host": "bidder.connectad.io"
+    },
+    {
+      "bidder": "connektai",
+      "template": "http://rtb.connektai.live/?pid={{.SourceId}}&host={{.Host}}&s=pbs",
+      "uri": "http://rtb.connektai.live/?pid=anySourceID&host=anyHost&s=pbs",
+      "target": "/?pid=anySourceID&host=anyHost&s=pbs",
+      "host": "rtb.connektai.live"
+    },
+    {
+      "bidder": "consumable",
+      "template": "https://e.serverbid.com",
+      "uri": "https://e.serverbid.com",
+      "target": "/",
+      "host": "e.serverbid.com"
+    },
+    {
+      "bidder": "contxtful",
+      "template": "https://prebid.receptivity.io/v1/pbs/{{.AccountID}}/bid",
+      "uri": "https://prebid.receptivity.io/v1/pbs/anyAccountID/bid",
+      "target": "/v1/pbs/anyAccountID/bid",
+      "host": "prebid.receptivity.io"
+    },
+    {
+      "bidder": "conversant",
+      "template": "http://api.hb.ad.cpe.dotomi.com/cvx/server/hb/ortb",
+      "uri": "http://api.hb.ad.cpe.dotomi.com/cvx/server/hb/ortb",
+      "target": "/cvx/server/hb/ortb",
+      "host": "api.hb.ad.cpe.dotomi.com"
+    },
+    {
+      "bidder": "copper6",
+      "template": "http://ghb.app.copper6.com/pbs/ortb",
+      "uri": "http://ghb.app.copper6.com/pbs/ortb",
+      "target": "/pbs/ortb",
+      "host": "ghb.app.copper6.com"
+    },
+    {
+      "bidder": "copper6ssp",
+      "template": "https://endpoint.copper6.com/pserver",
+      "uri": "https://endpoint.copper6.com/pserver",
+      "target": "/pserver",
+      "host": "endpoint.copper6.com"
+    },
+    {
+      "bidder": "cortex",
+      "template": "https://REGION.targetadserver.com/pserver",
+      "uri": "https://REGION.targetadserver.com/pserver",
+      "target": "/pserver",
+      "host": "REGION.targetadserver.com"
+    },
+    {
+      "bidder": "cpmstar",
+      "template": "https://server.cpmstar.com/openrtbbidrq.aspx",
+      "uri": "https://server.cpmstar.com/openrtbbidrq.aspx",
+      "target": "/openrtbbidrq.aspx",
+      "host": "server.cpmstar.com"
+    },
+    {
+      "bidder": "criteo",
+      "template": "https://ssp-bidder.criteo.com/openrtb/pbs/auction/request?profile=230",
+      "uri": "https://ssp-bidder.criteo.com/openrtb/pbs/auction/request?profile=230",
+      "target": "/openrtb/pbs/auction/request?profile=230",
+      "host": "ssp-bidder.criteo.com"
+    },
+    {
+      "bidder": "cwire",
+      "template": "https://ortb.cwi.re/v1/bid",
+      "uri": "https://ortb.cwi.re/v1/bid",
+      "target": "/v1/bid",
+      "host": "ortb.cwi.re"
+    },
+    {
+      "bidder": "datablocks",
+      "template": "http://pbserver.dblks.net/openrtb2?sid={{.SourceId}}",
+      "uri": "http://pbserver.dblks.net/openrtb2?sid=anySourceID",
+      "target": "/openrtb2?sid=anySourceID",
+      "host": "pbserver.dblks.net"
+    },
+    {
+      "bidder": "decenterads",
+      "template": "http://supply.decenterads.com/?c=o&m=rtb",
+      "uri": "http://supply.decenterads.com/?c=o&m=rtb",
+      "target": "/?c=o&m=rtb",
+      "host": "supply.decenterads.com"
+    },
+    {
+      "bidder": "deepintent",
+      "template": "https://prebid.deepintent.com/prebid",
+      "uri": "https://prebid.deepintent.com/prebid",
+      "target": "/prebid",
+      "host": "prebid.deepintent.com"
+    },
+    {
+      "bidder": "definemedia",
+      "template": "https://rtb.conative.network/openrtb2/auction",
+      "uri": "https://rtb.conative.network/openrtb2/auction",
+      "target": "/openrtb2/auction",
+      "host": "rtb.conative.network"
+    },
+    {
+      "bidder": "dianomi",
+      "template": "https://www-prebid.dianomi.com/cgi-bin/smartads_prebid.pl",
+      "uri": "https://www-prebid.dianomi.com/cgi-bin/smartads_prebid.pl",
+      "target": "/cgi-bin/smartads_prebid.pl",
+      "host": "www-prebid.dianomi.com"
+    },
+    {
+      "bidder": "displayio",
+      "template": "https://prebid.display.io/?publisher={{.PublisherID}}",
+      "uri": "https://prebid.display.io/?publisher=anyPublisherID",
+      "target": "/?publisher=anyPublisherID",
+      "host": "prebid.display.io"
+    },
+    {
+      "bidder": "dmx",
+      "template": "https://dmx-direct.districtm.io/b/v2",
+      "uri": "https://dmx-direct.districtm.io/b/v2",
+      "target": "/b/v2",
+      "host": "dmx-direct.districtm.io"
+    },
+    {
+      "bidder": "dpai",
+      "template": "https://ssp.drift-pixel.ai/pserver",
+      "uri": "https://ssp.drift-pixel.ai/pserver",
+      "target": "/pserver",
+      "host": "ssp.drift-pixel.ai"
+    },
+    {
+      "bidder": "driftpixel",
+      "template": "http://rtb.driftpixel.live?pid={{.SourceId}}&host={{.Host}}&pbs=1",
+      "uri": "http://rtb.driftpixel.live?pid=anySourceID&host=anyHost&pbs=1",
+      "target": "/?pid=anySourceID&host=anyHost&pbs=1",
+      "host": "rtb.driftpixel.live"
+    },
+    {
+      "bidder": "e_volution",
+      "template": "http://service.e-volution.ai/pbserver",
+      "uri": "http://service.e-volution.ai/pbserver",
+      "target": "/pbserver",
+      "host": "service.e-volution.ai"
+    },
+    {
+      "bidder": "easybid",
+      "template": "http://fast.nexx360.io/prebid-server",
+      "uri": "http://fast.nexx360.io/prebid-server",
+      "target": "/prebid-server",
+      "host": "fast.nexx360.io"
+    },
+    {
+      "bidder": "edge226",
+      "template": "http://ssp.dauup.com/pserver",
+      "uri": "http://ssp.dauup.com/pserver",
+      "target": "/pserver",
+      "host": "ssp.dauup.com"
+    },
+    {
+      "bidder": "elementaltv",
+      "template": "https://pbs.elementaltv.io/ads/processHeaderBid/{{.AdUnit}}",
+      "uri": "https://pbs.elementaltv.io/ads/processHeaderBid/anyAdUnit",
+      "target": "/ads/processHeaderBid/anyAdUnit",
+      "host": "pbs.elementaltv.io"
+    },
+    {
+      "bidder": "embimedia",
+      "template": "http://ads-pbs.bidder-embi.media/openrtb/{{.PublisherID}}?host={{.Host}}",
+      "uri": "http://ads-pbs.bidder-embi.media/openrtb/anyPublisherID?host=anyHost",
+      "target": "/openrtb/anyPublisherID?host=anyHost",
+      "host": "ads-pbs.bidder-embi.media"
+    },
+    {
+      "bidder": "emtv",
+      "template": "https://us-east-ep.engagemedia.tv/pserver",
+      "uri": "https://us-east-ep.engagemedia.tv/pserver",
+      "target": "/pserver",
+      "host": "us-east-ep.engagemedia.tv"
+    },
+    {
+      "bidder": "emx_digital",
+      "template": "https://hb.emxdgt.com",
+      "uri": "https://hb.emxdgt.com",
+      "target": "/",
+      "host": "hb.emxdgt.com"
+    },
+    {
+      "bidder": "eplanning",
+      "template": "http://rtb.e-planning.net/pbs/1",
+      "uri": "http://rtb.e-planning.net/pbs/1",
+      "target": "/pbs/1",
+      "host": "rtb.e-planning.net"
+    },
+    {
+      "bidder": "epom",
+      "template": "https://an.epom.com/ortb",
+      "uri": "https://an.epom.com/ortb",
+      "target": "/ortb",
+      "host": "an.epom.com"
+    },
+    {
+      "bidder": "epsilon",
+      "template": "http://api.hb.ad.cpe.dotomi.com/cvx/server/hb/ortb",
+      "uri": "http://api.hb.ad.cpe.dotomi.com/cvx/server/hb/ortb",
+      "target": "/cvx/server/hb/ortb",
+      "host": "api.hb.ad.cpe.dotomi.com"
+    },
+    {
+      "bidder": "equativ",
+      "template": "https://ssb-global.smartadserver.com",
+      "uri": "https://ssb-global.smartadserver.com",
+      "target": "/",
+      "host": "ssb-global.smartadserver.com"
+    },
+    {
+      "bidder": "escalax",
+      "template": "http://bidder_us.escalax.io/?partner={{.SourceId}}&token={{.AccountID}}&type=pbs",
+      "uri": "http://bidder_us.escalax.io/?partner=anySourceID&token=anyAccountID&type=pbs",
+      "target": "/?partner=anySourceID&token=anyAccountID&type=pbs",
+      "host": "bidder_us.escalax.io"
+    },
+    {
+      "bidder": "eskimi",
+      "template": "https://ittr.eskimi.com/prebidjs",
+      "uri": "https://ittr.eskimi.com/prebidjs",
+      "target": "/prebidjs",
+      "host": "ittr.eskimi.com"
+    },
+    {
+      "bidder": "evtech",
+      "template": "http://ads-pbs.direct.e-volution.ai/openrtb/{{.PublisherID}}?host={{.Host}}",
+      "uri": "http://ads-pbs.direct.e-volution.ai/openrtb/anyPublisherID?host=anyHost",
+      "target": "/openrtb/anyPublisherID?host=anyHost",
+      "host": "ads-pbs.direct.e-volution.ai"
+    },
+    {
+      "bidder": "exco",
+      "template": "https://v.ex.co/se/openrtb/hb/pbs",
+      "uri": "https://v.ex.co/se/openrtb/hb/pbs",
+      "target": "/se/openrtb/hb/pbs",
+      "host": "v.ex.co"
+    },
+    {
+      "bidder": "ezoic",
+      "template": "https://g.ezoic.net/ezoic/prebid/adapter/ortb",
+      "uri": "https://g.ezoic.net/ezoic/prebid/adapter/ortb",
+      "target": "/ezoic/prebid/adapter/ortb",
+      "host": "g.ezoic.net"
+    },
+    {
+      "bidder": "feedad",
+      "template": "https://ortb.feedad.com/1/prebid/requests",
+      "uri": "https://ortb.feedad.com/1/prebid/requests",
+      "target": "/1/prebid/requests",
+      "host": "ortb.feedad.com"
+    },
+    {
+      "bidder": "felixads",
+      "template": "https://felixads-prebid.attekmi.co/pbserver/?seat={{.AccountID}}&token={{.SourceId}}",
+      "uri": "https://felixads-prebid.attekmi.co/pbserver/?seat=anyAccountID&token=anySourceID",
+      "target": "/pbserver/?seat=anyAccountID&token=anySourceID",
+      "host": "felixads-prebid.attekmi.co"
+    },
+    {
+      "bidder": "ferio",
+      "template": "https://ferio.bid/bidder",
+      "uri": "https://ferio.bid/bidder",
+      "target": "/bidder",
+      "host": "ferio.bid"
+    },
+    {
+      "bidder": "filmzie",
+      "template": "http://ads-pbs.ortb.net/openrtb/{{.PublisherID}}?host={{.Host}}",
+      "uri": "http://ads-pbs.ortb.net/openrtb/anyPublisherID?host=anyHost",
+      "target": "/openrtb/anyPublisherID?host=anyHost",
+      "host": "ads-pbs.ortb.net"
+    },
+    {
+      "bidder": "finative",
+      "template": "https://b.finative.cloud/cds/rtb/bid?ssp={{.AccountID}}",
+      "uri": "https://b.finative.cloud/cds/rtb/bid?ssp=anyAccountID",
+      "target": "/cds/rtb/bid?ssp=anyAccountID",
+      "host": "b.finative.cloud"
+    },
+    {
+      "bidder": "flatads",
+      "template": "https://bid.rtbshark.com/api/rtbs/adx/rtb?x-net-id={{.PublisherID}}&x-net-token={{.TokenID}}",
+      "uri": "https://bid.rtbshark.com/api/rtbs/adx/rtb?x-net-id=anyPublisherID&x-net-token=",
+      "target": "/api/rtbs/adx/rtb?x-net-id=anyPublisherID&x-net-token=",
+      "host": "bid.rtbshark.com"
+    },
+    {
+      "bidder": "flipp",
+      "template": "https://ads-flipp.com/flyer-locator-service/prebid_campaigns",
+      "uri": "https://ads-flipp.com/flyer-locator-service/prebid_campaigns",
+      "target": "/flyer-locator-service/prebid_campaigns",
+      "host": "ads-flipp.com"
+    },
+    {
+      "bidder": "floxis",
+      "template": "https://us-e.floxis.tech/pbs",
+      "uri": "https://us-e.floxis.tech/pbs",
+      "target": "/pbs",
+      "host": "us-e.floxis.tech"
+    },
+    {
+      "bidder": "freewheel-ssp",
+      "template": "https://ads.stickyadstv.com/openrtb/dsp",
+      "uri": "https://ads.stickyadstv.com/openrtb/dsp",
+      "target": "/openrtb/dsp",
+      "host": "ads.stickyadstv.com"
+    },
+    {
+      "bidder": "freewheelssp",
+      "template": "https://ads.stickyadstv.com/openrtb/dsp",
+      "uri": "https://ads.stickyadstv.com/openrtb/dsp",
+      "target": "/openrtb/dsp",
+      "host": "ads.stickyadstv.com"
+    },
+    {
+      "bidder": "frvradn",
+      "template": "https://fran.frvr.com/api/v1/openrtb",
+      "uri": "https://fran.frvr.com/api/v1/openrtb",
+      "target": "/api/v1/openrtb",
+      "host": "fran.frvr.com"
+    },
+    {
+      "bidder": "fwssp",
+      "template": "https://prebid.v.fwmrm.net/ortb/ssp",
+      "uri": "https://prebid.v.fwmrm.net/ortb/ssp",
+      "target": "/ortb/ssp",
+      "host": "prebid.v.fwmrm.net"
+    },
+    {
+      "bidder": "gamma",
+      "template": "https://hb.gammaplatform.com/adx/request/",
+      "uri": "https://hb.gammaplatform.com/adx/request/",
+      "target": "/adx/request/",
+      "host": "hb.gammaplatform.com"
+    },
+    {
+      "bidder": "gamoshi",
+      "template": "https://rtb.gamoshi.io",
+      "uri": "https://rtb.gamoshi.io",
+      "target": "/",
+      "host": "rtb.gamoshi.io"
+    },
+    {
+      "bidder": "globalsun",
+      "template": "http://endpoint.globalsun.io/pserver",
+      "uri": "http://endpoint.globalsun.io/pserver",
+      "target": "/pserver",
+      "host": "endpoint.globalsun.io"
+    },
+    {
+      "bidder": "goldbach",
+      "template": "https://goldlayer-api.prod.gbads.net/openrtb/2.5/auction",
+      "uri": "https://goldlayer-api.prod.gbads.net/openrtb/2.5/auction",
+      "target": "/openrtb/2.5/auction",
+      "host": "goldlayer-api.prod.gbads.net"
+    },
+    {
+      "bidder": "gravite",
+      "template": "https://node1-rtb.gravite.net/pserver",
+      "uri": "https://node1-rtb.gravite.net/pserver",
+      "target": "/pserver",
+      "host": "node1-rtb.gravite.net"
+    },
+    {
+      "bidder": "greedygame",
+      "template": "http://ads-pbs.rtb-greedygame.com/openrtb/{{.PublisherID}}?host={{.Host}}",
+      "uri": "http://ads-pbs.rtb-greedygame.com/openrtb/anyPublisherID?host=anyHost",
+      "target": "/openrtb/anyPublisherID?host=anyHost",
+      "host": "ads-pbs.rtb-greedygame.com"
+    },
+    {
+      "bidder": "grid",
+      "template": "https://grid.bidswitch.net/sp_bid?sp=prebid",
+      "uri": "https://grid.bidswitch.net/sp_bid?sp=prebid",
+      "target": "/sp_bid?sp=prebid",
+      "host": "grid.bidswitch.net"
+    },
+    {
+      "bidder": "gumgum",
+      "template": "https://g2.gumgum.com/providers/prbds2s/bid",
+      "uri": "https://g2.gumgum.com/providers/prbds2s/bid",
+      "target": "/providers/prbds2s/bid",
+      "host": "g2.gumgum.com"
+    },
+    {
+      "bidder": "harion",
+      "template": "https://usads.harion-ma.com/pserver",
+      "uri": "https://usads.harion-ma.com/pserver",
+      "target": "/pserver",
+      "host": "usads.harion-ma.com"
+    },
+    {
+      "bidder": "harrenmedia",
+      "template": "https://harrenmedia.pbsadverxo.com/auction?id={{.AdUnit}}&auth={{.TokenID}}",
+      "uri": "https://harrenmedia.pbsadverxo.com/auction?id=anyAdUnit&auth=",
+      "target": "/auction?id=anyAdUnit&auth=",
+      "host": "harrenmedia.pbsadverxo.com"
+    },
+    {
+      "bidder": "huaweiads",
+      "template": "https://acd.op.hicloud.com/ppsadx/getResult",
+      "uri": "https://acd.op.hicloud.com/ppsadx/getResult",
+      "target": "/ppsadx/getResult",
+      "host": "acd.op.hicloud.com"
+    },
+    {
+      "bidder": "iionads",
+      "template": "http://ads-pbs.iionads.com/openrtb/{{.PublisherID}}?host={{.Host}}",
+      "uri": "http://ads-pbs.iionads.com/openrtb/anyPublisherID?host=anyHost",
+      "target": "/openrtb/anyPublisherID?host=anyHost",
+      "host": "ads-pbs.iionads.com"
+    },
+    {
+      "bidder": "imds",
+      "template": "https://pbs.technoratimedia.com/openrtb/bids/{{.AccountID}}?src={{.SourceId}}&adapter=imds",
+      "uri": "https://pbs.technoratimedia.com/openrtb/bids/anyAccountID?src=anySourceID&adapter=imds",
+      "target": "/openrtb/bids/anyAccountID?src=anySourceID&adapter=imds",
+      "host": "pbs.technoratimedia.com"
+    },
+    {
+      "bidder": "impactify",
+      "template": "https://sonic.impactify.media/bidder",
+      "uri": "https://sonic.impactify.media/bidder",
+      "target": "/bidder",
+      "host": "sonic.impactify.media"
+    },
+    {
+      "bidder": "improvedigital",
+      "template": "https://ad.360yield.com/{PublisherId}pbs",
+      "uri": "https://ad.360yield.com/{PublisherId}pbs",
+      "target": "/%7BPublisherId%7Dpbs",
+      "host": "ad.360yield.com"
+    },
+    {
+      "bidder": "indicue",
+      "template": "http://ghb.console.indicue.com/pbs/ortb",
+      "uri": "http://ghb.console.indicue.com/pbs/ortb",
+      "target": "/pbs/ortb",
+      "host": "ghb.console.indicue.com"
+    },
+    {
+      "bidder": "infytv",
+      "template": "https://nxs.infy.tv/pbs/openrtb",
+      "uri": "https://nxs.infy.tv/pbs/openrtb",
+      "target": "/pbs/openrtb",
+      "host": "nxs.infy.tv"
+    },
+    {
+      "bidder": "inmobi",
+      "template": "https://api.w.inmobi.com/showad/openrtb/bidder/prebid",
+      "uri": "https://api.w.inmobi.com/showad/openrtb/bidder/prebid",
+      "target": "/showad/openrtb/bidder/prebid",
+      "host": "api.w.inmobi.com"
+    },
+    {
+      "bidder": "insticator",
+      "template": "https://ex.ingage.tech/v1/prebidserver",
+      "uri": "https://ex.ingage.tech/v1/prebidserver",
+      "target": "/v1/prebidserver",
+      "host": "ex.ingage.tech"
+    },
+    {
+      "bidder": "intenze",
+      "template": "http://lb-east.intenze.co/?pass={{.AccountID}}",
+      "uri": "http://lb-east.intenze.co/?pass=anyAccountID",
+      "target": "/?pass=anyAccountID",
+      "host": "lb-east.intenze.co"
+    },
+    {
+      "bidder": "interactiveoffers",
+      "template": "https://prebid-server.ioadx.com/bidRequest/?partnerId={{.AccountID}}",
+      "uri": "https://prebid-server.ioadx.com/bidRequest/?partnerId=anyAccountID",
+      "target": "/bidRequest/?partnerId=anyAccountID",
+      "host": "prebid-server.ioadx.com"
+    },
+    {
+      "bidder": "invibes",
+      "template": "https://{{.ZoneID}}.videostep.com/bid/ServerBidAdContent",
+      "uri": "https://anyZoneID.videostep.com/bid/ServerBidAdContent",
+      "target": "/bid/ServerBidAdContent",
+      "host": "anyZoneID.videostep.com"
+    },
+    {
+      "bidder": "iqx",
+      "template": "http://rtb.iqzone.com?pid={{.SourceId}}&host={{.Host}}&pbs=1",
+      "uri": "http://rtb.iqzone.com?pid=anySourceID&host=anyHost&pbs=1",
+      "target": "/?pid=anySourceID&host=anyHost&pbs=1",
+      "host": "rtb.iqzone.com"
+    },
+    {
+      "bidder": "iqzone",
+      "template": "http://smartssp-us-east.iqzone.com/pserver",
+      "uri": "http://smartssp-us-east.iqzone.com/pserver",
+      "target": "/pserver",
+      "host": "smartssp-us-east.iqzone.com"
+    },
+    {
+      "bidder": "jambojar",
+      "template": "https://jambojar-prebid.attekmi.co/pbserver/?seat={{.AccountID}}&token={{.SourceId}}",
+      "uri": "https://jambojar-prebid.attekmi.co/pbserver/?seat=anyAccountID&token=anySourceID",
+      "target": "/pbserver/?seat=anyAccountID&token=anySourceID",
+      "host": "jambojar-prebid.attekmi.co"
+    },
+    {
+      "bidder": "janet",
+      "template": "http://ghb.bidder.jmgads.com/pbs/ortb",
+      "uri": "http://ghb.bidder.jmgads.com/pbs/ortb",
+      "target": "/pbs/ortb",
+      "host": "ghb.bidder.jmgads.com"
+    },
+    {
+      "bidder": "jdpmedia",
+      "template": "https://jdpmedia-prebid.attekmi.co/pbserver/?seat={{.AccountID}}&token={{.SourceId}}",
+      "uri": "https://jdpmedia-prebid.attekmi.co/pbserver/?seat=anyAccountID&token=anySourceID",
+      "target": "/pbserver/?seat=anyAccountID&token=anySourceID",
+      "host": "jdpmedia-prebid.attekmi.co"
+    },
+    {
+      "bidder": "jixie",
+      "template": "https://hb.jixie.io/v2/hbsvrpost",
+      "uri": "https://hb.jixie.io/v2/hbsvrpost",
+      "target": "/v2/hbsvrpost",
+      "host": "hb.jixie.io"
+    },
+    {
+      "bidder": "kargo",
+      "template": "https://krk2.kargo.com/api/v1/openrtb",
+      "uri": "https://krk2.kargo.com/api/v1/openrtb",
+      "target": "/api/v1/openrtb",
+      "host": "krk2.kargo.com"
+    },
+    {
+      "bidder": "kayzen",
+      "template": "https://bids-{{.ZoneID}}.bidder.kayzen.io/?exchange={{.AccountID}}",
+      "uri": "https://bids-anyZoneID.bidder.kayzen.io/?exchange=anyAccountID",
+      "target": "/?exchange=anyAccountID",
+      "host": "bids-anyZoneID.bidder.kayzen.io"
+    },
+    {
+      "bidder": "kidoz",
+      "template": "http://prebid-adapter.kidoz.net/openrtb2/auction?src=prebid-server",
+      "uri": "http://prebid-adapter.kidoz.net/openrtb2/auction?src=prebid-server",
+      "target": "/openrtb2/auction?src=prebid-server",
+      "host": "prebid-adapter.kidoz.net"
+    },
+    {
+      "bidder": "kiviads",
+      "template": "http://lb.kiviads.com/pserver",
+      "uri": "http://lb.kiviads.com/pserver",
+      "target": "/pserver",
+      "host": "lb.kiviads.com"
+    },
+    {
+      "bidder": "kobler",
+      "template": "https://bid.essrtb.com/bid/prebid_server_rtb_call",
+      "uri": "https://bid.essrtb.com/bid/prebid_server_rtb_call",
+      "target": "/bid/prebid_server_rtb_call",
+      "host": "bid.essrtb.com"
+    },
+    {
+      "bidder": "krushmedia",
+      "template": "http://ads4.krushmedia.com/?c=rtb&m=req&key={{.AccountID}}",
+      "uri": "http://ads4.krushmedia.com/?c=rtb&m=req&key=anyAccountID",
+      "target": "/?c=rtb&m=req&key=anyAccountID",
+      "host": "ads4.krushmedia.com"
+    },
+    {
+      "bidder": "kuantyx",
+      "template": "https://srv.kntxy.com/pbs/bidder?zid={{.ZoneID}}",
+      "uri": "https://srv.kntxy.com/pbs/bidder?zid=anyZoneID",
+      "target": "/pbs/bidder?zid=anyZoneID",
+      "host": "srv.kntxy.com"
+    },
+    {
+      "bidder": "kueezrtb",
+      "template": "https://prebidsrvr.kueezrtb.com/openrtb/",
+      "uri": "https://prebidsrvr.kueezrtb.com/openrtb/",
+      "target": "/openrtb/",
+      "host": "prebidsrvr.kueezrtb.com"
+    },
+    {
+      "bidder": "lemmadigital",
+      "template": "https://pbid.lemmamedia.com/lemma/servad?src=prebid&pid={{.PublisherID}}&aid={{.AdUnit}}",
+      "uri": "https://pbid.lemmamedia.com/lemma/servad?src=prebid&pid=anyPublisherID&aid=anyAdUnit",
+      "target": "/lemma/servad?src=prebid&pid=anyPublisherID&aid=anyAdUnit",
+      "host": "pbid.lemmamedia.com"
+    },
+    {
+      "bidder": "limelightDigital",
+      "template": "http://ads-pbs.ortb.net/openrtb/{{.PublisherID}}?host={{.Host}}",
+      "uri": "http://ads-pbs.ortb.net/openrtb/anyPublisherID?host=anyHost",
+      "target": "/openrtb/anyPublisherID?host=anyHost",
+      "host": "ads-pbs.ortb.net"
+    },
+    {
+      "bidder": "lm_kiviads",
+      "template": "http://pbs.kiviads.live/?pid={{.SourceId}}&host={{.Host}}",
+      "uri": "http://pbs.kiviads.live/?pid=anySourceID&host=anyHost",
+      "target": "/?pid=anySourceID&host=anyHost",
+      "host": "pbs.kiviads.live"
+    },
+    {
+      "bidder": "lockerdome",
+      "template": "https://lockerdome.com/ladbid/prebidserver/openrtb2",
+      "uri": "https://lockerdome.com/ladbid/prebidserver/openrtb2",
+      "target": "/ladbid/prebidserver/openrtb2",
+      "host": "lockerdome.com"
+    },
+    {
+      "bidder": "logan",
+      "template": "http://USeast2.logan.ai/pserver",
+      "uri": "http://USeast2.logan.ai/pserver",
+      "target": "/pserver",
+      "host": "USeast2.logan.ai"
+    },
+    {
+      "bidder": "logicad",
+      "template": "https://pbs.ladsp.com/adrequest/prebidserver",
+      "uri": "https://pbs.ladsp.com/adrequest/prebidserver",
+      "target": "/adrequest/prebidserver",
+      "host": "pbs.ladsp.com"
+    },
+    {
+      "bidder": "loopme",
+      "template": "http://prebid.loopmertb.com",
+      "uri": "http://prebid.loopmertb.com",
+      "target": "/",
+      "host": "prebid.loopmertb.com"
+    },
+    {
+      "bidder": "loyal",
+      "template": "https://us-east-1.loyal.app/pserver",
+      "uri": "https://us-east-1.loyal.app/pserver",
+      "target": "/pserver",
+      "host": "us-east-1.loyal.app"
+    },
+    {
+      "bidder": "lunamedia",
+      "template": "http://rtb.lunamedia.live/?pid={{.PublisherID}}",
+      "uri": "http://rtb.lunamedia.live/?pid=anyPublisherID",
+      "target": "/?pid=anyPublisherID",
+      "host": "rtb.lunamedia.live"
+    },
+    {
+      "bidder": "m152",
+      "template": "https://#{REGION}#.152media-ssp.com/pserver",
+      "uri": "https://#{REGION}#.152media-ssp.com/pserver",
+      "target": "/",
+      "host": ""
+    },
+    {
+      "bidder": "mabidder",
+      "template": "https://prebid.ecdrsvc.com/pbs",
+      "uri": "https://prebid.ecdrsvc.com/pbs",
+      "target": "/pbs",
+      "host": "prebid.ecdrsvc.com"
+    },
+    {
+      "bidder": "madsense",
+      "template": "https://ads.madsense.io/pbs",
+      "uri": "https://ads.madsense.io/pbs",
+      "target": "/pbs",
+      "host": "ads.madsense.io"
+    },
+    {
+      "bidder": "madvertise",
+      "template": "https://mobile.mng-ads.com/bidrequest{{.ZoneID}}",
+      "uri": "https://mobile.mng-ads.com/bidrequestanyZoneID",
+      "target": "/bidrequestanyZoneID",
+      "host": "mobile.mng-ads.com"
+    },
+    {
+      "bidder": "magnite",
+      "template": "https://REGION.rubiconproject.com/a/api/exchange",
+      "uri": "https://REGION.rubiconproject.com/a/api/exchange",
+      "target": "/a/api/exchange",
+      "host": "REGION.rubiconproject.com"
+    },
+    {
+      "bidder": "markapp",
+      "template": "https://markapp-prebid.attekmi.co/pbserver/?seat={{.AccountID}}&token={{.SourceId}}",
+      "uri": "https://markapp-prebid.attekmi.co/pbserver/?seat=anyAccountID&token=anySourceID",
+      "target": "/pbserver/?seat=anyAccountID&token=anySourceID",
+      "host": "markapp-prebid.attekmi.co"
+    },
+    {
+      "bidder": "marsmedia",
+      "template": "https://bid306.rtbsrv.com/bidder/?bid=f3xtet",
+      "uri": "https://bid306.rtbsrv.com/bidder/?bid=f3xtet",
+      "target": "/bidder/?bid=f3xtet",
+      "host": "bid306.rtbsrv.com"
+    },
+    {
+      "bidder": "matterfull",
+      "template": "https://rtb.mtflll.com?pid={{.SourceId}}&host={{.Host}}&pbs=1",
+      "uri": "https://rtb.mtflll.com?pid=anySourceID&host=anyHost&pbs=1",
+      "target": "/?pid=anySourceID&host=anyHost&pbs=1",
+      "host": "rtb.mtflll.com"
+    },
+    {
+      "bidder": "matterfullrtb",
+      "template": "https://us.matterfull.co/?uqhash={{.PublisherID}}",
+      "uri": "https://us.matterfull.co/?uqhash=anyPublisherID",
+      "target": "/?uqhash=anyPublisherID",
+      "host": "us.matterfull.co"
+    },
+    {
+      "bidder": "mcodemedia",
+      "template": "https://east-backend.mycodemedia.com/pserver",
+      "uri": "https://east-backend.mycodemedia.com/pserver",
+      "target": "/pserver",
+      "host": "east-backend.mycodemedia.com"
+    },
+    {
+      "bidder": "mediafuse",
+      "template": "http://ib.adnxs.com/openrtb2",
+      "uri": "http://ib.adnxs.com/openrtb2",
+      "target": "/openrtb2",
+      "host": "ib.adnxs.com"
+    },
+    {
+      "bidder": "mediago",
+      "template": "https://REGION.mediago.io/api/bid?tn={{.AccountID}}",
+      "uri": "https://REGION.mediago.io/api/bid?tn=anyAccountID",
+      "target": "/api/bid?tn=anyAccountID",
+      "host": "REGION.mediago.io"
+    },
+    {
+      "bidder": "medianet",
+      "template": "https://prebid-adapter.media.net/rtb/pb/prebids2s",
+      "uri": "https://prebid-adapter.media.net/rtb/pb/prebids2s",
+      "target": "/rtb/pb/prebids2s",
+      "host": "prebid-adapter.media.net"
+    },
+    {
+      "bidder": "mediasquare",
+      "template": "https://pbs-front.mediasquare.fr/msq_prebid",
+      "uri": "https://pbs-front.mediasquare.fr/msq_prebid",
+      "target": "/msq_prebid",
+      "host": "pbs-front.mediasquare.fr"
+    },
+    {
+      "bidder": "mediayo",
+      "template": "https://balancer.mediayo.ai/pserver",
+      "uri": "https://balancer.mediayo.ai/pserver",
+      "target": "/pserver",
+      "host": "balancer.mediayo.ai"
+    },
+    {
+      "bidder": "melozen",
+      "template": "https://prebid.melozen.com/rtb/v2/bid?publisher_id={{.PublisherID}}",
+      "uri": "https://prebid.melozen.com/rtb/v2/bid?publisher_id=anyPublisherID",
+      "target": "/rtb/v2/bid?publisher_id=anyPublisherID",
+      "host": "prebid.melozen.com"
+    },
+    {
+      "bidder": "metax",
+      "template": "https://hb.metaxads.com/prebid?sid={{.PublisherID}}&adunit={{.AdUnit}}&source=prebid-server",
+      "uri": "https://hb.metaxads.com/prebid?sid=anyPublisherID&adunit=anyAdUnit&source=prebid-server",
+      "target": "/prebid?sid=anyPublisherID&adunit=anyAdUnit&source=prebid-server",
+      "host": "hb.metaxads.com"
+    },
+    {
+      "bidder": "mgid",
+      "template": "https://prebid.mgid.com/prebid/",
+      "uri": "https://prebid.mgid.com/prebid/",
+      "target": "/prebid/",
+      "host": "prebid.mgid.com"
+    },
+    {
+      "bidder": "mgidX",
+      "template": "https://REGION.mgid.com/pserver",
+      "uri": "https://REGION.mgid.com/pserver",
+      "target": "/pserver",
+      "host": "REGION.mgid.com"
+    },
+    {
+      "bidder": "mgtechnology",
+      "template": "https://gbid.mediagotechnology.com/api/bid?tn={{.AccountID}}",
+      "uri": "https://gbid.mediagotechnology.com/api/bid?tn=anyAccountID",
+      "target": "/api/bid?tn=anyAccountID",
+      "host": "gbid.mediagotechnology.com"
+    },
+    {
+      "bidder": "minutemedia",
+      "template": "https://pbs.minutemedia-prebid.com/pbs-mm",
+      "uri": "https://pbs.minutemedia-prebid.com/pbs-mm",
+      "target": "/pbs-mm",
+      "host": "pbs.minutemedia-prebid.com"
+    },
+    {
+      "bidder": "missena",
+      "template": "https://bid.missena.io/?t={{.PublisherID}}",
+      "uri": "https://bid.missena.io/?t=anyPublisherID",
+      "target": "/?t=anyPublisherID",
+      "host": "bid.missena.io"
+    },
+    {
+      "bidder": "mobfoxpb",
+      "template": "http://bes.mobfox.com/?c=__route__&m=__method__&key=__key__",
+      "uri": "http://bes.mobfox.com/?c=__route__&m=__method__&key=__key__",
+      "target": "/?c=__route__&m=__method__&key=__key__",
+      "host": "bes.mobfox.com"
+    },
+    {
+      "bidder": "mobilefuse",
+      "template": "http://mfx.mobilefuse.com/openrtb",
+      "uri": "http://mfx.mobilefuse.com/openrtb",
+      "target": "/openrtb",
+      "host": "mfx.mobilefuse.com"
+    },
+    {
+      "bidder": "mobkoi",
+      "template": "https://pbs.mobkoi.com/bid/prebidserver",
+      "uri": "https://pbs.mobkoi.com/bid/prebidserver",
+      "target": "/bid/prebidserver",
+      "host": "pbs.mobkoi.com"
+    },
+    {
+      "bidder": "monetixads",
+      "template": "http://pbs.admatic.com.tr?host={{.Host}}",
+      "uri": "http://pbs.admatic.com.tr?host=anyHost",
+      "target": "/?host=anyHost",
+      "host": "pbs.admatic.com.tr"
+    },
+    {
+      "bidder": "motorik",
+      "template": "http://lb-east.motorik.io/?k={{.AccountID}}&name={{.SourceId}}",
+      "uri": "http://lb-east.motorik.io/?k=anyAccountID&name=anySourceID",
+      "target": "/?k=anyAccountID&name=anySourceID",
+      "host": "lb-east.motorik.io"
+    },
+    {
+      "bidder": "msft",
+      "template": "http://ib.adnxs.com/openrtb2",
+      "uri": "http://ib.adnxs.com/openrtb2",
+      "target": "/openrtb2",
+      "host": "ib.adnxs.com"
+    },
+    {
+      "bidder": "mycodemedia",
+      "template": "https://east-backend.mycodemedia.com/pserver",
+      "uri": "https://east-backend.mycodemedia.com/pserver",
+      "target": "/pserver",
+      "host": "east-backend.mycodemedia.com"
+    },
+    {
+      "bidder": "nativery",
+      "template": "https://hb.nativery.com/openrtb2/auction",
+      "uri": "https://hb.nativery.com/openrtb2/auction",
+      "target": "/openrtb2/auction",
+      "host": "hb.nativery.com"
+    },
+    {
+      "bidder": "nativo",
+      "template": "https://exchange.postrelease.com/esi?ntv_epid=7",
+      "uri": "https://exchange.postrelease.com/esi?ntv_epid=7",
+      "target": "/esi?ntv_epid=7",
+      "host": "exchange.postrelease.com"
+    },
+    {
+      "bidder": "netaddiction",
+      "template": "http://pbs.admatic.com.tr?host={{.Host}}",
+      "uri": "http://pbs.admatic.com.tr?host=anyHost",
+      "target": "/?host=anyHost",
+      "host": "pbs.admatic.com.tr"
+    },
+    {
+      "bidder": "nextmillennium",
+      "template": "https://pbs.nextmillmedia.com/openrtb2/auction",
+      "uri": "https://pbs.nextmillmedia.com/openrtb2/auction",
+      "target": "/openrtb2/auction",
+      "host": "pbs.nextmillmedia.com"
+    },
+    {
+      "bidder": "nexx360",
+      "template": "http://fast.nexx360.io/prebid-server",
+      "uri": "http://fast.nexx360.io/prebid-server",
+      "target": "/prebid-server",
+      "host": "fast.nexx360.io"
+    },
+    {
+      "bidder": "nobid",
+      "template": "https://ads.servenobid.com/ortb_adreq?tek=pbs&ver=1",
+      "uri": "https://ads.servenobid.com/ortb_adreq?tek=pbs&ver=1",
+      "target": "/ortb_adreq?tek=pbs&ver=1",
+      "host": "ads.servenobid.com"
+    },
+    {
+      "bidder": "ntvagents",
+      "template": "https://endpoint1.nativeagents.ai/pserver",
+      "uri": "https://endpoint1.nativeagents.ai/pserver",
+      "target": "/pserver",
+      "host": "endpoint1.nativeagents.ai"
+    },
+    {
+      "bidder": "nuba",
+      "template": "https://ads.nuba.io/pserver",
+      "uri": "https://ads.nuba.io/pserver",
+      "target": "/pserver",
+      "host": "ads.nuba.io"
+    },
+    {
+      "bidder": "nuclion",
+      "template": "http://ads-pbs.rtb-nuclion.io/openrtb/{{.PublisherID}}?host={{.Host}}",
+      "uri": "http://ads-pbs.rtb-nuclion.io/openrtb/anyPublisherID?host=anyHost",
+      "target": "/openrtb/anyPublisherID?host=anyHost",
+      "host": "ads-pbs.rtb-nuclion.io"
+    },
+    {
+      "bidder": "odeeo",
+      "template": "https://ads.exchange.odeeo.io/v1/bidrequest/prebids2s",
+      "uri": "https://ads.exchange.odeeo.io/v1/bidrequest/prebids2s",
+      "target": "/v1/bidrequest/prebids2s",
+      "host": "ads.exchange.odeeo.io"
+    },
+    {
+      "bidder": "ogury",
+      "template": "https://prebids2s.presage.io/api/header-bidding-request",
+      "uri": "https://prebids2s.presage.io/api/header-bidding-request",
+      "target": "/api/header-bidding-request",
+      "host": "prebids2s.presage.io"
+    },
+    {
+      "bidder": "omnidex",
+      "template": "https://exchange.omni-dex.io/openrtb/",
+      "uri": "https://exchange.omni-dex.io/openrtb/",
+      "target": "/openrtb/",
+      "host": "exchange.omni-dex.io"
+    },
+    {
+      "bidder": "oms",
+      "template": "http://rt.marphezis.com/pbs",
+      "uri": "http://rt.marphezis.com/pbs",
+      "target": "/pbs",
+      "host": "rt.marphezis.com"
+    },
+    {
+      "bidder": "onetag",
+      "template": "https://prebid-server.onetag-sys.com/prebid-server/{{.PublisherID}}",
+      "uri": "https://prebid-server.onetag-sys.com/prebid-server/anyPublisherID",
+      "target": "/prebid-server/anyPublisherID",
+      "host": "prebid-server.onetag-sys.com"
+    },
+    {
+      "bidder": "openweb",
+      "template": "https://pbs.openwebmp.com/pbs",
+      "uri": "https://pbs.openwebmp.com/pbs",
+      "target": "/pbs",
+      "host": "pbs.openwebmp.com"
+    },
+    {
+      "bidder": "openx",
+      "template": "http://rtb.openx.net/prebid",
+      "uri": "http://rtb.openx.net/prebid",
+      "target": "/prebid",
+      "host": "rtb.openx.net"
+    },
+    {
+      "bidder": "operaads",
+      "template": "https://s.adx.opera.com/ortb/v2/{{.PublisherID}}?ep={{.AccountID}}",
+      "uri": "https://s.adx.opera.com/ortb/v2/anyPublisherID?ep=anyAccountID",
+      "target": "/ortb/v2/anyPublisherID?ep=anyAccountID",
+      "host": "s.adx.opera.com"
+    },
+    {
+      "bidder": "optidigital",
+      "template": "https://pbs.optidigital.com/bidder/openrtb2",
+      "uri": "https://pbs.optidigital.com/bidder/openrtb2",
+      "target": "/bidder/openrtb2",
+      "host": "pbs.optidigital.com"
+    },
+    {
+      "bidder": "oraki",
+      "template": "https://eu1.oraki.io/pserver",
+      "uri": "https://eu1.oraki.io/pserver",
+      "target": "/pserver",
+      "host": "eu1.oraki.io"
+    },
+    {
+      "bidder": "orangeclickmedia",
+      "template": "http://ads-pbs.scotty.orangeclickmedia.com/openrtb/{{.PublisherID}}?host={{.Host}}",
+      "uri": "http://ads-pbs.scotty.orangeclickmedia.com/openrtb/anyPublisherID?host=anyHost",
+      "target": "/openrtb/anyPublisherID?host=anyHost",
+      "host": "ads-pbs.scotty.orangeclickmedia.com"
+    },
+    {
+      "bidder": "orbidder",
+      "template": "https://orbidder.otto.de/openrtb2",
+      "uri": "https://orbidder.otto.de/openrtb2",
+      "target": "/openrtb2",
+      "host": "orbidder.otto.de"
+    },
+    {
+      "bidder": "outbrain",
+      "template": "https://prebidtest.zemanta.com/api/bidder/prebidtest/bid/",
+      "uri": "https://prebidtest.zemanta.com/api/bidder/prebidtest/bid/",
+      "target": "/api/bidder/prebidtest/bid/",
+      "host": "prebidtest.zemanta.com"
+    },
+    {
+      "bidder": "oveeo",
+      "template": "http://ads-pbs.rtb-oveeo.com/openrtb/{{.PublisherID}}?host={{.Host}}",
+      "uri": "http://ads-pbs.rtb-oveeo.com/openrtb/anyPublisherID?host=anyHost",
+      "target": "/openrtb/anyPublisherID?host=anyHost",
+      "host": "ads-pbs.rtb-oveeo.com"
+    },
+    {
+      "bidder": "ownadx",
+      "template": "https://pbs.prebid-ownadx.com/bidder/bid/{{.SeatID}}/{{.SspID}}?token={{.TokenID}}",
+      "uri": "https://pbs.prebid-ownadx.com/bidder/bid//?token=",
+      "target": "/bidder/bid//?token=",
+      "host": "pbs.prebid-ownadx.com"
+    },
+    {
+      "bidder": "panxo",
+      "template": "https://panxo-sys.com/openrtb/2.6/bid",
+      "uri": "https://panxo-sys.com/openrtb/2.6/bid",
+      "target": "/openrtb/2.6/bid",
+      "host": "panxo-sys.com"
+    },
+    {
+      "bidder": "peak226",
+      "template": "https://{{.Region}}.a.viddea.com/edge_direct",
+      "uri": "https://anyRegion.a.viddea.com/edge_direct",
+      "target": "/edge_direct",
+      "host": "anyRegion.a.viddea.com"
+    },
+    {
+      "bidder": "performist",
+      "template": "http://ads-pbs.performserv.com/openrtb/{{.PublisherID}}",
+      "uri": "http://ads-pbs.performserv.com/openrtb/anyPublisherID",
+      "target": "/openrtb/anyPublisherID",
+      "host": "ads-pbs.performserv.com"
+    },
+    {
+      "bidder": "pgam",
+      "template": "http://ghb.pgamssp.com/pbs/ortb",
+      "uri": "http://ghb.pgamssp.com/pbs/ortb",
+      "target": "/pbs/ortb",
+      "host": "ghb.pgamssp.com"
+    },
+    {
+      "bidder": "pgamrtb",
+      "template": "http://ads-pbs.pgamrtb.com/openrtb/{{.PublisherID}}?host={{.Host}}",
+      "uri": "http://ads-pbs.pgamrtb.com/openrtb/anyPublisherID?host=anyHost",
+      "target": "/openrtb/anyPublisherID?host=anyHost",
+      "host": "ads-pbs.pgamrtb.com"
+    },
+    {
+      "bidder": "pgamssp",
+      "template": "http://us-east.pgammedia.com/pserver",
+      "uri": "http://us-east.pgammedia.com/pserver",
+      "target": "/pserver",
+      "host": "us-east.pgammedia.com"
+    },
+    {
+      "bidder": "pinkLion",
+      "template": "https://us-east-ep.pinklion.io/pserver",
+      "uri": "https://us-east-ep.pinklion.io/pserver",
+      "target": "/pserver",
+      "host": "us-east-ep.pinklion.io"
+    },
+    {
+      "bidder": "pixad",
+      "template": "http://pbs.admatic.com.tr?host={{.Host}}",
+      "uri": "http://pbs.admatic.com.tr?host=anyHost",
+      "target": "/?host=anyHost",
+      "host": "pbs.admatic.com.tr"
+    },
+    {
+      "bidder": "pixfuture",
+      "template": "https://pbs-pix.pixfuture.com/pixservices",
+      "uri": "https://pbs-pix.pixfuture.com/pixservices",
+      "target": "/pixservices",
+      "host": "pbs-pix.pixfuture.com"
+    },
+    {
+      "bidder": "playdigo",
+      "template": "https://server.playdigo.com/pserver",
+      "uri": "https://server.playdigo.com/pserver",
+      "target": "/pserver",
+      "host": "server.playdigo.com"
+    },
+    {
+      "bidder": "prismassp",
+      "template": "http://fast.nexx360.io/prebid-server",
+      "uri": "http://fast.nexx360.io/prebid-server",
+      "target": "/prebid-server",
+      "host": "fast.nexx360.io"
+    },
+    {
+      "bidder": "programmaticX",
+      "template": "https://exchange.programmaticx.ai/openrtb/",
+      "uri": "https://exchange.programmaticx.ai/openrtb/",
+      "target": "/openrtb/",
+      "host": "exchange.programmaticx.ai"
+    },
+    {
+      "bidder": "progx",
+      "template": "https://us-east.progrtb.com/pserver",
+      "uri": "https://us-east.progrtb.com/pserver",
+      "target": "/pserver",
+      "host": "us-east.progrtb.com"
+    },
+    {
+      "bidder": "proxistore",
+      "template": "https://api.proxistore.com/v3/rtb/openrtb",
+      "uri": "https://api.proxistore.com/v3/rtb/openrtb",
+      "target": "/v3/rtb/openrtb",
+      "host": "api.proxistore.com"
+    },
+    {
+      "bidder": "pubmatic",
+      "template": "https://hbopenbid.pubmatic.com/translator?source=prebid-server",
+      "uri": "https://hbopenbid.pubmatic.com/translator?source=prebid-server",
+      "target": "/translator?source=prebid-server",
+      "host": "hbopenbid.pubmatic.com"
+    },
+    {
+      "bidder": "pubnative",
+      "template": "http://dsp.pubnative.net/bid/v1/request",
+      "uri": "http://dsp.pubnative.net/bid/v1/request",
+      "target": "/bid/v1/request",
+      "host": "dsp.pubnative.net"
+    },
+    {
+      "bidder": "pubrise",
+      "template": "https://backend.pubrise.ai/pserver",
+      "uri": "https://backend.pubrise.ai/pserver",
+      "target": "/pserver",
+      "host": "backend.pubrise.ai"
+    },
+    {
+      "bidder": "pulsepoint",
+      "template": "http://bid.contextweb.com/header/s/ortb/prebid-s2s",
+      "uri": "http://bid.contextweb.com/header/s/ortb/prebid-s2s",
+      "target": "/header/s/ortb/prebid-s2s",
+      "host": "bid.contextweb.com"
+    },
+    {
+      "bidder": "pwbid",
+      "template": "https://bidder.east2.pubwise.io/bid/pubwisedirect",
+      "uri": "https://bidder.east2.pubwise.io/bid/pubwisedirect",
+      "target": "/bid/pubwisedirect",
+      "host": "bidder.east2.pubwise.io"
+    },
+    {
+      "bidder": "qt",
+      "template": "https://endpoint1.qt.io/pserver",
+      "uri": "https://endpoint1.qt.io/pserver",
+      "target": "/pserver",
+      "host": "endpoint1.qt.io"
+    },
+    {
+      "bidder": "quantumdex",
+      "template": "http://useast.quantumdex.io/auction/pbs",
+      "uri": "http://useast.quantumdex.io/auction/pbs",
+      "target": "/auction/pbs",
+      "host": "useast.quantumdex.io"
+    },
+    {
+      "bidder": "radiantfusion",
+      "template": "https://radiantfusion-prebid.attekmi.co/pbserver/?seat={{.AccountID}}&token={{.SourceId}}",
+      "uri": "https://radiantfusion-prebid.attekmi.co/pbserver/?seat=anyAccountID&token=anySourceID",
+      "target": "/pbserver/?seat=anyAccountID&token=anySourceID",
+      "host": "radiantfusion-prebid.attekmi.co"
+    },
+    {
+      "bidder": "readpeak",
+      "template": "https://dsp.readpeak.com/header/prebid",
+      "uri": "https://dsp.readpeak.com/header/prebid",
+      "target": "/header/prebid",
+      "host": "dsp.readpeak.com"
+    },
+    {
+      "bidder": "rediads",
+      "template": "https://bidding.rediads.com/openrtb2/auction",
+      "uri": "https://bidding.rediads.com/openrtb2/auction",
+      "target": "/openrtb2/auction",
+      "host": "bidding.rediads.com"
+    },
+    {
+      "bidder": "reklamup",
+      "template": "https://REGION.reklamup.com/pserver",
+      "uri": "https://REGION.reklamup.com/pserver",
+      "target": "/pserver",
+      "host": "REGION.reklamup.com"
+    },
+    {
+      "bidder": "relevantdigital",
+      "template": "https://{{.Host}}.relevant-digital.com/openrtb2/auction",
+      "uri": "https://anyHost.relevant-digital.com/openrtb2/auction",
+      "target": "/openrtb2/auction",
+      "host": "anyHost.relevant-digital.com"
+    },
+    {
+      "bidder": "resetdigital",
+      "template": "https://prebid.resetdigital.co",
+      "uri": "https://prebid.resetdigital.co",
+      "target": "/",
+      "host": "prebid.resetdigital.co"
+    },
+    {
+      "bidder": "revcontent",
+      "template": "https://trends.revcontent.com/rtb",
+      "uri": "https://trends.revcontent.com/rtb",
+      "target": "/rtb",
+      "host": "trends.revcontent.com"
+    },
+    {
+      "bidder": "richaudience",
+      "template": "https://ortb.richaudience.com/ortb/?bidder=pbs",
+      "uri": "https://ortb.richaudience.com/ortb/?bidder=pbs",
+      "target": "/ortb/?bidder=pbs",
+      "host": "ortb.richaudience.com"
+    },
+    {
+      "bidder": "rise",
+      "template": "https://pbs.yellowblue.io/pbs",
+      "uri": "https://pbs.yellowblue.io/pbs",
+      "target": "/pbs",
+      "host": "pbs.yellowblue.io"
+    },
+    {
+      "bidder": "robustApps",
+      "template": "http://rtb.rbstsystems.live?pid={{.SourceId}}&host={{.Host}}&pbs=1",
+      "uri": "http://rtb.rbstsystems.live?pid=anySourceID&host=anyHost&pbs=1",
+      "target": "/?pid=anySourceID&host=anyHost&pbs=1",
+      "host": "rtb.rbstsystems.live"
+    },
+    {
+      "bidder": "rocketlab",
+      "template": "https://traffic1.rocketlab.ai/pserver",
+      "uri": "https://traffic1.rocketlab.ai/pserver",
+      "target": "/pserver",
+      "host": "traffic1.rocketlab.ai"
+    },
+    {
+      "bidder": "roulax",
+      "template": "http://dsp.rcoreads.com/api/{{.PublisherID}}?pid={{.AccountID}}",
+      "uri": "http://dsp.rcoreads.com/api/anyPublisherID?pid=anyAccountID",
+      "target": "/api/anyPublisherID?pid=anyAccountID",
+      "host": "dsp.rcoreads.com"
+    },
+    {
+      "bidder": "rtbdemand",
+      "template": "http://ads-pbs.ads-rtbdemand.com/openrtb/{{.PublisherID}}?host={{.Host}}",
+      "uri": "http://ads-pbs.ads-rtbdemand.com/openrtb/anyPublisherID?host=anyHost",
+      "target": "/openrtb/anyPublisherID?host=anyHost",
+      "host": "ads-pbs.ads-rtbdemand.com"
+    },
+    {
+      "bidder": "rtbhouse",
+      "template": "http://prebidserver-s2s-ams.creativecdn.com/bidder/prebidserver/bids",
+      "uri": "http://prebidserver-s2s-ams.creativecdn.com/bidder/prebidserver/bids",
+      "target": "/bidder/prebidserver/bids",
+      "host": "prebidserver-s2s-ams.creativecdn.com"
+    },
+    {
+      "bidder": "rtbstack",
+      "template": "https://{{.Region}}-adx-admixer.rtb-stack.com/pbs?ssp={{.SspID}}&endpoint={{.ZoneID}}&client={{.PartnerId}}",
+      "uri": "https://anyRegion-adx-admixer.rtb-stack.com/pbs?ssp=&endpoint=anyZoneID&client=anyPartnerId",
+      "target": "/pbs?ssp=&endpoint=anyZoneID&client=anyPartnerId",
+      "host": "anyRegion-adx-admixer.rtb-stack.com"
+    },
+    {
+      "bidder": "rubicon",
+      "template": "https://REGION.rubiconproject.com/a/api/exchange",
+      "uri": "https://REGION.rubiconproject.com/a/api/exchange",
+      "target": "/a/api/exchange",
+      "host": "REGION.rubiconproject.com"
+    },
+    {
+      "bidder": "rxnetwork",
+      "template": "http://pbs.adksrv.com/hb?zone={{.ZoneID}}",
+      "uri": "http://pbs.adksrv.com/hb?zone=anyZoneID",
+      "target": "/hb?zone=anyZoneID",
+      "host": "pbs.adksrv.com"
+    },
+    {
+      "bidder": "sa_lunamedia",
+      "template": "http://balancer.lmgssp.com/pserver",
+      "uri": "http://balancer.lmgssp.com/pserver",
+      "target": "/pserver",
+      "host": "balancer.lmgssp.com"
+    },
+    {
+      "bidder": "scalibur",
+      "template": "https://srv.scalibur.io/adserver/ortb?type=prebid-server",
+      "uri": "https://srv.scalibur.io/adserver/ortb?type=prebid-server",
+      "target": "/adserver/ortb?type=prebid-server",
+      "host": "srv.scalibur.io"
+    },
+    {
+      "bidder": "screencore",
+      "template": "https://REGION.screencore.io/pserver",
+      "uri": "https://REGION.screencore.io/pserver",
+      "target": "/pserver",
+      "host": "REGION.screencore.io"
+    },
+    {
+      "bidder": "seedingAlliance",
+      "template": "https://b.nativendo.de/cds/rtb/bid?ssp={{.AccountID}}",
+      "uri": "https://b.nativendo.de/cds/rtb/bid?ssp=anyAccountID",
+      "target": "/cds/rtb/bid?ssp=anyAccountID",
+      "host": "b.nativendo.de"
+    },
+    {
+      "bidder": "seedtag",
+      "template": "https://s.seedtag.com/c/openrtb?partner=prebidserver",
+      "uri": "https://s.seedtag.com/c/openrtb?partner=prebidserver",
+      "target": "/c/openrtb?partner=prebidserver",
+      "host": "s.seedtag.com"
+    },
+    {
+      "bidder": "selectmedia",
+      "template": "https://#{REGION}#.zxyvrtd.com/pserver",
+      "uri": "https://#{REGION}#.zxyvrtd.com/pserver",
+      "target": "/",
+      "host": ""
+    },
+    {
+      "bidder": "sharethrough",
+      "template": "https://btlr.sharethrough.com/universal/v1?supply_id=FGMrCMMc",
+      "uri": "https://btlr.sharethrough.com/universal/v1?supply_id=FGMrCMMc",
+      "target": "/universal/v1?supply_id=FGMrCMMc",
+      "host": "btlr.sharethrough.com"
+    },
+    {
+      "bidder": "showheroes",
+      "template": "https://ads.viralize.tv/openrtb2/auction/",
+      "uri": "https://ads.viralize.tv/openrtb2/auction/",
+      "target": "/openrtb2/auction/",
+      "host": "ads.viralize.tv"
+    },
+    {
+      "bidder": "showheroes-bs",
+      "template": "https://ads.viralize.tv/openrtb2/auction/",
+      "uri": "https://ads.viralize.tv/openrtb2/auction/",
+      "target": "/openrtb2/auction/",
+      "host": "ads.viralize.tv"
+    },
+    {
+      "bidder": "showheroesBs",
+      "template": "https://ads.viralize.tv/openrtb2/auction/",
+      "uri": "https://ads.viralize.tv/openrtb2/auction/",
+      "target": "/openrtb2/auction/",
+      "host": "ads.viralize.tv"
+    },
+    {
+      "bidder": "silvermob",
+      "template": "http://{{.Host}}.silvermob.com/marketplace/api/dsp/bid/{{.ZoneID}}",
+      "uri": "http://anyHost.silvermob.com/marketplace/api/dsp/bid/anyZoneID",
+      "target": "/marketplace/api/dsp/bid/anyZoneID",
+      "host": "anyHost.silvermob.com"
+    },
+    {
+      "bidder": "silverpush",
+      "template": "https://prebid.chocolateplatform.co/bidder/?identifier=prebidchoc",
+      "uri": "https://prebid.chocolateplatform.co/bidder/?identifier=prebidchoc",
+      "target": "/bidder/?identifier=prebidchoc",
+      "host": "prebid.chocolateplatform.co"
+    },
+    {
+      "bidder": "slikk",
+      "template": "http://rtb.slikk.live?pid={{.SourceId}}&host={{.Host}}&pbs=1",
+      "uri": "http://rtb.slikk.live?pid=anySourceID&host=anyHost&pbs=1",
+      "target": "/?pid=anySourceID&host=anyHost&pbs=1",
+      "host": "rtb.slikk.live"
+    },
+    {
+      "bidder": "smaato",
+      "template": "https://prebid.ad.smaato.net/oapi/prebid",
+      "uri": "https://prebid.ad.smaato.net/oapi/prebid",
+      "target": "/oapi/prebid",
+      "host": "prebid.ad.smaato.net"
+    },
+    {
+      "bidder": "smartadserver",
+      "template": "https://ssb-global.smartadserver.com",
+      "uri": "https://ssb-global.smartadserver.com",
+      "target": "/",
+      "host": "ssb-global.smartadserver.com"
+    },
+    {
+      "bidder": "smarthub",
+      "template": "https://prebid.attekmi.co/pbserver?partnerName={{.Host}}&seat={{.AccountID}}&token={{.SourceId}}",
+      "uri": "https://prebid.attekmi.co/pbserver?partnerName=anyHost&seat=anyAccountID&token=anySourceID",
+      "target": "/pbserver?partnerName=anyHost&seat=anyAccountID&token=anySourceID",
+      "host": "prebid.attekmi.co"
+    },
+    {
+      "bidder": "smartrtb",
+      "template": "http://market-east.smrtb.com/json/publisher/rtb?pubid={{.PublisherID}}",
+      "uri": "http://market-east.smrtb.com/json/publisher/rtb?pubid=anyPublisherID",
+      "target": "/json/publisher/rtb?pubid=anyPublisherID",
+      "host": "market-east.smrtb.com"
+    },
+    {
+      "bidder": "smartx",
+      "template": "https://bid.smartclip.net/bid/1005",
+      "uri": "https://bid.smartclip.net/bid/1005",
+      "target": "/bid/1005",
+      "host": "bid.smartclip.net"
+    },
+    {
+      "bidder": "smartyads",
+      "template": "http://{{.Host}}.smartyads.com/bid?rtb_seat_id={{.SourceId}}&secret_key={{.AccountID}}",
+      "uri": "http://anyHost.smartyads.com/bid?rtb_seat_id=anySourceID&secret_key=anyAccountID",
+      "target": "/bid?rtb_seat_id=anySourceID&secret_key=anyAccountID",
+      "host": "anyHost.smartyads.com"
+    },
+    {
+      "bidder": "smb",
+      "template": "http://be.smartbid.ai/pserver",
+      "uri": "http://be.smartbid.ai/pserver",
+      "target": "/pserver",
+      "host": "be.smartbid.ai"
+    },
+    {
+      "bidder": "smilewanted",
+      "template": "https://prebid-server.smilewanted.com/go/",
+      "uri": "https://prebid-server.smilewanted.com/go/",
+      "target": "/go/",
+      "host": "prebid-server.smilewanted.com"
+    },
+    {
+      "bidder": "smoot",
+      "template": "https://endpoint1.smoot.ai/pserver",
+      "uri": "https://endpoint1.smoot.ai/pserver",
+      "target": "/pserver",
+      "host": "endpoint1.smoot.ai"
+    },
+    {
+      "bidder": "smootai",
+      "template": "http://ads-pbs.ads-smoot.com/openrtb/{{.PublisherID}}?host={{.Host}}",
+      "uri": "http://ads-pbs.ads-smoot.com/openrtb/anyPublisherID?host=anyHost",
+      "target": "/openrtb/anyPublisherID?host=anyHost",
+      "host": "ads-pbs.ads-smoot.com"
+    },
+    {
+      "bidder": "smrtconnect",
+      "template": "https://amp.smrtconnect.com/openrtb2/auction?supply_id={{.SupplyId}}",
+      "uri": "https://amp.smrtconnect.com/openrtb2/auction?supply_id=",
+      "target": "/openrtb2/auction?supply_id=",
+      "host": "amp.smrtconnect.com"
+    },
+    {
+      "bidder": "sonobi",
+      "template": "https://apex.go.sonobi.com/prebid?partnerid=71d9d3d8af",
+      "uri": "https://apex.go.sonobi.com/prebid?partnerid=71d9d3d8af",
+      "target": "/prebid?partnerid=71d9d3d8af",
+      "host": "apex.go.sonobi.com"
+    },
+    {
+      "bidder": "sovrn",
+      "template": "http://pbs.lijit.com/rtb/bid?src=prebid_server",
+      "uri": "http://pbs.lijit.com/rtb/bid?src=prebid_server",
+      "target": "/rtb/bid?src=prebid_server",
+      "host": "pbs.lijit.com"
+    },
+    {
+      "bidder": "sovrnXsp",
+      "template": "http://xsp.lijit.com/json/rtb/prebid/server",
+      "uri": "http://xsp.lijit.com/json/rtb/prebid/server",
+      "target": "/json/rtb/prebid/server",
+      "host": "xsp.lijit.com"
+    },
+    {
+      "bidder": "sparteo",
+      "template": "https://bid.sparteo.com/s2s-auction",
+      "uri": "https://bid.sparteo.com/s2s-auction",
+      "target": "/s2s-auction",
+      "host": "bid.sparteo.com"
+    },
+    {
+      "bidder": "sspBC",
+      "template": "https://ssp.wp.pl/v2/bidder/prebidserver",
+      "uri": "https://ssp.wp.pl/v2/bidder/prebidserver",
+      "target": "/v2/bidder/prebidserver",
+      "host": "ssp.wp.pl"
+    },
+    {
+      "bidder": "stackadapt",
+      "template": "https://pbs.srv.stackadapt.com/br?publisher_id={{.PublisherID}}&supply_id={{.SupplyId}}",
+      "uri": "https://pbs.srv.stackadapt.com/br?publisher_id=anyPublisherID&supply_id=",
+      "target": "/br?publisher_id=anyPublisherID&supply_id=",
+      "host": "pbs.srv.stackadapt.com"
+    },
+    {
+      "bidder": "startio",
+      "template": "http://pbs-rtb.startappnetwork.com/1.3/2.5/getbid?account=pbs",
+      "uri": "http://pbs-rtb.startappnetwork.com/1.3/2.5/getbid?account=pbs",
+      "target": "/1.3/2.5/getbid?account=pbs",
+      "host": "pbs-rtb.startappnetwork.com"
+    },
+    {
+      "bidder": "streamkey",
+      "template": "http://ghb.hb.streamkey.net/pbs/ortb",
+      "uri": "http://ghb.hb.streamkey.net/pbs/ortb",
+      "target": "/pbs/ortb",
+      "host": "ghb.hb.streamkey.net"
+    },
+    {
+      "bidder": "streamlyn",
+      "template": "http://rtba.bidsxchange.com/openrtb/{{.PublisherID}}?host={{.Host}}",
+      "uri": "http://rtba.bidsxchange.com/openrtb/anyPublisherID?host=anyHost",
+      "target": "/openrtb/anyPublisherID?host=anyHost",
+      "host": "rtba.bidsxchange.com"
+    },
+    {
+      "bidder": "streamvision",
+      "template": "http://ads-pbs.adops.streamvisionmedia.com/openrtb/{{.PublisherID}}?host={{.Host}}",
+      "uri": "http://ads-pbs.adops.streamvisionmedia.com/openrtb/anyPublisherID?host=anyHost",
+      "target": "/openrtb/anyPublisherID?host=anyHost",
+      "host": "ads-pbs.adops.streamvisionmedia.com"
+    },
+    {
+      "bidder": "stroeerCore",
+      "template": "http://mhb.adscale.de/s2sdsh",
+      "uri": "http://mhb.adscale.de/s2sdsh",
+      "target": "/s2sdsh",
+      "host": "mhb.adscale.de"
+    },
+    {
+      "bidder": "suntContent",
+      "template": "https://b.suntcontent.se/cds/rtb/bid?ssp={{.AccountID}}",
+      "uri": "https://b.suntcontent.se/cds/rtb/bid?ssp=anyAccountID",
+      "target": "/cds/rtb/bid?ssp=anyAccountID",
+      "host": "b.suntcontent.se"
+    },
+    {
+      "bidder": "superedge",
+      "template": "https://{{.Host}}.superedge.co.jp/bid?sk={{.AccountID}}",
+      "uri": "https://anyHost.superedge.co.jp/bid?sk=anyAccountID",
+      "target": "/bid?sk=anyAccountID",
+      "host": "anyHost.superedge.co.jp"
+    },
+    {
+      "bidder": "synacormedia",
+      "template": "https://pbs.technoratimedia.com/openrtb/bids/{{.AccountID}}?src={{.SourceId}}&adapter=synacormedia",
+      "uri": "https://pbs.technoratimedia.com/openrtb/bids/anyAccountID?src=anySourceID&adapter=synacormedia",
+      "target": "/openrtb/bids/anyAccountID?src=anySourceID&adapter=synacormedia",
+      "host": "pbs.technoratimedia.com"
+    },
+    {
+      "bidder": "synapseHX",
+      "template": "https://rtb.hx.compasonline.com/pbs",
+      "uri": "https://rtb.hx.compasonline.com/pbs",
+      "target": "/pbs",
+      "host": "rtb.hx.compasonline.com"
+    },
+    {
+      "bidder": "taboola",
+      "template": "https://{{.MediaType}}.bidder.taboola.com/OpenRTB/PS/auction?exchange={{.GvlID}}&publisher={{.PublisherID}}",
+      "uri": "https://MediaType.bidder.taboola.com/OpenRTB/PS/auction?exchange=&publisher=anyPublisherID",
+      "target": "/OpenRTB/PS/auction?exchange=&publisher=anyPublisherID",
+      "host": "MediaType.bidder.taboola.com"
+    },
+    {
+      "bidder": "tadvertising_blis",
+      "template": "https://prebid-blis.tads.xplosion.de/bid",
+      "uri": "https://prebid-blis.tads.xplosion.de/bid",
+      "target": "/bid",
+      "host": "prebid-blis.tads.xplosion.de"
+    },
+    {
+      "bidder": "tagoras",
+      "template": "https://exchange.tagoras.io/openrtb/",
+      "uri": "https://exchange.tagoras.io/openrtb/",
+      "target": "/openrtb/",
+      "host": "exchange.tagoras.io"
+    },
+    {
+      "bidder": "tappx",
+      "template": "http://{{.Host}}",
+      "uri": "http://anyHost",
+      "target": "/",
+      "host": "anyHost"
+    },
+    {
+      "bidder": "targetVideo",
+      "template": "https://pbs.prebrid.tv/openrtb2/auction",
+      "uri": "https://pbs.prebrid.tv/openrtb2/auction",
+      "target": "/openrtb2/auction",
+      "host": "pbs.prebrid.tv"
+    },
+    {
+      "bidder": "teads",
+      "template": "https://psrv.teads.tv/prebid-server/bid-request",
+      "uri": "https://psrv.teads.tv/prebid-server/bid-request",
+      "target": "/prebid-server/bid-request",
+      "host": "psrv.teads.tv"
+    },
+    {
+      "bidder": "teal",
+      "template": "https://a.bids.ws/openrtb2/auction",
+      "uri": "https://a.bids.ws/openrtb2/auction",
+      "target": "/openrtb2/auction",
+      "host": "a.bids.ws"
+    },
+    {
+      "bidder": "telaria",
+      "template": "https://ads.tremorhub.com/ad/rtb/prebid",
+      "uri": "https://ads.tremorhub.com/ad/rtb/prebid",
+      "target": "/ad/rtb/prebid",
+      "host": "ads.tremorhub.com"
+    },
+    {
+      "bidder": "tgm",
+      "template": "http://ads-pbs.ortb.net/openrtb/{{.PublisherID}}?host={{.Host}}",
+      "uri": "http://ads-pbs.ortb.net/openrtb/anyPublisherID?host=anyHost",
+      "target": "/openrtb/anyPublisherID?host=anyHost",
+      "host": "ads-pbs.ortb.net"
+    },
+    {
+      "bidder": "theadx",
+      "template": "https://ssp.theadx.com/request?pbs=1",
+      "uri": "https://ssp.theadx.com/request?pbs=1",
+      "target": "/request?pbs=1",
+      "host": "ssp.theadx.com"
+    },
+    {
+      "bidder": "thetradedesk",
+      "template": "https://direct.adsrvr.org/bid/bidder/{{.SupplyId}}",
+      "uri": "https://direct.adsrvr.org/bid/bidder/",
+      "target": "/bid/bidder/",
+      "host": "direct.adsrvr.org"
+    },
+    {
+      "bidder": "tpmn",
+      "template": "https://gat.tpmn.io/ortb/pbs_bidder",
+      "uri": "https://gat.tpmn.io/ortb/pbs_bidder",
+      "target": "/ortb/pbs_bidder",
+      "host": "gat.tpmn.io"
+    },
+    {
+      "bidder": "tradplus",
+      "template": "https://{{.ZoneID}}adx.tradplusad.com/{{.AccountID}}/pserver",
+      "uri": "https://anyZoneIDadx.tradplusad.com/anyAccountID/pserver",
+      "target": "/anyAccountID/pserver",
+      "host": "anyZoneIDadx.tradplusad.com"
+    },
+    {
+      "bidder": "trafficgate",
+      "template": "http://{{.Host}}.bc-plugin.com/?c=o&m=rtb",
+      "uri": "http://anyHost.bc-plugin.com/?c=o&m=rtb",
+      "target": "/?c=o&m=rtb",
+      "host": "anyHost.bc-plugin.com"
+    },
+    {
+      "bidder": "tredio",
+      "template": "https://tredio-prebid.attekmi.co/pbserver/?seat={{.AccountID}}&token={{.SourceId}}",
+      "uri": "https://tredio-prebid.attekmi.co/pbserver/?seat=anyAccountID&token=anySourceID",
+      "target": "/pbserver/?seat=anyAccountID&token=anySourceID",
+      "host": "tredio-prebid.attekmi.co"
+    },
+    {
+      "bidder": "triplelift",
+      "template": "https://tlx.3lift.com/s2s/auction?sra=1&supplier_id=20",
+      "uri": "https://tlx.3lift.com/s2s/auction?sra=1&supplier_id=20",
+      "target": "/s2s/auction?sra=1&supplier_id=20",
+      "host": "tlx.3lift.com"
+    },
+    {
+      "bidder": "triplelift_native",
+      "template": "https://tlx.3lift.com/s2sn/auction?supplier_id=20",
+      "uri": "https://tlx.3lift.com/s2sn/auction?supplier_id=20",
+      "target": "/s2sn/auction?supplier_id=20",
+      "host": "tlx.3lift.com"
+    },
+    {
+      "bidder": "trustedstack",
+      "template": "https://prebid-adapter.trustedstack.com/rtb/pb/trustedstacks2s",
+      "uri": "https://prebid-adapter.trustedstack.com/rtb/pb/trustedstacks2s",
+      "target": "/rtb/pb/trustedstacks2s",
+      "host": "prebid-adapter.trustedstack.com"
+    },
+    {
+      "bidder": "trustx",
+      "template": "https://ads.trustx.org/pbs",
+      "uri": "https://ads.trustx.org/pbs",
+      "target": "/pbs",
+      "host": "ads.trustx.org"
+    },
+    {
+      "bidder": "ttd",
+      "template": "https://direct.adsrvr.org/bid/bidder/{{.SupplyId}}",
+      "uri": "https://direct.adsrvr.org/bid/bidder/",
+      "target": "/bid/bidder/",
+      "host": "direct.adsrvr.org"
+    },
+    {
+      "bidder": "tunnl",
+      "template": "https://us1.rapidtag.net/api/v1/bid?sid={{.SourceId}}",
+      "uri": "https://us1.rapidtag.net/api/v1/bid?sid=anySourceID",
+      "target": "/api/v1/bid?sid=anySourceID",
+      "host": "us1.rapidtag.net"
+    },
+    {
+      "bidder": "ucfunnel",
+      "template": "https://pbs.aralego.com/prebid",
+      "uri": "https://pbs.aralego.com/prebid",
+      "target": "/prebid",
+      "host": "pbs.aralego.com"
+    },
+    {
+      "bidder": "undertone",
+      "template": "https://ads.undertone.com/rtb",
+      "uri": "https://ads.undertone.com/rtb",
+      "target": "/rtb",
+      "host": "ads.undertone.com"
+    },
+    {
+      "bidder": "unicorn",
+      "template": "https://ds.uncn.jp/pb/0/bid.json",
+      "uri": "https://ds.uncn.jp/pb/0/bid.json",
+      "target": "/pb/0/bid.json",
+      "host": "ds.uncn.jp"
+    },
+    {
+      "bidder": "unruly",
+      "template": "https://targeting.unrulymedia.com/unruly_prebid_server",
+      "uri": "https://targeting.unrulymedia.com/unruly_prebid_server",
+      "target": "/unruly_prebid_server",
+      "host": "targeting.unrulymedia.com"
+    },
+    {
+      "bidder": "valueimpression",
+      "template": "http://useast.quantumdex.io/auction/pbs",
+      "uri": "http://useast.quantumdex.io/auction/pbs",
+      "target": "/auction/pbs",
+      "host": "useast.quantumdex.io"
+    },
+    {
+      "bidder": "velonium",
+      "template": "http://ads-pbs.adxvel.com/openrtb/{{.PublisherID}}?host={{.Host}}",
+      "uri": "http://ads-pbs.adxvel.com/openrtb/anyPublisherID?host=anyHost",
+      "target": "/openrtb/anyPublisherID?host=anyHost",
+      "host": "ads-pbs.adxvel.com"
+    },
+    {
+      "bidder": "verben",
+      "template": "https://east-node.verben.com/pserver",
+      "uri": "https://east-node.verben.com/pserver",
+      "target": "/pserver",
+      "host": "east-node.verben.com"
+    },
+    {
+      "bidder": "viant",
+      "template": "https://bidders-us.adelphic.net/rtb/v25/viant-prebid-server/bidder",
+      "uri": "https://bidders-us.adelphic.net/rtb/v25/viant-prebid-server/bidder",
+      "target": "/rtb/v25/viant-prebid-server/bidder",
+      "host": "bidders-us.adelphic.net"
+    },
+    {
+      "bidder": "vidazoo",
+      "template": "https://prebidsrvr.cootlogix.com/openrtb/",
+      "uri": "https://prebidsrvr.cootlogix.com/openrtb/",
+      "target": "/openrtb/",
+      "host": "prebidsrvr.cootlogix.com"
+    },
+    {
+      "bidder": "videobyte",
+      "template": "https://x.videobyte.com/ortbhb",
+      "uri": "https://x.videobyte.com/ortbhb",
+      "target": "/ortbhb",
+      "host": "x.videobyte.com"
+    },
+    {
+      "bidder": "videoheroes",
+      "template": "http://point.contextualadv.com/?t=3&partner={{.PublisherID}}",
+      "uri": "http://point.contextualadv.com/?t=3&partner=anyPublisherID",
+      "target": "/?t=3&partner=anyPublisherID",
+      "host": "point.contextualadv.com"
+    },
+    {
+      "bidder": "vidoomy",
+      "template": "https://p.vidoomy.com/api/rtbserver/pbs",
+      "uri": "https://p.vidoomy.com/api/rtbserver/pbs",
+      "target": "/api/rtbserver/pbs",
+      "host": "p.vidoomy.com"
+    },
+    {
+      "bidder": "viewdeos",
+      "template": "http://ghb.sync.viewdeos.com/pbs/ortb",
+      "uri": "http://ghb.sync.viewdeos.com/pbs/ortb",
+      "target": "/pbs/ortb",
+      "host": "ghb.sync.viewdeos.com"
+    },
+    {
+      "bidder": "visiblemeasures",
+      "template": "https://us-e.visiblemeasures.com/pserver",
+      "uri": "https://us-e.visiblemeasures.com/pserver",
+      "target": "/pserver",
+      "host": "us-e.visiblemeasures.com"
+    },
+    {
+      "bidder": "visx",
+      "template": "https://t.visx.net/s2s_bid?wrapperType=s2s_prebid_standard:0.1.2",
+      "uri": "https://t.visx.net/s2s_bid?wrapperType=s2s_prebid_standard:0.1.2",
+      "target": "/s2s_bid?wrapperType=s2s_prebid_standard:0.1.2",
+      "host": "t.visx.net"
+    },
+    {
+      "bidder": "vox",
+      "template": "https://ssp.hybrid.ai/prebid/server/v1/auction",
+      "uri": "https://ssp.hybrid.ai/prebid/server/v1/auction",
+      "target": "/prebid/server/v1/auction",
+      "host": "ssp.hybrid.ai"
+    },
+    {
+      "bidder": "vrtcal",
+      "template": "http://rtb.vrtcal.com/bidder_prebid.vap?ssp=1804",
+      "uri": "http://rtb.vrtcal.com/bidder_prebid.vap?ssp=1804",
+      "target": "/bidder_prebid.vap?ssp=1804",
+      "host": "rtb.vrtcal.com"
+    },
+    {
+      "bidder": "vungle",
+      "template": "https://rtb.ads.vungle.com/bid/t/c770f32",
+      "uri": "https://rtb.ads.vungle.com/bid/t/c770f32",
+      "target": "/bid/t/c770f32",
+      "host": "rtb.ads.vungle.com"
+    },
+    {
+      "bidder": "waardex_ak",
+      "template": "http://pbs.adksrv.com/hb?zone={{.ZoneID}}",
+      "uri": "http://pbs.adksrv.com/hb?zone=anyZoneID",
+      "target": "/hb?zone=anyZoneID",
+      "host": "pbs.adksrv.com"
+    },
+    {
+      "bidder": "xapads",
+      "template": "http://pbs.adksrv.com/hb?zone={{.ZoneID}}",
+      "uri": "http://pbs.adksrv.com/hb?zone=anyZoneID",
+      "target": "/hb?zone=anyZoneID",
+      "host": "pbs.adksrv.com"
+    },
+    {
+      "bidder": "xeworks",
+      "template": "http://prebid-srv.xe.works/?pid={{.SourceId}}&host={{.Host}}",
+      "uri": "http://prebid-srv.xe.works/?pid=anySourceID&host=anyHost",
+      "target": "/?pid=anySourceID&host=anyHost",
+      "host": "prebid-srv.xe.works"
+    },
+    {
+      "bidder": "xtrmqb",
+      "template": "http://ads-pbs.ortb.tech/openrtb/{{.PublisherID}}?host={{.Host}}",
+      "uri": "http://ads-pbs.ortb.tech/openrtb/anyPublisherID?host=anyHost",
+      "target": "/openrtb/anyPublisherID?host=anyHost",
+      "host": "ads-pbs.ortb.tech"
+    },
+    {
+      "bidder": "yahooAds",
+      "template": "https://s2shb.ssp.yahoo.com/admax/bid/partners/PBS",
+      "uri": "https://s2shb.ssp.yahoo.com/admax/bid/partners/PBS",
+      "target": "/admax/bid/partners/PBS",
+      "host": "s2shb.ssp.yahoo.com"
+    },
+    {
+      "bidder": "yahooAdvertising",
+      "template": "https://s2shb.ssp.yahoo.com/admax/bid/partners/PBS",
+      "uri": "https://s2shb.ssp.yahoo.com/admax/bid/partners/PBS",
+      "target": "/admax/bid/partners/PBS",
+      "host": "s2shb.ssp.yahoo.com"
+    },
+    {
+      "bidder": "yahoossp",
+      "template": "https://s2shb.ssp.yahoo.com/admax/bid/partners/PBS",
+      "uri": "https://s2shb.ssp.yahoo.com/admax/bid/partners/PBS",
+      "target": "/admax/bid/partners/PBS",
+      "host": "s2shb.ssp.yahoo.com"
+    },
+    {
+      "bidder": "yandex",
+      "template": "https://bs-metadsp.yandex.ru/prebid/{{.PageID}}?ssp-id=10500",
+      "uri": "https://bs-metadsp.yandex.ru/prebid/?ssp-id=10500",
+      "target": "/prebid/?ssp-id=10500",
+      "host": "bs-metadsp.yandex.ru"
+    },
+    {
+      "bidder": "yeahmobi",
+      "template": "https://{{.Host}}/prebid/bid",
+      "uri": "https://anyHost/prebid/bid",
+      "target": "/prebid/bid",
+      "host": "anyHost"
+    },
+    {
+      "bidder": "yieldlab",
+      "template": "https://ad.yieldlab.net/yp/",
+      "uri": "https://ad.yieldlab.net/yp/",
+      "target": "/yp/",
+      "host": "ad.yieldlab.net"
+    },
+    {
+      "bidder": "yieldmo",
+      "template": "https://ads.yieldmo.com/exchange/prebid-server",
+      "uri": "https://ads.yieldmo.com/exchange/prebid-server",
+      "target": "/exchange/prebid-server",
+      "host": "ads.yieldmo.com"
+    },
+    {
+      "bidder": "yieldone",
+      "template": "https://y.one.impact-ad.jp/hbs_imp",
+      "uri": "https://y.one.impact-ad.jp/hbs_imp",
+      "target": "/hbs_imp",
+      "host": "y.one.impact-ad.jp"
+    },
+    {
+      "bidder": "yobee",
+      "template": "http://pbs.admatic.com.tr?host={{.Host}}",
+      "uri": "http://pbs.admatic.com.tr?host=anyHost",
+      "target": "/?host=anyHost",
+      "host": "pbs.admatic.com.tr"
+    },
+    {
+      "bidder": "zentotem",
+      "template": "https://rtb.zentotem.net/bid?sspuid=cqlnvfk00bhs0b6rci6g",
+      "uri": "https://rtb.zentotem.net/bid?sspuid=cqlnvfk00bhs0b6rci6g",
+      "target": "/bid?sspuid=cqlnvfk00bhs0b6rci6g",
+      "host": "rtb.zentotem.net"
+    },
+    {
+      "bidder": "zeroclickfraud",
+      "template": "http://{{.Host}}/openrtb2?sid={{.SourceId}}",
+      "uri": "http://anyHost/openrtb2?sid=anySourceID",
+      "target": "/openrtb2?sid=anySourceID",
+      "host": "anyHost"
+    },
+    {
+      "bidder": "zeta_global_ssp",
+      "template": "https://ssp.disqus.com/bid/prebid-server?sid={{.AccountID}}",
+      "uri": "https://ssp.disqus.com/bid/prebid-server?sid=anyAccountID",
+      "target": "/bid/prebid-server?sid=anyAccountID",
+      "host": "ssp.disqus.com"
+    },
+    {
+      "bidder": "zmaticoo",
+      "template": "https://rtbbid.zmaticoo.com/prebid/bid",
+      "uri": "https://rtbbid.zmaticoo.com/prebid/bid",
+      "target": "/prebid/bid",
+      "host": "rtbbid.zmaticoo.com"
+    }
+  ]
+}

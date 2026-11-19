@@ -1,0 +1,1961 @@
+{
+  "header": {
+    "go_version": "go1.26.2",
+    "goarch": "amd64",
+    "upstream": "v4.11.2-0.20261112141353-4e296450de2f",
+    "modules": {},
+    "generator": "crates/http-client/testdata/go"
+  },
+  "cases": [
+    {
+      "name": "get_301",
+      "method": "GET",
+      "url": "http://origin.test:PA/start",
+      "headers": [
+        {
+          "op": "set",
+          "name": "X-Custom",
+          "value": "1"
+        },
+        {
+          "op": "set",
+          "name": "Authorization",
+          "value": "Bearer secret"
+        },
+        {
+          "op": "set",
+          "name": "Cookie",
+          "value": "c=1"
+        }
+      ],
+      "steps": [
+        {
+          "path": "/start",
+          "status": 301,
+          "location": "/final"
+        }
+      ],
+      "hops": [
+        {
+          "method": "GET",
+          "host": "origin.test:PA",
+          "target": "/start",
+          "headers": {
+            "Accept-Encoding": [
+              "gzip"
+            ],
+            "Authorization": [
+              "Bearer secret"
+            ],
+            "Cookie": [
+              "c=1"
+            ],
+            "User-Agent": [
+              "Go-http-client/1.1"
+            ],
+            "X-Custom": [
+              "1"
+            ]
+          },
+          "body": ""
+        },
+        {
+          "method": "GET",
+          "host": "origin.test:PA",
+          "target": "/final",
+          "headers": {
+            "Accept-Encoding": [
+              "gzip"
+            ],
+            "Authorization": [
+              "Bearer secret"
+            ],
+            "Cookie": [
+              "c=1"
+            ],
+            "Referer": [
+              "http://origin.test:PA/start"
+            ],
+            "User-Agent": [
+              "Go-http-client/1.1"
+            ],
+            "X-Custom": [
+              "1"
+            ]
+          },
+          "body": ""
+        }
+      ],
+      "status": 200,
+      "error": ""
+    },
+    {
+      "name": "get_302",
+      "method": "GET",
+      "url": "http://origin.test:PA/start",
+      "headers": [
+        {
+          "op": "set",
+          "name": "X-Custom",
+          "value": "1"
+        },
+        {
+          "op": "set",
+          "name": "Authorization",
+          "value": "Bearer secret"
+        },
+        {
+          "op": "set",
+          "name": "Cookie",
+          "value": "c=1"
+        }
+      ],
+      "steps": [
+        {
+          "path": "/start",
+          "status": 302,
+          "location": "/final"
+        }
+      ],
+      "hops": [
+        {
+          "method": "GET",
+          "host": "origin.test:PA",
+          "target": "/start",
+          "headers": {
+            "Accept-Encoding": [
+              "gzip"
+            ],
+            "Authorization": [
+              "Bearer secret"
+            ],
+            "Cookie": [
+              "c=1"
+            ],
+            "User-Agent": [
+              "Go-http-client/1.1"
+            ],
+            "X-Custom": [
+              "1"
+            ]
+          },
+          "body": ""
+        },
+        {
+          "method": "GET",
+          "host": "origin.test:PA",
+          "target": "/final",
+          "headers": {
+            "Accept-Encoding": [
+              "gzip"
+            ],
+            "Authorization": [
+              "Bearer secret"
+            ],
+            "Cookie": [
+              "c=1"
+            ],
+            "Referer": [
+              "http://origin.test:PA/start"
+            ],
+            "User-Agent": [
+              "Go-http-client/1.1"
+            ],
+            "X-Custom": [
+              "1"
+            ]
+          },
+          "body": ""
+        }
+      ],
+      "status": 200,
+      "error": ""
+    },
+    {
+      "name": "get_303",
+      "method": "GET",
+      "url": "http://origin.test:PA/start",
+      "headers": [
+        {
+          "op": "set",
+          "name": "X-Custom",
+          "value": "1"
+        },
+        {
+          "op": "set",
+          "name": "Authorization",
+          "value": "Bearer secret"
+        },
+        {
+          "op": "set",
+          "name": "Cookie",
+          "value": "c=1"
+        }
+      ],
+      "steps": [
+        {
+          "path": "/start",
+          "status": 303,
+          "location": "/final"
+        }
+      ],
+      "hops": [
+        {
+          "method": "GET",
+          "host": "origin.test:PA",
+          "target": "/start",
+          "headers": {
+            "Accept-Encoding": [
+              "gzip"
+            ],
+            "Authorization": [
+              "Bearer secret"
+            ],
+            "Cookie": [
+              "c=1"
+            ],
+            "User-Agent": [
+              "Go-http-client/1.1"
+            ],
+            "X-Custom": [
+              "1"
+            ]
+          },
+          "body": ""
+        },
+        {
+          "method": "GET",
+          "host": "origin.test:PA",
+          "target": "/final",
+          "headers": {
+            "Accept-Encoding": [
+              "gzip"
+            ],
+            "Authorization": [
+              "Bearer secret"
+            ],
+            "Cookie": [
+              "c=1"
+            ],
+            "Referer": [
+              "http://origin.test:PA/start"
+            ],
+            "User-Agent": [
+              "Go-http-client/1.1"
+            ],
+            "X-Custom": [
+              "1"
+            ]
+          },
+          "body": ""
+        }
+      ],
+      "status": 200,
+      "error": ""
+    },
+    {
+      "name": "get_307",
+      "method": "GET",
+      "url": "http://origin.test:PA/start",
+      "headers": [
+        {
+          "op": "set",
+          "name": "X-Custom",
+          "value": "1"
+        },
+        {
+          "op": "set",
+          "name": "Authorization",
+          "value": "Bearer secret"
+        },
+        {
+          "op": "set",
+          "name": "Cookie",
+          "value": "c=1"
+        }
+      ],
+      "steps": [
+        {
+          "path": "/start",
+          "status": 307,
+          "location": "/final"
+        }
+      ],
+      "hops": [
+        {
+          "method": "GET",
+          "host": "origin.test:PA",
+          "target": "/start",
+          "headers": {
+            "Accept-Encoding": [
+              "gzip"
+            ],
+            "Authorization": [
+              "Bearer secret"
+            ],
+            "Cookie": [
+              "c=1"
+            ],
+            "User-Agent": [
+              "Go-http-client/1.1"
+            ],
+            "X-Custom": [
+              "1"
+            ]
+          },
+          "body": ""
+        },
+        {
+          "method": "GET",
+          "host": "origin.test:PA",
+          "target": "/final",
+          "headers": {
+            "Accept-Encoding": [
+              "gzip"
+            ],
+            "Authorization": [
+              "Bearer secret"
+            ],
+            "Cookie": [
+              "c=1"
+            ],
+            "Referer": [
+              "http://origin.test:PA/start"
+            ],
+            "User-Agent": [
+              "Go-http-client/1.1"
+            ],
+            "X-Custom": [
+              "1"
+            ]
+          },
+          "body": ""
+        }
+      ],
+      "status": 200,
+      "error": ""
+    },
+    {
+      "name": "get_308",
+      "method": "GET",
+      "url": "http://origin.test:PA/start",
+      "headers": [
+        {
+          "op": "set",
+          "name": "X-Custom",
+          "value": "1"
+        },
+        {
+          "op": "set",
+          "name": "Authorization",
+          "value": "Bearer secret"
+        },
+        {
+          "op": "set",
+          "name": "Cookie",
+          "value": "c=1"
+        }
+      ],
+      "steps": [
+        {
+          "path": "/start",
+          "status": 308,
+          "location": "/final"
+        }
+      ],
+      "hops": [
+        {
+          "method": "GET",
+          "host": "origin.test:PA",
+          "target": "/start",
+          "headers": {
+            "Accept-Encoding": [
+              "gzip"
+            ],
+            "Authorization": [
+              "Bearer secret"
+            ],
+            "Cookie": [
+              "c=1"
+            ],
+            "User-Agent": [
+              "Go-http-client/1.1"
+            ],
+            "X-Custom": [
+              "1"
+            ]
+          },
+          "body": ""
+        },
+        {
+          "method": "GET",
+          "host": "origin.test:PA",
+          "target": "/final",
+          "headers": {
+            "Accept-Encoding": [
+              "gzip"
+            ],
+            "Authorization": [
+              "Bearer secret"
+            ],
+            "Cookie": [
+              "c=1"
+            ],
+            "Referer": [
+              "http://origin.test:PA/start"
+            ],
+            "User-Agent": [
+              "Go-http-client/1.1"
+            ],
+            "X-Custom": [
+              "1"
+            ]
+          },
+          "body": ""
+        }
+      ],
+      "status": 200,
+      "error": ""
+    },
+    {
+      "name": "post_301",
+      "method": "POST",
+      "url": "http://origin.test:PA/start",
+      "body": "{\"id\":\"r\"}",
+      "headers": [
+        {
+          "op": "set",
+          "name": "X-Custom",
+          "value": "1"
+        },
+        {
+          "op": "set",
+          "name": "Authorization",
+          "value": "Bearer secret"
+        },
+        {
+          "op": "set",
+          "name": "Cookie",
+          "value": "c=1"
+        },
+        {
+          "op": "set",
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "steps": [
+        {
+          "path": "/start",
+          "status": 301,
+          "location": "/final"
+        }
+      ],
+      "hops": [
+        {
+          "method": "POST",
+          "host": "origin.test:PA",
+          "target": "/start",
+          "headers": {
+            "Accept-Encoding": [
+              "gzip"
+            ],
+            "Authorization": [
+              "Bearer secret"
+            ],
+            "Content-Length": [
+              "10"
+            ],
+            "Content-Type": [
+              "application/json"
+            ],
+            "Cookie": [
+              "c=1"
+            ],
+            "User-Agent": [
+              "Go-http-client/1.1"
+            ],
+            "X-Custom": [
+              "1"
+            ]
+          },
+          "body": "{\"id\":\"r\"}"
+        },
+        {
+          "method": "GET",
+          "host": "origin.test:PA",
+          "target": "/final",
+          "headers": {
+            "Accept-Encoding": [
+              "gzip"
+            ],
+            "Authorization": [
+              "Bearer secret"
+            ],
+            "Cookie": [
+              "c=1"
+            ],
+            "Referer": [
+              "http://origin.test:PA/start"
+            ],
+            "User-Agent": [
+              "Go-http-client/1.1"
+            ],
+            "X-Custom": [
+              "1"
+            ]
+          },
+          "body": ""
+        }
+      ],
+      "status": 200,
+      "error": ""
+    },
+    {
+      "name": "post_302",
+      "method": "POST",
+      "url": "http://origin.test:PA/start",
+      "body": "{\"id\":\"r\"}",
+      "headers": [
+        {
+          "op": "set",
+          "name": "X-Custom",
+          "value": "1"
+        },
+        {
+          "op": "set",
+          "name": "Authorization",
+          "value": "Bearer secret"
+        },
+        {
+          "op": "set",
+          "name": "Cookie",
+          "value": "c=1"
+        },
+        {
+          "op": "set",
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "steps": [
+        {
+          "path": "/start",
+          "status": 302,
+          "location": "/final"
+        }
+      ],
+      "hops": [
+        {
+          "method": "POST",
+          "host": "origin.test:PA",
+          "target": "/start",
+          "headers": {
+            "Accept-Encoding": [
+              "gzip"
+            ],
+            "Authorization": [
+              "Bearer secret"
+            ],
+            "Content-Length": [
+              "10"
+            ],
+            "Content-Type": [
+              "application/json"
+            ],
+            "Cookie": [
+              "c=1"
+            ],
+            "User-Agent": [
+              "Go-http-client/1.1"
+            ],
+            "X-Custom": [
+              "1"
+            ]
+          },
+          "body": "{\"id\":\"r\"}"
+        },
+        {
+          "method": "GET",
+          "host": "origin.test:PA",
+          "target": "/final",
+          "headers": {
+            "Accept-Encoding": [
+              "gzip"
+            ],
+            "Authorization": [
+              "Bearer secret"
+            ],
+            "Cookie": [
+              "c=1"
+            ],
+            "Referer": [
+              "http://origin.test:PA/start"
+            ],
+            "User-Agent": [
+              "Go-http-client/1.1"
+            ],
+            "X-Custom": [
+              "1"
+            ]
+          },
+          "body": ""
+        }
+      ],
+      "status": 200,
+      "error": ""
+    },
+    {
+      "name": "post_303",
+      "method": "POST",
+      "url": "http://origin.test:PA/start",
+      "body": "{\"id\":\"r\"}",
+      "headers": [
+        {
+          "op": "set",
+          "name": "X-Custom",
+          "value": "1"
+        },
+        {
+          "op": "set",
+          "name": "Authorization",
+          "value": "Bearer secret"
+        },
+        {
+          "op": "set",
+          "name": "Cookie",
+          "value": "c=1"
+        },
+        {
+          "op": "set",
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "steps": [
+        {
+          "path": "/start",
+          "status": 303,
+          "location": "/final"
+        }
+      ],
+      "hops": [
+        {
+          "method": "POST",
+          "host": "origin.test:PA",
+          "target": "/start",
+          "headers": {
+            "Accept-Encoding": [
+              "gzip"
+            ],
+            "Authorization": [
+              "Bearer secret"
+            ],
+            "Content-Length": [
+              "10"
+            ],
+            "Content-Type": [
+              "application/json"
+            ],
+            "Cookie": [
+              "c=1"
+            ],
+            "User-Agent": [
+              "Go-http-client/1.1"
+            ],
+            "X-Custom": [
+              "1"
+            ]
+          },
+          "body": "{\"id\":\"r\"}"
+        },
+        {
+          "method": "GET",
+          "host": "origin.test:PA",
+          "target": "/final",
+          "headers": {
+            "Accept-Encoding": [
+              "gzip"
+            ],
+            "Authorization": [
+              "Bearer secret"
+            ],
+            "Cookie": [
+              "c=1"
+            ],
+            "Referer": [
+              "http://origin.test:PA/start"
+            ],
+            "User-Agent": [
+              "Go-http-client/1.1"
+            ],
+            "X-Custom": [
+              "1"
+            ]
+          },
+          "body": ""
+        }
+      ],
+      "status": 200,
+      "error": ""
+    },
+    {
+      "name": "post_307",
+      "method": "POST",
+      "url": "http://origin.test:PA/start",
+      "body": "{\"id\":\"r\"}",
+      "headers": [
+        {
+          "op": "set",
+          "name": "X-Custom",
+          "value": "1"
+        },
+        {
+          "op": "set",
+          "name": "Authorization",
+          "value": "Bearer secret"
+        },
+        {
+          "op": "set",
+          "name": "Cookie",
+          "value": "c=1"
+        },
+        {
+          "op": "set",
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "steps": [
+        {
+          "path": "/start",
+          "status": 307,
+          "location": "/final"
+        }
+      ],
+      "hops": [
+        {
+          "method": "POST",
+          "host": "origin.test:PA",
+          "target": "/start",
+          "headers": {
+            "Accept-Encoding": [
+              "gzip"
+            ],
+            "Authorization": [
+              "Bearer secret"
+            ],
+            "Content-Length": [
+              "10"
+            ],
+            "Content-Type": [
+              "application/json"
+            ],
+            "Cookie": [
+              "c=1"
+            ],
+            "User-Agent": [
+              "Go-http-client/1.1"
+            ],
+            "X-Custom": [
+              "1"
+            ]
+          },
+          "body": "{\"id\":\"r\"}"
+        },
+        {
+          "method": "POST",
+          "host": "origin.test:PA",
+          "target": "/final",
+          "headers": {
+            "Accept-Encoding": [
+              "gzip"
+            ],
+            "Authorization": [
+              "Bearer secret"
+            ],
+            "Content-Length": [
+              "10"
+            ],
+            "Content-Type": [
+              "application/json"
+            ],
+            "Cookie": [
+              "c=1"
+            ],
+            "Referer": [
+              "http://origin.test:PA/start"
+            ],
+            "User-Agent": [
+              "Go-http-client/1.1"
+            ],
+            "X-Custom": [
+              "1"
+            ]
+          },
+          "body": "{\"id\":\"r\"}"
+        }
+      ],
+      "status": 200,
+      "error": ""
+    },
+    {
+      "name": "post_308",
+      "method": "POST",
+      "url": "http://origin.test:PA/start",
+      "body": "{\"id\":\"r\"}",
+      "headers": [
+        {
+          "op": "set",
+          "name": "X-Custom",
+          "value": "1"
+        },
+        {
+          "op": "set",
+          "name": "Authorization",
+          "value": "Bearer secret"
+        },
+        {
+          "op": "set",
+          "name": "Cookie",
+          "value": "c=1"
+        },
+        {
+          "op": "set",
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "steps": [
+        {
+          "path": "/start",
+          "status": 308,
+          "location": "/final"
+        }
+      ],
+      "hops": [
+        {
+          "method": "POST",
+          "host": "origin.test:PA",
+          "target": "/start",
+          "headers": {
+            "Accept-Encoding": [
+              "gzip"
+            ],
+            "Authorization": [
+              "Bearer secret"
+            ],
+            "Content-Length": [
+              "10"
+            ],
+            "Content-Type": [
+              "application/json"
+            ],
+            "Cookie": [
+              "c=1"
+            ],
+            "User-Agent": [
+              "Go-http-client/1.1"
+            ],
+            "X-Custom": [
+              "1"
+            ]
+          },
+          "body": "{\"id\":\"r\"}"
+        },
+        {
+          "method": "POST",
+          "host": "origin.test:PA",
+          "target": "/final",
+          "headers": {
+            "Accept-Encoding": [
+              "gzip"
+            ],
+            "Authorization": [
+              "Bearer secret"
+            ],
+            "Content-Length": [
+              "10"
+            ],
+            "Content-Type": [
+              "application/json"
+            ],
+            "Cookie": [
+              "c=1"
+            ],
+            "Referer": [
+              "http://origin.test:PA/start"
+            ],
+            "User-Agent": [
+              "Go-http-client/1.1"
+            ],
+            "X-Custom": [
+              "1"
+            ]
+          },
+          "body": "{\"id\":\"r\"}"
+        }
+      ],
+      "status": 200,
+      "error": ""
+    },
+    {
+      "name": "hop_limit",
+      "method": "GET",
+      "url": "http://origin.test:PA/r/0",
+      "headers": [
+        {
+          "op": "set",
+          "name": "X-Custom",
+          "value": "1"
+        },
+        {
+          "op": "set",
+          "name": "Authorization",
+          "value": "Bearer secret"
+        },
+        {
+          "op": "set",
+          "name": "Cookie",
+          "value": "c=1"
+        }
+      ],
+      "steps": null,
+      "loop": true,
+      "hops": [
+        {
+          "method": "GET",
+          "host": "origin.test:PA",
+          "target": "/r/0",
+          "headers": {
+            "Accept-Encoding": [
+              "gzip"
+            ],
+            "Authorization": [
+              "Bearer secret"
+            ],
+            "Cookie": [
+              "c=1"
+            ],
+            "User-Agent": [
+              "Go-http-client/1.1"
+            ],
+            "X-Custom": [
+              "1"
+            ]
+          },
+          "body": ""
+        },
+        {
+          "method": "GET",
+          "host": "origin.test:PA",
+          "target": "/r/1",
+          "headers": {
+            "Accept-Encoding": [
+              "gzip"
+            ],
+            "Authorization": [
+              "Bearer secret"
+            ],
+            "Cookie": [
+              "c=1"
+            ],
+            "Referer": [
+              "http://origin.test:PA/r/0"
+            ],
+            "User-Agent": [
+              "Go-http-client/1.1"
+            ],
+            "X-Custom": [
+              "1"
+            ]
+          },
+          "body": ""
+        },
+        {
+          "method": "GET",
+          "host": "origin.test:PA",
+          "target": "/r/2",
+          "headers": {
+            "Accept-Encoding": [
+              "gzip"
+            ],
+            "Authorization": [
+              "Bearer secret"
+            ],
+            "Cookie": [
+              "c=1"
+            ],
+            "Referer": [
+              "http://origin.test:PA/r/1"
+            ],
+            "User-Agent": [
+              "Go-http-client/1.1"
+            ],
+            "X-Custom": [
+              "1"
+            ]
+          },
+          "body": ""
+        },
+        {
+          "method": "GET",
+          "host": "origin.test:PA",
+          "target": "/r/3",
+          "headers": {
+            "Accept-Encoding": [
+              "gzip"
+            ],
+            "Authorization": [
+              "Bearer secret"
+            ],
+            "Cookie": [
+              "c=1"
+            ],
+            "Referer": [
+              "http://origin.test:PA/r/2"
+            ],
+            "User-Agent": [
+              "Go-http-client/1.1"
+            ],
+            "X-Custom": [
+              "1"
+            ]
+          },
+          "body": ""
+        },
+        {
+          "method": "GET",
+          "host": "origin.test:PA",
+          "target": "/r/4",
+          "headers": {
+            "Accept-Encoding": [
+              "gzip"
+            ],
+            "Authorization": [
+              "Bearer secret"
+            ],
+            "Cookie": [
+              "c=1"
+            ],
+            "Referer": [
+              "http://origin.test:PA/r/3"
+            ],
+            "User-Agent": [
+              "Go-http-client/1.1"
+            ],
+            "X-Custom": [
+              "1"
+            ]
+          },
+          "body": ""
+        },
+        {
+          "method": "GET",
+          "host": "origin.test:PA",
+          "target": "/r/5",
+          "headers": {
+            "Accept-Encoding": [
+              "gzip"
+            ],
+            "Authorization": [
+              "Bearer secret"
+            ],
+            "Cookie": [
+              "c=1"
+            ],
+            "Referer": [
+              "http://origin.test:PA/r/4"
+            ],
+            "User-Agent": [
+              "Go-http-client/1.1"
+            ],
+            "X-Custom": [
+              "1"
+            ]
+          },
+          "body": ""
+        },
+        {
+          "method": "GET",
+          "host": "origin.test:PA",
+          "target": "/r/6",
+          "headers": {
+            "Accept-Encoding": [
+              "gzip"
+            ],
+            "Authorization": [
+              "Bearer secret"
+            ],
+            "Cookie": [
+              "c=1"
+            ],
+            "Referer": [
+              "http://origin.test:PA/r/5"
+            ],
+            "User-Agent": [
+              "Go-http-client/1.1"
+            ],
+            "X-Custom": [
+              "1"
+            ]
+          },
+          "body": ""
+        },
+        {
+          "method": "GET",
+          "host": "origin.test:PA",
+          "target": "/r/7",
+          "headers": {
+            "Accept-Encoding": [
+              "gzip"
+            ],
+            "Authorization": [
+              "Bearer secret"
+            ],
+            "Cookie": [
+              "c=1"
+            ],
+            "Referer": [
+              "http://origin.test:PA/r/6"
+            ],
+            "User-Agent": [
+              "Go-http-client/1.1"
+            ],
+            "X-Custom": [
+              "1"
+            ]
+          },
+          "body": ""
+        },
+        {
+          "method": "GET",
+          "host": "origin.test:PA",
+          "target": "/r/8",
+          "headers": {
+            "Accept-Encoding": [
+              "gzip"
+            ],
+            "Authorization": [
+              "Bearer secret"
+            ],
+            "Cookie": [
+              "c=1"
+            ],
+            "Referer": [
+              "http://origin.test:PA/r/7"
+            ],
+            "User-Agent": [
+              "Go-http-client/1.1"
+            ],
+            "X-Custom": [
+              "1"
+            ]
+          },
+          "body": ""
+        },
+        {
+          "method": "GET",
+          "host": "origin.test:PA",
+          "target": "/r/9",
+          "headers": {
+            "Accept-Encoding": [
+              "gzip"
+            ],
+            "Authorization": [
+              "Bearer secret"
+            ],
+            "Cookie": [
+              "c=1"
+            ],
+            "Referer": [
+              "http://origin.test:PA/r/8"
+            ],
+            "User-Agent": [
+              "Go-http-client/1.1"
+            ],
+            "X-Custom": [
+              "1"
+            ]
+          },
+          "body": ""
+        }
+      ],
+      "status": 0,
+      "error": "Get \"/r/10\": stopped after 10 redirects"
+    },
+    {
+      "name": "cross_host",
+      "method": "GET",
+      "url": "http://origin.test:PA/start",
+      "headers": [
+        {
+          "op": "set",
+          "name": "X-Custom",
+          "value": "1"
+        },
+        {
+          "op": "set",
+          "name": "Authorization",
+          "value": "Bearer secret"
+        },
+        {
+          "op": "set",
+          "name": "Cookie",
+          "value": "c=1"
+        }
+      ],
+      "steps": [
+        {
+          "path": "/start",
+          "status": 302,
+          "location": "http://other.test:PA/final"
+        }
+      ],
+      "hops": [
+        {
+          "method": "GET",
+          "host": "origin.test:PA",
+          "target": "/start",
+          "headers": {
+            "Accept-Encoding": [
+              "gzip"
+            ],
+            "Authorization": [
+              "Bearer secret"
+            ],
+            "Cookie": [
+              "c=1"
+            ],
+            "User-Agent": [
+              "Go-http-client/1.1"
+            ],
+            "X-Custom": [
+              "1"
+            ]
+          },
+          "body": ""
+        },
+        {
+          "method": "GET",
+          "host": "other.test:PA",
+          "target": "/final",
+          "headers": {
+            "Accept-Encoding": [
+              "gzip"
+            ],
+            "Referer": [
+              "http://origin.test:PA/start"
+            ],
+            "User-Agent": [
+              "Go-http-client/1.1"
+            ],
+            "X-Custom": [
+              "1"
+            ]
+          },
+          "body": ""
+        }
+      ],
+      "status": 200,
+      "error": ""
+    },
+    {
+      "name": "subdomain",
+      "method": "GET",
+      "url": "http://origin.test:PA/start",
+      "headers": [
+        {
+          "op": "set",
+          "name": "X-Custom",
+          "value": "1"
+        },
+        {
+          "op": "set",
+          "name": "Authorization",
+          "value": "Bearer secret"
+        },
+        {
+          "op": "set",
+          "name": "Cookie",
+          "value": "c=1"
+        }
+      ],
+      "steps": [
+        {
+          "path": "/start",
+          "status": 302,
+          "location": "http://sub.origin.test:PA/final"
+        }
+      ],
+      "hops": [
+        {
+          "method": "GET",
+          "host": "origin.test:PA",
+          "target": "/start",
+          "headers": {
+            "Accept-Encoding": [
+              "gzip"
+            ],
+            "Authorization": [
+              "Bearer secret"
+            ],
+            "Cookie": [
+              "c=1"
+            ],
+            "User-Agent": [
+              "Go-http-client/1.1"
+            ],
+            "X-Custom": [
+              "1"
+            ]
+          },
+          "body": ""
+        },
+        {
+          "method": "GET",
+          "host": "sub.origin.test:PA",
+          "target": "/final",
+          "headers": {
+            "Accept-Encoding": [
+              "gzip"
+            ],
+            "Authorization": [
+              "Bearer secret"
+            ],
+            "Cookie": [
+              "c=1"
+            ],
+            "Referer": [
+              "http://origin.test:PA/start"
+            ],
+            "User-Agent": [
+              "Go-http-client/1.1"
+            ],
+            "X-Custom": [
+              "1"
+            ]
+          },
+          "body": ""
+        }
+      ],
+      "status": 200,
+      "error": ""
+    },
+    {
+      "name": "port_change",
+      "method": "GET",
+      "url": "http://origin.test:PA/start",
+      "headers": [
+        {
+          "op": "set",
+          "name": "X-Custom",
+          "value": "1"
+        },
+        {
+          "op": "set",
+          "name": "Authorization",
+          "value": "Bearer secret"
+        },
+        {
+          "op": "set",
+          "name": "Cookie",
+          "value": "c=1"
+        }
+      ],
+      "steps": [
+        {
+          "path": "/start",
+          "status": 302,
+          "location": "http://origin.test:PB/final"
+        }
+      ],
+      "hops": [
+        {
+          "method": "GET",
+          "host": "origin.test:PA",
+          "target": "/start",
+          "headers": {
+            "Accept-Encoding": [
+              "gzip"
+            ],
+            "Authorization": [
+              "Bearer secret"
+            ],
+            "Cookie": [
+              "c=1"
+            ],
+            "User-Agent": [
+              "Go-http-client/1.1"
+            ],
+            "X-Custom": [
+              "1"
+            ]
+          },
+          "body": ""
+        },
+        {
+          "method": "GET",
+          "host": "origin.test:PB",
+          "target": "/final",
+          "headers": {
+            "Accept-Encoding": [
+              "gzip"
+            ],
+            "Authorization": [
+              "Bearer secret"
+            ],
+            "Cookie": [
+              "c=1"
+            ],
+            "Referer": [
+              "http://origin.test:PA/start"
+            ],
+            "User-Agent": [
+              "Go-http-client/1.1"
+            ],
+            "X-Custom": [
+              "1"
+            ]
+          },
+          "body": ""
+        }
+      ],
+      "status": 200,
+      "error": ""
+    },
+    {
+      "name": "cross_host_and_back",
+      "method": "GET",
+      "url": "http://origin.test:PA/start",
+      "headers": [
+        {
+          "op": "set",
+          "name": "X-Custom",
+          "value": "1"
+        },
+        {
+          "op": "set",
+          "name": "Authorization",
+          "value": "Bearer secret"
+        },
+        {
+          "op": "set",
+          "name": "Cookie",
+          "value": "c=1"
+        }
+      ],
+      "steps": [
+        {
+          "path": "/start",
+          "status": 302,
+          "location": "http://other.test:PA/mid"
+        },
+        {
+          "path": "/mid",
+          "status": 302,
+          "location": "http://origin.test:PA/final"
+        }
+      ],
+      "hops": [
+        {
+          "method": "GET",
+          "host": "origin.test:PA",
+          "target": "/start",
+          "headers": {
+            "Accept-Encoding": [
+              "gzip"
+            ],
+            "Authorization": [
+              "Bearer secret"
+            ],
+            "Cookie": [
+              "c=1"
+            ],
+            "User-Agent": [
+              "Go-http-client/1.1"
+            ],
+            "X-Custom": [
+              "1"
+            ]
+          },
+          "body": ""
+        },
+        {
+          "method": "GET",
+          "host": "other.test:PA",
+          "target": "/mid",
+          "headers": {
+            "Accept-Encoding": [
+              "gzip"
+            ],
+            "Referer": [
+              "http://origin.test:PA/start"
+            ],
+            "User-Agent": [
+              "Go-http-client/1.1"
+            ],
+            "X-Custom": [
+              "1"
+            ]
+          },
+          "body": ""
+        },
+        {
+          "method": "GET",
+          "host": "origin.test:PA",
+          "target": "/final",
+          "headers": {
+            "Accept-Encoding": [
+              "gzip"
+            ],
+            "Referer": [
+              "http://other.test:PA/mid"
+            ],
+            "User-Agent": [
+              "Go-http-client/1.1"
+            ],
+            "X-Custom": [
+              "1"
+            ]
+          },
+          "body": ""
+        }
+      ],
+      "status": 200,
+      "error": ""
+    },
+    {
+      "name": "post_307_cross_host",
+      "method": "POST",
+      "url": "http://origin.test:PA/start",
+      "body": "{\"id\":\"r\"}",
+      "headers": [
+        {
+          "op": "set",
+          "name": "X-Custom",
+          "value": "1"
+        },
+        {
+          "op": "set",
+          "name": "Authorization",
+          "value": "Bearer secret"
+        },
+        {
+          "op": "set",
+          "name": "Cookie",
+          "value": "c=1"
+        },
+        {
+          "op": "set",
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "steps": [
+        {
+          "path": "/start",
+          "status": 307,
+          "location": "http://other.test:PA/final"
+        }
+      ],
+      "hops": [
+        {
+          "method": "POST",
+          "host": "origin.test:PA",
+          "target": "/start",
+          "headers": {
+            "Accept-Encoding": [
+              "gzip"
+            ],
+            "Authorization": [
+              "Bearer secret"
+            ],
+            "Content-Length": [
+              "10"
+            ],
+            "Content-Type": [
+              "application/json"
+            ],
+            "Cookie": [
+              "c=1"
+            ],
+            "User-Agent": [
+              "Go-http-client/1.1"
+            ],
+            "X-Custom": [
+              "1"
+            ]
+          },
+          "body": "{\"id\":\"r\"}"
+        },
+        {
+          "method": "POST",
+          "host": "other.test:PA",
+          "target": "/final",
+          "headers": {
+            "Accept-Encoding": [
+              "gzip"
+            ],
+            "Content-Length": [
+              "10"
+            ],
+            "Content-Type": [
+              "application/json"
+            ],
+            "Referer": [
+              "http://origin.test:PA/start"
+            ],
+            "User-Agent": [
+              "Go-http-client/1.1"
+            ],
+            "X-Custom": [
+              "1"
+            ]
+          },
+          "body": "{\"id\":\"r\"}"
+        }
+      ],
+      "status": 200,
+      "error": ""
+    },
+    {
+      "name": "explicit_referer",
+      "method": "GET",
+      "url": "http://origin.test:PA/start",
+      "headers": [
+        {
+          "op": "set",
+          "name": "X-Custom",
+          "value": "1"
+        },
+        {
+          "op": "set",
+          "name": "Authorization",
+          "value": "Bearer secret"
+        },
+        {
+          "op": "set",
+          "name": "Cookie",
+          "value": "c=1"
+        },
+        {
+          "op": "set",
+          "name": "Referer",
+          "value": "http://explicit.test/"
+        }
+      ],
+      "steps": [
+        {
+          "path": "/start",
+          "status": 302,
+          "location": "/final"
+        }
+      ],
+      "hops": [
+        {
+          "method": "GET",
+          "host": "origin.test:PA",
+          "target": "/start",
+          "headers": {
+            "Accept-Encoding": [
+              "gzip"
+            ],
+            "Authorization": [
+              "Bearer secret"
+            ],
+            "Cookie": [
+              "c=1"
+            ],
+            "Referer": [
+              "http://explicit.test/"
+            ],
+            "User-Agent": [
+              "Go-http-client/1.1"
+            ],
+            "X-Custom": [
+              "1"
+            ]
+          },
+          "body": ""
+        },
+        {
+          "method": "GET",
+          "host": "origin.test:PA",
+          "target": "/final",
+          "headers": {
+            "Accept-Encoding": [
+              "gzip"
+            ],
+            "Authorization": [
+              "Bearer secret"
+            ],
+            "Cookie": [
+              "c=1"
+            ],
+            "Referer": [
+              "http://explicit.test/"
+            ],
+            "User-Agent": [
+              "Go-http-client/1.1"
+            ],
+            "X-Custom": [
+              "1"
+            ]
+          },
+          "body": ""
+        }
+      ],
+      "status": 200,
+      "error": ""
+    },
+    {
+      "name": "put_302",
+      "method": "PUT",
+      "url": "http://origin.test:PA/start",
+      "body": "{\"id\":\"r\"}",
+      "headers": [
+        {
+          "op": "set",
+          "name": "X-Custom",
+          "value": "1"
+        },
+        {
+          "op": "set",
+          "name": "Authorization",
+          "value": "Bearer secret"
+        },
+        {
+          "op": "set",
+          "name": "Cookie",
+          "value": "c=1"
+        },
+        {
+          "op": "set",
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "steps": [
+        {
+          "path": "/start",
+          "status": 302,
+          "location": "/final"
+        }
+      ],
+      "hops": [
+        {
+          "method": "PUT",
+          "host": "origin.test:PA",
+          "target": "/start",
+          "headers": {
+            "Accept-Encoding": [
+              "gzip"
+            ],
+            "Authorization": [
+              "Bearer secret"
+            ],
+            "Content-Length": [
+              "10"
+            ],
+            "Content-Type": [
+              "application/json"
+            ],
+            "Cookie": [
+              "c=1"
+            ],
+            "User-Agent": [
+              "Go-http-client/1.1"
+            ],
+            "X-Custom": [
+              "1"
+            ]
+          },
+          "body": "{\"id\":\"r\"}"
+        },
+        {
+          "method": "GET",
+          "host": "origin.test:PA",
+          "target": "/final",
+          "headers": {
+            "Accept-Encoding": [
+              "gzip"
+            ],
+            "Authorization": [
+              "Bearer secret"
+            ],
+            "Cookie": [
+              "c=1"
+            ],
+            "Referer": [
+              "http://origin.test:PA/start"
+            ],
+            "User-Agent": [
+              "Go-http-client/1.1"
+            ],
+            "X-Custom": [
+              "1"
+            ]
+          },
+          "body": ""
+        }
+      ],
+      "status": 200,
+      "error": ""
+    },
+    {
+      "name": "get_302_body_headers",
+      "method": "GET",
+      "url": "http://origin.test:PA/start",
+      "headers": [
+        {
+          "op": "set",
+          "name": "X-Custom",
+          "value": "1"
+        },
+        {
+          "op": "set",
+          "name": "Authorization",
+          "value": "Bearer secret"
+        },
+        {
+          "op": "set",
+          "name": "Cookie",
+          "value": "c=1"
+        },
+        {
+          "op": "set",
+          "name": "Content-Type",
+          "value": "application/json"
+        },
+        {
+          "op": "set",
+          "name": "Content-Language",
+          "value": "en"
+        }
+      ],
+      "steps": [
+        {
+          "path": "/start",
+          "status": 302,
+          "location": "/final"
+        }
+      ],
+      "hops": [
+        {
+          "method": "GET",
+          "host": "origin.test:PA",
+          "target": "/start",
+          "headers": {
+            "Accept-Encoding": [
+              "gzip"
+            ],
+            "Authorization": [
+              "Bearer secret"
+            ],
+            "Content-Language": [
+              "en"
+            ],
+            "Content-Type": [
+              "application/json"
+            ],
+            "Cookie": [
+              "c=1"
+            ],
+            "User-Agent": [
+              "Go-http-client/1.1"
+            ],
+            "X-Custom": [
+              "1"
+            ]
+          },
+          "body": ""
+        },
+        {
+          "method": "GET",
+          "host": "origin.test:PA",
+          "target": "/final",
+          "headers": {
+            "Accept-Encoding": [
+              "gzip"
+            ],
+            "Authorization": [
+              "Bearer secret"
+            ],
+            "Cookie": [
+              "c=1"
+            ],
+            "Referer": [
+              "http://origin.test:PA/start"
+            ],
+            "User-Agent": [
+              "Go-http-client/1.1"
+            ],
+            "X-Custom": [
+              "1"
+            ]
+          },
+          "body": ""
+        }
+      ],
+      "status": 200,
+      "error": ""
+    },
+    {
+      "name": "no_location",
+      "method": "GET",
+      "url": "http://origin.test:PA/start",
+      "headers": [
+        {
+          "op": "set",
+          "name": "X-Custom",
+          "value": "1"
+        },
+        {
+          "op": "set",
+          "name": "Authorization",
+          "value": "Bearer secret"
+        },
+        {
+          "op": "set",
+          "name": "Cookie",
+          "value": "c=1"
+        }
+      ],
+      "steps": [
+        {
+          "path": "/start",
+          "status": 302,
+          "location": ""
+        }
+      ],
+      "hops": [
+        {
+          "method": "GET",
+          "host": "origin.test:PA",
+          "target": "/start",
+          "headers": {
+            "Accept-Encoding": [
+              "gzip"
+            ],
+            "Authorization": [
+              "Bearer secret"
+            ],
+            "Cookie": [
+              "c=1"
+            ],
+            "User-Agent": [
+              "Go-http-client/1.1"
+            ],
+            "X-Custom": [
+              "1"
+            ]
+          },
+          "body": ""
+        }
+      ],
+      "status": 302,
+      "error": ""
+    }
+  ]
+}
