@@ -1,0 +1,38 @@
+{
+  "header": {
+    "go_version": "go1.26.2",
+    "goarch": "amd64",
+    "upstream": "v4.11.2-0.20261112141353-4e296450de2f",
+    "modules": {
+      "github.com/coocood/freecache": "v1.2.1"
+    },
+    "generator": "crates/differences/testdata/go"
+  },
+  "cache_size": 1048576,
+  "entries": [
+    {
+      "key": "doc-512",
+      "value_len": 512,
+      "set_err": "",
+      "get_err": ""
+    },
+    {
+      "key": "doc-1000",
+      "value_len": 1000,
+      "set_err": "The entry size is larger than 1/1024 of cache size",
+      "get_err": "Entry not found"
+    },
+    {
+      "key": "doc-1024",
+      "value_len": 1024,
+      "set_err": "The entry size is larger than 1/1024 of cache size",
+      "get_err": "Entry not found"
+    },
+    {
+      "key": "doc-65536",
+      "value_len": 65536,
+      "set_err": "The entry size is larger than 1/1024 of cache size",
+      "get_err": "Entry not found"
+    }
+  ]
+}

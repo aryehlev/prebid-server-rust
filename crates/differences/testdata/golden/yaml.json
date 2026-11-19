@@ -1,0 +1,190 @@
+{
+  "header": {
+    "go_version": "go1.26.2",
+    "goarch": "amd64",
+    "upstream": "v4.11.2-0.20261112141353-4e296450de2f",
+    "modules": {
+      "gopkg.in/yaml.v3": "v3.0.1"
+    },
+    "generator": "crates/differences/testdata/go"
+  },
+  "bools": [
+    {
+      "input": "y",
+      "value": "true",
+      "err": ""
+    },
+    {
+      "input": "Y",
+      "value": "true",
+      "err": ""
+    },
+    {
+      "input": "yes",
+      "value": "true",
+      "err": ""
+    },
+    {
+      "input": "Yes",
+      "value": "true",
+      "err": ""
+    },
+    {
+      "input": "YES",
+      "value": "true",
+      "err": ""
+    },
+    {
+      "input": "yEs",
+      "value": "",
+      "err": "yaml: unmarshal errors:\n  line 1: cannot unmarshal !!str `yEs` into bool"
+    },
+    {
+      "input": "on",
+      "value": "true",
+      "err": ""
+    },
+    {
+      "input": "On",
+      "value": "true",
+      "err": ""
+    },
+    {
+      "input": "ON",
+      "value": "true",
+      "err": ""
+    },
+    {
+      "input": "oN",
+      "value": "",
+      "err": "yaml: unmarshal errors:\n  line 1: cannot unmarshal !!str `oN` into bool"
+    },
+    {
+      "input": "n",
+      "value": "false",
+      "err": ""
+    },
+    {
+      "input": "N",
+      "value": "false",
+      "err": ""
+    },
+    {
+      "input": "no",
+      "value": "false",
+      "err": ""
+    },
+    {
+      "input": "No",
+      "value": "false",
+      "err": ""
+    },
+    {
+      "input": "NO",
+      "value": "false",
+      "err": ""
+    },
+    {
+      "input": "nO",
+      "value": "",
+      "err": "yaml: unmarshal errors:\n  line 1: cannot unmarshal !!str `nO` into bool"
+    },
+    {
+      "input": "off",
+      "value": "false",
+      "err": ""
+    },
+    {
+      "input": "Off",
+      "value": "false",
+      "err": ""
+    },
+    {
+      "input": "OFF",
+      "value": "false",
+      "err": ""
+    },
+    {
+      "input": "oFf",
+      "value": "",
+      "err": "yaml: unmarshal errors:\n  line 1: cannot unmarshal !!str `oFf` into bool"
+    },
+    {
+      "input": "true",
+      "value": "true",
+      "err": ""
+    },
+    {
+      "input": "True",
+      "value": "true",
+      "err": ""
+    },
+    {
+      "input": "TRUE",
+      "value": "true",
+      "err": ""
+    },
+    {
+      "input": "tRue",
+      "value": "",
+      "err": "yaml: unmarshal errors:\n  line 1: cannot unmarshal !!str `tRue` into bool"
+    },
+    {
+      "input": "false",
+      "value": "false",
+      "err": ""
+    },
+    {
+      "input": "False",
+      "value": "false",
+      "err": ""
+    },
+    {
+      "input": "FALSE",
+      "value": "false",
+      "err": ""
+    },
+    {
+      "input": "fAlse",
+      "value": "",
+      "err": "yaml: unmarshal errors:\n  line 1: cannot unmarshal !!str `fAlse` into bool"
+    },
+    {
+      "input": "1",
+      "value": "",
+      "err": "yaml: unmarshal errors:\n  line 1: cannot unmarshal !!int `1` into bool"
+    },
+    {
+      "input": "0",
+      "value": "",
+      "err": "yaml: unmarshal errors:\n  line 1: cannot unmarshal !!int `0` into bool"
+    },
+    {
+      "input": "t",
+      "value": "",
+      "err": "yaml: unmarshal errors:\n  line 1: cannot unmarshal !!str `t` into bool"
+    },
+    {
+      "input": "f",
+      "value": "",
+      "err": "yaml: unmarshal errors:\n  line 1: cannot unmarshal !!str `f` into bool"
+    }
+  ],
+  "underscored": [
+    {
+      "input": "1_000",
+      "value": "1000",
+      "err": ""
+    },
+    {
+      "input": "1_000_000",
+      "value": "1000000",
+      "err": ""
+    },
+    {
+      "input": "-1_0",
+      "value": "-10",
+      "err": ""
+    }
+  ]
+}

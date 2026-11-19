@@ -1,0 +1,11 @@
+{
+  "header": {
+    "go_version": "go1.26.2",
+    "goarch": "amd64",
+    "upstream": "v4.11.2-0.20261112141353-4e296450de2f",
+    "modules": {},
+    "generator": "crates/differences/testdata/go"
+  },
+  "payload": "{\"id\":\"req-1\",\"imp\":[{\"id\":\"1\",\"banner\":{\"w\":300,\"h\":250}}],\"site\":{\"page\":\"https://publisher.example/article\"}}{\"id\":\"req-1\",\"imp\":[{\"id\":\"1\",\"banner\":{\"w\":300,\"h\":250}}],\"site\":{\"page\":\"https://publisher.example/article\"}}{\"id\":\"req-1\",\"imp\":[{\"id\":\"1\",\"banner\":{\"w\":300,\"h\":250}}],\"site\":{\"page\":\"https://publisher.example/article\"}}{\"id\":\"req-1\",\"imp\":[{\"id\":\"1\",\"banner\":{\"w\":300,\"h\":250}}],\"site\":{\"page\":\"https://publisher.example/article\"}}{\"id\":\"req-1\",\"imp\":[{\"id\":\"1\",\"banner\":{\"w\":300,\"h\":250}}],\"site\":{\"page\":\"https://publisher.example/article\"}}{\"id\":\"req-1\",\"imp\":[{\"id\":\"1\",\"banner\":{\"w\":300,\"h\":250}}],\"site\":{\"page\":\"https://publisher.example/article\"}}{\"id\":\"req-1\",\"imp\":[{\"id\":\"1\",\"banner\":{\"w\":300,\"h\":250}}],\"site\":{\"page\":\"https://publisher.example/article\"}}{\"id\":\"req-1\",\"imp\":[{\"id\":\"1\",\"banner\":{\"w\":300,\"h\":250}}],\"site\":{\"page\":\"https://publisher.example/article\"}}",
+  "compressed_hex": "1f8b08000000000000ffeccd310a02311085e1bbbc3a9aa8d8cc55c422ab0f33905dc624a2b0e4eeb2207889b4ff5f7c2bf40e41e173778083ce06b9fce216a6b82c2c90156fc829048704399e43ef5787aa8ddbb2f82004a935abe2bdbda6ac35b1ecf989b365fa589ade32d1fbf08637bcbff70d0000ffff452e35b780030000"
+}

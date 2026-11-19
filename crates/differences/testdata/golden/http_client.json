@@ -1,0 +1,25 @@
+{
+  "header": {
+    "go_version": "go1.26.2",
+    "goarch": "amd64",
+    "upstream": "v4.11.2-0.20261112141353-4e296450de2f",
+    "modules": {},
+    "generator": "crates/differences/testdata/go"
+  },
+  "get": [
+    "GET /headers HTTP/1.1",
+    "Host: 127.0.0.1:PORT",
+    "User-Agent: Go-http-client/1.1",
+    "Accept-Encoding: gzip"
+  ],
+  "post": [
+    "POST /headers HTTP/1.1",
+    "Host: 127.0.0.1:PORT",
+    "User-Agent: Go-http-client/1.1",
+    "Content-Length: 10",
+    "Accept: application/json",
+    "Content-Type: application/json;charset=utf-8",
+    "Accept-Encoding: gzip"
+  ],
+  "post_body": "{\"id\":\"r\"}"
+}

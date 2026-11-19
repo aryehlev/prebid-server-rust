@@ -1,0 +1,33 @@
+{
+  "header": {
+    "go_version": "go1.26.2",
+    "goarch": "amd64",
+    "upstream": "v4.11.2-0.20261112141353-4e296450de2f",
+    "modules": {
+      "golang.org/x/net": "v0.55.0"
+    },
+    "generator": "crates/differences/testdata/go"
+  },
+  "hosts": [
+    {
+      "host": "WWW.EXAMPLE.CO.UK",
+      "domain": "CO.UK",
+      "err": ""
+    },
+    {
+      "host": "www.example.com:8080",
+      "domain": "example.com:8080",
+      "err": ""
+    },
+    {
+      "host": "Example.COM",
+      "domain": "Example.COM",
+      "err": ""
+    },
+    {
+      "host": "www.Example.co.uk",
+      "domain": "Example.co.uk",
+      "err": ""
+    }
+  ]
+}

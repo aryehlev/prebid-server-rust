@@ -1,0 +1,141 @@
+{
+  "header": {
+    "go_version": "go1.26.2",
+    "goarch": "amd64",
+    "upstream": "v4.11.2-0.20261112141353-4e296450de2f",
+    "modules": {
+      "github.com/mitchellh/mapstructure": "v1.5.0",
+      "github.com/spf13/cast": "v1.5.0",
+      "github.com/spf13/viper": "v1.12.0"
+    },
+    "generator": "crates/differences/testdata/go"
+  },
+  "env_var": "PBS_UNIX_SOCKET_ENABLE",
+  "env_bools": [
+    {
+      "input": "1",
+      "value": "true",
+      "err": ""
+    },
+    {
+      "input": "t",
+      "value": "true",
+      "err": ""
+    },
+    {
+      "input": "T",
+      "value": "true",
+      "err": ""
+    },
+    {
+      "input": "true",
+      "value": "true",
+      "err": ""
+    },
+    {
+      "input": "TRUE",
+      "value": "true",
+      "err": ""
+    },
+    {
+      "input": "True",
+      "value": "true",
+      "err": ""
+    },
+    {
+      "input": "tRuE",
+      "value": "false",
+      "err": ""
+    },
+    {
+      "input": "yes",
+      "value": "false",
+      "err": ""
+    },
+    {
+      "input": "YES",
+      "value": "false",
+      "err": ""
+    },
+    {
+      "input": "on",
+      "value": "false",
+      "err": ""
+    },
+    {
+      "input": "y",
+      "value": "false",
+      "err": ""
+    },
+    {
+      "input": "0",
+      "value": "false",
+      "err": ""
+    },
+    {
+      "input": "f",
+      "value": "false",
+      "err": ""
+    },
+    {
+      "input": "F",
+      "value": "false",
+      "err": ""
+    },
+    {
+      "input": "false",
+      "value": "false",
+      "err": ""
+    },
+    {
+      "input": "FALSE",
+      "value": "false",
+      "err": ""
+    },
+    {
+      "input": "False",
+      "value": "false",
+      "err": ""
+    },
+    {
+      "input": "no",
+      "value": "false",
+      "err": ""
+    },
+    {
+      "input": "off",
+      "value": "false",
+      "err": ""
+    },
+    {
+      "input": "n",
+      "value": "false",
+      "err": ""
+    },
+    {
+      "input": "maybe",
+      "value": "false",
+      "err": ""
+    }
+  ],
+  "config_file": "pbs.yaml",
+  "file_ports": [
+    {
+      "input": "Port: 9300\n",
+      "value": "9300",
+      "err": ""
+    },
+    {
+      "input": "port: 9300\n",
+      "value": "9300",
+      "err": ""
+    },
+    {
+      "input": "PORT: 9300\n",
+      "value": "9300",
+      "err": ""
+    }
+  ],
+  "default_port": 8000,
+  "default_unix_socket_enable": false
+}
