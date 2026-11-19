@@ -850,34 +850,58 @@ mod tests {
         }
     }
 
+    /// `merge_clone` into a `ControlTarget`, or the row's decoder, failing: the error, as the
+    /// control-character rows expect it.
+    fn control_error(row: &Row<'_>) -> TestResult {
+        let what = format!("{} {:?}", row.name, row.input);
+        let error = if row.name.starts_with("jsonutil.MergeClone") {
+            merge_clone(&mut ControlTarget::default(), row.input.as_bytes())
+                .err()
+                .map(GoError::into_message)
+        } else {
+            decode::<ControlTarget>(row).err()
+        };
+        let error = error.ok_or_else(|| format!("{what}: read"))?;
+        ensure_eq(
+            &error.starts_with("control character (\\u0000-\\u001F) found while parsing"),
+            &true,
+            &what,
+        )
+    }
+
     /// A raw control character (U+0000 to U+001F) inside a string fails the document wherever
     /// it is, as `encoding/json` fails it, where jsoniter (`jsonutil.Unmarshal`, `UnmarshalValid`
     /// and `MergeClone`) reads one that follows an escape in its string: in a field, an unknown
-    /// member, a `json.RawMessage` (kept as written) and a map key (`json.control-characters`).
-    /// One that comes before every escape of its string fails on both sides.
+    /// member, a `json.RawMessage` (kept as written) and a map key, and one anywhere in a member
+    /// name of a struct of ten fields or fewer (`json.control-characters`). One before every
+    /// escape of a value, a map key or a larger struct's member name fails on both sides. The Rust
+    /// type is the same for every row: `serde_json` rejects the byte whatever it reads into.
     // Go: jsoniter iter_str.go:9-33 (ReadString checks only up to the first backslash), :35-52
-    // (readStringSlowPath), iter_skip_strict.go:61-83 (skipString falls back to ReadString);
-    // encoding/json scanner.go:339-351 (stateInString); gen/decode.go controlCharacters
+    // (readStringSlowPath), iter_skip_strict.go:61-83 (skipString falls back to ReadString),
+    // reflect_struct_decoder.go:47 (createStructDecoder) and iter_object.go:49-96 (readFieldHash
+    // checks no byte); encoding/json scanner.go:339-351 (stateInString); gen/decode.go
+    // controlCharacters, controlMemberNames
     #[test]
     fn raw_control_characters_rejected() -> TestResult {
         let doc = golden("decode.json")?;
+        let names = rows(&doc, "/control_member_names")?;
+        let mut small_reads = 0;
+        for row in &names {
+            control_error(row)?;
+            let small = row.name.starts_with("jsonutil.") && !row.name.ends_with(" big");
+            ensure_eq(&row.err.is_empty(), &small, row.input)?;
+            small_reads += usize::from(small);
+        }
+        ensure_eq(
+            &(names.len(), small_reads),
+            &(21, 9),
+            "member-name rows, and those jsoniter reads",
+        )?;
         let rows = rows(&doc, "/control_characters")?;
         let mut go_reads = Vec::new();
         for row in &rows {
+            control_error(row)?;
             let what = format!("{} {:?}", row.name, row.input);
-            let error = if row.name == "jsonutil.MergeClone" {
-                merge_clone(&mut ControlTarget::default(), row.input.as_bytes())
-                    .err()
-                    .map(GoError::into_message)
-            } else {
-                decode::<ControlTarget>(row).err()
-            };
-            let error = error.ok_or_else(|| format!("{what}: read"))?;
-            ensure_eq(
-                &error.starts_with("control character (\\u0000-\\u001F) found while parsing"),
-                &true,
-                &what,
-            )?;
             if row.name == "json.Unmarshal" {
                 ensure_eq(&row.err.is_empty(), &false, &what)?;
             } else if row.err.is_empty() {

@@ -43,14 +43,17 @@ note = """\
 id = "json.control-characters"
 category = "json"
 status = "ledgered"
-title = "A raw control character after an escape in a string: jsoniter reads it, serde_json rejects the document"
+title = "A raw control character after an escape in a string, or in a small struct's member name: jsoniter reads it, serde_json rejects the document"
 go = """\
     JSON forbids a raw U+0000 to U+001F inside a string. jsoniter (`jsonutil.Unmarshal`, \
     `UnmarshalValid` and `MergeClone`) rejects one that comes before the first backslash of its \
     string but reads the rest of the string unchecked from that backslash on, so it reads a raw \
     tab or line break that follows an escape such as `\\n` or `\\\"`: in a field, a map key, an \
     unknown member and a `json.RawMessage`, which keeps it as written (iter_str.go:9-52, \
-    iter_skip_strict.go:61-83). `encoding/json` rejects them all."""
+    iter_skip_strict.go:61-83). It matches the member names of a struct of ten fields or fewer \
+    by a hash that checks none of their bytes, so a member whose name holds one anywhere passes \
+    there, matching no field (reflect_struct_decoder.go:47, iter_object.go:49-96). \
+    `encoding/json` rejects them all."""
 rust = """\
     serde_json rejects every raw control character in a string, as `encoding/json` does, so the \
     document fails to decode and `merge_clone` fails."""
@@ -62,7 +65,8 @@ pin = "crates/jsonutil/tests/decode.rs::raw_control_characters_rejected"
 restore = """\
     Escape each raw control character that follows a backslash in its string before serde_json \
     reads the bytes, as `replace_lone_surrogates` rewrites lone surrogates (a raw member would \
-    then hold the escape, as in `json.lone-surrogates-raw`); not planned (D-DECODE)."""
+    then hold the escape, as in `json.lone-surrogates-raw`), and drop members whose names hold \
+    one where the target has ten fields or fewer; not planned (D-DECODE)."""
 decision = "D-DECODE"
 
 [[difference]]

@@ -2114,5 +2114,133 @@
       "result": "{\"f\":0,\"f32\":0,\"i\":0}",
       "err": "main.floatTarget.F: strconv.ParseFloat: parsing \"+\": invalid syntax"
     }
+  ],
+  "control_member_names": [
+    {
+      "name": "jsonutil.Unmarshal",
+      "input": "{\"s\":\"x\",\"z\tz\":1}",
+      "result": "s=\"x\" ext=nil m=[]",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.Unmarshal big",
+      "input": "{\"s\":\"x\",\"z\tz\":1}",
+      "result": "s=\"x\"",
+      "err": "invalid control character found: 9"
+    },
+    {
+      "name": "jsonutil.UnmarshalValid",
+      "input": "{\"s\":\"x\",\"z\tz\":1}",
+      "result": "s=\"x\" ext=nil m=[]",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.UnmarshalValid big",
+      "input": "{\"s\":\"x\",\"z\tz\":1}",
+      "result": "s=\"x\"",
+      "err": "invalid control character found: 9"
+    },
+    {
+      "name": "json.Unmarshal",
+      "input": "{\"s\":\"x\",\"z\tz\":1}",
+      "result": "s=\"\" ext=nil m=[]",
+      "err": "invalid character '\\t' in string literal"
+    },
+    {
+      "name": "jsonutil.MergeClone",
+      "input": "{\"s\":\"x\",\"z\tz\":1}",
+      "result": "s=\"x\" ext=nil m=[]",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.MergeClone big",
+      "input": "{\"s\":\"x\",\"z\tz\":1}",
+      "result": "s=\"x\"",
+      "err": "invalid control character found: 9"
+    },
+    {
+      "name": "jsonutil.Unmarshal",
+      "input": "{\"\ts\":\"x\"}",
+      "result": "s=\"\" ext=nil m=[]",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.Unmarshal big",
+      "input": "{\"\ts\":\"x\"}",
+      "result": "s=\"\"",
+      "err": "invalid control character found: 9"
+    },
+    {
+      "name": "jsonutil.UnmarshalValid",
+      "input": "{\"\ts\":\"x\"}",
+      "result": "s=\"\" ext=nil m=[]",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.UnmarshalValid big",
+      "input": "{\"\ts\":\"x\"}",
+      "result": "s=\"\"",
+      "err": "invalid control character found: 9"
+    },
+    {
+      "name": "json.Unmarshal",
+      "input": "{\"\ts\":\"x\"}",
+      "result": "s=\"\" ext=nil m=[]",
+      "err": "invalid character '\\t' in string literal"
+    },
+    {
+      "name": "jsonutil.MergeClone",
+      "input": "{\"\ts\":\"x\"}",
+      "result": "s=\"\" ext=nil m=[]",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.MergeClone big",
+      "input": "{\"\ts\":\"x\"}",
+      "result": "s=\"\"",
+      "err": "invalid control character found: 9"
+    },
+    {
+      "name": "jsonutil.Unmarshal",
+      "input": "{\"s\u0001\":\"x\"}",
+      "result": "s=\"\" ext=nil m=[]",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.Unmarshal big",
+      "input": "{\"s\u0001\":\"x\"}",
+      "result": "s=\"\"",
+      "err": "invalid control character found: 1"
+    },
+    {
+      "name": "jsonutil.UnmarshalValid",
+      "input": "{\"s\u0001\":\"x\"}",
+      "result": "s=\"\" ext=nil m=[]",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.UnmarshalValid big",
+      "input": "{\"s\u0001\":\"x\"}",
+      "result": "s=\"\"",
+      "err": "invalid control character found: 1"
+    },
+    {
+      "name": "json.Unmarshal",
+      "input": "{\"s\u0001\":\"x\"}",
+      "result": "s=\"\" ext=nil m=[]",
+      "err": "invalid character '\\x01' in string literal"
+    },
+    {
+      "name": "jsonutil.MergeClone",
+      "input": "{\"s\u0001\":\"x\"}",
+      "result": "s=\"\" ext=nil m=[]",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.MergeClone big",
+      "input": "{\"s\u0001\":\"x\"}",
+      "result": "s=\"\"",
+      "err": "invalid control character found: 1"
+    }
   ]
 }

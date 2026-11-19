@@ -433,6 +433,59 @@ func controlCharacters() []row {
 	return rows
 }
 
+// bigControlTarget has more than ten fields, so jsoniter decodes it with its general struct
+// decoder, which reads member names with ReadString.
+type bigControlTarget struct {
+	A1  int    `json:"a1"`
+	A2  int    `json:"a2"`
+	A3  int    `json:"a3"`
+	A4  int    `json:"a4"`
+	A5  int    `json:"a5"`
+	A6  int    `json:"a6"`
+	A7  int    `json:"a7"`
+	A8  int    `json:"a8"`
+	A9  int    `json:"a9"`
+	A10 int    `json:"a10"`
+	S   string `json:"s"`
+}
+
+// controlMemberNames is json.control-characters in member names: jsoniter decodes a struct of
+// ten fields or fewer by a hash of each member's name (createStructDecoder, readFieldHash), which
+// checks none of its bytes, so a raw control character anywhere in a name passes there and the
+// member matches no field; a larger struct's decoder reads the name with ReadString, which
+// rejects one before the first backslash. encoding/json rejects them all.
+func controlMemberNames() []row {
+	var rows []row
+	for _, in := range []string{
+		"{\"s\":\"x\",\"z\tz\":1}",
+		"{\"\ts\":\"x\"}",
+		"{\"s\x01\":\"x\"}",
+	} {
+		var a controlTarget
+		err := jsonutil.Unmarshal([]byte(in), &a)
+		rows = append(rows, row{Name: "jsonutil.Unmarshal", Input: in, Result: a.state(), Err: errText(err)})
+		var b bigControlTarget
+		err = jsonutil.Unmarshal([]byte(in), &b)
+		rows = append(rows, row{Name: "jsonutil.Unmarshal big", Input: in, Result: fmt.Sprintf("s=%q", b.S), Err: errText(err)})
+		var c controlTarget
+		err = jsonutil.UnmarshalValid([]byte(in), &c)
+		rows = append(rows, row{Name: "jsonutil.UnmarshalValid", Input: in, Result: c.state(), Err: errText(err)})
+		var d bigControlTarget
+		err = jsonutil.UnmarshalValid([]byte(in), &d)
+		rows = append(rows, row{Name: "jsonutil.UnmarshalValid big", Input: in, Result: fmt.Sprintf("s=%q", d.S), Err: errText(err)})
+		var e controlTarget
+		err = json.Unmarshal([]byte(in), &e)
+		rows = append(rows, row{Name: "json.Unmarshal", Input: in, Result: e.state(), Err: errText(err)})
+		var f controlTarget
+		err = jsonutil.MergeClone(&f, []byte(in))
+		rows = append(rows, row{Name: "jsonutil.MergeClone", Input: in, Result: f.state(), Err: errText(err)})
+		var g bigControlTarget
+		err = jsonutil.MergeClone(&g, []byte(in))
+		rows = append(rows, row{Name: "jsonutil.MergeClone big", Input: in, Result: fmt.Sprintf("s=%q", g.S), Err: errText(err)})
+	}
+	return rows
+}
+
 // nullDocuments is json.null-document: a document that is JSON null, as a bidder's response body
 // can be. jsoniter and encoding/json return no error and leave a struct and an int as they were
 // and a map and a slice nil; jsoniter makes a string "", encoding/json leaves it. MergeClone leaves
@@ -600,6 +653,7 @@ type decodeDoc struct {
 	NullElements     []row  `json:"null_elements"`
 	TrailingNuls     []row  `json:"trailing_nuls"`
 	PlusFloats       []row  `json:"plus_floats"`
+	ControlNames     []row  `json:"control_member_names"`
 }
 
 func decodeGolden() decodeDoc {
@@ -626,5 +680,6 @@ func decodeGolden() decodeDoc {
 		NullElements:     nullElements(),
 		TrailingNuls:     trailingNuls(),
 		PlusFloats:       plusFloats(),
+		ControlNames:     controlMemberNames(),
 	}
 }
