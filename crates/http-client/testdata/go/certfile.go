@@ -64,6 +64,41 @@ func certificatesFileGolden() certFileDoc {
 	noEnd := strings.TrimSuffix(pemA, "-----END CERTIFICATE-----\n")
 	crlf := strings.ReplaceAll(pemA, "\n", "\r\n")
 	indented := "  " + strings.ReplaceAll(strings.TrimSuffix(pemA, "\n"), "\n", "\n  ") + "\n"
+	// Blanks inside the base64 lines, which Decode drops before it decodes.
+	bodyLines := strings.Split(strings.TrimSuffix(pemA, "\n"), "\n")
+	for i := 1; i < len(bodyLines)-1; i++ {
+		bodyLines[i] = bodyLines[i][:8] + " \t " + bodyLines[i][8:]
+	}
+	blanksInBody := strings.Join(bodyLines, "\n") + "\n"
+	// The last base64 digit before the padding with its unused low bits set, which
+	// base64.StdEncoding (not Strict) ignores.
+	trailingBits := ""
+	for _, der := range [][]byte{a, b} {
+		enc := base64.StdEncoding.EncodeToString(der)
+		pad := len(enc) - len(strings.TrimRight(enc, "="))
+		if pad == 0 {
+			continue
+		}
+		const digits = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
+		last := len(enc) - pad - 1
+		value := strings.IndexByte(digits, enc[last]) | (1<<(2*pad) - 1)
+		enc = enc[:last] + string(digits[value]) + enc[last+1:]
+		var lines []string
+		for len(enc) > 64 {
+			lines, enc = append(lines, enc[:64]), enc[64:]
+		}
+		lines = append(lines, enc)
+		trailingBits = "-----BEGIN CERTIFICATE-----\n" + strings.Join(lines, "\n") + "\n-----END CERTIFICATE-----\n"
+		break
+	}
+	if trailingBits == "" {
+		panic("no certificate needs base64 padding")
+	}
+	// The URL-safe alphabet, which base64.StdEncoding refuses.
+	if !strings.ContainsAny(pemA, "+/") {
+		panic("cert-a's base64 has no + or /")
+	}
+	urlSafe := strings.NewReplacer("+", "-", "/", "_").Replace(pemA)
 	trusted := "-----BEGIN TRUSTED CERTIFICATE-----\n" + strings.Join(strings.Split(strings.TrimSpace(strings.Split(pemA, "\n-----END")[0]), "\n")[1:], "\n") + "\n-----END TRUSTED CERTIFICATE-----\n"
 	cases := []certFileCase{
 		{Name: "two_certs", PEM: pemA + pemB},
@@ -78,6 +113,18 @@ func certificatesFileGolden() certFileDoc {
 		{Name: "indented", PEM: indented},
 		{Name: "trusted_certificate", PEM: trusted + pemB},
 		{Name: "empty", PEM: ""},
+		// pem.Decode's edges: what may follow the END line, which BEGIN line a block takes, where
+		// the lines may start and end, and how strictly the body's base64 is read.
+		{Name: "end_line_junk", PEM: strings.Replace(pemA, "END CERTIFICATE-----", "END CERTIFICATE----- junk", 1) + pemB},
+		{Name: "two_begins", PEM: "-----BEGIN CERTIFICATE-----\n" + pemA},
+		{Name: "begin_mid_line", PEM: "x" + pemA},
+		{Name: "trailing_blanks", PEM: strings.ReplaceAll(pemA, "-----\n", "----- \t\n")},
+		{Name: "blanks_in_body", PEM: blanksInBody},
+		{Name: "lower_case_type", PEM: strings.ReplaceAll(pemA, "CERTIFICATE", "certificate") + pemB},
+		{Name: "trailing_bits", PEM: trailingBits},
+		{Name: "no_final_newline", PEM: strings.TrimSuffix(pemA, "\n")},
+		{Name: "end_not_on_own_line", PEM: strings.Replace(pemA, "\n-----END", "-----END", 1) + pemB},
+		{Name: "url_safe_base64", PEM: urlSafe},
 	}
 	certs := map[string][]byte{"cert-a": a, "cert-b": b}
 	names := []string{"cert-a", "cert-b"}
