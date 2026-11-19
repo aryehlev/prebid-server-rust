@@ -1,7 +1,7 @@
 //! Pins of `serde_json` and the `serde` derives against `encoding/json` and jsoniter as
-//! `util/jsonutil` configures it: writing strings, floats and raw messages, decoding keys,
-//! duplicates, invalid UTF-8 and nulls, and reading numbers (`testdata/golden/json.json` and
-//! `testdata/golden/float_parse.json`).
+//! `util/jsonutil` configures it: writing strings, control characters, floats and raw messages,
+//! decoding keys, duplicates, invalid UTF-8, lone surrogates, nulls and deep nesting, and reading
+//! numbers (`testdata/golden/json.json` and `testdata/golden/float_parse.json`).
 
 #[cfg(test)]
 mod tests {
@@ -600,6 +600,175 @@ mod tests {
                 ],
             ],
             "ext bytes, jsonutil.Marshal, json.Marshal, the endpoints' Encoder, serde_json",
+        )
+    }
+
+    /// A `\u` escape of a UTF-16 surrogate that forms no pair (a high surrogate before a letter,
+    /// a low surrogate alone, two high surrogates) decodes in Go to U+FFFD, once per lone
+    /// surrogate, and the document decodes; `serde_json` rejects the document, into the derives
+    /// and into a `Value` alike. Such escapes reach the server when a client cuts a string inside
+    /// an escaped emoji.
+    // Go: util/jsonutil/jsonutil.go:136-155 (jsoniter's readEscapedChar, which appends a lone
+    // surrogate through appendRune as utf8.RuneError) and encoding/json's unquote
+    #[test]
+    fn go_difference_lone_surrogates() -> TestResult {
+        let doc = golden("json.json")?;
+        let mut rows = Vec::new();
+        for (index, case) in list(&doc, "/lone_surrogates")?.iter().enumerate() {
+            let input = unhex(text(case, "/input_hex")?)?;
+            rows.extend(go_decodes(&doc, &format!("lone_surrogates/{index}"))?);
+            rows.extend(rust_decodes(&input));
+            rows.push(vec![
+                "Value".to_owned(),
+                match serde_json::from_slice::<Value>(&input) {
+                    Ok(value) => value.to_string(),
+                    Err(e) => format!("error: {e}"),
+                },
+            ]);
+        }
+        let high = "error: unexpected end of hex escape at line 1 column 15";
+        let low = "error: lone leading surrogate in hex escape at line 1 column 14";
+        let two_high = "error: lone leading surrogate in hex escape at line 1 column 19";
+        check_table(
+            &rows,
+            &[
+                &["jsonutil_unmarshal", "61efbfbd62", "y", "1"],
+                &["jsonutil_unmarshal_valid", "61efbfbd62", "y", "1"],
+                &["json_unmarshal", "61efbfbd62", "y", "1"],
+                &["serde(default)", high],
+                &["serde", high],
+                &["Value", high],
+                &["jsonutil_unmarshal", "61efbfbd62", "y", "1"],
+                &["jsonutil_unmarshal_valid", "61efbfbd62", "y", "1"],
+                &["json_unmarshal", "61efbfbd62", "y", "1"],
+                &["serde(default)", low],
+                &["serde", low],
+                &["Value", low],
+                &["jsonutil_unmarshal", "efbfbdefbfbd", "y", "1"],
+                &["jsonutil_unmarshal_valid", "efbfbdefbfbd", "y", "1"],
+                &["json_unmarshal", "efbfbdefbfbd", "y", "1"],
+                &["serde(default)", two_high],
+                &["serde", two_high],
+                &["Value", two_high],
+            ],
+            "decoder, id (hex), impid, price",
+        )
+    }
+
+    /// jsoniter writes U+0008 and U+000C as `\u0008` and `\u000c`; `encoding/json` (since Go
+    /// 1.22) and `serde_json` write `\b` and `\f`. The other control characters are `\u00XX` in
+    /// all of them, and DEL is written as it is.
+    // Go: util/jsonutil/jsonutil.go:159-167 (jsoniter's WriteString, which escapes a control
+    // character other than \n, \r and \t as \u00XX) and encoding/json's appendString
+    #[test]
+    fn go_difference_control_escapes() -> TestResult {
+        let doc = golden("json.json")?;
+        let input = String::from_utf8(unhex(text(&doc, "/control_escape/input_hex")?)?)?;
+        let mut row = go_writers(at(&doc, "/control_escape/writers")?)?;
+        row.push(written(&input));
+        check_table(
+            &[row],
+            &[&[
+                "\"\\u0008\\u000c\\u0000\\u0001\\u001f\u{7f}\"",
+                "\"\\b\\f\\u0000\\u0001\\u001f\u{7f}\"",
+                "\"\\b\\f\\u0000\\u0001\\u001f\u{7f}\"",
+                "\"\\b\\f\\u0000\\u0001\\u001f\u{7f}\"",
+            ]],
+            "jsonutil.Marshal, json.Marshal, the endpoints' Encoder, serde_json",
+        )
+    }
+
+    /// A nested ext read into a raw value, as the `OpenRTB` types' ext fields hold it.
+    #[derive(Debug, Deserialize)]
+    struct NestedRaw {
+        ext: Box<RawValue>,
+    }
+
+    /// A nested ext read into a `Value`, as untyped documents hold it.
+    #[derive(Debug, Deserialize)]
+    struct NestedValue {
+        ext: Value,
+    }
+
+    /// A document read without its ext, which the derive skips as an unknown key.
+    #[derive(Debug, Deserialize)]
+    struct NestedSkip {
+        id: String,
+    }
+
+    /// The error text of `result`, or nothing when it decoded.
+    fn depth_outcome<T>(result: Result<T, serde_json::Error>) -> String {
+        match result {
+            Ok(_) => String::new(),
+            Err(e) => e.to_string(),
+        }
+    }
+
+    /// jsoniter and `encoding/json` accept 10000 levels of nesting and reject a deeper document,
+    /// whether the deep value lands in a `json.RawMessage`, in an `interface{}` or in a key they
+    /// skip. `serde_json` stops a `Value` at 128 levels, the outer object included, and reads a
+    /// raw value or skips an unknown key at any depth.
+    // Go: util/jsonutil/jsonutil.go:136-155 (Unmarshal and UnmarshalValid; jsoniter's
+    // incrementDepth stops at its maxDepth of 10000) and encoding/json's maxNestingDepth
+    #[test]
+    fn go_difference_nesting_depth() -> TestResult {
+        let doc = golden("json.json")?;
+        let mut rows = Vec::new();
+        for case in list(&doc, "/depth")? {
+            let arrays = number(case, "/arrays")?;
+            for decoder in [
+                "jsonutil_unmarshal",
+                "jsonutil_unmarshal_valid",
+                "json_unmarshal",
+            ] {
+                let mut row = vec![arrays.to_string(), decoder.to_owned()];
+                for holder in ["raw_err", "any_err", "skip_err"] {
+                    row.push(text(case, &format!("/{decoder}/{holder}"))?.to_owned());
+                }
+                rows.push(row);
+            }
+            let depth = usize::try_from(arrays)?;
+            let input = format!(
+                "{{\"id\":\"x\",\"ext\":{}{}}}",
+                "[".repeat(depth),
+                "]".repeat(depth)
+            );
+            rows.push(vec![
+                arrays.to_string(),
+                "serde_json".to_owned(),
+                depth_outcome(serde_json::from_str::<NestedRaw>(&input).map(|n| n.ext.get().len())),
+                depth_outcome(
+                    serde_json::from_str::<NestedValue>(&input).map(|n| n.ext.is_array()),
+                ),
+                depth_outcome(serde_json::from_str::<NestedSkip>(&input).map(|n| n.id)),
+            ]);
+        }
+        let limit = "recursion limit exceeded at line 1 column 143";
+        let raw = "cannot unmarshal main.nestedRaw.Ext: exceeded max depth";
+        let any = "cannot unmarshal main.nestedAny.Ext: exceeded max depth";
+        let skipped = "exceeded max depth";
+        let scanner = "invalid character '[' exceeded max depth";
+        check_table(
+            &rows,
+            &[
+                &["126", "jsonutil_unmarshal", "", "", ""],
+                &["126", "jsonutil_unmarshal_valid", "", "", ""],
+                &["126", "json_unmarshal", "", "", ""],
+                &["126", "serde_json", "", "", ""],
+                &["127", "jsonutil_unmarshal", "", "", ""],
+                &["127", "jsonutil_unmarshal_valid", "", "", ""],
+                &["127", "json_unmarshal", "", "", ""],
+                &["127", "serde_json", "", limit, ""],
+                &["9999", "jsonutil_unmarshal", "", "", ""],
+                &["9999", "jsonutil_unmarshal_valid", "", "", ""],
+                &["9999", "json_unmarshal", "", "", ""],
+                &["9999", "serde_json", "", limit, ""],
+                &["10000", "jsonutil_unmarshal", raw, any, skipped],
+                &["10000", "jsonutil_unmarshal_valid", raw, any, skipped],
+                &["10000", "json_unmarshal", scanner, scanner, scanner],
+                &["10000", "serde_json", "", limit, ""],
+            ],
+            "nested arrays, decoder, into a raw ext, into an untyped ext, with the ext skipped",
         )
     }
 

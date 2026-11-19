@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"math"
 	"strconv"
+	"strings"
 
 	jsoniter "github.com/json-iterator/go"
 
@@ -190,18 +191,97 @@ type rawCase struct {
 	Writers writers `json:"writers"`
 }
 
-type jsonDoc struct {
-	Header        header          `json:"header"`
-	HTMLEscape    htmlEscapeCase  `json:"html_escape"`
-	FloatFormat   []floatCase     `json:"float_format"`
-	ValueNumbers  []valueNumber   `json:"value_numbers"`
-	NonFinite     []nonFiniteCase `json:"non_finite"`
-	KeyCase       bidDecodes      `json:"key_case"`
-	DuplicateKeys bidDecodes      `json:"duplicate_keys"`
-	InvalidUTF8   bidDecodes      `json:"invalid_utf8"`
-	NullIntoValue nullDecodes     `json:"null_into_value"`
-	RawMessage    []rawCase       `json:"raw_message"`
+// controlEscapeCase is a string of control characters (and DEL) through each writer.
+type controlEscapeCase struct {
+	InputHex string  `json:"input_hex"`
+	Writers  writers `json:"writers"`
 }
+
+// nestedRaw holds a nested ext as the OpenRTB types' ext fields do, in a json.RawMessage.
+type nestedRaw struct {
+	ID  string          `json:"id"`
+	Ext json.RawMessage `json:"ext"`
+}
+
+// nestedAny holds it as Prebid's untyped documents do, in an interface{}.
+type nestedAny struct {
+	ID  string `json:"id"`
+	Ext any    `json:"ext"`
+}
+
+// nestedSkip has no ext field, so the decoder skips the nested value as an unknown key.
+type nestedSkip struct {
+	ID string `json:"id"`
+}
+
+// depthOutcome is what one decoder made of the nested document into each holder: its error
+// text, or nothing.
+type depthOutcome struct {
+	RawErr  string `json:"raw_err"`
+	AnyErr  string `json:"any_err"`
+	SkipErr string `json:"skip_err"`
+}
+
+// decodeDepth decodes input into each holder with decode.
+func decodeDepth(decode func([]byte, any) error, input []byte) depthOutcome {
+	var out depthOutcome
+	var raw nestedRaw
+	if err := decode(input, &raw); err != nil {
+		out.RawErr = err.Error()
+	}
+	var v nestedAny
+	if err := decode(input, &v); err != nil {
+		out.AnyErr = err.Error()
+	}
+	var skip nestedSkip
+	if err := decode(input, &skip); err != nil {
+		out.SkipErr = err.Error()
+	}
+	return out
+}
+
+// depthCase is what each decoder made of a document whose ext nests Arrays arrays inside the
+// outer object.
+type depthCase struct {
+	Arrays        int          `json:"arrays"`
+	JSONUtil      depthOutcome `json:"jsonutil_unmarshal"`
+	JSONUtilValid depthOutcome `json:"jsonutil_unmarshal_valid"`
+	JSON          depthOutcome `json:"json_unmarshal"`
+}
+
+// nestedDocument is {"id":"x","ext":[[...]]} with arrays levels of arrays.
+func nestedDocument(arrays int) []byte {
+	return []byte(`{"id":"x","ext":` + strings.Repeat("[", arrays) + strings.Repeat("]", arrays) + `}`)
+}
+
+type jsonDoc struct {
+	Header         header            `json:"header"`
+	HTMLEscape     htmlEscapeCase    `json:"html_escape"`
+	FloatFormat    []floatCase       `json:"float_format"`
+	ValueNumbers   []valueNumber     `json:"value_numbers"`
+	NonFinite      []nonFiniteCase   `json:"non_finite"`
+	KeyCase        bidDecodes        `json:"key_case"`
+	DuplicateKeys  bidDecodes        `json:"duplicate_keys"`
+	InvalidUTF8    bidDecodes        `json:"invalid_utf8"`
+	NullIntoValue  nullDecodes       `json:"null_into_value"`
+	RawMessage     []rawCase         `json:"raw_message"`
+	LoneSurrogates []bidDecodes      `json:"lone_surrogates"`
+	ControlEscape  controlEscapeCase `json:"control_escape"`
+	Depth          []depthCase       `json:"depth"`
+}
+
+// loneSurrogateInputs are documents whose id holds \u escapes of UTF-16 surrogates that form no
+// pair: a high surrogate before a letter, a low surrogate alone, and two high surrogates, as a
+// string cut in the middle of an escaped emoji (a page title, a keyword) reaches the server.
+var loneSurrogateInputs = []string{
+	`{"id":"a\ud83db","impid":"y","price":1}`,
+	`{"id":"a\ude00b","impid":"y","price":1}`,
+	`{"id":"\ud83d\ud83d","impid":"y","price":1}`,
+}
+
+// depthArrays are nesting depths around serde_json's recursion limit (128 levels) and around
+// jsoniter's and encoding/json's limit (10000 levels); the outer object adds one level.
+var depthArrays = []int{126, 127, 9999, 10000}
 
 // formatFloats are the floats of the float_format golden: integral values, the bounds of the
 // plain form (1e-6 and 1e21) on both sides, -0, the extremes and ordinary prices.
@@ -275,6 +355,26 @@ func jsonGolden() jsonDoc {
 			Ext:     ext,
 			Valid:   json.Valid([]byte(ext)),
 			Writers: writeAll(rawBid{ID: "1", Ext: json.RawMessage(ext)}),
+		})
+	}
+
+	for _, input := range loneSurrogateInputs {
+		doc.LoneSurrogates = append(doc.LoneSurrogates, decodeBids(input))
+	}
+
+	controls := "\x08\x0c\x00\x01\x1f\x7f"
+	doc.ControlEscape = controlEscapeCase{
+		InputHex: hex.EncodeToString([]byte(controls)),
+		Writers:  writeAll(controls),
+	}
+
+	for _, arrays := range depthArrays {
+		input := nestedDocument(arrays)
+		doc.Depth = append(doc.Depth, depthCase{
+			Arrays:        arrays,
+			JSONUtil:      decodeDepth(jsonutil.Unmarshal, input),
+			JSONUtilValid: decodeDepth(jsonutil.UnmarshalValid, input),
+			JSON:          decodeDepth(json.Unmarshal, input),
 		})
 	}
 	return doc

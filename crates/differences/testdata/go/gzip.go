@@ -14,7 +14,7 @@ type gzipDoc struct {
 }
 
 // gzipGolden compresses a bid request as the exchange compresses request bodies for a bidder
-// with endpointCompression gzip (exchange/bidder.go:847-871, a gzip.NewWriter from the pool at
+// with endpointCompression gzip (exchange/bidder.go:848-874, a gzip.NewWriter from the pool at
 // :876-880, reset onto the buffer).
 func gzipGolden() gzipDoc {
 	doc := gzipDoc{

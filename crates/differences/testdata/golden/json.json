@@ -964,5 +964,161 @@
         }
       }
     }
+  ],
+  "lone_surrogates": [
+    {
+      "input_hex": "7b226964223a22615c756438336462222c22696d706964223a2279222c227072696365223a317d",
+      "jsonutil_unmarshal": {
+        "err": "",
+        "id_hex": "61efbfbd62",
+        "impid": "y",
+        "price": "1"
+      },
+      "jsonutil_unmarshal_valid": {
+        "err": "",
+        "id_hex": "61efbfbd62",
+        "impid": "y",
+        "price": "1"
+      },
+      "json_unmarshal": {
+        "err": "",
+        "id_hex": "61efbfbd62",
+        "impid": "y",
+        "price": "1"
+      }
+    },
+    {
+      "input_hex": "7b226964223a22615c756465303062222c22696d706964223a2279222c227072696365223a317d",
+      "jsonutil_unmarshal": {
+        "err": "",
+        "id_hex": "61efbfbd62",
+        "impid": "y",
+        "price": "1"
+      },
+      "jsonutil_unmarshal_valid": {
+        "err": "",
+        "id_hex": "61efbfbd62",
+        "impid": "y",
+        "price": "1"
+      },
+      "json_unmarshal": {
+        "err": "",
+        "id_hex": "61efbfbd62",
+        "impid": "y",
+        "price": "1"
+      }
+    },
+    {
+      "input_hex": "7b226964223a225c75643833645c7564383364222c22696d706964223a2279222c227072696365223a317d",
+      "jsonutil_unmarshal": {
+        "err": "",
+        "id_hex": "efbfbdefbfbd",
+        "impid": "y",
+        "price": "1"
+      },
+      "jsonutil_unmarshal_valid": {
+        "err": "",
+        "id_hex": "efbfbdefbfbd",
+        "impid": "y",
+        "price": "1"
+      },
+      "json_unmarshal": {
+        "err": "",
+        "id_hex": "efbfbdefbfbd",
+        "impid": "y",
+        "price": "1"
+      }
+    }
+  ],
+  "control_escape": {
+    "input_hex": "080c00011f7f",
+    "writers": {
+      "jsonutil_marshal": {
+        "out": "\"\\u0008\\u000c\\u0000\\u0001\\u001f\"",
+        "err": ""
+      },
+      "json_marshal": {
+        "out": "\"\\b\\f\\u0000\\u0001\\u001f\"",
+        "err": ""
+      },
+      "encoder_no_html": {
+        "out": "\"\\b\\f\\u0000\\u0001\\u001f\"\n",
+        "err": ""
+      }
+    }
+  },
+  "depth": [
+    {
+      "arrays": 126,
+      "jsonutil_unmarshal": {
+        "raw_err": "",
+        "any_err": "",
+        "skip_err": ""
+      },
+      "jsonutil_unmarshal_valid": {
+        "raw_err": "",
+        "any_err": "",
+        "skip_err": ""
+      },
+      "json_unmarshal": {
+        "raw_err": "",
+        "any_err": "",
+        "skip_err": ""
+      }
+    },
+    {
+      "arrays": 127,
+      "jsonutil_unmarshal": {
+        "raw_err": "",
+        "any_err": "",
+        "skip_err": ""
+      },
+      "jsonutil_unmarshal_valid": {
+        "raw_err": "",
+        "any_err": "",
+        "skip_err": ""
+      },
+      "json_unmarshal": {
+        "raw_err": "",
+        "any_err": "",
+        "skip_err": ""
+      }
+    },
+    {
+      "arrays": 9999,
+      "jsonutil_unmarshal": {
+        "raw_err": "",
+        "any_err": "",
+        "skip_err": ""
+      },
+      "jsonutil_unmarshal_valid": {
+        "raw_err": "",
+        "any_err": "",
+        "skip_err": ""
+      },
+      "json_unmarshal": {
+        "raw_err": "",
+        "any_err": "",
+        "skip_err": ""
+      }
+    },
+    {
+      "arrays": 10000,
+      "jsonutil_unmarshal": {
+        "raw_err": "cannot unmarshal main.nestedRaw.Ext: exceeded max depth",
+        "any_err": "cannot unmarshal main.nestedAny.Ext: exceeded max depth",
+        "skip_err": "exceeded max depth"
+      },
+      "jsonutil_unmarshal_valid": {
+        "raw_err": "cannot unmarshal main.nestedRaw.Ext: exceeded max depth",
+        "any_err": "cannot unmarshal main.nestedAny.Ext: exceeded max depth",
+        "skip_err": "exceeded max depth"
+      },
+      "json_unmarshal": {
+        "raw_err": "invalid character '[' exceeded max depth",
+        "any_err": "invalid character '[' exceeded max depth",
+        "skip_err": "invalid character '[' exceeded max depth"
+      }
+    }
   ]
 }
