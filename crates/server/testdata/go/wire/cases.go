@@ -151,9 +151,11 @@ func allCases() []wireCase {
 
 		wireCase{Group: "timeouts", Name: "slow_headers", Server: "scaled", Steps: []step{text("GET /echo HTTP/1.1\r\nHost: " + host + "\r\n")}, WindowMs: 3 * budget},
 		wireCase{Group: "timeouts", Name: "slow_headers_admin", Server: "admin", Steps: []step{text("GET /echo HTTP/1.1\r\nHost: " + host + "\r\n")}, WindowMs: 3 * budget},
+		// Every gap is short and the whole head is long: the budget passes 200 ms after X-A and
+		// 200 ms before X-B.
 		wireCase{Group: "timeouts", Name: "trickled_headers", Server: "scaled", Steps: []step{
-			text("GET /echo HTTP/1.1\r\n"), pause(budget / 3), text("Host: " + host + "\r\n"), pause(budget / 3), text("X-A: 1\r\n"),
-			pause(budget / 3), text("X-B: 2\r\n"), pause(budget / 3), text("X-C: 3\r\n"), pause(budget / 3), text("Connection: close\r\n\r\n"),
+			text("GET /echo HTTP/1.1\r\n"), pause(2 * budget / 5), text("Host: " + host + "\r\n"), pause(2 * budget / 5), text("X-A: 1\r\n"),
+			pause(2 * budget / 5), text("X-B: 2\r\n"), pause(2 * budget / 5), text("Connection: close\r\n\r\n"),
 		}, WindowMs: 2 * budget},
 		wireCase{Group: "timeouts", Name: "idle_keep_alive", Server: "scaled", Steps: []step{text("GET /echo HTTP/1.1\r\nHost: " + host + "\r\n\r\n")}, WindowMs: 3 * budget},
 		wireCase{Group: "timeouts", Name: "idle_keep_alive_admin", Server: "admin", Steps: []step{text("GET /echo HTTP/1.1\r\nHost: " + host + "\r\n\r\n")}, WindowMs: 3 * budget},

@@ -3,8 +3,9 @@
 // and newAdminServer, called through go:linkname, with Prebid's gziphandler wrapping when
 // compression.response.enable_gzip is set), to requests at the edges of net/http: header order,
 // case and framing, sniffed content types, the header limit, malformed requests, the HTTP/2
-// preface, the read and write budgets, gzip's Vary and http.FileServer behind router.go's
-// /static route. It also records the budgets each constructor sets.
+// preface, the read and write budgets, gzip's Vary, http.FileServer behind router.go's /static
+// route and what Shutdown does to the connections it finds (shutdown.go). It also records the
+// budgets each constructor sets.
 //
 // The servers run stand-in handlers (handlers.go) on loopback; every case is one connection, a
 // client script of writes and pauses (cases.go) and what the client read until the server
@@ -136,6 +137,7 @@ type doc struct {
 	Servers       map[string]budgets `json:"servers"`
 	StaticModTime string             `json:"static_mod_time"`
 	Cases         []result           `json:"cases"`
+	Shutdown      shutdownDoc        `json:"shutdown"`
 }
 
 var dateValue = regexp.MustCompile(`(?mi)^(Date: )[^\r]*`)
@@ -308,6 +310,11 @@ func generate() doc {
 	cases := allCases()
 	d.Cases = make([]result, len(cases))
 	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		d.Shutdown = shutdownScenario()
+	}()
 	for i, c := range cases {
 		wg.Add(1)
 		go func() {
