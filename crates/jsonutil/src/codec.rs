@@ -1,14 +1,17 @@
 //! `jsonutil.Unmarshal`, `UnmarshalValid` and `Marshal`: `serde_json` inside Prebid's error
-//! wrappers.
+//! wrappers, and the compaction of raw values Prebid's `RawMessageExtension` adds to `Marshal`.
 //!
 //! The wrappers are Prebid's and stay exact: a decode error is a `FailedToUnmarshal` whose text
 //! went through [`try_extract_error_message`], an encode error a `FailedToMarshal`. The text
 //! inside is the library's, `serde_json`'s here and jsoniter's in Go (`json.error-texts`).
 
+use std::borrow::Cow;
+
 use pbs_errortypes::GoError;
 use serde::{Serialize, de::DeserializeOwned};
+use serde_json::value::RawValue;
 
-use crate::replace_lone_surrogates;
+use crate::{compact, replace_lone_surrogates};
 
 /// The marker jsoniter puts after its message (Go: `tryExtractErrorMessage`).
 const END_MARKER: &str = ", error found in #";
@@ -40,12 +43,38 @@ pub fn unmarshal_valid<T: DeserializeOwned>(data: &[u8]) -> Result<T, GoError> {
 
 /// Go: `jsonutil.Marshal(v)`: `value` as compact JSON.
 ///
+/// Every `json.RawMessage` in it is compacted as Prebid's `RawMessageExtension` writes it, as a
+/// field, a map value, a slice element or the value itself, whether or not the field carries
+/// [`raw_compact`](crate::raw_compact).
+///
 /// # Errors
 ///
 /// A `FailedToMarshal` holding `serde_json`'s message when `value` cannot be written (a map
 /// whose keys are not strings or integers, or a `Serialize` implementation that fails).
 pub fn marshal<T: Serialize + ?Sized>(value: &T) -> Result<Vec<u8>, GoError> {
-    serde_json::to_vec(value).map_err(|e| GoError::failed_to_marshal(e.to_string()))
+    write(value).map(String::into_bytes)
+}
+
+/// Go: `json.RawMessage(b)` of the bytes `b` that `jsonutil.Marshal(v)` returns, which Prebid
+/// stores in a `json.RawMessage` field or map value: [`marshal`]'s bytes as a `RawValue`.
+///
+/// # Errors
+///
+/// As [`marshal`].
+pub fn marshal_raw<T: Serialize + ?Sized>(value: &T) -> Result<Box<RawValue>, GoError> {
+    RawValue::from_string(write(value)?).map_err(|e| GoError::failed_to_marshal(e.to_string()))
+}
+
+/// `value` as `serde_json` writes it, raw values compacted. `serde_json`'s compact writer puts no
+/// whitespace between tokens, so all there is came from raw values, and compacting the whole text
+/// compacts each of them.
+fn write<T: Serialize + ?Sized>(value: &T) -> Result<String, GoError> {
+    let text =
+        serde_json::to_string(value).map_err(|e| GoError::failed_to_marshal(e.to_string()))?;
+    if let Cow::Owned(compacted) = compact(&text) {
+        return Ok(compacted);
+    }
+    Ok(text)
 }
 
 /// Go: `tryExtractErrorMessage(err)`: a jsoniter message without the context jsoniter appends.

@@ -1,6 +1,6 @@
 //! Writing against Go (`testdata/golden/decode.json`): `json.RawMessage` compacted as Prebid's
-//! `RawMessageExtension` writes it, nil raw values, integer map keys, and edits of a document's
-//! members.
+//! `RawMessageExtension` writes it, in a field and outside one, nil raw values, integer map keys,
+//! and edits of a document's members.
 
 #[cfg(test)]
 pub mod support;
@@ -9,7 +9,7 @@ pub mod support;
 mod tests {
     use std::collections::BTreeMap;
 
-    use pbs_jsonutil::{compact, marshal, raw_compact, unmarshal};
+    use pbs_jsonutil::{compact, marshal, marshal_raw, raw_compact, unmarshal};
     use serde::{Deserialize, Serialize};
     use serde_json::{Value, value::RawValue};
 
@@ -56,8 +56,9 @@ mod tests {
 
     /// `TestCreateEncoder` and `TestEncode`: a `json.RawMessage` is written compacted, its
     /// whitespace between tokens gone and its spellings, escapes and HTML characters kept, as
-    /// `jsonutil.Marshal` writes it; without `raw_compact` a `RawValue` keeps its whitespace
-    /// (`json.raw-not-compacted`, restored).
+    /// `jsonutil.Marshal` writes it: through `raw_compact` by any writer, and by `marshal` without
+    /// it. `serde_json`'s own writer keeps a `RawValue`'s whitespace, which is what `raw_compact`
+    /// is for (`json.raw-not-compacted`, restored).
     // Go: util/jsonutil/jsonutil.go:224-255 (RawMessageExtension), jsonutil_test.go:249-324
     #[test]
     fn raw_messages_compacted() -> TestResult {
@@ -69,9 +70,15 @@ mod tests {
             }
             let omit: RawOmit = unmarshal(input.as_bytes())?;
             ensure_eq(&written(&omit)?.as_str(), &go, input)?;
+            ensure_eq(&serde_json::to_string(&omit)?.as_str(), &go, input)?;
             let verbatim: RawVerbatim = unmarshal(input.as_bytes())?;
+            ensure_eq(&written(&verbatim)?.as_str(), &go, input)?;
             let raw = verbatim.ext.as_deref().map(RawValue::get).ok_or("no ext")?;
-            ensure_eq(&written(&verbatim)?, &format!("{{\"ext\":{raw}}}"), input)?;
+            ensure_eq(
+                &serde_json::to_string(&verbatim)?,
+                &format!("{{\"ext\":{raw}}}"),
+                input,
+            )?;
             compared += 1;
         }
         ensure_eq(&compared, &4, "inputs")?;
@@ -92,6 +99,49 @@ mod tests {
             &want,
             "TestEncode's document",
         )
+    }
+
+    /// Outside a struct field too, `marshal` writes every `json.RawMessage` compacted, as
+    /// `jsonutil.Marshal` does: a map value, a slice element, the value itself, and the values of a
+    /// decoded `map[string]json.RawMessage`, which is how `RequestWrapper` writes its ext maps and
+    /// the exchange an imp's sanitized ext; `marshal_raw` holds the same bytes.
+    // Go: util/jsonutil/jsonutil.go:224-255 (RawMessageExtension); gen/decode.go rawContainers
+    #[test]
+    fn raw_containers_compacted() -> TestResult {
+        let doc = golden("decode.json")?;
+        let rows = rows(&doc, "/raw_containers")?;
+        let [map, slice, top, decoded] = rows.as_slice() else {
+            return Err(format!("want four rows, got {}", rows.len()).into());
+        };
+        let raw = RawValue::from_string(map.0.to_owned())?;
+        let rust = [
+            written(&BTreeMap::from([("k", raw.clone())]))?,
+            written(&vec![
+                raw.clone(),
+                RawValue::from_string(" [ 1 ] ".to_owned())?,
+            ])?,
+            written(&raw)?,
+            written(&unmarshal::<BTreeMap<String, Box<RawValue>>>(
+                decoded.0.as_bytes(),
+            )?)?,
+        ];
+        let go = [map.1, slice.1, top.1, decoded.1];
+        ensure_eq(
+            &rust.as_slice(),
+            &go.map(str::to_owned).as_slice(),
+            "marshal",
+        )?;
+        ensure_eq(
+            &marshal_raw(&raw)?.get(),
+            &top.1,
+            "marshal_raw of the value itself",
+        )?;
+        ensure_eq(
+            &serde_json::to_string(&raw)?.as_str(),
+            &top.0,
+            "serde_json's own writer",
+        )?;
+        ensure_eq(&slice.0, &top.0, "the inputs")
     }
 
     /// A nil `json.RawMessage` that `omitempty` does not drop is written as `null`, as a field, a

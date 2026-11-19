@@ -1,7 +1,8 @@
 //! Prebid's `jsonutil.RawMessageExtension`, which `main.go` registers at startup: every
 //! `json.RawMessage` is written through `json.Compact`, its whitespace between tokens removed and
-//! nothing else changed (no HTML escaping, number spellings and escapes kept). A `RawValue` is
-//! written verbatim, so [`raw_compact`] restores Go's bytes (`json.raw-not-compacted`).
+//! nothing else changed (no HTML escaping, number spellings and escapes kept). `serde_json` writes
+//! a `RawValue` verbatim, so [`raw_compact`] restores Go's bytes for a field whatever writes it,
+//! and `marshal` compacts every raw value it writes (`json.raw-not-compacted`).
 
 use std::{borrow::Cow, collections::BTreeMap};
 
@@ -11,9 +12,10 @@ use serde_json::value::RawValue;
 /// A `serialize_with` helper that writes each `json.RawMessage` in a field compacted.
 ///
 /// The field holds a `RawValue`, or an `Option`, `Vec`, `BTreeMap` or `Box` of them, and each raw
-/// value is written as Go's `RawMessageExtension` writes it. `None` is written as `null`; Go
-/// writes a nil `json.RawMessage` that `omitempty` does not drop as nothing at all, which is not
-/// JSON (`json.nil-raw-written`).
+/// value is written as Go's `RawMessageExtension` writes it, whichever writer serializes the type
+/// (`serde_json`, axum's `Json`, reqwest's `.json()`); `marshal` and `marshal_raw` compact raw
+/// values without it. `None` is written as `null`; Go writes a nil `json.RawMessage` that
+/// `omitempty` does not drop as nothing at all, which is not JSON (`json.nil-raw-written`).
 ///
 /// # Errors
 ///
@@ -87,22 +89,11 @@ impl<T: CompactRaw + ?Sized> Serialize for Compact<'_, T> {
 /// back borrowed.
 #[must_use]
 pub fn compact(text: &str) -> Cow<'_, str> {
+    let mut scan = Scan::default();
     let mut out = String::new();
     let mut copied = 0;
-    let mut in_string = false;
-    let mut escaped = false;
     for (at, byte) in text.bytes().enumerate() {
-        if in_string {
-            if escaped {
-                escaped = false;
-            } else if byte == b'\\' {
-                escaped = true;
-            } else if byte == b'"' {
-                in_string = false;
-            }
-        } else if byte == b'"' {
-            in_string = true;
-        } else if matches!(byte, b' ' | b'\t' | b'\n' | b'\r') {
+        if !scan.keeps(byte) {
             out.push_str(text.get(copied..at).unwrap_or_default());
             copied = at + 1;
         }
@@ -112,4 +103,33 @@ pub fn compact(text: &str) -> Cow<'_, str> {
     }
     out.push_str(text.get(copied..).unwrap_or_default());
     Cow::Owned(out)
+}
+
+/// Where a scan of valid JSON text is: between tokens, inside a string, or just after a backslash
+/// inside one.
+#[derive(Default)]
+struct Scan {
+    in_string: bool,
+    escaped: bool,
+}
+
+impl Scan {
+    /// Whether the next byte stays: every byte but whitespace between tokens.
+    const fn keeps(&mut self, byte: u8) -> bool {
+        if self.in_string {
+            if self.escaped {
+                self.escaped = false;
+            } else if byte == b'\\' {
+                self.escaped = true;
+            } else if byte == b'"' {
+                self.in_string = false;
+            }
+            true
+        } else if byte == b'"' {
+            self.in_string = true;
+            true
+        } else {
+            !matches!(byte, b' ' | b'\t' | b'\n' | b'\r')
+        }
+    }
 }

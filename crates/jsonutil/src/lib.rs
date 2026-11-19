@@ -5,7 +5,9 @@
 //! directly, and no writer is mandatory.
 //!
 //! - [`unmarshal`], [`unmarshal_valid`] and [`marshal`]: `serde_json` inside Prebid's error
-//!   wrappers (`FailedToUnmarshal` with [`try_extract_error_message`], `FailedToMarshal`).
+//!   wrappers (`FailedToUnmarshal` with [`try_extract_error_message`], `FailedToMarshal`), with
+//!   every raw value [`marshal`] writes compacted as Prebid's `RawMessageExtension` compacts it;
+//!   [`marshal_raw`] returns those bytes as the `RawValue` a `json.RawMessage` field holds.
 //! - [`find_element`] and [`drop_element`]: `FindElement` and `DropElement`, byte for byte.
 //! - [`merge_clone`] and the [`MergeClone`] trait the generated types implement with
 //!   [`merge_struct`] and [`merge_field`]: Go's `MergeClone` rules.
@@ -36,7 +38,7 @@ mod omitempty;
 mod readers;
 mod surrogates;
 
-pub use codec::{marshal, try_extract_error_message, unmarshal, unmarshal_valid};
+pub use codec::{marshal, marshal_raw, try_extract_error_message, unmarshal, unmarshal_valid};
 pub use compact::{CompactRaw, compact, raw_compact};
 pub use element::{ElementError, ElementSpan, drop_element, find_element};
 pub use merge::{MergeClone, MergeCloneError, merge_clone, merge_field, merge_struct};

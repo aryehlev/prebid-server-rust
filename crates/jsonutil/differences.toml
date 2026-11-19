@@ -39,6 +39,14 @@ note = """\
     50,000 seeded raw values with whitespace between and inside their tokens are written as \
     `jsonutil.Marshal` writes them."""
 
+[[restoration]]
+id = "json.raw-not-compacted"
+pin = "crates/jsonutil/tests/encode.rs::raw_containers_compacted"
+note = """\
+    `marshal` and `marshal_raw` compact every raw value they write, a map value, a slice element \
+    and the value itself, as `jsonutil.Marshal` does wherever it reaches one: `RequestWrapper`'s \
+    ext maps, the exchange's sanitized imp ext and the auction endpoint's resolved imps."""
+
 [[difference]]
 id = "json.control-characters"
 category = "json"
