@@ -1,5 +1,6 @@
 //! Pins of the `config` crate against Viper as `config.SetupViper` sets it up: `PBS_` variables
-//! read into a `bool`, and key case in `pbs.yaml` (`testdata/golden/config.json`).
+//! and `pbs.yaml` values read into a `bool`, and key case in `pbs.yaml`
+//! (`testdata/golden/config.json`).
 
 #[cfg(test)]
 mod tests {
@@ -160,6 +161,62 @@ mod tests {
                 &["PORT: 9300", "9300", "8000"],
             ],
             "pbs.yaml, Viper's port, config's port",
+        )
+    }
+
+    /// In `pbs.yaml`, Viper takes the value as yaml.v3 resolves it untyped (`true`, `True` and
+    /// `TRUE` and their false forms are booleans, `yes`, `on`, `y` and `tRuE` stay strings, `1`
+    /// is a number) and gives it the type of the key's default with `cast.ToBool`, so `t` and
+    /// `1` are true and `yes`, `on`, `y`, `tRuE` and `maybe` are false without an error. Through
+    /// `serde-saphyr` and `config`, `yes`, `on`, `y` and `tRuE` are true and `t`, `f` and
+    /// `maybe` fail the load.
+    // Go: config/config.go:948 (the unix_socket_enable default), config/config.go:1319
+    // (SetTypeByDefaultValue(true)) and :1322 (ReadInConfig), read by config/config.go:758
+    // (v.Unmarshal, whose AllSettings goes through Viper's Get and its cast.ToBool)
+    #[test]
+    fn go_difference_file_bool_spellings() -> TestResult {
+        let doc = golden("config.json")?;
+        let mut rows = Vec::new();
+        for outcome in list(&doc, "/file_bools")? {
+            let input = text(outcome, "/input")?;
+            let host = defaults()?
+                .add_source(File::from_str(input, YamlFormat))
+                .build()?
+                .try_deserialize::<Host>();
+            let go = if text(outcome, "/err")?.is_empty() {
+                text(outcome, "/value")?.to_owned()
+            } else {
+                "error".to_owned()
+            };
+            rows.push(vec![
+                input.trim_end().to_owned(),
+                go,
+                host.map_or_else(
+                    |_| "error".to_owned(),
+                    |host| host.unix_socket_enable.to_string(),
+                ),
+            ]);
+        }
+        check_table(
+            &rows,
+            &[
+                &["unix_socket_enable: true", "true", "true"],
+                &["unix_socket_enable: True", "true", "true"],
+                &["unix_socket_enable: yes", "false", "true"],
+                &["unix_socket_enable: on", "false", "true"],
+                &["unix_socket_enable: y", "false", "true"],
+                &["unix_socket_enable: t", "true", "error"],
+                &["unix_socket_enable: 1", "true", "true"],
+                &["unix_socket_enable: tRuE", "false", "true"],
+                &["unix_socket_enable: false", "false", "false"],
+                &["unix_socket_enable: no", "false", "false"],
+                &["unix_socket_enable: off", "false", "false"],
+                &["unix_socket_enable: n", "false", "false"],
+                &["unix_socket_enable: f", "false", "error"],
+                &["unix_socket_enable: 0", "false", "false"],
+                &["unix_socket_enable: maybe", "false", "error"],
+            ],
+            "pbs.yaml, Viper, config",
         )
     }
 }

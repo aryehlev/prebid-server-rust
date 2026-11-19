@@ -42,12 +42,20 @@ var envBoolSpellings = []string{
 	"0", "f", "F", "false", "FALSE", "False", "no", "off", "n", "maybe",
 }
 
+// fileBoolSpellings are values of unix_socket_enable in pbs.yaml: YAML's booleans, the YAML 1.1
+// words, strconv.ParseBool's short forms, numbers, mixed case and a word that is no boolean.
+var fileBoolSpellings = []string{
+	"true", "True", "yes", "on", "y", "t", "1", "tRuE",
+	"false", "no", "off", "n", "f", "0", "maybe",
+}
+
 type configDoc struct {
 	Header        header          `json:"header"`
 	EnvVar        string          `json:"env_var"`
 	EnvBools      []configOutcome `json:"env_bools"`
 	ConfigFile    string          `json:"config_file"`
 	FilePorts     []configOutcome `json:"file_ports"`
+	FileBools     []configOutcome `json:"file_bools"`
 	DefaultPort   int             `json:"default_port"`
 	DefaultSocket bool            `json:"default_unix_socket_enable"`
 }
@@ -82,35 +90,52 @@ func configGolden() configDoc {
 		panic(err)
 	}
 
-	// SetupViper searches the working directory (and /etc/config) for pbs.*.
-	wd, err := os.Getwd()
-	if err != nil {
-		panic(err)
-	}
 	for _, file := range []string{"Port: 9300\n", "port: 9300\n", "PORT: 9300\n"} {
-		dir, err := os.MkdirTemp("", "pbs-differences-")
-		if err != nil {
-			panic(err)
-		}
-		if err := os.WriteFile(filepath.Join(dir, doc.ConfigFile), []byte(file), 0o600); err != nil {
-			panic(err)
-		}
-		if err := os.Chdir(dir); err != nil {
-			panic(err)
-		}
 		out := configOutcome{Input: file}
-		if h, err := loadHost("pbs"); err != nil {
+		if h, err := loadFromFile(doc.ConfigFile, file); err != nil {
 			out.Err = err.Error()
 		} else {
 			out.Value = strconv.Itoa(h.Port)
 		}
-		if err := os.Chdir(wd); err != nil {
-			panic(err)
-		}
-		if err := os.RemoveAll(dir); err != nil {
-			panic(err)
-		}
 		doc.FilePorts = append(doc.FilePorts, out)
 	}
+	for _, s := range fileBoolSpellings {
+		file := "unix_socket_enable: " + s + "\n"
+		out := configOutcome{Input: file}
+		if h, err := loadFromFile(doc.ConfigFile, file); err != nil {
+			out.Err = err.Error()
+		} else {
+			out.Value = strconv.FormatBool(h.UnixSocketEnable)
+		}
+		doc.FileBools = append(doc.FileBools, out)
+	}
 	return doc
+}
+
+// loadFromFile writes contents as name into a fresh directory, loads the configuration with
+// that directory as the working directory (SetupViper searches it, and /etc/config, for pbs.*)
+// and removes the directory again.
+func loadFromFile(name, contents string) (hostSettings, error) {
+	wd, err := os.Getwd()
+	if err != nil {
+		panic(err)
+	}
+	dir, err := os.MkdirTemp("", "pbs-differences-")
+	if err != nil {
+		panic(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, name), []byte(contents), 0o600); err != nil {
+		panic(err)
+	}
+	if err := os.Chdir(dir); err != nil {
+		panic(err)
+	}
+	h, loadErr := loadHost("pbs")
+	if err := os.Chdir(wd); err != nil {
+		panic(err)
+	}
+	if err := os.RemoveAll(dir); err != nil {
+		panic(err)
+	}
+	return h, loadErr
 }

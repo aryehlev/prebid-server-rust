@@ -136,6 +136,83 @@
       "err": ""
     }
   ],
+  "file_bools": [
+    {
+      "input": "unix_socket_enable: true\n",
+      "value": "true",
+      "err": ""
+    },
+    {
+      "input": "unix_socket_enable: True\n",
+      "value": "true",
+      "err": ""
+    },
+    {
+      "input": "unix_socket_enable: yes\n",
+      "value": "false",
+      "err": ""
+    },
+    {
+      "input": "unix_socket_enable: on\n",
+      "value": "false",
+      "err": ""
+    },
+    {
+      "input": "unix_socket_enable: y\n",
+      "value": "false",
+      "err": ""
+    },
+    {
+      "input": "unix_socket_enable: t\n",
+      "value": "true",
+      "err": ""
+    },
+    {
+      "input": "unix_socket_enable: 1\n",
+      "value": "true",
+      "err": ""
+    },
+    {
+      "input": "unix_socket_enable: tRuE\n",
+      "value": "false",
+      "err": ""
+    },
+    {
+      "input": "unix_socket_enable: false\n",
+      "value": "false",
+      "err": ""
+    },
+    {
+      "input": "unix_socket_enable: no\n",
+      "value": "false",
+      "err": ""
+    },
+    {
+      "input": "unix_socket_enable: off\n",
+      "value": "false",
+      "err": ""
+    },
+    {
+      "input": "unix_socket_enable: n\n",
+      "value": "false",
+      "err": ""
+    },
+    {
+      "input": "unix_socket_enable: f\n",
+      "value": "false",
+      "err": ""
+    },
+    {
+      "input": "unix_socket_enable: 0\n",
+      "value": "false",
+      "err": ""
+    },
+    {
+      "input": "unix_socket_enable: maybe\n",
+      "value": "false",
+      "err": ""
+    }
+  ],
   "default_port": 8000,
   "default_unix_socket_enable": false
 }
