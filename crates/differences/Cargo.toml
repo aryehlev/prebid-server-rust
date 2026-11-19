@@ -1,6 +1,6 @@
 [package]
 name = "pbs-differences"
-description = "The library pins: where each crate of the stack behaves like the Go library it replaces and where it differs, checked against Go goldens"
+description = "The library pins (where each crate of the stack behaves like the Go library it replaces and where it differs, checked against Go goldens) and the differences ledger generator that writes docs/DIFFERENCES.md"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -14,11 +14,15 @@ publish.workspace = true
 [lints]
 workspace = true
 
-# The test support the pins share: golden reading, the YAML options and the test runtime.
+# The ledger generator (fragments read through toml into serde types, the document and JSON
+# written with serde_json) and the test support the pins share: golden reading, the YAML options
+# and the test runtime.
 [dependencies]
+serde = { workspace = true }
 serde-saphyr = { workspace = true }
 serde_json = { workspace = true }
 tokio = { workspace = true }
+toml = { workspace = true }
 
 # The crates the pins exercise, one test file per library under tests/.
 [dev-dependencies]
@@ -31,7 +35,6 @@ prometheus = { workspace = true }
 psl = { workspace = true }
 regex = { workspace = true }
 reqwest = { workspace = true }
-serde = { workspace = true }
 sha2 = { workspace = true }
 time = { workspace = true }
 tower-http = { workspace = true }

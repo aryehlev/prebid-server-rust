@@ -1,4 +1,4 @@
-//! The library pins of the port.
+//! The library pins of the port, and the differences ledger they feed.
 //!
 //! The Rust server builds on crates where the Go server builds on Go libraries: `serde_json` for
 //! `encoding/json` and jsoniter, `serde-saphyr` for yaml.v3, `config` for Viper, `reqwest` for the
@@ -14,7 +14,11 @@
 //!
 //! This library is the test support the pins share: reading a golden, checks that fail a test by
 //! returning an error instead of panicking, the YAML options the pins parse with, and a runtime
-//! for the pins that talk over loopback.
+//! for the pins that talk over loopback. Its [`ledger`] module is the differences ledger's
+//! generator, which the `pbs-differences` command runs: it validates every crate's
+//! `differences.toml` and writes `docs/DIFFERENCES.md` and `docs/differences.json`.
+
+pub mod ledger;
 
 use std::{error::Error, fmt::Debug, fs, future::Future, path::Path};
 
