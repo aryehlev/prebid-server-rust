@@ -1,0 +1,17 @@
+# A stand-in for webpki-root-certs 1.0.12 that is never built for a Prebid Server target.
+# rustls-platform-verifier (which reqwest 0.13's rustls features always depend on) uses it only on
+# wasm32, and its CDLA-Permissive-2.0 license is not in deny.toml's allow list; cargo deny checks
+# every target, so the wasm32-only crate fails the license gate. This package has no dependencies
+# and takes its place through `[patch.crates-io]`; a wasm32 build stops at the compile_error! in
+# src/lib.rs. Remove it if CDLA-Permissive-2.0 is ever allowed or the dependency goes away.
+[package]
+name = "webpki-root-certs"
+version = "1.0.12"
+description = "Never-built stand-in for webpki-root-certs: Prebid Server does not target wasm32"
+edition.workspace = true
+rust-version.workspace = true
+license = "Apache-2.0"
+publish = false
+
+[lints]
+workspace = true

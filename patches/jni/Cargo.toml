@@ -1,0 +1,25 @@
+# A stand-in for jni 0.22.4 that is never built for a Prebid Server target. reqwest 0.13's rustls
+# features always depend on rustls-platform-verifier, whose Android branch depends on jni, and
+# jni-macros 0.22.4 depends on syn 2 while serde_derive, tokio-macros and thiserror-impl use syn 3.
+# clippy::multiple_crate_versions reads `cargo metadata` for every target and cargo deny checks every
+# target, so the Android-only syn 2 fails both gates. This package has no dependencies and takes jni's
+# place through `[patch.crates-io]`; an Android build stops at the compile_error! in src/lib.rs.
+# Remove it when jni-macros moves to syn 3 (or rustls-platform-verifier drops jni).
+[package]
+name = "jni"
+version = "0.22.4"
+description = "Never-built stand-in for jni: Prebid Server does not target Android"
+edition.workspace = true
+rust-version.workspace = true
+license = "MIT OR Apache-2.0"
+publish = false
+
+[lints]
+workspace = true
+
+# jni 0.22.4's features, so that a crate that enables one still resolves and reaches the
+# compile_error! in src/lib.rs.
+[features]
+_cfg_test = []
+default = []
+invocation = []
