@@ -19,6 +19,7 @@ members = [
     "crates/goyaml",
     "crates/goyaml-derive",
     "crates/gpp",
+    "crates/jsonutil",
     "crates/logger",
     "crates/metrics",
     "crates/openrtb",
@@ -58,6 +59,9 @@ config = { version = "0.15.27", default-features = false, features = ["json"] }
 # the base64 padding of the uids value into %3D.
 cookie = "0.18.2"
 flate2 = "1.1.11"
+# RFC 7386 merge only (JSONUTIL). The diff feature pulls treediff; 0.3.0 through 4.1.0 need
+# thiserror 1, on syn 2.
+json-patch = { version = "0.2.7", default-features = false }
 log = "0.4.35"
 moka = { version = "0.12.16", features = ["sync"] }
 proc-macro2 = "1.0.107"
@@ -86,7 +90,7 @@ tokio = { version = "1.54.1", features = ["io-util", "macros", "net", "rt-multi-
 tokio-rustls = { version = "0.26.6", default-features = false, features = ["aws_lc_rs"] }
 # The differences ledger's fragments (crates/<crate>/differences.toml), which pbs-differences
 # reads. Reading into serde types needs only parse, serde and std; a crate that writes TOML adds
-# display. json-patch, which docs/DECISIONS.md accepts at 0.2.7, waits below.
+# display.
 toml = { version = "1.2.1", default-features = false, features = ["parse", "serde", "std"] }
 # 0.6, not 0.7: reqwest 0.13.5's gzip feature depends on tower-http 0.6.
 tower-http = { version = "0.6.11", features = ["compression-gzip", "cors", "limit", "timeout"] }
@@ -128,9 +132,6 @@ url = "2.5.8"
 # # The InfluxDB reporter's line protocol and writes (D-INFLUX), over pbs-http-client's reqwest.
 # influxdb = { version = "0.8.0", default-features = false, features = ["rustls"] }
 # ipnet = "2.12.2"
-# # RFC 7386 merge only (JSONUTIL). The diff feature pulls treediff; 0.3.0 through 4.1.0 need
-# # thiserror 1, on syn 2.
-# json-patch = { version = "0.2.7", default-features = false }
 # # golang-lru's simplelru (FETCHER). No default features: they pull foldhash, licensed Zlib.
 # lru = { version = "0.19.0", default-features = false }
 # md-5 = "0.11.0"

@@ -21,7 +21,7 @@ Rule B's cases: (a) input real production traffic sends that the crate would rej
 | Cookies | 0 | 1 | 0 |
 | Gzip | 0 | 1 | 0 |
 | HTTP client | 0 | 1 | 1 |
-| JSON | 0 | 8 | 3 |
+| JSON | 4 | 32 | 5 |
 | Logging | 0 | 1 | 0 |
 | Prometheus metrics | 0 | 1 | 0 |
 | Public suffix list | 1 | 0 | 0 |
@@ -30,10 +30,14 @@ Rule B's cases: (a) input real production traffic sends that the crate would rej
 | Time formatting | 0 | 0 | 1 |
 | URLs | 0 | 1 | 0 |
 | YAML | 0 | 1 | 0 |
-| All | 1 | 18 | 10 |
+| All | 5 | 42 | 12 |
 
 ## Decisions pending
 
+- `json.merge-patch-null-document` (D-MERGEPATCH): Merge patch into a `null` document: evanphx fails with `Invalid JSON Document`, json-patch merges. Default until decided: json-patch's result: the patch merges into a `null` document as RFC 7386 says (crates first).
+- `json.merge-patch-scalar-patch` (D-MERGEPATCH): Merge patch with a `null`, string, number or boolean patch: evanphx fails with `Invalid JSON Patch`, json-patch returns the patch. Default until decided: json-patch's result: a null or scalar patch replaces the document as RFC 7386 says (crates first).
+- `json.null-document` (D-DECODE): A document that is JSON null: Go leaves the target's zero value, serde_json rejects the document. Default until decided: serde's result: the document fails to decode (crates first).
+- `json.null-elements` (D-DECODE): null as a slice element or map value that is not a pointer: Go keeps the zero value, serde rejects the document. Default until decided: serde's result: the document fails to decode (crates first).
 - `psl.empty-labels-and-ip` (D-PSL): Public suffix lookups: x/net/publicsuffix fails on empty labels and IP addresses, psl answers. Default until decided: psl's answer, so the domain is set where Go leaves it unset (crates first).
 
 ## Restore pins still to land
@@ -42,9 +46,6 @@ Rule B's cases: (a) input real production traffic sends that the crate would rej
 - `config.file-bool-spellings`: brought by CONFIG-LOADER.
 - `config.key-case`: brought by CONFIG-LOADER.
 - `http-client.user-agent`: brought by HTTP-CLIENT.
-- `json.lone-surrogates`: brought by JSONUTIL.
-- `json.null-into-value`: brought by JSONUTIL and ORTB-SERDE.
-- `json.raw-not-compacted`: brought by JSONUTIL.
 - `regex.quote-meta`: brought by UTIL-CRATES.
 - `regex.unicode-classes`: brought by UTIL-CRATES.
 - `time.rfc3339-fraction`: brought by UTIL-CRATES.
@@ -187,7 +188,77 @@ No entry names the classes `other` and `unrecorded` or the kinds `stage_missing`
 
 ## JSON
 
+### Decision pending
+
+#### `json.merge-patch-null-document`: Merge patch into a `null` document: evanphx fails with `Invalid JSON Document`, json-patch merges
+
+- **Go:** `MergePatch` fails with `ErrBadJSONDoc` (`Invalid JSON Document`) when the document is the JSON `null`, whatever the patch (merge.go:127-129 of json-patch.v5). A stored request or stored imp that is `null` fails the auction with a 400 (endpoints/openrtb2/auction.go:1722, 1755).
+- **Rust:** json-patch merges an object patch as into `{}` and returns any other patch (RFC 7386), so the auction goes on.
+- **Who notices:** publisher, bidder
+- **Visible in:** The status of auctions whose stored request or stored imp is the JSON `null`
+- **Harness:** none
+- **Pin:** `crates/jsonutil/tests/merge_patch.rs::null_document_takes_patch`
+- **Decision:** D-MERGEPATCH
+- **Default until decided:** json-patch's result: the patch merges into a `null` document as RFC 7386 says (crates first).
+- **Restore option:** A check in front of the merge that returns Go's errors in Go's order (document syntax, patch syntax, null document, then a null or scalar patch), which Prebid turns into its own errors: glue under Rule B (d) if the user restores it.
+- **Note:** DECISIONS.md makes this entry decision-pending without a decision id of its own; `D-MERGEPATCH` names it until DECISIONS.md records one.
+- **Recorded in:** `crates/jsonutil/differences.toml`
+
+#### `json.merge-patch-scalar-patch`: Merge patch with a `null`, string, number or boolean patch: evanphx fails with `Invalid JSON Patch`, json-patch returns the patch
+
+- **Go:** `MergePatch` fails with `ErrBadJSONPatch` (`Invalid JSON Patch`) for a patch that is `null`, a string, a number or a boolean, unless the document is `null` (merge.go:131-133 and 141-149 of json-patch.v5). A bidder config's `{"ext":"abc"}` for `user`, `site` or `app`, merged by MergeClone into a non-empty ext, fails, and Prebid answers 400 with `invalid first party data ext` (firstpartydata/first_party_data.go:267 and 348-353, exchange/exchange.go:302-310).
+- **Rust:** json-patch returns the patch (RFC 7386), so the ext becomes the string and the auction goes on.
+- **Who notices:** publisher, bidder
+- **Visible in:** The status of auctions whose `ext.prebid.bidderconfig[].config.ortb2` sets `user.ext`, `site.ext` or `app.ext` to a string, number or boolean over a non-empty ext of the request, and the bidder requests that would carry it
+- **Harness:** none
+- **Pin:** `crates/jsonutil/tests/merge_patch.rs::scalar_patch_replaces_document`
+- **Decision:** D-MERGEPATCH
+- **Default until decided:** json-patch's result: a null or scalar patch replaces the document as RFC 7386 says (crates first).
+- **Restore option:** The check in front of the merge that `json.merge-patch-null-document` describes, returning `Invalid JSON Patch` for a null or scalar patch after the document checks, so Prebid answers with its own 400: glue under Rule B (d) if the user restores it.
+- **Note:** A null patch never reaches `MergePatch` through MergeClone, which keeps the field on null; `D-MERGEPATCH` stands for the decision DECISIONS.md has not named yet.
+- **Recorded in:** `crates/jsonutil/differences.toml`
+
+#### `json.null-document`: A document that is JSON null: Go leaves the target's zero value, serde_json rejects the document
+
+- **Go:** `jsonutil.Unmarshal`, `UnmarshalValid` and `json.Unmarshal` return no error for the document `null`, whitespace around it or not, and leave a struct and a number as they were, a map and a slice nil, and a string empty (jsoniter) or as it was (`encoding/json`), so an adapter that reads a bidder's `null` body into `openrtb2.BidResponse` goes on with an empty response. `MergeClone` leaves the value as it was.
+- **Rust:** `unmarshal` and `unmarshal_valid` fail with `invalid type: null` for every target but an `Option`, which reads `None`; `merge_clone` leaves the value as it was, as Go does.
+- **Who notices:** bidder, publisher
+- **Visible in:** The bidder errors (`ext.errors`) and metrics of auctions where a bidder answers `null`, and the error Prebid answers a request body of `null` with
+- **Harness:** none
+- **Pin:** `crates/jsonutil/tests/decode.rs::null_document_rejected`
+- **Decision:** D-DECODE
+- **Default until decided:** serde's result: the document fails to decode (crates first).
+- **Restore option:** Read the document through `null_default`, with a `Default` bound on `unmarshal` and `unmarshal_valid` (no other crate calls them yet): glue under Rule B (a) if the user restores it on evidence that bidders or clients send such documents.
+- **Note:** D-DECODE restores null on a non-pointer field and does not say whether that reaches a whole document. Prebid branches on the failure (a bidder error and its metrics where Go goes on with an empty response), so the entry waits for the user, as `json.merge-patch-null-document` does.
+- **Recorded in:** `crates/jsonutil/differences.toml`
+
+#### `json.null-elements`: null as a slice element or map value that is not a pointer: Go keeps the zero value, serde rejects the document
+
+- **Go:** jsoniter (`jsonutil.Unmarshal`, `UnmarshalValid`) and `encoding/json` read null as an element of a slice, or a value of a map, whose type is not a pointer as that type's zero value, as they read it for a field (`json.null-into-value`): `[1,null]` into `[]int` gives `[1,0]`, `["a",null]` into `[]string` gives `["a",""]` and `[null]` into a slice of structs one zero struct. `MergeClone` does the same, and a pointer element is nil.
+- **Rust:** `null_default` covers fields only, so a `Vec` or `BTreeMap` whose element is not an `Option` rejects the document (`invalid type: null`); an `Option` element reads `None`, Go's nil, and `merge_clone` reads every element as Go does.
+- **Who notices:** publisher, bidder
+- **Visible in:** The status of requests, and the handling of bidder responses, whose arrays or maps hold null where Prebid reads a number, string or object (`bcat`, `api`, `format`, a bid's `adomain`); `JSON.stringify` writes `NaN`, `Infinity` and `undefined` array elements as null
+- **Harness:** none
+- **Pin:** `crates/jsonutil/tests/decode.rs::null_elements_rejected`
+- **Decision:** D-DECODE
+- **Default until decided:** serde's result: the document fails to decode (crates first).
+- **Restore option:** Counterparts of `null_default` for slice and map fields, which read each element as an `Option` and turn `None` into the default, put by typegen (ORTB-SERDE) on every slice and map field whose element is not a pointer: glue under Rule B (a) if the user restores it, on the ground D-DECODE gives for fields (real traffic sends these nulls).
+- **Note:** D-DECODE restores null on a non-pointer field and does not say whether that reaches slice elements and map values. `JSON.stringify` writes `NaN`, `Infinity` and `undefined` array elements as null, as it writes `NaN` and `Infinity` members, so the entry waits for the user.
+- **Recorded in:** `crates/jsonutil/differences.toml`
+
 ### Ledgered
+
+#### `json.control-characters`: A raw control character after an escape in a string, or in a small struct's member name: jsoniter reads it, serde_json rejects the document
+
+- **Go:** JSON forbids a raw U+0000 to U+001F inside a string. jsoniter (`jsonutil.Unmarshal`, `UnmarshalValid` and `MergeClone`) rejects one that comes before the first backslash of its string but reads the rest of the string unchecked from that backslash on, so it reads a raw tab or line break that follows an escape such as `\n` or `\"`: in a field, a map key, an unknown member and a `json.RawMessage`, which keeps it as written (iter_str.go:9-52, iter_skip_strict.go:61-83). It matches the member names of a struct of ten fields or fewer by a hash that checks none of their bytes, so a member whose name holds one anywhere passes there, matching no field (reflect_struct_decoder.go:47, iter_object.go:49-96). `encoding/json` rejects them all.
+- **Rust:** serde_json rejects every raw control character in a string, as `encoding/json` does, so the document fails to decode and `merge_clone` fails.
+- **Who notices:** bidder, publisher
+- **Visible in:** The status of requests, and the handling of bidder responses, that hold such a string (an `adm` of markup that escapes its quotes but keeps raw line breaks or tabs)
+- **Harness:** none
+- **Pin:** `crates/jsonutil/tests/decode.rs::raw_control_characters_rejected`
+- **Decision:** D-DECODE
+- **Restore option:** Escape each raw control character that follows a backslash in its string before serde_json reads the bytes, as `replace_lone_surrogates` rewrites lone surrogates (a raw member would then hold the escape, as in `json.lone-surrogates-raw`), and drop members whose names hold one where the target has ten fields or fewer; not planned (D-DECODE).
+- **Recorded in:** `crates/jsonutil/differences.toml`
 
 #### `json.control-escapes`: Control characters: jsoniter writes `\u0008` and `\u000c`, encoding/json and serde_json `\b` and `\f`
 
@@ -200,6 +271,18 @@ No entry names the classes `other` and `unrecorded` or the kinds `stage_missing`
 - **Note:** Its mismatches are lexical `unicode_escape`, which the pattern of `json.html-escape` takes everywhere, so the harness counts them there: one pattern per class and path.
 - **Recorded in:** `crates/differences/differences.toml`
 
+#### `json.decode-reuses-elements`: A decode into a value that already holds a slice: jsoniter decodes into the elements there, the port builds new ones
+
+- **Go:** `jsonutil.Unmarshal` into a value that already holds a slice decodes each array element into the element at its index while the slice's capacity lasts, so the members an element leaves out keep the old element's. `config.UnpackDSADefault` decodes an account's DSA default into the `DefaultUnpacked` the account defaults left (account/fetcher.go:152, account/account.go:71), so an account's transparency entry keeps the `domain` or `dsaparams` of the host's entry at its index where it leaves them out.
+- **Rust:** serde builds every value new. `merge_clone`, the port's decode into a value that holds data, keeps what the document leaves out as Go does, but replaces a slice with new elements, as Go's `MergeClone` does.
+- **Who notices:** publisher, bidder
+- **Visible in:** The DSA object (`regs.ext.dsa`) Prebid fills into bid requests from the DSA default of an account whose transparency entries leave out members the host's account defaults set
+- **Harness:** none
+- **Pin:** `crates/jsonutil/tests/decode.rs::reused_elements_rebuilt`
+- **Decision:** D-DECODE
+- **Restore option:** Merge each array element into the element at its index where `UnpackDSADefault` is ported; not planned (D-DECODE).
+- **Recorded in:** `crates/jsonutil/differences.toml`
+
 #### `json.duplicate-keys`: Duplicate JSON keys: Go keeps the last, the serde derives reject the document
 
 - **Go:** jsoniter and `encoding/json` keep the last of duplicate keys.
@@ -211,6 +294,28 @@ No entry names the classes `other` and `unrecorded` or the kinds `stage_missing`
 - **Decision:** D-DECODE
 - **Restore option:** Decode again through `serde_json::Value` on that error, the last key winning; not planned (D-DECODE).
 - **Recorded in:** `crates/differences/differences.toml`
+
+#### `json.error-texts`: Decode and encode errors: Prebid's wrappers are kept, the library message inside them is serde_json's
+
+- **Go:** `jsonutil.Unmarshal` and `UnmarshalValid` fail with a `FailedToUnmarshal` holding jsoniter's message trimmed by `tryExtractErrorMessage` (`cannot unmarshal main.idTarget.ID: expects " or n, but found 1`, `there are bytes left after unmarshal`), `Marshal` with a `FailedToMarshal`, and MergeClone with `cannot unmarshal <Type.Field>: <message>`; Prebid puts the text into its own (`Invalid request format: ...`).
+- **Rust:** The same wrappers, error types and Prebid texts (`invalid type`, `invalid json on existing object`), with serde_json's message inside (`trailing characters` and its position where jsoniter says `there are bytes left after unmarshal`).
+- **Who notices:** publisher, bidder
+- **Visible in:** The texts of 400 responses, of `ext.errors` and `ext.warnings`, and of the bidder errors Prebid reports, wherever a JSON decode or encode failed
+- **Harness:** none
+- **Pin:** `crates/jsonutil/tests/errors.rs::wrappers_exact_inner_text_differs`
+- **Decision:** D-DECODE
+- **Restore option:** Write jsoniter's messages from serde_json's error categories; not planned (D-DECODE).
+- **Recorded in:** `crates/jsonutil/differences.toml`
+
+#### `json.find-element-invalid`: `FindElement` on a malformed value: Go fails with `encoding/json`'s text, the port with serde_json's
+
+- **Go:** `FindElement` and `DropElement` fail with `encoding/json`'s message where a value the walk reads is malformed (`invalid character 'x' after object key:value pair` for `1x`) or beyond float64's range (`json: cannot unmarshal number 1e400 into Go value of type float64`), and read a key that is not UTF-8 as U+FFFD and go on.
+- **Rust:** The walk fails there too, with serde_json's message, and fails on a key that is not UTF-8 (`json.invalid-utf8`).
+- **Who notices:** none
+- **Visible in:** Nothing in production: the one caller, the Audience Network adapter (adapters/audienceNetwork/facebook.go:101), passes the body it has just marshalled, which is valid JSON
+- **Harness:** none
+- **Pin:** `crates/jsonutil/tests/element.rs::malformed_values_fail_with_serde_texts`
+- **Recorded in:** `crates/jsonutil/differences.toml`
 
 #### `json.float-format`: Float spelling: Go writes `1`, `300` and `1e-07` where serde_json writes `1.0`, `300.0` and `1e-7`
 
@@ -237,6 +342,29 @@ No entry names the classes `other` and `unrecorded` or the kinds `stage_missing`
 - **Note:** The `unicode_escape` pattern also takes the control-character spellings of `json.control-escapes`.
 - **Recorded in:** `crates/differences/differences.toml`
 
+#### `json.int-map-key-order`: Maps with integer keys: Go writes the keys in string order, a `BTreeMap` in numeric order
+
+- **Go:** jsoniter (`jsonutil.Marshal`) and `encoding/json` sort a map's keys as strings, so `"10"` comes before `"9"`.
+- **Rust:** A `BTreeMap` with integer keys is written in numeric order, `"9"` before `"10"`.
+- **Who notices:** bidder, publisher
+- **Visible in:** Member order of objects written from maps with integer keys
+- **Harness:** none
+- **Pin:** `crates/jsonutil/tests/encode.rs::int_keys_numeric_order`
+- **Restore option:** Serialize such maps through their string keys; not planned.
+- **Recorded in:** `crates/jsonutil/differences.toml`
+
+#### `json.interface-numbers`: Numbers read into `interface{}`: Go makes every one a float64, a `serde_json::Value` keeps integers exact
+
+- **Go:** jsoniter (`jsonutil.Unmarshal`) and `encoding/json` read every number into `interface{}` as a float64: `9007199254740993` comes back as `9007199254740992`, `12345678901234567890` as `12345678901234567000`, and `1.0`, `1e2` and `2.0` are written `1`, `100` and `2`.
+- **Rust:** A `serde_json::Value` keeps an integer exact up to `u64::MAX` and a float as its f64, which serde_json writes `1.0`, `100.0` and `2.0` (`json.float-format`).
+- **Who notices:** bidder, publisher
+- **Visible in:** Numbers in members Prebid holds as `interface{}` (ext maps, `map[string]interface{}` fields), as bidder request bodies and responses carry them
+- **Harness:** none
+- **Pin:** `crates/jsonutil/tests/decode.rs::interface_numbers_kept_exact`
+- **Decision:** D-DECODE
+- **Restore option:** Read such numbers as f64; not planned (D-DECODE).
+- **Recorded in:** `crates/jsonutil/differences.toml`
+
 #### `json.invalid-utf8`: Invalid UTF-8 in JSON strings: Go decodes it, serde_json rejects the document
 
 - **Go:** jsoniter (`jsonutil.Unmarshal` and `UnmarshalValid`) keeps an invalid byte as it came (`a`, 0xFF, `b` stays `61ff62`); only `encoding/json`'s `json.Unmarshal` writes U+FFFD (`61efbfbd62`).
@@ -261,6 +389,95 @@ No entry names the classes `other` and `unrecorded` or the kinds `stage_missing`
 - **Restore option:** A decode pass that folds keys as jsoniter does; not planned (D-DECODE).
 - **Recorded in:** `crates/differences/differences.toml`
 
+#### `json.lone-surrogates-raw`: A lone surrogate escape inside a `json.RawMessage`: Go passes the bytes on, the port writes the escape of U+FFFD
+
+- **Go:** jsoniter keeps a raw member's bytes as they came, a lone surrogate escape such as `\ud800` included, and `jsonutil.Marshal` writes them back compacted.
+- **Rust:** `replace_lone_surrogates` rewrites the escape to `\uFFFD` before serde_json reads the document (`json.lone-surrogates`), so the raw member is written with it. Go and serde_json read both as U+FFFD; a reader that keeps lone surrogates, such as JavaScript's `JSON.parse`, sees the surrogate in Go's bytes.
+- **Who notices:** bidder
+- **Visible in:** Raw members (`ext` and the like) of bidder request bodies and responses whose input held a lone surrogate escape
+- **Harness:** none
+- **Pin:** `crates/jsonutil/tests/decode.rs::lone_surrogates_in_raw_rewritten`
+- **Decision:** D-DECODE
+- **Restore option:** Keep the input's bytes for raw members and rewrite only what serde_json reads; not planned (ruling 7 rewrites the bytes before serde_json sees them).
+- **Recorded in:** `crates/jsonutil/differences.toml`
+
+#### `json.member-order`: Documents edited in place: Go keeps their member order, an edit through a `serde_json::Value` sorts the members
+
+- **Go:** Where Prebid edits JSON bytes in place (sjson's `SetBytes`, jsonparser's `Set`), the document keeps its member order and the new member goes where Go puts it.
+- **Rust:** The port edits a `serde_json::Value`, which is written with every object's members in key order (`preserve_order` is not used).
+- **Who notices:** bidder, publisher
+- **Visible in:** Member order of the exts and bodies Prebid's Go code edits in place, in bidder request bodies and responses
+- **Harness:** none
+- **Pin:** `crates/jsonutil/tests/encode.rs::value_edits_sort_members`
+- **Restore option:** Edit the bytes in place as sjson and jsonparser do; not planned.
+- **Recorded in:** `crates/jsonutil/differences.toml`
+
+#### `json.merge-patch-array-nulls`: Merge patch: evanphx drops the null members of objects inside an array it adds, json-patch keeps them
+
+- **Go:** `MergePatch` deletes the null members of objects inside a patch's array where the array is new to the document, replaces a value that is not an object, or is the patch itself: `{"a":[{"b":null}]}` merged into `{}` gives `{"a":[{}]}`; over an object it keeps them.
+- **Rust:** json-patch writes a patch's arrays as they are (RFC 7386), null members included.
+- **Who notices:** publisher, bidder
+- **Visible in:** Merged stored requests, imps, accounts and exts whose patch holds an array of objects with null members, as raw members (such as an imp's `ext`) carry them into bidder request bodies
+- **Harness:** none
+- **Pin:** `crates/jsonutil/tests/merge_patch.rs::array_nulls_kept`
+- **Note:** DECISIONS.md proposed `json.merge-patch-quirks` for this quirk; that id names them all here.
+- **Recorded in:** `crates/jsonutil/differences.toml`
+
+#### `json.merge-patch-limits`: Merge patch inputs beyond serde_json's limits: evanphx merges them, the port rejects them
+
+- **Go:** `MergePatch` merges a document or patch holding a number beyond float64's range (kept as its bytes) or nested 200 levels deep (`encoding/json` reads 10000 levels).
+- **Rust:** serde_json rejects a number beyond f64's range and a `Value` nested deeper than 128 levels, so `merge_patch` fails with `Invalid JSON Document` or `Invalid JSON Patch`, and a `json.RawMessage` merge in MergeClone with `invalid json on existing object` or `Invalid JSON Patch`.
+- **Who notices:** publisher, bidder
+- **Visible in:** The status of requests whose stored data, first-party data or exts hold such a number or nesting
+- **Harness:** none
+- **Pin:** `crates/jsonutil/tests/merge_patch.rs::limits_rejected`
+- **Note:** MergeClone's side is pinned by `crates/jsonutil/tests/merge_clone.rs::raw_merge_limits_fail`.
+- **Recorded in:** `crates/jsonutil/differences.toml`
+
+#### `json.merge-patch-member-order`: Merge patch output: evanphx writes a value it copies with its members as written, json-patch's result sorts them
+
+- **Go:** A value `MergePatch` copies from the document without merging into it keeps its member order and its repeated keys (`{"c":{"b":1,"a":2}}` stays so); what it merges or takes from the patch is written with its keys sorted.
+- **Rust:** serde_json's `Value` writes every object's members in key order, a repeated key's last value kept.
+- **Who notices:** publisher, bidder
+- **Visible in:** Member order of merged stored requests, imps, accounts and exts
+- **Harness:** none
+- **Pin:** `crates/jsonutil/tests/merge_patch.rs::members_sorted`
+- **Recorded in:** `crates/jsonutil/differences.toml`
+
+#### `json.merge-patch-quirks`: Merge patch: Go runs evanphx/json-patch v5.9.0's `MergePatch`, the port json-patch 0.2.7's RFC 7386 merge
+
+- **Go:** Prebid merges stored requests and imps, the default request, accounts, first-party data, MergeClone's `json.RawMessage` fields, event URLs, targeting and hook responses with evanphx's `MergePatch` (util/jsonutil/merge.go:165, endpoints/openrtb2/auction.go:1711-1755 and ten other files), which departs from RFC 7386 in three cases and writes each value with the spelling it was read with.
+- **Rust:** json-patch's `merge` follows RFC 7386 and serde_json writes the result. The values agree on RFC 7386's appendix, on every stored-request, stored-imp, account, first-party data, ext and event merge input of the upstream corpora, and on 50,000 seeded pairs outside the cases the other `json.merge-patch-*` entries name.
+- **Who notices:** publisher, bidder
+- **Visible in:** Merged stored requests, imps, accounts and exts, where one of the other `json.merge-patch-*` entries applies
+- **Harness:** none
+- **Pin:** `crates/jsonutil/tests/merge_patch.rs::evanphx_goldens`
+- **Note:** Each departure has its own entry and pin: `json.merge-patch-array-nulls`, `json.merge-patch-null-document`, `json.merge-patch-scalar-patch`, `json.merge-patch-spelling`, `json.merge-patch-member-order` and `json.merge-patch-limits`; `crates/jsonutil/tests/merge_patch.rs::seeded_pairs_match_go` classifies the seeded pairs alike on both sides.
+- **Recorded in:** `crates/jsonutil/differences.toml`
+
+#### `json.merge-patch-spelling`: Merge patch output: evanphx keeps each value's spelling and escapes HTML, serde_json writes the values its own way
+
+- **Go:** `MergePatch` writes each value with the bytes it was read with (`1.0`, `1e2`, `1.50`, `-0`, `100000000000000000000000`, `\u00e9`, `\/`, a lone surrogate escape) and re-marshals with `json.Marshal`, so `<`, `>` and `&` in strings become `\u003c`, `\u003e` and `\u0026`.
+- **Rust:** serde_json writes numbers in their shortest form (`1.0`, `100.0`, `1.5`, `-0.0`, `1e23`), `<`, `>` and `&` as they are, escapes decoded and a lone surrogate as U+FFFD; the values agree.
+- **Who notices:** publisher, bidder
+- **Visible in:** The spelling of numbers and strings in merged stored requests, imps, accounts and exts, in bidder request bodies and responses
+- **Harness:** none
+- **Pin:** `crates/jsonutil/tests/merge_patch.rs::spelling_rewritten`
+- **Note:** The harness sees these as the `number_format`, `html_escape` and `unicode_escape` classes, which `json.float-format` and `json.html-escape` take.
+- **Recorded in:** `crates/jsonutil/differences.toml`
+
+#### `json.negative-zero-int`: `-0` read into an integer field: Go reads 0, serde_json rejects the document
+
+- **Go:** jsoniter (`jsonutil.Unmarshal`, `UnmarshalValid` and `MergeClone`) and `encoding/json` read `-0` into a signed integer field, a typed one (openrtb2's enums) or a pointer to one as 0, and reject it for an unsigned one; a float64 field holds -0.
+- **Rust:** serde_json parses `-0` as the float -0.0, which every Rust integer type rejects (`invalid type: floating point`), so the document fails to decode and `merge_clone` fails; an `f64` field holds -0.0, written `-0.0` (`json.float-format`).
+- **Who notices:** bidder, publisher
+- **Visible in:** The status of requests, and the handling of bidder responses, that hold `-0` in an integer member (`w`, `h`, `api`, an enum)
+- **Harness:** none
+- **Pin:** `crates/jsonutil/tests/decode.rs::negative_zero_rejected_for_integers`
+- **Decision:** D-DECODE
+- **Restore option:** Read `-0` as 0 wherever serde asks for an integer (a deserializer adapter around serde_json's, or typegen's integer helpers); not planned (D-DECODE).
+- **Recorded in:** `crates/jsonutil/differences.toml`
+
 #### `json.nesting-depth`: Nesting depth: Go reads 10000 levels, a `serde_json::Value` stops at 128
 
 - **Go:** jsoniter and `encoding/json` accept 10000 levels of nesting (9999 arrays inside the outer object) and reject a deeper document, whether the deep value lands in a `json.RawMessage`, in an `interface{}` or in a key they skip.
@@ -270,6 +487,17 @@ No entry names the classes `other` and `unrecorded` or the kinds `stage_missing`
 - **Harness:** status at `$['@status']` when the case has `deep_nesting`
 - **Pin:** `crates/differences/tests/json.rs::go_difference_nesting_depth`
 - **Recorded in:** `crates/differences/differences.toml`
+
+#### `json.nil-raw-written`: A nil `json.RawMessage` without `omitempty`: Go writes no value at all, the port writes `null`
+
+- **Go:** Prebid's `RawMessageExtension` writes nothing for a nil `json.RawMessage` that `omitempty` does not drop, as a field, a map value, a slice element or on its own, so `jsonutil.Marshal` returns bytes that are not JSON (`{"ext":}`, `[,{"x":1}]`).
+- **Rust:** serde writes `None` as `null` (`{"ext":null}`), which is JSON; under `omitempty` (`skip_serializing_if`) both drop it.
+- **Who notices:** bidder, publisher
+- **Visible in:** Bodies `jsonutil.Marshal` writes from a type whose `json.RawMessage` field has no `omitempty` and is nil
+- **Harness:** none
+- **Pin:** `crates/jsonutil/tests/encode.rs::nil_raw_written_as_null`
+- **Restore option:** None that serde allows: a serializer cannot write a member without a value, and the bytes Go writes are not JSON.
+- **Recorded in:** `crates/jsonutil/differences.toml`
 
 #### `json.non-finite`: NaN and infinities: Go fails the write, serde_json writes `null`
 
@@ -282,7 +510,127 @@ No entry names the classes `other` and `unrecorded` or the kinds `stage_missing`
 - **Restore option:** A `serialize_with` helper on every f32 and f64 field that fails as the Go writer does; not planned (orchestrator rulings 2 and 5).
 - **Recorded in:** `crates/differences/differences.toml`
 
+#### `json.out-of-range-numbers`: Numbers beyond float64's range that no field reads: jsoniter fails the document, serde_json reads it
+
+- **Go:** jsoniter (`jsonutil.Unmarshal`, `UnmarshalValid`) parses a number it skips (in a `json.RawMessage`, an unknown member, the bytes `IntString` reads) when it has an exponent, and fails the document with `invalid number` beyond float64's range (`1e400`, `-1e309`, `1.8e308`); a number that starts with 0 it parses as a float32, and fails with `value out of range` beyond float32's range (`0.5e39`). `encoding/json` reads them all.
+- **Rust:** serde_json reads such a number into a `RawValue` or skips it, as `encoding/json` does, and `IntString` reads it as `+Inf` or `-Inf`, as gjson spells it.
+- **Who notices:** publisher, bidder
+- **Visible in:** The status of requests, and the handling of bidder responses, whose raw or unknown members hold such a number
+- **Harness:** none
+- **Pin:** `crates/jsonutil/tests/decode.rs::out_of_range_numbers_read`
+- **Decision:** D-DECODE
+- **Restore option:** Parse every number serde_json skips as jsoniter's skipper does; not planned (D-DECODE).
+- **Note:** `crates/jsonutil/tests/readers.rs::seeded_int_strings_match_go` classifies the seeded numbers alike on both sides.
+- **Recorded in:** `crates/jsonutil/differences.toml`
+
+#### `json.parse-into-string-lenient`: `ParseIntoString` on bytes that are not JSON: gjson reads a value out of them, the port leaves the target unset
+
+- **Go:** `jsonutil.ParseIntoString` reads with `gjson.ParseBytes`, which takes a value out of an unterminated string, a number with bytes after it, a plus sign, `nan` and a literal cut short.
+- **Rust:** `parse_into_string` reads the bytes with serde_json and leaves the target unset when they are not one JSON value.
+- **Who notices:** none
+- **Visible in:** Nothing in production: the one caller reads `regs.ext.gpc`, a value the request's decoder has already read (openrtb_ext/request_wrapper.go:1279-1282)
+- **Harness:** none
+- **Pin:** `crates/jsonutil/tests/decode.rs::parse_into_string_lenient_inputs_unset`
+- **Recorded in:** `crates/jsonutil/differences.toml`
+
+#### `json.partial-results`: A document that fails to decode: Go leaves what it read in the target, `unmarshal` returns no value
+
+- **Go:** jsoniter (`jsonutil.Unmarshal`, `UnmarshalValid` and `MergeClone`) writes each member into the caller's value as it reads it, so after an error the value holds the members read before the failure, a slice element that failed as its zero value, and the whole document when other bytes follow it. Prebid goes on with that value where a hook rejects the auction (the response carries the request's id and analytics log the request: endpoints/openrtb2/auction.go:468, 516), for a bid's native asset types (exchange/bidder.go:475), and in the goldbach and dmx adapters (adapters/goldbach/goldbach.go:52, adapters/dmx/dmx.go:165).
+- **Rust:** `unmarshal` and `unmarshal_valid` return the error alone, so such a caller goes on with the type's default. `merge_clone` into the default leaves Go's value where a member fails, but drops a slice element that fails and leaves nothing where the document is not JSON or other bytes follow it, since it reads the whole document first.
+- **Who notices:** publisher, bidder, analytics
+- **Visible in:** The id of the response to an auction a hook rejected whose body fails to decode and the request analytics log for it, the native asset types of bids whose imp's native request fails to decode, and goldbach and dmx requests built from an ext that fails to decode partway
+- **Harness:** none
+- **Pin:** `crates/jsonutil/tests/decode.rs::partial_results_dropped`
+- **Decision:** D-DECODE
+- **Restore option:** A decoder that writes into the caller's value member by member as it reads, which serde's derives do not offer (`merge_clone` comes closest); not planned (D-DECODE).
+- **Recorded in:** `crates/jsonutil/differences.toml`
+
+#### `json.plus-float`: A float written with a leading `+`: jsoniter reads it into a float field, serde_json rejects the document
+
+- **Go:** jsoniter's float decoders pass a number that starts with neither a digit, a minus nor a dot to `strconv.ParseFloat`, which accepts a leading `+`, so `jsonutil.Unmarshal`, `UnmarshalValid` and `MergeClone` read `+1.5`, `+.5` and `+1e2` into a float64 or float32 field, and `-+1` as -1 (iter_float.go:207-214, :299-337). An integer field, a skipped member and `encoding/json` reject it.
+- **Rust:** serde_json rejects the document, as `encoding/json` does.
+- **Who notices:** bidder, publisher
+- **Visible in:** The handling of bidder responses, and the status of requests, with such a number in a float member (a bid's `price`, an imp's `bidfloor`)
+- **Harness:** none
+- **Pin:** `crates/jsonutil/tests/decode.rs::plus_floats_rejected`
+- **Decision:** D-DECODE
+- **Restore option:** Accept a leading `+` where serde reads a float; not planned (D-DECODE).
+- **Recorded in:** `crates/jsonutil/differences.toml`
+
+#### `json.string-int-parse`: `StringInt`: `"+5"` reads 5 where Go fails, and `"-"` fails where Go reads 0
+
+- **Go:** `jsonutil.StringInt` parses a string's text with jsonparser's `ParseInt`, which rejects a leading `+` and reads a lone `-` as 0.
+- **Rust:** `StringInt` parses with `i64::from_str`, which reads `+5` as 5 and rejects `-`; every other input reads alike.
+- **Who notices:** publisher, bidder
+- **Visible in:** Bidder params read as `StringInt` (appnexus `placementId` and `placement_id`, pulsepoint `cp` and `ct`, connectad, nativo, freewheelssp and targetvideo) whose string is `+` and digits, or `-`
+- **Harness:** none
+- **Pin:** `crates/jsonutil/tests/decode.rs::string_int_parse_differs`
+- **Restore option:** Port jsonparser's `ParseInt` grammar; not planned.
+- **Note:** `crates/jsonutil/tests/readers.rs::seeded_string_ints_match_go` classifies the seeded inputs alike on both sides.
+- **Recorded in:** `crates/jsonutil/differences.toml`
+
+#### `json.struct-from-array`: A JSON array where a struct is expected: Go rejects it, the serde derives read its elements as the fields
+
+- **Go:** jsoniter (`jsonutil.Unmarshal`, `UnmarshalValid`) fails with `expect { or n, but found [` where it reads a struct from an array.
+- **Rust:** A derived struct reads a JSON array as its fields in declaration order (`["x",5]` fills `id` and `n`), and `[]` as its defaults under `#[serde(default)]`, so the document decodes.
+- **Who notices:** publisher, bidder
+- **Visible in:** The status of requests, and the handling of bidder responses, that send an array where an object is expected
+- **Harness:** none
+- **Pin:** `crates/jsonutil/tests/decode.rs::struct_reads_array`
+- **Decision:** D-DECODE
+- **Restore option:** Generated `Deserialize` impls that accept only a map, as Go does; not planned (D-DECODE).
+- **Recorded in:** `crates/jsonutil/differences.toml`
+
+#### `json.surrogate-pairing`: A surrogate escape before an escape it does not pair with: Go's decoders disagree, the port reads it as jsoniter does
+
+- **Go:** jsoniter (`jsonutil.Unmarshal`) reads the surrogate as U+FFFD and the next escape on its own; `encoding/json` pairs that next escape with the one after it; gjson (`IntString`, `ParseIntoString`) turns the two escapes into one U+FFFD, dropping the character the second spells (`\ud800\u0041` gives U+FFFD alone).
+- **Rust:** `replace_lone_surrogates` follows jsoniter everywhere: U+FFFD, then the next escape read on its own (`\ud800\u0041` gives U+FFFD and `A`).
+- **Who notices:** publisher, bidder
+- **Visible in:** Strings holding a lone surrogate escape right before another `\u` escape, where Go decodes with `encoding/json` or reads with `IntString` (appnexus `member`) or `ParseIntoString` (`regs.ext.gpc`)
+- **Harness:** none
+- **Pin:** `crates/jsonutil/tests/decode.rs::surrogate_pairing_follows_jsoniter`
+- **Decision:** D-DECODE
+- **Restore option:** A rewrite per Go decoder; not planned (ruling 7 names one rewrite).
+- **Recorded in:** `crates/jsonutil/differences.toml`
+
+#### `json.trailing-nul`: A NUL byte after the document: jsoniter ignores it and every byte after it, serde_json rejects the document
+
+- **Go:** jsoniter's `nextToken` returns 0 for a NUL byte as at the end of the input, and its `Unmarshal` takes a 0 after the value for the end, so `jsonutil.Unmarshal`, `UnmarshalValid` and `MergeClone` stop at a NUL after the document and ignore what follows it (config.go:345-357, iter.go:181-197). `encoding/json` rejects any byte after the value but whitespace, and a NUL before or inside the value fails everywhere.
+- **Rust:** serde_json rejects the document (`trailing characters`), as `encoding/json` does.
+- **Who notices:** bidder, publisher
+- **Visible in:** The handling of bidder responses, and the status of requests, whose body ends with a NUL byte (a C string's terminator) or holds bytes after one
+- **Harness:** none
+- **Pin:** `crates/jsonutil/tests/decode.rs::trailing_nul_rejected`
+- **Decision:** D-DECODE
+- **Restore option:** End the input at the first NUL byte after the value before serde_json's end check; not planned (D-DECODE).
+- **Recorded in:** `crates/jsonutil/differences.toml`
+
+#### `json.unvalidated-raw`: Malformed numbers inside a `json.RawMessage`: jsoniter keeps them, serde_json rejects the document
+
+- **Go:** `jsonutil.Unmarshal` and `UnmarshalValid` (jsoniter) keep a number with a leading zero after its minus (`-01`, `[-01]`) in a `json.RawMessage` field as it was written; `encoding/json` rejects it, and every other malformed value fails in all three.
+- **Rust:** serde_json rejects the document.
+- **Who notices:** bidder, publisher
+- **Visible in:** The status of requests, and the handling of bidder responses, whose raw members (a bid's `ext`) hold such a number
+- **Harness:** none
+- **Pin:** `crates/jsonutil/tests/decode.rs::malformed_raw_rejected`
+- **Decision:** D-DECODE
+- **Restore option:** Port jsoniter's skipper for `json.RawMessage` fields; not planned (D-DECODE).
+- **Recorded in:** `crates/jsonutil/differences.toml`
+
 ### Go behaviour kept
+
+#### `json.find-element-tokens`: `FindElement` and `DropElement`: Go cuts at the offsets of `encoding/json`'s token walk, which serde_json has no equivalent of
+
+- **Go:** `jsonutil.FindElement` walks the document with `encoding/json`'s `Decoder` (`Token`, `Decode`, `More`, `InputOffset`) and returns the span of the first member named, with one neighbouring comma; its errors are the decoder's (`EOF`, `unexpected EOF`, the state machine's texts) and its comma and colon scans panic past the end. `DropElement` cuts the span out of the bytes, which the Audience Network adapter sends as the request body.
+- **Rust:** serde_json has no token decoder: reading the document as a `Value` and writing it back loses the input's bytes, Go's offsets and its errors.
+- **Who notices:** bidder
+- **Visible in:** The Audience Network adapter's request body, `consented_providers_settings` cut out (adapters/audienceNetwork/facebook.go:101)
+- **Harness:** none: a mismatch here is unexpected
+- **Pin:** `crates/jsonutil/tests/element.rs::drop_element_cases_match_go`
+- **Rule B:** Rule B (d): Prebid-authored texts and bytes
+- **How Go's behaviour is kept:** `find_element` and `drop_element` port the walk's states, errors, offsets and index panics, with serde_json reading each scalar and the matched value: Prebid-authored bytes.
+- **Restore pin:** `crates/jsonutil/tests/element.rs::drop_element_cases_match_go` (`TestDropElement`'s cases and the decoder's edges: offsets, bytes, error texts and panics.); `crates/jsonutil/tests/element.rs::seeded_documents_match_go` (50,000 seeded documents and paths give Go's offsets, bytes, error texts and panics byte for byte.)
+- **Recorded in:** `crates/jsonutil/differences.toml`
 
 #### `json.lone-surrogates`: Lone UTF-16 surrogate escapes: Go decodes them to U+FFFD, serde_json rejects the document
 
@@ -294,7 +642,7 @@ No entry names the classes `other` and `unrecorded` or the kinds `stage_missing`
 - **Pin:** `crates/differences/tests/json.rs::go_difference_lone_surrogates`
 - **Rule B:** Rule B (a): input real production traffic sends that the crate would reject or misread
 - **How Go's behaviour is kept:** JSONUTIL's decode entry for outside bytes (request bodies, stored data, bidder responses: every place Go calls `jsonutil.Unmarshal` or `json.Unmarshal` on outside input) rewrites each unpaired `\uD800`-`\uDFFF` escape to `\uFFFD` before serde_json reads the bytes, scanning only when the bytes hold a `\u` escape of that range, with string and escape state tracked (orchestrator ruling 7).
-- **Restore pin:** pending, brought by JSONUTIL
+- **Restore pin:** `crates/jsonutil/tests/decode.rs::lone_surrogates_decode_to_replacement` (`replace_lone_surrogates` runs on outside bytes in `unmarshal`, `unmarshal_valid`, `merge_clone`, `merge_patch`, `find_element` and the lenient readers: a lone surrogate escape in a value or a key decodes to U+FFFD, as both Go decoders give it.); `crates/jsonutil/tests/readers.rs::seeded_strings_match_go` (50,000 seeded strings of plain text, escapes, lone surrogates, pairs and broken escapes give jsoniter's bytes or its failure.)
 - **Recorded in:** `crates/differences/differences.toml`
 
 #### `json.null-into-value`: `null` for a value field: Go keeps the zero value, serde rejects the document
@@ -308,8 +656,22 @@ No entry names the classes `other` and `unrecorded` or the kinds `stage_missing`
 - **Rule B:** Rule B (a): input real production traffic sends that the crate would reject or misread
 - **Decision:** D-DECODE
 - **How Go's behaviour is kept:** JSONUTIL and ORTB-SERDE: container `#[serde(default)]` plus typegen's `null_default` deserializer on every value field, so a `null` leaves the default; real traffic sends these nulls.
-- **Restore pin:** pending, brought by JSONUTIL and ORTB-SERDE
+- **Restore pin:** `crates/jsonutil/tests/decode.rs::null_leaves_zero_value` (`null_default` with a container `#[serde(default)]` leaves each value field's zero value, as `jsonutil.Unmarshal`, `UnmarshalValid` and `json.Unmarshal` do; ORTB-SERDE's typegen puts it on the generated types.)
 - **Recorded in:** `crates/differences/differences.toml`
+
+#### `json.null-raw`: `null` for a `json.RawMessage`: `encoding/json` keeps the bytes `null`, a plain serde `Option` reads nothing
+
+- **Go:** `json.Unmarshal` (`encoding/json`, in the 13 production files DECISIONS.md lists: 8 adapters, floors/fetcher.go, gdpr/gvl_vendor_ids.go, pbs/usersync.go, analytics/pubstack/config.go and privacysandbox/topics.go) keeps the four bytes `null` in a `json.RawMessage` given null and writes them back as `null`; jsoniter (`jsonutil.Unmarshal`, `UnmarshalValid`, the auction request among them) leaves the field nil.
+- **Rust:** A plain `Option<Box<RawValue>>` reads null as `None`, which is jsoniter's nil; `raw_keep_null` keeps `Some(null)`, which `raw_compact` writes back as `null`, as `encoding/json` does.
+- **Who notices:** bidder, publisher
+- **Visible in:** Requests and bodies built from types Go decodes with `encoding/json`, when the input sends `null` for a raw member
+- **Harness:** none: a mismatch here is unexpected
+- **Pin:** `crates/jsonutil/tests/decode.rs::null_raw_kept`
+- **Rule B:** Rule B (a): input real production traffic sends that the crate would reject or misread
+- **Decision:** D-DECODE
+- **How Go's behaviour is kept:** `raw_keep_null` on the `json.RawMessage` fields of the types Go decodes with `encoding/json`, and a plain `Option` where jsonutil decodes (D-DECODE's correction), so each site keeps what its Go decoder does; real traffic sends `ext: null`.
+- **Restore pin:** `crates/jsonutil/tests/decode.rs::null_raw_kept` (Both decoders' rows: `raw_keep_null` against `json.Unmarshal`, a plain `Option` against `jsonutil.Unmarshal` and `UnmarshalValid`.)
+- **Recorded in:** `crates/jsonutil/differences.toml`
 
 #### `json.raw-not-compacted`: `json.RawMessage` on write: Go compacts it, serde_json writes a `RawValue` as it was read
 
@@ -321,7 +683,7 @@ No entry names the classes `other` and `unrecorded` or the kinds `stage_missing`
 - **Pin:** `crates/differences/tests/json.rs::go_difference_raw_message_not_compacted`
 - **Rule B:** Prebid's own logic ported onto the crate, not glue
 - **How Go's behaviour is kept:** JSONUTIL: `raw_compact`, the equivalent of Prebid's own `RawMessageExtension`, which typegen puts on every `json.RawMessage` field. This is Prebid logic, not library glue; the escaping inside stays `json.html-escape`.
-- **Restore pin:** pending, brought by JSONUTIL
+- **Restore pin:** `crates/jsonutil/tests/encode.rs::raw_containers_compacted` (`marshal` and `marshal_raw` compact every raw value they write, a map value, a slice element and the value itself, as `jsonutil.Marshal` does wherever it reaches one: `RequestWrapper`'s ext maps, the exchange's sanitized imp ext and the auction endpoint's resolved imps.); `crates/jsonutil/tests/encode.rs::raw_messages_compacted` (`TestCreateEncoder` and `TestEncode`, transliterated.); `crates/jsonutil/tests/readers.rs::seeded_raw_values_compact_like_go` (50,000 seeded raw values with whitespace between and inside their tokens are written as `jsonutil.Marshal` writes them.)
 - **Recorded in:** `crates/differences/differences.toml`
 
 ## Logging

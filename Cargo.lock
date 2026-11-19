@@ -800,6 +800,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "json-patch"
+version = "0.2.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "eb3fa5a61630976fc4c353c70297f2e93f1930e3ccee574d59d618ccbd5154ce"
+dependencies = [
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "lazy_static"
 version = "1.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1125,6 +1135,17 @@ dependencies = [
 [[package]]
 name = "pbs-gpp"
 version = "0.1.0"
+
+[[package]]
+name = "pbs-jsonutil"
+version = "0.1.0"
+dependencies = [
+ "json-patch",
+ "pbs-errortypes",
+ "serde",
+ "serde_json",
+ "sha2",
+]
 
 [[package]]
 name = "pbs-logger"

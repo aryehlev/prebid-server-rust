@@ -1,0 +1,2384 @@
+{
+  "header": {
+    "go_version": "go1.26.2",
+    "goarch": "amd64",
+    "upstream": "v4.11.2-0.20261112141353-4e296450de2f",
+    "modules": {
+      "github.com/buger/jsonparser": "v1.1.2",
+      "github.com/json-iterator/go": "v1.1.12",
+      "github.com/tidwall/gjson": "v1.17.1",
+      "github.com/tidwall/sjson": "v1.2.5"
+    },
+    "generator": "crates/jsonutil/testdata/go"
+  },
+  "null_into_value": [
+    {
+      "name": "jsonutil.Unmarshal",
+      "input": "{\"s\":null,\"i\":null,\"F\":null,\"b\":null,\"st\":null,\"l\":null,\"m\":null,\"p\":null}",
+      "result": "{\"s\":\"\",\"i\":0,\"F\":0,\"b\":false,\"st\":{\"a\":0},\"l\":null,\"m\":null,\"p\":null}",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.UnmarshalValid",
+      "input": "{\"s\":null,\"i\":null,\"F\":null,\"b\":null,\"st\":null,\"l\":null,\"m\":null,\"p\":null}",
+      "result": "{\"s\":\"\",\"i\":0,\"F\":0,\"b\":false,\"st\":{\"a\":0},\"l\":null,\"m\":null,\"p\":null}",
+      "err": ""
+    },
+    {
+      "name": "json.Unmarshal",
+      "input": "{\"s\":null,\"i\":null,\"F\":null,\"b\":null,\"st\":null,\"l\":null,\"m\":null,\"p\":null}",
+      "result": "{\"s\":\"\",\"i\":0,\"F\":0,\"b\":false,\"st\":{\"a\":0},\"l\":null,\"m\":null,\"p\":null}",
+      "err": ""
+    }
+  ],
+  "null_raw": [
+    {
+      "name": "jsonutil.Unmarshal omitempty",
+      "input": "{\"ext\":null}",
+      "result": "nil {}",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.Unmarshal",
+      "input": "{\"ext\":null}",
+      "result": "nil {\"ext\":}",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.UnmarshalValid omitempty",
+      "input": "{\"ext\":null}",
+      "result": "nil {}",
+      "err": ""
+    },
+    {
+      "name": "json.Unmarshal omitempty",
+      "input": "{\"ext\":null}",
+      "result": "\"null\" {\"ext\":null}",
+      "err": ""
+    },
+    {
+      "name": "json.Unmarshal",
+      "input": "{\"ext\":null}",
+      "result": "\"null\" {\"ext\":null}",
+      "err": ""
+    }
+  ],
+  "raw_compact": [
+    {
+      "name": "jsonutil.Marshal",
+      "input": "{\"ext\": {\"a\" : [1, 2.50], \"b\":\"x  y <&>\"} }",
+      "result": "{\"ext\":{\"a\":[1,2.50],\"b\":\"x  y <&>\"}}",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.Marshal",
+      "input": "{\"ext\":{\n  \"properties\": {\n    \"string\": \"Blanks spaces in between words to not be removed if compacted\",\n    \"integer\": 5,\n    \"string_array\": [\n      \"string array elem one\",\n      \"string array elem two\"\n    ]\n  }\n}}",
+      "result": "{\"ext\":{\"properties\":{\"string\":\"Blanks spaces in between words to not be removed if compacted\",\"integer\":5,\"string_array\":[\"string array elem one\",\"string array elem two\"]}}}",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.Marshal",
+      "input": "{\"ext\": \"\\u00e9 \\/\" }",
+      "result": "{\"ext\":\"\\u00e9 \\/\"}",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.Marshal",
+      "input": "{\"ext\": 1E+2 }",
+      "result": "{\"ext\":1E+2}",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.Marshal",
+      "input": "{\"ext\": [\"\\ud800\", \"x\\udc00\"] }",
+      "result": "{\"ext\":[\"\\ud800\",\"x\\udc00\"]}",
+      "err": ""
+    }
+  ],
+  "nil_raw": [
+    {
+      "name": "field",
+      "input": "",
+      "result": "{\"ext\":}",
+      "err": ""
+    },
+    {
+      "name": "map value",
+      "input": "",
+      "result": "{\"a\":}",
+      "err": ""
+    },
+    {
+      "name": "slice element",
+      "input": "",
+      "result": "[,{\"x\":1}]",
+      "err": ""
+    },
+    {
+      "name": "top level",
+      "input": "",
+      "result": "",
+      "err": ""
+    },
+    {
+      "name": "omitempty",
+      "input": "",
+      "result": "{}",
+      "err": ""
+    }
+  ],
+  "interface_numbers": [
+    {
+      "name": "jsonutil",
+      "input": "{\"v\":9007199254740993}",
+      "result": "{\"v\":9007199254740992}",
+      "err": ""
+    },
+    {
+      "name": "jsonutil",
+      "input": "{\"v\":1.0}",
+      "result": "{\"v\":1}",
+      "err": ""
+    },
+    {
+      "name": "jsonutil",
+      "input": "{\"v\":1e2}",
+      "result": "{\"v\":100}",
+      "err": ""
+    },
+    {
+      "name": "jsonutil",
+      "input": "{\"v\":1.5}",
+      "result": "{\"v\":1.5}",
+      "err": ""
+    },
+    {
+      "name": "jsonutil",
+      "input": "{\"v\":12345678901234567890}",
+      "result": "{\"v\":12345678901234567000}",
+      "err": ""
+    },
+    {
+      "name": "jsonutil",
+      "input": "{\"v\":[1,{\"a\":2.0}]}",
+      "result": "{\"v\":[1,{\"a\":2}]}",
+      "err": ""
+    }
+  ],
+  "error_texts": [
+    {
+      "name": "jsonutil.Unmarshal",
+      "input": "{\"id\": 1}",
+      "result": "",
+      "err": "cannot unmarshal main.idTarget.ID: expects \" or n, but found 1",
+      "err_type": "*errortypes.FailedToUnmarshal"
+    },
+    {
+      "name": "jsonutil.UnmarshalValid",
+      "input": "{\"id\": 1}",
+      "result": "",
+      "err": "cannot unmarshal main.idTarget.ID: expects \" or n, but found 1",
+      "err_type": "*errortypes.FailedToUnmarshal"
+    },
+    {
+      "name": "jsonutil.Unmarshal",
+      "input": "{\"id\":\"x\"} x",
+      "result": "",
+      "err": "there are bytes left after unmarshal",
+      "err_type": "*errortypes.FailedToUnmarshal"
+    },
+    {
+      "name": "jsonutil.UnmarshalValid",
+      "input": "{\"id\":\"x\"} x",
+      "result": "",
+      "err": "there are bytes left after unmarshal",
+      "err_type": "*errortypes.FailedToUnmarshal"
+    },
+    {
+      "name": "jsonutil.Unmarshal",
+      "input": "{\"id\":",
+      "result": "",
+      "err": "cannot unmarshal main.idTarget.ID: expects \" or n, but found \u0000",
+      "err_type": "*errortypes.FailedToUnmarshal"
+    },
+    {
+      "name": "jsonutil.UnmarshalValid",
+      "input": "{\"id\":",
+      "result": "",
+      "err": "cannot unmarshal main.idTarget.ID: expects \" or n, but found \u0000",
+      "err_type": "*errortypes.FailedToUnmarshal"
+    },
+    {
+      "name": "jsonutil.Unmarshal",
+      "input": "[]",
+      "result": "",
+      "err": "expect { or n, but found [",
+      "err_type": "*errortypes.FailedToUnmarshal"
+    },
+    {
+      "name": "jsonutil.UnmarshalValid",
+      "input": "[]",
+      "result": "",
+      "err": "expect { or n, but found [",
+      "err_type": "*errortypes.FailedToUnmarshal"
+    },
+    {
+      "name": "jsonutil.Unmarshal",
+      "input": "{\"n\": \"x\"}",
+      "result": "",
+      "err": "cannot unmarshal main.idTarget.N: unexpected character: \ufffd",
+      "err_type": "*errortypes.FailedToUnmarshal"
+    },
+    {
+      "name": "jsonutil.UnmarshalValid",
+      "input": "{\"n\": \"x\"}",
+      "result": "",
+      "err": "cannot unmarshal main.idTarget.N: unexpected character: \ufffd",
+      "err_type": "*errortypes.FailedToUnmarshal"
+    },
+    {
+      "name": "jsonutil.Unmarshal",
+      "input": "{\"n\": 1.5}",
+      "result": "",
+      "err": "cannot unmarshal main.idTarget.N: can not decode float as int",
+      "err_type": "*errortypes.FailedToUnmarshal"
+    },
+    {
+      "name": "jsonutil.UnmarshalValid",
+      "input": "{\"n\": 1.5}",
+      "result": "",
+      "err": "cannot unmarshal main.idTarget.N: can not decode float as int",
+      "err_type": "*errortypes.FailedToUnmarshal"
+    },
+    {
+      "name": "jsonutil.Unmarshal",
+      "input": "",
+      "result": "",
+      "err": "expect { or n, but found \u0000",
+      "err_type": "*errortypes.FailedToUnmarshal"
+    },
+    {
+      "name": "jsonutil.UnmarshalValid",
+      "input": "",
+      "result": "",
+      "err": "expect { or n, but found \u0000",
+      "err_type": "*errortypes.FailedToUnmarshal"
+    },
+    {
+      "name": "jsonutil.Marshal chan int",
+      "input": "",
+      "result": "",
+      "err": "chan int is unsupported type",
+      "err_type": "*errortypes.FailedToMarshal"
+    },
+    {
+      "name": "jsonutil.Marshal NaN",
+      "input": "",
+      "result": "",
+      "err": "unsupported value: NaN",
+      "err_type": "*errortypes.FailedToMarshal"
+    }
+  ],
+  "unvalidated_raw": [
+    {
+      "name": "jsonutil.Unmarshal",
+      "input": "{\"ext\":-01}",
+      "result": "\"-01\"",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.UnmarshalValid",
+      "input": "{\"ext\":-01}",
+      "result": "\"-01\"",
+      "err": ""
+    },
+    {
+      "name": "json.Unmarshal",
+      "input": "{\"ext\":-01}",
+      "result": "nil",
+      "err": "invalid character '1' after object key:value pair"
+    },
+    {
+      "name": "jsonutil.Unmarshal",
+      "input": "{\"ext\":[-01]}",
+      "result": "\"[-01]\"",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.UnmarshalValid",
+      "input": "{\"ext\":[-01]}",
+      "result": "\"[-01]\"",
+      "err": ""
+    },
+    {
+      "name": "json.Unmarshal",
+      "input": "{\"ext\":[-01]}",
+      "result": "nil",
+      "err": "invalid character '1' after array element"
+    },
+    {
+      "name": "jsonutil.Unmarshal",
+      "input": "{\"ext\":01}",
+      "result": "\"\"",
+      "err": "cannot unmarshal main.rawOmit.Ext: leading zero is invalid"
+    },
+    {
+      "name": "jsonutil.UnmarshalValid",
+      "input": "{\"ext\":01}",
+      "result": "\"\"",
+      "err": "cannot unmarshal main.rawOmit.Ext: leading zero is invalid"
+    },
+    {
+      "name": "json.Unmarshal",
+      "input": "{\"ext\":01}",
+      "result": "nil",
+      "err": "invalid character '1' after object key:value pair"
+    },
+    {
+      "name": "jsonutil.Unmarshal",
+      "input": "{\"ext\":{\"a\":1,}}",
+      "result": "\"{\\\"a\\\":1,}}\"",
+      "err": "cannot unmarshal main.rawOmit.Ext: expects \" or n, but found }"
+    },
+    {
+      "name": "jsonutil.UnmarshalValid",
+      "input": "{\"ext\":{\"a\":1,}}",
+      "result": "\"{\\\"a\\\":1,}}\"",
+      "err": "cannot unmarshal main.rawOmit.Ext: expects \" or n, but found }"
+    },
+    {
+      "name": "json.Unmarshal",
+      "input": "{\"ext\":{\"a\":1,}}",
+      "result": "nil",
+      "err": "invalid character '}' looking for beginning of object key string"
+    }
+  ],
+  "int_map_key_order": [
+    {
+      "name": "jsonutil.Marshal",
+      "input": "",
+      "result": "{\"-1\":\"c\",\"10\":\"a\",\"100\":\"d\",\"9\":\"b\"}",
+      "err": ""
+    }
+  ],
+  "member_order": [
+    {
+      "name": "sjson.SetBytes",
+      "input": "{\"b\":1,\"a\":2}",
+      "result": "{\"b\":1,\"a\":2,\"c\":3}",
+      "err": ""
+    },
+    {
+      "name": "jsonparser.Set",
+      "input": "{\"b\":1,\"a\":2}",
+      "result": "{\"b\":1,\"a\":2,\"c\":3}",
+      "err": ""
+    },
+    {
+      "name": "sjson.SetBytes existing",
+      "input": "{\"b\":1,\"a\":2}",
+      "result": "{\"b\":5,\"a\":2}",
+      "err": ""
+    }
+  ],
+  "lone_surrogates": [
+    {
+      "name": "jsonutil.Unmarshal",
+      "input": "{\"s\":\"a\\ud800b\"}",
+      "result": "61efbfbd62",
+      "err": ""
+    },
+    {
+      "name": "json.Unmarshal",
+      "input": "{\"s\":\"a\\ud800b\"}",
+      "result": "61efbfbd62",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.Unmarshal",
+      "input": "{\"s\":\"\\udc00\"}",
+      "result": "efbfbd",
+      "err": ""
+    },
+    {
+      "name": "json.Unmarshal",
+      "input": "{\"s\":\"\\udc00\"}",
+      "result": "efbfbd",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.Unmarshal",
+      "input": "{\"s\":\"\\ud800\\ud800\"}",
+      "result": "efbfbdefbfbd",
+      "err": ""
+    },
+    {
+      "name": "json.Unmarshal",
+      "input": "{\"s\":\"\\ud800\\ud800\"}",
+      "result": "efbfbdefbfbd",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.Unmarshal",
+      "input": "{\"s\":\"\\ud800\\ud800\\udc00\"}",
+      "result": "efbfbdefbfbdefbfbd",
+      "err": ""
+    },
+    {
+      "name": "json.Unmarshal",
+      "input": "{\"s\":\"\\ud800\\ud800\\udc00\"}",
+      "result": "efbfbdf0908080",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.Unmarshal",
+      "input": "{\"s\":\"\\udc00\\ud800\\udc00\"}",
+      "result": "efbfbdefbfbdefbfbd",
+      "err": ""
+    },
+    {
+      "name": "json.Unmarshal",
+      "input": "{\"s\":\"\\udc00\\ud800\\udc00\"}",
+      "result": "efbfbdf0908080",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.Unmarshal",
+      "input": "{\"s\":\"\\ud800\\u0041\"}",
+      "result": "efbfbd41",
+      "err": ""
+    },
+    {
+      "name": "json.Unmarshal",
+      "input": "{\"s\":\"\\ud800\\u0041\"}",
+      "result": "efbfbd41",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.Unmarshal",
+      "input": "{\"s\":\"\\ud800\\n\"}",
+      "result": "efbfbd0a",
+      "err": ""
+    },
+    {
+      "name": "json.Unmarshal",
+      "input": "{\"s\":\"\\ud800\\n\"}",
+      "result": "efbfbd0a",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.Unmarshal",
+      "input": "{\"s\":\"\\\\ud800\"}",
+      "result": "5c7564383030",
+      "err": ""
+    },
+    {
+      "name": "json.Unmarshal",
+      "input": "{\"s\":\"\\\\ud800\"}",
+      "result": "5c7564383030",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.Unmarshal",
+      "input": "{\"s\":\"\\ud83d\\ude00\"}",
+      "result": "f09f9880",
+      "err": ""
+    },
+    {
+      "name": "json.Unmarshal",
+      "input": "{\"s\":\"\\ud83d\\ude00\"}",
+      "result": "f09f9880",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.Unmarshal",
+      "input": "{\"s\":\"x\\ud800\"}",
+      "result": "78efbfbd",
+      "err": ""
+    },
+    {
+      "name": "json.Unmarshal",
+      "input": "{\"s\":\"x\\ud800\"}",
+      "result": "78efbfbd",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.Unmarshal",
+      "input": "{\"s\":\"\\uDBFF\\uDFFF\"}",
+      "result": "f48fbfbf",
+      "err": ""
+    },
+    {
+      "name": "json.Unmarshal",
+      "input": "{\"s\":\"\\uDBFF\\uDFFF\"}",
+      "result": "f48fbfbf",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.Unmarshal",
+      "input": "{\"s\":\"\\ud800\\\"\"}",
+      "result": "efbfbd22",
+      "err": ""
+    },
+    {
+      "name": "json.Unmarshal",
+      "input": "{\"s\":\"\\ud800\\\"\"}",
+      "result": "efbfbd22",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.Unmarshal key",
+      "input": "{\"\\ud800\":1}",
+      "result": "efbfbd",
+      "err": ""
+    }
+  ],
+  "string_int": [
+    {
+      "name": "jsonutil.UnmarshalValid",
+      "input": "{\"item_id\":\"30\"}",
+      "result": "30",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.UnmarshalValid",
+      "input": "{\"item_id\":30}",
+      "result": "30",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.UnmarshalValid",
+      "input": "{\"item_id\":\"\"}",
+      "result": "0",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.UnmarshalValid",
+      "input": "{\"item_id\":true}",
+      "result": "0",
+      "err": "cannot unmarshal main.stringIntItem.ItemId: Value looks like Number/Boolean/None, but can't find its end: ',' or '}' symbol"
+    },
+    {
+      "name": "jsonutil.UnmarshalValid",
+      "input": "{\"item_id\":null}",
+      "result": "0",
+      "err": "cannot unmarshal main.stringIntItem.ItemId: Value looks like Number/Boolean/None, but can't find its end: ',' or '}' symbol"
+    },
+    {
+      "name": "jsonutil.UnmarshalValid",
+      "input": "{\"item_id\":\"-\"}",
+      "result": "0",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.UnmarshalValid",
+      "input": "{\"item_id\":\"+5\"}",
+      "result": "0",
+      "err": "cannot unmarshal main.stringIntItem.ItemId: Value looks like Number/Boolean/None, but can't find its end: ',' or '}' symbol"
+    },
+    {
+      "name": "jsonutil.UnmarshalValid",
+      "input": "{\"item_id\":\" 5\"}",
+      "result": "0",
+      "err": "cannot unmarshal main.stringIntItem.ItemId: Value looks like Number/Boolean/None, but can't find its end: ',' or '}' symbol"
+    },
+    {
+      "name": "jsonutil.UnmarshalValid",
+      "input": "{\"item_id\":\"1.5\"}",
+      "result": "0",
+      "err": "cannot unmarshal main.stringIntItem.ItemId: Value looks like Number/Boolean/None, but can't find its end: ',' or '}' symbol"
+    },
+    {
+      "name": "jsonutil.UnmarshalValid",
+      "input": "{\"item_id\":9223372036854775807}",
+      "result": "9223372036854775807",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.UnmarshalValid",
+      "input": "{\"item_id\":9223372036854775808}",
+      "result": "0",
+      "err": "cannot unmarshal main.stringIntItem.ItemId: Value is number, but overflowed while parsing"
+    },
+    {
+      "name": "jsonutil.UnmarshalValid",
+      "input": "{\"item_id\":-9223372036854775808}",
+      "result": "-9223372036854775808",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.UnmarshalValid",
+      "input": "{\"item_id\":\"0x1\"}",
+      "result": "0",
+      "err": "cannot unmarshal main.stringIntItem.ItemId: Value looks like Number/Boolean/None, but can't find its end: ',' or '}' symbol"
+    },
+    {
+      "name": "jsonutil.UnmarshalValid",
+      "input": "{\"item_id\":\"\\u0033\"}",
+      "result": "0",
+      "err": "cannot unmarshal main.stringIntItem.ItemId: Value looks like Number/Boolean/None, but can't find its end: ',' or '}' symbol"
+    },
+    {
+      "name": "jsonutil.UnmarshalValid",
+      "input": "{\"item_id\":[]}",
+      "result": "0",
+      "err": "cannot unmarshal main.stringIntItem.ItemId: Value looks like Number/Boolean/None, but can't find its end: ',' or '}' symbol"
+    },
+    {
+      "name": "jsonutil.UnmarshalValid",
+      "input": "{\"item_id\":{}}",
+      "result": "0",
+      "err": "cannot unmarshal main.stringIntItem.ItemId: Value looks like Number/Boolean/None, but can't find its end: ',' or '}' symbol"
+    },
+    {
+      "name": "jsonutil.UnmarshalValid",
+      "input": "{\"item_id\":\"007\"}",
+      "result": "7",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.UnmarshalValid",
+      "input": "{\"item_id\":-0}",
+      "result": "0",
+      "err": ""
+    }
+  ],
+  "int_string": [
+    {
+      "name": "jsonutil.UnmarshalValid",
+      "input": "{\"item_id\": null}",
+      "result": "",
+      "err": "cannot unmarshal main.intStringItem.ItemId: invalid type"
+    },
+    {
+      "name": "jsonutil.UnmarshalValid",
+      "input": "{\"item_id\": \"30\"}",
+      "result": "30",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.UnmarshalValid",
+      "input": "{\"item_id\": 30}",
+      "result": "30",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.UnmarshalValid",
+      "input": "{\"item_id\": []",
+      "result": "",
+      "err": "cannot unmarshal main.intStringItem.ItemId: invalid type"
+    },
+    {
+      "name": "jsonutil.UnmarshalValid",
+      "input": "{\"item_id\": 1.50}",
+      "result": "1.5",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.UnmarshalValid",
+      "input": "{\"item_id\": 1e2}",
+      "result": "100",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.UnmarshalValid",
+      "input": "{\"item_id\": -0}",
+      "result": "-0",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.UnmarshalValid",
+      "input": "{\"item_id\": true}",
+      "result": "",
+      "err": "cannot unmarshal main.intStringItem.ItemId: invalid type"
+    },
+    {
+      "name": "jsonutil.UnmarshalValid",
+      "input": "{\"item_id\": \"\\u0041\"}",
+      "result": "A",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.UnmarshalValid",
+      "input": "{\"item_id\": 123456789012345678901234567890}",
+      "result": "123456789012345678901234567890",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.UnmarshalValid",
+      "input": "{\"item_id\": \"\\ud800\\u0041\"}",
+      "result": "�",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.UnmarshalValid",
+      "input": "{\"item_id\": \"\\ud800\\ud800\\udc00\"}",
+      "result": "��",
+      "err": ""
+    }
+  ],
+  "parse_into_string": [
+    {
+      "name": "jsonutil.ParseIntoString",
+      "input": "",
+      "result": "nil",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.ParseIntoString",
+      "input": "\"1\"",
+      "result": "\"1\"",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.ParseIntoString",
+      "input": "1",
+      "result": "\"1\"",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.ParseIntoString",
+      "input": "null",
+      "result": "nil",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.ParseIntoString",
+      "input": "\"null\"",
+      "result": "\"null\"",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.ParseIntoString",
+      "input": "\"hello\"",
+      "result": "\"hello\"",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.ParseIntoString",
+      "input": "true",
+      "result": "\"true\"",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.ParseIntoString",
+      "input": "{\"a\":1}",
+      "result": "\"{\\\"a\\\":1}\"",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.ParseIntoString",
+      "input": "[1]",
+      "result": "\"[1]\"",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.ParseIntoString",
+      "input": " \"x\" ",
+      "result": "\"x\"",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.ParseIntoString",
+      "input": "1.50",
+      "result": "\"1.5\"",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.ParseIntoString",
+      "input": " {\"a\":1} ",
+      "result": "\"{\\\"a\\\":1} \"",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.ParseIntoString",
+      "input": "\"abc",
+      "result": "\"abc\"",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.ParseIntoString",
+      "input": "1x",
+      "result": "\"0\"",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.ParseIntoString",
+      "input": "+5",
+      "result": "\"5\"",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.ParseIntoString",
+      "input": "nan",
+      "result": "\"NaN\"",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.ParseIntoString",
+      "input": "tru",
+      "result": "\"true\"",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.ParseIntoString",
+      "input": "x",
+      "result": "nil",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.ParseIntoString",
+      "input": "1e400",
+      "result": "\"+Inf\"",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.ParseIntoString",
+      "input": "\"\\ud800\\u0041\"",
+      "result": "\"�\"",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.ParseIntoString",
+      "input": "\"\\ud800\\ud800\\udc00\"",
+      "result": "\"��\"",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.ParseIntoString nil",
+      "input": "\"123\"",
+      "result": "nil",
+      "err": "ppString is nil"
+    }
+  ],
+  "out_of_range_numbers": [
+    {
+      "name": "jsonutil.Unmarshal",
+      "input": "{\"ext\":1e400}",
+      "result": "\"1e400\"",
+      "err": "cannot unmarshal main.rawPlain.Ext: invalid number"
+    },
+    {
+      "name": "jsonutil.UnmarshalValid",
+      "input": "{\"ext\":1e400}",
+      "result": "\"1e400\"",
+      "err": "cannot unmarshal main.rawPlain.Ext: invalid number"
+    },
+    {
+      "name": "json.Unmarshal",
+      "input": "{\"ext\":1e400}",
+      "result": "\"1e400\"",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.Unmarshal",
+      "input": "{\"ext\":[-1e309]}",
+      "result": "\"[-1e309]\"",
+      "err": "cannot unmarshal main.rawPlain.Ext: invalid number"
+    },
+    {
+      "name": "jsonutil.UnmarshalValid",
+      "input": "{\"ext\":[-1e309]}",
+      "result": "\"[-1e309]\"",
+      "err": "cannot unmarshal main.rawPlain.Ext: invalid number"
+    },
+    {
+      "name": "json.Unmarshal",
+      "input": "{\"ext\":[-1e309]}",
+      "result": "\"[-1e309]\"",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.Unmarshal",
+      "input": "{\"ext\":{\"a\":1.8e308}}",
+      "result": "\"{\\\"a\\\":1.8e308}\"",
+      "err": "cannot unmarshal main.rawPlain.Ext: invalid number"
+    },
+    {
+      "name": "jsonutil.UnmarshalValid",
+      "input": "{\"ext\":{\"a\":1.8e308}}",
+      "result": "\"{\\\"a\\\":1.8e308}\"",
+      "err": "cannot unmarshal main.rawPlain.Ext: invalid number"
+    },
+    {
+      "name": "json.Unmarshal",
+      "input": "{\"ext\":{\"a\":1.8e308}}",
+      "result": "\"{\\\"a\\\":1.8e308}\"",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.Unmarshal",
+      "input": "{\"ext\":1.7976931348623157e308}",
+      "result": "\"1.7976931348623157e308\"",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.UnmarshalValid",
+      "input": "{\"ext\":1.7976931348623157e308}",
+      "result": "\"1.7976931348623157e308\"",
+      "err": ""
+    },
+    {
+      "name": "json.Unmarshal",
+      "input": "{\"ext\":1.7976931348623157e308}",
+      "result": "\"1.7976931348623157e308\"",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.Unmarshal",
+      "input": "{\"ext\":1e-400}",
+      "result": "\"1e-400\"",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.UnmarshalValid",
+      "input": "{\"ext\":1e-400}",
+      "result": "\"1e-400\"",
+      "err": ""
+    },
+    {
+      "name": "json.Unmarshal",
+      "input": "{\"ext\":1e-400}",
+      "result": "\"1e-400\"",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.Unmarshal",
+      "input": "{\"ext\":123456789012345678901234567890}",
+      "result": "\"123456789012345678901234567890\"",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.UnmarshalValid",
+      "input": "{\"ext\":123456789012345678901234567890}",
+      "result": "\"123456789012345678901234567890\"",
+      "err": ""
+    },
+    {
+      "name": "json.Unmarshal",
+      "input": "{\"ext\":123456789012345678901234567890}",
+      "result": "\"123456789012345678901234567890\"",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.Unmarshal",
+      "input": "{\"ext\":0.5e39}",
+      "result": "\"0.5e39\"",
+      "err": "main.rawPlain.Ext: strconv.ParseFloat: parsing \"0.5e39\": value out of range"
+    },
+    {
+      "name": "jsonutil.UnmarshalValid",
+      "input": "{\"ext\":0.5e39}",
+      "result": "\"0.5e39\"",
+      "err": "main.rawPlain.Ext: strconv.ParseFloat: parsing \"0.5e39\": value out of range"
+    },
+    {
+      "name": "json.Unmarshal",
+      "input": "{\"ext\":0.5e39}",
+      "result": "\"0.5e39\"",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.Unmarshal",
+      "input": "{\"ext\":-0.5e39}",
+      "result": "\"-0.5e39\"",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.UnmarshalValid",
+      "input": "{\"ext\":-0.5e39}",
+      "result": "\"-0.5e39\"",
+      "err": ""
+    },
+    {
+      "name": "json.Unmarshal",
+      "input": "{\"ext\":-0.5e39}",
+      "result": "\"-0.5e39\"",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.Unmarshal unknown member",
+      "input": "{\"zz\":1e400,\"s\":\"x\"}",
+      "result": "x",
+      "err": "cannot unmarshal main.stringTarget.S: invalid number"
+    },
+    {
+      "name": "json.Unmarshal unknown member",
+      "input": "{\"zz\":1e400,\"s\":\"x\"}",
+      "result": "x",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.Unmarshal unknown member",
+      "input": "{\"s\":\"x\",\"zz\":[1,{\"a\":-1e400}]}",
+      "result": "x",
+      "err": "invalid number"
+    },
+    {
+      "name": "json.Unmarshal unknown member",
+      "input": "{\"s\":\"x\",\"zz\":[1,{\"a\":-1e400}]}",
+      "result": "x",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.UnmarshalValid IntString",
+      "input": "{\"item_id\":1e400}",
+      "result": "+Inf",
+      "err": "cannot unmarshal main.intStringItem.ItemId: invalid number"
+    },
+    {
+      "name": "json.Unmarshal IntString",
+      "input": "{\"item_id\":1e400}",
+      "result": "+Inf",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.UnmarshalValid IntString",
+      "input": "{\"item_id\":-1e400}",
+      "result": "-Inf",
+      "err": "cannot unmarshal main.intStringItem.ItemId: invalid number"
+    },
+    {
+      "name": "json.Unmarshal IntString",
+      "input": "{\"item_id\":-1e400}",
+      "result": "-Inf",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.UnmarshalValid IntString",
+      "input": "{\"item_id\":0.165e308}",
+      "result": "16500000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+      "err": "main.intStringItem.ItemId: strconv.ParseFloat: parsing \"0.165e308\": value out of range"
+    },
+    {
+      "name": "json.Unmarshal IntString",
+      "input": "{\"item_id\":0.165e308}",
+      "result": "16500000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+      "err": ""
+    }
+  ],
+  "typed_ints": [
+    {
+      "name": "jsonutil.Unmarshal",
+      "input": "{\"v\":5}",
+      "result": "5",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.Unmarshal",
+      "input": "{\"v\":200}",
+      "result": "0",
+      "err": "cannot unmarshal ReadInt8: 200"
+    },
+    {
+      "name": "jsonutil.Unmarshal",
+      "input": "{\"v\":-128}",
+      "result": "-128",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.Unmarshal",
+      "input": "{\"v\":1.0}",
+      "result": "1",
+      "err": "cannot unmarshal main.typedTarget.V: can not decode float as int"
+    },
+    {
+      "name": "jsonutil.Unmarshal",
+      "input": "{\"v\":\"5\"}",
+      "result": "0",
+      "err": "cannot unmarshal main.typedTarget.V: unexpected character: \ufffd"
+    },
+    {
+      "name": "jsonutil.Unmarshal",
+      "input": "{\"v\":null}",
+      "result": "0",
+      "err": ""
+    }
+  ],
+  "negative_zero": [
+    {
+      "name": "jsonutil.Unmarshal",
+      "input": "{\"i\":-0}",
+      "result": "{\"i\":0,\"i8\":0,\"u\":0,\"t\":0,\"f\":0}",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.UnmarshalValid",
+      "input": "{\"i\":-0}",
+      "result": "{\"i\":0,\"i8\":0,\"u\":0,\"t\":0,\"f\":0}",
+      "err": ""
+    },
+    {
+      "name": "json.Unmarshal",
+      "input": "{\"i\":-0}",
+      "result": "{\"i\":0,\"i8\":0,\"u\":0,\"t\":0,\"f\":0}",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.MergeClone",
+      "input": "{\"i\":-0}",
+      "result": "{\"i\":0,\"i8\":5,\"u\":5,\"t\":5,\"f\":5}",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.Unmarshal",
+      "input": "{\"i8\":-0}",
+      "result": "{\"i\":0,\"i8\":0,\"u\":0,\"t\":0,\"f\":0}",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.UnmarshalValid",
+      "input": "{\"i8\":-0}",
+      "result": "{\"i\":0,\"i8\":0,\"u\":0,\"t\":0,\"f\":0}",
+      "err": ""
+    },
+    {
+      "name": "json.Unmarshal",
+      "input": "{\"i8\":-0}",
+      "result": "{\"i\":0,\"i8\":0,\"u\":0,\"t\":0,\"f\":0}",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.MergeClone",
+      "input": "{\"i8\":-0}",
+      "result": "{\"i\":5,\"i8\":0,\"u\":5,\"t\":5,\"f\":5}",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.Unmarshal",
+      "input": "{\"u\":-0}",
+      "result": "{\"i\":0,\"i8\":0,\"u\":0,\"t\":0,\"f\":0}",
+      "err": "cannot unmarshal main.intTarget.U: unexpected character: \ufffd"
+    },
+    {
+      "name": "jsonutil.UnmarshalValid",
+      "input": "{\"u\":-0}",
+      "result": "{\"i\":0,\"i8\":0,\"u\":0,\"t\":0,\"f\":0}",
+      "err": "cannot unmarshal main.intTarget.U: unexpected character: \ufffd"
+    },
+    {
+      "name": "json.Unmarshal",
+      "input": "{\"u\":-0}",
+      "result": "{\"i\":0,\"i8\":0,\"u\":0,\"t\":0,\"f\":0}",
+      "err": "json: cannot unmarshal number -0 into Go struct field intTarget.u of type uint"
+    },
+    {
+      "name": "jsonutil.MergeClone",
+      "input": "{\"u\":-0}",
+      "result": "{\"i\":5,\"i8\":5,\"u\":0,\"t\":5,\"f\":5}",
+      "err": "cannot unmarshal main.intTarget.U: unexpected character: \ufffd"
+    },
+    {
+      "name": "jsonutil.Unmarshal",
+      "input": "{\"t\":-0}",
+      "result": "{\"i\":0,\"i8\":0,\"u\":0,\"t\":0,\"f\":0}",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.UnmarshalValid",
+      "input": "{\"t\":-0}",
+      "result": "{\"i\":0,\"i8\":0,\"u\":0,\"t\":0,\"f\":0}",
+      "err": ""
+    },
+    {
+      "name": "json.Unmarshal",
+      "input": "{\"t\":-0}",
+      "result": "{\"i\":0,\"i8\":0,\"u\":0,\"t\":0,\"f\":0}",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.MergeClone",
+      "input": "{\"t\":-0}",
+      "result": "{\"i\":5,\"i8\":5,\"u\":5,\"t\":0,\"f\":5}",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.Unmarshal",
+      "input": "{\"p\":-0}",
+      "result": "{\"i\":0,\"i8\":0,\"u\":0,\"t\":0,\"p\":0,\"f\":0}",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.UnmarshalValid",
+      "input": "{\"p\":-0}",
+      "result": "{\"i\":0,\"i8\":0,\"u\":0,\"t\":0,\"p\":0,\"f\":0}",
+      "err": ""
+    },
+    {
+      "name": "json.Unmarshal",
+      "input": "{\"p\":-0}",
+      "result": "{\"i\":0,\"i8\":0,\"u\":0,\"t\":0,\"p\":0,\"f\":0}",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.MergeClone",
+      "input": "{\"p\":-0}",
+      "result": "{\"i\":5,\"i8\":5,\"u\":5,\"t\":5,\"p\":0,\"f\":5}",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.Unmarshal",
+      "input": "{\"f\":-0}",
+      "result": "{\"i\":0,\"i8\":0,\"u\":0,\"t\":0,\"f\":-0}",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.UnmarshalValid",
+      "input": "{\"f\":-0}",
+      "result": "{\"i\":0,\"i8\":0,\"u\":0,\"t\":0,\"f\":-0}",
+      "err": ""
+    },
+    {
+      "name": "json.Unmarshal",
+      "input": "{\"f\":-0}",
+      "result": "{\"i\":0,\"i8\":0,\"u\":0,\"t\":0,\"f\":-0}",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.MergeClone",
+      "input": "{\"f\":-0}",
+      "result": "{\"i\":5,\"i8\":5,\"u\":5,\"t\":5,\"f\":-0}",
+      "err": ""
+    }
+  ],
+  "control_characters": [
+    {
+      "name": "jsonutil.Unmarshal",
+      "input": "{\"s\":\"a\tb\"}",
+      "result": "s=\"\" ext=nil m=[]",
+      "err": "cannot unmarshal main.controlTarget.S: invalid control character found: 9"
+    },
+    {
+      "name": "jsonutil.UnmarshalValid",
+      "input": "{\"s\":\"a\tb\"}",
+      "result": "s=\"\" ext=nil m=[]",
+      "err": "cannot unmarshal main.controlTarget.S: invalid control character found: 9"
+    },
+    {
+      "name": "json.Unmarshal",
+      "input": "{\"s\":\"a\tb\"}",
+      "result": "s=\"\" ext=nil m=[]",
+      "err": "invalid character '\\t' in string literal"
+    },
+    {
+      "name": "jsonutil.MergeClone",
+      "input": "{\"s\":\"a\tb\"}",
+      "result": "s=\"\" ext=nil m=[]",
+      "err": "cannot unmarshal main.controlTarget.S: invalid control character found: 9"
+    },
+    {
+      "name": "jsonutil.Unmarshal",
+      "input": "{\"s\":\"\\na\tb\"}",
+      "result": "s=\"\\na\\tb\" ext=nil m=[]",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.UnmarshalValid",
+      "input": "{\"s\":\"\\na\tb\"}",
+      "result": "s=\"\\na\\tb\" ext=nil m=[]",
+      "err": ""
+    },
+    {
+      "name": "json.Unmarshal",
+      "input": "{\"s\":\"\\na\tb\"}",
+      "result": "s=\"\" ext=nil m=[]",
+      "err": "invalid character '\\t' in string literal"
+    },
+    {
+      "name": "jsonutil.MergeClone",
+      "input": "{\"s\":\"\\na\tb\"}",
+      "result": "s=\"\\na\\tb\" ext=nil m=[]",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.Unmarshal",
+      "input": "{\"s\":\"\\/\u0001\"}",
+      "result": "s=\"/\\x01\" ext=nil m=[]",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.UnmarshalValid",
+      "input": "{\"s\":\"\\/\u0001\"}",
+      "result": "s=\"/\\x01\" ext=nil m=[]",
+      "err": ""
+    },
+    {
+      "name": "json.Unmarshal",
+      "input": "{\"s\":\"\\/\u0001\"}",
+      "result": "s=\"\" ext=nil m=[]",
+      "err": "invalid character '\\x01' in string literal"
+    },
+    {
+      "name": "jsonutil.MergeClone",
+      "input": "{\"s\":\"\\/\u0001\"}",
+      "result": "s=\"/\\x01\" ext=nil m=[]",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.Unmarshal",
+      "input": "{\"s\":\"\\u0041\n\"}",
+      "result": "s=\"A\\n\" ext=nil m=[]",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.UnmarshalValid",
+      "input": "{\"s\":\"\\u0041\n\"}",
+      "result": "s=\"A\\n\" ext=nil m=[]",
+      "err": ""
+    },
+    {
+      "name": "json.Unmarshal",
+      "input": "{\"s\":\"\\u0041\n\"}",
+      "result": "s=\"\" ext=nil m=[]",
+      "err": "invalid character '\\n' in string literal"
+    },
+    {
+      "name": "jsonutil.MergeClone",
+      "input": "{\"s\":\"\\u0041\n\"}",
+      "result": "s=\"A\\n\" ext=nil m=[]",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.Unmarshal",
+      "input": "{\"zz\":\"\tq\",\"s\":\"x\"}",
+      "result": "s=\"\" ext=nil m=[]",
+      "err": "invalid control character found: 9"
+    },
+    {
+      "name": "jsonutil.UnmarshalValid",
+      "input": "{\"zz\":\"\tq\",\"s\":\"x\"}",
+      "result": "s=\"\" ext=nil m=[]",
+      "err": "invalid control character found: 9"
+    },
+    {
+      "name": "json.Unmarshal",
+      "input": "{\"zz\":\"\tq\",\"s\":\"x\"}",
+      "result": "s=\"\" ext=nil m=[]",
+      "err": "invalid character '\\t' in string literal"
+    },
+    {
+      "name": "jsonutil.MergeClone",
+      "input": "{\"zz\":\"\tq\",\"s\":\"x\"}",
+      "result": "s=\"\" ext=nil m=[]",
+      "err": "invalid control character found: 9"
+    },
+    {
+      "name": "jsonutil.Unmarshal",
+      "input": "{\"zz\":\"\\n\tq\",\"s\":\"x\"}",
+      "result": "s=\"x\" ext=nil m=[]",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.UnmarshalValid",
+      "input": "{\"zz\":\"\\n\tq\",\"s\":\"x\"}",
+      "result": "s=\"x\" ext=nil m=[]",
+      "err": ""
+    },
+    {
+      "name": "json.Unmarshal",
+      "input": "{\"zz\":\"\\n\tq\",\"s\":\"x\"}",
+      "result": "s=\"\" ext=nil m=[]",
+      "err": "invalid character '\\t' in string literal"
+    },
+    {
+      "name": "jsonutil.MergeClone",
+      "input": "{\"zz\":\"\\n\tq\",\"s\":\"x\"}",
+      "result": "s=\"x\" ext=nil m=[]",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.Unmarshal",
+      "input": "{\"ext\":\"\\n\tq\"}",
+      "result": "s=\"\" ext=\"\\\"\\\\n\\tq\\\"\" m=[]",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.UnmarshalValid",
+      "input": "{\"ext\":\"\\n\tq\"}",
+      "result": "s=\"\" ext=\"\\\"\\\\n\\tq\\\"\" m=[]",
+      "err": ""
+    },
+    {
+      "name": "json.Unmarshal",
+      "input": "{\"ext\":\"\\n\tq\"}",
+      "result": "s=\"\" ext=nil m=[]",
+      "err": "invalid character '\\t' in string literal"
+    },
+    {
+      "name": "jsonutil.MergeClone",
+      "input": "{\"ext\":\"\\n\tq\"}",
+      "result": "s=\"\" ext=\"\\\"\\\\n\\tq\\\"\" m=[]",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.Unmarshal",
+      "input": "{\"ext\":{\"a\":[\"\\\"\u001f\"]}}",
+      "result": "s=\"\" ext=\"{\\\"a\\\":[\\\"\\\\\\\"\\x1f\\\"]}\" m=[]",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.UnmarshalValid",
+      "input": "{\"ext\":{\"a\":[\"\\\"\u001f\"]}}",
+      "result": "s=\"\" ext=\"{\\\"a\\\":[\\\"\\\\\\\"\\x1f\\\"]}\" m=[]",
+      "err": ""
+    },
+    {
+      "name": "json.Unmarshal",
+      "input": "{\"ext\":{\"a\":[\"\\\"\u001f\"]}}",
+      "result": "s=\"\" ext=nil m=[]",
+      "err": "invalid character '\\x1f' in string literal"
+    },
+    {
+      "name": "jsonutil.MergeClone",
+      "input": "{\"ext\":{\"a\":[\"\\\"\u001f\"]}}",
+      "result": "s=\"\" ext=\"{\\\"a\\\":[\\\"\\\\\\\"\\x1f\\\"]}\" m=[]",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.Unmarshal",
+      "input": "{\"m\":{\"\\n\tk\":1}}",
+      "result": "s=\"\" ext=nil m=[\"\\n\\tk\"]",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.UnmarshalValid",
+      "input": "{\"m\":{\"\\n\tk\":1}}",
+      "result": "s=\"\" ext=nil m=[\"\\n\\tk\"]",
+      "err": ""
+    },
+    {
+      "name": "json.Unmarshal",
+      "input": "{\"m\":{\"\\n\tk\":1}}",
+      "result": "s=\"\" ext=nil m=[]",
+      "err": "invalid character '\\t' in string literal"
+    },
+    {
+      "name": "jsonutil.MergeClone",
+      "input": "{\"m\":{\"\\n\tk\":1}}",
+      "result": "s=\"\" ext=nil m=[\"\\n\\tk\"]",
+      "err": ""
+    }
+  ],
+  "null_documents": [
+    {
+      "name": "jsonutil.Unmarshal struct",
+      "input": "null",
+      "result": "{\"id\":\"keep\",\"n\":7}",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.Unmarshal map",
+      "input": "null",
+      "result": "nil=true",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.Unmarshal slice",
+      "input": "null",
+      "result": "nil=true",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.Unmarshal string",
+      "input": "null",
+      "result": "\"\"",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.Unmarshal int",
+      "input": "null",
+      "result": "7",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.UnmarshalValid struct",
+      "input": "null",
+      "result": "{\"id\":\"keep\",\"n\":7}",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.UnmarshalValid map",
+      "input": "null",
+      "result": "nil=true",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.UnmarshalValid slice",
+      "input": "null",
+      "result": "nil=true",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.UnmarshalValid string",
+      "input": "null",
+      "result": "\"\"",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.UnmarshalValid int",
+      "input": "null",
+      "result": "7",
+      "err": ""
+    },
+    {
+      "name": "json.Unmarshal struct",
+      "input": "null",
+      "result": "{\"id\":\"keep\",\"n\":7}",
+      "err": ""
+    },
+    {
+      "name": "json.Unmarshal map",
+      "input": "null",
+      "result": "nil=true",
+      "err": ""
+    },
+    {
+      "name": "json.Unmarshal slice",
+      "input": "null",
+      "result": "nil=true",
+      "err": ""
+    },
+    {
+      "name": "json.Unmarshal string",
+      "input": "null",
+      "result": "\"keep\"",
+      "err": ""
+    },
+    {
+      "name": "json.Unmarshal int",
+      "input": "null",
+      "result": "7",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.MergeClone struct",
+      "input": "null",
+      "result": "{\"id\":\"keep\",\"n\":7}",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.Unmarshal struct",
+      "input": " null\n",
+      "result": "{\"id\":\"keep\",\"n\":7}",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.Unmarshal map",
+      "input": " null\n",
+      "result": "nil=true",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.Unmarshal slice",
+      "input": " null\n",
+      "result": "nil=true",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.Unmarshal string",
+      "input": " null\n",
+      "result": "\"\"",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.Unmarshal int",
+      "input": " null\n",
+      "result": "7",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.UnmarshalValid struct",
+      "input": " null\n",
+      "result": "{\"id\":\"keep\",\"n\":7}",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.UnmarshalValid map",
+      "input": " null\n",
+      "result": "nil=true",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.UnmarshalValid slice",
+      "input": " null\n",
+      "result": "nil=true",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.UnmarshalValid string",
+      "input": " null\n",
+      "result": "\"\"",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.UnmarshalValid int",
+      "input": " null\n",
+      "result": "7",
+      "err": ""
+    },
+    {
+      "name": "json.Unmarshal struct",
+      "input": " null\n",
+      "result": "{\"id\":\"keep\",\"n\":7}",
+      "err": ""
+    },
+    {
+      "name": "json.Unmarshal map",
+      "input": " null\n",
+      "result": "nil=true",
+      "err": ""
+    },
+    {
+      "name": "json.Unmarshal slice",
+      "input": " null\n",
+      "result": "nil=true",
+      "err": ""
+    },
+    {
+      "name": "json.Unmarshal string",
+      "input": " null\n",
+      "result": "\"keep\"",
+      "err": ""
+    },
+    {
+      "name": "json.Unmarshal int",
+      "input": " null\n",
+      "result": "7",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.MergeClone struct",
+      "input": " null\n",
+      "result": "{\"id\":\"keep\",\"n\":7}",
+      "err": ""
+    }
+  ],
+  "null_elements": [
+    {
+      "name": "jsonutil.Unmarshal",
+      "input": "{\"l\":[1,null,2]}",
+      "result": "{\"l\":[1,0,2]}",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.UnmarshalValid",
+      "input": "{\"l\":[1,null,2]}",
+      "result": "{\"l\":[1,0,2]}",
+      "err": ""
+    },
+    {
+      "name": "json.Unmarshal",
+      "input": "{\"l\":[1,null,2]}",
+      "result": "{\"l\":[1,0,2]}",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.MergeClone",
+      "input": "{\"l\":[1,null,2]}",
+      "result": "{\"l\":[1,0,2]}",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.Unmarshal",
+      "input": "{\"s\":[\"a\",null]}",
+      "result": "{\"s\":[\"a\",\"\"]}",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.UnmarshalValid",
+      "input": "{\"s\":[\"a\",null]}",
+      "result": "{\"s\":[\"a\",\"\"]}",
+      "err": ""
+    },
+    {
+      "name": "json.Unmarshal",
+      "input": "{\"s\":[\"a\",null]}",
+      "result": "{\"s\":[\"a\",\"\"]}",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.MergeClone",
+      "input": "{\"s\":[\"a\",null]}",
+      "result": "{\"s\":[\"a\",\"\"]}",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.Unmarshal",
+      "input": "{\"f\":[null,{\"w\":1}]}",
+      "result": "{\"f\":[{\"w\":0},{\"w\":1}]}",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.UnmarshalValid",
+      "input": "{\"f\":[null,{\"w\":1}]}",
+      "result": "{\"f\":[{\"w\":0},{\"w\":1}]}",
+      "err": ""
+    },
+    {
+      "name": "json.Unmarshal",
+      "input": "{\"f\":[null,{\"w\":1}]}",
+      "result": "{\"f\":[{\"w\":0},{\"w\":1}]}",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.MergeClone",
+      "input": "{\"f\":[null,{\"w\":1}]}",
+      "result": "{\"f\":[{\"w\":0},{\"w\":1}]}",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.Unmarshal",
+      "input": "{\"t\":[null,5]}",
+      "result": "{\"t\":[0,5]}",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.UnmarshalValid",
+      "input": "{\"t\":[null,5]}",
+      "result": "{\"t\":[0,5]}",
+      "err": ""
+    },
+    {
+      "name": "json.Unmarshal",
+      "input": "{\"t\":[null,5]}",
+      "result": "{\"t\":[0,5]}",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.MergeClone",
+      "input": "{\"t\":[null,5]}",
+      "result": "{\"t\":[0,5]}",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.Unmarshal",
+      "input": "{\"p\":[null,1]}",
+      "result": "{\"p\":[null,1]}",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.UnmarshalValid",
+      "input": "{\"p\":[null,1]}",
+      "result": "{\"p\":[null,1]}",
+      "err": ""
+    },
+    {
+      "name": "json.Unmarshal",
+      "input": "{\"p\":[null,1]}",
+      "result": "{\"p\":[null,1]}",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.MergeClone",
+      "input": "{\"p\":[null,1]}",
+      "result": "{\"p\":[null,1]}",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.Unmarshal",
+      "input": "{\"m\":{\"a\":null,\"b\":1}}",
+      "result": "{\"m\":{\"a\":0,\"b\":1}}",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.UnmarshalValid",
+      "input": "{\"m\":{\"a\":null,\"b\":1}}",
+      "result": "{\"m\":{\"a\":0,\"b\":1}}",
+      "err": ""
+    },
+    {
+      "name": "json.Unmarshal",
+      "input": "{\"m\":{\"a\":null,\"b\":1}}",
+      "result": "{\"m\":{\"a\":0,\"b\":1}}",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.MergeClone",
+      "input": "{\"m\":{\"a\":null,\"b\":1}}",
+      "result": "{\"m\":{\"a\":0,\"b\":1}}",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.Unmarshal",
+      "input": "{\"ms\":{\"a\":null}}",
+      "result": "{\"ms\":{\"a\":\"\"}}",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.UnmarshalValid",
+      "input": "{\"ms\":{\"a\":null}}",
+      "result": "{\"ms\":{\"a\":\"\"}}",
+      "err": ""
+    },
+    {
+      "name": "json.Unmarshal",
+      "input": "{\"ms\":{\"a\":null}}",
+      "result": "{\"ms\":{\"a\":\"\"}}",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.MergeClone",
+      "input": "{\"ms\":{\"a\":null}}",
+      "result": "{\"ms\":{\"a\":\"\"}}",
+      "err": ""
+    }
+  ],
+  "trailing_nuls": [
+    {
+      "name": "jsonutil.Unmarshal",
+      "input": "{\"id\":\"x\"}\u0000",
+      "result": "{\"id\":\"x\",\"n\":0}",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.UnmarshalValid",
+      "input": "{\"id\":\"x\"}\u0000",
+      "result": "{\"id\":\"x\",\"n\":0}",
+      "err": ""
+    },
+    {
+      "name": "json.Unmarshal",
+      "input": "{\"id\":\"x\"}\u0000",
+      "result": "{\"id\":\"\",\"n\":0}",
+      "err": "invalid character '\\x00' after top-level value"
+    },
+    {
+      "name": "jsonutil.MergeClone",
+      "input": "{\"id\":\"x\"}\u0000",
+      "result": "{\"id\":\"x\",\"n\":0}",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.Unmarshal",
+      "input": "{\"id\":\"x\"} \u0000 not JSON",
+      "result": "{\"id\":\"x\",\"n\":0}",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.UnmarshalValid",
+      "input": "{\"id\":\"x\"} \u0000 not JSON",
+      "result": "{\"id\":\"x\",\"n\":0}",
+      "err": ""
+    },
+    {
+      "name": "json.Unmarshal",
+      "input": "{\"id\":\"x\"} \u0000 not JSON",
+      "result": "{\"id\":\"\",\"n\":0}",
+      "err": "invalid character '\\x00' after top-level value"
+    },
+    {
+      "name": "jsonutil.MergeClone",
+      "input": "{\"id\":\"x\"} \u0000 not JSON",
+      "result": "{\"id\":\"x\",\"n\":0}",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.Unmarshal",
+      "input": "\u0000{\"id\":\"x\"}",
+      "result": "{\"id\":\"\",\"n\":0}",
+      "err": "expect { or n, but found \u0000"
+    },
+    {
+      "name": "jsonutil.UnmarshalValid",
+      "input": "\u0000{\"id\":\"x\"}",
+      "result": "{\"id\":\"\",\"n\":0}",
+      "err": "expect { or n, but found \u0000"
+    },
+    {
+      "name": "json.Unmarshal",
+      "input": "\u0000{\"id\":\"x\"}",
+      "result": "{\"id\":\"\",\"n\":0}",
+      "err": "invalid character '\\x00' looking for beginning of value"
+    },
+    {
+      "name": "jsonutil.MergeClone",
+      "input": "\u0000{\"id\":\"x\"}",
+      "result": "{\"id\":\"\",\"n\":0}",
+      "err": "expect { or n, but found \u0000"
+    },
+    {
+      "name": "jsonutil.Unmarshal",
+      "input": "{\"id\":\"x\"\u0000}",
+      "result": "{\"id\":\"x\",\"n\":0}",
+      "err": "object ended prematurely, unexpected char \u0000"
+    },
+    {
+      "name": "jsonutil.UnmarshalValid",
+      "input": "{\"id\":\"x\"\u0000}",
+      "result": "{\"id\":\"x\",\"n\":0}",
+      "err": "object ended prematurely, unexpected char \u0000"
+    },
+    {
+      "name": "json.Unmarshal",
+      "input": "{\"id\":\"x\"\u0000}",
+      "result": "{\"id\":\"\",\"n\":0}",
+      "err": "invalid character '\\x00' after object key:value pair"
+    },
+    {
+      "name": "jsonutil.MergeClone",
+      "input": "{\"id\":\"x\"\u0000}",
+      "result": "{\"id\":\"x\",\"n\":0}",
+      "err": "object ended prematurely, unexpected char \u0000"
+    }
+  ],
+  "plus_floats": [
+    {
+      "name": "jsonutil.Unmarshal",
+      "input": "{\"f\":+1.5}",
+      "result": "{\"f\":1.5,\"f32\":0,\"i\":0}",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.UnmarshalValid",
+      "input": "{\"f\":+1.5}",
+      "result": "{\"f\":1.5,\"f32\":0,\"i\":0}",
+      "err": ""
+    },
+    {
+      "name": "json.Unmarshal",
+      "input": "{\"f\":+1.5}",
+      "result": "{\"f\":0,\"f32\":0,\"i\":0}",
+      "err": "invalid character '+' looking for beginning of value"
+    },
+    {
+      "name": "jsonutil.MergeClone",
+      "input": "{\"f\":+1.5}",
+      "result": "{\"f\":1.5,\"f32\":0,\"i\":0}",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.Unmarshal",
+      "input": "{\"f32\":+2}",
+      "result": "{\"f\":0,\"f32\":2,\"i\":0}",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.UnmarshalValid",
+      "input": "{\"f32\":+2}",
+      "result": "{\"f\":0,\"f32\":2,\"i\":0}",
+      "err": ""
+    },
+    {
+      "name": "json.Unmarshal",
+      "input": "{\"f32\":+2}",
+      "result": "{\"f\":0,\"f32\":0,\"i\":0}",
+      "err": "invalid character '+' looking for beginning of value"
+    },
+    {
+      "name": "jsonutil.MergeClone",
+      "input": "{\"f32\":+2}",
+      "result": "{\"f\":0,\"f32\":2,\"i\":0}",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.Unmarshal",
+      "input": "{\"f\":+.5}",
+      "result": "{\"f\":0.5,\"f32\":0,\"i\":0}",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.UnmarshalValid",
+      "input": "{\"f\":+.5}",
+      "result": "{\"f\":0.5,\"f32\":0,\"i\":0}",
+      "err": ""
+    },
+    {
+      "name": "json.Unmarshal",
+      "input": "{\"f\":+.5}",
+      "result": "{\"f\":0,\"f32\":0,\"i\":0}",
+      "err": "invalid character '+' looking for beginning of value"
+    },
+    {
+      "name": "jsonutil.MergeClone",
+      "input": "{\"f\":+.5}",
+      "result": "{\"f\":0.5,\"f32\":0,\"i\":0}",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.Unmarshal",
+      "input": "{\"f\":-+1}",
+      "result": "{\"f\":-1,\"f32\":0,\"i\":0}",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.UnmarshalValid",
+      "input": "{\"f\":-+1}",
+      "result": "{\"f\":-1,\"f32\":0,\"i\":0}",
+      "err": ""
+    },
+    {
+      "name": "json.Unmarshal",
+      "input": "{\"f\":-+1}",
+      "result": "{\"f\":0,\"f32\":0,\"i\":0}",
+      "err": "invalid character '+' in numeric literal"
+    },
+    {
+      "name": "jsonutil.MergeClone",
+      "input": "{\"f\":-+1}",
+      "result": "{\"f\":-1,\"f32\":0,\"i\":0}",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.Unmarshal",
+      "input": "{\"f\":+1e2}",
+      "result": "{\"f\":100,\"f32\":0,\"i\":0}",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.UnmarshalValid",
+      "input": "{\"f\":+1e2}",
+      "result": "{\"f\":100,\"f32\":0,\"i\":0}",
+      "err": ""
+    },
+    {
+      "name": "json.Unmarshal",
+      "input": "{\"f\":+1e2}",
+      "result": "{\"f\":0,\"f32\":0,\"i\":0}",
+      "err": "invalid character '+' looking for beginning of value"
+    },
+    {
+      "name": "jsonutil.MergeClone",
+      "input": "{\"f\":+1e2}",
+      "result": "{\"f\":100,\"f32\":0,\"i\":0}",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.Unmarshal",
+      "input": "{\"i\":+1}",
+      "result": "{\"f\":0,\"f32\":0,\"i\":0}",
+      "err": "cannot unmarshal main.floatTarget.I: unexpected character: \ufffd"
+    },
+    {
+      "name": "jsonutil.UnmarshalValid",
+      "input": "{\"i\":+1}",
+      "result": "{\"f\":0,\"f32\":0,\"i\":0}",
+      "err": "cannot unmarshal main.floatTarget.I: unexpected character: \ufffd"
+    },
+    {
+      "name": "json.Unmarshal",
+      "input": "{\"i\":+1}",
+      "result": "{\"f\":0,\"f32\":0,\"i\":0}",
+      "err": "invalid character '+' looking for beginning of value"
+    },
+    {
+      "name": "jsonutil.MergeClone",
+      "input": "{\"i\":+1}",
+      "result": "{\"f\":0,\"f32\":0,\"i\":0}",
+      "err": "cannot unmarshal main.floatTarget.I: unexpected character: \ufffd"
+    },
+    {
+      "name": "jsonutil.Unmarshal",
+      "input": "{\"zz\":+1,\"f\":1}",
+      "result": "{\"f\":0,\"f32\":0,\"i\":0}",
+      "err": "do not know how to skip: 43"
+    },
+    {
+      "name": "jsonutil.UnmarshalValid",
+      "input": "{\"zz\":+1,\"f\":1}",
+      "result": "{\"f\":0,\"f32\":0,\"i\":0}",
+      "err": "do not know how to skip: 43"
+    },
+    {
+      "name": "json.Unmarshal",
+      "input": "{\"zz\":+1,\"f\":1}",
+      "result": "{\"f\":0,\"f32\":0,\"i\":0}",
+      "err": "invalid character '+' looking for beginning of value"
+    },
+    {
+      "name": "jsonutil.MergeClone",
+      "input": "{\"zz\":+1,\"f\":1}",
+      "result": "{\"f\":0,\"f32\":0,\"i\":0}",
+      "err": "do not know how to skip: 43"
+    },
+    {
+      "name": "jsonutil.Unmarshal",
+      "input": "{\"f\":+}",
+      "result": "{\"f\":0,\"f32\":0,\"i\":0}",
+      "err": "main.floatTarget.F: strconv.ParseFloat: parsing \"+\": invalid syntax"
+    },
+    {
+      "name": "jsonutil.UnmarshalValid",
+      "input": "{\"f\":+}",
+      "result": "{\"f\":0,\"f32\":0,\"i\":0}",
+      "err": "main.floatTarget.F: strconv.ParseFloat: parsing \"+\": invalid syntax"
+    },
+    {
+      "name": "json.Unmarshal",
+      "input": "{\"f\":+}",
+      "result": "{\"f\":0,\"f32\":0,\"i\":0}",
+      "err": "invalid character '+' looking for beginning of value"
+    },
+    {
+      "name": "jsonutil.MergeClone",
+      "input": "{\"f\":+}",
+      "result": "{\"f\":0,\"f32\":0,\"i\":0}",
+      "err": "main.floatTarget.F: strconv.ParseFloat: parsing \"+\": invalid syntax"
+    }
+  ],
+  "control_member_names": [
+    {
+      "name": "jsonutil.Unmarshal",
+      "input": "{\"s\":\"x\",\"z\tz\":1}",
+      "result": "s=\"x\" ext=nil m=[]",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.Unmarshal big",
+      "input": "{\"s\":\"x\",\"z\tz\":1}",
+      "result": "s=\"x\"",
+      "err": "invalid control character found: 9"
+    },
+    {
+      "name": "jsonutil.UnmarshalValid",
+      "input": "{\"s\":\"x\",\"z\tz\":1}",
+      "result": "s=\"x\" ext=nil m=[]",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.UnmarshalValid big",
+      "input": "{\"s\":\"x\",\"z\tz\":1}",
+      "result": "s=\"x\"",
+      "err": "invalid control character found: 9"
+    },
+    {
+      "name": "json.Unmarshal",
+      "input": "{\"s\":\"x\",\"z\tz\":1}",
+      "result": "s=\"\" ext=nil m=[]",
+      "err": "invalid character '\\t' in string literal"
+    },
+    {
+      "name": "jsonutil.MergeClone",
+      "input": "{\"s\":\"x\",\"z\tz\":1}",
+      "result": "s=\"x\" ext=nil m=[]",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.MergeClone big",
+      "input": "{\"s\":\"x\",\"z\tz\":1}",
+      "result": "s=\"x\"",
+      "err": "invalid control character found: 9"
+    },
+    {
+      "name": "jsonutil.Unmarshal",
+      "input": "{\"\ts\":\"x\"}",
+      "result": "s=\"\" ext=nil m=[]",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.Unmarshal big",
+      "input": "{\"\ts\":\"x\"}",
+      "result": "s=\"\"",
+      "err": "invalid control character found: 9"
+    },
+    {
+      "name": "jsonutil.UnmarshalValid",
+      "input": "{\"\ts\":\"x\"}",
+      "result": "s=\"\" ext=nil m=[]",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.UnmarshalValid big",
+      "input": "{\"\ts\":\"x\"}",
+      "result": "s=\"\"",
+      "err": "invalid control character found: 9"
+    },
+    {
+      "name": "json.Unmarshal",
+      "input": "{\"\ts\":\"x\"}",
+      "result": "s=\"\" ext=nil m=[]",
+      "err": "invalid character '\\t' in string literal"
+    },
+    {
+      "name": "jsonutil.MergeClone",
+      "input": "{\"\ts\":\"x\"}",
+      "result": "s=\"\" ext=nil m=[]",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.MergeClone big",
+      "input": "{\"\ts\":\"x\"}",
+      "result": "s=\"\"",
+      "err": "invalid control character found: 9"
+    },
+    {
+      "name": "jsonutil.Unmarshal",
+      "input": "{\"s\u0001\":\"x\"}",
+      "result": "s=\"\" ext=nil m=[]",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.Unmarshal big",
+      "input": "{\"s\u0001\":\"x\"}",
+      "result": "s=\"\"",
+      "err": "invalid control character found: 1"
+    },
+    {
+      "name": "jsonutil.UnmarshalValid",
+      "input": "{\"s\u0001\":\"x\"}",
+      "result": "s=\"\" ext=nil m=[]",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.UnmarshalValid big",
+      "input": "{\"s\u0001\":\"x\"}",
+      "result": "s=\"\"",
+      "err": "invalid control character found: 1"
+    },
+    {
+      "name": "json.Unmarshal",
+      "input": "{\"s\u0001\":\"x\"}",
+      "result": "s=\"\" ext=nil m=[]",
+      "err": "invalid character '\\x01' in string literal"
+    },
+    {
+      "name": "jsonutil.MergeClone",
+      "input": "{\"s\u0001\":\"x\"}",
+      "result": "s=\"\" ext=nil m=[]",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.MergeClone big",
+      "input": "{\"s\u0001\":\"x\"}",
+      "result": "s=\"\"",
+      "err": "invalid control character found: 1"
+    }
+  ],
+  "raw_containers": [
+    {
+      "name": "map value",
+      "input": "{ \"a\" : [1, 2.50],\n \"b\" : \"x  y <&>\" }",
+      "result": "{\"k\":{\"a\":[1,2.50],\"b\":\"x  y <&>\"}}",
+      "err": ""
+    },
+    {
+      "name": "slice element",
+      "input": "{ \"a\" : [1, 2.50],\n \"b\" : \"x  y <&>\" }",
+      "result": "[{\"a\":[1,2.50],\"b\":\"x  y <&>\"},[1]]",
+      "err": ""
+    },
+    {
+      "name": "top level",
+      "input": "{ \"a\" : [1, 2.50],\n \"b\" : \"x  y <&>\" }",
+      "result": "{\"a\":[1,2.50],\"b\":\"x  y <&>\"}",
+      "err": ""
+    },
+    {
+      "name": "decoded map",
+      "input": "{\"consent\": \"c o\" , \"data\": { \"k\" : [ 1, {\"z\" : null} ] }, \"n\" : 1E+2 }",
+      "result": "{\"consent\":\"c o\",\"data\":{\"k\":[1,{\"z\":null}]},\"n\":1E+2}",
+      "err": ""
+    }
+  ],
+  "partial_results": [
+    {
+      "name": "jsonutil.Unmarshal",
+      "input": "{\"id\":\"x\",\"n\":\"bad\",\"l\":[1]}",
+      "result": "{\"id\":\"x\",\"n\":0}",
+      "err": "cannot unmarshal main.partialTarget.N: unexpected character: \ufffd"
+    },
+    {
+      "name": "jsonutil.UnmarshalValid",
+      "input": "{\"id\":\"x\",\"n\":\"bad\",\"l\":[1]}",
+      "result": "{\"id\":\"x\",\"n\":0}",
+      "err": "cannot unmarshal main.partialTarget.N: unexpected character: \ufffd"
+    },
+    {
+      "name": "jsonutil.MergeClone",
+      "input": "{\"id\":\"x\",\"n\":\"bad\",\"l\":[1]}",
+      "result": "{\"id\":\"x\",\"n\":0}",
+      "err": "cannot unmarshal main.partialTarget.N: unexpected character: \ufffd"
+    },
+    {
+      "name": "jsonutil.Unmarshal",
+      "input": "{\"id\":\"x\",\"l\":[1,\"y\",3]}",
+      "result": "{\"id\":\"x\",\"n\":0,\"l\":[1,0]}",
+      "err": "cannot unmarshal []int: unexpected character: \ufffd"
+    },
+    {
+      "name": "jsonutil.UnmarshalValid",
+      "input": "{\"id\":\"x\",\"l\":[1,\"y\",3]}",
+      "result": "{\"id\":\"x\",\"n\":0,\"l\":[1,0]}",
+      "err": "cannot unmarshal []int: unexpected character: \ufffd"
+    },
+    {
+      "name": "jsonutil.MergeClone",
+      "input": "{\"id\":\"x\",\"l\":[1,\"y\",3]}",
+      "result": "{\"id\":\"x\",\"n\":0,\"l\":[1,0]}",
+      "err": "cannot unmarshal []int: unexpected character: \ufffd"
+    },
+    {
+      "name": "jsonutil.Unmarshal",
+      "input": "{\"id\":\"x\",\"n\":1,\"l\":[2",
+      "result": "{\"id\":\"x\",\"n\":1,\"l\":[2]}",
+      "err": "cannot unmarshal main.partialTarget.L: decode slice: expect ], but found \u0000"
+    },
+    {
+      "name": "jsonutil.UnmarshalValid",
+      "input": "{\"id\":\"x\",\"n\":1,\"l\":[2",
+      "result": "{\"id\":\"x\",\"n\":1,\"l\":[2]}",
+      "err": "cannot unmarshal main.partialTarget.L: decode slice: expect ], but found \u0000"
+    },
+    {
+      "name": "jsonutil.MergeClone",
+      "input": "{\"id\":\"x\",\"n\":1,\"l\":[2",
+      "result": "{\"id\":\"x\",\"n\":1,\"l\":[2]}",
+      "err": "cannot unmarshal main.partialTarget.L: decode slice: expect ], but found \u0000"
+    },
+    {
+      "name": "jsonutil.Unmarshal",
+      "input": "{\"id\":\"x\",\"n\":1,\"l\":[2]} x",
+      "result": "{\"id\":\"x\",\"n\":1,\"l\":[2]}",
+      "err": "there are bytes left after unmarshal"
+    },
+    {
+      "name": "jsonutil.UnmarshalValid",
+      "input": "{\"id\":\"x\",\"n\":1,\"l\":[2]} x",
+      "result": "{\"id\":\"x\",\"n\":1,\"l\":[2]}",
+      "err": "there are bytes left after unmarshal"
+    },
+    {
+      "name": "jsonutil.MergeClone",
+      "input": "{\"id\":\"x\",\"n\":1,\"l\":[2]} x",
+      "result": "{\"id\":\"x\",\"n\":1,\"l\":[2]}",
+      "err": "there are bytes left after unmarshal"
+    }
+  ],
+  "reused_elements": [
+    {
+      "name": "jsonutil.Unmarshal",
+      "input": "{\"dsarequired\":3,\"transparency\":[{\"domain\":\"pub.example\"}]}",
+      "result": "{\"dsarequired\":3,\"transparency\":[{\"domain\":\"pub.example\",\"dsaparams\":[1]}]}",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.MergeClone",
+      "input": "{\"dsarequired\":3,\"transparency\":[{\"domain\":\"pub.example\"}]}",
+      "result": "{\"dsarequired\":3,\"transparency\":[{\"domain\":\"pub.example\"}]}",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.Unmarshal",
+      "input": "{\"transparency\":[{\"dsaparams\":[2]},{\"domain\":\"second.example\"}]}",
+      "result": "{\"dsarequired\":1,\"transparency\":[{\"domain\":\"host.example\",\"dsaparams\":[2]},{\"domain\":\"second.example\"}]}",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.MergeClone",
+      "input": "{\"transparency\":[{\"dsaparams\":[2]},{\"domain\":\"second.example\"}]}",
+      "result": "{\"dsarequired\":1,\"transparency\":[{\"dsaparams\":[2]},{\"domain\":\"second.example\"}]}",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.Unmarshal",
+      "input": "{\"transparency\":[]}",
+      "result": "{\"dsarequired\":1}",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.MergeClone",
+      "input": "{\"transparency\":[]}",
+      "result": "{\"dsarequired\":1}",
+      "err": ""
+    }
+  ]
+}
