@@ -2,9 +2,10 @@
 //!
 //! `testdata/golden/wire.json` is what `testdata/go/wire` read from newMainServer,
 //! newSocketServer and newAdminServer on loopback: header order and case, framing, sniffed
-//! content types, the header limit and its edge, header counts, long request targets, malformed
-//! requests, the HTTP/2 preface, the read and write budgets (scaled to 1 s), clients that go away,
-//! gziphandler's Vary and graceful shutdown. Each case is one connection and a client script of
+//! content types, the header limit and its edge, header counts, long request targets and the
+//! bytes of request targets, malformed requests, the HTTP/2 preface, the read and write budgets
+//! (scaled to 1 s), bodies a handler leaves unread, clients that go away, gziphandler's Vary and
+//! graceful shutdown. Each case is one connection and a client script of
 //! writes, pauses and closes; the same scripts run here against the same stand-in handlers on
 //! axum, served by [`pbs_server::serve`] with the budget of the Go server they stand for, and what
 //! the client read is described as the generator describes Go's answer.
@@ -184,6 +185,8 @@ mod tests {
                         Action::Close(close == "rst")
                     } else if let Ok(bytes) = text(step, "/text") {
                         Action::Write(bytes.as_bytes().to_vec())
+                    } else if let Ok(hex) = text(step, "/hex") {
+                        Action::Write(unhex(hex)?)
                     } else if fill > 0 {
                         Action::Fill {
                             n: fill,
@@ -225,11 +228,25 @@ mod tests {
         }
     }
 
-    /// What a client read on one connection, as the generator describes it: the head of the
-    /// first answer (its Date value replaced by `<date>`), the bytes after it (as text when they
-    /// are UTF-8 and at most 8 KiB, with their length and CRC-32 always), the gunzipped body of a
-    /// gzip answer, and how the connection ended: `eof`, `reset`, `open` (still open when the
-    /// window passed) or `client_closed` (the script closed it).
+    /// The bytes a step's `hex` spells: request bytes that are not UTF-8, which the golden's
+    /// text cannot carry.
+    fn unhex(hex: &str) -> TestResult<Vec<u8>> {
+        let (pairs, rest) = hex.as_bytes().as_chunks::<2>();
+        if !rest.is_empty() {
+            return Err(format!("{hex:?} is not a whole number of bytes").into());
+        }
+        pairs
+            .iter()
+            .map(|pair| Ok(u8::from_str_radix(str::from_utf8(pair)?, 16)?))
+            .collect()
+    }
+
+    /// What a client read on one connection, as the generator describes it, every Date value in
+    /// it (a second answer's too) replaced by `<date>`: the head of the first answer, the bytes
+    /// after it (as text when they are UTF-8 and at most 8 KiB, with their length and CRC-32
+    /// always), the gunzipped body of a gzip answer, and how the connection ended: `eof`,
+    /// `reset`, `open` (still open when the window passed) or `client_closed` (the script closed
+    /// it).
     #[derive(Debug, Clone, PartialEq, Eq)]
     struct Outcome {
         /// The head, with its blank line.
@@ -261,12 +278,13 @@ mod tests {
 
         /// Describes what a client read and how the connection ended.
         fn describe(answer: &[u8], end: &str) -> Self {
+            let answer = dated(answer);
             let (head, body) = answer
                 .windows(4)
                 .position(|window| window == b"\r\n\r\n")
                 .and_then(|at| answer.split_at_checked(at + 4))
-                .unwrap_or((&[], answer));
-            let head = dated(&String::from_utf8_lossy(head));
+                .unwrap_or((&[], answer.as_slice()));
+            let head = String::from_utf8_lossy(head).into_owned();
             let gunzipped = if head
                 .to_ascii_lowercase()
                 .contains("\r\ncontent-encoding: gzip\r\n")
@@ -314,14 +332,26 @@ mod tests {
         }
     }
 
-    /// `head` with the value of its Date field replaced by `<date>`.
-    fn dated(head: &str) -> String {
-        head.split_inclusive("\r\n")
-            .map(|line| match line.get(..6) {
-                Some(name) if name.eq_ignore_ascii_case("date: ") => format!("{name}<date>\r\n"),
-                Some(_) | None => line.to_owned(),
-            })
-            .collect()
+    /// `answer` with the value of every line that starts with `Date: ` (in any case) replaced by
+    /// `<date>`, a second answer's too, as the generator's `dateValue` replaces them: up to the
+    /// line's `\r`.
+    fn dated(answer: &[u8]) -> Vec<u8> {
+        let mut out = Vec::with_capacity(answer.len());
+        for line in answer.split_inclusive(|&byte| byte == b'\n') {
+            match line.split_at_checked(6) {
+                Some((name, value)) if name.eq_ignore_ascii_case(b"date: ") => {
+                    let end = value
+                        .iter()
+                        .position(|&byte| byte == b'\r')
+                        .unwrap_or(value.len());
+                    out.extend_from_slice(name);
+                    out.extend_from_slice(b"<date>");
+                    out.extend_from_slice(value.get(end..).unwrap_or_default());
+                }
+                Some(_) | None => out.extend_from_slice(line),
+            }
+        }
+        out
     }
 
     /// The CRC-32 (IEEE) of `bytes`.
@@ -705,6 +735,37 @@ mod tests {
         format!("{} | {} | {}", outcome.status(), outcome.body, outcome.end)
     }
 
+    /// Each answer a client read on a connection, in order: its status code, with ` close` when
+    /// it carries `Connection: close`.
+    fn answers(outcome: &Outcome) -> Vec<String> {
+        let read = format!("{}{}", outcome.head, outcome.body);
+        read.match_indices("HTTP/1.")
+            .filter_map(|(at, _)| read.get(at..))
+            .map(|answer| {
+                let head = answer.split("\r\n\r\n").next().unwrap_or_default();
+                let code = head.get(9..12).unwrap_or_default();
+                if head
+                    .split("\r\n")
+                    .any(|line| line.eq_ignore_ascii_case("connection: close"))
+                {
+                    format!("{code} close")
+                } else {
+                    code.to_owned()
+                }
+            })
+            .collect()
+    }
+
+    /// How a connection ended, a close and a reset alike: which of the two a client reads when
+    /// the server closes a connection with request bytes still unread depends on the system's
+    /// TCP stack and the timing.
+    fn closed(outcome: &Outcome) -> &str {
+        match outcome.end.as_str() {
+            "eof" | "reset" => "closed",
+            other => other,
+        }
+    }
+
     /// The field names of an outcome's head, in order.
     fn names(outcome: &Outcome) -> Vec<&str> {
         outcome.fields().into_iter().map(|(name, _)| name).collect()
@@ -1055,9 +1116,11 @@ mod tests {
 
     /// Requests net/http refuses before any handler runs get its status text as the body and
     /// Connection: close; hyper's refusals carry no body. Which requests are refused also
-    /// differs: hyper serves a request without Host, with two Host fields or after a blank line,
-    /// and refuses a folded header, and its codes are 400 where net/http has 505 and 501. A body
-    /// error reaches the handler on both, in the library's words.
+    /// differs: hyper serves a request without Host, with two Host fields, with a malformed one
+    /// or after a blank line, and one with an expectation other than 100-continue (net/http's
+    /// 417), refuses a folded header and an HTTP/1.0 request with Transfer-Encoding (which
+    /// net/http ignores), and its codes are 400 where net/http has 505 and 501. A body error
+    /// reaches the handler on both, in the library's words.
     // Go: conn.serve's error answers (net/http/server.go) and readRequest's checks
     // (net/http/request.go)
     #[test]
@@ -1082,6 +1145,9 @@ mod tests {
             "bad_chunk_size",
             "leading_blank_line",
             "absolute_form",
+            "malformed_host",
+            "unknown_expectation",
+            "chunked_http_10",
             "header_2mib_paced",
         ];
         ensure_eq(
@@ -1111,6 +1177,10 @@ mod tests {
                  eof",
                 "leading_blank_line: HTTP/1.1 400 Bad Request | 400 Bad Request | eof",
                 "absolute_form: HTTP/1.1 200 OK | body=0 | eof",
+                "malformed_host: HTTP/1.1 400 Bad Request: malformed Host header | 400 Bad \
+                 Request: malformed Host header | eof",
+                "unknown_expectation: HTTP/1.1 417 Expectation Failed |  | eof",
+                "chunked_http_10: HTTP/1.0 200 OK | body=0 | eof",
                 "header_2mib_paced: HTTP/1.1 431 Request Header Fields Too Large | 431 Request \
                  Header Fields Too Large | eof",
             ],
@@ -1138,9 +1208,122 @@ mod tests {
                  connection | eof",
                 "leading_blank_line: HTTP/1.1 200 OK | body=0 | eof",
                 "absolute_form: HTTP/1.1 200 OK | body=0 | eof",
+                "malformed_host: HTTP/1.1 200 OK | body=0 | eof",
+                "unknown_expectation: HTTP/1.1 200 OK | body=2 | eof",
+                "chunked_http_10: HTTP/1.1 400 Bad Request |  | eof",
                 "header_2mib_paced: HTTP/1.1 431 Request Header Fields Too Large |  | eof",
             ],
             "hyper",
+        )
+    }
+
+    /// A body the handler leaves unread (`/typed` reads none): net/http reads and discards what
+    /// is left, up to 256 KiB and waiting for it, before it answers, and keeps the connection for
+    /// the next request; with 256 KiB or more left, or with an `Expect: 100-continue` whose body
+    /// was not read, it answers with `Connection: close`. hyper answers at once, makes one read
+    /// of what is left and keeps the connection only when that read ends the body; otherwise it
+    /// closes the connection, without `connection: close`. Both send `100 Continue` to a handler
+    /// that reads the body.
+    // Go: chunkWriter.writeHeader discards up to maxPostHandlerReadBytes
+    // (net/http/server.go:1374-1443)
+    #[test]
+    fn unread_body() -> TestResult {
+        let pairs = run_groups(&["unread_body"])?;
+        let names = [
+            "unread_buffered",
+            "unread_late",
+            "unread_100kib",
+            "unread_300kib",
+            "expect_read",
+            "expect_unread",
+        ];
+        ensure_eq(
+            &rows(&pairs, &names, go, |outcome| {
+                format!("{} | {}", answers(outcome).join(", "), outcome.end)
+            })?,
+            &[
+                "unread_buffered: 200, 200 close | eof",
+                "unread_late: 200, 200 close | eof",
+                "unread_100kib: 200, 200 close | eof",
+                "unread_300kib: 200 close | eof",
+                "expect_read: 100, 200 close | eof",
+                "expect_unread: 200 close | eof",
+            ],
+            "net/http",
+        )?;
+        ensure_eq(
+            &rows(&pairs, &names, rust, |outcome| {
+                format!("{} | {}", answers(outcome).join(", "), closed(outcome))
+            })?,
+            &[
+                "unread_buffered: 200, 200 close | closed",
+                "unread_late: 200 | closed",
+                "unread_100kib: 200 | closed",
+                "unread_300kib: 200 | closed",
+                "expect_read: 100, 200 close | closed",
+                "expect_unread: 200 | closed",
+            ],
+            "hyper",
+        )
+    }
+
+    /// Request targets with bytes a browser would have percent-encoded: net/http refuses only
+    /// control bytes and keeps a `#` in the path or the query, so each of these requests is
+    /// routed (to a handler or to the mux's 404). The http crate's `Uri`, which hyper builds
+    /// before any service runs, refuses `<`, `>` and `` ` `` in the path, `"`, `<` and `>` in the
+    /// query and bytes that are not UTF-8 with 400, and drops a `#` and what follows it, so
+    /// `/echo#x` is `/echo` and `/bytes?n=1#0` asks for one byte where Go's `n` is `1#0`.
+    // Go: readRequest parses the target with url.ParseRequestURI (net/http/request.go:1123),
+    // which refuses only control bytes (net/url/url.go:435)
+    #[test]
+    fn request_target_bytes() -> TestResult {
+        let pairs = run_groups(&["request_target"])?;
+        let names = [
+            "quote_in_query",
+            "json_in_query",
+            "angle_in_query",
+            "query_punctuation",
+            "utf8_in_query",
+            "latin1_in_query",
+            "angle_in_path",
+            "backtick_in_path",
+            "quote_braces_in_path",
+            "hash_in_path",
+            "hash_in_query",
+        ];
+        ensure_eq(
+            &rows(&pairs, &names, go, answer)?,
+            &[
+                "quote_in_query: HTTP/1.1 200 OK | body=0 | eof",
+                "json_in_query: HTTP/1.1 200 OK | body=0 | eof",
+                "angle_in_query: HTTP/1.1 200 OK | body=0 | eof",
+                "query_punctuation: HTTP/1.1 200 OK | body=0 | eof",
+                "utf8_in_query: HTTP/1.1 200 OK | body=0 | eof",
+                "latin1_in_query: HTTP/1.1 200 OK | body=0 | eof",
+                "angle_in_path: HTTP/1.1 404 Not Found | 404 page not found\n | eof",
+                "backtick_in_path: HTTP/1.1 404 Not Found | 404 page not found\n | eof",
+                "quote_braces_in_path: HTTP/1.1 404 Not Found | 404 page not found\n | eof",
+                "hash_in_path: HTTP/1.1 404 Not Found | 404 page not found\n | eof",
+                "hash_in_query: HTTP/1.1 200 OK |  | eof",
+            ],
+            "net/http",
+        )?;
+        ensure_eq(
+            &rows(&pairs, &names, rust, answer)?,
+            &[
+                "quote_in_query: HTTP/1.1 400 Bad Request |  | eof",
+                "json_in_query: HTTP/1.1 400 Bad Request |  | eof",
+                "angle_in_query: HTTP/1.1 400 Bad Request |  | eof",
+                "query_punctuation: HTTP/1.1 200 OK | body=0 | eof",
+                "utf8_in_query: HTTP/1.1 200 OK | body=0 | eof",
+                "latin1_in_query: HTTP/1.1 400 Bad Request |  | eof",
+                "angle_in_path: HTTP/1.1 400 Bad Request |  | eof",
+                "backtick_in_path: HTTP/1.1 400 Bad Request |  | eof",
+                "quote_braces_in_path: HTTP/1.1 404 Not Found |  | eof",
+                "hash_in_path: HTTP/1.1 200 OK | body=0 | eof",
+                "hash_in_query: HTTP/1.1 200 OK | a | eof",
+            ],
+            "the http crate",
         )
     }
 
@@ -1430,6 +1613,7 @@ mod tests {
     /// The budgets the Go constructors set, as the golden records them: 15 s `ReadTimeout` (and
     /// `WriteTimeout`, which has no counterpart, `server.timeouts`) on the main and Unix-socket
     /// servers, none on the admin server.
+    // Go: newAdminServer, newMainServer and newSocketServer (server/server.go:90-118)
     #[test]
     fn budgets_like_go() -> TestResult {
         let doc = golden()?;

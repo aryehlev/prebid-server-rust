@@ -9,9 +9,10 @@
 //! ([`shutdown_signal`], [`SHUTDOWN_TIMEOUT`]); [`compression`] holds the gzip layer.
 //!
 //! What a client can see differ from net/http (header order and case, framing, sniffing, the
-//! edges of the limits, malformed requests, the budgets, gzip's negotiation and Vary) is ledgered
-//! in this crate's `differences.toml` and pinned in `tests/` against goldens the Go program in
-//! `testdata/go` writes from Prebid's own server constructors.
+//! edges of the limits, malformed requests and the bytes of request targets, the budgets, bodies
+//! a handler leaves unread, gzip's negotiation, Vary and ranges) is ledgered in this crate's
+//! `differences.toml` and pinned in `tests/` against goldens the Go program in `testdata/go`
+//! writes from Prebid's own server constructors.
 
 pub mod compression;
 pub mod serve;

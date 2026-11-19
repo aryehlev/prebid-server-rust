@@ -7,7 +7,9 @@
 //! `static_mod_time`. The same fixture is written here under Cargo's test directory and served
 //! by `ServeDir` on `/static`, `/static/` and `/static/{*path}`, rooted at the fixture's parent
 //! so that the request path is the file path, behind [`pbs_router::middleware::public`] on
-//! [`pbs_server::serve`].
+//! [`pbs_server::serve`]. The `static_gzip` cases are the same handler behind gziphandler, as
+//! server/server.go serves it with `compression.response.enable_gzip` set, and run here behind
+//! [`pbs_server::compression::compression_enabled`].
 
 #[cfg(test)]
 mod tests {
@@ -24,7 +26,7 @@ mod tests {
 
     use axum::Router;
     use pbs_router::middleware;
-    use pbs_server::{Budget, Stopped, serve};
+    use pbs_server::{Budget, Stopped, compression, serve};
     use serde_json::Value;
     use tokio::{
         io::{AsyncReadExt as _, AsyncWriteExt as _},
@@ -54,6 +56,10 @@ mod tests {
         ("noext", b"\x00\x01\x02binary"),
         ("data.unknownext", b"plain words\n"),
     ];
+
+    /// The fixture's big file and its length: the generator's `big.txt`, `pattern(3000)` bytes
+    /// cycling through the alphabet, long enough for gzip.
+    const BIG_FILE: (&str, usize) = ("big.txt", 3000);
 
     /// The fixture's modification time, 2020-01-02T03:04:05Z, in seconds since the epoch.
     const MOD_TIME: u64 = 1_577_934_245;
@@ -134,8 +140,8 @@ mod tests {
         }
     }
 
-    /// The golden's static cases, its header and the fixture's time checked.
-    fn cases() -> TestResult<Vec<Case>> {
+    /// The golden's cases of `group`, its header and the fixture's time checked.
+    fn cases(group: &str) -> TestResult<Vec<Case>> {
         let path = concat!(env!("CARGO_MANIFEST_DIR"), "/testdata/golden/wire.json");
         let doc: Value = serde_json::from_slice(&fs::read(path)?)?;
         ensure_eq(
@@ -157,7 +163,7 @@ mod tests {
             .and_then(Value::as_array)
             .ok_or("the golden has no cases")?
             .iter()
-            .filter(|case| case.get("group").and_then(Value::as_str) == Some("static"))
+            .filter(|case| case.get("group").and_then(Value::as_str) == Some(group))
             .map(|case| {
                 let head = text(case, "/head")?;
                 Ok(Case {
@@ -172,11 +178,12 @@ mod tests {
             .collect()
     }
 
-    /// Writes the fixture under a fresh directory of Cargo's test directory and returns that
-    /// directory, the parent of `static`: every file and directory modified at [`MOD_TIME`].
-    fn fixture() -> TestResult<PathBuf> {
+    /// Writes the fixture under a fresh directory of Cargo's test directory, named after `group`,
+    /// and returns that directory, the parent of `static`: every file and directory modified at
+    /// [`MOD_TIME`].
+    fn fixture(group: &str) -> TestResult<PathBuf> {
         let root = Path::new(env!("CARGO_TARGET_TMPDIR"))
-            .join(format!("pbs-server-static-{}", process::id()));
+            .join(format!("pbs-server-{group}-{}", process::id()));
         if root.exists() {
             fs::remove_dir_all(&root)?;
         }
@@ -186,8 +193,13 @@ mod tests {
             fs::create_dir_all(file.parent().ok_or("a file without a directory")?)?;
             fs::write(&file, content)?;
         }
+        let (big, length) = BIG_FILE;
+        fs::write(
+            dir.join(big),
+            (b'a'..=b'z').cycle().take(length).collect::<Vec<_>>(),
+        )?;
         let time = SystemTime::UNIX_EPOCH + Duration::from_secs(MOD_TIME);
-        let mut paths = vec![dir.clone(), dir.join("bidder-params")];
+        let mut paths = vec![dir.clone(), dir.join("bidder-params"), dir.join(big)];
         paths.extend(FILES.iter().map(|(path, _)| dir.join(path)));
         for path in paths {
             File::open(path)?.set_modified(time)?;
@@ -220,12 +232,12 @@ mod tests {
         )
     }
 
-    /// Runs every static case at once against [`static_files`] on [`serve`] and pairs the
-    /// answers with Go's.
-    fn run() -> TestResult<Vec<(Case, Answer)>> {
-        let cases = cases()?;
-        let root = fixture()?;
-        let router = static_files(&root);
+    /// Runs every case of `group` at once against [`static_files`] on [`serve`], behind gzip
+    /// when `gzip` is set, and pairs the answers with Go's.
+    fn run(group: &str, gzip: bool) -> TestResult<Vec<(Case, Answer)>> {
+        let cases = cases(group)?;
+        let root = fixture(group)?;
+        let router = compression::compression_enabled(static_files(&root), gzip);
         let pairs = runtime::Builder::new_multi_thread()
             .worker_threads(2)
             .enable_all()
@@ -383,7 +395,7 @@ mod tests {
     // typing (fs.go:274-293)
     #[test]
     fn file_server() -> TestResult {
-        let pairs = run()?;
+        let pairs = run("static", false)?;
         let go: Vec<String> = pairs
             .iter()
             .map(|(case, _)| format!("{}: {}", case.name, summary(&case.go)))
@@ -394,5 +406,57 @@ mod tests {
             .map(|(case, rust)| format!("{}: {}", case.name, summary(rust)))
             .collect();
         ensure_eq(&rust, &SERVE_DIR, "ServeDir")
+    }
+
+    /// `/static` with gzip on: gziphandler compresses a file answer of 1,400 bytes or more,
+    /// a 206 range included, and keeps `http.FileServer`'s `Accept-Ranges`; tower-http compresses
+    /// the whole file and drops its `accept-ranges`, and sends a range as it is. A range under
+    /// 1,400 bytes is sent as it is on both.
+    // Go: GzipResponseWriter.Write compresses when the handler's Content-Length is 1,400 or more
+    // and touches neither Accept-Ranges nor the status (gziphandler v1.1.1 gzip.go:100-151)
+    #[test]
+    fn gzip_ranges() -> TestResult {
+        let pairs = run("static_gzip", true)?;
+        let summary = |answer: &Answer| {
+            format!(
+                "{} | encoding {} | accept-ranges {} | range {}",
+                answer.status(),
+                answer.field("content-encoding"),
+                answer.field("accept-ranges"),
+                answer.field("content-range")
+            )
+        };
+        let go: Vec<String> = pairs
+            .iter()
+            .map(|(case, _)| format!("{}: {}", case.name, summary(&case.go)))
+            .collect();
+        ensure_eq(
+            &go,
+            &[
+                "big_file_identity: HTTP/1.1 200 OK | encoding - | accept-ranges bytes | range -",
+                "big_file_gzip: HTTP/1.1 200 OK | encoding gzip | accept-ranges bytes | range -",
+                "big_range_gzip: HTTP/1.1 206 Partial Content | encoding gzip | accept-ranges \
+                 bytes | range bytes 0-1499/3000",
+                "small_range_gzip: HTTP/1.1 206 Partial Content | encoding - | accept-ranges \
+                 bytes | range bytes 0-99/3000",
+            ],
+            "gziphandler",
+        )?;
+        let rust: Vec<String> = pairs
+            .iter()
+            .map(|(case, rust)| format!("{}: {}", case.name, summary(rust)))
+            .collect();
+        ensure_eq(
+            &rust,
+            &[
+                "big_file_identity: HTTP/1.1 200 OK | encoding - | accept-ranges bytes | range -",
+                "big_file_gzip: HTTP/1.1 200 OK | encoding gzip | accept-ranges - | range -",
+                "big_range_gzip: HTTP/1.1 206 Partial Content | encoding - | accept-ranges \
+                 bytes | range bytes 0-1499/3000",
+                "small_range_gzip: HTTP/1.1 206 Partial Content | encoding - | accept-ranges \
+                 bytes | range bytes 0-99/3000",
+            ],
+            "tower-http",
+        )
     }
 }

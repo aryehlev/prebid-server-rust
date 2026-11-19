@@ -9,6 +9,9 @@
 //! tower-http's request-body timeout, and half-closed connections kept open, so a handler runs to
 //! its end when its client goes away, as Go's do (`server.client-disconnect`). There is no write
 //! budget and no 408 or 503 timeout layer, so a late answer is still sent (`server.timeouts`).
+//! What hyper does with a body the handler leaves unread is its own: it keeps the connection only
+//! when one more read ends the body, where net/http reads up to 256 KiB of it
+//! (`server.unread-body`).
 //!
 //! On the shutdown signal it stops accepting, closes the connections that wait for a request,
 //! lets the others finish their answer (sent with `connection: close`) and waits at most

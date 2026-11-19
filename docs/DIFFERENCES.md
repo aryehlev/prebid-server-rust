@@ -26,11 +26,11 @@ Rule B's cases: (a) input real production traffic sends that the crate would rej
 | Prometheus metrics | 0 | 1 | 0 |
 | Public suffix list | 1 | 0 | 0 |
 | Regular expressions | 0 | 0 | 2 |
-| HTTP server | 0 | 21 | 4 |
+| HTTP server | 0 | 24 | 4 |
 | Time formatting | 0 | 0 | 1 |
 | URLs | 0 | 1 | 0 |
 | YAML | 0 | 1 | 0 |
-| All | 5 | 61 | 16 |
+| All | 5 | 64 | 16 |
 
 ## Decisions pending
 
@@ -768,8 +768,8 @@ No entry names the classes `other` and `unrecorded` or the kinds `stage_missing`
 
 #### `server.bad-requests`: Malformed requests: net/http answers with its status text and `Connection: close`, hyper with an empty body, and they refuse different requests
 
-- **Go:** net/http refuses a request it cannot read before any handler runs, with its status text as the body, `Content-Type: text/plain; charset=utf-8` and `Connection: close` (`conn.serve`, net/http/server.go:2003-2042): 400, some with a reason such as `missing required Host header`, 431 past the head limit, 505 for an unknown version and 501 for an unknown transfer coding. It refuses a request without `Host`, with two or after a blank line, and serves a folded header line.
-- **Rust:** hyper's refusals have an empty body. It serves a request without `Host`, with two or after a blank line, refuses a folded header line with 400, and answers 400 where net/http has 505 and 501. A broken chunked body reaches the handler as an error on both, in the library's words. The HTTP/2 preface is `server.h2c`.
+- **Go:** net/http refuses a request it cannot read before any handler runs, with its status text as the body, `Content-Type: text/plain; charset=utf-8` and `Connection: close` (`conn.serve`, net/http/server.go:2003-2042): 400, some with a reason such as `missing required Host header`, 431 past the head limit, 505 for an unknown version and 501 for an unknown transfer coding. It refuses a request without `Host`, with two, with a malformed one (`Host: a b`) or after a blank line, answers an expectation other than `100-continue` with 417, ignores `Transfer-Encoding` on HTTP/1.0, and serves a folded header line.
+- **Rust:** hyper's refusals have an empty body. It serves a request without `Host`, with two, with a malformed one or after a blank line, and one with any expectation; it refuses a folded header line and an HTTP/1.0 request with `Transfer-Encoding` with 400, and answers 400 where net/http has 505 and 501. A broken chunked body reaches the handler as an error on both, in the library's words. The HTTP/2 preface is `server.h2c`, the bytes of the target `server.request-target`.
 - **Who notices:** publisher
 - **Visible in:** Answers to malformed HTTP requests
 - **Harness:** none
@@ -832,7 +832,7 @@ No entry names the classes `other` and `unrecorded` or the kinds `stage_missing`
 #### `server.gzip-bytes`: Gzip answers: compress/gzip and flate2 write different streams of the same body
 
 - **Go:** gziphandler compresses at `gzip.DefaultCompression` through compress/gzip (gziphandler v1.1.1 gzip.go:443-446, from `startGzip`, gzip.go:150).
-- **Rust:** tower-http compresses through flate2: another valid stream, of another length, and chunked (`server.framing`). Both gunzip to the handler's bytes, and the same answers are compressed, with the same status, encoding and type.
+- **Rust:** tower-http compresses through flate2: another valid stream, of another length, and chunked (`server.framing`). Both gunzip to the handler's bytes, and the same answers are compressed, ranges aside (`server.gzip-ranges`), with the same status, encoding and type.
 - **Who notices:** publisher
 - **Visible in:** The bytes and length of gzip-compressed answers
 - **Harness:** none
@@ -847,6 +847,16 @@ No entry names the classes `other` and `unrecorded` or the kinds `stage_missing`
 - **Visible in:** Whether answers of 1,400 bytes or more are gzipped for requests with unusual Accept-Encoding values, when gzip compression is on
 - **Harness:** none
 - **Pin:** `crates/server/tests/compression.rs::gzip_negotiation`
+- **Recorded in:** `crates/server/differences.toml`
+
+#### `server.gzip-ranges`: Gzip and ranges: gziphandler compresses a 206 of 1,400 bytes or more and keeps `Accept-Ranges`, tower-http sends a range as it is and drops `accept-ranges` when it compresses
+
+- **Go:** gziphandler decides on the handler's `Content-Length` and bytes alone (`GzipResponseWriter.Write`, gziphandler v1.1.1 gzip.go:100-151): with gzip on, a `/static` range of 1,400 bytes or more is a 206 compressed whole with its `Content-Range` kept, and every compressed file answer keeps `http.FileServer`'s `Accept-Ranges: bytes`.
+- **Rust:** tower-http never compresses an answer with a `content-range` and removes `accept-ranges` from every answer it compresses (`ResponseFuture::poll`, tower-http 0.6.11 src/compression/future.rs:43-117), so a range is sent as `ServeDir` gives it and a compressed file answer has no `accept-ranges`. A range under 1,400 bytes is sent as it is on both.
+- **Who notices:** publisher
+- **Visible in:** Range requests under /static and the `Accept-Ranges` of compressed /static answers, when gzip compression is on
+- **Harness:** none
+- **Pin:** `crates/server/tests/static.rs::gzip_ranges`
 - **Recorded in:** `crates/server/differences.toml`
 
 #### `server.head-method`: HEAD: httprouter answers 405 on Prebid's GET routes, axum runs the GET handler
@@ -947,6 +957,17 @@ No entry names the classes `other` and `unrecorded` or the kinds `stage_missing`
 - **Decision:** D-ROUTER
 - **Recorded in:** `crates/router/differences.toml`
 
+#### `server.request-target`: Request-target bytes: net/http routes any target without control bytes, the http crate refuses some with 400 and drops what follows `#`
+
+- **Go:** net/http parses the target with `url.ParseRequestURI` (`readRequest`, net/http/request.go:1123), which refuses only control bytes (net/url/url.go:435): `"`, `<`, `>` and the backquote in the path or the query, and bytes that are not UTF-8, reach the router, and a `#` stays in `URL.Path` (`/echo#x` matches no route) or in `URL.RawQuery` (`n=1#0` gives `n` the value `1#0`).
+- **Rust:** hyper builds the request's `http::Uri` before any service runs, and the http crate's scanner (`scan_path_and_query` and its byte tables, http 1.5.0 src/uri/path.rs:418-538) refuses `<`, `>` and the backquote in the path, `"`, `<` and `>` in the query, and bytes that are not UTF-8, with 400 (`server.bad-requests`); it drops a `#` and what follows it, so `/echo#x` is `/echo` and `n=1#0` gives `n` the value `1`. `"`, `{` and `}` in the path and the backquote, `{`, `}`, `|`, `^`, `[`, `]` and `\` in the query are routed on both.
+- **Who notices:** publisher
+- **Visible in:** Requests whose target holds bytes a browser would have percent-encoded: JSON or markup in a query string, a raw `#`, bytes that are not UTF-8
+- **Harness:** none
+- **Pin:** `crates/server/tests/wire.rs::request_target_bytes`
+- **Restore option:** None in the crates: neither hyper nor the http crate has a setting for the bytes a target may hold, and the `Uri` is built before any layer runs.
+- **Recorded in:** `crates/server/differences.toml`
+
 #### `server.shutdown-new-connections`: Graceful shutdown: net/http drops a first request still arriving and keeps a silent connection up to 5 s, hyper serves the one and closes the other
 
 - **Go:** `shutdownAfterSignals` stops each server with `Server.Shutdown` and a 10 s deadline (server/server.go:196-207): the listener and idle connections close, and running and pipelined requests are answered with `Connection: close`, as on hyper. A first request whose head was still arriving is read and dropped without an answer (`conn.serve`'s `shuttingDown` check, net/http/server.go:2000), and a connection that has sent nothing is kept until it is 5 s old (`closeIdleConns`, net/http/server.go:3207-3212).
@@ -960,7 +981,7 @@ No entry names the classes `other` and `unrecorded` or the kinds `stage_missing`
 #### `server.static-files`: /static: `http.FileServer`'s listings, redirects, types and error texts against tower-http `ServeDir`'s
 
 - **Go:** `ServeFiles` serves `/static/*filepath` with `http.FileServer` (router/router.go:295; httprouter v1.3.0 router.go:296-307): it lists a directory without `index.html`, redirects `/index.html` to `./` and a directory without its slash or a file with one with 301 and a relative `Location`, types files with Go's table (`text/plain; charset=utf-8`, `text/html; charset=utf-8`) and sniffs the ones whose extension it does not know, answers 404 and 416 with its text and without `NoCache`'s `Cache-Control` (`serveError`, net/http/fs.go:188-212), sends `Last-Modified` with a 304, and HEAD gets httprouter's 405.
-- **Rust:** `ServeDir` answers a directory without `index.html` with 404, serves `/index.html` and a file with a trailing slash, redirects a directory without its slash with 307 to an absolute `Location`, types files with `mime_guess`'s table (`text/plain`, `text/html`, unknown extensions `application/octet-stream`), answers 404 and 416 with an empty body and `NoCache`'s headers, sends no `Last-Modified` with a 304, and serves HEAD. Files, ranges and conditional requests are otherwise answered alike.
+- **Rust:** `ServeDir` answers a directory without `index.html` with 404, serves `/index.html` and a file with a trailing slash, redirects a directory without its slash with 307 to an absolute `Location`, types files with `mime_guess`'s table (`text/plain`, `text/html`, unknown extensions `application/octet-stream`), answers 404 and 416 with an empty body and `NoCache`'s headers, the 416 with the reason `Range Not Satisfiable` where Go's is `Requested Range Not Satisfiable`, sends no `Last-Modified` with a 304, and serves HEAD. Files, ranges and conditional requests are otherwise answered alike; with gzip on, ranges are `server.gzip-ranges`.
 - **Who notices:** publisher
 - **Visible in:** Answers under /static, the bidder parameter schemas and the other static files
 - **Harness:** none
@@ -975,6 +996,17 @@ No entry names the classes `other` and `unrecorded` or the kinds `stage_missing`
 - **Visible in:** Clients that send slowly, connections left idle, and answers that take longer than 15 s, on the main and Unix-socket listeners
 - **Harness:** none
 - **Pin:** `crates/server/tests/wire.rs::timeouts`
+- **Recorded in:** `crates/server/differences.toml`
+
+#### `server.unread-body`: Request bodies a handler leaves unread: net/http reads up to 256 KiB of them and keeps the connection, hyper closes it unless one more read ends the body
+
+- **Go:** Before it writes the answer, net/http reads and discards what is left of the request body, waiting for it within the read budget, up to `maxPostHandlerReadBytes`, 256 KiB (`chunkWriter.writeHeader`, net/http/server.go:1374-1443), and keeps the connection for the next request; it answers with `Connection: close` when 256 KiB or more is left, or when the request asked for `Expect: 100-continue` and its body was not read.
+- **Rust:** hyper sends the answer at once, then makes one read of what is left of the body (`poll_drain_or_close_read`, hyper 1.12.0 src/proto/h1/conn.rs:876) and keeps the connection only when that read ends the body, a short rest that has already arrived; otherwise it closes the connection after the answer, without `connection: close`, and a client still sending the body may read a reset. Both send `100 Continue` to a handler that reads the body.
+- **Who notices:** publisher, operator
+- **Visible in:** Connections whose request carries a body the handler answers without reading (404s, 405s and answers given before the body is read), and the connection counts that follow
+- **Harness:** none
+- **Pin:** `crates/server/tests/wire.rs::unread_body`
+- **Note:** The auction endpoint discards the rest of a body over `max_request_size` itself so that the connection can be reused (endpoints/openrtb2/auction.go:455-456); that is Prebid logic its port keeps, and a body read to its end keeps the connection on both.
 - **Recorded in:** `crates/server/differences.toml`
 
 #### `server.vary`: Vary with gzip on: gziphandler adds `Vary: Accept-Encoding` to every answer, tower-http only to answers it would compress

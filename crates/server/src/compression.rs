@@ -4,8 +4,9 @@
 //! handlers in `gziphandler.GzipHandler` when `compression.response.enable_gzip` is set. Here that
 //! is tower-http's `CompressionLayer`, gzip only, with gziphandler's 1,400-byte `DefaultMinSize`
 //! as its predicate. Which answers it compresses, how it reads Accept-Encoding, where it writes
-//! Vary, the framing and the compressed bytes are tower-http's, each ledgered (`server.vary`,
-//! `server.gzip-negotiation`, `server.gzip-bytes`, `server.framing`).
+//! Vary, what it does with ranges, the framing and the compressed bytes are tower-http's, each
+//! ledgered (`server.vary`, `server.gzip-negotiation`, `server.gzip-ranges`, `server.gzip-bytes`,
+//! `server.framing`).
 
 use axum::Router;
 use tower_http::compression::{CompressionLayer, predicate::SizeAbove};
