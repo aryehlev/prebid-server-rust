@@ -1,0 +1,19 @@
+[package]
+name = "pbs-router"
+description = "Prebid Server's public router on axum: the NoCache and SupportCORS middleware of router/router.go as tower layers, with the routing differences from httprouter pinned against Go goldens"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+readme.workspace = true
+keywords.workspace = true
+publish.workspace = true
+categories.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+axum = { workspace = true }
+tower-http = { workspace = true }

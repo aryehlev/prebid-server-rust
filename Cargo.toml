@@ -25,6 +25,7 @@ members = [
     "crates/openrtb",
     "crates/openrtb-ext",
     "crates/parity",
+    "crates/router",
     "crates/tcf2",
     "crates/util",
 ]
