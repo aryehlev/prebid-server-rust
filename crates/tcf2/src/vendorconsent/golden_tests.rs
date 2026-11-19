@@ -20,7 +20,7 @@ use super::{
 use crate::{
     ConsentError,
     api::VendorConsents,
-    base64::RAW_URL_ENCODING,
+    base64::raw_url_decode,
     consentconstants::Purpose,
     test_support::{TestError, TestResult, hex_encode, input_bytes, load_cases, put},
 };
@@ -286,7 +286,7 @@ fn record_case(case: &Value) -> Result<Value, TestError> {
             tcf2_record(&tcf2::parse_string(&input))?,
         );
     }
-    match RAW_URL_ENCODING.decode(&input) {
+    match raw_url_decode(&input) {
         Ok(decoded) => {
             put(
                 &mut record,

@@ -1,0 +1,12 @@
+# The differences ledger's restorations brought by pbs-gpp (see the pbs_differences ledger module
+# for the schema). pbs-differences validates this file and writes docs/DIFFERENCES.md and
+# docs/differences.json from it; run
+#   cargo run -p pbs-differences --locked --offline -- --write
+# after a change.
+
+[[restoration]]
+id = "base64.leniency"
+pin = "crates/gpp/tests/base64.rs::go_seeded"
+note = """\
+    50,000 seeded strings decode through `BitStream::from_base64` to go-gpp's bytes or fail with \
+    its text, batch by batch, against testdata/golden/base64_seeded.txt"""

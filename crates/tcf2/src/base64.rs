@@ -1,13 +1,30 @@
-//! Go `encoding/base64` decoding, as used by go-gdpr and by `encoding/json` for `[]byte` fields.
+//! Glue (Rule B (a) and (d)): consent strings decode as Go's `encoding/base64` decodes them.
 //!
-//! Go's decoder differs from most Rust base64 decoders in ways that are observable here:
-//! `\r` and `\n` are skipped anywhere in the input, non-zero trailing bits are accepted (the
-//! standard encodings are not strict), and errors report a specific byte offset through
-//! [`CorruptInputError`]. This module reproduces `Encoding.Decode` exactly for the two encodings
-//! prebid-server needs.
+//! go-gdpr decodes a consent string with `base64.RawURLEncoding` (`ParseString` in
+//! vendorconsent/tcf2/consent.go:27-33 and vendorconsent/tcf1/consent.go:16-22), and the flipp
+//! adapter decodes one with `RawURLEncoding.DecodeString` (adapters/flipp/flipp.go:291). The
+//! base64 crate decodes here, and two things stay as Go has them:
+//!
+//! - which strings decode, case (a): Go's decoder skips `\r` and `\n` anywhere in the input, and
+//!   its encodings are not strict, so a last digit with unused bits set is accepted; the crate's
+//!   `URL_SAFE_NO_PAD` refuses both. The line breaks are removed before the crate reads the input,
+//!   and the engine allows trailing bits. Go's `NoPadding` makes `=` an illegal byte, as the
+//!   crate's [`DecodePaddingMode::RequireNone`] does.
+//! - the error, case (d): go-gdpr returns Go's `illegal base64 data at input byte N`, and Prebid
+//!   writes that text into its own (the AMP consent warning, amp/parse.go:143-152). The crate
+//!   reports another offset for some inputs (it looks at the last byte first), so the offset is
+//!   Go's: that of the first byte that is neither a digit nor a line break, or, when the digits end
+//!   in a lone one, that of the last byte.
+//!
+//! The bytes a string decodes to are the crate's.
 
 use core::fmt;
-use std::error::Error;
+use std::{borrow::Cow, error::Error};
+
+use base64::{
+    DecodeError, Engine as _, alphabet,
+    engine::{DecodePaddingMode, GeneralPurpose, GeneralPurposeConfig},
+};
 
 /// Go `base64.CorruptInputError`: `illegal base64 data at input byte N`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -15,315 +32,118 @@ pub struct CorruptInputError(pub usize);
 
 impl fmt::Display for CorruptInputError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        // Go: $GOROOT/src/encoding/base64/base64.go:303-305.
         write!(f, "illegal base64 data at input byte {}", self.0)
     }
 }
 
 impl Error for CorruptInputError {}
 
-/// A base64 encoding with Go's decoding semantics.
+/// Go's `base64.RawURLEncoding` (base64.go:133) as an engine of the crate: the URL-safe
+/// alphabet and no padding, with trailing bits allowed, since Go's encodings are strict only
+/// after `Strict()`.
+const RAW_URL: GeneralPurpose = GeneralPurpose::new(
+    &alphabet::URL_SAFE,
+    GeneralPurposeConfig::new()
+        .with_encode_padding(false)
+        .with_decode_padding_mode(DecodePaddingMode::RequireNone)
+        .with_decode_allow_trailing_bits(true),
+);
+
+/// Go `base64.RawURLEncoding.DecodeString`, and `RawURLEncoding.Decode` as go-gdpr calls it, in
+/// place over the input: both give the same bytes and the same errors.
 ///
-/// Both supported alphabets share their first 62 digits (`A-Z`, `a-z`, `0-9`) and differ in the
-/// last two.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct Encoding {
-    digit62: u8,
-    digit63: u8,
-    pad_char: Option<u8>,
+/// Go also returns the bytes decoded before an error; no caller in go-gdpr or prebid-server reads
+/// them, so they are dropped.
+///
+/// # Errors
+///
+/// Returns Go's [`CorruptInputError`] when `src` is not unpadded base64url.
+pub fn raw_url_decode(src: &[u8]) -> Result<Vec<u8>, CorruptInputError> {
+    RAW_URL
+        .decode(without_line_breaks(src))
+        .map_err(|err| go_error(src, &err))
 }
 
-/// Go `base64.StdEncoding` (padded, standard alphabet).
-pub const STD_ENCODING: Encoding = Encoding {
-    digit62: b'+',
-    digit63: b'/',
-    pad_char: Some(b'='),
-};
-
-/// Go `base64.RawURLEncoding` (unpadded, URL-safe alphabet).
-pub const RAW_URL_ENCODING: Encoding = Encoding {
-    digit62: b'-',
-    digit63: b'_',
-    pad_char: None,
-};
-
-impl Encoding {
-    /// Go: `Encoding.decodeMap`: the 6-bit value of an alphabet byte.
-    const fn decode_digit(self, c: u8) -> Option<u8> {
-        match c {
-            b'A'..=b'Z' => Some(c - b'A'),
-            b'a'..=b'z' => Some(c - b'a' + 26),
-            b'0'..=b'9' => Some(c - b'0' + 52),
-            _ if c == self.digit62 => Some(62),
-            _ if c == self.digit63 => Some(63),
-            _ => None,
-        }
-    }
-
-    /// Go `Encoding.DecodedLen`: the maximum length of the decoded data for `n` input bytes.
-    #[must_use]
-    pub const fn decoded_len(&self, n: usize) -> usize {
-        if self.pad_char.is_none() {
-            // Unpadded data may end with a partial quantum.
-            return n / 4 * 3 + n % 4 * 6 / 8;
-        }
-        n / 4 * 3
-    }
-
-    /// Go `Encoding.DecodeString` / `Encoding.Decode`.
-    ///
-    /// Go also returns the bytes decoded before an error; no caller in go-gdpr or prebid-server
-    /// uses them, so they are dropped.
-    ///
-    /// # Errors
-    ///
-    /// Returns the [`CorruptInputError`] Go reports for the first invalid input byte.
-    pub fn decode(&self, src: &[u8]) -> Result<Vec<u8>, CorruptInputError> {
-        let mut out = Vec::with_capacity(self.decoded_len(src.len()));
-        let mut si = 0;
-        while si < src.len() {
-            si = self.decode_quantum(&mut out, src, si)?;
-        }
-        Ok(out)
-    }
-
-    /// Port of `Encoding.decodeQuantum`: decodes up to 4 base64 digits starting at `si` and
-    /// returns the index of the next unread input byte.
-    ///
-    /// Go's `Decode` also has 8- and 4-digit fast paths, but they fall back to this function on
-    /// the first invalid digit and produce the same output and errors.
-    fn decode_quantum(
-        self,
-        out: &mut Vec<u8>,
-        src: &[u8],
-        start: usize,
-    ) -> Result<usize, CorruptInputError> {
-        let mut dbuf = [0u8; 4];
-        let mut dlen = 4;
-        let mut si = start;
-        let mut trailing_garbage = None;
-        let mut j = 0;
-        while j < 4 {
-            let Some(&input) = src.get(si) else {
-                if j == 0 {
-                    return Ok(si);
-                }
-                if j == 1 || self.pad_char.is_some() {
-                    return Err(CorruptInputError(si.saturating_sub(j)));
-                }
-                dlen = j;
-                break;
-            };
-            si += 1;
-
-            if let Some(decoded) = self.decode_digit(input) {
-                if let Some(slot) = dbuf.get_mut(j) {
-                    *slot = decoded;
-                }
-                j += 1;
-                continue;
-            }
-
-            if input == b'\n' || input == b'\r' {
-                continue;
-            }
-
-            if Some(input) != self.pad_char {
-                return Err(CorruptInputError(si - 1));
-            }
-
-            // We've reached the end and there's padding.
-            match j {
-                0 | 1 => return Err(CorruptInputError(si - 1)),
-                2 => {
-                    // "==" is expected, the first "=" is already consumed.
-                    si = skip_newlines(src, si);
-                    match src.get(si) {
-                        None => return Err(CorruptInputError(src.len())),
-                        Some(&next) if Some(next) != self.pad_char => {
-                            return Err(CorruptInputError(si - 1));
-                        }
-                        Some(_) => si += 1,
-                    }
-                }
-                _ => {}
-            }
-
-            si = skip_newlines(src, si);
-            if si < src.len() {
-                trailing_garbage = Some(CorruptInputError(si));
-            }
-            dlen = j;
-            break;
-        }
-
-        let val = u32::from(dbuf[0]) << 18
-            | u32::from(dbuf[1]) << 12
-            | u32::from(dbuf[2]) << 6
-            | u32::from(dbuf[3]);
-        let [_, b0, b1, b2] = val.to_be_bytes();
-        match dlen {
-            4 => out.extend_from_slice(&[b0, b1, b2]),
-            3 => out.extend_from_slice(&[b0, b1]),
-            2 => out.push(b0),
-            _ => {}
-        }
-        trailing_garbage.map_or(Ok(si), Err)
+/// `src` without the `\r` and `\n` bytes Go's decoder skips (base64.go:340-343).
+fn without_line_breaks(src: &[u8]) -> Cow<'_, [u8]> {
+    if src.iter().copied().any(is_line_break) {
+        Cow::Owned(src.iter().copied().filter(|&b| !is_line_break(b)).collect())
+    } else {
+        Cow::Borrowed(src)
     }
 }
 
-fn skip_newlines(src: &[u8], mut si: usize) -> usize {
-    while matches!(src.get(si), Some(b'\n' | b'\r')) {
-        si += 1;
-    }
-    si
+const fn is_line_break(b: u8) -> bool {
+    b == b'\r' || b == b'\n'
+}
+
+/// The error Go reports for `src`, which the crate refused with `err`.
+///
+/// Go reads `src` left to right and stops at the first byte that is neither a digit nor a line
+/// break (base64.go:345-347; `=` is such a byte, the encoding having no padding). When there is
+/// none, the digits end in a lone one, which Go reports at `len(src) - 1` once it has read to the
+/// end (base64.go:322-327: `si - j` with `si == len(src)` and `j == 1`), and which the crate
+/// reports as [`DecodeError::InvalidLength`].
+fn go_error(src: &[u8], err: &DecodeError) -> CorruptInputError {
+    let illegal = match err {
+        DecodeError::InvalidLength(_) => None,
+        DecodeError::InvalidByte(..)
+        | DecodeError::InvalidLastSymbol { .. }
+        | DecodeError::InvalidPadding => src.iter().position(|&b| {
+            !is_line_break(b) && !alphabet::URL_SAFE.as_str().as_bytes().contains(&b)
+        }),
+    };
+    CorruptInputError(illegal.unwrap_or_else(|| src.len().saturating_sub(1)))
 }
 
 #[cfg(test)]
 mod tests {
-    use serde_json::Value;
+    use super::{CorruptInputError, raw_url_decode};
+    use crate::test_support::TestResult;
 
-    use super::{CorruptInputError, Encoding, RAW_URL_ENCODING, STD_ENCODING};
-    use crate::test_support::{TestResult, hex_encode, input_bytes, load_cases, str_field};
-
+    // Go: testdata/go/b64.go (the hand-picked inputs of buildBase64Cases), whose results
+    // testdata/base64_goldens.json records from RawURLEncoding.
     #[test]
     fn raw_url_values() -> TestResult {
+        check_eq!(raw_url_decode(b"")?, Vec::<u8>::new(), "empty input");
+        check_eq!(raw_url_decode(b"Zm9vYmFy")?, b"foobar", "full quanta");
+        check_eq!(raw_url_decode(b"Zm9vYg")?, b"foob", "partial quantum");
         check_eq!(
-            RAW_URL_ENCODING.decode(b"")?,
-            Vec::<u8>::new(),
-            "empty input"
+            raw_url_decode(b"A\nA\nA\nA")?,
+            [0, 0, 0],
+            "line breaks are skipped"
         );
-        check_eq!(
-            RAW_URL_ENCODING.decode(b"Zm9vYmFy")?,
-            b"foobar",
-            "full quanta"
-        );
-        check_eq!(
-            RAW_URL_ENCODING.decode(b"Zm9vYg")?,
-            b"foob",
-            "partial quantum"
-        );
-        check_eq!(
-            RAW_URL_ENCODING.decode(b"Zm9v\nYg\r")?,
-            b"foob",
-            "newlines are skipped"
-        );
-        check_eq!(
-            RAW_URL_ENCODING.decode(b"QR")?,
-            b"A",
-            "trailing bits are ignored"
-        );
+        check_eq!(raw_url_decode(b"AA\n\n")?, [0], "after a partial quantum");
+        check_eq!(raw_url_decode(b"QR")?, b"A", "trailing bits are ignored");
+        check_eq!(raw_url_decode(b"-_-_")?, [0xFB, 0xFF, 0xBF], "URL alphabet");
         Ok(())
     }
 
+    // Go: testdata/go/b64.go (the hand-picked inputs of buildBase64Cases), whose errors
+    // testdata/base64_goldens.json records from RawURLEncoding.
     #[test]
     fn raw_url_errors() -> TestResult {
-        check_eq!(
-            RAW_URL_ENCODING.decode(b"A"),
-            Err(CorruptInputError(0)),
-            "single digit"
-        );
-        check_eq!(
-            RAW_URL_ENCODING.decode(b"AAAAA"),
-            Err(CorruptInputError(4)),
-            "dangling digit"
-        );
-        check_eq!(
-            RAW_URL_ENCODING.decode(b"AA=="),
-            Err(CorruptInputError(2)),
-            "padding"
-        );
-        check_eq!(
-            RAW_URL_ENCODING.decode(b"/"),
-            Err(CorruptInputError(0)),
-            "std alphabet"
-        );
-        check_eq!(
-            RAW_URL_ENCODING.decode(b"AB\n"),
-            Ok(vec![0]),
-            "newline after quantum"
-        );
-        check_eq!(
-            RAW_URL_ENCODING.decode(b"AAAAB\n"),
-            Err(CorruptInputError(5)),
-            "si - j"
-        );
-        Ok(())
-    }
-
-    #[test]
-    fn std_errors() -> TestResult {
-        check_eq!(
-            STD_ENCODING.decode(b"AQI"),
-            Err(CorruptInputError(0)),
-            "missing padding"
-        );
-        check_eq!(STD_ENCODING.decode(b"AQ=="), Ok(vec![1]), "padded");
-        check_eq!(
-            STD_ENCODING.decode(b"AQ="),
-            Err(CorruptInputError(3)),
-            "short padding"
-        );
-        check_eq!(
-            STD_ENCODING.decode(b"AQ==A"),
-            Err(CorruptInputError(4)),
-            "trailing data"
-        );
-        check_eq!(
-            STD_ENCODING.decode(b"AQ=A"),
-            Err(CorruptInputError(2)),
-            "bad padding"
-        );
-        check_eq!(
-            STD_ENCODING.decode(b"A-I="),
-            Err(CorruptInputError(1)),
-            "url alphabet"
-        );
-        Ok(())
-    }
-
-    /// Renders a decode result the way the Go generator records it.
-    fn render(result: Result<Vec<u8>, CorruptInputError>) -> (String, String, usize) {
-        match result {
-            Ok(bytes) => (String::new(), hex_encode(&bytes), bytes.len()),
-            Err(err) => (err.to_string(), String::new(), 0),
+        for (input, offset) in [
+            (&b"A"[..], 0),
+            (b"=", 0),
+            (b"AA==", 2),
+            (b"AA=A", 2),
+            (b"/+/+", 0),
+            (b"A\n", 1),
+            (b"\xff", 0),
+        ] {
+            check_eq!(
+                raw_url_decode(input),
+                Err(CorruptInputError(offset)),
+                "{input:?}"
+            );
         }
-    }
-
-    fn expected(case: &Value, key: &str) -> (String, String, usize) {
-        let result = case.get(key).unwrap_or(&Value::Null);
-        (
-            str_field(result, "err").unwrap_or_default().to_owned(),
-            str_field(result, "hex").unwrap_or_default().to_owned(),
-            result
-                .get("len")
-                .and_then(Value::as_u64)
-                .and_then(|len| usize::try_from(len).ok())
-                .unwrap_or_default(),
-        )
-    }
-
-    /// Replays `testdata/base64_goldens.json`: `RawURLEncoding.DecodeString`, the in-place
-    /// `RawURLEncoding.Decode` of go-gdpr's `ParseString`, and `StdEncoding.Decode` as used by
-    /// `encoding/json`.
-    #[test]
-    fn go_goldens() -> TestResult {
-        let cases = load_cases("base64_goldens.json")?;
-        check!(cases.len() > 1000, "only {} base64 cases", cases.len());
-        let encodings: [(&str, Encoding); 3] = [
-            ("raw_url", RAW_URL_ENCODING),
-            ("raw_url_in_place", RAW_URL_ENCODING),
-            ("std", STD_ENCODING),
-        ];
-        for case in &cases {
-            let input = input_bytes(case)?;
-            for (key, encoding) in encodings {
-                check_eq!(
-                    render(encoding.decode(&input)),
-                    expected(case, key),
-                    "{key} {input:?}"
-                );
-            }
-        }
+        check_eq!(
+            CorruptInputError(3).to_string(),
+            "illegal base64 data at input byte 3",
+            "Go's text"
+        );
         Ok(())
     }
 }

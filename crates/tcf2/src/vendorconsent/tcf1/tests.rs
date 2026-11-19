@@ -4,13 +4,13 @@ use std::collections::BTreeSet;
 
 use super::{Consent, parse, rangesection::parse_uint16};
 use crate::{
-    ConsentError, api::VendorConsents as _, base64::RAW_URL_ENCODING, consentconstants::Purpose,
+    ConsentError, api::VendorConsents as _, base64::raw_url_decode, consentconstants::Purpose,
     test_support::TestResult,
 };
 
 /// Go: `decode` in `test_utils.go`.
 fn decode(encoded: &str) -> Result<Vec<u8>, ConsentError> {
-    Ok(RAW_URL_ENCODING.decode(encoded.as_bytes())?)
+    Ok(raw_url_decode(encoded.as_bytes())?)
 }
 
 fn parse_encoded(encoded: &str) -> Result<Consent, ConsentError> {

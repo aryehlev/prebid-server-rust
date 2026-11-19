@@ -14,4 +14,10 @@ categories = ["parser-implementations"]
 [lints]
 workspace = true
 
+# base64 encodes and decodes the sections (src/util/base64.rs keeps Go's leniency around it).
 [dependencies]
+base64 = { workspace = true }
+
+# sha2 checks the digests of the seeded corpus Go decoded (tests/base64.rs).
+[dev-dependencies]
+sha2 = { workspace = true }

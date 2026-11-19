@@ -16,6 +16,7 @@ Rule B's cases: (a) input real production traffic sends that the crate would rej
 
 | Category | Decision pending | Ledgered | Go behaviour kept |
 |---|---:|---:|---:|
+| Base64 | 0 | 0 | 1 |
 | In-memory caches | 0 | 1 | 0 |
 | Configuration loading | 0 | 0 | 3 |
 | Cookies | 0 | 1 | 0 |
@@ -31,7 +32,7 @@ Rule B's cases: (a) input real production traffic sends that the crate would rej
 | Time formatting | 0 | 0 | 1 |
 | URLs | 0 | 1 | 0 |
 | YAML | 0 | 1 | 0 |
-| All | 1 | 19 | 10 |
+| All | 1 | 19 | 11 |
 
 ## Decisions pending
 
@@ -69,6 +70,24 @@ No entry names the classes `other` and `unrecorded` or the kinds `stage_missing`
 | `duplicate_keys` | A JSON object in the request body or in a bidder response has the same key twice. |
 | `invalid_utf8` | A JSON string in the request body or in a bidder response holds bytes that are not UTF-8. |
 | `options_request` | The request's method is OPTIONS: a CORS preflight, or any other OPTIONS, which tower-http's CorsLayer answers as one. |
+
+## Base64
+
+### Go behaviour kept
+
+#### `base64.leniency`: Base64url consent strings: Go skips line breaks and ignores unused bits, the base64 crate refuses both
+
+- **Go:** `encoding/base64`'s `RawURLEncoding`, which go-gdpr's `ParseString`, the flipp adapter and go-gpp's `NewBitStreamFromBase64` decode consent strings with, skips `\r` and `\n` anywhere in the input, accepts a last digit whose unused bits are set (`QR` is `A`), refuses `=` (the encoding has no padding) and reports `illegal base64 data at input byte N` at the first byte that is neither a digit nor a line break, or at the last byte when the digits end in a lone one.
+- **Rust:** The base64 crate's `URL_SAFE_NO_PAD` refuses a line break and a last digit with unused bits set, and reports some refusals at another offset or none: it reads the last quantum first (`w=+/+` at 4, where Go says 1) and refuses `AA==` with `Invalid padding` (Go: 2).
+- **Who notices:** publisher
+- **Visible in:** Which TCF and GPP consent strings decode, and the offset in the warnings Prebid writes from the error: the AMP consent warning (amp/parse.go:143-152) and `GPP consent string is invalid and will be ignored.` (endpoints/openrtb2/auction.go:869-874)
+- **Harness:** none: a mismatch here is unexpected
+- **Pin:** `crates/tcf2/tests/base64.rs::go_leniency`
+- **Rule B:** Rule B (a): input real production traffic sends that the crate would reject or misread
+- **How Go's behaviour is kept:** Glue around the base64 crate, pbs-tcf2's `base64` and pbs-gpp's `util::base64`: the line breaks are removed before the crate reads the input, its engine allows unused bits, and a refusal is reported at Go's offset. Rule B (a), since real traffic sends such strings and their consent depends on what decodes, and (d), since Prebid writes the offset into its warnings.
+- **Restore pin:** `crates/gpp/tests/base64.rs::go_seeded` (50,000 seeded strings decode through `BitStream::from_base64` to go-gpp's bytes or fail with its text, batch by batch, against testdata/golden/base64_seeded.txt); `crates/tcf2/tests/base64.rs::go_seeded` (50,000 seeded strings decode to go-gdpr's bytes or fail with its text, batch by batch, against testdata/base64_seeded_goldens.json)
+- **Note:** The bytes are the crate's. go-gpp pads an incomplete last quantum with `A` before decoding (util/bitstream.go:35-41), which is go-gpp's own logic and is ported as it is.
+- **Recorded in:** `crates/tcf2/differences.toml`
 
 ## In-memory caches
 

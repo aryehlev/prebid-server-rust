@@ -20,7 +20,7 @@ use self::{
     pubrestrict::parse_pub_restriction,
     rangesection::parse_range_section,
 };
-use crate::{ConsentError, base64::RAW_URL_ENCODING, bitutils, vendorconsent::common::is_set};
+use crate::{ConsentError, base64, bitutils, vendorconsent::common::is_set};
 
 const CONSENT_STRING_TCF2_SEPARATOR: u8 = b'.';
 const CONSENT_STRING_TCF2_PREFIX: u8 = b'C';
@@ -48,7 +48,7 @@ pub fn parse_string<S: AsRef<[u8]> + ?Sized>(consent: &S) -> Result<ConsentMetad
     }
 
     // Go decodes in place; the result is identical to a separate output buffer.
-    let decoded = RAW_URL_ENCODING.decode(consent)?;
+    let decoded = base64::raw_url_decode(consent)?;
     parse(decoded)
 }
 

@@ -13,7 +13,7 @@
 //! | `vendorconsent/tcf1` | [`vendorconsent::tcf1`] |
 //! | `vendorconsent/tcf2` | [`vendorconsent::tcf2`] |
 //! | `vendorlist2` | [`vendorlist2`] |
-//! | Go `encoding/base64` | [`base64`] |
+//! | Go `encoding/base64`, for consent strings | [`base64`], around the base64 crate |
 //!
 //! The entry points prebid-server uses are [`vendorconsent::parse_string`] (returning a
 //! [`vendorconsent::ParsedConsent`]), [`vendorconsent::tcf2::parse_string`] (returning a
