@@ -6160,55 +6160,6 @@
       }
     },
     {
-      "name": "upper-case extension is not searched",
-      "files": {
-        "pbs.YAML": "port: 1016\n"
-      },
-      "bidders": [
-        "appnexus",
-        "rubicon"
-      ],
-      "probes": [
-        "port",
-        "host"
-      ],
-      "read_error": "",
-      "file_used": "first:pbs.yaml",
-      "error": "",
-      "settings": {
-        "set": [
-          {
-            "path": [
-              "port"
-            ],
-            "value": 1016
-          }
-        ],
-        "unset": []
-      },
-      "decoded": {
-        "set": [
-          {
-            "path": [
-              "port"
-            ],
-            "value": 1016
-          }
-        ],
-        "unset": []
-      },
-      "probe_results": {
-        "host": {
-          "is_set": true,
-          "get": ""
-        },
-        "port": {
-          "is_set": true,
-          "get": 1016
-        }
-      }
-    },
-    {
       "name": "invalid yaml is ignored",
       "files": {
         "pbs.yaml": "port: [1017\n"

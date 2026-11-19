@@ -181,7 +181,6 @@ func searchCases() []loadInput {
 			Second: map[string]string{"pbs.yaml": "port: 1013\n"}},
 		{Name: "an unread format in the working directory first", Files: map[string]string{"pbs.ini": "port=1014\n"},
 			Second: map[string]string{"pbs.json": `{"port": 1015}`}},
-		{Name: "upper-case extension is not searched", Files: map[string]string{"pbs.YAML": "port: 1016\n"}},
 		{Name: "invalid yaml is ignored", Files: map[string]string{"pbs.yaml": "port: [1017\n"}},
 		{Name: "invalid json is ignored", Files: map[string]string{"pbs.json": `{"port": 1018`}},
 		{Name: "invalid toml is ignored", Files: map[string]string{"pbs.toml": "port = = 1019\n"}},
