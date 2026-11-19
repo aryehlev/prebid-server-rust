@@ -219,7 +219,7 @@ impl GoValue {
 
 impl fmt::Display for GoValue {
     /// The value laid out as Go's `%v` lays it out (`<nil>`, `[a b]`, `map[a:1 b:2]`), with
-    /// floats spelled by [`float_text`] where Go uses `%g` (`1000000` for Go's `1e+06`) and the
+    /// floats in std's shortest spelling where Go uses `%g` (`1000000` for Go's `1e+06`) and the
     /// keys of a `map[interface{}]interface{}` in the order of their text (ledger:
     /// `config.error-texts`).
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
