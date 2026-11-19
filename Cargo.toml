@@ -4,6 +4,7 @@ resolver = "3"
 # a unit that needs a new crate or a workspace-level change reports it instead.
 members = [
     "crates/bidder-params",
+    "crates/config",
     "crates/currency",
     "crates/devtools",
     "crates/differences",

@@ -242,6 +242,7 @@ dependencies = [
  "pathdiff",
  "serde_core",
  "serde_json",
+ "toml",
  "winnow",
 ]
 
@@ -986,6 +987,18 @@ version = "0.1.0"
 dependencies = [
  "pbs-devtools",
  "regex",
+]
+
+[[package]]
+name = "pbs-config"
+version = "0.1.0"
+dependencies = [
+ "config",
+ "pbs-devtools",
+ "pbs-gocompat",
+ "serde",
+ "serde-saphyr",
+ "serde_json",
 ]
 
 [[package]]

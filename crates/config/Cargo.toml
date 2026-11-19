@@ -1,0 +1,29 @@
+[package]
+name = "pbs-config"
+description = "Prebid Server host configuration: the loader that reads pbs.json, pbs.toml or pbs.yaml and the PBS_ environment over the defaults as Viper does"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+readme.workspace = true
+keywords.workspace = true
+publish.workspace = true
+categories = ["config"]
+
+[lints]
+workspace = true
+
+# The config crate holds the three layers (its toml feature reads pbs.toml, D-VIPERFMT);
+# serde-saphyr reads pbs.yaml, serde_json pbs.json and the embedded Go type table, and
+# pbs-gocompat gives Go's strconv, strings and fmt.
+[dependencies]
+config = { workspace = true, features = ["toml"] }
+pbs-gocompat = { path = "../gocompat", version = "0.1.0" }
+serde = { workspace = true }
+serde-saphyr = { workspace = true }
+serde_json = { workspace = true }
+
+# pbs-devtools finds the pinned upstream checkout whose bidder-info files the YAML tests read.
+[dev-dependencies]
+pbs-devtools = { path = "../devtools", version = "0.1.0" }
