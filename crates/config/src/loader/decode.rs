@@ -14,18 +14,15 @@
 
 use std::{collections::BTreeMap, fmt, sync::OnceLock};
 
-use pbs_gocompat::{
-    math,
-    strconv::{
-        format_float, format_int, format_uint, parse_bool, parse_float, parse_int, parse_uint,
-    },
-    strings::equal_fold,
-};
 use serde::Deserialize;
 use serde_json::{Map as JsonMap, Number, Value as Json};
 
 use super::{
     cast,
+    goconv::{
+        equal_fold, float_text, float_to_int64, parse_bool, parse_float, parse_int, parse_uint,
+        round_to_float32,
+    },
     value::{GoValue, compact_float, tagged},
 };
 
@@ -239,14 +236,15 @@ impl Decoded {
         }
     }
 
-    /// Go: `fmt.Sprint(key)` of a map key.
+    /// Go: `fmt.Sprint(key)` of a map key; no map of `config.Configuration` has float keys, so a
+    /// float key is spelled as [`float_text`] spells it.
     fn key_text(&self) -> String {
         match self {
             Self::String(s) => s.clone(),
             Self::Int(i) => i.to_string(),
             Self::Uint(u) => u.to_string(),
             Self::Bool(b) => b.to_string(),
-            Self::Float(f) => format_float(*f, b'g', -1, 64),
+            Self::Float(f) => float_text(*f),
             Self::Interface(Some(value)) => value.to_string(),
             Self::Interface(None)
             | Self::Slice(_)
@@ -817,9 +815,9 @@ fn decode_string(name: &str, input: &GoValue, ty: &str, out: &mut Decoded) -> Re
     let s = match input {
         GoValue::String(s) => s.clone(),
         GoValue::Bool(b) => if *b { "1" } else { "0" }.to_owned(),
-        GoValue::Int(i) | GoValue::Int64(i) => format_int(*i, 10),
-        GoValue::Uint64(u) => format_uint(*u, 10),
-        GoValue::Float64(f) => format_float(*f, b'f', -1, 64),
+        GoValue::Int(i) | GoValue::Int64(i) => i.to_string(),
+        GoValue::Uint64(u) => u.to_string(),
+        GoValue::Float64(f) => float_text(*f),
         GoValue::Nil
         | GoValue::List(_)
         | GoValue::Map(_)
@@ -853,9 +851,9 @@ fn float_to_uint64(f: f64) -> u64 {
     // 2^63
     const TWO_63: f64 = f64::from_bits(0x43E0_0000_0000_0000);
     if f < TWO_63 {
-        math::int64(f).cast_unsigned()
+        float_to_int64(f).cast_unsigned()
     } else {
-        math::int64(f - TWO_63).cast_unsigned() | (1 << 63)
+        float_to_int64(f - TWO_63).cast_unsigned() | (1 << 63)
     }
 }
 
@@ -870,11 +868,11 @@ fn decode_int(
     let i = match input {
         GoValue::Int(i) | GoValue::Int64(i) => *i,
         GoValue::Uint64(u) => u.cast_signed(),
-        GoValue::Float64(f) => math::int64(*f),
+        GoValue::Float64(f) => float_to_int64(*f),
         GoValue::Bool(b) => i64::from(*b),
         GoValue::String(s) => {
             let s = if s.is_empty() { "0" } else { s.as_str() };
-            parse_int(s, 0, i64::from(bits))
+            parse_int(s, bits)
                 .map_err(|err| Fail::One(format!("cannot parse '{name}' as int: {err}")))?
         }
         GoValue::Nil
@@ -904,7 +902,7 @@ fn decode_uint(
         GoValue::Bool(b) => u64::from(*b),
         GoValue::String(s) => {
             let s = if s.is_empty() { "0" } else { s.as_str() };
-            parse_uint(s, 0, i64::from(bits))
+            parse_uint(s, bits)
                 .map_err(|err| Fail::One(format!("cannot parse '{name}' as uint: {err}")))?
         }
         GoValue::Nil
@@ -934,7 +932,7 @@ fn decode_float(
         GoValue::Bool(b) => f64::from(u8::from(*b)),
         GoValue::String(s) => {
             let s = if s.is_empty() { "0" } else { s.as_str() };
-            parse_float(s, i64::from(bits))
+            parse_float(s, bits)
                 .map_err(|err| Fail::One(format!("cannot parse '{name}' as float: {err}")))?
         }
         GoValue::Nil
@@ -945,11 +943,7 @@ fn decode_float(
         | GoValue::StringLists(_)
         | GoValue::EmptySlice(_) => return Err(unconvertible(name, input, ty)),
     };
-    let f = if bits == 32 {
-        f64::from(math::float32(f))
-    } else {
-        f
-    };
+    let f = if bits == 32 { round_to_float32(f) } else { f };
     *out = Decoded::Float(f);
     Ok(())
 }
@@ -1050,7 +1044,7 @@ fn marshal(value: &GoValue) -> Result<Vec<u8>, String> {
 /// 1e21), when that text is an integer `serde_json` holds as one: `5` where `serde_json` writes
 /// `5.0`.
 fn whole_number(f: f64) -> Option<Json> {
-    let go = format_float(f, b'f', -1, 64);
+    let go = float_text(f);
     go.parse::<i64>()
         .map(Json::from)
         .or_else(|_| go.parse::<u64>().map(Json::from))

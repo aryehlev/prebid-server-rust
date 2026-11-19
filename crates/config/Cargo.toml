@@ -15,11 +15,9 @@ categories = ["config"]
 workspace = true
 
 # The config crate holds the three layers (its toml feature reads pbs.toml, D-VIPERFMT);
-# serde-saphyr reads pbs.yaml, serde_json pbs.json and the embedded Go type table, and
-# pbs-gocompat gives Go's strconv, strings and fmt.
+# serde-saphyr reads pbs.yaml, and serde_json pbs.json and the embedded Go type table.
 [dependencies]
 config = { workspace = true, features = ["toml"] }
-pbs-gocompat = { path = "../gocompat", version = "0.1.0" }
 serde = { workspace = true }
 serde-saphyr = { workspace = true }
 serde_json = { workspace = true }

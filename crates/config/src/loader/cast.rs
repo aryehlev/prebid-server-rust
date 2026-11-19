@@ -4,16 +4,13 @@
 //!
 //! Each function is the cast function without the `E` suffix: Go's `ToBool(i)` is
 //! `v, _ := ToBoolE(i); return v`, so a value cast cannot convert gives the zero value (and for
-//! `ToStringSlice` a nil slice), never an error. Integers and floats parse and print with
-//! `strconv` (`pbs-gocompat`), as cast does.
+//! `ToStringSlice` a nil slice), never an error. Integers and floats parse with Go's `strconv`
+//! syntax ([`super::goconv`]), as cast does.
 
-use pbs_gocompat::{
-    math,
-    strconv::{format_float, parse_bool, parse_float, parse_int},
-    strings,
+use super::{
+    goconv::{float_text, float_to_int64, parse_bool, parse_float, parse_int},
+    value::GoValue,
 };
-
-use super::value::GoValue;
 
 /// Go: `cast.ToBool`: `bool`, `nil` (false), `int` (non-zero), and `string` through
 /// `strconv.ParseBool`; any other value (an `int64`, a `float64`, a map) is false.
@@ -43,8 +40,8 @@ pub(super) fn to_int(v: &GoValue) -> i64 {
     match v {
         GoValue::Int(i) | GoValue::Int64(i) => *i,
         GoValue::Uint64(u) => u.cast_signed(),
-        GoValue::Float64(f) => math::int64(*f),
-        GoValue::String(s) => parse_int(trim_zero_decimal(s), 0, 0).unwrap_or(0),
+        GoValue::Float64(f) => float_to_int64(*f),
+        GoValue::String(s) => parse_int(trim_zero_decimal(s), 64).unwrap_or(0),
         GoValue::Bool(b) => i64::from(*b),
         GoValue::Nil
         | GoValue::List(_)
@@ -82,7 +79,7 @@ pub(super) fn to_string_checked(v: &GoValue) -> Option<String> {
     match v {
         GoValue::String(s) => Some(s.clone()),
         GoValue::Bool(b) => Some(b.to_string()),
-        GoValue::Float64(f) => Some(format_float(*f, b'f', -1, 64)),
+        GoValue::Float64(f) => Some(float_text(*f)),
         GoValue::Int(i) | GoValue::Int64(i) => Some(i.to_string()),
         GoValue::Uint64(u) => Some(u.to_string()),
         GoValue::Nil => Some(String::new()),
@@ -116,7 +113,8 @@ pub(super) fn to_string_slice(v: &GoValue) -> Option<Vec<String>> {
             }
         }
         GoValue::Strings(items) => items.clone(),
-        GoValue::String(s) => Some(strings::fields(s).into_iter().map(str::to_owned).collect()),
+        // Go: strings.Fields splits at unicode.IsSpace, which is std's White_Space.
+        GoValue::String(s) => Some(s.split_whitespace().map(str::to_owned).collect()),
         GoValue::Nil => None,
         GoValue::Bool(_)
         | GoValue::Int(_)

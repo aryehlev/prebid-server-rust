@@ -68,6 +68,10 @@ func unorderedCases() []loadInput {
 		withProbes(withEnv(yamlFile("null section with env", "gdpr: ~\n"),
 			map[string]string{"PBS_GDPR_ENABLED": "false", "PBS_GDPR_DEFAULT_VALUE": "1"}),
 			"gdpr.enabled", "gdpr.default_value"),
+		// AccountModulesHookFunc converts the vendors in map order and stops at the first whose
+		// module does not marshal, so which one the error names varies.
+		yamlFile("account modules failing in map order",
+			"account_defaults:\n  hooks:\n    modules:\n      a:\n        m:\n          x: .nan\n      b:\n        m:\n          x: .inf\n"),
 	}
 }
 
@@ -484,6 +488,8 @@ func decodeCases() []loadInput {
 		yamlFile("int from a bool and a float", "account_defaults:\n  cookie_sync:\n    default_limit: true\n    max_limit: 2.9\n"),
 		yamlFile("bool without a default from a map", "account_defaults:\n  privacy:\n    dsa:\n      gdpr_only: {a: 1}\n"),
 		yamlFile("several failures", "account_defaults:\n  cookie_sync:\n    default_limit: x\n    max_limit: y\n  disabled: z\nhost_schain_node: w\n"),
+		// The values of the errors: floats as %v prints them and a string as strconv.Quote quotes it.
+		yamlFile("failing values are printed", "account_defaults:\n  cookie_sync:\n    default_limit: [1000000.0, 0.00001]\n    max_limit: \"\u00a0x\"\n"),
 		yamlFile("uint overflow wraps", "account_defaults:\n  default_bid_limit: -1\ntmax_adjustments:\n  bidder_network_latency_buffer_ms: -1\n"),
 		yamlFile("bid adjustments", "account_defaults:\n  bidadjustments:\n    mediatype:\n      '*':\n        '*':\n          '*':\n            - adjtype: multiplier\n              value: 1.01\n              currency: USD\n"),
 		yamlFile("bidder overrides", "adapters:\n  appnexus:\n    endpoint: https://a.example\n    disabled: true\n    modifyingVastXmlAllowed: false\n    gvlVendorID: 32\n    usersync:\n      key: adnxs\n      redirect:\n        url: https://s.example\n        user_macro: $UID\n    openrtb:\n      version: 2.6\n      gpp-supported: true\n    experiment:\n      adsCert:\n        enabled: true\n"),

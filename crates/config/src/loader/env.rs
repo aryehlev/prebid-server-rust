@@ -13,9 +13,8 @@
 use std::collections::BTreeMap;
 
 use config::{ConfigError, Environment, Map, Source as _};
-use pbs_gocompat::strings::to_upper;
 
-use super::defaults::UNPREFIXED_BINDINGS;
+use super::{defaults::UNPREFIXED_BINDINGS, goconv::to_upper};
 
 /// The variables of the environment snapshot Viper can read, by exact name; none is empty.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]

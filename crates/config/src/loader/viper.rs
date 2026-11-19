@@ -13,15 +13,11 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
-use pbs_gocompat::{
-    strconv::atoi,
-    strings::{to_lower, to_upper},
-};
-
 use super::{
     cast,
     defaults::{BIDDER_KEYS, DEFAULTS, UNPREFIXED_BINDINGS},
     env::EnvLayer,
+    goconv::{to_lower, to_upper},
     value::GoValue,
 };
 
@@ -329,8 +325,10 @@ fn search_indexable_with_path_prefixes_list(source: &[GoValue], path: &[&str]) -
     for i in (1..=path.len()).rev() {
         let prefix = path.get(..i)?;
         let key = to_lower(&prefix.join("."));
-        // Go: strconv.Atoi(prefixKey); a negative index panics in Go and finds nothing here.
-        let Some(next) = atoi(&key)
+        // Go: strconv.Atoi(prefixKey), whose syntax (an optional sign and decimal digits) is
+        // std's; a negative index panics in Go and finds nothing here.
+        let Some(next) = key
+            .parse::<i64>()
             .ok()
             .and_then(|index| usize::try_from(index).ok())
             .and_then(|index| source.get(index))

@@ -19,7 +19,6 @@ mod tests {
     use pbs_config::loader::{
         Decoded, GoValue, LoadError, Loader, SUPPORTED_EXTS, Settings, YamlFormat,
     };
-    use pbs_gocompat::strings::equal_fold;
     use serde::{Serialize, de::DeserializeOwned};
     use serde_json::{Map as JsonMap, Value as Json, json};
 
@@ -460,6 +459,7 @@ mod tests {
         ("toml date-time", "config.toml-reader"),
         ("toml local date in modules", "config.toml-reader"),
         ("yaml timestamps", "yaml.scalars"),
+        ("failing values are printed", "config.error-texts"),
     ];
 
     /// The ledger entry of a load whose result differs from Go's.
@@ -595,7 +595,7 @@ mod tests {
             let next = match value {
                 Decoded::Struct(fields) => fields
                     .iter()
-                    .find(|(name, _)| equal_fold(name, step))
+                    .find(|(name, _)| name.eq_ignore_ascii_case(step))
                     .map(|(_, field)| field),
                 Decoded::Map(Some(entries)) => entries
                     .iter()
@@ -1369,7 +1369,7 @@ mod tests {
             )?;
             names.push(input.name);
         }
-        check_eq(&names.len(), &3, "the loads whose result is Go's map order")?;
+        check_eq(&names.len(), &4, "the loads whose result is Go's map order")?;
         check_loads(&|name| names.iter().any(|n| n == name))?;
         check_matrix(&|_, _, outcomes| outcomes > 1)
     }
@@ -1495,54 +1495,38 @@ mod tests {
         )
     }
 
-    /// The `config` crate's `get` reports one key's error in its own words; mapstructure reports
-    /// every field that fails, sorted, which `config.New` wraps.
-    // Go: mapstructure.go v1.5.0 (Error.Error, decodeInt), config/config.go:758-760 (config.New)
+    /// A decode error lists the failures in mapstructure's words with `strconv.NumError`'s, but
+    /// prints the values in them as the loader prints them: a float as Rust spells it where Go's
+    /// `%v` writes `%g` (`1000000` for `1e+06`), and a string quoted as Rust quotes it where
+    /// `strconv.Quote` escapes differently (`\u{a0}` for `\u00a0`).
+    // Go: mapstructure.go v1.5.0 (Error.Error, decode, decodeInt), fmt's %v, strconv.Quote,
+    // config/config.go:758-760 (config.New)
     #[test]
     fn go_difference_error_texts() -> TestResult {
         let doc = golden("loads.json")?;
-        let load = golden_load(&doc, "several failures")?;
-        let config = Config::builder()
-            .add_source(File::from_str(text(load, "/files/pbs.yaml")?, YamlFormat))
-            .build()
-            .map_err(|e| e.to_string())?;
+        let name = "failing values are printed";
+        let (load, got) = load_named(&doc, name)?;
         check_eq(
-            text(load, "/error")?,
-            "3 error(s) decoding:\n\n\
-             * 'host_schain_node' expected a map, got 'string'\n\
-             * cannot parse 'account_defaults.cookie_sync.default_limit' as int: \
-             strconv.ParseInt: parsing \"x\": invalid syntax\n\
+            text(&load, "/error")?,
+            "2 error(s) decoding:\n\n\
+             * 'account_defaults.cookie_sync.default_limit' expected type 'int', got unconvertible \
+             type '[]interface {}', value: '[1e+06 1e-05]'\n\
              * cannot parse 'account_defaults.cookie_sync.max_limit' as int: strconv.ParseInt: \
-             parsing \"y\": invalid syntax",
+             parsing \"\\u00a0x\": invalid syntax",
             "mapstructure's error",
         )?;
-        let texts: Vec<String> = [
-            "host_schain_node",
-            "account_defaults.cookie_sync.default_limit",
-            "account_defaults.cookie_sync.max_limit",
-        ]
-        .iter()
-        .map(|key| {
-            let error = if *key == "host_schain_node" {
-                config.get::<BTreeMap<String, String>>(key).err()
-            } else {
-                config.get::<i64>(key).err()
-            };
-            error.map_or_default(|e| e.to_string())
-        })
-        .collect();
+        let rust = loaded(name, &got)?.decode().err().map(|e| e.to_string());
         check_eq(
-            &texts,
-            &[
-                "invalid type: string \"w\", expected a map for key `host_schain_node`",
-                "invalid type: string \"x\", expected an integer for key \
-                 `account_defaults.cookie_sync.default_limit`",
-                "invalid type: string \"y\", expected an integer for key \
-                 `account_defaults.cookie_sync.max_limit`",
-            ]
-            .map(str::to_owned)
-            .to_vec(),
-            "config's error for each key",
+            &rust,
+            &Some(
+                "viper failed to unmarshal app config: 2 error(s) decoding:\n\n\
+                 * 'account_defaults.cookie_sync.default_limit' expected type 'int', got \
+                 unconvertible type '[]interface {}', value: '[1000000 0.00001]'\n\
+                 * cannot parse 'account_defaults.cookie_sync.max_limit' as int: \
+                 strconv.ParseInt: parsing \"\\u{a0}x\": invalid syntax"
+                    .to_owned(),
+            ),
+            "the loader's error",
         )
     }
 

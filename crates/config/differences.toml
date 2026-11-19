@@ -115,14 +115,17 @@ go = """\
     Where `AllSettings` writes a key and a key under it (a file value under a key with a \
     default, such as `port:` with `a: 1` below it, or `{a: 1}` for a list key) or a `null` file \
     section with `PBS_` variables under it, the tree it builds and the decode of it depend on the \
-    order Go iterates a map in, which varies from run to run (viper.go:1940-1957 and 2021-2038)."""
+    order Go iterates a map in, which varies from run to run (viper.go:1940-1957 and 2021-2038). \
+    So does the vendor the account modules hook names when several modules do not marshal \
+    (config/account_module_decoder.go:16-50)."""
 rust = """\
     The loader takes the keys in sorted order, which gives one of Go's outcomes, the same on every \
     run."""
 who = ["operator"]
 visible_in = """\
     Startup with a configuration that gives a key a value and keys under it, or a null section \
-    with `PBS_` variables under it"""
+    with `PBS_` variables under it, and the startup error for account modules of which several \
+    do not marshal"""
 pin = "crates/config/tests/loader.rs::map_order_is_sorted"
 restore = "None: any one order is an order Go can take."
 
@@ -233,31 +236,56 @@ rule_b = "c"
 [[difference]]
 id = "config.error-texts"
 category = "config"
-status = "restored"
-title = """\
-    Config decode errors: mapstructure lists every field that fails in its words, the config \
-    crate stops at the first in its own"""
+status = "ledgered"
+title = "Config decode errors: mapstructure's words, with values printed as Rust prints them"
 go = """\
     `config.New` wraps mapstructure's error as `viper failed to unmarshal app config: ...` \
     (config/config.go:758-760) and main.go:42 logs it fatally: mapstructure lists every field \
-    that fails, sorted, as `3 error(s) decoding:` and lines such as `* cannot parse \
-    'account_defaults.cookie_sync.default_limit' as int: strconv.ParseInt: parsing \"x\": \
-    invalid syntax`."""
+    that fails, sorted, as `2 error(s) decoding:` and lines such as `* cannot parse \
+    'account_defaults.cookie_sync.max_limit' as int: strconv.ParseInt: parsing \"\\u00a0x\": \
+    invalid syntax`, printing values with fmt's `%v` (`[1e+06 1e-05]`) and quoting strings with \
+    `strconv.Quote`."""
 rust = """\
-    The config crate's `get` and `try_deserialize` stop at the first value that fails and word \
-    it their own way, as `invalid type: string \"x\", expected an integer` for the key."""
+    The loader gives the same wrapper and the same failures in the same order and words, but \
+    prints a float as Rust spells it (`[1000000 0.00001]`), quotes a string as Rust quotes it \
+    (`\"\\u{a0}x\"`), and lists the keys of a `map[interface{}]interface{}` value in the order \
+    of their text."""
 who = ["operator"]
 visible_in = """\
     The startup error for a configuration whose values do not decode into \
-    `config.Configuration`"""
+    `config.Configuration`, where a value it prints holds a float Go prints with an exponent, a \
+    character `strconv.Quote` escapes otherwise than Rust, or a map whose keys are not strings"""
 pin = "crates/config/tests/loader.rs::go_difference_error_texts"
 restore = """\
-    CONFIG-LOADER's decoder ports mapstructure's, with its error texts, and the loader wraps them \
-    as `config.New` does."""
-rule_b = "c"
+    Port fmt's `%v` and `strconv.Quote` with Go's Unicode tables; not planned (orchestrator \
+    ruling 2 ledgers library error wording)."""
 note = """\
-    The plan ledgered this difference, expecting the config crate's texts; the port of \
-    mapstructure that the weak typing needs gives Go's texts, so the loader keeps them."""
+    The wrapper is Prebid's text and stays exact (`error_wrapper_exact`), and the other decode \
+    errors of `loads.json`, `matrix.json` and `scalars.json` are Go's texts but for the quoting \
+    of the one `scalars.json` input holding U+00A0 and U+2003 \
+    (`weak_decode_matches_mapstructure`)."""
+
+[[difference]]
+id = "config.key-unicode"
+category = "config"
+status = "ledgered"
+title = "Key case: Go maps letters by Unicode 15.0.0, the loader by std's later Unicode tables"
+go = """\
+    Viper lower-cases the keys of the configuration file and upper-cases the `PBS_` names with \
+    `strings.ToLower` and `strings.ToUpper` (viper.go insensitiviseMap and mergeWithEnvPrefix, \
+    v1.12.0), and mapstructure matches keys to fields with `strings.EqualFold`; go1.26.2's tables \
+    are Unicode 15.0.0's, so a letter whose case pair a later version added, such as U+A7CB, \
+    U+10D50 or U+1C89, stays as it is."""
+rust = """\
+    The loader maps each character by its simple mapping as Go does, from std's tables, which \
+    are a later Unicode version's: those letters map to their pairs (U+A7CB to U+0264, U+10D50 \
+    to U+10D70, U+1C89 to U+1C8A)."""
+who = ["operator"]
+visible_in = """\
+    A key of the configuration file, such as a module's setting under `hooks.modules`, that \
+    holds a letter Unicode gave a case pair after 15.0.0"""
+pin = "crates/config/src/loader/tests.rs::case_mapping_matches_go"
+restore = "Carry Unicode 15.0.0's case tables for keys; not planned."
 
 [[difference]]
 id = "yaml.scalars"
@@ -312,6 +340,11 @@ id = "config.key-case"
 pin = "crates/config/tests/loader.rs::keys_lower_cased"
 
 [[restoration]]
+id = "config.key-case"
+pin = "crates/config/src/loader/tests.rs::case_mapping_matches_go"
+note = "`strings.ToLower`, `strings.ToUpper` and `strings.EqualFold` of non-ASCII keys, against Go's own results."
+
+[[restoration]]
 id = "config.weak-typing"
 pin = "crates/config/tests/loader.rs::weak_typing_matrix"
 
@@ -337,7 +370,3 @@ pin = "crates/config/tests/loader.rs::file_search_like_viper"
 id = "config.layering"
 pin = "crates/config/tests/loader.rs::loads_match_viper"
 note = "Every load of `loads.json`, the layering ones among them."
-
-[[restoration]]
-id = "config.error-texts"
-pin = "crates/config/tests/loader.rs::error_wrapper_exact"

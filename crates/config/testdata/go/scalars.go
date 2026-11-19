@@ -72,6 +72,38 @@ type scalarsDoc struct {
 	YAMLDocs    []yamlDoc    `json:"yaml_docs"`
 	Cast        []castRow    `json:"cast"`
 	Weak        []weakRow    `json:"weak"`
+	Case        []caseRow    `json:"case"`
+	Fold        []foldRow    `json:"fold"`
+}
+
+// caseKeys are keys whose case Viper maps (insensitiviseMap and the PBS_ names) with Go's
+// strings.ToLower and strings.ToUpper.
+var caseKeys = []string{
+	"Port", "GDPR.Default_Value", "größe", "\u0130stanbul", "ΣΊΣΥΦΟΣ", "ß", "\u1f80\u1f88\u1fb3\u1fc3\u1ff3",
+	"\u0149\ufb00\u0390", "\u017ftatus", "\u212aey", "ǅ", "\u0345",
+	// Case pairs Unicode added after 15.0.0, the version of Go's tables.
+	"\ua7cb", "\U00010d50", "\u1c89",
+}
+
+// caseRow is strings.ToLower and strings.ToUpper of a key.
+type caseRow struct {
+	Key   string `json:"key"`
+	Lower string `json:"lower"`
+	Upper string `json:"upper"`
+}
+
+// foldPairs are a key and a field name, as mapstructure compares them with strings.EqualFold.
+var foldPairs = [][2]string{
+	{"\u017ftatus_response", "status_response"}, {"\u212aey", "key"}, {"gvlvendorid", "gvlVendorID"},
+	{"modifyingvastxmlallowed", "modifyingVastXmlAllowed"}, {"port", "por"}, {"\u0131d", "id"},
+	{"\uff50ort", "port"}, {"\u0130d", "id"}, {"ﬀ", "ff"},
+}
+
+// foldRow is strings.EqualFold of a key and a field name.
+type foldRow struct {
+	Key   string `json:"key"`
+	Field string `json:"field"`
+	Equal bool   `json:"equal"`
 }
 
 // yamlScalarTexts are plain, quoted and tagged scalars.
@@ -165,8 +197,16 @@ var castInputs = []any{
 	" 1", "1 ", "1.0", "1.00", "1.5", "-1.0", "0x1F", "0X1F", "0o17", "017", "0b11", "1_000", "_1", "+5", "-5", "1e3",
 	"9223372036854775807", "9223372036854775808", "-9223372036854775809", "NaN", "Inf", "-inf", "infinity",
 	"a b", "a,b", " a  b ", "a\tb\nc", "\u00a0a\u2003b",
+	// strconv's syntax at its edges: hexadecimal floats, special values, separators and ranges.
+	"0x1p-2", "0x_1p4", "0X1P+3", "0x1.8p1", "0x1.8", "0x1p", "0x", "0x1p1_0", "-0x1p-1074", "0x1p1024",
+	"1e400", "-1e400", "1e-400", "+nan", "-nan", "+Inf", "INFINITY", "infinit", "infx",
+	"1__0", "0_17", "08", "1e", "1e+", ".", "+", "-", "-0", "1e1_0", ".5", "5.", "0.1", "3.4028236e38",
+	"18446744073709551615", "18446744073709551616", "-9223372036854775808", "1x", "0b102", "0o8",
+	"0x1F_", "+0x1F", "-0b11", "1.5.0", "1e5x",
 	0, 1, -1, 42, int64(1), int64(0), uint64(18446744073709551615),
 	0.0, 1.0, 1.5, -1.5, 1e21, math.NaN(), math.Inf(1),
+	// Go's float conversions at their edges: truncation, amd64's out-of-range results, float32.
+	2.9, -2.9, 1e19, 0.1, 3.4028235677973366e38, 5e-324,
 	true, false, nil,
 	[]any{"a", 1, nil, true, 1.5}, []any{}, []string{"a", "b"},
 	map[string]any{"a": 1}, map[string]any{},
@@ -250,7 +290,14 @@ func scalarsGolden() scalarsDoc {
 			"yaml_docs: yaml.v3 unmarshals the document into map[string]interface{} (Viper's YAML codec) and into interface{}.",
 			"cast: the cast v1.5.0 functions Viper's Get applies by the type of a key's default; Get drops the error and keeps the zero value.",
 			"weak: mapstructure v1.5.0 with WeaklyTypedInput and no hook into the target type; the value is in the typed form of encode.go (a struct as its non-zero fields).",
+			"case: strings.ToLower and strings.ToUpper of a key; fold: strings.EqualFold of a key and a field name.",
 		},
+	}
+	for _, key := range caseKeys {
+		doc.Case = append(doc.Case, caseRow{Key: key, Lower: strings.ToLower(key), Upper: strings.ToUpper(key)})
+	}
+	for _, pair := range foldPairs {
+		doc.Fold = append(doc.Fold, foldRow{Key: pair[0], Field: pair[1], Equal: strings.EqualFold(pair[0], pair[1])})
 	}
 	for _, text := range yamlScalarTexts {
 		var m map[string]any

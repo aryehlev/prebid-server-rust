@@ -8,7 +8,8 @@ use serde_json::Value as Json;
 
 use super::{
     cast,
-    decode::{Decoder, GoTypes},
+    decode::{Decoder, GoTypes, configuration_types},
+    goconv::{equal_fold, to_lower, to_upper},
     value::{GoValue, compact_float},
 };
 
@@ -44,57 +45,101 @@ fn map<const N: usize>(entries: [(&str, GoValue); N]) -> GoValue {
     )
 }
 
+/// The strings of `scalars.go`'s `castInputs`, in its order.
+const CAST_STRINGS: &[&str] = &[
+    "",
+    "true",
+    "TRUE",
+    "True",
+    "tRuE",
+    "t",
+    "T",
+    "1",
+    "0",
+    "f",
+    "F",
+    "false",
+    "yes",
+    "on",
+    "y",
+    "maybe",
+    " 1",
+    "1 ",
+    "1.0",
+    "1.00",
+    "1.5",
+    "-1.0",
+    "0x1F",
+    "0X1F",
+    "0o17",
+    "017",
+    "0b11",
+    "1_000",
+    "_1",
+    "+5",
+    "-5",
+    "1e3",
+    "9223372036854775807",
+    "9223372036854775808",
+    "-9223372036854775809",
+    "NaN",
+    "Inf",
+    "-inf",
+    "infinity",
+    "a b",
+    "a,b",
+    " a  b ",
+    "a\tb\nc",
+    "\u{a0}a\u{2003}b",
+    "0x1p-2",
+    "0x_1p4",
+    "0X1P+3",
+    "0x1.8p1",
+    "0x1.8",
+    "0x1p",
+    "0x",
+    "0x1p1_0",
+    "-0x1p-1074",
+    "0x1p1024",
+    "1e400",
+    "-1e400",
+    "1e-400",
+    "+nan",
+    "-nan",
+    "+Inf",
+    "INFINITY",
+    "infinit",
+    "infx",
+    "1__0",
+    "0_17",
+    "08",
+    "1e",
+    "1e+",
+    ".",
+    "+",
+    "-",
+    "-0",
+    "1e1_0",
+    ".5",
+    "5.",
+    "0.1",
+    "3.4028236e38",
+    "18446744073709551615",
+    "18446744073709551616",
+    "-9223372036854775808",
+    "1x",
+    "0b102",
+    "0o8",
+    "0x1F_",
+    "+0x1F",
+    "-0b11",
+    "1.5.0",
+    "1e5x",
+];
+
 /// `scalars.go`'s `castInputs`, in its order, as the Go values they are.
 fn cast_inputs() -> Vec<GoValue> {
-    let mut inputs: Vec<GoValue> = [
-        "",
-        "true",
-        "TRUE",
-        "True",
-        "tRuE",
-        "t",
-        "T",
-        "1",
-        "0",
-        "f",
-        "F",
-        "false",
-        "yes",
-        "on",
-        "y",
-        "maybe",
-        " 1",
-        "1 ",
-        "1.0",
-        "1.00",
-        "1.5",
-        "-1.0",
-        "0x1F",
-        "0X1F",
-        "0o17",
-        "017",
-        "0b11",
-        "1_000",
-        "_1",
-        "+5",
-        "-5",
-        "1e3",
-        "9223372036854775807",
-        "9223372036854775808",
-        "-9223372036854775809",
-        "NaN",
-        "Inf",
-        "-inf",
-        "infinity",
-        "a b",
-        "a,b",
-        " a  b ",
-        "a\tb\nc",
-        "\u{a0}a\u{2003}b",
-    ]
-    .into_iter()
-    .map(s)
-    .collect();
+    let mut inputs: Vec<GoValue> = CAST_STRINGS.iter().copied().map(s).collect();
     inputs.extend([
         GoValue::Int(0),
         GoValue::Int(1),
@@ -110,6 +155,12 @@ fn cast_inputs() -> Vec<GoValue> {
         GoValue::Float64(1e21),
         GoValue::Float64(f64::NAN),
         GoValue::Float64(f64::INFINITY),
+        GoValue::Float64(2.9),
+        GoValue::Float64(-2.9),
+        GoValue::Float64(1e19),
+        GoValue::Float64(0.1),
+        GoValue::Float64(f64::from_bits(0x47EF_FFFF_F000_0000)),
+        GoValue::Float64(f64::from_bits(1)),
         GoValue::Bool(true),
         GoValue::Bool(false),
         GoValue::Nil,
@@ -194,6 +245,74 @@ fn result_of(row: &Json) -> Result<Json, String> {
         || Ok(row.get("value").cloned().unwrap_or(Json::Null)),
         |error| Err(error.to_owned()),
     )
+}
+
+/// The cast input that `strconv.Quote` and Rust's quoting spell differently in an error text.
+const UNPRINTABLE: &str = "\u{a0}a\u{2003}b";
+
+/// Go's error text for `input`, with `input` quoted as Rust quotes it where that differs: Go
+/// writes U+00A0 and U+2003 as `\u00a0` and `\u2003`, Rust as `\u{a0}` and `\u{2003}` (ledger:
+/// `config.error-texts`).
+fn ledgered_quoting(input: &GoValue, go: &str) -> String {
+    if matches!(input, GoValue::String(text) if text == UNPRINTABLE) {
+        go.replace(r#""\u00a0a\u2003b""#, &format!("{UNPRINTABLE:?}"))
+    } else {
+        go.to_owned()
+    }
+}
+
+/// Viper's and mapstructure's case mapping of keys gives Go's: `strings.ToLower`,
+/// `strings.ToUpper` and `strings.EqualFold`, by each character's simple mapping. The letters
+/// whose case pair Unicode added after 15.0.0, the version of Go's tables, map by std's newer
+/// tables instead (ledger: `config.key-unicode`).
+// Go: strings.ToLower, strings.ToUpper, strings.EqualFold (go1.26.2, unicode.Version 15.0.0);
+// viper.go insensitiviseMap and mergeWithEnvPrefix (v1.12.0), mapstructure.go decodeStructFromMap
+#[test]
+fn case_mapping_matches_go() -> TestResult {
+    let newer_unicode = [
+        ("\u{a7cb}", "\u{264}"),
+        ("\u{10d50}", "\u{10d70}"),
+        ("\u{1c89}", "\u{1c8a}"),
+    ];
+    let mut failures = Vec::new();
+    for row in rows("case")? {
+        let field = |name: &str| row.get(name).and_then(Json::as_str).unwrap_or_default();
+        let key = field("key");
+        let lower = newer_unicode
+            .iter()
+            .find(|(letter, _)| *letter == key)
+            .map_or_else(|| field("lower"), |(_, std_lower)| std_lower);
+        if to_lower(key) != lower || to_upper(key) != field("upper") {
+            failures.push(format!(
+                "{key:?}: {:?} and {:?}, want {lower:?} and {:?}",
+                to_lower(key),
+                to_upper(key),
+                field("upper")
+            ));
+        }
+    }
+    for row in rows("fold")? {
+        let key = row.get("key").and_then(Json::as_str).unwrap_or_default();
+        let field = row.get("field").and_then(Json::as_str).unwrap_or_default();
+        let want = row.get("equal").and_then(Json::as_bool).unwrap_or_default();
+        if equal_fold(key, field) != want {
+            failures.push(format!("EqualFold({key:?}, {field:?}) is not {want}"));
+        }
+    }
+    let types = configuration_types()?;
+    if !types
+        .types
+        .values()
+        .flat_map(|t| &t.fields)
+        .all(|f| f.name.is_ascii())
+    {
+        failures.push("a field name of config.Configuration is not ASCII".to_owned());
+    }
+    if failures.is_empty() {
+        Ok(())
+    } else {
+        Err(failures.join("\n"))
+    }
 }
 
 /// Each cast Viper's `Get` applies by the type of a key's default gives cast's result, its zero
@@ -301,7 +420,7 @@ fn weak_decode_matches_mapstructure() -> TestResult {
             .decode("", input, ty, &mut out)
             .map(|()| out.compact())
             .map_err(|e| e.to_string());
-        let want = result_of(row);
+        let want = result_of(row).map_err(|go| ledgered_quoting(input, &go));
         if got != want {
             failures.push(format!("{input} into {target}: got {got:?}, want {want:?}"));
         }

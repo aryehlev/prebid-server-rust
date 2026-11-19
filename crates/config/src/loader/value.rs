@@ -9,10 +9,9 @@
 use std::{collections::BTreeMap, fmt};
 
 use config::{Value, ValueKind};
-use pbs_gocompat::fmt::{Value as FmtValue, sprint};
 use serde_json::{Map as JsonMap, Number, Value as Json};
 
-use super::cast;
+use super::{cast, goconv::float_text};
 
 /// A value of Go's `interface{}` as Viper holds it.
 #[derive(Debug, Clone, PartialEq)]
@@ -51,8 +50,22 @@ pub enum GoValue {
 impl GoValue {
     /// Go: `fmt.Sprintf("%T", v)`.
     #[must_use]
-    pub fn go_type(&self) -> String {
-        self.fmt_value().type_name().to_owned()
+    pub const fn go_type(&self) -> &'static str {
+        match self {
+            Self::Nil => "<nil>",
+            Self::Bool(_) => "bool",
+            Self::Int(_) => "int",
+            Self::Int64(_) => "int64",
+            Self::Uint64(_) => "uint64",
+            Self::Float64(_) => "float64",
+            Self::String(_) => "string",
+            Self::List(_) => "[]interface {}",
+            Self::Map(_) => "map[string]interface {}",
+            Self::AnyMap(_) => "map[interface {}]interface {}",
+            Self::Strings(_) => "[]string",
+            Self::StringLists(_) => "[][]string",
+            Self::EmptySlice(ty) => ty,
+        }
     }
 
     /// Go: the reflect kind mapstructure and Viper's `deepSearch` branch on, as `Kind.String()`
@@ -113,49 +126,6 @@ impl GoValue {
             | Self::Map(_)
             | Self::AnyMap(_)
             | Self::Strings(None) => None,
-        }
-    }
-
-    /// The value as `gocompat`'s fmt sees an `interface{}` holding it.
-    pub(super) fn fmt_value(&self) -> FmtValue {
-        match self {
-            Self::Nil => FmtValue::Nil,
-            Self::Bool(b) => FmtValue::Bool(*b),
-            Self::Int(i) => FmtValue::Int(*i),
-            Self::Int64(i) => FmtValue::Int64(*i),
-            Self::Uint64(u) => FmtValue::Uint64(*u),
-            Self::Float64(f) => FmtValue::Float64(*f),
-            Self::String(s) => FmtValue::String(s.clone()),
-            Self::List(items) => FmtValue::Slice {
-                ty: "[]interface {}".to_owned(),
-                elems: Some(items.iter().map(Self::fmt_value).collect()),
-            },
-            Self::Map(map) => FmtValue::Map {
-                ty: "map[string]interface {}".to_owned(),
-                entries: Some(
-                    map.iter()
-                        .map(|(k, v)| (FmtValue::String(k.clone()), v.fmt_value()))
-                        .collect(),
-                ),
-            },
-            Self::AnyMap(entries) => FmtValue::Map {
-                ty: "map[interface {}]interface {}".to_owned(),
-                entries: Some(
-                    entries
-                        .iter()
-                        .map(|(k, v)| (k.fmt_value(), v.fmt_value()))
-                        .collect(),
-                ),
-            },
-            Self::Strings(items) => strings_fmt(items.as_deref()),
-            Self::StringLists(lists) => FmtValue::Slice {
-                ty: "[][]string".to_owned(),
-                elems: Some(lists.iter().map(|l| strings_fmt(Some(l))).collect()),
-            },
-            Self::EmptySlice(ty) => FmtValue::Slice {
-                ty: (*ty).to_owned(),
-                elems: Some(Vec::new()),
-            },
         }
     }
 
@@ -225,12 +195,7 @@ impl GoValue {
             Self::AnyMap(entries) => {
                 let mut pairs: Vec<(String, Json)> = entries
                     .iter()
-                    .map(|(k, v)| {
-                        (
-                            sprint(&[k.fmt_value()]),
-                            Json::Array(vec![k.compact(), v.compact()]),
-                        )
-                    })
+                    .map(|(k, v)| (k.to_string(), Json::Array(vec![k.compact(), v.compact()])))
                     .collect();
                 pairs.sort_by(|a, b| a.0.cmp(&b.0));
                 tagged(
@@ -253,18 +218,71 @@ impl GoValue {
 }
 
 impl fmt::Display for GoValue {
-    /// Go: `fmt.Sprint(v)` (the `%v` verb).
+    /// The value laid out as Go's `%v` lays it out (`<nil>`, `[a b]`, `map[a:1 b:2]`), with
+    /// floats spelled by [`float_text`] where Go uses `%g` (`1000000` for Go's `1e+06`) and the
+    /// keys of a `map[interface{}]interface{}` in the order of their text (ledger:
+    /// `config.error-texts`).
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str(&sprint(&[self.fmt_value()]))
+        match self {
+            Self::Nil => f.write_str("<nil>"),
+            Self::Bool(b) => write!(f, "{b}"),
+            Self::Int(i) | Self::Int64(i) => write!(f, "{i}"),
+            Self::Uint64(u) => write!(f, "{u}"),
+            Self::Float64(x) => f.write_str(&float_text(*x)),
+            Self::String(s) => f.write_str(s),
+            Self::List(items) => write_list(f, items),
+            Self::Strings(items) => write_list(f, items.iter().flatten()),
+            Self::StringLists(lists) => {
+                f.write_str("[")?;
+                for (i, list) in lists.iter().enumerate() {
+                    if i > 0 {
+                        f.write_str(" ")?;
+                    }
+                    write_list(f, list)?;
+                }
+                f.write_str("]")
+            }
+            Self::EmptySlice(_) => f.write_str("[]"),
+            Self::Map(map) => write_map(f, map.iter().map(|(k, v)| (k.clone(), v))),
+            Self::AnyMap(entries) => {
+                let mut pairs: Vec<(String, &Self)> =
+                    entries.iter().map(|(k, v)| (k.to_string(), v)).collect();
+                pairs.sort_by(|a, b| a.0.cmp(&b.0));
+                write_map(f, pairs)
+            }
+        }
     }
 }
 
-/// A `[]string` for `gocompat`'s fmt.
-fn strings_fmt(items: Option<&[String]>) -> FmtValue {
-    FmtValue::Slice {
-        ty: "[]string".to_owned(),
-        elems: items.map(|items| items.iter().map(|s| FmtValue::String(s.clone())).collect()),
+/// Go's `%v` of a slice: `[` and the elements, space-separated, then `]`.
+fn write_list<I>(f: &mut fmt::Formatter<'_>, items: I) -> fmt::Result
+where
+    I: IntoIterator,
+    I::Item: fmt::Display,
+{
+    f.write_str("[")?;
+    for (i, item) in items.into_iter().enumerate() {
+        if i > 0 {
+            f.write_str(" ")?;
+        }
+        write!(f, "{item}")?;
     }
+    f.write_str("]")
+}
+
+/// Go's `%v` of a map: `map[`, then `key:value` pairs in the order given, then `]`.
+fn write_map<'a, I>(f: &mut fmt::Formatter<'_>, pairs: I) -> fmt::Result
+where
+    I: IntoIterator<Item = (String, &'a GoValue)>,
+{
+    f.write_str("map[")?;
+    for (i, (key, value)) in pairs.into_iter().enumerate() {
+        if i > 0 {
+            f.write_str(" ")?;
+        }
+        write!(f, "{key}:{value}")?;
+    }
+    f.write_str("]")
 }
 
 /// `{"<tag>": value}`.

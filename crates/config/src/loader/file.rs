@@ -20,7 +20,6 @@ use std::{
 };
 
 use config::{FileFormat, FileStoredFormat, Format, Map, Value, ValueKind};
-use pbs_gocompat::strconv::quote;
 use serde::de::{self, Deserialize, Deserializer, IgnoredAny, MapAccess, SeqAccess, Visitor};
 use serde_json::Value as Json;
 use serde_saphyr::{
@@ -99,9 +98,8 @@ pub(super) fn search(name: &str, search_paths: &[PathBuf]) -> Found {
     }
     let locations: Vec<String> = search_paths.iter().map(|p| abs_pathify(p)).collect();
     Found::Missing(format!(
-        "Config File {} Not Found in {}",
-        quote(name),
-        quote(&format!("[{}]", locations.join(" ")))
+        "Config File {name:?} Not Found in {:?}",
+        format!("[{}]", locations.join(" "))
     ))
 }
 

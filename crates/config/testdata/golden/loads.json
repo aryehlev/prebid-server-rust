@@ -16205,6 +16205,43 @@
       }
     },
     {
+      "name": "failing values are printed",
+      "files": {
+        "pbs.yaml": "account_defaults:\n  cookie_sync:\n    default_limit: [1000000.0, 0.00001]\n    max_limit: \" x\"\n"
+      },
+      "bidders": [
+        "appnexus",
+        "rubicon"
+      ],
+      "read_error": "",
+      "file_used": "first:pbs.yaml",
+      "error": "2 error(s) decoding:\n\n* 'account_defaults.cookie_sync.default_limit' expected type 'int', got unconvertible type '[]interface {}', value: '[1e+06 1e-05]'\n* cannot parse 'account_defaults.cookie_sync.max_limit' as int: strconv.ParseInt: parsing \"\\u00a0x\": invalid syntax",
+      "settings": {
+        "set": [
+          {
+            "path": [
+              "account_defaults",
+              "cookie_sync",
+              "default_limit"
+            ],
+            "value": [
+              1e+06,
+              1e-05
+            ]
+          },
+          {
+            "path": [
+              "account_defaults",
+              "cookie_sync",
+              "max_limit"
+            ],
+            "value": " x"
+          }
+        ],
+        "unset": []
+      }
+    },
+    {
       "name": "uint overflow wraps",
       "files": {
         "pbs.yaml": "account_defaults:\n  default_bid_limit: -1\ntmax_adjustments:\n  bidder_network_latency_buffer_ms: -1\n"
@@ -17105,6 +17142,90 @@
               "is_set": true,
               "get": false
             }
+          }
+        }
+      ]
+    },
+    {
+      "name": "account modules failing in map order",
+      "files": {
+        "pbs.yaml": "account_defaults:\n  hooks:\n    modules:\n      a:\n        m:\n          x: .nan\n      b:\n        m:\n          x: .inf\n"
+      },
+      "bidders": [
+        "appnexus",
+        "rubicon"
+      ],
+      "outcomes": [
+        {
+          "read_error": "",
+          "file_used": "first:pbs.yaml",
+          "error": "1 error(s) decoding:\n\n* error decoding 'account_defaults.hooks.modules': failed to convert account modules map: failed to marshal value for a.m: unsupported value: NaN",
+          "settings": {
+            "set": [
+              {
+                "path": [
+                  "account_defaults",
+                  "hooks",
+                  "modules",
+                  "a",
+                  "m",
+                  "x"
+                ],
+                "value": {
+                  "$float64": "NaN"
+                }
+              },
+              {
+                "path": [
+                  "account_defaults",
+                  "hooks",
+                  "modules",
+                  "b",
+                  "m",
+                  "x"
+                ],
+                "value": {
+                  "$float64": "+Inf"
+                }
+              }
+            ],
+            "unset": []
+          }
+        },
+        {
+          "read_error": "",
+          "file_used": "first:pbs.yaml",
+          "error": "1 error(s) decoding:\n\n* error decoding 'account_defaults.hooks.modules': failed to convert account modules map: failed to marshal value for b.m: unsupported value: +Inf",
+          "settings": {
+            "set": [
+              {
+                "path": [
+                  "account_defaults",
+                  "hooks",
+                  "modules",
+                  "a",
+                  "m",
+                  "x"
+                ],
+                "value": {
+                  "$float64": "NaN"
+                }
+              },
+              {
+                "path": [
+                  "account_defaults",
+                  "hooks",
+                  "modules",
+                  "b",
+                  "m",
+                  "x"
+                ],
+                "value": {
+                  "$float64": "+Inf"
+                }
+              }
+            ],
+            "unset": []
           }
         }
       ]

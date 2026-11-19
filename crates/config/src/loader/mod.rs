@@ -32,6 +32,7 @@ mod decode;
 mod defaults;
 mod env;
 mod file;
+mod goconv;
 #[cfg(test)]
 mod tests;
 mod value;

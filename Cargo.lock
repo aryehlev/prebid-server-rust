@@ -995,7 +995,6 @@ version = "0.1.0"
 dependencies = [
  "config",
  "pbs-devtools",
- "pbs-gocompat",
  "serde",
  "serde-saphyr",
  "serde_json",
