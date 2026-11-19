@@ -21,7 +21,10 @@ hyper-util = { workspace = true, features = ["server-graceful", "service"] }
 tokio = { workspace = true }
 tower-http = { workspace = true }
 
-# The wire pins read Go's goldens, check CRC-32s and gunzip with flate2.
+# The wire pins read Go's goldens, check CRC-32s and gunzip with flate2, and serve /static with
+# tower-http's ServeDir behind pbs-router's middleware, as ROUTER-MAIN will.
 [dev-dependencies]
 flate2 = { workspace = true }
+pbs-router = { path = "../router", version = "0.1.0" }
 serde_json = { workspace = true }
+tower-http = { workspace = true, features = ["fs"] }

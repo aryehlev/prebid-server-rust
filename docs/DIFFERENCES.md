@@ -26,11 +26,11 @@ Rule B's cases: (a) input real production traffic sends that the crate would rej
 | Prometheus metrics | 0 | 1 | 0 |
 | Public suffix list | 1 | 0 | 0 |
 | Regular expressions | 0 | 0 | 2 |
-| HTTP server | 0 | 20 | 4 |
+| HTTP server | 0 | 21 | 4 |
 | Time formatting | 0 | 0 | 1 |
 | URLs | 0 | 1 | 0 |
 | YAML | 0 | 1 | 0 |
-| All | 5 | 60 | 16 |
+| All | 5 | 61 | 16 |
 
 ## Decisions pending
 
@@ -955,6 +955,16 @@ No entry names the classes `other` and `unrecorded` or the kinds `stage_missing`
 - **Visible in:** Connections on their first request when the server stops on SIGTERM or SIGINT
 - **Harness:** none
 - **Pin:** `crates/server/tests/wire.rs::shutdown_new_connections`
+- **Recorded in:** `crates/server/differences.toml`
+
+#### `server.static-files`: /static: `http.FileServer`'s listings, redirects, types and error texts against tower-http `ServeDir`'s
+
+- **Go:** `ServeFiles` serves `/static/*filepath` with `http.FileServer` (router/router.go:295; httprouter v1.3.0 router.go:296-307): it lists a directory without `index.html`, redirects `/index.html` to `./` and a directory without its slash or a file with one with 301 and a relative `Location`, types files with Go's table (`text/plain; charset=utf-8`, `text/html; charset=utf-8`) and sniffs the ones whose extension it does not know, answers 404 and 416 with its text and without `NoCache`'s `Cache-Control` (`serveError`, net/http/fs.go:188-212), sends `Last-Modified` with a 304, and HEAD gets httprouter's 405.
+- **Rust:** `ServeDir` answers a directory without `index.html` with 404, serves `/index.html` and a file with a trailing slash, redirects a directory without its slash with 307 to an absolute `Location`, types files with `mime_guess`'s table (`text/plain`, `text/html`, unknown extensions `application/octet-stream`), answers 404 and 416 with an empty body and `NoCache`'s headers, sends no `Last-Modified` with a 304, and serves HEAD. Files, ranges and conditional requests are otherwise answered alike.
+- **Who notices:** publisher
+- **Visible in:** Answers under /static, the bidder parameter schemas and the other static files
+- **Harness:** none
+- **Pin:** `crates/server/tests/static.rs::file_server`
 - **Recorded in:** `crates/server/differences.toml`
 
 #### `server.timeouts`: Read and write budgets: net/http's `ReadTimeout` and `WriteTimeout`, pbs-server's head, idle and body budgets with no write deadline
