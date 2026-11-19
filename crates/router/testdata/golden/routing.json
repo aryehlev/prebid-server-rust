@@ -1,0 +1,415 @@
+{
+  "header": {
+    "go_version": "go1.26.2",
+    "goarch": "amd64",
+    "upstream": "v4.11.2-0.20261112141353-4e296450de2f",
+    "modules": {
+      "github.com/julienschmidt/httprouter": "v1.3.0",
+      "github.com/rs/cors": "v1.11.0"
+    },
+    "generator": "crates/router/testdata/go"
+  },
+  "host": "pbs.example",
+  "origin": "https://publisher.example",
+  "routes": [
+    {
+      "method": "POST",
+      "path": "/openrtb2/auction",
+      "name": "auction"
+    },
+    {
+      "method": "POST",
+      "path": "/openrtb2/video",
+      "name": "video"
+    },
+    {
+      "method": "GET",
+      "path": "/openrtb2/amp",
+      "name": "amp"
+    },
+    {
+      "method": "GET",
+      "path": "/info/bidders",
+      "name": "bidders"
+    },
+    {
+      "method": "GET",
+      "path": "/info/bidders/:bidderName",
+      "name": "bidder"
+    },
+    {
+      "method": "GET",
+      "path": "/bidders/params",
+      "name": "params"
+    },
+    {
+      "method": "POST",
+      "path": "/cookie_sync",
+      "name": "cookie_sync"
+    },
+    {
+      "method": "GET",
+      "path": "/status",
+      "name": "status"
+    },
+    {
+      "method": "GET",
+      "path": "/",
+      "name": "index"
+    },
+    {
+      "method": "GET",
+      "path": "/version",
+      "name": "version"
+    },
+    {
+      "method": "GET",
+      "path": "/static/*filepath",
+      "name": "static"
+    },
+    {
+      "method": "POST",
+      "path": "/vtrack",
+      "name": "vtrack"
+    },
+    {
+      "method": "GET",
+      "path": "/event",
+      "name": "event"
+    },
+    {
+      "method": "GET",
+      "path": "/setuid",
+      "name": "setuid"
+    },
+    {
+      "method": "GET",
+      "path": "/getuids",
+      "name": "getuids"
+    },
+    {
+      "method": "POST",
+      "path": "/optout",
+      "name": "optout"
+    },
+    {
+      "method": "GET",
+      "path": "/optout",
+      "name": "optout"
+    }
+  ],
+  "cases": [
+    {
+      "group": "not_found",
+      "name": "unknown_path",
+      "request_head": "GET /nope HTTP/1.1\r\nHost: pbs.example\r\nConnection: close\r\n\r\n",
+      "body_len": 0,
+      "response_head": "HTTP/1.1 404 Not Found\r\nCache-Control: no-cache, no-store, must-revalidate\r\nContent-Type: text/plain; charset=utf-8\r\nExpires: 0\r\nPragma: no-cache\r\nVary: Origin\r\nX-Content-Type-Options: nosniff\r\nDate: <date>\r\nContent-Length: 19\r\nConnection: close",
+      "body": "404 page not found\n"
+    },
+    {
+      "group": "not_found",
+      "name": "route_prefix",
+      "request_head": "GET /openrtb2 HTTP/1.1\r\nHost: pbs.example\r\nConnection: close\r\n\r\n",
+      "body_len": 0,
+      "response_head": "HTTP/1.1 404 Not Found\r\nCache-Control: no-cache, no-store, must-revalidate\r\nContent-Type: text/plain; charset=utf-8\r\nExpires: 0\r\nPragma: no-cache\r\nVary: Origin\r\nX-Content-Type-Options: nosniff\r\nDate: <date>\r\nContent-Length: 19\r\nConnection: close",
+      "body": "404 page not found\n"
+    },
+    {
+      "group": "not_found",
+      "name": "extra_segment",
+      "request_head": "GET /info/bidders/appnexus/extra HTTP/1.1\r\nHost: pbs.example\r\nConnection: close\r\n\r\n",
+      "body_len": 0,
+      "response_head": "HTTP/1.1 404 Not Found\r\nCache-Control: no-cache, no-store, must-revalidate\r\nContent-Type: text/plain; charset=utf-8\r\nExpires: 0\r\nPragma: no-cache\r\nVary: Origin\r\nX-Content-Type-Options: nosniff\r\nDate: <date>\r\nContent-Length: 19\r\nConnection: close",
+      "body": "404 page not found\n"
+    },
+    {
+      "group": "not_found",
+      "name": "unknown_path_post",
+      "request_head": "POST /nope HTTP/1.1\r\nHost: pbs.example\r\nContent-Length: 2\r\nConnection: close\r\n\r\n",
+      "body_len": 2,
+      "response_head": "HTTP/1.1 404 Not Found\r\nCache-Control: no-cache, no-store, must-revalidate\r\nContent-Type: text/plain; charset=utf-8\r\nExpires: 0\r\nPragma: no-cache\r\nVary: Origin\r\nX-Content-Type-Options: nosniff\r\nDate: <date>\r\nContent-Length: 19\r\nConnection: close",
+      "body": "404 page not found\n"
+    },
+    {
+      "group": "redirects",
+      "name": "trailing_slash",
+      "request_head": "GET /status/ HTTP/1.1\r\nHost: pbs.example\r\nConnection: close\r\n\r\n",
+      "body_len": 0,
+      "response_head": "HTTP/1.1 301 Moved Permanently\r\nCache-Control: no-cache, no-store, must-revalidate\r\nContent-Type: text/html; charset=utf-8\r\nExpires: 0\r\nLocation: /status\r\nPragma: no-cache\r\nVary: Origin\r\nDate: <date>\r\nContent-Length: 42\r\nConnection: close",
+      "body": "<a href=\"/status\">Moved Permanently</a>.\n\n"
+    },
+    {
+      "group": "redirects",
+      "name": "trailing_slash_post",
+      "request_head": "POST /openrtb2/auction/ HTTP/1.1\r\nHost: pbs.example\r\nContent-Length: 2\r\nConnection: close\r\n\r\n",
+      "body_len": 2,
+      "response_head": "HTTP/1.1 307 Temporary Redirect\r\nCache-Control: no-cache, no-store, must-revalidate\r\nExpires: 0\r\nLocation: /openrtb2/auction\r\nPragma: no-cache\r\nVary: Origin\r\nDate: <date>\r\nContent-Length: 0\r\nConnection: close",
+      "body": ""
+    },
+    {
+      "group": "redirects",
+      "name": "trailing_slash_query",
+      "request_head": "GET /status/?a=1 HTTP/1.1\r\nHost: pbs.example\r\nConnection: close\r\n\r\n",
+      "body_len": 0,
+      "response_head": "HTTP/1.1 301 Moved Permanently\r\nCache-Control: no-cache, no-store, must-revalidate\r\nContent-Type: text/html; charset=utf-8\r\nExpires: 0\r\nLocation: /status?a=1\r\nPragma: no-cache\r\nVary: Origin\r\nDate: <date>\r\nContent-Length: 46\r\nConnection: close",
+      "body": "<a href=\"/status?a=1\">Moved Permanently</a>.\n\n"
+    },
+    {
+      "group": "redirects",
+      "name": "missing_slash",
+      "request_head": "GET /static HTTP/1.1\r\nHost: pbs.example\r\nConnection: close\r\n\r\n",
+      "body_len": 0,
+      "response_head": "HTTP/1.1 301 Moved Permanently\r\nCache-Control: no-cache, no-store, must-revalidate\r\nContent-Type: text/html; charset=utf-8\r\nExpires: 0\r\nLocation: /static/\r\nPragma: no-cache\r\nVary: Origin\r\nDate: <date>\r\nContent-Length: 43\r\nConnection: close",
+      "body": "<a href=\"/static/\">Moved Permanently</a>.\n\n"
+    },
+    {
+      "group": "redirects",
+      "name": "case_fixed",
+      "request_head": "GET /STATUS HTTP/1.1\r\nHost: pbs.example\r\nConnection: close\r\n\r\n",
+      "body_len": 0,
+      "response_head": "HTTP/1.1 301 Moved Permanently\r\nCache-Control: no-cache, no-store, must-revalidate\r\nContent-Type: text/html; charset=utf-8\r\nExpires: 0\r\nLocation: /status\r\nPragma: no-cache\r\nVary: Origin\r\nDate: <date>\r\nContent-Length: 42\r\nConnection: close",
+      "body": "<a href=\"/status\">Moved Permanently</a>.\n\n"
+    },
+    {
+      "group": "redirects",
+      "name": "case_fixed_post",
+      "request_head": "POST /OPENRTB2/AUCTION HTTP/1.1\r\nHost: pbs.example\r\nContent-Length: 2\r\nConnection: close\r\n\r\n",
+      "body_len": 2,
+      "response_head": "HTTP/1.1 307 Temporary Redirect\r\nCache-Control: no-cache, no-store, must-revalidate\r\nExpires: 0\r\nLocation: /openrtb2/auction\r\nPragma: no-cache\r\nVary: Origin\r\nDate: <date>\r\nContent-Length: 0\r\nConnection: close",
+      "body": ""
+    },
+    {
+      "group": "redirects",
+      "name": "case_fixed_param",
+      "request_head": "GET /Info/Bidders/AppNexus HTTP/1.1\r\nHost: pbs.example\r\nConnection: close\r\n\r\n",
+      "body_len": 0,
+      "response_head": "HTTP/1.1 301 Moved Permanently\r\nCache-Control: no-cache, no-store, must-revalidate\r\nContent-Type: text/html; charset=utf-8\r\nExpires: 0\r\nLocation: /info/bidders/AppNexus\r\nPragma: no-cache\r\nVary: Origin\r\nDate: <date>\r\nContent-Length: 57\r\nConnection: close",
+      "body": "<a href=\"/info/bidders/AppNexus\">Moved Permanently</a>.\n\n"
+    },
+    {
+      "group": "redirects",
+      "name": "double_slash",
+      "request_head": "GET //status HTTP/1.1\r\nHost: pbs.example\r\nConnection: close\r\n\r\n",
+      "body_len": 0,
+      "response_head": "HTTP/1.1 301 Moved Permanently\r\nCache-Control: no-cache, no-store, must-revalidate\r\nContent-Type: text/html; charset=utf-8\r\nExpires: 0\r\nLocation: /status\r\nPragma: no-cache\r\nVary: Origin\r\nDate: <date>\r\nContent-Length: 42\r\nConnection: close",
+      "body": "<a href=\"/status\">Moved Permanently</a>.\n\n"
+    },
+    {
+      "group": "redirects",
+      "name": "dot_segments",
+      "request_head": "GET /info/../status HTTP/1.1\r\nHost: pbs.example\r\nConnection: close\r\n\r\n",
+      "body_len": 0,
+      "response_head": "HTTP/1.1 301 Moved Permanently\r\nCache-Control: no-cache, no-store, must-revalidate\r\nContent-Type: text/html; charset=utf-8\r\nExpires: 0\r\nLocation: /status\r\nPragma: no-cache\r\nVary: Origin\r\nDate: <date>\r\nContent-Length: 42\r\nConnection: close",
+      "body": "<a href=\"/status\">Moved Permanently</a>.\n\n"
+    },
+    {
+      "group": "method_not_allowed",
+      "name": "put_get_route",
+      "request_head": "PUT /status HTTP/1.1\r\nHost: pbs.example\r\nConnection: close\r\n\r\n",
+      "body_len": 0,
+      "response_head": "HTTP/1.1 405 Method Not Allowed\r\nAllow: GET, OPTIONS\r\nCache-Control: no-cache, no-store, must-revalidate\r\nContent-Type: text/plain; charset=utf-8\r\nExpires: 0\r\nPragma: no-cache\r\nVary: Origin\r\nX-Content-Type-Options: nosniff\r\nDate: <date>\r\nContent-Length: 19\r\nConnection: close",
+      "body": "Method Not Allowed\n"
+    },
+    {
+      "group": "method_not_allowed",
+      "name": "delete_post_route",
+      "request_head": "DELETE /openrtb2/auction HTTP/1.1\r\nHost: pbs.example\r\nConnection: close\r\n\r\n",
+      "body_len": 0,
+      "response_head": "HTTP/1.1 405 Method Not Allowed\r\nAllow: OPTIONS, POST\r\nCache-Control: no-cache, no-store, must-revalidate\r\nContent-Type: text/plain; charset=utf-8\r\nExpires: 0\r\nPragma: no-cache\r\nVary: Origin\r\nX-Content-Type-Options: nosniff\r\nDate: <date>\r\nContent-Length: 19\r\nConnection: close",
+      "body": "Method Not Allowed\n"
+    },
+    {
+      "group": "method_not_allowed",
+      "name": "get_post_route",
+      "request_head": "GET /openrtb2/auction HTTP/1.1\r\nHost: pbs.example\r\nConnection: close\r\n\r\n",
+      "body_len": 0,
+      "response_head": "HTTP/1.1 405 Method Not Allowed\r\nAllow: OPTIONS, POST\r\nCache-Control: no-cache, no-store, must-revalidate\r\nContent-Type: text/plain; charset=utf-8\r\nExpires: 0\r\nPragma: no-cache\r\nVary: Origin\r\nX-Content-Type-Options: nosniff\r\nDate: <date>\r\nContent-Length: 19\r\nConnection: close",
+      "body": "Method Not Allowed\n"
+    },
+    {
+      "group": "method_not_allowed",
+      "name": "patch_get_post_route",
+      "request_head": "PATCH /optout HTTP/1.1\r\nHost: pbs.example\r\nConnection: close\r\n\r\n",
+      "body_len": 0,
+      "response_head": "HTTP/1.1 405 Method Not Allowed\r\nAllow: GET, OPTIONS, POST\r\nCache-Control: no-cache, no-store, must-revalidate\r\nContent-Type: text/plain; charset=utf-8\r\nExpires: 0\r\nPragma: no-cache\r\nVary: Origin\r\nX-Content-Type-Options: nosniff\r\nDate: <date>\r\nContent-Length: 19\r\nConnection: close",
+      "body": "Method Not Allowed\n"
+    },
+    {
+      "group": "method_not_allowed",
+      "name": "post_param_route",
+      "request_head": "POST /info/bidders/appnexus HTTP/1.1\r\nHost: pbs.example\r\nContent-Length: 2\r\nConnection: close\r\n\r\n",
+      "body_len": 2,
+      "response_head": "HTTP/1.1 405 Method Not Allowed\r\nAllow: GET, OPTIONS\r\nCache-Control: no-cache, no-store, must-revalidate\r\nContent-Type: text/plain; charset=utf-8\r\nExpires: 0\r\nPragma: no-cache\r\nVary: Origin\r\nX-Content-Type-Options: nosniff\r\nDate: <date>\r\nContent-Length: 19\r\nConnection: close",
+      "body": "Method Not Allowed\n"
+    },
+    {
+      "group": "options",
+      "name": "options_get_route",
+      "request_head": "OPTIONS /status HTTP/1.1\r\nHost: pbs.example\r\nConnection: close\r\n\r\n",
+      "body_len": 0,
+      "response_head": "HTTP/1.1 200 OK\r\nAllow: GET, OPTIONS\r\nCache-Control: no-cache, no-store, must-revalidate\r\nExpires: 0\r\nPragma: no-cache\r\nVary: Origin\r\nDate: <date>\r\nContent-Length: 0\r\nConnection: close",
+      "body": ""
+    },
+    {
+      "group": "options",
+      "name": "options_post_route",
+      "request_head": "OPTIONS /openrtb2/auction HTTP/1.1\r\nHost: pbs.example\r\nConnection: close\r\n\r\n",
+      "body_len": 0,
+      "response_head": "HTTP/1.1 200 OK\r\nAllow: OPTIONS, POST\r\nCache-Control: no-cache, no-store, must-revalidate\r\nExpires: 0\r\nPragma: no-cache\r\nVary: Origin\r\nDate: <date>\r\nContent-Length: 0\r\nConnection: close",
+      "body": ""
+    },
+    {
+      "group": "options",
+      "name": "options_unknown",
+      "request_head": "OPTIONS /nope HTTP/1.1\r\nHost: pbs.example\r\nConnection: close\r\n\r\n",
+      "body_len": 0,
+      "response_head": "HTTP/1.1 404 Not Found\r\nCache-Control: no-cache, no-store, must-revalidate\r\nContent-Type: text/plain; charset=utf-8\r\nExpires: 0\r\nPragma: no-cache\r\nVary: Origin\r\nX-Content-Type-Options: nosniff\r\nDate: <date>\r\nContent-Length: 19\r\nConnection: close",
+      "body": "404 page not found\n"
+    },
+    {
+      "group": "options",
+      "name": "options_asterisk",
+      "request_head": "OPTIONS * HTTP/1.1\r\nHost: pbs.example\r\nConnection: close\r\n\r\n",
+      "body_len": 0,
+      "response_head": "HTTP/1.1 200 OK\r\nContent-Length: 0\r\nDate: <date>\r\nConnection: close",
+      "body": ""
+    },
+    {
+      "group": "head",
+      "name": "head_get_route",
+      "request_head": "HEAD /status HTTP/1.1\r\nHost: pbs.example\r\nConnection: close\r\n\r\n",
+      "body_len": 0,
+      "response_head": "HTTP/1.1 405 Method Not Allowed\r\nAllow: GET, OPTIONS\r\nCache-Control: no-cache, no-store, must-revalidate\r\nContent-Type: text/plain; charset=utf-8\r\nExpires: 0\r\nPragma: no-cache\r\nVary: Origin\r\nX-Content-Type-Options: nosniff\r\nDate: <date>\r\nContent-Length: 19\r\nConnection: close",
+      "body": ""
+    },
+    {
+      "group": "head",
+      "name": "head_post_route",
+      "request_head": "HEAD /openrtb2/auction HTTP/1.1\r\nHost: pbs.example\r\nConnection: close\r\n\r\n",
+      "body_len": 0,
+      "response_head": "HTTP/1.1 405 Method Not Allowed\r\nAllow: OPTIONS, POST\r\nCache-Control: no-cache, no-store, must-revalidate\r\nContent-Type: text/plain; charset=utf-8\r\nExpires: 0\r\nPragma: no-cache\r\nVary: Origin\r\nX-Content-Type-Options: nosniff\r\nDate: <date>\r\nContent-Length: 19\r\nConnection: close",
+      "body": ""
+    },
+    {
+      "group": "head",
+      "name": "head_unknown",
+      "request_head": "HEAD /nope HTTP/1.1\r\nHost: pbs.example\r\nConnection: close\r\n\r\n",
+      "body_len": 0,
+      "response_head": "HTTP/1.1 404 Not Found\r\nCache-Control: no-cache, no-store, must-revalidate\r\nContent-Type: text/plain; charset=utf-8\r\nExpires: 0\r\nPragma: no-cache\r\nVary: Origin\r\nX-Content-Type-Options: nosniff\r\nDate: <date>\r\nContent-Length: 19\r\nConnection: close",
+      "body": ""
+    },
+    {
+      "group": "decoded_path",
+      "name": "encoded_letter",
+      "request_head": "GET /st%61tus HTTP/1.1\r\nHost: pbs.example\r\nConnection: close\r\n\r\n",
+      "body_len": 0,
+      "response_head": "HTTP/1.1 200 OK\r\nCache-Control: no-cache, no-store, must-revalidate\r\nContent-Type: text/plain; charset=utf-8\r\nExpires: 0\r\nPragma: no-cache\r\nVary: Origin\r\nDate: <date>\r\nContent-Length: 20\r\nConnection: close",
+      "body": "route=status body=0\n"
+    },
+    {
+      "group": "decoded_path",
+      "name": "encoded_param",
+      "request_head": "GET /info/bidders/app%6Eexus HTTP/1.1\r\nHost: pbs.example\r\nConnection: close\r\n\r\n",
+      "body_len": 0,
+      "response_head": "HTTP/1.1 200 OK\r\nCache-Control: no-cache, no-store, must-revalidate\r\nContent-Type: text/plain; charset=utf-8\r\nExpires: 0\r\nPragma: no-cache\r\nVary: Origin\r\nDate: <date>\r\nContent-Length: 40\r\nConnection: close",
+      "body": "route=bidder bidderName=appnexus body=0\n"
+    },
+    {
+      "group": "decoded_path",
+      "name": "encoded_slash_param",
+      "request_head": "GET /info/bidders/a%2Fb HTTP/1.1\r\nHost: pbs.example\r\nConnection: close\r\n\r\n",
+      "body_len": 0,
+      "response_head": "HTTP/1.1 404 Not Found\r\nCache-Control: no-cache, no-store, must-revalidate\r\nContent-Type: text/plain; charset=utf-8\r\nExpires: 0\r\nPragma: no-cache\r\nVary: Origin\r\nX-Content-Type-Options: nosniff\r\nDate: <date>\r\nContent-Length: 19\r\nConnection: close",
+      "body": "404 page not found\n"
+    },
+    {
+      "group": "decoded_path",
+      "name": "encoded_trailing_slash",
+      "request_head": "GET /status%2F HTTP/1.1\r\nHost: pbs.example\r\nConnection: close\r\n\r\n",
+      "body_len": 0,
+      "response_head": "HTTP/1.1 301 Moved Permanently\r\nCache-Control: no-cache, no-store, must-revalidate\r\nContent-Type: text/html; charset=utf-8\r\nExpires: 0\r\nLocation: /status\r\nPragma: no-cache\r\nVary: Origin\r\nDate: <date>\r\nContent-Length: 42\r\nConnection: close",
+      "body": "<a href=\"/status\">Moved Permanently</a>.\n\n"
+    },
+    {
+      "group": "decoded_path",
+      "name": "encoded_query_mark",
+      "request_head": "GET /status%3Fa=1 HTTP/1.1\r\nHost: pbs.example\r\nConnection: close\r\n\r\n",
+      "body_len": 0,
+      "response_head": "HTTP/1.1 404 Not Found\r\nCache-Control: no-cache, no-store, must-revalidate\r\nContent-Type: text/plain; charset=utf-8\r\nExpires: 0\r\nPragma: no-cache\r\nVary: Origin\r\nX-Content-Type-Options: nosniff\r\nDate: <date>\r\nContent-Length: 19\r\nConnection: close",
+      "body": "404 page not found\n"
+    },
+    {
+      "group": "decoded_path",
+      "name": "invalid_escape",
+      "request_head": "GET /status%zz HTTP/1.1\r\nHost: pbs.example\r\nConnection: close\r\n\r\n",
+      "body_len": 0,
+      "response_head": "HTTP/1.1 400 Bad Request\r\nContent-Type: text/plain; charset=utf-8\r\nConnection: close",
+      "body": "400 Bad Request"
+    },
+    {
+      "group": "decoded_path",
+      "name": "static_root",
+      "request_head": "GET /static/ HTTP/1.1\r\nHost: pbs.example\r\nConnection: close\r\n\r\n",
+      "body_len": 0,
+      "response_head": "HTTP/1.1 200 OK\r\nCache-Control: no-cache, no-store, must-revalidate\r\nContent-Type: text/plain; charset=utf-8\r\nExpires: 0\r\nPragma: no-cache\r\nVary: Origin\r\nDate: <date>\r\nContent-Length: 31\r\nConnection: close",
+      "body": "route=static filepath=/ body=0\n"
+    },
+    {
+      "group": "decoded_path",
+      "name": "static_file",
+      "request_head": "GET /static/a%20b/c.txt HTTP/1.1\r\nHost: pbs.example\r\nConnection: close\r\n\r\n",
+      "body_len": 0,
+      "response_head": "HTTP/1.1 200 OK\r\nCache-Control: no-cache, no-store, must-revalidate\r\nContent-Type: text/plain; charset=utf-8\r\nExpires: 0\r\nPragma: no-cache\r\nVary: Origin\r\nDate: <date>\r\nContent-Length: 40\r\nConnection: close",
+      "body": "route=static filepath=/a b/c.txt body=0\n"
+    },
+    {
+      "group": "body_limit",
+      "name": "auction_3mib",
+      "request_head": "POST /openrtb2/auction HTTP/1.1\r\nHost: pbs.example\r\nContent-Length: 3145728\r\nConnection: close\r\n\r\n",
+      "body_len": 3145728,
+      "response_head": "HTTP/1.1 200 OK\r\nCache-Control: no-cache, no-store, must-revalidate\r\nContent-Type: text/plain; charset=utf-8\r\nExpires: 0\r\nPragma: no-cache\r\nVary: Origin\r\nDate: <date>\r\nContent-Length: 27\r\nConnection: close",
+      "body": "route=auction body=3145728\n"
+    },
+    {
+      "group": "body_limit",
+      "name": "auction_small",
+      "request_head": "POST /openrtb2/auction HTTP/1.1\r\nHost: pbs.example\r\nContent-Length: 100\r\nConnection: close\r\n\r\n",
+      "body_len": 100,
+      "response_head": "HTTP/1.1 200 OK\r\nCache-Control: no-cache, no-store, must-revalidate\r\nContent-Type: text/plain; charset=utf-8\r\nExpires: 0\r\nPragma: no-cache\r\nVary: Origin\r\nDate: <date>\r\nContent-Length: 23\r\nConnection: close",
+      "body": "route=auction body=100\n"
+    },
+    {
+      "group": "middleware",
+      "name": "get_with_origin",
+      "request_head": "GET /status HTTP/1.1\r\nHost: pbs.example\r\nOrigin: https://publisher.example\r\nConnection: close\r\n\r\n",
+      "body_len": 0,
+      "response_head": "HTTP/1.1 200 OK\r\nAccess-Control-Allow-Credentials: true\r\nAccess-Control-Allow-Origin: https://publisher.example\r\nCache-Control: no-cache, no-store, must-revalidate\r\nContent-Type: text/plain; charset=utf-8\r\nExpires: 0\r\nPragma: no-cache\r\nVary: Origin\r\nDate: <date>\r\nContent-Length: 20\r\nConnection: close",
+      "body": "route=status body=0\n"
+    },
+    {
+      "group": "middleware",
+      "name": "post_without_origin",
+      "request_head": "POST /openrtb2/auction HTTP/1.1\r\nHost: pbs.example\r\nContent-Length: 2\r\nConnection: close\r\n\r\n",
+      "body_len": 2,
+      "response_head": "HTTP/1.1 200 OK\r\nCache-Control: no-cache, no-store, must-revalidate\r\nContent-Type: text/plain; charset=utf-8\r\nExpires: 0\r\nPragma: no-cache\r\nVary: Origin\r\nDate: <date>\r\nContent-Length: 21\r\nConnection: close",
+      "body": "route=auction body=2\n"
+    },
+    {
+      "group": "middleware",
+      "name": "preflight",
+      "request_head": "OPTIONS /openrtb2/auction HTTP/1.1\r\nHost: pbs.example\r\nOrigin: https://publisher.example\r\nAccess-Control-Request-Method: POST\r\nAccess-Control-Request-Headers: content-type\r\nConnection: close\r\n\r\n",
+      "body_len": 0,
+      "response_head": "HTTP/1.1 204 No Content\r\nAccess-Control-Allow-Credentials: true\r\nAccess-Control-Allow-Headers: content-type\r\nAccess-Control-Allow-Methods: POST\r\nAccess-Control-Allow-Origin: https://publisher.example\r\nCache-Control: no-cache, no-store, must-revalidate\r\nExpires: 0\r\nPragma: no-cache\r\nVary: Origin, Access-Control-Request-Method, Access-Control-Request-Headers\r\nDate: <date>\r\nConnection: close",
+      "body": ""
+    },
+    {
+      "group": "middleware",
+      "name": "not_found_with_origin",
+      "request_head": "GET /nope HTTP/1.1\r\nHost: pbs.example\r\nOrigin: https://publisher.example\r\nConnection: close\r\n\r\n",
+      "body_len": 0,
+      "response_head": "HTTP/1.1 404 Not Found\r\nAccess-Control-Allow-Credentials: true\r\nAccess-Control-Allow-Origin: https://publisher.example\r\nCache-Control: no-cache, no-store, must-revalidate\r\nContent-Type: text/plain; charset=utf-8\r\nExpires: 0\r\nPragma: no-cache\r\nVary: Origin\r\nX-Content-Type-Options: nosniff\r\nDate: <date>\r\nContent-Length: 19\r\nConnection: close",
+      "body": "404 page not found\n"
+    }
+  ]
+}
