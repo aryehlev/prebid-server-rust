@@ -17,7 +17,7 @@ Rule B's cases: (a) input real production traffic sends that the crate would rej
 | Category | Decision pending | Ledgered | Go behaviour kept |
 |---|---:|---:|---:|
 | In-memory caches | 0 | 1 | 0 |
-| Configuration loading | 0 | 7 | 7 |
+| Configuration loading | 0 | 8 | 7 |
 | Cookies | 0 | 1 | 0 |
 | Gzip | 0 | 1 | 0 |
 | HTTP client | 0 | 1 | 1 |
@@ -30,7 +30,7 @@ Rule B's cases: (a) input real production traffic sends that the crate would rej
 | Time formatting | 0 | 0 | 1 |
 | URLs | 0 | 1 | 0 |
 | YAML | 0 | 3 | 0 |
-| All | 1 | 27 | 14 |
+| All | 1 | 28 | 14 |
 
 ## Decisions pending
 
@@ -106,6 +106,17 @@ No entry names the classes `other` and `unrecorded` or the kinds `stage_missing`
 - **Pin:** `crates/config/tests/loader.rs::unsupported_format_fails_loudly`
 - **Decision:** D-VIPERFMT
 - **Restore option:** Port the remaining readers (magiconair/properties, hashicorp/hcl, subosito/gotenv and gopkg.in/ini.v1); not planned.
+- **Recorded in:** `crates/config/differences.toml`
+
+#### `config.hook-panic`: Account modules with a key that is not a string: Go panics at startup, the loader fails
+
+- **Go:** The account modules hook asserts `data.(map[string]interface{})` (config/account_module_decoder.go:16-23), so a list under `account_defaults.hooks.modules` whose element has a key that is not a string (a `map[interface{}]interface{}` from yaml.v3) panics in `v.Unmarshal`: the process dies with `panic: interface conversion: interface {} is map[interface {}]interface {}, not map[string]interface {}`, a goroutine trace and exit status 2.
+- **Rust:** The load fails with a decode error, `viper failed to unmarshal app config: 1 error(s) decoding:` and `* error decoding 'account_defaults.hooks.modules[0]': interface conversion: ...` with the same conversion text, which the server reports as any configuration error.
+- **Who notices:** operator
+- **Visible in:** Startup with `account_defaults.hooks.modules` given as a list holding a map with a key that is not a string: both refuse to start, with different output
+- **Harness:** none
+- **Pin:** `crates/config/tests/loader.rs::go_difference_hook_panic`
+- **Restore option:** Report the load as a Go panic for the server to crash on; not planned.
 - **Recorded in:** `crates/config/differences.toml`
 
 #### `config.json-reader`: pbs.json: encoding/json reads documents serde_json refuses, and the two word their errors each their own way

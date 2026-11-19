@@ -217,6 +217,29 @@
       "fragment": "crates/config/differences.toml"
     },
     {
+      "id": "config.hook-panic",
+      "category": "config",
+      "status": "ledgered",
+      "title": "Account modules with a key that is not a string: Go panics at startup, the loader fails",
+      "go": "The account modules hook asserts `data.(map[string]interface{})` (config/account_module_decoder.go:16-23), so a list under `account_defaults.hooks.modules` whose element has a key that is not a string (a `map[interface{}]interface{}` from yaml.v3) panics in `v.Unmarshal`: the process dies with `panic: interface conversion: interface {} is map[interface {}]interface {}, not map[string]interface {}`, a goroutine trace and exit status 2.",
+      "rust": "The load fails with a decode error, `viper failed to unmarshal app config: 1 error(s) decoding:` and `* error decoding 'account_defaults.hooks.modules[0]': interface conversion: ...` with the same conversion text, which the server reports as any configuration error.",
+      "who": [
+        "operator"
+      ],
+      "visible_in": "Startup with `account_defaults.hooks.modules` given as a list holding a map with a key that is not a string: both refuse to start, with different output",
+      "harness": [],
+      "pin": "crates/config/tests/loader.rs::go_difference_hook_panic",
+      "restore": "Report the load as a Go panic for the server to crash on; not planned.",
+      "default": null,
+      "decision": null,
+      "rule_b": null,
+      "restore_by": [],
+      "restorations": [],
+      "restore_pending": false,
+      "note": null,
+      "fragment": "crates/config/differences.toml"
+    },
+    {
       "id": "config.json-reader",
       "category": "config",
       "status": "ledgered",
