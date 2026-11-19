@@ -529,6 +529,18 @@ fn decision_pending_entries_give_the_default() -> TestResult {
         ),
         "the decisions section",
     )?;
+    check(
+        !scratch.read(MARKDOWN)?.contains("- **Rule B:**"),
+        "no Rule B line while the default applies",
+    )?;
+    scratch.fragment(
+        "x",
+        &edit(&decided, "default = ", "rule_b = \"a\"\ndefault = ")?,
+    )?;
+    fails_with(
+        validate(&scratch),
+        "a decision-pending entry names no Rule B case (rule_b)",
+    )?;
     scratch.fragment(
         "x",
         &edit(

@@ -533,10 +533,10 @@ visible_in = """\
 pin = "crates/differences/tests/psl.rs::go_difference_empty_labels_and_ip_addresses"
 restore = """\
     Check the host for empty labels and parse it as an IP address before calling psl, leaving the \
-    domain unset where Go's lookup fails."""
+    domain unset where Go's lookup fails: glue under Rule B (a), for referrers production traffic \
+    sends that psl reads differently."""
 default = "psl's answer, so the domain is set where Go leaves it unset (crates first)."
 decision = "D-PSL"
-rule_b = "a"
 
 [[difference]]
 id = "regex.quote-meta"

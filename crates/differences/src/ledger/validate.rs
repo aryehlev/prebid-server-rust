@@ -410,6 +410,13 @@ fn by_status(status: Status, raw: &RawEntry, problems: &mut Problems<'_>) {
                      (restore)",
                 );
             }
+            if raw.rule_b.is_some() {
+                problems.add(
+                    "a decision-pending entry names no Rule B case (rule_b): until the decision \
+                     restores it, the default applies; say what a restore would rest on in \
+                     restore",
+                );
+            }
             if !raw.restore_by.is_empty() {
                 problems.add("only a restored entry names restore_by");
             }

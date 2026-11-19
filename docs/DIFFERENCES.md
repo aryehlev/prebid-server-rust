@@ -365,10 +365,9 @@ No entry names the classes `other` and `unrecorded` or the kinds `stage_missing`
 - **Visible in:** `site.publisher.domain` in bidder requests and analytics, for referrers whose host has an empty label or is an IPv4 address
 - **Harness:** none
 - **Pin:** `crates/differences/tests/psl.rs::go_difference_empty_labels_and_ip_addresses`
-- **Rule B:** Rule B (a): input real production traffic sends that the crate would reject or misread
 - **Decision:** D-PSL
 - **Default until decided:** psl's answer, so the domain is set where Go leaves it unset (crates first).
-- **Restore option:** Check the host for empty labels and parse it as an IP address before calling psl, leaving the domain unset where Go's lookup fails.
+- **Restore option:** Check the host for empty labels and parse it as an IP address before calling psl, leaving the domain unset where Go's lookup fails: glue under Rule B (a), for referrers production traffic sends that psl reads differently.
 - **Recorded in:** `crates/differences/differences.toml`
 
 ## Regular expressions
