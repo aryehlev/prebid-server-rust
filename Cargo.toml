@@ -86,8 +86,7 @@ tokio = { version = "1.54.1", features = ["io-util", "macros", "net", "rt-multi-
 tokio-rustls = { version = "0.26.6", default-features = false, features = ["aws_lc_rs"] }
 # The differences ledger's fragments (crates/<crate>/differences.toml), which pbs-differences
 # reads. Reading into serde types needs only parse, serde and std; a crate that writes TOML adds
-# display. json-patch does not join: 0.3.0 through 4.1.0 need thiserror 1, on syn 2; 0.2.7,
-# which needs only serde and serde_json, is for DECISIONS to weigh.
+# display. json-patch, which docs/DECISIONS.md accepts at 0.2.7, waits below.
 toml = { version = "1.2.1", default-features = false, features = ["parse", "serde", "std"] }
 # 0.6, not 0.7: reqwest 0.13.5's gzip feature depends on tower-http 0.6.
 tower-http = { version = "0.6.11", features = ["compression-gzip", "cors", "limit", "timeout"] }
@@ -99,26 +98,62 @@ url = "2.5.8"
 # Stack entries that no member uses yet (orchestrator ruling 6). Each waits here as its exact
 # lines and comments, every line behind one more "# ". The first unit that uses an entry moves it
 # up into the table unchanged (the "# " removed, version and features as written, in name order);
-# CLEANUP and FINAL-LINT remove an entry that loses its last user.
+# CLEANUP and FINAL-LINT remove an entry that loses its last user. The crates docs/DECISIONS.md
+# accepts (its accepted list) wait here the same way.
 #
+# # Shared state a background task replaces while requests read it (currency rates, vendor lists,
+# # stored data).
+# arc-swap = "1.9.5"
 # # Dev-only: the key pairs rcgen signs test certificates with.
 # aws-lc-rs = { version = "1.19.0", default-features = false, features = ["alloc", "aws-lc-sys"] }
 # base64 = "0.23.1"
 # # The build dependency of the 51Degrees FFI crate; aws-lc-sys already locks it.
 # cc = "1.11.2"
+# # Dev-only: COW's benches. Cargo.lock must keep half at 2.6.0: half 2.7.1 depends on zerocopy,
+# # whose zerocopy-derive is on syn 2.
+# criterion = { version = "0.8.2", default-features = false }
 # futures-util = "0.3.34"
+# # glog's nine flags in Go's flag syntax (LOGGING). The default unicode feature resolves to the
+# # unicode-width 0.2.3 that serde-saphyr's annotate-snippets already locks.
+# getopts = "0.2.24"
+# # The ads.cert remote signer's unary gRPC client (D-GRPC: tonic fails the gates). hyper and
+# # reqwest already lock it.
+# h2 = "0.4.20"
+# # ads.cert's TXT discovery (D-DNS). No system-config: it pulls core-foundation 0.9 beside 0.10.
+# hickory-resolver = { version = "0.26.3", default-features = false, features = ["tokio"] }
 # hmac = "0.13.0"
 # # pbs-server's HTTP/1.1-only connection builder (Go's header limit and read budget, which
 # # axum::serve does not set) and the loopback test servers; axum already locks it.
 # hyper-util = { version = "0.1.21", features = ["server-auto", "tokio"] }
+# # The InfluxDB reporter's line protocol and writes (D-INFLUX), over pbs-http-client's reqwest.
+# influxdb = { version = "0.8.0", default-features = false, features = ["rustls"] }
 # ipnet = "2.12.2"
+# # RFC 7386 merge only (JSONUTIL). The diff feature pulls treediff; 0.3.0 through 4.1.0 need
+# # thiserror 1, on syn 2.
+# json-patch = { version = "0.2.7", default-features = false }
+# # golang-lru's simplelru (FETCHER). No default features: they pull foldhash, licensed Zlib.
+# lru = { version = "0.19.0", default-features = false }
 # md-5 = "0.11.0"
+# # Multipart bodies for FormValue at /optout (USERSYNC-PBS).
+# multer = { version = "3.1.0", default-features = false }
+# # The ads.cert messages, implemented by hand: prost-derive is on syn 2.
+# prost = { version = "0.14.6", default-features = false, features = ["std"] }
+# # The VAST tokenizer (D-XML). The injector writes Go's encoder output itself (Rule B (d)).
+# quick-xml = { version = "0.42.0", default-features = false }
 # rand = "0.10.4"
 # # Dev-only: test certificates. rcgen's own aws_lc_rs feature names `x509-parser?/verify-aws`,
 # # which puts x509-parser and untrusted 0.7.1 beside 0.9.0 into `cargo metadata`, so rcgen has no
 # # crypto feature and signs through an aws-lc-rs key.
 # rcgen = { version = "0.14.10", default-features = false }
+# # Reads /etc/resolv.conf, the file Go's resolver reads, for hickory-resolver (D-DNS).
+# resolv-conf = "0.7.6"
 # semver = "1.0.28"
+# # adapterstest's diff text (ADP-HARNESS).
+# similar = { version = "3.2.1", default-features = false, features = ["text"] }
+# # Error types (pbs-errortypes and each crate's own); prometheus and quinn already lock it.
+# thiserror = "2.0.21"
+# # One log file (D-LOGFILE); glog's per-severity files are ledgered.
+# tracing-appender = { version = "0.2.5", default-features = false }
 # uuid = { version = "1.29.3", features = ["v4"] }
 
 # Lint policy. Every crate opts in with `[lints] workspace = true`.
