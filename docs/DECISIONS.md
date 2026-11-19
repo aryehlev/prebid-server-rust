@@ -45,7 +45,7 @@ ids this file names are proposals for the adopting unit, which writes the entrie
 | D-WURFL | decided | The module over a `WurflApi` trait, with no binding | MOD-WURFL |
 | D-COW | decided (keep) | `Option<Arc<T>>` on serde's rc feature, re-measured by COW | COW |
 | D-TEMPLATE | default applies | `pbs-gocompat`'s template module: gtmpl fails the gates and the error goldens | ENT-MACROS, USERSYNC-PBS, CLEANUP |
-| D-XML | default applies | quick-xml 0.42.0 for tokens, with Go's encoder output and `EscapeText` as glue | INJECTOR |
+| D-XML | default applies | quick-xml 0.42.0 for tokens, with Go's encoder output and attribute escaping as glue | INJECTOR |
 | D-DB | default applies (fallback) | Minimal clients: sqlx, tokio-postgres and mysql_async all fail the gates | STORED-DB |
 | D-GRPC | default applies (fallback) | A minimal unary client on h2 0.4.20, with prost 0.14.6 without derive: tonic fails | ADSCERT |
 | D-DNS | default applies | hickory-resolver 0.26.3 (tokio, no system-config), configured from `/etc/resolv.conf` by resolv-conf 0.7.6 | ADSCERT |
@@ -137,7 +137,8 @@ bytesize = { version = "2.7.0", default-features = false }
 ```
 
 json-patch 5.0.0 (default features off) passes as well and adds jsonptr 0.8.2. It merges exactly
-as 0.2.7 does on the goldens, so 0.2.7 is chosen, as ruling 9 asked.
+as 0.2.7 does on the goldens. 0.2.7, the version ruling 9 named for the trial, is chosen because it
+adds one package fewer.
 
 ### What each accepted crate brings to the ledger
 
@@ -148,12 +149,12 @@ as 0.2.7 does on the goldens, so 0.2.7 is chosen, as ruling 9 asked.
 | getopts 0.2.24 | LOGGING | `logging.flags` (c): glog's nine flags with Go's syntax, values, repeats (the last value wins) and exit codes | `logging.flag-texts`: the usage and error texts Go's flag package prints |
 | h2 0.4.20 | ADSCERT | none | `grpc.client-frames`: HTTP/2 framing (SETTINGS, window updates, HPACK, header order) against grpc-go 1.83.1 |
 | hickory-resolver 0.26.3, resolv-conf 0.7.6 | ADSCERT | none | `dns.txt-resolver`: queries, retries, EDNS0 and TCP fallback against Go's pure-Go resolver |
-| influxdb 0.8.0 | METRICS-INFLUX | metric names, tags and field types stay go-metrics-influxdb's (c) | `influx.write-request`: the query parameters and their order, no Content-Type header, non-finite floats |
-| json-patch 0.2.7 | JSONUTIL | none | `json.merge-patch-quirks`: nulls inside arrays, null documents, null and scalar patches |
+| influxdb 0.8.0 | METRICS-INFLUX | metric names, tags and field types stay go-metrics-influxdb's (c) | `influx.write-request`: the query parameters and their order, no Content-Type header, no final newline, non-finite floats |
+| json-patch 0.2.7 | JSONUTIL | none by default; the restore option of the two decision-pending entries is a check in front of the merge | `json.merge-patch-quirks`: nulls inside arrays; `json.merge-patch-null-document` and `json.merge-patch-scalar-patch` (decision-pending): Go's `ErrBadJSONDoc` and `ErrBadJSONPatch`, which Prebid turns into its own 400 |
 | lru 0.19.0 | FETCHER | none | none: exact on the golden |
 | multer 3.1.0 | USERSYNC-PBS | none | `url.multipart-edges`: quoted-printable parts, limits and malformed bodies against Go's `mime/multipart` |
 | prost 0.14.6 | ADSCERT | none | none: the messages are hand-written and pinned to adscert's Go encoding |
-| quick-xml 0.42.0 | INJECTOR | `xml.escape` (d): Go's `EscapeText` and `Encoder.EncodeToken` output | `xml.error-texts`; `xml.token-acceptance` |
+| quick-xml 0.42.0 | INJECTOR | `xml.escape` (d): Go's `Encoder.EncodeToken` output, attribute values escaped as `EscapeString` escapes them | `xml.error-texts`; `xml.token-acceptance` |
 | similar 3.2.1 | ADP-HARNESS | none | none: test output only |
 | thiserror 2.0.21 | CLEANUP | none | none: the texts are written to match Prebid's |
 | tracing-appender 0.2.5 | LOGGING, ANALYTICS-MODULES | `analytics.line-prefix` (b) | `logging.files`; `analytics.file-rotation` |
@@ -203,6 +204,24 @@ exposition formatting, TLS chain acceptance and viper's formats.
 
 Ledgered: duplicate keys, invalid UTF-8, case-insensitive keys, `interface{}` numbers, error texts
 and unvalidated RawMessage content.
+
+**Correction (review, 2026-11-19).** Go's handling of null on a `json.RawMessage`, which Rule B (a)
+restores, depends on the decoder, and the ruling's premise that Go keeps the bytes holds only for
+`encoding/json`. `jsonutil.Unmarshal` and `UnmarshalValid` run json-iterator v1.1.12, whose
+`jsonRawMessageCodec.Decode` sets the field to nil on null (`reflect_json_raw_message.go:35-41`;
+Prebid's `RawMessageExtension` changes only encoding). More than 300 non-test files decode through
+them, the auction request among them (`endpoints/openrtb2/auction.go:468`, `:516`, `:539`). Only
+13 production files use `encoding/json`, which keeps the four bytes `null`: 8 adapters,
+`floors/fetcher.go`, `gdpr/gvl_vendor_ids.go`, `pbs/usersync.go`, `analytics/pubstack/config.go`
+and `privacysandbox/topics.go`. A Go program built against the pinned `go.mod` (go1.26.2, amd64)
+decodes `{"id":"u","ext":null}` into `openrtb2.User` with `len(Ext) == 0` and `Ext == nil` through
+both jsonutil functions, re-marshals it as `{"id":"u"}`, and gets `null` through `json.Unmarshal`.
+So `raw_keep_null` reproduces Go only at `encoding/json` sites. At jsonutil sites serde's `None` is
+already Go's nil, and `Some(null)` would write `"ext":null` into bidder requests where Go omits the
+field and would send Prebid into its `len(ext) > 0` branches, such as the first-party-data merges
+(`firstpartydata/first_party_data.go:253`, `util/jsonutil/merge.go:159`). [Changes outside this
+file](#changes-outside-this-file) asks the orchestrator to correct the ruling's text; JSONUTIL and
+ORTB-SERDE pin both decoders against Go goldens either way.
 
 ### D-HTMLESC: HTML escaping in JSON output
 
@@ -256,8 +275,9 @@ fails, so the formats are JSON, YAML and TOML.
 
 **Go behaviour at stake.** `config.SetupViper` (`config/config.go:936-940`) names the config file
 `pbs` (`main.go:59`) and adds the search paths `.` and `/etc/config`. viper v1.12.0 (`go.mod:37`)
-tries every path in turn, and in each one every extension of `SupportedExts` (`viper.go:419`, loop
-in `fs.go:20-23`): json, toml, yaml, yml, properties, props, prop, hcl, tfvars, dotenv, env, ini.
+tries every path in turn, and in each one every extension of `SupportedExts` (`viper.go:419`; the
+loops are `viper_go1_15.go:19` and `:30`, the file built without the `finder` tag, which Prebid
+does not set): json, toml, yaml, yml, properties, props, prop, hcl, tfvars, dotenv, env, ini.
 So `./pbs.toml` is read when `./pbs.json` is absent, and it wins over `./pbs.yaml`.
 `ReadInConfig`'s error is ignored (`config/config.go:1322`). The readers come from
 `pelletier/go-toml/v2` v2.0.1, `hashicorp/hcl` v1.0.0, `magiconair/properties` v1.8.6,
@@ -454,11 +474,12 @@ subset these templates use, with Go's error texts.
 - the gates: gtmpl 0.7.1 depends on thiserror 1.0.69, whose thiserror-impl 1.0.69 is a proc macro
   on syn 2.0.119, so syn, thiserror and thiserror-impl each appear at two versions, and it brings
   anyhow 1.0.104;
-- the goldens, run outside the gates in a separate scratch project: all 1,292 shipped templates
-  (730 bidder-info endpoints and 232 iframe and 330 redirect user-sync URLs, built as
-  `buildTemplate` builds them) give Go's output, but every one of the 2,080 parse and execution
-  errors has a different text, and the 4 builtin cases that print the whole data value (`{{.}}`)
-  print it differently. Prebid writes those error texts into its startup errors (Rule B (d)).
+- the goldens, run outside the gates in a separate scratch project: all 646 shipped templates
+  (365 bidder-info endpoints and 116 iframe and 165 redirect user-sync URLs, built as
+  `buildTemplate` builds them), each executed with full and with empty data (1,292 rows), give
+  Go's output, but every one of the 2,080 parse and execution errors has a different text, and
+  the 4 builtin cases that print the whole data value (`{{.}}`) print it differently. Prebid
+  writes those error texts into its startup errors (Rule B (d)).
 
 `pbs-gocompat` therefore survives ruling 4 with this one module (ENT-MACROS, USERSYNC-PBS; CLEANUP
 removes the rest). The module opens with `//! Glue (Rule B (d))` and has a restored ledger entry
@@ -471,17 +492,20 @@ removes the rest). The module opens with `//! Glue (Rule B (d))` and has a resto
 **Go behaviour at stake.** `injector/injector.go:116-165` reads the VAST with `xml.NewDecoder` and
 `RawToken`, writes start and end elements and every other token back through `xml.Encoder`'s
 `EncodeToken`, and writes trimmed character data as `<![CDATA[...]]>` itself. Errors come back as
-`XML processing error: %w` around the decoder's or encoder's text. The encoder escapes text and
-attribute values as `EscapeText` does (`&#34;`, `&#39;`, `&#x9;`, `&#xA;`, `&#xD;`) and checks that
-end tags match. No production path reaches the injector (D-DEAD).
+`XML processing error: %w` around the decoder's or encoder's text. The encoder escapes attribute
+values with `EscapeString` (go1.26.2's `encoding/xml/marshal.go:763` and `xml.go:1964`): `&#34;`,
+`&#39;`, `&amp;`, `&lt;`, `&gt;`, `&#x9;`, `&#xA;`, `&#xD;`, and U+FFFD for a character XML does
+not allow. It checks that end tags match. It would escape character data as `EscapeText` does
+but without `&#xA;` (`marshal.go:225`), yet the injector never hands it any: it writes character
+data itself as CDATA. No production path reaches the injector (D-DEAD).
 
 **Default.** quick-xml 0.42.0 (default features off) for the tokens. INJECTOR writes the tokens
-back the way Go's encoder does, with `EscapeText`'s escaping and its end-tag checks, as glue under
-Rule B (d) (VAST injection): quick-xml escapes `"` and `'` as `&quot;` and `&apos;` and leaves tab,
-newline and carriage return alone (xml.escape, restored, pinned to a Go golden). The decoder's error
-texts are ledgered (xml.error-texts). Documents one tokenizer accepts and the other rejects are
-ledgered too (xml.token-acceptance): the injector is production-dead, so no production input
-reaches it and Rule B (a) does not apply.
+back the way Go's encoder does, with `EscapeString`'s escaping of attribute values and its end-tag
+checks, as glue under Rule B (d) (VAST injection): quick-xml 0.42.0's `escape` writes `&quot;`,
+`&apos;` and `&#13;` and leaves tab and newline alone (xml.escape, restored, pinned to a Go
+golden). The decoder's error texts are ledgered (xml.error-texts). Documents one tokenizer accepts
+and the other rejects are ledgered too (xml.token-acceptance): the injector is production-dead, so
+no production input reaches it and Rule B (a) does not apply.
 
 **Evidence.** quick-xml passed every gate and added only itself. Its trial counts the tags of a VAST
 wrapper and pins its escaping: `<a href="x">'&'</a>` plus a tab becomes
@@ -600,9 +624,16 @@ the client when a ping fails (`influxdb.go:70-91`), and it logs through Go's sta
 package. The client is `influxdata/influxdb1-client` (`8bf82d3c094d`). `Client.Write`
 (`influxdb.go:294-367`) posts line protocol to `/write` with `db`, `rp`, `precision` and
 `consistency` set even when empty, an empty `Content-Type`, `User-Agent: InfluxDBClient` and basic
-auth. Points have their fields and tags sorted by key, floats spelled by `strconv.AppendFloat(v,
-'f', -1, 64)` and integers with an `i` suffix (`models/points.go:2313`, `:2331-2335`). `Ping` is
-`GET /ping` with the same User-Agent and basic auth.
+auth. Every point has the configured measurement (`metrics.influxdb.measurement`), and `InfluxDB`
+passes no tags of its own. A counter or gauge is one point with the field `<name>.count` or
+`<name>.gauge`; a meter, histogram or timer is one point per statistic, tagged
+`bucket=<statistic>`, with the one float field `<name>.meter`, `<name>.histogram` or `<name>.timer`
+(`influxdb.go:93-222` of go-metrics-influxdb). Points have their fields and tags sorted by key,
+floats spelled by `strconv.AppendFloat(v, 'f', -1, 64)` and integers with an `i` suffix
+(`models/points.go:2313`, `:2331-2335`). Every line ends with a newline (influxdb1-client's
+`influxdb.go:321`), and a point with a NaN or infinite field becomes a `# ERROR: ...` comment line
+(`MarshalString`, `influxdb.go:642-646`). `Ping` is `GET /ping` with the same User-Agent and
+basic auth.
 
 **Default.** METRICS-INFLUX builds each point with influxdb 0.8.0's `WriteQuery` (escaping, field
 types, timestamps) and writes it through the crate's client built `with_http_client` on
@@ -613,17 +644,19 @@ the crate's `ping` unwraps the `X-Influxdb-Build` and `X-Influxdb-Version` heade
 when a server omits one, where Go reads an empty version. go-metrics' meter, timer, counter, gauge
 and reservoir semantics are hand-ported, because no crate implements them. Metric names, tags and
 field types stay go-metrics-influxdb's (Rule B (c)). What still differs on the wire is ledgered
-(influx.write-request): the crate sends only `db` and `precision`, in its hash map's order, where
-Go sends `consistency`, `db`, `precision` and `rp` sorted; it sends no Content-Type header where Go
-sends an empty one; and non-finite floats are spelled as Rust spells them. If METRICS-INFLUX's Go
-goldens show a name, tag or field type the crate cannot produce, the unit falls back to the
-hand-written writer and says so here.
+(influx.write-request): the crate sends only `db` and `precision=ns`, in its hash map's order,
+where Go sends `consistency`, `db`, `precision` and `rp` sorted, with `precision` empty
+(`influxdb.go:342-345`); it sends no Content-Type header where Go sends an empty one; it joins the
+lines without Go's final newline; and it writes a non-finite float as Rust spells it where Go
+writes the `# ERROR:` line. If METRICS-INFLUX's Go goldens show a name, tag or field type the
+crate cannot produce, the unit falls back to the hand-written writer and says so here.
 
 **Evidence.** influxdb 0.8.0 with `default-features = false, features = ["rustls"]` passed every
 gate. It added influxdb, lazy-regex 3.6.2 and lazy-regex-proc_macros 3.6.2 (on syn 3.0.10), and it
 uses the stack's reqwest 0.13.5, adding only reqwest's `query` feature (serde_urlencoded, already
-locked). Its trial pins one meter line: `prebidserver.requests,host=pbs-1 count=5i,m1=0.25
-1700000000`. influxdb2 0.5.2 fails: it adds 68 packages and leaves 23 packages at two or three
+locked). Its trial pins the crate's spelling of one line, `prebidserver.requests,host=pbs-1
+count=5i,m1=0.25 1700000000`; that line's shape is the trial's own, not go-metrics-influxdb's
+(above). influxdb2 0.5.2 fails: it adds 68 packages and leaves 23 packages at two or three
 versions (reqwest 0.11.27, hyper 0.14.32, h2 0.3.27, http 0.2.12, base64 0.13.1 and 0.21.7, and
 more), proc macros on syn 1 (influxdb2-derive 0.1.1, snafu-derive 0.6.10) and syn 2
 (windows-implement 0.60.2, windows-interface 0.59.3), and three advisories: RUSTSEC-2026-0543
@@ -892,9 +925,9 @@ them. getopts 0.2.24 with `long_only(true)`, `ParsingStyle::StopAtFirstFree`, ev
 registered as a short name tokenises as Go's `flag` does. The golden isolates tokenisation: it
 registers the nine flags with glog's bool-ness and values that record the raw string and never
 fail. Over 20,018 argument lists getopts agreed with Go on the outcome (parsed, help or error) of
-every list, and for all 12,023 parsed lists on the values in order and the arguments left. The
-other 3,125 lists end in help or an error in both and differ only in the values set before it,
-because getopts reports a failure without the matches before it. `-h` and `-help` stay
+every list, and for all 12,023 parsed lists on the values in order and the arguments left. Of
+the 7,995 lists that end in help or an error in both, 3,125 differ only in the values set before
+it, because getopts reports a failure without the matches before it. `-h` and `-help` stay
 unregistered, so getopts stops at them in order, as Go does.
 
 LOGGING's glue (Rule B (c), logging.flags) turns the matches into Go's results: the last of
@@ -922,13 +955,34 @@ size limits differ.
 evanphx/json-patch v5.9.0's `MergePatch`. json-patch 0.2.7 with default features off (merge only,
 ruling 9) passed every gate and added only itself, so JSONUTIL uses it instead of the hand-written
 RFC 7386 merge. Over 50,033 document and patch pairs it matched Go on 45,403 and differed on
-4,630, all ledgered (json.merge-patch-quirks):
+4,630, in three ways, each with its own entry and pin as the plan asks of JSONUTIL:
 
-- 730 patches with nulls inside arrays: Go deletes null members of objects inside an array it
-  adds or replaces (`{"a":[{"b":null}]}` gives `{"a":[{}]}`), json-patch keeps them;
-- 981 null documents: Go fails with `Invalid JSON Document`, json-patch merges;
-- 2,919 patches that are null, a string, a number or a boolean: json-patch returns the patch, and
-  Go fails with `Invalid JSON Patch`.
+- 730 patches with nulls inside arrays (json.merge-patch-quirks, ledgered): Go deletes null
+  members of objects inside an array it adds or replaces (`{"a":[{"b":null}]}` gives
+  `{"a":[{}]}`), json-patch keeps them;
+- 981 null documents (json.merge-patch-null-document, decision-pending): Go fails with
+  `ErrBadJSONDoc`, `Invalid JSON Document` (`merge.go:127-129` of json-patch.v5), json-patch
+  merges;
+- 2,919 patches that are null, a string, a number or a boolean (json.merge-patch-scalar-patch,
+  decision-pending): Go fails with `ErrBadJSONPatch`, `Invalid JSON Patch` (`merge.go:131-133`,
+  `:143-149`), json-patch returns the patch.
+
+The two failures are more than library wording, because Prebid branches on them. A string, number
+or boolean at `ext.prebid.bidderconfig[].config.ortb2.user.ext` (or `site.ext`, `app.ext`), merged
+into a non-empty ext of the request, fails `jsonutil.MergeClone` (`util/jsonutil/merge.go:165-172`,
+`firstpartydata/first_party_data.go:267`), `formatMergeCloneError` turns the failure into
+`invalid first party data ext` (`first_party_data.go:20`, `:348-353`), and the exchange answers
+400 with it (`exchange/exchange.go:302-310`). A Go program built against the pinned `go.mod` shows
+it through `firstpartydata.ResolveFPD`: with the request's `user.ext` `{"consent":"x"}`, the
+bidder configs `{"ext":"abc"}`, `{"ext":5}` and `{"ext":true}` each give `[invalid first party
+data ext]`, while `{"ext":null}` keeps `{"consent":"x"}`, `{"ext":{"b":1}}` merges and
+`{"ext":[1]}` replaces. json-patch would set `user.ext` to the string, so the Rust server would
+not answer with Prebid's 400 there. Both entries are therefore decision-pending, so the user sees
+them at R1's exit: json-patch's results apply until the user decides, and the restore option is a
+check in front of the merge that returns Go's errors in Go's order (document syntax, patch syntax,
+null document, then a null or non-container patch). Go also fails on bytes that are not JSON, such
+as the empty RawMessage of a missing ext (`merge.go:119-125`); that is no json-patch difference,
+because json-patch never sees unparsed bytes.
 
 json-patch 5.0.0 gave the same results on every pair.
 
@@ -1069,7 +1123,7 @@ passes them and every compile gate "passes".
 | influxdb | 0.8.0, default features off; rustls | 3: influxdb 0.8.0, lazy-regex 3.6.2, lazy-regex-proc_macros 3.6.2 | passes | D-INFLUX | influx.write-request |
 | influxdb2 | 0.5.2, default features off | 68 | fails: 23 packages at second or third versions; syn 1 and syn 2 proc macros; advisories RUSTSEC-2026-0543, RUSTSEC-2026-0258, RUSTSEC-2024-0384 | D-INFLUX | rejected |
 | multer | 3.1.0, default features off | 2: multer 3.1.0, spin 0.9.9 | passes | `/optout` | url.multipart-edges |
-| json-patch | 0.2.7, default features off | 1: json-patch 0.2.7 | passes | JSONUTIL (ruling 9) | json.merge-patch-quirks |
+| json-patch | 0.2.7, default features off | 1: json-patch 0.2.7 | passes | JSONUTIL (ruling 9) | json.merge-patch-quirks; json.merge-patch-null-document and json.merge-patch-scalar-patch (decision-pending) |
 | json-patch | 5.0.0, default features off | 2: json-patch 5.0.0, jsonptr 0.8.2 | passes; merges as 0.2.7 does | JSONUTIL | not adopted |
 | jsonschema | not retried | | | D-JSONSCHEMA | |
 
@@ -1079,10 +1133,12 @@ Every gate-passing candidate together, at workspace scope: quick-xml, prost, aws
 thiserror, similar, parse-size, bytesize, lru, getopts, json-patch 0.2.7, publicsuffix, config
 `toml`, tracing-appender, multer, tower-http `fs`, hickory-resolver with resolv-conf, influxdb,
 criterion and h2 (json-patch 5.0.0 would be a second version of json-patch). It added 53 packages
-to the base lock, 68 to STACK's. The `Cargo.lock` diff against STACK's has 624 added lines and none
-removed. Every gate passed, and 967 tests in 60 test binaries passed. The scratch copy is not a git
-repository, so `scripts/lint-shell.sh` ran on a throwaway `git init` index of it (55 scripts,
-shellcheck 0.11.0).
+to the base lock, 68 to STACK's. The `Cargo.lock` diff against STACK's has 692 added lines (624 of
+them not blank) and none removed. Every gate passed. The tests ran in 102 test targets (78 test
+binaries and 24 doc-test runs): 1,154 passed with `--all-features` and 1,131 with plain `cargo
+test`, and none failed. (The driver's `result.json` keeps only the last 60 result lines, which hold
+967 of them.) The scratch copy is not a git repository, so `scripts/lint-shell.sh` ran on a
+throwaway `git init` index of it (55 scripts, shellcheck 0.11.0).
 
 The 53 packages: alloca 0.4.0, anes 0.1.6, arc-swap 1.9.5, async-trait 0.1.92, bytesize 2.7.0,
 cast 0.3.0, ciborium 0.2.2, ciborium-io 0.2.2, ciborium-ll 0.2.2, clap 4.6.8, clap_builder 4.6.7,
@@ -1107,10 +1163,10 @@ and TZ=UTC. The Rust side replayed the recorded JSON lines in the candidate's tr
 |---|---|---|---|
 | go-units sizes | go-units v0.4.0 `FromHumanSize` | 50,105 strings | parse-size: 18,248 equal, 30,180 rejected by both, 1,677 differ; bytesize: 17,483 equal, 31,214 rejected by both, 1,408 differ |
 | LRU | golang-lru/v2 v2.0.7 `New`, `Get`, `Add`, `Remove` | 8 capacities, 24,000 steps | lru: no difference |
-| merge patch | evanphx/json-patch v5.9.0 `MergePatch` | 50,033 pairs | json-patch 0.2.7 and 5.0.0: 45,403 equal, 4,630 differ (730 values, 981 null documents, 2,919 null or scalar patches) |
+| merge patch | evanphx/json-patch v5.9.0 `MergePatch` | 50,033 pairs | json-patch 0.2.7 and 5.0.0: 45,403 equal, 4,630 differ (730 values, 981 null documents, 2,919 null or scalar patches; Go fails on the last two) |
 | publicsuffix | x/net v0.55.0 `EffectiveTLDPlusOne` | 50,450 names | psl 2.1.257: 252 differ; publicsuffix 2.3.0 on x/net's list: 4 differ |
 | flags | `flag` with glog's nine flags | 20,018 argument lists | getopts: the outcome equal on all; values and arguments equal on all 12,023 parsed lists |
-| templates | `text/template` as `config/bidderinfo.go` and `usersync/syncer.go` use it | 3,386 rows: 1,292 shipped templates, 2,055 mutants, 39 builtin cases | gtmpl 0.7.1: every output equal except 4 `{{.}}` cases; every one of the 2,080 error texts differs |
+| templates | `text/template` as `config/bidderinfo.go` and `usersync/syncer.go` use it | 3,386 rows: 646 shipped templates executed with full and empty data (1,292), 2,055 mutants, 39 builtin cases | gtmpl 0.7.1: every output equal except 4 `{{.}}` cases; every one of the 2,080 error texts differs |
 
 ## Changes outside this file
 
@@ -1147,5 +1203,12 @@ These files are not owned by this unit. Each change follows from a decision abov
 - The plan's library map follows this file: lru for golang-lru, a port for go-units, influxdb for
   the InfluxDB writes, h2 and prost for gRPC, minimal clients for the databases, `pbs-gocompat`'s
   template module for `text/template`, and no crate for the 51Degrees watcher.
+- The plan (orchestrator), D-DECODE and JSONUTIL: "a json.RawMessage given null stays Some(null)
+  through raw_keep_null, as Go keeps the bytes" holds only where Prebid decodes with
+  `encoding/json`; jsonutil's decoders leave the field nil (the correction under
+  [D-DECODE](#d-decode-json-decoding)). JSONUTIL's merge-patch ledger row gains
+  json.merge-patch-null-document and json.merge-patch-scalar-patch as decision-pending, unless the
+  orchestrator rules that Rule B (d) restores them, since Go answers them with Prebid's own 400
+  ([json-patch](#json-patch-mergepatch)).
 - wu/SPIKE-DEPS adds `docs/DECISIONS.md` too. Merging it after this branch conflicts on that file
   (both add it); the resolution keeps this version.
