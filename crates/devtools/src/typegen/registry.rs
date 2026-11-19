@@ -10,13 +10,21 @@ use super::{
 };
 use crate::error::{Result, ToolError};
 
-/// Go types with a fixed Rust counterpart in pbs-gojson.
-const BUILTIN_EXTERNS: &[(&str, &str, &str)] = &[
-    ("encoding/json.RawMessage", "RawJson", "pbs_gojson::RawJson"),
+/// Go types with a fixed Rust counterpart in pbs-gojson: the Go type, the Rust type, its `use`
+/// path, and the serde bridge module that serializes and merges it (pbs-gojson's types have no
+/// serde or `MergeClone` impls).
+const BUILTIN_EXTERNS: &[(&str, &str, &str, &str)] = &[
+    (
+        "encoding/json.RawMessage",
+        "RawJson",
+        "pbs_gojson::RawJson",
+        "raw_json",
+    ),
     (
         "encoding/json.Number",
         "JsonNumber",
         "pbs_gojson::JsonNumber",
+        "json_number",
     ),
 ];
 
@@ -111,7 +119,7 @@ impl Registry {
     /// Fails when a configured package was not described, or a type cannot be represented.
     pub fn build(configs: &[Config], packages: &BTreeMap<String, Package>) -> Result<Self> {
         let mut reg = Self::default();
-        for (go, rust, use_path) in BUILTIN_EXTERNS {
+        for (go, rust, use_path, bridge) in BUILTIN_EXTERNS {
             drop(reg.externs.insert(
                 (*go).to_owned(),
                 ExternType {
@@ -120,6 +128,7 @@ impl Registry {
                     copy: false,
                     eq: true,
                     is_struct: false,
+                    serde_bridge: Some((*bridge).to_owned()),
                 },
             ));
         }
@@ -440,6 +449,138 @@ impl Registry {
             | TypeKind::Typeparam => Err(unsupported(t)),
         }
     }
+
+    /// How the serde code treats a field of Go type `t`.
+    ///
+    /// # Errors
+    ///
+    /// Fails for types the serde code cannot represent: those [`Registry::render`] refuses but an
+    /// unnamed struct or a pointer to a slice or map (which a `rust_type` override spells), a
+    /// bridged type inside a pointer, slice or map, and `GoString` strings.
+    pub fn serde_field(&self, t: &TypeRef, strings: StringType) -> Result<SerdeField> {
+        let value = |omit| SerdeField {
+            omit,
+            value: true,
+            with: None,
+            merge_bridge: false,
+        };
+        match t.kind {
+            TypeKind::Basic => {
+                let _ = basic(&t.name, strings)?;
+                if t.name == "string" && strings == StringType::GoString {
+                    return Err(ToolError::new(
+                        "GoString strings have no serde mapping; use String strings with serde",
+                    ));
+                }
+                Ok(SerdeField {
+                    merge_bridge: matches!(t.name.as_str(), "int" | "uint"),
+                    ..value(Omit::Zero)
+                })
+            }
+            TypeKind::Named => Ok(match self.named(t)? {
+                Named::Generated(info) if info.shape == Shape::Struct => value(Omit::Never),
+                Named::Generated(_) => value(Omit::Zero),
+                Named::Extern(ext) => match &ext.serde_bridge {
+                    Some(module) => SerdeField {
+                        omit: Omit::Bridge,
+                        value: false,
+                        with: Some(module.clone()),
+                        merge_bridge: true,
+                    },
+                    None if ext.is_struct => value(Omit::Never),
+                    None => value(Omit::Zero),
+                },
+            }),
+            TypeKind::Struct => Ok(value(Omit::Never)),
+            TypeKind::Pointer => {
+                let inner = self.serde_holder(t, elem(t)?, strings)?;
+                Ok(SerdeField {
+                    omit: Omit::Nil,
+                    value: false,
+                    with: None,
+                    merge_bridge: inner,
+                })
+            }
+            TypeKind::Slice => {
+                let inner = self.serde_holder(t, elem(t)?, strings)?;
+                Ok(SerdeField {
+                    omit: Omit::NilOrEmpty,
+                    value: false,
+                    with: None,
+                    merge_bridge: inner,
+                })
+            }
+            TypeKind::Map => {
+                let k = t
+                    .key
+                    .as_deref()
+                    .ok_or_else(|| ToolError::new(format!("map type {} has no key", t.reflect)))?;
+                let _ = self.serde_holder(t, k, strings)?;
+                let inner = self.serde_holder(t, elem(t)?, strings)?;
+                Ok(SerdeField {
+                    omit: Omit::NilOrEmpty,
+                    value: false,
+                    with: None,
+                    merge_bridge: inner,
+                })
+            }
+            TypeKind::Interface if t.methods.is_empty() => Ok(SerdeField {
+                omit: Omit::Zero,
+                value: false,
+                with: None,
+                merge_bridge: false,
+            }),
+            TypeKind::Interface
+            | TypeKind::Array
+            | TypeKind::Func
+            | TypeKind::Chan
+            | TypeKind::Typeparam => Err(unsupported(t)),
+        }
+    }
+
+    /// Whether `MergeClone` of the pointer, slice or map `outer` goes through the bridge for its
+    /// element or key `inner`.
+    fn serde_holder(&self, outer: &TypeRef, inner: &TypeRef, strings: StringType) -> Result<bool> {
+        let field = self.serde_field(inner, strings)?;
+        if field.with.is_some() {
+            return Err(ToolError::new(format!(
+                "{}: a bridged type inside a pointer, slice or map has no serde mapping; \
+                 override the field",
+                outer.reflect
+            )));
+        }
+        Ok(field.merge_bridge)
+    }
+}
+
+/// How the serde code treats a field of one Go type.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SerdeField {
+    /// Go's `omitempty` test for the type.
+    pub omit: Omit,
+    /// Whether the type is a Go value (a number, bool, string, named type or struct): JSON null
+    /// leaves it at its zero value (`null_default`), where serde would fail.
+    pub value: bool,
+    /// The bridge module (`raw_json`) of a bridged type held directly.
+    pub with: Option<String>,
+    /// Whether `MergeClone` goes through the bridge: the type holds a bridged type, or a Go `int`
+    /// or `uint` (pbs-jsonutil has no `MergeClone` for `isize` and `usize`).
+    pub merge_bridge: bool,
+}
+
+/// Go's `omitempty` test, as the serde code spells it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Omit {
+    /// Never omitted: Go ignores `omitempty` on a struct.
+    Never,
+    /// The zero value (`is_zero`): numbers, bools, strings, named types, `interface{}` (nil).
+    Zero,
+    /// Nil (`Option::is_none`): a pointer.
+    Nil,
+    /// Nil or empty (`is_nil_or_empty`): a slice or map.
+    NilOrEmpty,
+    /// The bridge module's `is_empty`.
+    Bridge,
 }
 
 /// A named Go type's Rust side.

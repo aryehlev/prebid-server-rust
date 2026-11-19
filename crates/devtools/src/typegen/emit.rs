@@ -2,8 +2,35 @@
 //!
 //! The output is already in rustfmt's canonical form for the workspace's `rustfmt.toml` (so
 //! `--check` compares bytes without running rustfmt): imports grouped and sorted the way rustfmt
-//! sorts them, attributes and items broken the way rustfmt breaks them when they exceed the width,
-//! and docs from [`docs`].
+//! sorts them, attributes, items and match arms broken the way rustfmt breaks them when they exceed
+//! its widths, and docs from [`docs`].
+//!
+//! With the config's `serde` set, every struct and named type also gets plain serde code next to
+//! `GoJson`'s derive:
+//!
+//! - `derive(Serialize, Deserialize)`; a struct gets `#[serde(default)]` (an absent member keeps
+//!   its zero value) and a named type `#[serde(transparent)]` (it reads and writes as its Go
+//!   underlying type, so a typed enum takes any value of its integer type);
+//! - per field `rename` to the JSON key (the Go name without one, `skip` for `json:"-"`);
+//!   `skip_serializing_if` for `omitempty` as Go tests it: `Option::is_none` for a pointer,
+//!   `is_nil_or_empty` for a slice or map, `is_zero` for a number, bool, string, named type or
+//!   `interface{}`, the bridge's `is_empty` for a bridged type, and nothing for a struct, which Go
+//!   never omits; and `deserialize_with = "null_default"` on every Go value (a number, bool,
+//!   string, named type or struct), which keeps its zero value when it reads null, as Go does;
+//! - a `MergeClone` impl (pbs-jsonutil's port of `jsonutil.MergeClone`): `merge_struct` over the
+//!   JSON keys, each `merge_field` naming Go's `Type.Field`, and a named type merging as its
+//!   underlying type;
+//! - for a struct that embeds another, a private struct of every member it reads, the embedded
+//!   struct's promoted ones in their place (`#[serde(from = ...)]`; it writes them through
+//!   `#[serde(flatten)]`), so that every value is read by `serde_json` itself, as a `RawValue` must
+//!   be.
+//!
+//! Types `GoJson`'s derive still needs, which have no serde or `MergeClone` impls (`RawJson` for
+//! `json.RawMessage`, `JsonNumber`, extern types with a `serde_bridge` module), and Go `int` and
+//! `uint`, whose `isize` and `usize` pbs-jsonutil does not merge, go through the config's
+//! `serde_bridge` module: `with = "<bridge>::raw_json"` and its `is_empty`, and the bridge's
+//! `merge_field` and `merge`. A `json.RawMessage` reads null as nil, as jsoniter does, unless its
+//! override sets `keep_null` (`encoding/json`'s bytes `null`).
 
 use core::{iter::Peekable, str::Chars};
 use std::{
@@ -16,7 +43,8 @@ use super::{
     docs::{self, WIDTH},
     model::{Decl, DeclKind, Field, Package, TypeKind, TypeRef},
     names,
-    registry::{Ctx, Registry, TypeInfo},
+    registry::{Ctx, Omit, Registry, TypeInfo},
+    serde_code::{self, Member, Side, Slot, derive},
 };
 use crate::error::{Result, ToolError};
 
@@ -56,6 +84,8 @@ pub struct IndexType {
     pub rust: String,
     /// Whether the Go type is a struct.
     pub is_struct: bool,
+    /// Written by hand (a `skip` override), so not in the generated file.
+    pub hand_written: bool,
 }
 
 /// A ported Go constant.
@@ -91,6 +121,12 @@ pub fn package(
     pc: &PackageConfig,
     pkg: &Package,
 ) -> Result<Generated> {
+    if config.serde_bridge.is_some() && !config.serde {
+        return Err(ToolError::new(format!(
+            "{}: serde_bridge is set without serde",
+            config.source
+        )));
+    }
     let mut e = Emitter::new(reg, config, pc, pkg);
     let mut output = Output::default();
     for decl in pkg.decls.iter().filter(|d| d.exported) {
@@ -108,7 +144,7 @@ pub fn package(
         )));
     }
     let funcs = functions(config, pc, pkg, &output.go_funcs)?;
-    if !output.items.is_empty() {
+    if output.types.iter().any(|t| !t.hand_written) {
         let _ = e.ctx.uses.insert("pbs_gojson::GoJson".to_owned());
     }
     let mut lines = header(config, pkg);
@@ -210,6 +246,7 @@ fn func_key(decl: &Decl) -> String {
 
 struct Emitter<'a> {
     reg: &'a Registry,
+    config: &'a Config,
     pc: &'a PackageConfig,
     pkg: &'a Package,
     ctx: Ctx<'a>,
@@ -236,6 +273,7 @@ impl<'a> Emitter<'a> {
             .collect();
         Self {
             reg,
+            config,
             pc,
             pkg,
             ctx: Ctx {
@@ -270,6 +308,7 @@ impl<'a> Emitter<'a> {
                     go_name: info.go_name.clone(),
                     rust: format!("{}::{}", self.pc.rust, info.rust_name),
                     is_struct: decl.kind == DeclKind::Struct,
+                    hand_written: skip,
                 });
                 if skip {
                     return Ok(());
@@ -277,12 +316,12 @@ impl<'a> Emitter<'a> {
                 if decl.generic {
                     return Err(self.error(decl, "is generic; skip it and write it by hand"));
                 }
-                let item = if decl.kind == DeclKind::Struct {
-                    self.struct_item(decl, info)?
+                let items = if decl.kind == DeclKind::Struct {
+                    self.struct_item(decl, info, o.is_some_and(|o| o.keep_null))?
                 } else {
                     self.named_item(decl, info)?
                 };
-                output.items.push(item);
+                output.items.extend(items);
             }
             DeclKind::Alias => {
                 if !skip {
@@ -361,28 +400,10 @@ impl<'a> Emitter<'a> {
         }
     }
 
-    fn struct_item(&mut self, decl: &Decl, info: &TypeInfo) -> Result<Vec<String>> {
-        let mut out = Self::doc(
-            &docs::join(&[&decl.doc, &decl.comment]),
-            0,
-            &format!("Go type `{}`.", info.go_name),
-        );
-        out.extend(doc_alias(&info.rust_name, &decl.name));
-        let mut derives = vec!["Clone"];
-        if info.copy {
-            derives.push("Copy");
-        }
-        derives.extend(["Debug", "Default", "PartialEq"]);
-        if info.eq {
-            derives.push("Eq");
-        }
-        derives.push("GoJson");
-        out.push(format!("#[derive({})]", derives.join(", ")));
-        out.extend(attribute(
-            0,
-            &[format!("go_type = {}", literal(&info.go_name))],
-        ));
-        let mut body = Vec::new();
+    /// The fields of struct `decl` as its Rust struct holds them (skipped ones left out), named
+    /// and typed, with the imports their types need.
+    fn fields<'d>(&mut self, decl: &'d Decl) -> Result<Vec<StructField<'d>>> {
+        let mut out = Vec::new();
         let mut field_names = BTreeMap::new();
         for f in &decl.fields {
             let key = format!("{}.{}", decl.name, f.name);
@@ -427,11 +448,72 @@ impl<'a> Emitter<'a> {
                 let inline = o.as_ref().is_some_and(|o| o.inline);
                 self.reg.render(&f.ty, inline, &mut self.ctx)?
             };
+            let keep_null = o.as_ref().is_some_and(|o| o.keep_null);
+            if keep_null && !(self.config.serde && is_raw_message(&f.ty)) {
+                return Err(self.error(
+                    decl,
+                    &format!(
+                        "field {}: keep_null is for json.RawMessage fields of serde code",
+                        f.name
+                    ),
+                ));
+            }
+            out.push(StructField {
+                go: f,
+                name: names::escape(&name),
+                ty,
+                keep_null,
+            });
+        }
+        Ok(out)
+    }
+
+    fn struct_item(
+        &mut self,
+        decl: &Decl,
+        info: &TypeInfo,
+        keep_null: bool,
+    ) -> Result<Vec<Vec<String>>> {
+        if keep_null && !self.config.serde {
+            return Err(self.error(decl, "has keep_null, which is for serde code"));
+        }
+        let fields = self.fields(decl)?;
+        let slots = if self.config.serde {
+            if fields.is_empty() {
+                return Err(self.error(
+                    decl,
+                    "has no fields, which serde reads from null where Go reads an object; skip \
+                     it and write it by hand",
+                ));
+            }
+            Some(self.slots(decl, info, &fields, keep_null)?)
+        } else {
+            None
+        };
+        let embeds = slots
+            .iter()
+            .flatten()
+            .any(|s| matches!(s, Slot::Embedded { .. }));
+        let mut out = self.struct_head(decl, info, slots.is_some(), embeds)?;
+        let bridge = self.config.serde_bridge.clone();
+        let side = if embeds { Side::Serialize } else { Side::Both };
+        let mut body = Vec::new();
+        for (i, sf) in fields.iter().enumerate() {
+            let f = sf.go;
             body.extend(Self::doc(
                 &docs::join(&[&f.doc, &f.comment]),
                 4,
                 &format!("Go field `{}`.", f.name),
             ));
+            match slots.as_ref().and_then(|s| s.get(i)) {
+                Some(Slot::Own(m)) => {
+                    let args =
+                        serde_code::field_args(m, side, bridge.as_deref(), &mut self.ctx.uses)?;
+                    body.extend(meta_list(4, "serde", &args));
+                }
+                Some(Slot::Embedded { .. }) => body.push("    #[serde(flatten)]".to_owned()),
+                None => {}
+            }
             let mut args = vec![format!("go = {}", literal(&f.name))];
             if let Some(tag) = &f.json {
                 args.push(format!("json = {}", literal(tag)));
@@ -440,7 +522,7 @@ impl<'a> Emitter<'a> {
                 args.push("embedded".to_owned());
             }
             body.extend(attribute(4, &args));
-            body.extend(field_line(&names::escape(&name), &ty));
+            body.extend(field_line(&sf.name, &sf.ty));
         }
         if body.is_empty() {
             out.push(format!("pub struct {};", info.rust_name));
@@ -449,7 +531,217 @@ impl<'a> Emitter<'a> {
             out.extend(body);
             out.push("}".to_owned());
         }
+        let mut items = vec![out];
+        if let Some(slots) = slots {
+            items.push(serde_code::merge_impl(
+                &info.rust_name,
+                &info.go_name,
+                &slots,
+                bridge.as_deref(),
+                &mut self.ctx.uses,
+            )?);
+            if embeds {
+                items.extend(serde_code::mirror(
+                    &info.rust_name,
+                    &slots,
+                    bridge.as_deref(),
+                    &mut self.ctx.uses,
+                )?);
+            }
+        }
+        Ok(items)
+    }
+
+    /// The doc and attributes of the struct for `decl`: its derives, serde's container attribute
+    /// (`serde` set; `from` the private struct of its members when it `embeds` another) and its
+    /// Go name.
+    fn struct_head(
+        &mut self,
+        decl: &Decl,
+        info: &TypeInfo,
+        serde: bool,
+        embeds: bool,
+    ) -> Result<Vec<String>> {
+        let mut out = Self::doc(
+            &docs::join(&[&decl.doc, &decl.comment]),
+            0,
+            &format!("Go type `{}`.", info.go_name),
+        );
+        out.extend(doc_alias(&info.rust_name, &decl.name));
+        let mut derives = vec!["Clone"];
+        if info.copy {
+            derives.push("Copy");
+        }
+        derives.extend(["Debug", "Default", "PartialEq"]);
+        if info.eq {
+            derives.push("Eq");
+        }
+        if serde {
+            derives.extend(["Serialize", "Deserialize"]);
+            self.use_serde();
+        }
+        derives.push("GoJson");
+        out.extend(derive(&derives));
+        if serde {
+            out.push(if embeds {
+                let mirror = serde_code::mirror_name(&info.rust_name);
+                self.claim_type(&mirror, &format!("{} (its serde members)", decl.name))?;
+                format!("#[serde(from = {})]", literal(&mirror))
+            } else {
+                "#[serde(default)]".to_owned()
+            });
+        }
+        out.extend(attribute(
+            0,
+            &[format!("go_type = {}", literal(&info.go_name))],
+        ));
         Ok(out)
+    }
+
+    /// What the fields of struct `decl` are to the serde code: JSON members, and embedded structs
+    /// whose members Go promotes (at most one level, from this package, none of them hidden).
+    fn slots(
+        &mut self,
+        decl: &Decl,
+        info: &TypeInfo,
+        fields: &[StructField<'_>],
+        keep_null: bool,
+    ) -> Result<Vec<Slot>> {
+        let mut slots = Vec::new();
+        for sf in fields {
+            let f = sf.go;
+            if !promotes(f) {
+                slots.push(Slot::Own(self.member(
+                    decl,
+                    &info.go_name,
+                    sf,
+                    keep_null,
+                )?));
+                continue;
+            }
+            let pkg: &'a Package = self.pkg;
+            let embedded = (f.ty.kind == TypeKind::Named && f.ty.pkg == pkg.path)
+                .then(|| {
+                    pkg.decls
+                        .iter()
+                        .find(|d| d.kind == DeclKind::Struct && d.name == f.ty.name)
+                })
+                .flatten()
+                .ok_or_else(|| {
+                    self.error(
+                        decl,
+                        &format!(
+                            "embeds {}, which is not a struct of its package (serde code \
+                             promotes only those)",
+                            f.ty.reflect
+                        ),
+                    )
+                })?;
+            let go_type = self
+                .reg
+                .get(&pkg.path, &embedded.name)
+                .map(|i| i.go_name.clone())
+                .ok_or_else(|| self.error(embedded, "is not registered"))?;
+            let inner_keep_null = self
+                .pc
+                .overrides
+                .get(&embedded.name)
+                .is_some_and(|o| o.keep_null);
+            let mut members = Vec::new();
+            for ef in self.fields(embedded)? {
+                if promotes(ef.go) {
+                    return Err(self.error(
+                        decl,
+                        &format!(
+                            "embeds {}, which embeds {} (serde code promotes one level)",
+                            embedded.name, ef.go.name
+                        ),
+                    ));
+                }
+                members.push(self.member(embedded, &go_type, &ef, inner_keep_null)?);
+            }
+            slots.push(Slot::Embedded {
+                field: sf.name.clone(),
+                ty: sf.ty.clone(),
+                members,
+            });
+        }
+        let mut keys = BTreeSet::new();
+        for slot in &slots {
+            for key in slot
+                .members()
+                .into_iter()
+                .filter_map(|(_, m)| m.key.as_deref())
+            {
+                if !keys.insert(key) {
+                    return Err(self.error(
+                        decl,
+                        &format!(
+                            "has two fields with JSON key {key:?}; Go keeps the shallower or \
+                             neither, which serde code does not"
+                        ),
+                    ));
+                }
+            }
+        }
+        Ok(slots)
+    }
+
+    /// A field of struct `decl` (Go's name `go_type`) as a JSON member.
+    fn member(
+        &self,
+        decl: &Decl,
+        go_type: &str,
+        sf: &StructField<'_>,
+        type_keep_null: bool,
+    ) -> Result<Member> {
+        let f = sf.go;
+        let tag = f.json.as_deref().unwrap_or_default();
+        let (key, omitempty) = if tag == "-" {
+            (None, false)
+        } else {
+            let mut parts = tag.split(',');
+            let name = parts.next().unwrap_or_default();
+            let mut omitempty = false;
+            for option in parts {
+                match option {
+                    "omitempty" => omitempty = true,
+                    "" => {}
+                    other => {
+                        return Err(self.error(
+                            decl,
+                            &format!(
+                                "field {}: the json option {other:?} has no serde mapping",
+                                f.name
+                            ),
+                        ));
+                    }
+                }
+            }
+            let key = if name.is_empty() { &f.name } else { name };
+            (Some(key.to_owned()), omitempty)
+        };
+        let serde = self
+            .reg
+            .serde_field(&f.ty, self.pc.strings)
+            .map_err(|e| self.error(decl, &format!("field {}: {e}", f.name)))?;
+        Ok(Member {
+            key,
+            field: sf.name.clone(),
+            ty: sf.ty.clone(),
+            go_type: go_type.to_owned(),
+            go_field: f.name.clone(),
+            omitempty,
+            serde,
+            keep_null: is_raw_message(&f.ty) && (sf.keep_null || type_keep_null),
+        })
+    }
+
+    /// Imports serde's derives.
+    fn use_serde(&mut self) {
+        for path in ["serde::Deserialize", "serde::Serialize"] {
+            let _ = self.ctx.uses.insert(path.to_owned());
+        }
     }
 
     fn field_name(&self, f: &Field) -> String {
@@ -463,7 +755,7 @@ impl<'a> Emitter<'a> {
         }
     }
 
-    fn named_item(&mut self, decl: &Decl, info: &TypeInfo) -> Result<Vec<String>> {
+    fn named_item(&mut self, decl: &Decl, info: &TypeInfo) -> Result<Vec<Vec<String>>> {
         let under = decl
             .ty
             .as_ref()
@@ -484,21 +776,60 @@ impl<'a> Emitter<'a> {
                 derives.extend(["Ord", "Hash"]);
             }
         }
-        derives.push("GoJson");
         let mut args = vec![format!("go_type = {}", literal(&info.go_name))];
         if basic && (under.name == "string" || is_integer(&under.name)) {
             args.push("map_key".to_owned());
         }
+        let serde = if self.config.serde {
+            let field = self
+                .reg
+                .serde_field(under, self.pc.strings)
+                .map_err(|e| self.error(decl, &e.to_string()))?;
+            if field.with.is_some() {
+                return Err(self.error(
+                    decl,
+                    "is a named type of a bridged type, which serde code cannot name; skip it \
+                     and write it by hand",
+                ));
+            }
+            // A field of a named type omits its zero value (`is_zero`), which is Go's `omitempty`
+            // only where the underlying type's test is the zero value too.
+            if matches!(field.omit, Omit::Never | Omit::NilOrEmpty) {
+                return Err(self.error(
+                    decl,
+                    "is a named type of a slice, map or struct, whose omitempty test is not its \
+                     zero value; skip it and write it by hand",
+                ));
+            }
+            derives.extend(["Serialize", "Deserialize"]);
+            self.use_serde();
+            Some(field)
+        } else {
+            None
+        };
+        derives.push("GoJson");
         let mut out = Self::doc(
             &docs::join(&[&decl.doc, &decl.comment]),
             0,
             &format!("Go type `{}`.", info.go_name),
         );
         out.extend(doc_alias(&info.rust_name, &decl.name));
-        out.push(format!("#[derive({})]", derives.join(", ")));
+        out.extend(derive(&derives));
+        if serde.is_some() {
+            out.push("#[serde(transparent)]".to_owned());
+        }
         out.extend(attribute(0, &args));
         out.push(format!("pub struct {}(pub {inner});", info.rust_name));
-        Ok(out)
+        let mut items = vec![out];
+        if let Some(field) = serde {
+            items.push(serde_code::named_merge_impl(
+                &info.rust_name,
+                field.merge_bridge,
+                self.config.serde_bridge.as_deref(),
+                &mut self.ctx.uses,
+            )?);
+        }
+        Ok(items)
     }
 
     fn alias_item(&mut self, decl: &Decl) -> Result<Vec<String>> {
@@ -655,6 +986,28 @@ impl<'a> Emitter<'a> {
     }
 }
 
+/// A field of a generated struct: its Go field, Rust name (as written) and type.
+struct StructField<'d> {
+    go: &'d Field,
+    name: String,
+    ty: String,
+    /// The field's override sets `keep_null`.
+    keep_null: bool,
+}
+
+/// Whether Go promotes the fields of embedded field `f` (an embedded field without a JSON name).
+fn promotes(f: &Field) -> bool {
+    f.embedded
+        && f.json
+            .as_deref()
+            .is_none_or(|tag| tag.split(',').next().unwrap_or_default().is_empty())
+}
+
+/// Whether `t` is `encoding/json.RawMessage`.
+fn is_raw_message(t: &TypeRef) -> bool {
+    t.kind == TypeKind::Named && t.pkg == "encoding/json" && t.name == "RawMessage"
+}
+
 fn is_integer(name: &str) -> bool {
     matches!(
         name,
@@ -746,7 +1099,8 @@ fn doc_alias(rust: &str, go: &str) -> Vec<String> {
 
 /// `#[name(args)]`, one argument per line when the arguments exceed rustfmt's
 /// `attr_fn_like_width` or the line exceeds the width.
-fn meta_list(indent: usize, name: &str, args: &[String]) -> Vec<String> {
+#[must_use]
+pub fn meta_list(indent: usize, name: &str, args: &[String]) -> Vec<String> {
     let pad = " ".repeat(indent);
     let joined = args.join(", ");
     let line = format!("{pad}#[{name}({joined})]");

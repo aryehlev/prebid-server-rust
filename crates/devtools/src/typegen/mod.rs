@@ -35,6 +35,23 @@
 //! fails generation, and so does an exported Go function or method that the config's
 //! `functions` does not map to its hand-written port (or a mapping whose Go function is gone).
 //!
+//! A config with `"serde": true` also gets serde code next to the `GoJson` derive ([`serde_code`]):
+//! `Serialize` and `Deserialize` with a container `#[serde(default)]`, per field a `rename` to the
+//! JSON key, `skip_serializing_if` for `omitempty` (`Option::is_none` for pointers,
+//! `is_nil_or_empty` for slices and maps, `is_zero` for numbers, bools and strings, never for
+//! structs), `deserialize_with = "null_default"` on every value field, `#[serde(transparent)]` on
+//! named types, and a pbs-jsonutil `MergeClone` impl per type that merges each member into its
+//! field with Go's context (`Type.Field`). A struct that embeds another writes it
+//! `#[serde(flatten)]` and reads every member, promoted ones included, through a private mirror
+//! struct (`#[serde(from = "...Fields")]`). The config's `serde_bridge` names the module that
+//! carries what pbs-jsonutil cannot read, write or merge itself (`RawJson`, the merge of Go `int`
+//! and `uint`, and the `extern_types` that name a bridge); a field override's `keep_null` keeps
+//! null in a `json.RawMessage` of a type Prebid decodes with `encoding/json`. Generation refuses
+//! what serde cannot hold as Go does: a struct without fields, two fields with one JSON key, the
+//! `,string` option, `GoString` strings, a bridged type inside a pointer, slice or map or under a
+//! named type, a named type of a slice, map or struct, and an embedded struct that is a pointer,
+//! of another package or embeds one itself.
+//!
 //! Each crate can also ask for two indexes ([`index`]): a Rust file with the `for_each_type!`,
 //! `for_each_struct!` and `for_each_const!` macros, the Go names of the types and constants, and
 //! a compile-time signature check of every function port (for its parity tests), and a Go file
@@ -48,6 +65,9 @@ pub mod index;
 pub mod model;
 pub mod names;
 pub mod registry;
+pub mod serde_code;
+#[cfg(test)]
+mod serde_tests;
 
 use std::{collections::BTreeMap, ffi::OsString, fs, path::Path};
 

@@ -38,6 +38,18 @@ pub struct Config {
     /// style keys: import path, a dot, the type name).
     #[serde(default)]
     pub extern_types: BTreeMap<String, ExternType>,
+    /// Also generate plain serde code: serde derives and field attributes, and a `MergeClone`
+    /// impl per type (see [`super::emit`]), next to `GoJson`'s derive, which stays until every
+    /// consumer reads the serde code.
+    #[serde(default)]
+    pub serde: bool,
+    /// The module the serde code calls for what the `GoJson`-era Rust types lack while `GoJson`'s
+    /// derive stays, as code in the crate names it (`crate::gojson_bridge`): one module per
+    /// bridged type with serde's `with` functions and `is_empty` (`raw_json` for
+    /// `json.RawMessage`, which stays `RawJson`), and `merge_field` and `merge`, `MergeClone`
+    /// for the bridged types and Go `int` and `uint`.
+    #[serde(default)]
+    pub serde_bridge: Option<String>,
     /// The crate directory (set when the file is loaded).
     #[serde(skip)]
     pub dir: PathBuf,
@@ -143,6 +155,12 @@ pub struct Override {
     /// Hold a pointer-to-struct field as `Option<T>` instead of `Option<Box<T>>`.
     #[serde(default)]
     pub inline: bool,
+    /// Read JSON null into this `json.RawMessage` field, or into every `json.RawMessage` field of
+    /// this type, as the bytes `null`, as `encoding/json` does (serde code only): for the types
+    /// Prebid decodes with `json.Unmarshal`. Without it null is nil, as jsoniter
+    /// (`jsonutil.Unmarshal`) reads it.
+    #[serde(default)]
+    pub keep_null: bool,
 }
 
 impl Override {
@@ -186,6 +204,10 @@ pub struct ExternType {
     /// Whether the Rust type is a Go struct (held behind `Box` when pointed to).
     #[serde(default)]
     pub is_struct: bool,
+    /// The module of the config's `serde_bridge` that serializes and merges the type (serde code
+    /// only), for a type without serde and `MergeClone` impls of its own.
+    #[serde(default)]
+    pub serde_bridge: Option<String>,
 }
 
 impl Config {
