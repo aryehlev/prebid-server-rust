@@ -45,6 +45,14 @@ note = """\
     50,000 seeded strings decode to go-gdpr's bytes or fail with its text, batch by batch, against \
     testdata/base64_seeded_goldens.json"""
 
+[[restoration]]
+id = "base64.leniency"
+pin = "crates/tcf2/tests/base64.rs::go_exhaustive"
+note = """\
+    every string of up to 7 bytes over a digit with its low bits zero, one with them set, `\\n`, \
+    `\\r`, `=`, `+` and a byte past ASCII (960,800 strings) decodes to go-gdpr's bytes or fails \
+    with its text, length by length, against testdata/base64_exhaustive_goldens.json"""
+
 [[difference]]
 id = "gvl.json-leniency"
 category = "gvl"

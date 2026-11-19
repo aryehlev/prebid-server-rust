@@ -1,7 +1,8 @@
 //! Pins of the GPP base64 glue (`base64.leniency` in the differences ledger) against go-gpp
 //! v0.2.0's `util.NewBitStreamFromBase64`: the 50,000 seeded strings of
-//! `testdata/golden/base64_seeded.txt` (written by `testdata/go` with go1.26.2), beside what the
-//! base64 crate's `URL_SAFE_NO_PAD` does alone with the same padded input.
+//! `testdata/golden/base64_seeded.txt` and the 960,800 enumerated ones of
+//! `testdata/golden/base64_exhaustive.txt` (written by `testdata/go` with go1.26.2), the seeded
+//! ones beside what the base64 crate's `URL_SAFE_NO_PAD` does alone with the same padded input.
 
 #[cfg(test)]
 mod tests {
@@ -198,5 +199,72 @@ mod tests {
             },
             "the crate alone beside Go",
         )
+    }
+
+    /// exhaustive.go's `exhaustiveSymbols`: a digit whose low bits are zero, one whose low bits
+    /// are all set, the two line breaks, `=`, GPP's segment separator and a two-byte character.
+    const EXHAUSTIVE_SYMBOLS: [&str; 7] = ["A", "_", "\n", "\r", "=", ".", "é"];
+
+    /// Moves `digits` to the next number in base `base`, the last digit the least significant, as
+    /// exhaustive.go counts; false once `digits` held the greatest.
+    fn count_up(digits: &mut [usize], base: usize) -> bool {
+        let Some(position) = digits.iter().rposition(|&digit| digit + 1 < base) else {
+            return false;
+        };
+        for (index, digit) in digits.iter_mut().enumerate().skip(position) {
+            *digit = if index == position { *digit + 1 } else { 0 };
+        }
+        true
+    }
+
+    /// Every string of up to 7 symbols of [`EXHAUSTIVE_SYMBOLS`] (960,800 strings: each
+    /// arrangement of line breaks, padding, unused bits and illegal bytes over a quantum, a lone
+    /// digit and two more symbols, which go-gpp's padding counts in bytes) decodes through
+    /// `BitStream::from_base64` to Go's bytes or fails with Go's text, length by length.
+    // Go: testdata/go/exhaustive.go (exhaustiveGolden: util.NewBitStreamFromBase64,
+    // util/bitstream.go:20-41, over RawURLEncoding.Decode).
+    #[test]
+    fn go_exhaustive() -> TestResult {
+        let path =
+            Path::new(env!("CARGO_MANIFEST_DIR")).join("testdata/golden/base64_exhaustive.txt");
+        let golden = fs::read_to_string(&path)?;
+        let mut lines = golden.lines();
+        check_eq(&lines.next(), &Some("max\t7\tsymbols\t7"), "header")?;
+        let mut strings = 0_u64;
+        let mut lengths = 0_usize;
+        for (len, line) in lines.enumerate() {
+            let mut inputs = Sha256::new();
+            let mut results = Sha256::new();
+            let (mut count, mut accepted) = (0_u64, 0_u64);
+            let mut digits = vec![0_usize; len];
+            loop {
+                let input: String = digits
+                    .iter()
+                    .filter_map(|&digit| EXHAUSTIVE_SYMBOLS.get(digit).copied())
+                    .collect();
+                inputs.update(format!("{}\n", hex(input.as_bytes())));
+                count += 1;
+                match BitStream::from_base64(&input) {
+                    Ok(stream) => {
+                        results.update(format!("={}\n", hex(stream.bytes())));
+                        accepted += 1;
+                    }
+                    Err(err) => results.update(format!("!{err}\n")),
+                }
+                if !count_up(&mut digits, EXHAUSTIVE_SYMBOLS.len()) {
+                    break;
+                }
+            }
+            let got = format!(
+                "{len}\t{count}\t{accepted}\t{}\t{}",
+                hex(&inputs.finalize()),
+                hex(&results.finalize())
+            );
+            check_eq(&got.as_str(), &line, &format!("length {len}"))?;
+            strings += count;
+            lengths += 1;
+        }
+        check_eq(&lengths, &8, "lengths")?;
+        check_eq(&strings, &960_800, "strings")
     }
 }

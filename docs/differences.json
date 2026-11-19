@@ -48,9 +48,19 @@
       "restore_by": [],
       "restorations": [
         {
+          "pin": "crates/gpp/tests/base64.rs::go_exhaustive",
+          "note": "every string of up to 7 symbols over a digit with its low bits zero, one with them set, `\\n`, `\\r`, `=`, `.` and the two-byte `é` (960,800 strings) decodes through `BitStream::from_base64` to go-gpp's bytes or fails with its text, length by length, against testdata/golden/base64_exhaustive.txt",
+          "fragment": "crates/gpp/differences.toml"
+        },
+        {
           "pin": "crates/gpp/tests/base64.rs::go_seeded",
           "note": "50,000 seeded strings decode through `BitStream::from_base64` to go-gpp's bytes or fail with its text, batch by batch, against testdata/golden/base64_seeded.txt",
           "fragment": "crates/gpp/differences.toml"
+        },
+        {
+          "pin": "crates/tcf2/tests/base64.rs::go_exhaustive",
+          "note": "every string of up to 7 bytes over a digit with its low bits zero, one with them set, `\\n`, `\\r`, `=`, `+` and a byte past ASCII (960,800 strings) decodes to go-gdpr's bytes or fails with its text, length by length, against testdata/base64_exhaustive_goldens.json",
+          "fragment": "crates/tcf2/differences.toml"
         },
         {
           "pin": "crates/tcf2/tests/base64.rs::go_seeded",

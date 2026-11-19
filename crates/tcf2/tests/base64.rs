@@ -1,7 +1,8 @@
 //! Pins of the consent-string base64 glue (`pbs_tcf2::base64`, `base64.leniency` in the differences
 //! ledger) against Go's `base64.RawURLEncoding`, as go-gdpr's `ParseString` calls it: the decodes
-//! `testdata/base64_goldens.json` and `testdata/base64_seeded_goldens.json` record from go1.26.2
-//! (written by `testdata/go`), beside what the base64 crate's `URL_SAFE_NO_PAD` does alone.
+//! `testdata/base64_goldens.json`, `testdata/base64_seeded_goldens.json` and
+//! `testdata/base64_exhaustive_goldens.json` record from go1.26.2 (written by `testdata/go`),
+//! beside what the base64 crate's `URL_SAFE_NO_PAD` does alone.
 
 #[cfg(test)]
 mod tests {
@@ -14,7 +15,7 @@ mod tests {
 
     use base64::{DecodeError, Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
     use pbs_tcf2::base64::raw_url_decode;
-    use serde_json::Value;
+    use serde_json::{Value, json};
     use sha2::{Digest as _, Sha256};
 
     type TestResult = Result<(), Box<dyn Error>>;
@@ -411,5 +412,69 @@ mod tests {
             &[25_513, 821, 13_128],
             "accepted, with line breaks, with trailing bits",
         )
+    }
+
+    /// exhaustive.go's `exhaustiveSymbols`: a digit whose low bits are zero, one whose low bits
+    /// are all set, the two line breaks, `=`, a digit of the standard alphabet only and a byte
+    /// past ASCII.
+    const EXHAUSTIVE_SYMBOLS: [u8; 7] = [b'A', b'_', b'\n', b'\r', b'=', b'+', 0xC3];
+
+    /// Moves `digits` to the next number in base `base`, the last digit the least significant, as
+    /// exhaustive.go counts; false once `digits` held the greatest.
+    fn count_up(digits: &mut [usize], base: usize) -> bool {
+        let Some(position) = digits.iter().rposition(|&digit| digit + 1 < base) else {
+            return false;
+        };
+        for (index, digit) in digits.iter_mut().enumerate().skip(position) {
+            *digit = if index == position { *digit + 1 } else { 0 };
+        }
+        true
+    }
+
+    /// Every string of up to 7 bytes over [`EXHAUSTIVE_SYMBOLS`] (960,800 strings: each
+    /// arrangement of line breaks, padding, unused bits and illegal bytes over a quantum, a lone
+    /// digit and two more bytes) decodes to Go's bytes or fails with Go's text, length by length.
+    // Go: testdata/go/exhaustive.go (buildExhaustiveCases, through seeded.go's seededResult:
+    // go-gdpr's in-place RawURLEncoding.Decode, vendorconsent/tcf2/consent.go:27-33, checked
+    // there against DecodeString).
+    #[test]
+    fn go_exhaustive() -> TestResult {
+        let doc = golden("base64_exhaustive_goldens.json")?;
+        let lengths = doc
+            .get("cases")
+            .and_then(Value::as_array)
+            .ok_or("no cases")?;
+        check_eq(&lengths.len(), &8, "lengths")?;
+        let mut strings = 0_u64;
+        for (len, golden_length) in lengths.iter().enumerate() {
+            let mut inputs = Sha256::new();
+            let mut results = Sha256::new();
+            let (mut count, mut accepted) = (0_u64, 0_u64);
+            let mut digits = vec![0_usize; len];
+            loop {
+                let input: Vec<u8> = digits
+                    .iter()
+                    .filter_map(|&digit| EXHAUSTIVE_SYMBOLS.get(digit).copied())
+                    .collect();
+                let result = raw_url_decode(&input);
+                count += 1;
+                accepted += u64::from(result.is_ok());
+                inputs.update(format!("{}\n", hex(&input)));
+                results.update(format!("{}\n", render(result)));
+                if !count_up(&mut digits, EXHAUSTIVE_SYMBOLS.len()) {
+                    break;
+                }
+            }
+            let got = json!({
+                "len": len,
+                "count": count,
+                "accepted": accepted,
+                "inputs_sha256": hex(&inputs.finalize()),
+                "results_sha256": hex(&results.finalize()),
+            });
+            check_eq(&got, golden_length, &format!("length {len}"))?;
+            strings += count;
+        }
+        check_eq(&strings, &960_800, "strings")
     }
 }
