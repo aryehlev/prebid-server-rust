@@ -19,6 +19,10 @@ pub(super) const CATEGORIES: &[Category] = &[
         title: "ads.cert signing",
     },
     Category {
+        id: "analytics",
+        title: "Analytics modules",
+    },
+    Category {
         id: "base64",
         title: "Base64",
     },
@@ -87,6 +91,10 @@ pub(super) const CATEGORIES: &[Category] = &[
         title: "Prometheus metrics",
     },
     Category {
+        id: "mod51d",
+        title: "51Degrees device detection",
+    },
+    Category {
         id: "psl",
         title: "Public suffix list",
     },
@@ -129,6 +137,10 @@ pub(super) const CATEGORIES: &[Category] = &[
     Category {
         id: "url",
         title: "URLs",
+    },
+    Category {
+        id: "usersync",
+        title: "User syncs",
     },
     Category {
         id: "uuid",
@@ -471,6 +483,44 @@ mod tests {
         )?;
         check_eq(&category("json").map(|c| c.title), &Some("JSON"), "lookup")?;
         check(category("jsn").is_none(), "an unknown category")
+    }
+
+    /// Every id prefix of the entries the plan's units expect to record: a unit cannot add a
+    /// category to this crate, so a missing one would fail its fragment at its merge.
+    #[test]
+    fn the_plans_categories_are_known() -> TestResult {
+        for id in [
+            "analytics",
+            "base64",
+            "cache",
+            "config",
+            "cookie",
+            "currency",
+            "gvl",
+            "gzip",
+            "http-client",
+            "influx",
+            "ip",
+            "json",
+            "jsonschema",
+            "logging",
+            "metrics",
+            "mod51d",
+            "psl",
+            "rand",
+            "regex",
+            "server",
+            "sort",
+            "task",
+            "time",
+            "tls",
+            "url",
+            "usersync",
+            "yaml",
+        ] {
+            check(category(id).is_some(), id)?;
+        }
+        Ok(())
     }
 
     #[test]
