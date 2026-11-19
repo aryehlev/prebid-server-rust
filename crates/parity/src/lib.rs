@@ -8,9 +8,11 @@
 //!   with their order, owning domain, keys and trace member, the 7 decision points, the outbound
 //!   call kinds, the mock constants and the schema names, all checked against the registry JSON
 //!   vendored under `contract/`;
-//! - the documents the servers exchange with the runner, with Go's exact JSON ([`envelope`],
-//!   [`tracedoc`], [`body`], [`adapterio`], [`errorcodes`]), encoded as the Go server writes them
-//!   ([`encode_document`]);
+//! - the documents the servers exchange with the runner ([`envelope`], [`tracedoc`], [`body`],
+//!   [`adapterio`], [`errorcodes`]): serde types with the members and `omitempty` rules of Go's
+//!   struct tags, read and written by `serde_json` ([`encode_document`]), so the runner reads the
+//!   same JSON values from both servers (`serde_json` and `encoding/json` differ in spelling and in
+//!   what malformed documents they accept: `json.parity-documents` in the differences ledger);
 //! - the seams product code calls ([`trace`], [`fakes`]): stage records, decision points, goroutine
 //!   tracking, the deterministic clock, random and UUID sources, and the map orders.
 //!
@@ -32,9 +34,10 @@
 //! time, publishes its [`trace::Session`], applies the envelope's fake values, and on
 //! `trace::Case::end` unpublishes the session and resets the fakes, exactly like Go's
 //! `trace.Begin`. (These items exist only with the feature.) The session records a trace the way
-//! Go's does: stage values as the bytes `jsonutil.Marshal` writes, error lists that are `null`
-//! until recorded and `[]` when recorded empty, outbound calls, decisions, analytics objects and
-//! notes, with every registered stage reported `captured`, `not_reached` or as explicitly marked.
+//! Go's does: stage values as the bytes `jsonutil.Marshal` writes (`pbs_jsonutil::marshal`), error
+//! lists that are `null` until recorded and `[]` when recorded empty, outbound calls, decisions,
+//! analytics objects and notes, with every registered stage reported `captured`, `not_reached` or
+//! as explicitly marked.
 //!
 //! # Observer-effect rule
 //!
@@ -51,7 +54,8 @@
 //! streams, decision records, scripted sessions encoded as traces, envelope and body edge cases,
 //! document round trips through the schema examples, error records and metric deltas, and the
 //! Go schema validator's verdict on every document this crate produces
-//! (`testdata/documents`).
+//! (`testdata/documents`). Documents compare as JSON values, not bytes; where Go and the port
+//! read an input differently, the tests name the ledger entry that explains it.
 
 pub mod adapterio;
 pub mod body;

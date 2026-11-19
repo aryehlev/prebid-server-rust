@@ -5,8 +5,9 @@ package main
 // slices, maps and pointers), marshaled, then rewritten the ways a runner may
 // send them (member order, whitespace, escapes, key case, unknown, missing,
 // repeated and null members, number forms, short and long header pairs, raw
-// invalid UTF-8, wrong value kinds, broken syntax). Each case records what
-// json.Unmarshal makes of the input: its error, or the document Go writes back.
+// invalid UTF-8, wrong value kinds, broken syntax). Each case records whether
+// it was rewritten and what json.Unmarshal makes of the input: its error, or
+// the document Go writes back.
 
 import (
 	"bytes"
@@ -356,12 +357,15 @@ func fuzzDocumentsGolden() (any, error) {
 			if err != nil {
 				return nil, fmt.Errorf("%s %d: %w", typ.name, i, err)
 			}
-			if f.chance(75) {
+			rewritten := f.chance(75)
+			if rewritten {
 				if input, err = f.rewrite(input); err != nil {
 					return nil, fmt.Errorf("%s %d: %w", typ.name, i, err)
 				}
 			}
-			c := map[string]any{"type": typ.name, "input_b64": base64.StdEncoding.EncodeToString(input)}
+			// rewritten tells the documents json.Marshal wrote, as a runner
+			// writes them, from the ones rewritten the ways a runner may not.
+			c := map[string]any{"type": typ.name, "input_b64": base64.StdEncoding.EncodeToString(input), "rewritten": rewritten}
 			out := typ.zero()
 			if err := json.Unmarshal(input, out); err != nil {
 				c["error"] = err.Error()

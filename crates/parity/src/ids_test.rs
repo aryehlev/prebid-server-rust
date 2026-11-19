@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-use pbs_gojson::{GoEncode, jsoniter, stdjson};
+use serde::{Serialize, de::DeserializeOwned};
 
 use super::{
     DecisionDomain, DecisionId, KeyedBy, OutboundKind, StageId, StageStatus, TraceField,
@@ -9,6 +9,7 @@ use super::{
 use crate::{
     contracts::{Domain, IMPL_GO, IMPL_RUST},
     golden::{Json, TestResult, check, check_eq, contract_json},
+    tracedoc::Trace,
 };
 
 /// The `enum` of a `common.schema.json` definition.
@@ -26,11 +27,14 @@ fn names<T: Copy>(all: &[T], name: fn(T) -> &'static str) -> Vec<String> {
     all.iter().map(|v| name(*v).to_owned()).collect()
 }
 
-/// `json.Marshal(v)` as text.
-fn encoded<T: GoEncode + ?Sized>(v: &T) -> Result<String, String> {
-    stdjson::marshal(v)
-        .map(|raw| String::from_utf8_lossy(&raw).into_owned())
-        .map_err(|e| e.to_string())
+/// `v` as `serde_json` writes it.
+fn encoded<T: Serialize + ?Sized>(v: &T) -> Result<String, String> {
+    serde_json::to_string(v).map_err(|e| e.to_string())
+}
+
+/// `input` read as a `T`, or `serde_json`'s message.
+fn decoded<T: DeserializeOwned>(input: &str) -> Result<T, String> {
+    serde_json::from_str(input).map_err(|e| e.to_string())
 }
 
 // Every stage of stages.json, in order, with its domain, keys and trace member.
@@ -215,7 +219,8 @@ fn stage_metadata() -> TestResult {
     check_eq(&set.count_ones(), &45, "45 bits")
 }
 
-// Go encodes map keys sorted by their text, whatever the registry order.
+// The IDs are written as their names; a map keyed by them in registry order, except the trace's
+// stage maps (the documents' only ones), which are written sorted by name as Go writes a map.
 #[test]
 fn encodes_like_go_strings() -> TestResult {
     check_eq(
@@ -240,62 +245,84 @@ fn encodes_like_go_strings() -> TestResult {
     ]);
     check_eq(
         &encoded(&map)?,
-        &r#"{"analytics":3,"http.in":2,"targeting":1}"#.to_owned(),
-        "keys sorted by text",
-    )
+        &r#"{"http.in":2,"targeting":1,"analytics":3}"#.to_owned(),
+        "registry order",
+    )?;
+    let trace = Trace {
+        stage_status: Some(BTreeMap::from([
+            (StageId::Targeting, StageStatus::Captured),
+            (StageId::HttpIn, StageStatus::NotReached),
+            (StageId::Analytics, StageStatus::Captured),
+        ])),
+        ..Trace::default()
+    };
+    let text = encoded(&trace)?;
+    let sorted = concat!(
+        r#""stage_status":{"analytics":"captured","#,
+        r#""http.in":"not_reached","targeting":"captured"}"#,
+    );
+    check(text.contains(sorted), &text)
 }
 
+// Go's string types take any value; the enums take the registered IDs only, as values and as
+// map keys, and refuse anything else naming the value (json.parity-documents: only the Go
+// runner writes these documents, from the same registry).
 #[test]
 fn decodes_registered_values_only() -> TestResult {
-    let mut stage = StageId::default();
-    stdjson::unmarshal(b"\"http.in\"", &mut stage).map_err(|e| e.to_string())?;
-    check_eq(&stage, &StageId::HttpIn, "std")?;
-    stdjson::unmarshal(b"null", &mut stage).map_err(|e| e.to_string())?;
-    check_eq(&stage, &StageId::HttpIn, "null is a no-op")?;
     check_eq(
-        &stdjson::unmarshal(b"\"made.up\"", &mut stage)
-            .err()
-            .map(|e| e.to_string()),
-        &Some(r#"parity: unregistered parity.StageID value "made.up""#.to_owned()),
+        &decoded::<StageId>(r#""http.in""#),
+        &Ok(StageId::HttpIn),
+        "stage",
+    )?;
+    check_eq(
+        &decoded::<StageId>(r#""made.up""#),
+        &Err(
+            r#"parity: unregistered parity.StageID value "made.up" at line 1 column 9"#.to_owned(),
+        ),
         "unregistered",
     )?;
     check_eq(
-        &stdjson::unmarshal(b"5", &mut stage)
-            .err()
-            .map(|e| e.to_string()),
-        &Some("json: cannot unmarshal number into Go value of type parity.StageID".to_owned()),
+        &decoded::<StageId>("5"),
+        &Err(
+            "invalid type: integer `5`, expected a registered parity.StageID at line 1 column 1"
+                .to_owned(),
+        ),
         "type error",
     )?;
-    let mut list: Option<Vec<DecisionId>> = None;
-    stdjson::unmarshal(br#"["floors.skip","usersync.shuffle"]"#, &mut list)
-        .map_err(|e| e.to_string())?;
     check_eq(
-        &list,
-        &Some(vec![DecisionId::FloorsSkip, DecisionId::UsersyncShuffle]),
+        &decoded::<Option<StageId>>("null"),
+        &Ok(None),
+        "null is no stage",
+    )?;
+    check_eq(
+        &decoded::<Option<Vec<DecisionId>>>(r#"["floors.skip","usersync.shuffle"]"#),
+        &Ok(Some(vec![
+            DecisionId::FloorsSkip,
+            DecisionId::UsersyncShuffle,
+        ])),
         "list",
     )?;
-    let mut statuses: Option<BTreeMap<StageId, StageStatus>> = None;
-    stdjson::unmarshal(br#"{"http.in":"captured"}"#, &mut statuses).map_err(|e| e.to_string())?;
     check_eq(
-        &statuses,
-        &Some(BTreeMap::from([(StageId::HttpIn, StageStatus::Captured)])),
+        &decoded::<BTreeMap<StageId, StageStatus>>(r#"{"http.in":"captured"}"#),
+        &Ok(BTreeMap::from([(StageId::HttpIn, StageStatus::Captured)])),
         "map keys",
     )?;
-
-    let mut point = DecisionId::default();
-    jsoniter::unmarshal(b"\"floors.enforce\"", &mut point).map_err(|e| e.to_string())?;
-    check_eq(&point, &DecisionId::FloorsEnforce, "jsoniter")?;
-    jsoniter::unmarshal(b"null", &mut point).map_err(|e| e.to_string())?;
-    check_eq(&point, &DecisionId::FloorsEnforce, "jsoniter null")?;
-    check(
-        jsoniter::unmarshal(b"\"\"", &mut point).is_err(),
-        "jsoniter rejects the empty value",
+    check_eq(
+        &decoded::<StageStatus>(r#""unimplemented""#),
+        &Ok(StageStatus::Unimplemented),
+        "status",
     )?;
     check_eq(
-        &jsoniter::unmarshal(b"\"floors\"", &mut point)
-            .err()
-            .map(|e| e.to_string()),
-        &Some(r#"parity: unregistered parity.DecisionID value "floors""#.to_owned()),
-        "jsoniter unregistered",
+        &decoded::<DecisionId>(r#""""#),
+        &Err(r#"parity: unregistered parity.DecisionID value "" at line 1 column 2"#.to_owned()),
+        "the empty value",
+    )?;
+    check_eq(
+        &decoded::<DecisionId>(r#""floors""#),
+        &Err(
+            r#"parity: unregistered parity.DecisionID value "floors" at line 1 column 8"#
+                .to_owned(),
+        ),
+        "unregistered decision",
     )
 }

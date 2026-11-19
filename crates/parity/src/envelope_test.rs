@@ -1,6 +1,6 @@
 use std::collections::{BTreeMap, BTreeSet};
 
-use pbs_gojson::{RawJson, jsoniter, stdjson};
+use serde_json::value::RawValue;
 
 use super::{CaptureSpec, Envelope, HeaderList, HeaderPair, MockSpec};
 use crate::{
@@ -8,60 +8,59 @@ use crate::{
     ids::DecisionId,
 };
 
-fn capture(stages: &str) -> CaptureSpec {
-    CaptureSpec {
-        stages: RawJson::from_slice(stages.as_bytes()),
-        ..CaptureSpec::default()
-    }
+/// `text` as a raw JSON value.
+fn raw(text: &str) -> Result<Box<RawValue>, String> {
+    RawValue::from_string(text.to_owned()).map_err(|e| format!("{text}: {e}"))
 }
 
-fn filter_of(stages: &str) -> Result<Option<Vec<String>>, String> {
-    capture(stages)
+fn capture(stages: &str) -> Result<CaptureSpec, String> {
+    Ok(CaptureSpec {
+        stages: Some(raw(stages)?),
+        ..CaptureSpec::default()
+    })
+}
+
+fn filter_of(stages: &str) -> Result<Result<Option<Vec<String>>, String>, String> {
+    Ok(capture(stages)?
         .stage_filter()
         .map(|set| set.map(|ids| ids.into_iter().collect()))
-        .map_err(|err| err.to_string())
+        .map_err(|err| err.to_string()))
 }
 
 // Go: parity/envelope_test.go TestStageFilter.
 #[test]
 fn stage_filter() -> TestResult {
     check_eq(&CaptureSpec::default().stage_filter(), &Ok(None), "omitted")?;
-    check_eq(&filter_of("null")?, &None, "null")?;
-    check_eq(&filter_of(r#""*""#)?, &None, "star")?;
+    check_eq(&filter_of("null")?, &Ok(None), "null")?;
+    check_eq(&filter_of(r#""*""#)?, &Ok(None), "star")?;
     check_eq(
         &filter_of(r#"["http.in","made.up","http.in"]"#)?,
-        &Some(vec!["http.in".to_owned(), "made.up".to_owned()]),
+        &Ok(Some(vec!["http.in".to_owned(), "made.up".to_owned()])),
         "list (unregistered IDs are kept)",
     )?;
-    check_eq(&filter_of("[]")?, &Some(Vec::new()), "empty list")?;
+    check_eq(&filter_of("[]")?, &Ok(Some(Vec::new())), "empty list")?;
     check_eq(
-        &filter_of(r#"[null,"http.in"]"#)?,
-        &Some(vec![String::new(), "http.in".to_owned()]),
-        "null element",
-    )?;
-    check_eq(
-        &filter_of(r#""all""#),
+        &filter_of(r#""all""#)?,
         &Err(r#"capture.stages: string value must be "*", got "all""#.to_owned()),
         "other string",
     )?;
     check_eq(
-        &filter_of("{}"),
+        &filter_of("{}")?,
         &Err(
-            "capture.stages: json: cannot unmarshal object into Go value of type []parity.StageID"
-                .to_owned(),
+            "capture.stages: invalid type: map, expected a sequence at line 1 column 0".to_owned(),
         ),
         "object",
     )?;
     check_eq(
-        &filter_of("[1]"),
+        &filter_of("[1]")?,
         &Err(
-            "capture.stages: json: cannot unmarshal number into Go value of type parity.StageID"
+            "capture.stages: invalid type: integer `1`, expected a string at line 1 column 2"
                 .to_owned(),
         ),
         "number element",
     )?;
     let ids: BTreeSet<String> = BTreeSet::from(["x".to_owned()]);
-    check_eq(&capture(r#"["x"]"#).stage_filter(), &Ok(Some(ids)), "set")
+    check_eq(&capture(r#"["x"]"#)?.stage_filter(), &Ok(Some(ids)), "set")
 }
 
 // Go: parity/envelope_test.go TestCaptureDefaults.
@@ -101,16 +100,16 @@ fn mock_defaults() -> TestResult {
     )
 }
 
-fn envelope_with(decisions: &[(&str, &str)]) -> Envelope {
-    Envelope {
+fn envelope_with(decisions: &[(&str, &str)]) -> Result<Envelope, String> {
+    Ok(Envelope {
         decisions: Some(
             decisions
                 .iter()
-                .map(|(k, v)| ((*k).to_owned(), RawJson::from_slice(v.as_bytes())))
-                .collect(),
+                .map(|(k, v)| Ok(((*k).to_owned(), raw(v)?)))
+                .collect::<Result<_, String>>()?,
         ),
         ..Envelope::default()
-    }
+    })
 }
 
 // Go: parity/envelope_test.go TestDecisionInt and TestDecisionString.
@@ -122,7 +121,7 @@ fn decisions() -> TestResult {
         ("floors.modelgroup", "2.5"),
         ("floors.enforce", "null"),
         ("usersync.shuffle", r#""identity""#),
-    ]);
+    ])?;
     check_eq(&env.decision_int(DecisionId::FloorsSkip), &Some(1), "int")?;
     check_eq(
         &env.decision_int(DecisionId::FloorsDataRate),
@@ -161,8 +160,8 @@ fn decisions() -> TestResult {
     )?;
     check_eq(
         &env.decision(DecisionId::FloorsModelGroup)
-            .map(|raw| raw.as_bytes().to_vec()),
-        &Some(b"2.5".to_vec()),
+            .map(RawValue::get),
+        &Some("2.5"),
         "raw",
     )?;
     check_eq(
@@ -183,64 +182,28 @@ fn header_values_fold_case() -> TestResult {
     check_eq(&list.values("CONTENT-TYPE"), &vec!["a", "c"], "folded")?;
     check_eq(&list.values("missing"), &Vec::<&str>::new(), "missing")?;
     check_eq(&HeaderList::default().pairs(), &[].as_slice(), "nil")?;
-    let encoded = stdjson::marshal(&list).map_err(|e| e.to_string())?;
     check_eq(
-        encoded.as_slice(),
-        br#"[["Content-Type","a"],["X","b"],["content-type","c"]]"#.as_slice(),
+        &serde_json::to_string(&list).map_err(|e| e.to_string())?,
+        &r#"[["Content-Type","a"],["X","b"],["content-type","c"]]"#.to_owned(),
         "encoding",
     )?;
-    let nil = stdjson::marshal(&HeaderList::default()).map_err(|e| e.to_string())?;
-    check_eq(nil.as_slice(), b"null".as_slice(), "nil encoding")
-}
-
-fn std_pairs(input: &str) -> Result<Vec<HeaderPair>, String> {
-    let mut list = HeaderList::default();
-    stdjson::unmarshal(input.as_bytes(), &mut list).map_err(|e| e.to_string())?;
-    Ok(list.pairs().to_vec())
-}
-
-fn jsoniter_pairs(input: &str) -> Result<Vec<HeaderPair>, String> {
-    let mut list = HeaderList::default();
-    jsoniter::unmarshal(input.as_bytes(), &mut list).map_err(|e| e.to_string())?;
-    Ok(list.pairs().to_vec())
-}
-
-// Pairs decode like Go's [2]string: short arrays are zero-filled, extra elements dropped.
-#[test]
-fn header_pairs_decode_like_go_arrays() -> TestResult {
-    let input = r#"[["a","1"],["only"],["x","y","z"],[],null,["k",null]]"#;
-    let want = vec![
-        HeaderPair::new("a", "1"),
-        HeaderPair::new("only", ""),
-        HeaderPair::new("x", "y"),
-        HeaderPair::default(),
-        HeaderPair::default(),
-        HeaderPair::new("k", ""),
-    ];
-    check_eq(&std_pairs(input)?, &want, "encoding/json")?;
-    check_eq(&jsoniter_pairs(input)?, &want, "json-iterator")?;
     check_eq(
-        &std_pairs(r#"[{"a":1}]"#),
-        &Err("json: cannot unmarshal object into Go value of type [2]string".to_owned()),
-        "object pair",
+        &serde_json::to_string(&HeaderList::default()).map_err(|e| e.to_string())?,
+        &"null".to_owned(),
+        "nil encoding",
     )?;
-    check_eq(
-        &std_pairs(r#"["ab"]"#),
-        &Err("json: cannot unmarshal string into Go value of type [2]string".to_owned()),
-        "string pair",
-    )?;
-    check_eq(
-        &std_pairs("{}"),
-        &Err("json: cannot unmarshal object into Go value of type parity.HeaderList".to_owned()),
-        "object list",
-    )?;
-    check(
-        jsoniter_pairs(r#"[{"a":1}]"#).is_err(),
-        "jsoniter object pair",
-    )
+    let read: HeaderList =
+        serde_json::from_str(r#"[["a","1"],["A","2"]]"#).map_err(|e| e.to_string())?;
+    check_eq(&read.values("a"), &vec!["1", "2"], "decoded")
 }
 
-/// An envelope in the encoding Go writes (members in struct order, empty members omitted).
+fn pairs(input: &str) -> Result<Vec<HeaderPair>, String> {
+    serde_json::from_str::<HeaderList>(input)
+        .map(|list| list.pairs().to_vec())
+        .map_err(|e| e.to_string())
+}
+
+/// An envelope as the Go runner writes it (members in struct order, empty members omitted).
 const ROUND_TRIP: &str = concat!(
     r#"{"schema":"pbs-parity-envelope/1","schema_version":"1.0.0","case_id":"c","#,
     r#""request":{"method":"POST","path":"/openrtb2/auction","query":"","#,
@@ -251,17 +214,84 @@ const ROUND_TRIP: &str = concat!(
 
 #[test]
 fn envelope_round_trip() -> TestResult {
-    let input = ROUND_TRIP.as_bytes();
-    let mut env = Envelope::default();
-    stdjson::unmarshal(input, &mut env).map_err(|e| e.to_string())?;
+    let env: Envelope = serde_json::from_str(ROUND_TRIP).map_err(|e| e.to_string())?;
     check_eq(&env.case_id.as_str(), &"c", "case id")?;
     check_eq(&env.fakes.as_ref().map(|f| f.int63), &Some(3), "fakes")?;
     check_eq(&env.request.headers.values("a"), &vec!["b"], "headers")?;
-    let raw = stdjson::marshal(&env).map_err(|e| e.to_string())?;
-    check_eq(raw.as_slice(), input, "re-encoded")?;
-    let mut again = Envelope::default();
-    jsoniter::unmarshal(&raw, &mut again).map_err(|e| e.to_string())?;
-    check_eq(&again, &env, "jsoniter decodes the same")?;
-    let decisions: BTreeMap<String, RawJson> = env.decisions.unwrap_or_default();
-    check_eq(&decisions.len(), &1, "decisions")
+    check_eq(
+        &env.decisions.as_ref().map(BTreeMap::len),
+        &Some(1),
+        "decisions",
+    )?;
+    check_eq(
+        &serde_json::to_string(&env).map_err(|e| e.to_string())?,
+        &ROUND_TRIP.to_owned(),
+        "written back in the same member order",
+    )
+}
+
+// The documents are serde types read and written by serde_json (json.parity-documents), so a
+// document the Go runner would never write reads otherwise than in Go: Go fills a member from a
+// key that matches it only ignoring case, keeps the last of repeated members, reads null into a
+// value member as its zero value, pads or cuts a header pair to two strings, reads a string
+// holding bytes that are not UTF-8 and writes `<`, `>` and `&` as `\u` escapes; serde ignores the
+// key, refuses the next three, and writes the characters as they are.
+#[test]
+fn documents_read_as_serde_reads_them() -> TestResult {
+    let read = |input: &[u8]| serde_json::from_slice::<Envelope>(input).map_err(|e| e.to_string());
+    let folded = read(br#"{"CASE_ID":"c","Request":{"PATH":"/status"}}"#)?;
+    check_eq(
+        &(folded.case_id.as_str(), folded.request.path.as_str()),
+        &("", ""),
+        "key case",
+    )?;
+    check_eq(
+        &read(br#"{"case_id":"a","case_id":"b"}"#).err(),
+        &Some("duplicate field `case_id` at line 1 column 24".to_owned()),
+        "repeated member",
+    )?;
+    check_eq(
+        &read(br#"{"case_id":null}"#).err(),
+        &Some("invalid type: null, expected a string at line 1 column 15".to_owned()),
+        "null into a value member",
+    )?;
+    check_eq(
+        &read(b"{\"case_id\":\"\xff\"}").err(),
+        &Some("invalid unicode code point at line 1 column 13".to_owned()),
+        "invalid UTF-8",
+    )?;
+    for (input, error) in [
+        (
+            r#"[["only"]]"#,
+            "invalid length 1, expected a tuple of size 2 at line 1 column 9",
+        ),
+        (
+            r#"[["x","y","z"]]"#,
+            "trailing characters at line 1 column 11",
+        ),
+        (
+            "[[]]",
+            "invalid length 0, expected a tuple of size 2 at line 1 column 3",
+        ),
+        (
+            "[null]",
+            "invalid type: null, expected a tuple of size 2 at line 1 column 5",
+        ),
+        (
+            r#"[["k",null]]"#,
+            "invalid type: null, expected a string at line 1 column 10",
+        ),
+    ] {
+        check_eq(&pairs(input), &Err(error.to_owned()), input)?;
+    }
+    let html = Envelope {
+        case_id: "<a&b>".to_owned(),
+        ..Envelope::default()
+    };
+    check(
+        serde_json::to_string(&html)
+            .map_err(|e| e.to_string())?
+            .contains(r#""case_id":"<a&b>""#),
+        "no HTML escapes",
+    )
 }

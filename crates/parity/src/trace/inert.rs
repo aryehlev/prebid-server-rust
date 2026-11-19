@@ -3,7 +3,8 @@
 use core::{convert::Infallible, future::Ready, time::Duration};
 
 use pbs_errortypes::GoError;
-use pbs_gojson::{GoEncode, GoString, RawJson};
+use serde::Serialize;
+use serde_json::value::RawValue;
 
 use crate::{
     envelope::Envelope,
@@ -62,12 +63,12 @@ impl Session {
     }
 
     /// Records `value` under (`stage`, `key`) (Go: `Session.Record`).
-    pub const fn record<T: GoEncode + ?Sized>(&self, _stage: StageId, _key: &str, _value: &T) {
+    pub const fn record<T: Serialize + ?Sized>(&self, _stage: StageId, _key: &str, _value: &T) {
         match self.0.0 {}
     }
 
     /// Records the value `build` returns under (`stage`, `key`).
-    pub const fn record_with<T: GoEncode, F: FnOnce() -> T>(
+    pub const fn record_with<T: Serialize, F: FnOnce() -> T>(
         &self,
         _stage: StageId,
         _key: &str,
@@ -92,7 +93,7 @@ impl Session {
     }
 
     /// Appends a note (Go: `Session.Note`).
-    pub const fn note<N: Into<GoString>>(&self, _note: N) {
+    pub const fn note<N: Into<String>>(&self, _note: N) {
         match self.0.0 {}
     }
 
@@ -102,7 +103,7 @@ impl Session {
     }
 
     /// Appends an analytics object (Go: `Session.AddAnalytics`).
-    pub const fn add_analytics<T: GoEncode + ?Sized>(&self, _kind: &str, _object: &T) {
+    pub const fn add_analytics<T: Serialize + ?Sized>(&self, _kind: &str, _object: &T) {
         match self.0.0 {}
     }
 
@@ -153,7 +154,7 @@ impl Session {
 
     /// The value most recently recorded for `point` (Go: `Session.LastDecision`).
     #[must_use]
-    pub const fn last_decision(&self, _point: DecisionId) -> Option<RawJson> {
+    pub const fn last_decision(&self, _point: DecisionId) -> Option<Box<RawValue>> {
         match self.0.0 {}
     }
 

@@ -1,1 +1,9 @@
-{"schema":"pbs-parity-config/1","schema_version":"1.0.0","impl":"go","config":{"host":"127.0.0.1","port":8000,"admin_port":6060,"tmax_default":0,"auction_timeouts_ms":{"default":0,"max":0},"gdpr":{"enabled":true,"default_value":"1"},"metrics":{"prometheus":{"port":9091,"namespace":"","subsystem":""}}}}
+{"schema":"pbs-parity-config/1","schema_version":"1.0.0","impl":"go","config":{
+    "host": "127.0.0.1",
+    "port": 8000,
+    "admin_port": 6060,
+    "tmax_default": 0,
+    "auction_timeouts_ms": {"default": 0, "max": 0},
+    "gdpr": {"enabled": true, "default_value": "1"},
+    "metrics": {"prometheus": {"port": 9091, "namespace": "", "subsystem": ""}}
+  }}

@@ -5,13 +5,11 @@
 //! same decision IDs. The tests check every table here against the registry JSON vendored under
 //! `contract/`.
 
-use std::{borrow::Cow, str};
+use core::fmt;
 
-use pbs_gocompat::strconv::quote_bytes;
-use pbs_gojson::{
-    Encoder, GoEncode, GoKind, GoMapKey, GoType, JsonError, JsoniterDecode, StdDecode,
-    jsoniter::Iter,
-    stdjson::{Class, StdDecoder, Store, Token, literal_store},
+use serde::{
+    Deserialize, Deserializer, Serialize, Serializer,
+    de::{self, Visitor},
 };
 
 use crate::contracts::Domain;
@@ -468,115 +466,50 @@ pub const OUTBOUND_ERR_NETWORK_DISABLED: &str = "network_disabled";
 /// Any other outbound failure (Go: `parity.OutboundErrOther`).
 pub const OUTBOUND_ERR_OTHER: &str = "error";
 
-/// Go JSON for the closed string enums that documents carry where Go has a named string type.
+/// JSON for the closed string enums that documents carry where Go has a named string type: the
+/// ID string, as a value and as a map key.
 ///
-/// Encoding writes the ID string. Go's string types accept any value; these enums cannot hold
-/// an unregistered one, so decoding it records an error naming the value. Only the Go runner
-/// reads the documents that carry them, so Rust never takes that path in practice.
-macro_rules! go_string_enum {
-    ($ty:ident, $go:literal, $fallback:ident) => {
-        impl GoType for $ty {
-            const KIND: GoKind = GoKind::String;
-
-            fn go_type_name(out: &mut String) {
-                out.push_str($go);
+/// Go's string types accept any value; these enums cannot hold an unregistered one, so reading
+/// it fails the document, naming the value. Only the Go runner writes the documents that carry
+/// them, from the same registry, so Rust never takes that path in practice.
+macro_rules! string_enum {
+    ($ty:ident, $go:literal) => {
+        impl Serialize for $ty {
+            fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+                serializer.serialize_str(self.as_str())
             }
         }
 
-        impl GoEncode for $ty {
-            fn go_encode(&self, enc: &mut Encoder) {
-                enc.write_str(self.as_str().as_bytes());
-            }
+        impl<'de> Deserialize<'de> for $ty {
+            fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+                struct Name;
 
-            fn go_is_empty(&self) -> bool {
-                false
-            }
-        }
+                impl Visitor<'_> for Name {
+                    type Value = $ty;
 
-        impl GoMapKey for $ty {
-            fn key_text(&self) -> Cow<'_, [u8]> {
-                Cow::Borrowed(self.as_str().as_bytes())
-            }
-
-            fn std_parse_key(key: &[u8]) -> Option<Self> {
-                str::from_utf8(key).ok().and_then(Self::from_name)
-            }
-
-            fn jsoniter_decode_key(it: &mut Iter<'_>) -> Self {
-                let text = it.read_string();
-                str::from_utf8(&text)
-                    .ok()
-                    .and_then(Self::from_name)
-                    .unwrap_or_else(|| {
-                        if !it.has_any_error() {
-                            it.set_error(unregistered($go, &text));
-                        }
-                        Self::$fallback
-                    })
-            }
-        }
-
-        impl JsoniterDecode for $ty {
-            fn jsoniter_decode(&mut self, it: &mut Iter<'_>) {
-                if it.read_nil() {
-                    return;
-                }
-                let mut text = String::new();
-                text.jsoniter_decode(it);
-                if it.has_any_error() {
-                    return;
-                }
-                match Self::from_name(&text) {
-                    Some(value) => *self = value,
-                    None => it.set_error(unregistered($go, text.as_bytes())),
-                }
-            }
-        }
-
-        impl StdDecode for $ty {
-            fn std_decode_as<N: GoType + ?Sized>(
-                &mut self,
-                d: &mut StdDecoder<'_>,
-            ) -> Result<(), JsonError> {
-                match d.peek() {
-                    Token::Literal => {
-                        let item = d.read_literal();
-                        self.std_literal_as::<N>(item, false, d)
+                    fn expecting(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+                        f.write_str(concat!("a registered ", $go))
                     }
-                    Token::Array | Token::Object => String::new().std_decode_as::<N>(d),
-                }
-            }
 
-            fn std_literal_as<N: GoType + ?Sized>(
-                &mut self,
-                item: &[u8],
-                from_quoted: bool,
-                d: &mut StdDecoder<'_>,
-            ) -> Result<(), JsonError> {
-                if let Store::Str(text) = literal_store::<N>(item, from_quoted, d, Class::String)? {
-                    match str::from_utf8(&text).ok().and_then(Self::from_name) {
-                        Some(value) => *self = value,
-                        None => d.save_error(JsonError::Message(unregistered($go, &text))),
+                    fn visit_str<E: de::Error>(self, name: &str) -> Result<$ty, E> {
+                        $ty::from_name(name).ok_or_else(|| {
+                            E::custom(format_args!(
+                                concat!("parity: unregistered ", $go, " value {:?}"),
+                                name
+                            ))
+                        })
                     }
                 }
-                Ok(())
+
+                deserializer.deserialize_str(Name)
             }
         }
     };
 }
 
-/// The error text for an ID the registry does not have.
-fn unregistered(go_type: &str, text: &[u8]) -> Vec<u8> {
-    let mut msg = b"parity: unregistered ".to_vec();
-    msg.extend_from_slice(go_type.as_bytes());
-    msg.extend_from_slice(b" value ");
-    msg.extend_from_slice(quote_bytes(text).as_bytes());
-    msg
-}
-
-go_string_enum!(StageId, "parity.StageID", ConfigResolved);
-go_string_enum!(StageStatus, "parity.StageStatus", NotReached);
-go_string_enum!(DecisionId, "parity.DecisionID", FloorsSkip);
+string_enum!(StageId, "parity.StageID");
+string_enum!(StageStatus, "parity.StageStatus");
+string_enum!(DecisionId, "parity.DecisionID");
 
 #[cfg(test)]
 #[path = "ids_test.rs"]

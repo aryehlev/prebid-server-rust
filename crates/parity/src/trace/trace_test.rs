@@ -176,7 +176,8 @@ mod live {
     use std::{collections::BTreeMap, sync::Arc, thread};
 
     use pbs_errortypes::GoError;
-    use pbs_gojson::{GoString, RawJson, stdjson};
+    use serde::{Serialize, Serializer, ser::Error as _};
+    use serde_json::value::RawValue;
     use tokio::{
         sync::{Notify, Semaphore, mpsc},
         task::{self, JoinHandle},
@@ -187,10 +188,15 @@ mod live {
     use crate::{
         envelope::{CaptureSpec, Envelope, ExecRequest, FakeValues},
         fakes::{self, DEFAULT_INT63},
-        golden::{Regs, RegsRecord, TestResult, check, check_eq, global_lock, u_escape},
+        golden::{Regs, RegsRecord, TestResult, check, check_eq, global_lock},
         ids::{DecisionId, StageId, StageStatus},
         tracedoc::{OutboundCall, StageEntry, Trace},
     };
+
+    /// `text` as a raw JSON value.
+    fn raw(text: &str) -> Result<Box<RawValue>, String> {
+        RawValue::from_string(text.to_owned()).map_err(|e| format!("{text}: {e}"))
+    }
 
     fn env(case_id: &str) -> Envelope {
         Envelope {
@@ -323,7 +329,14 @@ mod live {
         check_eq(&id, &Some("next".to_owned()), "the waiter's session")
     }
 
-    // Go: TestRecordKeepsLexicalForm and TestRecordOverwriteCountsWrites.
+    /// The `json` member of `entry`, as text.
+    fn json_text(entry: &StageEntry) -> Option<&str> {
+        entry.json.as_deref().map(RawValue::get)
+    }
+
+    // Go: TestRecordKeepsLexicalForm and TestRecordOverwriteCountsWrites. The raw form is what
+    // `pbs_jsonutil::marshal` writes, which leaves `<`, `>` and `&` as they are where Go's
+    // `jsonutil.Marshal` writes `\u003c`, `\u003e` and `\u0026` (json.html-escape).
     #[test]
     fn record_keeps_the_lexical_form() -> TestResult {
         let s = Session::new(env("lex"));
@@ -336,18 +349,12 @@ mod live {
         let snap = s.snapshot();
 
         let validated = stage_entry(&snap, StageId::RequestValidated, "_")?;
-        let escaped = format!(
-            r#"{{"adm":"{}b{}{}"}}"#,
-            u_escape("003c"),
-            u_escape("003e"),
-            u_escape("0026")
-        );
         check_eq(
             &validated.raw.as_deref(),
-            &Some(escaped.as_str()),
-            "jsonutil escapes HTML",
+            &Some(r#"{"adm":"<b>&"}"#),
+            "the bytes jsonutil writes",
         )?;
-        check_eq(&validated.json.as_bytes(), &escaped.as_bytes(), "json")?;
+        check_eq(&json_text(&validated), &Some(r#"{"adm":"<b>&"}"#), "json")?;
         check_eq(&validated.writes, &1, "one write")?;
         let response = stage_entry(&snap, StageId::HttpResponse, "_")?;
         check_eq(
@@ -356,26 +363,22 @@ mod live {
             "raw bytes are exact",
         )?;
         check_eq(
-            &response.json.as_bytes(),
-            &b"{\"a\":1.0}\n".as_slice(),
-            "json exact",
+            &json_text(&response),
+            &Some("{\"a\":1.0}"),
+            "json without the whitespace around it",
         )?;
         let bids = stage_entry(&snap, StageId::AdapterBids, "appnexus#0")?;
         check_eq(&bids.raw, &None, "no raw for invalid UTF-8")?;
         check_eq(&bids.raw_b64.as_deref(), &Some("/w=="), "raw_b64")?;
-        check(bids.json.is_nil(), "no json")?;
+        check(bids.json.is_none(), "no json")?;
         check_eq(
-            &bids.notes.as_ref().map(Vec::len),
-            &Some(1),
+            &bids.notes,
+            &Some(vec!["raw value is not valid JSON".to_owned()]),
             "invalid JSON is noted",
         )?;
         let request = stage_entry(&snap, StageId::BidderRequest, "appnexus")?;
         check_eq(&request.writes, &2, "overwrite counts writes")?;
-        check_eq(
-            &request.json.as_bytes(),
-            &b"2".as_slice(),
-            "last write wins",
-        )?;
+        check_eq(&json_text(&request), &Some("2"), "last write wins")?;
         check_eq(&request.seq, &5, "seq of the last write")?;
         check_eq(&s.next_seq(), &6, "shared sequence")
     }
@@ -436,7 +439,7 @@ mod live {
     fn capture_filter() -> TestResult {
         let mut e = env("filter");
         e.capture = CaptureSpec {
-            stages: RawJson::from_slice(br#"["http.in"]"#),
+            stages: Some(raw(r#"["http.in"]"#)?),
             analytics: Some(false),
             ..CaptureSpec::default()
         };
@@ -478,22 +481,37 @@ mod live {
         )
     }
 
-    // Go: TestAddAnalyticsKeepsTraceEncodable.
+    /// A value whose `Serialize` fails, as a map with keys `serde_json` cannot write does.
+    struct Refuses;
+
+    impl Serialize for Refuses {
+        fn serialize<S: Serializer>(&self, _serializer: S) -> Result<S::Ok, S::Error> {
+            Err(S::Error::custom("refused"))
+        }
+    }
+
+    // Go: TestAddAnalyticsKeepsTraceEncodable. Go also refuses an object whose raw member does
+    // not compact (`"ext":}`); a `RawValue` always holds JSON, so the refusal here is a marshal
+    // error, noted the same way.
     #[test]
     fn analytics_keep_the_trace_encodable() -> TestResult {
         let valid = RegsRecord {
             regs: Some(Regs {
                 gdpr: 1,
-                ext: RawJson::from_slice(b"{}"),
+                ext: Some(raw("{ }")?),
             }),
         };
         let recording = Session::new(env("analytics"));
         recording.add_analytics("auction", &valid);
         let recorded = recording.snapshot();
         check_eq(
-            &recorded.analytics.as_ref().map(Vec::len),
-            &Some(1),
-            "recorded",
+            &recorded.analytics.as_ref().map(|a| {
+                a.iter()
+                    .map(|r| r.object.as_deref().map(RawValue::get))
+                    .collect::<Vec<_>>()
+            }),
+            &Some(vec![Some(r#"{"regs":{"gdpr":1,"ext":{}}}"#)]),
+            "recorded as jsonutil writes it, the raw member compacted",
         )?;
         check_eq(
             &status(&recorded, StageId::Analytics),
@@ -501,33 +519,25 @@ mod live {
             "captured",
         )?;
 
-        let invalid = RegsRecord {
-            regs: Some(Regs {
-                gdpr: 1,
-                ext: RawJson::from_slice(br#"{"dsa":"#),
-            }),
-        };
         let refusing = Session::new(env("analytics"));
-        refusing.add_analytics("auction", &invalid);
+        refusing.add_analytics("auction", &Refuses);
+        refusing.record(StageId::BidderRequest, "a", &Refuses);
         let refused = refusing.snapshot();
-        let _encoded = stdjson::marshal(&refused).map_err(|e| e.to_string())?;
+        let _encoded = serde_json::to_vec(&refused).map_err(|e| e.to_string())?;
         check_eq(
             &refused.analytics.as_ref().map(Vec::len),
             &Some(0),
             "not recorded",
         )?;
-        let notes: Vec<String> = refused
-            .notes
-            .unwrap_or_default()
-            .iter()
-            .map(GoString::to_string_lossy)
-            .collect();
-        check_eq(&notes.len(), &1, "one note")?;
-        check(
-            notes
-                .iter()
-                .all(|n| n.contains("not valid JSON") && n.contains(r#"\"ext\":}"#)),
-            "the note shows the invalid object",
+        check_eq(
+            &refused.notes,
+            &Some(vec!["analytics auction: marshal error: refused".to_owned()]),
+            "noted",
+        )?;
+        check_eq(
+            &stage_entry(&refused, StageId::BidderRequest, "a")?.notes,
+            &Some(vec!["marshal error: refused".to_owned()]),
+            "a stage value that does not marshal is noted on its entry",
         )
     }
 
@@ -566,7 +576,7 @@ mod live {
         check_eq(&snap.implementation.as_str(), &"rust", "impl")?;
 
         let mut e = env("bad-filter");
-        e.capture.stages = RawJson::from_slice(br#""some""#);
+        e.capture.stages = Some(raw(r#""some""#)?);
         let unfiltered = Session::new(e);
         check(
             unfiltered.wants(StageId::HttpIn),
@@ -577,7 +587,7 @@ mod live {
             notes.len() == 1
                 && notes
                     .iter()
-                    .all(|n| n.to_string_lossy().starts_with("capture.stages ignored: ")),
+                    .all(|n| n.starts_with("capture.stages ignored: ")),
             "noted",
         )
     }
@@ -612,37 +622,32 @@ mod live {
         check_eq(&empty.errors, &Some(Vec::new()), "recorded empty is []")?;
         check_eq(&empty.warnings, &Some(Vec::new()), "warnings []")?;
         check_eq(&empty.seq, &2, "errors take a seq")?;
-        let unrecorded = StageEntry::default();
-        let raw = stdjson::marshal(&unrecorded).map_err(|e| e.to_string())?;
+        let unrecorded =
+            serde_json::to_string(&StageEntry::default()).map_err(|e| e.to_string())?;
         check(
-            String::from_utf8_lossy(&raw).contains(r#""errors":null"#),
+            unrecorded.contains(r#""errors":null"#),
             "unrecorded is null",
         )
     }
 
-    fn decisions_env(pairs: &[(&str, &str)]) -> Envelope {
+    fn decisions_env(pairs: &[(&str, &str)]) -> Result<Envelope, String> {
         let mut e = env("decide");
         e.decisions = Some(
             pairs
                 .iter()
-                .map(|(k, v)| ((*k).to_owned(), RawJson::from_slice(v.as_bytes())))
-                .collect(),
+                .map(|(k, v)| Ok(((*k).to_owned(), raw(v)?)))
+                .collect::<Result<_, String>>()?,
         );
-        e
+        Ok(e)
     }
 
     fn last(s: &Session) -> Result<(String, String, Vec<String>), String> {
         let decisions = s.snapshot().decisions.unwrap_or_default();
         let d = decisions.last().ok_or("no decision")?;
         Ok((
-            String::from_utf8_lossy(d.value.as_bytes()).into_owned(),
+            d.value.as_deref().map_or_default(RawValue::get).to_owned(),
             d.source.clone(),
-            d.notes
-                .clone()
-                .unwrap_or_default()
-                .iter()
-                .map(GoString::to_string_lossy)
-                .collect(),
+            d.notes.clone().unwrap_or_default(),
         ))
     }
 
@@ -659,7 +664,7 @@ mod live {
             ("floors.modelgroup", "2"),
             ("floors.enforce", "0"),
             ("category.dedupe", r#""1""#),
-        ]));
+        ])?);
         check_eq(
             &s.decide(DecisionId::FloorsSkip, || 0),
             &1,
@@ -729,14 +734,14 @@ mod live {
         )?;
         check_eq(
             &s.last_decision(DecisionId::FloorsModelGroup)
-                .map(|v| v.as_bytes().to_vec()),
-            &Some(b"1".to_vec()),
+                .map(|v| v.get().to_owned()),
+            &Some("1".to_owned()),
             "last decision",
         )?;
         check_eq(
             &s.last_decision(DecisionId::FloorsEnforce)
-                .map(|v| v.as_bytes().to_vec()),
-            &Some(b"0".to_vec()),
+                .map(|v| v.get().to_owned()),
+            &Some("0".to_owned()),
             "decide_bool records 0",
         )
     }
@@ -744,7 +749,7 @@ mod live {
     // Go: TestDecisions (the enum point).
     #[test]
     fn string_decisions() -> TestResult {
-        let allowed = Session::new(decisions_env(&[("usersync.shuffle", r#""identity""#)]));
+        let allowed = Session::new(decisions_env(&[("usersync.shuffle", r#""identity""#)])?);
         check_eq(
             &allowed.decide_string(DecisionId::UsersyncShuffle, || "rng".to_owned()),
             &"identity".to_owned(),
@@ -760,7 +765,7 @@ mod live {
             "quoted value",
         )?;
 
-        let s = Session::new(decisions_env(&[("usersync.shuffle", r#""reverse""#)]));
+        let s = Session::new(decisions_env(&[("usersync.shuffle", r#""reverse""#)])?);
         check_eq(
             &s.decide_string(DecisionId::UsersyncShuffle, || "rng".to_owned()),
             &"rng".to_owned(),
@@ -775,9 +780,8 @@ mod live {
             ),
             "noted",
         )?;
-        check_eq(
-            &s.last_decision(DecisionId::FloorsSkip),
-            &None,
+        check(
+            s.last_decision(DecisionId::FloorsSkip).is_none(),
             "not reached",
         )
     }
@@ -789,7 +793,7 @@ mod live {
         let case = begin_case(decisions_env(&[
             ("floors.skip", "1"),
             ("floors.modelgroup", "4"),
-        ]))
+        ])?)
         .await;
         check_eq(&decide(DecisionId::FloorsSkip, || 0), &1, "decide")?;
         check_eq(&intn(DecisionId::FloorsModelGroup, 5, |_| 0), &4, "intn")?;

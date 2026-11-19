@@ -16,16 +16,16 @@ Rule B's cases: (a) input real production traffic sends that the crate would rej
 
 | Category | Decision pending | Ledgered | Go behaviour kept |
 |---|---:|---:|---:|
-| Base64 | 0 | 0 | 1 |
+| Base64 | 0 | 1 | 1 |
 | In-memory caches | 0 | 1 | 0 |
 | Configuration loading | 0 | 0 | 3 |
 | Cookies | 0 | 1 | 0 |
 | Global vendor list | 0 | 1 | 0 |
-| Gzip | 0 | 1 | 0 |
+| Gzip | 0 | 2 | 0 |
 | HTTP client | 0 | 18 | 5 |
-| JSON | 4 | 32 | 5 |
+| JSON | 4 | 33 | 5 |
 | Logging | 0 | 1 | 0 |
-| Prometheus metrics | 0 | 1 | 0 |
+| Prometheus metrics | 0 | 2 | 0 |
 | Public suffix list | 1 | 0 | 0 |
 | Regular expressions | 0 | 0 | 2 |
 | HTTP server | 0 | 2 | 0 |
@@ -33,7 +33,7 @@ Rule B's cases: (a) input real production traffic sends that the crate would rej
 | TLS | 0 | 2 | 1 |
 | URLs | 0 | 1 | 0 |
 | YAML | 0 | 1 | 0 |
-| All | 5 | 62 | 18 |
+| All | 5 | 66 | 18 |
 
 ## Decisions pending
 
@@ -73,6 +73,19 @@ No entry names the classes `other` and `unrecorded` or the kinds `stage_missing`
 | `options_request` | The request's method is OPTIONS: a CORS preflight, or any other OPTIONS, which tower-http's CorsLayer answers as one. |
 
 ## Base64
+
+### Ledgered
+
+#### `base64.parity-std-encoding`: Parity bodies and meta headers: Go's `base64.StdEncoding` skips line breaks and ignores unused bits, the base64 crate refuses both
+
+- **Go:** A body's `b64` member and the `X-Parity-Meta` header are decoded with `base64.StdEncoding.DecodeString` (parity/body.go:67, parity/transport/meta.go:28): it skips `\r` and `\n` anywhere, accepts a last digit whose unused bits are set (`aGl=` is `hi`), and reports `illegal base64 data at input byte N`.
+- **Rust:** The base64 crate's `STANDARD` engine refuses a line break and a last digit with unused bits set, and words its errors its own way: `body.b64: Invalid symbol 33, offset 0.` where Go says `body.b64: illegal base64 data at input byte 0`.
+- **Who notices:** none
+- **Visible in:** Which `b64` bodies and `X-Parity-Meta` values the Rust server reads, and the error texts, for values the runner never writes: it encodes them with `base64.StdEncoding.EncodeToString`
+- **Harness:** none
+- **Pin:** `crates/parity/src/body_test.rs::b64_is_read_by_the_standard_engine`
+- **Restore option:** Glue that drops line breaks and clears unused bits before decoding, as pbs-tcf2's `base64` does for consent strings; not planned, since only the runner writes these values.
+- **Recorded in:** `crates/parity/differences.toml`
 
 ### Go behaviour kept
 
@@ -181,6 +194,17 @@ No entry names the classes `other` and `unrecorded` or the kinds `stage_missing`
 ## Gzip
 
 ### Ledgered
+
+#### `gzip.parity-bodies`: Parity bodies: flate2 writes and reads their gzip, and a `Content-Encoding` holding U+0130 is not gzip
+
+- **Go:** A body's content is compressed with `gzip.NewWriter` and inflated with `gzip.NewReader` (parity/body.go:111-148), under the trimmed `Content-Encoding` lower-cased by `strings.ToLower`, which maps U+0130 to `i`, so `GZ\u0130P` is gzip (parity/body.go:104); an empty gzip body fails with `gzip decode: EOF`.
+- **Rust:** flate2 compresses the same content to other bytes (`gzip.payload-bytes`) and words its errors its own way (`gzip decode: unexpected end of file` for an empty body), and `str::to_lowercase` maps U+0130 to `i` and U+0307, so under `GZ\u0130P` a recorded body is kept as `b64` without `json` and an input body is refused (`unsupported content encoding`).
+- **Who notices:** none
+- **Visible in:** The trace's recorded bodies and the bodies the Rust server sends for an envelope: their gzip bytes, and the reading of a `Content-Encoding` the runner never writes
+- **Harness:** none
+- **Pin:** `crates/parity/src/body_test.rs::gzip_is_flate2s_and_case_mapping_rusts`
+- **Restore option:** Go's case mapping of U+0130 for the encoding name; not planned, since no content coding is spelled with it (RFC 9110 codings are ASCII tokens).
+- **Recorded in:** `crates/parity/differences.toml`
 
 #### `gzip.payload-bytes`: Gzip bytes: compress/gzip and flate2 write different deflate streams of the same payload
 
@@ -791,6 +815,17 @@ No entry names the classes `other` and `unrecorded` or the kinds `stage_missing`
 - **Note:** `crates/jsonutil/tests/readers.rs::seeded_int_strings_match_go` classifies the seeded numbers alike on both sides.
 - **Recorded in:** `crates/jsonutil/differences.toml`
 
+#### `json.parity-documents`: Parity documents: Go reads and writes them with `encoding/json`, pbs-parity with serde
+
+- **Go:** The `parity` packages read the harness documents (envelopes, adapter inputs and outputs, the outbound meta, health, config and bidders dumps, reset results and traces) with `json.Unmarshal` and write them with `json.Marshal` and a `json.Encoder`: a key fills the member it matches ignoring case, the last of repeated members wins, `null` leaves a value member unset, a `null` raw member is kept as `null`, a header pair is padded or cut to two strings, the ID string types take any value, a string that is not UTF-8 reads with U+FFFD, `<`, `>`, `&`, U+2028 and U+2029 are written as escapes, and a NaN that `Session.Record` or `Session.AddAnalytics` gets is a marshal error, noted in the trace in its place.
+- **Rust:** The documents are serde types that serde_json reads and writes (orchestrator ruling 3), so the JSON entries apply: `json.key-case`, `json.duplicate-keys`, `json.null-into-value`, `json.null-elements`, `json.null-raw`, `json.invalid-utf8`, `json.html-escape`, `json.float-format`, `json.raw-not-compacted`, `json.struct-from-array`, `json.error-texts`, `json.negative-zero-int` and `json.non-finite`. A header pair of another length is refused (`invalid length 1, expected a tuple of size 2`), the stage, status and decision IDs are closed enums that refuse a name outside the registry (`parity: unregistered parity.StageID value "made.up"`), a NaN is recorded as `null` (an analytics object that is NaN makes `analytics[].object` null, which the trace schema refuses), a raw value that is not JSON has no Rust form, so nothing records one or notes it as Go does, and the crate's own messages quote with `{:?}` where Go uses `%q`. Each document compares equal with Go's as a JSON value, which is how the runner compares the two servers' documents.
+- **Who notices:** none
+- **Visible in:** The parity harness's documents, which only the Go runner writes and reads: their spelling, and how a document the runner never writes reads
+- **Harness:** none
+- **Pin:** `crates/parity/src/envelope_test.rs::documents_read_as_serde_reads_them`
+- **Restore option:** `encoding/json`'s reading on the documents' derives; not planned (orchestrator rulings 2 and 3).
+- **Recorded in:** `crates/parity/differences.toml`
+
 #### `json.parse-into-string-lenient`: `ParseIntoString` on bytes that are not JSON: gjson reads a value out of them, the port leaves the target unset
 
 - **Go:** `jsonutil.ParseIntoString` reads with `gjson.ParseBytes`, which takes a value out of an unterminated string, a number with bytes after it, a plus sign, `nan` and a literal cut short.
@@ -972,6 +1007,17 @@ No entry names the classes `other` and `unrecorded` or the kinds `stage_missing`
 ## Prometheus metrics
 
 ### Ledgered
+
+#### `metrics.parity-delta-order`: Trace metric deltas: ordered by series keys that quote label values with `{:?}`, not `strconv.Quote`
+
+- **Go:** `trace.MetricsDelta` sorts the changed series by `seriesKey`: the metric name and its labels sorted by name, each value quoted with `strconv.Quote` (parity/trace/metrics.go:55-68, 144-163).
+- **Rust:** The port quotes with `{:?}`, which agrees on printable text and escapes control and unprintable characters otherwise (`\u{c}` where Go writes `\f`, `\u{1f}` for `\x1f`), so two series whose label values differ there can come in the other order; each delta is Go's. 3 of the 150 generated registries of metrics_fuzz.json come out reordered.
+- **Who notices:** none
+- **Visible in:** The order of a trace's `metrics_delta` list when label values hold control or unprintable characters
+- **Harness:** none
+- **Pin:** `crates/parity/src/trace/metrics_test.rs::delta_order_follows_rust_quoting`
+- **Restore option:** A port of `strconv.Quote` for the key, which needs Go's tables of printable characters; not planned.
+- **Recorded in:** `crates/parity/differences.toml`
 
 #### `metrics.sample-float-format`: Prometheus sample values: client_golang writes `1e+06`, the prometheus crate `1000000`
 

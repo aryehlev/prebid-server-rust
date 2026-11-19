@@ -3,7 +3,6 @@
 use core::{error::Error, fmt};
 use std::collections::BTreeMap;
 
-use pbs_gocompat::strconv::{format_float, quote};
 use pbs_metrics::prometheus::registry::{MetricFamily, MetricType, MetricValue, Registry};
 
 use crate::tracedoc::{
@@ -206,20 +205,45 @@ fn value_delta(before: f64, after: f64) -> f64 {
     if d.is_finite() { d } else { 0.0 }
 }
 
-/// A bucket upper bound as the Prometheus text format writes it (Go: `trace.formatBound`).
+/// A bucket upper bound as the Prometheus text format writes it (Go: `trace.formatBound`):
+/// `+Inf`, or `strconv.FormatFloat(le, 'g', -1, 64)`, the shortest digits that read back as
+/// `le`, without an exponent from 1e-4 up to 1e6 and with a signed two-digit one (`1e+06`,
+/// `1.5e-07`) outside.
+///
+/// The bounds are keys of the trace's `bucket_deltas`, which the runner compares with the Go
+/// server's, so they keep Go's spelling (Prebid's own text, as orchestrator ruling 4 has it for
+/// floats). Rust's `{:e}` and `{}` give the shortest digits; only Go's layout is applied here.
 fn format_bound(le: f64) -> String {
-    if le.is_infinite() && le.is_sign_positive() {
-        return "+Inf".to_owned();
+    if le.is_nan() {
+        return "NaN".to_owned();
     }
-    format_float(le, b'g', -1, 64)
+    if le.is_infinite() {
+        return if le.is_sign_positive() {
+            "+Inf"
+        } else {
+            "-Inf"
+        }
+        .to_owned();
+    }
+    let scientific = format!("{le:e}");
+    let (mantissa, exp) = scientific
+        .split_once('e')
+        .map_or((scientific.as_str(), 0), |(mantissa, exp)| {
+            (mantissa, exp.parse::<i32>().unwrap_or(0))
+        });
+    if (-4..6).contains(&exp) {
+        format!("{le}")
+    } else {
+        let sign = if exp < 0 { '-' } else { '+' };
+        format!("{mantissa}e{sign}{:02}", exp.unsigned_abs())
+    }
 }
 
-/// Go: `trace.seriesKey`: the name plus the labels sorted by name, values quoted.
+/// Go: `trace.seriesKey`: the name plus the labels sorted by name, values quoted. It only orders
+/// the deltas; Rust's `{:?}` quotes a value as Go's `strconv.Quote` does unless it holds control
+/// or unprintable characters.
 fn series_key(name: &str, labels: &BTreeMap<String, String>) -> String {
-    let pairs: Vec<String> = labels
-        .iter()
-        .map(|(k, v)| format!("{k}={}", quote(v)))
-        .collect();
+    let pairs: Vec<String> = labels.iter().map(|(k, v)| format!("{k}={v:?}")).collect();
     format!("{name}{{{}}}", pairs.join(","))
 }
 
