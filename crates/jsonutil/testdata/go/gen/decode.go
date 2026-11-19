@@ -231,6 +231,48 @@ func partialResults() []row {
 	return rows
 }
 
+// dsaTransparency and regsDSA are openrtb_ext.ExtBidDSATransparency and ExtRegsDSA, the fields the
+// pin needs.
+type dsaTransparency struct {
+	Domain string `json:"domain,omitempty"`
+	Params []int  `json:"dsaparams,omitempty"`
+}
+
+type regsDSA struct {
+	Required     *int8             `json:"dsarequired,omitempty"`
+	Transparency []dsaTransparency `json:"transparency,omitempty"`
+}
+
+// hostDSA is the DefaultUnpacked the account defaults leave in an account before
+// config.UnpackDSADefault (config/config.go:907-912) decodes the account's own DSA default into it
+// (account/fetcher.go:152, account/account.go:71).
+func hostDSA() *regsDSA {
+	required := int8(1)
+	return &regsDSA{Required: &required, Transparency: []dsaTransparency{{Domain: "host.example", Params: []int{1}}}}
+}
+
+// reusedElements is json.decode-reuses-elements: jsonutil.Unmarshal into a value that already holds
+// a slice decodes each array element into the element at its index while the slice's capacity
+// lasts, so the members an element leaves out keep the old element's; MergeClone sets the slice to
+// nil first, so its elements are new. Each input goes through UnpackDSADefault's call,
+// jsonutil.Unmarshal(data, &dsa.DefaultUnpacked), and through MergeClone, each into hostDSA.
+func reusedElements() []row {
+	var rows []row
+	for _, in := range []string{
+		`{"dsarequired":3,"transparency":[{"domain":"pub.example"}]}`,
+		`{"transparency":[{"dsaparams":[2]},{"domain":"second.example"}]}`,
+		`{"transparency":[]}`,
+	} {
+		unpacked := hostDSA()
+		err := jsonutil.Unmarshal([]byte(in), &unpacked)
+		rows = append(rows, row{Name: "jsonutil.Unmarshal", Input: in, Result: marshalled(unpacked), Err: errText(err)})
+		merged := hostDSA()
+		err = jsonutil.MergeClone(&merged, []byte(in))
+		rows = append(rows, row{Name: "jsonutil.MergeClone", Input: in, Result: marshalled(merged), Err: errText(err)})
+	}
+	return rows
+}
+
 func interfaceNumbers() []row {
 	var rows []row
 	for _, in := range []string{`{"v":9007199254740993}`, `{"v":1.0}`, `{"v":1e2}`, `{"v":1.5}`, `{"v":12345678901234567890}`, `{"v":[1,{"a":2.0}]}`} {
@@ -708,6 +750,7 @@ type decodeDoc struct {
 	ControlNames     []row  `json:"control_member_names"`
 	RawContainers    []row  `json:"raw_containers"`
 	PartialResults   []row  `json:"partial_results"`
+	ReusedElements   []row  `json:"reused_elements"`
 }
 
 func decodeGolden() decodeDoc {
@@ -737,5 +780,6 @@ func decodeGolden() decodeDoc {
 		ControlNames:     controlMemberNames(),
 		RawContainers:    rawContainers(),
 		PartialResults:   partialResults(),
+		ReusedElements:   reusedElements(),
 	}
 }

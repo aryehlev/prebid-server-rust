@@ -2342,5 +2342,43 @@
       "result": "{\"id\":\"x\",\"n\":1,\"l\":[2]}",
       "err": "there are bytes left after unmarshal"
     }
+  ],
+  "reused_elements": [
+    {
+      "name": "jsonutil.Unmarshal",
+      "input": "{\"dsarequired\":3,\"transparency\":[{\"domain\":\"pub.example\"}]}",
+      "result": "{\"dsarequired\":3,\"transparency\":[{\"domain\":\"pub.example\",\"dsaparams\":[1]}]}",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.MergeClone",
+      "input": "{\"dsarequired\":3,\"transparency\":[{\"domain\":\"pub.example\"}]}",
+      "result": "{\"dsarequired\":3,\"transparency\":[{\"domain\":\"pub.example\"}]}",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.Unmarshal",
+      "input": "{\"transparency\":[{\"dsaparams\":[2]},{\"domain\":\"second.example\"}]}",
+      "result": "{\"dsarequired\":1,\"transparency\":[{\"domain\":\"host.example\",\"dsaparams\":[2]},{\"domain\":\"second.example\"}]}",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.MergeClone",
+      "input": "{\"transparency\":[{\"dsaparams\":[2]},{\"domain\":\"second.example\"}]}",
+      "result": "{\"dsarequired\":1,\"transparency\":[{\"dsaparams\":[2]},{\"domain\":\"second.example\"}]}",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.Unmarshal",
+      "input": "{\"transparency\":[]}",
+      "result": "{\"dsarequired\":1}",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.MergeClone",
+      "input": "{\"transparency\":[]}",
+      "result": "{\"dsarequired\":1}",
+      "err": ""
+    }
   ]
 }
