@@ -1,0 +1,727 @@
+//! Decoding against Go (`testdata/golden/decode.json`): null into value and `json.RawMessage`
+//! fields, numbers into `interface{}`, malformed raw values, lone surrogates, numbers beyond
+//! `f64`'s range, Prebid's lenient readers (`StringInt`, `IntString`, `ParseIntoString`) and Go's
+//! typed integers.
+
+#[cfg(test)]
+pub mod support;
+
+#[cfg(test)]
+mod tests {
+    use std::{collections::BTreeMap, fmt::Write as _};
+
+    use pbs_errortypes::GoError;
+    use pbs_jsonutil::{
+        IntString, StringInt, marshal, null_default, parse_into_string, raw_compact, raw_keep_null,
+        unmarshal, unmarshal_valid,
+    };
+    use serde::{Deserialize, Serialize, de::DeserializeOwned};
+    use serde_json::{Value, value::RawValue};
+
+    use super::support::{TestResult, ensure_eq, golden, list, text};
+
+    /// One recorded call of a `decode.json` section.
+    struct Row<'a> {
+        name: &'a str,
+        input: &'a str,
+        result: &'a str,
+        err: &'a str,
+    }
+
+    /// The rows of the section `name`.
+    fn rows<'a>(doc: &'a Value, name: &str) -> TestResult<Vec<Row<'a>>> {
+        list(doc, name)?
+            .iter()
+            .map(|row| {
+                Ok(Row {
+                    name: text(row, "/name")?,
+                    input: text(row, "/input")?,
+                    result: text(row, "/result")?,
+                    err: text(row, "/err")?,
+                })
+            })
+            .collect()
+    }
+
+    /// `unmarshal` or `unmarshal_valid`, as the row's Go decoder is `Unmarshal` or
+    /// `UnmarshalValid`.
+    fn decode<T: DeserializeOwned>(row: &Row<'_>) -> Result<T, String> {
+        let decoded = if row.name.starts_with("jsonutil.UnmarshalValid") {
+            unmarshal_valid(row.input.as_bytes())
+        } else {
+            unmarshal(row.input.as_bytes())
+        };
+        decoded.map_err(GoError::into_message)
+    }
+
+    /// Lower-case hex of `text`'s bytes, as Go's `hex.EncodeToString` writes them.
+    fn hex(text: &str) -> String {
+        text.bytes().fold(String::new(), |mut out, byte| {
+            let _written = write!(out, "{byte:02x}");
+            out
+        })
+    }
+
+    /// Go's `idTarget`, as typegen writes a struct.
+    #[derive(Debug, Default, PartialEq, Deserialize)]
+    #[serde(default)]
+    struct IdTarget {
+        #[serde(deserialize_with = "null_default")]
+        id: String,
+        #[serde(deserialize_with = "null_default")]
+        n: i64,
+    }
+
+    /// A derived struct reads a JSON array as its fields in order, and `[]` as its defaults; Go
+    /// rejects an array where it reads a struct (`expect { or n, but found [`), so the request or
+    /// response fails to decode there (`json.struct-from-array`).
+    // Go: jsoniter reflect_struct_decoder.go (readObjectStart); gen/decode.go errorTexts
+    #[test]
+    fn struct_reads_array() -> TestResult {
+        let doc = golden("decode.json")?;
+        let rows = rows(&doc, "/error_texts")?;
+        let mut arrays = 0;
+        for row in rows.iter().filter(|row| row.input == "[]") {
+            ensure_eq(&row.err, &"expect { or n, but found [", row.name)?;
+            ensure_eq(&decode::<IdTarget>(row), &Ok(IdTarget::default()), row.name)?;
+            arrays += 1;
+        }
+        ensure_eq(&arrays, &2, "decoders")?;
+        let positional: IdTarget = unmarshal(br#"["x",5]"#)?;
+        let want = IdTarget {
+            id: "x".to_owned(),
+            n: 5,
+        };
+        ensure_eq(&positional, &want, "an array of the fields")
+    }
+
+    /// Go's `nullTarget`: a value field of each kind and a pointer.
+    #[derive(Debug, Default, PartialEq, Deserialize)]
+    #[serde(default)]
+    struct NullTarget {
+        #[serde(deserialize_with = "null_default")]
+        s: String,
+        #[serde(deserialize_with = "null_default")]
+        i: i64,
+        #[serde(rename = "F", deserialize_with = "null_default")]
+        f: f64,
+        #[serde(deserialize_with = "null_default")]
+        b: bool,
+        #[serde(deserialize_with = "null_default")]
+        st: Nested,
+        l: Option<Vec<i64>>,
+        m: Option<BTreeMap<String, i64>>,
+        p: Option<i64>,
+    }
+
+    /// Go's `nullTarget.St`.
+    #[derive(Debug, Default, PartialEq, Deserialize)]
+    #[serde(default)]
+    struct Nested {
+        #[serde(deserialize_with = "null_default")]
+        a: i64,
+    }
+
+    /// A string field without `null_default`, as a bare derive declares it.
+    #[derive(Debug, Deserialize)]
+    struct Bare {
+        #[serde(rename = "s")]
+        _s: String,
+    }
+
+    /// Null into each value field leaves its zero value through `unmarshal` and
+    /// `unmarshal_valid`, the values Go's three decoders give; a bare derive rejects the document
+    /// (`json.null-into-value`, restored).
+    // Go: util/jsonutil/jsonutil.go:136-157 (Unmarshal, UnmarshalValid); gen/decode.go
+    // nullIntoValue
+    #[test]
+    fn null_leaves_zero_value() -> TestResult {
+        let doc = golden("decode.json")?;
+        let rows = rows(&doc, "/null_into_value")?;
+        for row in &rows {
+            let go: NullTarget = unmarshal(row.result.as_bytes())?;
+            ensure_eq(&decode::<NullTarget>(row), &Ok(go), row.name)?;
+        }
+        ensure_eq(&rows.len(), &3, "decoders")?;
+        let bare = serde_json::from_str::<Bare>(r#"{"s":null}"#).map_err(|e| e.to_string());
+        ensure_eq(
+            &bare.err().as_deref(),
+            &Some("invalid type: null, expected a string at line 1 column 9"),
+            "a bare derive",
+        )
+    }
+
+    /// Go's `rawOmit` and `rawPlain` as `jsonutil.Unmarshal` decodes them.
+    #[derive(Default, Serialize, Deserialize)]
+    #[serde(default)]
+    struct RawField {
+        #[serde(serialize_with = "raw_compact")]
+        ext: Option<Box<RawValue>>,
+    }
+
+    /// Go's `rawOmit`.
+    #[derive(Default, Serialize, Deserialize)]
+    #[serde(default)]
+    struct RawOmit {
+        #[serde(
+            skip_serializing_if = "Option::is_none",
+            serialize_with = "raw_compact"
+        )]
+        ext: Option<Box<RawValue>>,
+    }
+
+    /// Go's `rawOmit` and `rawPlain` as `json.Unmarshal` decodes them: null is kept.
+    #[derive(Default, Serialize, Deserialize)]
+    #[serde(default)]
+    struct RawKept {
+        #[serde(
+            skip_serializing_if = "Option::is_none",
+            deserialize_with = "raw_keep_null",
+            serialize_with = "raw_compact"
+        )]
+        ext: Option<Box<RawValue>>,
+    }
+
+    /// Go's `rawState`: nil, or the bytes quoted.
+    fn raw_state(ext: Option<&RawValue>) -> String {
+        ext.map_or_else(|| "nil".to_owned(), |raw| format!("{:?}", raw.get()))
+    }
+
+    /// A row of `null_raw` decoded and written by the Rust type for its Go decoder and field.
+    fn null_raw(row: &Row<'_>) -> TestResult<String> {
+        Ok(match row.name {
+            "json.Unmarshal" | "json.Unmarshal omitempty" => {
+                let kept: RawKept = decode(row)?;
+                format!(
+                    "{} {}",
+                    raw_state(kept.ext.as_deref()),
+                    String::from_utf8(marshal(&kept)?)?
+                )
+            }
+            "jsonutil.Unmarshal" => {
+                let plain: RawField = decode(row)?;
+                format!(
+                    "{} {}",
+                    raw_state(plain.ext.as_deref()),
+                    String::from_utf8(marshal(&plain)?)?
+                )
+            }
+            _ => {
+                let omit: RawOmit = decode(row)?;
+                format!(
+                    "{} {}",
+                    raw_state(omit.ext.as_deref()),
+                    String::from_utf8(marshal(&omit)?)?
+                )
+            }
+        })
+    }
+
+    /// A `json.RawMessage` given null: through `raw_keep_null` it holds `null` and is written
+    /// back as `null`, as `encoding/json` keeps it (`json.null-raw`, restored); a plain `Option`
+    /// reads it as nothing, as `jsonutil.Unmarshal` (jsoniter) does, and writes nothing under
+    /// `omitempty`. Without `omitempty` Go writes that nil as no value at all and this `null`
+    /// (`json.nil-raw-written`).
+    // Go: util/jsonutil/jsonutil.go:136-157; encoding/json RawMessage.UnmarshalJSON; gen/decode.go
+    // nullRaw
+    #[test]
+    fn null_raw_kept() -> TestResult {
+        let doc = golden("decode.json")?;
+        let rows = rows(&doc, "/null_raw")?;
+        for row in &rows {
+            let rust = null_raw(row)?;
+            let want = if row.name == "jsonutil.Unmarshal" {
+                row.result.replace(r#""ext":}"#, r#""ext":null}"#)
+            } else {
+                row.result.to_owned()
+            };
+            ensure_eq(&rust, &want, row.name)?;
+        }
+        ensure_eq(&rows.len(), &5, "decoders")
+    }
+
+    /// Go's `anyTarget`.
+    #[derive(Serialize, Deserialize)]
+    struct AnyTarget {
+        #[serde(default)]
+        v: Value,
+    }
+
+    /// The number of each `interface_numbers` input as a `Value` writes it.
+    const NUMBERS: [(&str, &str); 6] = [
+        (r#"{"v":9007199254740993}"#, r#"{"v":9007199254740993}"#),
+        (r#"{"v":1.0}"#, r#"{"v":1.0}"#),
+        (r#"{"v":1e2}"#, r#"{"v":100.0}"#),
+        (r#"{"v":1.5}"#, r#"{"v":1.5}"#),
+        (
+            r#"{"v":12345678901234567890}"#,
+            r#"{"v":12345678901234567890}"#,
+        ),
+        (r#"{"v":[1,{"a":2.0}]}"#, r#"{"v":[1,{"a":2.0}]}"#),
+    ];
+
+    /// A number read into a `Value` keeps an integer exact, above 2^53 and up to `u64::MAX`, and
+    /// a float as the `f64` it reads to; Go reads every number into `interface{}` as a float64,
+    /// so 9007199254740993 comes back 9007199254740992 (`json.interface-numbers`; the spellings of
+    /// floats are `json.float-format`).
+    // Go: util/jsonutil/jsonutil.go:136-147; jsoniter's interface{} decoder; gen/decode.go
+    // interfaceNumbers
+    #[test]
+    fn interface_numbers_kept_exact() -> TestResult {
+        let doc = golden("decode.json")?;
+        let rows = rows(&doc, "/interface_numbers")?;
+        let mut same = 0;
+        for (row, (input, want)) in rows.iter().zip(NUMBERS) {
+            ensure_eq(&row.input, &input, "input")?;
+            let any: AnyTarget = decode(row)?;
+            let rust = String::from_utf8(marshal(&any)?)?;
+            ensure_eq(&rust.as_str(), &want, input)?;
+            if rust == row.result {
+                same += 1;
+            }
+        }
+        ensure_eq(
+            &(rows.len(), same),
+            &(6, 1),
+            "inputs, and those Go writes alike",
+        )
+    }
+
+    /// `json.RawMessage` fields: `jsonutil.Unmarshal` and `UnmarshalValid` (jsoniter) keep a
+    /// number with a leading zero after its minus (`-01`) as it was written, where `serde_json`,
+    /// like `encoding/json`, rejects the document (`json.unvalidated-raw`); every other malformed
+    /// value fails on both sides.
+    // Go: util/jsonutil/jsonutil.go:136-157 (jsoniter's RawMessage skipper); gen/decode.go
+    // unvalidatedRaw
+    #[test]
+    fn malformed_raw_rejected() -> TestResult {
+        let doc = golden("decode.json")?;
+        let rows = rows(&doc, "/unvalidated_raw")?;
+        let mut accepted = Vec::new();
+        for row in &rows {
+            let rust = if row.name == "json.Unmarshal" {
+                decode::<RawKept>(row).map(|kept| raw_state(kept.ext.as_deref()))
+            } else {
+                decode::<RawOmit>(row).map(|omit| raw_state(omit.ext.as_deref()))
+            };
+            ensure_eq(
+                &rust.is_err(),
+                &true,
+                &format!("{} {}", row.name, row.input),
+            )?;
+            if row.err.is_empty() {
+                accepted.push((row.input, row.result));
+            }
+        }
+        ensure_eq(
+            &accepted,
+            &vec![
+                (r#"{"ext":-01}"#, r#""-01""#),
+                (r#"{"ext":-01}"#, r#""-01""#),
+                (r#"{"ext":[-01]}"#, r#""[-01]""#),
+                (r#"{"ext":[-01]}"#, r#""[-01]""#),
+            ],
+            "what Go's jsonutil decoders accept",
+        )
+    }
+
+    /// Go's `stringTarget`.
+    #[derive(Deserialize)]
+    struct StringTarget {
+        s: String,
+    }
+
+    /// A lone surrogate escape decodes to U+FFFD, in values and keys, as both Go decoders give
+    /// it, where `serde_json` alone rejects the document (`json.lone-surrogates`, restored by
+    /// `replace_lone_surrogates`); pairs and escaped backslashes read as they always did.
+    // Go: util/jsonutil/jsonutil.go:136-147; encoding/json decode.go unquoteBytes; gen/decode.go
+    // loneSurrogates
+    #[test]
+    fn lone_surrogates_decode_to_replacement() -> TestResult {
+        let doc = golden("decode.json")?;
+        let mut compared = 0;
+        let mut lone = 0;
+        for row in rows(&doc, "/lone_surrogates")? {
+            let rust = match row.name {
+                "jsonutil.Unmarshal" => decode::<StringTarget>(&row)?.s,
+                "jsonutil.Unmarshal key" => {
+                    let map: BTreeMap<String, i64> = decode(&row)?;
+                    map.into_keys().collect()
+                }
+                _ => continue,
+            };
+            ensure_eq(&hex(&rust).as_str(), &row.result, row.input)?;
+            let replaced = rust.contains('\u{fffd}');
+            ensure_eq(
+                &serde_json::from_str::<Value>(row.input).is_err(),
+                &replaced,
+                row.input,
+            )?;
+            compared += 1;
+            lone += usize::from(replaced);
+        }
+        ensure_eq(
+            &(compared, lone),
+            &(13, 10),
+            "inputs, and those with a lone surrogate",
+        )
+    }
+
+    /// A surrogate escape followed by another `\u` escape it does not pair with reads as jsoniter
+    /// (`jsonutil.Unmarshal`) reads it: U+FFFD for the surrogate and the second escape read on
+    /// its own, not paired with what follows it. `encoding/json` pairs that second escape with
+    /// the next, and gjson (`IntString`, `ParseIntoString`) turns the two escapes into one U+FFFD,
+    /// dropping the character the second one spells (`json.surrogate-pairing`).
+    // Go: jsoniter iter_str.go readEscapedChar; encoding/json decode.go unquoteBytes; gjson.go
+    // unescape; gen/decode.go loneSurrogates, intStrings, parseIntoStrings
+    #[test]
+    fn surrogate_pairing_follows_jsoniter() -> TestResult {
+        let doc = golden("decode.json")?;
+        let lone = rows(&doc, "/lone_surrogates")?;
+        // What jsoniter reads of each string, by the string's JSON text.
+        let jsoniter_reads: BTreeMap<&str, &str> = lone
+            .iter()
+            .filter(|row| row.name == "jsonutil.Unmarshal")
+            .filter_map(|row| {
+                let string = row.input.strip_prefix(r#"{"s":"#)?.strip_suffix('}')?;
+                Some((string, row.result))
+            })
+            .collect();
+        let mut gjson = Vec::new();
+        for row in rows(&doc, "/int_string")? {
+            let Some(string) = surrogate_string(row.input, r#"{"item_id": "#) else {
+                continue;
+            };
+            let rust = decode::<IntStringItem>(&row)?.item_id.0;
+            let jsoniter = jsoniter_reads
+                .get(string)
+                .ok_or_else(|| format!("no jsoniter row for {string}"))?;
+            ensure_eq(&hex(&rust).as_str(), jsoniter, row.input)?;
+            gjson.push(("IntString", hex(row.result)));
+        }
+        for row in rows(&doc, "/parse_into_string")? {
+            let Some(string) = surrogate_string(row.input, "") else {
+                continue;
+            };
+            let mut target = None;
+            parse_into_string(row.input.as_bytes(), Some(&mut target))?;
+            let rust = target.ok_or_else(|| format!("{}: nothing read", row.input))?;
+            let jsoniter = jsoniter_reads
+                .get(string)
+                .ok_or_else(|| format!("no jsoniter row for {string}"))?;
+            ensure_eq(&hex(&rust).as_str(), jsoniter, row.input)?;
+            let go = row
+                .result
+                .strip_prefix('"')
+                .and_then(|inner| inner.strip_suffix('"'));
+            gjson.push((
+                "ParseIntoString",
+                hex(go.ok_or("Go's result is not quoted")?),
+            ));
+        }
+        let gjson_reads = [
+            ("IntString", "efbfbd".to_owned()),
+            ("IntString", "efbfbdefbfbd".to_owned()),
+            ("ParseIntoString", "efbfbd".to_owned()),
+            ("ParseIntoString", "efbfbdefbfbd".to_owned()),
+        ];
+        ensure_eq(gjson.as_slice(), gjson_reads.as_slice(), "what gjson reads")?;
+        let mut differ = Vec::new();
+        for [jsoniter, standard] in lone.as_chunks::<2>().0 {
+            ensure_eq(&standard.name, &"json.Unmarshal", standard.input)?;
+            let rust = hex(&decode::<StringTarget>(standard)?.s);
+            ensure_eq(&rust.as_str(), &jsoniter.result, standard.input)?;
+            if standard.result != jsoniter.result {
+                differ.push((standard.input, standard.result));
+            }
+        }
+        ensure_eq(
+            &differ,
+            &vec![
+                (r#"{"s":"\ud800\ud800\udc00"}"#, "efbfbdf0908080"),
+                (r#"{"s":"\udc00\ud800\udc00"}"#, "efbfbdf0908080"),
+            ],
+            "inputs encoding/json reads otherwise",
+        )
+    }
+
+    /// The JSON string in `input` after `prefix` (and before a closing brace, if `prefix` opens
+    /// an object), when it holds a lone surrogate escape.
+    fn surrogate_string<'a>(input: &'a str, prefix: &str) -> Option<&'a str> {
+        let rest = input.strip_prefix(prefix)?;
+        let string = if prefix.is_empty() {
+            rest
+        } else {
+            rest.strip_suffix('}')?
+        };
+        string.contains("\\ud800").then_some(string)
+    }
+
+    /// A lone surrogate escape inside a `json.RawMessage` is written back as `\uFFFD`, the
+    /// rewrite that lets `serde_json` read the document; Go keeps the bytes as they came
+    /// (`json.lone-surrogates-raw`). Both read back to the same value.
+    // Go: util/jsonutil/jsonutil.go:229-255 (RawMessageExtension); gen/decode.go rawCompact
+    #[test]
+    fn lone_surrogates_in_raw_rewritten() -> TestResult {
+        let doc = golden("decode.json")?;
+        let rows = rows(&doc, "/raw_compact")?;
+        let row = rows
+            .iter()
+            .find(|row| row.input.contains("\\ud800"))
+            .ok_or("no raw row with a lone surrogate")?;
+        let omit: RawOmit = decode(row)?;
+        let rust = String::from_utf8(marshal(&omit)?)?;
+        ensure_eq(
+            &rust.as_str(),
+            &"{\"ext\":[\"\\uFFFD\",\"x\\uFFFD\"]}",
+            row.input,
+        )?;
+        let go: Value = unmarshal(row.result.as_bytes())?;
+        ensure_eq(&serde_json::from_str::<Value>(&rust)?, &go, "the values")
+    }
+
+    /// Go's `stringIntItem`.
+    #[derive(Deserialize)]
+    struct StringIntItem {
+        #[serde(default)]
+        item_id: StringInt,
+    }
+
+    /// A `StringInt` row decoded: the value, or that it failed.
+    fn string_int(row: &Row<'_>) -> Result<String, String> {
+        decode::<StringIntItem>(row).map(|item| item.item_id.0.to_string())
+    }
+
+    /// `TestStringIntUnmarshalJSON` and the edges: a number or a string holding one reads, the
+    /// empty string reads 0, and anything else fails, null included, as Go's decoder gives them
+    /// (the texts are `json.error-texts`), except the two spellings `json.string-int-parse` names.
+    // Go: util/jsonutil/stringInt.go:9-29, stringInt_test.go:10-41; gen/decode.go stringInts
+    #[test]
+    fn string_int_rows_match_go() -> TestResult {
+        let doc = golden("decode.json")?;
+        let rows = rows(&doc, "/string_int")?;
+        for row in &rows {
+            if row.input.contains(r#""-""#) || row.input.contains(r#""+5""#) {
+                continue;
+            }
+            let rust = string_int(row);
+            if row.err.is_empty() {
+                ensure_eq(&rust, &Ok(row.result.to_owned()), row.input)?;
+            } else {
+                ensure_eq(&rust.is_err(), &true, row.input)?;
+            }
+        }
+        ensure_eq(&rows.len(), &18, "inputs")
+    }
+
+    /// `StringInt` parses with `i64::from_str`: `"+5"` reads 5, where Go's `jsonparser.ParseInt`
+    /// fails, and `"-"` fails, where Go reads 0 (`json.string-int-parse`).
+    // Go: util/jsonutil/stringInt.go:9-29 (jsonparser.ParseInt); gen/decode.go stringInts
+    #[test]
+    fn string_int_parse_differs() -> TestResult {
+        let doc = golden("decode.json")?;
+        let rows = rows(&doc, "/string_int")?;
+        let find = |input: &str| {
+            rows.iter()
+                .find(|row| row.input == input)
+                .ok_or_else(|| format!("no row {input}"))
+        };
+        let minus = find(r#"{"item_id":"-"}"#)?;
+        ensure_eq(
+            &(minus.result, minus.err),
+            &("0", ""),
+            "Go reads a lone minus",
+        )?;
+        ensure_eq(&string_int(minus).is_err(), &true, "a lone minus")?;
+        let plus = find(r#"{"item_id":"+5"}"#)?;
+        ensure_eq(&plus.err.is_empty(), &false, "Go fails on a plus sign")?;
+        ensure_eq(&string_int(plus), &Ok("5".to_owned()), "a plus sign")
+    }
+
+    /// Go's `intStringItem`.
+    #[derive(Deserialize)]
+    struct IntStringItem {
+        #[serde(default)]
+        item_id: IntString,
+    }
+
+    /// `TestIntStringUnmarshalJSON` and the edges: a string reads as its text and a number as
+    /// gjson writes it (an integer as written, else the shortest `f64` form); null, booleans and
+    /// arrays fail, with Prebid's `invalid type`. The strings with a lone surrogate are
+    /// `json.surrogate-pairing`'s.
+    // Go: util/jsonutil/intstring.go:11-19, intstring_test.go:10-58; gen/decode.go intStrings
+    #[test]
+    fn int_string_rows_match_go() -> TestResult {
+        let doc = golden("decode.json")?;
+        let rows = rows(&doc, "/int_string")?;
+        for row in &rows {
+            if surrogate_string(row.input, r#"{"item_id": "#).is_some() {
+                continue;
+            }
+            let rust = decode::<IntStringItem>(row).map(|item| item.item_id.0);
+            if row.err.is_empty() {
+                ensure_eq(&rust, &Ok(row.result.to_owned()), row.input)?;
+            } else {
+                let rust = rust
+                    .err()
+                    .ok_or_else(|| format!("{}: read where Go failed", row.input))?;
+                ensure_eq(
+                    &rust.starts_with("invalid type"),
+                    &row.err.ends_with(": invalid type"),
+                    row.input,
+                )?;
+            }
+        }
+        ensure_eq(&rows.len(), &12, "inputs")
+    }
+
+    /// `ParseIntoString` on one input: the string it sets, as Go's `%q` would show it, or nil.
+    fn parse_into(input: &str) -> TestResult<String> {
+        let mut target = None;
+        parse_into_string(input.as_bytes(), Some(&mut target))?;
+        Ok(target.map_or_else(|| "nil".to_owned(), |text| format!("{text:?}")))
+    }
+
+    /// Inputs gjson reads a value out of although they are not JSON.
+    const LENIENT: [&str; 5] = [r#""abc"#, "1x", "+5", "nan", "tru"];
+
+    /// `Test_ParseIntoString`, `Test_ParseIntoNilStringError` and the edges: JSON values give
+    /// Go's strings (an object or array its bytes to the end of the input, a number beyond
+    /// `f64`'s range `+Inf`), null and nothing leave the target unset, and a nil target fails
+    /// with Go's text. The strings with a lone surrogate are `json.surrogate-pairing`'s.
+    // Go: util/jsonutil/forcestring.go:11-20, forcestring_test.go:10-61; gen/decode.go
+    // parseIntoStrings
+    #[test]
+    fn parse_into_string_rows_match_go() -> TestResult {
+        let doc = golden("decode.json")?;
+        let rows = rows(&doc, "/parse_into_string")?;
+        for row in &rows {
+            if LENIENT.contains(&row.input) || surrogate_string(row.input, "").is_some() {
+                continue;
+            }
+            if row.name == "jsonutil.ParseIntoString nil" {
+                let error =
+                    parse_into_string(row.input.as_bytes(), None).map_err(GoError::into_message);
+                ensure_eq(&error, &Err(row.err.to_owned()), row.name)?;
+                continue;
+            }
+            ensure_eq(&parse_into(row.input)?.as_str(), &row.result, row.input)?;
+        }
+        ensure_eq(&rows.len(), &22, "inputs")
+    }
+
+    /// Bytes that are not JSON leave the target unset, where gjson reads a value out of them:
+    /// an unterminated string, a number with bytes after it, a plus sign, `nan` and a literal cut
+    /// short (`json.parse-into-string-lenient`).
+    // Go: util/jsonutil/forcestring.go:11-20 (gjson.ParseBytes); gen/decode.go parseIntoStrings
+    #[test]
+    fn parse_into_string_lenient_inputs_unset() -> TestResult {
+        let doc = golden("decode.json")?;
+        let mut seen = 0;
+        for row in rows(&doc, "/parse_into_string")? {
+            if !LENIENT.contains(&row.input) {
+                continue;
+            }
+            ensure_eq(&(row.result == "nil"), &false, row.input)?;
+            ensure_eq(&parse_into(row.input)?.as_str(), &"nil", row.input)?;
+            seen += 1;
+        }
+        ensure_eq(&seen, &LENIENT.len(), "lenient inputs")
+    }
+
+    /// A number beyond `f64`'s range where `serde_json` does not parse it as a number (in a
+    /// `json.RawMessage`, an unknown member and the bytes `IntString` reads) reads, as
+    /// `encoding/json` reads it, where jsoniter (`jsonutil.Unmarshal`, `UnmarshalValid`) fails the
+    /// document with `invalid number`, and so does one that starts with 0 beyond `f32`'s range
+    /// (`0.5e39`), which jsoniter's skipper parses as a float32 (`value out of range`); `f64`'s
+    /// largest value, a number that underflows and an integer of digits only read on every side
+    /// (`json.out-of-range-numbers`).
+    // Go: jsoniter iter_skip.go:69-104 (Skip), iter_skip_strict.go:10-22 (skipNumber) and
+    // iter_float.go:159-185 (readNumberAsString); gen/decode.go outOfRangeNumbers
+    #[test]
+    fn out_of_range_numbers_read() -> TestResult {
+        let doc = golden("decode.json")?;
+        let rows = rows(&doc, "/out_of_range_numbers")?;
+        let mut failed = Vec::new();
+        for row in &rows {
+            let rust = if row.name.ends_with("unknown member") {
+                decode::<StringTarget>(row).map(|target| target.s)
+            } else if row.name.ends_with("IntString") {
+                decode::<IntStringItem>(row).map(|item| item.item_id.0)
+            } else if row.name == "json.Unmarshal" {
+                decode::<RawKept>(row).map(|kept| raw_state(kept.ext.as_deref()))
+            } else {
+                decode::<RawField>(row).map(|plain| raw_state(plain.ext.as_deref()))
+            };
+            let what = format!("{} {}", row.name, row.input);
+            ensure_eq(&rust, &Ok(row.result.to_owned()), &what)?;
+            if !row.err.is_empty() {
+                let range =
+                    row.err.ends_with("invalid number") || row.err.ends_with("value out of range");
+                ensure_eq(&range, &true, &what)?;
+                failed.push((row.name, row.input));
+            }
+        }
+        ensure_eq(&rows.len(), &34, "rows")?;
+        ensure_eq(
+            &failed,
+            &vec![
+                ("jsonutil.Unmarshal", r#"{"ext":1e400}"#),
+                ("jsonutil.UnmarshalValid", r#"{"ext":1e400}"#),
+                ("jsonutil.Unmarshal", r#"{"ext":[-1e309]}"#),
+                ("jsonutil.UnmarshalValid", r#"{"ext":[-1e309]}"#),
+                ("jsonutil.Unmarshal", r#"{"ext":{"a":1.8e308}}"#),
+                ("jsonutil.UnmarshalValid", r#"{"ext":{"a":1.8e308}}"#),
+                ("jsonutil.Unmarshal", r#"{"ext":0.5e39}"#),
+                ("jsonutil.UnmarshalValid", r#"{"ext":0.5e39}"#),
+                (
+                    "jsonutil.Unmarshal unknown member",
+                    r#"{"zz":1e400,"s":"x"}"#,
+                ),
+                (
+                    "jsonutil.Unmarshal unknown member",
+                    r#"{"s":"x","zz":[1,{"a":-1e400}]}"#,
+                ),
+                ("jsonutil.UnmarshalValid IntString", r#"{"item_id":1e400}"#),
+                ("jsonutil.UnmarshalValid IntString", r#"{"item_id":-1e400}"#),
+                (
+                    "jsonutil.UnmarshalValid IntString",
+                    r#"{"item_id":0.165e308}"#,
+                ),
+            ],
+            "what jsoniter fails on",
+        )
+    }
+
+    /// Go's `typedInt8` (`type typedInt8 int8`), as typegen writes a Go typed integer: a
+    /// transparent newtype, never a Rust enum, so any `int8` reads, as in Go.
+    #[derive(Debug, Default, PartialEq, Eq, Deserialize)]
+    #[serde(transparent)]
+    struct TypedInt8(i8);
+
+    /// Go's `typedTarget`.
+    #[derive(Default, Deserialize)]
+    #[serde(default)]
+    struct TypedTarget {
+        #[serde(deserialize_with = "null_default")]
+        v: TypedInt8,
+    }
+
+    /// A Go typed integer as a transparent newtype reads any integer of its width, rejects one
+    /// beyond it, a float and a string as Go does, and reads null as zero.
+    // Go: jsoniter's int8 decoder (ReadInt8); gen/decode.go typedInts
+    #[test]
+    fn typed_ints_accept_any_integer() -> TestResult {
+        let doc = golden("decode.json")?;
+        let rows = rows(&doc, "/typed_ints")?;
+        for row in &rows {
+            let rust = decode::<TypedTarget>(row).map(|target| target.v.0.to_string());
+            if row.err.is_empty() {
+                ensure_eq(&rust, &Ok(row.result.to_owned()), row.input)?;
+            } else {
+                ensure_eq(&rust.is_err(), &true, row.input)?;
+            }
+        }
+        ensure_eq(&rows.len(), &6, "inputs")
+    }
+}

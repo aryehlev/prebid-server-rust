@@ -19,6 +19,7 @@ members = [
     "crates/goyaml",
     "crates/goyaml-derive",
     "crates/gpp",
+    "crates/jsonutil",
     "crates/logger",
     "crates/metrics",
     "crates/openrtb",
@@ -58,6 +59,9 @@ config = { version = "0.15.27", default-features = false, features = ["json"] }
 # the base64 padding of the uids value into %3D.
 cookie = "0.18.2"
 flate2 = "1.1.11"
+# RFC 7386 merge only (JSONUTIL). The diff feature pulls treediff; 0.3.0 through 4.1.0 need
+# thiserror 1, on syn 2.
+json-patch = { version = "0.2.7", default-features = false }
 log = "0.4.35"
 moka = { version = "0.12.16", features = ["sync"] }
 proc-macro2 = "1.0.107"
