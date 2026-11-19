@@ -78,6 +78,32 @@ restore = """\
 decision = "D-DECODE"
 
 [[difference]]
+id = "json.decode-reuses-elements"
+category = "json"
+status = "ledgered"
+title = "A decode into a value that already holds a slice: jsoniter decodes into the elements there, the port builds new ones"
+go = """\
+    `jsonutil.Unmarshal` into a value that already holds a slice decodes each array element into \
+    the element at its index while the slice's capacity lasts, so the members an element leaves \
+    out keep the old element's. `config.UnpackDSADefault` decodes an account's DSA default into \
+    the `DefaultUnpacked` the account defaults left (account/fetcher.go:152, \
+    account/account.go:71), so an account's transparency entry keeps the `domain` or \
+    `dsaparams` of the host's entry at its index where it leaves them out."""
+rust = """\
+    serde builds every value new. `merge_clone`, the port's decode into a value that holds data, \
+    keeps what the document leaves out as Go does, but replaces a slice with new elements, as Go's \
+    `MergeClone` does."""
+who = ["publisher", "bidder"]
+visible_in = """\
+    The DSA object (`regs.ext.dsa`) Prebid fills into bid requests from the DSA default of an \
+    account whose transparency entries leave out members the host's account defaults set"""
+pin = "crates/jsonutil/tests/decode.rs::reused_elements_rebuilt"
+restore = """\
+    Merge each array element into the element at its index where `UnpackDSADefault` is ported; \
+    not planned (D-DECODE)."""
+decision = "D-DECODE"
+
+[[difference]]
 id = "json.error-texts"
 category = "json"
 status = "ledgered"
@@ -574,6 +600,35 @@ visible_in = """\
     Nothing in production: the one caller reads `regs.ext.gpc`, a value the request's decoder \
     has already read (openrtb_ext/request_wrapper.go:1279-1282)"""
 pin = "crates/jsonutil/tests/decode.rs::parse_into_string_lenient_inputs_unset"
+
+[[difference]]
+id = "json.partial-results"
+category = "json"
+status = "ledgered"
+title = "A document that fails to decode: Go leaves what it read in the target, `unmarshal` returns no value"
+go = """\
+    jsoniter (`jsonutil.Unmarshal`, `UnmarshalValid` and `MergeClone`) writes each member into \
+    the caller's value as it reads it, so after an error the value holds the members read before \
+    the failure, a slice element that failed as its zero value, and the whole document when other \
+    bytes follow it. Prebid goes on with that value where a hook rejects the auction (the response \
+    carries the request's id and analytics log the request: endpoints/openrtb2/auction.go:468, \
+    516), for a bid's native asset types (exchange/bidder.go:475), and in the goldbach and dmx \
+    adapters (adapters/goldbach/goldbach.go:52, adapters/dmx/dmx.go:165)."""
+rust = """\
+    `unmarshal` and `unmarshal_valid` return the error alone, so such a caller goes on with the \
+    type's default. `merge_clone` into the default leaves Go's value where a member fails, but \
+    drops a slice element that fails and leaves nothing where the document is not JSON or other \
+    bytes follow it, since it reads the whole document first."""
+who = ["publisher", "bidder", "analytics"]
+visible_in = """\
+    The id of the response to an auction a hook rejected whose body fails to decode and the \
+    request analytics log for it, the native asset types of bids whose imp's native request fails \
+    to decode, and goldbach and dmx requests built from an ext that fails to decode partway"""
+pin = "crates/jsonutil/tests/decode.rs::partial_results_dropped"
+restore = """\
+    A decoder that writes into the caller's value member by member as it reads, which serde's \
+    derives do not offer (`merge_clone` comes closest); not planned (D-DECODE)."""
+decision = "D-DECODE"
 
 [[difference]]
 id = "json.plus-float"

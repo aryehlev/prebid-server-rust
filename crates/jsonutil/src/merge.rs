@@ -91,7 +91,8 @@ pub trait MergeClone {
     /// # Errors
     ///
     /// When `patch`, or a value inside it, is not of the kind the type reads. Go leaves what it
-    /// merged before the error in place, and so does this; callers drop the value.
+    /// merged before the error in place, and so does this, but a slice element that fails is left
+    /// out where Go leaves its zero value (`json.partial-results`).
     fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError>;
 }
 
@@ -102,7 +103,10 @@ pub trait MergeClone {
 ///
 /// A `FailedToUnmarshal` when `data` is not one JSON value or the merge fails; its text is
 /// `cannot unmarshal <Type.Field>: <message>` inside a field, as Go builds it, with
-/// `serde_json`'s and this crate's messages where Go has jsoniter's (`json.error-texts`).
+/// `serde_json`'s and this crate's messages where Go has jsoniter's (`json.error-texts`). What was
+/// merged before a failing member stays in `value`, as in Go; `data` that is not JSON, or has
+/// other bytes after its value, leaves `value` as it was, where Go merges what it read before the
+/// fault (`json.partial-results`).
 pub fn merge_clone<T: MergeClone + ?Sized>(value: &mut T, data: &[u8]) -> Result<(), GoError> {
     let data = replace_lone_surrogates(data);
     let patch: &RawValue = serde_json::from_slice(&data)

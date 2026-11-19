@@ -23,6 +23,14 @@ const END_MARKER: &str = ", error found in #";
 /// `serde_json` always validates, so the two are the same function here
 /// (`json.unvalidated-raw`).
 ///
+/// Go decodes into a value the caller holds and leaves what it read before an error there; this
+/// returns the error alone (`json.partial-results`). A caller that goes on with Go's value merges
+/// `data` into `T::default()` with [`merge_clone`](crate::merge_clone), which leaves the members
+/// before the one that fails, as Go does, where `data` is JSON. Where the caller's value already
+/// holds data, Go decodes over it; `merge_clone` into that value keeps what `data` leaves out, as
+/// Go does, but builds a slice's elements new where Go decodes into the old ones
+/// (`json.decode-reuses-elements`).
+///
 /// # Errors
 ///
 /// A `FailedToUnmarshal` holding [`try_extract_error_message`] of `serde_json`'s message when

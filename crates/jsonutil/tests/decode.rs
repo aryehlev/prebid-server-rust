@@ -2,8 +2,9 @@
 //! fields, numbers into `interface{}`, malformed raw values, lone surrogates, numbers beyond
 //! `f64`'s range, Prebid's lenient readers (`StringInt`, `IntString`, `ParseIntoString`), Go's
 //! typed integers, `-0` read into integers, raw control characters in strings, null as a whole
-//! document and as a slice element or map value, a NUL byte after the document and floats written
-//! with a leading `+`.
+//! document and as a slice element or map value, a NUL byte after the document, floats written
+//! with a leading `+`, what a failed decode leaves, and a decode into a value that already holds a
+//! slice.
 
 #[cfg(test)]
 pub mod support;
@@ -13,6 +14,7 @@ mod tests {
     use std::{
         collections::{BTreeMap, BTreeSet},
         fmt::Write as _,
+        sync::Arc,
     };
 
     use pbs_errortypes::GoError;
@@ -1172,6 +1174,213 @@ mod tests {
                 r#"{"f32":+2}"#,
             ],
             "inputs jsoniter reads",
+        )
+    }
+
+    /// Go's `partialTarget`.
+    #[derive(Debug, Default, Serialize, Deserialize)]
+    #[serde(default)]
+    struct PartialTarget {
+        #[serde(deserialize_with = "null_default")]
+        id: String,
+        #[serde(deserialize_with = "null_default")]
+        n: i64,
+        #[serde(
+            skip_serializing_if = "Vec::is_empty",
+            deserialize_with = "null_default"
+        )]
+        l: Vec<i64>,
+    }
+
+    impl MergeClone for PartialTarget {
+        fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+            merge_struct(patch, |key, value| match key {
+                "id" => merge_field(&mut self.id, value, "main.partialTarget", "ID"),
+                "n" => merge_field(&mut self.n, value, "main.partialTarget", "N"),
+                "l" => merge_field(&mut self.l, value, "main.partialTarget", "L"),
+                _ => Ok(()),
+            })
+        }
+    }
+
+    /// A document that fails to decode gives `unmarshal`'s error and no value, where jsoniter
+    /// (`jsonutil.Unmarshal`, `UnmarshalValid` and `MergeClone`) leaves in the target the members
+    /// it read before the failure, a slice element that fails as its zero value, and the whole
+    /// value when other bytes follow the document (`json.partial-results`). `merge_clone` into the
+    /// default leaves Go's value where a member fails, but drops the failing element of a slice and
+    /// leaves nothing where the document is not JSON or other bytes follow it.
+    // Go: jsoniter config.go:345-358 (Unmarshal), reflect_struct_decoder.go:641-667,
+    // reflect_slice.go:66-99 (sliceDecoder.doDecode); gen/decode.go partialResults
+    #[test]
+    fn partial_results_dropped() -> TestResult {
+        let doc = golden("decode.json")?;
+        let rows = rows(&doc, "/partial_results")?;
+        let mut outcomes = Vec::new();
+        for row in &rows {
+            let what = format!("{} {}", row.name, row.input);
+            ensure_eq(&row.err.is_empty(), &false, &what)?;
+            let same = rows
+                .iter()
+                .filter(|other| other.input == row.input)
+                .all(|other| other.result == row.result);
+            ensure_eq(&same, &true, &what)?;
+            if row.name == "jsonutil.MergeClone" {
+                let mut target = PartialTarget::default();
+                let failed = merge_clone(&mut target, row.input.as_bytes()).is_err();
+                ensure_eq(&failed, &true, &what)?;
+                let merged = String::from_utf8(marshal(&target)?)?;
+                outcomes.push((row.input, row.result, merged));
+            } else {
+                ensure_eq(&decode::<PartialTarget>(row).is_err(), &true, &what)?;
+            }
+        }
+        ensure_eq(&rows.len(), &12, "rows")?;
+        let fresh = r#"{"id":"","n":0}"#;
+        let want = [
+            (
+                r#"{"id":"x","n":"bad","l":[1]}"#,
+                r#"{"id":"x","n":0}"#,
+                r#"{"id":"x","n":0}"#,
+            ),
+            (
+                r#"{"id":"x","l":[1,"y",3]}"#,
+                r#"{"id":"x","n":0,"l":[1,0]}"#,
+                r#"{"id":"x","n":0,"l":[1]}"#,
+            ),
+            (
+                r#"{"id":"x","n":1,"l":[2"#,
+                r#"{"id":"x","n":1,"l":[2]}"#,
+                fresh,
+            ),
+            (
+                r#"{"id":"x","n":1,"l":[2]} x"#,
+                r#"{"id":"x","n":1,"l":[2]}"#,
+                fresh,
+            ),
+        ];
+        let want: Vec<(&str, &str, String)> = want
+            .into_iter()
+            .map(|(input, go, rust)| (input, go, rust.to_owned()))
+            .collect();
+        ensure_eq(
+            &outcomes,
+            &want,
+            "Go's value after the error, then merge_clone's",
+        )
+    }
+
+    /// `openrtb_ext.ExtBidDSATransparency`, as `gen/decode.go`'s `dsaTransparency`.
+    #[derive(Debug, Clone, Default, Serialize)]
+    struct DsaTransparency {
+        #[serde(skip_serializing_if = "String::is_empty")]
+        domain: String,
+        #[serde(rename = "dsaparams", skip_serializing_if = "Vec::is_empty")]
+        params: Vec<i64>,
+    }
+
+    impl MergeClone for DsaTransparency {
+        fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+            merge_struct(patch, |key, value| match key {
+                "domain" => merge_field(&mut self.domain, value, "main.dsaTransparency", "Domain"),
+                "dsaparams" => {
+                    merge_field(&mut self.params, value, "main.dsaTransparency", "Params")
+                }
+                _ => Ok(()),
+            })
+        }
+    }
+
+    /// `openrtb_ext.ExtRegsDSA`, the fields `gen/decode.go`'s `regsDSA` has.
+    #[derive(Debug, Clone, Default, Serialize)]
+    struct RegsDsa {
+        #[serde(rename = "dsarequired", skip_serializing_if = "Option::is_none")]
+        required: Option<i8>,
+        #[serde(skip_serializing_if = "Vec::is_empty")]
+        transparency: Vec<DsaTransparency>,
+    }
+
+    impl MergeClone for RegsDsa {
+        fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+            merge_struct(patch, |key, value| match key {
+                "dsarequired" => merge_field(&mut self.required, value, "main.regsDSA", "Required"),
+                "transparency" => merge_field(
+                    &mut self.transparency,
+                    value,
+                    "main.regsDSA",
+                    "Transparency",
+                ),
+                _ => Ok(()),
+            })
+        }
+    }
+
+    /// The `DefaultUnpacked` the account defaults leave (Go: `hostDSA`), a shared pointer to a
+    /// struct as D-COW holds one.
+    fn host_dsa() -> Arc<RegsDsa> {
+        Arc::new(RegsDsa {
+            required: Some(1),
+            transparency: vec![DsaTransparency {
+                domain: "host.example".to_owned(),
+                params: vec![1],
+            }],
+        })
+    }
+
+    /// A decode into a value that already holds a slice: Go's `jsonutil.Unmarshal` decodes each
+    /// element into the element at its index, so the members an element leaves out keep the old
+    /// element's, which `config.UnpackDSADefault` does with the `DefaultUnpacked` the account
+    /// defaults left; `merge_clone`, the port's decode into a value that holds data, builds new
+    /// elements, as Go's `MergeClone` does, and merges the rest alike
+    /// (`json.decode-reuses-elements`).
+    // Go: jsoniter reflect_slice.go:66-99 (sliceDecoder.doDecode), reflect2 unsafe_slice.go:150-162
+    // (UnsafeGrow); config/config.go:907-912 (UnpackDSADefault); util/jsonutil/merge.go:99-109
+    // (sliceCloneDecoder); gen/decode.go reusedElements
+    #[test]
+    fn reused_elements_rebuilt() -> TestResult {
+        let doc = golden("decode.json")?;
+        let mut outcomes = Vec::new();
+        for row in rows(&doc, "/reused_elements")? {
+            ensure_eq(&row.err, &"", row.input)?;
+            let mut unpacked = Some(host_dsa());
+            merge_clone(&mut unpacked, row.input.as_bytes())?;
+            let merged = String::from_utf8(marshal(&unpacked.as_deref())?)?;
+            outcomes.push((row.name, row.input, row.result, merged));
+        }
+        ensure_eq(&outcomes.len(), &6, "rows")?;
+        let rebuilt = outcomes
+            .iter()
+            .filter(|(name, ..)| *name == "jsonutil.MergeClone")
+            .all(|(_, _, go, rust)| *go == rust.as_str());
+        ensure_eq(&rebuilt, &true, "merge_clone writes Go's MergeClone value")?;
+        let reused: Vec<(&str, &str, &str)> = outcomes
+            .iter()
+            .filter(|(name, ..)| *name == "jsonutil.Unmarshal")
+            .map(|(_, input, go, rust)| (*input, *go, rust.as_str()))
+            .collect();
+        let first = r#"{"dsarequired":3,"transparency":[{"domain":"pub.example"}]}"#;
+        let second = r#"{"transparency":[{"dsaparams":[2]},{"domain":"second.example"}]}"#;
+        let empty = r#"{"transparency":[]}"#;
+        let first_reused = concat!(
+            r#"{"dsarequired":3,"transparency":"#,
+            r#"[{"domain":"pub.example","dsaparams":[1]}]}"#,
+        );
+        let second_reused = concat!(
+            r#"{"dsarequired":1,"transparency":"#,
+            r#"[{"domain":"host.example","dsaparams":[2]},{"domain":"second.example"}]}"#,
+        );
+        let second_rebuilt = concat!(
+            r#"{"dsarequired":1,"transparency":"#,
+            r#"[{"dsaparams":[2]},{"domain":"second.example"}]}"#,
+        );
+        let want = vec![
+            (first, first_reused, first),
+            (second, second_reused, second_rebuilt),
+            (empty, r#"{"dsarequired":1}"#, r#"{"dsarequired":1}"#),
+        ];
+        ensure_eq(
+            &reused,
+            &want,
+            "Go's Unmarshal keeps the old elements' members, merge_clone does not",
         )
     }
 }
