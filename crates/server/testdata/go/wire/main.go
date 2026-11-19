@@ -2,10 +2,11 @@
 // servers answer on the wire, as server/server.go builds them (newMainServer, newSocketServer
 // and newAdminServer, called through go:linkname, with Prebid's gziphandler wrapping when
 // compression.response.enable_gzip is set), to requests at the edges of net/http: header order,
-// case and framing, sniffed content types, the header limit, malformed requests, the HTTP/2
-// preface, the read and write budgets, gzip's Vary, http.FileServer behind router.go's /static
-// route and what Shutdown does to the connections it finds (shutdown.go). It also records the
-// budgets each constructor sets.
+// case and framing, sniffed content types, the header limit, malformed requests and request
+// targets, the HTTP/2 preface, the read and write budgets, bodies a handler leaves unread, gzip's
+// Vary, http.FileServer behind router.go's /static route, with gzip off and on, and what
+// Shutdown does to the connections it finds (shutdown.go). It also records the budgets each
+// constructor sets.
 //
 // The servers run stand-in handlers (handlers.go) on loopback; every case is one connection, a
 // client script of writes and pauses (cases.go) and what the client read until the server
@@ -23,6 +24,7 @@ package main
 import (
 	"bytes"
 	"compress/gzip"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -114,11 +116,11 @@ func budgetsOf(s *http.Server, gzip bool) budgets {
 	return budgets{s.ReadTimeout, s.ReadHeaderTimeout, s.WriteTimeout, s.IdleTimeout, s.MaxHeaderBytes, gzip}
 }
 
-// result is a case and what the client read: the header block of the first answer (its Date
-// value replaced by "<date>"), the bytes after it (as text when they are valid UTF-8 and at most
-// 8 KiB, with their length and CRC-32 always), the gunzipped body of a gzip answer, and how the
-// connection ended: "eof", "reset", "open" (still open when the window passed) or
-// "client_closed" (the script closed it).
+// result is a case and what the client read, every Date value in it (a second answer's too)
+// replaced by "<date>": the header block of the first answer, the bytes after it (as text when
+// they are valid UTF-8 and at most 8 KiB, with their length and CRC-32 always), the gunzipped
+// body of a gzip answer, and how the connection ended: "eof", "reset", "open" (still open when
+// the window passed) or "client_closed" (the script closed it).
 type result struct {
 	wireCase
 	Head      string `json:"head"`
@@ -172,6 +174,12 @@ func run(addr string, c wireCase) result {
 				conn.Close()
 			case s.Text != "":
 				conn.Write([]byte(s.Text))
+			case s.Hex != "":
+				b, err := hex.DecodeString(s.Hex)
+				if err != nil {
+					panic(err)
+				}
+				conn.Write(b)
 			case s.Fill > 0 && s.Chunk > 0:
 				for left := s.Fill; left > 0; left -= s.Chunk {
 					conn.Write(bytes.Repeat([]byte{'a'}, min(left, s.Chunk)))
@@ -203,13 +211,14 @@ func run(addr string, c wireCase) result {
 
 func describe(c wireCase, answer []byte, end string) result {
 	r := result{wireCase: c, End: end}
+	answer = dateValue.ReplaceAll(answer, []byte("${1}<date>"))
 	head, body, ok := bytes.Cut(answer, []byte("\r\n\r\n"))
 	if !ok {
 		head, body = nil, answer
 	} else {
 		head = append(head, "\r\n\r\n"...)
 	}
-	r.Head = dateValue.ReplaceAllString(string(head), "${1}<date>")
+	r.Head = string(head)
 	if utf8.Valid(body) && len(body) <= 8<<10 {
 		r.Body = string(body)
 	}
@@ -288,6 +297,7 @@ func generate() doc {
 	scaled.WriteTimeout = budget * time.Millisecond
 	admin := newAdminServer(plain, standIns())
 	files := newMainServer(plain, staticHandler(static))
+	filesGzip := newMainServer(withGzip, staticHandler(static))
 	d := doc{
 		Header:      newHeader("github.com/NYTimes/gziphandler", "github.com/julienschmidt/httprouter", "github.com/rs/cors"),
 		Host:        host,
@@ -301,11 +311,12 @@ func generate() doc {
 		StaticModTime: staticTime.Format(time.RFC3339),
 	}
 	addrs := map[string]string{
-		"main":      serve(main),
-		"main_gzip": serve(mainGzip),
-		"scaled":    serve(scaled),
-		"admin":     serve(admin),
-		"static":    serve(files),
+		"main":        serve(main),
+		"main_gzip":   serve(mainGzip),
+		"scaled":      serve(scaled),
+		"admin":       serve(admin),
+		"static":      serve(files),
+		"static_gzip": serve(filesGzip),
 	}
 	cases := allCases()
 	d.Cases = make([]result, len(cases))
@@ -323,7 +334,7 @@ func generate() doc {
 		}()
 	}
 	wg.Wait()
-	for _, s := range []*http.Server{main, mainGzip, scaled, admin, files} {
+	for _, s := range []*http.Server{main, mainGzip, scaled, admin, files, filesGzip} {
 		s.Close()
 	}
 	return d

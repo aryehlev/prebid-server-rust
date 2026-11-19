@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/hex"
 	"fmt"
 	"strings"
 )
@@ -19,12 +20,14 @@ const headerLimit = 1<<20 + 4096
 // host is the Host header of the requests.
 const host = "pbs.example"
 
-// step is one thing the client does, in order: write Text, write Fill bytes of 'a' (in writes
-// of Chunk bytes with ChunkPauseMs between them when Chunk is set), pause PauseMs, or close the
+// step is one thing the client does, in order: write Text, write the bytes Hex spells (bytes
+// that are not UTF-8, which a JSON string cannot carry), write Fill bytes of 'a' (in writes of
+// Chunk bytes with ChunkPauseMs between them when Chunk is set), pause PauseMs, or close the
 // connection (Close "fin" closes it, "rst" closes it with SO_LINGER 0, so the server reads a
 // reset) and stop reading.
 type step struct {
 	Text         string `json:"text,omitempty"`
+	Hex          string `json:"hex,omitempty"`
 	Fill         int    `json:"fill,omitempty"`
 	Chunk        int    `json:"chunk,omitempty"`
 	ChunkPauseMs int    `json:"chunk_pause_ms,omitempty"`
@@ -47,10 +50,17 @@ func pause(ms int) step         { return step{PauseMs: ms} }
 func closeWith(how string) step { return step{Close: how} }
 func fill(n int) step           { return step{Fill: n} }
 func paced(n, chunk int) step   { return step{Fill: n, Chunk: chunk, ChunkPauseMs: 2} }
+func raw(s string) step         { return step{Hex: hex.EncodeToString([]byte(s))} }
 
 // get is a GET request for target that closes the connection after its answer.
 func get(target string, headers ...string) string {
 	return "GET " + target + " HTTP/1.1\r\nHost: " + host + "\r\n" + strings.Join(append(headers, "Connection: close"), "\r\n") + "\r\n\r\n"
+}
+
+// post is the head of a POST request for target with a Content-Length of n, without its body
+// and without Connection: close, so the connection is kept for a next request.
+func post(target string, n int, headers ...string) string {
+	return "POST " + target + " HTTP/1.1\r\nHost: " + host + "\r\n" + strings.Join(append(headers, fmt.Sprintf("Content-Length: %d", n)), "\r\n") + "\r\n\r\n"
 }
 
 // one is a case of a single request on a server that answers at once.
@@ -221,6 +231,56 @@ func allCases() []wireCase {
 		{"post_file", "POST /static/notes.txt HTTP/1.1\r\nHost: " + host + "\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"},
 	} {
 		cs = append(cs, one("static", s.name, "static", text(s.request)))
+	}
+
+	// A body the handler leaves unread (/typed reads none): net/http reads and discards what is
+	// left, up to 256 KiB and waiting for it, before it answers, and keeps the connection for
+	// the next request (a GET that closes it); with 256 KiB or more left, or with an
+	// Expect: 100-continue whose body was not read, it answers with Connection: close.
+	cs = append(cs,
+		one("unread_body", "unread_buffered", "main", text(post("/typed", 10)+strings.Repeat("a", 10)+get("/echo"))),
+		one("unread_body", "unread_late", "main", text(post("/typed", 10)), pause(200), text(strings.Repeat("a", 10)+get("/echo"))),
+		one("unread_body", "unread_100kib", "main", text(post("/typed", 100<<10)), fill(100<<10), pause(200), text(get("/echo"))),
+		one("unread_body", "unread_300kib", "main", text(post("/typed", 300<<10)), fill(300<<10), pause(200), text(get("/echo"))),
+		one("unread_body", "expect_read", "main", text(post("/echo", 5, "Expect: 100-continue", "Connection: close")), pause(200), text("abcde")),
+		one("unread_body", "expect_unread", "main", text(post("/typed", 5, "Expect: 100-continue")), pause(200), text("abcde"+get("/echo"))),
+	)
+
+	// Request targets with bytes a browser would have percent-encoded: net/http's
+	// url.ParseRequestURI refuses only control bytes, takes bytes that are not UTF-8, and keeps a
+	// # in the path or the query. /bytes answers n=1#0 with no bytes, since "1#0" is no number.
+	for _, t := range []struct{ name, target string }{
+		{"quote_in_query", `/echo?q="x"`},
+		{"json_in_query", `/echo?q={"a":1}`},
+		{"angle_in_query", "/echo?q=<b>"},
+		{"query_punctuation", "/echo?q=`{a}|b^c[d]\\e"},
+		{"utf8_in_query", "/echo?q=\u00e9"},
+		{"angle_in_path", "/ec<h>o"},
+		{"backtick_in_path", "/ec`ho"},
+		{"quote_braces_in_path", `/ec"{h}"o`},
+		{"hash_in_path", "/echo#x"},
+		{"hash_in_query", "/bytes?n=1#0"},
+	} {
+		cs = append(cs, one("request_target", t.name, "main", text(get(t.target))))
+	}
+	cs = append(cs, one("request_target", "latin1_in_query", "main", raw(get("/echo?q=\xe9"))),
+		// More requests the two servers refuse differently: a Host net/http's
+		// httpguts.ValidHostHeader refuses, an expectation other than 100-continue, and
+		// Transfer-Encoding on HTTP/1.0, which net/http ignores.
+		one("malformed", "malformed_host", "main", text("GET /echo HTTP/1.1\r\nHost: a b\r\nConnection: close\r\n\r\n")),
+		one("malformed", "unknown_expectation", "main", text("POST /echo HTTP/1.1\r\nHost: "+host+"\r\nExpect: foo\r\nContent-Length: 2\r\nConnection: close\r\n\r\nab")),
+		one("malformed", "chunked_http_10", "main", text("POST /echo HTTP/1.0\r\nHost: "+host+"\r\nTransfer-Encoding: chunked\r\n\r\n2\r\nab\r\n0\r\n\r\n")),
+	)
+
+	// /static with gzip on: gziphandler compresses a file answer of 1,400 bytes or more, a range
+	// included, and keeps FileServer's Accept-Ranges.
+	for _, s := range []struct{ name, request string }{
+		{"big_file_identity", get("/static/big.txt")},
+		{"big_file_gzip", get("/static/big.txt", "Accept-Encoding: gzip")},
+		{"big_range_gzip", get("/static/big.txt", "Range: bytes=0-1499", "Accept-Encoding: gzip")},
+		{"small_range_gzip", get("/static/big.txt", "Range: bytes=0-99", "Accept-Encoding: gzip")},
+	} {
+		cs = append(cs, one("static_gzip", s.name, "static_gzip", text(s.request)))
 	}
 	return cs
 }

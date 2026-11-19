@@ -1682,6 +1682,428 @@
       "body_len": 19,
       "body_crc32": "3da5965f",
       "end": "eof"
+    },
+    {
+      "group": "unread_body",
+      "name": "unread_buffered",
+      "server": "main",
+      "steps": [
+        {
+          "text": "POST /typed HTTP/1.1\r\nHost: pbs.example\r\nContent-Length: 10\r\n\r\naaaaaaaaaaGET /echo HTTP/1.1\r\nHost: pbs.example\r\nConnection: close\r\n\r\n"
+        }
+      ],
+      "window_ms": 2000,
+      "head": "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nDate: <date>\r\nContent-Length: 7\r\n\r\n",
+      "body": "{\"a\":1}HTTP/1.1 200 OK\r\nDate: <date>\r\nContent-Length: 6\r\nContent-Type: text/plain; charset=utf-8\r\nConnection: close\r\n\r\nbody=0",
+      "body_len": 125,
+      "body_crc32": "0e0890ca",
+      "end": "eof"
+    },
+    {
+      "group": "unread_body",
+      "name": "unread_late",
+      "server": "main",
+      "steps": [
+        {
+          "text": "POST /typed HTTP/1.1\r\nHost: pbs.example\r\nContent-Length: 10\r\n\r\n"
+        },
+        {
+          "pause_ms": 200
+        },
+        {
+          "text": "aaaaaaaaaaGET /echo HTTP/1.1\r\nHost: pbs.example\r\nConnection: close\r\n\r\n"
+        }
+      ],
+      "window_ms": 2000,
+      "head": "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nDate: <date>\r\nContent-Length: 7\r\n\r\n",
+      "body": "{\"a\":1}HTTP/1.1 200 OK\r\nDate: <date>\r\nContent-Length: 6\r\nContent-Type: text/plain; charset=utf-8\r\nConnection: close\r\n\r\nbody=0",
+      "body_len": 125,
+      "body_crc32": "0e0890ca",
+      "end": "eof"
+    },
+    {
+      "group": "unread_body",
+      "name": "unread_100kib",
+      "server": "main",
+      "steps": [
+        {
+          "text": "POST /typed HTTP/1.1\r\nHost: pbs.example\r\nContent-Length: 102400\r\n\r\n"
+        },
+        {
+          "fill": 102400
+        },
+        {
+          "pause_ms": 200
+        },
+        {
+          "text": "GET /echo HTTP/1.1\r\nHost: pbs.example\r\nConnection: close\r\n\r\n"
+        }
+      ],
+      "window_ms": 2000,
+      "head": "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nDate: <date>\r\nContent-Length: 7\r\n\r\n",
+      "body": "{\"a\":1}HTTP/1.1 200 OK\r\nDate: <date>\r\nContent-Length: 6\r\nContent-Type: text/plain; charset=utf-8\r\nConnection: close\r\n\r\nbody=0",
+      "body_len": 125,
+      "body_crc32": "0e0890ca",
+      "end": "eof"
+    },
+    {
+      "group": "unread_body",
+      "name": "unread_300kib",
+      "server": "main",
+      "steps": [
+        {
+          "text": "POST /typed HTTP/1.1\r\nHost: pbs.example\r\nContent-Length: 307200\r\n\r\n"
+        },
+        {
+          "fill": 307200
+        },
+        {
+          "pause_ms": 200
+        },
+        {
+          "text": "GET /echo HTTP/1.1\r\nHost: pbs.example\r\nConnection: close\r\n\r\n"
+        }
+      ],
+      "window_ms": 2000,
+      "head": "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nDate: <date>\r\nContent-Length: 7\r\nConnection: close\r\n\r\n",
+      "body": "{\"a\":1}",
+      "body_len": 7,
+      "body_crc32": "561bacaf",
+      "end": "eof"
+    },
+    {
+      "group": "unread_body",
+      "name": "expect_read",
+      "server": "main",
+      "steps": [
+        {
+          "text": "POST /echo HTTP/1.1\r\nHost: pbs.example\r\nExpect: 100-continue\r\nConnection: close\r\nContent-Length: 5\r\n\r\n"
+        },
+        {
+          "pause_ms": 200
+        },
+        {
+          "text": "abcde"
+        }
+      ],
+      "window_ms": 2000,
+      "head": "HTTP/1.1 100 Continue\r\n\r\n",
+      "body": "HTTP/1.1 200 OK\r\nDate: <date>\r\nContent-Length: 6\r\nContent-Type: text/plain; charset=utf-8\r\nConnection: close\r\n\r\nbody=5",
+      "body_len": 118,
+      "body_crc32": "15278786",
+      "end": "eof"
+    },
+    {
+      "group": "unread_body",
+      "name": "expect_unread",
+      "server": "main",
+      "steps": [
+        {
+          "text": "POST /typed HTTP/1.1\r\nHost: pbs.example\r\nExpect: 100-continue\r\nContent-Length: 5\r\n\r\n"
+        },
+        {
+          "pause_ms": 200
+        },
+        {
+          "text": "abcdeGET /echo HTTP/1.1\r\nHost: pbs.example\r\nConnection: close\r\n\r\n"
+        }
+      ],
+      "window_ms": 2000,
+      "head": "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nDate: <date>\r\nContent-Length: 7\r\nConnection: close\r\n\r\n",
+      "body": "{\"a\":1}",
+      "body_len": 7,
+      "body_crc32": "561bacaf",
+      "end": "eof"
+    },
+    {
+      "group": "request_target",
+      "name": "quote_in_query",
+      "server": "main",
+      "steps": [
+        {
+          "text": "GET /echo?q=\"x\" HTTP/1.1\r\nHost: pbs.example\r\nConnection: close\r\n\r\n"
+        }
+      ],
+      "window_ms": 2000,
+      "head": "HTTP/1.1 200 OK\r\nDate: <date>\r\nContent-Length: 6\r\nContent-Type: text/plain; charset=utf-8\r\nConnection: close\r\n\r\n",
+      "body": "body=0",
+      "body_len": 6,
+      "body_crc32": "4cc9a4f7",
+      "end": "eof"
+    },
+    {
+      "group": "request_target",
+      "name": "json_in_query",
+      "server": "main",
+      "steps": [
+        {
+          "text": "GET /echo?q={\"a\":1} HTTP/1.1\r\nHost: pbs.example\r\nConnection: close\r\n\r\n"
+        }
+      ],
+      "window_ms": 2000,
+      "head": "HTTP/1.1 200 OK\r\nDate: <date>\r\nContent-Length: 6\r\nContent-Type: text/plain; charset=utf-8\r\nConnection: close\r\n\r\n",
+      "body": "body=0",
+      "body_len": 6,
+      "body_crc32": "4cc9a4f7",
+      "end": "eof"
+    },
+    {
+      "group": "request_target",
+      "name": "angle_in_query",
+      "server": "main",
+      "steps": [
+        {
+          "text": "GET /echo?q=<b> HTTP/1.1\r\nHost: pbs.example\r\nConnection: close\r\n\r\n"
+        }
+      ],
+      "window_ms": 2000,
+      "head": "HTTP/1.1 200 OK\r\nDate: <date>\r\nContent-Length: 6\r\nContent-Type: text/plain; charset=utf-8\r\nConnection: close\r\n\r\n",
+      "body": "body=0",
+      "body_len": 6,
+      "body_crc32": "4cc9a4f7",
+      "end": "eof"
+    },
+    {
+      "group": "request_target",
+      "name": "query_punctuation",
+      "server": "main",
+      "steps": [
+        {
+          "text": "GET /echo?q=`{a}|b^c[d]\\e HTTP/1.1\r\nHost: pbs.example\r\nConnection: close\r\n\r\n"
+        }
+      ],
+      "window_ms": 2000,
+      "head": "HTTP/1.1 200 OK\r\nDate: <date>\r\nContent-Length: 6\r\nContent-Type: text/plain; charset=utf-8\r\nConnection: close\r\n\r\n",
+      "body": "body=0",
+      "body_len": 6,
+      "body_crc32": "4cc9a4f7",
+      "end": "eof"
+    },
+    {
+      "group": "request_target",
+      "name": "utf8_in_query",
+      "server": "main",
+      "steps": [
+        {
+          "text": "GET /echo?q=é HTTP/1.1\r\nHost: pbs.example\r\nConnection: close\r\n\r\n"
+        }
+      ],
+      "window_ms": 2000,
+      "head": "HTTP/1.1 200 OK\r\nDate: <date>\r\nContent-Length: 6\r\nContent-Type: text/plain; charset=utf-8\r\nConnection: close\r\n\r\n",
+      "body": "body=0",
+      "body_len": 6,
+      "body_crc32": "4cc9a4f7",
+      "end": "eof"
+    },
+    {
+      "group": "request_target",
+      "name": "angle_in_path",
+      "server": "main",
+      "steps": [
+        {
+          "text": "GET /ec<h>o HTTP/1.1\r\nHost: pbs.example\r\nConnection: close\r\n\r\n"
+        }
+      ],
+      "window_ms": 2000,
+      "head": "HTTP/1.1 404 Not Found\r\nContent-Type: text/plain; charset=utf-8\r\nX-Content-Type-Options: nosniff\r\nDate: <date>\r\nContent-Length: 19\r\nConnection: close\r\n\r\n",
+      "body": "404 page not found\n",
+      "body_len": 19,
+      "body_crc32": "eb954716",
+      "end": "eof"
+    },
+    {
+      "group": "request_target",
+      "name": "backtick_in_path",
+      "server": "main",
+      "steps": [
+        {
+          "text": "GET /ec`ho HTTP/1.1\r\nHost: pbs.example\r\nConnection: close\r\n\r\n"
+        }
+      ],
+      "window_ms": 2000,
+      "head": "HTTP/1.1 404 Not Found\r\nContent-Type: text/plain; charset=utf-8\r\nX-Content-Type-Options: nosniff\r\nDate: <date>\r\nContent-Length: 19\r\nConnection: close\r\n\r\n",
+      "body": "404 page not found\n",
+      "body_len": 19,
+      "body_crc32": "eb954716",
+      "end": "eof"
+    },
+    {
+      "group": "request_target",
+      "name": "quote_braces_in_path",
+      "server": "main",
+      "steps": [
+        {
+          "text": "GET /ec\"{h}\"o HTTP/1.1\r\nHost: pbs.example\r\nConnection: close\r\n\r\n"
+        }
+      ],
+      "window_ms": 2000,
+      "head": "HTTP/1.1 404 Not Found\r\nContent-Type: text/plain; charset=utf-8\r\nX-Content-Type-Options: nosniff\r\nDate: <date>\r\nContent-Length: 19\r\nConnection: close\r\n\r\n",
+      "body": "404 page not found\n",
+      "body_len": 19,
+      "body_crc32": "eb954716",
+      "end": "eof"
+    },
+    {
+      "group": "request_target",
+      "name": "hash_in_path",
+      "server": "main",
+      "steps": [
+        {
+          "text": "GET /echo#x HTTP/1.1\r\nHost: pbs.example\r\nConnection: close\r\n\r\n"
+        }
+      ],
+      "window_ms": 2000,
+      "head": "HTTP/1.1 404 Not Found\r\nContent-Type: text/plain; charset=utf-8\r\nX-Content-Type-Options: nosniff\r\nDate: <date>\r\nContent-Length: 19\r\nConnection: close\r\n\r\n",
+      "body": "404 page not found\n",
+      "body_len": 19,
+      "body_crc32": "eb954716",
+      "end": "eof"
+    },
+    {
+      "group": "request_target",
+      "name": "hash_in_query",
+      "server": "main",
+      "steps": [
+        {
+          "text": "GET /bytes?n=1#0 HTTP/1.1\r\nHost: pbs.example\r\nConnection: close\r\n\r\n"
+        }
+      ],
+      "window_ms": 2000,
+      "head": "HTTP/1.1 200 OK\r\nContent-Type: text/plain; charset=utf-8\r\nDate: <date>\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
+      "body": "",
+      "body_len": 0,
+      "body_crc32": "00000000",
+      "end": "eof"
+    },
+    {
+      "group": "request_target",
+      "name": "latin1_in_query",
+      "server": "main",
+      "steps": [
+        {
+          "hex": "474554202f6563686f3f713de920485454502f312e310d0a486f73743a207062732e6578616d706c650d0a436f6e6e656374696f6e3a20636c6f73650d0a0d0a"
+        }
+      ],
+      "window_ms": 2000,
+      "head": "HTTP/1.1 200 OK\r\nDate: <date>\r\nContent-Length: 6\r\nContent-Type: text/plain; charset=utf-8\r\nConnection: close\r\n\r\n",
+      "body": "body=0",
+      "body_len": 6,
+      "body_crc32": "4cc9a4f7",
+      "end": "eof"
+    },
+    {
+      "group": "malformed",
+      "name": "malformed_host",
+      "server": "main",
+      "steps": [
+        {
+          "text": "GET /echo HTTP/1.1\r\nHost: a b\r\nConnection: close\r\n\r\n"
+        }
+      ],
+      "window_ms": 2000,
+      "head": "HTTP/1.1 400 Bad Request: malformed Host header\r\nContent-Type: text/plain; charset=utf-8\r\nConnection: close\r\n\r\n",
+      "body": "400 Bad Request: malformed Host header",
+      "body_len": 38,
+      "body_crc32": "7faa51ba",
+      "end": "eof"
+    },
+    {
+      "group": "malformed",
+      "name": "unknown_expectation",
+      "server": "main",
+      "steps": [
+        {
+          "text": "POST /echo HTTP/1.1\r\nHost: pbs.example\r\nExpect: foo\r\nContent-Length: 2\r\nConnection: close\r\n\r\nab"
+        }
+      ],
+      "window_ms": 2000,
+      "head": "HTTP/1.1 417 Expectation Failed\r\nConnection: close\r\nDate: <date>\r\nContent-Length: 0\r\n\r\n",
+      "body": "",
+      "body_len": 0,
+      "body_crc32": "00000000",
+      "end": "eof"
+    },
+    {
+      "group": "malformed",
+      "name": "chunked_http_10",
+      "server": "main",
+      "steps": [
+        {
+          "text": "POST /echo HTTP/1.0\r\nHost: pbs.example\r\nTransfer-Encoding: chunked\r\n\r\n2\r\nab\r\n0\r\n\r\n"
+        }
+      ],
+      "window_ms": 2000,
+      "head": "HTTP/1.0 200 OK\r\nDate: <date>\r\nContent-Length: 6\r\nContent-Type: text/plain; charset=utf-8\r\n\r\n",
+      "body": "body=0",
+      "body_len": 6,
+      "body_crc32": "4cc9a4f7",
+      "end": "eof"
+    },
+    {
+      "group": "static_gzip",
+      "name": "big_file_identity",
+      "server": "static_gzip",
+      "steps": [
+        {
+          "text": "GET /static/big.txt HTTP/1.1\r\nHost: pbs.example\r\nConnection: close\r\n\r\n"
+        }
+      ],
+      "window_ms": 2000,
+      "head": "HTTP/1.1 200 OK\r\nAccept-Ranges: bytes\r\nCache-Control: no-cache, no-store, must-revalidate\r\nContent-Length: 3000\r\nContent-Type: text/plain; charset=utf-8\r\nExpires: 0\r\nLast-Modified: Thu, 02 Jan 2020 03:04:05 GMT\r\nPragma: no-cache\r\nVary: Accept-Encoding\r\nVary: Origin\r\nDate: <date>\r\nConnection: close\r\n\r\n",
+      "body": "abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghij",
+      "body_len": 3000,
+      "body_crc32": "ec2e699a",
+      "end": "eof"
+    },
+    {
+      "group": "static_gzip",
+      "name": "big_file_gzip",
+      "server": "static_gzip",
+      "steps": [
+        {
+          "text": "GET /static/big.txt HTTP/1.1\r\nHost: pbs.example\r\nAccept-Encoding: gzip\r\nConnection: close\r\n\r\n"
+        }
+      ],
+      "window_ms": 2000,
+      "head": "HTTP/1.1 200 OK\r\nAccept-Ranges: bytes\r\nCache-Control: no-cache, no-store, must-revalidate\r\nContent-Encoding: gzip\r\nContent-Type: text/plain; charset=utf-8\r\nExpires: 0\r\nLast-Modified: Thu, 02 Jan 2020 03:04:05 GMT\r\nPragma: no-cache\r\nVary: Accept-Encoding\r\nVary: Origin\r\nDate: <date>\r\nContent-Length: 69\r\nConnection: close\r\n\r\n",
+      "body": "",
+      "body_len": 69,
+      "body_crc32": "61b8aaf5",
+      "gunzipped": "3000/ec2e699a",
+      "end": "eof"
+    },
+    {
+      "group": "static_gzip",
+      "name": "big_range_gzip",
+      "server": "static_gzip",
+      "steps": [
+        {
+          "text": "GET /static/big.txt HTTP/1.1\r\nHost: pbs.example\r\nRange: bytes=0-1499\r\nAccept-Encoding: gzip\r\nConnection: close\r\n\r\n"
+        }
+      ],
+      "window_ms": 2000,
+      "head": "HTTP/1.1 206 Partial Content\r\nAccept-Ranges: bytes\r\nCache-Control: no-cache, no-store, must-revalidate\r\nContent-Encoding: gzip\r\nContent-Range: bytes 0-1499/3000\r\nContent-Type: text/plain; charset=utf-8\r\nExpires: 0\r\nLast-Modified: Thu, 02 Jan 2020 03:04:05 GMT\r\nPragma: no-cache\r\nVary: Accept-Encoding\r\nVary: Origin\r\nDate: <date>\r\nContent-Length: 63\r\nConnection: close\r\n\r\n",
+      "body": "",
+      "body_len": 63,
+      "body_crc32": "89a8bf95",
+      "gunzipped": "1500/b5cb45cd",
+      "end": "eof"
+    },
+    {
+      "group": "static_gzip",
+      "name": "small_range_gzip",
+      "server": "static_gzip",
+      "steps": [
+        {
+          "text": "GET /static/big.txt HTTP/1.1\r\nHost: pbs.example\r\nRange: bytes=0-99\r\nAccept-Encoding: gzip\r\nConnection: close\r\n\r\n"
+        }
+      ],
+      "window_ms": 2000,
+      "head": "HTTP/1.1 206 Partial Content\r\nAccept-Ranges: bytes\r\nCache-Control: no-cache, no-store, must-revalidate\r\nContent-Length: 100\r\nContent-Range: bytes 0-99/3000\r\nContent-Type: text/plain; charset=utf-8\r\nExpires: 0\r\nLast-Modified: Thu, 02 Jan 2020 03:04:05 GMT\r\nPragma: no-cache\r\nVary: Accept-Encoding\r\nVary: Origin\r\nDate: <date>\r\nConnection: close\r\n\r\n",
+      "body": "abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuv",
+      "body_len": 100,
+      "body_crc32": "6d0404c4",
+      "end": "eof"
     }
   ],
   "shutdown": {

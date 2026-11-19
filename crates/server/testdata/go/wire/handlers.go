@@ -98,7 +98,8 @@ var sniffBodies = map[string][]byte{
 
 // staticFiles are the files of the static fixture, a small tree shaped like Prebid's static
 // directory: index.html, optout.html and pbs-logo.svg at the root, a bidder-params directory
-// with no index.html, and three files whose types come from their bytes.
+// with no index.html, three files whose types come from their bytes, and big.txt, 3,000
+// pattern bytes, long enough for gzip.
 var staticFiles = []struct {
 	path    string
 	content string
@@ -110,6 +111,7 @@ var staticFiles = []struct {
 	{"bidder-params/appnexus.json", "{\"title\":\"AppNexus\"}\n"},
 	{"noext", "\x00\x01\x02binary"},
 	{"data.unknownext", "plain words\n"},
+	{"big.txt", string(pattern(3000))},
 }
 
 // staticTime is the modification time of every fixture file, so Last-Modified is the same on
