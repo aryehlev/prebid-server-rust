@@ -18,6 +18,6 @@ workspace = true
 [dependencies]
 base64 = { workspace = true }
 
-# sha2 checks the digests of the seeded corpus Go decoded (tests/base64.rs).
+# sha2 checks the digests of the seeded and exhaustive corpora Go decoded (tests/base64.rs).
 [dev-dependencies]
 sha2 = { workspace = true }
