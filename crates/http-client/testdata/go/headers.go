@@ -90,6 +90,14 @@ func headerCases() []headerCase {
 			{"add", "X-Multi", "a"},
 			{"add", "X-Multi", "b"},
 		}},
+		// Values with white space around them, as an adapter that copies a publisher's value into
+		// a header sends them: Request.write trims every value (Header.writeSubset,
+		// textproto.TrimString).
+		{Name: "value_whitespace", Method: http.MethodGet, URL: local, Headers: []headerOp{
+			{"add", "X-Padded", "  padded value  "},
+			{"add", "X-Tabbed", "\ttabbed\t"},
+			{"add", "X-Blank", "  "},
+		}},
 		// A Host entry in the header map (adapters/boldwin_rapid/boldwin_rapid.go:89).
 		{Name: "host_header_entry", Method: http.MethodGet, URL: local, Headers: []headerOp{
 			{"add", "Host", "other.test"},

@@ -20,7 +20,7 @@ Rule B's cases: (a) input real production traffic sends that the crate would rej
 | Configuration loading | 0 | 0 | 3 |
 | Cookies | 0 | 1 | 0 |
 | Gzip | 0 | 1 | 0 |
-| HTTP client | 0 | 15 | 4 |
+| HTTP client | 0 | 16 | 4 |
 | JSON | 0 | 8 | 3 |
 | Logging | 0 | 1 | 0 |
 | Prometheus metrics | 0 | 1 | 0 |
@@ -31,7 +31,7 @@ Rule B's cases: (a) input real production traffic sends that the crate would rej
 | TLS | 0 | 1 | 1 |
 | URLs | 0 | 1 | 0 |
 | YAML | 0 | 1 | 0 |
-| All | 1 | 33 | 14 |
+| All | 1 | 34 | 14 |
 
 ## Decisions pending
 
@@ -242,6 +242,17 @@ No entry names the classes `other` and `unrecorded` or the kinds `stage_missing`
 - **Visible in:** The header order of every outbound request
 - **Harness:** wire `header_order` at `$[*].request.headers`
 - **Pin:** `crates/http-client/tests/headers.rs::wire_order`
+- **Recorded in:** `crates/http-client/differences.toml`
+
+#### `http-client.header-value-space`: Header values: Go trims the white space around each one, hyper writes them as set
+
+- **Go:** `Request.write` writes every header value without the spaces and tabs around it (`Header.writeSubset`, `textproto.TrimString`), so a value of `  padded value  ` goes out as `padded value` and one of spaces as an empty value.
+- **Rust:** hyper writes each value as the `HeaderMap` holds it, spaces and tabs included; the clients trim `User-Agent` alone (http-client.user-agent).
+- **Who notices:** bidder
+- **Visible in:** The header values of bidder requests whose adapter copies a publisher value with white space around it (a page URL, a user agent, an IP) into a header other than User-Agent
+- **Harness:** none
+- **Pin:** `crates/http-client/tests/headers.rs::values_untrimmed`
+- **Restore option:** Trim every value in the clients' pass over the caller's headers, as `User-Agent`'s is (not planned: no Rule B case).
 - **Recorded in:** `crates/http-client/differences.toml`
 
 #### `http-client.host-header`: Host line: Go writes the URL's host as written, hyper the url crate's normal form

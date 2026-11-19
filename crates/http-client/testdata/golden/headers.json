@@ -220,6 +220,37 @@
       ]
     },
     {
+      "name": "value_whitespace",
+      "method": "GET",
+      "url": "http://127.0.0.1:PORT/p?q=1",
+      "headers": [
+        {
+          "op": "add",
+          "name": "X-Padded",
+          "value": "  padded value  "
+        },
+        {
+          "op": "add",
+          "name": "X-Tabbed",
+          "value": "\ttabbed\t"
+        },
+        {
+          "op": "add",
+          "name": "X-Blank",
+          "value": "  "
+        }
+      ],
+      "head": [
+        "GET /p?q=1 HTTP/1.1",
+        "Host: 127.0.0.1:PORT",
+        "User-Agent: Go-http-client/1.1",
+        "X-Blank: ",
+        "X-Padded: padded value",
+        "X-Tabbed: tabbed",
+        "Accept-Encoding: gzip"
+      ]
+    },
+    {
       "name": "host_header_entry",
       "method": "GET",
       "url": "http://127.0.0.1:PORT/p?q=1",

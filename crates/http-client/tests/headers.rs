@@ -1,7 +1,7 @@
 //! Pins of the request head the general client writes against the one Go's general Transport
 //! writes for the same request (`testdata/golden/headers.json`, `testdata/go/headers.go`): the
-//! `User-Agent` (restored, D-UA), the header names' case (D-HDRCASE), their order, and the
-//! `Host` line.
+//! `User-Agent` (restored, D-UA), the header names' case (D-HDRCASE), their order, the `Host`
+//! line, and the white space around values.
 
 #[cfg(test)]
 pub mod support;
@@ -102,6 +102,11 @@ mod tests {
             .collect()
     }
 
+    /// `value` without the spaces and tabs around it, as Go writes every header value.
+    fn trimmed(value: &str) -> String {
+        value.trim_matches([' ', '\t']).to_owned()
+    }
+
     /// The values of the header `name` in `head`, in order, its name in any case.
     fn values(head: &[String], name: &str) -> Vec<String> {
         fields(head)
@@ -144,12 +149,14 @@ mod tests {
             let mut go_mixed_case = 0;
             for heads in all_heads().await? {
                 let mut rust = Vec::new();
+                // The white space around values is http-client.header-value-space's
+                // (values_untrimmed).
                 for (name, value) in fields(&heads.rust) {
                     check(
                         name == name.to_ascii_lowercase(),
                         &format!("{}: {name} is not lower case", heads.name),
                     )?;
-                    rust.push((name, value));
+                    rust.push((name, trimmed(&value)));
                 }
                 let mut go: Vec<(String, String)> = fields(&heads.go)
                     .into_iter()
@@ -225,6 +232,51 @@ mod tests {
                 .map(str::to_owned)
                 .to_vec(),
                 "the general client's order: the caller's, then reqwest's and hyper's own",
+            )
+        })
+    }
+
+    // Go: net/http/header.go Header.writeSubset (textproto.TrimString on every value) and
+    // net/http/request.go Request.write.
+    #[test]
+    fn values_untrimmed() -> TestResult {
+        run(async {
+            let heads = all_heads().await?;
+            let padded = heads
+                .iter()
+                .find(|heads| heads.name == "value_whitespace")
+                .ok_or("no value_whitespace case")?;
+            let own = |head: &[String]| -> Vec<(String, String)> {
+                let mut own: Vec<(String, String)> = fields(head)
+                    .into_iter()
+                    .map(|(name, value)| (name.to_ascii_lowercase(), value))
+                    .filter(|(name, _)| name.starts_with("x-"))
+                    .collect();
+                own.sort();
+                own
+            };
+            let pairs = |pairs: [(&str, &str); 3]| -> Vec<(String, String)> {
+                pairs
+                    .map(|(name, value)| (name.to_owned(), value.to_owned()))
+                    .to_vec()
+            };
+            check_eq(
+                &own(&padded.go),
+                &pairs([
+                    ("x-blank", ""),
+                    ("x-padded", "padded value"),
+                    ("x-tabbed", "tabbed"),
+                ]),
+                "Go trims every value",
+            )?;
+            check_eq(
+                &own(&padded.rust),
+                &pairs([
+                    ("x-blank", "  "),
+                    ("x-padded", "  padded value  "),
+                    ("x-tabbed", "\ttabbed\t"),
+                ]),
+                "hyper writes each value as it was set",
             )
         })
     }

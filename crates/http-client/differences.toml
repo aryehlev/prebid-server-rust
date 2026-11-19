@@ -158,6 +158,27 @@ lexical_class = "header_order"
 path = "$[*].request.headers"
 
 [[difference]]
+id = "http-client.header-value-space"
+category = "http-client"
+status = "ledgered"
+title = "Header values: Go trims the white space around each one, hyper writes them as set"
+go = """\
+    `Request.write` writes every header value without the spaces and tabs around it \
+    (`Header.writeSubset`, `textproto.TrimString`), so a value of `  padded value  ` goes out as \
+    `padded value` and one of spaces as an empty value."""
+rust = """\
+    hyper writes each value as the `HeaderMap` holds it, spaces and tabs included; the clients \
+    trim `User-Agent` alone (http-client.user-agent)."""
+who = ["bidder"]
+visible_in = """\
+    The header values of bidder requests whose adapter copies a publisher value with white space \
+    around it (a page URL, a user agent, an IP) into a header other than User-Agent"""
+pin = "crates/http-client/tests/headers.rs::values_untrimmed"
+restore = """\
+    Trim every value in the clients' pass over the caller's headers, as `User-Agent`'s is (not \
+    planned: no Rule B case)."""
+
+[[difference]]
 id = "http-client.host-header"
 category = "http-client"
 status = "ledgered"
