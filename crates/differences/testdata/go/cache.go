@@ -24,10 +24,14 @@ type cacheDoc struct {
 // cacheGolden stores documents of growing size in a freecache sized as the stored-request
 // caches size it (stored_requests/caches/memory/cache.go:29). pbsLRUCache.Set logs a failed Set
 // and goes on (stored_requests/caches/memory/maps.go:60-64), so a rejected entry is a miss.
+// freecache refuses an entry whose key and value together are longer than a quarter of its
+// segment's ring buffer less the 24-byte entry header (freecache's segment.go:73-76), which is
+// 1000 bytes in a 1 MiB cache: the 993-byte and 994-byte documents, under 7-byte keys, sit on
+// either side of that limit.
 func cacheGolden() cacheDoc {
 	doc := cacheDoc{Header: newHeader("github.com/coocood/freecache"), CacheSize: 1 << 20}
 	cache := freecache.NewCache(doc.CacheSize)
-	for _, n := range []int{512, 1000, 1024, 64 * 1024} {
+	for _, n := range []int{512, 993, 994, 1000, 1024, 64 * 1024} {
 		key := "doc-" + strconv.Itoa(n)
 		entry := cacheEntry{Key: key, ValueLen: n}
 		if err := cache.Set([]byte(key), bytes.Repeat([]byte("x"), n), 60); err != nil {

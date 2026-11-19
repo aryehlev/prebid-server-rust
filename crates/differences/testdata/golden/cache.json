@@ -17,6 +17,18 @@
       "get_err": ""
     },
     {
+      "key": "doc-993",
+      "value_len": 993,
+      "set_err": "",
+      "get_err": ""
+    },
+    {
+      "key": "doc-994",
+      "value_len": 994,
+      "set_err": "The entry size is larger than 1/1024 of cache size",
+      "get_err": "Entry not found"
+    },
+    {
       "key": "doc-1000",
       "value_len": 1000,
       "set_err": "The entry size is larger than 1/1024 of cache size",

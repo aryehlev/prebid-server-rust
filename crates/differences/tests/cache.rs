@@ -8,10 +8,11 @@ mod tests {
     use moka::sync::Cache;
     use pbs_differences::{TestResult, check_table, golden, list, number, text};
 
-    /// freecache refuses an entry larger than 1/1024 of the cache (`ErrLargeEntry`: a 1 MiB
-    /// cache keeps a 512-byte document and refuses one of 1000 bytes), so the stored request is
-    /// fetched again every time. `moka`, bounded by the same byte budget through a weigher,
-    /// keeps every entry that fits the budget.
+    /// freecache refuses an entry whose key and value together are longer than 1/1024 of the
+    /// cache less its 24-byte entry header (`ErrLargeEntry`, whose text says only 1/1024): a
+    /// 1 MiB cache keeps a 993-byte document under a 7-byte key, 1000 bytes in all, and refuses
+    /// a 994-byte one, so such a stored request is fetched again every time. `moka`, bounded by
+    /// the same byte budget through a weigher, keeps every entry that fits the budget.
     // Go: stored_requests/caches/memory/cache.go:29 (freecache.NewCache for a size-bounded cache)
     // and stored_requests/caches/memory/maps.go:60-64 (Set, whose error is logged and dropped)
     #[test]
@@ -44,6 +45,13 @@ mod tests {
             &rows,
             &[
                 &["doc-512", "kept", "", "kept"],
+                &["doc-993", "kept", "", "kept"],
+                &[
+                    "doc-994",
+                    "refused",
+                    "The entry size is larger than 1/1024 of cache size",
+                    "kept",
+                ],
                 &[
                     "doc-1000",
                     "refused",
