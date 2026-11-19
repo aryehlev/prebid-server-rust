@@ -273,7 +273,7 @@ func stringInts() []row {
 
 func intStrings() []row {
 	var rows []row
-	for _, in := range []string{`{"item_id": null}`, `{"item_id": "30"}`, `{"item_id": 30}`, `{"item_id": []`, `{"item_id": 1.50}`, `{"item_id": 1e2}`, `{"item_id": -0}`, `{"item_id": true}`, "{\"item_id\": \"\\u0041\"}", `{"item_id": 123456789012345678901234567890}`, `{"item_id": 1e400}`} {
+	for _, in := range []string{`{"item_id": null}`, `{"item_id": "30"}`, `{"item_id": 30}`, `{"item_id": []`, `{"item_id": 1.50}`, `{"item_id": 1e2}`, `{"item_id": -0}`, `{"item_id": true}`, "{\"item_id\": \"\\u0041\"}", `{"item_id": 123456789012345678901234567890}`, "{\"item_id\": \"\\ud800\\u0041\"}", "{\"item_id\": \"\\ud800\\ud800\\udc00\"}"} {
 		var item intStringItem
 		err := jsonutil.UnmarshalValid([]byte(in), &item)
 		rows = append(rows, row{Name: "jsonutil.UnmarshalValid", Input: in, Result: string(item.ItemId), Err: errText(err)})
@@ -283,7 +283,7 @@ func intStrings() []row {
 
 func parseIntoStrings() []row {
 	var rows []row
-	for _, in := range []string{``, `"1"`, `1`, `null`, `"null"`, `"hello"`, `true`, `{"a":1}`, `[1]`, ` "x" `, `1.50`, ` {"a":1} `, `"abc`, `1x`, `+5`, `nan`, `tru`, `x`} {
+	for _, in := range []string{``, `"1"`, `1`, `null`, `"null"`, `"hello"`, `true`, `{"a":1}`, `[1]`, ` "x" `, `1.50`, ` {"a":1} `, `"abc`, `1x`, `+5`, `nan`, `tru`, `x`, `1e400`, "\"\\ud800\\u0041\"", "\"\\ud800\\ud800\\udc00\""} {
 		var got *string
 		err := jsonutil.ParseIntoString([]byte(in), &got)
 		result := "nil"
@@ -294,6 +294,43 @@ func parseIntoStrings() []row {
 	}
 	err := jsonutil.ParseIntoString([]byte(`"123"`), nil)
 	rows = append(rows, row{Name: "jsonutil.ParseIntoString nil", Input: `"123"`, Result: "nil", Err: errText(err)})
+	return rows
+}
+
+// outOfRangeNumbers is json.out-of-range-numbers: jsoniter fails on a number beyond float64's
+// range in a value it skips (a json.RawMessage, an unknown member, the bytes an UnmarshalJSON
+// method reads), and on one that starts with 0 beyond float32's range, which its skipper parses as
+// a float32; encoding/json checks only the syntax there. Integers of digits only, numbers that
+// underflow and float64's largest value read everywhere.
+func outOfRangeNumbers() []row {
+	var rows []row
+	for _, in := range []string{`{"ext":1e400}`, `{"ext":[-1e309]}`, `{"ext":{"a":1.8e308}}`, `{"ext":1.7976931348623157e308}`, `{"ext":1e-400}`, `{"ext":123456789012345678901234567890}`, `{"ext":0.5e39}`, `{"ext":-0.5e39}`} {
+		var a rawPlain
+		err := jsonutil.Unmarshal([]byte(in), &a)
+		rows = append(rows, row{Name: "jsonutil.Unmarshal", Input: in, Result: rawState(a.Ext), Err: errText(err)})
+		var b rawPlain
+		err = jsonutil.UnmarshalValid([]byte(in), &b)
+		rows = append(rows, row{Name: "jsonutil.UnmarshalValid", Input: in, Result: rawState(b.Ext), Err: errText(err)})
+		var c rawPlain
+		err = json.Unmarshal([]byte(in), &c)
+		rows = append(rows, row{Name: "json.Unmarshal", Input: in, Result: rawState(c.Ext), Err: errText(err)})
+	}
+	for _, in := range []string{`{"zz":1e400,"s":"x"}`, `{"s":"x","zz":[1,{"a":-1e400}]}`} {
+		var a stringTarget
+		err := jsonutil.Unmarshal([]byte(in), &a)
+		rows = append(rows, row{Name: "jsonutil.Unmarshal unknown member", Input: in, Result: a.S, Err: errText(err)})
+		var c stringTarget
+		err = json.Unmarshal([]byte(in), &c)
+		rows = append(rows, row{Name: "json.Unmarshal unknown member", Input: in, Result: c.S, Err: errText(err)})
+	}
+	for _, in := range []string{`{"item_id":1e400}`, `{"item_id":-1e400}`, `{"item_id":0.165e308}`} {
+		var a intStringItem
+		err := jsonutil.UnmarshalValid([]byte(in), &a)
+		rows = append(rows, row{Name: "jsonutil.UnmarshalValid IntString", Input: in, Result: string(a.ItemId), Err: errText(err)})
+		var c intStringItem
+		err = json.Unmarshal([]byte(in), &c)
+		rows = append(rows, row{Name: "json.Unmarshal IntString", Input: in, Result: string(c.ItemId), Err: errText(err)})
+	}
 	return rows
 }
 
@@ -323,6 +360,7 @@ type decodeDoc struct {
 	StringInt        []row  `json:"string_int"`
 	IntString        []row  `json:"int_string"`
 	ParseIntoString  []row  `json:"parse_into_string"`
+	OutOfRange       []row  `json:"out_of_range_numbers"`
 	TypedInts        []row  `json:"typed_ints"`
 }
 
@@ -342,6 +380,7 @@ func decodeGolden() decodeDoc {
 		StringInt:        stringInts(),
 		IntString:        intStrings(),
 		ParseIntoString:  parseIntoStrings(),
+		OutOfRange:       outOfRangeNumbers(),
 		TypedInts:        typedInts(),
 	}
 }

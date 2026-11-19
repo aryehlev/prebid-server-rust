@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -113,24 +114,41 @@ func (s *splitmix64) mcObject(keys []string, value func() string) string {
 }
 
 // mcRaw is a json.RawMessage value: an object whose members are scalars, nulls (a merge patch
-// deletes them), arrays of scalars and objects of the same kind.
+// deletes them), arrays of scalars and objects of the same kind, with distinct keys in key order
+// (evanphx writes a value it copies as it was written, repeated keys and member order included;
+// merge_patch.json's member-order cases record that).
 func (s *splitmix64) mcRaw(depth int) string {
-	return s.mcObject(mcKeys, func() string {
-		n := s.below(6)
-		if depth >= 2 && n >= 4 {
-			n = s.below(4)
+	n := s.below(4)
+	parts := make([]string, 0, n)
+	used := map[string]bool{}
+	for i := 0; i < n; i++ {
+		key := s.pick(mcKeys)
+		if used[key] {
+			continue
 		}
-		switch n {
-		case 0, 1:
-			return s.mcScalar()
-		case 2:
-			return "null"
-		case 3:
-			return s.mcArray(s.mcScalar)
-		default:
-			return s.mcRaw(depth + 1)
-		}
-	})
+		used[key] = true
+		parts = append(parts, `"`+key+`":`+s.mcRawValue(depth))
+	}
+	sort.Strings(parts)
+	return "{" + strings.Join(parts, ",") + "}"
+}
+
+// mcRawValue is one member value of mcRaw.
+func (s *splitmix64) mcRawValue(depth int) string {
+	n := s.below(6)
+	if depth >= 2 && n >= 4 {
+		n = s.below(4)
+	}
+	switch n {
+	case 0, 1:
+		return s.mcScalar()
+	case 2:
+		return "null"
+	case 3:
+		return s.mcArray(s.mcScalar)
+	default:
+		return s.mcRaw(depth + 1)
+	}
 }
 
 // mcAny is any JSON value (interface{} replaces, so nulls anywhere are fine).

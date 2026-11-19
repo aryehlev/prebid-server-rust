@@ -706,9 +706,15 @@
     },
     {
       "name": "jsonutil.UnmarshalValid",
-      "input": "{\"item_id\": 1e400}",
-      "result": "+Inf",
-      "err": "cannot unmarshal main.intStringItem.ItemId: invalid number"
+      "input": "{\"item_id\": \"\\ud800\\u0041\"}",
+      "result": "�",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.UnmarshalValid",
+      "input": "{\"item_id\": \"\\ud800\\ud800\\udc00\"}",
+      "result": "��",
+      "err": ""
     }
   ],
   "parse_into_string": [
@@ -821,10 +827,234 @@
       "err": ""
     },
     {
+      "name": "jsonutil.ParseIntoString",
+      "input": "1e400",
+      "result": "\"+Inf\"",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.ParseIntoString",
+      "input": "\"\\ud800\\u0041\"",
+      "result": "\"�\"",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.ParseIntoString",
+      "input": "\"\\ud800\\ud800\\udc00\"",
+      "result": "\"��\"",
+      "err": ""
+    },
+    {
       "name": "jsonutil.ParseIntoString nil",
       "input": "\"123\"",
       "result": "nil",
       "err": "ppString is nil"
+    }
+  ],
+  "out_of_range_numbers": [
+    {
+      "name": "jsonutil.Unmarshal",
+      "input": "{\"ext\":1e400}",
+      "result": "\"1e400\"",
+      "err": "cannot unmarshal main.rawPlain.Ext: invalid number"
+    },
+    {
+      "name": "jsonutil.UnmarshalValid",
+      "input": "{\"ext\":1e400}",
+      "result": "\"1e400\"",
+      "err": "cannot unmarshal main.rawPlain.Ext: invalid number"
+    },
+    {
+      "name": "json.Unmarshal",
+      "input": "{\"ext\":1e400}",
+      "result": "\"1e400\"",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.Unmarshal",
+      "input": "{\"ext\":[-1e309]}",
+      "result": "\"[-1e309]\"",
+      "err": "cannot unmarshal main.rawPlain.Ext: invalid number"
+    },
+    {
+      "name": "jsonutil.UnmarshalValid",
+      "input": "{\"ext\":[-1e309]}",
+      "result": "\"[-1e309]\"",
+      "err": "cannot unmarshal main.rawPlain.Ext: invalid number"
+    },
+    {
+      "name": "json.Unmarshal",
+      "input": "{\"ext\":[-1e309]}",
+      "result": "\"[-1e309]\"",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.Unmarshal",
+      "input": "{\"ext\":{\"a\":1.8e308}}",
+      "result": "\"{\\\"a\\\":1.8e308}\"",
+      "err": "cannot unmarshal main.rawPlain.Ext: invalid number"
+    },
+    {
+      "name": "jsonutil.UnmarshalValid",
+      "input": "{\"ext\":{\"a\":1.8e308}}",
+      "result": "\"{\\\"a\\\":1.8e308}\"",
+      "err": "cannot unmarshal main.rawPlain.Ext: invalid number"
+    },
+    {
+      "name": "json.Unmarshal",
+      "input": "{\"ext\":{\"a\":1.8e308}}",
+      "result": "\"{\\\"a\\\":1.8e308}\"",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.Unmarshal",
+      "input": "{\"ext\":1.7976931348623157e308}",
+      "result": "\"1.7976931348623157e308\"",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.UnmarshalValid",
+      "input": "{\"ext\":1.7976931348623157e308}",
+      "result": "\"1.7976931348623157e308\"",
+      "err": ""
+    },
+    {
+      "name": "json.Unmarshal",
+      "input": "{\"ext\":1.7976931348623157e308}",
+      "result": "\"1.7976931348623157e308\"",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.Unmarshal",
+      "input": "{\"ext\":1e-400}",
+      "result": "\"1e-400\"",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.UnmarshalValid",
+      "input": "{\"ext\":1e-400}",
+      "result": "\"1e-400\"",
+      "err": ""
+    },
+    {
+      "name": "json.Unmarshal",
+      "input": "{\"ext\":1e-400}",
+      "result": "\"1e-400\"",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.Unmarshal",
+      "input": "{\"ext\":123456789012345678901234567890}",
+      "result": "\"123456789012345678901234567890\"",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.UnmarshalValid",
+      "input": "{\"ext\":123456789012345678901234567890}",
+      "result": "\"123456789012345678901234567890\"",
+      "err": ""
+    },
+    {
+      "name": "json.Unmarshal",
+      "input": "{\"ext\":123456789012345678901234567890}",
+      "result": "\"123456789012345678901234567890\"",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.Unmarshal",
+      "input": "{\"ext\":0.5e39}",
+      "result": "\"0.5e39\"",
+      "err": "main.rawPlain.Ext: strconv.ParseFloat: parsing \"0.5e39\": value out of range"
+    },
+    {
+      "name": "jsonutil.UnmarshalValid",
+      "input": "{\"ext\":0.5e39}",
+      "result": "\"0.5e39\"",
+      "err": "main.rawPlain.Ext: strconv.ParseFloat: parsing \"0.5e39\": value out of range"
+    },
+    {
+      "name": "json.Unmarshal",
+      "input": "{\"ext\":0.5e39}",
+      "result": "\"0.5e39\"",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.Unmarshal",
+      "input": "{\"ext\":-0.5e39}",
+      "result": "\"-0.5e39\"",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.UnmarshalValid",
+      "input": "{\"ext\":-0.5e39}",
+      "result": "\"-0.5e39\"",
+      "err": ""
+    },
+    {
+      "name": "json.Unmarshal",
+      "input": "{\"ext\":-0.5e39}",
+      "result": "\"-0.5e39\"",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.Unmarshal unknown member",
+      "input": "{\"zz\":1e400,\"s\":\"x\"}",
+      "result": "x",
+      "err": "cannot unmarshal main.stringTarget.S: invalid number"
+    },
+    {
+      "name": "json.Unmarshal unknown member",
+      "input": "{\"zz\":1e400,\"s\":\"x\"}",
+      "result": "x",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.Unmarshal unknown member",
+      "input": "{\"s\":\"x\",\"zz\":[1,{\"a\":-1e400}]}",
+      "result": "x",
+      "err": "invalid number"
+    },
+    {
+      "name": "json.Unmarshal unknown member",
+      "input": "{\"s\":\"x\",\"zz\":[1,{\"a\":-1e400}]}",
+      "result": "x",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.UnmarshalValid IntString",
+      "input": "{\"item_id\":1e400}",
+      "result": "+Inf",
+      "err": "cannot unmarshal main.intStringItem.ItemId: invalid number"
+    },
+    {
+      "name": "json.Unmarshal IntString",
+      "input": "{\"item_id\":1e400}",
+      "result": "+Inf",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.UnmarshalValid IntString",
+      "input": "{\"item_id\":-1e400}",
+      "result": "-Inf",
+      "err": "cannot unmarshal main.intStringItem.ItemId: invalid number"
+    },
+    {
+      "name": "json.Unmarshal IntString",
+      "input": "{\"item_id\":-1e400}",
+      "result": "-Inf",
+      "err": ""
+    },
+    {
+      "name": "jsonutil.UnmarshalValid IntString",
+      "input": "{\"item_id\":0.165e308}",
+      "result": "16500000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+      "err": "main.intStringItem.ItemId: strconv.ParseFloat: parsing \"0.165e308\": value out of range"
+    },
+    {
+      "name": "json.Unmarshal IntString",
+      "input": "{\"item_id\":0.165e308}",
+      "result": "16500000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+      "err": ""
     }
   ],
   "typed_ints": [

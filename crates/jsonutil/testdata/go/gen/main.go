@@ -1,8 +1,10 @@
 // Command gen writes the goldens pbs-jsonutil's tests compare with: util/jsonutil's FindElement
 // and DropElement, MergeClone, gopkg.in/evanphx/json-patch.v5 MergePatch as jsonutil and the
-// stored-request, account, first-party data and event merges call it, and the decode and encode
+// stored-request, account, first-party data and event merges call it, the decode and encode
 // behaviour of jsonutil.Unmarshal, UnmarshalValid and Marshal (with the RawMessage encoder
-// main.go registers) that the crate's restored and ledgered differences pin.
+// main.go registers) that the crate's restored and ledgered differences pin, and seeded corpora
+// of the readers and writers (strings, raw compaction, tryExtractErrorMessage, StringInt,
+// IntString and ParseIntoString).
 //
 // Run it from the directory of this module (crates/jsonutil/testdata/go) on amd64, as D-ARCH
 // asks of every golden:
@@ -12,8 +14,9 @@
 // It writes one JSON file per subject into ../golden. -check regenerates every golden in memory
 // and fails when one differs from the committed file (the header's goarch excepted: nothing here
 // depends on the architecture). -dump SET:BATCH prints the inputs and outcomes of one seeded batch
-// (SET is element, merge_clone or merge_patch), which is how a mismatch the Rust tests report by
-// batch is read.
+// (SET is element, merge_clone, merge_patch or one of readers.json's corpora: strings, compact,
+// extract, string_int, int_string and parse_into_string), which is how a mismatch the Rust tests
+// report by batch is read.
 //
 // The seeded corpora are rebuilt from splitmix64 on both sides (the Rust tests implement the same
 // generators), so the goldens hold per-batch SHA-256 digests of the inputs and of the outcomes;
@@ -114,6 +117,7 @@ func goldens() []golden {
 		{"merge_clone.json", func() any { return mergeCloneGolden() }},
 		{"merge_patch.json", func() any { return mergePatchGolden() }},
 		{"decode.json", func() any { return decodeGolden() }},
+		{"readers.json", func() any { return readersGolden() }},
 	}
 }
 
@@ -219,7 +223,11 @@ func dumpBatch(spec string) error {
 	case "merge_patch":
 		corpus = mergePatchCorpus()
 	default:
-		return fmt.Errorf("-dump set %q: element, merge_clone or merge_patch", set)
+		readers, ok := readersCorpora()[set]
+		if !ok {
+			return fmt.Errorf("-dump set %q: element, merge_clone, merge_patch or a corpus of readers.json", set)
+		}
+		corpus = readers
 	}
 	if n < 0 || n >= corpus.count/corpus.batch {
 		return fmt.Errorf("-dump batch %d: the set has %d batches", n, corpus.count/corpus.batch)

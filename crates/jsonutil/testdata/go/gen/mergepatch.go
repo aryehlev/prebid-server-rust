@@ -14,11 +14,13 @@ import (
 )
 
 // The seeded corpus of MergePatch: documents and patches of objects, arrays, nulls, numbers and
-// strings with the keys a, b and c, spelled as both writers spell them. A case whose patch is not
-// an object, whose document is null, or whose patch holds an object with a null member inside an
-// array meets one of evanphx's quirks (ledgered, one entry each): its outcome is the quirk's name
-// on both sides, and the curated cases record what each side does there. Every other case must
-// give the same bytes.
+// strings with the keys a, b and c, spelled as both writers spell them, each object's members in
+// key order (evanphx writes a value it copies with its members as they were written, and
+// serde_json's Value sorts them; the member-order curated cases record that). A case whose
+// document is null, whose patch is null or a scalar, or whose patch holds an object with a null
+// member inside an array meets one of evanphx's quirks (one ledger entry each): its outcome is the
+// quirk's name on both sides, and the curated cases record what each side does there. Every other
+// case must give the same bytes.
 const (
 	mergePatchSeed  = 0x4a53_4f4e_5054_4331 // "JSONPTC1"
 	mergePatchCount = 50000
@@ -55,8 +57,8 @@ func (s *splitmix64) mpValue(depth int) string {
 	}
 }
 
-// mpObject is an object with distinct keys (evanphx and serde_json both keep the last of a
-// repeated key; json.duplicate-keys covers the decoders that differ).
+// mpObject is an object with distinct keys (evanphx keeps a repeated key inside a value it copies,
+// and serde_json keeps the last), written in key order.
 func (s *splitmix64) mpObject(depth int) string {
 	k := s.below(4)
 	used := map[string]bool{}
@@ -69,6 +71,7 @@ func (s *splitmix64) mpObject(depth int) string {
 		used[key] = true
 		parts = append(parts, `"`+key+`":`+s.mpValue(depth))
 	}
+	sort.Strings(parts)
 	return "{" + strings.Join(parts, ",") + "}"
 }
 
@@ -98,17 +101,22 @@ func nullInArrayObject(v any, inArray bool) bool {
 	return false
 }
 
-// mergePatchQuirk names the evanphx quirk a case meets, or "".
+// mergePatchQuirk names the evanphx quirk a case meets, or "", in the order MergePatch checks its
+// inputs (merge.go:110-162 of json-patch.v5): a null document fails (null-document), then a null
+// or scalar patch (scalar-patch), and the null members of objects inside a patch's arrays are
+// dropped, a patch that is an array included (array-nulls).
 func mergePatchQuirk(doc, patch string) string {
 	var d, p any
 	if json.Unmarshal([]byte(doc), &d) != nil || json.Unmarshal([]byte(patch), &p) != nil {
 		return ""
 	}
-	if _, ok := p.(map[string]any); !ok {
-		return "non-object-patch"
-	}
 	if d == nil {
 		return "null-document"
+	}
+	switch p.(type) {
+	case map[string]any, []any:
+	default:
+		return "scalar-patch"
 	}
 	if nullInArrayObject(p, false) {
 		return "array-nulls"
@@ -194,15 +202,18 @@ var mergePatchCurated = [][3]string{
 	{"array-nulls", `{"a":{"x":1}}`, `{"a":[{"b":null}]}`},
 	{"array-nulls", `{"a":1}`, `{"a":{"b":null,"c":[{"d":null}]}}`},
 	{"array-nulls", `{"a":1}`, `{"a":[null,{"b":null}]}`},
+	{"array-nulls", `{"a":1}`, `[null,{"b":null}]`},
 	{"null-document", `null`, `{"a":1}`},
 	{"null-document", `null`, `{}`},
+	{"null-document", `null`, `"x"`},
+	{"null-document", `null`, `null`},
 	{"null-document", `{"a":null}`, `{"a":{"b":null,"c":1}}`},
-	{"non-object-patch", `{"a":1}`, `1`},
-	{"non-object-patch", `{"a":1}`, `[null,{"b":null}]`},
-	{"non-object-patch", `"x"`, `{"a":1}`},
-	{"non-object-patch", `1`, `[1]`},
-	{"non-object-patch", `[1]`, `"x"`},
-	{"non-object-patch", `{"a":1}`, `true`},
+	{"scalar-patch", `{"a":1}`, `1`},
+	{"scalar-patch", `[1]`, `"x"`},
+	{"scalar-patch", `{"a":1}`, `true`},
+	{"scalar-patch", `"x"`, `null`},
+	{"edge", `"x"`, `{"a":1}`},
+	{"edge", `1`, `[1]`},
 	{"edge", `{"a":1}`, `{}`},
 	{"edge", `{}`, `{}`},
 	{"edge", ` {"a":1} `, ` {"b":2} `},
@@ -215,6 +226,10 @@ var mergePatchCurated = [][3]string{
 	{"spelling", `{"a":"<"}`, `{"b":"&>"}`},
 	{"spelling", "{\"a\":\"\\u00e9\"}", "{\"b\":\"\\/\"}"},
 	{"spelling", "{\"a\":\"\\ud800\"}", "{\"b\":\"x\\ud800y\"}"},
+	{"member-order", `{"c":{"b":1,"a":2}}`, `{"d":1}`},
+	{"member-order", `{}`, `{"x":{"b":1,"a":[{"d":1,"c":2}]}}`},
+	{"member-order", `{"x":{"b":1,"a":2}}`, `{"x":{"c":3}}`},
+	{"member-order", `{"x":{"b":1,"a":2,"b":3}}`, `{"y":1}`},
 	{"limits", `{"a":1e400}`, `{"b":1}`},
 	{"limits", `{"a":1}`, `{"b":1e400}`},
 	{"limits", `{"a":` + strings.Repeat("[", 200) + strings.Repeat("]", 200) + `}`, `{"b":1}`},
