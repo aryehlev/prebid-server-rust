@@ -16,9 +16,11 @@ Rule B's cases: (a) input real production traffic sends that the crate would rej
 
 | Category | Decision pending | Ledgered | Go behaviour kept |
 |---|---:|---:|---:|
+| Base64 | 0 | 0 | 1 |
 | In-memory caches | 0 | 1 | 0 |
 | Configuration loading | 0 | 0 | 3 |
 | Cookies | 0 | 1 | 0 |
+| Global vendor list | 0 | 1 | 0 |
 | Gzip | 0 | 1 | 0 |
 | HTTP client | 0 | 1 | 1 |
 | JSON | 4 | 32 | 5 |
@@ -30,7 +32,7 @@ Rule B's cases: (a) input real production traffic sends that the crate would rej
 | Time formatting | 0 | 0 | 1 |
 | URLs | 0 | 1 | 0 |
 | YAML | 0 | 1 | 0 |
-| All | 5 | 42 | 12 |
+| All | 5 | 43 | 13 |
 
 ## Decisions pending
 
@@ -69,6 +71,24 @@ No entry names the classes `other` and `unrecorded` or the kinds `stage_missing`
 | `duplicate_keys` | A JSON object in the request body or in a bidder response has the same key twice. |
 | `invalid_utf8` | A JSON string in the request body or in a bidder response holds bytes that are not UTF-8. |
 | `options_request` | The request's method is OPTIONS: a CORS preflight, or any other OPTIONS, which tower-http's CorsLayer answers as one. |
+
+## Base64
+
+### Go behaviour kept
+
+#### `base64.leniency`: Base64url consent strings: Go skips line breaks and ignores unused bits, the base64 crate refuses both
+
+- **Go:** `encoding/base64`'s `RawURLEncoding`, which go-gdpr's `ParseString`, the flipp adapter and go-gpp's `NewBitStreamFromBase64` decode consent strings with, skips `\r` and `\n` anywhere in the input, accepts a last digit whose unused bits are set (`QR` is `A`), refuses `=` (the encoding has no padding) and reports `illegal base64 data at input byte N` at the first byte that is neither a digit nor a line break, or at the last byte when the digits end in a lone one.
+- **Rust:** The base64 crate's `URL_SAFE_NO_PAD` refuses a line break and a last digit with unused bits set, and reports some refusals at another offset or none: it reads the last quantum first (`w=+/+` at 4, where Go says 1) and refuses `AA==` with `Invalid padding` (Go: 2).
+- **Who notices:** publisher
+- **Visible in:** Which TCF and GPP consent strings decode, and the offset in the warnings Prebid writes from the error: the AMP consent warning (amp/parse.go:143-152) and `GPP consent string is invalid and will be ignored.` (endpoints/openrtb2/auction.go:869-874)
+- **Harness:** none: a mismatch here is unexpected
+- **Pin:** `crates/tcf2/tests/base64.rs::go_leniency`
+- **Rule B:** Rule B (a): input real production traffic sends that the crate would reject or misread
+- **How Go's behaviour is kept:** Glue around the base64 crate, pbs-tcf2's `base64` and pbs-gpp's `util::base64`: the line breaks are removed before the crate reads the input, its engine allows unused bits, and a refusal is reported at Go's offset. Rule B (a), since real traffic sends such strings and their consent depends on what decodes, and (d), since Prebid writes the offset into its warnings.
+- **Restore pin:** `crates/gpp/tests/base64.rs::go_exhaustive` (every string of up to 7 symbols over a digit with its low bits zero, one with them set, `\n`, `\r`, `=`, `.` and the two-byte `é` (960,800 strings) decodes through `BitStream::from_base64` to go-gpp's bytes or fails with its text, length by length, against testdata/golden/base64_exhaustive.txt); `crates/gpp/tests/base64.rs::go_seeded` (50,000 seeded strings decode through `BitStream::from_base64` to go-gpp's bytes or fail with its text, batch by batch, against testdata/golden/base64_seeded.txt); `crates/tcf2/tests/base64.rs::go_exhaustive` (every string of up to 7 bytes over a digit with its low bits zero, one with them set, `\n`, `\r`, `=`, `+` and a byte past ASCII (960,800 strings) decodes to go-gdpr's bytes or fails with its text, length by length, against testdata/base64_exhaustive_goldens.json); `crates/tcf2/tests/base64.rs::go_seeded` (50,000 seeded strings decode to go-gdpr's bytes or fail with its text, batch by batch, against testdata/base64_seeded_goldens.json)
+- **Note:** The bytes are the crate's. go-gpp pads an incomplete last quantum with `A` before decoding (util/bitstream.go:35-41), which is go-gpp's own logic and is ported as it is.
+- **Recorded in:** `crates/tcf2/differences.toml`
 
 ## In-memory caches
 
@@ -141,6 +161,22 @@ No entry names the classes `other` and `unrecorded` or the kinds `stage_missing`
 - **Pin:** `crates/differences/tests/cookie.rs::go_difference_set_cookie_attribute_order`
 - **Note:** The cookie's value, the uids JSON in base64, keeps Go's format under Rule B (b), and the harness compares it as JSON after base64 decoding.
 - **Recorded in:** `crates/differences/differences.toml`
+
+## Global vendor list
+
+### Ledgered
+
+#### `gvl.json-leniency`: Global vendor lists: Go reads them with `encoding/json`, the port with serde
+
+- **Go:** go-gdpr's `vendorlist2.ParseEagerly` reads a fetched list with `json.Unmarshal` into its contract: member names match ignoring case (`ſ` and the Kelvin sign as `s` and `k`), a repeated member is read again (a second `vendors` adds its vendors), a string where a list of ids belongs is decoded as standard base64 (`"purposes":"AQID"` is 1, 2 and 3), a key that is not UTF-8 or holds a lone surrogate escape reads with U+FFFD, a skipped member nested past 10000 levels and an array where an object of the contract belongs are refused, and the errors are `encoding/json`'s (`invalid character 'm' looking for beginning of value`).
+- **Rust:** serde_json reads it into the same contract, so the json.* entries apply: member names match exactly (`json.key-case`), and a repeated member (`json.duplicate-keys`), a key that is not UTF-8 (`json.invalid-utf8`) or holds a lone surrogate (`json.lone-surrogates`) and a string where a list of ids belongs are refused; a skipped member is read at any depth (`json.nesting-depth`); an array of a contract's members, in their order, is read as the contract; and the errors are serde_json's (`expected value at line 1 column 1`). A `null` leaves Go's zero value, and IAB's lists are well-formed: every GVL fixture of go-gdpr and prebid-server reads as in Go.
+- **Who notices:** operator
+- **Visible in:** Whether a fetched vendor list is kept for GDPR enforcement, and the error of the `GET ... returned malformed JSON` log line (gdpr/vendorlist-fetching.go:150-154)
+- **Harness:** none
+- **Pin:** `crates/tcf2/tests/vendorlist.rs::gvl_fixtures`
+- **Restore option:** A Go-compatible JSON reader for the vendor list; not planned (orchestrator ruling 2), since IAB publishes well-formed lists.
+- **Note:** `crates/tcf2/tests/vendorlist.rs::gvl_corpus` counts, per reason, how the 5,017 documents of the two Go corpora read beside Go. Reading the list through JSONUTIL's decode entry for outside bytes, once it merges (orchestrator ruling 7), would restore keys with a lone surrogate.
+- **Recorded in:** `crates/tcf2/differences.toml`
 
 ## Gzip
 

@@ -1,5 +1,5 @@
 // Command gppgolden writes the differential golden files replayed by the pbs-gpp Rust tests
-// (crates/gpp/src/golden_tests.rs).
+// (crates/gpp/src/golden_tests.rs and crates/gpp/tests/base64.rs).
 //
 // It runs the real github.com/prebid/go-gpp at the version pinned in Prebid Server's go.mod
 // (this module's go.mod requires the same version), so run it from the directory of this module
@@ -54,6 +54,10 @@ func main() {
 	write(*out, "encode.txt", encodeGolden(r))
 	// edge.txt has its own random source so that adding to it never changes the files above.
 	write(*out, "edge.txt", edgeGolden(rand.New(rand.NewSource(edgeSeed))))
+	// base64_seeded.txt draws from splitmix64 (seeded.go), which tests/base64.rs implements too.
+	write(*out, "base64_seeded.txt", seededGolden())
+	// base64_exhaustive.txt enumerates its strings (exhaustive.go), as tests/base64.rs does.
+	write(*out, "base64_exhaustive.txt", exhaustiveGolden())
 }
 
 func write(dir, name string, lines []string) {

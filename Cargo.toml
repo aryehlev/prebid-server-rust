@@ -51,6 +51,7 @@ publish = false
 # first user are commented out at the end of the table.
 [workspace.dependencies]
 axum = { version = "0.8.9", features = ["http2"] }
+base64 = "0.23.1"
 bytes = "1.12.1"
 # Only the JSON format: the yaml feature pulls yaml-rust2 -> hashlink -> hashbrown 0.16 beside
 # indexmap's 0.17. YAML goes through a serde-saphyr Format instead.
@@ -110,7 +111,6 @@ url = "2.5.8"
 # arc-swap = "1.9.5"
 # # Dev-only: the key pairs rcgen signs test certificates with.
 # aws-lc-rs = { version = "1.19.0", default-features = false, features = ["alloc", "aws-lc-sys"] }
-# base64 = "0.23.1"
 # # The build dependency of the 51Degrees FFI crate; aws-lc-sys already locks it.
 # cc = "1.11.2"
 # # Dev-only: COW's benches. Cargo.lock must keep half at 2.6.0: half 2.7.1 depends on zerocopy,

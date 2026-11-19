@@ -14,8 +14,13 @@ categories = ["parser-implementations"]
 [lints]
 workspace = true
 
+# base64 decodes consent strings (src/base64.rs keeps Go's leniency around it); serde and
+# serde_json read the global vendor list into go-gdpr's contract (and the Go goldens in tests).
 [dependencies]
-
-[dev-dependencies]
-# Only used to read the Go-generated golden files under testdata/.
+base64 = { workspace = true }
+serde = { workspace = true }
 serde_json = { workspace = true }
+
+# sha2 checks the digests of the seeded and exhaustive corpora Go decoded (tests/base64.rs).
+[dev-dependencies]
+sha2 = { workspace = true }

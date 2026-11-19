@@ -16,7 +16,7 @@ use self::metadata::parse_metadata;
 use crate::{
     ConsentError,
     api::{ConsentTime, VendorConsents},
-    base64::RAW_URL_ENCODING,
+    base64,
     consentconstants::Purpose,
     vendorconsent::common::{self, RangeEntry, bit, is_set},
 };
@@ -34,7 +34,7 @@ pub fn parse_string<S: AsRef<[u8]> + ?Sized>(consent: &S) -> Result<Consent, Con
         return Err(ConsentError::EmptyDecodedConsent);
     }
     // Go decodes in place; the result is identical to a separate output buffer.
-    let decoded = RAW_URL_ENCODING.decode(consent)?;
+    let decoded = base64::raw_url_decode(consent)?;
     parse(decoded)
 }
 

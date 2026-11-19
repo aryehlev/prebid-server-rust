@@ -1,6 +1,6 @@
 //! Go: `vendorlist2/eager-parsing_test.go` and `vendorlist2/shared_test.go`.
 
-use super::parse_eagerly;
+use super::{VendorListError, parse_eagerly};
 use crate::{
     api::{Vendor, VendorList},
     consentconstants::{Purpose, SpecialFeature},
@@ -238,46 +238,51 @@ fn parse_eagerly_empty_vendor_list() -> TestResult {
     Ok(())
 }
 
-/// The error texts prebid-server logs for bad vendor lists (`gdpr/vendorlist-fetching.go`).
+/// go-gdpr's own error, which prebid-server logs (gdpr/vendorlist-fetching.go:151-153), for a
+/// list whose `vendorListVersion` is missing, 0 or `null`, and for the `null` document, where Go
+/// leaves the zero value.
+// Go: vendorlist2/eager-parsing.go:25-27; the "null", "null padded", "empty object", "version
+// zero" and "version null" cases of testdata/vendorlist_goldens.json (testdata/go/vendorlist.go).
 #[test]
-fn parse_eagerly_errors() -> TestResult {
-    for (data, message) in [
-        ("", "unexpected end of JSON input"),
-        ("{", "unexpected end of JSON input"),
-        (
-            r#"{"vendorListVersion":1}x"#,
-            "invalid character 'x' after top-level value",
-        ),
-        (
-            "{\"vendorListVersion\":1 \x01}",
-            r"invalid character '\x01' after object key:value pair",
-        ),
-        (
-            "{}",
-            "data.vendorListVersion was 0 or undefined. Versions should start at 1",
-        ),
-        (
-            r#"{"vendorListVersion":"1"}"#,
-            "json: cannot unmarshal string into Go struct field vendorListContract.\
-             vendorListVersion of type uint16",
-        ),
-        (
-            r#"{"vendorListVersion":1,"vendors":{"1":{"purposes":[256]}}}"#,
-            "json: cannot unmarshal number 256 into Go struct field vendorListVendorContract.\
-             vendors.purposes of type uint8",
-        ),
-        (
-            r#"{"vendorListVersion":1,"vendors":{"1":{"purposes":"AQI"}}}"#,
-            "illegal base64 data at input byte 0",
-        ),
-        (
-            "[]",
-            "json: cannot unmarshal array into Go value of type vendorlist2.vendorListContract",
-        ),
+fn parse_eagerly_invalid_version() -> TestResult {
+    for data in [
+        "null",
+        " null \n",
+        "{}",
+        r#"{"vendorListVersion":0,"vendors":{"1":{"id":1}}}"#,
+        r#"{"vendorListVersion":null}"#,
     ] {
         match parse_eagerly(data.as_bytes()) {
-            Ok(_) => return Err(format!("{data:?} parsed").into()),
-            Err(err) => check_eq!(err.to_string(), message, "{data:?}"),
+            Err(err @ VendorListError::InvalidVersion) => check_eq!(
+                err.to_string(),
+                "data.vendorListVersion was 0 or undefined. Versions should start at 1",
+                "{data:?}"
+            ),
+            other => return Err(format!("{data:?}: {other:?}").into()),
+        }
+    }
+    Ok(())
+}
+
+/// Documents that are not JSON, or do not fit the contract, fail with `serde_json`'s error, as Go's
+/// fail with `encoding/json`'s; tests/vendorlist.rs counts those whose text is not Go's and shows
+/// one beside Go's.
+// Go: the "empty", "small list prefix 1", "trailing garbage", "version string", "purposes 256"
+// and "array" cases of testdata/vendorlist_goldens.json (testdata/go/vendorlist.go), and
+// vendorlist2/eager-parsing.go:21-23.
+#[test]
+fn parse_eagerly_json_errors() -> TestResult {
+    for data in [
+        "",
+        "{",
+        r#"{"vendorListVersion":1}x"#,
+        r#"{"vendorListVersion":"28"}"#,
+        r#"{"vendorListVersion":7,"vendors":{"1":{"id":1,"purposes":[1,256,2]}}}"#,
+        "[]",
+    ] {
+        match parse_eagerly(data.as_bytes()) {
+            Err(VendorListError::Json(_)) => {}
+            other => return Err(format!("{data:?}: {other:?}").into()),
         }
     }
     Ok(())

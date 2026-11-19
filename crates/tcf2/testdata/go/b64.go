@@ -7,16 +7,14 @@ import (
 	"unicode/utf8"
 )
 
-// base64Case records the three ways go-gdpr and prebid-server decode base64:
+// base64Case records the two ways go-gdpr and prebid-server decode a consent string:
 //   - RawURL: base64.RawURLEncoding.DecodeString (adapters/flipp)
 //   - RawURLInPlace: base64.RawURLEncoding.Decode(buf, buf) as tcf1/tcf2 ParseString do
-//   - Std: base64.StdEncoding.Decode into a DecodedLen buffer, as encoding/json does for []byte
 type base64Case struct {
 	InputHex      string      `json:"input_hex,omitempty"`
 	Input         *string     `json:"input,omitempty"`
 	RawURL        bytesResult `json:"raw_url"`
 	RawURLInPlace bytesResult `json:"raw_url_in_place"`
-	Std           bytesResult `json:"std"`
 }
 
 func buildBase64Cases() []base64Case {
@@ -59,10 +57,6 @@ func buildBase64Cases() []base64Case {
 		buf := []byte(in)
 		n, err := base64.RawURLEncoding.Decode(buf, buf)
 		c.RawURLInPlace = bytesOrErr(buf[:n], err)
-
-		std := make([]byte, base64.StdEncoding.DecodedLen(len(in)))
-		n, err = base64.StdEncoding.Decode(std, []byte(in))
-		c.Std = bytesOrErr(std[:n], err)
 		out = append(out, c)
 	}
 	return out

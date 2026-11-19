@@ -4,7 +4,7 @@ use super::{ParsedConsent, common::is_set, parse_string, tcf1, tcf2};
 use crate::{
     ConsentError,
     api::VendorConsents as _,
-    base64::{CorruptInputError, RAW_URL_ENCODING},
+    base64::{CorruptInputError, raw_url_decode},
     test_support::TestResult,
 };
 
@@ -37,7 +37,7 @@ fn assert_invalid<T>(
     parse: fn(Vec<u8>) -> Result<T, ConsentError>,
     expect_error: &str,
 ) -> TestResult {
-    let data = RAW_URL_ENCODING.decode(encoded.as_bytes())?;
+    let data = raw_url_decode(encoded.as_bytes())?;
     let err = parse(data)
         .err()
         .ok_or_else(|| format!("{encoded} was considered valid"))?;

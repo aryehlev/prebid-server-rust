@@ -1,7 +1,8 @@
 // Command tcf2golden records how github.com/prebid/go-gdpr (the exact version pinned by the
 // upstream go.mod, which this module's go.mod requires too) and the Go standard library pieces it
 // relies on behave for a large corpus of consent strings, base64 inputs, bit offsets and global
-// vendor list documents.
+// vendor list documents, the vendor lists the go-gdpr and prebid-server tests parse, and a seeded
+// and an exhaustive corpus of base64 strings.
 //
 // The pbs-tcf2 Rust tests replay the JSON files written by this program and require identical
 // results, including byte-identical error text and the places where Go panics.
@@ -55,6 +56,9 @@ func main() {
 	writeCases(filepath.Join(*out, "vendorlist_goldens.json"), hdr, buildVendorListCases())
 	writeCases(filepath.Join(*out, "consent_fuzz_goldens.json"), hdr, buildFuzzConsentCases())
 	writeCases(filepath.Join(*out, "vendorlist_fuzz_goldens.json"), hdr, buildFuzzVendorListCases())
+	writeCases(filepath.Join(*out, "gvl_fixture_goldens.json"), hdr, buildGVLFixtureCases())
+	writeSeeded(filepath.Join(*out, "base64_seeded_goldens.json"), buildSeededDoc(hdr))
+	writeCases(filepath.Join(*out, "base64_exhaustive_goldens.json"), hdr, buildExhaustiveCases())
 }
 
 func goGDPRVersion() string {

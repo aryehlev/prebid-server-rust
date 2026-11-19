@@ -1135,6 +1135,10 @@ dependencies = [
 [[package]]
 name = "pbs-gpp"
 version = "0.1.0"
+dependencies = [
+ "base64",
+ "sha2",
+]
 
 [[package]]
 name = "pbs-jsonutil"
@@ -1200,7 +1204,10 @@ dependencies = [
 name = "pbs-tcf2"
 version = "0.1.0"
 dependencies = [
+ "base64",
+ "serde",
  "serde_json",
+ "sha2",
 ]
 
 [[package]]
