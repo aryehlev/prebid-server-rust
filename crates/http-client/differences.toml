@@ -457,6 +457,29 @@ note = """\
     runs; macOS and Windows verify with the platform's own."""
 
 [[difference]]
+id = "tls.client-hello"
+category = "tls"
+status = "ledgered"
+title = "ClientHello: crypto/tls and rustls offer different suites, groups, schemes and ALPN"
+go = """\
+    router.go's Transports send no ALPN (they set DialContext, so they offer no h2) and offer, \
+    beside the AEAD suites, ECDHE with AES-CBC-SHA on TLS 1.2 \
+    (`TLS_ECDHE_{ECDSA,RSA}_WITH_AES_{128,256}_CBC_SHA`) and the P-521 group, so a TLS 1.2 \
+    server that takes only those completes the handshake."""
+rust = """\
+    rustls on aws-lc-rs sends ALPN `http/1.1`, offers no CBC suite and no P-521, and adds the \
+    renegotiation SCSV and the ML-DSA signature schemes, so a server that takes only a CBC suite \
+    or P-521 fails the handshake."""
+who = ["bidder", "operator"]
+visible_in = """\
+    Requests to bidders, Prebid Cache or a floors endpoint whose TLS server takes only TLS 1.2 \
+    CBC suites or P-521, and the TLS fingerprints (JA3, JA4) a server records"""
+pin = "crates/http-client/tests/tls.rs::client_hello_differs"
+restore = """\
+    Not restorable on rustls, which implements no CBC suite; ALPN could be left out with a \
+    rustls config of the clients' own (not planned: no Rule B case)."""
+
+[[difference]]
 id = "tls.certificates-file"
 category = "tls"
 status = "restored"

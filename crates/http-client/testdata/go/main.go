@@ -8,8 +8,8 @@
 // its error texts and their timeout classification (errors.json), the httptrace events Prebid's
 // connection metrics read (metrics.json), the proxy x/net/http/httpproxy picks from a proxy
 // environment and what a proxy receives (proxy.json), which certificates of a certificates_file
-// x509.CertPool takes (certificates_file.json) and what the default client negotiates over TLS
-// (default_client.json).
+// x509.CertPool takes (certificates_file.json), what the default client negotiates over TLS
+// (default_client.json) and the ClientHello router.go's Transports send (client_hello.json).
 //
 // Run it from the directory of this module (crates/http-client/testdata/go) on amd64, as D-ARCH
 // asks of every golden:
@@ -117,4 +117,5 @@ func main() {
 	writeGolden(*out, "proxy.json", proxyGolden())
 	writeGolden(*out, "certificates_file.json", certificatesFileGolden())
 	writeGolden(*out, "default_client.json", defaultClientGolden())
+	writeGolden(*out, "client_hello.json", clientHelloGolden())
 }

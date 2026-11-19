@@ -28,10 +28,10 @@ Rule B's cases: (a) input real production traffic sends that the crate would rej
 | Regular expressions | 0 | 0 | 2 |
 | HTTP server | 0 | 2 | 0 |
 | Time formatting | 0 | 0 | 1 |
-| TLS | 0 | 1 | 1 |
+| TLS | 0 | 2 | 1 |
 | URLs | 0 | 1 | 0 |
 | YAML | 0 | 1 | 0 |
-| All | 1 | 35 | 14 |
+| All | 1 | 36 | 14 |
 
 ## Decisions pending
 
@@ -665,6 +665,17 @@ No entry names the classes `other` and `unrecorded` or the kinds `stage_missing`
 - **Pin:** `crates/http-client/tests/tls.rs::x509_goldens`
 - **Decision:** D-TLS
 - **Note:** The pin runs webpki, the verifier rustls-platform-verifier uses on Linux, where the server runs; macOS and Windows verify with the platform's own.
+- **Recorded in:** `crates/http-client/differences.toml`
+
+#### `tls.client-hello`: ClientHello: crypto/tls and rustls offer different suites, groups, schemes and ALPN
+
+- **Go:** router.go's Transports send no ALPN (they set DialContext, so they offer no h2) and offer, beside the AEAD suites, ECDHE with AES-CBC-SHA on TLS 1.2 (`TLS_ECDHE_{ECDSA,RSA}_WITH_AES_{128,256}_CBC_SHA`) and the P-521 group, so a TLS 1.2 server that takes only those completes the handshake.
+- **Rust:** rustls on aws-lc-rs sends ALPN `http/1.1`, offers no CBC suite and no P-521, and adds the renegotiation SCSV and the ML-DSA signature schemes, so a server that takes only a CBC suite or P-521 fails the handshake.
+- **Who notices:** bidder, operator
+- **Visible in:** Requests to bidders, Prebid Cache or a floors endpoint whose TLS server takes only TLS 1.2 CBC suites or P-521, and the TLS fingerprints (JA3, JA4) a server records
+- **Harness:** none
+- **Pin:** `crates/http-client/tests/tls.rs::client_hello_differs`
+- **Restore option:** Not restorable on rustls, which implements no CBC suite; ALPN could be left out with a rustls config of the clients' own (not planned: no Rule B case).
 - **Recorded in:** `crates/http-client/differences.toml`
 
 ### Go behaviour kept
