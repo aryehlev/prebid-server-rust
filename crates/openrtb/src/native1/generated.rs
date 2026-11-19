@@ -8,6 +8,9 @@
 // package lives in the other files of its module.
 
 use pbs_gojson::GoJson;
+use pbs_jsonutil::{MergeClone, MergeCloneError};
+use serde::{Deserialize, Serialize};
+use serde_json::value::RawValue;
 
 /// ```text
 /// 7.2 Native Ad Unit IDs in version 1.1.
@@ -22,9 +25,29 @@ use pbs_gojson::GoJson;
 /// An implementing exchange may not support all asset variants or introduce new ones unique to that
 /// system.
 /// ```
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash, GoJson)]
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    Serialize,
+    Deserialize,
+    GoJson,
+)]
+#[serde(transparent)]
 #[gojson(go_type = "native1.AdUnit", map_key)]
 pub struct AdUnit(pub i64);
+
+impl MergeClone for AdUnit {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        self.0.merge_clone(patch)
+    }
+}
 
 /// Paid Search Units
 #[doc(alias = "AdUnitPaidSearch")]
@@ -57,9 +80,29 @@ pub const AD_UNIT_CUSTOM: AdUnit = AdUnit(5);
 /// SubType should only be combined with the primary context type as indicated (ie for a context
 /// type of 1, only context subtypes that start with 1 are valid).
 /// ```
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash, GoJson)]
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    Serialize,
+    Deserialize,
+    GoJson,
+)]
+#[serde(transparent)]
 #[gojson(go_type = "native1.ContextSubType", map_key)]
 pub struct ContextSubType(pub i64);
+
+impl MergeClone for ContextSubType {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        self.0.merge_clone(patch)
+    }
+}
 
 /// General or mixed content.
 #[doc(alias = "ContextSubTypeGeneral")]
@@ -119,9 +162,29 @@ pub const CONTEXT_SUB_TYPE_PRODUCT_REVIEW: ContextSubType = ContextSubType(32);
 /// page - for example it's expected that most content platforms have some social
 /// components, etc.
 /// ```
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash, GoJson)]
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    Serialize,
+    Deserialize,
+    GoJson,
+)]
+#[serde(transparent)]
 #[gojson(go_type = "native1.ContextType", map_key)]
 pub struct ContextType(pub i64);
+
+impl MergeClone for ContextType {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        self.0.merge_clone(patch)
+    }
+}
 
 /// Content-centric context such as newsfeed, article, image gallery, video gallery, or similar.
 #[doc(alias = "ContextTypeContent")]
@@ -146,9 +209,29 @@ pub const CONTEXT_TYPE_PRODUCT: ContextType = ContextType(3);
 /// An implementing exchange may not support all asset variants or introduce new ones unique to that
 /// system.
 /// ```
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash, GoJson)]
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    Serialize,
+    Deserialize,
+    GoJson,
+)]
+#[serde(transparent)]
 #[gojson(go_type = "native1.DataAssetType", map_key)]
 pub struct DataAssetType(pub i64);
+
+impl MergeClone for DataAssetType {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        self.0.merge_clone(patch)
+    }
+}
 
 /// ```text
 /// Type ID:
@@ -325,9 +408,29 @@ pub const DATA_ASSET_TYPE_CTA_TEXT: DataAssetType = DataAssetType(12);
 /// ```text
 /// 7.7 Event Tracking Methods Table
 /// ```
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash, GoJson)]
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    Serialize,
+    Deserialize,
+    GoJson,
+)]
+#[serde(transparent)]
 #[gojson(go_type = "native1.EventTrackingMethod", map_key)]
 pub struct EventTrackingMethod(pub i64);
+
+impl MergeClone for EventTrackingMethod {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        self.0.merge_clone(patch)
+    }
+}
 
 /// Image-pixel tracking - URL provided will be inserted as a 1x1 pixel at the time of the event.
 #[doc(alias = "EventTrackingMethodImage")]
@@ -340,9 +443,29 @@ pub const EVENT_TRACKING_METHOD_JS: EventTrackingMethod = EventTrackingMethod(2)
 /// ```text
 /// 7.6 Event Types Table
 /// ```
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash, GoJson)]
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    Serialize,
+    Deserialize,
+    GoJson,
+)]
+#[serde(transparent)]
 #[gojson(go_type = "native1.EventType", map_key)]
 pub struct EventType(pub i64);
+
+impl MergeClone for EventType {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        self.0.merge_clone(patch)
+    }
+}
 
 /// Impression
 #[doc(alias = "EventTypeImpression")]
@@ -383,9 +506,29 @@ pub const EVENT_TYPE_VIEWABLE_VIDEO50: EventType = EventType(4);
 /// Note we merged the prior overlapping type 1 and type 2 as just type 1 - to be used for app icon,
 /// brand logo, or similar.
 /// ```
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash, GoJson)]
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    Serialize,
+    Deserialize,
+    GoJson,
+)]
+#[serde(transparent)]
 #[gojson(go_type = "native1.ImageAssetType", map_key)]
 pub struct ImageAssetType(pub i64);
+
+impl MergeClone for ImageAssetType {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        self.0.merge_clone(patch)
+    }
+}
 
 /// Icon; Icon image; Optional. Max height: at least 50; aspect ratio: 1:1
 #[doc(alias = "ImageAssetTypeIcon")]
@@ -418,9 +561,29 @@ pub const IMAGE_ASSET_TYPE_MAIN: ImageAssetType = ImageAssetType(3);
 /// An implementing exchange may not support all asset variants or introduce new ones unique to that
 /// system.
 /// ```
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash, GoJson)]
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    Serialize,
+    Deserialize,
+    GoJson,
+)]
+#[serde(transparent)]
 #[gojson(go_type = "native1.Layout", map_key)]
 pub struct Layout(pub i64);
+
+impl MergeClone for Layout {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        self.0.merge_clone(patch)
+    }
+}
 
 /// Content Wall
 #[doc(alias = "LayoutContentWall")]
@@ -455,9 +618,29 @@ pub const LAYOUT_GRID: Layout = Layout(7);
 ///
 /// The FORMAT of the ad you are purchasing, separate from the surrounding context
 /// ```
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash, GoJson)]
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    Serialize,
+    Deserialize,
+    GoJson,
+)]
+#[serde(transparent)]
 #[gojson(go_type = "native1.PlacementType", map_key)]
 pub struct PlacementType(pub i64);
+
+impl MergeClone for PlacementType {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        self.0.merge_clone(patch)
+    }
+}
 
 /// In the feed of content - for example as an item inside the organic feed/grid/listing/carousel.
 #[doc(alias = "PlacementTypeFeed")]
@@ -486,9 +669,29 @@ pub const PLACEMENT_TYPE_RECOMMENDATION_WIDGET: PlacementType = PlacementType(4)
 /// Dev note: this enum is copied to native package to allow requiring native/{request,response} in
 /// root openrtb package in future.
 /// ```
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash, GoJson)]
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    Serialize,
+    Deserialize,
+    GoJson,
+)]
+#[serde(transparent)]
 #[gojson(go_type = "native1.Protocol", map_key)]
 pub struct Protocol(pub i8);
+
+impl MergeClone for Protocol {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        self.0.merge_clone(patch)
+    }
+}
 
 /// VAST 1.0
 #[doc(alias = "ProtocolVAST10")]

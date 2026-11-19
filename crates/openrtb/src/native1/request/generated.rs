@@ -8,8 +8,13 @@
 // package lives in the other files of its module.
 
 use pbs_gojson::{GoJson, RawJson};
+use pbs_jsonutil::{
+    MergeClone, MergeCloneError, is_nil_or_empty, is_zero, merge_field, merge_struct, null_default,
+};
+use serde::{Deserialize, Serialize};
+use serde_json::value::RawValue;
 
-use crate::native1;
+use crate::{gojson_bridge, native1};
 
 /// ```text
 /// 4.2 Asset Object
@@ -39,7 +44,8 @@ use crate::native1;
 /// DSPs should feel confident that if they support these standards they'll be able to access most
 /// native1 inventory.
 /// ```
-#[derive(Clone, Debug, Default, PartialEq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "request.Asset")]
 pub struct Asset {
     /// ```text
@@ -53,6 +59,7 @@ pub struct Asset {
     ///   Unique asset ID, assigned by exchange.
     ///   Typically a counter for the array.
     /// ```
+    #[serde(rename = "id", deserialize_with = "null_default")]
     #[gojson(go = "ID", json = "id")]
     pub id: i64,
     /// ```text
@@ -67,6 +74,11 @@ pub struct Asset {
     /// Description:
     ///   Set to 1 if asset is required (exchange will not accept a bid without it)
     /// ```
+    #[serde(
+        rename = "required",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Required", json = "required,omitempty")]
     pub required: i8,
     /// ```text
@@ -81,6 +93,7 @@ pub struct Asset {
     ///   See TitleObject definition.
     ///   Each asset object may contain only one of title, img, data or video.
     /// ```
+    #[serde(rename = "title", skip_serializing_if = "Option::is_none")]
     #[gojson(go = "Title", json = "title,omitempty")]
     pub title: Option<Box<Title>>,
     /// ```text
@@ -95,6 +108,7 @@ pub struct Asset {
     ///   See ImageObject definition.
     ///   Each asset object may contain only one of title, img, data or video.
     /// ```
+    #[serde(rename = "img", skip_serializing_if = "Option::is_none")]
     #[gojson(go = "Img", json = "img,omitempty")]
     pub img: Option<Box<Image>>,
     /// ```text
@@ -113,6 +127,7 @@ pub struct Asset {
     /// Note:
     ///   Video object Refer to openrtb2.Video
     /// ```
+    #[serde(rename = "video", skip_serializing_if = "Option::is_none")]
     #[gojson(go = "Video", json = "video,omitempty")]
     pub video: Option<Box<Video>>,
     /// ```text
@@ -127,6 +142,7 @@ pub struct Asset {
     ///   See DataObject definition.
     ///   Each asset object may contain only one of title, img, data or video.
     /// ```
+    #[serde(rename = "data", skip_serializing_if = "Option::is_none")]
     #[gojson(go = "Data", json = "data,omitempty")]
     pub data: Option<Box<Data>>,
     /// ```text
@@ -140,8 +156,29 @@ pub struct Asset {
     ///   This object is a placeholder that may contain custom JSON agreed to by the parties to
     ///   support flexibility beyond the standard defined in this specification
     /// ```
+    #[serde(
+        rename = "ext",
+        skip_serializing_if = "gojson_bridge::raw_json::is_empty",
+        with = "gojson_bridge::raw_json"
+    )]
     #[gojson(go = "Ext", json = "ext,omitempty")]
     pub ext: RawJson,
+}
+
+impl MergeClone for Asset {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "request.Asset";
+        merge_struct(patch, |key, value| match key {
+            "id" => merge_field(&mut self.id, value, GO_TYPE, "ID"),
+            "required" => merge_field(&mut self.required, value, GO_TYPE, "Required"),
+            "title" => merge_field(&mut self.title, value, GO_TYPE, "Title"),
+            "img" => merge_field(&mut self.img, value, GO_TYPE, "Img"),
+            "video" => merge_field(&mut self.video, value, GO_TYPE, "Video"),
+            "data" => merge_field(&mut self.data, value, GO_TYPE, "Data"),
+            "ext" => gojson_bridge::merge_field(&mut self.ext, value, GO_TYPE, "Ext"),
+            _ => Ok(()),
+        })
+    }
 }
 
 /// ```text
@@ -153,7 +190,8 @@ pub struct Asset {
 /// this document.
 /// In some cases, additional recommendations are also included in the Data Asset Types table.
 /// ```
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "request.Data")]
 pub struct Data {
     /// ```text
@@ -168,6 +206,7 @@ pub struct Data {
     ///   The publisher can display this information in an appropriate format.
     ///   See Data Asset Types table for commonly used examples.
     /// ```
+    #[serde(rename = "type", deserialize_with = "null_default")]
     #[gojson(go = "Type", json = "type")]
     pub r#type: native1::DataAssetType,
     /// ```text
@@ -180,6 +219,11 @@ pub struct Data {
     /// Description:
     ///   Maximum length of the text in the element’s response.
     /// ```
+    #[serde(
+        rename = "len",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Len", json = "len,omitempty")]
     pub len: i64,
     /// ```text
@@ -193,8 +237,25 @@ pub struct Data {
     /// This object is a placeholder that may contain custom JSON agreed to by the parties to
     /// support flexibility beyond the standard defined in this specification
     /// ```
+    #[serde(
+        rename = "ext",
+        skip_serializing_if = "gojson_bridge::raw_json::is_empty",
+        with = "gojson_bridge::raw_json"
+    )]
     #[gojson(go = "Ext", json = "ext,omitempty")]
     pub ext: RawJson,
+}
+
+impl MergeClone for Data {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "request.Data";
+        merge_struct(patch, |key, value| match key {
+            "type" => merge_field(&mut self.r#type, value, GO_TYPE, "Type"),
+            "len" => merge_field(&mut self.len, value, GO_TYPE, "Len"),
+            "ext" => gojson_bridge::merge_field(&mut self.ext, value, GO_TYPE, "Ext"),
+            _ => Ok(()),
+        })
+    }
 }
 
 /// ```text
@@ -204,7 +265,8 @@ pub struct Data {
 /// the bid response, and which types of tracking are available for each event type, and is included
 /// as an array in the request.
 /// ```
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "request.EventTracker")]
 pub struct EventTracker {
     /// ```text
@@ -218,6 +280,7 @@ pub struct EventTracker {
     ///   Type of event available for tracking.
     ///   See Event Types table.
     /// ```
+    #[serde(rename = "event", deserialize_with = "null_default")]
     #[gojson(go = "Event", json = "event")]
     pub event: native1::EventType,
     /// ```text
@@ -231,6 +294,7 @@ pub struct EventTracker {
     ///   Array of the types of tracking available for the given event.
     ///   See Event Tracking Methods table
     /// ```
+    #[serde(rename = "methods")]
     #[gojson(go = "Methods", json = "methods")]
     pub methods: Option<Vec<native1::EventTrackingMethod>>,
     /// ```text
@@ -244,8 +308,25 @@ pub struct EventTracker {
     ///   This object is a placeholder that may contain custom JSON agreed to by the parties to
     ///   support flexibility beyond the standard defined in this specification
     /// ```
+    #[serde(
+        rename = "ext",
+        skip_serializing_if = "gojson_bridge::raw_json::is_empty",
+        with = "gojson_bridge::raw_json"
+    )]
     #[gojson(go = "Ext", json = "ext,omitempty")]
     pub ext: RawJson,
+}
+
+impl MergeClone for EventTracker {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "request.EventTracker";
+        merge_struct(patch, |key, value| match key {
+            "event" => merge_field(&mut self.event, value, GO_TYPE, "Event"),
+            "methods" => merge_field(&mut self.methods, value, GO_TYPE, "Methods"),
+            "ext" => gojson_bridge::merge_field(&mut self.ext, value, GO_TYPE, "Ext"),
+            _ => Ok(()),
+        })
+    }
 }
 
 /// ```text
@@ -255,7 +336,8 @@ pub struct EventTracker {
 /// etc.
 /// Recommended sizes and aspect ratios are included in the Image Asset Types section.
 /// ```
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "request.Image")]
 pub struct Image {
     /// ```text
@@ -270,6 +352,11 @@ pub struct Image {
     ///   The publisher can display this information in an appropriate format.
     ///   See Table Image Asset Types.
     /// ```
+    #[serde(
+        rename = "type",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Type", json = "type,omitempty")]
     pub r#type: native1::ImageAssetType,
     /// ```text
@@ -282,6 +369,11 @@ pub struct Image {
     /// Description:
     ///   Width of the image in pixels.
     /// ```
+    #[serde(
+        rename = "w",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "W", json = "w,omitempty")]
     pub w: i64,
     /// ```text
@@ -297,6 +389,11 @@ pub struct Image {
     ///   Either w or wmin should be transmitted.
     ///   If only w is included, it should be considered an exact requirement.
     /// ```
+    #[serde(
+        rename = "wmin",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "WMin", json = "wmin,omitempty")]
     pub wmin: i64,
     /// ```text
@@ -309,6 +406,11 @@ pub struct Image {
     /// Description:
     ///   Height of the image in pixels.
     /// ```
+    #[serde(
+        rename = "h",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "H", json = "h,omitempty")]
     pub h: i64,
     /// ```text
@@ -324,6 +426,11 @@ pub struct Image {
     /// Either h or hmin should be transmitted.
     /// If only h is included, it should be considered an exact requirement.
     /// ```
+    #[serde(
+        rename = "hmin",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "HMin", json = "hmin,omitempty")]
     pub hmin: i64,
     /// ```text
@@ -343,6 +450,7 @@ pub struct Image {
     ///   See Wikipedia's MIME page for more information and links to all IETF RFCs.
     ///   If blank, assume all types are allowed.
     /// ```
+    #[serde(rename = "mimes", skip_serializing_if = "is_nil_or_empty")]
     #[gojson(go = "MIMEs", json = "mimes,omitempty")]
     pub mimes: Option<Vec<String>>,
     /// ```text
@@ -356,8 +464,29 @@ pub struct Image {
     ///   This object is a placeholder that may contain custom JSON agreed to by the parties to
     ///   support flexibility beyond the standard defined in this specification
     /// ```
+    #[serde(
+        rename = "ext",
+        skip_serializing_if = "gojson_bridge::raw_json::is_empty",
+        with = "gojson_bridge::raw_json"
+    )]
     #[gojson(go = "Ext", json = "ext,omitempty")]
     pub ext: RawJson,
+}
+
+impl MergeClone for Image {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "request.Image";
+        merge_struct(patch, |key, value| match key {
+            "type" => merge_field(&mut self.r#type, value, GO_TYPE, "Type"),
+            "w" => merge_field(&mut self.w, value, GO_TYPE, "W"),
+            "wmin" => merge_field(&mut self.wmin, value, GO_TYPE, "WMin"),
+            "h" => merge_field(&mut self.h, value, GO_TYPE, "H"),
+            "hmin" => merge_field(&mut self.hmin, value, GO_TYPE, "HMin"),
+            "mimes" => merge_field(&mut self.mimes, value, GO_TYPE, "MIMEs"),
+            "ext" => gojson_bridge::merge_field(&mut self.ext, value, GO_TYPE, "Ext"),
+            _ => Ok(()),
+        })
+    }
 }
 
 /// ```text
@@ -376,7 +505,8 @@ pub struct Image {
 /// its value.
 /// The Native Markup Request Object specified above is now the root object.
 /// ```
-#[derive(Clone, Debug, Default, PartialEq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "request.Request")]
 pub struct Request {
     /// ```text
@@ -391,6 +521,11 @@ pub struct Request {
     /// Description:
     ///   Version of the Native Markup version in use.
     /// ```
+    #[serde(
+        rename = "ver",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Ver", json = "ver,omitempty")]
     pub ver: String,
     /// ```text
@@ -404,6 +539,11 @@ pub struct Request {
     ///   The Layout ID of the native1 ad unit.
     ///   See the Table of Layout IDs below.
     /// ```
+    #[serde(
+        rename = "layout",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Layout", json = "layout,omitempty")]
     pub layout: native1::Layout,
     /// ```text
@@ -417,6 +557,11 @@ pub struct Request {
     ///   The Ad unit ID of the native1 ad unit.
     ///   See Table of Ad Unit IDs below for a list of supported core ad units.
     /// ```
+    #[serde(
+        rename = "adunit",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "AdUnit", json = "adunit,omitempty")]
     pub adunit: native1::AdUnit,
     /// ```text
@@ -430,6 +575,11 @@ pub struct Request {
     ///   The context in which the ad appears.
     ///   See Table of Context IDs below for a list of supported context types.
     /// ```
+    #[serde(
+        rename = "context",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Context", json = "context,omitempty")]
     pub context: native1::ContextType,
     /// ```text
@@ -443,6 +593,11 @@ pub struct Request {
     ///   A more detailed context in which the ad appears.
     ///   See Table of Context SubType IDs below for a list of supported context subtypes.
     /// ```
+    #[serde(
+        rename = "contextsubtype",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "ContextSubType", json = "contextsubtype,omitempty")]
     pub contextsubtype: native1::ContextSubType,
     /// ```text
@@ -456,6 +611,11 @@ pub struct Request {
     ///   The design/format/layout of the ad unit being offered.
     ///   See Table of Placement Type IDs below for a list of supported placement types.
     /// ```
+    #[serde(
+        rename = "plcmttype",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "PlcmtType", json = "plcmttype,omitempty")]
     pub plcmttype: native1::PlacementType,
     /// ```text
@@ -471,6 +631,11 @@ pub struct Request {
     ///   The number of identical placements in this Layout.
     ///   Refer Section 8.1 Multiplacement Bid Requests for further detail.
     /// ```
+    #[serde(
+        rename = "plcmtcnt",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "PlcmtCnt", json = "plcmtcnt,omitempty")]
     pub plcmtcnt: i64,
     /// ```text
@@ -489,6 +654,11 @@ pub struct Request {
     ///   holding separate auctions for distinct items in the feed (in which case plcmtcnt=1,
     ///   seq=>=1)
     /// ```
+    #[serde(
+        rename = "seq",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Seq", json = "seq,omitempty")]
     pub seq: i64,
     /// ```text
@@ -502,6 +672,7 @@ pub struct Request {
     ///   An array of Asset Objects.
     ///   Any bid response must comply with the array of elements expressed in the bid request.
     /// ```
+    #[serde(rename = "assets")]
     #[gojson(go = "Assets", json = "assets")]
     pub assets: Option<Vec<Asset>>,
     /// ```text
@@ -518,6 +689,11 @@ pub struct Request {
     ///   object.
     ///   0 or the absence of the field indicates no such support.
     /// ```
+    #[serde(
+        rename = "aurlsupport",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "AURLSupport", json = "aurlsupport,omitempty")]
     pub aurlsupport: i8,
     /// ```text
@@ -535,6 +711,11 @@ pub struct Request {
     ///   0 or the absence of the field indicates no such support.
     ///   Beta feature.
     /// ```
+    #[serde(
+        rename = "durlsupport",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "DURLSupport", json = "durlsupport,omitempty")]
     pub durlsupport: i8,
     /// ```text
@@ -547,6 +728,7 @@ pub struct Request {
     /// Description:
     ///   Specifies what type of event tracking is supported - see Event Trackers Request Object
     /// ```
+    #[serde(rename = "eventtrackers", skip_serializing_if = "is_nil_or_empty")]
     #[gojson(go = "EventTrackers", json = "eventtrackers,omitempty")]
     pub eventtrackers: Option<Vec<EventTracker>>,
     /// ```text
@@ -563,6 +745,11 @@ pub struct Request {
     ///   Set to 0 (or field absent) when the native1 ad doesn’t support custom privacy links or if
     ///   support is unknown.
     /// ```
+    #[serde(
+        rename = "privacy",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Privacy", json = "privacy,omitempty")]
     pub privacy: i8,
     /// ```text
@@ -576,8 +763,40 @@ pub struct Request {
     /// This object is a placeholder that may contain custom JSON agreed to by the parties to
     /// support flexibility beyond the standard defined in this specification
     /// ```
+    #[serde(
+        rename = "ext",
+        skip_serializing_if = "gojson_bridge::raw_json::is_empty",
+        with = "gojson_bridge::raw_json"
+    )]
     #[gojson(go = "Ext", json = "ext,omitempty")]
     pub ext: RawJson,
+}
+
+impl MergeClone for Request {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "request.Request";
+        merge_struct(patch, |key, value| match key {
+            "ver" => merge_field(&mut self.ver, value, GO_TYPE, "Ver"),
+            "layout" => merge_field(&mut self.layout, value, GO_TYPE, "Layout"),
+            "adunit" => merge_field(&mut self.adunit, value, GO_TYPE, "AdUnit"),
+            "context" => merge_field(&mut self.context, value, GO_TYPE, "Context"),
+            "contextsubtype" => {
+                merge_field(&mut self.contextsubtype, value, GO_TYPE, "ContextSubType")
+            }
+            "plcmttype" => merge_field(&mut self.plcmttype, value, GO_TYPE, "PlcmtType"),
+            "plcmtcnt" => merge_field(&mut self.plcmtcnt, value, GO_TYPE, "PlcmtCnt"),
+            "seq" => merge_field(&mut self.seq, value, GO_TYPE, "Seq"),
+            "assets" => merge_field(&mut self.assets, value, GO_TYPE, "Assets"),
+            "aurlsupport" => merge_field(&mut self.aurlsupport, value, GO_TYPE, "AURLSupport"),
+            "durlsupport" => merge_field(&mut self.durlsupport, value, GO_TYPE, "DURLSupport"),
+            "eventtrackers" => {
+                merge_field(&mut self.eventtrackers, value, GO_TYPE, "EventTrackers")
+            }
+            "privacy" => merge_field(&mut self.privacy, value, GO_TYPE, "Privacy"),
+            "ext" => gojson_bridge::merge_field(&mut self.ext, value, GO_TYPE, "Ext"),
+            _ => Ok(()),
+        })
+    }
 }
 
 /// ```text
@@ -585,7 +804,8 @@ pub struct Request {
 ///
 /// The Title object is to be used for title element of the Native ad.
 /// ```
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "request.Title")]
 pub struct Title {
     /// ```text
@@ -599,6 +819,7 @@ pub struct Title {
     ///   Maximum length of the text in the title element.
     ///   Recommended to be 25, 90, or 140.
     /// ```
+    #[serde(rename = "len", deserialize_with = "null_default")]
     #[gojson(go = "Len", json = "len")]
     pub len: i64,
     /// ```text
@@ -612,8 +833,24 @@ pub struct Title {
     ///   This object is a placeholder that may contain custom JSON agreed to by the parties to
     ///   support flexibility beyond the standard defined in this specification
     /// ```
+    #[serde(
+        rename = "ext",
+        skip_serializing_if = "gojson_bridge::raw_json::is_empty",
+        with = "gojson_bridge::raw_json"
+    )]
     #[gojson(go = "Ext", json = "ext,omitempty")]
     pub ext: RawJson,
+}
+
+impl MergeClone for Title {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "request.Title";
+        merge_struct(patch, |key, value| match key {
+            "len" => merge_field(&mut self.len, value, GO_TYPE, "Len"),
+            "ext" => gojson_bridge::merge_field(&mut self.ext, value, GO_TYPE, "Ext"),
+            _ => Ok(()),
+        })
+    }
 }
 
 /// Go alias `request.Video` of `openrtb2.Video`.

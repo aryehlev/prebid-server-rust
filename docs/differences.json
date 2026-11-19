@@ -4,6 +4,7 @@
     "crates/differences/differences.toml",
     "crates/gpp/differences.toml",
     "crates/jsonutil/differences.toml",
+    "crates/openrtb/differences.toml",
     "crates/tcf2/differences.toml"
   ],
   "inputs": [
@@ -437,6 +438,29 @@
       "restore_pending": false,
       "note": null,
       "fragment": "crates/jsonutil/differences.toml"
+    },
+    {
+      "id": "json.failed-merge-empty-slice",
+      "category": "json",
+      "status": "ledgered",
+      "title": "A merge that fails on a nil slice: Go leaves the slice nil, the port leaves it empty",
+      "go": "`jsonutil.MergeClone` given a value that is not an array for a nil slice (`{\"mimes\":{}}` into an `openrtb2.Audio`) fails and leaves the slice nil, which `jsonutil.Marshal` writes as `null` where the field has no `omitempty`.",
+      "rust": "pbs-jsonutil merges a slice as an `Option<Vec<T>>`, which becomes an empty `Vec` before the patch is read, so the failed merge leaves `[]`: the slices without `omitempty` of `openrtb2.Audio`, `BidRequest`, `SeatBid`, `SupplyChain` and `Video`, `openrtb3.Request`, `adcom1.NativeFormat` and the native request's `EventTracker` and `Request`.",
+      "who": [
+        "none"
+      ],
+      "visible_in": "Nothing in production: every `MergeClone` caller drops the value when the merge fails (exchange/utils.go:719-727, firstpartydata/first_party_data.go:198, 267, 322 and 405, account/fetcher.go:141 and 147)",
+      "harness": [],
+      "pin": "crates/openrtb/tests/parity/shapes.rs::failed_merges_leave_nil_slices_empty",
+      "restore": "pbs-jsonutil's `Option` merge reading the patch before it allocates for a slice; not planned while no caller keeps a failed merge's value.",
+      "default": null,
+      "decision": null,
+      "rule_b": null,
+      "restore_by": [],
+      "restorations": [],
+      "restore_pending": false,
+      "note": null,
+      "fragment": "crates/openrtb/differences.toml"
     },
     {
       "id": "json.find-element-invalid",
@@ -1105,6 +1129,11 @@
           "pin": "crates/jsonutil/tests/decode.rs::null_leaves_zero_value",
           "note": "`null_default` with a container `#[serde(default)]` leaves each value field's zero value, as `jsonutil.Unmarshal`, `UnmarshalValid` and `json.Unmarshal` do; ORTB-SERDE's typegen puts it on the generated types.",
           "fragment": "crates/jsonutil/differences.toml"
+        },
+        {
+          "pin": "crates/openrtb/tests/parity/shapes.rs::null_members_keep_zero_values",
+          "note": "Every value field of the generated types reads null through `null_default` under a container `#[serde(default)]`: each field's null case, and every field null at once, decodes to jsoniter's value and writes its bytes.",
+          "fragment": "crates/openrtb/differences.toml"
         }
       ],
       "restore_pending": false,
@@ -1137,6 +1166,11 @@
           "pin": "crates/jsonutil/tests/decode.rs::null_raw_kept",
           "note": "Both decoders' rows: `raw_keep_null` against `json.Unmarshal`, a plain `Option` against `jsonutil.Unmarshal` and `UnmarshalValid`.",
           "fragment": "crates/jsonutil/differences.toml"
+        },
+        {
+          "pin": "crates/openrtb/tests/parity/shapes.rs::raw_null_follows_the_decoder",
+          "note": "The generated types read a `json.RawMessage` given null as nil, as `jsonutil.Unmarshal` does; decoded through `gojson_bridge::EncodingJson` they keep the bytes `null`, as `json.Unmarshal` does, for the five adapters that decode an `openrtb2.BidResponse` with it (zentotem, loopme, resetdigital, tradplus, adverxo). Typegen's `keep_null` override keeps null on a field of a type that only `encoding/json` decodes.",
+          "fragment": "crates/openrtb/differences.toml"
         }
       ],
       "restore_pending": false,
@@ -1238,6 +1272,29 @@
       "restore_pending": false,
       "note": null,
       "fragment": "crates/jsonutil/differences.toml"
+    },
+    {
+      "id": "json.promoted-field-context",
+      "category": "json",
+      "status": "ledgered",
+      "title": "A merge error in a promoted field: Go names the bare field, the port the struct that declares it",
+      "go": "`jsonutil.MergeClone` names the field a merge failed in `Type.Field` (`cannot unmarshal openrtb2.Imp.Banner: ...`), except a field promoted from an embedded struct, which it names bare: `cannot unmarshal ID: ...` for the `id`, `name`, `pub` or `content` of an `adcom1.App`, `adcom1.Site` or `adcom1.Dooh`, which embed `adcom1.DistributionChannel`.",
+      "rust": "The generated `MergeClone` names the struct that declares the field (`cannot unmarshal adcom1.DistributionChannel.ID: ...`), since `MergeCloneError::within` takes a type and a field.",
+      "who": [
+        "none"
+      ],
+      "visible_in": "Nothing in production: Prebid merges no adcom1 type, and its `MergeClone` callers keep no more of the text than whether it holds `invalid json on existing object` (exchange/utils.go:719-727, firstpartydata/first_party_data.go:348-353, account/fetcher.go:141-151)",
+      "harness": [],
+      "pin": "crates/openrtb/tests/parity/shapes.rs::merge_errors_name_promoted_fields_with_their_struct",
+      "restore": "A `MergeCloneError` context without a type, which pbs-jsonutil does not offer; not planned while no caller reads the context.",
+      "default": null,
+      "decision": null,
+      "rule_b": null,
+      "restore_by": [],
+      "restorations": [],
+      "restore_pending": false,
+      "note": null,
+      "fragment": "crates/openrtb/differences.toml"
     },
     {
       "id": "json.raw-not-compacted",

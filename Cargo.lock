@@ -1170,6 +1170,8 @@ dependencies = [
  "pbs-devtools",
  "pbs-gocompat",
  "pbs-gojson",
+ "pbs-jsonutil",
+ "serde",
  "serde_json",
 ]
 

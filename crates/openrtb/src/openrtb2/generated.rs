@@ -8,17 +8,42 @@
 // package lives in the other files of its module.
 
 use pbs_gojson::{GoJson, RawJson};
+use pbs_jsonutil::{
+    MergeClone, MergeCloneError, is_nil_or_empty, is_zero, merge_field, merge_struct, null_default,
+};
+use serde::{Deserialize, Serialize};
+use serde_json::value::RawValue;
 
-use crate::{adcom1, openrtb3};
+use crate::{adcom1, gojson_bridge, openrtb3};
 
 /// SSAI indicates if server-side ad insertion (e.g., stitching an ad into an
 /// audio or video stream) is in use and the impact of this on asset
 /// and tracker retrieval.
 ///
 /// Originates from Imp.ssai property, not a separately-defined enum.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash, GoJson)]
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    Serialize,
+    Deserialize,
+    GoJson,
+)]
+#[serde(transparent)]
 #[gojson(go_type = "openrtb2.AdInsertion", map_key)]
 pub struct AdInsertion(pub i8);
+
+impl MergeClone for AdInsertion {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        self.0.merge_clone(patch)
+    }
+}
 
 /// status unknown
 #[doc(alias = "AdInsertUnknown")]
@@ -44,7 +69,8 @@ pub const AD_INSERT_SERVER: AdInsertion = AdInsertion(3);
 /// A bid request with an app object must not contain a site or DOOH object.
 /// At a minimum, it is useful to provide an App ID or bundle, but this is not strictly required.
 /// ```
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb2.App")]
 pub struct App {
     /// ```text
@@ -55,6 +81,11 @@ pub struct App {
     /// Description:
     ///   Exchange-specific app ID.
     /// ```
+    #[serde(
+        rename = "id",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "ID", json = "id,omitempty")]
     pub id: String,
     /// ```text
@@ -65,6 +96,11 @@ pub struct App {
     /// Description:
     ///   App name (may be aliased at the publisher’s request).
     /// ```
+    #[serde(
+        rename = "name",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Name", json = "name,omitempty")]
     pub name: String,
     /// ```text
@@ -80,6 +116,11 @@ pub struct App {
     ///   (e.g. com.foo.mygame). For apps in Apple App Store, these
     ///   should be a numeric ID.
     /// ```
+    #[serde(
+        rename = "bundle",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Bundle", json = "bundle,omitempty")]
     pub bundle: String,
     /// ```text
@@ -90,6 +131,11 @@ pub struct App {
     /// Description:
     ///   Domain of the app (e.g., “mygame.foo.com”).
     /// ```
+    #[serde(
+        rename = "domain",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Domain", json = "domain,omitempty")]
     pub domain: String,
     /// ```text
@@ -100,6 +146,11 @@ pub struct App {
     /// Description:
     ///   App store URL for an installed app; for IQG 2.1 compliance.
     /// ```
+    #[serde(
+        rename = "storeurl",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "StoreURL", json = "storeurl,omitempty")]
     pub storeurl: String,
     /// ```text
@@ -111,6 +162,11 @@ pub struct App {
     ///   The taxonomy in use. Refer to the AdCOM list List: Category
     ///   Taxonomies for values.
     /// ```
+    #[serde(
+        rename = "cattax",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "CatTax", json = "cattax,omitempty")]
     pub cattax: adcom1::CategoryTaxonomy,
     /// ```text
@@ -123,6 +179,7 @@ pub struct App {
     ///   used is defined by the cattax field. If no cattax field is supplied
     ///   IAB Content Category Taxonomy 1.0 is assumed.
     /// ```
+    #[serde(rename = "cat", skip_serializing_if = "is_nil_or_empty")]
     #[gojson(go = "Cat", json = "cat,omitempty")]
     pub cat: Option<Vec<String>>,
     /// ```text
@@ -135,6 +192,7 @@ pub struct App {
     ///   section of the app.
     ///   The taxonomy to be used is defined by the cattax field.
     /// ```
+    #[serde(rename = "sectioncat", skip_serializing_if = "is_nil_or_empty")]
     #[gojson(go = "SectionCat", json = "sectioncat,omitempty")]
     pub sectioncat: Option<Vec<String>>,
     /// ```text
@@ -147,6 +205,7 @@ pub struct App {
     ///   or view of the app.
     ///   The taxonomy to be used is defined by the cattax field.
     /// ```
+    #[serde(rename = "pagecat", skip_serializing_if = "is_nil_or_empty")]
     #[gojson(go = "PageCat", json = "pagecat,omitempty")]
     pub pagecat: Option<Vec<String>>,
     /// ```text
@@ -157,6 +216,11 @@ pub struct App {
     /// Description:
     ///   Application version.
     /// ```
+    #[serde(
+        rename = "ver",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Ver", json = "ver,omitempty")]
     pub ver: String,
     /// ```text
@@ -167,6 +231,7 @@ pub struct App {
     /// Description:
     ///   Indicates if the app has a privacy policy, where 0 = no, 1 = yes.
     /// ```
+    #[serde(rename = "privacypolicy", skip_serializing_if = "Option::is_none")]
     #[gojson(go = "PrivacyPolicy", json = "privacypolicy,omitempty")]
     pub privacypolicy: Option<i8>,
     /// ```text
@@ -177,6 +242,7 @@ pub struct App {
     /// Description:
     ///   0 = app is free, 1 = the app is a paid version.
     /// ```
+    #[serde(rename = "paid", skip_serializing_if = "Option::is_none")]
     #[gojson(go = "Paid", json = "paid,omitempty")]
     pub paid: Option<i8>,
     /// ```text
@@ -187,6 +253,7 @@ pub struct App {
     /// Description:
     ///   Details about the Publisher (Section 3.2.15) of the app.
     /// ```
+    #[serde(rename = "publisher", skip_serializing_if = "Option::is_none")]
     #[gojson(go = "Publisher", json = "publisher,omitempty")]
     pub publisher: Option<Box<Publisher>>,
     /// ```text
@@ -197,6 +264,7 @@ pub struct App {
     /// Description:
     ///   Details about the Content (Section 3.2.16) within the app
     /// ```
+    #[serde(rename = "content", skip_serializing_if = "Option::is_none")]
     #[gojson(go = "Content", json = "content,omitempty")]
     pub content: Option<Box<Content>>,
     /// ```text
@@ -208,6 +276,11 @@ pub struct App {
     ///   Comma separated list of keywords about the app. Only one of
     ///   ‘keywords’ or ‘kwarray’ may be present.
     /// ```
+    #[serde(
+        rename = "keywords",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Keywords", json = "keywords,omitempty")]
     pub keywords: String,
     /// ```text
@@ -219,6 +292,7 @@ pub struct App {
     ///   Array of keywords about the site. Only one of ‘keywords’ or
     ///   ‘kwarray’ may be present.
     /// ```
+    #[serde(rename = "kwarray", skip_serializing_if = "is_nil_or_empty")]
     #[gojson(go = "KwArray", json = "kwarray,omitempty")]
     pub kwarray: Option<Vec<String>>,
     /// ```text
@@ -236,6 +310,11 @@ pub struct App {
     ///   supply from the inventorypartnerdomain will be published in the ads.txt
     ///   file on the root of that domain. Refer to the ads.txt 1.1 spec for more details.
     /// ```
+    #[serde(
+        rename = "inventorypartnerdomain",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(
         go = "InventoryPartnerDomain",
         json = "inventorypartnerdomain,omitempty"
@@ -249,8 +328,47 @@ pub struct App {
     /// Description:
     ///   Placeholder for exchange-specific extensions to OpenRTB.
     /// ```
+    #[serde(
+        rename = "ext",
+        skip_serializing_if = "gojson_bridge::raw_json::is_empty",
+        with = "gojson_bridge::raw_json"
+    )]
     #[gojson(go = "Ext", json = "ext,omitempty")]
     pub ext: RawJson,
+}
+
+impl MergeClone for App {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb2.App";
+        merge_struct(patch, |key, value| match key {
+            "id" => merge_field(&mut self.id, value, GO_TYPE, "ID"),
+            "name" => merge_field(&mut self.name, value, GO_TYPE, "Name"),
+            "bundle" => merge_field(&mut self.bundle, value, GO_TYPE, "Bundle"),
+            "domain" => merge_field(&mut self.domain, value, GO_TYPE, "Domain"),
+            "storeurl" => merge_field(&mut self.storeurl, value, GO_TYPE, "StoreURL"),
+            "cattax" => merge_field(&mut self.cattax, value, GO_TYPE, "CatTax"),
+            "cat" => merge_field(&mut self.cat, value, GO_TYPE, "Cat"),
+            "sectioncat" => merge_field(&mut self.sectioncat, value, GO_TYPE, "SectionCat"),
+            "pagecat" => merge_field(&mut self.pagecat, value, GO_TYPE, "PageCat"),
+            "ver" => merge_field(&mut self.ver, value, GO_TYPE, "Ver"),
+            "privacypolicy" => {
+                merge_field(&mut self.privacypolicy, value, GO_TYPE, "PrivacyPolicy")
+            }
+            "paid" => merge_field(&mut self.paid, value, GO_TYPE, "Paid"),
+            "publisher" => merge_field(&mut self.publisher, value, GO_TYPE, "Publisher"),
+            "content" => merge_field(&mut self.content, value, GO_TYPE, "Content"),
+            "keywords" => merge_field(&mut self.keywords, value, GO_TYPE, "Keywords"),
+            "kwarray" => merge_field(&mut self.kwarray, value, GO_TYPE, "KwArray"),
+            "inventorypartnerdomain" => merge_field(
+                &mut self.inventorypartnerdomain,
+                value,
+                GO_TYPE,
+                "InventoryPartnerDomain",
+            ),
+            "ext" => gojson_bridge::merge_field(&mut self.ext, value, GO_TYPE, "Ext"),
+            _ => Ok(()),
+        })
+    }
 }
 
 /// ```text
@@ -269,7 +387,8 @@ pub struct App {
 /// native by also including as Imp subordinates objects of those types.
 /// However, any given bid for the impression must conform to one of the offered types.
 /// ```
-#[derive(Clone, Debug, Default, PartialEq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb2.Audio")]
 pub struct Audio {
     /// ```text
@@ -280,6 +399,7 @@ pub struct Audio {
     /// Description:
     ///   Content MIME types supported (e.g., “audio/mp4”).
     /// ```
+    #[serde(rename = "mimes")]
     #[gojson(go = "MIMEs", json = "mimes")]
     pub mimes: Option<Vec<String>>,
     /// ```text
@@ -290,6 +410,11 @@ pub struct Audio {
     /// Description:
     ///   Minimum audio ad duration in seconds.
     /// ```
+    #[serde(
+        rename = "minduration",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "MinDuration", json = "minduration,omitempty")]
     pub minduration: i64,
     /// ```text
@@ -300,6 +425,11 @@ pub struct Audio {
     /// Description:
     ///   Maximum audio ad duration in seconds.
     /// ```
+    #[serde(
+        rename = "maxduration",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "MaxDuration", json = "maxduration,omitempty")]
     pub maxduration: i64,
     /// ```text
@@ -315,6 +445,11 @@ pub struct Audio {
     ///   break, whereas minduration/maxduration/rqddurs are
     ///   constraints relating to the slots that make up the pod.
     /// ```
+    #[serde(
+        rename = "poddur",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "PodDur", json = "poddur,omitempty")]
     pub poddur: i64,
     /// ```text
@@ -328,6 +463,7 @@ pub struct Audio {
     /// Note:
     ///   OpenRTB <=2.5 defined only protocols 1..10.
     /// ```
+    #[serde(rename = "protocols", skip_serializing_if = "is_nil_or_empty")]
     #[gojson(go = "Protocols", json = "protocols,omitempty")]
     pub protocols: Option<Vec<adcom1::MediaCreativeSubtype>>,
     /// ```text
@@ -340,6 +476,7 @@ pub struct Audio {
     ///   post-roll ad placements. Refer to List: Start Delay Modes in
     ///   AdCOM 1.0.
     /// ```
+    #[serde(rename = "startdelay", skip_serializing_if = "Option::is_none")]
     #[gojson(go = "StartDelay", json = "startdelay,omitempty")]
     pub startdelay: Option<adcom1::StartDelay>,
     /// ```text
@@ -355,6 +492,7 @@ pub struct Audio {
     ///   maxduration; if rqddurs is specified, minduration and
     ///   maxduration must not be specified and vice versa.
     /// ```
+    #[serde(rename = "rqddurs", skip_serializing_if = "is_nil_or_empty")]
     #[gojson(go = "RqdDurs", json = "rqddurs,omitempty")]
     pub rqddurs: Option<Vec<i64>>,
     /// ```text
@@ -369,6 +507,11 @@ pub struct Audio {
     ///   those impression opportunities belong to the same audio ad
     ///   pod.
     /// ```
+    #[serde(
+        rename = "podid",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "PodID", json = "podid,omitempty")]
     pub podid: String,
     /// ```text
@@ -381,6 +524,11 @@ pub struct Audio {
     ///   content stream. Refer to List: Pod Sequence in AdCOM 1.0
     ///   for guidance on the use of this field.
     /// ```
+    #[serde(
+        rename = "podseq",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "PodSeq", json = "podseq,omitempty")]
     pub podseq: adcom1::PodSequence,
     /// ```text
@@ -393,6 +541,11 @@ pub struct Audio {
     ///   the sequence number will allow for the coordinated delivery
     ///   of multiple creatives.
     /// ```
+    #[serde(
+        rename = "sequence",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Sequence", json = "sequence,omitempty")]
     pub sequence: i64,
     /// ```text
@@ -406,6 +559,11 @@ pub struct Audio {
     ///   List: Slot Position in Pod in AdCOM 1.0 for guidance on the
     ///   use of this field.
     /// ```
+    #[serde(
+        rename = "slotinpod",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "SlotInPod", json = "slotinpod,omitempty")]
     pub slotinpod: adcom1::SlotPositionInPod,
     /// ```text
@@ -418,6 +576,11 @@ pub struct Audio {
     ///   "dynamic" portion of an audio ad pod, relative to the duration
     ///   of bids an advertiser may submit.
     /// ```
+    #[serde(
+        rename = "mincpmpersec",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "MinCPMPerSec", json = "mincpmpersec,omitempty")]
     pub mincpmpersec: f64,
     /// ```text
@@ -431,6 +594,7 @@ pub struct Audio {
     /// Note:
     ///   OpenRTB <=2.5 defined only attributes with IDs 1..17.
     /// ```
+    #[serde(rename = "battr", skip_serializing_if = "is_nil_or_empty")]
     #[gojson(go = "BAttr", json = "battr,omitempty")]
     pub battr: Option<Vec<adcom1::CreativeAttribute>>,
     /// ```text
@@ -445,6 +609,11 @@ pub struct Audio {
     ///   then the value represents the number of seconds of extended
     ///   play supported beyond the maxduration value.
     /// ```
+    #[serde(
+        rename = "maxextended",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "MaxExtended", json = "maxextended,omitempty")]
     pub maxextended: i64,
     /// ```text
@@ -455,6 +624,11 @@ pub struct Audio {
     /// Description:
     ///   Minimum bit rate in Kbps (kilobits per second).
     /// ```
+    #[serde(
+        rename = "minbitrate",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "MinBitrate", json = "minbitrate,omitempty")]
     pub minbitrate: i64,
     /// ```text
@@ -465,6 +639,11 @@ pub struct Audio {
     /// Description:
     ///   Maximum bit rate in Kbps (kilobits per second).
     /// ```
+    #[serde(
+        rename = "maxbitrate",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "MaxBitrate", json = "maxbitrate,omitempty")]
     pub maxbitrate: i64,
     /// ```text
@@ -477,6 +656,7 @@ pub struct Audio {
     ///   none specified, assume all are supported. Refer to List: Delivery
     ///   Methods in AdCOM 1.0.
     /// ```
+    #[serde(rename = "delivery", skip_serializing_if = "is_nil_or_empty")]
     #[gojson(go = "Delivery", json = "delivery,omitempty")]
     pub delivery: Option<Vec<adcom1::DeliveryMethod>>,
     /// ```text
@@ -488,6 +668,7 @@ pub struct Audio {
     ///   Array of Banner objects (Section 3.2.6) if companion ads are
     ///   available.
     /// ```
+    #[serde(rename = "companionad", skip_serializing_if = "is_nil_or_empty")]
     #[gojson(go = "CompanionAd", json = "companionad,omitempty")]
     pub companionad: Option<Vec<Banner>>,
     /// ```text
@@ -502,6 +683,7 @@ pub struct Audio {
     /// Note:
     ///   OpenRTB <=2.5 defined only frameworks 1..6.
     /// ```
+    #[serde(rename = "api", skip_serializing_if = "is_nil_or_empty")]
     #[gojson(go = "API", json = "api,omitempty")]
     pub api: Option<Vec<adcom1::APIFramework>>,
     /// ```text
@@ -514,6 +696,7 @@ pub struct Audio {
     ///   Types in AdCOM 1.0. Recommended if companion Banner
     ///   objects are included via the companionad array.
     /// ```
+    #[serde(rename = "companiontype", skip_serializing_if = "is_nil_or_empty")]
     #[gojson(go = "CompanionType", json = "companiontype,omitempty")]
     pub companiontype: Option<Vec<adcom1::CompanionType>>,
     /// ```text
@@ -524,6 +707,11 @@ pub struct Audio {
     /// Description:
     ///   The maximum number of ads that can be played in an ad pod.
     /// ```
+    #[serde(
+        rename = "maxseq",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "MaxSeq", json = "maxseq,omitempty")]
     pub maxseq: i64,
     /// ```text
@@ -534,6 +722,11 @@ pub struct Audio {
     /// Description:
     ///   Type of audio feed. Refer to List: Feed Types in AdCOM 1.0.
     /// ```
+    #[serde(
+        rename = "feed",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Feed", json = "feed,omitempty")]
     pub feed: adcom1::FeedType,
     /// ```text
@@ -545,6 +738,7 @@ pub struct Audio {
     ///   Indicates if the ad is stitched with audio content or delivered
     ///   independently, where 0 = no, 1 = yes.
     /// ```
+    #[serde(rename = "stitched", skip_serializing_if = "Option::is_none")]
     #[gojson(go = "Stitched", json = "stitched,omitempty")]
     pub stitched: Option<i8>,
     /// ```text
@@ -556,6 +750,7 @@ pub struct Audio {
     ///   Volume normalization mode. Refer to List: Volume
     ///   Normalization Modes in AdCOM 1.0.
     /// ```
+    #[serde(rename = "nvol", skip_serializing_if = "Option::is_none")]
     #[gojson(go = "NVol", json = "nvol,omitempty")]
     pub nvol: Option<adcom1::VolumeNormalizationMode>,
     /// ```text
@@ -567,6 +762,7 @@ pub struct Audio {
     ///   An array of DurFloors objects (Section 3.2.35) indicating the floor
     ///   prices for video creatives of various durations that the buyer may bid with.
     /// ```
+    #[serde(rename = "durfloors", skip_serializing_if = "is_nil_or_empty")]
     #[gojson(go = "DurFloors", json = "durfloors,omitempty")]
     pub durfloors: Option<Vec<DurFloors>>,
     /// ```text
@@ -577,8 +773,50 @@ pub struct Audio {
     /// Description:
     ///   Placeholder for exchange-specific extensions to OpenRTB.
     /// ```
+    #[serde(
+        rename = "ext",
+        skip_serializing_if = "gojson_bridge::raw_json::is_empty",
+        with = "gojson_bridge::raw_json"
+    )]
     #[gojson(go = "Ext", json = "ext,omitempty")]
     pub ext: RawJson,
+}
+
+impl MergeClone for Audio {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb2.Audio";
+        merge_struct(patch, |key, value| match key {
+            "mimes" => merge_field(&mut self.mimes, value, GO_TYPE, "MIMEs"),
+            "minduration" => merge_field(&mut self.minduration, value, GO_TYPE, "MinDuration"),
+            "maxduration" => merge_field(&mut self.maxduration, value, GO_TYPE, "MaxDuration"),
+            "poddur" => merge_field(&mut self.poddur, value, GO_TYPE, "PodDur"),
+            "protocols" => merge_field(&mut self.protocols, value, GO_TYPE, "Protocols"),
+            "startdelay" => merge_field(&mut self.startdelay, value, GO_TYPE, "StartDelay"),
+            "rqddurs" => merge_field(&mut self.rqddurs, value, GO_TYPE, "RqdDurs"),
+            "podid" => merge_field(&mut self.podid, value, GO_TYPE, "PodID"),
+            "podseq" => merge_field(&mut self.podseq, value, GO_TYPE, "PodSeq"),
+            "sequence" => merge_field(&mut self.sequence, value, GO_TYPE, "Sequence"),
+            "slotinpod" => merge_field(&mut self.slotinpod, value, GO_TYPE, "SlotInPod"),
+            "mincpmpersec" => merge_field(&mut self.mincpmpersec, value, GO_TYPE, "MinCPMPerSec"),
+            "battr" => merge_field(&mut self.battr, value, GO_TYPE, "BAttr"),
+            "maxextended" => merge_field(&mut self.maxextended, value, GO_TYPE, "MaxExtended"),
+            "minbitrate" => merge_field(&mut self.minbitrate, value, GO_TYPE, "MinBitrate"),
+            "maxbitrate" => merge_field(&mut self.maxbitrate, value, GO_TYPE, "MaxBitrate"),
+            "delivery" => merge_field(&mut self.delivery, value, GO_TYPE, "Delivery"),
+            "companionad" => merge_field(&mut self.companionad, value, GO_TYPE, "CompanionAd"),
+            "api" => merge_field(&mut self.api, value, GO_TYPE, "API"),
+            "companiontype" => {
+                merge_field(&mut self.companiontype, value, GO_TYPE, "CompanionType")
+            }
+            "maxseq" => merge_field(&mut self.maxseq, value, GO_TYPE, "MaxSeq"),
+            "feed" => merge_field(&mut self.feed, value, GO_TYPE, "Feed"),
+            "stitched" => merge_field(&mut self.stitched, value, GO_TYPE, "Stitched"),
+            "nvol" => merge_field(&mut self.nvol, value, GO_TYPE, "NVol"),
+            "durfloors" => merge_field(&mut self.durfloors, value, GO_TYPE, "DurFloors"),
+            "ext" => gojson_bridge::merge_field(&mut self.ext, value, GO_TYPE, "Ext"),
+            _ => Ok(()),
+        })
+    }
 }
 
 /// ```text
@@ -597,7 +835,8 @@ pub struct Audio {
 /// native by also including as Imp subordinates objects of those types.
 /// However, any given bid for the impression must conform to one of the offered types.
 /// ```
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb2.Banner")]
 pub struct Banner {
     /// ```text
@@ -610,6 +849,7 @@ pub struct Banner {
     ///   banner sizes permitted. If none are specified, then use of the
     ///   h and w attributes is highly recommended.
     /// ```
+    #[serde(rename = "format", skip_serializing_if = "is_nil_or_empty")]
     #[gojson(go = "Format", json = "format,omitempty")]
     pub format: Option<Vec<Format>>,
     /// ```text
@@ -621,6 +861,7 @@ pub struct Banner {
     ///   Exact width in device independent pixels (DIPS);
     ///   recommended if no format objects are specified.
     /// ```
+    #[serde(rename = "w", skip_serializing_if = "Option::is_none")]
     #[gojson(go = "W", json = "w,omitempty")]
     pub w: Option<i64>,
     /// ```text
@@ -632,6 +873,7 @@ pub struct Banner {
     ///   Exact height in device independent pixels (DIPS);
     ///   recommended if no format objects are specified.
     /// ```
+    #[serde(rename = "h", skip_serializing_if = "Option::is_none")]
     #[gojson(go = "H", json = "h,omitempty")]
     pub h: Option<i64>,
     /// ```text
@@ -643,6 +885,11 @@ pub struct Banner {
     ///   NOTE: Deprecated in favor of the format array.
     ///   Maximum width in device independent pixels (DIPS).
     /// ```
+    #[serde(
+        rename = "wmax",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "WMax", json = "wmax,omitempty")]
     pub wmax: i64,
     /// ```text
@@ -654,6 +901,11 @@ pub struct Banner {
     ///   NOTE: Deprecated in favor of the format array.
     ///   Maximum height in device independent pixels (DIPS).
     /// ```
+    #[serde(
+        rename = "hmax",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "HMax", json = "hmax,omitempty")]
     pub hmax: i64,
     /// ```text
@@ -665,6 +917,11 @@ pub struct Banner {
     ///   NOTE: Deprecated in favor of the format array.
     ///   Minimum width in device independent pixels (DIPS).
     /// ```
+    #[serde(
+        rename = "wmin",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "WMin", json = "wmin,omitempty")]
     pub wmin: i64,
     /// ```text
@@ -676,6 +933,11 @@ pub struct Banner {
     ///   NOTE: Deprecated in favor of the format array.
     ///   Minimum height in device independent pixels (DIPS).
     /// ```
+    #[serde(
+        rename = "hmin",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "HMin", json = "hmin,omitempty")]
     pub hmin: i64,
     /// ```text
@@ -687,6 +949,7 @@ pub struct Banner {
     ///   Blocked banner ad types.
     ///   Refer to BannerAdType constants.
     /// ```
+    #[serde(rename = "btype", skip_serializing_if = "is_nil_or_empty")]
     #[gojson(go = "BType", json = "btype,omitempty")]
     pub btype: Option<Vec<BannerAdType>>,
     /// ```text
@@ -699,6 +962,7 @@ pub struct Banner {
     /// Note:
     ///   OpenRTB <=2.5 defined only attributes with IDs 1..17.
     /// ```
+    #[serde(rename = "battr", skip_serializing_if = "is_nil_or_empty")]
     #[gojson(go = "BAttr", json = "battr,omitempty")]
     pub battr: Option<Vec<adcom1::CreativeAttribute>>,
     /// ```text
@@ -709,6 +973,7 @@ pub struct Banner {
     /// Description:
     ///   Ad position on screen. Refer to List: Placement Positions in AdCOM 1.0.
     /// ```
+    #[serde(rename = "pos", skip_serializing_if = "Option::is_none")]
     #[gojson(go = "Pos", json = "pos,omitempty")]
     pub pos: Option<adcom1::PlacementPosition>,
     /// ```text
@@ -720,6 +985,7 @@ pub struct Banner {
     ///   Content MIME types supported. Popular MIME types may include,
     ///   "image/jpeg" and "image/gif".
     /// ```
+    #[serde(rename = "mimes", skip_serializing_if = "is_nil_or_empty")]
     #[gojson(go = "MIMEs", json = "mimes,omitempty")]
     pub mimes: Option<Vec<String>>,
     /// ```text
@@ -731,6 +997,11 @@ pub struct Banner {
     ///   Indicates if the banner is in the top frame as opposed to an
     ///   iframe, where 0 = no, 1 = yes.
     /// ```
+    #[serde(
+        rename = "topframe",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "TopFrame", json = "topframe,omitempty")]
     pub topframe: i8,
     /// ```text
@@ -744,6 +1015,7 @@ pub struct Banner {
     /// Note:
     ///   OpenRTB <=2.5 defined only directions 1..5.
     /// ```
+    #[serde(rename = "expdir", skip_serializing_if = "is_nil_or_empty")]
     #[gojson(go = "ExpDir", json = "expdir,omitempty")]
     pub expdir: Option<Vec<adcom1::ExpandableDirection>>,
     /// ```text
@@ -758,6 +1030,7 @@ pub struct Banner {
     /// Note:
     ///   OpenRTB <=2.5 defined only frameworks 1..6.
     /// ```
+    #[serde(rename = "api", skip_serializing_if = "is_nil_or_empty")]
     #[gojson(go = "API", json = "api,omitempty")]
     pub api: Option<Vec<adcom1::APIFramework>>,
     /// ```text
@@ -772,6 +1045,11 @@ pub struct Banner {
     ///   and increase with each object; should be unique within an
     ///   impression.
     /// ```
+    #[serde(
+        rename = "id",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "ID", json = "id,omitempty")]
     pub id: String,
     /// ```text
@@ -785,6 +1063,7 @@ pub struct Banner {
     ///   companion banner rendering mode relative to the associated
     ///   video, where 0 = concurrent, 1 = end-card.
     /// ```
+    #[serde(rename = "vcm", skip_serializing_if = "Option::is_none")]
     #[gojson(go = "Vcm", json = "vcm,omitempty")]
     pub vcm: Option<i8>,
     /// ```text
@@ -795,16 +1074,67 @@ pub struct Banner {
     /// Description:
     ///   Placeholder for exchange-specific extensions to OpenRTB.
     /// ```
+    #[serde(
+        rename = "ext",
+        skip_serializing_if = "gojson_bridge::raw_json::is_empty",
+        with = "gojson_bridge::raw_json"
+    )]
     #[gojson(go = "Ext", json = "ext,omitempty")]
     pub ext: RawJson,
+}
+
+impl MergeClone for Banner {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb2.Banner";
+        merge_struct(patch, |key, value| match key {
+            "format" => merge_field(&mut self.format, value, GO_TYPE, "Format"),
+            "w" => merge_field(&mut self.w, value, GO_TYPE, "W"),
+            "h" => merge_field(&mut self.h, value, GO_TYPE, "H"),
+            "wmax" => merge_field(&mut self.wmax, value, GO_TYPE, "WMax"),
+            "hmax" => merge_field(&mut self.hmax, value, GO_TYPE, "HMax"),
+            "wmin" => merge_field(&mut self.wmin, value, GO_TYPE, "WMin"),
+            "hmin" => merge_field(&mut self.hmin, value, GO_TYPE, "HMin"),
+            "btype" => merge_field(&mut self.btype, value, GO_TYPE, "BType"),
+            "battr" => merge_field(&mut self.battr, value, GO_TYPE, "BAttr"),
+            "pos" => merge_field(&mut self.pos, value, GO_TYPE, "Pos"),
+            "mimes" => merge_field(&mut self.mimes, value, GO_TYPE, "MIMEs"),
+            "topframe" => merge_field(&mut self.topframe, value, GO_TYPE, "TopFrame"),
+            "expdir" => merge_field(&mut self.expdir, value, GO_TYPE, "ExpDir"),
+            "api" => merge_field(&mut self.api, value, GO_TYPE, "API"),
+            "id" => merge_field(&mut self.id, value, GO_TYPE, "ID"),
+            "vcm" => merge_field(&mut self.vcm, value, GO_TYPE, "Vcm"),
+            "ext" => gojson_bridge::merge_field(&mut self.ext, value, GO_TYPE, "Ext"),
+            _ => Ok(()),
+        })
+    }
 }
 
 /// `BannerAdType`
 ///
 /// Types of ads that can be accepted by the exchange unless restricted by publisher site settings.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash, GoJson)]
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    Serialize,
+    Deserialize,
+    GoJson,
+)]
+#[serde(transparent)]
 #[gojson(go_type = "openrtb2.BannerAdType", map_key)]
 pub struct BannerAdType(pub i8);
+
+impl MergeClone for BannerAdType {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        self.0.merge_clone(patch)
+    }
+}
 
 /// XHTML Text Ad (usually mobile)
 #[doc(alias = "BannerAdTypeXHTMLTextAd")]
@@ -862,7 +1192,8 @@ pub const BANNER_AD_TYPE_IFRAME: BannerAdType = BannerAdType(4);
 /// If the bid pertains to a private marketplace deal, the dealid attribute is used to reference
 /// that agreement from the bid request.
 /// ```
-#[derive(Clone, Debug, Default, PartialEq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb2.Bid")]
 pub struct Bid {
     /// ```text
@@ -873,6 +1204,7 @@ pub struct Bid {
     /// Description:
     ///   Bidder generated bid ID to assist with logging/tracking.
     /// ```
+    #[serde(rename = "id", deserialize_with = "null_default")]
     #[gojson(go = "ID", json = "id")]
     pub id: String,
     /// ```text
@@ -883,6 +1215,7 @@ pub struct Bid {
     /// Description:
     ///   ID of the Imp object in the related bid request.
     /// ```
+    #[serde(rename = "impid", deserialize_with = "null_default")]
     #[gojson(go = "ImpID", json = "impid")]
     pub impid: String,
     /// ```text
@@ -896,6 +1229,7 @@ pub struct Bid {
     ///   float, integer math is highly recommended when handling
     ///   currencies (e.g., BigDecimal in Java).
     /// ```
+    #[serde(rename = "price", deserialize_with = "null_default")]
     #[gojson(go = "Price", json = "price")]
     pub price: f64,
     /// ```text
@@ -910,6 +1244,11 @@ pub struct Bid {
     ///   (Section 4.4) may be included in both the URL and optionally
     ///   returned markup.
     /// ```
+    #[serde(
+        rename = "nurl",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "NURL", json = "nurl,omitempty")]
     pub nurl: String,
     /// ```text
@@ -923,6 +1262,11 @@ pub struct Bid {
     ///   (e.g., typically delivered, viewed, etc.). Substitution macros
     ///   (Section 4.4) may be included.
     /// ```
+    #[serde(
+        rename = "burl",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "BURL", json = "burl,omitempty")]
     pub burl: String,
     /// ```text
@@ -938,6 +1282,11 @@ pub struct Bid {
     ///   resulting in ${AUCTION_PRICE} macros being removed (i.e.,
     ///   replaced with a zero-length string).
     /// ```
+    #[serde(
+        rename = "lurl",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "LURL", json = "lurl,omitempty")]
     pub lurl: String,
     /// ```text
@@ -950,6 +1299,11 @@ pub struct Bid {
     ///   supersedes the win notice if markup is included in both.
     ///   Substitution macros (Section 4.4) may be included.
     /// ```
+    #[serde(
+        rename = "adm",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "AdM", json = "adm,omitempty")]
     pub adm: String,
     /// ```text
@@ -960,6 +1314,11 @@ pub struct Bid {
     /// Description:
     ///   ID of a preloaded ad to be served if the bid wins.
     /// ```
+    #[serde(
+        rename = "adid",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "AdID", json = "adid,omitempty")]
     pub adid: String,
     /// ```text
@@ -972,6 +1331,7 @@ pub struct Bid {
     ///   This can be an array of for the case of rotating creatives.
     ///   Exchanges can mandate that only one domain is allowed.
     /// ```
+    #[serde(rename = "adomain", skip_serializing_if = "is_nil_or_empty")]
     #[gojson(go = "ADomain", json = "adomain,omitempty")]
     pub adomain: Option<Vec<String>>,
     /// ```text
@@ -985,6 +1345,11 @@ pub struct Bid {
     ///   Android, this should be a bundle or package name (e.g.,
     ///   com.foo.mygame). On iOS, it is a numeric ID.
     /// ```
+    #[serde(
+        rename = "bundle",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Bundle", json = "bundle,omitempty")]
     pub bundle: String,
     /// ```text
@@ -996,6 +1361,11 @@ pub struct Bid {
     ///   URL without cache-busting to an image that is representative
     ///   of the content of the campaign for ad quality/safety checking.
     /// ```
+    #[serde(
+        rename = "iurl",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "IURL", json = "iurl,omitempty")]
     pub iurl: String,
     /// ```text
@@ -1007,6 +1377,11 @@ pub struct Bid {
     ///   Campaign ID to assist with ad quality checking; the collection
     ///   of creatives for which iurl should be representative.
     /// ```
+    #[serde(
+        rename = "cid",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "CID", json = "cid,omitempty")]
     pub cid: String,
     /// ```text
@@ -1017,6 +1392,11 @@ pub struct Bid {
     /// Description:
     ///   Creative ID to assist with ad quality checking
     /// ```
+    #[serde(
+        rename = "crid",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "CrID", json = "crid,omitempty")]
     pub crid: String,
     /// ```text
@@ -1030,6 +1410,11 @@ pub struct Bid {
     ///   The specific usage and meaning of the tactic ID should be
     ///   communicated between buyer and exchanges a priori.
     /// ```
+    #[serde(
+        rename = "tactic",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Tactic", json = "tactic,omitempty")]
     pub tactic: String,
     /// ```text
@@ -1041,6 +1426,11 @@ pub struct Bid {
     ///   The taxonomy in use. Refer to the AdCOM 1.0 list List: Category
     ///   Taxonomies for values.
     /// ```
+    #[serde(
+        rename = "cattax",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "CatTax", json = "cattax,omitempty")]
     pub cattax: adcom1::CategoryTaxonomy,
     /// ```text
@@ -1053,6 +1443,7 @@ pub struct Bid {
     ///   used is defined by the cattax field. If no cattax field is supplied
     ///   IAB Content Category Taxonomy 1.0 is assumed.
     /// ```
+    #[serde(rename = "cat", skip_serializing_if = "is_nil_or_empty")]
     #[gojson(go = "Cat", json = "cat,omitempty")]
     pub cat: Option<Vec<String>>,
     /// ```text
@@ -1066,6 +1457,7 @@ pub struct Bid {
     /// Note:
     ///   OpenRTB <=2.5 defined only attributes with IDs 1..17.
     /// ```
+    #[serde(rename = "attr", skip_serializing_if = "is_nil_or_empty")]
     #[gojson(go = "Attr", json = "attr,omitempty")]
     pub attr: Option<Vec<adcom1::CreativeAttribute>>,
     /// ```text
@@ -1078,6 +1470,7 @@ pub struct Bid {
     ///   listed, it is assumed to be unsupported. Refer to List: API
     ///   Frameworks in AdCOM 1.0.
     /// ```
+    #[serde(rename = "apis", skip_serializing_if = "is_nil_or_empty")]
     #[gojson(go = "APIs", json = "apis,omitempty")]
     pub apis: Option<Vec<adcom1::APIFramework>>,
     /// ```text
@@ -1092,6 +1485,11 @@ pub struct Bid {
     /// Note:
     ///   OpenRTB <=2.5 defined only frameworks 1..6.
     /// ```
+    #[serde(
+        rename = "api",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "API", json = "api,omitempty")]
     pub api: adcom1::APIFramework,
     /// ```text
@@ -1103,6 +1501,11 @@ pub struct Bid {
     ///   Video response protocol of the markup if applicable. Refer to
     ///   List: Creative Subtypes - Audio/Video in AdCOM 1.0.
     /// ```
+    #[serde(
+        rename = "protocol",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Protocol", json = "protocol,omitempty")]
     pub protocol: adcom1::MediaCreativeSubtype,
     /// ```text
@@ -1114,6 +1517,11 @@ pub struct Bid {
     ///   Media rating per IQG guidelines. Refer to List: Media Ratings in
     ///   AdCOM 1.0.
     /// ```
+    #[serde(
+        rename = "qagmediarating",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "QAGMediaRating", json = "qagmediarating,omitempty")]
     pub qagmediarating: adcom1::MediaRating,
     /// ```text
@@ -1127,6 +1535,11 @@ pub struct Bid {
     ///   linguistic content (e.g., a banner with just a company logo).
     ///   Only one of language or langb should be present.
     /// ```
+    #[serde(
+        rename = "language",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Language", json = "language,omitempty")]
     pub language: String,
     /// ```text
@@ -1138,6 +1551,11 @@ pub struct Bid {
     ///   Language of the creative using IETF BCP 47. Only one of
     ///   language or langb should be present
     /// ```
+    #[serde(
+        rename = "langb",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "LangB", json = "langb,omitempty")]
     pub langb: String,
     /// ```text
@@ -1149,6 +1567,11 @@ pub struct Bid {
     ///   Reference to the deal.id from the bid request if this bid
     ///   pertains to a private marketplace direct deal.
     /// ```
+    #[serde(
+        rename = "dealid",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "DealID", json = "dealid,omitempty")]
     pub dealid: String,
     /// ```text
@@ -1159,6 +1582,11 @@ pub struct Bid {
     /// Description:
     ///   Width of the creative in device independent pixels (DIPS).
     /// ```
+    #[serde(
+        rename = "w",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "W", json = "w,omitempty")]
     pub w: i64,
     /// ```text
@@ -1169,6 +1597,11 @@ pub struct Bid {
     /// Description:
     ///   Height of the creative in device independent pixels (DIPS).
     /// ```
+    #[serde(
+        rename = "h",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "H", json = "h,omitempty")]
     pub h: i64,
     /// ```text
@@ -1180,6 +1613,11 @@ pub struct Bid {
     ///   Relative width of the creative when expressing size as a ratio.
     ///   Required for Flex Ads.
     /// ```
+    #[serde(
+        rename = "wratio",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "WRatio", json = "wratio,omitempty")]
     pub wratio: i64,
     /// ```text
@@ -1191,6 +1629,11 @@ pub struct Bid {
     ///   Relative height of the creative when expressing size as a ratio.
     ///   Required for Flex Ads.
     /// ```
+    #[serde(
+        rename = "hratio",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "HRatio", json = "hratio,omitempty")]
     pub hratio: i64,
     /// ```text
@@ -1202,6 +1645,11 @@ pub struct Bid {
     ///   Advisory as to the number of seconds the bidder is willing to
     ///   wait between the auction and the actual impression.
     /// ```
+    #[serde(
+        rename = "exp",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Exp", json = "exp,omitempty")]
     pub exp: i64,
     /// ```text
@@ -1212,6 +1660,11 @@ pub struct Bid {
     /// Description:
     ///   Duration of the video or audio creative in seconds.
     /// ```
+    #[serde(
+        rename = "dur",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Dur", json = "dur,omitempty")]
     pub dur: i64,
     /// ```text
@@ -1228,6 +1681,11 @@ pub struct Bid {
     ///   3 = Audio
     ///   4 = Native
     /// ```
+    #[serde(
+        rename = "mtype",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "MType", json = "mtype,omitempty")]
     pub mtype: MarkupType,
     /// ```text
@@ -1241,6 +1699,11 @@ pub struct Bid {
     ///   last position, or any). Refer to List: Slot Position in Pod in
     ///   AdCOM 1.0 for guidance on the use of this field.
     /// ```
+    #[serde(
+        rename = "slotinpod",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "SlotInPod", json = "slotinpod,omitempty")]
     pub slotinpod: adcom1::SlotPositionInPod,
     /// ```text
@@ -1251,8 +1714,57 @@ pub struct Bid {
     /// Description:
     ///   Placeholder for bidder-specific extensions to OpenRTB
     /// ```
+    #[serde(
+        rename = "ext",
+        skip_serializing_if = "gojson_bridge::raw_json::is_empty",
+        with = "gojson_bridge::raw_json"
+    )]
     #[gojson(go = "Ext", json = "ext,omitempty")]
     pub ext: RawJson,
+}
+
+impl MergeClone for Bid {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb2.Bid";
+        merge_struct(patch, |key, value| match key {
+            "id" => merge_field(&mut self.id, value, GO_TYPE, "ID"),
+            "impid" => merge_field(&mut self.impid, value, GO_TYPE, "ImpID"),
+            "price" => merge_field(&mut self.price, value, GO_TYPE, "Price"),
+            "nurl" => merge_field(&mut self.nurl, value, GO_TYPE, "NURL"),
+            "burl" => merge_field(&mut self.burl, value, GO_TYPE, "BURL"),
+            "lurl" => merge_field(&mut self.lurl, value, GO_TYPE, "LURL"),
+            "adm" => merge_field(&mut self.adm, value, GO_TYPE, "AdM"),
+            "adid" => merge_field(&mut self.adid, value, GO_TYPE, "AdID"),
+            "adomain" => merge_field(&mut self.adomain, value, GO_TYPE, "ADomain"),
+            "bundle" => merge_field(&mut self.bundle, value, GO_TYPE, "Bundle"),
+            "iurl" => merge_field(&mut self.iurl, value, GO_TYPE, "IURL"),
+            "cid" => merge_field(&mut self.cid, value, GO_TYPE, "CID"),
+            "crid" => merge_field(&mut self.crid, value, GO_TYPE, "CrID"),
+            "tactic" => merge_field(&mut self.tactic, value, GO_TYPE, "Tactic"),
+            "cattax" => merge_field(&mut self.cattax, value, GO_TYPE, "CatTax"),
+            "cat" => merge_field(&mut self.cat, value, GO_TYPE, "Cat"),
+            "attr" => merge_field(&mut self.attr, value, GO_TYPE, "Attr"),
+            "apis" => merge_field(&mut self.apis, value, GO_TYPE, "APIs"),
+            "api" => merge_field(&mut self.api, value, GO_TYPE, "API"),
+            "protocol" => merge_field(&mut self.protocol, value, GO_TYPE, "Protocol"),
+            "qagmediarating" => {
+                merge_field(&mut self.qagmediarating, value, GO_TYPE, "QAGMediaRating")
+            }
+            "language" => merge_field(&mut self.language, value, GO_TYPE, "Language"),
+            "langb" => merge_field(&mut self.langb, value, GO_TYPE, "LangB"),
+            "dealid" => merge_field(&mut self.dealid, value, GO_TYPE, "DealID"),
+            "w" => merge_field(&mut self.w, value, GO_TYPE, "W"),
+            "h" => merge_field(&mut self.h, value, GO_TYPE, "H"),
+            "wratio" => merge_field(&mut self.wratio, value, GO_TYPE, "WRatio"),
+            "hratio" => merge_field(&mut self.hratio, value, GO_TYPE, "HRatio"),
+            "exp" => merge_field(&mut self.exp, value, GO_TYPE, "Exp"),
+            "dur" => merge_field(&mut self.dur, value, GO_TYPE, "Dur"),
+            "mtype" => merge_field(&mut self.mtype, value, GO_TYPE, "MType"),
+            "slotinpod" => merge_field(&mut self.slotinpod, value, GO_TYPE, "SlotInPod"),
+            "ext" => gojson_bridge::merge_field(&mut self.ext, value, GO_TYPE, "Ext"),
+            _ => Ok(()),
+        })
+    }
 }
 
 /// ```text
@@ -1269,7 +1781,8 @@ pub struct Bid {
 /// These objects are highly recommended, but only one applies to a given bid request depending on
 /// whether the media is browser-based web content or a non-browser application, respectively.
 /// ```
-#[derive(Clone, Debug, Default, PartialEq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb2.BidRequest")]
 pub struct BidRequest {
     /// ```text
@@ -1282,6 +1795,7 @@ pub struct BidRequest {
     ///   exchange’s subsequent tracking of the responses. The exchange may use
     ///   different values for different recipients.
     /// ```
+    #[serde(rename = "id", deserialize_with = "null_default")]
     #[gojson(go = "ID", json = "id")]
     pub id: String,
     /// ```text
@@ -1293,6 +1807,7 @@ pub struct BidRequest {
     ///   Array of Imp objects (Section 3.2.4) representing the
     ///   impressions offered. At least 1 Imp object is required.
     /// ```
+    #[serde(rename = "imp")]
     #[gojson(go = "Imp", json = "imp")]
     pub imp: Option<Vec<Imp>>,
     /// ```text
@@ -1304,6 +1819,7 @@ pub struct BidRequest {
     ///    Details via a Site object (Section 3.2.13) about the publisher’s
     ///    website. Only applicable and recommended for websites.
     /// ```
+    #[serde(rename = "site", skip_serializing_if = "Option::is_none")]
     #[gojson(go = "Site", json = "site,omitempty")]
     pub site: Option<Box<Site>>,
     /// ```text
@@ -1316,6 +1832,7 @@ pub struct BidRequest {
     ///    app (i.e., non-browser applications). Only applicable and
     ///    recommended for apps.
     /// ```
+    #[serde(rename = "app", skip_serializing_if = "Option::is_none")]
     #[gojson(go = "App", json = "app,omitempty")]
     pub app: Option<Box<App>>,
     /// ```text
@@ -1328,6 +1845,7 @@ pub struct BidRequest {
     ///   Digital Out-Of-Home screen. A bid request with a DOOH object must
     ///   not contain a site or app object.
     /// ```
+    #[serde(rename = "dooh", skip_serializing_if = "Option::is_none")]
     #[gojson(go = "DOOH", json = "dooh,omitempty")]
     pub dooh: Option<Box<DOOH>>,
     /// ```text
@@ -1339,6 +1857,7 @@ pub struct BidRequest {
     ///   Details via a Device object (Section 3.2.18) about the user’s
     ///   device to which the impression will be delivered.
     /// ```
+    #[serde(rename = "device", skip_serializing_if = "Option::is_none")]
     #[gojson(go = "Device", json = "device,omitempty")]
     pub device: Option<Box<Device>>,
     /// ```text
@@ -1350,6 +1869,7 @@ pub struct BidRequest {
     ///    Details via a User object (Section 3.2.20) about the human
     ///    user of the device; the advertising audience.
     /// ```
+    #[serde(rename = "user", skip_serializing_if = "Option::is_none")]
     #[gojson(go = "User", json = "user,omitempty")]
     pub user: Option<Box<User>>,
     /// ```text
@@ -1361,6 +1881,11 @@ pub struct BidRequest {
     ///    Indicator of test mode in which auctions are not billable,
     ///    where 0 = live mode, 1 = test mode.
     /// ```
+    #[serde(
+        rename = "test",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Test", json = "test,omitempty")]
     pub test: i8,
     /// ```text
@@ -1373,6 +1898,11 @@ pub struct BidRequest {
     ///    Exchange-specific auction types can be defined using values
     ///    500 and greater.
     /// ```
+    #[serde(
+        rename = "at",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "AT", json = "at,omitempty")]
     pub at: i64,
     /// ```text
@@ -1385,6 +1915,11 @@ pub struct BidRequest {
     ///    be received including Internet latency to avoid timeout. This
     ///    value supersedes any a priori guidance from the exchange.
     /// ```
+    #[serde(
+        rename = "tmax",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "TMax", json = "tmax,omitempty")]
     pub tmax: i64,
     /// ```text
@@ -1400,6 +1935,7 @@ pub struct BidRequest {
     ///   most, only one of wseat and bseat should be used in the
     ///   same request. Omission of both implies no seat restrictions.
     /// ```
+    #[serde(rename = "wseat", skip_serializing_if = "is_nil_or_empty")]
     #[gojson(go = "WSeat", json = "wseat,omitempty")]
     pub wseat: Option<Vec<String>>,
     /// ```text
@@ -1415,6 +1951,7 @@ pub struct BidRequest {
     ///   most, only one of wseat and bseat should be used in the
     ///   same request. Omission of both implies no seat restrictions.
     /// ```
+    #[serde(rename = "bseat", skip_serializing_if = "is_nil_or_empty")]
     #[gojson(go = "BSeat", json = "bseat,omitempty")]
     pub bseat: Option<Vec<String>>,
     /// ```text
@@ -1429,6 +1966,11 @@ pub struct BidRequest {
     ///   roll) to support road-blocking. 0 = no or unknown, 1 = yes, the
     ///   impressions offered represent all that are available.
     /// ```
+    #[serde(
+        rename = "allimps",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "AllImps", json = "allimps,omitempty")]
     pub allimps: i8,
     /// ```text
@@ -1441,6 +1983,7 @@ pub struct BidRequest {
     ///   ISO-4217 alpha codes. Recommended only if the exchange
     ///   accepts multiple currencies.
     /// ```
+    #[serde(rename = "cur", skip_serializing_if = "is_nil_or_empty")]
     #[gojson(go = "Cur", json = "cur,omitempty")]
     pub cur: Option<Vec<String>>,
     /// ```text
@@ -1455,6 +1998,7 @@ pub struct BidRequest {
     ///   Content objects if available. Only one of wlang or wlangb
     ///   should be present.
     /// ```
+    #[serde(rename = "wlang", skip_serializing_if = "is_nil_or_empty")]
     #[gojson(go = "WLang", json = "wlang,omitempty")]
     pub wlang: Option<Vec<String>>,
     /// ```text
@@ -1469,6 +2013,7 @@ pub struct BidRequest {
     ///   Content objects if available. Only one of wlang or wlangb
     ///   should be present.
     /// ```
+    #[serde(rename = "wlangb", skip_serializing_if = "is_nil_or_empty")]
     #[gojson(go = "WLangB", json = "wlangb,omitempty")]
     pub wlangb: Option<Vec<String>>,
     /// ```text
@@ -1482,6 +2027,7 @@ pub struct BidRequest {
     ///   field is supplied IAB Content Taxonomy 1.0 is assumed. Only one of
     ///   acat or bcat should be present.
     /// ```
+    #[serde(rename = "acat", skip_serializing_if = "is_nil_or_empty")]
     #[gojson(go = "ACat", json = "acat,omitempty")]
     pub acat: Option<Vec<String>>,
     /// ```text
@@ -1496,6 +2042,7 @@ pub struct BidRequest {
     ///   cattax field is supplied IAB Content Category Taxonomy 1.0 is
     ///   assumed.  Only one of acat or bcat should be present.
     /// ```
+    #[serde(rename = "bcat", skip_serializing_if = "is_nil_or_empty")]
     #[gojson(go = "BCat", json = "bcat,omitempty")]
     pub bcat: Option<Vec<String>>,
     /// ```text
@@ -1507,6 +2054,11 @@ pub struct BidRequest {
     ///   The taxonomy in use for bcat. Refer to the AdCOM
     ///   1.0 list List: Category Taxonomies for values
     /// ```
+    #[serde(
+        rename = "cattax",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "CatTax", json = "cattax,omitempty")]
     pub cattax: adcom1::CategoryTaxonomy,
     /// ```text
@@ -1517,6 +2069,7 @@ pub struct BidRequest {
     /// Description:
     ///   Block list of advertisers by their domains (e.g., “ford.com”).
     /// ```
+    #[serde(rename = "badv", skip_serializing_if = "is_nil_or_empty")]
     #[gojson(go = "BAdv", json = "badv,omitempty")]
     pub badv: Option<Vec<String>>,
     /// ```text
@@ -1532,6 +2085,7 @@ pub struct BidRequest {
     ///   (e.g. com.foo.mygame). For apps in Apple App Store, these
     ///   should be a numeric ID.
     /// ```
+    #[serde(rename = "bapp", skip_serializing_if = "is_nil_or_empty")]
     #[gojson(go = "BApp", json = "bapp,omitempty")]
     pub bapp: Option<Vec<String>>,
     /// ```text
@@ -1543,6 +2097,7 @@ pub struct BidRequest {
     ///   A Sorce object (Section 3.2.2) that provides data about the
     ///   inventory source and which entity makes the final decision.
     /// ```
+    #[serde(rename = "source", skip_serializing_if = "Option::is_none")]
     #[gojson(go = "Source", json = "source,omitempty")]
     pub source: Option<Box<Source>>,
     /// ```text
@@ -1554,6 +2109,7 @@ pub struct BidRequest {
     ///   A Regs object (Section 3.2.3) that specifies any industry, legal,
     ///   or governmental regulations in force for this request.
     /// ```
+    #[serde(rename = "regs", skip_serializing_if = "Option::is_none")]
     #[gojson(go = "Regs", json = "regs,omitempty")]
     pub regs: Option<Box<Regs>>,
     /// ```text
@@ -1564,8 +2120,46 @@ pub struct BidRequest {
     /// Description:
     ///   Placeholder for exchange-specific extensions to OpenRTB.
     /// ```
+    #[serde(
+        rename = "ext",
+        skip_serializing_if = "gojson_bridge::raw_json::is_empty",
+        with = "gojson_bridge::raw_json"
+    )]
     #[gojson(go = "Ext", json = "ext,omitempty")]
     pub ext: RawJson,
+}
+
+impl MergeClone for BidRequest {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb2.BidRequest";
+        merge_struct(patch, |key, value| match key {
+            "id" => merge_field(&mut self.id, value, GO_TYPE, "ID"),
+            "imp" => merge_field(&mut self.imp, value, GO_TYPE, "Imp"),
+            "site" => merge_field(&mut self.site, value, GO_TYPE, "Site"),
+            "app" => merge_field(&mut self.app, value, GO_TYPE, "App"),
+            "dooh" => merge_field(&mut self.dooh, value, GO_TYPE, "DOOH"),
+            "device" => merge_field(&mut self.device, value, GO_TYPE, "Device"),
+            "user" => merge_field(&mut self.user, value, GO_TYPE, "User"),
+            "test" => merge_field(&mut self.test, value, GO_TYPE, "Test"),
+            "at" => merge_field(&mut self.at, value, GO_TYPE, "AT"),
+            "tmax" => merge_field(&mut self.tmax, value, GO_TYPE, "TMax"),
+            "wseat" => merge_field(&mut self.wseat, value, GO_TYPE, "WSeat"),
+            "bseat" => merge_field(&mut self.bseat, value, GO_TYPE, "BSeat"),
+            "allimps" => merge_field(&mut self.allimps, value, GO_TYPE, "AllImps"),
+            "cur" => merge_field(&mut self.cur, value, GO_TYPE, "Cur"),
+            "wlang" => merge_field(&mut self.wlang, value, GO_TYPE, "WLang"),
+            "wlangb" => merge_field(&mut self.wlangb, value, GO_TYPE, "WLangB"),
+            "acat" => merge_field(&mut self.acat, value, GO_TYPE, "ACat"),
+            "bcat" => merge_field(&mut self.bcat, value, GO_TYPE, "BCat"),
+            "cattax" => merge_field(&mut self.cattax, value, GO_TYPE, "CatTax"),
+            "badv" => merge_field(&mut self.badv, value, GO_TYPE, "BAdv"),
+            "bapp" => merge_field(&mut self.bapp, value, GO_TYPE, "BApp"),
+            "source" => merge_field(&mut self.source, value, GO_TYPE, "Source"),
+            "regs" => merge_field(&mut self.regs, value, GO_TYPE, "Regs"),
+            "ext" => gojson_bridge::merge_field(&mut self.ext, value, GO_TYPE, "Ext"),
+            _ => Ok(()),
+        })
+    }
 }
 
 /// ```text
@@ -1582,7 +2176,8 @@ pub struct BidRequest {
 /// Alternately if the bidder wishes to convey to the exchange a reason for not bidding, just a
 /// BidResponse object is returned with a reason code in the nbr attribute.
 /// ```
-#[derive(Clone, Debug, Default, PartialEq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb2.BidResponse")]
 pub struct BidResponse {
     /// ```text
@@ -1593,6 +2188,7 @@ pub struct BidResponse {
     /// Description:
     ///   ID of the bid request to which this is a response.
     /// ```
+    #[serde(rename = "id", deserialize_with = "null_default")]
     #[gojson(go = "ID", json = "id")]
     pub id: String,
     /// ```text
@@ -1603,6 +2199,7 @@ pub struct BidResponse {
     /// Description:
     ///   Array of seatbid objects; 1+ required if a bid is to be made.
     /// ```
+    #[serde(rename = "seatbid", skip_serializing_if = "is_nil_or_empty")]
     #[gojson(go = "SeatBid", json = "seatbid,omitempty")]
     pub seatbid: Option<Vec<SeatBid>>,
     /// ```text
@@ -1613,6 +2210,11 @@ pub struct BidResponse {
     /// Description:
     ///   Bidder generated response ID to assist with logging/tracking.
     /// ```
+    #[serde(
+        rename = "bidid",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "BidID", json = "bidid,omitempty")]
     pub bidid: String,
     /// ```text
@@ -1623,6 +2225,11 @@ pub struct BidResponse {
     /// Description:
     ///   Bid currency using ISO-4217 alpha codes.
     /// ```
+    #[serde(
+        rename = "cur",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Cur", json = "cur,omitempty")]
     pub cur: String,
     /// ```text
@@ -1636,6 +2243,11 @@ pub struct BidResponse {
     ///   characters and be in any format. Proper JSON encoding must
     ///   be used to include “escaped” quotation marks.
     /// ```
+    #[serde(
+        rename = "customdata",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "CustomData", json = "customdata,omitempty")]
     pub customdata: String,
     /// ```text
@@ -1649,6 +2261,7 @@ pub struct BidResponse {
     /// Note:
     ///   OpenRTB <=2.5 defined only reasons 0..10.
     /// ```
+    #[serde(rename = "nbr", skip_serializing_if = "Option::is_none")]
     #[gojson(go = "NBR", json = "nbr,omitempty")]
     pub nbr: Option<openrtb3::NoBidReason>,
     /// ```text
@@ -1659,8 +2272,29 @@ pub struct BidResponse {
     /// Description:
     ///   Placeholder for bidder-specific extensions to OpenRTB.
     /// ```
+    #[serde(
+        rename = "ext",
+        skip_serializing_if = "gojson_bridge::raw_json::is_empty",
+        with = "gojson_bridge::raw_json"
+    )]
     #[gojson(go = "Ext", json = "ext,omitempty")]
     pub ext: RawJson,
+}
+
+impl MergeClone for BidResponse {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb2.BidResponse";
+        merge_struct(patch, |key, value| match key {
+            "id" => merge_field(&mut self.id, value, GO_TYPE, "ID"),
+            "seatbid" => merge_field(&mut self.seatbid, value, GO_TYPE, "SeatBid"),
+            "bidid" => merge_field(&mut self.bidid, value, GO_TYPE, "BidID"),
+            "cur" => merge_field(&mut self.cur, value, GO_TYPE, "Cur"),
+            "customdata" => merge_field(&mut self.customdata, value, GO_TYPE, "CustomData"),
+            "nbr" => merge_field(&mut self.nbr, value, GO_TYPE, "NBR"),
+            "ext" => gojson_bridge::merge_field(&mut self.ext, value, GO_TYPE, "Ext"),
+            _ => Ok(()),
+        })
+    }
 }
 
 /// ```text
@@ -1670,7 +2304,8 @@ pub struct BidResponse {
 /// identify a device’s browser or similar software component, and the user agent’s execution
 /// platform or operating system.
 /// ```
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb2.BrandVersion")]
 pub struct BrandVersion {
     /// ```text
@@ -1684,6 +2319,7 @@ pub struct BrandVersion {
     ///   user agent brand (from the Sec-CH-UA-Full-Version header) or the platform
     ///   brand (from the Sec-CH-UA-Platform header).
     /// ```
+    #[serde(rename = "brand", deserialize_with = "null_default")]
     #[gojson(go = "Brand", json = "brand")]
     pub brand: String,
     /// ```text
@@ -1695,6 +2331,7 @@ pub struct BrandVersion {
     ///   A sequence of version components, in descending hierarchical order (major,
     ///   minor, micro, …)
     /// ```
+    #[serde(rename = "version", skip_serializing_if = "is_nil_or_empty")]
     #[gojson(go = "Version", json = "version,omitempty")]
     pub version: Option<Vec<String>>,
     /// ```text
@@ -1705,8 +2342,25 @@ pub struct BrandVersion {
     /// Description:
     ///   Placeholder for advertising-system specific extensions to this object.
     /// ```
+    #[serde(
+        rename = "ext",
+        skip_serializing_if = "gojson_bridge::raw_json::is_empty",
+        with = "gojson_bridge::raw_json"
+    )]
     #[gojson(go = "Ext", json = "ext,omitempty")]
     pub ext: RawJson,
+}
+
+impl MergeClone for BrandVersion {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb2.BrandVersion";
+        merge_struct(patch, |key, value| match key {
+            "brand" => merge_field(&mut self.brand, value, GO_TYPE, "Brand"),
+            "version" => merge_field(&mut self.version, value, GO_TYPE, "Version"),
+            "ext" => gojson_bridge::merge_field(&mut self.ext, value, GO_TYPE, "Ext"),
+            _ => Ok(()),
+        })
+    }
 }
 
 /// ```text
@@ -1721,7 +2375,8 @@ pub struct BrandVersion {
 /// purposes.
 /// See 7.6 for further examples.
 /// ```
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb2.Channel")]
 pub struct Channel {
     /// ```text
@@ -1733,6 +2388,11 @@ pub struct Channel {
     ///   A unique identifier assigned by the publisher. This may not be
     ///   a unique identifier across all supply sources.
     /// ```
+    #[serde(
+        rename = "id",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "ID", json = "id,omitempty")]
     pub id: String,
     /// ```text
@@ -1743,6 +2403,11 @@ pub struct Channel {
     /// Description:
     ///   Channel the content is on (e.g., a local channel like “WABC-TV").
     /// ```
+    #[serde(
+        rename = "name",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Name", json = "name,omitempty")]
     pub name: String,
     /// ```text
@@ -1756,6 +2421,11 @@ pub struct Channel {
     ///   include the top private domain (PSL+1) for DSP targeting
     ///   normalization purposes.
     /// ```
+    #[serde(
+        rename = "domain",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Domain", json = "domain,omitempty")]
     pub domain: String,
     /// ```text
@@ -1766,8 +2436,26 @@ pub struct Channel {
     /// Description:
     ///   Placeholder for exchange-specific extensions to OpenRTB.
     /// ```
+    #[serde(
+        rename = "ext",
+        skip_serializing_if = "gojson_bridge::raw_json::is_empty",
+        with = "gojson_bridge::raw_json"
+    )]
     #[gojson(go = "Ext", json = "ext,omitempty")]
     pub ext: RawJson,
+}
+
+impl MergeClone for Channel {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb2.Channel";
+        merge_struct(patch, |key, value| match key {
+            "id" => merge_field(&mut self.id, value, GO_TYPE, "ID"),
+            "name" => merge_field(&mut self.name, value, GO_TYPE, "Name"),
+            "domain" => merge_field(&mut self.domain, value, GO_TYPE, "Domain"),
+            "ext" => gojson_bridge::merge_field(&mut self.ext, value, GO_TYPE, "Ext"),
+            _ => Ok(()),
+        })
+    }
 }
 
 /// ```text
@@ -1782,7 +2470,8 @@ pub struct Channel {
 /// For example might be a video impression embedded in an iframe on an unknown web property or
 /// device.
 /// ```
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb2.Content")]
 pub struct Content {
     /// ```text
@@ -1793,6 +2482,11 @@ pub struct Content {
     /// Description:
     ///   ID uniquely identifying the content.
     /// ```
+    #[serde(
+        rename = "id",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "ID", json = "id,omitempty")]
     pub id: String,
     /// ```text
@@ -1803,6 +2497,11 @@ pub struct Content {
     /// Description:
     ///   Episode number.
     /// ```
+    #[serde(
+        rename = "episode",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Episode", json = "episode,omitempty")]
     pub episode: i64,
     /// ```text
@@ -1817,6 +2516,11 @@ pub struct Content {
     ///   Non-Video Example: “Why an Antarctic Glacier Is Melting So
     ///   Quickly” (Time magazine article).
     /// ```
+    #[serde(
+        rename = "title",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Title", json = "title,omitempty")]
     pub title: String,
     /// ```text
@@ -1830,6 +2534,11 @@ pub struct Content {
     ///   or “Arby ‘N’ The Chief” (made for web).
     ///   Non-Video Example: “Ecocentric” (Time Magazine blog).
     /// ```
+    #[serde(
+        rename = "series",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Series", json = "series,omitempty")]
     pub series: String,
     /// ```text
@@ -1840,6 +2549,11 @@ pub struct Content {
     /// Description:
     ///   Content season (e.g., “Season 3”).
     /// ```
+    #[serde(
+        rename = "season",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Season", json = "season,omitempty")]
     pub season: String,
     /// ```text
@@ -1850,6 +2564,11 @@ pub struct Content {
     /// Description:
     ///   Artist credited with the content.
     /// ```
+    #[serde(
+        rename = "artist",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Artist", json = "artist,omitempty")]
     pub artist: String,
     /// ```text
@@ -1860,6 +2579,11 @@ pub struct Content {
     /// Description:
     ///   Genre that best describes the content (e.g., rock, pop, etc).
     /// ```
+    #[serde(
+        rename = "genre",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Genre", json = "genre,omitempty")]
     pub genre: String,
     /// ```text
@@ -1870,6 +2594,11 @@ pub struct Content {
     /// Description:
     ///   Album to which the content belongs; typically for audio.
     /// ```
+    #[serde(
+        rename = "album",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Album", json = "album,omitempty")]
     pub album: String,
     /// ```text
@@ -1881,6 +2610,11 @@ pub struct Content {
     ///   International Standard Recording Code conforming to ISO-
     ///   3901.
     /// ```
+    #[serde(
+        rename = "isrc",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "ISRC", json = "isrc,omitempty")]
     pub isrc: String,
     /// ```text
@@ -1891,6 +2625,7 @@ pub struct Content {
     /// Description:
     ///   Details about the content Producer (Section 3.2.17).
     /// ```
+    #[serde(rename = "producer", skip_serializing_if = "Option::is_none")]
     #[gojson(go = "Producer", json = "producer,omitempty")]
     pub producer: Option<Box<Producer>>,
     /// ```text
@@ -1901,6 +2636,11 @@ pub struct Content {
     /// Description:
     ///   URL of the content, for buy-side contextualization or review.
     /// ```
+    #[serde(
+        rename = "url",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "URL", json = "url,omitempty")]
     pub url: String,
     /// ```text
@@ -1912,6 +2652,11 @@ pub struct Content {
     ///   The taxonomy in use. Refer to the AdCOM list List: Category
     ///   Taxonomies for values.
     /// ```
+    #[serde(
+        rename = "cattax",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "CatTax", json = "cattax,omitempty")]
     pub cattax: adcom1::CategoryTaxonomy,
     /// ```text
@@ -1925,6 +2670,7 @@ pub struct Content {
     ///   cattax field is supplied IAB Content Category Taxonomy 1.0 is
     ///   assumed.
     /// ```
+    #[serde(rename = "cat", skip_serializing_if = "is_nil_or_empty")]
     #[gojson(go = "Cat", json = "cat,omitempty")]
     pub cat: Option<Vec<String>>,
     /// ```text
@@ -1935,6 +2681,7 @@ pub struct Content {
     /// Description:
     ///   Production quality. Refer to List: Production Qualities in AdCOM 1.0.
     /// ```
+    #[serde(rename = "prodq", skip_serializing_if = "Option::is_none")]
     #[gojson(go = "ProdQ", json = "prodq,omitempty")]
     pub prodq: Option<adcom1::ProductionQuality>,
     /// ```text
@@ -1946,6 +2693,7 @@ pub struct Content {
     ///   Note: Deprecated in favor of prodq.
     ///   Video quality. Refer to List 5.13.
     /// ```
+    #[serde(rename = "videoquality", skip_serializing_if = "Option::is_none")]
     #[gojson(go = "VideoQuality", json = "videoquality,omitempty")]
     pub videoquality: Option<adcom1::ProductionQuality>,
     /// ```text
@@ -1957,6 +2705,11 @@ pub struct Content {
     ///   Type of content (game, video, text, etc.). Refer to List: Content
     ///   Contexts in AdCOM 1.0.
     /// ```
+    #[serde(
+        rename = "context",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Context", json = "context,omitempty")]
     pub context: adcom1::ContentContext,
     /// ```text
@@ -1967,6 +2720,11 @@ pub struct Content {
     /// Description:
     ///   Content rating (e.g., MPAA).
     /// ```
+    #[serde(
+        rename = "contentrating",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "ContentRating", json = "contentrating,omitempty")]
     pub contentrating: String,
     /// ```text
@@ -1977,6 +2735,11 @@ pub struct Content {
     /// Description:
     ///   User rating of the content (e.g., number of stars, likes, etc.).
     /// ```
+    #[serde(
+        rename = "userrating",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "UserRating", json = "userrating,omitempty")]
     pub userrating: String,
     /// ```text
@@ -1988,6 +2751,11 @@ pub struct Content {
     ///   Media rating per IQG guidelines. Refer to List: Media Ratings in
     ///   AdCOM 1.0.
     /// ```
+    #[serde(
+        rename = "qagmediarating",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "QAGMediaRating", json = "qagmediarating,omitempty")]
     pub qagmediarating: adcom1::MediaRating,
     /// ```text
@@ -1999,6 +2767,11 @@ pub struct Content {
     ///   Comma separated list of keywords describing the content. Only
     ///   one of ‘keywords’ or ‘kwarray’ may be present.
     /// ```
+    #[serde(
+        rename = "keywords",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Keywords", json = "keywords,omitempty")]
     pub keywords: String,
     /// ```text
@@ -2010,6 +2783,7 @@ pub struct Content {
     ///   Array of keywords about the site. Only one of ‘keywords’ or
     ///   ‘kwarray’ may be present.
     /// ```
+    #[serde(rename = "kwarray", skip_serializing_if = "is_nil_or_empty")]
     #[gojson(go = "KwArray", json = "kwarray,omitempty")]
     pub kwarray: Option<Vec<String>>,
     /// ```text
@@ -2020,6 +2794,7 @@ pub struct Content {
     /// Description:
     ///   0 = not live, 1 = content is live (e.g., stream, live blog).
     /// ```
+    #[serde(rename = "livestream", skip_serializing_if = "Option::is_none")]
     #[gojson(go = "LiveStream", json = "livestream,omitempty")]
     pub livestream: Option<i8>,
     /// ```text
@@ -2030,6 +2805,7 @@ pub struct Content {
     /// Description:
     ///   0 = indirect, 1 = direct.
     /// ```
+    #[serde(rename = "sourcerelationship", skip_serializing_if = "Option::is_none")]
     #[gojson(go = "SourceRelationship", json = "sourcerelationship,omitempty")]
     pub sourcerelationship: Option<i8>,
     /// ```text
@@ -2040,6 +2816,11 @@ pub struct Content {
     /// Description:
     ///   Length of content in seconds; appropriate for video or audio.
     /// ```
+    #[serde(
+        rename = "len",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Len", json = "len,omitempty")]
     pub len: i64,
     /// ```text
@@ -2051,6 +2832,11 @@ pub struct Content {
     ///   Content language using ISO-639-1-alpha-2. Only one of
     ///   language or langb should be present.
     /// ```
+    #[serde(
+        rename = "language",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Language", json = "language,omitempty")]
     pub language: String,
     /// ```text
@@ -2062,6 +2848,11 @@ pub struct Content {
     ///   Content language using IETF BCP 47. Only one of language or
     ///   langb should be present.
     /// ```
+    #[serde(
+        rename = "langb",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "LangB", json = "langb,omitempty")]
     pub langb: String,
     /// ```text
@@ -2073,6 +2864,7 @@ pub struct Content {
     ///   Indicator of whether or not the content is embeddable (e.g.,
     ///   an embeddable video player), where 0 = no, 1 = yes.
     /// ```
+    #[serde(rename = "embeddable", skip_serializing_if = "Option::is_none")]
     #[gojson(go = "Embeddable", json = "embeddable,omitempty")]
     pub embeddable: Option<i8>,
     /// ```text
@@ -2084,6 +2876,7 @@ pub struct Content {
     ///   Additional content data. Each Data object (Section 3.2.21)
     ///   represents a different data source.
     /// ```
+    #[serde(rename = "data", skip_serializing_if = "is_nil_or_empty")]
     #[gojson(go = "Data", json = "data,omitempty")]
     pub data: Option<Vec<Data>>,
     /// ```text
@@ -2094,6 +2887,7 @@ pub struct Content {
     /// Description:
     ///   Details about the network (Section 3.2.23) the content is on.
     /// ```
+    #[serde(rename = "network", skip_serializing_if = "Option::is_none")]
     #[gojson(go = "Network", json = "network,omitempty")]
     pub network: Option<Box<Network>>,
     /// ```text
@@ -2104,6 +2898,7 @@ pub struct Content {
     /// Description:
     ///   Details about the channel (Section 3.2.24) the content is on.
     /// ```
+    #[serde(rename = "channel", skip_serializing_if = "Option::is_none")]
     #[gojson(go = "Channel", json = "channel,omitempty")]
     pub channel: Option<Box<Channel>>,
     /// ```text
@@ -2114,8 +2909,62 @@ pub struct Content {
     /// Description:
     ///   Placeholder for exchange-specific extensions to OpenRTB.
     /// ```
+    #[serde(
+        rename = "ext",
+        skip_serializing_if = "gojson_bridge::raw_json::is_empty",
+        with = "gojson_bridge::raw_json"
+    )]
     #[gojson(go = "Ext", json = "ext,omitempty")]
     pub ext: RawJson,
+}
+
+impl MergeClone for Content {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb2.Content";
+        merge_struct(patch, |key, value| match key {
+            "id" => merge_field(&mut self.id, value, GO_TYPE, "ID"),
+            "episode" => merge_field(&mut self.episode, value, GO_TYPE, "Episode"),
+            "title" => merge_field(&mut self.title, value, GO_TYPE, "Title"),
+            "series" => merge_field(&mut self.series, value, GO_TYPE, "Series"),
+            "season" => merge_field(&mut self.season, value, GO_TYPE, "Season"),
+            "artist" => merge_field(&mut self.artist, value, GO_TYPE, "Artist"),
+            "genre" => merge_field(&mut self.genre, value, GO_TYPE, "Genre"),
+            "album" => merge_field(&mut self.album, value, GO_TYPE, "Album"),
+            "isrc" => merge_field(&mut self.isrc, value, GO_TYPE, "ISRC"),
+            "producer" => merge_field(&mut self.producer, value, GO_TYPE, "Producer"),
+            "url" => merge_field(&mut self.url, value, GO_TYPE, "URL"),
+            "cattax" => merge_field(&mut self.cattax, value, GO_TYPE, "CatTax"),
+            "cat" => merge_field(&mut self.cat, value, GO_TYPE, "Cat"),
+            "prodq" => merge_field(&mut self.prodq, value, GO_TYPE, "ProdQ"),
+            "videoquality" => merge_field(&mut self.videoquality, value, GO_TYPE, "VideoQuality"),
+            "context" => merge_field(&mut self.context, value, GO_TYPE, "Context"),
+            "contentrating" => {
+                merge_field(&mut self.contentrating, value, GO_TYPE, "ContentRating")
+            }
+            "userrating" => merge_field(&mut self.userrating, value, GO_TYPE, "UserRating"),
+            "qagmediarating" => {
+                merge_field(&mut self.qagmediarating, value, GO_TYPE, "QAGMediaRating")
+            }
+            "keywords" => merge_field(&mut self.keywords, value, GO_TYPE, "Keywords"),
+            "kwarray" => merge_field(&mut self.kwarray, value, GO_TYPE, "KwArray"),
+            "livestream" => merge_field(&mut self.livestream, value, GO_TYPE, "LiveStream"),
+            "sourcerelationship" => merge_field(
+                &mut self.sourcerelationship,
+                value,
+                GO_TYPE,
+                "SourceRelationship",
+            ),
+            "len" => merge_field(&mut self.len, value, GO_TYPE, "Len"),
+            "language" => merge_field(&mut self.language, value, GO_TYPE, "Language"),
+            "langb" => merge_field(&mut self.langb, value, GO_TYPE, "LangB"),
+            "embeddable" => merge_field(&mut self.embeddable, value, GO_TYPE, "Embeddable"),
+            "data" => merge_field(&mut self.data, value, GO_TYPE, "Data"),
+            "network" => merge_field(&mut self.network, value, GO_TYPE, "Network"),
+            "channel" => merge_field(&mut self.channel, value, GO_TYPE, "Channel"),
+            "ext" => gojson_bridge::merge_field(&mut self.ext, value, GO_TYPE, "Ext"),
+            _ => Ok(()),
+        })
+    }
 }
 
 /// ```text
@@ -2128,7 +2977,8 @@ pub struct Content {
 /// A bid request can mix data objects from multiple providers.
 /// The specific data providers in use should be published by the exchange a priori to its bidders.
 /// ```
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb2.Data")]
 pub struct Data {
     /// ```text
@@ -2139,6 +2989,11 @@ pub struct Data {
     /// Description:
     ///   Exchange-specific ID for the data provider.
     /// ```
+    #[serde(
+        rename = "id",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "ID", json = "id,omitempty")]
     pub id: String,
     /// ```text
@@ -2149,6 +3004,11 @@ pub struct Data {
     /// Description:
     ///   Exchange-specific name for the data provider.
     /// ```
+    #[serde(
+        rename = "name",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Name", json = "name,omitempty")]
     pub name: String,
     /// ```text
@@ -2160,6 +3020,7 @@ pub struct Data {
     ///   Array of Segment (Section 3.2.22) objects that contain the
     ///   actual data values.
     /// ```
+    #[serde(rename = "segment", skip_serializing_if = "is_nil_or_empty")]
     #[gojson(go = "Segment", json = "segment,omitempty")]
     pub segment: Option<Vec<Segment>>,
     /// ```text
@@ -2170,8 +3031,26 @@ pub struct Data {
     /// Description:
     ///   Placeholder for exchange-specific extensions to OpenRTB.
     /// ```
+    #[serde(
+        rename = "ext",
+        skip_serializing_if = "gojson_bridge::raw_json::is_empty",
+        with = "gojson_bridge::raw_json"
+    )]
     #[gojson(go = "Ext", json = "ext,omitempty")]
     pub ext: RawJson,
+}
+
+impl MergeClone for Data {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb2.Data";
+        merge_struct(patch, |key, value| match key {
+            "id" => merge_field(&mut self.id, value, GO_TYPE, "ID"),
+            "name" => merge_field(&mut self.name, value, GO_TYPE, "Name"),
+            "segment" => merge_field(&mut self.segment, value, GO_TYPE, "Segment"),
+            "ext" => gojson_bridge::merge_field(&mut self.ext, value, GO_TYPE, "Ext"),
+            _ => Ok(()),
+        })
+    }
 }
 
 /// ```text
@@ -2182,7 +3061,8 @@ pub struct Data {
 /// of that deal.
 /// Refer to Section 7.3 for more details.
 /// ```
-#[derive(Clone, Debug, Default, PartialEq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb2.Deal")]
 pub struct Deal {
     /// ```text
@@ -2193,6 +3073,7 @@ pub struct Deal {
     /// Description:
     ///   A unique identifier for the direct deal.
     /// ```
+    #[serde(rename = "id", deserialize_with = "null_default")]
     #[gojson(go = "ID", json = "id")]
     pub id: String,
     /// ```text
@@ -2203,6 +3084,11 @@ pub struct Deal {
     /// Description:
     ///   Minimum bid for this impression expressed in CPM.
     /// ```
+    #[serde(
+        rename = "bidfloor",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "BidFloor", json = "bidfloor,omitempty")]
     pub bidfloor: f64,
     /// ```text
@@ -2217,6 +3103,11 @@ pub struct Deal {
     ///   imp.bidfloorcur; it is either explicitly specified or
     ///   defaults to USD.
     /// ```
+    #[serde(
+        rename = "bidfloorcur",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "BidFloorCur", json = "bidfloorcur,omitempty")]
     pub bidfloorcur: String,
     /// ```text
@@ -2230,6 +3121,11 @@ pub struct Deal {
     ///   value passed in bidfloor is the agreed upon deal price.
     ///   Additional auction types can be defined by the exchange.
     /// ```
+    #[serde(
+        rename = "at",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "AT", json = "at,omitempty")]
     pub at: i64,
     /// ```text
@@ -2243,6 +3139,7 @@ pub struct Deal {
     ///   which they refer must be coordinated between bidders and
     ///   the exchange a priori. Omission implies no seat restrictions.
     /// ```
+    #[serde(rename = "wseat", skip_serializing_if = "is_nil_or_empty")]
     #[gojson(go = "WSeat", json = "wseat,omitempty")]
     pub wseat: Option<Vec<String>>,
     /// ```text
@@ -2254,6 +3151,7 @@ pub struct Deal {
     ///   Array of advertiser domains (e.g., advertiser.com) allowed to
     ///   bid on this deal. Omission implies no advertiser restrictions.
     /// ```
+    #[serde(rename = "wadomain", skip_serializing_if = "is_nil_or_empty")]
     #[gojson(go = "WADomain", json = "wadomain,omitempty")]
     pub wadomain: Option<Vec<String>>,
     /// ```text
@@ -2265,6 +3163,11 @@ pub struct Deal {
     ///   Indicates that the deal is of type guaranteed and the bidder must
     ///   bid on the deal, where 0 = not a guaranteed deal, 1 = guaranteed deal.
     /// ```
+    #[serde(
+        rename = "guar",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Guar", json = "guar,omitempty")]
     pub guar: i8,
     /// ```text
@@ -2277,6 +3180,11 @@ pub struct Deal {
     ///   impression opportunities, relative to the duration of bids an
     ///   advertiser may submit.
     /// ```
+    #[serde(
+        rename = "mincpmpersec",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "MinCPMPerSec", json = "mincpmpersec,omitempty")]
     pub mincpmpersec: f64,
     /// ```text
@@ -2289,6 +3197,7 @@ pub struct Deal {
     ///   given deal is eligible for video or audio demand. An array of DurFloors
     ///   objects (see Section 3.2.35).
     /// ```
+    #[serde(rename = "durfloors", skip_serializing_if = "is_nil_or_empty")]
     #[gojson(go = "DurFloors", json = "durfloors,omitempty")]
     pub durfloors: Option<Vec<DurFloors>>,
     /// ```text
@@ -2304,8 +3213,32 @@ pub struct Deal {
     /// Description:
     ///   Placeholder for exchange-specific extensions to OpenRTB.
     /// ```
+    #[serde(
+        rename = "ext",
+        skip_serializing_if = "gojson_bridge::raw_json::is_empty",
+        with = "gojson_bridge::raw_json"
+    )]
     #[gojson(go = "Ext", json = "ext,omitempty")]
     pub ext: RawJson,
+}
+
+impl MergeClone for Deal {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb2.Deal";
+        merge_struct(patch, |key, value| match key {
+            "id" => merge_field(&mut self.id, value, GO_TYPE, "ID"),
+            "bidfloor" => merge_field(&mut self.bidfloor, value, GO_TYPE, "BidFloor"),
+            "bidfloorcur" => merge_field(&mut self.bidfloorcur, value, GO_TYPE, "BidFloorCur"),
+            "at" => merge_field(&mut self.at, value, GO_TYPE, "AT"),
+            "wseat" => merge_field(&mut self.wseat, value, GO_TYPE, "WSeat"),
+            "wadomain" => merge_field(&mut self.wadomain, value, GO_TYPE, "WADomain"),
+            "guar" => merge_field(&mut self.guar, value, GO_TYPE, "Guar"),
+            "mincpmpersec" => merge_field(&mut self.mincpmpersec, value, GO_TYPE, "MinCPMPerSec"),
+            "durfloors" => merge_field(&mut self.durfloors, value, GO_TYPE, "DurFloors"),
+            "ext" => gojson_bridge::merge_field(&mut self.ext, value, GO_TYPE, "Ext"),
+            _ => Ok(()),
+        })
+    }
 }
 
 /// ```text
@@ -2329,7 +3262,8 @@ pub struct Deal {
 /// Exchanges are urged to research and implement this feature carefully when presenting device IP
 /// values to bidders.
 /// ```
-#[derive(Clone, Debug, Default, PartialEq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb2.Device")]
 pub struct Device {
     /// ```text
@@ -2341,6 +3275,7 @@ pub struct Device {
     ///   Location of the device assumed to be the user’s current
     ///   location defined by a Geo object (Section 3.2.19).
     /// ```
+    #[serde(rename = "geo", skip_serializing_if = "Option::is_none")]
     #[gojson(go = "Geo", json = "geo,omitempty")]
     pub geo: Option<Box<Geo>>,
     /// ```text
@@ -2352,6 +3287,7 @@ pub struct Device {
     ///   Standard “Do Not Track” flag as set in the header by the
     ///   browser, where 0 = tracking is unrestricted, 1 = do not track.
     /// ```
+    #[serde(rename = "dnt", skip_serializing_if = "Option::is_none")]
     #[gojson(go = "DNT", json = "dnt,omitempty")]
     pub dnt: Option<i8>,
     /// ```text
@@ -2364,6 +3300,7 @@ pub struct Device {
     ///   Android), where 0 = tracking is unrestricted, 1 = tracking must
     ///   be limited per commercial guidelines.
     /// ```
+    #[serde(rename = "lmt", skip_serializing_if = "Option::is_none")]
     #[gojson(go = "Lmt", json = "lmt,omitempty")]
     pub lmt: Option<i8>,
     /// ```text
@@ -2386,6 +3323,11 @@ pub struct Device {
     ///   ‘ua’ field. This is because the ‘ua’ may contain a frozen or
     ///   reduced user agent string.
     /// ```
+    #[serde(
+        rename = "ua",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "UA", json = "ua,omitempty")]
     pub ua: String,
     /// ```text
@@ -2400,6 +3342,7 @@ pub struct Device {
     ///   representation of the device attributes. This is because the ‘ua’
     ///   may contain a frozen or reduced user agent string.
     /// ```
+    #[serde(rename = "sua", skip_serializing_if = "Option::is_none")]
     #[gojson(go = "SUA", json = "sua,omitempty")]
     pub sua: Option<Box<UserAgent>>,
     /// ```text
@@ -2410,6 +3353,11 @@ pub struct Device {
     /// Description:
     ///   IPv4 address closest to device.
     /// ```
+    #[serde(
+        rename = "ip",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "IP", json = "ip,omitempty")]
     pub ip: String,
     /// ```text
@@ -2420,6 +3368,11 @@ pub struct Device {
     /// Description:
     ///   IP address closest to device as IPv6.
     /// ```
+    #[serde(
+        rename = "ipv6",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "IPv6", json = "ipv6,omitempty")]
     pub ipv6: String,
     /// ```text
@@ -2433,6 +3386,11 @@ pub struct Device {
     /// Note:
     ///   OpenRTB <=2.5 defined only types 1..7.
     /// ```
+    #[serde(
+        rename = "devicetype",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "DeviceType", json = "devicetype,omitempty")]
     pub devicetype: adcom1::DeviceType,
     /// ```text
@@ -2443,6 +3401,11 @@ pub struct Device {
     /// Description:
     ///   Device make (e.g., “Apple”).
     /// ```
+    #[serde(
+        rename = "make",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Make", json = "make,omitempty")]
     pub make: String,
     /// ```text
@@ -2453,6 +3416,11 @@ pub struct Device {
     /// Description:
     ///   Device model (e.g., “iPhone”).
     /// ```
+    #[serde(
+        rename = "model",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Model", json = "model,omitempty")]
     pub model: String,
     /// ```text
@@ -2463,6 +3431,11 @@ pub struct Device {
     /// Description:
     ///   Device operating system (e.g., “iOS”).
     /// ```
+    #[serde(
+        rename = "os",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "OS", json = "os,omitempty")]
     pub os: String,
     /// ```text
@@ -2473,6 +3446,11 @@ pub struct Device {
     /// Description:
     ///   Device operating system version (e.g., “3.1.2”).
     /// ```
+    #[serde(
+        rename = "osv",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "OSV", json = "osv,omitempty")]
     pub osv: String,
     /// ```text
@@ -2483,6 +3461,11 @@ pub struct Device {
     /// Description:
     ///   Hardware version of the device (e.g., “5S” for iPhone 5S).
     /// ```
+    #[serde(
+        rename = "hwv",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "HWV", json = "hwv,omitempty")]
     pub hwv: String,
     /// ```text
@@ -2493,6 +3476,11 @@ pub struct Device {
     /// Description:
     ///   Physical height of the screen in pixels.
     /// ```
+    #[serde(
+        rename = "h",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "H", json = "h,omitempty")]
     pub h: i64,
     /// ```text
@@ -2503,6 +3491,11 @@ pub struct Device {
     /// Description:
     ///   Physical width of the screen in pixels.
     /// ```
+    #[serde(
+        rename = "w",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "W", json = "w,omitempty")]
     pub w: i64,
     /// ```text
@@ -2513,6 +3506,11 @@ pub struct Device {
     /// Description:
     ///   Screen size as pixels per linear inch.
     /// ```
+    #[serde(
+        rename = "ppi",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "PPI", json = "ppi,omitempty")]
     pub ppi: i64,
     /// ```text
@@ -2523,6 +3521,11 @@ pub struct Device {
     /// Description:
     ///   The ratio of physical pixels to device independent pixels.
     /// ```
+    #[serde(
+        rename = "pxratio",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "PxRatio", json = "pxratio,omitempty")]
     pub pxratio: f64,
     /// ```text
@@ -2533,6 +3536,7 @@ pub struct Device {
     /// Description:
     ///   Support for JavaScript, where 0 = no, 1 = yes.
     /// ```
+    #[serde(rename = "js", skip_serializing_if = "Option::is_none")]
     #[gojson(go = "JS", json = "js,omitempty")]
     pub js: Option<i8>,
     /// ```text
@@ -2544,6 +3548,7 @@ pub struct Device {
     ///   Indicates if the geolocation API will be available to JavaScript
     ///   code running in the banner, where 0 = no, 1 = yes.
     /// ```
+    #[serde(rename = "geofetch", skip_serializing_if = "Option::is_none")]
     #[gojson(go = "GeoFetch", json = "geofetch,omitempty")]
     pub geofetch: Option<i8>,
     /// ```text
@@ -2554,6 +3559,11 @@ pub struct Device {
     /// Description:
     ///   Version of Flash supported by the browser.
     /// ```
+    #[serde(
+        rename = "flashver",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "FlashVer", json = "flashver,omitempty")]
     pub flashver: String,
     /// ```text
@@ -2565,6 +3575,11 @@ pub struct Device {
     ///   Browser language using ISO-639-1-alpha-2. Only one of
     ///   language or langb should be present.
     /// ```
+    #[serde(
+        rename = "language",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Language", json = "language,omitempty")]
     pub language: String,
     /// ```text
@@ -2576,6 +3591,11 @@ pub struct Device {
     ///   Content language using IETF BCP 47. Only one of language or
     ///   langb should be present.
     /// ```
+    #[serde(
+        rename = "langb",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "LangB", json = "langb,omitempty")]
     pub langb: String,
     /// ```text
@@ -2587,6 +3607,11 @@ pub struct Device {
     ///   Carrier or ISP (e.g., “VERIZON”) using exchange curated string
     ///   names which should be published to bidders a priori.
     /// ```
+    #[serde(
+        rename = "carrier",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Carrier", json = "carrier,omitempty")]
     pub carrier: String,
     /// ```text
@@ -2606,6 +3631,11 @@ pub struct Device {
     ///   be inferred by a combination of the MCC-MNC, geo, IP and
     ///   other data signals.
     /// ```
+    #[serde(
+        rename = "mccmnc",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "MCCMNC", json = "mccmnc,omitempty")]
     pub mccmnc: String,
     /// ```text
@@ -2619,6 +3649,7 @@ pub struct Device {
     /// Note:
     ///   OpenRTB <=2.5 defined only connection types 1..6.
     /// ```
+    #[serde(rename = "connectiontype", skip_serializing_if = "Option::is_none")]
     #[gojson(go = "ConnectionType", json = "connectiontype,omitempty")]
     pub connectiontype: Option<adcom1::ConnectionType>,
     /// ```text
@@ -2633,6 +3664,11 @@ pub struct Device {
     ///   derived from a call to an advertising API provided by the device’s
     ///   Operating System.
     /// ```
+    #[serde(
+        rename = "ifa",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "IFA", json = "ifa,omitempty")]
     pub ifa: String,
     /// ```text
@@ -2643,6 +3679,11 @@ pub struct Device {
     /// Description:
     ///   Hardware device ID (e.g., IMEI); hashed via SHA1.
     /// ```
+    #[serde(
+        rename = "didsha1",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "DIDSHA1", json = "didsha1,omitempty")]
     pub didsha1: String,
     /// ```text
@@ -2653,6 +3694,11 @@ pub struct Device {
     /// Description:
     ///  Hardware device ID (e.g., IMEI); hashed via MD5.
     /// ```
+    #[serde(
+        rename = "didmd5",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "DIDMD5", json = "didmd5,omitempty")]
     pub didmd5: String,
     /// ```text
@@ -2663,6 +3709,11 @@ pub struct Device {
     /// Description:
     ///   Platform device ID (e.g., Android ID); hashed via SHA1.
     /// ```
+    #[serde(
+        rename = "dpidsha1",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "DPIDSHA1", json = "dpidsha1,omitempty")]
     pub dpidsha1: String,
     /// ```text
@@ -2673,6 +3724,11 @@ pub struct Device {
     /// Description:
     ///   Platform device ID (e.g., Android ID); hashed via MD5.
     /// ```
+    #[serde(
+        rename = "dpidmd5",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "DPIDMD5", json = "dpidmd5,omitempty")]
     pub dpidmd5: String,
     /// ```text
@@ -2683,6 +3739,11 @@ pub struct Device {
     /// Description:
     ///   MAC address of the device; hashed via SHA1.
     /// ```
+    #[serde(
+        rename = "macsha1",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "MACSHA1", json = "macsha1,omitempty")]
     pub macsha1: String,
     /// ```text
@@ -2693,6 +3754,11 @@ pub struct Device {
     /// Description:
     ///   MAC address of the device; hashed via MD5.
     /// ```
+    #[serde(
+        rename = "macmd5",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "MACMD5", json = "macmd5,omitempty")]
     pub macmd5: String,
     /// ```text
@@ -2703,8 +3769,57 @@ pub struct Device {
     /// Description:
     ///   Placeholder for exchange-specific extensions to OpenRTB.
     /// ```
+    #[serde(
+        rename = "ext",
+        skip_serializing_if = "gojson_bridge::raw_json::is_empty",
+        with = "gojson_bridge::raw_json"
+    )]
     #[gojson(go = "Ext", json = "ext,omitempty")]
     pub ext: RawJson,
+}
+
+impl MergeClone for Device {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb2.Device";
+        merge_struct(patch, |key, value| match key {
+            "geo" => merge_field(&mut self.geo, value, GO_TYPE, "Geo"),
+            "dnt" => merge_field(&mut self.dnt, value, GO_TYPE, "DNT"),
+            "lmt" => merge_field(&mut self.lmt, value, GO_TYPE, "Lmt"),
+            "ua" => merge_field(&mut self.ua, value, GO_TYPE, "UA"),
+            "sua" => merge_field(&mut self.sua, value, GO_TYPE, "SUA"),
+            "ip" => merge_field(&mut self.ip, value, GO_TYPE, "IP"),
+            "ipv6" => merge_field(&mut self.ipv6, value, GO_TYPE, "IPv6"),
+            "devicetype" => merge_field(&mut self.devicetype, value, GO_TYPE, "DeviceType"),
+            "make" => merge_field(&mut self.make, value, GO_TYPE, "Make"),
+            "model" => merge_field(&mut self.model, value, GO_TYPE, "Model"),
+            "os" => merge_field(&mut self.os, value, GO_TYPE, "OS"),
+            "osv" => merge_field(&mut self.osv, value, GO_TYPE, "OSV"),
+            "hwv" => merge_field(&mut self.hwv, value, GO_TYPE, "HWV"),
+            "h" => merge_field(&mut self.h, value, GO_TYPE, "H"),
+            "w" => merge_field(&mut self.w, value, GO_TYPE, "W"),
+            "ppi" => merge_field(&mut self.ppi, value, GO_TYPE, "PPI"),
+            "pxratio" => merge_field(&mut self.pxratio, value, GO_TYPE, "PxRatio"),
+            "js" => merge_field(&mut self.js, value, GO_TYPE, "JS"),
+            "geofetch" => merge_field(&mut self.geofetch, value, GO_TYPE, "GeoFetch"),
+            "flashver" => merge_field(&mut self.flashver, value, GO_TYPE, "FlashVer"),
+            "language" => merge_field(&mut self.language, value, GO_TYPE, "Language"),
+            "langb" => merge_field(&mut self.langb, value, GO_TYPE, "LangB"),
+            "carrier" => merge_field(&mut self.carrier, value, GO_TYPE, "Carrier"),
+            "mccmnc" => merge_field(&mut self.mccmnc, value, GO_TYPE, "MCCMNC"),
+            "connectiontype" => {
+                merge_field(&mut self.connectiontype, value, GO_TYPE, "ConnectionType")
+            }
+            "ifa" => merge_field(&mut self.ifa, value, GO_TYPE, "IFA"),
+            "didsha1" => merge_field(&mut self.didsha1, value, GO_TYPE, "DIDSHA1"),
+            "didmd5" => merge_field(&mut self.didmd5, value, GO_TYPE, "DIDMD5"),
+            "dpidsha1" => merge_field(&mut self.dpidsha1, value, GO_TYPE, "DPIDSHA1"),
+            "dpidmd5" => merge_field(&mut self.dpidmd5, value, GO_TYPE, "DPIDMD5"),
+            "macsha1" => merge_field(&mut self.macsha1, value, GO_TYPE, "MACSHA1"),
+            "macmd5" => merge_field(&mut self.macmd5, value, GO_TYPE, "MACMD5"),
+            "ext" => gojson_bridge::merge_field(&mut self.ext, value, GO_TYPE, "Ext"),
+            _ => Ok(()),
+        })
+    }
 }
 
 /// Object: DOOH
@@ -2712,7 +3827,8 @@ pub struct Device {
 /// This object should be included if the ad supported content is a Digital Out-Of-Home screen.
 /// A bid request with a DOOH object must not contain a site or app object.
 /// At a minimum, it is useful to provide id and/or venuetype, but this is not strictly required.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb2.DOOH")]
 pub struct DOOH {
     /// ```text
@@ -2723,6 +3839,11 @@ pub struct DOOH {
     /// Description:
     ///   Exchange provided id for a placement or logical grouping of placements.
     /// ```
+    #[serde(
+        rename = "id",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "ID", json = "id,omitempty")]
     pub id: String,
     /// ```text
@@ -2733,6 +3854,11 @@ pub struct DOOH {
     /// Description:
     ///   Name of the DOOH placement.
     /// ```
+    #[serde(
+        rename = "name",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Name", json = "name,omitempty")]
     pub name: String,
     /// ```text
@@ -2745,6 +3871,7 @@ pub struct DOOH {
     ///   the venuetax field. If no venuetax field is supplied, The OpenOOH
     ///   Venue Taxonomy is assumed.
     /// ```
+    #[serde(rename = "venuetype", skip_serializing_if = "is_nil_or_empty")]
     #[gojson(go = "VenueType", json = "venuetype,omitempty")]
     pub venuetype: Option<Vec<String>>,
     /// ```text
@@ -2755,6 +3882,7 @@ pub struct DOOH {
     /// Description:
     ///   The venue taxonomy in use. Refer to List: DOOH Venue Taxonomies
     /// ```
+    #[serde(rename = "venuetypetax", skip_serializing_if = "Option::is_none")]
     #[gojson(go = "VenueTypeTax", json = "venuetypetax,omitempty")]
     pub venuetypetax: Option<adcom1::DOOHVenueTaxonomy>,
     /// ```text
@@ -2765,6 +3893,7 @@ pub struct DOOH {
     /// Description:
     ///   Details about the publisher of the placement.
     /// ```
+    #[serde(rename = "publisher", skip_serializing_if = "Option::is_none")]
     #[gojson(go = "Publisher", json = "publisher,omitempty")]
     pub publisher: Option<Box<Publisher>>,
     /// ```text
@@ -2775,6 +3904,11 @@ pub struct DOOH {
     /// Description:
     ///   Domain of the inventory owner (e.g., “mysite.foo.com”)
     /// ```
+    #[serde(
+        rename = "domain",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Domain", json = "domain,omitempty")]
     pub domain: String,
     /// ```text
@@ -2785,6 +3919,11 @@ pub struct DOOH {
     /// Description:
     ///   Comma separated list of keywords about the DOOH placement.
     /// ```
+    #[serde(
+        rename = "keywords",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Keywords", json = "keywords,omitempty")]
     pub keywords: String,
     /// ```text
@@ -2795,6 +3934,7 @@ pub struct DOOH {
     /// Description:
     ///   Details about the Content within the DOOH placement.
     /// ```
+    #[serde(rename = "content", skip_serializing_if = "Option::is_none")]
     #[gojson(go = "Content", json = "content,omitempty")]
     pub content: Option<Box<Content>>,
     /// ```text
@@ -2805,8 +3945,31 @@ pub struct DOOH {
     /// Description:
     ///   Placeholder for exchange-specific extensions to OpenRTB.
     /// ```
+    #[serde(
+        rename = "ext",
+        skip_serializing_if = "gojson_bridge::raw_json::is_empty",
+        with = "gojson_bridge::raw_json"
+    )]
     #[gojson(go = "Ext", json = "ext,omitempty")]
     pub ext: RawJson,
+}
+
+impl MergeClone for DOOH {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb2.DOOH";
+        merge_struct(patch, |key, value| match key {
+            "id" => merge_field(&mut self.id, value, GO_TYPE, "ID"),
+            "name" => merge_field(&mut self.name, value, GO_TYPE, "Name"),
+            "venuetype" => merge_field(&mut self.venuetype, value, GO_TYPE, "VenueType"),
+            "venuetypetax" => merge_field(&mut self.venuetypetax, value, GO_TYPE, "VenueTypeTax"),
+            "publisher" => merge_field(&mut self.publisher, value, GO_TYPE, "Publisher"),
+            "domain" => merge_field(&mut self.domain, value, GO_TYPE, "Domain"),
+            "keywords" => merge_field(&mut self.keywords, value, GO_TYPE, "Keywords"),
+            "content" => merge_field(&mut self.content, value, GO_TYPE, "Content"),
+            "ext" => gojson_bridge::merge_field(&mut self.ext, value, GO_TYPE, "Ext"),
+            _ => Ok(()),
+        })
+    }
 }
 
 /// ```text
@@ -2820,7 +3983,8 @@ pub struct DOOH {
 /// In cases where multiple ranges may apply, it is up to the buyer and seller to coordinate on
 /// which floor is applicable.
 /// ```
-#[derive(Clone, Debug, Default, PartialEq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb2.DurFloors")]
 pub struct DurFloors {
     /// ```text
@@ -2833,6 +3997,11 @@ pub struct DurFloors {
     ///   value is missing, the low end is unbounded. Either mindur or maxdur
     ///   is required, but not both.
     /// ```
+    #[serde(
+        rename = "mindur",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "MinDur", json = "mindur,omitempty")]
     pub mindur: i64,
     /// ```text
@@ -2845,6 +4014,11 @@ pub struct DurFloors {
     ///   value is missing, the high end is unbounded. Either mindur or maxdur
     ///   is required, but not both.
     /// ```
+    #[serde(
+        rename = "maxdur",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "MaxDur", json = "maxdur,omitempty")]
     pub maxdur: i64,
     /// ```text
@@ -2858,6 +4032,11 @@ pub struct DurFloors {
     ///   whose durations are outside of the defined min/max, the bidfloor at
     ///   the Imp level will serve as the default floor.
     /// ```
+    #[serde(
+        rename = "bidfloor",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "BidFloor", json = "bidfloor,omitempty")]
     pub bidfloor: f64,
     /// ```text
@@ -2868,8 +4047,26 @@ pub struct DurFloors {
     /// Definition:
     ///   Placeholder for vendor specific extensions to this object.
     /// ```
+    #[serde(
+        rename = "ext",
+        skip_serializing_if = "gojson_bridge::raw_json::is_empty",
+        with = "gojson_bridge::raw_json"
+    )]
     #[gojson(go = "Ext", json = "ext,omitempty")]
     pub ext: RawJson,
+}
+
+impl MergeClone for DurFloors {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb2.DurFloors";
+        merge_struct(patch, |key, value| match key {
+            "mindur" => merge_field(&mut self.mindur, value, GO_TYPE, "MinDur"),
+            "maxdur" => merge_field(&mut self.maxdur, value, GO_TYPE, "MaxDur"),
+            "bidfloor" => merge_field(&mut self.bidfloor, value, GO_TYPE, "BidFloor"),
+            "ext" => gojson_bridge::merge_field(&mut self.ext, value, GO_TYPE, "Ext"),
+            _ => Ok(()),
+        })
+    }
 }
 
 /// ```text
@@ -2880,7 +4077,8 @@ pub struct DurFloors {
 /// This object can contain one or more UIDs from a single source or a technology provider.
 /// The exchange should ensure that business agreements allow for the sending of this data.
 /// ```
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb2.EID")]
 pub struct EID {
     /// ```text
@@ -2901,6 +4099,11 @@ pub struct EID {
     ///   For ad tech intermediaries, this would be the domain as used in ads.txt. For
     ///   publishers, this would match the domain in the `site` or `app` object.
     /// ```
+    #[serde(
+        rename = "inserter",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Inserter", json = "inserter,omitempty")]
     pub inserter: String,
     /// ```text
@@ -2917,6 +4120,11 @@ pub struct EID {
     ///
     /// May be omitted when mm=0, 1, or 2.
     /// ```
+    #[serde(
+        rename = "matcher",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Matcher", json = "matcher,omitempty")]
     pub matcher: String,
     /// ```text
@@ -2928,6 +4136,11 @@ pub struct EID {
     ///   Match method used by the matcher. Refer to List: ID Match Methods
     ///   in AdCOM 1.0.
     /// ```
+    #[serde(
+        rename = "mm",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "MM", json = "mm,omitempty")]
     pub mm: adcom1::MatchMethod,
     /// ```text
@@ -2938,6 +4151,11 @@ pub struct EID {
     /// Description:
     ///   Canonical domain of the ID.
     /// ```
+    #[serde(
+        rename = "source",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Source", json = "source,omitempty")]
     pub source: String,
     /// ```text
@@ -2949,6 +4167,7 @@ pub struct EID {
     ///   Array of extended ID UID objects from the given source. Refer
     ///   to 3.2.28 Extended Identifier UIDs.
     /// ```
+    #[serde(rename = "uids", skip_serializing_if = "is_nil_or_empty")]
     #[gojson(go = "UIDs", json = "uids,omitempty")]
     pub uids: Option<Vec<UID>>,
     /// ```text
@@ -2959,8 +4178,28 @@ pub struct EID {
     /// Description:
     ///   Placeholder for advertising-system specific extensions to this object.
     /// ```
+    #[serde(
+        rename = "ext",
+        skip_serializing_if = "gojson_bridge::raw_json::is_empty",
+        with = "gojson_bridge::raw_json"
+    )]
     #[gojson(go = "Ext", json = "ext,omitempty")]
     pub ext: RawJson,
+}
+
+impl MergeClone for EID {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb2.EID";
+        merge_struct(patch, |key, value| match key {
+            "inserter" => merge_field(&mut self.inserter, value, GO_TYPE, "Inserter"),
+            "matcher" => merge_field(&mut self.matcher, value, GO_TYPE, "Matcher"),
+            "mm" => merge_field(&mut self.mm, value, GO_TYPE, "MM"),
+            "source" => merge_field(&mut self.source, value, GO_TYPE, "Source"),
+            "uids" => merge_field(&mut self.uids, value, GO_TYPE, "UIDs"),
+            "ext" => gojson_bridge::merge_field(&mut self.ext, value, GO_TYPE, "Ext"),
+            _ => Ok(()),
+        })
+    }
 }
 
 /// ```text
@@ -2972,7 +4211,8 @@ pub struct EID {
 /// It is recommended that either the w/h pair or the wratio/hratio/wmin set (i.e., for Flex Ads) be
 /// specified.
 /// ```
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb2.Format")]
 pub struct Format {
     /// ```text
@@ -2983,6 +4223,11 @@ pub struct Format {
     /// Description:
     ///   Width in device independent pixels (DIPS).
     /// ```
+    #[serde(
+        rename = "w",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "W", json = "w,omitempty")]
     pub w: i64,
     /// ```text
@@ -2993,6 +4238,11 @@ pub struct Format {
     /// Description:
     ///   Height in device independent pixels (DIPS).
     /// ```
+    #[serde(
+        rename = "h",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "H", json = "h,omitempty")]
     pub h: i64,
     /// ```text
@@ -3003,6 +4253,11 @@ pub struct Format {
     /// Description:
     ///   Relative width when expressing size as a ratio
     /// ```
+    #[serde(
+        rename = "wratio",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "WRatio", json = "wratio,omitempty")]
     pub wratio: i64,
     /// ```text
@@ -3013,6 +4268,11 @@ pub struct Format {
     /// Description:
     ///   Relative height when expressing size as a ratio.
     /// ```
+    #[serde(
+        rename = "hratio",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "HRatio", json = "hratio,omitempty")]
     pub hratio: i64,
     /// ```text
@@ -3024,6 +4284,11 @@ pub struct Format {
     ///   The minimum width in device independent pixels (DIPS) at
     ///   which the ad will be displayed the size is expressed as a ratio.
     /// ```
+    #[serde(
+        rename = "wmin",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "WMin", json = "wmin,omitempty")]
     pub wmin: i64,
     /// ```text
@@ -3034,8 +4299,28 @@ pub struct Format {
     /// Description:
     ///   Placeholder for exchange-specific extensions to OpenRTB.
     /// ```
+    #[serde(
+        rename = "ext",
+        skip_serializing_if = "gojson_bridge::raw_json::is_empty",
+        with = "gojson_bridge::raw_json"
+    )]
     #[gojson(go = "Ext", json = "ext,omitempty")]
     pub ext: RawJson,
+}
+
+impl MergeClone for Format {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb2.Format";
+        merge_struct(patch, |key, value| match key {
+            "w" => merge_field(&mut self.w, value, GO_TYPE, "W"),
+            "h" => merge_field(&mut self.h, value, GO_TYPE, "H"),
+            "wratio" => merge_field(&mut self.wratio, value, GO_TYPE, "WRatio"),
+            "hratio" => merge_field(&mut self.hratio, value, GO_TYPE, "HRatio"),
+            "wmin" => merge_field(&mut self.wmin, value, GO_TYPE, "WMin"),
+            "ext" => gojson_bridge::merge_field(&mut self.ext, value, GO_TYPE, "Ext"),
+            _ => Ok(()),
+        })
+    }
 }
 
 /// ```text
@@ -3052,7 +4337,8 @@ pub struct Format {
 /// type attribute.
 /// For example, the centroid of a geographic region such as postal code should not be passed.
 /// ```
-#[derive(Clone, Debug, Default, PartialEq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb2.Geo")]
 pub struct Geo {
     /// ```text
@@ -3063,6 +4349,7 @@ pub struct Geo {
     /// Description:
     ///   Latitude from -90.0 to +90.0, where negative is south.
     /// ```
+    #[serde(rename = "lat", skip_serializing_if = "Option::is_none")]
     #[gojson(go = "Lat", json = "lat,omitempty")]
     pub lat: Option<f64>,
     /// ```text
@@ -3073,6 +4360,7 @@ pub struct Geo {
     /// Description:
     ///   Longitude from -180.0 to +180.0, where negative is west.
     /// ```
+    #[serde(rename = "lon", skip_serializing_if = "Option::is_none")]
     #[gojson(go = "Lon", json = "lon,omitempty")]
     pub lon: Option<f64>,
     /// ```text
@@ -3084,6 +4372,11 @@ pub struct Geo {
     ///   Source of location data; recommended when passing
     ///   lat/lon. Refer to List: Location Types in AdCOM 1.0.
     /// ```
+    #[serde(
+        rename = "type",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Type", json = "type,omitempty")]
     pub r#type: adcom1::LocationType,
     /// ```text
@@ -3098,6 +4391,11 @@ pub struct Geo {
     ///   reported from the device. Consult OS specific documentation
     ///   (e.g., Android, iOS) for exact interpretation.
     /// ```
+    #[serde(
+        rename = "accuracy",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Accuracy", json = "accuracy,omitempty")]
     pub accuracy: i64,
     /// ```text
@@ -3111,6 +4409,11 @@ pub struct Geo {
     ///   fetches. Ideally, this value should be from the time the actual
     ///   fix was taken.
     /// ```
+    #[serde(
+        rename = "lastfix",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "LastFix", json = "lastfix,omitempty")]
     pub lastfix: i64,
     /// ```text
@@ -3123,6 +4426,11 @@ pub struct Geo {
     ///   address if applicable (i.e., type = 2). Refer to List: IP
     ///   Location Services in AdCOM 1.0.
     /// ```
+    #[serde(
+        rename = "ipservice",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "IPService", json = "ipservice,omitempty")]
     pub ipservice: adcom1::IPLocationService,
     /// ```text
@@ -3133,6 +4441,11 @@ pub struct Geo {
     /// Description:
     ///   Country code using ISO-3166-1-alpha-3.
     /// ```
+    #[serde(
+        rename = "country",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Country", json = "country,omitempty")]
     pub country: String,
     /// ```text
@@ -3143,6 +4456,11 @@ pub struct Geo {
     /// Description:
     ///   Region code using ISO-3166-2; 2-letter state code if USA.
     /// ```
+    #[serde(
+        rename = "region",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Region", json = "region,omitempty")]
     pub region: String,
     /// ```text
@@ -3154,6 +4472,11 @@ pub struct Geo {
     ///   Region of a country using FIPS 10-4 notation. While OpenRTB
     ///   supports this attribute, it has been withdrawn by NIST in 2008.
     /// ```
+    #[serde(
+        rename = "regionfips104",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "RegionFIPS104", json = "regionfips104,omitempty")]
     pub regionfips104: String,
     /// ```text
@@ -3165,6 +4488,11 @@ pub struct Geo {
     ///   Google metro code; similar to but not exactly Nielsen DMAs.
     ///   See Appendix A for a link to the codes.
     /// ```
+    #[serde(
+        rename = "metro",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Metro", json = "metro,omitempty")]
     pub metro: String,
     /// ```text
@@ -3176,6 +4504,11 @@ pub struct Geo {
     ///   City using United Nations Code for Trade & Transport
     ///   Locations. See Appendix A for a link to the codes.
     /// ```
+    #[serde(
+        rename = "city",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "City", json = "city,omitempty")]
     pub city: String,
     /// ```text
@@ -3186,6 +4519,11 @@ pub struct Geo {
     /// Description:
     ///   Zip or postal code.
     /// ```
+    #[serde(
+        rename = "zip",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "ZIP", json = "zip,omitempty")]
     pub zip: String,
     /// ```text
@@ -3196,6 +4534,11 @@ pub struct Geo {
     /// Description:
     ///   Local time as the number +/- of minutes from UTC.
     /// ```
+    #[serde(
+        rename = "utcoffset",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "UTCOffset", json = "utcoffset,omitempty")]
     pub utcoffset: i64,
     /// ```text
@@ -3206,8 +4549,38 @@ pub struct Geo {
     /// Description:
     ///   Placeholder for exchange-specific extensions to OpenRTB.
     /// ```
+    #[serde(
+        rename = "ext",
+        skip_serializing_if = "gojson_bridge::raw_json::is_empty",
+        with = "gojson_bridge::raw_json"
+    )]
     #[gojson(go = "Ext", json = "ext,omitempty")]
     pub ext: RawJson,
+}
+
+impl MergeClone for Geo {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb2.Geo";
+        merge_struct(patch, |key, value| match key {
+            "lat" => merge_field(&mut self.lat, value, GO_TYPE, "Lat"),
+            "lon" => merge_field(&mut self.lon, value, GO_TYPE, "Lon"),
+            "type" => merge_field(&mut self.r#type, value, GO_TYPE, "Type"),
+            "accuracy" => merge_field(&mut self.accuracy, value, GO_TYPE, "Accuracy"),
+            "lastfix" => merge_field(&mut self.lastfix, value, GO_TYPE, "LastFix"),
+            "ipservice" => merge_field(&mut self.ipservice, value, GO_TYPE, "IPService"),
+            "country" => merge_field(&mut self.country, value, GO_TYPE, "Country"),
+            "region" => merge_field(&mut self.region, value, GO_TYPE, "Region"),
+            "regionfips104" => {
+                merge_field(&mut self.regionfips104, value, GO_TYPE, "RegionFIPS104")
+            }
+            "metro" => merge_field(&mut self.metro, value, GO_TYPE, "Metro"),
+            "city" => merge_field(&mut self.city, value, GO_TYPE, "City"),
+            "zip" => merge_field(&mut self.zip, value, GO_TYPE, "ZIP"),
+            "utcoffset" => merge_field(&mut self.utcoffset, value, GO_TYPE, "UTCOffset"),
+            "ext" => gojson_bridge::merge_field(&mut self.ext, value, GO_TYPE, "Ext"),
+            _ => Ok(()),
+        })
+    }
 }
 
 /// ```text
@@ -3224,7 +4597,8 @@ pub struct Geo {
 /// discretion.
 /// However, any given bid for the impression must conform to one of the offered types.
 /// ```
-#[derive(Clone, Debug, Default, PartialEq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb2.Imp")]
 pub struct Imp {
     /// ```text
@@ -3236,6 +4610,7 @@ pub struct Imp {
     ///   A unique identifier for this impression within the context of
     ///   the bid request (typically, starts with 1 and increments).
     /// ```
+    #[serde(rename = "id", deserialize_with = "null_default")]
     #[gojson(go = "ID", json = "id")]
     pub id: String,
     /// ```text
@@ -3246,6 +4621,7 @@ pub struct Imp {
     /// Description:
     ///   An array of Metric object (Section 3.2.5).
     /// ```
+    #[serde(rename = "metric", skip_serializing_if = "is_nil_or_empty")]
     #[gojson(go = "Metric", json = "metric,omitempty")]
     pub metric: Option<Vec<Metric>>,
     /// ```text
@@ -3257,6 +4633,7 @@ pub struct Imp {
     ///   A Banner object (Section 3.2.6); required if this impression is
     ///   offered as a banner ad opportunity.
     /// ```
+    #[serde(rename = "banner", skip_serializing_if = "Option::is_none")]
     #[gojson(go = "Banner", json = "banner,omitempty")]
     pub banner: Option<Box<Banner>>,
     /// ```text
@@ -3268,6 +4645,7 @@ pub struct Imp {
     ///   A Video object (Section 3.2.7); required if this impression is
     ///   offered as a video ad opportunity.
     /// ```
+    #[serde(rename = "video", skip_serializing_if = "Option::is_none")]
     #[gojson(go = "Video", json = "video,omitempty")]
     pub video: Option<Box<Video>>,
     /// ```text
@@ -3279,6 +4657,7 @@ pub struct Imp {
     ///   An Audio object (Section 3.2.8); required if this impression is
     ///   offered as an audio ad opportunity.
     /// ```
+    #[serde(rename = "audio", skip_serializing_if = "Option::is_none")]
     #[gojson(go = "Audio", json = "audio,omitempty")]
     pub audio: Option<Box<Audio>>,
     /// ```text
@@ -3290,6 +4669,7 @@ pub struct Imp {
     ///   A Native object (Section 3.2.9); required if this impression is
     ///   offered as a native ad opportunity.
     /// ```
+    #[serde(rename = "native", skip_serializing_if = "Option::is_none")]
     #[gojson(go = "Native", json = "native,omitempty")]
     pub native: Option<Box<Native>>,
     /// ```text
@@ -3301,6 +4681,7 @@ pub struct Imp {
     ///   A Pmp object (Section 3.2.11) containing any private
     ///   marketplace deals in effect for this impression.
     /// ```
+    #[serde(rename = "pmp", skip_serializing_if = "Option::is_none")]
     #[gojson(go = "PMP", json = "pmp,omitempty")]
     pub pmp: Option<Box<PMP>>,
     /// ```text
@@ -3314,6 +4695,11 @@ pub struct Imp {
     ///   by some ad servers to customize ad code by partner.
     ///   Recommended for video and/or apps.
     /// ```
+    #[serde(
+        rename = "displaymanager",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "DisplayManager", json = "displaymanager,omitempty")]
     pub displaymanager: String,
     /// ```text
@@ -3327,6 +4713,11 @@ pub struct Imp {
     ///   by some ad servers to customize ad code by partner.
     ///   Recommended for video and/or apps.
     /// ```
+    #[serde(
+        rename = "displaymanagerver",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "DisplayManagerVer", json = "displaymanagerver,omitempty")]
     pub displaymanagerver: String,
     /// ```text
@@ -3337,6 +4728,11 @@ pub struct Imp {
     /// Description:
     ///   1 = the ad is interstitial or full screen, 0 = not interstitial.
     /// ```
+    #[serde(
+        rename = "instl",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Instl", json = "instl,omitempty")]
     pub instl: i8,
     /// ```text
@@ -3349,6 +4745,11 @@ pub struct Imp {
     ///   initiate the auction. This can be useful for debugging of any
     ///   issues, or for optimization by the buyer.
     /// ```
+    #[serde(
+        rename = "tagid",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "TagID", json = "tagid,omitempty")]
     pub tagid: String,
     /// ```text
@@ -3359,6 +4760,11 @@ pub struct Imp {
     /// Description:
     ///   Minimum bid for this impression expressed in CPM.
     /// ```
+    #[serde(
+        rename = "bidfloor",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "BidFloor", json = "bidfloor,omitempty")]
     pub bidfloor: f64,
     /// ```text
@@ -3372,6 +4778,11 @@ pub struct Imp {
     ///   allowed by the exchange. This currency sets the default for
     ///   all floors specified in the Imp object.
     /// ```
+    #[serde(
+        rename = "bidfloorcur",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "BidFloorCur", json = "bidfloorcur,omitempty")]
     pub bidfloorcur: String,
     /// ```text
@@ -3385,6 +4796,7 @@ pub struct Imp {
     ///   the Safari View Controller in iOS 9.x devices is considered a
     ///   native browser for purposes of this attribute.
     /// ```
+    #[serde(rename = "clickbrowser", skip_serializing_if = "Option::is_none")]
     #[gojson(go = "ClickBrowser", json = "clickbrowser,omitempty")]
     pub clickbrowser: Option<i8>,
     /// ```text
@@ -3398,6 +4810,7 @@ pub struct Imp {
     ///   If omitted, the secure state is unknown, but non-secure HTTP
     ///   support can be assumed.
     /// ```
+    #[serde(rename = "secure", skip_serializing_if = "Option::is_none")]
     #[gojson(go = "Secure", json = "secure,omitempty")]
     pub secure: Option<i8>,
     /// ```text
@@ -3408,6 +4821,7 @@ pub struct Imp {
     /// Description:
     ///   Array of exchange-specific names of supported iframe busters.
     /// ```
+    #[serde(rename = "iframebuster", skip_serializing_if = "is_nil_or_empty")]
     #[gojson(go = "IframeBuster", json = "iframebuster,omitempty")]
     pub iframebuster: Option<Vec<String>>,
     /// ```text
@@ -3423,6 +4837,11 @@ pub struct Imp {
     ///   session. The reward is typically distributed after the video ad is
     ///   completed.
     /// ```
+    #[serde(
+        rename = "rwdd",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Rwdd", json = "rwdd,omitempty")]
     pub rwdd: i8,
     /// ```text
@@ -3439,6 +4858,11 @@ pub struct Imp {
     ///   2 = assets stitched server-side but tracking pixels fired client-side,
     ///   3 = all server-side.
     /// ```
+    #[serde(
+        rename = "ssai",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "SSAI", json = "ssai,omitempty")]
     pub ssai: AdInsertion,
     /// ```text
@@ -3450,6 +4874,11 @@ pub struct Imp {
     ///   Advisory as to the number of seconds that may elapse
     ///   between the auction and the actual impression.
     /// ```
+    #[serde(
+        rename = "exp",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Exp", json = "exp,omitempty")]
     pub exp: i64,
     /// ```text
@@ -3461,6 +4890,7 @@ pub struct Imp {
     ///   A means of passing a multiplier in the bid request, representing the total
     ///   quantity of impressions for adverts that display to more than one person.
     /// ```
+    #[serde(rename = "qty", skip_serializing_if = "Option::is_none")]
     #[gojson(go = "Qty", json = "qty,omitempty")]
     pub qty: Option<Box<Qty>>,
     /// ```text
@@ -3473,6 +4903,11 @@ pub struct Imp {
     ///   impression will be displayed) in Unix format (i.e., milliseconds since
     ///   the epoch).
     /// ```
+    #[serde(
+        rename = "dt",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "DT", json = "dt,omitempty")]
     pub dt: f64,
     /// ```text
@@ -3483,6 +4918,7 @@ pub struct Imp {
     /// Description:
     ///   Details about ad slots being refreshed automatically. (Section 3.2.33)
     /// ```
+    #[serde(rename = "refresh", skip_serializing_if = "Option::is_none")]
     #[gojson(go = "Refresh", json = "refresh,omitempty")]
     pub refresh: Option<Box<Refresh>>,
     /// ```text
@@ -3493,17 +4929,81 @@ pub struct Imp {
     /// Description:
     ///   Placeholder for exchange-specific extensions to OpenRTB.
     /// ```
+    #[serde(
+        rename = "ext",
+        skip_serializing_if = "gojson_bridge::raw_json::is_empty",
+        with = "gojson_bridge::raw_json"
+    )]
     #[gojson(go = "Ext", json = "ext,omitempty")]
     pub ext: RawJson,
+}
+
+impl MergeClone for Imp {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb2.Imp";
+        merge_struct(patch, |key, value| match key {
+            "id" => merge_field(&mut self.id, value, GO_TYPE, "ID"),
+            "metric" => merge_field(&mut self.metric, value, GO_TYPE, "Metric"),
+            "banner" => merge_field(&mut self.banner, value, GO_TYPE, "Banner"),
+            "video" => merge_field(&mut self.video, value, GO_TYPE, "Video"),
+            "audio" => merge_field(&mut self.audio, value, GO_TYPE, "Audio"),
+            "native" => merge_field(&mut self.native, value, GO_TYPE, "Native"),
+            "pmp" => merge_field(&mut self.pmp, value, GO_TYPE, "PMP"),
+            "displaymanager" => {
+                merge_field(&mut self.displaymanager, value, GO_TYPE, "DisplayManager")
+            }
+            "displaymanagerver" => merge_field(
+                &mut self.displaymanagerver,
+                value,
+                GO_TYPE,
+                "DisplayManagerVer",
+            ),
+            "instl" => merge_field(&mut self.instl, value, GO_TYPE, "Instl"),
+            "tagid" => merge_field(&mut self.tagid, value, GO_TYPE, "TagID"),
+            "bidfloor" => merge_field(&mut self.bidfloor, value, GO_TYPE, "BidFloor"),
+            "bidfloorcur" => merge_field(&mut self.bidfloorcur, value, GO_TYPE, "BidFloorCur"),
+            "clickbrowser" => merge_field(&mut self.clickbrowser, value, GO_TYPE, "ClickBrowser"),
+            "secure" => merge_field(&mut self.secure, value, GO_TYPE, "Secure"),
+            "iframebuster" => merge_field(&mut self.iframebuster, value, GO_TYPE, "IframeBuster"),
+            "rwdd" => merge_field(&mut self.rwdd, value, GO_TYPE, "Rwdd"),
+            "ssai" => merge_field(&mut self.ssai, value, GO_TYPE, "SSAI"),
+            "exp" => merge_field(&mut self.exp, value, GO_TYPE, "Exp"),
+            "qty" => merge_field(&mut self.qty, value, GO_TYPE, "Qty"),
+            "dt" => merge_field(&mut self.dt, value, GO_TYPE, "DT"),
+            "refresh" => merge_field(&mut self.refresh, value, GO_TYPE, "Refresh"),
+            "ext" => gojson_bridge::merge_field(&mut self.ext, value, GO_TYPE, "Ext"),
+            _ => Ok(()),
+        })
+    }
 }
 
 /// `MarkupType` defines the type of the creative markup so that it can properly be
 /// associated with the right sub-object of the BidRequest.Imp.
 ///
 /// Originates from Bid.mtype property, not a separately-defined enum.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash, GoJson)]
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    Serialize,
+    Deserialize,
+    GoJson,
+)]
+#[serde(transparent)]
 #[gojson(go_type = "openrtb2.MarkupType", map_key)]
 pub struct MarkupType(pub i8);
+
+impl MergeClone for MarkupType {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        self.0.merge_clone(patch)
+    }
+}
 
 /// Go constant `MarkupBanner`.
 #[doc(alias = "MarkupBanner")]
@@ -3530,7 +5030,8 @@ pub const MARKUP_NATIVE: MarkupType = MarkupType(4);
 /// Each metric is identified by its type, reports the value of the metric, and optionally
 /// identifies the source or vendor measuring the value.
 /// ```
-#[derive(Clone, Debug, Default, PartialEq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb2.Metric")]
 pub struct Metric {
     /// ```text
@@ -3542,6 +5043,7 @@ pub struct Metric {
     ///   Type of metric being presented using exchange curated string
     ///   names which should be published to bidders a priori.
     /// ```
+    #[serde(rename = "type", deserialize_with = "null_default")]
     #[gojson(go = "Type", json = "type")]
     pub r#type: String,
     /// ```text
@@ -3553,6 +5055,11 @@ pub struct Metric {
     ///   Number representing the value of the metric. Probabilities
     ///   must be in the range 0.0 – 1.0.
     /// ```
+    #[serde(
+        rename = "value",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Value", json = "value,omitempty")]
     pub value: f64,
     /// ```text
@@ -3566,6 +5073,11 @@ pub struct Metric {
     ///   itself is the source versus a third party, “EXCHANGE” is
     ///   recommended.
     /// ```
+    #[serde(
+        rename = "vendor",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Vendor", json = "vendor,omitempty")]
     pub vendor: String,
     /// ```text
@@ -3576,8 +5088,26 @@ pub struct Metric {
     /// Description:
     ///   Placeholder for exchange-specific extensions to OpenRTB.
     /// ```
+    #[serde(
+        rename = "ext",
+        skip_serializing_if = "gojson_bridge::raw_json::is_empty",
+        with = "gojson_bridge::raw_json"
+    )]
     #[gojson(go = "Ext", json = "ext,omitempty")]
     pub ext: RawJson,
+}
+
+impl MergeClone for Metric {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb2.Metric";
+        merge_struct(patch, |key, value| match key {
+            "type" => merge_field(&mut self.r#type, value, GO_TYPE, "Type"),
+            "value" => merge_field(&mut self.value, value, GO_TYPE, "Value"),
+            "vendor" => merge_field(&mut self.vendor, value, GO_TYPE, "Vendor"),
+            "ext" => gojson_bridge::merge_field(&mut self.ext, value, GO_TYPE, "Ext"),
+            _ => Ok(()),
+        })
+    }
 }
 
 /// ```text
@@ -3602,7 +5132,8 @@ pub struct Metric {
 /// audio by also including as Imp subordinates objects of those types.
 /// However, any given bid for the impression must conform to one of the offered types.
 /// ```
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb2.Native")]
 pub struct Native {
     /// ```text
@@ -3624,6 +5155,7 @@ pub struct Native {
     ///   consisting of an unnamed root object which is itself the Native
     ///   Markup Request Object, section 4.1 of OpenRTB Native 1.1+.
     /// ```
+    #[serde(rename = "request", deserialize_with = "null_default")]
     #[gojson(go = "Request", json = "request")]
     pub request: String,
     /// ```text
@@ -3635,6 +5167,11 @@ pub struct Native {
     ///   Version of the Dynamic Native Ads API to which request
     ///   complies; highly recommended for efficient parsing.
     /// ```
+    #[serde(
+        rename = "ver",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Ver", json = "ver,omitempty")]
     pub ver: String,
     /// ```text
@@ -3649,6 +5186,7 @@ pub struct Native {
     /// Note:
     ///   OpenRTB <=2.5 defined only frameworks 1..6.
     /// ```
+    #[serde(rename = "api", skip_serializing_if = "is_nil_or_empty")]
     #[gojson(go = "API", json = "api,omitempty")]
     pub api: Option<Vec<adcom1::APIFramework>>,
     /// ```text
@@ -3662,6 +5200,7 @@ pub struct Native {
     /// Note:
     ///   OpenRTB <=2.5 defined only attributes with IDs 1..17.
     /// ```
+    #[serde(rename = "battr", skip_serializing_if = "is_nil_or_empty")]
     #[gojson(go = "BAttr", json = "battr,omitempty")]
     pub battr: Option<Vec<adcom1::CreativeAttribute>>,
     /// ```text
@@ -3672,8 +5211,27 @@ pub struct Native {
     /// Description:
     ///   Placeholder for exchange-specific extensions to OpenRTB.
     /// ```
+    #[serde(
+        rename = "ext",
+        skip_serializing_if = "gojson_bridge::raw_json::is_empty",
+        with = "gojson_bridge::raw_json"
+    )]
     #[gojson(go = "Ext", json = "ext,omitempty")]
     pub ext: RawJson,
+}
+
+impl MergeClone for Native {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb2.Native";
+        merge_struct(patch, |key, value| match key {
+            "request" => merge_field(&mut self.request, value, GO_TYPE, "Request"),
+            "ver" => merge_field(&mut self.ver, value, GO_TYPE, "Ver"),
+            "api" => merge_field(&mut self.api, value, GO_TYPE, "API"),
+            "battr" => merge_field(&mut self.battr, value, GO_TYPE, "BAttr"),
+            "ext" => gojson_bridge::merge_field(&mut self.ext, value, GO_TYPE, "Ext"),
+            _ => Ok(()),
+        })
+    }
 }
 
 /// ```text
@@ -3689,7 +5247,8 @@ pub struct Native {
 /// purposes.
 /// See 7.6 for further examples.
 /// ```
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb2.Network")]
 pub struct Network {
     /// ```text
@@ -3701,6 +5260,11 @@ pub struct Network {
     ///   A unique identifier assigned by the publisher. This may not be
     ///   a unique identifier across all supply sources.
     /// ```
+    #[serde(
+        rename = "id",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "ID", json = "id,omitempty")]
     pub id: String,
     /// ```text
@@ -3711,6 +5275,11 @@ pub struct Network {
     /// Description:
     ///   Network the content is on (e.g., a TV network like “ABC").
     /// ```
+    #[serde(
+        rename = "name",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Name", json = "name,omitempty")]
     pub name: String,
     /// ```text
@@ -3724,6 +5293,11 @@ pub struct Network {
     ///   top private domain (PSL+1) for DSP targeting normalization
     ///   purposes.
     /// ```
+    #[serde(
+        rename = "domain",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Domain", json = "domain,omitempty")]
     pub domain: String,
     /// ```text
@@ -3734,8 +5308,26 @@ pub struct Network {
     /// Description:
     ///   Placeholder for exchange-specific extensions to OpenRTB.
     /// ```
+    #[serde(
+        rename = "ext",
+        skip_serializing_if = "gojson_bridge::raw_json::is_empty",
+        with = "gojson_bridge::raw_json"
+    )]
     #[gojson(go = "Ext", json = "ext,omitempty")]
     pub ext: RawJson,
+}
+
+impl MergeClone for Network {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb2.Network";
+        merge_struct(patch, |key, value| match key {
+            "id" => merge_field(&mut self.id, value, GO_TYPE, "ID"),
+            "name" => merge_field(&mut self.name, value, GO_TYPE, "Name"),
+            "domain" => merge_field(&mut self.domain, value, GO_TYPE, "Domain"),
+            "ext" => gojson_bridge::merge_field(&mut self.ext, value, GO_TYPE, "Ext"),
+            _ => Ok(()),
+        })
+    }
 }
 
 /// ```text
@@ -3746,7 +5338,8 @@ pub struct Network {
 /// The actual deals are represented as a collection of Deal objects.
 /// Refer to Section 7.3 for more details.
 /// ```
-#[derive(Clone, Debug, Default, PartialEq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb2.PMP")]
 pub struct PMP {
     /// ```text
@@ -3759,6 +5352,11 @@ pub struct PMP {
     ///   Deals object, where 0 = all bids are accepted, 1 = bids are
     ///   restricted to the deals specified and the terms thereof.
     /// ```
+    #[serde(
+        rename = "private_auction",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "PrivateAuction", json = "private_auction,omitempty")]
     pub private_auction: i8,
     /// ```text
@@ -3770,6 +5368,7 @@ pub struct PMP {
     ///   Array of Deal (Section 3.2.12) objects that convey the specific
     ///   deals applicable to this impression.
     /// ```
+    #[serde(rename = "deals", skip_serializing_if = "is_nil_or_empty")]
     #[gojson(go = "Deals", json = "deals,omitempty")]
     pub deals: Option<Vec<Deal>>,
     /// ```text
@@ -3780,8 +5379,27 @@ pub struct PMP {
     /// Description:
     ///   Placeholder for exchange-specific extensions to OpenRTB.
     /// ```
+    #[serde(
+        rename = "ext",
+        skip_serializing_if = "gojson_bridge::raw_json::is_empty",
+        with = "gojson_bridge::raw_json"
+    )]
     #[gojson(go = "Ext", json = "ext,omitempty")]
     pub ext: RawJson,
+}
+
+impl MergeClone for PMP {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb2.PMP";
+        merge_struct(patch, |key, value| match key {
+            "private_auction" => {
+                merge_field(&mut self.private_auction, value, GO_TYPE, "PrivateAuction")
+            }
+            "deals" => merge_field(&mut self.deals, value, GO_TYPE, "Deals"),
+            "ext" => gojson_bridge::merge_field(&mut self.ext, value, GO_TYPE, "Ext"),
+            _ => Ok(()),
+        })
+    }
 }
 
 /// ```text
@@ -3792,7 +5410,8 @@ pub struct PMP {
 /// different publishers and thus when the producer and publisher are not necessarily the same
 /// entity.
 /// ```
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb2.Producer")]
 pub struct Producer {
     /// ```text
@@ -3804,6 +5423,11 @@ pub struct Producer {
     ///   Content producer or originator ID. Useful if content is
     ///   syndicated and may be posted on a site using embed tags.
     /// ```
+    #[serde(
+        rename = "id",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "ID", json = "id,omitempty")]
     pub id: String,
     /// ```text
@@ -3814,6 +5438,11 @@ pub struct Producer {
     /// Description:
     ///   Content producer or originator name (e.g., “Warner Bros”).
     /// ```
+    #[serde(
+        rename = "name",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Name", json = "name,omitempty")]
     pub name: String,
     /// ```text
@@ -3825,6 +5454,11 @@ pub struct Producer {
     ///   The taxonomy in use. Refer to the AdCOM 1.0 list List: Category
     ///   Taxonomies for values.
     /// ```
+    #[serde(
+        rename = "cattax",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "CatTax", json = "cattax,omitempty")]
     pub cattax: adcom1::CategoryTaxonomy,
     /// ```text
@@ -3839,6 +5473,7 @@ pub struct Producer {
     ///   cattax field is supplied IAB Content Category Taxonomy 1.0 is
     ///   assumed.
     /// ```
+    #[serde(rename = "cat", skip_serializing_if = "is_nil_or_empty")]
     #[gojson(go = "Cat", json = "cat,omitempty")]
     pub cat: Option<Vec<String>>,
     /// ```text
@@ -3850,6 +5485,11 @@ pub struct Producer {
     ///   Highest level domain of the content producer (e.g.,
     ///   “producer.com”).
     /// ```
+    #[serde(
+        rename = "domain",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Domain", json = "domain,omitempty")]
     pub domain: String,
     /// ```text
@@ -3860,8 +5500,28 @@ pub struct Producer {
     /// Description:
     ///   Placeholder for exchange-specific extensions to OpenRTB.
     /// ```
+    #[serde(
+        rename = "ext",
+        skip_serializing_if = "gojson_bridge::raw_json::is_empty",
+        with = "gojson_bridge::raw_json"
+    )]
     #[gojson(go = "Ext", json = "ext,omitempty")]
     pub ext: RawJson,
+}
+
+impl MergeClone for Producer {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb2.Producer";
+        merge_struct(patch, |key, value| match key {
+            "id" => merge_field(&mut self.id, value, GO_TYPE, "ID"),
+            "name" => merge_field(&mut self.name, value, GO_TYPE, "Name"),
+            "cattax" => merge_field(&mut self.cattax, value, GO_TYPE, "CatTax"),
+            "cat" => merge_field(&mut self.cat, value, GO_TYPE, "Cat"),
+            "domain" => merge_field(&mut self.domain, value, GO_TYPE, "Domain"),
+            "ext" => gojson_bridge::merge_field(&mut self.ext, value, GO_TYPE, "Ext"),
+            _ => Ok(()),
+        })
+    }
 }
 
 /// ```text
@@ -3870,7 +5530,8 @@ pub struct Producer {
 /// This object describes the publisher of the media in which the ad will be displayed.
 /// The publisher is typically the seller in an OpenRTB transaction.
 /// ```
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb2.Publisher")]
 pub struct Publisher {
     /// ```text
@@ -3881,6 +5542,11 @@ pub struct Publisher {
     /// Description:
     ///   Exchange-specific publisher ID.
     /// ```
+    #[serde(
+        rename = "id",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "ID", json = "id,omitempty")]
     pub id: String,
     /// ```text
@@ -3891,6 +5557,11 @@ pub struct Publisher {
     /// Description:
     ///   Publisher name (may be aliased at the publisher’s request).
     /// ```
+    #[serde(
+        rename = "name",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Name", json = "name,omitempty")]
     pub name: String,
     /// ```text
@@ -3902,6 +5573,11 @@ pub struct Publisher {
     ///   The taxonomy in use. Refer to the AdCOM list List: Category
     ///   Taxonomies for values.
     /// ```
+    #[serde(
+        rename = "cattax",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "CatTax", json = "cattax,omitempty")]
     pub cattax: adcom1::CategoryTaxonomy,
     /// ```text
@@ -3915,6 +5591,7 @@ pub struct Publisher {
     ///   cattax field is supplied IAB Content Category Taxonomy 1.0 is
     ///   assumed.
     /// ```
+    #[serde(rename = "cat", skip_serializing_if = "is_nil_or_empty")]
     #[gojson(go = "Cat", json = "cat,omitempty")]
     pub cat: Option<Vec<String>>,
     /// ```text
@@ -3925,6 +5602,11 @@ pub struct Publisher {
     /// Description:
     ///   Highest level domain of the publisher (e.g., “publisher.com”).
     /// ```
+    #[serde(
+        rename = "domain",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Domain", json = "domain,omitempty")]
     pub domain: String,
     /// ```text
@@ -3935,8 +5617,28 @@ pub struct Publisher {
     /// Description:
     ///   Placeholder for exchange-specific extensions to OpenRTB.
     /// ```
+    #[serde(
+        rename = "ext",
+        skip_serializing_if = "gojson_bridge::raw_json::is_empty",
+        with = "gojson_bridge::raw_json"
+    )]
     #[gojson(go = "Ext", json = "ext,omitempty")]
     pub ext: RawJson,
+}
+
+impl MergeClone for Publisher {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb2.Publisher";
+        merge_struct(patch, |key, value| match key {
+            "id" => merge_field(&mut self.id, value, GO_TYPE, "ID"),
+            "name" => merge_field(&mut self.name, value, GO_TYPE, "Name"),
+            "cattax" => merge_field(&mut self.cattax, value, GO_TYPE, "CatTax"),
+            "cat" => merge_field(&mut self.cat, value, GO_TYPE, "Cat"),
+            "domain" => merge_field(&mut self.domain, value, GO_TYPE, "Domain"),
+            "ext" => gojson_bridge::merge_field(&mut self.ext, value, GO_TYPE, "Ext"),
+            _ => Ok(()),
+        })
+    }
 }
 
 /// ```text
@@ -3949,7 +5651,8 @@ pub struct Publisher {
 /// This object includes the impression multiplier, and describes the source of the multiplier
 /// value.
 /// ```
-#[derive(Clone, Debug, Default, PartialEq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb2.Qty")]
 pub struct Qty {
     /// ```text
@@ -3962,6 +5665,11 @@ pub struct Qty {
     ///   if this item is purchased. For example, a DOOH opportunity may be
     ///   considered to be 14.2 impressions. Equivalent to qtyflt in OpenRTB 3.0.
     /// ```
+    #[serde(
+        rename = "multiplier",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Multiplier", json = "multiplier,omitempty")]
     pub multiplier: f64,
     /// ```text
@@ -3973,6 +5681,11 @@ pub struct Qty {
     ///   The source type of the quantity measurement, ie. publisher. Refer to
     ///   List: DOOH Multiplier Measurement Source Types.
     /// ```
+    #[serde(
+        rename = "sourcetype",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "SourceType", json = "sourcetype,omitempty")]
     pub sourcetype: adcom1::DOOHMultiplierMeasurementSourceType,
     /// ```text
@@ -3984,6 +5697,11 @@ pub struct Qty {
     ///   The top level business domain name of the measurement vendor providing
     ///   the quantity measurement.
     /// ```
+    #[serde(
+        rename = "vendor",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Vendor", json = "vendor,omitempty")]
     pub vendor: String,
     /// ```text
@@ -3994,12 +5712,31 @@ pub struct Qty {
     /// Definition:
     ///   Placeholder for vendor specific extensions to this object.
     /// ```
+    #[serde(
+        rename = "ext",
+        skip_serializing_if = "gojson_bridge::raw_json::is_empty",
+        with = "gojson_bridge::raw_json"
+    )]
     #[gojson(go = "Ext", json = "ext,omitempty")]
     pub ext: RawJson,
 }
 
+impl MergeClone for Qty {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb2.Qty";
+        merge_struct(patch, |key, value| match key {
+            "multiplier" => merge_field(&mut self.multiplier, value, GO_TYPE, "Multiplier"),
+            "sourcetype" => merge_field(&mut self.sourcetype, value, GO_TYPE, "SourceType"),
+            "vendor" => merge_field(&mut self.vendor, value, GO_TYPE, "Vendor"),
+            "ext" => gojson_bridge::merge_field(&mut self.ext, value, GO_TYPE, "Ext"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Object: Refresh
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb2.Refresh")]
 pub struct Refresh {
     /// ```text
@@ -4011,6 +5748,7 @@ pub struct Refresh {
     ///   A RefSettings object (see Section 3.2.34) describing the mechanics
     ///   of how an ad placement automatically refreshes.
     /// ```
+    #[serde(rename = "refsettings", skip_serializing_if = "is_nil_or_empty")]
     #[gojson(go = "RefSettings", json = "refsettings,omitempty")]
     pub refsettings: Option<Vec<RefSettings>>,
     /// ```text
@@ -4021,6 +5759,7 @@ pub struct Refresh {
     /// Description:
     ///   The number of times this ad slot had been refreshed since last page load.
     /// ```
+    #[serde(rename = "count", skip_serializing_if = "Option::is_none")]
     #[gojson(go = "Count", json = "count,omitempty")]
     pub count: Option<isize>,
     /// ```text
@@ -4031,14 +5770,32 @@ pub struct Refresh {
     /// Definition:
     ///   Placeholder for vendor specific extensions to this object.
     /// ```
+    #[serde(
+        rename = "ext",
+        skip_serializing_if = "gojson_bridge::raw_json::is_empty",
+        with = "gojson_bridge::raw_json"
+    )]
     #[gojson(go = "Ext", json = "ext,omitempty")]
     pub ext: RawJson,
+}
+
+impl MergeClone for Refresh {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb2.Refresh";
+        merge_struct(patch, |key, value| match key {
+            "refsettings" => merge_field(&mut self.refsettings, value, GO_TYPE, "RefSettings"),
+            "count" => gojson_bridge::merge_field(&mut self.count, value, GO_TYPE, "Count"),
+            "ext" => gojson_bridge::merge_field(&mut self.ext, value, GO_TYPE, "Ext"),
+            _ => Ok(()),
+        })
+    }
 }
 
 /// Object: `RefSettings`
 ///
 /// Information on how often and what triggers an ad slot being refreshed.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb2.RefSettings")]
 pub struct RefSettings {
     /// ```text
@@ -4050,6 +5807,11 @@ pub struct RefSettings {
     ///   The type of the declared auto refresh.
     ///   Refer to List: Auto Refresh Triggers in AdCOM 1.0
     /// ```
+    #[serde(
+        rename = "reftype",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "RefType", json = "reftype,omitempty")]
     pub reftype: adcom1::AutoRefreshTrigger,
     /// ```text
@@ -4065,6 +5827,11 @@ pub struct RefSettings {
     ///   does not account for viewability or external factors such as a
     ///   user leaving a page.
     /// ```
+    #[serde(
+        rename = "minint",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "MinInt", json = "minint,omitempty")]
     pub minint: isize,
     /// ```text
@@ -4075,8 +5842,25 @@ pub struct RefSettings {
     /// Definition:
     ///   Placeholder for vendor specific extensions to this object.
     /// ```
+    #[serde(
+        rename = "ext",
+        skip_serializing_if = "gojson_bridge::raw_json::is_empty",
+        with = "gojson_bridge::raw_json"
+    )]
     #[gojson(go = "Ext", json = "ext,omitempty")]
     pub ext: RawJson,
+}
+
+impl MergeClone for RefSettings {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb2.RefSettings";
+        merge_struct(patch, |key, value| match key {
+            "reftype" => merge_field(&mut self.reftype, value, GO_TYPE, "RefType"),
+            "minint" => gojson_bridge::merge_field(&mut self.minint, value, GO_TYPE, "MinInt"),
+            "ext" => gojson_bridge::merge_field(&mut self.ext, value, GO_TYPE, "Ext"),
+            _ => Ok(()),
+        })
+    }
 }
 
 /// ```text
@@ -4086,7 +5870,8 @@ pub struct RefSettings {
 /// applicable to the request.
 /// See Section 7.5 for more details on the flags supporting Coppa, GDPR and others.
 /// ```
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb2.Regs")]
 pub struct Regs {
     /// ```text
@@ -4099,6 +5884,11 @@ pub struct Regs {
     ///   regulations established by the USA FTC, where 0 = no, 1 = yes.
     ///   Refer to Section 7.5 for more information.
     /// ```
+    #[serde(
+        rename = "coppa",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "COPPA", json = "coppa,omitempty")]
     pub coppa: i8,
     /// ```text
@@ -4111,6 +5901,7 @@ pub struct Regs {
     ///   GDPR regulations 0 = No, 1 = Yes, omission indicates
     ///   Unknown. Refer to Section 7.5 for more information.
     /// ```
+    #[serde(rename = "gdpr", skip_serializing_if = "Option::is_none")]
     #[gojson(go = "GDPR", json = "gdpr,omitempty")]
     pub gdpr: Option<i8>,
     /// ```text
@@ -4123,6 +5914,11 @@ pub struct Regs {
     ///   privacy regulation. See US Privacy String specifications. Refer
     ///   to Section 7.5 for more information.
     /// ```
+    #[serde(
+        rename = "us_privacy",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "USPrivacy", json = "us_privacy,omitempty")]
     pub us_privacy: String,
     /// ```text
@@ -4134,6 +5930,11 @@ pub struct Regs {
     ///   Contains the Global Privacy Platform’s consent string. See the
     ///   Global Privacy Platform specification for more details.
     /// ```
+    #[serde(
+        rename = "gpp",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "GPP", json = "gpp,omitempty")]
     pub gpp: String,
     /// ```text
@@ -4148,6 +5949,7 @@ pub struct Regs {
     ///   and 4 (Signal Integrity) do not need to be included. See the
     ///   GPP Section Information for more details.
     /// ```
+    #[serde(rename = "gpp_sid", skip_serializing_if = "is_nil_or_empty")]
     #[gojson(go = "GPPSID", json = "gpp_sid,omitempty")]
     pub gpp_sid: Option<Vec<i8>>,
     /// ```text
@@ -4158,8 +5960,28 @@ pub struct Regs {
     /// Description:
     ///   Placeholder for exchange-specific extensions to OpenRTB.
     /// ```
+    #[serde(
+        rename = "ext",
+        skip_serializing_if = "gojson_bridge::raw_json::is_empty",
+        with = "gojson_bridge::raw_json"
+    )]
     #[gojson(go = "Ext", json = "ext,omitempty")]
     pub ext: RawJson,
+}
+
+impl MergeClone for Regs {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb2.Regs";
+        merge_struct(patch, |key, value| match key {
+            "coppa" => merge_field(&mut self.coppa, value, GO_TYPE, "COPPA"),
+            "gdpr" => merge_field(&mut self.gdpr, value, GO_TYPE, "GDPR"),
+            "us_privacy" => merge_field(&mut self.us_privacy, value, GO_TYPE, "USPrivacy"),
+            "gpp" => merge_field(&mut self.gpp, value, GO_TYPE, "GPP"),
+            "gpp_sid" => merge_field(&mut self.gpp_sid, value, GO_TYPE, "GPPSID"),
+            "ext" => gojson_bridge::merge_field(&mut self.ext, value, GO_TYPE, "Ext"),
+            _ => Ok(()),
+        })
+    }
 }
 
 /// ```text
@@ -4171,7 +5993,8 @@ pub struct Regs {
 /// if a seat is willing to accept any impressions that it can win (default) or if it is only
 /// interested in winning any if it can win them all as a group.
 /// ```
-#[derive(Clone, Debug, Default, PartialEq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb2.SeatBid")]
 pub struct SeatBid {
     /// ```text
@@ -4183,6 +6006,7 @@ pub struct SeatBid {
     ///   Array of 1+ Bid objects (Section 4.2.3) each related to an
     ///   impression. Multiple bids can relate to the same impression.
     /// ```
+    #[serde(rename = "bid")]
     #[gojson(go = "Bid", json = "bid")]
     pub bid: Option<Vec<Bid>>,
     /// ```text
@@ -4194,6 +6018,11 @@ pub struct SeatBid {
     ///   ID of the buyer seat (e.g., advertiser, agency) on whose behalf
     ///   this bid is made.
     /// ```
+    #[serde(
+        rename = "seat",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Seat", json = "seat,omitempty")]
     pub seat: String,
     /// ```text
@@ -4205,6 +6034,11 @@ pub struct SeatBid {
     ///   0 = impressions can be won individually; 1 = impressions must
     ///   be won or lost as a group.
     /// ```
+    #[serde(
+        rename = "group",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Group", json = "group,omitempty")]
     pub group: i8,
     /// ```text
@@ -4215,8 +6049,26 @@ pub struct SeatBid {
     /// Description:
     ///   Placeholder for bidder-specific extensions to OpenRTB.
     /// ```
+    #[serde(
+        rename = "ext",
+        skip_serializing_if = "gojson_bridge::raw_json::is_empty",
+        with = "gojson_bridge::raw_json"
+    )]
     #[gojson(go = "Ext", json = "ext,omitempty")]
     pub ext: RawJson,
+}
+
+impl MergeClone for SeatBid {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb2.SeatBid";
+        merge_struct(patch, |key, value| match key {
+            "bid" => merge_field(&mut self.bid, value, GO_TYPE, "Bid"),
+            "seat" => merge_field(&mut self.seat, value, GO_TYPE, "Seat"),
+            "group" => merge_field(&mut self.group, value, GO_TYPE, "Group"),
+            "ext" => gojson_bridge::merge_field(&mut self.ext, value, GO_TYPE, "Ext"),
+            _ => Ok(()),
+        })
+    }
 }
 
 /// ```text
@@ -4227,7 +6079,8 @@ pub struct SeatBid {
 /// The specific segment names and value options must be published by the exchange a priori to its
 /// bidders.
 /// ```
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb2.Segment")]
 pub struct Segment {
     /// ```text
@@ -4238,6 +6091,11 @@ pub struct Segment {
     /// Description:
     ///   ID of the data segment specific to the data provider.
     /// ```
+    #[serde(
+        rename = "id",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "ID", json = "id,omitempty")]
     pub id: String,
     /// ```text
@@ -4248,6 +6106,11 @@ pub struct Segment {
     /// Description:
     ///   Name of the data segment specific to the data provider.
     /// ```
+    #[serde(
+        rename = "name",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Name", json = "name,omitempty")]
     pub name: String,
     /// ```text
@@ -4258,6 +6121,11 @@ pub struct Segment {
     /// Description:
     ///   String representation of the data segment value.
     /// ```
+    #[serde(
+        rename = "value",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Value", json = "value,omitempty")]
     pub value: String,
     /// ```text
@@ -4268,8 +6136,26 @@ pub struct Segment {
     /// Description:
     ///   Placeholder for exchange-specific extensions to OpenRTB.
     /// ```
+    #[serde(
+        rename = "ext",
+        skip_serializing_if = "gojson_bridge::raw_json::is_empty",
+        with = "gojson_bridge::raw_json"
+    )]
     #[gojson(go = "Ext", json = "ext,omitempty")]
     pub ext: RawJson,
+}
+
+impl MergeClone for Segment {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb2.Segment";
+        merge_struct(patch, |key, value| match key {
+            "id" => merge_field(&mut self.id, value, GO_TYPE, "ID"),
+            "name" => merge_field(&mut self.name, value, GO_TYPE, "Name"),
+            "value" => merge_field(&mut self.value, value, GO_TYPE, "Value"),
+            "ext" => gojson_bridge::merge_field(&mut self.ext, value, GO_TYPE, "Ext"),
+            _ => Ok(()),
+        })
+    }
 }
 
 /// ```text
@@ -4280,7 +6166,8 @@ pub struct Segment {
 /// A bid request must not contain more than one of a `Site`, `App` or `DOOH` object.
 /// At a minimum, it is useful to provide a site ID or page URL, but this is not strictly required.
 /// ```
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb2.Site")]
 pub struct Site {
     /// ```text
@@ -4291,6 +6178,11 @@ pub struct Site {
     /// Description:
     ///   Exchange-specific site ID.
     /// ```
+    #[serde(
+        rename = "id",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "ID", json = "id,omitempty")]
     pub id: String,
     /// ```text
@@ -4301,6 +6193,11 @@ pub struct Site {
     /// Description:
     ///   Site name (may be aliased at the publisher’s request).
     /// ```
+    #[serde(
+        rename = "name",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Name", json = "name,omitempty")]
     pub name: String,
     /// ```text
@@ -4311,6 +6208,11 @@ pub struct Site {
     /// Description:
     ///   Domain of the site (e.g., “mysite.foo.com”).
     /// ```
+    #[serde(
+        rename = "domain",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Domain", json = "domain,omitempty")]
     pub domain: String,
     /// ```text
@@ -4323,6 +6225,11 @@ pub struct Site {
     ///   Taxonomies for values. If no cattax field is supplied IAB Content
     ///   Category Taxonomy 1.0 is assumed.
     /// ```
+    #[serde(
+        rename = "cattax",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "CatTax", json = "cattax,omitempty")]
     pub cattax: adcom1::CategoryTaxonomy,
     /// ```text
@@ -4334,6 +6241,7 @@ pub struct Site {
     ///   Array of IABTL content categories of the site.
     ///   The taxonomy to be used is defined by the cattax field.
     /// ```
+    #[serde(rename = "cat", skip_serializing_if = "is_nil_or_empty")]
     #[gojson(go = "Cat", json = "cat,omitempty")]
     pub cat: Option<Vec<String>>,
     /// ```text
@@ -4346,6 +6254,7 @@ pub struct Site {
     ///   section of the site. The taxonomy to be used is defined by
     ///   the cattax field.
     /// ```
+    #[serde(rename = "sectioncat", skip_serializing_if = "is_nil_or_empty")]
     #[gojson(go = "SectionCat", json = "sectioncat,omitempty")]
     pub sectioncat: Option<Vec<String>>,
     /// ```text
@@ -4358,6 +6267,7 @@ pub struct Site {
     ///   page or view of the site.
     ///   The taxonomy to be used is defined by the cattax field.
     /// ```
+    #[serde(rename = "pagecat", skip_serializing_if = "is_nil_or_empty")]
     #[gojson(go = "PageCat", json = "pagecat,omitempty")]
     pub pagecat: Option<Vec<String>>,
     /// ```text
@@ -4368,6 +6278,11 @@ pub struct Site {
     /// Description:
     ///   URL of the page where the impression will be shown.
     /// ```
+    #[serde(
+        rename = "page",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Page", json = "page,omitempty")]
     pub page: String,
     /// ```text
@@ -4378,6 +6293,11 @@ pub struct Site {
     /// Description:
     ///   Referrer URL that caused navigation to the current page
     /// ```
+    #[serde(
+        rename = "ref",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Ref", json = "ref,omitempty")]
     pub r#ref: String,
     /// ```text
@@ -4388,6 +6308,11 @@ pub struct Site {
     /// Description:
     ///   Search string that caused navigation to the current page.
     /// ```
+    #[serde(
+        rename = "search",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Search", json = "search,omitempty")]
     pub search: String,
     /// ```text
@@ -4399,6 +6324,7 @@ pub struct Site {
     ///   Indicates if the site has been programmed to optimize layout
     ///   when viewed on mobile devices, where 0 = no, 1 = yes.
     /// ```
+    #[serde(rename = "mobile", skip_serializing_if = "Option::is_none")]
     #[gojson(go = "Mobile", json = "mobile,omitempty")]
     pub mobile: Option<i8>,
     /// ```text
@@ -4409,6 +6335,7 @@ pub struct Site {
     /// Description:
     ///   Indicates if the site has a privacy policy, where 0 = no, 1 = yes.
     /// ```
+    #[serde(rename = "privacypolicy", skip_serializing_if = "Option::is_none")]
     #[gojson(go = "PrivacyPolicy", json = "privacypolicy,omitempty")]
     pub privacypolicy: Option<i8>,
     /// ```text
@@ -4419,6 +6346,7 @@ pub struct Site {
     /// Description:
     ///   Details about the Publisher (Section 3.2.15) of the site.
     /// ```
+    #[serde(rename = "publisher", skip_serializing_if = "Option::is_none")]
     #[gojson(go = "Publisher", json = "publisher,omitempty")]
     pub publisher: Option<Box<Publisher>>,
     /// ```text
@@ -4429,6 +6357,7 @@ pub struct Site {
     /// Description:
     ///   Details about the Content (Section 3.2.16) within the site.
     /// ```
+    #[serde(rename = "content", skip_serializing_if = "Option::is_none")]
     #[gojson(go = "Content", json = "content,omitempty")]
     pub content: Option<Box<Content>>,
     /// ```text
@@ -4440,6 +6369,11 @@ pub struct Site {
     ///   Comma separated list of keywords about the site. Only one of
     ///  ‘keywords’ or ‘kwarray’ may be present.
     /// ```
+    #[serde(
+        rename = "keywords",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Keywords", json = "keywords,omitempty")]
     pub keywords: String,
     /// ```text
@@ -4451,6 +6385,7 @@ pub struct Site {
     ///   Array of keywords about the site. Only one of ‘keywords’ or
     ///   ‘kwarray’ may be present.
     /// ```
+    #[serde(rename = "kwarray", skip_serializing_if = "is_nil_or_empty")]
     #[gojson(go = "KwArray", json = "kwarray,omitempty")]
     pub kwarray: Option<Vec<String>>,
     /// ```text
@@ -4469,6 +6404,11 @@ pub struct Site {
     ///   file on the root of that domain. Refer to the ads.txt 1.1 spec for more
     ///   details.
     /// ```
+    #[serde(
+        rename = "inventorypartnerdomain",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(
         go = "InventoryPartnerDomain",
         json = "inventorypartnerdomain,omitempty"
@@ -4482,8 +6422,47 @@ pub struct Site {
     /// Description:
     ///   Placeholder for exchange-specific extensions to OpenRTB.
     /// ```
+    #[serde(
+        rename = "ext",
+        skip_serializing_if = "gojson_bridge::raw_json::is_empty",
+        with = "gojson_bridge::raw_json"
+    )]
     #[gojson(go = "Ext", json = "ext,omitempty")]
     pub ext: RawJson,
+}
+
+impl MergeClone for Site {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb2.Site";
+        merge_struct(patch, |key, value| match key {
+            "id" => merge_field(&mut self.id, value, GO_TYPE, "ID"),
+            "name" => merge_field(&mut self.name, value, GO_TYPE, "Name"),
+            "domain" => merge_field(&mut self.domain, value, GO_TYPE, "Domain"),
+            "cattax" => merge_field(&mut self.cattax, value, GO_TYPE, "CatTax"),
+            "cat" => merge_field(&mut self.cat, value, GO_TYPE, "Cat"),
+            "sectioncat" => merge_field(&mut self.sectioncat, value, GO_TYPE, "SectionCat"),
+            "pagecat" => merge_field(&mut self.pagecat, value, GO_TYPE, "PageCat"),
+            "page" => merge_field(&mut self.page, value, GO_TYPE, "Page"),
+            "ref" => merge_field(&mut self.r#ref, value, GO_TYPE, "Ref"),
+            "search" => merge_field(&mut self.search, value, GO_TYPE, "Search"),
+            "mobile" => merge_field(&mut self.mobile, value, GO_TYPE, "Mobile"),
+            "privacypolicy" => {
+                merge_field(&mut self.privacypolicy, value, GO_TYPE, "PrivacyPolicy")
+            }
+            "publisher" => merge_field(&mut self.publisher, value, GO_TYPE, "Publisher"),
+            "content" => merge_field(&mut self.content, value, GO_TYPE, "Content"),
+            "keywords" => merge_field(&mut self.keywords, value, GO_TYPE, "Keywords"),
+            "kwarray" => merge_field(&mut self.kwarray, value, GO_TYPE, "KwArray"),
+            "inventorypartnerdomain" => merge_field(
+                &mut self.inventorypartnerdomain,
+                value,
+                GO_TYPE,
+                "InventoryPartnerDomain",
+            ),
+            "ext" => gojson_bridge::merge_field(&mut self.ext, value, GO_TYPE, "Ext"),
+            _ => Ok(()),
+        })
+    }
 }
 
 /// ```text
@@ -4497,7 +6476,8 @@ pub struct Site {
 /// such as another RTB exchange, a mediation platform, or an ad server combines direct campaigns
 /// with 3rd party demand in decisioning.
 /// ```
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb2.Source")]
 pub struct Source {
     /// ```text
@@ -4509,6 +6489,7 @@ pub struct Source {
     ///   Entity responsible for the final impression sale decision, where
     ///   0 = exchange, 1 = upstream source.
     /// ```
+    #[serde(rename = "fd", skip_serializing_if = "Option::is_none")]
     #[gojson(go = "FD", json = "fd,omitempty")]
     pub fd: Option<i8>,
     /// ```text
@@ -4520,6 +6501,11 @@ pub struct Source {
     ///   Transaction ID that must be common across all participants in
     ///   this bid request (e.g., potentially multiple exchanges).
     /// ```
+    #[serde(
+        rename = "tid",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "TID", json = "tid,omitempty")]
     pub tid: String,
     /// ```text
@@ -4531,6 +6517,11 @@ pub struct Source {
     ///   Payment ID chain string containing embedded syntax
     ///   described in the TAG Payment ID Protocol v1.0.
     /// ```
+    #[serde(
+        rename = "pchain",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "PChain", json = "pchain,omitempty")]
     pub pchain: String,
     /// ```text
@@ -4544,6 +6535,7 @@ pub struct Source {
     ///   complete. Details via the SupplyChain object (section
     ///   3.2.25)
     /// ```
+    #[serde(rename = "schain", skip_serializing_if = "Option::is_none")]
     #[gojson(go = "SChain", json = "schain,omitempty")]
     pub schain: Option<Box<SupplyChain>>,
     /// ```text
@@ -4554,8 +6546,27 @@ pub struct Source {
     /// Description:
     ///   Placeholder for exchange-specific extensions to OpenRTB.
     /// ```
+    #[serde(
+        rename = "ext",
+        skip_serializing_if = "gojson_bridge::raw_json::is_empty",
+        with = "gojson_bridge::raw_json"
+    )]
     #[gojson(go = "Ext", json = "ext,omitempty")]
     pub ext: RawJson,
+}
+
+impl MergeClone for Source {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb2.Source";
+        merge_struct(patch, |key, value| match key {
+            "fd" => merge_field(&mut self.fd, value, GO_TYPE, "FD"),
+            "tid" => merge_field(&mut self.tid, value, GO_TYPE, "TID"),
+            "pchain" => merge_field(&mut self.pchain, value, GO_TYPE, "PChain"),
+            "schain" => merge_field(&mut self.schain, value, GO_TYPE, "SChain"),
+            "ext" => gojson_bridge::merge_field(&mut self.ext, value, GO_TYPE, "Ext"),
+            _ => Ok(()),
+        })
+    }
 }
 
 /// ```text
@@ -4568,7 +6579,8 @@ pub struct Source {
 /// Detailed implementation examples can be found here:
 /// https://github.com/InteractiveAdvertisingBureau/openrtb/blob/main/supplychainobject.md.
 /// ```
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb2.SupplyChain")]
 pub struct SupplyChain {
     /// ```text
@@ -4581,6 +6593,7 @@ pub struct SupplyChain {
     ///   in the transaction leading back to the owner of the site, app
     ///   or other medium of the inventory, where 0 = no, 1 = yes.
     /// ```
+    #[serde(rename = "complete", deserialize_with = "null_default")]
     #[gojson(go = "Complete", json = "complete")]
     pub complete: i8,
     /// ```text
@@ -4596,6 +6609,7 @@ pub struct SupplyChain {
     ///   supply chain, it represents the first known node. The last node
     ///   epresents the entity sending this bid request.
     /// ```
+    #[serde(rename = "nodes")]
     #[gojson(go = "Nodes", json = "nodes")]
     pub nodes: Option<Vec<SupplyChainNode>>,
     /// ```text
@@ -4608,6 +6622,7 @@ pub struct SupplyChain {
     ///   of "major.minor". For example, for version 1.0 of the spec,
     ///   use the string “1.0”.
     /// ```
+    #[serde(rename = "ver", deserialize_with = "null_default")]
     #[gojson(go = "Ver", json = "ver")]
     pub ver: String,
     /// ```text
@@ -4618,8 +6633,26 @@ pub struct SupplyChain {
     /// Description:
     ///   Placeholder for advertising-system specific extensions to this object.
     /// ```
+    #[serde(
+        rename = "ext",
+        skip_serializing_if = "gojson_bridge::raw_json::is_empty",
+        with = "gojson_bridge::raw_json"
+    )]
     #[gojson(go = "Ext", json = "ext,omitempty")]
     pub ext: RawJson,
+}
+
+impl MergeClone for SupplyChain {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb2.SupplyChain";
+        merge_struct(patch, |key, value| match key {
+            "complete" => merge_field(&mut self.complete, value, GO_TYPE, "Complete"),
+            "nodes" => merge_field(&mut self.nodes, value, GO_TYPE, "Nodes"),
+            "ver" => merge_field(&mut self.ver, value, GO_TYPE, "Ver"),
+            "ext" => gojson_bridge::merge_field(&mut self.ext, value, GO_TYPE, "Ext"),
+            _ => Ok(()),
+        })
+    }
 }
 
 /// ```text
@@ -4630,7 +6663,8 @@ pub struct SupplyChain {
 /// Detailed implementation examples can be found here:
 /// https://github.com/InteractiveAdvertisingBureau/openrtb/blob/main/supplychainobject.md.
 /// ```
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb2.SupplyChainNode")]
 pub struct SupplyChainNode {
     /// ```text
@@ -4647,6 +6681,7 @@ pub struct SupplyChainNode {
     ///   delegate system. This should be the same value as used to
     ///   identify sellers in an ads.txt file if one exists
     /// ```
+    #[serde(rename = "asi", deserialize_with = "null_default")]
     #[gojson(go = "ASI", json = "asi")]
     pub asi: String,
     /// ```text
@@ -4662,6 +6697,7 @@ pub struct SupplyChainNode {
     ///   publisher.id. For OpenDirect it is typically the publisher’s
     ///   organization ID.Should be limited to 64 characters in length.
     /// ```
+    #[serde(rename = "sid", deserialize_with = "null_default")]
     #[gojson(go = "SID", json = "sid")]
     pub sid: String,
     /// ```text
@@ -4672,6 +6708,11 @@ pub struct SupplyChainNode {
     /// Description:
     ///   The OpenRTB RequestId of the request as issued by this seller.
     /// ```
+    #[serde(
+        rename = "rid",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "RID", json = "rid,omitempty")]
     pub rid: String,
     /// ```text
@@ -4685,6 +6726,11 @@ pub struct SupplyChainNode {
     ///   optional and should NOT be included if it exists in the
     ///   advertising system’s sellers.json file.
     /// ```
+    #[serde(
+        rename = "name",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Name", json = "name,omitempty")]
     pub name: String,
     /// ```text
@@ -4697,6 +6743,11 @@ pub struct SupplyChainNode {
     ///  node. This value is optional and should NOT be included if it
     ///  exists in the advertising system’s sellers.json file.
     /// ```
+    #[serde(
+        rename = "domain",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Domain", json = "domain,omitempty")]
     pub domain: String,
     /// ```text
@@ -4716,6 +6767,7 @@ pub struct SupplyChainNode {
     ///   objects in bid requests sent to a downstream advertising
     ///   system.
     /// ```
+    #[serde(rename = "hp", skip_serializing_if = "Option::is_none")]
     #[gojson(go = "HP", json = "hp,omitempty")]
     pub hp: Option<i8>,
     /// ```text
@@ -4726,8 +6778,29 @@ pub struct SupplyChainNode {
     /// Description:
     ///   Placeholder for advertising-system specific extensions to this object.
     /// ```
+    #[serde(
+        rename = "ext",
+        skip_serializing_if = "gojson_bridge::raw_json::is_empty",
+        with = "gojson_bridge::raw_json"
+    )]
     #[gojson(go = "Ext", json = "ext,omitempty")]
     pub ext: RawJson,
+}
+
+impl MergeClone for SupplyChainNode {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb2.SupplyChainNode";
+        merge_struct(patch, |key, value| match key {
+            "asi" => merge_field(&mut self.asi, value, GO_TYPE, "ASI"),
+            "sid" => merge_field(&mut self.sid, value, GO_TYPE, "SID"),
+            "rid" => merge_field(&mut self.rid, value, GO_TYPE, "RID"),
+            "name" => merge_field(&mut self.name, value, GO_TYPE, "Name"),
+            "domain" => merge_field(&mut self.domain, value, GO_TYPE, "Domain"),
+            "hp" => merge_field(&mut self.hp, value, GO_TYPE, "HP"),
+            "ext" => gojson_bridge::merge_field(&mut self.ext, value, GO_TYPE, "Ext"),
+            _ => Ok(()),
+        })
+    }
 }
 
 /// ```text
@@ -4736,7 +6809,8 @@ pub struct SupplyChainNode {
 /// This object contains a single user identifier provided as part of extended identifiers.
 /// The exchange should ensure that business agreements allow for the sending of this data.
 /// ```
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb2.UID")]
 pub struct UID {
     /// ```text
@@ -4747,6 +6821,11 @@ pub struct UID {
     /// Description:
     ///   The identifier for the user.
     /// ```
+    #[serde(
+        rename = "id",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "ID", json = "id,omitempty")]
     pub id: String,
     /// ```text
@@ -4759,6 +6838,11 @@ pub struct UID {
     ///   many DSPs separate app-native IDs from browser-based IDs and require a type
     ///   value for ID resolution. Refer to List: Agent Types in AdCOM 1.0
     /// ```
+    #[serde(
+        rename = "atype",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "AType", json = "atype,omitempty")]
     pub atype: adcom1::AgentType,
     /// ```text
@@ -4769,8 +6853,25 @@ pub struct UID {
     /// Description:
     ///   Placeholder for advertising-system specific extensions to this object.
     /// ```
+    #[serde(
+        rename = "ext",
+        skip_serializing_if = "gojson_bridge::raw_json::is_empty",
+        with = "gojson_bridge::raw_json"
+    )]
     #[gojson(go = "Ext", json = "ext,omitempty")]
     pub ext: RawJson,
+}
+
+impl MergeClone for UID {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb2.UID";
+        merge_struct(patch, |key, value| match key {
+            "id" => merge_field(&mut self.id, value, GO_TYPE, "ID"),
+            "atype" => merge_field(&mut self.atype, value, GO_TYPE, "AType"),
+            "ext" => gojson_bridge::merge_field(&mut self.ext, value, GO_TYPE, "Ext"),
+            _ => Ok(()),
+        })
+    }
 }
 
 /// ```text
@@ -4782,7 +6883,8 @@ pub struct UID {
 /// However, this user ID must be stable long enough to serve reasonably as the basis for frequency
 /// capping and retargeting.
 /// ```
-#[derive(Clone, Debug, Default, PartialEq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb2.User")]
 pub struct User {
     /// ```text
@@ -4796,6 +6898,11 @@ pub struct User {
     ///   and the seller directly, the value in this field is expected to be derived
     ///   from an ID sync. See Appendix C (Cookie Based ID Syncing).
     /// ```
+    #[serde(
+        rename = "id",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "ID", json = "id,omitempty")]
     pub id: String,
     /// ```text
@@ -4809,6 +6916,11 @@ pub struct User {
     ///   directly, the value in this field is expected to be derived from an ID sync.
     ///   See Appendix C (Cookie Based ID Syncing).
     /// ```
+    #[serde(
+        rename = "buyeruid",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "BuyerUID", json = "buyeruid,omitempty")]
     pub buyeruid: String,
     /// ```text
@@ -4819,6 +6931,11 @@ pub struct User {
     /// Description:
     ///   Year of birth as a 4-digit integer.
     /// ```
+    #[serde(
+        rename = "yob",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Yob", json = "yob,omitempty")]
     pub yob: i64,
     /// ```text
@@ -4830,6 +6947,11 @@ pub struct User {
     ///   Gender, where “M” = male, “F” = female, “O” = known to be
     ///   other (i.e., omitted is unknown).
     /// ```
+    #[serde(
+        rename = "gender",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Gender", json = "gender,omitempty")]
     pub gender: String,
     /// ```text
@@ -4841,6 +6963,11 @@ pub struct User {
     ///   Comma separated list of keywords, interests, or intent. Only
     ///   one of ‘keywords’ or ‘kwarray’ may be present.
     /// ```
+    #[serde(
+        rename = "keywords",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Keywords", json = "keywords,omitempty")]
     pub keywords: String,
     /// ```text
@@ -4852,6 +6979,7 @@ pub struct User {
     ///   Array of keywords about the site. Only one of ‘keywords’ or
     ///   ‘kwarray’ may be present.
     /// ```
+    #[serde(rename = "kwarray", skip_serializing_if = "is_nil_or_empty")]
     #[gojson(go = "KwArray", json = "kwarray,omitempty")]
     pub kwarray: Option<Vec<String>>,
     /// ```text
@@ -4865,6 +6993,11 @@ pub struct User {
     ///   characters and be in any format. Proper JSON encoding must
     ///   be used to include “escaped” quotation marks.
     /// ```
+    #[serde(
+        rename = "customdata",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "CustomData", json = "customdata,omitempty")]
     pub customdata: String,
     /// ```text
@@ -4876,6 +7009,7 @@ pub struct User {
     ///   Location of the user’s home base defined by a Geo object
     ///   (Section 3.2.19). This is not necessarily their current location.
     /// ```
+    #[serde(rename = "geo", skip_serializing_if = "Option::is_none")]
     #[gojson(go = "Geo", json = "geo,omitempty")]
     pub geo: Option<Box<Geo>>,
     /// ```text
@@ -4887,6 +7021,7 @@ pub struct User {
     ///   Additional user data. Each Data object (Section 3.2.21)
     ///   represents a different data source.
     /// ```
+    #[serde(rename = "data", skip_serializing_if = "is_nil_or_empty")]
     #[gojson(go = "Data", json = "data,omitempty")]
     pub data: Option<Vec<Data>>,
     /// ```text
@@ -4899,6 +7034,11 @@ pub struct User {
     ///   the Transparency and Consent Framework’s Consent String
     ///   data structure.
     /// ```
+    #[serde(
+        rename = "consent",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Consent", json = "consent,omitempty")]
     pub consent: String,
     /// ```text
@@ -4910,6 +7050,7 @@ pub struct User {
     ///   Details for support of a standard protocol for multiple third
     ///   party identity providers (Section 3.2.27)
     /// ```
+    #[serde(rename = "eids", skip_serializing_if = "is_nil_or_empty")]
     #[gojson(go = "EIDs", json = "eids,omitempty")]
     pub eids: Option<Vec<EID>>,
     /// ```text
@@ -4920,8 +7061,34 @@ pub struct User {
     /// Description:
     ///   Placeholder for exchange-specific extensions to OpenRTB.
     /// ```
+    #[serde(
+        rename = "ext",
+        skip_serializing_if = "gojson_bridge::raw_json::is_empty",
+        with = "gojson_bridge::raw_json"
+    )]
     #[gojson(go = "Ext", json = "ext,omitempty")]
     pub ext: RawJson,
+}
+
+impl MergeClone for User {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb2.User";
+        merge_struct(patch, |key, value| match key {
+            "id" => merge_field(&mut self.id, value, GO_TYPE, "ID"),
+            "buyeruid" => merge_field(&mut self.buyeruid, value, GO_TYPE, "BuyerUID"),
+            "yob" => merge_field(&mut self.yob, value, GO_TYPE, "Yob"),
+            "gender" => merge_field(&mut self.gender, value, GO_TYPE, "Gender"),
+            "keywords" => merge_field(&mut self.keywords, value, GO_TYPE, "Keywords"),
+            "kwarray" => merge_field(&mut self.kwarray, value, GO_TYPE, "KwArray"),
+            "customdata" => merge_field(&mut self.customdata, value, GO_TYPE, "CustomData"),
+            "geo" => merge_field(&mut self.geo, value, GO_TYPE, "Geo"),
+            "data" => merge_field(&mut self.data, value, GO_TYPE, "Data"),
+            "consent" => merge_field(&mut self.consent, value, GO_TYPE, "Consent"),
+            "eids" => merge_field(&mut self.eids, value, GO_TYPE, "EIDs"),
+            "ext" => gojson_bridge::merge_field(&mut self.ext, value, GO_TYPE, "Ext"),
+            _ => Ok(()),
+        })
+    }
 }
 
 /// ```text
@@ -4930,7 +7097,8 @@ pub struct User {
 /// This object contains a single user identifier provided as part of extended identifiers.
 /// The exchange should ensure that business agreements allow for the sending of this data.
 /// ```
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb2.UserAgent")]
 pub struct UserAgent {
     /// ```text
@@ -4943,6 +7111,7 @@ pub struct UserAgent {
     ///   software component. Implementers should send brands and versions
     ///   derived from the Sec-CH-UA-Full-Version-List header.
     /// ```
+    #[serde(rename = "browsers", skip_serializing_if = "is_nil_or_empty")]
     #[gojson(go = "Browsers", json = "browsers,omitempty")]
     pub browsers: Option<Vec<BrandVersion>>,
     /// ```text
@@ -4956,6 +7125,7 @@ pub struct UserAgent {
     ///   Sec-CH-UA-Platform header, and version derived from the Sec-CH-UA-
     ///   Platform-Version header.
     /// ```
+    #[serde(rename = "platform", skip_serializing_if = "Option::is_none")]
     #[gojson(go = "Platform", json = "platform,omitempty")]
     pub platform: Option<Box<BrandVersion>>,
     /// ```text
@@ -4969,6 +7139,7 @@ pub struct UserAgent {
     ///   or “full” content. Implementers should derive this value from the Sec-CH-UA-
     ///   Mobile header.
     /// ```
+    #[serde(rename = "mobile", skip_serializing_if = "Option::is_none")]
     #[gojson(go = "Mobile", json = "mobile,omitempty")]
     pub mobile: Option<i8>,
     /// ```text
@@ -4980,6 +7151,11 @@ pub struct UserAgent {
     ///   Device’s major binary architecture, e.g. “x86” or “arm”. Implementers should
     ///   retrieve this value from the Sec-CH-UA-Arch header.
     /// ```
+    #[serde(
+        rename = "architecture",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Architecture", json = "architecture,omitempty")]
     pub architecture: String,
     /// ```text
@@ -4991,6 +7167,11 @@ pub struct UserAgent {
     ///   Device’s bitness, e.g. “64” for 64-bit architecture. Implementers should
     ///   retrieve this value from the Sec-CH-UA-Bitness header.
     /// ```
+    #[serde(
+        rename = "bitness",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Bitness", json = "bitness,omitempty")]
     pub bitness: String,
     /// ```text
@@ -5002,6 +7183,11 @@ pub struct UserAgent {
     ///   Device model. Implementers should retrieve this value from the Sec-CH-UA-
     ///   Model header.
     /// ```
+    #[serde(
+        rename = "model",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Model", json = "model,omitempty")]
     pub model: String,
     /// ```text
@@ -5013,6 +7199,11 @@ pub struct UserAgent {
     ///   The source of data used to create this object, List: User-Agent Source in
     ///   AdCOM 1.0.
     /// ```
+    #[serde(
+        rename = "source",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Source", json = "source,omitempty")]
     pub source: adcom1::UserAgentSource,
     /// ```text
@@ -5023,8 +7214,30 @@ pub struct UserAgent {
     /// Description:
     ///   Placeholder for advertising-system specific extensions to this object.
     /// ```
+    #[serde(
+        rename = "ext",
+        skip_serializing_if = "gojson_bridge::raw_json::is_empty",
+        with = "gojson_bridge::raw_json"
+    )]
     #[gojson(go = "Ext", json = "ext,omitempty")]
     pub ext: RawJson,
+}
+
+impl MergeClone for UserAgent {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb2.UserAgent";
+        merge_struct(patch, |key, value| match key {
+            "browsers" => merge_field(&mut self.browsers, value, GO_TYPE, "Browsers"),
+            "platform" => merge_field(&mut self.platform, value, GO_TYPE, "Platform"),
+            "mobile" => merge_field(&mut self.mobile, value, GO_TYPE, "Mobile"),
+            "architecture" => merge_field(&mut self.architecture, value, GO_TYPE, "Architecture"),
+            "bitness" => merge_field(&mut self.bitness, value, GO_TYPE, "Bitness"),
+            "model" => merge_field(&mut self.model, value, GO_TYPE, "Model"),
+            "source" => merge_field(&mut self.source, value, GO_TYPE, "Source"),
+            "ext" => gojson_bridge::merge_field(&mut self.ext, value, GO_TYPE, "Ext"),
+            _ => Ok(()),
+        })
+    }
 }
 
 /// ```text
@@ -5043,7 +7256,8 @@ pub struct UserAgent {
 /// native by also including as Imp subordinates objects of those types.
 /// However, any given bid for the impression must conform to one of the offered types.
 /// ```
-#[derive(Clone, Debug, Default, PartialEq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb2.Video")]
 pub struct Video {
     /// ```text
@@ -5055,6 +7269,7 @@ pub struct Video {
     ///   Content MIME types supported (e.g., “video/x-ms-wmv”,
     ///   “video/mp4”).
     /// ```
+    #[serde(rename = "mimes")]
     #[gojson(go = "MIMEs", json = "mimes")]
     pub mimes: Option<Vec<String>>,
     /// ```text
@@ -5067,6 +7282,11 @@ pub struct Video {
     ///   exclusive with rqddurs; only one of minduration and rqddurs
     ///   may be in a bid request.
     /// ```
+    #[serde(
+        rename = "minduration",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "MinDuration", json = "minduration,omitempty")]
     pub minduration: i64,
     /// ```text
@@ -5079,6 +7299,11 @@ pub struct Video {
     ///  exclusive with rqddurs; only one of maxduration and rqddurs
     ///  may be in a bid request.
     /// ```
+    #[serde(
+        rename = "maxduration",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "MaxDuration", json = "maxduration,omitempty")]
     pub maxduration: i64,
     /// ```text
@@ -5091,6 +7316,7 @@ pub struct Video {
     ///   post-roll ad placements. Refer to List: Start Delay Modes
     ///   in AdCOM 1.0.
     /// ```
+    #[serde(rename = "startdelay", skip_serializing_if = "Option::is_none")]
     #[gojson(go = "StartDelay", json = "startdelay,omitempty")]
     pub startdelay: Option<adcom1::StartDelay>,
     /// ```text
@@ -5104,6 +7330,11 @@ pub struct Video {
     ///   not predetermined by the seller). See Section 7.6 for more
     ///   details.
     /// ```
+    #[serde(
+        rename = "maxseq",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "MaxSeq", json = "maxseq,omitempty")]
     pub maxseq: i64,
     /// ```text
@@ -5120,6 +7351,11 @@ pub struct Video {
     ///   minduration/maxduration/rqddurs are constraints relating to
     ///   the slots that make up the pod.
     /// ```
+    #[serde(
+        rename = "poddur",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "PodDur", json = "poddur,omitempty")]
     pub poddur: i64,
     /// ```text
@@ -5133,6 +7369,7 @@ pub struct Video {
     /// Note:
     ///   OpenRTB <=2.5 defined only protocols 1..10.
     /// ```
+    #[serde(rename = "protocols", skip_serializing_if = "is_nil_or_empty")]
     #[gojson(go = "Protocols", json = "protocols,omitempty")]
     pub protocols: Option<Vec<adcom1::MediaCreativeSubtype>>,
     /// ```text
@@ -5148,6 +7385,11 @@ pub struct Video {
     /// Note:
     ///   OpenRTB <=2.5 defined only protocols 1..10.
     /// ```
+    #[serde(
+        rename = "protocol",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Protocol", json = "protocol,omitempty")]
     pub protocol: adcom1::MediaCreativeSubtype,
     /// ```text
@@ -5158,6 +7400,7 @@ pub struct Video {
     /// Description:
     ///   Width of the video player in device independent pixels (DIPS).
     /// ```
+    #[serde(rename = "w", skip_serializing_if = "Option::is_none")]
     #[gojson(go = "W", json = "w,omitempty")]
     pub w: Option<i64>,
     /// ```text
@@ -5168,6 +7411,7 @@ pub struct Video {
     /// Description:
     ///   Height of the video player in device independent pixels (DIPS).
     /// ```
+    #[serde(rename = "h", skip_serializing_if = "Option::is_none")]
     #[gojson(go = "H", json = "h,omitempty")]
     pub h: Option<i64>,
     /// ```text
@@ -5182,6 +7426,11 @@ pub struct Video {
     ///   those impression opportunities belong to the same video ad
     ///   pod.
     /// ```
+    #[serde(
+        rename = "podid",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "PodID", json = "podid,omitempty")]
     pub podid: String,
     /// ```text
@@ -5194,6 +7443,11 @@ pub struct Video {
     ///  content stream. Refer to List: Pod Sequence in AdCOM 1.0
     ///  for guidance on the use of this field.
     /// ```
+    #[serde(
+        rename = "podseq",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "PodSeq", json = "podseq,omitempty")]
     pub podseq: adcom1::PodSequence,
     /// ```text
@@ -5209,6 +7463,7 @@ pub struct Video {
     ///   and maxduration; if rqddurs is specified, minduration and
     ///   maxduration must not be specified and vice versa.
     /// ```
+    #[serde(rename = "rqddurs", skip_serializing_if = "is_nil_or_empty")]
     #[gojson(go = "RqdDurs", json = "rqddurs,omitempty")]
     pub rqddurs: Option<Vec<i64>>,
     /// ```text
@@ -5220,6 +7475,11 @@ pub struct Video {
     ///   Video placement type for the impression. Refer to List:
     ///   Placement Subtypes - Video in AdCOM 1.0.
     /// ```
+    #[serde(
+        rename = "placement",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Placement", json = "placement,omitempty")]
     pub placement: adcom1::VideoPlacementSubtype,
     /// ```text
@@ -5231,6 +7491,11 @@ pub struct Video {
     ///   Video placement type for the impression. Refer to List: Plcmt Subtypes - Video in AdCOM
     ///   1.0.
     /// ```
+    #[serde(
+        rename = "plcmt",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Plcmt", json = "plcmt,omitempty")]
     pub plcmt: adcom1::VideoPlcmtSubtype,
     /// ```text
@@ -5245,6 +7510,11 @@ pub struct Video {
     ///   expected VAST response and not whether a placement is in-
     ///   stream, out-stream, etc. For that, see placement.
     /// ```
+    #[serde(
+        rename = "linearity",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Linearity", json = "linearity,omitempty")]
     pub linearity: adcom1::LinearityMode,
     /// ```text
@@ -5260,6 +7530,7 @@ pub struct Video {
     ///   16 indicating skippable video. Refer to List: Creative
     ///   Attributes in AdCOM 1.0.
     /// ```
+    #[serde(rename = "skip", skip_serializing_if = "Option::is_none")]
     #[gojson(go = "Skip", json = "skip,omitempty")]
     pub skip: Option<i8>,
     /// ```text
@@ -5271,6 +7542,11 @@ pub struct Video {
     ///   Videos of total duration greater than this number of seconds
     ///   can be skippable; only applicable if the ad is skippable.
     /// ```
+    #[serde(
+        rename = "skipmin",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "SkipMin", json = "skipmin,omitempty")]
     pub skipmin: i64,
     /// ```text
@@ -5282,6 +7558,11 @@ pub struct Video {
     ///   Number of seconds a video must play before skipping is
     ///   enabled; only applicable if the ad is skippable
     /// ```
+    #[serde(
+        rename = "skipafter",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "SkipAfter", json = "skipafter,omitempty")]
     pub skipafter: i64,
     /// ```text
@@ -5294,6 +7575,11 @@ pub struct Video {
     ///   the sequence number will allow for the coordinated delivery
     ///   of multiple creatives.
     /// ```
+    #[serde(
+        rename = "sequence",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Sequence", json = "sequence,omitempty")]
     pub sequence: i8,
     /// ```text
@@ -5307,6 +7593,11 @@ pub struct Video {
     ///   pod. Refer to  List: Slot Position in Pod in AdCOM 1.0 guidance
     ///   on the use of this field.
     /// ```
+    #[serde(
+        rename = "slotinpod",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "SlotInPod", json = "slotinpod,omitempty")]
     pub slotinpod: adcom1::SlotPositionInPod,
     /// ```text
@@ -5319,6 +7610,11 @@ pub struct Video {
     ///   "dynamic" portion of a video ad pod, relative to the duration
     ///   of bids an advertiser may submit.
     /// ```
+    #[serde(
+        rename = "mincpmpersec",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "MinCPMPerSec", json = "mincpmpersec,omitempty")]
     pub mincpmpersec: f64,
     /// ```text
@@ -5332,6 +7628,7 @@ pub struct Video {
     /// Note:
     ///   OpenRTB <=2.5 defined only attributes 1..17.
     /// ```
+    #[serde(rename = "battr", skip_serializing_if = "is_nil_or_empty")]
     #[gojson(go = "BAttr", json = "battr,omitempty")]
     pub battr: Option<Vec<adcom1::CreativeAttribute>>,
     /// ```text
@@ -5346,6 +7643,11 @@ pub struct Video {
     ///   then the value represents the number of seconds of extended
     ///   play supported beyond the maxduration value.
     /// ```
+    #[serde(
+        rename = "maxextended",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "MaxExtended", json = "maxextended,omitempty")]
     pub maxextended: i64,
     /// ```text
@@ -5356,6 +7658,11 @@ pub struct Video {
     /// Description:
     ///   Minimum bit rate in Kbps (kilobits per second).
     /// ```
+    #[serde(
+        rename = "minbitrate",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "MinBitRate", json = "minbitrate,omitempty")]
     pub minbitrate: i64,
     /// ```text
@@ -5366,6 +7673,11 @@ pub struct Video {
     /// Description:
     ///   Maximum bit rate in Kbps (kilobits per second).
     /// ```
+    #[serde(
+        rename = "maxbitrate",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "MaxBitRate", json = "maxbitrate,omitempty")]
     pub maxbitrate: i64,
     /// ```text
@@ -5377,6 +7689,7 @@ pub struct Video {
     ///   Indicates if letter-boxing of 4:3 content into a 16:9 window is
     ///   allowed, where 0 = no, 1 = yes.
     /// ```
+    #[serde(rename = "boxingallowed", skip_serializing_if = "Option::is_none")]
     #[gojson(go = "BoxingAllowed", json = "boxingallowed,omitempty")]
     pub boxingallowed: Option<i8>,
     /// ```text
@@ -5395,6 +7708,7 @@ pub struct Video {
     /// Note:
     ///   OpenRTB <=2.5 defined only methods 1..6.
     /// ```
+    #[serde(rename = "playbackmethod", skip_serializing_if = "is_nil_or_empty")]
     #[gojson(go = "PlaybackMethod", json = "playbackmethod,omitempty")]
     pub playbackmethod: Option<Vec<adcom1::PlaybackMethod>>,
     /// ```text
@@ -5406,6 +7720,11 @@ pub struct Video {
     ///   The event that causes playback to end. Refer to List: Playback
     ///   Cessation Modes in AdCOM 1.0.
     /// ```
+    #[serde(
+        rename = "playbackend",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "PlaybackEnd", json = "playbackend,omitempty")]
     pub playbackend: adcom1::PlaybackCessationMode,
     /// ```text
@@ -5418,6 +7737,7 @@ pub struct Video {
     ///   none specified, assume all are supported. Refer to List:
     ///   Delivery Methods in AdCOM 1.0.
     /// ```
+    #[serde(rename = "delivery", skip_serializing_if = "is_nil_or_empty")]
     #[gojson(go = "Delivery", json = "delivery,omitempty")]
     pub delivery: Option<Vec<adcom1::DeliveryMethod>>,
     /// ```text
@@ -5429,6 +7749,7 @@ pub struct Video {
     ///   Ad position on screen. Refer to List: Placement Positions in
     ///   AdCOM 1.0.
     /// ```
+    #[serde(rename = "pos", skip_serializing_if = "Option::is_none")]
     #[gojson(go = "Pos", json = "pos,omitempty")]
     pub pos: Option<adcom1::PlacementPosition>,
     /// ```text
@@ -5440,6 +7761,7 @@ pub struct Video {
     ///   Array of Banner objects (Section 3.2.6) if companion ads are
     ///   available.
     /// ```
+    #[serde(rename = "companionad", skip_serializing_if = "is_nil_or_empty")]
     #[gojson(go = "CompanionAd", json = "companionad,omitempty")]
     pub companionad: Option<Vec<Banner>>,
     /// ```text
@@ -5454,6 +7776,7 @@ pub struct Video {
     /// Note:
     ///   OpenRTB <=2.5 defined only frameworks 1..6.
     /// ```
+    #[serde(rename = "api", skip_serializing_if = "is_nil_or_empty")]
     #[gojson(go = "API", json = "api,omitempty")]
     pub api: Option<Vec<adcom1::APIFramework>>,
     /// ```text
@@ -5469,6 +7792,7 @@ pub struct Video {
     ///   rendered as an end-card, this can be specified using the vcm
     ///   attribute with the particular banner (Section 3.2.6).
     /// ```
+    #[serde(rename = "companiontype", skip_serializing_if = "is_nil_or_empty")]
     #[gojson(go = "CompanionType", json = "companiontype,omitempty")]
     pub companiontype: Option<Vec<adcom1::CompanionType>>,
     /// ```text
@@ -5480,6 +7804,7 @@ pub struct Video {
     ///   Indicates pod deduplication settings that will be applied to bid
     ///   responses. Refer to List: Pod Deduplication in AdCOM 1.0.
     /// ```
+    #[serde(rename = "poddedupe", skip_serializing_if = "is_nil_or_empty")]
     #[gojson(go = "PodDedupe", json = "poddedupe,omitempty")]
     pub poddedupe: Option<Vec<adcom1::PodDedupe>>,
     /// ```text
@@ -5491,6 +7816,7 @@ pub struct Video {
     ///   An array of DurFloors objects (Section 3.2.35) indicating the floor
     ///   prices for video creatives of various durations that the buyer may bid with.
     /// ```
+    #[serde(rename = "durfloors", skip_serializing_if = "is_nil_or_empty")]
     #[gojson(go = "DurFloors", json = "durfloors,omitempty")]
     pub durfloors: Option<Vec<DurFloors>>,
     /// ```text
@@ -5501,6 +7827,63 @@ pub struct Video {
     /// Description:
     ///   Placeholder for exchange-specific extensions to OpenRTB.
     /// ```
+    #[serde(
+        rename = "ext",
+        skip_serializing_if = "gojson_bridge::raw_json::is_empty",
+        with = "gojson_bridge::raw_json"
+    )]
     #[gojson(go = "Ext", json = "ext,omitempty")]
     pub ext: RawJson,
+}
+
+impl MergeClone for Video {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb2.Video";
+        merge_struct(patch, |key, value| match key {
+            "mimes" => merge_field(&mut self.mimes, value, GO_TYPE, "MIMEs"),
+            "minduration" => merge_field(&mut self.minduration, value, GO_TYPE, "MinDuration"),
+            "maxduration" => merge_field(&mut self.maxduration, value, GO_TYPE, "MaxDuration"),
+            "startdelay" => merge_field(&mut self.startdelay, value, GO_TYPE, "StartDelay"),
+            "maxseq" => merge_field(&mut self.maxseq, value, GO_TYPE, "MaxSeq"),
+            "poddur" => merge_field(&mut self.poddur, value, GO_TYPE, "PodDur"),
+            "protocols" => merge_field(&mut self.protocols, value, GO_TYPE, "Protocols"),
+            "protocol" => merge_field(&mut self.protocol, value, GO_TYPE, "Protocol"),
+            "w" => merge_field(&mut self.w, value, GO_TYPE, "W"),
+            "h" => merge_field(&mut self.h, value, GO_TYPE, "H"),
+            "podid" => merge_field(&mut self.podid, value, GO_TYPE, "PodID"),
+            "podseq" => merge_field(&mut self.podseq, value, GO_TYPE, "PodSeq"),
+            "rqddurs" => merge_field(&mut self.rqddurs, value, GO_TYPE, "RqdDurs"),
+            "placement" => merge_field(&mut self.placement, value, GO_TYPE, "Placement"),
+            "plcmt" => merge_field(&mut self.plcmt, value, GO_TYPE, "Plcmt"),
+            "linearity" => merge_field(&mut self.linearity, value, GO_TYPE, "Linearity"),
+            "skip" => merge_field(&mut self.skip, value, GO_TYPE, "Skip"),
+            "skipmin" => merge_field(&mut self.skipmin, value, GO_TYPE, "SkipMin"),
+            "skipafter" => merge_field(&mut self.skipafter, value, GO_TYPE, "SkipAfter"),
+            "sequence" => merge_field(&mut self.sequence, value, GO_TYPE, "Sequence"),
+            "slotinpod" => merge_field(&mut self.slotinpod, value, GO_TYPE, "SlotInPod"),
+            "mincpmpersec" => merge_field(&mut self.mincpmpersec, value, GO_TYPE, "MinCPMPerSec"),
+            "battr" => merge_field(&mut self.battr, value, GO_TYPE, "BAttr"),
+            "maxextended" => merge_field(&mut self.maxextended, value, GO_TYPE, "MaxExtended"),
+            "minbitrate" => merge_field(&mut self.minbitrate, value, GO_TYPE, "MinBitRate"),
+            "maxbitrate" => merge_field(&mut self.maxbitrate, value, GO_TYPE, "MaxBitRate"),
+            "boxingallowed" => {
+                merge_field(&mut self.boxingallowed, value, GO_TYPE, "BoxingAllowed")
+            }
+            "playbackmethod" => {
+                merge_field(&mut self.playbackmethod, value, GO_TYPE, "PlaybackMethod")
+            }
+            "playbackend" => merge_field(&mut self.playbackend, value, GO_TYPE, "PlaybackEnd"),
+            "delivery" => merge_field(&mut self.delivery, value, GO_TYPE, "Delivery"),
+            "pos" => merge_field(&mut self.pos, value, GO_TYPE, "Pos"),
+            "companionad" => merge_field(&mut self.companionad, value, GO_TYPE, "CompanionAd"),
+            "api" => merge_field(&mut self.api, value, GO_TYPE, "API"),
+            "companiontype" => {
+                merge_field(&mut self.companiontype, value, GO_TYPE, "CompanionType")
+            }
+            "poddedupe" => merge_field(&mut self.poddedupe, value, GO_TYPE, "PodDedupe"),
+            "durfloors" => merge_field(&mut self.durfloors, value, GO_TYPE, "DurFloors"),
+            "ext" => gojson_bridge::merge_field(&mut self.ext, value, GO_TYPE, "Ext"),
+            _ => Ok(()),
+        })
+    }
 }

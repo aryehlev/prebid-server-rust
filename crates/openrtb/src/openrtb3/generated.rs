@@ -8,11 +8,38 @@
 // package lives in the other files of its module.
 
 use pbs_gojson::{GoJson, RawJson};
+use pbs_jsonutil::{
+    MergeClone, MergeCloneError, is_nil_or_empty, is_zero, merge_field, merge_struct, null_default,
+};
+use serde::{Deserialize, Serialize};
+use serde_json::value::RawValue;
+
+use crate::gojson_bridge;
 
 /// `AuctionType` defines an auction type.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash, GoJson)]
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    Serialize,
+    Deserialize,
+    GoJson,
+)]
+#[serde(transparent)]
 #[gojson(go_type = "openrtb3.AuctionType", map_key)]
 pub struct AuctionType(pub i64);
+
+impl MergeClone for AuctionType {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        self.0.merge_clone(patch)
+    }
+}
 
 /// Go constant `FirstPrice`.
 #[doc(alias = "FirstPrice")]
@@ -32,7 +59,8 @@ pub const DEAL_PRICE: AuctionType = AuctionType(3);
 /// the bid request offer via the “item” attribute and constitutes an offer to buy that item for a
 /// given price.
 /// ```
-#[derive(Clone, Debug, Default, PartialEq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb3.Bid")]
 pub struct Bid {
     /// ```text
@@ -43,6 +71,11 @@ pub struct Bid {
     /// Definition:
     ///   Bidder generated bid ID to assist with logging/tracking.
     /// ```
+    #[serde(
+        rename = "id",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "ID", json = "id,omitempty")]
     pub id: String,
     /// ```text
@@ -53,6 +86,11 @@ pub struct Bid {
     /// Definition:
     ///   ID of the item object in the related bid request; specifically item.id.
     /// ```
+    #[serde(
+        rename = "item",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Item", json = "item,omitempty")]
     pub item: String,
     /// ```text
@@ -65,6 +103,11 @@ pub struct Bid {
     ///   Note that while the type indicates float, integer math is highly recommended when handling
     ///   currencies (e.g., BigDecimal in Java).
     /// ```
+    #[serde(
+        rename = "price",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Price", json = "price,omitempty")]
     pub price: f64,
     /// ```text
@@ -76,6 +119,11 @@ pub struct Bid {
     ///   Reference to a deal from the bid request if this bid pertains to a private marketplace
     ///   deal; specifically deal.id.
     /// ```
+    #[serde(
+        rename = "deal",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Deal", json = "deal,omitempty")]
     pub deal: String,
     /// ```text
@@ -87,6 +135,11 @@ pub struct Bid {
     ///   Campaign ID or other similar grouping of brand-related ads
     ///   Typically used to increase the efficiency of audit processes.
     /// ```
+    #[serde(
+        rename = "cid",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "CID", json = "cid,omitempty")]
     pub cid: String,
     /// ```text
@@ -100,6 +153,11 @@ pub struct Bid {
     ///   The specific usage and meaning of the tactic ID should be communicated between buyer and
     ///   exchanges a priori.
     /// ```
+    #[serde(
+        rename = "tactic",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Tactic", json = "tactic,omitempty")]
     pub tactic: String,
     /// ```text
@@ -113,6 +171,11 @@ pub struct Bid {
     ///   decisioning such as header bidding)
     /// Substitution macros may be included.
     /// ```
+    #[serde(
+        rename = "purl",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "PURL", json = "purl,omitempty")]
     pub purl: String,
     /// ```text
@@ -125,6 +188,11 @@ pub struct Bid {
     ///   exchange-specific business policy (e.g., markup rendered)
     /// Substitution macros may be included.
     /// ```
+    #[serde(
+        rename = "burl",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "BURL", json = "burl,omitempty")]
     pub burl: String,
     /// ```text
@@ -139,6 +207,11 @@ pub struct Bid {
     /// clearing prices resulting in ${OPENRTB_PRICE} macros being removed (i.e., replaced with a
     /// zero-length string).
     /// ```
+    #[serde(
+        rename = "lurl",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "LURL", json = "lurl,omitempty")]
     pub lurl: String,
     /// ```text
@@ -150,6 +223,11 @@ pub struct Bid {
     ///   Advisory as to the number of seconds the buyer is willing to wait between auction and
     ///   fulfilment.
     /// ```
+    #[serde(
+        rename = "exp",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Exp", json = "exp,omitempty")]
     pub exp: i64,
     /// ```text
@@ -161,6 +239,11 @@ pub struct Bid {
     ///   ID to enable media to be specified by reference if previously uploaded to the exchange
     ///   rather than including it by value in the domain objects.
     /// ```
+    #[serde(
+        rename = "mid",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "MID", json = "mid,omitempty")]
     pub mid: String,
     /// ```text
@@ -173,6 +256,7 @@ pub struct Bid {
     ///   especially useful for previously uploaded media referenced via the mid attribute
     /// Refer to Object: Macro.
     /// ```
+    #[serde(rename = "macro", skip_serializing_if = "is_nil_or_empty")]
     #[gojson(go = "Macro", json = "macro,omitempty")]
     pub r#macro: Option<Vec<Macro>>,
     /// ```text
@@ -189,6 +273,11 @@ pub struct Bid {
     /// Dev note:
     ///   This object is implemented as ../adcom1.BidMedia type.
     /// ```
+    #[serde(
+        rename = "media",
+        skip_serializing_if = "gojson_bridge::raw_json::is_empty",
+        with = "gojson_bridge::raw_json"
+    )]
     #[gojson(go = "Media", json = "media,omitempty")]
     pub media: RawJson,
     /// ```text
@@ -199,22 +288,63 @@ pub struct Bid {
     /// Definition:
     ///   Optional demand source specific extensions.
     /// ```
+    #[serde(
+        rename = "ext",
+        skip_serializing_if = "gojson_bridge::raw_json::is_empty",
+        with = "gojson_bridge::raw_json"
+    )]
     #[gojson(go = "Ext", json = "ext,omitempty")]
     pub ext: RawJson,
 }
 
+impl MergeClone for Bid {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb3.Bid";
+        merge_struct(patch, |key, value| match key {
+            "id" => merge_field(&mut self.id, value, GO_TYPE, "ID"),
+            "item" => merge_field(&mut self.item, value, GO_TYPE, "Item"),
+            "price" => merge_field(&mut self.price, value, GO_TYPE, "Price"),
+            "deal" => merge_field(&mut self.deal, value, GO_TYPE, "Deal"),
+            "cid" => merge_field(&mut self.cid, value, GO_TYPE, "CID"),
+            "tactic" => merge_field(&mut self.tactic, value, GO_TYPE, "Tactic"),
+            "purl" => merge_field(&mut self.purl, value, GO_TYPE, "PURL"),
+            "burl" => merge_field(&mut self.burl, value, GO_TYPE, "BURL"),
+            "lurl" => merge_field(&mut self.lurl, value, GO_TYPE, "LURL"),
+            "exp" => merge_field(&mut self.exp, value, GO_TYPE, "Exp"),
+            "mid" => merge_field(&mut self.mid, value, GO_TYPE, "MID"),
+            "macro" => merge_field(&mut self.r#macro, value, GO_TYPE, "Macro"),
+            "media" => gojson_bridge::merge_field(&mut self.media, value, GO_TYPE, "Media"),
+            "ext" => gojson_bridge::merge_field(&mut self.ext, value, GO_TYPE, "Ext"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Body is a top-level wrapper for `OpenRTB` requests.
-#[derive(Clone, Debug, Default, PartialEq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb3.Body")]
 pub struct Body {
     /// Go field `OpenRTB`.
+    #[serde(rename = "openrtb", deserialize_with = "null_default")]
     #[gojson(go = "OpenRTB", json = "openrtb")]
     pub openrtb: OpenRTB,
 }
 
+impl MergeClone for Body {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb3.Body";
+        merge_struct(patch, |key, value| match key {
+            "openrtb" => merge_field(&mut self.openrtb, value, GO_TYPE, "OpenRTB"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Deal object constitutes a specific deal that was struck a priori between a seller and a buyer.
 /// Its presence indicates that this item is available under the terms of that deal.
-#[derive(Clone, Debug, Default, PartialEq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb3.Deal")]
 pub struct Deal {
     /// ```text
@@ -225,6 +355,11 @@ pub struct Deal {
     /// Definition:
     ///   A unique identifier for the deal.
     /// ```
+    #[serde(
+        rename = "id",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "ID", json = "id,omitempty")]
     pub id: String,
     /// ```text
@@ -235,6 +370,11 @@ pub struct Deal {
     /// Definition:
     ///   Minimum deal price for this item expressed in CPM.
     /// ```
+    #[serde(
+        rename = "flr",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Flr", json = "flr,omitempty")]
     pub flr: f64,
     /// ```text
@@ -245,6 +385,11 @@ pub struct Deal {
     /// Definition:
     ///   Currency of the flr attribute specified using ISO-4217 alpha codes.
     /// ```
+    #[serde(
+        rename = "flrcur",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "FlrCur", json = "flrcur,omitempty")]
     pub flrcur: String,
     /// ```text
@@ -257,6 +402,11 @@ pub struct Deal {
     ///   Second Price Plus, 3 = the value passed in flr is the agreed upon deal price.
     ///   Additional auction types can be defined by the exchange using 500+ values.
     /// ```
+    #[serde(
+        rename = "at",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "AT", json = "at,omitempty")]
     pub at: AuctionType,
     /// ```text
@@ -270,6 +420,7 @@ pub struct Deal {
     ///   bidders and the exchange a priori.
     ///   Omission implies no restrictions.
     /// ```
+    #[serde(rename = "wseat", skip_serializing_if = "is_nil_or_empty")]
     #[gojson(go = "WSeat", json = "wseat,omitempty")]
     pub wseat: Option<Vec<String>>,
     /// ```text
@@ -281,6 +432,7 @@ pub struct Deal {
     ///   Array of advertiser domains (e.g., advertiser.com) allowed to bid on this deal.
     ///   Omission implies no restrictions.
     /// ```
+    #[serde(rename = "wadomain", skip_serializing_if = "is_nil_or_empty")]
     #[gojson(go = "WADomain", json = "wadomain,omitempty")]
     pub wadomain: Option<Vec<String>>,
     /// ```text
@@ -291,8 +443,29 @@ pub struct Deal {
     /// Definition:
     ///   Optional exchange-specific extensions.
     /// ```
+    #[serde(
+        rename = "ext",
+        skip_serializing_if = "gojson_bridge::raw_json::is_empty",
+        with = "gojson_bridge::raw_json"
+    )]
     #[gojson(go = "Ext", json = "ext,omitempty")]
     pub ext: RawJson,
+}
+
+impl MergeClone for Deal {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb3.Deal";
+        merge_struct(patch, |key, value| match key {
+            "id" => merge_field(&mut self.id, value, GO_TYPE, "ID"),
+            "flr" => merge_field(&mut self.flr, value, GO_TYPE, "Flr"),
+            "flrcur" => merge_field(&mut self.flrcur, value, GO_TYPE, "FlrCur"),
+            "at" => merge_field(&mut self.at, value, GO_TYPE, "AT"),
+            "wseat" => merge_field(&mut self.wseat, value, GO_TYPE, "WSeat"),
+            "wadomain" => merge_field(&mut self.wadomain, value, GO_TYPE, "WADomain"),
+            "ext" => gojson_bridge::merge_field(&mut self.ext, value, GO_TYPE, "Ext"),
+            _ => Ok(()),
+        })
+    }
 }
 
 /// ```text
@@ -303,7 +476,8 @@ pub struct Deal {
 /// This object interfaces to Layer-4 domain objects for deeper specification of the item being
 /// offered (e.g., an impression).
 /// ```
-#[derive(Clone, Debug, Default, PartialEq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb3.Item")]
 pub struct Item {
     /// ```text
@@ -315,6 +489,7 @@ pub struct Item {
     ///   A unique identifier for this item within the context of the offer (typically starts with
     ///   “1” and increments).
     /// ```
+    #[serde(rename = "id", deserialize_with = "null_default")]
     #[gojson(go = "ID", json = "id")]
     pub id: String,
     /// ```text
@@ -326,6 +501,11 @@ pub struct Item {
     ///   The number of instances (i.e., “quantity”) of this item being offered (e.g., multiple
     ///   identical impressions in a digital out-of-home scenario).
     /// ```
+    #[serde(
+        rename = "qty",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Qty", json = "qty,omitempty")]
     pub qty: i64,
     /// ```text
@@ -337,6 +517,11 @@ pub struct Item {
     ///   If multiple items are offered in the same bid request, the sequence number allows for the
     ///   coordinated delivery.
     /// ```
+    #[serde(
+        rename = "seq",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Seq", json = "seq,omitempty")]
     pub seq: i64,
     /// ```text
@@ -347,6 +532,11 @@ pub struct Item {
     /// Definition:
     ///   Minimum bid price for this item expressed in CPM.
     /// ```
+    #[serde(
+        rename = "flr",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Flr", json = "flr,omitempty")]
     pub flr: f64,
     /// ```text
@@ -357,6 +547,11 @@ pub struct Item {
     /// Definition:
     ///   Currency of the flr attribute specified using ISO-4217 alpha codes.
     /// ```
+    #[serde(
+        rename = "flrcur",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "FlrCur", json = "flrcur,omitempty")]
     pub flrcur: String,
     /// ```text
@@ -367,6 +562,11 @@ pub struct Item {
     /// Definition:
     ///   Advisory as to the number of seconds that may elapse between auction and fulfilment.
     /// ```
+    #[serde(
+        rename = "exp",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Exp", json = "exp,omitempty")]
     pub exp: i64,
     /// ```text
@@ -378,6 +578,11 @@ pub struct Item {
     ///   Timestamp when the item is expected to be fulfilled (e.g when a DOOH impression will be
     ///   displayed) in Unix format (i.e., milliseconds since the epoch).
     /// ```
+    #[serde(
+        rename = "dt",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "DT", json = "dt,omitempty")]
     pub dt: i64,
     /// ```text
@@ -393,6 +598,11 @@ pub struct Item {
     ///   Note that if an exchange does not supported prior upload, then the default of 0 is
     ///   effectively the same as 1 since there can be no items to reference.
     /// ```
+    #[serde(
+        rename = "dlvy",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Dlvy", json = "dlvy,omitempty")]
     pub dlvy: i8,
     /// ```text
@@ -404,6 +614,7 @@ pub struct Item {
     ///   An array of Metric objects.
     ///   Refer to Object: Metric.
     /// ```
+    #[serde(rename = "metric", skip_serializing_if = "is_nil_or_empty")]
     #[gojson(go = "Metric", json = "metric,omitempty")]
     pub metric: Option<Vec<Metric>>,
     /// ```text
@@ -415,6 +626,7 @@ pub struct Item {
     ///   Array of Deal objects that convey special terms applicable to this item.
     ///   Refer to Object: Deal.
     /// ```
+    #[serde(rename = "deal", skip_serializing_if = "is_nil_or_empty")]
     #[gojson(go = "Deal", json = "deal,omitempty")]
     pub deal: Option<Vec<Deal>>,
     /// ```text
@@ -426,6 +638,11 @@ pub struct Item {
     ///   Indicator of auction eligibility to seats named in Deal objects, where 0 = all bids are
     ///   accepted, 1 = bids are restricted to the deals specified and the terms thereof.
     /// ```
+    #[serde(
+        rename = "private",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Private", json = "private,omitempty")]
     pub private: i8,
     /// ```text
@@ -441,6 +658,7 @@ pub struct Item {
     /// Dev note:
     ///   This object is implemented as ../adcom1.ItemSpec type.
     /// ```
+    #[serde(rename = "spec", with = "gojson_bridge::raw_json")]
     #[gojson(go = "Spec", json = "spec")]
     pub spec: RawJson,
     /// ```text
@@ -451,8 +669,35 @@ pub struct Item {
     /// Definition:
     ///   Optional exchange-specific extensions.
     /// ```
+    #[serde(
+        rename = "ext",
+        skip_serializing_if = "gojson_bridge::raw_json::is_empty",
+        with = "gojson_bridge::raw_json"
+    )]
     #[gojson(go = "Ext", json = "ext,omitempty")]
     pub ext: RawJson,
+}
+
+impl MergeClone for Item {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb3.Item";
+        merge_struct(patch, |key, value| match key {
+            "id" => merge_field(&mut self.id, value, GO_TYPE, "ID"),
+            "qty" => merge_field(&mut self.qty, value, GO_TYPE, "Qty"),
+            "seq" => merge_field(&mut self.seq, value, GO_TYPE, "Seq"),
+            "flr" => merge_field(&mut self.flr, value, GO_TYPE, "Flr"),
+            "flrcur" => merge_field(&mut self.flrcur, value, GO_TYPE, "FlrCur"),
+            "exp" => merge_field(&mut self.exp, value, GO_TYPE, "Exp"),
+            "dt" => merge_field(&mut self.dt, value, GO_TYPE, "DT"),
+            "dlvy" => merge_field(&mut self.dlvy, value, GO_TYPE, "Dlvy"),
+            "metric" => merge_field(&mut self.metric, value, GO_TYPE, "Metric"),
+            "deal" => merge_field(&mut self.deal, value, GO_TYPE, "Deal"),
+            "private" => merge_field(&mut self.private, value, GO_TYPE, "Private"),
+            "spec" => gojson_bridge::merge_field(&mut self.spec, value, GO_TYPE, "Spec"),
+            "ext" => gojson_bridge::merge_field(&mut self.ext, value, GO_TYPE, "Ext"),
+            _ => Ok(()),
+        })
+    }
 }
 
 /// ```text
@@ -461,9 +706,29 @@ pub struct Item {
 /// It lists the options for an exchange to inform a bidder as to the reason why they did not win an
 /// item.
 /// ```
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash, GoJson)]
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    Serialize,
+    Deserialize,
+    GoJson,
+)]
+#[serde(transparent)]
 #[gojson(go_type = "openrtb3.LossReason", map_key)]
 pub struct LossReason(pub i64);
+
+impl MergeClone for LossReason {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        self.0.merge_clone(patch)
+    }
+}
 
 /// Bid Won
 #[doc(alias = "LossWon")]
@@ -605,7 +870,8 @@ pub const LOSS_APP_BUNDLE_EXCLUSIONS: LossReason = LossReason(215);
 /// name supplied in the key attribute
 /// This ensures no conflict with standard OpenRTB macros.
 /// ```
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb3.Macro")]
 pub struct Macro {
     /// ```text
@@ -616,6 +882,7 @@ pub struct Macro {
     /// Definition:
     ///   Name of a buyer specific macro.
     /// ```
+    #[serde(rename = "key", deserialize_with = "null_default")]
     #[gojson(go = "Key", json = "key")]
     pub key: String,
     /// ```text
@@ -626,6 +893,11 @@ pub struct Macro {
     /// Definition:
     ///   Value to substitute for each instance of the macro found in markup.
     /// ```
+    #[serde(
+        rename = "value",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Value", json = "value,omitempty")]
     pub value: String,
     /// ```text
@@ -636,8 +908,25 @@ pub struct Macro {
     /// Definition:
     ///   Optional demand source specific extensions.
     /// ```
+    #[serde(
+        rename = "ext",
+        skip_serializing_if = "gojson_bridge::raw_json::is_empty",
+        with = "gojson_bridge::raw_json"
+    )]
     #[gojson(go = "Ext", json = "ext,omitempty")]
     pub ext: RawJson,
+}
+
+impl MergeClone for Macro {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb3.Macro";
+        merge_struct(patch, |key, value| match key {
+            "key" => merge_field(&mut self.key, value, GO_TYPE, "Key"),
+            "value" => merge_field(&mut self.value, value, GO_TYPE, "Value"),
+            "ext" => gojson_bridge::merge_field(&mut self.ext, value, GO_TYPE, "Ext"),
+            _ => Ok(()),
+        })
+    }
 }
 
 /// ```text
@@ -647,7 +936,8 @@ pub struct Macro {
 /// Each metric is identified by its type, reports the value of the metric, and optionally
 /// identifies the source or vendor measuring the value.
 /// ```
-#[derive(Clone, Debug, Default, PartialEq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb3.Metric")]
 pub struct Metric {
     /// ```text
@@ -659,6 +949,7 @@ pub struct Metric {
     ///   Type of metric being presented using exchange curated string names which should be
     ///   published to bidders a priori.
     /// ```
+    #[serde(rename = "type", deserialize_with = "null_default")]
     #[gojson(go = "Type", json = "type")]
     pub r#type: String,
     /// ```text
@@ -670,6 +961,11 @@ pub struct Metric {
     ///   Number representing the value of the metric.
     ///   Probabilities must be in the range 0.0 – 1.0.
     /// ```
+    #[serde(
+        rename = "value",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Value", json = "value,omitempty")]
     pub value: f64,
     /// ```text
@@ -682,6 +978,11 @@ pub struct Metric {
     ///   bidders a priori.
     ///   If the exchange itself is the source versus a third party, “EXCHANGE” is recommended.
     /// ```
+    #[serde(
+        rename = "vendor",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Vendor", json = "vendor,omitempty")]
     pub vendor: String,
     /// ```text
@@ -692,17 +993,55 @@ pub struct Metric {
     /// Definition:
     ///   Optional exchange-specific extensions.
     /// ```
+    #[serde(
+        rename = "ext",
+        skip_serializing_if = "gojson_bridge::raw_json::is_empty",
+        with = "gojson_bridge::raw_json"
+    )]
     #[gojson(go = "Ext", json = "ext,omitempty")]
     pub ext: RawJson,
+}
+
+impl MergeClone for Metric {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb3.Metric";
+        merge_struct(patch, |key, value| match key {
+            "type" => merge_field(&mut self.r#type, value, GO_TYPE, "Type"),
+            "value" => merge_field(&mut self.value, value, GO_TYPE, "Value"),
+            "vendor" => merge_field(&mut self.vendor, value, GO_TYPE, "Vendor"),
+            "ext" => gojson_bridge::merge_field(&mut self.ext, value, GO_TYPE, "Ext"),
+            _ => Ok(()),
+        })
+    }
 }
 
 /// ```text
 /// NoBidReason lists the options for a bidder to signal the exchange as to why it did not offer a
 /// bid for the item.
 /// ```
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash, GoJson)]
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    Serialize,
+    Deserialize,
+    GoJson,
+)]
+#[serde(transparent)]
 #[gojson(go_type = "openrtb3.NoBidReason", map_key)]
 pub struct NoBidReason(pub i64);
+
+impl MergeClone for NoBidReason {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        self.0.merge_clone(patch)
+    }
+}
 
 /// Unknown Error
 #[doc(alias = "NoBidUnknownError")]
@@ -793,7 +1132,8 @@ pub const NO_BID_BLOCKED_SUPPLY_CHAIN_NODE: NoBidReason = NoBidReason(17);
 /// objects may vary over time based on their specification versions.
 /// This attribute can assist in invoking the correct domain object parser or unmarshalling code.
 /// ```
-#[derive(Clone, Debug, Default, PartialEq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb3.OpenRTB")]
 pub struct OpenRTB {
     /// ```text
@@ -804,6 +1144,11 @@ pub struct OpenRTB {
     /// Definition:
     ///   Version of the Layer-3 OpenRTB specification (e.g., "3.0").
     /// ```
+    #[serde(
+        rename = "ver",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Ver", json = "ver,omitempty")]
     pub ver: String,
     /// ```text
@@ -815,6 +1160,11 @@ pub struct OpenRTB {
     ///   Identifier of the Layer-4 domain model used to define items for sale, media associated
     ///   with bids, etc.
     /// ```
+    #[serde(
+        rename = "domainspec",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "DomainSpec", json = "domainspec,omitempty")]
     pub domainspec: String,
     /// ```text
@@ -825,6 +1175,7 @@ pub struct OpenRTB {
     /// Definition:
     ///   Specification version of the Layer-4 domain model referenced in the domainspec attribute.
     /// ```
+    #[serde(rename = "domainver", deserialize_with = "null_default")]
     #[gojson(go = "DomainVer", json = "domainver")]
     pub domainver: String,
     /// ```text
@@ -837,6 +1188,7 @@ pub struct OpenRTB {
     ///   * Required only for request payloads.
     ///   Refer to Object: Request.
     /// ```
+    #[serde(rename = "request", skip_serializing_if = "Option::is_none")]
     #[gojson(go = "Request", json = "request,omitempty")]
     pub request: Option<Box<Request>>,
     /// ```text
@@ -849,8 +1201,23 @@ pub struct OpenRTB {
     ///   * Required only for response payloads.
     ///   Refer to Object: Response.
     /// ```
+    #[serde(rename = "response", skip_serializing_if = "Option::is_none")]
     #[gojson(go = "Response", json = "response,omitempty")]
     pub response: Option<Box<Response>>,
+}
+
+impl MergeClone for OpenRTB {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb3.OpenRTB";
+        merge_struct(patch, |key, value| match key {
+            "ver" => merge_field(&mut self.ver, value, GO_TYPE, "Ver"),
+            "domainspec" => merge_field(&mut self.domainspec, value, GO_TYPE, "DomainSpec"),
+            "domainver" => merge_field(&mut self.domainver, value, GO_TYPE, "DomainVer"),
+            "request" => merge_field(&mut self.request, value, GO_TYPE, "Request"),
+            "response" => merge_field(&mut self.response, value, GO_TYPE, "Response"),
+            _ => Ok(()),
+        })
+    }
 }
 
 /// ```text
@@ -861,7 +1228,8 @@ pub struct OpenRTB {
 /// This object also interfaces to Layer-4 domain objects for context such as the user, device, site
 /// or app, etc.
 /// ```
-#[derive(Clone, Debug, Default, PartialEq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb3.Request")]
 pub struct Request {
     /// ```text
@@ -872,6 +1240,7 @@ pub struct Request {
     /// Definition:
     ///   Unique ID of the bid request; provided by the exchange.
     /// ```
+    #[serde(rename = "id", deserialize_with = "null_default")]
     #[gojson(go = "ID", json = "id")]
     pub id: String,
     /// ```text
@@ -883,6 +1252,11 @@ pub struct Request {
     ///   Indicator of test mode in which auctions are not billable, where 0 = live mode, 1 = test
     ///   mode.
     /// ```
+    #[serde(
+        rename = "test",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Test", json = "test,omitempty")]
     pub test: i8,
     /// ```text
@@ -897,6 +1271,11 @@ pub struct Request {
     ///   If an exchange acts as an intermediary, it should decrease the outbound tmax value from
     ///   what it received to account for its latency and the additional internet hop.
     /// ```
+    #[serde(
+        rename = "tmax",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "TMax", json = "tmax,omitempty")]
     pub tmax: i64,
     /// ```text
@@ -908,6 +1287,11 @@ pub struct Request {
     ///   Auction type, where 1 = First Price, 2 = Second Price Plus.
     ///   Values 500 and greater can be used for exchange-specific auction types.
     /// ```
+    #[serde(
+        rename = "at",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "AT", json = "at,omitempty")]
     pub at: AuctionType,
     /// ```text
@@ -920,6 +1304,7 @@ pub struct Request {
     ///   Recommended if the exchange accepts multiple currencies.
     ///   If omitted, the single currency of “USD” is assumed.
     /// ```
+    #[serde(rename = "cur", skip_serializing_if = "is_nil_or_empty")]
     #[gojson(go = "Cur", json = "cur,omitempty")]
     pub cur: Option<Vec<String>>,
     /// ```text
@@ -933,6 +1318,7 @@ pub struct Request {
     ///   priori.
     ///   Omission implies no restrictions.
     /// ```
+    #[serde(rename = "seat", skip_serializing_if = "is_nil_or_empty")]
     #[gojson(go = "Seat", json = "seat,omitempty")]
     pub seat: Option<Vec<String>>,
     /// ```text
@@ -944,6 +1330,11 @@ pub struct Request {
     ///   Flag that determines the restriction interpretation of the seat array, where 0 = block
     ///   list, 1 = whitelist.
     /// ```
+    #[serde(
+        rename = "wseat",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "WSeat", json = "wseat,omitempty")]
     pub wseat: i8,
     /// ```text
@@ -956,6 +1347,11 @@ pub struct Request {
     ///   in Object: Response) if supported by the exchange.
     ///   The string must be in base85 cookie-safe characters.
     /// ```
+    #[serde(
+        rename = "cdata",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "CData", json = "cdata,omitempty")]
     pub cdata: String,
     /// ```text
@@ -968,6 +1364,7 @@ pub struct Request {
     ///   final decision
     ///   Refer to Object: Source.
     /// ```
+    #[serde(rename = "source", skip_serializing_if = "Option::is_none")]
     #[gojson(go = "Source", json = "source,omitempty")]
     pub source: Option<Box<Source>>,
     /// ```text
@@ -980,6 +1377,7 @@ pub struct Request {
     ///   sale.
     ///   Refer to Object: Item.
     /// ```
+    #[serde(rename = "item")]
     #[gojson(go = "Item", json = "item")]
     pub item: Option<Vec<Item>>,
     /// ```text
@@ -992,6 +1390,11 @@ pub struct Request {
     ///   items available in context (e.g., all impressions on a web page, all video spots such as
     ///   pre/mid/post roll) to support road-blocking, where 0 = no, 1 = yes.
     /// ```
+    #[serde(
+        rename = "package",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Package", json = "package,omitempty")]
     pub package: i8,
     /// ```text
@@ -1009,6 +1412,11 @@ pub struct Request {
     /// Dev note:
     ///   This object is implemented as ../adcom1.RequestContext type.
     /// ```
+    #[serde(
+        rename = "context",
+        skip_serializing_if = "gojson_bridge::raw_json::is_empty",
+        with = "gojson_bridge::raw_json"
+    )]
     #[gojson(go = "Context", json = "context,omitempty")]
     pub context: RawJson,
     /// ```text
@@ -1019,8 +1427,35 @@ pub struct Request {
     /// Definition:
     ///   Optional exchange-specific extensions.
     /// ```
+    #[serde(
+        rename = "ext",
+        skip_serializing_if = "gojson_bridge::raw_json::is_empty",
+        with = "gojson_bridge::raw_json"
+    )]
     #[gojson(go = "Ext", json = "ext,omitempty")]
     pub ext: RawJson,
+}
+
+impl MergeClone for Request {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb3.Request";
+        merge_struct(patch, |key, value| match key {
+            "id" => merge_field(&mut self.id, value, GO_TYPE, "ID"),
+            "test" => merge_field(&mut self.test, value, GO_TYPE, "Test"),
+            "tmax" => merge_field(&mut self.tmax, value, GO_TYPE, "TMax"),
+            "at" => merge_field(&mut self.at, value, GO_TYPE, "AT"),
+            "cur" => merge_field(&mut self.cur, value, GO_TYPE, "Cur"),
+            "seat" => merge_field(&mut self.seat, value, GO_TYPE, "Seat"),
+            "wseat" => merge_field(&mut self.wseat, value, GO_TYPE, "WSeat"),
+            "cdata" => merge_field(&mut self.cdata, value, GO_TYPE, "CData"),
+            "source" => merge_field(&mut self.source, value, GO_TYPE, "Source"),
+            "item" => merge_field(&mut self.item, value, GO_TYPE, "Item"),
+            "package" => merge_field(&mut self.package, value, GO_TYPE, "Package"),
+            "context" => gojson_bridge::merge_field(&mut self.context, value, GO_TYPE, "Context"),
+            "ext" => gojson_bridge::merge_field(&mut self.ext, value, GO_TYPE, "Ext"),
+            _ => Ok(()),
+        })
+    }
 }
 
 /// ```text
@@ -1037,7 +1472,8 @@ pub struct Request {
 /// However, if the bidder wishes to convey a reason for not bidding, a Response object can be
 /// returned with just a reason code in the nbr attribute.
 /// ```
-#[derive(Clone, Debug, Default, PartialEq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb3.Response")]
 pub struct Response {
     /// ```text
@@ -1048,6 +1484,11 @@ pub struct Response {
     /// Definition:
     ///   ID of the bid request to which this is a response; must match the request.id attribute.
     /// ```
+    #[serde(
+        rename = "id",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "ID", json = "id,omitempty")]
     pub id: String,
     /// ```text
@@ -1058,6 +1499,11 @@ pub struct Response {
     /// Definition:
     ///   Bidder generated response ID to assist with logging/tracking.
     /// ```
+    #[serde(
+        rename = "bidid",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "BidID", json = "bidid,omitempty")]
     pub bidid: String,
     /// ```text
@@ -1070,6 +1516,11 @@ pub struct Response {
     ///   Note that while many exchanges prefer a simple HTTP 204 response to indicate a no-bid,
     ///   responses indicating a reason code can be useful in debugging scenarios.
     /// ```
+    #[serde(
+        rename = "nbr",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "NBR", json = "nbr,omitempty")]
     pub nbr: NoBidReason,
     /// ```text
@@ -1080,6 +1531,11 @@ pub struct Response {
     /// Definition:
     ///   Bid currency using ISO-4217 alpha codes.
     /// ```
+    #[serde(
+        rename = "cur",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Cur", json = "cur,omitempty")]
     pub cur: String,
     /// ```text
@@ -1092,6 +1548,11 @@ pub struct Response {
     ///   (refer to cdata in Object: Request) if supported by the exchange.
     ///   The string must be in base85 cookie-safe characters.
     /// ```
+    #[serde(
+        rename = "cdata",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "CData", json = "cdata,omitempty")]
     pub cdata: String,
     /// ```text
@@ -1103,6 +1564,7 @@ pub struct Response {
     ///   Array of Seatbid objects; 1+ required if a bid is to be made.
     ///   Refer to Object: Seatbid.
     /// ```
+    #[serde(rename = "seatbid", skip_serializing_if = "is_nil_or_empty")]
     #[gojson(go = "SeatBid", json = "seatbid,omitempty")]
     pub seatbid: Option<Vec<SeatBid>>,
     /// ```text
@@ -1113,8 +1575,29 @@ pub struct Response {
     /// Definition:
     ///   Optional demand source specific extensions.
     /// ```
+    #[serde(
+        rename = "ext",
+        skip_serializing_if = "gojson_bridge::raw_json::is_empty",
+        with = "gojson_bridge::raw_json"
+    )]
     #[gojson(go = "Ext", json = "ext,omitempty")]
     pub ext: RawJson,
+}
+
+impl MergeClone for Response {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb3.Response";
+        merge_struct(patch, |key, value| match key {
+            "id" => merge_field(&mut self.id, value, GO_TYPE, "ID"),
+            "bidid" => merge_field(&mut self.bidid, value, GO_TYPE, "BidID"),
+            "nbr" => merge_field(&mut self.nbr, value, GO_TYPE, "NBR"),
+            "cur" => merge_field(&mut self.cur, value, GO_TYPE, "Cur"),
+            "cdata" => merge_field(&mut self.cdata, value, GO_TYPE, "CData"),
+            "seatbid" => merge_field(&mut self.seatbid, value, GO_TYPE, "SeatBid"),
+            "ext" => gojson_bridge::merge_field(&mut self.ext, value, GO_TYPE, "Ext"),
+            _ => Ok(()),
+        })
+    }
 }
 
 /// ```text
@@ -1125,7 +1608,8 @@ pub struct Response {
 /// specify if a seat is willing to accept any impressions that it can win (default) or if it is
 /// interested in winning any only if it can win them all as a group.
 /// ```
-#[derive(Clone, Debug, Default, PartialEq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb3.SeatBid")]
 pub struct SeatBid {
     /// ```text
@@ -1136,6 +1620,11 @@ pub struct SeatBid {
     /// Definition:
     ///   ID of the buyer seat on whose behalf this bid is made.
     /// ```
+    #[serde(
+        rename = "seat",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Seat", json = "seat,omitempty")]
     pub seat: String,
     /// ```text
@@ -1148,6 +1637,11 @@ pub struct SeatBid {
     ///   wins on a subset of bids or requires the full group as a package, where 0 = individual
     ///   wins accepted; 1 = package win or loss only.
     /// ```
+    #[serde(
+        rename = "package",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Package", json = "package,omitempty")]
     pub package: i8,
     /// ```text
@@ -1160,6 +1654,7 @@ pub struct SeatBid {
     ///   Multiple bids can relate to the same item.
     ///   Refer to Object: Bid.
     /// ```
+    #[serde(rename = "bid", skip_serializing_if = "is_nil_or_empty")]
     #[gojson(go = "Bid", json = "bid,omitempty")]
     pub bid: Option<Vec<Bid>>,
     /// ```text
@@ -1170,8 +1665,26 @@ pub struct SeatBid {
     /// Definition:
     ///   Optional demand source specific extensions.
     /// ```
+    #[serde(
+        rename = "ext",
+        skip_serializing_if = "gojson_bridge::raw_json::is_empty",
+        with = "gojson_bridge::raw_json"
+    )]
     #[gojson(go = "Ext", json = "ext,omitempty")]
     pub ext: RawJson,
+}
+
+impl MergeClone for SeatBid {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb3.SeatBid";
+        merge_struct(patch, |key, value| match key {
+            "seat" => merge_field(&mut self.seat, value, GO_TYPE, "Seat"),
+            "package" => merge_field(&mut self.package, value, GO_TYPE, "Package"),
+            "bid" => merge_field(&mut self.bid, value, GO_TYPE, "Bid"),
+            "ext" => gojson_bridge::merge_field(&mut self.ext, value, GO_TYPE, "Ext"),
+            _ => Ok(()),
+        })
+    }
 }
 
 /// ```text
@@ -1183,7 +1696,8 @@ pub struct SeatBid {
 /// As the Ads.cert specification is still in its BETA state, these attributes should be considered
 /// to be in a similar state.
 /// ```
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb3.Source")]
 pub struct Source {
     /// ```text
@@ -1197,6 +1711,11 @@ pub struct Source {
     ///   This also applies across all participating exchanges in a header bidding or similar
     ///   publisher-centric broadcast scenario.
     /// ```
+    #[serde(
+        rename = "tid",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "TID", json = "tid,omitempty")]
     pub tid: String,
     /// ```text
@@ -1209,6 +1728,11 @@ pub struct Source {
     ///   (i.e., milliseconds since the epoch).
     ///   This value must be held as immutable throughout subsequent intermediaries.
     /// ```
+    #[serde(
+        rename = "ts",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "TS", json = "ts,omitempty")]
     pub ts: i64,
     /// ```text
@@ -1222,6 +1746,11 @@ pub struct Source {
     ///   attributes found in the bid request.
     ///   Refer to Section “Inventory Authentication” for more details.
     /// ```
+    #[serde(
+        rename = "ds",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "DS", json = "ds,omitempty")]
     pub ds: String,
     /// ```text
@@ -1236,6 +1765,11 @@ pub struct Source {
     ///   attribute.
     ///   Refer to Section “Inventory Authentication” for more details.
     /// ```
+    #[serde(
+        rename = "dsmap",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "DSMap", json = "dsmap,omitempty")]
     pub dsmap: String,
     /// ```text
@@ -1248,6 +1782,11 @@ pub struct Source {
     ///   in the ds attribute.
     ///   Refer to Section “Inventory Authentication” for more details.
     /// ```
+    #[serde(
+        rename = "cert",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Cert", json = "cert,omitempty")]
     pub cert: String,
     /// ```text
@@ -1261,6 +1800,11 @@ pub struct Source {
     ///   NOTE: This is only intended for debugging purposes as needed.
     ///   It is not intended for normal Production traffic due to the bandwidth impact.
     /// ```
+    #[serde(
+        rename = "digest",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Digest", json = "digest,omitempty")]
     pub digest: String,
     /// ```text
@@ -1274,6 +1818,11 @@ pub struct Source {
     ///   NOTE: Authentication features in this Source object combined with the “ads.txt”
     ///   specification may lead to the deprecation of this attribute.
     /// ```
+    #[serde(
+        rename = "pchain",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "PChain", json = "pchain,omitempty")]
     pub pchain: String,
     /// ```text
@@ -1284,6 +1833,28 @@ pub struct Source {
     /// Definition:
     ///   Optional exchange-specific extensions.
     /// ```
+    #[serde(
+        rename = "ext",
+        skip_serializing_if = "gojson_bridge::raw_json::is_empty",
+        with = "gojson_bridge::raw_json"
+    )]
     #[gojson(go = "Ext", json = "ext,omitempty")]
     pub ext: RawJson,
+}
+
+impl MergeClone for Source {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb3.Source";
+        merge_struct(patch, |key, value| match key {
+            "tid" => merge_field(&mut self.tid, value, GO_TYPE, "TID"),
+            "ts" => merge_field(&mut self.ts, value, GO_TYPE, "TS"),
+            "ds" => merge_field(&mut self.ds, value, GO_TYPE, "DS"),
+            "dsmap" => merge_field(&mut self.dsmap, value, GO_TYPE, "DSMap"),
+            "cert" => merge_field(&mut self.cert, value, GO_TYPE, "Cert"),
+            "digest" => merge_field(&mut self.digest, value, GO_TYPE, "Digest"),
+            "pchain" => merge_field(&mut self.pchain, value, GO_TYPE, "PChain"),
+            "ext" => gojson_bridge::merge_field(&mut self.ext, value, GO_TYPE, "Ext"),
+            _ => Ok(()),
+        })
+    }
 }

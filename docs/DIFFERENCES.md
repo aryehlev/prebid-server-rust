@@ -23,7 +23,7 @@ Rule B's cases: (a) input real production traffic sends that the crate would rej
 | Global vendor list | 0 | 1 | 0 |
 | Gzip | 0 | 1 | 0 |
 | HTTP client | 0 | 1 | 1 |
-| JSON | 4 | 32 | 5 |
+| JSON | 4 | 34 | 5 |
 | Logging | 0 | 1 | 0 |
 | Prometheus metrics | 0 | 1 | 0 |
 | Public suffix list | 1 | 0 | 0 |
@@ -32,7 +32,7 @@ Rule B's cases: (a) input real production traffic sends that the crate would rej
 | Time formatting | 0 | 0 | 1 |
 | URLs | 0 | 1 | 0 |
 | YAML | 0 | 1 | 0 |
-| All | 5 | 43 | 13 |
+| All | 5 | 45 | 13 |
 
 ## Decisions pending
 
@@ -343,6 +343,17 @@ No entry names the classes `other` and `unrecorded` or the kinds `stage_missing`
 - **Restore option:** Write jsoniter's messages from serde_json's error categories; not planned (D-DECODE).
 - **Recorded in:** `crates/jsonutil/differences.toml`
 
+#### `json.failed-merge-empty-slice`: A merge that fails on a nil slice: Go leaves the slice nil, the port leaves it empty
+
+- **Go:** `jsonutil.MergeClone` given a value that is not an array for a nil slice (`{"mimes":{}}` into an `openrtb2.Audio`) fails and leaves the slice nil, which `jsonutil.Marshal` writes as `null` where the field has no `omitempty`.
+- **Rust:** pbs-jsonutil merges a slice as an `Option<Vec<T>>`, which becomes an empty `Vec` before the patch is read, so the failed merge leaves `[]`: the slices without `omitempty` of `openrtb2.Audio`, `BidRequest`, `SeatBid`, `SupplyChain` and `Video`, `openrtb3.Request`, `adcom1.NativeFormat` and the native request's `EventTracker` and `Request`.
+- **Who notices:** none
+- **Visible in:** Nothing in production: every `MergeClone` caller drops the value when the merge fails (exchange/utils.go:719-727, firstpartydata/first_party_data.go:198, 267, 322 and 405, account/fetcher.go:141 and 147)
+- **Harness:** none
+- **Pin:** `crates/openrtb/tests/parity/shapes.rs::failed_merges_leave_nil_slices_empty`
+- **Restore option:** pbs-jsonutil's `Option` merge reading the patch before it allocates for a slice; not planned while no caller keeps a failed merge's value.
+- **Recorded in:** `crates/openrtb/differences.toml`
+
 #### `json.find-element-invalid`: `FindElement` on a malformed value: Go fails with `encoding/json`'s text, the port with serde_json's
 
 - **Go:** `FindElement` and `DropElement` fail with `encoding/json`'s message where a value the walk reads is malformed (`invalid character 'x' after object key:value pair` for `1x`) or beyond float64's range (`json: cannot unmarshal number 1e400 into Go value of type float64`), and read a key that is not UTF-8 as U+FFFD and go on.
@@ -593,6 +604,17 @@ No entry names the classes `other` and `unrecorded` or the kinds `stage_missing`
 - **Restore option:** Accept a leading `+` where serde reads a float; not planned (D-DECODE).
 - **Recorded in:** `crates/jsonutil/differences.toml`
 
+#### `json.promoted-field-context`: A merge error in a promoted field: Go names the bare field, the port the struct that declares it
+
+- **Go:** `jsonutil.MergeClone` names the field a merge failed in `Type.Field` (`cannot unmarshal openrtb2.Imp.Banner: ...`), except a field promoted from an embedded struct, which it names bare: `cannot unmarshal ID: ...` for the `id`, `name`, `pub` or `content` of an `adcom1.App`, `adcom1.Site` or `adcom1.Dooh`, which embed `adcom1.DistributionChannel`.
+- **Rust:** The generated `MergeClone` names the struct that declares the field (`cannot unmarshal adcom1.DistributionChannel.ID: ...`), since `MergeCloneError::within` takes a type and a field.
+- **Who notices:** none
+- **Visible in:** Nothing in production: Prebid merges no adcom1 type, and its `MergeClone` callers keep no more of the text than whether it holds `invalid json on existing object` (exchange/utils.go:719-727, firstpartydata/first_party_data.go:348-353, account/fetcher.go:141-151)
+- **Harness:** none
+- **Pin:** `crates/openrtb/tests/parity/shapes.rs::merge_errors_name_promoted_fields_with_their_struct`
+- **Restore option:** A `MergeCloneError` context without a type, which pbs-jsonutil does not offer; not planned while no caller reads the context.
+- **Recorded in:** `crates/openrtb/differences.toml`
+
 #### `json.string-int-parse`: `StringInt`: `"+5"` reads 5 where Go fails, and `"-"` fails where Go reads 0
 
 - **Go:** `jsonutil.StringInt` parses a string's text with jsonparser's `ParseInt`, which rejects a leading `+` and reads a lone `-` as 0.
@@ -692,7 +714,7 @@ No entry names the classes `other` and `unrecorded` or the kinds `stage_missing`
 - **Rule B:** Rule B (a): input real production traffic sends that the crate would reject or misread
 - **Decision:** D-DECODE
 - **How Go's behaviour is kept:** JSONUTIL and ORTB-SERDE: container `#[serde(default)]` plus typegen's `null_default` deserializer on every value field, so a `null` leaves the default; real traffic sends these nulls.
-- **Restore pin:** `crates/jsonutil/tests/decode.rs::null_leaves_zero_value` (`null_default` with a container `#[serde(default)]` leaves each value field's zero value, as `jsonutil.Unmarshal`, `UnmarshalValid` and `json.Unmarshal` do; ORTB-SERDE's typegen puts it on the generated types.)
+- **Restore pin:** `crates/jsonutil/tests/decode.rs::null_leaves_zero_value` (`null_default` with a container `#[serde(default)]` leaves each value field's zero value, as `jsonutil.Unmarshal`, `UnmarshalValid` and `json.Unmarshal` do; ORTB-SERDE's typegen puts it on the generated types.); `crates/openrtb/tests/parity/shapes.rs::null_members_keep_zero_values` (Every value field of the generated types reads null through `null_default` under a container `#[serde(default)]`: each field's null case, and every field null at once, decodes to jsoniter's value and writes its bytes.)
 - **Recorded in:** `crates/differences/differences.toml`
 
 #### `json.null-raw`: `null` for a `json.RawMessage`: `encoding/json` keeps the bytes `null`, a plain serde `Option` reads nothing
@@ -706,7 +728,7 @@ No entry names the classes `other` and `unrecorded` or the kinds `stage_missing`
 - **Rule B:** Rule B (a): input real production traffic sends that the crate would reject or misread
 - **Decision:** D-DECODE
 - **How Go's behaviour is kept:** `raw_keep_null` on the `json.RawMessage` fields of the types Go decodes with `encoding/json`, and a plain `Option` where jsonutil decodes (D-DECODE's correction), so each site keeps what its Go decoder does; real traffic sends `ext: null`.
-- **Restore pin:** `crates/jsonutil/tests/decode.rs::null_raw_kept` (Both decoders' rows: `raw_keep_null` against `json.Unmarshal`, a plain `Option` against `jsonutil.Unmarshal` and `UnmarshalValid`.)
+- **Restore pin:** `crates/jsonutil/tests/decode.rs::null_raw_kept` (Both decoders' rows: `raw_keep_null` against `json.Unmarshal`, a plain `Option` against `jsonutil.Unmarshal` and `UnmarshalValid`.); `crates/openrtb/tests/parity/shapes.rs::raw_null_follows_the_decoder` (The generated types read a `json.RawMessage` given null as nil, as `jsonutil.Unmarshal` does; decoded through `gojson_bridge::EncodingJson` they keep the bytes `null`, as `json.Unmarshal` does, for the five adapters that decode an `openrtb2.BidResponse` with it (zentotem, loopme, resetdigital, tradplus, adverxo). Typegen's `keep_null` override keeps null on a field of a type that only `encoding/json` decodes.)
 - **Recorded in:** `crates/jsonutil/differences.toml`
 
 #### `json.raw-not-compacted`: `json.RawMessage` on write: Go compacts it, serde_json writes a `RawValue` as it was read
