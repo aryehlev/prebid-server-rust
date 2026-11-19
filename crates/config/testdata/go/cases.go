@@ -168,6 +168,8 @@ func searchCases() []loadInput {
 			"pbs.json": `{"port": 1001}`, "pbs.yaml": "port: 1002\n"}},
 		{Name: "toml before yaml", Files: map[string]string{
 			"pbs.toml": "port = 1003\n", "pbs.yaml": "port: 1004\n"}},
+		{Name: "json before toml", Files: map[string]string{
+			"pbs.json": `{"port": 1031}`, "pbs.toml": "port = 1032\n"}},
 		{Name: "yaml before yml", Files: map[string]string{
 			"pbs.yaml": "port: 1005\n", "pbs.yml": "port: 1006\n"}},
 		{Name: "yml alone", Files: map[string]string{"pbs.yml": "port: 1007\n"}},
@@ -179,6 +181,8 @@ func searchCases() []loadInput {
 			Second: map[string]string{"pbs.json": `{"port": 1012}`}},
 		{Name: "the second directory", Files: map[string]string{},
 			Second: map[string]string{"pbs.yaml": "port: 1013\n"}},
+		{Name: "a file in both directories", Files: map[string]string{"pbs.json": `{"port": 1033}`},
+			Second: map[string]string{"pbs.json": `{"port": 1034, "host": "h"}`}},
 		{Name: "an unread format in the working directory first", Files: map[string]string{"pbs.ini": "port=1014\n"},
 			Second: map[string]string{"pbs.json": `{"port": 1015}`}},
 		{Name: "invalid yaml is ignored", Files: map[string]string{"pbs.yaml": "port: [1017\n"}},
@@ -197,6 +201,11 @@ func searchCases() []loadInput {
 		{Name: "a yaml comment only", Files: map[string]string{"pbs.yaml": "# nothing\n"}},
 		{Name: "a yaml tab indent is ignored", Files: map[string]string{"pbs.yaml": "gdpr:\n\tdefault_value: \"1\"\n"}},
 		{Name: "invalid utf-8 in a json string", Files: map[string]string{"pbs.json": "{\"host\": \"a\xffb\"}"}},
+		{Name: "a lone surrogate in a json string", Files: map[string]string{"pbs.json": `{"port": 1041, "host": "a\ud800b"}`}},
+		{Name: "json nested 200 levels", Files: map[string]string{
+			"pbs.json": `{"port": 1042, "deep": ` + strings.Repeat(`{"a": `, 199) + "1" + strings.Repeat("}", 199) + "}",
+		}},
+		{Name: "module json spelling", Files: map[string]string{"pbs.json": `{"account_defaults": {"hooks": {"modules": {"vendor": {"module": {"html": "<a&b>", "big": 1e21, "wide": 1e20, "negzero": -0.0, "small": 1e-7, "whole": 3.0, "huge": 12345678901234567890}}}}}}`}},
 		{Name: "invalid utf-8 in yaml is ignored", Files: map[string]string{"pbs.yaml": "host: a\xffb\n"}},
 	}
 	for _, ext := range []string{"properties", "props", "prop", "hcl", "tfvars", "dotenv", "env", "ini"} {
@@ -439,7 +448,7 @@ func yamlCases() []loadInput {
 			"port", "admin_port", "gdpr.host_vendor_id", "gdpr.default_value", "host", "status_response", "unix_socket_name"),
 		withProbes(yamlFile("yaml special floats", "debug:\n  timeout_notification:\n    sampling_rate: .nan\nhost: .inf\nstatus_response: -.Inf\n"),
 			"debug.timeout_notification.sampling_rate", "host", "status_response"),
-		withProbes(yamlFile("yaml timestamps stay strings", "host: 2001-12-14\nstatus_response: 2001-12-14t21:59:43.10-05:00\n"),
+		withProbes(yamlFile("yaml timestamps", "host: 2001-12-14\nstatus_response: 2001-12-14t21:59:43.10-05:00\n"),
 			"host", "status_response"),
 		withProbes(yamlFile("yaml block scalars", "host: |\n  a\n  b\nstatus_response: >-\n  c\n  d\n"), "host", "status_response"),
 		withProbes(yamlFile("yaml non-string keys in modules", "hooks:\n  modules:\n    vendor:\n      module:\n        1: a\n        true: b\n        0x1F: c\n"),

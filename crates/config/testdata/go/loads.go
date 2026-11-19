@@ -7,6 +7,7 @@ import (
 	"reflect"
 	"sort"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/spf13/viper"
 
@@ -69,6 +70,9 @@ type loadInput struct {
 	// NoFile loads as SetupViper(v, "", ...) does: no configuration file is searched.
 	NoFile bool     `json:"no_file,omitempty"`
 	Probes []string `json:"probes,omitempty"`
+	// FileBytes holds the bytes of each file of Files whose contents are not UTF-8, which a JSON
+	// string cannot carry (encoding/json writes U+FFFD for each invalid byte).
+	FileBytes map[string][]int `json:"file_bytes,omitempty"`
 }
 
 // probe is what v.IsSet and v.Get answer for a key after the load.
@@ -363,10 +367,27 @@ func loadsGolden() loadsDoc {
 }
 
 // withDefaultBidders gives a load without bidders those of the defaults load, so its diff
-// against the defaults is about its own input.
+// against the defaults is about its own input, and records the bytes of its files that are not
+// UTF-8.
 func withDefaultBidders(in loadInput) loadInput {
 	if in.Bidders == nil {
 		in.Bidders = defaultsInput.Bidders
+	}
+	for name, contents := range in.Files {
+		if utf8.ValidString(contents) {
+			continue
+		}
+		if in.FileBytes == nil {
+			in.FileBytes = map[string][]int{}
+		}
+		for _, b := range []byte(contents) {
+			in.FileBytes[name] = append(in.FileBytes[name], int(b))
+		}
+	}
+	for name, contents := range in.Second {
+		if !utf8.ValidString(contents) {
+			panic("load " + in.Name + ": the second directory's " + name + " is not UTF-8")
+		}
 	}
 	return in
 }

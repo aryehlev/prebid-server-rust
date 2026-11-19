@@ -770,6 +770,120 @@
       }
     },
     {
+      "name": "malformed later document",
+      "text": "a: 1\n---\nb: [\n",
+      "map": {
+        "value": {
+          "a": 1
+        }
+      },
+      "value": {
+        "value": {
+          "a": 1
+        }
+      }
+    },
+    {
+      "name": "later document a list",
+      "text": "a: 1\n---\n- x\n",
+      "map": {
+        "value": {
+          "a": 1
+        }
+      },
+      "value": {
+        "value": {
+          "a": 1
+        }
+      }
+    },
+    {
+      "name": "null first document",
+      "text": "~\n---\na: 1\n",
+      "map": {
+        "value": {}
+      },
+      "value": {
+        "value": null
+      }
+    },
+    {
+      "name": "empty first document",
+      "text": "---\n---\na: 1\n",
+      "map": {
+        "value": {}
+      },
+      "value": {
+        "value": null
+      }
+    },
+    {
+      "name": "malformed document after an end marker",
+      "text": "a: 1\n...\n---\nb: [\n",
+      "map": {
+        "value": {
+          "a": 1
+        }
+      },
+      "value": {
+        "value": {
+          "a": 1
+        }
+      }
+    },
+    {
+      "name": "incompatible directive of a later document",
+      "text": "a: 1\n---\n%YAML 2.0\n---\nb: 2\n",
+      "map": {
+        "value": {
+          "a": 1
+        }
+      },
+      "value": {
+        "value": {
+          "a": 1
+        }
+      }
+    },
+    {
+      "name": "yaml 2.0 directive",
+      "text": "%YAML 2.0\n---\na: 1\n",
+      "map": {
+        "value": null,
+        "error": "yaml: found incompatible YAML document"
+      },
+      "value": {
+        "value": null,
+        "error": "yaml: found incompatible YAML document"
+      }
+    },
+    {
+      "name": "duplicate directive",
+      "text": "%YAML 1.1\n%YAML 1.1\n---\na: 1\n",
+      "map": {
+        "value": null,
+        "error": "yaml: line 1: found duplicate %YAML directive"
+      },
+      "value": {
+        "value": null,
+        "error": "yaml: line 1: found duplicate %YAML directive"
+      }
+    },
+    {
+      "name": "tag directive",
+      "text": "%TAG !e! tag:example.com,2000:\n---\na: !e!x 1\n",
+      "map": {
+        "value": {
+          "a": "1"
+        }
+      },
+      "value": {
+        "value": {
+          "a": "1"
+        }
+      }
+    },
+    {
       "name": "document end marker",
       "text": "a: 1\n...\n",
       "map": {
@@ -958,6 +1072,13 @@
     {
       "name": "invalid utf-8",
       "text": "a: \ufffd\n",
+      "bytes": [
+        97,
+        58,
+        32,
+        255,
+        10
+      ],
       "map": {
         "value": null,
         "error": "yaml: invalid leading UTF-8 octet"

@@ -5,6 +5,7 @@ import (
 	"math"
 	"reflect"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/mitchellh/mapstructure"
 	"github.com/spf13/cast"
@@ -34,8 +35,11 @@ type yamlScalar struct {
 // yamlDoc is how yaml.v3 reads a whole document into map[string]interface{}, as Viper's YAML
 // codec does (viper internal/encoding/yaml), and into interface{}.
 type yamlDoc struct {
-	Name  string `json:"name"`
-	Text  string `json:"text"`
+	Name string `json:"name"`
+	Text string `json:"text"`
+	// Bytes holds the document's bytes when it is not UTF-8, which a JSON string cannot carry
+	// (encoding/json writes U+FFFD for each invalid byte).
+	Bytes []int  `json:"bytes,omitempty"`
 	Map   result `json:"map"`
 	Value result `json:"value"`
 }
@@ -108,6 +112,15 @@ var yamlDocCases = []struct{ name, text string }{
 	{"duplicate key in a list item", "a:\n  - b: 1\n    b: 2\n"},
 	{"duplicate key across case", "a: 1\nA: 2\n"},
 	{"several documents", "a: 1\n---\na: 2\n"},
+	{"malformed later document", "a: 1\n---\nb: [\n"},
+	{"later document a list", "a: 1\n---\n- x\n"},
+	{"null first document", "~\n---\na: 1\n"},
+	{"empty first document", "---\n---\na: 1\n"},
+	{"malformed document after an end marker", "a: 1\n...\n---\nb: [\n"},
+	{"incompatible directive of a later document", "a: 1\n---\n%YAML 2.0\n---\nb: 2\n"},
+	{"yaml 2.0 directive", "%YAML 2.0\n---\na: 1\n"},
+	{"duplicate directive", "%YAML 1.1\n%YAML 1.1\n---\na: 1\n"},
+	{"tag directive", "%TAG !e! tag:example.com,2000:\n---\na: !e!x 1\n"},
 	{"document end marker", "a: 1\n...\n"},
 	{"directive", "%YAML 1.2\n---\na: 1\n"},
 	{"yaml 1.1 directive", "%YAML 1.1\n---\na: yes\n"},
@@ -250,6 +263,11 @@ func scalarsGolden() scalarsDoc {
 		var v any
 		vErr := yaml.Unmarshal([]byte(c.text), &v)
 		row := yamlDoc{Name: c.name, Text: c.text, Map: result{Error: errText(mErr)}, Value: result{Error: errText(vErr)}}
+		if !utf8.ValidString(c.text) {
+			for _, b := range []byte(c.text) {
+				row.Bytes = append(row.Bytes, int(b))
+			}
+		}
 		if mErr == nil {
 			row.Map.Value = dyn(m)
 		}

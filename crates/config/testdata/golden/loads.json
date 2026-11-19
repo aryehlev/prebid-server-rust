@@ -5814,6 +5814,56 @@
       }
     },
     {
+      "name": "json before toml",
+      "files": {
+        "pbs.json": "{\"port\": 1031}",
+        "pbs.toml": "port = 1032\n"
+      },
+      "bidders": [
+        "appnexus",
+        "rubicon"
+      ],
+      "probes": [
+        "port",
+        "host"
+      ],
+      "read_error": "",
+      "file_used": "first:pbs.json",
+      "error": "",
+      "settings": {
+        "set": [
+          {
+            "path": [
+              "port"
+            ],
+            "value": 1031
+          }
+        ],
+        "unset": []
+      },
+      "decoded": {
+        "set": [
+          {
+            "path": [
+              "port"
+            ],
+            "value": 1031
+          }
+        ],
+        "unset": []
+      },
+      "probe_results": {
+        "host": {
+          "is_set": true,
+          "get": ""
+        },
+        "port": {
+          "is_set": true,
+          "get": 1031
+        }
+      }
+    },
+    {
       "name": "yaml before yml",
       "files": {
         "pbs.yaml": "port: 1005\n",
@@ -6110,6 +6160,58 @@
         "port": {
           "is_set": true,
           "get": 1013
+        }
+      }
+    },
+    {
+      "name": "a file in both directories",
+      "files": {
+        "pbs.json": "{\"port\": 1033}"
+      },
+      "second": {
+        "pbs.json": "{\"port\": 1034, \"host\": \"h\"}"
+      },
+      "bidders": [
+        "appnexus",
+        "rubicon"
+      ],
+      "probes": [
+        "port",
+        "host"
+      ],
+      "read_error": "",
+      "file_used": "first:pbs.json",
+      "error": "",
+      "settings": {
+        "set": [
+          {
+            "path": [
+              "port"
+            ],
+            "value": 1033
+          }
+        ],
+        "unset": []
+      },
+      "decoded": {
+        "set": [
+          {
+            "path": [
+              "port"
+            ],
+            "value": 1033
+          }
+        ],
+        "unset": []
+      },
+      "probe_results": {
+        "host": {
+          "is_set": true,
+          "get": ""
+        },
+        "port": {
+          "is_set": true,
+          "get": 1033
         }
       }
     },
@@ -6711,6 +6813,25 @@
         "port",
         "host"
       ],
+      "file_bytes": {
+        "pbs.json": [
+          123,
+          34,
+          104,
+          111,
+          115,
+          116,
+          34,
+          58,
+          32,
+          34,
+          97,
+          255,
+          98,
+          34,
+          125
+        ]
+      },
       "read_error": "",
       "file_used": "first:pbs.json",
       "error": "",
@@ -6748,6 +6869,447 @@
       }
     },
     {
+      "name": "a lone surrogate in a json string",
+      "files": {
+        "pbs.json": "{\"port\": 1041, \"host\": \"a\\ud800b\"}"
+      },
+      "bidders": [
+        "appnexus",
+        "rubicon"
+      ],
+      "probes": [
+        "port",
+        "host"
+      ],
+      "read_error": "",
+      "file_used": "first:pbs.json",
+      "error": "",
+      "settings": {
+        "set": [
+          {
+            "path": [
+              "host"
+            ],
+            "value": "a�b"
+          },
+          {
+            "path": [
+              "port"
+            ],
+            "value": 1041
+          }
+        ],
+        "unset": []
+      },
+      "decoded": {
+        "set": [
+          {
+            "path": [
+              "host"
+            ],
+            "value": "a�b"
+          },
+          {
+            "path": [
+              "port"
+            ],
+            "value": 1041
+          }
+        ],
+        "unset": []
+      },
+      "probe_results": {
+        "host": {
+          "is_set": true,
+          "get": "a�b"
+        },
+        "port": {
+          "is_set": true,
+          "get": 1041
+        }
+      }
+    },
+    {
+      "name": "json nested 200 levels",
+      "files": {
+        "pbs.json": "{\"port\": 1042, \"deep\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": {\"a\": 1}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}"
+      },
+      "bidders": [
+        "appnexus",
+        "rubicon"
+      ],
+      "probes": [
+        "port",
+        "host"
+      ],
+      "read_error": "",
+      "file_used": "first:pbs.json",
+      "error": "",
+      "settings": {
+        "set": [
+          {
+            "path": [
+              "deep",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a",
+              "a"
+            ],
+            "value": 1.0
+          },
+          {
+            "path": [
+              "port"
+            ],
+            "value": 1042
+          }
+        ],
+        "unset": []
+      },
+      "decoded": {
+        "set": [
+          {
+            "path": [
+              "port"
+            ],
+            "value": 1042
+          }
+        ],
+        "unset": []
+      },
+      "probe_results": {
+        "host": {
+          "is_set": true,
+          "get": ""
+        },
+        "port": {
+          "is_set": true,
+          "get": 1042
+        }
+      }
+    },
+    {
+      "name": "module json spelling",
+      "files": {
+        "pbs.json": "{\"account_defaults\": {\"hooks\": {\"modules\": {\"vendor\": {\"module\": {\"html\": \"<a&b>\", \"big\": 1e21, \"wide\": 1e20, \"negzero\": -0.0, \"small\": 1e-7, \"whole\": 3.0, \"huge\": 12345678901234567890}}}}}}"
+      },
+      "bidders": [
+        "appnexus",
+        "rubicon"
+      ],
+      "probes": [
+        "port",
+        "host"
+      ],
+      "read_error": "",
+      "file_used": "first:pbs.json",
+      "error": "",
+      "settings": {
+        "set": [
+          {
+            "path": [
+              "account_defaults",
+              "hooks",
+              "modules",
+              "vendor",
+              "module",
+              "big"
+            ],
+            "value": 1e+21
+          },
+          {
+            "path": [
+              "account_defaults",
+              "hooks",
+              "modules",
+              "vendor",
+              "module",
+              "html"
+            ],
+            "value": "<a&b>"
+          },
+          {
+            "path": [
+              "account_defaults",
+              "hooks",
+              "modules",
+              "vendor",
+              "module",
+              "huge"
+            ],
+            "value": 1.2345678901234567e+19
+          },
+          {
+            "path": [
+              "account_defaults",
+              "hooks",
+              "modules",
+              "vendor",
+              "module",
+              "negzero"
+            ],
+            "value": -0.0
+          },
+          {
+            "path": [
+              "account_defaults",
+              "hooks",
+              "modules",
+              "vendor",
+              "module",
+              "small"
+            ],
+            "value": 1e-07
+          },
+          {
+            "path": [
+              "account_defaults",
+              "hooks",
+              "modules",
+              "vendor",
+              "module",
+              "whole"
+            ],
+            "value": 3.0
+          },
+          {
+            "path": [
+              "account_defaults",
+              "hooks",
+              "modules",
+              "vendor",
+              "module",
+              "wide"
+            ],
+            "value": 1e+20
+          }
+        ],
+        "unset": []
+      },
+      "decoded": {
+        "set": [
+          {
+            "path": [
+              "account_defaults",
+              "hooks",
+              "modules",
+              "vendor",
+              "module"
+            ],
+            "value": {
+              "$bytes": "{\"big\":1e+21,\"html\":\"\\u003ca\\u0026b\\u003e\",\"huge\":12345678901234567000,\"negzero\":-0,\"small\":1e-07,\"whole\":3,\"wide\":100000000000000000000}"
+            }
+          }
+        ],
+        "unset": []
+      },
+      "probe_results": {
+        "host": {
+          "is_set": true,
+          "get": ""
+        },
+        "port": {
+          "is_set": true,
+          "get": 8000
+        }
+      }
+    },
+    {
       "name": "invalid utf-8 in yaml is ignored",
       "files": {
         "pbs.yaml": "host: a\ufffdb\n"
@@ -6760,6 +7322,20 @@
         "port",
         "host"
       ],
+      "file_bytes": {
+        "pbs.yaml": [
+          104,
+          111,
+          115,
+          116,
+          58,
+          32,
+          97,
+          255,
+          98,
+          10
+        ]
+      },
       "read_error": "While parsing config: yaml: invalid leading UTF-8 octet",
       "file_used": "first:pbs.yaml",
       "error": "",
@@ -14343,7 +14919,7 @@
       }
     },
     {
-      "name": "yaml timestamps stay strings",
+      "name": "yaml timestamps",
       "files": {
         "pbs.yaml": "host: 2001-12-14\nstatus_response: 2001-12-14t21:59:43.10-05:00\n"
       },
