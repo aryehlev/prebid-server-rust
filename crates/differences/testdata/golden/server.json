@@ -1,0 +1,153 @@
+{
+  "header": {
+    "go_version": "go1.26.2",
+    "goarch": "amd64",
+    "upstream": "v4.11.2-0.20261112141353-4e296450de2f",
+    "modules": {
+      "github.com/rs/cors": "v1.11.0"
+    },
+    "generator": "crates/differences/testdata/go"
+  },
+  "origin": "https://publisher.example",
+  "request_method": "POST",
+  "path": "/openrtb2/auction",
+  "preflights": [
+    {
+      "request_headers": "content-type",
+      "status": 204,
+      "headers": {
+        "Access-Control-Allow-Credentials": [
+          "true"
+        ],
+        "Access-Control-Allow-Headers": [
+          "content-type"
+        ],
+        "Access-Control-Allow-Methods": [
+          "POST"
+        ],
+        "Access-Control-Allow-Origin": [
+          "https://publisher.example"
+        ],
+        "Vary": [
+          "Origin, Access-Control-Request-Method, Access-Control-Request-Headers"
+        ]
+      }
+    },
+    {
+      "request_headers": "content-type,x-requested-with",
+      "status": 204,
+      "headers": {
+        "Access-Control-Allow-Credentials": [
+          "true"
+        ],
+        "Access-Control-Allow-Headers": [
+          "content-type,x-requested-with"
+        ],
+        "Access-Control-Allow-Methods": [
+          "POST"
+        ],
+        "Access-Control-Allow-Origin": [
+          "https://publisher.example"
+        ],
+        "Vary": [
+          "Origin, Access-Control-Request-Method, Access-Control-Request-Headers"
+        ]
+      }
+    },
+    {
+      "request_headers": "x-custom",
+      "status": 204,
+      "headers": {
+        "Vary": [
+          "Origin, Access-Control-Request-Method, Access-Control-Request-Headers"
+        ]
+      }
+    }
+  ],
+  "handler_header": "X-Handler",
+  "actual_requests": [
+    {
+      "method": "POST",
+      "origin": "https://publisher.example",
+      "status": 200,
+      "headers": {
+        "Access-Control-Allow-Credentials": [
+          "true"
+        ],
+        "Access-Control-Allow-Origin": [
+          "https://publisher.example"
+        ],
+        "Vary": [
+          "Origin"
+        ],
+        "X-Handler": [
+          "called"
+        ]
+      }
+    },
+    {
+      "method": "GET",
+      "origin": "https://publisher.example",
+      "status": 200,
+      "headers": {
+        "Access-Control-Allow-Credentials": [
+          "true"
+        ],
+        "Access-Control-Allow-Origin": [
+          "https://publisher.example"
+        ],
+        "Vary": [
+          "Origin"
+        ],
+        "X-Handler": [
+          "called"
+        ]
+      }
+    },
+    {
+      "method": "PUT",
+      "origin": "https://publisher.example",
+      "status": 200,
+      "headers": {
+        "Vary": [
+          "Origin"
+        ],
+        "X-Handler": [
+          "called"
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "origin": "",
+      "status": 200,
+      "headers": {
+        "Vary": [
+          "Origin"
+        ],
+        "X-Handler": [
+          "called"
+        ]
+      }
+    },
+    {
+      "method": "OPTIONS",
+      "origin": "https://publisher.example",
+      "status": 200,
+      "headers": {
+        "Access-Control-Allow-Credentials": [
+          "true"
+        ],
+        "Access-Control-Allow-Origin": [
+          "https://publisher.example"
+        ],
+        "Vary": [
+          "Origin"
+        ],
+        "X-Handler": [
+          "called"
+        ]
+      }
+    }
+  ]
+}

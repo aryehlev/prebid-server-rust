@@ -1,0 +1,20 @@
+{
+  "header": {
+    "go_version": "go1.26.2",
+    "goarch": "amd64",
+    "upstream": "v4.11.2-0.20261112141353-4e296450de2f",
+    "modules": {
+      "github.com/golang/glog": "v1.2.5"
+    },
+    "generator": "crates/differences/testdata/go"
+  },
+  "flags": [
+    "-v",
+    "1",
+    "-logtostderr"
+  ],
+  "message": "bidder returned no bids: appnexus",
+  "severity": "W",
+  "file_line": "logger.go:17",
+  "line": "WMMDD hh:mm:ss.uuuuuu PID logger.go:17] bidder returned no bids: appnexus"
+}

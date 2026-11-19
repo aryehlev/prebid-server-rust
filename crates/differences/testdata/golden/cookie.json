@@ -1,0 +1,15 @@
+{
+  "header": {
+    "go_version": "go1.26.2",
+    "goarch": "amd64",
+    "upstream": "v4.11.2-0.20261112141353-4e296450de2f",
+    "modules": {},
+    "generator": "crates/differences/testdata/go"
+  },
+  "name": "uids",
+  "value": "eyJ1aWRzIjp7fX0=",
+  "path": "/",
+  "domain": "pbs.example",
+  "expires": "2026-11-18T10:20:30Z",
+  "set_cookie": "uids=eyJ1aWRzIjp7fX0=; Path=/; Domain=pbs.example; Expires=Wed, 18 Nov 2026 10:20:30 GMT; Secure; SameSite=None"
+}

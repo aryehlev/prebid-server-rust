@@ -1,0 +1,1124 @@
+{
+  "header": {
+    "go_version": "go1.26.2",
+    "goarch": "amd64",
+    "upstream": "v4.11.2-0.20261112141353-4e296450de2f",
+    "modules": {
+      "github.com/json-iterator/go": "v1.1.12"
+    },
+    "generator": "crates/differences/testdata/go"
+  },
+  "html_escape": {
+    "input": "<a href=\"x\">&</a>\u2028\u2029",
+    "writers": {
+      "jsonutil_marshal": {
+        "out": "\"\\u003ca href=\\\"x\\\"\\u003e\\u0026\\u003c/a\\u003e\\u2028\\u2029\"",
+        "err": ""
+      },
+      "json_marshal": {
+        "out": "\"\\u003ca href=\\\"x\\\"\\u003e\\u0026\\u003c/a\\u003e\\u2028\\u2029\"",
+        "err": ""
+      },
+      "encoder_no_html": {
+        "out": "\"<a href=\\\"x\\\">&</a>\\u2028\\u2029\"\n",
+        "err": ""
+      }
+    }
+  },
+  "float_format": [
+    {
+      "bits": "0",
+      "f64": {
+        "jsonutil_marshal": {
+          "out": "0",
+          "err": ""
+        },
+        "json_marshal": {
+          "out": "0",
+          "err": ""
+        },
+        "encoder_no_html": {
+          "out": "0\n",
+          "err": ""
+        }
+      },
+      "bits32": "0",
+      "f32": {
+        "jsonutil_marshal": {
+          "out": "0",
+          "err": ""
+        },
+        "json_marshal": {
+          "out": "0",
+          "err": ""
+        },
+        "encoder_no_html": {
+          "out": "0\n",
+          "err": ""
+        }
+      }
+    },
+    {
+      "bits": "8000000000000000",
+      "f64": {
+        "jsonutil_marshal": {
+          "out": "-0",
+          "err": ""
+        },
+        "json_marshal": {
+          "out": "-0",
+          "err": ""
+        },
+        "encoder_no_html": {
+          "out": "-0\n",
+          "err": ""
+        }
+      },
+      "bits32": "80000000",
+      "f32": {
+        "jsonutil_marshal": {
+          "out": "-0",
+          "err": ""
+        },
+        "json_marshal": {
+          "out": "-0",
+          "err": ""
+        },
+        "encoder_no_html": {
+          "out": "-0\n",
+          "err": ""
+        }
+      }
+    },
+    {
+      "bits": "3ff0000000000000",
+      "f64": {
+        "jsonutil_marshal": {
+          "out": "1",
+          "err": ""
+        },
+        "json_marshal": {
+          "out": "1",
+          "err": ""
+        },
+        "encoder_no_html": {
+          "out": "1\n",
+          "err": ""
+        }
+      },
+      "bits32": "3f800000",
+      "f32": {
+        "jsonutil_marshal": {
+          "out": "1",
+          "err": ""
+        },
+        "json_marshal": {
+          "out": "1",
+          "err": ""
+        },
+        "encoder_no_html": {
+          "out": "1\n",
+          "err": ""
+        }
+      }
+    },
+    {
+      "bits": "4059000000000000",
+      "f64": {
+        "jsonutil_marshal": {
+          "out": "100",
+          "err": ""
+        },
+        "json_marshal": {
+          "out": "100",
+          "err": ""
+        },
+        "encoder_no_html": {
+          "out": "100\n",
+          "err": ""
+        }
+      },
+      "bits32": "42c80000",
+      "f32": {
+        "jsonutil_marshal": {
+          "out": "100",
+          "err": ""
+        },
+        "json_marshal": {
+          "out": "100",
+          "err": ""
+        },
+        "encoder_no_html": {
+          "out": "100\n",
+          "err": ""
+        }
+      }
+    },
+    {
+      "bits": "4072c00000000000",
+      "f64": {
+        "jsonutil_marshal": {
+          "out": "300",
+          "err": ""
+        },
+        "json_marshal": {
+          "out": "300",
+          "err": ""
+        },
+        "encoder_no_html": {
+          "out": "300\n",
+          "err": ""
+        }
+      },
+      "bits32": "43960000",
+      "f32": {
+        "jsonutil_marshal": {
+          "out": "300",
+          "err": ""
+        },
+        "json_marshal": {
+          "out": "300",
+          "err": ""
+        },
+        "encoder_no_html": {
+          "out": "300\n",
+          "err": ""
+        }
+      }
+    },
+    {
+      "bits": "3ff8000000000000",
+      "f64": {
+        "jsonutil_marshal": {
+          "out": "1.5",
+          "err": ""
+        },
+        "json_marshal": {
+          "out": "1.5",
+          "err": ""
+        },
+        "encoder_no_html": {
+          "out": "1.5\n",
+          "err": ""
+        }
+      },
+      "bits32": "3fc00000",
+      "f32": {
+        "jsonutil_marshal": {
+          "out": "1.5",
+          "err": ""
+        },
+        "json_marshal": {
+          "out": "1.5",
+          "err": ""
+        },
+        "encoder_no_html": {
+          "out": "1.5\n",
+          "err": ""
+        }
+      }
+    },
+    {
+      "bits": "3fb999999999999a",
+      "f64": {
+        "jsonutil_marshal": {
+          "out": "0.1",
+          "err": ""
+        },
+        "json_marshal": {
+          "out": "0.1",
+          "err": ""
+        },
+        "encoder_no_html": {
+          "out": "0.1\n",
+          "err": ""
+        }
+      },
+      "bits32": "3dcccccd",
+      "f32": {
+        "jsonutil_marshal": {
+          "out": "0.1",
+          "err": ""
+        },
+        "json_marshal": {
+          "out": "0.1",
+          "err": ""
+        },
+        "encoder_no_html": {
+          "out": "0.1\n",
+          "err": ""
+        }
+      }
+    },
+    {
+      "bits": "3fd3333333333333",
+      "f64": {
+        "jsonutil_marshal": {
+          "out": "0.3",
+          "err": ""
+        },
+        "json_marshal": {
+          "out": "0.3",
+          "err": ""
+        },
+        "encoder_no_html": {
+          "out": "0.3\n",
+          "err": ""
+        }
+      },
+      "bits32": "3e99999a",
+      "f32": {
+        "jsonutil_marshal": {
+          "out": "0.3",
+          "err": ""
+        },
+        "json_marshal": {
+          "out": "0.3",
+          "err": ""
+        },
+        "encoder_no_html": {
+          "out": "0.3\n",
+          "err": ""
+        }
+      }
+    },
+    {
+      "bits": "400921f9f01b866e",
+      "f64": {
+        "jsonutil_marshal": {
+          "out": "3.14159",
+          "err": ""
+        },
+        "json_marshal": {
+          "out": "3.14159",
+          "err": ""
+        },
+        "encoder_no_html": {
+          "out": "3.14159\n",
+          "err": ""
+        }
+      },
+      "bits32": "40490fd0",
+      "f32": {
+        "jsonutil_marshal": {
+          "out": "3.14159",
+          "err": ""
+        },
+        "json_marshal": {
+          "out": "3.14159",
+          "err": ""
+        },
+        "encoder_no_html": {
+          "out": "3.14159\n",
+          "err": ""
+        }
+      }
+    },
+    {
+      "bits": "4132d68720000000",
+      "f64": {
+        "jsonutil_marshal": {
+          "out": "1234567.125",
+          "err": ""
+        },
+        "json_marshal": {
+          "out": "1234567.125",
+          "err": ""
+        },
+        "encoder_no_html": {
+          "out": "1234567.125\n",
+          "err": ""
+        }
+      },
+      "bits32": "4996b439",
+      "f32": {
+        "jsonutil_marshal": {
+          "out": "1234567.1",
+          "err": ""
+        },
+        "json_marshal": {
+          "out": "1234567.1",
+          "err": ""
+        },
+        "encoder_no_html": {
+          "out": "1234567.1\n",
+          "err": ""
+        }
+      }
+    },
+    {
+      "bits": "419d6f3454000000",
+      "f64": {
+        "jsonutil_marshal": {
+          "out": "123456789",
+          "err": ""
+        },
+        "json_marshal": {
+          "out": "123456789",
+          "err": ""
+        },
+        "encoder_no_html": {
+          "out": "123456789\n",
+          "err": ""
+        }
+      },
+      "bits32": "4ceb79a3",
+      "f32": {
+        "jsonutil_marshal": {
+          "out": "123456790",
+          "err": ""
+        },
+        "json_marshal": {
+          "out": "123456790",
+          "err": ""
+        },
+        "encoder_no_html": {
+          "out": "123456790\n",
+          "err": ""
+        }
+      }
+    },
+    {
+      "bits": "3eb0c6f7a0b5ed8d",
+      "f64": {
+        "jsonutil_marshal": {
+          "out": "0.000001",
+          "err": ""
+        },
+        "json_marshal": {
+          "out": "0.000001",
+          "err": ""
+        },
+        "encoder_no_html": {
+          "out": "0.000001\n",
+          "err": ""
+        }
+      },
+      "bits32": "358637bd",
+      "f32": {
+        "jsonutil_marshal": {
+          "out": "0.000001",
+          "err": ""
+        },
+        "json_marshal": {
+          "out": "0.000001",
+          "err": ""
+        },
+        "encoder_no_html": {
+          "out": "0.000001\n",
+          "err": ""
+        }
+      }
+    },
+    {
+      "bits": "3e7ad7f29abcaf48",
+      "f64": {
+        "jsonutil_marshal": {
+          "out": "1e-07",
+          "err": ""
+        },
+        "json_marshal": {
+          "out": "1e-7",
+          "err": ""
+        },
+        "encoder_no_html": {
+          "out": "1e-7\n",
+          "err": ""
+        }
+      },
+      "bits32": "33d6bf95",
+      "f32": {
+        "jsonutil_marshal": {
+          "out": "1e-07",
+          "err": ""
+        },
+        "json_marshal": {
+          "out": "1e-7",
+          "err": ""
+        },
+        "encoder_no_html": {
+          "out": "1e-7\n",
+          "err": ""
+        }
+      }
+    },
+    {
+      "bits": "3e5ad7f29abcaf48",
+      "f64": {
+        "jsonutil_marshal": {
+          "out": "2.5e-08",
+          "err": ""
+        },
+        "json_marshal": {
+          "out": "2.5e-8",
+          "err": ""
+        },
+        "encoder_no_html": {
+          "out": "2.5e-8\n",
+          "err": ""
+        }
+      },
+      "bits32": "32d6bf95",
+      "f32": {
+        "jsonutil_marshal": {
+          "out": "2.5e-08",
+          "err": ""
+        },
+        "json_marshal": {
+          "out": "2.5e-8",
+          "err": ""
+        },
+        "encoder_no_html": {
+          "out": "2.5e-8\n",
+          "err": ""
+        }
+      }
+    },
+    {
+      "bits": "4415af1d78b58c40",
+      "f64": {
+        "jsonutil_marshal": {
+          "out": "100000000000000000000",
+          "err": ""
+        },
+        "json_marshal": {
+          "out": "100000000000000000000",
+          "err": ""
+        },
+        "encoder_no_html": {
+          "out": "100000000000000000000\n",
+          "err": ""
+        }
+      },
+      "bits32": "60ad78ec",
+      "f32": {
+        "jsonutil_marshal": {
+          "out": "100000000000000000000",
+          "err": ""
+        },
+        "json_marshal": {
+          "out": "100000000000000000000",
+          "err": ""
+        },
+        "encoder_no_html": {
+          "out": "100000000000000000000\n",
+          "err": ""
+        }
+      }
+    },
+    {
+      "bits": "444b1ae4d6e2ef50",
+      "f64": {
+        "jsonutil_marshal": {
+          "out": "1e+21",
+          "err": ""
+        },
+        "json_marshal": {
+          "out": "1e+21",
+          "err": ""
+        },
+        "encoder_no_html": {
+          "out": "1e+21\n",
+          "err": ""
+        }
+      },
+      "bits32": "6258d727",
+      "f32": {
+        "jsonutil_marshal": {
+          "out": "1e+21",
+          "err": ""
+        },
+        "json_marshal": {
+          "out": "1e+21",
+          "err": ""
+        },
+        "encoder_no_html": {
+          "out": "1e+21\n",
+          "err": ""
+        }
+      }
+    },
+    {
+      "bits": "7e41eb2d66005835",
+      "f64": {
+        "jsonutil_marshal": {
+          "out": "1.5e+300",
+          "err": ""
+        },
+        "json_marshal": {
+          "out": "1.5e+300",
+          "err": ""
+        },
+        "encoder_no_html": {
+          "out": "1.5e+300\n",
+          "err": ""
+        }
+      },
+      "bits32": "7f800000",
+      "f32": {
+        "jsonutil_marshal": {
+          "out": "",
+          "err": "unsupported value: +Inf"
+        },
+        "json_marshal": {
+          "out": "",
+          "err": "json: unsupported value: +Inf"
+        },
+        "encoder_no_html": {
+          "out": "",
+          "err": "json: unsupported value: +Inf"
+        }
+      }
+    },
+    {
+      "bits": "7fefffffffffffff",
+      "f64": {
+        "jsonutil_marshal": {
+          "out": "1.7976931348623157e+308",
+          "err": ""
+        },
+        "json_marshal": {
+          "out": "1.7976931348623157e+308",
+          "err": ""
+        },
+        "encoder_no_html": {
+          "out": "1.7976931348623157e+308\n",
+          "err": ""
+        }
+      },
+      "bits32": "7f800000",
+      "f32": {
+        "jsonutil_marshal": {
+          "out": "",
+          "err": "unsupported value: +Inf"
+        },
+        "json_marshal": {
+          "out": "",
+          "err": "json: unsupported value: +Inf"
+        },
+        "encoder_no_html": {
+          "out": "",
+          "err": "json: unsupported value: +Inf"
+        }
+      }
+    },
+    {
+      "bits": "1",
+      "f64": {
+        "jsonutil_marshal": {
+          "out": "5e-324",
+          "err": ""
+        },
+        "json_marshal": {
+          "out": "5e-324",
+          "err": ""
+        },
+        "encoder_no_html": {
+          "out": "5e-324\n",
+          "err": ""
+        }
+      },
+      "bits32": "0",
+      "f32": {
+        "jsonutil_marshal": {
+          "out": "0",
+          "err": ""
+        },
+        "json_marshal": {
+          "out": "0",
+          "err": ""
+        },
+        "encoder_no_html": {
+          "out": "0\n",
+          "err": ""
+        }
+      }
+    }
+  ],
+  "value_numbers": [
+    {
+      "input": "300",
+      "jsonutil": {
+        "out": "300",
+        "err": ""
+      },
+      "json": {
+        "out": "300",
+        "err": ""
+      }
+    },
+    {
+      "input": "300.0",
+      "jsonutil": {
+        "out": "300",
+        "err": ""
+      },
+      "json": {
+        "out": "300",
+        "err": ""
+      }
+    },
+    {
+      "input": "1E2",
+      "jsonutil": {
+        "out": "100",
+        "err": ""
+      },
+      "json": {
+        "out": "100",
+        "err": ""
+      }
+    },
+    {
+      "input": "1.5",
+      "jsonutil": {
+        "out": "1.5",
+        "err": ""
+      },
+      "json": {
+        "out": "1.5",
+        "err": ""
+      }
+    },
+    {
+      "input": "0.000001",
+      "jsonutil": {
+        "out": "0.000001",
+        "err": ""
+      },
+      "json": {
+        "out": "0.000001",
+        "err": ""
+      }
+    },
+    {
+      "input": "1e-7",
+      "jsonutil": {
+        "out": "1e-07",
+        "err": ""
+      },
+      "json": {
+        "out": "1e-7",
+        "err": ""
+      }
+    },
+    {
+      "input": "-0",
+      "jsonutil": {
+        "out": "-0",
+        "err": ""
+      },
+      "json": {
+        "out": "-0",
+        "err": ""
+      }
+    },
+    {
+      "input": "12345678901234567890",
+      "jsonutil": {
+        "out": "12345678901234567000",
+        "err": ""
+      },
+      "json": {
+        "out": "12345678901234567000",
+        "err": ""
+      }
+    },
+    {
+      "input": "1e21",
+      "jsonutil": {
+        "out": "1e+21",
+        "err": ""
+      },
+      "json": {
+        "out": "1e+21",
+        "err": ""
+      }
+    }
+  ],
+  "non_finite": [
+    {
+      "name": "NaN",
+      "bare": {
+        "jsonutil_marshal": {
+          "out": "",
+          "err": "unsupported value: NaN"
+        },
+        "json_marshal": {
+          "out": "",
+          "err": "json: unsupported value: NaN"
+        },
+        "encoder_no_html": {
+          "out": "",
+          "err": "json: unsupported value: NaN"
+        }
+      },
+      "field": {
+        "jsonutil_marshal": {
+          "out": "",
+          "err": "main.pricedBid.Price: unsupported value: NaN"
+        },
+        "json_marshal": {
+          "out": "",
+          "err": "json: unsupported value: NaN"
+        },
+        "encoder_no_html": {
+          "out": "",
+          "err": "json: unsupported value: NaN"
+        }
+      }
+    },
+    {
+      "name": "+Inf",
+      "bare": {
+        "jsonutil_marshal": {
+          "out": "",
+          "err": "unsupported value: +Inf"
+        },
+        "json_marshal": {
+          "out": "",
+          "err": "json: unsupported value: +Inf"
+        },
+        "encoder_no_html": {
+          "out": "",
+          "err": "json: unsupported value: +Inf"
+        }
+      },
+      "field": {
+        "jsonutil_marshal": {
+          "out": "",
+          "err": "main.pricedBid.Price: unsupported value: +Inf"
+        },
+        "json_marshal": {
+          "out": "",
+          "err": "json: unsupported value: +Inf"
+        },
+        "encoder_no_html": {
+          "out": "",
+          "err": "json: unsupported value: +Inf"
+        }
+      }
+    },
+    {
+      "name": "-Inf",
+      "bare": {
+        "jsonutil_marshal": {
+          "out": "",
+          "err": "unsupported value: -Inf"
+        },
+        "json_marshal": {
+          "out": "",
+          "err": "json: unsupported value: -Inf"
+        },
+        "encoder_no_html": {
+          "out": "",
+          "err": "json: unsupported value: -Inf"
+        }
+      },
+      "field": {
+        "jsonutil_marshal": {
+          "out": "",
+          "err": "main.pricedBid.Price: unsupported value: -Inf"
+        },
+        "json_marshal": {
+          "out": "",
+          "err": "json: unsupported value: -Inf"
+        },
+        "encoder_no_html": {
+          "out": "",
+          "err": "json: unsupported value: -Inf"
+        }
+      }
+    }
+  ],
+  "key_case": {
+    "input_hex": "7b224944223a2278222c22494d504944223a2279222c225072696365223a312e357d",
+    "jsonutil_unmarshal": {
+      "err": "",
+      "id_hex": "78",
+      "impid": "y",
+      "price": "1.5"
+    },
+    "jsonutil_unmarshal_valid": {
+      "err": "",
+      "id_hex": "78",
+      "impid": "y",
+      "price": "1.5"
+    },
+    "json_unmarshal": {
+      "err": "",
+      "id_hex": "78",
+      "impid": "y",
+      "price": "1.5"
+    }
+  },
+  "duplicate_keys": {
+    "input_hex": "7b226964223a2261222c226964223a2262222c22696d706964223a2279222c227072696365223a317d",
+    "jsonutil_unmarshal": {
+      "err": "",
+      "id_hex": "62",
+      "impid": "y",
+      "price": "1"
+    },
+    "jsonutil_unmarshal_valid": {
+      "err": "",
+      "id_hex": "62",
+      "impid": "y",
+      "price": "1"
+    },
+    "json_unmarshal": {
+      "err": "",
+      "id_hex": "62",
+      "impid": "y",
+      "price": "1"
+    }
+  },
+  "invalid_utf8": {
+    "input_hex": "7b226964223a2261ff62222c22696d706964223a2279222c227072696365223a317d",
+    "jsonutil_unmarshal": {
+      "err": "",
+      "id_hex": "61ff62",
+      "impid": "y",
+      "price": "1"
+    },
+    "jsonutil_unmarshal_valid": {
+      "err": "",
+      "id_hex": "61ff62",
+      "impid": "y",
+      "price": "1"
+    },
+    "json_unmarshal": {
+      "err": "",
+      "id_hex": "61efbfbd62",
+      "impid": "y",
+      "price": "1"
+    }
+  },
+  "null_into_value": {
+    "input": "{\"id\":null,\"price\":null,\"w\":null,\"ok\":null,\"imp\":null,\"ext\":null,\"sub\":null}",
+    "jsonutil_unmarshal": {
+      "err": "",
+      "value": "{\"id\":\"\",\"price\":0,\"w\":0,\"ok\":false,\"imp\":null,\"ext\":null,\"sub\":{\"a\":\"\"}}"
+    },
+    "jsonutil_unmarshal_valid": {
+      "err": "",
+      "value": "{\"id\":\"\",\"price\":0,\"w\":0,\"ok\":false,\"imp\":null,\"ext\":null,\"sub\":{\"a\":\"\"}}"
+    },
+    "json_unmarshal": {
+      "err": "",
+      "value": "{\"id\":\"\",\"price\":0,\"w\":0,\"ok\":false,\"imp\":null,\"ext\":null,\"sub\":{\"a\":\"\"}}"
+    }
+  },
+  "raw_message": [
+    {
+      "ext": "{ \"a\" : \"<\" }",
+      "valid": true,
+      "writers": {
+        "jsonutil_marshal": {
+          "out": "{\"id\":\"1\",\"ext\":{\"a\":\"<\"}}",
+          "err": ""
+        },
+        "json_marshal": {
+          "out": "{\"id\":\"1\",\"ext\":{\"a\":\"\\u003c\"}}",
+          "err": ""
+        },
+        "encoder_no_html": {
+          "out": "{\"id\":\"1\",\"ext\":{\"a\":\"<\"}}\n",
+          "err": ""
+        }
+      }
+    },
+    {
+      "ext": "{\"a\":1}",
+      "valid": true,
+      "writers": {
+        "jsonutil_marshal": {
+          "out": "{\"id\":\"1\",\"ext\":{\"a\":1}}",
+          "err": ""
+        },
+        "json_marshal": {
+          "out": "{\"id\":\"1\",\"ext\":{\"a\":1}}",
+          "err": ""
+        },
+        "encoder_no_html": {
+          "out": "{\"id\":\"1\",\"ext\":{\"a\":1}}\n",
+          "err": ""
+        }
+      }
+    },
+    {
+      "ext": "{\"a\":",
+      "valid": false,
+      "writers": {
+        "jsonutil_marshal": {
+          "out": "{\"id\":\"1\",\"ext\":}",
+          "err": ""
+        },
+        "json_marshal": {
+          "out": "",
+          "err": "json: error calling MarshalJSON for type json.RawMessage: unexpected end of JSON input"
+        },
+        "encoder_no_html": {
+          "out": "",
+          "err": "json: error calling MarshalJSON for type json.RawMessage: unexpected end of JSON input"
+        }
+      }
+    }
+  ],
+  "lone_surrogates": [
+    {
+      "input_hex": "7b226964223a22615c756438336462222c22696d706964223a2279222c227072696365223a317d",
+      "jsonutil_unmarshal": {
+        "err": "",
+        "id_hex": "61efbfbd62",
+        "impid": "y",
+        "price": "1"
+      },
+      "jsonutil_unmarshal_valid": {
+        "err": "",
+        "id_hex": "61efbfbd62",
+        "impid": "y",
+        "price": "1"
+      },
+      "json_unmarshal": {
+        "err": "",
+        "id_hex": "61efbfbd62",
+        "impid": "y",
+        "price": "1"
+      }
+    },
+    {
+      "input_hex": "7b226964223a22615c756465303062222c22696d706964223a2279222c227072696365223a317d",
+      "jsonutil_unmarshal": {
+        "err": "",
+        "id_hex": "61efbfbd62",
+        "impid": "y",
+        "price": "1"
+      },
+      "jsonutil_unmarshal_valid": {
+        "err": "",
+        "id_hex": "61efbfbd62",
+        "impid": "y",
+        "price": "1"
+      },
+      "json_unmarshal": {
+        "err": "",
+        "id_hex": "61efbfbd62",
+        "impid": "y",
+        "price": "1"
+      }
+    },
+    {
+      "input_hex": "7b226964223a225c75643833645c7564383364222c22696d706964223a2279222c227072696365223a317d",
+      "jsonutil_unmarshal": {
+        "err": "",
+        "id_hex": "efbfbdefbfbd",
+        "impid": "y",
+        "price": "1"
+      },
+      "jsonutil_unmarshal_valid": {
+        "err": "",
+        "id_hex": "efbfbdefbfbd",
+        "impid": "y",
+        "price": "1"
+      },
+      "json_unmarshal": {
+        "err": "",
+        "id_hex": "efbfbdefbfbd",
+        "impid": "y",
+        "price": "1"
+      }
+    }
+  ],
+  "control_escape": {
+    "input_hex": "080c00011f7f",
+    "writers": {
+      "jsonutil_marshal": {
+        "out": "\"\\u0008\\u000c\\u0000\\u0001\\u001f\"",
+        "err": ""
+      },
+      "json_marshal": {
+        "out": "\"\\b\\f\\u0000\\u0001\\u001f\"",
+        "err": ""
+      },
+      "encoder_no_html": {
+        "out": "\"\\b\\f\\u0000\\u0001\\u001f\"\n",
+        "err": ""
+      }
+    }
+  },
+  "depth": [
+    {
+      "arrays": 126,
+      "jsonutil_unmarshal": {
+        "raw_err": "",
+        "any_err": "",
+        "skip_err": ""
+      },
+      "jsonutil_unmarshal_valid": {
+        "raw_err": "",
+        "any_err": "",
+        "skip_err": ""
+      },
+      "json_unmarshal": {
+        "raw_err": "",
+        "any_err": "",
+        "skip_err": ""
+      }
+    },
+    {
+      "arrays": 127,
+      "jsonutil_unmarshal": {
+        "raw_err": "",
+        "any_err": "",
+        "skip_err": ""
+      },
+      "jsonutil_unmarshal_valid": {
+        "raw_err": "",
+        "any_err": "",
+        "skip_err": ""
+      },
+      "json_unmarshal": {
+        "raw_err": "",
+        "any_err": "",
+        "skip_err": ""
+      }
+    },
+    {
+      "arrays": 9999,
+      "jsonutil_unmarshal": {
+        "raw_err": "",
+        "any_err": "",
+        "skip_err": ""
+      },
+      "jsonutil_unmarshal_valid": {
+        "raw_err": "",
+        "any_err": "",
+        "skip_err": ""
+      },
+      "json_unmarshal": {
+        "raw_err": "",
+        "any_err": "",
+        "skip_err": ""
+      }
+    },
+    {
+      "arrays": 10000,
+      "jsonutil_unmarshal": {
+        "raw_err": "cannot unmarshal main.nestedRaw.Ext: exceeded max depth",
+        "any_err": "cannot unmarshal main.nestedAny.Ext: exceeded max depth",
+        "skip_err": "exceeded max depth"
+      },
+      "jsonutil_unmarshal_valid": {
+        "raw_err": "cannot unmarshal main.nestedRaw.Ext: exceeded max depth",
+        "any_err": "cannot unmarshal main.nestedAny.Ext: exceeded max depth",
+        "skip_err": "exceeded max depth"
+      },
+      "json_unmarshal": {
+        "raw_err": "invalid character '[' exceeded max depth",
+        "any_err": "invalid character '[' exceeded max depth",
+        "skip_err": "invalid character '[' exceeded max depth"
+      }
+    }
+  ]
+}

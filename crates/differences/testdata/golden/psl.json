@@ -1,0 +1,83 @@
+{
+  "header": {
+    "go_version": "go1.26.2",
+    "goarch": "amd64",
+    "upstream": "v4.11.2-0.20261112141353-4e296450de2f",
+    "modules": {
+      "golang.org/x/net": "v0.55.0"
+    },
+    "generator": "crates/differences/testdata/go"
+  },
+  "hosts": [
+    {
+      "host": "WWW.EXAMPLE.CO.UK",
+      "domain": "CO.UK",
+      "err": ""
+    },
+    {
+      "host": "www.example.com:8080",
+      "domain": "example.com:8080",
+      "err": ""
+    },
+    {
+      "host": "Example.COM",
+      "domain": "Example.COM",
+      "err": ""
+    },
+    {
+      "host": "www.Example.co.uk",
+      "domain": "Example.co.uk",
+      "err": ""
+    }
+  ],
+  "referrers": [
+    {
+      "referrer": "http://example.com./article",
+      "host": "example.com.",
+      "domain": "",
+      "err": "publicsuffix: empty label in domain \"example.com.\""
+    },
+    {
+      "referrer": "https://www.example.com./",
+      "host": "www.example.com.",
+      "domain": "",
+      "err": "publicsuffix: empty label in domain \"www.example.com.\""
+    },
+    {
+      "referrer": "http://.example.com/",
+      "host": ".example.com",
+      "domain": "",
+      "err": "publicsuffix: empty label in domain \".example.com\""
+    },
+    {
+      "referrer": "http://example..com/",
+      "host": "example..com",
+      "domain": "",
+      "err": "publicsuffix: empty label in domain \"example..com\""
+    },
+    {
+      "referrer": "http://a..b.example.co.uk/",
+      "host": "a..b.example.co.uk",
+      "domain": "",
+      "err": "publicsuffix: empty label in domain \"a..b.example.co.uk\""
+    },
+    {
+      "referrer": "http://192.168.1.1/",
+      "host": "192.168.1.1",
+      "domain": "",
+      "err": "publicsuffix: cannot derive eTLD+1 for domain \"192.168.1.1\""
+    },
+    {
+      "referrer": "http://192.168.1.1:8080/",
+      "host": "192.168.1.1:8080",
+      "domain": "1.1:8080",
+      "err": ""
+    },
+    {
+      "referrer": "http://[::1]:8080/",
+      "host": "[::1]:8080",
+      "domain": "",
+      "err": "publicsuffix: cannot derive eTLD+1 for domain \"[::1]:8080\""
+    }
+  ]
+}

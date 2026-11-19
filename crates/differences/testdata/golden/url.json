@@ -1,0 +1,43 @@
+{
+  "header": {
+    "go_version": "go1.26.2",
+    "goarch": "amd64",
+    "upstream": "v4.11.2-0.20261112141353-4e296450de2f",
+    "modules": {},
+    "generator": "crates/differences/testdata/go"
+  },
+  "urls": [
+    {
+      "input": "http://Example.COM:80/x",
+      "err": "",
+      "host": "Example.COM:80",
+      "hostname": "Example.COM",
+      "port": "80",
+      "string": "http://Example.COM:80/x"
+    },
+    {
+      "input": "http://bücher.example/",
+      "err": "",
+      "host": "bücher.example",
+      "hostname": "bücher.example",
+      "port": "",
+      "string": "http://b%C3%BCcher.example/"
+    },
+    {
+      "input": "https://Pub.Example:443/a?b=c",
+      "err": "",
+      "host": "Pub.Example:443",
+      "hostname": "Pub.Example",
+      "port": "443",
+      "string": "https://Pub.Example:443/a?b=c"
+    },
+    {
+      "input": "http://example.com:8080/",
+      "err": "",
+      "host": "example.com:8080",
+      "hostname": "example.com",
+      "port": "8080",
+      "string": "http://example.com:8080/"
+    }
+  ]
+}

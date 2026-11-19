@@ -1,0 +1,31 @@
+{
+  "header": {
+    "go_version": "go1.26.2",
+    "goarch": "amd64",
+    "upstream": "v4.11.2-0.20261112141353-4e296450de2f",
+    "modules": {
+      "github.com/prometheus/client_golang": "v1.12.1",
+      "github.com/prometheus/common": "v0.32.1"
+    },
+    "generator": "crates/differences/testdata/go"
+  },
+  "samples": [
+    {
+      "request_type": "amp",
+      "value": 1000000
+    },
+    {
+      "request_type": "cookie_sync",
+      "value": 100000
+    },
+    {
+      "request_type": "openrtb2-web",
+      "value": 1
+    },
+    {
+      "request_type": "video",
+      "value": 123456789
+    }
+  ],
+  "exposition": "# HELP pbs_requests Count of total requests to Prebid Server labeled by type and status.\n# TYPE pbs_requests counter\npbs_requests{request_status=\"ok\",request_type=\"amp\"} 1e+06\npbs_requests{request_status=\"ok\",request_type=\"cookie_sync\"} 100000\npbs_requests{request_status=\"ok\",request_type=\"openrtb2-web\"} 1\npbs_requests{request_status=\"ok\",request_type=\"video\"} 1.23456789e+08\n"
+}

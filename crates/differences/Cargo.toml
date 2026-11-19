@@ -1,0 +1,40 @@
+[package]
+name = "pbs-differences"
+description = "The library pins: where each crate of the stack behaves like the Go library it replaces and where it differs, checked against Go goldens"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+readme.workspace = true
+keywords.workspace = true
+categories = ["development-tools::testing"]
+publish.workspace = true
+
+[lints]
+workspace = true
+
+# The test support the pins share: golden reading, the YAML options and the test runtime.
+[dependencies]
+serde-saphyr = { workspace = true }
+serde_json = { workspace = true }
+tokio = { workspace = true }
+
+# The crates the pins exercise, one test file per library under tests/.
+[dev-dependencies]
+axum = { workspace = true }
+config = { workspace = true }
+cookie = { workspace = true }
+flate2 = { workspace = true }
+moka = { workspace = true }
+prometheus = { workspace = true }
+psl = { workspace = true }
+regex = { workspace = true }
+reqwest = { workspace = true }
+serde = { workspace = true }
+sha2 = { workspace = true }
+time = { workspace = true }
+tower-http = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+url = { workspace = true }
