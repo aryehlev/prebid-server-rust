@@ -17,7 +17,69 @@ import (
 type ProxyGolden struct {
 	Header header       `json:"header"`
 	Probes []ProxyProbe `json:"probes"`
+	Values []ProxyValue `json:"values"`
 	Wire   []ProxyWire  `json:"wire"`
+}
+
+// ProxyValue is one HTTP_PROXY value and the text parseProxy reads the proxy from: the value as
+// written, the value behind "http://" (its retry), or "" when it reads no proxy, which is what
+// the ProxyFunc of a Config with that HTTPProxy returns for http://dial.probe/ (Proxy is that
+// URL's String(), and Dial the address the Transport dials for it).
+type ProxyValue struct {
+	Value string `json:"value"`
+	Text  string `json:"text"`
+	Proxy string `json:"proxy"`
+	Dial  string `json:"dial"`
+}
+
+// proxyValues are values url.Parse reads in different ways: schemes, opaque forms, authorities,
+// user information, hosts and ports, IPv6 literals and zones, escapes, paths, queries, fragments
+// and control characters.
+var proxyValues = []string{
+	"proxy.test", "proxy.test:3128", "http://proxy.test", "HTTP://proxy.test:3128",
+	"https://proxy.test", "socks5://p.test:1080", "1.2.3.4", "1.2.3.4:3128", "[::1]:3128",
+	"http://[::1]:3128", "http://[fe80::1%25en0]:3128", "http://[fe80::1%en0]:3128",
+	"http://[fe80::1%25]:3128", "http://[fe80::1%25%41]:3128", "http://[1.2.3.4]:80",
+	"http://[::ffff:1.2.3.4]:80", "http://[::1", "http://]", "http://[::1]x", "http://[::1]:x",
+	"http://u:p@proxy.test", "http://u@p@proxy.test", "http://u:p%zz@proxy.test",
+	"http://u%40x:p@proxy.test", "http://u p@proxy.test", "http://u[@proxy.test",
+	"http://proxy.test:3128/path", "http://proxy.test:3128?x", "http://proxy.test:3128#frag",
+	"http://proxy.test:3128#%zz", "http://proxy.test/%zz", "http://proxy.test/?%zz",
+	"proxy.test/path", "proxy.test:3128/path", "proxy.test?q=1", "proxy.test#frag", "/proxy",
+	"//proxy.test", "///proxy", "http:proxy.test", "http:/proxy.test", "http:///proxy.test",
+	"a b", "http://a b", "http://proxy.test:", "http://proxy.test:x", ":3128", "proxy.test:0",
+	"proxy.test:3128:3128", "http://proxy.test:3128:3128", "localhost:3128", "*", "http://*",
+	"http://%41.test", "http://a%2Fb.test", "http://a%20b.test", "http://ö.test:3128",
+	"ö.test:3128", "http://proxy.test\t", "proxy.test\x7f", "mailto:x@y", "%zz", "http://%zz",
+	"1http://proxy.test", "+http://proxy.test", "h+t.p://proxy.test", "http://proxy.test%3A3128",
+	"http://[::1%25lo0]", "http://user%40@proxy.test", "http://proxy.test?%zz", "?q",
+}
+
+// proxyValueTexts evaluates every value of proxyValues.
+func proxyValueTexts() []ProxyValue {
+	var values []ProxyValue
+	for _, value := range proxyValues {
+		proxyFor := (&httpproxy.Config{HTTPProxy: value}).ProxyFunc()
+		u, err := url.Parse("http://dial.probe/")
+		if err != nil {
+			panic(err)
+		}
+		proxy, err := proxyFor(u)
+		if err != nil {
+			panic(err)
+		}
+		v := ProxyValue{Value: value}
+		if proxy != nil {
+			v.Proxy = proxy.String()
+			v.Dial = proxyDialAddr(proxy)
+			v.Text = value
+			if retry, err := url.Parse("http://" + value); err == nil && retry.String() == v.Proxy {
+				v.Text = "http://" + value
+			}
+		}
+		values = append(values, v)
+	}
+	return values
 }
 
 // ProxyWire is one request sent through a proxy that answers every request with Status: the
@@ -271,5 +333,6 @@ func proxyGolden() ProxyGolden {
 	if err != nil {
 		panic(err)
 	}
-	return ProxyGolden{Header: newHeader("golang.org/x/net"), Probes: probes, Wire: proxyWire()}
+	return ProxyGolden{Header: newHeader("golang.org/x/net"), Probes: probes, Values: proxyValueTexts(),
+		Wire: proxyWire()}
 }

@@ -9,7 +9,7 @@ pub mod support;
 
 #[cfg(test)]
 mod tests {
-    use std::collections::BTreeSet;
+    use std::{collections::BTreeSet, net::SocketAddr};
 
     use pbs_http_client::{
         Builder, ErrorKind, HttpClientSettings, ProxyEnv,
@@ -85,6 +85,18 @@ mod tests {
         })
     }
 
+    /// Whether Go's dial and the clients' reach the same address: the same text, or the same
+    /// IP and port written otherwise (the url crate writes `[::ffff:1.2.3.4]` as
+    /// `[::ffff:102:304]`).
+    fn same_dial(go: &str, rust: &str) -> bool {
+        let address = |text: &str| {
+            text.parse::<SocketAddr>()
+                .ok()
+                .map(|addr| (addr.ip().to_canonical(), addr.port()))
+        };
+        go == rust || address(go).is_some_and(|go| address(rust) == Some(go))
+    }
+
     /// Every probe's picks, compared: the probe URLs the url crate does not parse, how many
     /// `LocalHost` picks Go proxies, how many picks of the bogus value Go writes escaped, and
     /// every other pick that differs, with the probe's `NO_PROXY`.
@@ -140,8 +152,23 @@ mod tests {
         Ok(compared)
     }
 
+    /// The text the rules read `value`'s proxy from, as the golden writes parseProxy's: the
+    /// value, the value behind `http://`, or `""` for no proxy.
+    fn rust_text(value: &str) -> Result<String, BoxError> {
+        let env = ProxyEnv {
+            http_proxy: value.to_owned(),
+            ..ProxyEnv::default()
+        };
+        Ok(
+            match env.rules().choose(&Url::parse("http://dial.probe/")?) {
+                Choice::Proxy(proxy) => proxy.text().to_owned(),
+                Choice::Direct | Choice::Refused => String::new(),
+            },
+        )
+    }
+
     // Go: golang.org/x/net/http/httpproxy (v0.55.0) FromEnvironment, Config.ProxyFunc,
-    // config.useProxy and parseProxy.
+    // config.useProxy and parseProxy, and net/url/url.go Parse.
     #[test]
     fn proxy_env_like_go() -> TestResult {
         let compared = compare()?;
@@ -149,6 +176,21 @@ mod tests {
             &compared.differ,
             &Vec::new(),
             "the picks that differ, beyond proxy_exceptions_differ's",
+        )?;
+        let doc = golden("proxy.json")?;
+        let mut texts = Vec::new();
+        for value in list(&doc, "/values")? {
+            let raw = text(value, "/value")?;
+            let go = text(value, "/text")?;
+            let rust = rust_text(raw)?;
+            if rust != go {
+                texts.push((raw.to_owned(), go.to_owned(), rust));
+            }
+        }
+        check_eq(
+            &texts,
+            &Vec::new(),
+            "the proxy values parseProxy reads otherwise (the value, Go's text, the rules')",
         )
     }
 
@@ -187,20 +229,28 @@ mod tests {
         // reads `http:////proxy.test:8080`, whose host Go reads as empty, as `proxy.test:8080`;
         // the clients refuse socks proxies (http-client.socks-proxy).
         let doc = golden("proxy.json")?;
+        let owned = |dials: &[(&str, &str, &str)]| -> Vec<(String, String, String)> {
+            dials
+                .iter()
+                .map(|(value, go, rust)| {
+                    ((*value).to_owned(), (*go).to_owned(), (*rust).to_owned())
+                })
+                .collect()
+        };
         let mut dials = Vec::new();
         for probe in list(&doc, "/probes")? {
             let env = probe_env(probe)?;
             for (scheme, value) in [("http", &env.http_proxy), ("https", &env.https_proxy)] {
                 let go = text(probe, &format!("/dial/{scheme}"))?;
                 let rust = rust_dial(&env, scheme)?;
-                if rust != go {
+                if !same_dial(go, &rust) {
                     dials.push((value.clone(), go.to_owned(), rust));
                 }
             }
         }
         check_eq(
             &dials,
-            &[
+            &owned(&[
                 (
                     "socks5://user:pw@socks.test:1080",
                     "socks.test:1080",
@@ -210,10 +260,54 @@ mod tests {
                 ("bogus url", ":", "refused"),
                 (":3128", ":3128", "refused"),
                 ("//proxy.test:8080", ":80", "proxy.test:8080"),
-            ]
-            .map(|(value, go, rust)| (value.to_owned(), go.to_owned(), rust.to_owned()))
-            .to_vec(),
+            ]),
             "the proxy dials that differ (the value, Go's, the clients')",
+        )?;
+        // The same over the proxy values of the golden: the clients refuse a proxy whose host
+        // the url crate does not read (an IPv6 zone, an empty host Go dials on this machine, and
+        // values whose dial fails in Go as well), and dial the host the url crate finds in the
+        // path or opaque part of a value whose host Go reads as empty.
+        let mut value_dials = Vec::new();
+        for value in list(&doc, "/values")? {
+            let raw = text(value, "/value")?;
+            let env = ProxyEnv {
+                http_proxy: raw.to_owned(),
+                ..ProxyEnv::default()
+            };
+            let go = text(value, "/dial")?;
+            let rust = rust_dial(&env, "http")?;
+            if !same_dial(go, &rust) {
+                value_dials.push((raw.to_owned(), go.to_owned(), rust));
+            }
+        }
+        check_eq(
+            &value_dials,
+            &owned(&[
+                ("socks5://p.test:1080", "p.test:1080", "refused"),
+                (
+                    "http://[fe80::1%25en0]:3128",
+                    "[fe80::1%en0]:3128",
+                    "refused",
+                ),
+                ("http://[fe80::1%25%41]:3128", "[fe80::1%A]:3128", "refused"),
+                ("http://]", "]:80", "refused"),
+                ("/proxy", ":80", "proxy:80"),
+                ("//proxy.test", ":80", "proxy.test:80"),
+                ("///proxy", ":80", "proxy:80"),
+                ("http:proxy.test", ":80", "proxy.test:80"),
+                ("a b", ":", "refused"),
+                (":3128", ":3128", "refused"),
+                ("proxy.test:3128:3128", "[proxy.test:3128]:3128", "refused"),
+                (
+                    "http://proxy.test:3128:3128",
+                    "[proxy.test:3128]:3128",
+                    "refused",
+                ),
+                ("h+t.p://proxy.test", "proxy.test:", "refused"),
+                ("http://[::1%25lo0]", "[::1%lo0]:80", "refused"),
+                ("?q", ":80", "refused"),
+            ]),
+            "the dials of the proxy values that differ (the value, Go's, the clients')",
         )
     }
 

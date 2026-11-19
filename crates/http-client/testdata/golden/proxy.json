@@ -20435,6 +20435,434 @@
       ]
     }
   ],
+  "values": [
+    {
+      "value": "proxy.test",
+      "text": "http://proxy.test",
+      "proxy": "http://proxy.test",
+      "dial": "proxy.test:80"
+    },
+    {
+      "value": "proxy.test:3128",
+      "text": "http://proxy.test:3128",
+      "proxy": "http://proxy.test:3128",
+      "dial": "proxy.test:3128"
+    },
+    {
+      "value": "http://proxy.test",
+      "text": "http://proxy.test",
+      "proxy": "http://proxy.test",
+      "dial": "proxy.test:80"
+    },
+    {
+      "value": "HTTP://proxy.test:3128",
+      "text": "HTTP://proxy.test:3128",
+      "proxy": "http://proxy.test:3128",
+      "dial": "proxy.test:3128"
+    },
+    {
+      "value": "https://proxy.test",
+      "text": "https://proxy.test",
+      "proxy": "https://proxy.test",
+      "dial": "proxy.test:443"
+    },
+    {
+      "value": "socks5://p.test:1080",
+      "text": "socks5://p.test:1080",
+      "proxy": "socks5://p.test:1080",
+      "dial": "p.test:1080"
+    },
+    {
+      "value": "1.2.3.4",
+      "text": "http://1.2.3.4",
+      "proxy": "http://1.2.3.4",
+      "dial": "1.2.3.4:80"
+    },
+    {
+      "value": "1.2.3.4:3128",
+      "text": "http://1.2.3.4:3128",
+      "proxy": "http://1.2.3.4:3128",
+      "dial": "1.2.3.4:3128"
+    },
+    {
+      "value": "[::1]:3128",
+      "text": "http://[::1]:3128",
+      "proxy": "http://[::1]:3128",
+      "dial": "[::1]:3128"
+    },
+    {
+      "value": "http://[::1]:3128",
+      "text": "http://[::1]:3128",
+      "proxy": "http://[::1]:3128",
+      "dial": "[::1]:3128"
+    },
+    {
+      "value": "http://[fe80::1%25en0]:3128",
+      "text": "http://[fe80::1%25en0]:3128",
+      "proxy": "http://[fe80::1%25en0]:3128",
+      "dial": "[fe80::1%en0]:3128"
+    },
+    {
+      "value": "http://[fe80::1%en0]:3128",
+      "text": "",
+      "proxy": "",
+      "dial": ""
+    },
+    {
+      "value": "http://[fe80::1%25]:3128",
+      "text": "http://http://[fe80::1%25]:3128",
+      "proxy": "http://http://[fe80::1%25]:3128",
+      "dial": "http:80"
+    },
+    {
+      "value": "http://[fe80::1%25%41]:3128",
+      "text": "http://[fe80::1%25%41]:3128",
+      "proxy": "http://[fe80::1%25A]:3128",
+      "dial": "[fe80::1%A]:3128"
+    },
+    {
+      "value": "http://[1.2.3.4]:80",
+      "text": "http://http://[1.2.3.4]:80",
+      "proxy": "http://http://[1.2.3.4]:80",
+      "dial": "http:80"
+    },
+    {
+      "value": "http://[::ffff:1.2.3.4]:80",
+      "text": "http://[::ffff:1.2.3.4]:80",
+      "proxy": "http://[::ffff:1.2.3.4]:80",
+      "dial": "[::ffff:1.2.3.4]:80"
+    },
+    {
+      "value": "http://[::1",
+      "text": "http://http://[::1",
+      "proxy": "http://http://[::1",
+      "dial": "http:80"
+    },
+    {
+      "value": "http://]",
+      "text": "http://]",
+      "proxy": "http://]",
+      "dial": "]:80"
+    },
+    {
+      "value": "http://[::1]x",
+      "text": "http://http://[::1]x",
+      "proxy": "http://http://[::1]x",
+      "dial": "http:80"
+    },
+    {
+      "value": "http://[::1]:x",
+      "text": "http://http://[::1]:x",
+      "proxy": "http://http://[::1]:x",
+      "dial": "http:80"
+    },
+    {
+      "value": "http://u:p@proxy.test",
+      "text": "http://u:p@proxy.test",
+      "proxy": "http://u:p@proxy.test",
+      "dial": "proxy.test:80"
+    },
+    {
+      "value": "http://u@p@proxy.test",
+      "text": "http://u@p@proxy.test",
+      "proxy": "http://u%40p@proxy.test",
+      "dial": "proxy.test:80"
+    },
+    {
+      "value": "http://u:p%zz@proxy.test",
+      "text": "",
+      "proxy": "",
+      "dial": ""
+    },
+    {
+      "value": "http://u%40x:p@proxy.test",
+      "text": "http://u%40x:p@proxy.test",
+      "proxy": "http://u%40x:p@proxy.test",
+      "dial": "proxy.test:80"
+    },
+    {
+      "value": "http://u p@proxy.test",
+      "text": "http://http://u p@proxy.test",
+      "proxy": "http://http://u%20p@proxy.test",
+      "dial": "http:80"
+    },
+    {
+      "value": "http://u[@proxy.test",
+      "text": "http://http://u[@proxy.test",
+      "proxy": "http://http://u[@proxy.test",
+      "dial": "http:80"
+    },
+    {
+      "value": "http://proxy.test:3128/path",
+      "text": "http://proxy.test:3128/path",
+      "proxy": "http://proxy.test:3128/path",
+      "dial": "proxy.test:3128"
+    },
+    {
+      "value": "http://proxy.test:3128?x",
+      "text": "http://proxy.test:3128?x",
+      "proxy": "http://proxy.test:3128?x",
+      "dial": "proxy.test:3128"
+    },
+    {
+      "value": "http://proxy.test:3128#frag",
+      "text": "http://proxy.test:3128#frag",
+      "proxy": "http://proxy.test:3128#frag",
+      "dial": "proxy.test:3128"
+    },
+    {
+      "value": "http://proxy.test:3128#%zz",
+      "text": "",
+      "proxy": "",
+      "dial": ""
+    },
+    {
+      "value": "http://proxy.test/%zz",
+      "text": "",
+      "proxy": "",
+      "dial": ""
+    },
+    {
+      "value": "http://proxy.test/?%zz",
+      "text": "http://proxy.test/?%zz",
+      "proxy": "http://proxy.test/?%zz",
+      "dial": "proxy.test:80"
+    },
+    {
+      "value": "proxy.test/path",
+      "text": "http://proxy.test/path",
+      "proxy": "http://proxy.test/path",
+      "dial": "proxy.test:80"
+    },
+    {
+      "value": "proxy.test:3128/path",
+      "text": "http://proxy.test:3128/path",
+      "proxy": "http://proxy.test:3128/path",
+      "dial": "proxy.test:3128"
+    },
+    {
+      "value": "proxy.test?q=1",
+      "text": "http://proxy.test?q=1",
+      "proxy": "http://proxy.test?q=1",
+      "dial": "proxy.test:80"
+    },
+    {
+      "value": "proxy.test#frag",
+      "text": "http://proxy.test#frag",
+      "proxy": "http://proxy.test#frag",
+      "dial": "proxy.test:80"
+    },
+    {
+      "value": "/proxy",
+      "text": "http:///proxy",
+      "proxy": "http:///proxy",
+      "dial": ":80"
+    },
+    {
+      "value": "//proxy.test",
+      "text": "http:////proxy.test",
+      "proxy": "http:////proxy.test",
+      "dial": ":80"
+    },
+    {
+      "value": "///proxy",
+      "text": "http://///proxy",
+      "proxy": "http://///proxy",
+      "dial": ":80"
+    },
+    {
+      "value": "http:proxy.test",
+      "text": "http:proxy.test",
+      "proxy": "http:proxy.test",
+      "dial": ":80"
+    },
+    {
+      "value": "http:/proxy.test",
+      "text": "http://http:/proxy.test",
+      "proxy": "http://http:/proxy.test",
+      "dial": "http:80"
+    },
+    {
+      "value": "http:///proxy.test",
+      "text": "http://http:///proxy.test",
+      "proxy": "http://http:///proxy.test",
+      "dial": "http:80"
+    },
+    {
+      "value": "a b",
+      "text": "a b",
+      "proxy": "a%20b",
+      "dial": ":"
+    },
+    {
+      "value": "http://a b",
+      "text": "http://http://a b",
+      "proxy": "http://http://a%20b",
+      "dial": "http:80"
+    },
+    {
+      "value": "http://proxy.test:",
+      "text": "http://proxy.test:",
+      "proxy": "http://proxy.test:",
+      "dial": "proxy.test:80"
+    },
+    {
+      "value": "http://proxy.test:x",
+      "text": "http://http://proxy.test:x",
+      "proxy": "http://http://proxy.test:x",
+      "dial": "http:80"
+    },
+    {
+      "value": ":3128",
+      "text": "http://:3128",
+      "proxy": "http://:3128",
+      "dial": ":3128"
+    },
+    {
+      "value": "proxy.test:0",
+      "text": "http://proxy.test:0",
+      "proxy": "http://proxy.test:0",
+      "dial": "proxy.test:0"
+    },
+    {
+      "value": "proxy.test:3128:3128",
+      "text": "http://proxy.test:3128:3128",
+      "proxy": "http://proxy.test:3128:3128",
+      "dial": "[proxy.test:3128]:3128"
+    },
+    {
+      "value": "http://proxy.test:3128:3128",
+      "text": "http://proxy.test:3128:3128",
+      "proxy": "http://proxy.test:3128:3128",
+      "dial": "[proxy.test:3128]:3128"
+    },
+    {
+      "value": "localhost:3128",
+      "text": "http://localhost:3128",
+      "proxy": "http://localhost:3128",
+      "dial": "localhost:3128"
+    },
+    {
+      "value": "*",
+      "text": "http://*",
+      "proxy": "http://*",
+      "dial": "*:80"
+    },
+    {
+      "value": "http://*",
+      "text": "http://*",
+      "proxy": "http://*",
+      "dial": "*:80"
+    },
+    {
+      "value": "http://%41.test",
+      "text": "http://http://%41.test",
+      "proxy": "http://http://%41.test",
+      "dial": "http:80"
+    },
+    {
+      "value": "http://a%2Fb.test",
+      "text": "http://http://a%2Fb.test",
+      "proxy": "http://http://a%2Fb.test",
+      "dial": "http:80"
+    },
+    {
+      "value": "http://a%20b.test",
+      "text": "http://http://a%20b.test",
+      "proxy": "http://http://a%20b.test",
+      "dial": "http:80"
+    },
+    {
+      "value": "http://ö.test:3128",
+      "text": "http://ö.test:3128",
+      "proxy": "http://%C3%B6.test:3128",
+      "dial": "xn--nda.test:3128"
+    },
+    {
+      "value": "ö.test:3128",
+      "text": "http://ö.test:3128",
+      "proxy": "http://%C3%B6.test:3128",
+      "dial": "xn--nda.test:3128"
+    },
+    {
+      "value": "http://proxy.test\t",
+      "text": "",
+      "proxy": "",
+      "dial": ""
+    },
+    {
+      "value": "proxy.test",
+      "text": "",
+      "proxy": "",
+      "dial": ""
+    },
+    {
+      "value": "mailto:x@y",
+      "text": "http://mailto:x@y",
+      "proxy": "http://mailto:x@y",
+      "dial": "y:80"
+    },
+    {
+      "value": "%zz",
+      "text": "",
+      "proxy": "",
+      "dial": ""
+    },
+    {
+      "value": "http://%zz",
+      "text": "",
+      "proxy": "",
+      "dial": ""
+    },
+    {
+      "value": "1http://proxy.test",
+      "text": "http://1http://proxy.test",
+      "proxy": "http://1http://proxy.test",
+      "dial": "1http:80"
+    },
+    {
+      "value": "+http://proxy.test",
+      "text": "http://+http://proxy.test",
+      "proxy": "http://+http://proxy.test",
+      "dial": "+http:80"
+    },
+    {
+      "value": "h+t.p://proxy.test",
+      "text": "h+t.p://proxy.test",
+      "proxy": "h+t.p://proxy.test",
+      "dial": "proxy.test:"
+    },
+    {
+      "value": "http://proxy.test%3A3128",
+      "text": "http://http://proxy.test%3A3128",
+      "proxy": "http://http://proxy.test%3A3128",
+      "dial": "http:80"
+    },
+    {
+      "value": "http://[::1%25lo0]",
+      "text": "http://[::1%25lo0]",
+      "proxy": "http://[::1%25lo0]",
+      "dial": "[::1%lo0]:80"
+    },
+    {
+      "value": "http://user%40@proxy.test",
+      "text": "http://user%40@proxy.test",
+      "proxy": "http://user%40@proxy.test",
+      "dial": "proxy.test:80"
+    },
+    {
+      "value": "http://proxy.test?%zz",
+      "text": "http://proxy.test?%zz",
+      "proxy": "http://proxy.test?%zz",
+      "dial": "proxy.test:80"
+    },
+    {
+      "value": "?q",
+      "text": "http://?q",
+      "proxy": "http:?q",
+      "dial": ":80"
+    }
+  ],
   "wire": [
     {
       "url": "http://bidder.test/p?q=1",
