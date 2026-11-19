@@ -2242,5 +2242,105 @@
       "result": "s=\"\"",
       "err": "invalid control character found: 1"
     }
+  ],
+  "raw_containers": [
+    {
+      "name": "map value",
+      "input": "{ \"a\" : [1, 2.50],\n \"b\" : \"x  y <&>\" }",
+      "result": "{\"k\":{\"a\":[1,2.50],\"b\":\"x  y <&>\"}}",
+      "err": ""
+    },
+    {
+      "name": "slice element",
+      "input": "{ \"a\" : [1, 2.50],\n \"b\" : \"x  y <&>\" }",
+      "result": "[{\"a\":[1,2.50],\"b\":\"x  y <&>\"},[1]]",
+      "err": ""
+    },
+    {
+      "name": "top level",
+      "input": "{ \"a\" : [1, 2.50],\n \"b\" : \"x  y <&>\" }",
+      "result": "{\"a\":[1,2.50],\"b\":\"x  y <&>\"}",
+      "err": ""
+    },
+    {
+      "name": "decoded map",
+      "input": "{\"consent\": \"c o\" , \"data\": { \"k\" : [ 1, {\"z\" : null} ] }, \"n\" : 1E+2 }",
+      "result": "{\"consent\":\"c o\",\"data\":{\"k\":[1,{\"z\":null}]},\"n\":1E+2}",
+      "err": ""
+    }
+  ],
+  "partial_results": [
+    {
+      "name": "jsonutil.Unmarshal",
+      "input": "{\"id\":\"x\",\"n\":\"bad\",\"l\":[1]}",
+      "result": "{\"id\":\"x\",\"n\":0}",
+      "err": "cannot unmarshal main.partialTarget.N: unexpected character: \ufffd"
+    },
+    {
+      "name": "jsonutil.UnmarshalValid",
+      "input": "{\"id\":\"x\",\"n\":\"bad\",\"l\":[1]}",
+      "result": "{\"id\":\"x\",\"n\":0}",
+      "err": "cannot unmarshal main.partialTarget.N: unexpected character: \ufffd"
+    },
+    {
+      "name": "jsonutil.MergeClone",
+      "input": "{\"id\":\"x\",\"n\":\"bad\",\"l\":[1]}",
+      "result": "{\"id\":\"x\",\"n\":0}",
+      "err": "cannot unmarshal main.partialTarget.N: unexpected character: \ufffd"
+    },
+    {
+      "name": "jsonutil.Unmarshal",
+      "input": "{\"id\":\"x\",\"l\":[1,\"y\",3]}",
+      "result": "{\"id\":\"x\",\"n\":0,\"l\":[1,0]}",
+      "err": "cannot unmarshal []int: unexpected character: \ufffd"
+    },
+    {
+      "name": "jsonutil.UnmarshalValid",
+      "input": "{\"id\":\"x\",\"l\":[1,\"y\",3]}",
+      "result": "{\"id\":\"x\",\"n\":0,\"l\":[1,0]}",
+      "err": "cannot unmarshal []int: unexpected character: \ufffd"
+    },
+    {
+      "name": "jsonutil.MergeClone",
+      "input": "{\"id\":\"x\",\"l\":[1,\"y\",3]}",
+      "result": "{\"id\":\"x\",\"n\":0,\"l\":[1,0]}",
+      "err": "cannot unmarshal []int: unexpected character: \ufffd"
+    },
+    {
+      "name": "jsonutil.Unmarshal",
+      "input": "{\"id\":\"x\",\"n\":1,\"l\":[2",
+      "result": "{\"id\":\"x\",\"n\":1,\"l\":[2]}",
+      "err": "cannot unmarshal main.partialTarget.L: decode slice: expect ], but found \u0000"
+    },
+    {
+      "name": "jsonutil.UnmarshalValid",
+      "input": "{\"id\":\"x\",\"n\":1,\"l\":[2",
+      "result": "{\"id\":\"x\",\"n\":1,\"l\":[2]}",
+      "err": "cannot unmarshal main.partialTarget.L: decode slice: expect ], but found \u0000"
+    },
+    {
+      "name": "jsonutil.MergeClone",
+      "input": "{\"id\":\"x\",\"n\":1,\"l\":[2",
+      "result": "{\"id\":\"x\",\"n\":1,\"l\":[2]}",
+      "err": "cannot unmarshal main.partialTarget.L: decode slice: expect ], but found \u0000"
+    },
+    {
+      "name": "jsonutil.Unmarshal",
+      "input": "{\"id\":\"x\",\"n\":1,\"l\":[2]} x",
+      "result": "{\"id\":\"x\",\"n\":1,\"l\":[2]}",
+      "err": "there are bytes left after unmarshal"
+    },
+    {
+      "name": "jsonutil.UnmarshalValid",
+      "input": "{\"id\":\"x\",\"n\":1,\"l\":[2]} x",
+      "result": "{\"id\":\"x\",\"n\":1,\"l\":[2]}",
+      "err": "there are bytes left after unmarshal"
+    },
+    {
+      "name": "jsonutil.MergeClone",
+      "input": "{\"id\":\"x\",\"n\":1,\"l\":[2]} x",
+      "result": "{\"id\":\"x\",\"n\":1,\"l\":[2]}",
+      "err": "there are bytes left after unmarshal"
+    }
   ]
 }

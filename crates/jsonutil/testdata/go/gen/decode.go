@@ -179,6 +179,58 @@ func nilRaw() []row {
 	}
 }
 
+// rawContainers is json.raw-not-compacted outside a struct field: Prebid's RawMessageExtension
+// compacts every json.RawMessage jsonutil.Marshal reaches, as a map value, a slice element and on
+// its own, which is how openrtb_ext's RequestWrapper writes its ext maps
+// (openrtb_ext/request_wrapper.go), the exchange an imp's sanitized ext (exchange/utils.go:706)
+// and the auction endpoint its resolved imps (endpoints/openrtb2/auction.go:1800).
+func rawContainers() []row {
+	raw := json.RawMessage("{ \"a\" : [1, 2.50],\n \"b\" : \"x  y <&>\" }")
+	in := `{"consent": "c o" , "data": { "k" : [ 1, {"z" : null} ] }, "n" : 1E+2 }`
+	decoded := map[string]json.RawMessage{}
+	err := jsonutil.Unmarshal([]byte(in), &decoded)
+	return []row{
+		{Name: "map value", Input: string(raw), Result: marshalled(map[string]json.RawMessage{"k": raw})},
+		{Name: "slice element", Input: string(raw), Result: marshalled([]json.RawMessage{raw, json.RawMessage(" [ 1 ] ")})},
+		{Name: "top level", Input: string(raw), Result: marshalled(raw)},
+		{Name: "decoded map", Input: in, Result: marshalled(decoded), Err: errText(err)},
+	}
+}
+
+// partialTarget has a string, an int and a slice, read in that order.
+type partialTarget struct {
+	ID string `json:"id"`
+	N  int    `json:"n"`
+	L  []int  `json:"l,omitempty"`
+}
+
+// partialResults is json.partial-results: jsoniter writes each member into the target as it reads
+// it, so a document that fails leaves the members read before the failure in the target, a slice
+// element that fails as its zero value, and a document followed by other bytes the whole value;
+// MergeClone into the zero value leaves the same. Prebid goes on with that value at
+// endpoints/openrtb2/auction.go:468 and :516 (the request a hook rejected, whose id the response
+// carries), exchange/bidder.go:475, adapters/goldbach/goldbach.go:52 and adapters/dmx/dmx.go:165.
+func partialResults() []row {
+	var rows []row
+	for _, in := range []string{
+		`{"id":"x","n":"bad","l":[1]}`,
+		`{"id":"x","l":[1,"y",3]}`,
+		`{"id":"x","n":1,"l":[2`,
+		`{"id":"x","n":1,"l":[2]} x`,
+	} {
+		var a partialTarget
+		err := jsonutil.Unmarshal([]byte(in), &a)
+		rows = append(rows, row{Name: "jsonutil.Unmarshal", Input: in, Result: marshalled(a), Err: errText(err)})
+		var b partialTarget
+		err = jsonutil.UnmarshalValid([]byte(in), &b)
+		rows = append(rows, row{Name: "jsonutil.UnmarshalValid", Input: in, Result: marshalled(b), Err: errText(err)})
+		var c partialTarget
+		err = jsonutil.MergeClone(&c, []byte(in))
+		rows = append(rows, row{Name: "jsonutil.MergeClone", Input: in, Result: marshalled(c), Err: errText(err)})
+	}
+	return rows
+}
+
 func interfaceNumbers() []row {
 	var rows []row
 	for _, in := range []string{`{"v":9007199254740993}`, `{"v":1.0}`, `{"v":1e2}`, `{"v":1.5}`, `{"v":12345678901234567890}`, `{"v":[1,{"a":2.0}]}`} {
@@ -654,6 +706,8 @@ type decodeDoc struct {
 	TrailingNuls     []row  `json:"trailing_nuls"`
 	PlusFloats       []row  `json:"plus_floats"`
 	ControlNames     []row  `json:"control_member_names"`
+	RawContainers    []row  `json:"raw_containers"`
+	PartialResults   []row  `json:"partial_results"`
 }
 
 func decodeGolden() decodeDoc {
@@ -681,5 +735,7 @@ func decodeGolden() decodeDoc {
 		TrailingNuls:     trailingNuls(),
 		PlusFloats:       plusFloats(),
 		ControlNames:     controlMemberNames(),
+		RawContainers:    rawContainers(),
+		PartialResults:   partialResults(),
 	}
 }
