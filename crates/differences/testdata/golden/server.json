@@ -63,5 +63,91 @@
         ]
       }
     }
+  ],
+  "handler_header": "X-Handler",
+  "actual_requests": [
+    {
+      "method": "POST",
+      "origin": "https://publisher.example",
+      "status": 200,
+      "headers": {
+        "Access-Control-Allow-Credentials": [
+          "true"
+        ],
+        "Access-Control-Allow-Origin": [
+          "https://publisher.example"
+        ],
+        "Vary": [
+          "Origin"
+        ],
+        "X-Handler": [
+          "called"
+        ]
+      }
+    },
+    {
+      "method": "GET",
+      "origin": "https://publisher.example",
+      "status": 200,
+      "headers": {
+        "Access-Control-Allow-Credentials": [
+          "true"
+        ],
+        "Access-Control-Allow-Origin": [
+          "https://publisher.example"
+        ],
+        "Vary": [
+          "Origin"
+        ],
+        "X-Handler": [
+          "called"
+        ]
+      }
+    },
+    {
+      "method": "PUT",
+      "origin": "https://publisher.example",
+      "status": 200,
+      "headers": {
+        "Vary": [
+          "Origin"
+        ],
+        "X-Handler": [
+          "called"
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "origin": "",
+      "status": 200,
+      "headers": {
+        "Vary": [
+          "Origin"
+        ],
+        "X-Handler": [
+          "called"
+        ]
+      }
+    },
+    {
+      "method": "OPTIONS",
+      "origin": "https://publisher.example",
+      "status": 200,
+      "headers": {
+        "Access-Control-Allow-Credentials": [
+          "true"
+        ],
+        "Access-Control-Allow-Origin": [
+          "https://publisher.example"
+        ],
+        "Vary": [
+          "Origin"
+        ],
+        "X-Handler": [
+          "called"
+        ]
+      }
+    }
   ]
 }
