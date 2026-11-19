@@ -1,0 +1,680 @@
+{
+  "header": {
+    "go_version": "go1.26.2",
+    "goarch": "amd64",
+    "upstream": "v4.11.2-0.20261112141353-4e296450de2f",
+    "modules": {},
+    "generator": "crates/jsonutil/testdata/go"
+  },
+  "curated": [
+    {
+      "description": "Drop Single Element After Another Element",
+      "input": "{\"consent\": \"TESTCONSENT\",\"consented_providers_settings\": {\"test\": 1,\"consented_providers\": [1608,765,492]}}",
+      "names": [
+        "consented_providers"
+      ],
+      "find": "true 68 106",
+      "drop": "ok {\"consent\": \"TESTCONSENT\",\"consented_providers_settings\": {\"test\": 1}}",
+      "texts": "go"
+    },
+    {
+      "description": "Drop Single Element Before Another Element",
+      "input": "{\"consent\": \"TESTCONSENT\",\"consented_providers_settings\": {\"consented_providers\": [1608,765,492],\"test\": 1}}",
+      "names": [
+        "consented_providers"
+      ],
+      "find": "true 59 97",
+      "drop": "ok {\"consent\": \"TESTCONSENT\",\"consented_providers_settings\": {\"test\": 1}}",
+      "texts": "go"
+    },
+    {
+      "description": "Drop Single Element",
+      "input": "{\"consent\": \"TESTCONSENT\",\"consented_providers_settings\": {\"consented_providers\": [1545,2563,1411]}}",
+      "names": [
+        "consented_providers"
+      ],
+      "find": "true 59 98",
+      "drop": "ok {\"consent\": \"TESTCONSENT\",\"consented_providers_settings\": {}}",
+      "texts": "go"
+    },
+    {
+      "description": "Drop Single Element string",
+      "input": "{\"consent\": \"TESTCONSENT\",\"consented_providers_settings\": {\"consented_providers\": \"test\"}}",
+      "names": [
+        "consented_providers"
+      ],
+      "find": "true 59 88",
+      "drop": "ok {\"consent\": \"TESTCONSENT\",\"consented_providers_settings\": {}}",
+      "texts": "go"
+    },
+    {
+      "description": "Drop Parent Element Between Two Elements",
+      "input": "{\"consent\": \"TESTCONSENT\",\"consented_providers_settings\": {\"consented_providers\": [1608,765,492], \"test\": 1},\"test\": 123}",
+      "names": [
+        "consented_providers_settings"
+      ],
+      "find": "true 26 109",
+      "drop": "ok {\"consent\": \"TESTCONSENT\",\"test\": 123}",
+      "texts": "go"
+    },
+    {
+      "description": "Drop Parent Element Before Element",
+      "input": "{\"consented_providers_settings\": {\"consented_providers\": [1608,765,492], \"test\": 1},\"test\": 123}",
+      "names": [
+        "consented_providers_settings"
+      ],
+      "find": "true 1 84",
+      "drop": "ok {\"test\": 123}",
+      "texts": "go"
+    },
+    {
+      "description": "Drop Parent Element After Element",
+      "input": "{\"consent\": \"TESTCONSENT\",\"consented_providers_settings\": {\"consented_providers\": [1608,765,492], \"test\": 1}}",
+      "names": [
+        "consented_providers_settings"
+      ],
+      "find": "true 25 108",
+      "drop": "ok {\"consent\": \"TESTCONSENT\"}",
+      "texts": "go"
+    },
+    {
+      "description": "Drop Parent Element Only",
+      "input": "{\"consented_providers_settings\": {\"consented_providers\": [1608,765,492], \"test\": 1}}",
+      "names": [
+        "consented_providers_settings"
+      ],
+      "find": "true 1 83",
+      "drop": "ok {}",
+      "texts": "go"
+    },
+    {
+      "description": "Drop Parent Element List",
+      "input": "{\"consented_providers_settings\":{\"consented_providers\":[1608,765,492],\"test\":1},\"data\": [{\"test1\":5},{\"test2\": [1,2,3]}]}",
+      "names": [
+        "data"
+      ],
+      "find": "true 79 120",
+      "drop": "ok {\"consented_providers_settings\":{\"consented_providers\":[1608,765,492],\"test\":1}}",
+      "texts": "go"
+    },
+    {
+      "description": "Drop Element That Doesn't Exist",
+      "input": "{\"consented_providers_settings\": {\"consented_providers\": [1608,765,492], \"test\": 1}}",
+      "names": [
+        "test2"
+      ],
+      "find": "false 84 0",
+      "drop": "ok {\"consented_providers_settings\": {\"consented_providers\": [1608,765,492], \"test\": 1}}",
+      "texts": "go"
+    },
+    {
+      "description": "Drop Nested Element Single Occurrence",
+      "input": "{\"consented_providers_settings\":{\"consented_providers\":[1608,765,492],\"test\":1},\"data\": [{\"test1\":5},{\"test2\": [1,2,3]}]}",
+      "names": [
+        "consented_providers_settings",
+        "test"
+      ],
+      "find": "true 69 78",
+      "drop": "ok {\"consented_providers_settings\":{\"consented_providers\":[1608,765,492]},\"data\": [{\"test1\":5},{\"test2\": [1,2,3]}]}",
+      "texts": "go"
+    },
+    {
+      "description": "Drop Nested Element Multiple Occurrence",
+      "input": "{\"consented_providers_settings\":{\"consented_providers\":[1608,765,492],\"test\":1},\"data\": [{\"test\":5},{\"test\": [1,2,3]}]}",
+      "names": [
+        "consented_providers_settings",
+        "test"
+      ],
+      "find": "true 69 78",
+      "drop": "ok {\"consented_providers_settings\":{\"consented_providers\":[1608,765,492]},\"data\": [{\"test\":5},{\"test\": [1,2,3]}]}",
+      "texts": "go"
+    },
+    {
+      "description": "Drop Nested Element Multiple Occurrence Skip Path",
+      "input": "{\"consented_providers_settings\":{\"consented_providers\":[1608,765,492],\"data\": {\"amp\":1, \"test\": 25}}}",
+      "names": [
+        "consented_providers_settings",
+        "test"
+      ],
+      "find": "true 86 98",
+      "drop": "ok {\"consented_providers_settings\":{\"consented_providers\":[1608,765,492],\"data\": {\"amp\":1}}}",
+      "texts": "go"
+    },
+    {
+      "description": "Drop Nested Structure Single Occurrence",
+      "input": "{\"consented_providers\":{\"providers\":[1608,765,492],\"test\":{\"nested\":true}},\"data\": [{\"test\":5},{\"test\": [1,2,3]}]}",
+      "names": [
+        "consented_providers",
+        "test"
+      ],
+      "find": "true 50 73",
+      "drop": "ok {\"consented_providers\":{\"providers\":[1608,765,492]},\"data\": [{\"test\":5},{\"test\": [1,2,3]}]}",
+      "texts": "go"
+    },
+    {
+      "description": "Drop Nested Structure Single Occurrence Deep Nested",
+      "input": "{\"consented_providers\":{\"providers\":[1608,765,492],\"test\":{\"nested\":true, \"nested2\": {\"test6\": 123}}},\"data\": [{\"test\":5},{\"test\": [1,2,3]}]}",
+      "names": [
+        "consented_providers",
+        "test6"
+      ],
+      "find": "true 86 98",
+      "drop": "ok {\"consented_providers\":{\"providers\":[1608,765,492],\"test\":{\"nested\":true, \"nested2\": {}}},\"data\": [{\"test\":5},{\"test\": [1,2,3]}]}",
+      "texts": "go"
+    },
+    {
+      "description": "Drop Nested Structure Single Occurrence Deep Nested Full Path",
+      "input": "{\"consented_providers\":{\"providers\":[1608,765,492],\"test\":{\"nested\":true,\"nested2\": {\"test6\": 123}}},\"data\": [{\"test\":5},{\"test\": [1,2,3]}]}",
+      "names": [
+        "consented_providers",
+        "test",
+        "nested"
+      ],
+      "find": "true 59 73",
+      "drop": "ok {\"consented_providers\":{\"providers\":[1608,765,492],\"test\":{\"nested2\": {\"test6\": 123}}},\"data\": [{\"test\":5},{\"test\": [1,2,3]}]}",
+      "texts": "go"
+    },
+    {
+      "description": "Drop Nested Structure Doesn't Exist",
+      "input": "{\"consented_providers\":{\"providers\":[1608,765,492]},\"test\":{\"nested\":true}},\"data\": [{\"test\":5},{\"test\": [1,2,3]}]}",
+      "names": [
+        "consented_providers",
+        "test2"
+      ],
+      "find": "false 50 23",
+      "drop": "ok {\"consented_providers\":{\"providers\":[1608,765,492]},\"test\":{\"nested\":true}},\"data\": [{\"test\":5},{\"test\": [1,2,3]}]}",
+      "texts": "go"
+    },
+    {
+      "description": "Error Decode",
+      "input": "{\"consented_providers_settings\": {\"consented_providers\": [\"123\",1,,1365,5678,1545,2563,1411], \"test\": 1}}",
+      "names": [
+        "consented_providers"
+      ],
+      "find": "error: invalid character ',' looking for beginning of value",
+      "drop": "error: invalid character ',' looking for beginning of value",
+      "texts": "library"
+    },
+    {
+      "description": "Error Malformed",
+      "input": "{consented_providers_settings: {\"consented_providers\": [1365,5678,1545,2563,1411], \"test\": 1}}",
+      "names": [
+        "consented_providers"
+      ],
+      "find": "error: invalid character 'c'",
+      "drop": "error: invalid character 'c'",
+      "texts": "go"
+    },
+    {
+      "description": "string value matched in an array consumes the next element",
+      "input": "[\"x\",1]",
+      "names": [
+        "x"
+      ],
+      "find": "true 1 6",
+      "drop": "ok []",
+      "texts": "go"
+    },
+    {
+      "description": "string value matched in an array, nested path: the colon scan runs off the end",
+      "input": "[\"x\",1]",
+      "names": [
+        "x",
+        "y"
+      ],
+      "find": "panic: runtime error: index out of range [7] with length 7",
+      "drop": "panic: runtime error: index out of range [7] with length 7",
+      "texts": "go"
+    },
+    {
+      "description": "string value matched as the last array element",
+      "input": "[\"a\",\"x\"]",
+      "names": [
+        "x"
+      ],
+      "find": "error: expected comma after array element",
+      "drop": "error: expected comma after array element",
+      "texts": "go"
+    },
+    {
+      "description": "string value matched in object value position",
+      "input": "{\"a\":\"x\",\"x\":1}",
+      "names": [
+        "x"
+      ],
+      "find": "error: not at beginning of value",
+      "drop": "error: not at beginning of value",
+      "texts": "go"
+    },
+    {
+      "description": "top-level string matched at the end",
+      "input": "\"x\"",
+      "names": [
+        "x"
+      ],
+      "find": "error: EOF",
+      "drop": "error: EOF",
+      "texts": "go"
+    },
+    {
+      "description": "top-level string matched before another top-level value",
+      "input": "\"x\" 1",
+      "names": [
+        "x"
+      ],
+      "find": "true 0 5",
+      "drop": "ok ",
+      "texts": "go"
+    },
+    {
+      "description": "top-level string matched before two more values: the comma scan runs off the end",
+      "input": "\"x\" 1 2",
+      "names": [
+        "x"
+      ],
+      "find": "panic: runtime error: index out of range [7] with length 7",
+      "drop": "panic: runtime error: index out of range [7] with length 7",
+      "texts": "go"
+    },
+    {
+      "description": "whitespace before the comma is kept and the member after it loses its comma",
+      "input": "{\"a\":1 ,\"b\":2,\"c\":3}",
+      "names": [
+        "b"
+      ],
+      "find": "true 6 14",
+      "drop": "ok {\"a\":1\"c\":3}",
+      "texts": "go"
+    },
+    {
+      "description": "nested element in an object that has more members after it",
+      "input": "{\"a\":{\"b\":1,\"c\":2},\"d\":3}",
+      "names": [
+        "a",
+        "b"
+      ],
+      "find": "true 6 12",
+      "drop": "ok {\"a\":{\"c\":2},\"d\":3}",
+      "texts": "go"
+    },
+    {
+      "description": "nested element whose parent is the last member",
+      "input": "{\"a\":{\"b\":1}}",
+      "names": [
+        "a",
+        "b"
+      ],
+      "find": "true 6 11",
+      "drop": "ok {\"a\":{}}",
+      "texts": "go"
+    },
+    {
+      "description": "nested path through a scalar",
+      "input": "{\"a\":5,\"b\":{\"a\":1}}",
+      "names": [
+        "a",
+        "b"
+      ],
+      "find": "false 5 5",
+      "drop": "ok {\"a\":5,\"b\":{\"a\":1}}",
+      "texts": "go"
+    },
+    {
+      "description": "nested path through an array",
+      "input": "{\"a\":[\"b\",{\"b\":1}],\"c\":1}",
+      "names": [
+        "a",
+        "b"
+      ],
+      "find": "true 6 17",
+      "drop": "ok {\"a\":[],\"c\":1}",
+      "texts": "go"
+    },
+    {
+      "description": "a key holding a colon moves the nested start into the key",
+      "input": "{\"k:ey\":{\"x\":1},\"y\":2}",
+      "names": [
+        "k:ey",
+        "x"
+      ],
+      "find": "error: invalid character 'e' looking for beginning of value",
+      "drop": "error: invalid character 'e' looking for beginning of value",
+      "texts": "go"
+    },
+    {
+      "description": "an escaped key matches its decoded name",
+      "input": "{\"\\u0061\":1,\"b\":2}",
+      "names": [
+        "a"
+      ],
+      "find": "true 1 12",
+      "drop": "ok {\"b\":2}",
+      "texts": "go"
+    },
+    {
+      "description": "a key with a lone surrogate decodes to U+FFFD and does not match",
+      "input": "{\"\\ud800\":1,\"a\":2}",
+      "names": [
+        "a"
+      ],
+      "find": "true 11 17",
+      "drop": "ok {\"\\ud800\":1}",
+      "texts": "go"
+    },
+    {
+      "description": "a key that is not UTF-8",
+      "input": "{\"\ufffd\":1,\"a\":2}",
+      "names": [
+        "a"
+      ],
+      "find": "true 6 12",
+      "drop": "ok {\"\ufffd\":1}",
+      "texts": "library"
+    },
+    {
+      "description": "a number out of float64's range before the element",
+      "input": "{\"a\":1e400,\"b\":1}",
+      "names": [
+        "b"
+      ],
+      "find": "error: json: cannot unmarshal number 1e400 into Go value of type float64",
+      "drop": "error: json: cannot unmarshal number 1e400 into Go value of type float64",
+      "texts": "library"
+    },
+    {
+      "description": "a truncated document ends the scan without an error",
+      "input": "{\"a\":{\"b\":",
+      "names": [
+        "c"
+      ],
+      "find": "false 9 0",
+      "drop": "ok {\"a\":{\"b\":",
+      "texts": "go"
+    },
+    {
+      "description": "a truncated value of the element",
+      "input": "{\"a\":[1,2",
+      "names": [
+        "a"
+      ],
+      "find": "error: unexpected EOF",
+      "drop": "error: unexpected EOF",
+      "texts": "go"
+    },
+    {
+      "description": "a matched string value with nothing after it in a truncated array",
+      "input": "[\"x\"",
+      "names": [
+        "x"
+      ],
+      "find": "error: EOF",
+      "drop": "error: EOF",
+      "texts": "go"
+    },
+    {
+      "description": "an empty document",
+      "input": "",
+      "names": [
+        "a"
+      ],
+      "find": "false 0 0",
+      "drop": "ok ",
+      "texts": "go"
+    },
+    {
+      "description": "an empty path",
+      "input": "{\"a\":1}",
+      "names": [],
+      "find": "panic: runtime error: index out of range [0] with length 0",
+      "drop": "panic: runtime error: index out of range [0] with length 0",
+      "texts": "go"
+    },
+    {
+      "description": "a stray closing bracket",
+      "input": "{\"a\":1}}",
+      "names": [
+        "b"
+      ],
+      "find": "error: invalid character '}' looking for beginning of value",
+      "drop": "error: invalid character '}' looking for beginning of value",
+      "texts": "go"
+    },
+    {
+      "description": "a missing colon",
+      "input": "{\"a\" 1}",
+      "names": [
+        "a"
+      ],
+      "find": "error: expected colon after object key",
+      "drop": "error: expected colon after object key",
+      "texts": "go"
+    },
+    {
+      "description": "a missing comma between members",
+      "input": "{\"a\":1 \"b\":2}",
+      "names": [
+        "b"
+      ],
+      "find": "error: invalid character '\"' after object key:value pair",
+      "drop": "error: invalid character '\"' after object key:value pair",
+      "texts": "go"
+    },
+    {
+      "description": "a number followed by garbage",
+      "input": "{\"a\":1x,\"b\":2}",
+      "names": [
+        "b"
+      ],
+      "find": "error: invalid character 'x' after object key:value pair",
+      "drop": "error: invalid character 'x' after object key:value pair",
+      "texts": "library"
+    }
+  ],
+  "seeded": {
+    "seed": "0x4a534f4e454c4d31",
+    "count": 50000,
+    "batch": 1000,
+    "batches": [
+      {
+        "inputs_sha256": "c4883c302f7cb03feb103355e1f2876f43e8e8e9fc5678b5c3daf85437d77984",
+        "outcomes_sha256": "7edf522ae8ce392976e4daf80f1d0dd96a5c42dfed9677263ba48e55f4aa5866"
+      },
+      {
+        "inputs_sha256": "80c296befa49e8c216eff8d8b7b94c57fad3d85c0aee45c4f084c9eaabdfba58",
+        "outcomes_sha256": "e3234ccc7eccf9230d4868473adf8ec08518ab0419b9b552e6cb6883f7b3426f"
+      },
+      {
+        "inputs_sha256": "e87481af8d0449e252966bf182c7324c9dd7d6bcb6ae2df4d7d64c8db7ee7f41",
+        "outcomes_sha256": "44c5bb12de4f7824d2fd83493650ce99a9268e99bc69546b5c16347b5fd171b6"
+      },
+      {
+        "inputs_sha256": "9edf5148efe5507ce9f1f7d4d78dba8e08a7e2b07585c5e10023dc39152e5b77",
+        "outcomes_sha256": "a4d01a4331891df25068c9e8c6a4f3aaf4e03a53f9dec1c9b306a13a42e81727"
+      },
+      {
+        "inputs_sha256": "44d84b395fde715ae5633f527f8292c8a692ca35e58aa90e85cc3edea33567af",
+        "outcomes_sha256": "03bb9c8aee9b8556a80c6c4d23da285934c46a57314fa9067f3211ace518bec5"
+      },
+      {
+        "inputs_sha256": "7757a1777f268f45946f10f0abc55f75d4dda673f82a11b5ebe6b8e2387babdb",
+        "outcomes_sha256": "fdc0f6357856f764c45f928d0057fa2ff1f61b8d0a5c9051f8789b3630feffe2"
+      },
+      {
+        "inputs_sha256": "5527e1615b1a40a1913cc784c75fe79ff0ddcb35de067f8f47685c9a0e13c8c7",
+        "outcomes_sha256": "f5f1fbea77f64c383e26448774f4250d334a666417a67cae109c096023e54ec4"
+      },
+      {
+        "inputs_sha256": "1c0b6fbc888fabefe1ce761cf8569999a5bcbf16f0e79fdaf74f7ec77184aa1b",
+        "outcomes_sha256": "52aba72de1dbece8174384a9cbd3d38cc7f0080454d7f9cc098ebb472ce082e5"
+      },
+      {
+        "inputs_sha256": "4d0e6def736d92eacf303f679c516d377a16e9853d8d0d43c60d08dfc0429283",
+        "outcomes_sha256": "b5df17f18c85ffae9aaa93da378eaa189f2cc2174ace1a2e3b007887c54f7311"
+      },
+      {
+        "inputs_sha256": "f4c2c40513a04252c360a9afa5b85bc27d3b7d82caf8fc1db41d4c017409fe11",
+        "outcomes_sha256": "5d109095c91f31a4832a1c22bdfe61f8983306b909a91ae1213d317df9d8ec07"
+      },
+      {
+        "inputs_sha256": "0203c4e9a6a7b8a2ba1cc544817ee6a2d594c92c007a241289bd3b28f62cd38f",
+        "outcomes_sha256": "d22d2e743a54cc849d4245170fd3fafef7e141e79877a8a52c8636ae75221886"
+      },
+      {
+        "inputs_sha256": "e530fce2a597fabb2522a9e9ba30ad91e0a5f9d4dc18adf6642c8416c2a9fa3c",
+        "outcomes_sha256": "3b07c85e46612c3569edd058d76fd4f70eae23873cd9aecc13bf3c2a081d880d"
+      },
+      {
+        "inputs_sha256": "c3913c88043786c1c62e21c8773c4c033da287f5d4a7bbc4e37cefb40e677674",
+        "outcomes_sha256": "7ca30efdf2e52246da7cd7d8c568851aeece12db30a856980e614cfa90662595"
+      },
+      {
+        "inputs_sha256": "c5a4773dd5662ebcdf239a8a1b71499d6c9fcff6d01368d133463c9144cd0d21",
+        "outcomes_sha256": "3bf0755b0ab2a5783b659860e6b41c9cb8c83a0a8e6c53e347f5add4d561cbcc"
+      },
+      {
+        "inputs_sha256": "5000cb5a5d6f12389b14ef4708c18a51bb9e6e2c4549187fffee166c3c5c94f5",
+        "outcomes_sha256": "fa39c0dcf31faacaa2996ed70ed863e71df09cc7e7f32ba454d763d2b4df4895"
+      },
+      {
+        "inputs_sha256": "5366713e36ab81d1445a43bc9b7d5e026ff5dfa9558e8ebd07b98cb10b8aa62d",
+        "outcomes_sha256": "0f1476262c356576c179643cbd42bd873ff7c9dbf470cbc7f96c698beaa39078"
+      },
+      {
+        "inputs_sha256": "efa28e6ef15ffb218a5b38d005978cf72f1475160bfb72216fd20b1862ad56cb",
+        "outcomes_sha256": "49daa4b5c94bcd2e209c6c60c9184e01a8ef879db7ba3c2c278766304cdbbbbc"
+      },
+      {
+        "inputs_sha256": "96d1e3c87df445f505fb50c56e5b823cba2b58c7fb259ac5991cc7bf89a44096",
+        "outcomes_sha256": "d9204ca0784889c795ce3477e4e4c45c68e302fa9cbdd57107157e4ada5ad607"
+      },
+      {
+        "inputs_sha256": "44ad7ac24fae2d1777931a30c556d0b2262dab589e24c4bfed2bdffaea4c4e22",
+        "outcomes_sha256": "55c1bb0218d08d9461ec10a781c32d4e0955ae04b487e40c89f8d6a1bd6760af"
+      },
+      {
+        "inputs_sha256": "95b35b387649fc19fd9f1877f711e1ecc7138fdf6d6b8a685ef02844c00af63d",
+        "outcomes_sha256": "ad8462a2d02bb00dcf85e7362476762fed93b498c0038fc22d3f3f5b745ac118"
+      },
+      {
+        "inputs_sha256": "152239f3e993d7c1855c44a643d3153789b468ca855eeb7a1c5e3112cf518bdd",
+        "outcomes_sha256": "3905916ddbd06779f4242ee9bd7feba354a772a646f9f9f258638b6c27d0b186"
+      },
+      {
+        "inputs_sha256": "2eea4a6e0cde0b6ae6b1c8e5f72b1486d7fb616f490bfd6fb0fe382356f56ee0",
+        "outcomes_sha256": "d32bd23e612fc6453afe499b074a67cfee932fdb4ac8cdc6a088560e95cca3cc"
+      },
+      {
+        "inputs_sha256": "a1bbee1c7d4e573f1f8f2dd42dc088563a65f5764a9fd3376d1c81dc451335b8",
+        "outcomes_sha256": "1348fed193440772c700155148ddd41c5f542679e39f942f1994147a6bed8d04"
+      },
+      {
+        "inputs_sha256": "237ed0c122f8338b254dcab5e6042a1f5c9b70cd63df6a990fc0d313720f714f",
+        "outcomes_sha256": "68fce3e05209358b7608853968a4676d70f6536323c0703cc2e167402511667f"
+      },
+      {
+        "inputs_sha256": "bfc6c4bdda05f093dd63f9f6200ee2ac0a3c519cfcbfa73680a5bb4a070d5a8f",
+        "outcomes_sha256": "bfce248f53c9561c5727f107624e31fc87b9638c7f6c08ec748f3c8f6c977009"
+      },
+      {
+        "inputs_sha256": "8aa7502de07b7f45e9f905c08f70150aee9bf897e6fce98758e76adb14d4badd",
+        "outcomes_sha256": "1952ed06fee9cd409fde06089ec7285cb9b9f3ffdfae551190934fda07b383c1"
+      },
+      {
+        "inputs_sha256": "bf4ef2a516566b8aa2f1d7e5ec3d5c30d14458188972c2648e983e79c0323818",
+        "outcomes_sha256": "a55d24bb39a36f9c9d8325fab16d327b0c61e5b7c8c00aeb127f21f2aa069ef1"
+      },
+      {
+        "inputs_sha256": "d6e7c22c0b2ac632b50d820817e11db60842f6cf718a165a583d60ca25839a22",
+        "outcomes_sha256": "2875fd3f146c17a204f70ec78408b364e8b41f083b0e323e0244d82f99a009d0"
+      },
+      {
+        "inputs_sha256": "b9af5aa47e8ed1e10f2b43819e5fbdaef3199da1961cc1db470a8658ef6eb206",
+        "outcomes_sha256": "e178d4ae3737fcd66190606fd0e6fd55b181e51e589a04cecad9953226256b87"
+      },
+      {
+        "inputs_sha256": "374d84cd17290b4829c5834c4bb4bb3848405131c4a32e5658fb0b01bad6c9cb",
+        "outcomes_sha256": "ad48e362a3faf8503cc3347f9321a7a0dfd575f7f2d56b61a90bfe48d957047e"
+      },
+      {
+        "inputs_sha256": "bde7fedc5e307ce40c36239c1c4723450ef49de1d4e12c7230f13e25d2b7bd37",
+        "outcomes_sha256": "4e6e4f7fc36e8634a022722eb4dc73c427930c782c83c0ef5f4b759c487954c8"
+      },
+      {
+        "inputs_sha256": "dc287026d71979f7a49d88ac1633917dbdb92972e2dd8f0ef54f174bf6e0641a",
+        "outcomes_sha256": "03e3c415914c8a5e2edb5fd3e7b0015361a65a4707ded9b217fe1e80d1f7d64c"
+      },
+      {
+        "inputs_sha256": "00a0ec65c46ee51c19bc286be7bd1d4699d4147c74524df1472df28ef050efd0",
+        "outcomes_sha256": "92a3f131e9dbbd0b0d93e6c3c30be9621bd0b3c88d727a2e4385930fbb48cc3d"
+      },
+      {
+        "inputs_sha256": "3c22fa13ab1573441a5171bed10f32a7df00f1fa31b27227f59e7d223ce1c354",
+        "outcomes_sha256": "910de7cca577cd819f93ec969163032b3575bb827200d4335a25b120322549da"
+      },
+      {
+        "inputs_sha256": "92dbcdb1ec4f1b8ec1ccc282df78c94d0442876918756ca342e76d7d2f44bc35",
+        "outcomes_sha256": "2b4e232965d4f27b3e0d6acfbde4afacbf2d80f5d921a4ec645f6f84c3ea8ed5"
+      },
+      {
+        "inputs_sha256": "29ef5f923b13ce8591234ca500e061ee5bf191d2b1caf8bf5c1ca8d8d11d30f8",
+        "outcomes_sha256": "30350b8ba3f5999ddfc95649672af90bdf59470a47484bb513e4aaed0c2b1d83"
+      },
+      {
+        "inputs_sha256": "53b99ae2e942a907890f3ccb7b8951905ca0aa307b19ec44459de7698c2245a6",
+        "outcomes_sha256": "8bc0a3e46b8435787b795707ac07c4b8a2ae5ee47197551b8dc7c87cd1eba30a"
+      },
+      {
+        "inputs_sha256": "fbf0ccdbe7a2e06a09f2e0eae0deeb6a46bcbfce4fea5b3eda25e6e4f4b719ec",
+        "outcomes_sha256": "139f9d58945480a810a4a692d977166f1b03d4f3269ef6d53a2ebecffa3ba210"
+      },
+      {
+        "inputs_sha256": "bf9ca4209640551010956067d5429a86961b92955a83afc05bd08dc3699f73df",
+        "outcomes_sha256": "00fed2af0b1d1b9149f37aed557f952a122d0ebc31f881c51ef338fd79c600cc"
+      },
+      {
+        "inputs_sha256": "ec2bc9043fc125a618e40968536ecf0d433126527efbc6f5912e0bae8e8b6266",
+        "outcomes_sha256": "1dd7bb54f5055d56139436576a049eec14d3949f725604fccc3c74c93a86e6c3"
+      },
+      {
+        "inputs_sha256": "62c2106f8fe99d4935b862ae0f4fd3dbbc677009d403562037cd1017bb086592",
+        "outcomes_sha256": "c84dc0a764114efbf821d275facef210e3b3a5c6ac6744fce8bf9b06f5e0b0fc"
+      },
+      {
+        "inputs_sha256": "5456eb1d6074f0414550dca14925516f4a00880f40457a587e1858dbb1bd4f58",
+        "outcomes_sha256": "579346f6d5016c5e8b45adee58d039ca1b07d4c2e583ee86526b95009757ec70"
+      },
+      {
+        "inputs_sha256": "95c876bd49b92ef4b9be7975e66393c46c05396d5d18b73a67850b26464fb703",
+        "outcomes_sha256": "312fe2a68d3e0a78578b8646e5e011ddc19fd7cb9bff690b12b4a4e245a84467"
+      },
+      {
+        "inputs_sha256": "a1e40c609bef642bce52813f15a7d6b4d6cb898bbba8e416e912e6eccbdb1236",
+        "outcomes_sha256": "06c0854501273bb36357beb131584e2d876daf0c8af39e0c86ea32640fb7c034"
+      },
+      {
+        "inputs_sha256": "0583d268c0b96c66a2eb69278c88db3c437aef3cd1e804999e3883e0c23ce166",
+        "outcomes_sha256": "f5c8e5f8655de766e606a8e1f08873017bdbc31c9077a0e4c1b0f35c96c43741"
+      },
+      {
+        "inputs_sha256": "8b3d2a5c228ef48948d0760d602bd5f6d7fefb40d53083ecb1538f3c1adc571e",
+        "outcomes_sha256": "900e23af1fc7f7b01c37627bf581f292d2e0c3fe446eca7d079284868653a274"
+      },
+      {
+        "inputs_sha256": "59c04cd4a8cdfdb2456f3403f1dc6e79ce6ec14fa583e49ccecec7007692b2d4",
+        "outcomes_sha256": "59a9004b39870b4c08f9219dab65a77832fe3ba9d6821e0ab1f4508e2a367cc5"
+      },
+      {
+        "inputs_sha256": "6beefea4eb7808e4cc994aca54b9c40b2cec2c233154d5d189eb6a71fa0c0fa1",
+        "outcomes_sha256": "1bb814447a1d816f100eff3280bdca40d1bfde0b2f6b7dc77d75f4683166307f"
+      },
+      {
+        "inputs_sha256": "cc72cf869b623a8008ae5a20e88c467a4605a6b7baf4e022ee889cb8147c496e",
+        "outcomes_sha256": "aa3e890cd45383328fce9a9af97ba23d030469873b1fa0acc5dced1025b66e70"
+      },
+      {
+        "inputs_sha256": "93be5a581fada42462ed6d6a8cc37324a0eb43af0c17c310a847563fb87430b1",
+        "outcomes_sha256": "d80db3ad7f20472cb0f6a40754b95306e2023b931a280d377f407b616fc55438"
+      }
+    ]
+  }
+}

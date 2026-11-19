@@ -1,0 +1,742 @@
+{
+  "header": {
+    "go_version": "go1.26.2",
+    "goarch": "amd64",
+    "upstream": "v4.11.2-0.20261112141353-4e296450de2f",
+    "modules": {
+      "github.com/json-iterator/go": "v1.1.12",
+      "github.com/prebid/openrtb/v20": "v20.3.0",
+      "gopkg.in/evanphx/json-patch.v5": "v5.9.0"
+    },
+    "generator": "crates/jsonutil/testdata/go"
+  },
+  "curated": [
+    {
+      "test": "TestMergeClonePtr",
+      "name": "root",
+      "existing": "{\"id\":\"\",\"banner\":{\"id\":\"1\"}}",
+      "patch": "{\"banner\":{\"id\":\"4\"}}",
+      "result": "{\"id\":\"\",\"banner\":{\"id\":\"4\"}}",
+      "err": ""
+    },
+    {
+      "test": "TestMergeClonePtr",
+      "name": "embedded-nil",
+      "existing": "{\"id\":\"\",\"banner\":{\"id\":\"1\"},\"video\":{\"mimes\":null,\"podid\":\"a\"}}",
+      "patch": "{\"banner\":null}",
+      "result": "{\"id\":\"\",\"video\":{\"mimes\":null,\"podid\":\"a\"}}",
+      "err": ""
+    },
+    {
+      "test": "TestMergeClonePtr",
+      "name": "embedded-struct",
+      "existing": "{\"id\":\"\",\"banner\":{\"id\":\"1\"},\"video\":{\"mimes\":null,\"podid\":\"a\"}}",
+      "patch": "{\"banner\":{\"id\":\"2\"}}",
+      "result": "{\"id\":\"\",\"banner\":{\"id\":\"2\"},\"video\":{\"mimes\":null,\"podid\":\"a\"}}",
+      "err": ""
+    },
+    {
+      "test": "TestMergeClonePtr",
+      "name": "embedded-int",
+      "existing": "{\"id\":\"\",\"clickbrowser\":1}",
+      "patch": "{\"clickbrowser\":2}",
+      "result": "{\"id\":\"\",\"clickbrowser\":2}",
+      "err": ""
+    },
+    {
+      "test": "TestMergeClonePtr",
+      "name": "invalid-null",
+      "existing": "{\"id\":\"\",\"banner\":{\"id\":\"1\"}}",
+      "patch": "{\"banner\":nul}",
+      "result": "{\"id\":\"\"}",
+      "err": "cannot unmarshal openrtb2.Imp.Banner: expect ull"
+    },
+    {
+      "test": "TestMergeClonePtr",
+      "name": "invalid-malformed",
+      "existing": "{\"id\":\"\",\"banner\":{\"id\":\"1\"}}",
+      "patch": "{\"banner\":malformed}",
+      "result": "{\"id\":\"\",\"banner\":{\"id\":\"1\"}}",
+      "err": "cannot unmarshal openrtb2.Imp.Banner: expect { or n, but found m"
+    },
+    {
+      "test": "TestMergeCloneSlice",
+      "name": "null/iframeBuster",
+      "existing": "{\"id\":\"\",\"iframebuster\":[\"a\",\"b\"]}",
+      "patch": "{\"iframeBuster\":null}",
+      "result": "{\"id\":\"\"}",
+      "err": ""
+    },
+    {
+      "test": "TestMergeCloneSlice",
+      "name": "one/iframeBuster",
+      "existing": "{\"id\":\"\",\"iframebuster\":[\"a\"]}",
+      "patch": "{\"iframeBuster\":[\"b\"]}",
+      "result": "{\"id\":\"\",\"iframebuster\":[\"b\"]}",
+      "err": ""
+    },
+    {
+      "test": "TestMergeCloneSlice",
+      "name": "many/iframeBuster",
+      "existing": "{\"id\":\"\",\"iframebuster\":[\"a\"]}",
+      "patch": "{\"iframeBuster\":[\"b\", \"c\"]}",
+      "result": "{\"id\":\"\",\"iframebuster\":[\"b\",\"c\"]}",
+      "err": ""
+    },
+    {
+      "test": "TestMergeCloneSlice",
+      "name": "invalid-null/iframeBuster",
+      "existing": "{\"id\":\"\",\"iframebuster\":[\"a\"]}",
+      "patch": "{\"iframeBuster\":nul}",
+      "result": "{\"id\":\"\"}",
+      "err": "cannot unmarshal openrtb2.Imp.IframeBuster: expect ull"
+    },
+    {
+      "test": "TestMergeCloneSlice",
+      "name": "invalid-malformed/iframeBuster",
+      "existing": "{\"id\":\"\",\"iframebuster\":[\"a\"]}",
+      "patch": "{\"iframeBuster\":malformed}",
+      "result": "{\"id\":\"\"}",
+      "err": "cannot unmarshal openrtb2.Imp.IframeBuster: decode slice: expect [ or n, but found m"
+    },
+    {
+      "test": "TestMergeCloneSlice",
+      "name": "null/iframebuster",
+      "existing": "{\"id\":\"\",\"iframebuster\":[\"a\",\"b\"]}",
+      "patch": "{\"iframebuster\":null}",
+      "result": "{\"id\":\"\"}",
+      "err": ""
+    },
+    {
+      "test": "TestMergeCloneSlice",
+      "name": "one/iframebuster",
+      "existing": "{\"id\":\"\",\"iframebuster\":[\"a\"]}",
+      "patch": "{\"iframebuster\":[\"b\"]}",
+      "result": "{\"id\":\"\",\"iframebuster\":[\"b\"]}",
+      "err": ""
+    },
+    {
+      "test": "TestMergeCloneSlice",
+      "name": "many/iframebuster",
+      "existing": "{\"id\":\"\",\"iframebuster\":[\"a\"]}",
+      "patch": "{\"iframebuster\":[\"b\", \"c\"]}",
+      "result": "{\"id\":\"\",\"iframebuster\":[\"b\",\"c\"]}",
+      "err": ""
+    },
+    {
+      "test": "TestMergeCloneSlice",
+      "name": "invalid-null/iframebuster",
+      "existing": "{\"id\":\"\",\"iframebuster\":[\"a\"]}",
+      "patch": "{\"iframebuster\":nul}",
+      "result": "{\"id\":\"\"}",
+      "err": "cannot unmarshal openrtb2.Imp.IframeBuster: expect ull"
+    },
+    {
+      "test": "TestMergeCloneSlice",
+      "name": "invalid-malformed/iframebuster",
+      "existing": "{\"id\":\"\",\"iframebuster\":[\"a\"]}",
+      "patch": "{\"iframebuster\":malformed}",
+      "result": "{\"id\":\"\"}",
+      "err": "cannot unmarshal openrtb2.Imp.IframeBuster: decode slice: expect [ or n, but found m"
+    },
+    {
+      "test": "TestMergeCloneSlice",
+      "name": "replace-not-overlay",
+      "existing": "{\"imps\":[{\"id\":\"1\"}]}",
+      "patch": "{\"imps\":[{\"tagid\":\"2\"}]}",
+      "result": "{\"imps\":[{\"id\":\"\",\"tagid\":\"2\"}]}",
+      "err": ""
+    },
+    {
+      "test": "TestMergeCloneMap",
+      "name": "null",
+      "existing": "{\"foo\":{\"a\":1,\"b\":2}}",
+      "patch": "{\"foo\":null}",
+      "result": "{\"foo\":null}",
+      "err": ""
+    },
+    {
+      "test": "TestMergeCloneMap",
+      "name": "key-string",
+      "existing": "{\"foo\":{\"a\":1,\"b\":2}}",
+      "patch": "{\"foo\":{\"c\":3}}",
+      "result": "{\"foo\":{\"a\":1,\"b\":2,\"c\":3}}",
+      "err": ""
+    },
+    {
+      "test": "TestMergeCloneMap",
+      "name": "key-numeric",
+      "existing": "{\"foo\":{\"1\":\"a\",\"2\":\"b\"}}",
+      "patch": "{\"foo\":{\"3\":\"c\"}}",
+      "result": "{\"foo\":{\"1\":\"a\",\"2\":\"b\",\"3\":\"c\"}}",
+      "err": ""
+    },
+    {
+      "test": "TestMergeCloneMap",
+      "name": "invalid-null",
+      "existing": "{\"foo\":{\"1\":\"a\",\"2\":\"b\"}}",
+      "patch": "{\"foo\":nul}",
+      "result": "{\"foo\":null}",
+      "err": "cannot unmarshal main.fooNum.Foo: expect ull"
+    },
+    {
+      "test": "TestMergeCloneMap",
+      "name": "invalid-malformed",
+      "existing": "{\"foo\":{\"1\":\"a\",\"2\":\"b\"}}",
+      "patch": "{\"foo\":malformed}",
+      "result": "{\"foo\":{\"1\":\"a\",\"2\":\"b\"}}",
+      "err": "cannot unmarshal main.fooNum.Foo: expect { or n, but found m"
+    },
+    {
+      "test": "TestMergeCloneExt",
+      "name": "both-populated",
+      "existing": "{\"id\":\"\",\"imp\":null,\"ext\":{\"a\":1,\"b\":2}}",
+      "patch": "{\"ext\":{\"b\":200,\"c\":3}}",
+      "result": "{\"id\":\"\",\"imp\":null,\"ext\":{\"a\":1,\"b\":200,\"c\":3}}",
+      "err": ""
+    },
+    {
+      "test": "TestMergeCloneExt",
+      "name": "both-omitted",
+      "existing": "{\"id\":\"\",\"imp\":null}",
+      "patch": "{}",
+      "result": "{\"id\":\"\",\"imp\":null}",
+      "err": ""
+    },
+    {
+      "test": "TestMergeCloneExt",
+      "name": "both-nil",
+      "existing": "{\"id\":\"\",\"imp\":null}",
+      "patch": "{\"ext\":null}",
+      "result": "{\"id\":\"\",\"imp\":null}",
+      "err": ""
+    },
+    {
+      "test": "TestMergeCloneExt",
+      "name": "both-empty",
+      "existing": "{\"id\":\"\",\"imp\":null}",
+      "patch": "{\"ext\":{}}",
+      "result": "{\"id\":\"\",\"imp\":null,\"ext\":{}}",
+      "err": ""
+    },
+    {
+      "test": "TestMergeCloneExt",
+      "name": "ext-omitted",
+      "existing": "{\"id\":\"\",\"imp\":null,\"ext\":{\"b\":2}}",
+      "patch": "{}",
+      "result": "{\"id\":\"\",\"imp\":null,\"ext\":{\"b\":2}}",
+      "err": ""
+    },
+    {
+      "test": "TestMergeCloneExt",
+      "name": "ext-nil",
+      "existing": "{\"id\":\"\",\"imp\":null,\"ext\":{\"b\":2}}",
+      "patch": "{\"ext\":null}",
+      "result": "{\"id\":\"\",\"imp\":null,\"ext\":{\"b\":2}}",
+      "err": ""
+    },
+    {
+      "test": "TestMergeCloneExt",
+      "name": "ext-empty",
+      "existing": "{\"id\":\"\",\"imp\":null,\"ext\":{\"b\":2}}",
+      "patch": "{\"ext\":{}}",
+      "result": "{\"id\":\"\",\"imp\":null,\"ext\":{\"b\":2}}",
+      "err": ""
+    },
+    {
+      "test": "TestMergeCloneExt",
+      "name": "ext-malformed",
+      "existing": "{\"id\":\"\",\"imp\":null,\"ext\":{\"b\":2}}",
+      "patch": "{\"ext\":malformed}",
+      "result": "{\"id\":\"\",\"imp\":null,\"ext\":{\"b\":2}}",
+      "err": "cannot unmarshal openrtb2.BidRequest.Ext: do not know how to skip: 109"
+    },
+    {
+      "test": "TestMergeCloneExt",
+      "name": "existing-nil",
+      "existing": "{\"id\":\"\",\"imp\":null}",
+      "patch": "{\"ext\":{\"a\":1}}",
+      "result": "{\"id\":\"\",\"imp\":null,\"ext\":{\"a\":1}}",
+      "err": ""
+    },
+    {
+      "test": "TestMergeCloneExt",
+      "name": "existing-empty",
+      "existing": "{\"id\":\"\",\"imp\":null,\"ext\":{}}",
+      "patch": "{\"ext\":{\"a\":1}}",
+      "result": "{\"id\":\"\",\"imp\":null,\"ext\":{\"a\":1}}",
+      "err": ""
+    },
+    {
+      "test": "TestMergeCloneExt",
+      "name": "existing-omitted",
+      "existing": "{\"id\":\"\",\"imp\":null}",
+      "patch": "{\"ext\":{\"b\":2}}",
+      "result": "{\"id\":\"\",\"imp\":null,\"ext\":{\"b\":2}}",
+      "err": ""
+    },
+    {
+      "test": "TestMergeCloneExt",
+      "name": "existing-malformed",
+      "existing": "",
+      "patch": "{\"ext\":{\"a\":1}}",
+      "result": "{\"id\":\"\",\"imp\":null,\"ext\":}",
+      "err": "cannot unmarshal openrtb2.BidRequest.Ext: invalid json on existing object"
+    },
+    {
+      "test": "TestMergeCloneCombinations",
+      "name": "slice-of-ptr",
+      "existing": "{\"imps\":[{\"id\":\"1\"}]}",
+      "patch": "{\"imps\":[{\"id\":\"2\"}]}",
+      "result": "{\"imps\":[{\"id\":\"2\"}]}",
+      "err": ""
+    },
+    {
+      "test": "TestMergeCloneCombinations",
+      "name": "jsonrawmessage-ptr",
+      "existing": "{\"foo\":{\"a\":1}}",
+      "patch": "{\"foo\":{\"b\":2}}",
+      "result": "{\"foo\":{\"a\":1,\"b\":2}}",
+      "err": ""
+    },
+    {
+      "test": "TestMergeCloneCombinations",
+      "name": "struct-ptr",
+      "existing": "{\"imp\":{\"id\":\"1\"}}",
+      "patch": "{\"imp\":{\"id\":\"2\"}}",
+      "result": "{\"imp\":{\"id\":\"2\"}}",
+      "err": ""
+    },
+    {
+      "test": "TestMergeCloneCombinations",
+      "name": "map-of-ptrs",
+      "existing": "{\"imps\":{\"a\":{\"id\":\"1\"}}}",
+      "patch": "{\"imps\":{\"a\":{\"id\":\"2\"}}}",
+      "result": "{\"imps\":{\"a\":{\"id\":\"2\"}}}",
+      "err": ""
+    },
+    {
+      "test": "Shapes",
+      "name": "{\"str\":null,\"int\":null,\"int8\":null,\"uint\":null,\"float\":null,\"bool\":null}",
+      "existing": "{\"str\":\"s\",\"int\":3,\"int8\":4,\"uint\":5,\"float\":0.5,\"bool\":true,\"intptr\":5,\"strptr\":\"p\",\"inner\":{\"id\":\"i\",\"ext\":{\"a\":1}},\"innerval\":{\"id\":\"v\"},\"strs\":[\"a\"],\"mapint\":{\"a\":1},\"mapnum\":{\"1\":\"a\"},\"raw\":{\"a\":{\"b\":1,\"c\":2}},\"any\":\"x\",\"num\":9,\"intstr\":\"q\"}",
+      "patch": "{\"str\":null,\"int\":null,\"int8\":null,\"uint\":null,\"float\":null,\"bool\":null}",
+      "result": "{\"str\":\"\",\"int\":3,\"int8\":4,\"uint\":5,\"float\":0.5,\"bool\":true,\"intptr\":5,\"strptr\":\"p\",\"inner\":{\"id\":\"i\",\"ext\":{\"a\":1}},\"innerval\":{\"id\":\"v\"},\"strs\":[\"a\"],\"mapint\":{\"a\":1},\"mapnum\":{\"1\":\"a\"},\"raw\":{\"a\":{\"b\":1,\"c\":2}},\"any\":\"x\",\"num\":9,\"intstr\":\"q\"}",
+      "err": ""
+    },
+    {
+      "test": "Shapes",
+      "name": "{\"intptr\":null,\"strptr\":null,\"inner\":null,\"innerval\":null}",
+      "existing": "{\"str\":\"s\",\"int\":3,\"int8\":4,\"uint\":5,\"float\":0.5,\"bool\":true,\"intptr\":5,\"strptr\":\"p\",\"inner\":{\"id\":\"i\",\"ext\":{\"a\":1}},\"innerval\":{\"id\":\"v\"},\"strs\":[\"a\"],\"mapint\":{\"a\":1},\"mapnum\":{\"1\":\"a\"},\"raw\":{\"a\":{\"b\":1,\"c\":2}},\"any\":\"x\",\"num\":9,\"intstr\":\"q\"}",
+      "patch": "{\"intptr\":null,\"strptr\":null,\"inner\":null,\"innerval\":null}",
+      "result": "{\"str\":\"s\",\"int\":3,\"int8\":4,\"uint\":5,\"float\":0.5,\"bool\":true,\"strptr\":null,\"innerval\":{\"id\":\"v\"},\"strs\":[\"a\"],\"mapint\":{\"a\":1},\"mapnum\":{\"1\":\"a\"},\"raw\":{\"a\":{\"b\":1,\"c\":2}},\"any\":\"x\",\"num\":9,\"intstr\":\"q\"}",
+      "err": ""
+    },
+    {
+      "test": "Shapes",
+      "name": "{\"strs\":null,\"mapint\":null,\"mapnum\":null,\"raw\":null,\"any\":null}",
+      "existing": "{\"str\":\"s\",\"int\":3,\"int8\":4,\"uint\":5,\"float\":0.5,\"bool\":true,\"intptr\":5,\"strptr\":\"p\",\"inner\":{\"id\":\"i\",\"ext\":{\"a\":1}},\"innerval\":{\"id\":\"v\"},\"strs\":[\"a\"],\"mapint\":{\"a\":1},\"mapnum\":{\"1\":\"a\"},\"raw\":{\"a\":{\"b\":1,\"c\":2}},\"any\":\"x\",\"num\":9,\"intstr\":\"q\"}",
+      "patch": "{\"strs\":null,\"mapint\":null,\"mapnum\":null,\"raw\":null,\"any\":null}",
+      "result": "{\"str\":\"s\",\"int\":3,\"int8\":4,\"uint\":5,\"float\":0.5,\"bool\":true,\"intptr\":5,\"strptr\":\"p\",\"inner\":{\"id\":\"i\",\"ext\":{\"a\":1}},\"innerval\":{\"id\":\"v\"},\"strs\":null,\"raw\":{\"a\":{\"b\":1,\"c\":2}},\"num\":9,\"intstr\":\"q\"}",
+      "err": ""
+    },
+    {
+      "test": "Shapes",
+      "name": "{\"num\":\"\"}",
+      "existing": "{\"str\":\"s\",\"int\":3,\"int8\":4,\"uint\":5,\"float\":0.5,\"bool\":true,\"intptr\":5,\"strptr\":\"p\",\"inner\":{\"id\":\"i\",\"ext\":{\"a\":1}},\"innerval\":{\"id\":\"v\"},\"strs\":[\"a\"],\"mapint\":{\"a\":1},\"mapnum\":{\"1\":\"a\"},\"raw\":{\"a\":{\"b\":1,\"c\":2}},\"any\":\"x\",\"num\":9,\"intstr\":\"q\"}",
+      "patch": "{\"num\":\"\"}",
+      "result": "{\"str\":\"s\",\"int\":3,\"int8\":4,\"uint\":5,\"float\":0.5,\"bool\":true,\"intptr\":5,\"strptr\":\"p\",\"inner\":{\"id\":\"i\",\"ext\":{\"a\":1}},\"innerval\":{\"id\":\"v\"},\"strs\":[\"a\"],\"mapint\":{\"a\":1},\"mapnum\":{\"1\":\"a\"},\"raw\":{\"a\":{\"b\":1,\"c\":2}},\"any\":\"x\",\"num\":9,\"intstr\":\"q\"}",
+      "err": ""
+    },
+    {
+      "test": "Shapes",
+      "name": "{\"num\":\"12\"}",
+      "existing": "{\"str\":\"s\",\"int\":3,\"int8\":4,\"uint\":5,\"float\":0.5,\"bool\":true,\"intptr\":5,\"strptr\":\"p\",\"inner\":{\"id\":\"i\",\"ext\":{\"a\":1}},\"innerval\":{\"id\":\"v\"},\"strs\":[\"a\"],\"mapint\":{\"a\":1},\"mapnum\":{\"1\":\"a\"},\"raw\":{\"a\":{\"b\":1,\"c\":2}},\"any\":\"x\",\"num\":9,\"intstr\":\"q\"}",
+      "patch": "{\"num\":\"12\"}",
+      "result": "{\"str\":\"s\",\"int\":3,\"int8\":4,\"uint\":5,\"float\":0.5,\"bool\":true,\"intptr\":5,\"strptr\":\"p\",\"inner\":{\"id\":\"i\",\"ext\":{\"a\":1}},\"innerval\":{\"id\":\"v\"},\"strs\":[\"a\"],\"mapint\":{\"a\":1},\"mapnum\":{\"1\":\"a\"},\"raw\":{\"a\":{\"b\":1,\"c\":2}},\"any\":\"x\",\"num\":12,\"intstr\":\"q\"}",
+      "err": ""
+    },
+    {
+      "test": "Shapes",
+      "name": "{\"num\":12}",
+      "existing": "{\"str\":\"s\",\"int\":3,\"int8\":4,\"uint\":5,\"float\":0.5,\"bool\":true,\"intptr\":5,\"strptr\":\"p\",\"inner\":{\"id\":\"i\",\"ext\":{\"a\":1}},\"innerval\":{\"id\":\"v\"},\"strs\":[\"a\"],\"mapint\":{\"a\":1},\"mapnum\":{\"1\":\"a\"},\"raw\":{\"a\":{\"b\":1,\"c\":2}},\"any\":\"x\",\"num\":9,\"intstr\":\"q\"}",
+      "patch": "{\"num\":12}",
+      "result": "{\"str\":\"s\",\"int\":3,\"int8\":4,\"uint\":5,\"float\":0.5,\"bool\":true,\"intptr\":5,\"strptr\":\"p\",\"inner\":{\"id\":\"i\",\"ext\":{\"a\":1}},\"innerval\":{\"id\":\"v\"},\"strs\":[\"a\"],\"mapint\":{\"a\":1},\"mapnum\":{\"1\":\"a\"},\"raw\":{\"a\":{\"b\":1,\"c\":2}},\"any\":\"x\",\"num\":12,\"intstr\":\"q\"}",
+      "err": ""
+    },
+    {
+      "test": "Shapes",
+      "name": "{\"num\":null}",
+      "existing": "{\"str\":\"s\",\"int\":3,\"int8\":4,\"uint\":5,\"float\":0.5,\"bool\":true,\"intptr\":5,\"strptr\":\"p\",\"inner\":{\"id\":\"i\",\"ext\":{\"a\":1}},\"innerval\":{\"id\":\"v\"},\"strs\":[\"a\"],\"mapint\":{\"a\":1},\"mapnum\":{\"1\":\"a\"},\"raw\":{\"a\":{\"b\":1,\"c\":2}},\"any\":\"x\",\"num\":9,\"intstr\":\"q\"}",
+      "patch": "{\"num\":null}",
+      "result": "{\"str\":\"s\",\"int\":3,\"int8\":4,\"uint\":5,\"float\":0.5,\"bool\":true,\"intptr\":5,\"strptr\":\"p\",\"inner\":{\"id\":\"i\",\"ext\":{\"a\":1}},\"innerval\":{\"id\":\"v\"},\"strs\":[\"a\"],\"mapint\":{\"a\":1},\"mapnum\":{\"1\":\"a\"},\"raw\":{\"a\":{\"b\":1,\"c\":2}},\"any\":\"x\",\"num\":9,\"intstr\":\"q\"}",
+      "err": "cannot unmarshal main.Shapes.Num: Value looks like Number/Boolean/None, but can't find its end: ',' or '}' symbol"
+    },
+    {
+      "test": "Shapes",
+      "name": "{\"num\":\"1.5\"}",
+      "existing": "{\"str\":\"s\",\"int\":3,\"int8\":4,\"uint\":5,\"float\":0.5,\"bool\":true,\"intptr\":5,\"strptr\":\"p\",\"inner\":{\"id\":\"i\",\"ext\":{\"a\":1}},\"innerval\":{\"id\":\"v\"},\"strs\":[\"a\"],\"mapint\":{\"a\":1},\"mapnum\":{\"1\":\"a\"},\"raw\":{\"a\":{\"b\":1,\"c\":2}},\"any\":\"x\",\"num\":9,\"intstr\":\"q\"}",
+      "patch": "{\"num\":\"1.5\"}",
+      "result": "{\"str\":\"s\",\"int\":3,\"int8\":4,\"uint\":5,\"float\":0.5,\"bool\":true,\"intptr\":5,\"strptr\":\"p\",\"inner\":{\"id\":\"i\",\"ext\":{\"a\":1}},\"innerval\":{\"id\":\"v\"},\"strs\":[\"a\"],\"mapint\":{\"a\":1},\"mapnum\":{\"1\":\"a\"},\"raw\":{\"a\":{\"b\":1,\"c\":2}},\"any\":\"x\",\"num\":9,\"intstr\":\"q\"}",
+      "err": "cannot unmarshal main.Shapes.Num: Value looks like Number/Boolean/None, but can't find its end: ',' or '}' symbol"
+    },
+    {
+      "test": "Shapes",
+      "name": "{\"num\":\"-\"}",
+      "existing": "{\"str\":\"s\",\"int\":3,\"int8\":4,\"uint\":5,\"float\":0.5,\"bool\":true,\"intptr\":5,\"strptr\":\"p\",\"inner\":{\"id\":\"i\",\"ext\":{\"a\":1}},\"innerval\":{\"id\":\"v\"},\"strs\":[\"a\"],\"mapint\":{\"a\":1},\"mapnum\":{\"1\":\"a\"},\"raw\":{\"a\":{\"b\":1,\"c\":2}},\"any\":\"x\",\"num\":9,\"intstr\":\"q\"}",
+      "patch": "{\"num\":\"-\"}",
+      "result": "{\"str\":\"s\",\"int\":3,\"int8\":4,\"uint\":5,\"float\":0.5,\"bool\":true,\"intptr\":5,\"strptr\":\"p\",\"inner\":{\"id\":\"i\",\"ext\":{\"a\":1}},\"innerval\":{\"id\":\"v\"},\"strs\":[\"a\"],\"mapint\":{\"a\":1},\"mapnum\":{\"1\":\"a\"},\"raw\":{\"a\":{\"b\":1,\"c\":2}},\"any\":\"x\",\"intstr\":\"q\"}",
+      "err": ""
+    },
+    {
+      "test": "Shapes",
+      "name": "{\"num\":\"+5\"}",
+      "existing": "{\"str\":\"s\",\"int\":3,\"int8\":4,\"uint\":5,\"float\":0.5,\"bool\":true,\"intptr\":5,\"strptr\":\"p\",\"inner\":{\"id\":\"i\",\"ext\":{\"a\":1}},\"innerval\":{\"id\":\"v\"},\"strs\":[\"a\"],\"mapint\":{\"a\":1},\"mapnum\":{\"1\":\"a\"},\"raw\":{\"a\":{\"b\":1,\"c\":2}},\"any\":\"x\",\"num\":9,\"intstr\":\"q\"}",
+      "patch": "{\"num\":\"+5\"}",
+      "result": "{\"str\":\"s\",\"int\":3,\"int8\":4,\"uint\":5,\"float\":0.5,\"bool\":true,\"intptr\":5,\"strptr\":\"p\",\"inner\":{\"id\":\"i\",\"ext\":{\"a\":1}},\"innerval\":{\"id\":\"v\"},\"strs\":[\"a\"],\"mapint\":{\"a\":1},\"mapnum\":{\"1\":\"a\"},\"raw\":{\"a\":{\"b\":1,\"c\":2}},\"any\":\"x\",\"num\":9,\"intstr\":\"q\"}",
+      "err": "cannot unmarshal main.Shapes.Num: Value looks like Number/Boolean/None, but can't find its end: ',' or '}' symbol"
+    },
+    {
+      "test": "Shapes",
+      "name": "{\"intstr\":30}",
+      "existing": "{\"str\":\"s\",\"int\":3,\"int8\":4,\"uint\":5,\"float\":0.5,\"bool\":true,\"intptr\":5,\"strptr\":\"p\",\"inner\":{\"id\":\"i\",\"ext\":{\"a\":1}},\"innerval\":{\"id\":\"v\"},\"strs\":[\"a\"],\"mapint\":{\"a\":1},\"mapnum\":{\"1\":\"a\"},\"raw\":{\"a\":{\"b\":1,\"c\":2}},\"any\":\"x\",\"num\":9,\"intstr\":\"q\"}",
+      "patch": "{\"intstr\":30}",
+      "result": "{\"str\":\"s\",\"int\":3,\"int8\":4,\"uint\":5,\"float\":0.5,\"bool\":true,\"intptr\":5,\"strptr\":\"p\",\"inner\":{\"id\":\"i\",\"ext\":{\"a\":1}},\"innerval\":{\"id\":\"v\"},\"strs\":[\"a\"],\"mapint\":{\"a\":1},\"mapnum\":{\"1\":\"a\"},\"raw\":{\"a\":{\"b\":1,\"c\":2}},\"any\":\"x\",\"num\":9,\"intstr\":\"30\"}",
+      "err": ""
+    },
+    {
+      "test": "Shapes",
+      "name": "{\"intstr\":1.50}",
+      "existing": "{\"str\":\"s\",\"int\":3,\"int8\":4,\"uint\":5,\"float\":0.5,\"bool\":true,\"intptr\":5,\"strptr\":\"p\",\"inner\":{\"id\":\"i\",\"ext\":{\"a\":1}},\"innerval\":{\"id\":\"v\"},\"strs\":[\"a\"],\"mapint\":{\"a\":1},\"mapnum\":{\"1\":\"a\"},\"raw\":{\"a\":{\"b\":1,\"c\":2}},\"any\":\"x\",\"num\":9,\"intstr\":\"q\"}",
+      "patch": "{\"intstr\":1.50}",
+      "result": "{\"str\":\"s\",\"int\":3,\"int8\":4,\"uint\":5,\"float\":0.5,\"bool\":true,\"intptr\":5,\"strptr\":\"p\",\"inner\":{\"id\":\"i\",\"ext\":{\"a\":1}},\"innerval\":{\"id\":\"v\"},\"strs\":[\"a\"],\"mapint\":{\"a\":1},\"mapnum\":{\"1\":\"a\"},\"raw\":{\"a\":{\"b\":1,\"c\":2}},\"any\":\"x\",\"num\":9,\"intstr\":\"1.5\"}",
+      "err": ""
+    },
+    {
+      "test": "Shapes",
+      "name": "{\"intstr\":\"x\"}",
+      "existing": "{\"str\":\"s\",\"int\":3,\"int8\":4,\"uint\":5,\"float\":0.5,\"bool\":true,\"intptr\":5,\"strptr\":\"p\",\"inner\":{\"id\":\"i\",\"ext\":{\"a\":1}},\"innerval\":{\"id\":\"v\"},\"strs\":[\"a\"],\"mapint\":{\"a\":1},\"mapnum\":{\"1\":\"a\"},\"raw\":{\"a\":{\"b\":1,\"c\":2}},\"any\":\"x\",\"num\":9,\"intstr\":\"q\"}",
+      "patch": "{\"intstr\":\"x\"}",
+      "result": "{\"str\":\"s\",\"int\":3,\"int8\":4,\"uint\":5,\"float\":0.5,\"bool\":true,\"intptr\":5,\"strptr\":\"p\",\"inner\":{\"id\":\"i\",\"ext\":{\"a\":1}},\"innerval\":{\"id\":\"v\"},\"strs\":[\"a\"],\"mapint\":{\"a\":1},\"mapnum\":{\"1\":\"a\"},\"raw\":{\"a\":{\"b\":1,\"c\":2}},\"any\":\"x\",\"num\":9,\"intstr\":\"x\"}",
+      "err": ""
+    },
+    {
+      "test": "Shapes",
+      "name": "{\"intstr\":null}",
+      "existing": "{\"str\":\"s\",\"int\":3,\"int8\":4,\"uint\":5,\"float\":0.5,\"bool\":true,\"intptr\":5,\"strptr\":\"p\",\"inner\":{\"id\":\"i\",\"ext\":{\"a\":1}},\"innerval\":{\"id\":\"v\"},\"strs\":[\"a\"],\"mapint\":{\"a\":1},\"mapnum\":{\"1\":\"a\"},\"raw\":{\"a\":{\"b\":1,\"c\":2}},\"any\":\"x\",\"num\":9,\"intstr\":\"q\"}",
+      "patch": "{\"intstr\":null}",
+      "result": "{\"str\":\"s\",\"int\":3,\"int8\":4,\"uint\":5,\"float\":0.5,\"bool\":true,\"intptr\":5,\"strptr\":\"p\",\"inner\":{\"id\":\"i\",\"ext\":{\"a\":1}},\"innerval\":{\"id\":\"v\"},\"strs\":[\"a\"],\"mapint\":{\"a\":1},\"mapnum\":{\"1\":\"a\"},\"raw\":{\"a\":{\"b\":1,\"c\":2}},\"any\":\"x\",\"num\":9,\"intstr\":\"q\"}",
+      "err": "cannot unmarshal main.Shapes.IntStr: invalid type"
+    },
+    {
+      "test": "Shapes",
+      "name": "{\"intstr\":true}",
+      "existing": "{\"str\":\"s\",\"int\":3,\"int8\":4,\"uint\":5,\"float\":0.5,\"bool\":true,\"intptr\":5,\"strptr\":\"p\",\"inner\":{\"id\":\"i\",\"ext\":{\"a\":1}},\"innerval\":{\"id\":\"v\"},\"strs\":[\"a\"],\"mapint\":{\"a\":1},\"mapnum\":{\"1\":\"a\"},\"raw\":{\"a\":{\"b\":1,\"c\":2}},\"any\":\"x\",\"num\":9,\"intstr\":\"q\"}",
+      "patch": "{\"intstr\":true}",
+      "result": "{\"str\":\"s\",\"int\":3,\"int8\":4,\"uint\":5,\"float\":0.5,\"bool\":true,\"intptr\":5,\"strptr\":\"p\",\"inner\":{\"id\":\"i\",\"ext\":{\"a\":1}},\"innerval\":{\"id\":\"v\"},\"strs\":[\"a\"],\"mapint\":{\"a\":1},\"mapnum\":{\"1\":\"a\"},\"raw\":{\"a\":{\"b\":1,\"c\":2}},\"any\":\"x\",\"num\":9,\"intstr\":\"q\"}",
+      "err": "cannot unmarshal main.Shapes.IntStr: invalid type"
+    },
+    {
+      "test": "Shapes",
+      "name": "{\"raw\":{\"a\":{\"b\":null,\"d\":3}}}",
+      "existing": "{\"str\":\"s\",\"int\":3,\"int8\":4,\"uint\":5,\"float\":0.5,\"bool\":true,\"intptr\":5,\"strptr\":\"p\",\"inner\":{\"id\":\"i\",\"ext\":{\"a\":1}},\"innerval\":{\"id\":\"v\"},\"strs\":[\"a\"],\"mapint\":{\"a\":1},\"mapnum\":{\"1\":\"a\"},\"raw\":{\"a\":{\"b\":1,\"c\":2}},\"any\":\"x\",\"num\":9,\"intstr\":\"q\"}",
+      "patch": "{\"raw\":{\"a\":{\"b\":null,\"d\":3}}}",
+      "result": "{\"str\":\"s\",\"int\":3,\"int8\":4,\"uint\":5,\"float\":0.5,\"bool\":true,\"intptr\":5,\"strptr\":\"p\",\"inner\":{\"id\":\"i\",\"ext\":{\"a\":1}},\"innerval\":{\"id\":\"v\"},\"strs\":[\"a\"],\"mapint\":{\"a\":1},\"mapnum\":{\"1\":\"a\"},\"raw\":{\"a\":{\"c\":2,\"d\":3}},\"any\":\"x\",\"num\":9,\"intstr\":\"q\"}",
+      "err": ""
+    },
+    {
+      "test": "Shapes",
+      "name": "{\"inner\":{\"ext\":{\"b\":2}}}",
+      "existing": "{\"str\":\"s\",\"int\":3,\"int8\":4,\"uint\":5,\"float\":0.5,\"bool\":true,\"intptr\":5,\"strptr\":\"p\",\"inner\":{\"id\":\"i\",\"ext\":{\"a\":1}},\"innerval\":{\"id\":\"v\"},\"strs\":[\"a\"],\"mapint\":{\"a\":1},\"mapnum\":{\"1\":\"a\"},\"raw\":{\"a\":{\"b\":1,\"c\":2}},\"any\":\"x\",\"num\":9,\"intstr\":\"q\"}",
+      "patch": "{\"inner\":{\"ext\":{\"b\":2}}}",
+      "result": "{\"str\":\"s\",\"int\":3,\"int8\":4,\"uint\":5,\"float\":0.5,\"bool\":true,\"intptr\":5,\"strptr\":\"p\",\"inner\":{\"id\":\"i\",\"ext\":{\"a\":1,\"b\":2}},\"innerval\":{\"id\":\"v\"},\"strs\":[\"a\"],\"mapint\":{\"a\":1},\"mapnum\":{\"1\":\"a\"},\"raw\":{\"a\":{\"b\":1,\"c\":2}},\"any\":\"x\",\"num\":9,\"intstr\":\"q\"}",
+      "err": ""
+    },
+    {
+      "test": "Shapes",
+      "name": "{\"inner\":{\"id\":\"j\"},\"inner\":{\"ext\":null}}",
+      "existing": "{\"str\":\"s\",\"int\":3,\"int8\":4,\"uint\":5,\"float\":0.5,\"bool\":true,\"intptr\":5,\"strptr\":\"p\",\"inner\":{\"id\":\"i\",\"ext\":{\"a\":1}},\"innerval\":{\"id\":\"v\"},\"strs\":[\"a\"],\"mapint\":{\"a\":1},\"mapnum\":{\"1\":\"a\"},\"raw\":{\"a\":{\"b\":1,\"c\":2}},\"any\":\"x\",\"num\":9,\"intstr\":\"q\"}",
+      "patch": "{\"inner\":{\"id\":\"j\"},\"inner\":{\"ext\":null}}",
+      "result": "{\"str\":\"s\",\"int\":3,\"int8\":4,\"uint\":5,\"float\":0.5,\"bool\":true,\"intptr\":5,\"strptr\":\"p\",\"inner\":{\"id\":\"j\",\"ext\":{\"a\":1}},\"innerval\":{\"id\":\"v\"},\"strs\":[\"a\"],\"mapint\":{\"a\":1},\"mapnum\":{\"1\":\"a\"},\"raw\":{\"a\":{\"b\":1,\"c\":2}},\"any\":\"x\",\"num\":9,\"intstr\":\"q\"}",
+      "err": ""
+    },
+    {
+      "test": "Shapes",
+      "name": "{\"str\":\"t\",\"int\":\"x\",\"bool\":false}",
+      "existing": "{\"str\":\"s\",\"int\":3,\"int8\":4,\"uint\":5,\"float\":0.5,\"bool\":true,\"intptr\":5,\"strptr\":\"p\",\"inner\":{\"id\":\"i\",\"ext\":{\"a\":1}},\"innerval\":{\"id\":\"v\"},\"strs\":[\"a\"],\"mapint\":{\"a\":1},\"mapnum\":{\"1\":\"a\"},\"raw\":{\"a\":{\"b\":1,\"c\":2}},\"any\":\"x\",\"num\":9,\"intstr\":\"q\"}",
+      "patch": "{\"str\":\"t\",\"int\":\"x\",\"bool\":false}",
+      "result": "{\"str\":\"t\",\"int\":0,\"int8\":4,\"uint\":5,\"float\":0.5,\"bool\":true,\"intptr\":5,\"strptr\":\"p\",\"inner\":{\"id\":\"i\",\"ext\":{\"a\":1}},\"innerval\":{\"id\":\"v\"},\"strs\":[\"a\"],\"mapint\":{\"a\":1},\"mapnum\":{\"1\":\"a\"},\"raw\":{\"a\":{\"b\":1,\"c\":2}},\"any\":\"x\",\"num\":9,\"intstr\":\"q\"}",
+      "err": "cannot unmarshal main.Shapes.Int: unexpected character: \ufffd"
+    },
+    {
+      "test": "Shapes",
+      "name": "{\"mapnum\":{\"3\":\"c\",\"x\":\"d\"}}",
+      "existing": "{\"str\":\"s\",\"int\":3,\"int8\":4,\"uint\":5,\"float\":0.5,\"bool\":true,\"intptr\":5,\"strptr\":\"p\",\"inner\":{\"id\":\"i\",\"ext\":{\"a\":1}},\"innerval\":{\"id\":\"v\"},\"strs\":[\"a\"],\"mapint\":{\"a\":1},\"mapnum\":{\"1\":\"a\"},\"raw\":{\"a\":{\"b\":1,\"c\":2}},\"any\":\"x\",\"num\":9,\"intstr\":\"q\"}",
+      "patch": "{\"mapnum\":{\"3\":\"c\",\"x\":\"d\"}}",
+      "result": "{\"str\":\"s\",\"int\":3,\"int8\":4,\"uint\":5,\"float\":0.5,\"bool\":true,\"intptr\":5,\"strptr\":\"p\",\"inner\":{\"id\":\"i\",\"ext\":{\"a\":1}},\"innerval\":{\"id\":\"v\"},\"strs\":[\"a\"],\"mapint\":{\"a\":1},\"mapnum\":{\"0\":\"d\",\"1\":\"a\",\"3\":\"c\"},\"raw\":{\"a\":{\"b\":1,\"c\":2}},\"any\":\"x\",\"num\":9,\"intstr\":\"q\"}",
+      "err": "cannot unmarshal main.Shapes.MapNum: unexpected character: \ufffd"
+    },
+    {
+      "test": "Shapes",
+      "name": "{\"zz\":{\"unknown\":[1,2]},\"str\":\"u\"}",
+      "existing": "{\"str\":\"s\",\"int\":3,\"int8\":4,\"uint\":5,\"float\":0.5,\"bool\":true,\"intptr\":5,\"strptr\":\"p\",\"inner\":{\"id\":\"i\",\"ext\":{\"a\":1}},\"innerval\":{\"id\":\"v\"},\"strs\":[\"a\"],\"mapint\":{\"a\":1},\"mapnum\":{\"1\":\"a\"},\"raw\":{\"a\":{\"b\":1,\"c\":2}},\"any\":\"x\",\"num\":9,\"intstr\":\"q\"}",
+      "patch": "{\"zz\":{\"unknown\":[1,2]},\"str\":\"u\"}",
+      "result": "{\"str\":\"u\",\"int\":3,\"int8\":4,\"uint\":5,\"float\":0.5,\"bool\":true,\"intptr\":5,\"strptr\":\"p\",\"inner\":{\"id\":\"i\",\"ext\":{\"a\":1}},\"innerval\":{\"id\":\"v\"},\"strs\":[\"a\"],\"mapint\":{\"a\":1},\"mapnum\":{\"1\":\"a\"},\"raw\":{\"a\":{\"b\":1,\"c\":2}},\"any\":\"x\",\"num\":9,\"intstr\":\"q\"}",
+      "err": ""
+    },
+    {
+      "test": "Shapes",
+      "name": "null",
+      "existing": "{\"str\":\"s\",\"int\":3,\"int8\":4,\"uint\":5,\"float\":0.5,\"bool\":true,\"intptr\":5,\"strptr\":\"p\",\"inner\":{\"id\":\"i\",\"ext\":{\"a\":1}},\"innerval\":{\"id\":\"v\"},\"strs\":[\"a\"],\"mapint\":{\"a\":1},\"mapnum\":{\"1\":\"a\"},\"raw\":{\"a\":{\"b\":1,\"c\":2}},\"any\":\"x\",\"num\":9,\"intstr\":\"q\"}",
+      "patch": "null",
+      "result": "{\"str\":\"s\",\"int\":3,\"int8\":4,\"uint\":5,\"float\":0.5,\"bool\":true,\"intptr\":5,\"strptr\":\"p\",\"inner\":{\"id\":\"i\",\"ext\":{\"a\":1}},\"innerval\":{\"id\":\"v\"},\"strs\":[\"a\"],\"mapint\":{\"a\":1},\"mapnum\":{\"1\":\"a\"},\"raw\":{\"a\":{\"b\":1,\"c\":2}},\"any\":\"x\",\"num\":9,\"intstr\":\"q\"}",
+      "err": ""
+    },
+    {
+      "test": "Shapes",
+      "name": "[]",
+      "existing": "{\"str\":\"s\",\"int\":3,\"int8\":4,\"uint\":5,\"float\":0.5,\"bool\":true,\"intptr\":5,\"strptr\":\"p\",\"inner\":{\"id\":\"i\",\"ext\":{\"a\":1}},\"innerval\":{\"id\":\"v\"},\"strs\":[\"a\"],\"mapint\":{\"a\":1},\"mapnum\":{\"1\":\"a\"},\"raw\":{\"a\":{\"b\":1,\"c\":2}},\"any\":\"x\",\"num\":9,\"intstr\":\"q\"}",
+      "patch": "[]",
+      "result": "{\"str\":\"s\",\"int\":3,\"int8\":4,\"uint\":5,\"float\":0.5,\"bool\":true,\"intptr\":5,\"strptr\":\"p\",\"inner\":{\"id\":\"i\",\"ext\":{\"a\":1}},\"innerval\":{\"id\":\"v\"},\"strs\":[\"a\"],\"mapint\":{\"a\":1},\"mapnum\":{\"1\":\"a\"},\"raw\":{\"a\":{\"b\":1,\"c\":2}},\"any\":\"x\",\"num\":9,\"intstr\":\"q\"}",
+      "err": "expect { or n, but found ["
+    },
+    {
+      "test": "Shapes",
+      "name": "\"x\"",
+      "existing": "{\"str\":\"s\",\"int\":3,\"int8\":4,\"uint\":5,\"float\":0.5,\"bool\":true,\"intptr\":5,\"strptr\":\"p\",\"inner\":{\"id\":\"i\",\"ext\":{\"a\":1}},\"innerval\":{\"id\":\"v\"},\"strs\":[\"a\"],\"mapint\":{\"a\":1},\"mapnum\":{\"1\":\"a\"},\"raw\":{\"a\":{\"b\":1,\"c\":2}},\"any\":\"x\",\"num\":9,\"intstr\":\"q\"}",
+      "patch": "\"x\"",
+      "result": "{\"str\":\"s\",\"int\":3,\"int8\":4,\"uint\":5,\"float\":0.5,\"bool\":true,\"intptr\":5,\"strptr\":\"p\",\"inner\":{\"id\":\"i\",\"ext\":{\"a\":1}},\"innerval\":{\"id\":\"v\"},\"strs\":[\"a\"],\"mapint\":{\"a\":1},\"mapnum\":{\"1\":\"a\"},\"raw\":{\"a\":{\"b\":1,\"c\":2}},\"any\":\"x\",\"num\":9,\"intstr\":\"q\"}",
+      "err": "expect { or n, but found \""
+    },
+    {
+      "test": "Shapes",
+      "name": "{}",
+      "existing": "{\"str\":\"s\",\"int\":3,\"int8\":4,\"uint\":5,\"float\":0.5,\"bool\":true,\"intptr\":5,\"strptr\":\"p\",\"inner\":{\"id\":\"i\",\"ext\":{\"a\":1}},\"innerval\":{\"id\":\"v\"},\"strs\":[\"a\"],\"mapint\":{\"a\":1},\"mapnum\":{\"1\":\"a\"},\"raw\":{\"a\":{\"b\":1,\"c\":2}},\"any\":\"x\",\"num\":9,\"intstr\":\"q\"}",
+      "patch": "{}",
+      "result": "{\"str\":\"s\",\"int\":3,\"int8\":4,\"uint\":5,\"float\":0.5,\"bool\":true,\"intptr\":5,\"strptr\":\"p\",\"inner\":{\"id\":\"i\",\"ext\":{\"a\":1}},\"innerval\":{\"id\":\"v\"},\"strs\":[\"a\"],\"mapint\":{\"a\":1},\"mapnum\":{\"1\":\"a\"},\"raw\":{\"a\":{\"b\":1,\"c\":2}},\"any\":\"x\",\"num\":9,\"intstr\":\"q\"}",
+      "err": ""
+    },
+    {
+      "test": "Shapes",
+      "name": "{\"str\":\"a\"} ",
+      "existing": "{\"str\":\"s\",\"int\":3,\"int8\":4,\"uint\":5,\"float\":0.5,\"bool\":true,\"intptr\":5,\"strptr\":\"p\",\"inner\":{\"id\":\"i\",\"ext\":{\"a\":1}},\"innerval\":{\"id\":\"v\"},\"strs\":[\"a\"],\"mapint\":{\"a\":1},\"mapnum\":{\"1\":\"a\"},\"raw\":{\"a\":{\"b\":1,\"c\":2}},\"any\":\"x\",\"num\":9,\"intstr\":\"q\"}",
+      "patch": "{\"str\":\"a\"} ",
+      "result": "{\"str\":\"a\",\"int\":3,\"int8\":4,\"uint\":5,\"float\":0.5,\"bool\":true,\"intptr\":5,\"strptr\":\"p\",\"inner\":{\"id\":\"i\",\"ext\":{\"a\":1}},\"innerval\":{\"id\":\"v\"},\"strs\":[\"a\"],\"mapint\":{\"a\":1},\"mapnum\":{\"1\":\"a\"},\"raw\":{\"a\":{\"b\":1,\"c\":2}},\"any\":\"x\",\"num\":9,\"intstr\":\"q\"}",
+      "err": ""
+    },
+    {
+      "test": "Shapes",
+      "name": "{\"str\":\"a\"} x",
+      "existing": "{\"str\":\"s\",\"int\":3,\"int8\":4,\"uint\":5,\"float\":0.5,\"bool\":true,\"intptr\":5,\"strptr\":\"p\",\"inner\":{\"id\":\"i\",\"ext\":{\"a\":1}},\"innerval\":{\"id\":\"v\"},\"strs\":[\"a\"],\"mapint\":{\"a\":1},\"mapnum\":{\"1\":\"a\"},\"raw\":{\"a\":{\"b\":1,\"c\":2}},\"any\":\"x\",\"num\":9,\"intstr\":\"q\"}",
+      "patch": "{\"str\":\"a\"} x",
+      "result": "{\"str\":\"a\",\"int\":3,\"int8\":4,\"uint\":5,\"float\":0.5,\"bool\":true,\"intptr\":5,\"strptr\":\"p\",\"inner\":{\"id\":\"i\",\"ext\":{\"a\":1}},\"innerval\":{\"id\":\"v\"},\"strs\":[\"a\"],\"mapint\":{\"a\":1},\"mapnum\":{\"1\":\"a\"},\"raw\":{\"a\":{\"b\":1,\"c\":2}},\"any\":\"x\",\"num\":9,\"intstr\":\"q\"}",
+      "err": "there are bytes left after unmarshal"
+    }
+  ],
+  "seeded": {
+    "seed": "0x4a534f4e4d524731",
+    "count": 50000,
+    "batch": 1000,
+    "batches": [
+      {
+        "inputs_sha256": "4ddb94f0726b509a7aa2a89a30088c2dcaea5e9dedeb826680d1b136320dbc09",
+        "outcomes_sha256": "3601ecee53d8d9d49e9038546b3310e11dbf01983777f111bb564d7374c20071"
+      },
+      {
+        "inputs_sha256": "225e502cf61dd63bae7f345a7df4e3b971f2a70bfcf9b1238b41406c850f2fb8",
+        "outcomes_sha256": "e45437e3a602fd8748335a0b5adbb48f43a8d538b81ea7fa719509223f70d69e"
+      },
+      {
+        "inputs_sha256": "0f3c3548e20642cac28af1a03b5a1048248738f41d4fe82d6ba428d29dfdbdb4",
+        "outcomes_sha256": "465fe7eaff3db8227c8f00b903abae9c6a4254caea645e4c28e729645782d693"
+      },
+      {
+        "inputs_sha256": "1c54d8fb74a6a5e233ff3893e48ade2c00fbbaf5ef967ae7d9497b3ce74777db",
+        "outcomes_sha256": "44eeb7b6066878064a221a617ce6b334807cf1426a0cfd0e422d15fea25c0c45"
+      },
+      {
+        "inputs_sha256": "20fc8e2cff86741d2536cd522126afeb7f0f4af6fcc77173019b9ad3f7121349",
+        "outcomes_sha256": "0d7db7b69728838326538edf59146bb615a4115375972375f6ea45b55582876d"
+      },
+      {
+        "inputs_sha256": "8ef12be4e1dc4f28a580a2e3af426f6177fc37b5b203775ad2746432fa421d84",
+        "outcomes_sha256": "f90ff00c7c5459fca99370e014d72d81ce21eae3592cd5fb57a1318b1415b239"
+      },
+      {
+        "inputs_sha256": "4734799cb98b890e3ab9b5e940ba8040f37d651357f9b810237ff877e0b079b5",
+        "outcomes_sha256": "0fcbc010839bc4eadc3dbf9c57367d10fdd847a0018829f13af7afff351f2207"
+      },
+      {
+        "inputs_sha256": "dda24129f5aa074b0ff6ede4ebb93dbdf1290b9398c6afe09a4a0a676cb67fb8",
+        "outcomes_sha256": "23656019de19a41099eb65cee07b6fe0da96b134924ea8a2915f0b93f0c93e99"
+      },
+      {
+        "inputs_sha256": "32c9fff7e2633af07f1974564087c027a4ce214b93185ddde3676689b35d2418",
+        "outcomes_sha256": "edbebeeaf36236c16aa38f9c04a98e7c769b5f8e82e7c6a441e2a8979e19f392"
+      },
+      {
+        "inputs_sha256": "7904990104b4511f2f6f36ed063738faa606c61e562728c86d2559c9317194e3",
+        "outcomes_sha256": "b4a3a3fad12f39e360fcb591e4fd6f2af3987f8c279880763be41694820724be"
+      },
+      {
+        "inputs_sha256": "d976b5061bae19cf41252307f52072f48d8644b7c2b608acbea7d0be0a741b63",
+        "outcomes_sha256": "013ef57a22f0cbdec9b4d72937f57c9b587d13ff92b890703e281838d7144890"
+      },
+      {
+        "inputs_sha256": "b38ccb2ed2e918cb99c8ac2ac353df3e0381333094a1cfd4778e6f096fa09dd5",
+        "outcomes_sha256": "69d31daf8b92e2e80cd987f4b3fe18ba9f50fb88eedbda9deb84ad15d8f8ce7f"
+      },
+      {
+        "inputs_sha256": "7db65f93d15ee3e940b6d28476e5aab9273d265f20ba1cd27d6cabe46d43184b",
+        "outcomes_sha256": "dea2b2cfd3e8c6cd56fa8f3d506cda13a030ebf810973d12ea0ef2250089311d"
+      },
+      {
+        "inputs_sha256": "8265a357165a64d1cc6acb98744cfa82360e10f1e0d29d8176b7c4a1bf1ab177",
+        "outcomes_sha256": "66ba20e6f8ba8d5c5d1cc0ee74b01f5d97b8b603e62511fcc9caa2b043ff8b3f"
+      },
+      {
+        "inputs_sha256": "b6dfa889234695a4dbe673aaa3e9a94ff63aba13d34039b90666c16ab1640470",
+        "outcomes_sha256": "e4989bc4c0feba49d7a34585484a0090039d0aee8b4846ffad17499c1e30688d"
+      },
+      {
+        "inputs_sha256": "afbf00b084af8eaa0ea31f626c1a44aee6b093c01bbec1c5215aa0b581c64c67",
+        "outcomes_sha256": "c38202dec01eae60276dbf517165ebb146218aae843654ce00f352bca386bd3c"
+      },
+      {
+        "inputs_sha256": "3de9d599e51284fb03ace2d489b39d0c680bac9fe96aa7337c4727fcde37fbfe",
+        "outcomes_sha256": "2d9daf467c30d45dd0c92eb5b7e5353d8f024b4a9872d10f5817753efed18820"
+      },
+      {
+        "inputs_sha256": "cdb701008ac3bc8e189dbbce381ea30699b85a89c8bf0c87a4ad8949d59e189a",
+        "outcomes_sha256": "593dbcc06162facda3d1e702cb522acb09a21efd59382b7071638b44a4287d96"
+      },
+      {
+        "inputs_sha256": "32449b196f709b4a1c4bf08c6e34e224b2fbe29bb17712268bd05d68c14d06a5",
+        "outcomes_sha256": "023d0efa99c1c57da3a995fdf21367297d04b0e9aaf3c7350b2fdb6cc8d0946f"
+      },
+      {
+        "inputs_sha256": "3cab2c7df7098cdf0b93dc60f28dab3f250ae7127a73a51961000480fea03b20",
+        "outcomes_sha256": "f2c493ca44e2b62b43a3c167e79836ef6970ebf62b88d528aca01dc2a40f0e0b"
+      },
+      {
+        "inputs_sha256": "10fa9c5b9fc58daa961b0c92535d015eda3036d049b222f9e47a1d5980d98859",
+        "outcomes_sha256": "5484c72f0690d30e7598c37de3276b7718b67a2b86f410a5d80a217c33b57805"
+      },
+      {
+        "inputs_sha256": "37fea843d193f7f98f5b8225666a57a6293020825d97c18344e84d1098afb38b",
+        "outcomes_sha256": "131e7d2a28a37c13a7a4bd618946f366731e73ac59ac1dca6b39e005ab3436a8"
+      },
+      {
+        "inputs_sha256": "985d0d1e9efaf8165414bc78920d3543470ba09b10855866816f48d5f631748f",
+        "outcomes_sha256": "526d0963f42f6fa5f2501fdb176f4ec4eddac3c68711f3f41f331f02a6b3d768"
+      },
+      {
+        "inputs_sha256": "d8a1d9656bb5da7c8075b6ef50cc76f2619cf68b3bc18f5469808b09d46ac5da",
+        "outcomes_sha256": "e210e6143a4bbeddcf8687808e3a58d8a7692be5994c1cd72ed70a1f246288c2"
+      },
+      {
+        "inputs_sha256": "f631fd31e98959dc27dd83967e3954c3c08cf13010b34d28c82c79e411e6e3eb",
+        "outcomes_sha256": "57963f6c6ecd17239b0ab4cf3af9345ead9b70abf98bb3e59987b97e546cff44"
+      },
+      {
+        "inputs_sha256": "0ac65afb8166afcd905a75d1906aa1bcdfad0b437607557e941e401b03e9da7e",
+        "outcomes_sha256": "c4d1677cc24a0ab184c7c30fc6633a312c5b85dd69d26af5403cb84130389694"
+      },
+      {
+        "inputs_sha256": "c55f4732cd61742dab5699ce6bc4bda99661728d24ea0869a8cfa14c2af0ce52",
+        "outcomes_sha256": "a65538738c70bf6e0a959682cbb21d6be1f34275fc05c5c1c446e59433b848ba"
+      },
+      {
+        "inputs_sha256": "accaa09c7ce3e169253af00a719601080e3a144d66dfa90c673ca281f9f87b03",
+        "outcomes_sha256": "ae5b9cbb2d655dcac2942b347bbb06f69e38cbb5a000330a340582f85f523864"
+      },
+      {
+        "inputs_sha256": "817d57ac024600793f5f9a84b479c3d77616d636269e44b84d41bcbd79155e0d",
+        "outcomes_sha256": "2f2ed643ce4792db824ec541ac2f6ecb4fe05caf2ae08607a3363c37de6a1b01"
+      },
+      {
+        "inputs_sha256": "880d4a4a951f6c3a5be98a83b29e9b10647c9a3d6ecba3c5a40090688e19725a",
+        "outcomes_sha256": "d43a9da2c6ffe81885cc91f6d25058bbf0d603ab97eefad043328c6e7e18a2ac"
+      },
+      {
+        "inputs_sha256": "9acd6c27aa6665a957c6896a5c64cd6f6bb8eafaf0cb57e24a4c70b3607532e8",
+        "outcomes_sha256": "7bfc1bf2d6ccebd110f2f4dbabe64f9628e885e61079f9310a54db53df650570"
+      },
+      {
+        "inputs_sha256": "36c7d056c045a069060a7e88bf5ff3ab6e55c9f8c6d4d0d28abfd3e0b574d7a3",
+        "outcomes_sha256": "c8c12f335a18ea927e2ffd4ba488a5a01417155a3cb26be3a939333ae317c1fc"
+      },
+      {
+        "inputs_sha256": "273284064781ccb8b96d5b44927fef8f3b79cbb02b75d6768320adcd7b185d02",
+        "outcomes_sha256": "1b12a2c6cb4977598f0f7608e006f565a71fcd3a5c354ae4c256383dc7a5412d"
+      },
+      {
+        "inputs_sha256": "aa92ef70f754e1b0c0c5aaaa370bde6a6df5bf8ba734fb524b0dd132985c0d6e",
+        "outcomes_sha256": "cdf0e54207e0528adc79481a7b1f092f8001fe4ef2d4a3d0f775b045ea5cfddc"
+      },
+      {
+        "inputs_sha256": "59269711fff4a6d6420526ddc4df337217049c4c2f6b46bef73d585f05ca0fa2",
+        "outcomes_sha256": "f92aca3fd3897e105acf36a509ad7047c5a526e3c73669737591b6687b4cb637"
+      },
+      {
+        "inputs_sha256": "4d7c3679167f02db47f5b6c836da0828a17a66b114cee36593daa748488e8d2a",
+        "outcomes_sha256": "e9b9308bbed756a43e2bc90647f354a14e09acb7bb9ba14f03cb007b39edbc30"
+      },
+      {
+        "inputs_sha256": "6ebcf2ecb405b07eed91fbc33e1b1a2b55d23aec6b7c80f3e8d01087e39d5e7b",
+        "outcomes_sha256": "568a0589906a7e210928f066afd8c1872cca8924510b3b3867e785ae96eade3a"
+      },
+      {
+        "inputs_sha256": "8439c4f7bf4207dbcf7ec07e69991448d97c62817397f756ad66e4986771b3e8",
+        "outcomes_sha256": "3697ea4a4d156b2b487755a60a79ded471b15c189856f45b2dd541f913abde24"
+      },
+      {
+        "inputs_sha256": "f95331e159320fe23faa8997fc6712816cd0f4cad50a3c9d0e60b170f49dec9d",
+        "outcomes_sha256": "81648ebffc0b97f7294898bdd7e8adbd89acfd5ce314c0fa0f85b8e8723bfcdd"
+      },
+      {
+        "inputs_sha256": "5f29334f6fdeb4599a2483d737ce0fb688029709480f71caca77e71823b368e5",
+        "outcomes_sha256": "5b4d6d40b245e2d8362b473c98629f29debed3a9c328d647334cdc04e5c31bf6"
+      },
+      {
+        "inputs_sha256": "b0aed6457fbd535e895e983075cfb6ab800696a45e00e3410ce3d4719a8d0812",
+        "outcomes_sha256": "81959f1f92cdee1b0e5bf4815aad2016df687aed6ed8bb0fcc4a988af797a4d1"
+      },
+      {
+        "inputs_sha256": "41067ade5e0ec8a15e731107ce2046ef5eb530a4813ae57af329ec5308c44a71",
+        "outcomes_sha256": "2c2df9f7b2460c2f14d1a3c7bae350adb691d78765920ba127d49e948a90d4a4"
+      },
+      {
+        "inputs_sha256": "6fdec5fb2b8a15f1a782374bb598cc80a390a3e5af05dd14a31c26e76a6be76a",
+        "outcomes_sha256": "81ab16f8aaaa417692231855f18749304274e329319cfbed11754e51cd66ad18"
+      },
+      {
+        "inputs_sha256": "269fdecf3f03ccad4a11a73791690cdcf84dbd2f2d405ebee3c41b9e1a55dac5",
+        "outcomes_sha256": "acd184de1f41bc3d288109b06b4f8c78253e9b51fb9fdb2c2c93dee8ef3cfc94"
+      },
+      {
+        "inputs_sha256": "16185b32728b127bd45c30277b657a30ffa6eca8cd3af8f06ddbffb1dfdde760",
+        "outcomes_sha256": "162bbbfd65e7f8745bef53f5c48b34f2f6670872fb184fec36247304ed3c538d"
+      },
+      {
+        "inputs_sha256": "3c6fe1d53de55e16017ff8dca0d40870f56f8b8b3aab6ced43e7a00f32744078",
+        "outcomes_sha256": "5e1aa870bb9ae555557fc5abda69bbe5a8672067264933078fc9ae24d02dcc00"
+      },
+      {
+        "inputs_sha256": "670030e36ec94df44467cac01403592b1f7a4c4826aa3ba6a2625f957e194a2f",
+        "outcomes_sha256": "4fbe0f7d17ab99f084b6c02fcc4f948de3f7e062f1d69e1ebb261c9a5fb69667"
+      },
+      {
+        "inputs_sha256": "8238b3bacc3e8191784eb7044bb5aed6b466c818c6cbe725cca53bfa677e5c05",
+        "outcomes_sha256": "4ce838bb7584ea2705b0c7161f1c325f47bb0363d2c3dcbb2aacd6f5bd8cac0e"
+      },
+      {
+        "inputs_sha256": "625c60ad8aa2fd46fad60f7527d97bb7de4021b178d3191ccac150ed3e2fc950",
+        "outcomes_sha256": "d9be831513b721050c045b79893eca84cb60a9bb88f7c35db61644f4296d7f92"
+      },
+      {
+        "inputs_sha256": "a37683ed2d0074cb65ef77b1d4bf1fdef4a1799b09c402f4c8c090ea6c6ef962",
+        "outcomes_sha256": "6269a9a3f8e619dee2a6e6dcf6824c7b69be20842e9a7b83a96a62753f0d02e9"
+      }
+    ]
+  }
+}
