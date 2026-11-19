@@ -54,6 +54,7 @@ port_top_level_paths() {
     conformance \
     crates \
     deny.toml \
+    docs \
     patches \
     rust-toolchain.toml \
     rustfmt.toml \
