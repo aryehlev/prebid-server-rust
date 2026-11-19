@@ -1,0 +1,719 @@
+# The differences ledger's entries for the library pins in tests/ (see the pbs_differences
+# ledger module for the schema). pbs-differences validates this file and writes
+# docs/DIFFERENCES.md and docs/differences.json from it; run
+#   cargo run -p pbs-differences --locked --offline -- --write
+# after a change. A restored entry's restore pin lands with the unit restore_by names, as a
+# [[restoration]] table in that crate's own differences.toml.
+
+[[difference]]
+id = "cache.large-entries"
+category = "cache"
+status = "ledgered"
+title = "Large stored-data entries: freecache refuses them, moka keeps them"
+go = """\
+    freecache refuses an entry whose key and value together are longer than 1/1024 of the cache \
+    less its 24-byte entry header (`ErrLargeEntry`, whose text says only 1/1024; freecache's \
+    segment.go:73-76): a 1 MiB cache keeps a 993-byte document under a 7-byte key, 1000 bytes in \
+    all, and refuses a 994-byte one. Prebid logs the error and drops the entry \
+    (stored_requests/caches/memory/maps.go:60-64), so such a document is fetched again on every \
+    request."""
+rust = """\
+    moka, bounded by the same byte budget through a weigher, keeps every entry that fits the \
+    budget."""
+who = ["operator"]
+visible_in = """\
+    Fetches and error logs of the stored request, imp, response and account caches when a \
+    document is larger than 1/1024 of its in-memory cache"""
+pin = "crates/differences/tests/cache.rs::go_difference_large_entries_admitted"
+
+[[difference]]
+id = "config.env-bool-spellings"
+category = "config"
+status = "restored"
+title = """\
+    Boolean `PBS_` variables: Viper converts them with `cast.ToBool`, the config crate with its \
+    own spellings"""
+go = """\
+    For a key with a bool default, Viper converts a `PBS_` value with `cast.ToBool` \
+    (`SetTypeByDefaultValue`, config/config.go:1319), which is `strconv.ParseBool` with its error \
+    dropped: `1`, `t`, `T`, `true`, `TRUE` and `True` are true, and every other value (`tRuE`, \
+    `yes`, `YES`, `on`, `y`, `maybe` and the false forms) is false, never an error. A key bound \
+    only with `BindEnv` goes through mapstructure's weak decode: `ParseBool`, the empty string is \
+    false, and anything else fails the load (orchestrator ruling 8)."""
+rust = """\
+    The config crate takes `1`, `true`, `on` and `yes` and their false forms (`0`, `false`, \
+    `off`, `no`) in any case, and fails the load on `t`, `T`, `f`, `F`, `y`, `n` and `maybe`."""
+who = ["operator"]
+visible_in = "Startup with `PBS_` environment variables that set boolean keys"
+pin = "crates/differences/tests/config.rs::go_difference_env_bool_spellings"
+restore = """\
+    CONFIG-LOADER converts as Viper does: `cast.ToBool` for keys with a bool default, and \
+    mapstructure's weak decode for keys bound only with `BindEnv` (`adapters.<bidder>.disabled`, \
+    `.debug.allow`, `.experiment.adsCert.enabled`, `.modifyingVastXmlAllowed`, \
+    `account_defaults.privacy.dsa.gdpr_only` and the others the defaults table marks), each path \
+    against a Go golden of its own (orchestrator ruling 8)."""
+rule_b = "c"
+restore_by = ["CONFIG-LOADER"]
+
+[[difference]]
+id = "config.file-bool-spellings"
+category = "config"
+status = "restored"
+title = """\
+    Booleans in pbs.yaml: Viper converts yaml.v3's untyped value with `cast.ToBool`, the config \
+    crate takes serde-saphyr's"""
+go = """\
+    Viper takes a pbs.yaml value as yaml.v3 resolves it untyped (`true`, `True`, `TRUE` and their \
+    false forms are booleans, `yes`, `on`, `y` and `tRuE` stay strings, `1` is a number) and \
+    converts it with `cast.ToBool` for a key with a bool default, so `true`, `True`, `t` and `1` \
+    are true, and `yes`, `on`, `y`, `tRuE`, `maybe` and every false form are false, never an \
+    error."""
+rust = """\
+    Through serde-saphyr and the config crate, `yes`, `on`, `y` and `tRuE` are true, `n`, `no` \
+    and `off` are false, and `t`, `f` and `maybe` fail the load."""
+who = ["operator"]
+visible_in = "Startup with a pbs.yaml that sets a boolean key"
+pin = "crates/differences/tests/config.rs::go_difference_file_bool_spellings"
+restore = """\
+    CONFIG-LOADER converts pbs.yaml values as Viper does: `cast.ToBool` after yaml.v3's untyped \
+    resolution (orchestrator ruling 8)."""
+rule_b = "c"
+restore_by = ["CONFIG-LOADER"]
+
+[[difference]]
+id = "config.key-case"
+category = "config"
+status = "restored"
+title = "Config keys: Viper lower-cases them, the config crate keeps file keys as written"
+go = "Viper lower-cases every key, so `Port:`, `port:` and `PORT:` in pbs.yaml all set `port`."
+rust = """\
+    The config crate keeps file keys as written: only `port:` sets `port`, and the other \
+    spellings are ignored, so the default stays."""
+who = ["operator"]
+visible_in = "Startup with a pbs.yaml whose keys are not in lower case"
+pin = "crates/differences/tests/config.rs::go_difference_key_case"
+restore = "CONFIG-LOADER lower-cases file and environment keys, as Viper does."
+rule_b = "c"
+restore_by = ["CONFIG-LOADER"]
+
+[[difference]]
+id = "cookie.attribute-order"
+category = "cookie"
+status = "ledgered"
+title = """\
+    Set-Cookie attribute order: `http.Cookie` and the cookie crate write the same attributes in \
+    different orders"""
+go = """\
+    `http.Cookie.String` writes `uids=eyJ1aWRzIjp7fX0=; Path=/; Domain=pbs.example; Expires=Wed, \
+    18 Nov 2026 10:20:30 GMT; Secure; SameSite=None` (usersync/cookie.go:93-113)."""
+rust = """\
+    The cookie crate writes the same attributes and value, the base64 padding raw, in another \
+    order: `uids=eyJ1aWRzIjp7fX0=; SameSite=None; Secure; Path=/; Domain=pbs.example; \
+    Expires=Wed, 18 Nov 2026 10:20:30 GMT`."""
+who = ["publisher"]
+visible_in = "The Set-Cookie header that writes the uids cookie (/setuid and /optout)"
+pin = "crates/differences/tests/cookie.rs::go_difference_set_cookie_attribute_order"
+note = """\
+    The cookie's value, the uids JSON in base64, keeps Go's format under Rule B (b), and the \
+    harness compares it as JSON after base64 decoding."""
+
+[[difference.harness]]
+kind = "wire"
+lexical_class = "cookie_attribute_order"
+path = "$['@headers']['Set-Cookie']"
+
+[[difference]]
+id = "gzip.payload-bytes"
+category = "gzip"
+status = "ledgered"
+title = "Gzip bytes: compress/gzip and flate2 write different deflate streams of the same payload"
+go = """\
+    `compress/gzip` at the default level writes Go's deflate stream, and its `Close` adds an \
+    empty stored block: 129 bytes for the pinned bid request (exchange/bidder.go:848-880)."""
+rust = """\
+    flate2 (miniz_oxide) writes another valid stream, 128 bytes for the same request, with the \
+    same 10-byte header (`1f 8b 08 00`, MTIME 0, XFL 0, OS 255). Both inflate to the same bytes; \
+    a bidder sees other compressed bytes and another Content-Length."""
+who = ["bidder", "publisher"]
+visible_in = """\
+    The bodies and Content-Length of bidder requests sent with `endpoint_compression: gzip`"""
+pin = "crates/differences/tests/gzip.rs::go_difference_header_same_payload_differs"
+
+[[difference.harness]]
+kind = "wire"
+lexical_class = "gzip_bytes"
+path = "$[*].request.body"
+
+[[difference]]
+id = "http-client.default-accept"
+category = "http-client"
+status = "ledgered"
+title = "Default Accept: reqwest sends `Accept: */*`, net/http sends none"
+go = """\
+    `net/http` adds no `Accept`, so the currency and vendor-list GETs and the adapter requests \
+    that set none carry no `Accept` (currency/rate_converter.go:53)."""
+rust = """\
+    reqwest 0.13.5's `ClientBuilder::new` puts `Accept: */*` among the client's default headers, \
+    so every request without an `Accept` of its own carries it; a caller's `Accept` replaces it."""
+who = ["bidder", "operator"]
+visible_in = "Outbound requests whose caller set no Accept"
+pin = "crates/differences/tests/http_client.rs::go_difference_default_accept_header"
+restore = """\
+    None in reqwest's API: `ClientBuilder::default_headers` only adds to the defaults and cannot \
+    drop one. Accepted under Rule A (orchestrator ruling 9); HTTP-CLIENT may add a crate-level \
+    pin."""
+
+[[difference.harness]]
+kind = "wire"
+lexical_class = "default_header"
+path = "$[*].request.headers.Accept"
+
+[[difference]]
+id = "http-client.user-agent"
+category = "http-client"
+status = "restored"
+title = "Default User-Agent: net/http sends `Go-http-client/1.1`, reqwest sends none"
+go = "`net/http` sends `User-Agent: Go-http-client/1.1` when the caller set none."
+rust = "reqwest sends no `User-Agent` at all."
+who = ["bidder"]
+visible_in = """\
+    Outbound requests whose caller set no User-Agent: bidder requests without one, and the \
+    currency and vendor-list fetches"""
+pin = "crates/differences/tests/http_client.rs::go_difference_no_default_user_agent"
+restore = """\
+    HTTP-CLIENT sets `Go-http-client/1.1` when the caller set none, one line of client config \
+    (D-UA, orchestrator ruling 5), and HTTP-H2 keeps it on HTTP/2."""
+decision = "D-UA"
+restore_by = ["HTTP-CLIENT"]
+
+[[difference]]
+id = "json.control-escapes"
+category = "json"
+status = "ledgered"
+title = """\
+    Control characters: jsoniter writes `\\u0008` and `\\u000c`, encoding/json and serde_json \
+    `\\b` and `\\f`"""
+go = """\
+    jsoniter (`jsonutil.Marshal`) writes U+0008 and U+000C as `\\u0008` and `\\u000c`; \
+    `json.Marshal` and the endpoints' Encoders (Go 1.22 and later) write `\\b` and `\\f`. The \
+    other control characters are `\\u00XX` in all of them, and DEL is written as it is."""
+rust = """\
+    serde_json writes `\\b` and `\\f`, as `encoding/json` does; the other control characters are \
+    `\\u00XX`, and DEL is written as it is."""
+who = ["bidder", "publisher"]
+visible_in = """\
+    Strings holding U+0008 or U+000C in what `jsonutil.Marshal` wrote: ext members, adapter \
+    request bodies and cache payloads"""
+pin = "crates/differences/tests/json.rs::go_difference_control_escapes"
+note = """\
+    Its mismatches are lexical `unicode_escape`, which the pattern of `json.html-escape` takes \
+    everywhere, so the harness counts them there: one pattern per class and path."""
+
+[[difference]]
+id = "json.duplicate-keys"
+category = "json"
+status = "ledgered"
+title = "Duplicate JSON keys: Go keeps the last, the serde derives reject the document"
+go = "jsoniter and `encoding/json` keep the last of duplicate keys."
+rust = """\
+    The serde derives reject the document (`duplicate field`); a `serde_json::Value` keeps the \
+    last key, as Go does."""
+who = ["publisher", "bidder"]
+visible_in = """\
+    The status of requests whose JSON repeats a key, and the handling of such bidder responses"""
+pin = "crates/differences/tests/json.rs::go_difference_duplicate_struct_keys"
+restore = """\
+    Decode again through `serde_json::Value` on that error, the last key winning; not planned \
+    (D-DECODE)."""
+decision = "D-DECODE"
+
+[[difference.harness]]
+kind = "status"
+path = "$['@status']"
+input = "duplicate_keys"
+
+[[difference]]
+id = "json.float-format"
+category = "json"
+status = "ledgered"
+title = """\
+    Float spelling: Go writes `1`, `300` and `1e-07` where serde_json writes `1.0`, `300.0` and \
+    `1e-7`"""
+go = """\
+    strconv's shortest form, plain for `1e-6 <= |f| < 1e21` (1e20 is `100000000000000000000`) and \
+    with an exponent otherwise, which jsoniter (`jsonutil.Marshal`) writes `1e-07` and \
+    `encoding/json` (`json.Marshal` in 222 adapter files, the endpoints' Encoders) `1e-7`. A \
+    float32 is written at 32 bits, an integral value has no fraction (`1`, `300`) and -0 stays \
+    `-0`. A number read into `interface{}` is a float64: `12345678901234567890` comes back as \
+    `12345678901234567000`, and `300.0` and `1E2` as `300` and `100`."""
+rust = """\
+    serde_json writes `1.0`, `300.0`, `123456789.0` and `1e+20`; an f64 0.000001 is `1e-6` and an \
+    f32 one `0.000001`, and -0 is `-0.0`. A `serde_json::Value` keeps integers exact and floats \
+    as f64: `300.0`, `100.0`, `1e-6`, `-0.0`."""
+who = ["publisher", "bidder", "analytics"]
+visible_in = """\
+    Prices and other floats in response bodies, bidder request bodies, analytics and cache \
+    payloads"""
+pin = "crates/differences/tests/json.rs::go_difference_float_formatting"
+restore = """\
+    A serde_json Formatter overriding `write_f64` and `write_f32`; not planned (orchestrator \
+    ruling 2)."""
+note = """\
+    Floats Prebid prints into its own text (targeting values, macros) use the precision Prebid's \
+    Go code uses, which is Prebid logic ported in place (orchestrator ruling 4), not this entry."""
+
+[[difference.harness]]
+kind = "lexical"
+lexical_class = "number_format"
+path = "$.**"
+
+[[difference]]
+id = "json.html-escape"
+category = "json"
+status = "ledgered"
+title = "HTML escaping: Go writes `<`, `>` and `&` as `\\u` escapes, serde_json as they are"
+go = """\
+    `jsonutil.Marshal` (jsoniter's `ConfigCompatibleWithStandardLibrary`), `json.Marshal` and \
+    Encoders with default settings write `<`, `>` and `&` as `\\u003c`, `\\u003e` and `\\u0026`, \
+    inside a `json.RawMessage` too, and U+2028 and U+2029 as `\\u2028` and `\\u2029`. The \
+    endpoints' Encoders turn HTML escaping off (`SetEscapeHTML(false)` at \
+    endpoints/openrtb2/auction.go:384, endpoints/openrtb2/amp_auction.go:408, \
+    endpoints/cookie_sync.go:561 and exchange/exchange.go:986) and still escape U+2028 and \
+    U+2029."""
+rust = """\
+    serde_json writes all five characters as they are. Strings the endpoints' Encoders write \
+    themselves, such as a bid's `adm`, differ only in U+2028 and U+2029; the `<`, `>` and `&` \
+    differences sit in what `jsonutil.Marshal` and `json.Marshal` wrote: ext members, adapter \
+    request bodies and cache payloads."""
+who = ["publisher", "bidder", "operator"]
+visible_in = "Response bodies, bidder request bodies and Prebid Cache payloads"
+pin = "crates/differences/tests/json.rs::go_difference_no_html_escaping"
+restore = "A serde_json Formatter that adds Go's escapes; not planned (D-HTMLESC)."
+decision = "D-HTMLESC"
+note = """\
+    The `unicode_escape` pattern also takes the control-character spellings of \
+    `json.control-escapes`."""
+
+[[difference.harness]]
+kind = "lexical"
+lexical_class = "html_escape"
+path = "$.**"
+
+[[difference.harness]]
+kind = "lexical"
+lexical_class = "unicode_escape"
+path = "$.**"
+
+[[difference]]
+id = "json.invalid-utf8"
+category = "json"
+status = "ledgered"
+title = "Invalid UTF-8 in JSON strings: Go decodes it, serde_json rejects the document"
+go = """\
+    jsoniter (`jsonutil.Unmarshal` and `UnmarshalValid`) keeps an invalid byte as it came (`a`, \
+    0xFF, `b` stays `61ff62`); only `encoding/json`'s `json.Unmarshal` writes U+FFFD \
+    (`61efbfbd62`)."""
+rust = "The serde derives reject the document (`invalid unicode code point`)."
+who = ["publisher", "bidder"]
+visible_in = """\
+    The status of requests whose JSON strings hold bytes that are not UTF-8, and the handling of \
+    such bidder responses"""
+pin = "crates/differences/tests/json.rs::go_difference_invalid_utf8"
+restore = """\
+    Replace invalid sequences with U+FFFD and decode again, which is `encoding/json`'s result (a \
+    Rust String cannot hold jsoniter's raw byte); not planned (D-DECODE)."""
+decision = "D-DECODE"
+
+[[difference.harness]]
+kind = "status"
+path = "$['@status']"
+input = "invalid_utf8"
+
+[[difference]]
+id = "json.key-case"
+category = "json"
+status = "ledgered"
+title = "JSON keys: Go matches struct fields ignoring case, serde matches exactly"
+go = """\
+    jsoniter (`jsonutil.Unmarshal`, `UnmarshalValid`) and `encoding/json` match object keys to \
+    struct fields ignoring case, so `\"ID\"` fills `id`."""
+rust = """\
+    serde matches keys exactly; another spelling is an unknown key, ignored, and the field is \
+    defaulted or missing. A request whose imps are under `\"Imp\"` has no imps and gets a 400."""
+who = ["publisher", "bidder"]
+visible_in = """\
+    Requests and bidder responses whose keys differ in case from the field names: the status, or \
+    the values the field would have held"""
+pin = "crates/differences/tests/json.rs::go_difference_case_sensitive_keys"
+restore = "A decode pass that folds keys as jsoniter does; not planned (D-DECODE)."
+decision = "D-DECODE"
+
+[[difference.harness]]
+kind = "status"
+path = "$['@status']"
+input = "case_folded_key"
+
+[[difference]]
+id = "json.lone-surrogates"
+category = "json"
+status = "restored"
+title = "Lone UTF-16 surrogate escapes: Go decodes them to U+FFFD, serde_json rejects the document"
+go = """\
+    jsoniter (`jsonutil.Unmarshal`, `UnmarshalValid`) and `encoding/json` decode a `\\u` escape \
+    of a surrogate that forms no pair (a high surrogate before a letter, a low one alone, two \
+    high ones) to U+FFFD, once per lone surrogate, and the document decodes."""
+rust = "serde_json rejects the whole document, into the derives and into a `Value` alike."
+who = ["publisher", "bidder"]
+visible_in = """\
+    Requests whose strings were cut inside an escaped emoji (Prebid.js sends `JSON.stringify` \
+    output, which writes a lone surrogate as `\\uD83D`), which Go answers with 200 and serde_json \
+    would turn into a 400, and bidder responses with such strings"""
+pin = "crates/differences/tests/json.rs::go_difference_lone_surrogates"
+restore = """\
+    JSONUTIL's decode entry for outside bytes (request bodies, stored data, bidder responses: \
+    every place Go calls `jsonutil.Unmarshal` or `json.Unmarshal` on outside input) rewrites each \
+    unpaired `\\uD800`-`\\uDFFF` escape to `\\uFFFD` before serde_json reads the bytes, scanning \
+    only when the bytes hold a `\\u` escape of that range, with string and escape state tracked \
+    (orchestrator ruling 7)."""
+rule_b = "a"
+restore_by = ["JSONUTIL"]
+
+[[difference]]
+id = "json.nesting-depth"
+category = "json"
+status = "ledgered"
+title = "Nesting depth: Go reads 10000 levels, a `serde_json::Value` stops at 128"
+go = """\
+    jsoniter and `encoding/json` accept 10000 levels of nesting (9999 arrays inside the outer \
+    object) and reject a deeper document, whether the deep value lands in a `json.RawMessage`, in \
+    an `interface{}` or in a key they skip."""
+rust = """\
+    serde_json stops a `Value` at 128 levels, the outer object included (127 arrays inside it \
+    fail with `recursion limit exceeded`), and reads a `RawValue` or skips an unknown key at any \
+    depth, 10001 levels included."""
+who = ["publisher", "bidder"]
+visible_in = """\
+    The status of requests whose JSON nests 128 levels or more, and the handling of such bidder \
+    responses"""
+pin = "crates/differences/tests/json.rs::go_difference_nesting_depth"
+
+[[difference.harness]]
+kind = "status"
+path = "$['@status']"
+input = "deep_nesting"
+
+[[difference]]
+id = "json.non-finite"
+category = "json"
+status = "ledgered"
+title = "NaN and infinities: Go fails the write, serde_json writes `null`"
+go = """\
+    A NaN or infinite float, and a float32 that overflowed to +Inf, fails the marshal: \
+    `jsonutil.Marshal` returns `FailedToMarshal` with jsoniter's `unsupported value: NaN` after \
+    the field's path, and `encoding/json` returns `json: unsupported value: NaN`. The auction \
+    endpoint then records `/openrtb2/auction Failed to send response` among the analytics errors \
+    and sets the request status `RequestStatusNetworkErr`, and the response body is not written \
+    (endpoints/openrtb2/auction.go:394-397)."""
+rust = """\
+    serde_json writes `null` in the value's place before any Formatter sees it, so the document \
+    goes out."""
+who = ["publisher", "operator"]
+visible_in = """\
+    Response bodies, and the request status metric, when a float in the response is not finite"""
+pin = "crates/differences/tests/json.rs::go_difference_non_finite_floats"
+restore = """\
+    A `serialize_with` helper on every f32 and f64 field that fails as the Go writer does; not \
+    planned (orchestrator rulings 2 and 5)."""
+
+[[difference]]
+id = "json.null-into-value"
+category = "json"
+status = "restored"
+title = "`null` for a value field: Go keeps the zero value, serde rejects the document"
+go = """\
+    `null` given to a field that is not a pointer or interface (a number, bool, string, struct, \
+    slice or map) leaves the field at its zero value, and the document decodes."""
+rust = "serde rejects the document (`invalid type: null`)."
+who = ["publisher", "bidder"]
+visible_in = "Requests and bidder responses that send `null` for a value field"
+pin = "crates/differences/tests/json.rs::go_difference_null_into_value_field"
+restore = """\
+    JSONUTIL and ORTB-SERDE: container `#[serde(default)]` plus typegen's `null_default` \
+    deserializer on every value field, so a `null` leaves the default; real traffic sends these \
+    nulls."""
+decision = "D-DECODE"
+rule_b = "a"
+restore_by = ["JSONUTIL", "ORTB-SERDE"]
+
+[[difference]]
+id = "json.raw-not-compacted"
+category = "json"
+status = "restored"
+title = "`json.RawMessage` on write: Go compacts it, serde_json writes a `RawValue` as it was read"
+go = """\
+    `jsonutil.Marshal` writes a `json.RawMessage` through Prebid's `RawMessageExtension` \
+    (registered at main.go:23-25), which runs `json.Compact`: whitespace goes, nothing is \
+    escaped, and for bytes that are not JSON nothing is written and no error returned, so the \
+    output (`{\"id\":\"1\",\"ext\":}`) is not JSON. `json.Marshal` and the endpoints' Encoders \
+    compact it too, HTML-escaping inside it unless `SetEscapeHTML(false)`, and fail on bytes that \
+    are not JSON (`error calling MarshalJSON for type json.RawMessage: unexpected end of JSON \
+    input`)."""
+rust = """\
+    A `RawValue` is written as it was read, whitespace included, and serde_json cannot build one \
+    from bytes that are not JSON."""
+who = ["bidder", "publisher"]
+visible_in = "Ext members and other raw JSON in bidder request bodies and in responses"
+pin = "crates/differences/tests/json.rs::go_difference_raw_message_not_compacted"
+restore = """\
+    JSONUTIL: `raw_compact`, the equivalent of Prebid's own `RawMessageExtension`, which typegen \
+    puts on every `json.RawMessage` field. This is Prebid logic, not library glue; the escaping \
+    inside stays `json.html-escape`."""
+rule_b = "prebid-logic"
+restore_by = ["JSONUTIL"]
+
+[[difference]]
+id = "logging.line-format"
+category = "logging"
+status = "ledgered"
+title = """\
+    Log lines: glog's header with the facade's file and line, against tracing-subscriber's format"""
+go = """\
+    glog writes `W1118 12:00:00.000000 4242 logger.go:17] message`: the level letter and the \
+    date, the time to the microsecond, the PID and the file and line, which through Prebid's \
+    logger facade (depth 1, logger/glog.go:37-41) are always the facade's own, `logger.go:17` for \
+    a warning."""
+rust = """\
+    tracing-subscriber's fmt layer writes `<RFC 3339 time>  WARN <module path>: message`: an RFC \
+    3339 time, the level padded to five characters and the event's target, with no file or line."""
+who = ["operator"]
+visible_in = "The server's log output (stderr, as the image runs with `-logtostderr`)"
+pin = "crates/differences/tests/logging.rs::go_difference_line_format"
+note = """\
+    The glog calls that bypass the facade (the rules engine's observer.go:14 and :20, and the \
+    WURFL module) write their own file and line; no pin covers them."""
+
+[[difference]]
+id = "metrics.sample-float-format"
+category = "metrics"
+status = "ledgered"
+title = "Prometheus sample values: client_golang writes `1e+06`, the prometheus crate `1000000`"
+go = """\
+    client_golang writes a sample with `strconv.FormatFloat(v, 'g', -1, 64)`: a counter at one \
+    million is `1e+06` and one at 123456789 is `1.23456789e+08`, while 100000 and 1 are written \
+    as they are."""
+rust = """\
+    The prometheus crate writes `1000000` and `123456789`. The HELP and TYPE lines and the label \
+    order are the same."""
+who = ["operator"]
+visible_in = "The /metrics exposition, for sample values of a million and above"
+pin = "crates/differences/tests/metrics.rs::go_difference_sample_float_format"
+
+[[difference]]
+id = "psl.empty-labels-and-ip"
+category = "psl"
+status = "decision-pending"
+title = """\
+    Public suffix lookups: x/net/publicsuffix fails on empty labels and IP addresses, psl answers"""
+go = """\
+    `publicsuffix.EffectiveTLDPlusOne` (x/net v0.55.0) fails on a host with an empty label (a \
+    trailing dot, a leading dot, two dots in a row) and on a bare IP address, which \
+    `PublicSuffix` returns whole, so the auction leaves `site.publisher.domain` unset for such a \
+    referrer (endpoints/openrtb2/auction.go:1607-1611)."""
+rust = """\
+    `psl::domain_str` answers `example.com` for `example.com.`, `www.example.com.` and \
+    `.example.com`, `.com` for `example..com`, `example.co.uk` for `a..b.example.co.uk` and `1.1` \
+    for `192.168.1.1`, so the domain is set. Both answer `1.1:8080` for `192.168.1.1:8080`, and \
+    neither finds a domain in `[::1]:8080`."""
+who = ["bidder", "publisher", "analytics"]
+visible_in = """\
+    `site.publisher.domain` in bidder requests and analytics, for referrers whose host has an \
+    empty label or is an IPv4 address"""
+pin = "crates/differences/tests/psl.rs::go_difference_empty_labels_and_ip_addresses"
+restore = """\
+    Check the host for empty labels and parse it as an IP address before calling psl, leaving the \
+    domain unset where Go's lookup fails."""
+default = "psl's answer, so the domain is set where Go leaves it unset (crates first)."
+decision = "D-PSL"
+rule_b = "a"
+
+[[difference]]
+id = "regex.quote-meta"
+category = "regex"
+status = "restored"
+title = "`\\Q...\\E` literals: Go's regexp reads them, the regex crate rejects the pattern"
+go = "Go's `regexp` reads `\\Q...\\E` as a literal."
+rust = "The regex crate rejects the pattern. No Prebid pattern uses it today."
+who = ["none"]
+visible_in = "Compiling a pattern that uses `\\Q...\\E`, which none of Prebid's patterns does"
+pin = "crates/differences/tests/regex.rs::go_difference_quote_meta_escape"
+restore = """\
+    UTIL-CRATES: goregex rewrites `\\Q...\\E` as escaped literals in every pattern Prebid \
+    compiles."""
+rule_b = "d"
+restore_by = ["UTIL-CRATES"]
+
+[[difference]]
+id = "regex.unicode-classes"
+category = "regex"
+status = "restored"
+title = "`\\d`, `\\w`, `\\s` and `\\b`: ASCII-only in Go's regexp, Unicode-aware in the regex crate"
+go = "`\\d`, `\\w`, `\\s` and `\\b` are ASCII-only in Go's `regexp`, and Go has no `(?-u)` flag."
+rust = """\
+    The regex crate's classes are Unicode-aware unless the pattern says `(?-u:\\d)`: Arabic-Indic \
+    digits, accented and CJK letters, a no-break space and an em space match where Go's do not, \
+    and `\\b` sees no boundary between an accented letter and `foo`."""
+who = ["publisher", "bidder"]
+visible_in = """\
+    Bidder-params validation (static/bidder-params patterns such as visx's `^\\d+$`), the \
+    adapters' patterns and the sync URL macros"""
+pin = "crates/differences/tests/regex.rs::go_difference_unicode_classes"
+restore = """\
+    UTIL-CRATES: `pbs_util::goregex` translates the classes, so Prebid's own patterns, in code \
+    and in static/bidder-params, keep Go's meaning."""
+rule_b = "d"
+restore_by = ["UTIL-CRATES"]
+
+[[difference]]
+id = "server.cors-actual-requests"
+category = "server"
+status = "ledgered"
+title = """\
+    CORS on other requests: tower-http writes credentials on every answer, the origin for any \
+    method and a three-name Vary"""
+go = """\
+    rs/cors, as `router.SupportCORS` configures it (router/router.go:377-385), writes `Vary: \
+    Origin` on every answer that is not a preflight, and `Access-Control-Allow-Origin` and \
+    `Access-Control-Allow-Credentials: true` only when the request has an Origin and a method it \
+    allows (GET, POST and HEAD, and OPTIONS always); an OPTIONS without \
+    `Access-Control-Request-Method` goes on to the router."""
+rust = """\
+    tower-http's CorsLayer writes `access-control-allow-credentials: true` on every answer, \
+    server-to-server POSTs with no Origin included, `access-control-allow-origin` whatever the \
+    method (PUT too), and `vary: origin, access-control-request-method, \
+    access-control-request-headers`; it answers every OPTIONS itself as a preflight, so that \
+    request never reaches the handler."""
+who = ["publisher", "operator"]
+visible_in = "The headers of every response"
+pin = "crates/differences/tests/server.rs::go_difference_actual_request_headers"
+note = """\
+    These patterns also take the same headers of preflight answers (`server.cors-preflight`). \
+    Go's router answers an OPTIONS without `Access-Control-Request-Method` itself, with an \
+    `Allow` header (httprouter v1.3.0's router.go:422-425); the Rust server answers it as a \
+    preflight, so the `Allow` pattern takes that header, on OPTIONS cases only."""
+
+[[difference.harness]]
+kind = "header"
+path = "$['@headers']['Access-Control-Allow-Credentials']"
+
+[[difference.harness]]
+kind = "header"
+path = "$['@headers']['Access-Control-Allow-Origin']"
+
+[[difference.harness]]
+kind = "header"
+path = "$['@headers'].Allow"
+input = "options_request"
+
+[[difference.harness]]
+kind = "header"
+path = "$['@headers'].Vary"
+
+[[difference]]
+id = "server.cors-preflight"
+category = "server"
+status = "ledgered"
+title = """\
+    CORS preflights: rs/cors answers 204 with the requested method and headers, tower-http 200 \
+    with its configured lists"""
+go = """\
+    rs/cors answers a preflight with 204: `Access-Control-Allow-Origin` (the origin), \
+    `Access-Control-Allow-Credentials: true`, `Access-Control-Allow-Methods` echoing the \
+    requested POST, `Access-Control-Allow-Headers` echoing the requested headers, and `Vary: \
+    Origin, Access-Control-Request-Method, Access-Control-Request-Headers`. When a requested \
+    header is not allowed (`x-custom`), it answers 204 with only that Vary."""
+rust = """\
+    tower-http's CorsLayer answers 200 every time, with `GET,POST,HEAD`, \
+    `origin,x-requested-with,content-type,accept` and a lower-case `vary`, a disallowed requested \
+    header included. The browser's verdict is the same in all three cases."""
+who = ["publisher"]
+visible_in = "Answers to CORS preflights on every endpoint"
+pin = "crates/differences/tests/server.rs::go_difference_preflight_status_and_headers"
+restore = """\
+    A CORS layer of our own that answers as rs/cors does; not planned (orchestrator ruling 5 \
+    accepts and ledgers the difference)."""
+
+[[difference.harness]]
+kind = "status"
+path = "$['@status']"
+input = "options_request"
+
+[[difference.harness]]
+kind = "header"
+path = "$['@headers']['Access-Control-Allow-Headers']"
+input = "options_request"
+
+[[difference.harness]]
+kind = "header"
+path = "$['@headers']['Access-Control-Allow-Methods']"
+input = "options_request"
+
+[[difference]]
+id = "time.rfc3339-fraction"
+category = "time"
+status = "restored"
+title = """\
+    RFC 3339 times: Go's RFC3339 layout writes whole seconds, the time crate's `Rfc3339` the \
+    fraction"""
+go = """\
+    The `time.RFC3339` layout writes whole seconds (`2026-11-18T10:20:30Z`), and \
+    `time.RFC3339Nano` the fraction without trailing zeros."""
+rust = """\
+    The time crate's well-known `Rfc3339` writes the fraction whenever there is one, as \
+    `RFC3339Nano` does, so whole seconds need a format description of their own."""
+who = ["publisher", "analytics"]
+visible_in = """\
+    Times Prebid formats with the RFC3339 layout, such as the last-modified parameter of \
+    stored-request event polling (stored_requests/events/http/http.go:127)"""
+pin = "crates/differences/tests/time.rs::go_difference_rfc3339_fraction"
+restore = """\
+    UTIL-CRATES: format descriptions for the RFC3339 and RFC3339Nano layouts Prebid's code picks. \
+    This is Prebid's formatting choice ported in place, as ruling 4 does for floats; the uids \
+    cookie's times are Rule B (b)."""
+rule_b = "prebid-logic"
+restore_by = ["UTIL-CRATES"]
+
+[[difference]]
+id = "url.host-normalization"
+category = "url"
+status = "ledgered"
+title = "URL hosts: Go's `url.Parse` keeps the host as written, the url crate normalises it"
+go = """\
+    `url.Parse` keeps `Host` as written (`Example.COM:80`) and a non-ASCII host as it came, which \
+    `String()` percent-encodes; `site.domain` takes the referrer's `Host`, port included \
+    (endpoints/openrtb2/auction.go:1606-1608)."""
+rust = """\
+    The url crate (WHATWG) lower-cases the host, drops the scheme's default port and writes a \
+    non-ASCII host in IDNA form."""
+who = ["bidder", "publisher"]
+visible_in = "`site.domain` and the other values Prebid takes from a URL's host, in bidder requests"
+pin = "crates/differences/tests/url.rs::go_difference_url_host_normalization"
+restore = """\
+    A Go-style URL parser for the URLs Prebid writes back; not planned (orchestrator rulings, \
+    2026-11-19)."""
+
+[[difference]]
+id = "yaml.bool-case"
+category = "yaml"
+status = "ledgered"
+title = "YAML 1.1 booleans: yaml.v3 takes three spellings of each word, serde-saphyr any case"
+go = """\
+    yaml.v3 decodes into a `bool` only `y`, `Y`, `yes`, `Yes`, `YES`, `on`, `On`, `ON`, `true`, \
+    `True` and `TRUE`, and the false forms in the same spellings; mixed case (`yEs`, `oN`, \
+    `tRue`, `fAlse`) fails the load (config/bidderinfo.go:323)."""
+rust = """\
+    serde-saphyr matches the words in any case, so a mixed-case value that fails Go's load loads \
+    here. `1`, `0`, `t` and `f` fail on both sides."""
+who = ["operator"]
+visible_in = """\
+    Startup with a bidder-info YAML file (static/bidder-info) that spells a boolean in mixed case"""
+pin = "crates/differences/tests/yaml.rs::go_difference_boolean_case"
