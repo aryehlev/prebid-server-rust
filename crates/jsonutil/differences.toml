@@ -40,6 +40,32 @@ note = """\
     `jsonutil.Marshal` writes them."""
 
 [[difference]]
+id = "json.control-characters"
+category = "json"
+status = "ledgered"
+title = "A raw control character after an escape in a string: jsoniter reads it, serde_json rejects the document"
+go = """\
+    JSON forbids a raw U+0000 to U+001F inside a string. jsoniter (`jsonutil.Unmarshal`, \
+    `UnmarshalValid` and `MergeClone`) rejects one that comes before the first backslash of its \
+    string but reads the rest of the string unchecked from that backslash on, so it reads a raw \
+    tab or line break that follows an escape such as `\\n` or `\\\"`: in a field, a map key, an \
+    unknown member and a `json.RawMessage`, which keeps it as written (iter_str.go:9-52, \
+    iter_skip_strict.go:61-83). `encoding/json` rejects them all."""
+rust = """\
+    serde_json rejects every raw control character in a string, as `encoding/json` does, so the \
+    document fails to decode and `merge_clone` fails."""
+who = ["bidder", "publisher"]
+visible_in = """\
+    The status of requests, and the handling of bidder responses, that hold such a string (an \
+    `adm` of markup that escapes its quotes but keeps raw line breaks or tabs)"""
+pin = "crates/jsonutil/tests/decode.rs::raw_control_characters_rejected"
+restore = """\
+    Escape each raw control character that follows a backslash in its string before serde_json \
+    reads the bytes, as `replace_lone_surrogates` rewrites lone surrogates (a raw member would \
+    then hold the escape, as in `json.lone-surrogates-raw`); not planned (D-DECODE)."""
+decision = "D-DECODE"
+
+[[difference]]
 id = "json.error-texts"
 category = "json"
 status = "ledgered"
@@ -351,6 +377,29 @@ note = """\
     which `json.float-format` and `json.html-escape` take."""
 
 [[difference]]
+id = "json.negative-zero-int"
+category = "json"
+status = "ledgered"
+title = "`-0` read into an integer field: Go reads 0, serde_json rejects the document"
+go = """\
+    jsoniter (`jsonutil.Unmarshal`, `UnmarshalValid` and `MergeClone`) and `encoding/json` read \
+    `-0` into a signed integer field, a typed one (openrtb2's enums) or a pointer to one as 0, \
+    and reject it for an unsigned one; a float64 field holds -0."""
+rust = """\
+    serde_json parses `-0` as the float -0.0, which every Rust integer type rejects (`invalid \
+    type: floating point`), so the document fails to decode and `merge_clone` fails; an `f64` \
+    field holds -0.0, written `-0.0` (`json.float-format`)."""
+who = ["bidder", "publisher"]
+visible_in = """\
+    The status of requests, and the handling of bidder responses, that hold `-0` in an integer \
+    member (`w`, `h`, `api`, an enum)"""
+pin = "crates/jsonutil/tests/decode.rs::negative_zero_rejected_for_integers"
+restore = """\
+    Read `-0` as 0 wherever serde asks for an integer (a deserializer adapter around \
+    serde_json's, or typegen's integer helpers); not planned (D-DECODE)."""
+decision = "D-DECODE"
+
+[[difference]]
 id = "json.nil-raw-written"
 category = "json"
 status = "ledgered"
@@ -370,6 +419,59 @@ pin = "crates/jsonutil/tests/encode.rs::nil_raw_written_as_null"
 restore = """\
     None that serde allows: a serializer cannot write a member without a value, and the bytes Go \
     writes are not JSON."""
+
+[[difference]]
+id = "json.null-document"
+category = "json"
+status = "ledgered"
+title = "A document that is JSON null: Go leaves the target's zero value, serde_json rejects the document"
+go = """\
+    `jsonutil.Unmarshal`, `UnmarshalValid` and `json.Unmarshal` return no error for the document \
+    `null`, whitespace around it or not, and leave a struct and a number as they were, a map and \
+    a slice nil, and a string empty (jsoniter) or as it was (`encoding/json`), so an adapter \
+    that reads a bidder's `null` body into `openrtb2.BidResponse` goes on with an empty \
+    response. `MergeClone` leaves the value as it was."""
+rust = """\
+    `unmarshal` and `unmarshal_valid` fail with `invalid type: null` for every target but an \
+    `Option`, which reads `None`; `merge_clone` leaves the value as it was, as Go does."""
+who = ["bidder", "publisher"]
+visible_in = """\
+    The bidder errors (`ext.errors`) and metrics of auctions where a bidder answers `null`, and \
+    the error Prebid answers a request body of `null` with"""
+pin = "crates/jsonutil/tests/decode.rs::null_document_rejected"
+restore = """\
+    Read the document through `null_default`, with a `Default` bound on `unmarshal` and \
+    `unmarshal_valid` (no other crate calls them yet): glue under Rule B (a) if real traffic \
+    sends such documents; not planned (D-DECODE)."""
+decision = "D-DECODE"
+
+[[difference]]
+id = "json.null-elements"
+category = "json"
+status = "ledgered"
+title = "null as a slice element or map value that is not a pointer: Go keeps the zero value, serde rejects the document"
+go = """\
+    jsoniter (`jsonutil.Unmarshal`, `UnmarshalValid`) and `encoding/json` read null as an \
+    element of a slice, or a value of a map, whose type is not a pointer as that type's zero \
+    value, as they read it for a field (`json.null-into-value`): `[1,null]` into `[]int` gives \
+    `[1,0]`, `[\"a\",null]` into `[]string` gives `[\"a\",\"\"]` and `[null]` into a slice of \
+    structs one zero struct. `MergeClone` does the same, and a pointer element is nil."""
+rust = """\
+    `null_default` covers fields only, so a `Vec` or `BTreeMap` whose element is not an `Option` \
+    rejects the document (`invalid type: null`); an `Option` element reads `None`, Go's nil, and \
+    `merge_clone` reads every element as Go does."""
+who = ["publisher", "bidder"]
+visible_in = """\
+    The status of requests, and the handling of bidder responses, whose arrays or maps hold null \
+    where Prebid reads a number, string or object (`bcat`, `api`, `format`, a bid's `adomain`); \
+    `JSON.stringify` writes `NaN`, `Infinity` and `undefined` array elements as null"""
+pin = "crates/jsonutil/tests/decode.rs::null_elements_rejected"
+restore = """\
+    Counterparts of `null_default` for slice and map fields, which read each element as an \
+    `Option` and turn `None` into the default, put by typegen on every slice and map field whose \
+    element is not a pointer: glue under Rule B (a) if real traffic sends these nulls, as it does \
+    for fields; not planned (D-DECODE)."""
+decision = "D-DECODE"
 
 [[difference]]
 id = "json.null-raw"

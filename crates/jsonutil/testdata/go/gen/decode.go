@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math"
 	"reflect"
+	"sort"
 
 	"github.com/buger/jsonparser"
 	"github.com/prebid/prebid-server/v4/util/jsonutil"
@@ -345,6 +346,178 @@ func typedInts() []row {
 	return rows
 }
 
+// intTarget has an integer field of each kind Prebid declares (int, int8, uint and a typed int8,
+// as openrtb2's enums are), a pointer to an int and a float64.
+type intTarget struct {
+	I  int       `json:"i"`
+	I8 int8      `json:"i8"`
+	U  uint      `json:"u"`
+	T  typedInt8 `json:"t"`
+	P  *int      `json:"p,omitempty"`
+	F  float64   `json:"f"`
+}
+
+// negativeZeros is json.negative-zero-int: -0 read into an integer field. jsoniter's ReadInt64
+// reads the minus and then the single zero, and encoding/json parses -0 with strconv, so both read
+// 0 into a signed integer (a pointer to one included) and reject it for an unsigned one; MergeClone
+// writes the 0 over the value there. A float64 holds -0.
+func negativeZeros() []row {
+	var rows []row
+	for _, field := range []string{"i", "i8", "u", "t", "p", "f"} {
+		in := `{"` + field + `":-0}`
+		var a intTarget
+		err := jsonutil.Unmarshal([]byte(in), &a)
+		rows = append(rows, row{Name: "jsonutil.Unmarshal", Input: in, Result: marshalled(a), Err: errText(err)})
+		var b intTarget
+		err = jsonutil.UnmarshalValid([]byte(in), &b)
+		rows = append(rows, row{Name: "jsonutil.UnmarshalValid", Input: in, Result: marshalled(b), Err: errText(err)})
+		var c intTarget
+		err = json.Unmarshal([]byte(in), &c)
+		rows = append(rows, row{Name: "json.Unmarshal", Input: in, Result: marshalled(c), Err: errText(err)})
+		d := intTarget{I: 5, I8: 5, U: 5, T: 5, F: 5}
+		err = jsonutil.MergeClone(&d, []byte(in))
+		rows = append(rows, row{Name: "jsonutil.MergeClone", Input: in, Result: marshalled(d), Err: errText(err)})
+	}
+	return rows
+}
+
+// controlTarget reads a string, a json.RawMessage and a map's keys.
+type controlTarget struct {
+	S   string          `json:"s"`
+	Ext json.RawMessage `json:"ext,omitempty"`
+	M   map[string]int  `json:"m,omitempty"`
+}
+
+// state is what a decoder read: the string, the raw bytes and the map's keys, quoted.
+func (v controlTarget) state() string {
+	keys := make([]string, 0, len(v.M))
+	for k := range v.M {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	return fmt.Sprintf("s=%q ext=%s m=%q", v.S, rawState(v.Ext), keys)
+}
+
+// controlCharacters is json.control-characters: a raw control character (U+0000 to U+001F)
+// inside a string, which JSON forbids. jsoniter's ReadString rejects one that comes before every
+// backslash of its string, and its slow path, which takes over at the first backslash, appends
+// every byte after it unchecked, so jsoniter reads a control character after an escape: in a
+// field, in an unknown member and a json.RawMessage (its skipper falls back to ReadString at a
+// backslash) and in a map key. encoding/json rejects them all.
+func controlCharacters() []row {
+	var rows []row
+	for _, in := range []string{
+		"{\"s\":\"a\tb\"}",
+		"{\"s\":\"\\na\tb\"}",
+		"{\"s\":\"\\/\x01\"}",
+		"{\"s\":\"\\u0041\n\"}",
+		"{\"zz\":\"\tq\",\"s\":\"x\"}",
+		"{\"zz\":\"\\n\tq\",\"s\":\"x\"}",
+		"{\"ext\":\"\\n\tq\"}",
+		"{\"ext\":{\"a\":[\"\\\"\x1f\"]}}",
+		"{\"m\":{\"\\n\tk\":1}}",
+	} {
+		var a controlTarget
+		err := jsonutil.Unmarshal([]byte(in), &a)
+		rows = append(rows, row{Name: "jsonutil.Unmarshal", Input: in, Result: a.state(), Err: errText(err)})
+		var b controlTarget
+		err = jsonutil.UnmarshalValid([]byte(in), &b)
+		rows = append(rows, row{Name: "jsonutil.UnmarshalValid", Input: in, Result: b.state(), Err: errText(err)})
+		var c controlTarget
+		err = json.Unmarshal([]byte(in), &c)
+		rows = append(rows, row{Name: "json.Unmarshal", Input: in, Result: c.state(), Err: errText(err)})
+		var d controlTarget
+		err = jsonutil.MergeClone(&d, []byte(in))
+		rows = append(rows, row{Name: "jsonutil.MergeClone", Input: in, Result: d.state(), Err: errText(err)})
+	}
+	return rows
+}
+
+// nullDocuments is json.null-document: a document that is JSON null, as a bidder's response body
+// can be. jsoniter and encoding/json return no error and leave a struct and an int as they were
+// and a map and a slice nil; jsoniter makes a string "", encoding/json leaves it. MergeClone leaves
+// the struct as it was.
+func nullDocuments() []row {
+	decoders := []struct {
+		name   string
+		decode func([]byte, any) error
+	}{
+		{"jsonutil.Unmarshal", jsonutil.Unmarshal},
+		{"jsonutil.UnmarshalValid", jsonutil.UnmarshalValid},
+		{"json.Unmarshal", json.Unmarshal},
+	}
+	var rows []row
+	for _, in := range []string{"null", " null\n"} {
+		for _, d := range decoders {
+			st := idTarget{ID: "keep", N: 7}
+			err := d.decode([]byte(in), &st)
+			rows = append(rows, row{Name: d.name + " struct", Input: in, Result: marshalled(st), Err: errText(err)})
+			m := map[string]int{"a": 1}
+			err = d.decode([]byte(in), &m)
+			rows = append(rows, row{Name: d.name + " map", Input: in, Result: fmt.Sprintf("nil=%v", m == nil), Err: errText(err)})
+			s := []int{1}
+			err = d.decode([]byte(in), &s)
+			rows = append(rows, row{Name: d.name + " slice", Input: in, Result: fmt.Sprintf("nil=%v", s == nil), Err: errText(err)})
+			str := "keep"
+			err = d.decode([]byte(in), &str)
+			rows = append(rows, row{Name: d.name + " string", Input: in, Result: fmt.Sprintf("%q", str), Err: errText(err)})
+			n := 7
+			err = d.decode([]byte(in), &n)
+			rows = append(rows, row{Name: d.name + " int", Input: in, Result: fmt.Sprint(n), Err: errText(err)})
+		}
+		st := idTarget{ID: "keep", N: 7}
+		err := jsonutil.MergeClone(&st, []byte(in))
+		rows = append(rows, row{Name: "jsonutil.MergeClone struct", Input: in, Result: marshalled(st), Err: errText(err)})
+	}
+	return rows
+}
+
+type elementFormat struct {
+	W int `json:"w"`
+}
+
+// elementTarget has slices of ints, strings, structs, a typed int and pointers, and maps of ints
+// and strings.
+type elementTarget struct {
+	L  []int             `json:"l,omitempty"`
+	S  []string          `json:"s,omitempty"`
+	F  []elementFormat   `json:"f,omitempty"`
+	T  []typedInt8       `json:"t,omitempty"`
+	P  []*int            `json:"p,omitempty"`
+	M  map[string]int    `json:"m,omitempty"`
+	MS map[string]string `json:"ms,omitempty"`
+}
+
+// nullElements is json.null-elements: null as an element of a slice, or a value of a map, whose
+// element type is not a pointer. jsoniter and encoding/json leave the element's zero value, as
+// they do for a field (json.null-into-value), and so does MergeClone; a pointer element is nil.
+func nullElements() []row {
+	var rows []row
+	for _, in := range []string{
+		`{"l":[1,null,2]}`,
+		`{"s":["a",null]}`,
+		`{"f":[null,{"w":1}]}`,
+		`{"t":[null,5]}`,
+		`{"p":[null,1]}`,
+		`{"m":{"a":null,"b":1}}`,
+		`{"ms":{"a":null}}`,
+	} {
+		var a elementTarget
+		err := jsonutil.Unmarshal([]byte(in), &a)
+		rows = append(rows, row{Name: "jsonutil.Unmarshal", Input: in, Result: marshalled(a), Err: errText(err)})
+		var b elementTarget
+		err = jsonutil.UnmarshalValid([]byte(in), &b)
+		rows = append(rows, row{Name: "jsonutil.UnmarshalValid", Input: in, Result: marshalled(b), Err: errText(err)})
+		var c elementTarget
+		err = json.Unmarshal([]byte(in), &c)
+		rows = append(rows, row{Name: "json.Unmarshal", Input: in, Result: marshalled(c), Err: errText(err)})
+		var d elementTarget
+		err = jsonutil.MergeClone(&d, []byte(in))
+		rows = append(rows, row{Name: "jsonutil.MergeClone", Input: in, Result: marshalled(d), Err: errText(err)})
+	}
+	return rows
+}
+
 type decodeDoc struct {
 	Header           header `json:"header"`
 	NullIntoValue    []row  `json:"null_into_value"`
@@ -362,6 +535,10 @@ type decodeDoc struct {
 	ParseIntoString  []row  `json:"parse_into_string"`
 	OutOfRange       []row  `json:"out_of_range_numbers"`
 	TypedInts        []row  `json:"typed_ints"`
+	NegativeZero     []row  `json:"negative_zero"`
+	ControlChars     []row  `json:"control_characters"`
+	NullDocuments    []row  `json:"null_documents"`
+	NullElements     []row  `json:"null_elements"`
 }
 
 func decodeGolden() decodeDoc {
@@ -382,5 +559,9 @@ func decodeGolden() decodeDoc {
 		ParseIntoString:  parseIntoStrings(),
 		OutOfRange:       outOfRangeNumbers(),
 		TypedInts:        typedInts(),
+		NegativeZero:     negativeZeros(),
+		ControlChars:     controlCharacters(),
+		NullDocuments:    nullDocuments(),
+		NullElements:     nullElements(),
 	}
 }

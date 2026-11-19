@@ -1,19 +1,24 @@
 //! Decoding against Go (`testdata/golden/decode.json`): null into value and `json.RawMessage`
 //! fields, numbers into `interface{}`, malformed raw values, lone surrogates, numbers beyond
-//! `f64`'s range, Prebid's lenient readers (`StringInt`, `IntString`, `ParseIntoString`) and Go's
-//! typed integers.
+//! `f64`'s range, Prebid's lenient readers (`StringInt`, `IntString`, `ParseIntoString`), Go's
+//! typed integers, `-0` read into integers, raw control characters in strings, and null as a
+//! whole document and as a slice element or map value.
 
 #[cfg(test)]
 pub mod support;
 
 #[cfg(test)]
 mod tests {
-    use std::{collections::BTreeMap, fmt::Write as _};
+    use std::{
+        collections::{BTreeMap, BTreeSet},
+        fmt::Write as _,
+    };
 
     use pbs_errortypes::GoError;
     use pbs_jsonutil::{
-        IntString, StringInt, marshal, null_default, parse_into_string, raw_compact, raw_keep_null,
-        unmarshal, unmarshal_valid,
+        IntString, MergeClone, MergeCloneError, StringInt, marshal, merge_clone, merge_field,
+        merge_struct, null_default, parse_into_string, raw_compact, raw_keep_null, unmarshal,
+        unmarshal_valid,
     };
     use serde::{Deserialize, Serialize, de::DeserializeOwned};
     use serde_json::{Value, value::RawValue};
@@ -723,5 +728,326 @@ mod tests {
             }
         }
         ensure_eq(&rows.len(), &6, "inputs")
+    }
+
+    /// Go's `intTarget`: an `int`, an `int8`, a `uint` and a typed `int8` (as openrtb2's enums
+    /// are), a pointer to an `int` and a `float64`, as typegen writes them.
+    #[derive(Debug, Default, Deserialize)]
+    #[serde(default)]
+    struct IntTarget {
+        #[serde(deserialize_with = "null_default")]
+        i: i64,
+        #[serde(rename = "i8", deserialize_with = "null_default")]
+        small: i8,
+        #[serde(deserialize_with = "null_default")]
+        u: u64,
+        #[serde(deserialize_with = "null_default")]
+        t: TypedInt8,
+        p: Option<i64>,
+        #[serde(deserialize_with = "null_default")]
+        f: f64,
+    }
+
+    impl MergeClone for IntTarget {
+        fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+            merge_struct(patch, |key, value| match key {
+                "i" => merge_field(&mut self.i, value, "main.intTarget", "I"),
+                "i8" => merge_field(&mut self.small, value, "main.intTarget", "I8"),
+                "u" => merge_field(&mut self.u, value, "main.intTarget", "U"),
+                "t" => merge_field(&mut self.t, value, "main.intTarget", "T"),
+                "p" => merge_field(&mut self.p, value, "main.intTarget", "P"),
+                "f" => merge_field(&mut self.f, value, "main.intTarget", "F"),
+                _ => Ok(()),
+            })
+        }
+    }
+
+    /// `-0` read into an integer field fails the document: `serde_json` parses it as the float
+    /// -0.0, which every integer type rejects, where Go's three decoders read 0 into a signed
+    /// integer, a typed one and a pointer to one, and `MergeClone` writes that 0
+    /// (`json.negative-zero-int`). Both sides reject `-0` for an unsigned integer and read it as
+    /// -0 into a float.
+    // Go: jsoniter iter_int.go:41 (ReadInt8), :221-237 (ReadInt64), :126 and :248 (readUint32 and
+    // readUint64 read a single zero); encoding/json decode.go:1003 (strconv.ParseInt), :1011
+    // (strconv.ParseUint); gen/decode.go negativeZeros
+    #[test]
+    fn negative_zero_rejected_for_integers() -> TestResult {
+        let doc = golden("decode.json")?;
+        let rows = rows(&doc, "/negative_zero")?;
+        let mut go_reads = Vec::new();
+        for row in &rows {
+            let what = format!("{} {}", row.name, row.input);
+            let rust = if row.name == "jsonutil.MergeClone" {
+                let mut target = IntTarget {
+                    i: 5,
+                    small: 5,
+                    u: 5,
+                    t: TypedInt8(5),
+                    p: None,
+                    f: 5.0,
+                };
+                merge_clone(&mut target, row.input.as_bytes())
+                    .map(|()| target)
+                    .map_err(GoError::into_message)
+            } else {
+                decode::<IntTarget>(row)
+            };
+            if row.input == r#"{"f":-0}"# {
+                ensure_eq(
+                    &(row.err, row.result.ends_with(r#""f":-0}"#)),
+                    &("", true),
+                    &what,
+                )?;
+                ensure_eq(&rust?.f.is_sign_negative(), &true, &what)?;
+                continue;
+            }
+            let error = rust
+                .err()
+                .ok_or_else(|| format!("{what}: read where Go reads 0 or fails"))?;
+            ensure_eq(
+                &error.contains("invalid type: floating point `-0.0`, expected"),
+                &true,
+                &what,
+            )?;
+            if row.err.is_empty() {
+                go_reads.push((row.name, row.input));
+            }
+        }
+        ensure_eq(&rows.len(), &24, "rows")?;
+        let signed = [r#"{"i":-0}"#, r#"{"i8":-0}"#, r#"{"t":-0}"#, r#"{"p":-0}"#];
+        let decoders = [
+            "jsonutil.Unmarshal",
+            "jsonutil.UnmarshalValid",
+            "json.Unmarshal",
+            "jsonutil.MergeClone",
+        ];
+        let want: Vec<(&str, &str)> = signed
+            .iter()
+            .flat_map(|input| decoders.iter().map(move |name| (*name, *input)))
+            .collect();
+        ensure_eq(&go_reads, &want, "what Go reads as 0")
+    }
+
+    /// Go's `controlTarget`: a string, a `json.RawMessage` and a map's keys.
+    #[derive(Debug, Default, Deserialize)]
+    #[serde(default)]
+    struct ControlTarget {
+        #[serde(deserialize_with = "null_default")]
+        s: String,
+        ext: Option<Box<RawValue>>,
+        m: Option<BTreeMap<String, i64>>,
+    }
+
+    impl MergeClone for ControlTarget {
+        fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+            merge_struct(patch, |key, value| match key {
+                "s" => merge_field(&mut self.s, value, "main.controlTarget", "S"),
+                "ext" => merge_field(&mut self.ext, value, "main.controlTarget", "Ext"),
+                "m" => merge_field(&mut self.m, value, "main.controlTarget", "M"),
+                _ => Ok(()),
+            })
+        }
+    }
+
+    /// A raw control character (U+0000 to U+001F) inside a string fails the document wherever
+    /// it is, as `encoding/json` fails it, where jsoniter (`jsonutil.Unmarshal`, `UnmarshalValid`
+    /// and `MergeClone`) reads one that follows an escape in its string: in a field, an unknown
+    /// member, a `json.RawMessage` (kept as written) and a map key (`json.control-characters`).
+    /// One that comes before every escape of its string fails on both sides.
+    // Go: jsoniter iter_str.go:9-33 (ReadString checks only up to the first backslash), :35-52
+    // (readStringSlowPath), iter_skip_strict.go:61-83 (skipString falls back to ReadString);
+    // encoding/json scanner.go:339-351 (stateInString); gen/decode.go controlCharacters
+    #[test]
+    fn raw_control_characters_rejected() -> TestResult {
+        let doc = golden("decode.json")?;
+        let rows = rows(&doc, "/control_characters")?;
+        let mut go_reads = Vec::new();
+        for row in &rows {
+            let what = format!("{} {:?}", row.name, row.input);
+            let error = if row.name == "jsonutil.MergeClone" {
+                merge_clone(&mut ControlTarget::default(), row.input.as_bytes())
+                    .err()
+                    .map(GoError::into_message)
+            } else {
+                decode::<ControlTarget>(row).err()
+            };
+            let error = error.ok_or_else(|| format!("{what}: read"))?;
+            ensure_eq(
+                &error.starts_with("control character (\\u0000-\\u001F) found while parsing"),
+                &true,
+                &what,
+            )?;
+            if row.name == "json.Unmarshal" {
+                ensure_eq(&row.err.is_empty(), &false, &what)?;
+            } else if row.err.is_empty() {
+                go_reads.push(row.input);
+            }
+        }
+        ensure_eq(&rows.len(), &36, "rows")?;
+        let before_escape = ["{\"s\":\"a\tb\"}", "{\"zz\":\"\tq\",\"s\":\"x\"}"];
+        let after_escape: BTreeSet<&str> = go_reads.iter().copied().collect();
+        ensure_eq(
+            &(go_reads.len(), after_escape.len()),
+            &(21, 7),
+            "rows and inputs jsoniter reads",
+        )?;
+        let inputs: BTreeSet<&str> = rows.iter().map(|row| row.input).collect();
+        let rejected: Vec<&str> = inputs.difference(&after_escape).copied().collect();
+        ensure_eq(
+            rejected.as_slice(),
+            before_escape.as_slice(),
+            "inputs jsoniter rejects",
+        )
+    }
+
+    impl MergeClone for IdTarget {
+        fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+            merge_struct(patch, |key, value| match key {
+                "id" => merge_field(&mut self.id, value, "main.idTarget", "ID"),
+                "n" => merge_field(&mut self.n, value, "main.idTarget", "N"),
+                _ => Ok(()),
+            })
+        }
+    }
+
+    /// A document that is JSON null, whitespace around it or not, fails to decode into a
+    /// struct, a map, a `Vec`, a `String` or a number (`invalid type: null`) and reads `None`
+    /// into an `Option`, where Go's three decoders return no error and leave the target's zero
+    /// value: a struct and a number as they were, a map and a slice nil, and a string empty
+    /// (jsoniter) or as it was (`encoding/json`) (`json.null-document`). `merge_clone` leaves the
+    /// value as it was, as `MergeClone` does.
+    // Go: jsoniter config.go:345-357 (Unmarshal), reflect.go:62-80 (ReadVal) and its decoders'
+    // null branches; encoding/json decode.go:897-907 (literalStore's null); gen/decode.go
+    // nullDocuments
+    #[test]
+    fn null_document_rejected() -> TestResult {
+        let doc = golden("decode.json")?;
+        let rows = rows(&doc, "/null_documents")?;
+        for row in &rows {
+            let what = format!("{} {:?}", row.name, row.input);
+            ensure_eq(&row.err, &"", &what)?;
+            if row.name == "jsonutil.MergeClone struct" {
+                let mut target = IdTarget {
+                    id: "keep".to_owned(),
+                    n: 7,
+                };
+                merge_clone(&mut target, row.input.as_bytes())?;
+                let go: IdTarget = unmarshal(row.result.as_bytes())?;
+                ensure_eq(&target, &go, &what)?;
+                continue;
+            }
+            let kind = row.name.rsplit(' ').next().unwrap_or_default();
+            let error = match kind {
+                "struct" => decode::<IdTarget>(row).err(),
+                "map" => decode::<BTreeMap<String, i64>>(row).err(),
+                "slice" => decode::<Vec<i64>>(row).err(),
+                "string" => decode::<String>(row).err(),
+                "int" => decode::<i64>(row).err(),
+                _ => return Err(format!("{what}: no Rust target").into()),
+            };
+            let error = error.ok_or_else(|| format!("{what}: read"))?;
+            ensure_eq(&error.starts_with("invalid type: null"), &true, &what)?;
+            ensure_eq(&decode::<Option<IdTarget>>(row), &Ok(None), &what)?;
+        }
+        ensure_eq(&rows.len(), &32, "rows")
+    }
+
+    /// Go's `elementFormat`.
+    #[derive(Debug, Default, PartialEq, Eq, Deserialize)]
+    #[serde(default)]
+    struct ElementFormat {
+        #[serde(deserialize_with = "null_default")]
+        w: i64,
+    }
+
+    impl MergeClone for ElementFormat {
+        fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+            merge_struct(patch, |key, value| match key {
+                "w" => merge_field(&mut self.w, value, "main.elementFormat", "W"),
+                _ => Ok(()),
+            })
+        }
+    }
+
+    impl MergeClone for TypedInt8 {
+        fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+            self.0.merge_clone(patch)
+        }
+    }
+
+    /// Go's `elementTarget` as typegen writes it: its slices and maps stay `Option`, so nil and
+    /// empty differ.
+    #[derive(Debug, Default, PartialEq, Eq, Deserialize)]
+    #[serde(default)]
+    struct ElementTarget {
+        l: Option<Vec<i64>>,
+        s: Option<Vec<String>>,
+        f: Option<Vec<ElementFormat>>,
+        t: Option<Vec<TypedInt8>>,
+        p: Option<Vec<Option<i64>>>,
+        m: Option<BTreeMap<String, i64>>,
+        ms: Option<BTreeMap<String, String>>,
+    }
+
+    impl MergeClone for ElementTarget {
+        fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+            const GO: &str = "main.elementTarget";
+            merge_struct(patch, |key, value| match key {
+                "l" => merge_field(&mut self.l, value, GO, "L"),
+                "s" => merge_field(&mut self.s, value, GO, "S"),
+                "f" => merge_field(&mut self.f, value, GO, "F"),
+                "t" => merge_field(&mut self.t, value, GO, "T"),
+                "p" => merge_field(&mut self.p, value, GO, "P"),
+                "m" => merge_field(&mut self.m, value, GO, "M"),
+                "ms" => merge_field(&mut self.ms, value, GO, "MS"),
+                _ => Ok(()),
+            })
+        }
+    }
+
+    /// null as an element of a slice, or a value of a map, whose type is no `Option` fails the
+    /// document (`invalid type: null`): `null_default` covers fields only. Go's three decoders
+    /// leave the element's zero value there, as they do for a field (`json.null-elements`). An
+    /// `Option` element reads `None`, Go's nil, and `merge_clone` reads every row as `MergeClone`
+    /// does.
+    // Go: jsoniter reflect_slice.go (sliceDecoder.doDecode), reflect_map.go (mapDecoder.Decode)
+    // and the element decoders' null branches; encoding/json decode.go:897-907 (literalStore's
+    // null); gen/decode.go nullElements
+    #[test]
+    fn null_elements_rejected() -> TestResult {
+        let doc = golden("decode.json")?;
+        let rows = rows(&doc, "/null_elements")?;
+        let mut rejected = BTreeSet::new();
+        for row in &rows {
+            let what = format!("{} {}", row.name, row.input);
+            ensure_eq(&row.err, &"", &what)?;
+            let go: ElementTarget = unmarshal(row.result.as_bytes())?;
+            if row.name == "jsonutil.MergeClone" {
+                let mut rust = ElementTarget::default();
+                merge_clone(&mut rust, row.input.as_bytes())?;
+                ensure_eq(&rust, &go, &what)?;
+                continue;
+            }
+            match decode::<ElementTarget>(row) {
+                Ok(rust) => ensure_eq(&rust, &go, &what)?,
+                Err(error) => {
+                    ensure_eq(&error.starts_with("invalid type: null"), &true, &what)?;
+                    let _new = rejected.insert(row.input);
+                }
+            }
+        }
+        ensure_eq(&rows.len(), &28, "rows")?;
+        ensure_eq(
+            &rejected.into_iter().collect::<Vec<_>>(),
+            &vec![
+                r#"{"f":[null,{"w":1}]}"#,
+                r#"{"l":[1,null,2]}"#,
+                r#"{"m":{"a":null,"b":1}}"#,
+                r#"{"ms":{"a":null}}"#,
+                r#"{"s":["a",null]}"#,
+                r#"{"t":[null,5]}"#,
+            ],
+            "inputs serde rejects",
+        )
     }
 }
