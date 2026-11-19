@@ -264,12 +264,12 @@ No entry names the classes `other` and `unrecorded` or the kinds `stage_missing`
 - **Pin:** `crates/http-client/tests/limits.rs::no_global_idle_cap`
 - **Recorded in:** `crates/http-client/differences.toml`
 
-#### `http-client.proxy-exceptions`: Proxy picks that still differ: `LocalHost`, IPv6 zones and a value that is no URL
+#### `http-client.proxy-exceptions`: Proxy picks that still differ: `LocalHost`, IPv6 zones and proxy values without a URL's host
 
-- **Go:** httpproxy compares the host with `localhost` before it lower-cases it, so it proxies `http://LocalHost/`; `url.Parse` reads a URL with an IPv6 zone (`http://[fe80::1%25en0]/`); and a proxy value such as `bogus url` is used as the URL `bogus%20url`, whose dial fails.
-- **Rust:** The url crate lower-cases the host, and the clients never proxy localhost in any case; it parses no IPv6 zone, so such a URL makes no request; and the clients refuse a proxy value that is no http or https URL.
+- **Go:** httpproxy compares the host with `localhost` before it lower-cases it, so it proxies `http://LocalHost/`; `url.Parse` reads a URL with an IPv6 zone (`http://[fe80::1%25en0]/`); a proxy value such as `bogus url` is used as the URL `bogus%20url`, whose dial fails; and a proxy whose host `url.Parse` reads as empty is dialled on the local machine (net/http/transport.go `canonicalAddr`): `:3128`, read as `http://:3128`, at port 3128, and `//proxy.test:8080`, read as `http:////proxy.test:8080`, at port 80.
+- **Rust:** The url crate lower-cases the host, and the clients never proxy localhost in any case; it parses no IPv6 zone, so such a URL makes no request; the clients refuse a proxy value the url crate reads as no http or https URL with a host (`bogus url`, `http://:3128`); and the url crate reads `http:////proxy.test:8080` as the proxy `proxy.test:8080`, which the clients dial.
 - **Who notices:** operator
-- **Visible in:** Requests to `LocalHost` or a zoned IPv6 address under a proxy environment, and proxy variables that hold no URL
+- **Visible in:** Requests to `LocalHost` or a zoned IPv6 address under a proxy environment, and proxy variables that hold no URL or one whose host Go reads as empty
 - **Harness:** none
 - **Pin:** `crates/http-client/tests/proxy.rs::proxy_exceptions_differ`
 - **Recorded in:** `crates/http-client/differences.toml`

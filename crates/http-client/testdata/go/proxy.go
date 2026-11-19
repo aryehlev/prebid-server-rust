@@ -1,6 +1,7 @@
 package main
 
 import (
+	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -8,6 +9,7 @@ import (
 	"strings"
 
 	"golang.org/x/net/http/httpproxy"
+	"golang.org/x/net/idna"
 )
 
 // ProxyGolden is the proxy golden: the proxy httpproxy picks for each probe environment and URL,
@@ -34,7 +36,52 @@ type ProxyWire struct {
 type ProxyProbe struct {
 	Env     map[string]string `json:"env"`
 	Config  ProxyConfig       `json:"config"`
+	Dial    ProxyDial         `json:"dial"`
 	Results []ProxyResult     `json:"results"`
+}
+
+// ProxyDial is the address the Transport dials for an http and an https request the environment
+// sends through a proxy (http://dial.probe/ and https://dial.probe/): the proxy URL's
+// canonicalAddr, "" when the request goes direct or the ProxyFunc refuses it.
+type ProxyDial struct {
+	HTTP  string `json:"http"`
+	HTTPS string `json:"https"`
+}
+
+// proxyDialAddr is net/http's canonicalAddr of a proxy URL, the first hop connectMethod.addr
+// gives the dialer (net/http/transport.go): the host in IDNA ASCII form when it is not ASCII,
+// and the port, else the scheme's (portMap).
+func proxyDialAddr(proxy *url.URL) string {
+	host := proxy.Hostname()
+	ascii := true
+	for i := 0; i < len(host); i++ {
+		if host[i] >= 0x80 {
+			ascii = false
+		}
+	}
+	if !ascii {
+		if v, err := idna.Lookup.ToASCII(host); err == nil {
+			host = v
+		}
+	}
+	port := proxy.Port()
+	if port == "" {
+		port = map[string]string{"http": "80", "https": "443", "socks5": "1080", "socks5h": "1080"}[proxy.Scheme]
+	}
+	return net.JoinHostPort(host, port)
+}
+
+// probeDial is the address dialled for a request to raw under proxyFor, "" for none.
+func probeDial(proxyFor func(*url.URL) (*url.URL, error), raw string) string {
+	u, err := url.Parse(raw)
+	if err != nil {
+		panic(err)
+	}
+	proxy, err := proxyFor(u)
+	if err != nil || proxy == nil {
+		return ""
+	}
+	return proxyDialAddr(proxy)
 }
 
 // ProxyConfig is an httpproxy.Config.
@@ -138,6 +185,8 @@ func runProxyProbes() (probes []ProxyProbe, err error) {
 		probe := ProxyProbe{
 			Env:    env,
 			Config: ProxyConfig{HTTPProxy: cfg.HTTPProxy, HTTPSProxy: cfg.HTTPSProxy, NoProxy: cfg.NoProxy, CGI: cfg.CGI},
+			Dial: ProxyDial{HTTP: probeDial(proxyFor, "http://dial.probe/"),
+				HTTPS: probeDial(proxyFor, "https://dial.probe/")},
 		}
 		for _, raw := range proxyProbeURLs() {
 			r := ProxyResult{URL: raw}

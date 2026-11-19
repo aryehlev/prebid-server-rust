@@ -504,13 +504,13 @@
       "id": "http-client.proxy-exceptions",
       "category": "http-client",
       "status": "ledgered",
-      "title": "Proxy picks that still differ: `LocalHost`, IPv6 zones and a value that is no URL",
-      "go": "httpproxy compares the host with `localhost` before it lower-cases it, so it proxies `http://LocalHost/`; `url.Parse` reads a URL with an IPv6 zone (`http://[fe80::1%25en0]/`); and a proxy value such as `bogus url` is used as the URL `bogus%20url`, whose dial fails.",
-      "rust": "The url crate lower-cases the host, and the clients never proxy localhost in any case; it parses no IPv6 zone, so such a URL makes no request; and the clients refuse a proxy value that is no http or https URL.",
+      "title": "Proxy picks that still differ: `LocalHost`, IPv6 zones and proxy values without a URL's host",
+      "go": "httpproxy compares the host with `localhost` before it lower-cases it, so it proxies `http://LocalHost/`; `url.Parse` reads a URL with an IPv6 zone (`http://[fe80::1%25en0]/`); a proxy value such as `bogus url` is used as the URL `bogus%20url`, whose dial fails; and a proxy whose host `url.Parse` reads as empty is dialled on the local machine (net/http/transport.go `canonicalAddr`): `:3128`, read as `http://:3128`, at port 3128, and `//proxy.test:8080`, read as `http:////proxy.test:8080`, at port 80.",
+      "rust": "The url crate lower-cases the host, and the clients never proxy localhost in any case; it parses no IPv6 zone, so such a URL makes no request; the clients refuse a proxy value the url crate reads as no http or https URL with a host (`bogus url`, `http://:3128`); and the url crate reads `http:////proxy.test:8080` as the proxy `proxy.test:8080`, which the clients dial.",
       "who": [
         "operator"
       ],
-      "visible_in": "Requests to `LocalHost` or a zoned IPv6 address under a proxy environment, and proxy variables that hold no URL",
+      "visible_in": "Requests to `LocalHost` or a zoned IPv6 address under a proxy environment, and proxy variables that hold no URL or one whose host Go reads as empty",
       "harness": [],
       "pin": "crates/http-client/tests/proxy.rs::proxy_exceptions_differ",
       "restore": null,

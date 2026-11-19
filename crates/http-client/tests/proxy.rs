@@ -65,6 +65,26 @@ mod tests {
     /// Go's pick and the rules' for one probe URL: the proxy's text and the error.
     type Pick = (String, String);
 
+    /// The address the clients dial for a request to `scheme://dial.probe/` under `env`, as the
+    /// golden writes Go's: the proxy's host and port, `""` for a direct connection or the CGI
+    /// refusal, and `refused` for a proxy the clients refuse to send through.
+    fn rust_dial(env: &ProxyEnv, scheme: &str) -> Result<String, BoxError> {
+        let url = Url::parse(&format!("{scheme}://dial.probe/"))?;
+        Ok(match env.rules().choose(&url) {
+            Choice::Direct | Choice::Refused => String::new(),
+            Choice::Proxy(proxy) => proxy.usable().map_or_else(
+                || "refused".to_owned(),
+                |proxy| {
+                    format!(
+                        "{}:{}",
+                        proxy.host_str().unwrap_or_default(),
+                        proxy.port_or_known_default().unwrap_or_default()
+                    )
+                },
+            ),
+        })
+    }
+
     /// Every probe's picks, compared: the probe URLs the url crate does not parse, how many
     /// `LocalHost` picks Go proxies, how many picks of the bogus value Go writes escaped, and
     /// every other pick that differs, with the probe's `NO_PROXY`.
@@ -133,7 +153,8 @@ mod tests {
     }
 
     // Go: golang.org/x/net/http/httpproxy (v0.55.0) config.useProxy (the `localhost` test before
-    // the host is lower-cased) and net/url/url.go parseHost (zones).
+    // the host is lower-cased), net/url/url.go parseHost (zones) and net/http/transport.go
+    // connectMethod.addr and canonicalAddr (the proxy's address the Transport dials).
     #[test]
     fn proxy_exceptions_differ() -> TestResult {
         let compared = compare()?;
@@ -160,7 +181,40 @@ mod tests {
         check_eq(&compared.localhost, &130, "LocalHost picks Go proxies")?;
         // Go's String() escapes the path it read `bogus url` as; the clients refuse the value
         // when they send (socks_proxy_refused), and Go's dial fails.
-        check_eq(&compared.bogus, &34, "picks of the bogus value")
+        check_eq(&compared.bogus, &34, "picks of the bogus value")?;
+        // The address each environment's proxy is dialled at: the url crate reads no proxy
+        // from `bogus url` or `http://:3128`, whose empty host Go dials on this machine, and
+        // reads `http:////proxy.test:8080`, whose host Go reads as empty, as `proxy.test:8080`;
+        // the clients refuse socks proxies (http-client.socks-proxy).
+        let doc = golden("proxy.json")?;
+        let mut dials = Vec::new();
+        for probe in list(&doc, "/probes")? {
+            let env = probe_env(probe)?;
+            for (scheme, value) in [("http", &env.http_proxy), ("https", &env.https_proxy)] {
+                let go = text(probe, &format!("/dial/{scheme}"))?;
+                let rust = rust_dial(&env, scheme)?;
+                if rust != go {
+                    dials.push((value.clone(), go.to_owned(), rust));
+                }
+            }
+        }
+        check_eq(
+            &dials,
+            &[
+                (
+                    "socks5://user:pw@socks.test:1080",
+                    "socks.test:1080",
+                    "refused",
+                ),
+                ("socks5h://socks.test", "socks.test:1080", "refused"),
+                ("bogus url", ":", "refused"),
+                (":3128", ":3128", "refused"),
+                ("//proxy.test:8080", ":80", "proxy.test:8080"),
+            ]
+            .map(|(value, go, rust)| (value.to_owned(), go.to_owned(), rust.to_owned()))
+            .to_vec(),
+            "the proxy dials that differ (the value, Go's, the clients')",
+        )
     }
 
     /// A loopback proxy that reads one request and answers it with `status`, and the head it

@@ -21,6 +21,10 @@
         "no_proxy": "",
         "cgi": false
       },
+      "dial": {
+        "http": "proxy.test:3128",
+        "https": "secure-proxy.test:443"
+      },
       "results": [
         {
           "url": "http://example.com/",
@@ -540,6 +544,10 @@
         "https_proxy": "https://secure-proxy.test",
         "no_proxy": "*",
         "cgi": false
+      },
+      "dial": {
+        "http": "",
+        "https": ""
       },
       "results": [
         {
@@ -1061,6 +1069,10 @@
         "no_proxy": "foo,*,bar",
         "cgi": false
       },
+      "dial": {
+        "http": "",
+        "https": ""
+      },
       "results": [
         {
           "url": "http://example.com/",
@@ -1580,6 +1592,10 @@
         "https_proxy": "https://secure-proxy.test",
         "no_proxy": "example.com",
         "cgi": false
+      },
+      "dial": {
+        "http": "proxy.test:3128",
+        "https": "secure-proxy.test:443"
       },
       "results": [
         {
@@ -2101,6 +2117,10 @@
         "no_proxy": ".example.com",
         "cgi": false
       },
+      "dial": {
+        "http": "proxy.test:3128",
+        "https": "secure-proxy.test:443"
+      },
       "results": [
         {
           "url": "http://example.com/",
@@ -2620,6 +2640,10 @@
         "https_proxy": "https://secure-proxy.test",
         "no_proxy": "*.example.com",
         "cgi": false
+      },
+      "dial": {
+        "http": "proxy.test:3128",
+        "https": "secure-proxy.test:443"
       },
       "results": [
         {
@@ -3141,6 +3165,10 @@
         "no_proxy": "example.com:8080",
         "cgi": false
       },
+      "dial": {
+        "http": "proxy.test:3128",
+        "https": "secure-proxy.test:443"
+      },
       "results": [
         {
           "url": "http://example.com/",
@@ -3660,6 +3688,10 @@
         "https_proxy": "https://secure-proxy.test",
         "no_proxy": "sub.example.com:8080",
         "cgi": false
+      },
+      "dial": {
+        "http": "proxy.test:3128",
+        "https": "secure-proxy.test:443"
       },
       "results": [
         {
@@ -4181,6 +4213,10 @@
         "no_proxy": "EXAMPLE.COM",
         "cgi": false
       },
+      "dial": {
+        "http": "proxy.test:3128",
+        "https": "secure-proxy.test:443"
+      },
       "results": [
         {
           "url": "http://example.com/",
@@ -4700,6 +4736,10 @@
         "https_proxy": "https://secure-proxy.test",
         "no_proxy": " example.com , ,foo.bar.org ",
         "cgi": false
+      },
+      "dial": {
+        "http": "proxy.test:3128",
+        "https": "secure-proxy.test:443"
       },
       "results": [
         {
@@ -5221,6 +5261,10 @@
         "no_proxy": "example.com.",
         "cgi": false
       },
+      "dial": {
+        "http": "proxy.test:3128",
+        "https": "secure-proxy.test:443"
+      },
       "results": [
         {
           "url": "http://example.com/",
@@ -5740,6 +5784,10 @@
         "https_proxy": "https://secure-proxy.test",
         "no_proxy": "example.com:abc",
         "cgi": false
+      },
+      "dial": {
+        "http": "proxy.test:3128",
+        "https": "secure-proxy.test:443"
       },
       "results": [
         {
@@ -6261,6 +6309,10 @@
         "no_proxy": "10.0.0.0/8",
         "cgi": false
       },
+      "dial": {
+        "http": "proxy.test:3128",
+        "https": "secure-proxy.test:443"
+      },
       "results": [
         {
           "url": "http://example.com/",
@@ -6780,6 +6832,10 @@
         "https_proxy": "https://secure-proxy.test",
         "no_proxy": "1.2.3.4:8080,1.2.3.4:443",
         "cgi": false
+      },
+      "dial": {
+        "http": "proxy.test:3128",
+        "https": "secure-proxy.test:443"
       },
       "results": [
         {
@@ -7301,6 +7357,10 @@
         "no_proxy": "[2001:db8::1]:443",
         "cgi": false
       },
+      "dial": {
+        "http": "proxy.test:3128",
+        "https": "secure-proxy.test:443"
+      },
       "results": [
         {
           "url": "http://example.com/",
@@ -7820,6 +7880,10 @@
         "https_proxy": "https://secure-proxy.test",
         "no_proxy": "2001:db8::1",
         "cgi": false
+      },
+      "dial": {
+        "http": "proxy.test:3128",
+        "https": "secure-proxy.test:443"
       },
       "results": [
         {
@@ -8341,6 +8405,10 @@
         "no_proxy": "2001:db8::/32,fe80::/10",
         "cgi": false
       },
+      "dial": {
+        "http": "proxy.test:3128",
+        "https": "secure-proxy.test:443"
+      },
       "results": [
         {
           "url": "http://example.com/",
@@ -8860,6 +8928,10 @@
         "https_proxy": "https://secure-proxy.test",
         "no_proxy": "::ffff:10.0.0.0/104",
         "cgi": false
+      },
+      "dial": {
+        "http": "proxy.test:3128",
+        "https": "secure-proxy.test:443"
       },
       "results": [
         {
@@ -9381,6 +9453,10 @@
         "no_proxy": "::ffff:10.0.0.0/80",
         "cgi": false
       },
+      "dial": {
+        "http": "proxy.test:3128",
+        "https": "secure-proxy.test:443"
+      },
       "results": [
         {
           "url": "http://example.com/",
@@ -9900,6 +9976,10 @@
         "https_proxy": "https://secure-proxy.test",
         "no_proxy": "::ffff:10.0.0.0/95",
         "cgi": false
+      },
+      "dial": {
+        "http": "proxy.test:3128",
+        "https": "secure-proxy.test:443"
       },
       "results": [
         {
@@ -10421,6 +10501,10 @@
         "no_proxy": "::ffff:10.0.0.0/96",
         "cgi": false
       },
+      "dial": {
+        "http": "proxy.test:3128",
+        "https": "secure-proxy.test:443"
+      },
       "results": [
         {
           "url": "http://example.com/",
@@ -10940,6 +11024,10 @@
         "https_proxy": "https://secure-proxy.test",
         "no_proxy": "127.0.0.1,localhost",
         "cgi": false
+      },
+      "dial": {
+        "http": "proxy.test:3128",
+        "https": "secure-proxy.test:443"
       },
       "results": [
         {
@@ -11461,6 +11549,10 @@
         "no_proxy": "bücher.test",
         "cgi": false
       },
+      "dial": {
+        "http": "proxy.test:3128",
+        "https": "secure-proxy.test:443"
+      },
       "results": [
         {
           "url": "http://example.com/",
@@ -11980,6 +12072,10 @@
         "https_proxy": "https://secure-proxy.test",
         "no_proxy": "BÜCHER.TEST",
         "cgi": false
+      },
+      "dial": {
+        "http": "proxy.test:3128",
+        "https": "secure-proxy.test:443"
       },
       "results": [
         {
@@ -12501,6 +12597,10 @@
         "no_proxy": " İ.test ",
         "cgi": false
       },
+      "dial": {
+        "http": "proxy.test:3128",
+        "https": "secure-proxy.test:443"
+      },
       "results": [
         {
           "url": "http://example.com/",
@@ -13020,6 +13120,10 @@
         "https_proxy": "https://secure-proxy.test",
         "no_proxy": "xn--bcher-kva.test",
         "cgi": false
+      },
+      "dial": {
+        "http": "proxy.test:3128",
+        "https": "secure-proxy.test:443"
       },
       "results": [
         {
@@ -13541,6 +13645,10 @@
         "no_proxy": ":8080,[]:80,.,*.",
         "cgi": false
       },
+      "dial": {
+        "http": "proxy.test:3128",
+        "https": "secure-proxy.test:443"
+      },
       "results": [
         {
           "url": "http://example.com/",
@@ -14061,6 +14169,10 @@
         "no_proxy": "[fe80::1]",
         "cgi": false
       },
+      "dial": {
+        "http": "proxy.test:3128",
+        "https": "secure-proxy.test:443"
+      },
       "results": [
         {
           "url": "http://example.com/",
@@ -14580,6 +14692,10 @@
         "https_proxy": "https://secure-proxy.test",
         "no_proxy": "fe80::1%en0",
         "cgi": false
+      },
+      "dial": {
+        "http": "proxy.test:3128",
+        "https": "secure-proxy.test:443"
       },
       "results": [
         {
@@ -15102,6 +15218,10 @@
         "no_proxy": "example.com",
         "cgi": false
       },
+      "dial": {
+        "http": "upper.test:1",
+        "https": ""
+      },
       "results": [
         {
           "url": "http://example.com/",
@@ -15620,6 +15740,10 @@
         "https_proxy": "secure.test:443",
         "no_proxy": "",
         "cgi": false
+      },
+      "dial": {
+        "http": "lower.test:3128",
+        "https": "secure.test:443"
       },
       "results": [
         {
@@ -16140,6 +16264,10 @@
         "no_proxy": "",
         "cgi": false
       },
+      "dial": {
+        "http": "socks.test:1080",
+        "https": "socks.test:1080"
+      },
       "results": [
         {
           "url": "http://example.com/",
@@ -16659,6 +16787,10 @@
         "no_proxy": "",
         "cgi": false
       },
+      "dial": {
+        "http": ":",
+        "https": ":3128"
+      },
       "results": [
         {
           "url": "http://example.com/",
@@ -17177,6 +17309,10 @@
         "https_proxy": "http://proxy.test:bad",
         "no_proxy": "",
         "cgi": false
+      },
+      "dial": {
+        "http": "http:80",
+        "https": "http:80"
       },
       "results": [
         {
@@ -17698,6 +17834,10 @@
         "no_proxy": "",
         "cgi": true
       },
+      "dial": {
+        "http": "",
+        "https": "proxy.test:3128"
+      },
       "results": [
         {
           "url": "http://example.com/",
@@ -18215,6 +18355,10 @@
         "https_proxy": "https://u%40x:p%3Ass@secure.test:8443/path?q=1",
         "no_proxy": "",
         "cgi": false
+      },
+      "dial": {
+        "http": "",
+        "https": "secure.test:8443"
       },
       "results": [
         {
@@ -18735,6 +18879,10 @@
         "no_proxy": "",
         "cgi": false
       },
+      "dial": {
+        "http": "proxy.test:80",
+        "https": ":80"
+      },
       "results": [
         {
           "url": "http://example.com/",
@@ -19254,6 +19402,10 @@
         "no_proxy": "",
         "cgi": false
       },
+      "dial": {
+        "http": "",
+        "https": ""
+      },
       "results": [
         {
           "url": "http://example.com/",
@@ -19769,6 +19921,10 @@
         "https_proxy": "",
         "no_proxy": "",
         "cgi": false
+      },
+      "dial": {
+        "http": "",
+        "https": ""
       },
       "results": [
         {
