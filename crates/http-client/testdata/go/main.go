@@ -3,12 +3,13 @@
 // Server's router.go and main.go set up their clients (router/router.go:143-190, main.go:72),
 // for the inputs one pin uses: the request heads it writes (headers.json), its gzip handling
 // (compression.json), its redirects under the default CheckRedirect (redirects.json), the
-// request-target and Host of every adapter fixture URI and bidder-info endpoint (targets.json),
-// its connection limits and timeouts (limits.json), its error texts and their timeout
-// classification (errors.json), the httptrace events Prebid's connection metrics read
-// (metrics.json), the proxy x/net/http/httpproxy picks from a proxy environment and what a proxy
-// receives (proxy.json), which certificates of a certificates_file x509.CertPool takes
-// (certificates_file.json) and what the default client negotiates over TLS (default_client.json).
+// request-target and Host of every adapter fixture URI and bidder-info endpoint and of synthetic
+// URIs holding what those lack (targets.json), its connection limits and timeouts (limits.json),
+// its error texts and their timeout classification (errors.json), the httptrace events Prebid's
+// connection metrics read (metrics.json), the proxy x/net/http/httpproxy picks from a proxy
+// environment and what a proxy receives (proxy.json), which certificates of a certificates_file
+// x509.CertPool takes (certificates_file.json) and what the default client negotiates over TLS
+// (default_client.json).
 //
 // Run it from the directory of this module (crates/http-client/testdata/go) on amd64, as D-ARCH
 // asks of every golden:

@@ -10,10 +10,10 @@
 // looping and deep paths, and RSA-PSS parameters read by encoding/asn1. Each case records the
 // error crypto/tls's client reports (verifyServerCertificate in crypto/tls/handshake_client.go)
 // at the golden's time plus the case's nanos, or an empty error when the chain verifies. Keys and
-// signatures are deterministic (keys.go), so every run writes the same bytes. Run it from the
-// repository root with Go 1.26.2:
+// signatures are deterministic (keys.go), so every run writes the same bytes. Run it from
+// crates/http-client/testdata/go with Go 1.26.2:
 //
-//	GOTOOLCHAIN=go1.26.2 go run ./x509adv
+//	GOTOOLCHAIN=go1.26.2 GOARCH=amd64 go run ./x509adv
 package main
 
 import (

@@ -114,6 +114,39 @@
         "TLSHandshakeDone",
         "GotConn"
       ]
+    },
+    {
+      "name": "server_closes",
+      "url": "http://127.0.0.1:PORT/m",
+      "concurrent": false,
+      "events": [
+        [
+          "GetConn",
+          "ConnectStart",
+          "ConnectDone err=false",
+          "GotConn reused=false"
+        ],
+        [
+          "GetConn",
+          "ConnectStart",
+          "ConnectDone err=false",
+          "GotConn reused=false"
+        ]
+      ],
+      "kept": [
+        "GetConn",
+        "DNSStart",
+        "DNSDone",
+        "ConnectStart",
+        "ConnectDone",
+        "TLSHandshakeStart",
+        "TLSHandshakeDone",
+        "GotConn"
+      ],
+      "errors": [
+        "Get \"http://127.0.0.1:PORT/m\": EOF",
+        "Get \"http://127.0.0.1:PORT/m\": EOF"
+      ]
     }
   ]
 }

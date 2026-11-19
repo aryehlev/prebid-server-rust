@@ -41,6 +41,45 @@ type targetsDoc struct {
 	Header    header           `json:"header"`
 	Fixtures  []target         `json:"fixtures"`
 	Endpoints []endpointTarget `json:"endpoints"`
+	Synthetic []target         `json:"synthetic"`
+}
+
+// syntheticURIs hold what the fixtures and endpoints lack: the bytes an adapter that writes a
+// publisher's value into its URL unescaped (fmt.Sprintf or string concatenation, as many do)
+// can put into the path or the query, the dot segments and escapes of a path, and the port and
+// case forms of a host.
+var syntheticURIs = []string{
+	"http://bidder.test/p?q=a b",
+	"http://bidder.test/p?q=\"x\"",
+	"http://bidder.test/p?q='x'",
+	"http://bidder.test/p?q=<x>",
+	"http://bidder.test/p?q={\"a\":[1]}",
+	"http://bidder.test/p?q=`x`",
+	"http://bidder.test/p?q=\u00e9",
+	"http://bidder.test/p?q=a%20b&r=%",
+	"http://bidder.test/p?",
+	"http://bidder.test/p?q=1#f",
+	"http://bidder.test?q=1",
+	"http://bidder.test/a b",
+	"http://bidder.test/\u00e9",
+	"http://bidder.test/{id}",
+	"http://bidder.test/p|x^y",
+	"http://bidder.test/~u/[x];a=b",
+	"http://bidder.test/p%2Fq",
+	"http://bidder.test/p%zz",
+	"http://bidder.test/p%",
+	"http://bidder.test/p/../q",
+	"http://bidder.test/p/./q",
+	"http://bidder.test/p\\q",
+	"http://bidder.test/p\tq",
+	"http://bidder.test/p\nq",
+	"http://bidder.test:/p",
+	"http://bidder.test:80/p",
+	"https://bidder.test:443/p",
+	"http://Bidder.TEST/P",
+	"http://user:pass@bidder.test/p",
+	"http://b\u00fccher.test/p",
+	"http://[::1]:8080/p",
 }
 
 // writeTarget fills in what net/http writes for t.URI.
@@ -158,6 +197,9 @@ func targetsGolden() targetsDoc {
 			panic(err)
 		}
 		doc.Endpoints = append(doc.Endpoints, endpointTarget{Bidder: name, Template: endpoint, target: writeTarget(rendered)})
+	}
+	for _, uri := range syntheticURIs {
+		doc.Synthetic = append(doc.Synthetic, writeTarget(uri))
 	}
 	return doc
 }

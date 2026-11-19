@@ -28,6 +28,9 @@ type metricsCase struct {
 	// Kept names the hooks recorded; a hostname that resolves to both ::1 and 127.0.0.1 makes the
 	// number of Connect hooks depend on the machine, so that case keeps the others only.
 	Kept []string `json:"kept"`
+	// Errors are each request's error, PORT standing for the server's port, in a case whose
+	// requests fail; the other cases have none.
+	Errors []string `json:"errors,omitempty"`
 }
 
 type metricsDoc struct {
@@ -38,8 +41,9 @@ type metricsDoc struct {
 var allHooks = []string{"GetConn", "DNSStart", "DNSDone", "ConnectStart", "ConnectDone",
 	"TLSHandshakeStart", "TLSHandshakeDone", "GotConn"}
 
-// traced sends one GET to url with the hooks installed and returns the hooks that fired.
-func traced(client *http.Client, url string, kept []string) []string {
+// traced sends one GET to url with the hooks installed and returns the hooks that fired and the
+// request's error ("" for none).
+func traced(client *http.Client, url string, kept []string) ([]string, string) {
 	var mu sync.Mutex
 	var events []string
 	record := func(name, detail string) {
@@ -65,12 +69,13 @@ func traced(client *http.Client, url string, kept []string) []string {
 	if err != nil {
 		panic(err)
 	}
+	failure := ""
 	if _, _, err := roundTrip(client, req); err != nil {
-		panic(err)
+		failure = err.Error()
 	}
 	mu.Lock()
 	defer mu.Unlock()
-	return events
+	return events, failure
 }
 
 func metricsGolden() metricsDoc {
@@ -99,10 +104,23 @@ func metricsGolden() metricsDoc {
 	defer secure.Close()
 	securePort := secure.Listener.Addr().String()[strings.LastIndex(secure.Listener.Addr().String(), ":")+1:]
 
-	run := func(name, url, port string, concurrent bool, kept []string) {
+	// Reads each request and closes the connection without an answer, so a request fails after
+	// it got its connection.
+	closing := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		conn, _, err := w.(http.Hijacker).Hijack()
+		if err != nil {
+			panic(err)
+		}
+		_ = conn.Close()
+	}))
+	defer closing.Close()
+	closingPort := closing.Listener.Addr().String()[strings.LastIndex(closing.Listener.Addr().String(), ":")+1:]
+
+	run := func(name, url, port string, concurrent, fails bool, kept []string) {
 		c := metricsCase{Name: name, URL: url, Concurrent: concurrent, Kept: kept}
 		client := &http.Client{Transport: generalTransport(pki.roots)}
 		full := strings.ReplaceAll(url, "PORT", port)
+		failures := make([]string, 2)
 		if concurrent {
 			c.Events = make([][]string, 2)
 			var wg sync.WaitGroup
@@ -110,21 +128,33 @@ func metricsGolden() metricsDoc {
 				wg.Add(1)
 				go func() {
 					defer wg.Done()
-					c.Events[i] = traced(client, full, kept)
+					c.Events[i], failures[i] = traced(client, full, kept)
 				}()
 			}
 			wg.Wait()
 		} else {
-			for range 2 {
-				c.Events = append(c.Events, traced(client, full, kept))
+			c.Events = make([][]string, 2)
+			for i := range 2 {
+				c.Events[i], failures[i] = traced(client, full, kept)
+			}
+		}
+		for _, failure := range failures {
+			if (failure != "") != fails {
+				panic(name + ": unexpected outcome: " + failure)
+			}
+		}
+		if fails {
+			for _, failure := range failures {
+				c.Errors = append(c.Errors, strings.ReplaceAll(failure, ":"+port, ":PORT"))
 			}
 		}
 		client.CloseIdleConnections()
 		doc.Cases = append(doc.Cases, c)
 	}
-	run("http_ip", "http://127.0.0.1:PORT/m", port, false, allHooks)
-	run("http_hostname", "http://localhost:PORT/m", port, false, []string{"GetConn", "DNSStart", "DNSDone", "GotConn"})
-	run("https_ip", "https://127.0.0.1:PORT/m", securePort, false, allHooks)
-	run("concurrent_new_connections", "http://127.0.0.1:PORT/m", slowPort, true, allHooks)
+	run("http_ip", "http://127.0.0.1:PORT/m", port, false, false, allHooks)
+	run("http_hostname", "http://localhost:PORT/m", port, false, false, []string{"GetConn", "DNSStart", "DNSDone", "GotConn"})
+	run("https_ip", "https://127.0.0.1:PORT/m", securePort, false, false, allHooks)
+	run("concurrent_new_connections", "http://127.0.0.1:PORT/m", slowPort, true, false, allHooks)
+	run("server_closes", "http://127.0.0.1:PORT/m", closingPort, false, true, allHooks)
 	return doc
 }

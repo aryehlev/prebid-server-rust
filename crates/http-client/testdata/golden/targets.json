@@ -4805,5 +4805,166 @@
       "target": "/prebid/bid",
       "host": "rtbbid.zmaticoo.com"
     }
+  ],
+  "synthetic": [
+    {
+      "uri": "http://bidder.test/p?q=a b",
+      "target": "/p?q=a b",
+      "host": "bidder.test"
+    },
+    {
+      "uri": "http://bidder.test/p?q=\"x\"",
+      "target": "/p?q=\"x\"",
+      "host": "bidder.test"
+    },
+    {
+      "uri": "http://bidder.test/p?q='x'",
+      "target": "/p?q='x'",
+      "host": "bidder.test"
+    },
+    {
+      "uri": "http://bidder.test/p?q=<x>",
+      "target": "/p?q=<x>",
+      "host": "bidder.test"
+    },
+    {
+      "uri": "http://bidder.test/p?q={\"a\":[1]}",
+      "target": "/p?q={\"a\":[1]}",
+      "host": "bidder.test"
+    },
+    {
+      "uri": "http://bidder.test/p?q=`x`",
+      "target": "/p?q=`x`",
+      "host": "bidder.test"
+    },
+    {
+      "uri": "http://bidder.test/p?q=é",
+      "target": "/p?q=é",
+      "host": "bidder.test"
+    },
+    {
+      "uri": "http://bidder.test/p?q=a%20b&r=%",
+      "target": "/p?q=a%20b&r=%",
+      "host": "bidder.test"
+    },
+    {
+      "uri": "http://bidder.test/p?",
+      "target": "/p?",
+      "host": "bidder.test"
+    },
+    {
+      "uri": "http://bidder.test/p?q=1#f",
+      "target": "/p?q=1",
+      "host": "bidder.test"
+    },
+    {
+      "uri": "http://bidder.test?q=1",
+      "target": "/?q=1",
+      "host": "bidder.test"
+    },
+    {
+      "uri": "http://bidder.test/a b",
+      "target": "/a%20b",
+      "host": "bidder.test"
+    },
+    {
+      "uri": "http://bidder.test/é",
+      "target": "/%C3%A9",
+      "host": "bidder.test"
+    },
+    {
+      "uri": "http://bidder.test/{id}",
+      "target": "/%7Bid%7D",
+      "host": "bidder.test"
+    },
+    {
+      "uri": "http://bidder.test/p|x^y",
+      "target": "/p%7Cx%5Ey",
+      "host": "bidder.test"
+    },
+    {
+      "uri": "http://bidder.test/~u/[x];a=b",
+      "target": "/~u/[x];a=b",
+      "host": "bidder.test"
+    },
+    {
+      "uri": "http://bidder.test/p%2Fq",
+      "target": "/p%2Fq",
+      "host": "bidder.test"
+    },
+    {
+      "uri": "http://bidder.test/p%zz",
+      "target": "",
+      "host": "",
+      "error": "parse \"http://bidder.test/p%zz\": invalid URL escape \"%zz\""
+    },
+    {
+      "uri": "http://bidder.test/p%",
+      "target": "",
+      "host": "",
+      "error": "parse \"http://bidder.test/p%\": invalid URL escape \"%\""
+    },
+    {
+      "uri": "http://bidder.test/p/../q",
+      "target": "/p/../q",
+      "host": "bidder.test"
+    },
+    {
+      "uri": "http://bidder.test/p/./q",
+      "target": "/p/./q",
+      "host": "bidder.test"
+    },
+    {
+      "uri": "http://bidder.test/p\\q",
+      "target": "/p%5Cq",
+      "host": "bidder.test"
+    },
+    {
+      "uri": "http://bidder.test/p\tq",
+      "target": "",
+      "host": "",
+      "error": "parse \"http://bidder.test/p\\tq\": net/url: invalid control character in URL"
+    },
+    {
+      "uri": "http://bidder.test/p\nq",
+      "target": "",
+      "host": "",
+      "error": "parse \"http://bidder.test/p\\nq\": net/url: invalid control character in URL"
+    },
+    {
+      "uri": "http://bidder.test:/p",
+      "target": "/p",
+      "host": "bidder.test"
+    },
+    {
+      "uri": "http://bidder.test:80/p",
+      "target": "/p",
+      "host": "bidder.test:80"
+    },
+    {
+      "uri": "https://bidder.test:443/p",
+      "target": "/p",
+      "host": "bidder.test:443"
+    },
+    {
+      "uri": "http://Bidder.TEST/P",
+      "target": "/P",
+      "host": "Bidder.TEST"
+    },
+    {
+      "uri": "http://user:pass@bidder.test/p",
+      "target": "/p",
+      "host": "bidder.test"
+    },
+    {
+      "uri": "http://bücher.test/p",
+      "target": "/p",
+      "host": "xn--bcher-kva.test"
+    },
+    {
+      "uri": "http://[::1]:8080/p",
+      "target": "/p",
+      "host": "[::1]:8080"
+    }
   ]
 }
