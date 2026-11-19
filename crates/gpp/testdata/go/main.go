@@ -56,6 +56,8 @@ func main() {
 	write(*out, "edge.txt", edgeGolden(rand.New(rand.NewSource(edgeSeed))))
 	// base64_seeded.txt draws from splitmix64 (seeded.go), which tests/base64.rs implements too.
 	write(*out, "base64_seeded.txt", seededGolden())
+	// base64_exhaustive.txt enumerates its strings (exhaustive.go), as tests/base64.rs does.
+	write(*out, "base64_exhaustive.txt", exhaustiveGolden())
 }
 
 func write(dir, name string, lines []string) {

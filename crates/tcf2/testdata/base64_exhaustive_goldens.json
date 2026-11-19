@@ -1,0 +1,11 @@
+{"header":{"go_version":"go1.26.2","go_gdpr_version":"v1.12.0","generator":"crates/tcf2/testdata/go"},
+"cases":[
+{"len":0,"count":1,"accepted":1,"inputs_sha256":"01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b","results_sha256":"0ce63afc1e92ee82744300a778e523b9f42a53fe99201bd39fb8e2de82965297"},
+{"len":1,"count":7,"accepted":2,"inputs_sha256":"95eb6023a975ab4a3c226d4616f24d43422aacba05d5a3494891fa577e7f7362","results_sha256":"7323002cd5eeb036979cde85aebfc8cd5411544a85136d7f053eafebb7fb07b0"},
+{"len":2,"count":49,"accepted":8,"inputs_sha256":"1b2cdb6172e1776f86c8a1930cbae493299830f94fc2d96100894f0f92491740","results_sha256":"a4be46252f52baff2d21eda79437a927ed5d59debca3a0488eee159dadfb4659"},
+{"len":3,"count":343,"accepted":40,"inputs_sha256":"3e5e81a12fe6626de871f29d0fb2e65a437f56828091189ab6318ba270d482f7","results_sha256":"be9fcc3375f22e7b62060030edbfb63dce6540090abeba9f9ebbd6ac4f93f5d8"},
+{"len":4,"count":2401,"accepted":192,"inputs_sha256":"6a5c8e2ecebb8fc74cb45a7a77e3ee3232d36d3febd483b2127b439dbd241a4b","results_sha256":"8b3c855d48dcddafa249b74a8e93a4244f5d716c8236965afc1808f223a32b6a"},
+{"len":5,"count":16807,"accepted":832,"inputs_sha256":"5912e645e6acf106a200746ac3b97ede9fc87fbeca36e52da804bc2457591d6c","results_sha256":"ea79216ff25fca6a7ef2f7fe2487ce42a14ac70a5a5f2dadab48ee32e373589a"},
+{"len":6,"count":117649,"accepted":3328,"inputs_sha256":"5ed98d5095778f98677ff899170df2752c6fd41c4471d92a858996e1cbe02dc9","results_sha256":"1ba5204885d061dc273ab2c5e061faed73c48f8044572f38e990dc64e547d9e4"},
+{"len":7,"count":823543,"accepted":12800,"inputs_sha256":"be647c3adc60cf8bf8d44e4578ce2073b9d31a4183bbdbe62ecf93520f32f552","results_sha256":"1db47f3e59b3ea0d22ab30b6011ce06435ebf17daa7a5c30d99262fcb2ec4d8f"}
+]}
