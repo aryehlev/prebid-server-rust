@@ -1,0 +1,2218 @@
+{
+  "header": {
+    "go_version": "go1.26.2",
+    "goarch": "amd64",
+    "upstream": "v4.11.2-0.20261112141353-4e296450de2f",
+    "modules": {
+      "github.com/NYTimes/gziphandler": "v1.1.1",
+      "github.com/julienschmidt/httprouter": "v1.3.0",
+      "github.com/rs/cors": "v1.11.0"
+    },
+    "generator": "crates/server/testdata/go/wire"
+  },
+  "host": "pbs.example",
+  "budget_ms": 1000,
+  "header_limit": 1052672,
+  "servers": {
+    "admin": {
+      "read_timeout_ns": 0,
+      "read_header_timeout_ns": 0,
+      "write_timeout_ns": 0,
+      "idle_timeout_ns": 0,
+      "max_header_bytes": 0,
+      "gzip": false
+    },
+    "main": {
+      "read_timeout_ns": 15000000000,
+      "read_header_timeout_ns": 0,
+      "write_timeout_ns": 15000000000,
+      "idle_timeout_ns": 0,
+      "max_header_bytes": 0,
+      "gzip": false
+    },
+    "socket": {
+      "read_timeout_ns": 15000000000,
+      "read_header_timeout_ns": 0,
+      "write_timeout_ns": 15000000000,
+      "idle_timeout_ns": 0,
+      "max_header_bytes": 0,
+      "gzip": false
+    }
+  },
+  "static_mod_time": "2020-01-02T03:04:05Z",
+  "cases": [
+    {
+      "group": "headers",
+      "name": "handler_order",
+      "server": "main",
+      "steps": [
+        {
+          "text": "GET /headers HTTP/1.1\r\nHost: pbs.example\r\nConnection: close\r\n\r\n"
+        }
+      ],
+      "window_ms": 2000,
+      "head": "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nX-Alpha: a\r\nX-Multi: 1\r\nX-Multi: 2\r\nX-Zeta: z\r\nDate: <date>\r\nContent-Length: 11\r\nConnection: close\r\n\r\n",
+      "body": "{\"ok\":true}",
+      "body_len": 11,
+      "body_crc32": "a7d45f90",
+      "end": "eof"
+    },
+    {
+      "group": "headers",
+      "name": "typed",
+      "server": "main",
+      "steps": [
+        {
+          "text": "GET /typed HTTP/1.1\r\nHost: pbs.example\r\nConnection: close\r\n\r\n"
+        }
+      ],
+      "window_ms": 2000,
+      "head": "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nDate: <date>\r\nContent-Length: 7\r\nConnection: close\r\n\r\n",
+      "body": "{\"a\":1}",
+      "body_len": 7,
+      "body_crc32": "561bacaf",
+      "end": "eof"
+    },
+    {
+      "group": "framing",
+      "name": "bytes_0",
+      "server": "main",
+      "steps": [
+        {
+          "text": "GET /bytes?n=0 HTTP/1.1\r\nHost: pbs.example\r\nConnection: close\r\n\r\n"
+        }
+      ],
+      "window_ms": 2000,
+      "head": "HTTP/1.1 200 OK\r\nContent-Type: text/plain; charset=utf-8\r\nDate: <date>\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
+      "body": "",
+      "body_len": 0,
+      "body_crc32": "00000000",
+      "end": "eof"
+    },
+    {
+      "group": "framing",
+      "name": "bytes_100",
+      "server": "main",
+      "steps": [
+        {
+          "text": "GET /bytes?n=100 HTTP/1.1\r\nHost: pbs.example\r\nConnection: close\r\n\r\n"
+        }
+      ],
+      "window_ms": 2000,
+      "head": "HTTP/1.1 200 OK\r\nContent-Type: text/plain; charset=utf-8\r\nDate: <date>\r\nContent-Length: 100\r\nConnection: close\r\n\r\n",
+      "body": "abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuv",
+      "body_len": 100,
+      "body_crc32": "6d0404c4",
+      "end": "eof"
+    },
+    {
+      "group": "framing",
+      "name": "bytes_2048",
+      "server": "main",
+      "steps": [
+        {
+          "text": "GET /bytes?n=2048 HTTP/1.1\r\nHost: pbs.example\r\nConnection: close\r\n\r\n"
+        }
+      ],
+      "window_ms": 2000,
+      "head": "HTTP/1.1 200 OK\r\nContent-Type: text/plain; charset=utf-8\r\nDate: <date>\r\nContent-Length: 2048\r\nConnection: close\r\n\r\n",
+      "body": "abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrst",
+      "body_len": 2048,
+      "body_crc32": "4979d108",
+      "end": "eof"
+    },
+    {
+      "group": "framing",
+      "name": "bytes_2049",
+      "server": "main",
+      "steps": [
+        {
+          "text": "GET /bytes?n=2049 HTTP/1.1\r\nHost: pbs.example\r\nConnection: close\r\n\r\n"
+        }
+      ],
+      "window_ms": 2000,
+      "head": "HTTP/1.1 200 OK\r\nContent-Type: text/plain; charset=utf-8\r\nDate: <date>\r\nConnection: close\r\nTransfer-Encoding: chunked\r\n\r\n",
+      "body": "801\r\nabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstu\r\n0\r\n\r\n",
+      "body_len": 2061,
+      "body_crc32": "dbcefa3a",
+      "end": "eof"
+    },
+    {
+      "group": "framing",
+      "name": "bytes_3000",
+      "server": "main",
+      "steps": [
+        {
+          "text": "GET /bytes?n=3000 HTTP/1.1\r\nHost: pbs.example\r\nConnection: close\r\n\r\n"
+        }
+      ],
+      "window_ms": 2000,
+      "head": "HTTP/1.1 200 OK\r\nContent-Type: text/plain; charset=utf-8\r\nDate: <date>\r\nConnection: close\r\nTransfer-Encoding: chunked\r\n\r\n",
+      "body": "bb8\r\nabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghij\r\n0\r\n\r\n",
+      "body_len": 3012,
+      "body_crc32": "4cbb9ef3",
+      "end": "eof"
+    },
+    {
+      "group": "framing",
+      "name": "bytes_3000_http10",
+      "server": "main",
+      "steps": [
+        {
+          "text": "GET /bytes?n=3000 HTTP/1.0\r\nHost: pbs.example\r\n\r\n"
+        }
+      ],
+      "window_ms": 2000,
+      "head": "HTTP/1.0 200 OK\r\nContent-Type: text/plain; charset=utf-8\r\nDate: <date>\r\n\r\n",
+      "body": "abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghij",
+      "body_len": 3000,
+      "body_crc32": "ec2e699a",
+      "end": "eof"
+    },
+    {
+      "group": "framing",
+      "name": "head_bytes_3000",
+      "server": "main",
+      "steps": [
+        {
+          "text": "HEAD /bytes?n=3000 HTTP/1.1\r\nHost: pbs.example\r\nConnection: close\r\n\r\n"
+        }
+      ],
+      "window_ms": 2000,
+      "head": "HTTP/1.1 200 OK\r\nContent-Type: text/plain; charset=utf-8\r\nDate: <date>\r\nConnection: close\r\n\r\n",
+      "body": "",
+      "body_len": 0,
+      "body_crc32": "00000000",
+      "end": "eof"
+    },
+    {
+      "group": "sniffing",
+      "name": "sniff_json",
+      "server": "main",
+      "steps": [
+        {
+          "text": "GET /sniff?kind=json HTTP/1.1\r\nHost: pbs.example\r\nConnection: close\r\n\r\n"
+        }
+      ],
+      "window_ms": 2000,
+      "head": "HTTP/1.1 200 OK\r\nDate: <date>\r\nContent-Length: 23\r\nContent-Type: text/plain; charset=utf-8\r\nConnection: close\r\n\r\n",
+      "body": "{\"id\":\"req-1\",\"imp\":[]}",
+      "body_len": 23,
+      "body_crc32": "9c269db2",
+      "end": "eof"
+    },
+    {
+      "group": "sniffing",
+      "name": "sniff_html",
+      "server": "main",
+      "steps": [
+        {
+          "text": "GET /sniff?kind=html HTTP/1.1\r\nHost: pbs.example\r\nConnection: close\r\n\r\n"
+        }
+      ],
+      "window_ms": 2000,
+      "head": "HTTP/1.1 200 OK\r\nDate: <date>\r\nContent-Length: 39\r\nContent-Type: text/html; charset=utf-8\r\nConnection: close\r\n\r\n",
+      "body": "<html><body>Prebid Server</body></html>",
+      "body_len": 39,
+      "body_crc32": "717d4c7b",
+      "end": "eof"
+    },
+    {
+      "group": "sniffing",
+      "name": "sniff_xml",
+      "server": "main",
+      "steps": [
+        {
+          "text": "GET /sniff?kind=xml HTTP/1.1\r\nHost: pbs.example\r\nConnection: close\r\n\r\n"
+        }
+      ],
+      "window_ms": 2000,
+      "head": "HTTP/1.1 200 OK\r\nDate: <date>\r\nContent-Length: 65\r\nContent-Type: text/xml; charset=utf-8\r\nConnection: close\r\n\r\n",
+      "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><VAST version=\"3.0\"></VAST>",
+      "body_len": 65,
+      "body_crc32": "cfd07a51",
+      "end": "eof"
+    },
+    {
+      "group": "sniffing",
+      "name": "sniff_text",
+      "server": "main",
+      "steps": [
+        {
+          "text": "GET /sniff?kind=text HTTP/1.1\r\nHost: pbs.example\r\nConnection: close\r\n\r\n"
+        }
+      ],
+      "window_ms": 2000,
+      "head": "HTTP/1.1 200 OK\r\nDate: <date>\r\nContent-Length: 2\r\nContent-Type: text/plain; charset=utf-8\r\nConnection: close\r\n\r\n",
+      "body": "ok",
+      "body_len": 2,
+      "body_crc32": "79dcdd47",
+      "end": "eof"
+    },
+    {
+      "group": "sniffing",
+      "name": "sniff_binary",
+      "server": "main",
+      "steps": [
+        {
+          "text": "GET /sniff?kind=binary HTTP/1.1\r\nHost: pbs.example\r\nConnection: close\r\n\r\n"
+        }
+      ],
+      "window_ms": 2000,
+      "head": "HTTP/1.1 200 OK\r\nDate: <date>\r\nContent-Length: 6\r\nContent-Type: application/octet-stream\r\nConnection: close\r\n\r\n",
+      "body": "",
+      "body_len": 6,
+      "body_crc32": "83d0dd7f",
+      "end": "eof"
+    },
+    {
+      "group": "sniffing",
+      "name": "sniff_empty",
+      "server": "main",
+      "steps": [
+        {
+          "text": "GET /sniff?kind=empty HTTP/1.1\r\nHost: pbs.example\r\nConnection: close\r\n\r\n"
+        }
+      ],
+      "window_ms": 2000,
+      "head": "HTTP/1.1 200 OK\r\nDate: <date>\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
+      "body": "",
+      "body_len": 0,
+      "body_crc32": "00000000",
+      "end": "eof"
+    },
+    {
+      "group": "header_limit",
+      "name": "header_600kib",
+      "server": "main",
+      "steps": [
+        {
+          "text": "GET /echo HTTP/1.1\r\nHost: pbs.example\r\nX-Big: "
+        },
+        {
+          "fill": 614331
+        },
+        {
+          "text": "\r\nConnection: close\r\n\r\n"
+        }
+      ],
+      "window_ms": 2000,
+      "head": "HTTP/1.1 200 OK\r\nDate: <date>\r\nContent-Length: 6\r\nContent-Type: text/plain; charset=utf-8\r\nConnection: close\r\n\r\n",
+      "body": "body=0",
+      "body_len": 6,
+      "body_crc32": "4cc9a4f7",
+      "end": "eof"
+    },
+    {
+      "group": "header_limit",
+      "name": "header_1mib",
+      "server": "main",
+      "steps": [
+        {
+          "text": "GET /echo HTTP/1.1\r\nHost: pbs.example\r\nX-Big: "
+        },
+        {
+          "fill": 1048507
+        },
+        {
+          "text": "\r\nConnection: close\r\n\r\n"
+        }
+      ],
+      "window_ms": 2000,
+      "head": "HTTP/1.1 200 OK\r\nDate: <date>\r\nContent-Length: 6\r\nContent-Type: text/plain; charset=utf-8\r\nConnection: close\r\n\r\n",
+      "body": "body=0",
+      "body_len": 6,
+      "body_crc32": "4cc9a4f7",
+      "end": "eof"
+    },
+    {
+      "group": "header_limit",
+      "name": "header_at_limit",
+      "server": "main",
+      "steps": [
+        {
+          "text": "GET /echo HTTP/1.1\r\nHost: pbs.example\r\nX-Big: "
+        },
+        {
+          "fill": 1052603
+        },
+        {
+          "text": "\r\nConnection: close\r\n\r\n"
+        }
+      ],
+      "window_ms": 2000,
+      "head": "HTTP/1.1 200 OK\r\nDate: <date>\r\nContent-Length: 6\r\nContent-Type: text/plain; charset=utf-8\r\nConnection: close\r\n\r\n",
+      "body": "body=0",
+      "body_len": 6,
+      "body_crc32": "4cc9a4f7",
+      "end": "eof"
+    },
+    {
+      "group": "header_limit",
+      "name": "header_over_64kib_paced",
+      "server": "main",
+      "steps": [
+        {
+          "text": "GET /echo HTTP/1.1\r\nHost: pbs.example\r\nX-Big: "
+        },
+        {
+          "fill": 1118139,
+          "chunk": 65536,
+          "chunk_pause_ms": 2
+        },
+        {
+          "text": "\r\nConnection: close\r\n\r\n"
+        }
+      ],
+      "window_ms": 2000,
+      "head": "HTTP/1.1 431 Request Header Fields Too Large\r\nContent-Type: text/plain; charset=utf-8\r\nConnection: close\r\n\r\n",
+      "body": "431 Request Header Fields Too Large",
+      "body_len": 35,
+      "body_crc32": "83444893",
+      "end": "eof"
+    },
+    {
+      "group": "header_limit",
+      "name": "header_2mib_paced",
+      "server": "main",
+      "steps": [
+        {
+          "text": "GET /echo HTTP/1.1\r\nHost: pbs.example\r\nX-Big: "
+        },
+        {
+          "fill": 2097083,
+          "chunk": 65536,
+          "chunk_pause_ms": 2
+        },
+        {
+          "text": "\r\nConnection: close\r\n\r\n"
+        }
+      ],
+      "window_ms": 2000,
+      "head": "HTTP/1.1 431 Request Header Fields Too Large\r\nContent-Type: text/plain; charset=utf-8\r\nConnection: close\r\n\r\n",
+      "body": "431 Request Header Fields Too Large",
+      "body_len": 35,
+      "body_crc32": "83444893",
+      "end": "eof"
+    },
+    {
+      "group": "header_limit_edge",
+      "name": "header_one_over",
+      "server": "main",
+      "steps": [
+        {
+          "text": "GET /echo HTTP/1.1\r\nHost: pbs.example\r\nX-Big: "
+        },
+        {
+          "fill": 1052526
+        },
+        {
+          "pause_ms": 200
+        },
+        {
+          "fill": 78
+        },
+        {
+          "text": "\r\nConnection: close\r\n\r\n"
+        }
+      ],
+      "window_ms": 2000,
+      "head": "HTTP/1.1 431 Request Header Fields Too Large\r\nContent-Type: text/plain; charset=utf-8\r\nConnection: close\r\n\r\n",
+      "body": "431 Request Header Fields Too Large",
+      "body_len": 35,
+      "body_crc32": "83444893",
+      "end": "eof"
+    },
+    {
+      "group": "header_count",
+      "name": "headers_100",
+      "server": "main",
+      "steps": [
+        {
+          "text": "GET /echo HTTP/1.1\r\nHost: pbs.example\r\nX-H1: v\r\nX-H2: v\r\nX-H3: v\r\nX-H4: v\r\nX-H5: v\r\nX-H6: v\r\nX-H7: v\r\nX-H8: v\r\nX-H9: v\r\nX-H10: v\r\nX-H11: v\r\nX-H12: v\r\nX-H13: v\r\nX-H14: v\r\nX-H15: v\r\nX-H16: v\r\nX-H17: v\r\nX-H18: v\r\nX-H19: v\r\nX-H20: v\r\nX-H21: v\r\nX-H22: v\r\nX-H23: v\r\nX-H24: v\r\nX-H25: v\r\nX-H26: v\r\nX-H27: v\r\nX-H28: v\r\nX-H29: v\r\nX-H30: v\r\nX-H31: v\r\nX-H32: v\r\nX-H33: v\r\nX-H34: v\r\nX-H35: v\r\nX-H36: v\r\nX-H37: v\r\nX-H38: v\r\nX-H39: v\r\nX-H40: v\r\nX-H41: v\r\nX-H42: v\r\nX-H43: v\r\nX-H44: v\r\nX-H45: v\r\nX-H46: v\r\nX-H47: v\r\nX-H48: v\r\nX-H49: v\r\nX-H50: v\r\nX-H51: v\r\nX-H52: v\r\nX-H53: v\r\nX-H54: v\r\nX-H55: v\r\nX-H56: v\r\nX-H57: v\r\nX-H58: v\r\nX-H59: v\r\nX-H60: v\r\nX-H61: v\r\nX-H62: v\r\nX-H63: v\r\nX-H64: v\r\nX-H65: v\r\nX-H66: v\r\nX-H67: v\r\nX-H68: v\r\nX-H69: v\r\nX-H70: v\r\nX-H71: v\r\nX-H72: v\r\nX-H73: v\r\nX-H74: v\r\nX-H75: v\r\nX-H76: v\r\nX-H77: v\r\nX-H78: v\r\nX-H79: v\r\nX-H80: v\r\nX-H81: v\r\nX-H82: v\r\nX-H83: v\r\nX-H84: v\r\nX-H85: v\r\nX-H86: v\r\nX-H87: v\r\nX-H88: v\r\nX-H89: v\r\nX-H90: v\r\nX-H91: v\r\nX-H92: v\r\nX-H93: v\r\nX-H94: v\r\nX-H95: v\r\nX-H96: v\r\nX-H97: v\r\nX-H98: v\r\nConnection: close\r\n\r\n"
+        }
+      ],
+      "window_ms": 2000,
+      "head": "HTTP/1.1 200 OK\r\nDate: <date>\r\nContent-Length: 6\r\nContent-Type: text/plain; charset=utf-8\r\nConnection: close\r\n\r\n",
+      "body": "body=0",
+      "body_len": 6,
+      "body_crc32": "4cc9a4f7",
+      "end": "eof"
+    },
+    {
+      "group": "header_count",
+      "name": "headers_101",
+      "server": "main",
+      "steps": [
+        {
+          "text": "GET /echo HTTP/1.1\r\nHost: pbs.example\r\nX-H1: v\r\nX-H2: v\r\nX-H3: v\r\nX-H4: v\r\nX-H5: v\r\nX-H6: v\r\nX-H7: v\r\nX-H8: v\r\nX-H9: v\r\nX-H10: v\r\nX-H11: v\r\nX-H12: v\r\nX-H13: v\r\nX-H14: v\r\nX-H15: v\r\nX-H16: v\r\nX-H17: v\r\nX-H18: v\r\nX-H19: v\r\nX-H20: v\r\nX-H21: v\r\nX-H22: v\r\nX-H23: v\r\nX-H24: v\r\nX-H25: v\r\nX-H26: v\r\nX-H27: v\r\nX-H28: v\r\nX-H29: v\r\nX-H30: v\r\nX-H31: v\r\nX-H32: v\r\nX-H33: v\r\nX-H34: v\r\nX-H35: v\r\nX-H36: v\r\nX-H37: v\r\nX-H38: v\r\nX-H39: v\r\nX-H40: v\r\nX-H41: v\r\nX-H42: v\r\nX-H43: v\r\nX-H44: v\r\nX-H45: v\r\nX-H46: v\r\nX-H47: v\r\nX-H48: v\r\nX-H49: v\r\nX-H50: v\r\nX-H51: v\r\nX-H52: v\r\nX-H53: v\r\nX-H54: v\r\nX-H55: v\r\nX-H56: v\r\nX-H57: v\r\nX-H58: v\r\nX-H59: v\r\nX-H60: v\r\nX-H61: v\r\nX-H62: v\r\nX-H63: v\r\nX-H64: v\r\nX-H65: v\r\nX-H66: v\r\nX-H67: v\r\nX-H68: v\r\nX-H69: v\r\nX-H70: v\r\nX-H71: v\r\nX-H72: v\r\nX-H73: v\r\nX-H74: v\r\nX-H75: v\r\nX-H76: v\r\nX-H77: v\r\nX-H78: v\r\nX-H79: v\r\nX-H80: v\r\nX-H81: v\r\nX-H82: v\r\nX-H83: v\r\nX-H84: v\r\nX-H85: v\r\nX-H86: v\r\nX-H87: v\r\nX-H88: v\r\nX-H89: v\r\nX-H90: v\r\nX-H91: v\r\nX-H92: v\r\nX-H93: v\r\nX-H94: v\r\nX-H95: v\r\nX-H96: v\r\nX-H97: v\r\nX-H98: v\r\nX-H99: v\r\nConnection: close\r\n\r\n"
+        }
+      ],
+      "window_ms": 2000,
+      "head": "HTTP/1.1 200 OK\r\nDate: <date>\r\nContent-Length: 6\r\nContent-Type: text/plain; charset=utf-8\r\nConnection: close\r\n\r\n",
+      "body": "body=0",
+      "body_len": 6,
+      "body_crc32": "4cc9a4f7",
+      "end": "eof"
+    },
+    {
+      "group": "header_count",
+      "name": "headers_1000",
+      "server": "main",
+      "steps": [
+        {
+          "text": "GET /echo HTTP/1.1\r\nHost: pbs.example\r\nX-H1: v\r\nX-H2: v\r\nX-H3: v\r\nX-H4: v\r\nX-H5: v\r\nX-H6: v\r\nX-H7: v\r\nX-H8: v\r\nX-H9: v\r\nX-H10: v\r\nX-H11: v\r\nX-H12: v\r\nX-H13: v\r\nX-H14: v\r\nX-H15: v\r\nX-H16: v\r\nX-H17: v\r\nX-H18: v\r\nX-H19: v\r\nX-H20: v\r\nX-H21: v\r\nX-H22: v\r\nX-H23: v\r\nX-H24: v\r\nX-H25: v\r\nX-H26: v\r\nX-H27: v\r\nX-H28: v\r\nX-H29: v\r\nX-H30: v\r\nX-H31: v\r\nX-H32: v\r\nX-H33: v\r\nX-H34: v\r\nX-H35: v\r\nX-H36: v\r\nX-H37: v\r\nX-H38: v\r\nX-H39: v\r\nX-H40: v\r\nX-H41: v\r\nX-H42: v\r\nX-H43: v\r\nX-H44: v\r\nX-H45: v\r\nX-H46: v\r\nX-H47: v\r\nX-H48: v\r\nX-H49: v\r\nX-H50: v\r\nX-H51: v\r\nX-H52: v\r\nX-H53: v\r\nX-H54: v\r\nX-H55: v\r\nX-H56: v\r\nX-H57: v\r\nX-H58: v\r\nX-H59: v\r\nX-H60: v\r\nX-H61: v\r\nX-H62: v\r\nX-H63: v\r\nX-H64: v\r\nX-H65: v\r\nX-H66: v\r\nX-H67: v\r\nX-H68: v\r\nX-H69: v\r\nX-H70: v\r\nX-H71: v\r\nX-H72: v\r\nX-H73: v\r\nX-H74: v\r\nX-H75: v\r\nX-H76: v\r\nX-H77: v\r\nX-H78: v\r\nX-H79: v\r\nX-H80: v\r\nX-H81: v\r\nX-H82: v\r\nX-H83: v\r\nX-H84: v\r\nX-H85: v\r\nX-H86: v\r\nX-H87: v\r\nX-H88: v\r\nX-H89: v\r\nX-H90: v\r\nX-H91: v\r\nX-H92: v\r\nX-H93: v\r\nX-H94: v\r\nX-H95: v\r\nX-H96: v\r\nX-H97: v\r\nX-H98: v\r\nX-H99: v\r\nX-H100: v\r\nX-H101: v\r\nX-H102: v\r\nX-H103: v\r\nX-H104: v\r\nX-H105: v\r\nX-H106: v\r\nX-H107: v\r\nX-H108: v\r\nX-H109: v\r\nX-H110: v\r\nX-H111: v\r\nX-H112: v\r\nX-H113: v\r\nX-H114: v\r\nX-H115: v\r\nX-H116: v\r\nX-H117: v\r\nX-H118: v\r\nX-H119: v\r\nX-H120: v\r\nX-H121: v\r\nX-H122: v\r\nX-H123: v\r\nX-H124: v\r\nX-H125: v\r\nX-H126: v\r\nX-H127: v\r\nX-H128: v\r\nX-H129: v\r\nX-H130: v\r\nX-H131: v\r\nX-H132: v\r\nX-H133: v\r\nX-H134: v\r\nX-H135: v\r\nX-H136: v\r\nX-H137: v\r\nX-H138: v\r\nX-H139: v\r\nX-H140: v\r\nX-H141: v\r\nX-H142: v\r\nX-H143: v\r\nX-H144: v\r\nX-H145: v\r\nX-H146: v\r\nX-H147: v\r\nX-H148: v\r\nX-H149: v\r\nX-H150: v\r\nX-H151: v\r\nX-H152: v\r\nX-H153: v\r\nX-H154: v\r\nX-H155: v\r\nX-H156: v\r\nX-H157: v\r\nX-H158: v\r\nX-H159: v\r\nX-H160: v\r\nX-H161: v\r\nX-H162: v\r\nX-H163: v\r\nX-H164: v\r\nX-H165: v\r\nX-H166: v\r\nX-H167: v\r\nX-H168: v\r\nX-H169: v\r\nX-H170: v\r\nX-H171: v\r\nX-H172: v\r\nX-H173: v\r\nX-H174: v\r\nX-H175: v\r\nX-H176: v\r\nX-H177: v\r\nX-H178: v\r\nX-H179: v\r\nX-H180: v\r\nX-H181: v\r\nX-H182: v\r\nX-H183: v\r\nX-H184: v\r\nX-H185: v\r\nX-H186: v\r\nX-H187: v\r\nX-H188: v\r\nX-H189: v\r\nX-H190: v\r\nX-H191: v\r\nX-H192: v\r\nX-H193: v\r\nX-H194: v\r\nX-H195: v\r\nX-H196: v\r\nX-H197: v\r\nX-H198: v\r\nX-H199: v\r\nX-H200: v\r\nX-H201: v\r\nX-H202: v\r\nX-H203: v\r\nX-H204: v\r\nX-H205: v\r\nX-H206: v\r\nX-H207: v\r\nX-H208: v\r\nX-H209: v\r\nX-H210: v\r\nX-H211: v\r\nX-H212: v\r\nX-H213: v\r\nX-H214: v\r\nX-H215: v\r\nX-H216: v\r\nX-H217: v\r\nX-H218: v\r\nX-H219: v\r\nX-H220: v\r\nX-H221: v\r\nX-H222: v\r\nX-H223: v\r\nX-H224: v\r\nX-H225: v\r\nX-H226: v\r\nX-H227: v\r\nX-H228: v\r\nX-H229: v\r\nX-H230: v\r\nX-H231: v\r\nX-H232: v\r\nX-H233: v\r\nX-H234: v\r\nX-H235: v\r\nX-H236: v\r\nX-H237: v\r\nX-H238: v\r\nX-H239: v\r\nX-H240: v\r\nX-H241: v\r\nX-H242: v\r\nX-H243: v\r\nX-H244: v\r\nX-H245: v\r\nX-H246: v\r\nX-H247: v\r\nX-H248: v\r\nX-H249: v\r\nX-H250: v\r\nX-H251: v\r\nX-H252: v\r\nX-H253: v\r\nX-H254: v\r\nX-H255: v\r\nX-H256: v\r\nX-H257: v\r\nX-H258: v\r\nX-H259: v\r\nX-H260: v\r\nX-H261: v\r\nX-H262: v\r\nX-H263: v\r\nX-H264: v\r\nX-H265: v\r\nX-H266: v\r\nX-H267: v\r\nX-H268: v\r\nX-H269: v\r\nX-H270: v\r\nX-H271: v\r\nX-H272: v\r\nX-H273: v\r\nX-H274: v\r\nX-H275: v\r\nX-H276: v\r\nX-H277: v\r\nX-H278: v\r\nX-H279: v\r\nX-H280: v\r\nX-H281: v\r\nX-H282: v\r\nX-H283: v\r\nX-H284: v\r\nX-H285: v\r\nX-H286: v\r\nX-H287: v\r\nX-H288: v\r\nX-H289: v\r\nX-H290: v\r\nX-H291: v\r\nX-H292: v\r\nX-H293: v\r\nX-H294: v\r\nX-H295: v\r\nX-H296: v\r\nX-H297: v\r\nX-H298: v\r\nX-H299: v\r\nX-H300: v\r\nX-H301: v\r\nX-H302: v\r\nX-H303: v\r\nX-H304: v\r\nX-H305: v\r\nX-H306: v\r\nX-H307: v\r\nX-H308: v\r\nX-H309: v\r\nX-H310: v\r\nX-H311: v\r\nX-H312: v\r\nX-H313: v\r\nX-H314: v\r\nX-H315: v\r\nX-H316: v\r\nX-H317: v\r\nX-H318: v\r\nX-H319: v\r\nX-H320: v\r\nX-H321: v\r\nX-H322: v\r\nX-H323: v\r\nX-H324: v\r\nX-H325: v\r\nX-H326: v\r\nX-H327: v\r\nX-H328: v\r\nX-H329: v\r\nX-H330: v\r\nX-H331: v\r\nX-H332: v\r\nX-H333: v\r\nX-H334: v\r\nX-H335: v\r\nX-H336: v\r\nX-H337: v\r\nX-H338: v\r\nX-H339: v\r\nX-H340: v\r\nX-H341: v\r\nX-H342: v\r\nX-H343: v\r\nX-H344: v\r\nX-H345: v\r\nX-H346: v\r\nX-H347: v\r\nX-H348: v\r\nX-H349: v\r\nX-H350: v\r\nX-H351: v\r\nX-H352: v\r\nX-H353: v\r\nX-H354: v\r\nX-H355: v\r\nX-H356: v\r\nX-H357: v\r\nX-H358: v\r\nX-H359: v\r\nX-H360: v\r\nX-H361: v\r\nX-H362: v\r\nX-H363: v\r\nX-H364: v\r\nX-H365: v\r\nX-H366: v\r\nX-H367: v\r\nX-H368: v\r\nX-H369: v\r\nX-H370: v\r\nX-H371: v\r\nX-H372: v\r\nX-H373: v\r\nX-H374: v\r\nX-H375: v\r\nX-H376: v\r\nX-H377: v\r\nX-H378: v\r\nX-H379: v\r\nX-H380: v\r\nX-H381: v\r\nX-H382: v\r\nX-H383: v\r\nX-H384: v\r\nX-H385: v\r\nX-H386: v\r\nX-H387: v\r\nX-H388: v\r\nX-H389: v\r\nX-H390: v\r\nX-H391: v\r\nX-H392: v\r\nX-H393: v\r\nX-H394: v\r\nX-H395: v\r\nX-H396: v\r\nX-H397: v\r\nX-H398: v\r\nX-H399: v\r\nX-H400: v\r\nX-H401: v\r\nX-H402: v\r\nX-H403: v\r\nX-H404: v\r\nX-H405: v\r\nX-H406: v\r\nX-H407: v\r\nX-H408: v\r\nX-H409: v\r\nX-H410: v\r\nX-H411: v\r\nX-H412: v\r\nX-H413: v\r\nX-H414: v\r\nX-H415: v\r\nX-H416: v\r\nX-H417: v\r\nX-H418: v\r\nX-H419: v\r\nX-H420: v\r\nX-H421: v\r\nX-H422: v\r\nX-H423: v\r\nX-H424: v\r\nX-H425: v\r\nX-H426: v\r\nX-H427: v\r\nX-H428: v\r\nX-H429: v\r\nX-H430: v\r\nX-H431: v\r\nX-H432: v\r\nX-H433: v\r\nX-H434: v\r\nX-H435: v\r\nX-H436: v\r\nX-H437: v\r\nX-H438: v\r\nX-H439: v\r\nX-H440: v\r\nX-H441: v\r\nX-H442: v\r\nX-H443: v\r\nX-H444: v\r\nX-H445: v\r\nX-H446: v\r\nX-H447: v\r\nX-H448: v\r\nX-H449: v\r\nX-H450: v\r\nX-H451: v\r\nX-H452: v\r\nX-H453: v\r\nX-H454: v\r\nX-H455: v\r\nX-H456: v\r\nX-H457: v\r\nX-H458: v\r\nX-H459: v\r\nX-H460: v\r\nX-H461: v\r\nX-H462: v\r\nX-H463: v\r\nX-H464: v\r\nX-H465: v\r\nX-H466: v\r\nX-H467: v\r\nX-H468: v\r\nX-H469: v\r\nX-H470: v\r\nX-H471: v\r\nX-H472: v\r\nX-H473: v\r\nX-H474: v\r\nX-H475: v\r\nX-H476: v\r\nX-H477: v\r\nX-H478: v\r\nX-H479: v\r\nX-H480: v\r\nX-H481: v\r\nX-H482: v\r\nX-H483: v\r\nX-H484: v\r\nX-H485: v\r\nX-H486: v\r\nX-H487: v\r\nX-H488: v\r\nX-H489: v\r\nX-H490: v\r\nX-H491: v\r\nX-H492: v\r\nX-H493: v\r\nX-H494: v\r\nX-H495: v\r\nX-H496: v\r\nX-H497: v\r\nX-H498: v\r\nX-H499: v\r\nX-H500: v\r\nX-H501: v\r\nX-H502: v\r\nX-H503: v\r\nX-H504: v\r\nX-H505: v\r\nX-H506: v\r\nX-H507: v\r\nX-H508: v\r\nX-H509: v\r\nX-H510: v\r\nX-H511: v\r\nX-H512: v\r\nX-H513: v\r\nX-H514: v\r\nX-H515: v\r\nX-H516: v\r\nX-H517: v\r\nX-H518: v\r\nX-H519: v\r\nX-H520: v\r\nX-H521: v\r\nX-H522: v\r\nX-H523: v\r\nX-H524: v\r\nX-H525: v\r\nX-H526: v\r\nX-H527: v\r\nX-H528: v\r\nX-H529: v\r\nX-H530: v\r\nX-H531: v\r\nX-H532: v\r\nX-H533: v\r\nX-H534: v\r\nX-H535: v\r\nX-H536: v\r\nX-H537: v\r\nX-H538: v\r\nX-H539: v\r\nX-H540: v\r\nX-H541: v\r\nX-H542: v\r\nX-H543: v\r\nX-H544: v\r\nX-H545: v\r\nX-H546: v\r\nX-H547: v\r\nX-H548: v\r\nX-H549: v\r\nX-H550: v\r\nX-H551: v\r\nX-H552: v\r\nX-H553: v\r\nX-H554: v\r\nX-H555: v\r\nX-H556: v\r\nX-H557: v\r\nX-H558: v\r\nX-H559: v\r\nX-H560: v\r\nX-H561: v\r\nX-H562: v\r\nX-H563: v\r\nX-H564: v\r\nX-H565: v\r\nX-H566: v\r\nX-H567: v\r\nX-H568: v\r\nX-H569: v\r\nX-H570: v\r\nX-H571: v\r\nX-H572: v\r\nX-H573: v\r\nX-H574: v\r\nX-H575: v\r\nX-H576: v\r\nX-H577: v\r\nX-H578: v\r\nX-H579: v\r\nX-H580: v\r\nX-H581: v\r\nX-H582: v\r\nX-H583: v\r\nX-H584: v\r\nX-H585: v\r\nX-H586: v\r\nX-H587: v\r\nX-H588: v\r\nX-H589: v\r\nX-H590: v\r\nX-H591: v\r\nX-H592: v\r\nX-H593: v\r\nX-H594: v\r\nX-H595: v\r\nX-H596: v\r\nX-H597: v\r\nX-H598: v\r\nX-H599: v\r\nX-H600: v\r\nX-H601: v\r\nX-H602: v\r\nX-H603: v\r\nX-H604: v\r\nX-H605: v\r\nX-H606: v\r\nX-H607: v\r\nX-H608: v\r\nX-H609: v\r\nX-H610: v\r\nX-H611: v\r\nX-H612: v\r\nX-H613: v\r\nX-H614: v\r\nX-H615: v\r\nX-H616: v\r\nX-H617: v\r\nX-H618: v\r\nX-H619: v\r\nX-H620: v\r\nX-H621: v\r\nX-H622: v\r\nX-H623: v\r\nX-H624: v\r\nX-H625: v\r\nX-H626: v\r\nX-H627: v\r\nX-H628: v\r\nX-H629: v\r\nX-H630: v\r\nX-H631: v\r\nX-H632: v\r\nX-H633: v\r\nX-H634: v\r\nX-H635: v\r\nX-H636: v\r\nX-H637: v\r\nX-H638: v\r\nX-H639: v\r\nX-H640: v\r\nX-H641: v\r\nX-H642: v\r\nX-H643: v\r\nX-H644: v\r\nX-H645: v\r\nX-H646: v\r\nX-H647: v\r\nX-H648: v\r\nX-H649: v\r\nX-H650: v\r\nX-H651: v\r\nX-H652: v\r\nX-H653: v\r\nX-H654: v\r\nX-H655: v\r\nX-H656: v\r\nX-H657: v\r\nX-H658: v\r\nX-H659: v\r\nX-H660: v\r\nX-H661: v\r\nX-H662: v\r\nX-H663: v\r\nX-H664: v\r\nX-H665: v\r\nX-H666: v\r\nX-H667: v\r\nX-H668: v\r\nX-H669: v\r\nX-H670: v\r\nX-H671: v\r\nX-H672: v\r\nX-H673: v\r\nX-H674: v\r\nX-H675: v\r\nX-H676: v\r\nX-H677: v\r\nX-H678: v\r\nX-H679: v\r\nX-H680: v\r\nX-H681: v\r\nX-H682: v\r\nX-H683: v\r\nX-H684: v\r\nX-H685: v\r\nX-H686: v\r\nX-H687: v\r\nX-H688: v\r\nX-H689: v\r\nX-H690: v\r\nX-H691: v\r\nX-H692: v\r\nX-H693: v\r\nX-H694: v\r\nX-H695: v\r\nX-H696: v\r\nX-H697: v\r\nX-H698: v\r\nX-H699: v\r\nX-H700: v\r\nX-H701: v\r\nX-H702: v\r\nX-H703: v\r\nX-H704: v\r\nX-H705: v\r\nX-H706: v\r\nX-H707: v\r\nX-H708: v\r\nX-H709: v\r\nX-H710: v\r\nX-H711: v\r\nX-H712: v\r\nX-H713: v\r\nX-H714: v\r\nX-H715: v\r\nX-H716: v\r\nX-H717: v\r\nX-H718: v\r\nX-H719: v\r\nX-H720: v\r\nX-H721: v\r\nX-H722: v\r\nX-H723: v\r\nX-H724: v\r\nX-H725: v\r\nX-H726: v\r\nX-H727: v\r\nX-H728: v\r\nX-H729: v\r\nX-H730: v\r\nX-H731: v\r\nX-H732: v\r\nX-H733: v\r\nX-H734: v\r\nX-H735: v\r\nX-H736: v\r\nX-H737: v\r\nX-H738: v\r\nX-H739: v\r\nX-H740: v\r\nX-H741: v\r\nX-H742: v\r\nX-H743: v\r\nX-H744: v\r\nX-H745: v\r\nX-H746: v\r\nX-H747: v\r\nX-H748: v\r\nX-H749: v\r\nX-H750: v\r\nX-H751: v\r\nX-H752: v\r\nX-H753: v\r\nX-H754: v\r\nX-H755: v\r\nX-H756: v\r\nX-H757: v\r\nX-H758: v\r\nX-H759: v\r\nX-H760: v\r\nX-H761: v\r\nX-H762: v\r\nX-H763: v\r\nX-H764: v\r\nX-H765: v\r\nX-H766: v\r\nX-H767: v\r\nX-H768: v\r\nX-H769: v\r\nX-H770: v\r\nX-H771: v\r\nX-H772: v\r\nX-H773: v\r\nX-H774: v\r\nX-H775: v\r\nX-H776: v\r\nX-H777: v\r\nX-H778: v\r\nX-H779: v\r\nX-H780: v\r\nX-H781: v\r\nX-H782: v\r\nX-H783: v\r\nX-H784: v\r\nX-H785: v\r\nX-H786: v\r\nX-H787: v\r\nX-H788: v\r\nX-H789: v\r\nX-H790: v\r\nX-H791: v\r\nX-H792: v\r\nX-H793: v\r\nX-H794: v\r\nX-H795: v\r\nX-H796: v\r\nX-H797: v\r\nX-H798: v\r\nX-H799: v\r\nX-H800: v\r\nX-H801: v\r\nX-H802: v\r\nX-H803: v\r\nX-H804: v\r\nX-H805: v\r\nX-H806: v\r\nX-H807: v\r\nX-H808: v\r\nX-H809: v\r\nX-H810: v\r\nX-H811: v\r\nX-H812: v\r\nX-H813: v\r\nX-H814: v\r\nX-H815: v\r\nX-H816: v\r\nX-H817: v\r\nX-H818: v\r\nX-H819: v\r\nX-H820: v\r\nX-H821: v\r\nX-H822: v\r\nX-H823: v\r\nX-H824: v\r\nX-H825: v\r\nX-H826: v\r\nX-H827: v\r\nX-H828: v\r\nX-H829: v\r\nX-H830: v\r\nX-H831: v\r\nX-H832: v\r\nX-H833: v\r\nX-H834: v\r\nX-H835: v\r\nX-H836: v\r\nX-H837: v\r\nX-H838: v\r\nX-H839: v\r\nX-H840: v\r\nX-H841: v\r\nX-H842: v\r\nX-H843: v\r\nX-H844: v\r\nX-H845: v\r\nX-H846: v\r\nX-H847: v\r\nX-H848: v\r\nX-H849: v\r\nX-H850: v\r\nX-H851: v\r\nX-H852: v\r\nX-H853: v\r\nX-H854: v\r\nX-H855: v\r\nX-H856: v\r\nX-H857: v\r\nX-H858: v\r\nX-H859: v\r\nX-H860: v\r\nX-H861: v\r\nX-H862: v\r\nX-H863: v\r\nX-H864: v\r\nX-H865: v\r\nX-H866: v\r\nX-H867: v\r\nX-H868: v\r\nX-H869: v\r\nX-H870: v\r\nX-H871: v\r\nX-H872: v\r\nX-H873: v\r\nX-H874: v\r\nX-H875: v\r\nX-H876: v\r\nX-H877: v\r\nX-H878: v\r\nX-H879: v\r\nX-H880: v\r\nX-H881: v\r\nX-H882: v\r\nX-H883: v\r\nX-H884: v\r\nX-H885: v\r\nX-H886: v\r\nX-H887: v\r\nX-H888: v\r\nX-H889: v\r\nX-H890: v\r\nX-H891: v\r\nX-H892: v\r\nX-H893: v\r\nX-H894: v\r\nX-H895: v\r\nX-H896: v\r\nX-H897: v\r\nX-H898: v\r\nX-H899: v\r\nX-H900: v\r\nX-H901: v\r\nX-H902: v\r\nX-H903: v\r\nX-H904: v\r\nX-H905: v\r\nX-H906: v\r\nX-H907: v\r\nX-H908: v\r\nX-H909: v\r\nX-H910: v\r\nX-H911: v\r\nX-H912: v\r\nX-H913: v\r\nX-H914: v\r\nX-H915: v\r\nX-H916: v\r\nX-H917: v\r\nX-H918: v\r\nX-H919: v\r\nX-H920: v\r\nX-H921: v\r\nX-H922: v\r\nX-H923: v\r\nX-H924: v\r\nX-H925: v\r\nX-H926: v\r\nX-H927: v\r\nX-H928: v\r\nX-H929: v\r\nX-H930: v\r\nX-H931: v\r\nX-H932: v\r\nX-H933: v\r\nX-H934: v\r\nX-H935: v\r\nX-H936: v\r\nX-H937: v\r\nX-H938: v\r\nX-H939: v\r\nX-H940: v\r\nX-H941: v\r\nX-H942: v\r\nX-H943: v\r\nX-H944: v\r\nX-H945: v\r\nX-H946: v\r\nX-H947: v\r\nX-H948: v\r\nX-H949: v\r\nX-H950: v\r\nX-H951: v\r\nX-H952: v\r\nX-H953: v\r\nX-H954: v\r\nX-H955: v\r\nX-H956: v\r\nX-H957: v\r\nX-H958: v\r\nX-H959: v\r\nX-H960: v\r\nX-H961: v\r\nX-H962: v\r\nX-H963: v\r\nX-H964: v\r\nX-H965: v\r\nX-H966: v\r\nX-H967: v\r\nX-H968: v\r\nX-H969: v\r\nX-H970: v\r\nX-H971: v\r\nX-H972: v\r\nX-H973: v\r\nX-H974: v\r\nX-H975: v\r\nX-H976: v\r\nX-H977: v\r\nX-H978: v\r\nX-H979: v\r\nX-H980: v\r\nX-H981: v\r\nX-H982: v\r\nX-H983: v\r\nX-H984: v\r\nX-H985: v\r\nX-H986: v\r\nX-H987: v\r\nX-H988: v\r\nX-H989: v\r\nX-H990: v\r\nX-H991: v\r\nX-H992: v\r\nX-H993: v\r\nX-H994: v\r\nX-H995: v\r\nX-H996: v\r\nX-H997: v\r\nX-H998: v\r\nConnection: close\r\n\r\n"
+        }
+      ],
+      "window_ms": 2000,
+      "head": "HTTP/1.1 200 OK\r\nDate: <date>\r\nContent-Length: 6\r\nContent-Type: text/plain; charset=utf-8\r\nConnection: close\r\n\r\n",
+      "body": "body=0",
+      "body_len": 6,
+      "body_crc32": "4cc9a4f7",
+      "end": "eof"
+    },
+    {
+      "group": "long_target",
+      "name": "target_65534",
+      "server": "main",
+      "steps": [
+        {
+          "text": "GET /echo?q="
+        },
+        {
+          "fill": 65526
+        },
+        {
+          "text": " HTTP/1.1\r\nHost: pbs.example\r\nConnection: close\r\n\r\n"
+        }
+      ],
+      "window_ms": 2000,
+      "head": "HTTP/1.1 200 OK\r\nDate: <date>\r\nContent-Length: 6\r\nContent-Type: text/plain; charset=utf-8\r\nConnection: close\r\n\r\n",
+      "body": "body=0",
+      "body_len": 6,
+      "body_crc32": "4cc9a4f7",
+      "end": "eof"
+    },
+    {
+      "group": "long_target",
+      "name": "target_65535",
+      "server": "main",
+      "steps": [
+        {
+          "text": "GET /echo?q="
+        },
+        {
+          "fill": 65527
+        },
+        {
+          "text": " HTTP/1.1\r\nHost: pbs.example\r\nConnection: close\r\n\r\n"
+        }
+      ],
+      "window_ms": 2000,
+      "head": "HTTP/1.1 200 OK\r\nDate: <date>\r\nContent-Length: 6\r\nContent-Type: text/plain; charset=utf-8\r\nConnection: close\r\n\r\n",
+      "body": "body=0",
+      "body_len": 6,
+      "body_crc32": "4cc9a4f7",
+      "end": "eof"
+    },
+    {
+      "group": "long_target",
+      "name": "target_100000",
+      "server": "main",
+      "steps": [
+        {
+          "text": "GET /echo?q="
+        },
+        {
+          "fill": 99992
+        },
+        {
+          "text": " HTTP/1.1\r\nHost: pbs.example\r\nConnection: close\r\n\r\n"
+        }
+      ],
+      "window_ms": 2000,
+      "head": "HTTP/1.1 200 OK\r\nDate: <date>\r\nContent-Length: 6\r\nContent-Type: text/plain; charset=utf-8\r\nConnection: close\r\n\r\n",
+      "body": "body=0",
+      "body_len": 6,
+      "body_crc32": "4cc9a4f7",
+      "end": "eof"
+    },
+    {
+      "group": "malformed",
+      "name": "missing_host",
+      "server": "main",
+      "steps": [
+        {
+          "text": "GET /echo HTTP/1.1\r\nConnection: close\r\n\r\n"
+        }
+      ],
+      "window_ms": 2000,
+      "head": "HTTP/1.1 400 Bad Request: missing required Host header\r\nContent-Type: text/plain; charset=utf-8\r\nConnection: close\r\n\r\n",
+      "body": "400 Bad Request: missing required Host header",
+      "body_len": 45,
+      "body_crc32": "196b0352",
+      "end": "eof"
+    },
+    {
+      "group": "malformed",
+      "name": "two_hosts",
+      "server": "main",
+      "steps": [
+        {
+          "text": "GET /echo HTTP/1.1\r\nHost: a.example\r\nHost: b.example\r\nConnection: close\r\n\r\n"
+        }
+      ],
+      "window_ms": 2000,
+      "head": "HTTP/1.1 400 Bad Request\r\nContent-Type: text/plain; charset=utf-8\r\nConnection: close\r\n\r\n",
+      "body": "400 Bad Request",
+      "body_len": 15,
+      "body_crc32": "0428a1d5",
+      "end": "eof"
+    },
+    {
+      "group": "malformed",
+      "name": "header_without_colon",
+      "server": "main",
+      "steps": [
+        {
+          "text": "GET /echo HTTP/1.1\r\nHost: pbs.example\r\nBad Header Line\r\n\r\n"
+        }
+      ],
+      "window_ms": 2000,
+      "head": "HTTP/1.1 400 Bad Request\r\nContent-Type: text/plain; charset=utf-8\r\nConnection: close\r\n\r\n",
+      "body": "400 Bad Request",
+      "body_len": 15,
+      "body_crc32": "0428a1d5",
+      "end": "eof"
+    },
+    {
+      "group": "malformed",
+      "name": "space_in_header_name",
+      "server": "main",
+      "steps": [
+        {
+          "text": "GET /echo HTTP/1.1\r\nHost: pbs.example\r\nX Y: z\r\n\r\n"
+        }
+      ],
+      "window_ms": 2000,
+      "head": "HTTP/1.1 400 Bad Request: invalid header name\r\nContent-Type: text/plain; charset=utf-8\r\nConnection: close\r\n\r\n",
+      "body": "400 Bad Request: invalid header name",
+      "body_len": 36,
+      "body_crc32": "7989f5a0",
+      "end": "eof"
+    },
+    {
+      "group": "malformed",
+      "name": "space_before_colon",
+      "server": "main",
+      "steps": [
+        {
+          "text": "GET /echo HTTP/1.1\r\nHost: pbs.example\r\nX-A : z\r\n\r\n"
+        }
+      ],
+      "window_ms": 2000,
+      "head": "HTTP/1.1 400 Bad Request: invalid header name\r\nContent-Type: text/plain; charset=utf-8\r\nConnection: close\r\n\r\n",
+      "body": "400 Bad Request: invalid header name",
+      "body_len": 36,
+      "body_crc32": "7989f5a0",
+      "end": "eof"
+    },
+    {
+      "group": "malformed",
+      "name": "nul_in_header_value",
+      "server": "main",
+      "steps": [
+        {
+          "text": "GET /echo HTTP/1.1\r\nHost: pbs.example\r\nX-A: a\u0000b\r\n\r\n"
+        }
+      ],
+      "window_ms": 2000,
+      "head": "HTTP/1.1 400 Bad Request\r\nContent-Type: text/plain; charset=utf-8\r\nConnection: close\r\n\r\n",
+      "body": "400 Bad Request",
+      "body_len": 15,
+      "body_crc32": "0428a1d5",
+      "end": "eof"
+    },
+    {
+      "group": "malformed",
+      "name": "folded_header",
+      "server": "main",
+      "steps": [
+        {
+          "text": "GET /echo HTTP/1.1\r\nHost: pbs.example\r\nX-A: a\r\n b\r\nConnection: close\r\n\r\n"
+        }
+      ],
+      "window_ms": 2000,
+      "head": "HTTP/1.1 200 OK\r\nDate: <date>\r\nContent-Length: 6\r\nContent-Type: text/plain; charset=utf-8\r\nConnection: close\r\n\r\n",
+      "body": "body=0",
+      "body_len": 6,
+      "body_crc32": "4cc9a4f7",
+      "end": "eof"
+    },
+    {
+      "group": "malformed",
+      "name": "garbage",
+      "server": "main",
+      "steps": [
+        {
+          "text": "garbage\r\n\r\n"
+        }
+      ],
+      "window_ms": 2000,
+      "head": "HTTP/1.1 400 Bad Request\r\nContent-Type: text/plain; charset=utf-8\r\nConnection: close\r\n\r\n",
+      "body": "400 Bad Request",
+      "body_len": 15,
+      "body_crc32": "0428a1d5",
+      "end": "eof"
+    },
+    {
+      "group": "malformed",
+      "name": "lower_case_method",
+      "server": "main",
+      "steps": [
+        {
+          "text": "get /echo HTTP/1.1\r\nHost: pbs.example\r\nConnection: close\r\n\r\n"
+        }
+      ],
+      "window_ms": 2000,
+      "head": "HTTP/1.1 200 OK\r\nDate: <date>\r\nContent-Length: 6\r\nContent-Type: text/plain; charset=utf-8\r\nConnection: close\r\n\r\n",
+      "body": "body=0",
+      "body_len": 6,
+      "body_crc32": "4cc9a4f7",
+      "end": "eof"
+    },
+    {
+      "group": "malformed",
+      "name": "unknown_version",
+      "server": "main",
+      "steps": [
+        {
+          "text": "GET /echo HTTP/9.9\r\nHost: pbs.example\r\n\r\n"
+        }
+      ],
+      "window_ms": 2000,
+      "head": "HTTP/1.1 505 HTTP Version Not Supported: unsupported protocol version\r\nContent-Type: text/plain; charset=utf-8\r\nConnection: close\r\n\r\n",
+      "body": "505 HTTP Version Not Supported: unsupported protocol version",
+      "body_len": 60,
+      "body_crc32": "1aee57a9",
+      "end": "eof"
+    },
+    {
+      "group": "malformed",
+      "name": "http_10_without_host",
+      "server": "main",
+      "steps": [
+        {
+          "text": "GET /echo HTTP/1.0\r\n\r\n"
+        }
+      ],
+      "window_ms": 2000,
+      "head": "HTTP/1.0 200 OK\r\nDate: <date>\r\nContent-Length: 6\r\nContent-Type: text/plain; charset=utf-8\r\n\r\n",
+      "body": "body=0",
+      "body_len": 6,
+      "body_crc32": "4cc9a4f7",
+      "end": "eof"
+    },
+    {
+      "group": "malformed",
+      "name": "bad_content_length",
+      "server": "main",
+      "steps": [
+        {
+          "text": "POST /echo HTTP/1.1\r\nHost: pbs.example\r\nContent-Length: abc\r\n\r\n"
+        }
+      ],
+      "window_ms": 2000,
+      "head": "HTTP/1.1 400 Bad Request\r\nContent-Type: text/plain; charset=utf-8\r\nConnection: close\r\n\r\n",
+      "body": "400 Bad Request",
+      "body_len": 15,
+      "body_crc32": "0428a1d5",
+      "end": "eof"
+    },
+    {
+      "group": "malformed",
+      "name": "two_content_lengths",
+      "server": "main",
+      "steps": [
+        {
+          "text": "POST /echo HTTP/1.1\r\nHost: pbs.example\r\nContent-Length: 1\r\nContent-Length: 2\r\n\r\nab"
+        }
+      ],
+      "window_ms": 2000,
+      "head": "HTTP/1.1 400 Bad Request\r\nContent-Type: text/plain; charset=utf-8\r\nConnection: close\r\n\r\n",
+      "body": "400 Bad Request",
+      "body_len": 15,
+      "body_crc32": "0428a1d5",
+      "end": "eof"
+    },
+    {
+      "group": "malformed",
+      "name": "unknown_transfer_encoding",
+      "server": "main",
+      "steps": [
+        {
+          "text": "POST /echo HTTP/1.1\r\nHost: pbs.example\r\nTransfer-Encoding: gzip\r\n\r\n"
+        }
+      ],
+      "window_ms": 2000,
+      "head": "HTTP/1.1 501 Not Implemented\r\nContent-Type: text/plain; charset=utf-8\r\nConnection: close\r\n\r\n",
+      "body": "Unsupported transfer encoding",
+      "body_len": 29,
+      "body_crc32": "8dd1259f",
+      "end": "eof"
+    },
+    {
+      "group": "malformed",
+      "name": "chunked_and_length",
+      "server": "main",
+      "steps": [
+        {
+          "text": "POST /echo HTTP/1.1\r\nHost: pbs.example\r\nTransfer-Encoding: chunked\r\nContent-Length: 3\r\nConnection: close\r\n\r\n3\r\nabc\r\n0\r\n\r\n"
+        }
+      ],
+      "window_ms": 2000,
+      "head": "HTTP/1.1 200 OK\r\nDate: <date>\r\nContent-Length: 6\r\nContent-Type: text/plain; charset=utf-8\r\nConnection: close\r\n\r\n",
+      "body": "body=3",
+      "body_len": 6,
+      "body_crc32": "d5c0f54d",
+      "end": "eof"
+    },
+    {
+      "group": "malformed",
+      "name": "bad_chunk_size",
+      "server": "main",
+      "steps": [
+        {
+          "text": "POST /echo HTTP/1.1\r\nHost: pbs.example\r\nTransfer-Encoding: chunked\r\nConnection: close\r\n\r\nzz\r\nabc\r\n0\r\n\r\n"
+        }
+      ],
+      "window_ms": 2000,
+      "head": "HTTP/1.1 200 OK\r\nDate: <date>\r\nContent-Length: 41\r\nContent-Type: text/plain; charset=utf-8\r\nConnection: close\r\n\r\n",
+      "body": "body=0 error=invalid byte in chunk length",
+      "body_len": 41,
+      "body_crc32": "cb3d6d7d",
+      "end": "eof"
+    },
+    {
+      "group": "malformed",
+      "name": "leading_blank_line",
+      "server": "main",
+      "steps": [
+        {
+          "text": "\r\nGET /echo HTTP/1.1\r\nHost: pbs.example\r\nConnection: close\r\n\r\n"
+        }
+      ],
+      "window_ms": 2000,
+      "head": "HTTP/1.1 400 Bad Request\r\nContent-Type: text/plain; charset=utf-8\r\nConnection: close\r\n\r\n",
+      "body": "400 Bad Request",
+      "body_len": 15,
+      "body_crc32": "0428a1d5",
+      "end": "eof"
+    },
+    {
+      "group": "malformed",
+      "name": "absolute_form",
+      "server": "main",
+      "steps": [
+        {
+          "text": "GET http://other.example/echo HTTP/1.1\r\nHost: pbs.example\r\nConnection: close\r\n\r\n"
+        }
+      ],
+      "window_ms": 2000,
+      "head": "HTTP/1.1 200 OK\r\nDate: <date>\r\nContent-Length: 6\r\nContent-Type: text/plain; charset=utf-8\r\nConnection: close\r\n\r\n",
+      "body": "body=0",
+      "body_len": 6,
+      "body_crc32": "4cc9a4f7",
+      "end": "eof"
+    },
+    {
+      "group": "h2c",
+      "name": "prior_knowledge",
+      "server": "main",
+      "steps": [
+        {
+          "text": "PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n\u0000\u0000\u0000\u0004\u0000\u0000\u0000\u0000\u0000"
+        }
+      ],
+      "window_ms": 2000,
+      "head": "HTTP/1.1 400 Bad Request\r\nConnection: close\r\nDate: <date>\r\nContent-Length: 0\r\n\r\n",
+      "body": "",
+      "body_len": 0,
+      "body_crc32": "00000000",
+      "end": "eof"
+    },
+    {
+      "group": "h2c",
+      "name": "upgrade_header",
+      "server": "main",
+      "steps": [
+        {
+          "text": "GET /echo HTTP/1.1\r\nHost: pbs.example\r\nConnection: Upgrade, HTTP2-Settings\r\nUpgrade: h2c\r\nHTTP2-Settings: AAMAAABkAARAAAAAAAIAAAAA\r\n\r\n"
+        }
+      ],
+      "window_ms": 2000,
+      "head": "HTTP/1.1 200 OK\r\nDate: <date>\r\nContent-Length: 6\r\nContent-Type: text/plain; charset=utf-8\r\n\r\n",
+      "body": "body=0",
+      "body_len": 6,
+      "body_crc32": "4cc9a4f7",
+      "end": "open"
+    },
+    {
+      "group": "timeouts",
+      "name": "slow_headers",
+      "server": "scaled",
+      "steps": [
+        {
+          "text": "GET /echo HTTP/1.1\r\nHost: pbs.example\r\n"
+        }
+      ],
+      "window_ms": 3000,
+      "head": "",
+      "body": "",
+      "body_len": 0,
+      "body_crc32": "00000000",
+      "end": "eof"
+    },
+    {
+      "group": "timeouts",
+      "name": "slow_headers_admin",
+      "server": "admin",
+      "steps": [
+        {
+          "text": "GET /echo HTTP/1.1\r\nHost: pbs.example\r\n"
+        }
+      ],
+      "window_ms": 3000,
+      "head": "",
+      "body": "",
+      "body_len": 0,
+      "body_crc32": "00000000",
+      "end": "open"
+    },
+    {
+      "group": "timeouts",
+      "name": "trickled_headers",
+      "server": "scaled",
+      "steps": [
+        {
+          "text": "GET /echo HTTP/1.1\r\n"
+        },
+        {
+          "pause_ms": 400
+        },
+        {
+          "text": "Host: pbs.example\r\n"
+        },
+        {
+          "pause_ms": 400
+        },
+        {
+          "text": "X-A: 1\r\n"
+        },
+        {
+          "pause_ms": 400
+        },
+        {
+          "text": "X-B: 2\r\n"
+        },
+        {
+          "pause_ms": 400
+        },
+        {
+          "text": "Connection: close\r\n\r\n"
+        }
+      ],
+      "window_ms": 2000,
+      "head": "",
+      "body": "",
+      "body_len": 0,
+      "body_crc32": "00000000",
+      "end": "eof"
+    },
+    {
+      "group": "timeouts",
+      "name": "idle_keep_alive",
+      "server": "scaled",
+      "steps": [
+        {
+          "text": "GET /echo HTTP/1.1\r\nHost: pbs.example\r\n\r\n"
+        }
+      ],
+      "window_ms": 3000,
+      "head": "HTTP/1.1 200 OK\r\nDate: <date>\r\nContent-Length: 6\r\nContent-Type: text/plain; charset=utf-8\r\n\r\n",
+      "body": "body=0",
+      "body_len": 6,
+      "body_crc32": "4cc9a4f7",
+      "end": "eof"
+    },
+    {
+      "group": "timeouts",
+      "name": "idle_keep_alive_admin",
+      "server": "admin",
+      "steps": [
+        {
+          "text": "GET /echo HTTP/1.1\r\nHost: pbs.example\r\n\r\n"
+        }
+      ],
+      "window_ms": 3000,
+      "head": "HTTP/1.1 200 OK\r\nDate: <date>\r\nContent-Length: 6\r\nContent-Type: text/plain; charset=utf-8\r\n\r\n",
+      "body": "body=0",
+      "body_len": 6,
+      "body_crc32": "4cc9a4f7",
+      "end": "open"
+    },
+    {
+      "group": "timeouts",
+      "name": "stalled_body",
+      "server": "scaled",
+      "steps": [
+        {
+          "pause_ms": 500
+        },
+        {
+          "text": "POST /echo HTTP/1.1\r\nHost: pbs.example\r\nContent-Length: 10\r\n\r\nabcde"
+        }
+      ],
+      "window_ms": 3000,
+      "head": "HTTP/1.1 200 OK\r\nDate: <date>\r\nContent-Length: 20\r\nContent-Type: text/plain; charset=utf-8\r\nConnection: close\r\n\r\n",
+      "body": "body=5 error=timeout",
+      "body_len": 20,
+      "body_crc32": "60c4e1d4",
+      "end": "eof"
+    },
+    {
+      "group": "timeouts",
+      "name": "trickled_body",
+      "server": "scaled",
+      "steps": [
+        {
+          "pause_ms": 500
+        },
+        {
+          "text": "POST /echo HTTP/1.1\r\nHost: pbs.example\r\nContent-Length: 5\r\nConnection: close\r\n\r\na"
+        },
+        {
+          "pause_ms": 333
+        },
+        {
+          "text": "b"
+        },
+        {
+          "pause_ms": 333
+        },
+        {
+          "text": "c"
+        },
+        {
+          "pause_ms": 333
+        },
+        {
+          "text": "d"
+        },
+        {
+          "pause_ms": 333
+        },
+        {
+          "text": "e"
+        }
+      ],
+      "window_ms": 3000,
+      "head": "HTTP/1.1 200 OK\r\nDate: <date>\r\nContent-Length: 20\r\nContent-Type: text/plain; charset=utf-8\r\nConnection: close\r\n\r\n",
+      "body": "body=2 error=timeout",
+      "body_len": 20,
+      "body_crc32": "fbc5eece",
+      "end": "eof"
+    },
+    {
+      "group": "timeouts",
+      "name": "quick_handler",
+      "server": "scaled",
+      "steps": [
+        {
+          "text": "GET /sleep?ms=500 HTTP/1.1\r\nHost: pbs.example\r\nConnection: close\r\n\r\n"
+        }
+      ],
+      "window_ms": 3000,
+      "head": "HTTP/1.1 200 OK\r\nDate: <date>\r\nContent-Length: 4\r\nContent-Type: text/plain; charset=utf-8\r\nConnection: close\r\n\r\n",
+      "body": "late",
+      "body_len": 4,
+      "body_crc32": "6f2a1f95",
+      "end": "eof"
+    },
+    {
+      "group": "timeouts",
+      "name": "slow_handler",
+      "server": "scaled",
+      "steps": [
+        {
+          "text": "GET /sleep?ms=3000 HTTP/1.1\r\nHost: pbs.example\r\nConnection: close\r\n\r\n"
+        }
+      ],
+      "window_ms": 5000,
+      "head": "",
+      "body": "",
+      "body_len": 0,
+      "body_crc32": "00000000",
+      "end": "eof"
+    },
+    {
+      "group": "timeouts",
+      "name": "slow_handler_admin",
+      "server": "admin",
+      "steps": [
+        {
+          "text": "GET /sleep?ms=3000 HTTP/1.1\r\nHost: pbs.example\r\nConnection: close\r\n\r\n"
+        }
+      ],
+      "window_ms": 5000,
+      "head": "HTTP/1.1 200 OK\r\nDate: <date>\r\nContent-Length: 4\r\nContent-Type: text/plain; charset=utf-8\r\nConnection: close\r\n\r\n",
+      "body": "late",
+      "body_len": 4,
+      "body_crc32": "6f2a1f95",
+      "end": "eof"
+    },
+    {
+      "group": "client_gone",
+      "name": "gone_fin",
+      "server": "main",
+      "steps": [
+        {
+          "text": "GET /sleep?ms=500&mark=gone_fin HTTP/1.1\r\nHost: pbs.example\r\nConnection: close\r\n\r\n"
+        },
+        {
+          "pause_ms": 100
+        },
+        {
+          "close": "fin"
+        }
+      ],
+      "window_ms": 1000,
+      "head": "",
+      "body": "",
+      "body_len": 0,
+      "body_crc32": "00000000",
+      "end": "client_closed"
+    },
+    {
+      "group": "client_gone",
+      "name": "check_fin",
+      "server": "main",
+      "steps": [
+        {
+          "pause_ms": 1500
+        },
+        {
+          "text": "GET /mark?id=gone_fin HTTP/1.1\r\nHost: pbs.example\r\nConnection: close\r\n\r\n"
+        }
+      ],
+      "window_ms": 2000,
+      "head": "HTTP/1.1 200 OK\r\nDate: <date>\r\nContent-Length: 9\r\nContent-Type: text/plain; charset=utf-8\r\nConnection: close\r\n\r\n",
+      "body": "completed",
+      "body_len": 9,
+      "body_crc32": "3af85c6e",
+      "end": "eof"
+    },
+    {
+      "group": "client_gone",
+      "name": "gone_rst",
+      "server": "main",
+      "steps": [
+        {
+          "text": "GET /sleep?ms=500&mark=gone_rst HTTP/1.1\r\nHost: pbs.example\r\nConnection: close\r\n\r\n"
+        },
+        {
+          "pause_ms": 100
+        },
+        {
+          "close": "rst"
+        }
+      ],
+      "window_ms": 1000,
+      "head": "",
+      "body": "",
+      "body_len": 0,
+      "body_crc32": "00000000",
+      "end": "client_closed"
+    },
+    {
+      "group": "client_gone",
+      "name": "check_rst",
+      "server": "main",
+      "steps": [
+        {
+          "pause_ms": 1500
+        },
+        {
+          "text": "GET /mark?id=gone_rst HTTP/1.1\r\nHost: pbs.example\r\nConnection: close\r\n\r\n"
+        }
+      ],
+      "window_ms": 2000,
+      "head": "HTTP/1.1 200 OK\r\nDate: <date>\r\nContent-Length: 9\r\nContent-Type: text/plain; charset=utf-8\r\nConnection: close\r\n\r\n",
+      "body": "completed",
+      "body_len": 9,
+      "body_crc32": "3af85c6e",
+      "end": "eof"
+    },
+    {
+      "group": "gzip",
+      "name": "bytes_n_10_gzip",
+      "server": "main_gzip",
+      "steps": [
+        {
+          "text": "GET /bytes?n=10 HTTP/1.1\r\nHost: pbs.example\r\nAccept-Encoding: gzip\r\nConnection: close\r\n\r\n"
+        }
+      ],
+      "window_ms": 2000,
+      "head": "HTTP/1.1 200 OK\r\nContent-Type: text/plain; charset=utf-8\r\nVary: Accept-Encoding\r\nDate: <date>\r\nContent-Length: 10\r\nConnection: close\r\n\r\n",
+      "body": "abcdefghij",
+      "body_len": 10,
+      "body_crc32": "3981703a",
+      "end": "eof"
+    },
+    {
+      "group": "gzip",
+      "name": "bytes_n_1399_gzip",
+      "server": "main_gzip",
+      "steps": [
+        {
+          "text": "GET /bytes?n=1399 HTTP/1.1\r\nHost: pbs.example\r\nAccept-Encoding: gzip\r\nConnection: close\r\n\r\n"
+        }
+      ],
+      "window_ms": 2000,
+      "head": "HTTP/1.1 200 OK\r\nContent-Type: text/plain; charset=utf-8\r\nVary: Accept-Encoding\r\nDate: <date>\r\nContent-Length: 1399\r\nConnection: close\r\n\r\n",
+      "body": "abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstu",
+      "body_len": 1399,
+      "body_crc32": "739be739",
+      "end": "eof"
+    },
+    {
+      "group": "gzip",
+      "name": "bytes_n_1400_gzip",
+      "server": "main_gzip",
+      "steps": [
+        {
+          "text": "GET /bytes?n=1400 HTTP/1.1\r\nHost: pbs.example\r\nAccept-Encoding: gzip\r\nConnection: close\r\n\r\n"
+        }
+      ],
+      "window_ms": 2000,
+      "head": "HTTP/1.1 200 OK\r\nContent-Encoding: gzip\r\nContent-Type: text/plain; charset=utf-8\r\nVary: Accept-Encoding\r\nDate: <date>\r\nContent-Length: 62\r\nConnection: close\r\n\r\n",
+      "body": "",
+      "body_len": 62,
+      "body_crc32": "beee677f",
+      "gunzipped": "1400/3412286b",
+      "end": "eof"
+    },
+    {
+      "group": "gzip",
+      "name": "bytes_n_3000_gzip",
+      "server": "main_gzip",
+      "steps": [
+        {
+          "text": "GET /bytes?n=3000 HTTP/1.1\r\nHost: pbs.example\r\nAccept-Encoding: gzip\r\nConnection: close\r\n\r\n"
+        }
+      ],
+      "window_ms": 2000,
+      "head": "HTTP/1.1 200 OK\r\nContent-Encoding: gzip\r\nContent-Type: text/plain; charset=utf-8\r\nVary: Accept-Encoding\r\nDate: <date>\r\nContent-Length: 69\r\nConnection: close\r\n\r\n",
+      "body": "",
+      "body_len": 69,
+      "body_crc32": "61b8aaf5",
+      "gunzipped": "3000/ec2e699a",
+      "end": "eof"
+    },
+    {
+      "group": "gzip",
+      "name": "sniff_kind_empty_gzip",
+      "server": "main_gzip",
+      "steps": [
+        {
+          "text": "GET /sniff?kind=empty HTTP/1.1\r\nHost: pbs.example\r\nAccept-Encoding: gzip\r\nConnection: close\r\n\r\n"
+        }
+      ],
+      "window_ms": 2000,
+      "head": "HTTP/1.1 200 OK\r\nVary: Accept-Encoding\r\nDate: <date>\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
+      "body": "",
+      "body_len": 0,
+      "body_crc32": "00000000",
+      "end": "eof"
+    },
+    {
+      "group": "gzip",
+      "name": "headers_gzip",
+      "server": "main_gzip",
+      "steps": [
+        {
+          "text": "GET /headers HTTP/1.1\r\nHost: pbs.example\r\nAccept-Encoding: gzip\r\nConnection: close\r\n\r\n"
+        }
+      ],
+      "window_ms": 2000,
+      "head": "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nVary: Accept-Encoding\r\nX-Alpha: a\r\nX-Multi: 1\r\nX-Multi: 2\r\nX-Zeta: z\r\nDate: <date>\r\nContent-Length: 11\r\nConnection: close\r\n\r\n",
+      "body": "{\"ok\":true}",
+      "body_len": 11,
+      "body_crc32": "a7d45f90",
+      "end": "eof"
+    },
+    {
+      "group": "gzip",
+      "name": "bytes_n_10_identity",
+      "server": "main_gzip",
+      "steps": [
+        {
+          "text": "GET /bytes?n=10 HTTP/1.1\r\nHost: pbs.example\r\nConnection: close\r\n\r\n"
+        }
+      ],
+      "window_ms": 2000,
+      "head": "HTTP/1.1 200 OK\r\nContent-Type: text/plain; charset=utf-8\r\nVary: Accept-Encoding\r\nDate: <date>\r\nContent-Length: 10\r\nConnection: close\r\n\r\n",
+      "body": "abcdefghij",
+      "body_len": 10,
+      "body_crc32": "3981703a",
+      "end": "eof"
+    },
+    {
+      "group": "gzip",
+      "name": "bytes_n_1399_identity",
+      "server": "main_gzip",
+      "steps": [
+        {
+          "text": "GET /bytes?n=1399 HTTP/1.1\r\nHost: pbs.example\r\nConnection: close\r\n\r\n"
+        }
+      ],
+      "window_ms": 2000,
+      "head": "HTTP/1.1 200 OK\r\nContent-Type: text/plain; charset=utf-8\r\nVary: Accept-Encoding\r\nDate: <date>\r\nContent-Length: 1399\r\nConnection: close\r\n\r\n",
+      "body": "abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstu",
+      "body_len": 1399,
+      "body_crc32": "739be739",
+      "end": "eof"
+    },
+    {
+      "group": "gzip",
+      "name": "bytes_n_1400_identity",
+      "server": "main_gzip",
+      "steps": [
+        {
+          "text": "GET /bytes?n=1400 HTTP/1.1\r\nHost: pbs.example\r\nConnection: close\r\n\r\n"
+        }
+      ],
+      "window_ms": 2000,
+      "head": "HTTP/1.1 200 OK\r\nContent-Type: text/plain; charset=utf-8\r\nVary: Accept-Encoding\r\nDate: <date>\r\nContent-Length: 1400\r\nConnection: close\r\n\r\n",
+      "body": "abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuv",
+      "body_len": 1400,
+      "body_crc32": "3412286b",
+      "end": "eof"
+    },
+    {
+      "group": "gzip",
+      "name": "bytes_n_3000_identity",
+      "server": "main_gzip",
+      "steps": [
+        {
+          "text": "GET /bytes?n=3000 HTTP/1.1\r\nHost: pbs.example\r\nConnection: close\r\n\r\n"
+        }
+      ],
+      "window_ms": 2000,
+      "head": "HTTP/1.1 200 OK\r\nContent-Type: text/plain; charset=utf-8\r\nVary: Accept-Encoding\r\nDate: <date>\r\nConnection: close\r\nTransfer-Encoding: chunked\r\n\r\n",
+      "body": "bb8\r\nabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghij\r\n0\r\n\r\n",
+      "body_len": 3012,
+      "body_crc32": "4cbb9ef3",
+      "end": "eof"
+    },
+    {
+      "group": "gzip",
+      "name": "sniff_kind_empty_identity",
+      "server": "main_gzip",
+      "steps": [
+        {
+          "text": "GET /sniff?kind=empty HTTP/1.1\r\nHost: pbs.example\r\nConnection: close\r\n\r\n"
+        }
+      ],
+      "window_ms": 2000,
+      "head": "HTTP/1.1 200 OK\r\nVary: Accept-Encoding\r\nDate: <date>\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
+      "body": "",
+      "body_len": 0,
+      "body_crc32": "00000000",
+      "end": "eof"
+    },
+    {
+      "group": "gzip",
+      "name": "headers_identity",
+      "server": "main_gzip",
+      "steps": [
+        {
+          "text": "GET /headers HTTP/1.1\r\nHost: pbs.example\r\nConnection: close\r\n\r\n"
+        }
+      ],
+      "window_ms": 2000,
+      "head": "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nVary: Accept-Encoding\r\nX-Alpha: a\r\nX-Multi: 1\r\nX-Multi: 2\r\nX-Zeta: z\r\nDate: <date>\r\nContent-Length: 11\r\nConnection: close\r\n\r\n",
+      "body": "{\"ok\":true}",
+      "body_len": 11,
+      "body_crc32": "a7d45f90",
+      "end": "eof"
+    },
+    {
+      "group": "static",
+      "name": "text_file",
+      "server": "static",
+      "steps": [
+        {
+          "text": "GET /static/notes.txt HTTP/1.1\r\nHost: pbs.example\r\nConnection: close\r\n\r\n"
+        }
+      ],
+      "window_ms": 2000,
+      "head": "HTTP/1.1 200 OK\r\nAccept-Ranges: bytes\r\nCache-Control: no-cache, no-store, must-revalidate\r\nContent-Length: 14\r\nContent-Type: text/plain; charset=utf-8\r\nExpires: 0\r\nLast-Modified: Thu, 02 Jan 2020 03:04:05 GMT\r\nPragma: no-cache\r\nVary: Origin\r\nDate: <date>\r\nConnection: close\r\n\r\n",
+      "body": "hello, static\n",
+      "body_len": 14,
+      "body_crc32": "5315257d",
+      "end": "eof"
+    },
+    {
+      "group": "static",
+      "name": "html_file",
+      "server": "static",
+      "steps": [
+        {
+          "text": "GET /static/optout.html HTTP/1.1\r\nHost: pbs.example\r\nConnection: close\r\n\r\n"
+        }
+      ],
+      "window_ms": 2000,
+      "head": "HTTP/1.1 200 OK\r\nAccept-Ranges: bytes\r\nCache-Control: no-cache, no-store, must-revalidate\r\nContent-Length: 34\r\nContent-Type: text/html; charset=utf-8\r\nExpires: 0\r\nLast-Modified: Thu, 02 Jan 2020 03:04:05 GMT\r\nPragma: no-cache\r\nVary: Origin\r\nDate: <date>\r\nConnection: close\r\n\r\n",
+      "body": "<html><body>Opt out</body></html>\n",
+      "body_len": 34,
+      "body_crc32": "7b4e9b91",
+      "end": "eof"
+    },
+    {
+      "group": "static",
+      "name": "svg_file",
+      "server": "static",
+      "steps": [
+        {
+          "text": "GET /static/pbs-logo.svg HTTP/1.1\r\nHost: pbs.example\r\nConnection: close\r\n\r\n"
+        }
+      ],
+      "window_ms": 2000,
+      "head": "HTTP/1.1 200 OK\r\nAccept-Ranges: bytes\r\nCache-Control: no-cache, no-store, must-revalidate\r\nContent-Length: 47\r\nContent-Type: image/svg+xml\r\nExpires: 0\r\nLast-Modified: Thu, 02 Jan 2020 03:04:05 GMT\r\nPragma: no-cache\r\nVary: Origin\r\nDate: <date>\r\nConnection: close\r\n\r\n",
+      "body": "<svg xmlns=\"http://www.w3.org/2000/svg\"></svg>\n",
+      "body_len": 47,
+      "body_crc32": "f6dc2cc2",
+      "end": "eof"
+    },
+    {
+      "group": "static",
+      "name": "json_file",
+      "server": "static",
+      "steps": [
+        {
+          "text": "GET /static/bidder-params/appnexus.json HTTP/1.1\r\nHost: pbs.example\r\nConnection: close\r\n\r\n"
+        }
+      ],
+      "window_ms": 2000,
+      "head": "HTTP/1.1 200 OK\r\nAccept-Ranges: bytes\r\nCache-Control: no-cache, no-store, must-revalidate\r\nContent-Length: 21\r\nContent-Type: application/json\r\nExpires: 0\r\nLast-Modified: Thu, 02 Jan 2020 03:04:05 GMT\r\nPragma: no-cache\r\nVary: Origin\r\nDate: <date>\r\nConnection: close\r\n\r\n",
+      "body": "{\"title\":\"AppNexus\"}\n",
+      "body_len": 21,
+      "body_crc32": "6ec8f000",
+      "end": "eof"
+    },
+    {
+      "group": "static",
+      "name": "no_extension",
+      "server": "static",
+      "steps": [
+        {
+          "text": "GET /static/noext HTTP/1.1\r\nHost: pbs.example\r\nConnection: close\r\n\r\n"
+        }
+      ],
+      "window_ms": 2000,
+      "head": "HTTP/1.1 200 OK\r\nAccept-Ranges: bytes\r\nCache-Control: no-cache, no-store, must-revalidate\r\nContent-Length: 9\r\nContent-Type: application/octet-stream\r\nExpires: 0\r\nLast-Modified: Thu, 02 Jan 2020 03:04:05 GMT\r\nPragma: no-cache\r\nVary: Origin\r\nDate: <date>\r\nConnection: close\r\n\r\n",
+      "body": "\u0000\u0001\u0002binary",
+      "body_len": 9,
+      "body_crc32": "ca1e4dbf",
+      "end": "eof"
+    },
+    {
+      "group": "static",
+      "name": "unknown_extension",
+      "server": "static",
+      "steps": [
+        {
+          "text": "GET /static/data.unknownext HTTP/1.1\r\nHost: pbs.example\r\nConnection: close\r\n\r\n"
+        }
+      ],
+      "window_ms": 2000,
+      "head": "HTTP/1.1 200 OK\r\nAccept-Ranges: bytes\r\nCache-Control: no-cache, no-store, must-revalidate\r\nContent-Length: 12\r\nContent-Type: text/plain; charset=utf-8\r\nExpires: 0\r\nLast-Modified: Thu, 02 Jan 2020 03:04:05 GMT\r\nPragma: no-cache\r\nVary: Origin\r\nDate: <date>\r\nConnection: close\r\n\r\n",
+      "body": "plain words\n",
+      "body_len": 12,
+      "body_crc32": "a60285e5",
+      "end": "eof"
+    },
+    {
+      "group": "static",
+      "name": "directory_index",
+      "server": "static",
+      "steps": [
+        {
+          "text": "GET /static/ HTTP/1.1\r\nHost: pbs.example\r\nConnection: close\r\n\r\n"
+        }
+      ],
+      "window_ms": 2000,
+      "head": "HTTP/1.1 200 OK\r\nAccept-Ranges: bytes\r\nCache-Control: no-cache, no-store, must-revalidate\r\nContent-Length: 40\r\nContent-Type: text/html; charset=utf-8\r\nExpires: 0\r\nLast-Modified: Thu, 02 Jan 2020 03:04:05 GMT\r\nPragma: no-cache\r\nVary: Origin\r\nDate: <date>\r\nConnection: close\r\n\r\n",
+      "body": "<html><body>Prebid Server</body></html>\n",
+      "body_len": 40,
+      "body_crc32": "f571d36b",
+      "end": "eof"
+    },
+    {
+      "group": "static",
+      "name": "index_file",
+      "server": "static",
+      "steps": [
+        {
+          "text": "GET /static/index.html HTTP/1.1\r\nHost: pbs.example\r\nConnection: close\r\n\r\n"
+        }
+      ],
+      "window_ms": 2000,
+      "head": "HTTP/1.1 301 Moved Permanently\r\nCache-Control: no-cache, no-store, must-revalidate\r\nExpires: 0\r\nLocation: ./\r\nPragma: no-cache\r\nVary: Origin\r\nDate: <date>\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
+      "body": "",
+      "body_len": 0,
+      "body_crc32": "00000000",
+      "end": "eof"
+    },
+    {
+      "group": "static",
+      "name": "directory_listing",
+      "server": "static",
+      "steps": [
+        {
+          "text": "GET /static/bidder-params/ HTTP/1.1\r\nHost: pbs.example\r\nConnection: close\r\n\r\n"
+        }
+      ],
+      "window_ms": 2000,
+      "head": "HTTP/1.1 200 OK\r\nCache-Control: no-cache, no-store, must-revalidate\r\nContent-Type: text/html; charset=utf-8\r\nExpires: 0\r\nLast-Modified: Thu, 02 Jan 2020 03:04:05 GMT\r\nPragma: no-cache\r\nVary: Origin\r\nDate: <date>\r\nContent-Length: 123\r\nConnection: close\r\n\r\n",
+      "body": "<!doctype html>\n<meta name=\"viewport\" content=\"width=device-width\">\n<pre>\n<a href=\"appnexus.json\">appnexus.json</a>\n</pre>\n",
+      "body_len": 123,
+      "body_crc32": "eead5ef4",
+      "end": "eof"
+    },
+    {
+      "group": "static",
+      "name": "directory_without_slash",
+      "server": "static",
+      "steps": [
+        {
+          "text": "GET /static/bidder-params HTTP/1.1\r\nHost: pbs.example\r\nConnection: close\r\n\r\n"
+        }
+      ],
+      "window_ms": 2000,
+      "head": "HTTP/1.1 301 Moved Permanently\r\nCache-Control: no-cache, no-store, must-revalidate\r\nExpires: 0\r\nLocation: bidder-params/\r\nPragma: no-cache\r\nVary: Origin\r\nDate: <date>\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
+      "body": "",
+      "body_len": 0,
+      "body_crc32": "00000000",
+      "end": "eof"
+    },
+    {
+      "group": "static",
+      "name": "static_without_slash",
+      "server": "static",
+      "steps": [
+        {
+          "text": "GET /static HTTP/1.1\r\nHost: pbs.example\r\nConnection: close\r\n\r\n"
+        }
+      ],
+      "window_ms": 2000,
+      "head": "HTTP/1.1 301 Moved Permanently\r\nCache-Control: no-cache, no-store, must-revalidate\r\nContent-Type: text/html; charset=utf-8\r\nExpires: 0\r\nLocation: /static/\r\nPragma: no-cache\r\nVary: Origin\r\nDate: <date>\r\nContent-Length: 43\r\nConnection: close\r\n\r\n",
+      "body": "<a href=\"/static/\">Moved Permanently</a>.\n\n",
+      "body_len": 43,
+      "body_crc32": "97357bf6",
+      "end": "eof"
+    },
+    {
+      "group": "static",
+      "name": "file_with_slash",
+      "server": "static",
+      "steps": [
+        {
+          "text": "GET /static/notes.txt/ HTTP/1.1\r\nHost: pbs.example\r\nConnection: close\r\n\r\n"
+        }
+      ],
+      "window_ms": 2000,
+      "head": "HTTP/1.1 301 Moved Permanently\r\nCache-Control: no-cache, no-store, must-revalidate\r\nExpires: 0\r\nLocation: ../notes.txt\r\nPragma: no-cache\r\nVary: Origin\r\nDate: <date>\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
+      "body": "",
+      "body_len": 0,
+      "body_crc32": "00000000",
+      "end": "eof"
+    },
+    {
+      "group": "static",
+      "name": "missing_file",
+      "server": "static",
+      "steps": [
+        {
+          "text": "GET /static/missing.txt HTTP/1.1\r\nHost: pbs.example\r\nConnection: close\r\n\r\n"
+        }
+      ],
+      "window_ms": 2000,
+      "head": "HTTP/1.1 404 Not Found\r\nContent-Type: text/plain; charset=utf-8\r\nExpires: 0\r\nPragma: no-cache\r\nVary: Origin\r\nX-Content-Type-Options: nosniff\r\nDate: <date>\r\nContent-Length: 19\r\nConnection: close\r\n\r\n",
+      "body": "404 page not found\n",
+      "body_len": 19,
+      "body_crc32": "eb954716",
+      "end": "eof"
+    },
+    {
+      "group": "static",
+      "name": "dot_dot",
+      "server": "static",
+      "steps": [
+        {
+          "text": "GET /static/../go.mod HTTP/1.1\r\nHost: pbs.example\r\nConnection: close\r\n\r\n"
+        }
+      ],
+      "window_ms": 2000,
+      "head": "HTTP/1.1 404 Not Found\r\nContent-Type: text/plain; charset=utf-8\r\nExpires: 0\r\nPragma: no-cache\r\nVary: Origin\r\nX-Content-Type-Options: nosniff\r\nDate: <date>\r\nContent-Length: 19\r\nConnection: close\r\n\r\n",
+      "body": "404 page not found\n",
+      "body_len": 19,
+      "body_crc32": "eb954716",
+      "end": "eof"
+    },
+    {
+      "group": "static",
+      "name": "encoded_dot_dot",
+      "server": "static",
+      "steps": [
+        {
+          "text": "GET /static/%2e%2e/go.mod HTTP/1.1\r\nHost: pbs.example\r\nConnection: close\r\n\r\n"
+        }
+      ],
+      "window_ms": 2000,
+      "head": "HTTP/1.1 404 Not Found\r\nContent-Type: text/plain; charset=utf-8\r\nExpires: 0\r\nPragma: no-cache\r\nVary: Origin\r\nX-Content-Type-Options: nosniff\r\nDate: <date>\r\nContent-Length: 19\r\nConnection: close\r\n\r\n",
+      "body": "404 page not found\n",
+      "body_len": 19,
+      "body_crc32": "eb954716",
+      "end": "eof"
+    },
+    {
+      "group": "static",
+      "name": "range",
+      "server": "static",
+      "steps": [
+        {
+          "text": "GET /static/notes.txt HTTP/1.1\r\nHost: pbs.example\r\nRange: bytes=0-4\r\nConnection: close\r\n\r\n"
+        }
+      ],
+      "window_ms": 2000,
+      "head": "HTTP/1.1 206 Partial Content\r\nAccept-Ranges: bytes\r\nCache-Control: no-cache, no-store, must-revalidate\r\nContent-Length: 5\r\nContent-Range: bytes 0-4/14\r\nContent-Type: text/plain; charset=utf-8\r\nExpires: 0\r\nLast-Modified: Thu, 02 Jan 2020 03:04:05 GMT\r\nPragma: no-cache\r\nVary: Origin\r\nDate: <date>\r\nConnection: close\r\n\r\n",
+      "body": "hello",
+      "body_len": 5,
+      "body_crc32": "3610a686",
+      "end": "eof"
+    },
+    {
+      "group": "static",
+      "name": "bad_range",
+      "server": "static",
+      "steps": [
+        {
+          "text": "GET /static/notes.txt HTTP/1.1\r\nHost: pbs.example\r\nRange: bytes=100-200\r\nConnection: close\r\n\r\n"
+        }
+      ],
+      "window_ms": 2000,
+      "head": "HTTP/1.1 416 Requested Range Not Satisfiable\r\nContent-Range: bytes */14\r\nContent-Type: text/plain; charset=utf-8\r\nExpires: 0\r\nPragma: no-cache\r\nVary: Origin\r\nX-Content-Type-Options: nosniff\r\nDate: <date>\r\nContent-Length: 33\r\nConnection: close\r\n\r\n",
+      "body": "invalid range: failed to overlap\n",
+      "body_len": 33,
+      "body_crc32": "d3f3a7ab",
+      "end": "eof"
+    },
+    {
+      "group": "static",
+      "name": "not_modified",
+      "server": "static",
+      "steps": [
+        {
+          "text": "GET /static/notes.txt HTTP/1.1\r\nHost: pbs.example\r\nIf-Modified-Since: Thu, 02 Jan 2020 03:04:05 GMT\r\nConnection: close\r\n\r\n"
+        }
+      ],
+      "window_ms": 2000,
+      "head": "HTTP/1.1 304 Not Modified\r\nCache-Control: no-cache, no-store, must-revalidate\r\nExpires: 0\r\nLast-Modified: Thu, 02 Jan 2020 03:04:05 GMT\r\nPragma: no-cache\r\nVary: Origin\r\nDate: <date>\r\nConnection: close\r\n\r\n",
+      "body": "",
+      "body_len": 0,
+      "body_crc32": "00000000",
+      "end": "eof"
+    },
+    {
+      "group": "static",
+      "name": "modified",
+      "server": "static",
+      "steps": [
+        {
+          "text": "GET /static/notes.txt HTTP/1.1\r\nHost: pbs.example\r\nIf-Modified-Since: Wed, 01 Jan 2020 00:00:00 GMT\r\nConnection: close\r\n\r\n"
+        }
+      ],
+      "window_ms": 2000,
+      "head": "HTTP/1.1 200 OK\r\nAccept-Ranges: bytes\r\nCache-Control: no-cache, no-store, must-revalidate\r\nContent-Length: 14\r\nContent-Type: text/plain; charset=utf-8\r\nExpires: 0\r\nLast-Modified: Thu, 02 Jan 2020 03:04:05 GMT\r\nPragma: no-cache\r\nVary: Origin\r\nDate: <date>\r\nConnection: close\r\n\r\n",
+      "body": "hello, static\n",
+      "body_len": 14,
+      "body_crc32": "5315257d",
+      "end": "eof"
+    },
+    {
+      "group": "static",
+      "name": "head_file",
+      "server": "static",
+      "steps": [
+        {
+          "text": "HEAD /static/notes.txt HTTP/1.1\r\nHost: pbs.example\r\nConnection: close\r\n\r\n"
+        }
+      ],
+      "window_ms": 2000,
+      "head": "HTTP/1.1 405 Method Not Allowed\r\nAllow: GET, OPTIONS\r\nCache-Control: no-cache, no-store, must-revalidate\r\nContent-Type: text/plain; charset=utf-8\r\nExpires: 0\r\nPragma: no-cache\r\nVary: Origin\r\nX-Content-Type-Options: nosniff\r\nDate: <date>\r\nContent-Length: 19\r\nConnection: close\r\n\r\n",
+      "body": "",
+      "body_len": 0,
+      "body_crc32": "00000000",
+      "end": "eof"
+    },
+    {
+      "group": "static",
+      "name": "post_file",
+      "server": "static",
+      "steps": [
+        {
+          "text": "POST /static/notes.txt HTTP/1.1\r\nHost: pbs.example\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
+        }
+      ],
+      "window_ms": 2000,
+      "head": "HTTP/1.1 405 Method Not Allowed\r\nAllow: GET, OPTIONS\r\nCache-Control: no-cache, no-store, must-revalidate\r\nContent-Type: text/plain; charset=utf-8\r\nExpires: 0\r\nPragma: no-cache\r\nVary: Origin\r\nX-Content-Type-Options: nosniff\r\nDate: <date>\r\nContent-Length: 19\r\nConnection: close\r\n\r\n",
+      "body": "Method Not Allowed\n",
+      "body_len": 19,
+      "body_crc32": "3da5965f",
+      "end": "eof"
+    },
+    {
+      "group": "unread_body",
+      "name": "unread_buffered",
+      "server": "main",
+      "steps": [
+        {
+          "text": "POST /typed HTTP/1.1\r\nHost: pbs.example\r\nContent-Length: 10\r\n\r\naaaaaaaaaaGET /echo HTTP/1.1\r\nHost: pbs.example\r\nConnection: close\r\n\r\n"
+        }
+      ],
+      "window_ms": 2000,
+      "head": "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nDate: <date>\r\nContent-Length: 7\r\n\r\n",
+      "body": "{\"a\":1}HTTP/1.1 200 OK\r\nDate: <date>\r\nContent-Length: 6\r\nContent-Type: text/plain; charset=utf-8\r\nConnection: close\r\n\r\nbody=0",
+      "body_len": 125,
+      "body_crc32": "0e0890ca",
+      "end": "eof"
+    },
+    {
+      "group": "unread_body",
+      "name": "unread_late",
+      "server": "main",
+      "steps": [
+        {
+          "text": "POST /typed HTTP/1.1\r\nHost: pbs.example\r\nContent-Length: 10\r\n\r\n"
+        },
+        {
+          "pause_ms": 200
+        },
+        {
+          "text": "aaaaaaaaaaGET /echo HTTP/1.1\r\nHost: pbs.example\r\nConnection: close\r\n\r\n"
+        }
+      ],
+      "window_ms": 2000,
+      "head": "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nDate: <date>\r\nContent-Length: 7\r\n\r\n",
+      "body": "{\"a\":1}HTTP/1.1 200 OK\r\nDate: <date>\r\nContent-Length: 6\r\nContent-Type: text/plain; charset=utf-8\r\nConnection: close\r\n\r\nbody=0",
+      "body_len": 125,
+      "body_crc32": "0e0890ca",
+      "end": "eof"
+    },
+    {
+      "group": "unread_body",
+      "name": "unread_100kib",
+      "server": "main",
+      "steps": [
+        {
+          "text": "POST /typed HTTP/1.1\r\nHost: pbs.example\r\nContent-Length: 102400\r\n\r\n"
+        },
+        {
+          "fill": 102400
+        },
+        {
+          "pause_ms": 200
+        },
+        {
+          "text": "GET /echo HTTP/1.1\r\nHost: pbs.example\r\nConnection: close\r\n\r\n"
+        }
+      ],
+      "window_ms": 2000,
+      "head": "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nDate: <date>\r\nContent-Length: 7\r\n\r\n",
+      "body": "{\"a\":1}HTTP/1.1 200 OK\r\nDate: <date>\r\nContent-Length: 6\r\nContent-Type: text/plain; charset=utf-8\r\nConnection: close\r\n\r\nbody=0",
+      "body_len": 125,
+      "body_crc32": "0e0890ca",
+      "end": "eof"
+    },
+    {
+      "group": "unread_body",
+      "name": "unread_300kib",
+      "server": "main",
+      "steps": [
+        {
+          "text": "POST /typed HTTP/1.1\r\nHost: pbs.example\r\nContent-Length: 307200\r\n\r\n"
+        },
+        {
+          "fill": 307200
+        },
+        {
+          "pause_ms": 200
+        },
+        {
+          "text": "GET /echo HTTP/1.1\r\nHost: pbs.example\r\nConnection: close\r\n\r\n"
+        }
+      ],
+      "window_ms": 2000,
+      "head": "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nDate: <date>\r\nContent-Length: 7\r\nConnection: close\r\n\r\n",
+      "body": "{\"a\":1}",
+      "body_len": 7,
+      "body_crc32": "561bacaf",
+      "end": "eof"
+    },
+    {
+      "group": "unread_body",
+      "name": "expect_read",
+      "server": "main",
+      "steps": [
+        {
+          "text": "POST /echo HTTP/1.1\r\nHost: pbs.example\r\nExpect: 100-continue\r\nConnection: close\r\nContent-Length: 5\r\n\r\n"
+        },
+        {
+          "pause_ms": 200
+        },
+        {
+          "text": "abcde"
+        }
+      ],
+      "window_ms": 2000,
+      "head": "HTTP/1.1 100 Continue\r\n\r\n",
+      "body": "HTTP/1.1 200 OK\r\nDate: <date>\r\nContent-Length: 6\r\nContent-Type: text/plain; charset=utf-8\r\nConnection: close\r\n\r\nbody=5",
+      "body_len": 118,
+      "body_crc32": "15278786",
+      "end": "eof"
+    },
+    {
+      "group": "unread_body",
+      "name": "expect_unread",
+      "server": "main",
+      "steps": [
+        {
+          "text": "POST /typed HTTP/1.1\r\nHost: pbs.example\r\nExpect: 100-continue\r\nContent-Length: 5\r\n\r\n"
+        },
+        {
+          "pause_ms": 200
+        },
+        {
+          "text": "abcdeGET /echo HTTP/1.1\r\nHost: pbs.example\r\nConnection: close\r\n\r\n"
+        }
+      ],
+      "window_ms": 2000,
+      "head": "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nDate: <date>\r\nContent-Length: 7\r\nConnection: close\r\n\r\n",
+      "body": "{\"a\":1}",
+      "body_len": 7,
+      "body_crc32": "561bacaf",
+      "end": "eof"
+    },
+    {
+      "group": "request_target",
+      "name": "quote_in_query",
+      "server": "main",
+      "steps": [
+        {
+          "text": "GET /echo?q=\"x\" HTTP/1.1\r\nHost: pbs.example\r\nConnection: close\r\n\r\n"
+        }
+      ],
+      "window_ms": 2000,
+      "head": "HTTP/1.1 200 OK\r\nDate: <date>\r\nContent-Length: 6\r\nContent-Type: text/plain; charset=utf-8\r\nConnection: close\r\n\r\n",
+      "body": "body=0",
+      "body_len": 6,
+      "body_crc32": "4cc9a4f7",
+      "end": "eof"
+    },
+    {
+      "group": "request_target",
+      "name": "json_in_query",
+      "server": "main",
+      "steps": [
+        {
+          "text": "GET /echo?q={\"a\":1} HTTP/1.1\r\nHost: pbs.example\r\nConnection: close\r\n\r\n"
+        }
+      ],
+      "window_ms": 2000,
+      "head": "HTTP/1.1 200 OK\r\nDate: <date>\r\nContent-Length: 6\r\nContent-Type: text/plain; charset=utf-8\r\nConnection: close\r\n\r\n",
+      "body": "body=0",
+      "body_len": 6,
+      "body_crc32": "4cc9a4f7",
+      "end": "eof"
+    },
+    {
+      "group": "request_target",
+      "name": "angle_in_query",
+      "server": "main",
+      "steps": [
+        {
+          "text": "GET /echo?q=<b> HTTP/1.1\r\nHost: pbs.example\r\nConnection: close\r\n\r\n"
+        }
+      ],
+      "window_ms": 2000,
+      "head": "HTTP/1.1 200 OK\r\nDate: <date>\r\nContent-Length: 6\r\nContent-Type: text/plain; charset=utf-8\r\nConnection: close\r\n\r\n",
+      "body": "body=0",
+      "body_len": 6,
+      "body_crc32": "4cc9a4f7",
+      "end": "eof"
+    },
+    {
+      "group": "request_target",
+      "name": "query_punctuation",
+      "server": "main",
+      "steps": [
+        {
+          "text": "GET /echo?q=`{a}|b^c[d]\\e HTTP/1.1\r\nHost: pbs.example\r\nConnection: close\r\n\r\n"
+        }
+      ],
+      "window_ms": 2000,
+      "head": "HTTP/1.1 200 OK\r\nDate: <date>\r\nContent-Length: 6\r\nContent-Type: text/plain; charset=utf-8\r\nConnection: close\r\n\r\n",
+      "body": "body=0",
+      "body_len": 6,
+      "body_crc32": "4cc9a4f7",
+      "end": "eof"
+    },
+    {
+      "group": "request_target",
+      "name": "utf8_in_query",
+      "server": "main",
+      "steps": [
+        {
+          "text": "GET /echo?q=é HTTP/1.1\r\nHost: pbs.example\r\nConnection: close\r\n\r\n"
+        }
+      ],
+      "window_ms": 2000,
+      "head": "HTTP/1.1 200 OK\r\nDate: <date>\r\nContent-Length: 6\r\nContent-Type: text/plain; charset=utf-8\r\nConnection: close\r\n\r\n",
+      "body": "body=0",
+      "body_len": 6,
+      "body_crc32": "4cc9a4f7",
+      "end": "eof"
+    },
+    {
+      "group": "request_target",
+      "name": "angle_in_path",
+      "server": "main",
+      "steps": [
+        {
+          "text": "GET /ec<h>o HTTP/1.1\r\nHost: pbs.example\r\nConnection: close\r\n\r\n"
+        }
+      ],
+      "window_ms": 2000,
+      "head": "HTTP/1.1 404 Not Found\r\nContent-Type: text/plain; charset=utf-8\r\nX-Content-Type-Options: nosniff\r\nDate: <date>\r\nContent-Length: 19\r\nConnection: close\r\n\r\n",
+      "body": "404 page not found\n",
+      "body_len": 19,
+      "body_crc32": "eb954716",
+      "end": "eof"
+    },
+    {
+      "group": "request_target",
+      "name": "backtick_in_path",
+      "server": "main",
+      "steps": [
+        {
+          "text": "GET /ec`ho HTTP/1.1\r\nHost: pbs.example\r\nConnection: close\r\n\r\n"
+        }
+      ],
+      "window_ms": 2000,
+      "head": "HTTP/1.1 404 Not Found\r\nContent-Type: text/plain; charset=utf-8\r\nX-Content-Type-Options: nosniff\r\nDate: <date>\r\nContent-Length: 19\r\nConnection: close\r\n\r\n",
+      "body": "404 page not found\n",
+      "body_len": 19,
+      "body_crc32": "eb954716",
+      "end": "eof"
+    },
+    {
+      "group": "request_target",
+      "name": "quote_braces_in_path",
+      "server": "main",
+      "steps": [
+        {
+          "text": "GET /ec\"{h}\"o HTTP/1.1\r\nHost: pbs.example\r\nConnection: close\r\n\r\n"
+        }
+      ],
+      "window_ms": 2000,
+      "head": "HTTP/1.1 404 Not Found\r\nContent-Type: text/plain; charset=utf-8\r\nX-Content-Type-Options: nosniff\r\nDate: <date>\r\nContent-Length: 19\r\nConnection: close\r\n\r\n",
+      "body": "404 page not found\n",
+      "body_len": 19,
+      "body_crc32": "eb954716",
+      "end": "eof"
+    },
+    {
+      "group": "request_target",
+      "name": "hash_in_path",
+      "server": "main",
+      "steps": [
+        {
+          "text": "GET /echo#x HTTP/1.1\r\nHost: pbs.example\r\nConnection: close\r\n\r\n"
+        }
+      ],
+      "window_ms": 2000,
+      "head": "HTTP/1.1 404 Not Found\r\nContent-Type: text/plain; charset=utf-8\r\nX-Content-Type-Options: nosniff\r\nDate: <date>\r\nContent-Length: 19\r\nConnection: close\r\n\r\n",
+      "body": "404 page not found\n",
+      "body_len": 19,
+      "body_crc32": "eb954716",
+      "end": "eof"
+    },
+    {
+      "group": "request_target",
+      "name": "hash_in_query",
+      "server": "main",
+      "steps": [
+        {
+          "text": "GET /bytes?n=1#0 HTTP/1.1\r\nHost: pbs.example\r\nConnection: close\r\n\r\n"
+        }
+      ],
+      "window_ms": 2000,
+      "head": "HTTP/1.1 200 OK\r\nContent-Type: text/plain; charset=utf-8\r\nDate: <date>\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
+      "body": "",
+      "body_len": 0,
+      "body_crc32": "00000000",
+      "end": "eof"
+    },
+    {
+      "group": "request_target",
+      "name": "latin1_in_query",
+      "server": "main",
+      "steps": [
+        {
+          "hex": "474554202f6563686f3f713de920485454502f312e310d0a486f73743a207062732e6578616d706c650d0a436f6e6e656374696f6e3a20636c6f73650d0a0d0a"
+        }
+      ],
+      "window_ms": 2000,
+      "head": "HTTP/1.1 200 OK\r\nDate: <date>\r\nContent-Length: 6\r\nContent-Type: text/plain; charset=utf-8\r\nConnection: close\r\n\r\n",
+      "body": "body=0",
+      "body_len": 6,
+      "body_crc32": "4cc9a4f7",
+      "end": "eof"
+    },
+    {
+      "group": "malformed",
+      "name": "malformed_host",
+      "server": "main",
+      "steps": [
+        {
+          "text": "GET /echo HTTP/1.1\r\nHost: a b\r\nConnection: close\r\n\r\n"
+        }
+      ],
+      "window_ms": 2000,
+      "head": "HTTP/1.1 400 Bad Request: malformed Host header\r\nContent-Type: text/plain; charset=utf-8\r\nConnection: close\r\n\r\n",
+      "body": "400 Bad Request: malformed Host header",
+      "body_len": 38,
+      "body_crc32": "7faa51ba",
+      "end": "eof"
+    },
+    {
+      "group": "malformed",
+      "name": "unknown_expectation",
+      "server": "main",
+      "steps": [
+        {
+          "text": "POST /echo HTTP/1.1\r\nHost: pbs.example\r\nExpect: foo\r\nContent-Length: 2\r\nConnection: close\r\n\r\nab"
+        }
+      ],
+      "window_ms": 2000,
+      "head": "HTTP/1.1 417 Expectation Failed\r\nConnection: close\r\nDate: <date>\r\nContent-Length: 0\r\n\r\n",
+      "body": "",
+      "body_len": 0,
+      "body_crc32": "00000000",
+      "end": "eof"
+    },
+    {
+      "group": "malformed",
+      "name": "chunked_http_10",
+      "server": "main",
+      "steps": [
+        {
+          "text": "POST /echo HTTP/1.0\r\nHost: pbs.example\r\nTransfer-Encoding: chunked\r\n\r\n2\r\nab\r\n0\r\n\r\n"
+        }
+      ],
+      "window_ms": 2000,
+      "head": "HTTP/1.0 200 OK\r\nDate: <date>\r\nContent-Length: 6\r\nContent-Type: text/plain; charset=utf-8\r\n\r\n",
+      "body": "body=0",
+      "body_len": 6,
+      "body_crc32": "4cc9a4f7",
+      "end": "eof"
+    },
+    {
+      "group": "static_gzip",
+      "name": "big_file_identity",
+      "server": "static_gzip",
+      "steps": [
+        {
+          "text": "GET /static/big.txt HTTP/1.1\r\nHost: pbs.example\r\nConnection: close\r\n\r\n"
+        }
+      ],
+      "window_ms": 2000,
+      "head": "HTTP/1.1 200 OK\r\nAccept-Ranges: bytes\r\nCache-Control: no-cache, no-store, must-revalidate\r\nContent-Length: 3000\r\nContent-Type: text/plain; charset=utf-8\r\nExpires: 0\r\nLast-Modified: Thu, 02 Jan 2020 03:04:05 GMT\r\nPragma: no-cache\r\nVary: Accept-Encoding\r\nVary: Origin\r\nDate: <date>\r\nConnection: close\r\n\r\n",
+      "body": "abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghij",
+      "body_len": 3000,
+      "body_crc32": "ec2e699a",
+      "end": "eof"
+    },
+    {
+      "group": "static_gzip",
+      "name": "big_file_gzip",
+      "server": "static_gzip",
+      "steps": [
+        {
+          "text": "GET /static/big.txt HTTP/1.1\r\nHost: pbs.example\r\nAccept-Encoding: gzip\r\nConnection: close\r\n\r\n"
+        }
+      ],
+      "window_ms": 2000,
+      "head": "HTTP/1.1 200 OK\r\nAccept-Ranges: bytes\r\nCache-Control: no-cache, no-store, must-revalidate\r\nContent-Encoding: gzip\r\nContent-Type: text/plain; charset=utf-8\r\nExpires: 0\r\nLast-Modified: Thu, 02 Jan 2020 03:04:05 GMT\r\nPragma: no-cache\r\nVary: Accept-Encoding\r\nVary: Origin\r\nDate: <date>\r\nContent-Length: 69\r\nConnection: close\r\n\r\n",
+      "body": "",
+      "body_len": 69,
+      "body_crc32": "61b8aaf5",
+      "gunzipped": "3000/ec2e699a",
+      "end": "eof"
+    },
+    {
+      "group": "static_gzip",
+      "name": "big_range_gzip",
+      "server": "static_gzip",
+      "steps": [
+        {
+          "text": "GET /static/big.txt HTTP/1.1\r\nHost: pbs.example\r\nRange: bytes=0-1499\r\nAccept-Encoding: gzip\r\nConnection: close\r\n\r\n"
+        }
+      ],
+      "window_ms": 2000,
+      "head": "HTTP/1.1 206 Partial Content\r\nAccept-Ranges: bytes\r\nCache-Control: no-cache, no-store, must-revalidate\r\nContent-Encoding: gzip\r\nContent-Range: bytes 0-1499/3000\r\nContent-Type: text/plain; charset=utf-8\r\nExpires: 0\r\nLast-Modified: Thu, 02 Jan 2020 03:04:05 GMT\r\nPragma: no-cache\r\nVary: Accept-Encoding\r\nVary: Origin\r\nDate: <date>\r\nContent-Length: 63\r\nConnection: close\r\n\r\n",
+      "body": "",
+      "body_len": 63,
+      "body_crc32": "89a8bf95",
+      "gunzipped": "1500/b5cb45cd",
+      "end": "eof"
+    },
+    {
+      "group": "static_gzip",
+      "name": "small_range_gzip",
+      "server": "static_gzip",
+      "steps": [
+        {
+          "text": "GET /static/big.txt HTTP/1.1\r\nHost: pbs.example\r\nRange: bytes=0-99\r\nAccept-Encoding: gzip\r\nConnection: close\r\n\r\n"
+        }
+      ],
+      "window_ms": 2000,
+      "head": "HTTP/1.1 206 Partial Content\r\nAccept-Ranges: bytes\r\nCache-Control: no-cache, no-store, must-revalidate\r\nContent-Length: 100\r\nContent-Range: bytes 0-99/3000\r\nContent-Type: text/plain; charset=utf-8\r\nExpires: 0\r\nLast-Modified: Thu, 02 Jan 2020 03:04:05 GMT\r\nPragma: no-cache\r\nVary: Accept-Encoding\r\nVary: Origin\r\nDate: <date>\r\nConnection: close\r\n\r\n",
+      "body": "abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuv",
+      "body_len": 100,
+      "body_crc32": "6d0404c4",
+      "end": "eof"
+    }
+  ],
+  "shutdown": {
+    "at_ms": 500,
+    "timeout_ms": 10000,
+    "cases": [
+      {
+        "group": "shutdown",
+        "name": "idle",
+        "server": "shutdown",
+        "steps": [
+          {
+            "text": "GET /echo HTTP/1.1\r\nHost: pbs.example\r\n\r\n"
+          }
+        ],
+        "window_ms": 2000,
+        "head": "HTTP/1.1 200 OK\r\nDate: <date>\r\nContent-Length: 6\r\nContent-Type: text/plain; charset=utf-8\r\n\r\n",
+        "body": "body=0",
+        "body_len": 6,
+        "body_crc32": "4cc9a4f7",
+        "end": "eof"
+      },
+      {
+        "group": "shutdown",
+        "name": "in_flight",
+        "server": "shutdown",
+        "steps": [
+          {
+            "text": "GET /sleep?ms=1000 HTTP/1.1\r\nHost: pbs.example\r\n\r\n"
+          }
+        ],
+        "window_ms": 2000,
+        "head": "HTTP/1.1 200 OK\r\nDate: <date>\r\nContent-Length: 4\r\nContent-Type: text/plain; charset=utf-8\r\nConnection: close\r\n\r\n",
+        "body": "late",
+        "body_len": 4,
+        "body_crc32": "6f2a1f95",
+        "end": "eof"
+      },
+      {
+        "group": "shutdown",
+        "name": "pipelined",
+        "server": "shutdown",
+        "steps": [
+          {
+            "text": "GET /sleep?ms=1000 HTTP/1.1\r\nHost: pbs.example\r\n\r\nGET /echo HTTP/1.1\r\nHost: pbs.example\r\n\r\n"
+          }
+        ],
+        "window_ms": 2000,
+        "head": "HTTP/1.1 200 OK\r\nDate: <date>\r\nContent-Length: 4\r\nContent-Type: text/plain; charset=utf-8\r\nConnection: close\r\n\r\n",
+        "body": "late",
+        "body_len": 4,
+        "body_crc32": "6f2a1f95",
+        "end": "eof"
+      },
+      {
+        "group": "shutdown",
+        "name": "silent",
+        "server": "shutdown",
+        "steps": [
+          {
+            "pause_ms": 750
+          },
+          {
+            "text": "GET /echo HTTP/1.1\r\nHost: pbs.example\r\n\r\n"
+          }
+        ],
+        "window_ms": 2000,
+        "head": "",
+        "body": "",
+        "body_len": 0,
+        "body_crc32": "00000000",
+        "end": "eof"
+      },
+      {
+        "group": "shutdown",
+        "name": "partial_head",
+        "server": "shutdown",
+        "steps": [
+          {
+            "text": "GET /echo HTTP/1.1\r\n"
+          },
+          {
+            "pause_ms": 750
+          },
+          {
+            "text": "Host: pbs.example\r\n\r\n"
+          }
+        ],
+        "window_ms": 2000,
+        "head": "",
+        "body": "",
+        "body_len": 0,
+        "body_crc32": "00000000",
+        "end": "eof"
+      },
+      {
+        "group": "shutdown",
+        "name": "never_sends",
+        "server": "shutdown",
+        "steps": [],
+        "window_ms": 3000,
+        "head": "",
+        "body": "",
+        "body_len": 0,
+        "body_crc32": "00000000",
+        "end": "open"
+      }
+    ],
+    "late_dial": "refused",
+    "err": "<nil>"
+  }
+}

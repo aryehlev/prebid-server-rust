@@ -12,7 +12,6 @@ members = [
     "crates/freecache",
     "crates/gocompat",
     "crates/gogzip",
-    "crates/gohttp-server",
     "crates/gojson",
     "crates/gojson-derive",
     "crates/gpp",
@@ -23,6 +22,8 @@ members = [
     "crates/openrtb",
     "crates/openrtb-ext",
     "crates/parity",
+    "crates/router",
+    "crates/server",
     "crates/tcf2",
     "crates/util",
 ]
@@ -96,7 +97,6 @@ serde-saphyr = { version = "2.2.0", default-features = false, features = ["deser
 # Go sorts map keys, and arbitrary_precision changes what a Value number is.
 serde_json = { version = "1.0.154", features = ["float_roundtrip", "raw_value"] }
 sha2 = "0.11.1"
-socket2 = "0.6.5"
 syn = "3.0.10"
 time = { version = "0.3.55", features = ["formatting", "macros", "parsing"] }
 tokio = { version = "1.54.1", features = ["io-util", "macros", "net", "rt-multi-thread", "signal", "sync", "time"] }
@@ -105,8 +105,9 @@ tokio-rustls = { version = "0.26.6", default-features = false, features = ["aws_
 # reads. Reading into serde types needs only parse, serde and std; a crate that writes TOML adds
 # display.
 toml = { version = "1.2.1", default-features = false, features = ["parse", "serde", "std"] }
-# 0.6, not 0.7: reqwest 0.13.5's gzip feature depends on tower-http 0.6.
-tower-http = { version = "0.6.11", features = ["compression-gzip", "cors", "limit", "timeout"] }
+# 0.6, not 0.7: reqwest 0.13.5's gzip feature depends on tower-http 0.6. fs is ServeDir for
+# /static, as docs/DECISIONS.md accepts it (server.static-files).
+tower-http = { version = "0.6.11", features = ["compression-gzip", "cors", "fs", "limit", "timeout"] }
 # No attributes feature: tracing-attributes is on syn 2.
 tracing = { version = "0.1.44", default-features = false, features = ["std"] }
 tracing-subscriber = { version = "0.3.23", features = ["env-filter"] }
