@@ -23,7 +23,7 @@ Rule B's cases: (a) input real production traffic sends that the crate would rej
 | Global vendor list | 0 | 1 | 0 |
 | Gzip | 0 | 2 | 0 |
 | HTTP client | 0 | 18 | 5 |
-| JSON | 4 | 33 | 5 |
+| JSON | 4 | 34 | 5 |
 | Logging | 0 | 1 | 0 |
 | Prometheus metrics | 0 | 2 | 0 |
 | Public suffix list | 1 | 0 | 0 |
@@ -33,7 +33,7 @@ Rule B's cases: (a) input real production traffic sends that the crate would rej
 | TLS | 0 | 2 | 1 |
 | URLs | 0 | 1 | 0 |
 | YAML | 0 | 1 | 0 |
-| All | 5 | 66 | 18 |
+| All | 5 | 67 | 18 |
 
 ## Decisions pending
 
@@ -195,15 +195,15 @@ No entry names the classes `other` and `unrecorded` or the kinds `stage_missing`
 
 ### Ledgered
 
-#### `gzip.parity-bodies`: Parity bodies: flate2 writes and reads their gzip, and a `Content-Encoding` holding U+0130 is not gzip
+#### `gzip.parity-bodies`: Parity bodies: flate2 writes and reads their gzip, and a `Content-Encoding` outside ASCII is found and lower-cased by Rust's case rules
 
-- **Go:** A body's content is compressed with `gzip.NewWriter` and inflated with `gzip.NewReader` (parity/body.go:111-148), under the trimmed `Content-Encoding` lower-cased by `strings.ToLower`, which maps U+0130 to `i`, so `GZ\u0130P` is gzip (parity/body.go:104); an empty gzip body fails with `gzip decode: EOF`.
-- **Rust:** flate2 compresses the same content to other bytes (`gzip.payload-bytes`) and words its errors its own way (`gzip decode: unexpected end of file` for an empty body), and `str::to_lowercase` maps U+0130 to `i` and U+0307, so under `GZ\u0130P` a recorded body is kept as `b64` without `json` and an input body is refused (`unsupported content encoding`).
+- **Go:** A body's content is compressed with `gzip.NewWriter` and inflated with `gzip.NewReader` (parity/body.go:111-148), under the trimmed `Content-Encoding` lower-cased by `strings.ToLower`, which maps each rune on its own: U+0130 to `i`, so `GZ\u0130P` is gzip, and U+03A3 to U+03C3, so `A\u03a3` is `a\u03c3` (parity/body.go:103-109). The exec handler finds the request's `Content-Encoding` with `HeaderList.Values`, which compares names with `strings.EqualFold` (parity/envelope.go:42-50, parity/server/exec.go:206-221), so `s` finds `\u017f` and `\u03b1\u03c3` finds `\u0391\u03a3`. An empty gzip body fails with `gzip decode: EOF`.
+- **Rust:** flate2 compresses the same content to other bytes (`gzip.payload-bytes`) and words its errors its own way (`gzip decode: unexpected end of file` for an empty body). `str::to_lowercase` maps U+0130 to `i` and U+0307, so under `GZ\u0130P` a recorded body is kept as `b64` without `json` and an input body is refused (`unsupported content encoding`), and a final U+03A3 to U+03C2, so `A\u03a3` is recorded as `a\u03c2`. `HeaderList::values` compares the names lower-cased, so `s` does not find `\u017f`, `\u03b1\u03c3` does not find `\u0391\u03a3` and `i\u0307` finds `\u0130`.
 - **Who notices:** none
-- **Visible in:** The trace's recorded bodies and the bodies the Rust server sends for an envelope: their gzip bytes, and the reading of a `Content-Encoding` the runner never writes
+- **Visible in:** The trace's recorded bodies and the bodies the Rust server sends for an envelope: their gzip bytes, and the reading of a `Content-Encoding`, or of a header name, outside ASCII, which the runner never writes
 - **Harness:** none
 - **Pin:** `crates/parity/src/body_test.rs::gzip_is_flate2s_and_case_mapping_rusts`
-- **Restore option:** Go's case mapping of U+0130 for the encoding name; not planned, since no content coding is spelled with it (RFC 9110 codings are ASCII tokens).
+- **Restore option:** Go's case mapping and folding for the encoding and the header names; not planned, since content codings and field names are ASCII tokens (RFC 9110).
 - **Recorded in:** `crates/parity/differences.toml`
 
 #### `gzip.payload-bytes`: Gzip bytes: compress/gzip and flate2 write different deflate streams of the same payload
@@ -818,12 +818,23 @@ No entry names the classes `other` and `unrecorded` or the kinds `stage_missing`
 #### `json.parity-documents`: Parity documents: Go reads and writes them with `encoding/json`, pbs-parity with serde
 
 - **Go:** The `parity` packages read the harness documents (envelopes, adapter inputs and outputs, the outbound meta, health, config and bidders dumps, reset results and traces) with `json.Unmarshal` and write them with `json.Marshal` and a `json.Encoder`: a key fills the member it matches ignoring case, the last of repeated members wins, `null` leaves a value member unset, a `null` raw member is kept as `null`, a header pair is padded or cut to two strings, the ID string types take any value, a string that is not UTF-8 reads with U+FFFD, `<`, `>`, `&`, U+2028 and U+2029 are written as escapes, and a NaN that `Session.Record` or `Session.AddAnalytics` gets is a marshal error, noted in the trace in its place.
-- **Rust:** The documents are serde types that serde_json reads and writes (orchestrator ruling 3), so the JSON entries apply: `json.key-case`, `json.duplicate-keys`, `json.null-into-value`, `json.null-elements`, `json.null-raw`, `json.invalid-utf8`, `json.html-escape`, `json.float-format`, `json.raw-not-compacted`, `json.struct-from-array`, `json.error-texts`, `json.negative-zero-int` and `json.non-finite`. A header pair of another length is refused (`invalid length 1, expected a tuple of size 2`), the stage, status and decision IDs are closed enums that refuse a name outside the registry (`parity: unregistered parity.StageID value "made.up"`), a NaN is recorded as `null` (an analytics object that is NaN makes `analytics[].object` null, which the trace schema refuses), a raw value that is not JSON has no Rust form, so nothing records one or notes it as Go does, and the crate's own messages quote with `{:?}` where Go uses `%q`. Each document compares equal with Go's as a JSON value, which is how the runner compares the two servers' documents.
+- **Rust:** The documents are serde types that serde_json reads and writes (orchestrator ruling 3), so the JSON entries apply: `json.key-case`, `json.duplicate-keys`, `json.null-into-value`, `json.null-elements`, `json.null-raw`, `json.invalid-utf8`, `json.html-escape`, `json.float-format`, `json.raw-not-compacted`, `json.struct-from-array`, `json.error-texts`, `json.negative-zero-int` and `json.non-finite`. A header pair of another length is refused (`invalid length 1, expected a tuple of size 2`), the stage, status and decision IDs are closed enums that refuse a name outside the registry (`parity: unregistered parity.StageID value "made.up"`), a NaN is recorded as `null` (an analytics object that is NaN makes `analytics[].object` null, which the trace schema refuses), a raw value that is not JSON has no Rust form, so nothing records one or notes it as Go does, bytes `Session::record_raw` gets that are JSON but for invalid UTF-8 get no `json` member and the note `raw value is not valid JSON` where Go's `json.Valid` takes them, and the crate's own messages quote with `{:?}` where Go uses `%q`. Every other document compares equal with Go's as a JSON value, which is how the runner compares the two servers' documents, but for the decision notes of `json.parity-override-notes`. The golden tests count the generated sessions each of these touches and replay those sessions without the input in full.
 - **Who notices:** none
 - **Visible in:** The parity harness's documents, which only the Go runner writes and reads: their spelling, and how a document the runner never writes reads
 - **Harness:** none
 - **Pin:** `crates/parity/src/envelope_test.rs::documents_read_as_serde_reads_them`
 - **Restore option:** `encoding/json`'s reading on the documents' derives; not planned (orchestrator rulings 2 and 3).
+- **Recorded in:** `crates/parity/differences.toml`
+
+#### `json.parity-override-notes`: Trace decision notes: Go quotes a refused override with `json.Marshal`, which escapes HTML characters, pbs-parity with serde_json
+
+- **Go:** `Session.DecideString` notes an override outside the point's allowed values as `envelope override <value> is not an allowed value`, the value quoted by `json.Marshal` (parity/trace/decide.go:117-119, 176-182), which writes `<`, `>` and `&` as `\u003c`, `\u003e` and `\u0026` and U+2028 and U+2029 as `\u2028` and `\u2029`.
+- **Rust:** The note quotes with `serde_json::to_string`, which writes the five as they are (`json.html-escape`), so the note of an override holding one is another string. The values both record are the same JSON value.
+- **Who notices:** none
+- **Visible in:** A trace's `decisions[].notes`, for an envelope override outside the allowed values that holds one of those characters, which the runner never writes
+- **Harness:** none
+- **Pin:** `crates/parity/src/trace/trace_test.rs::override_notes_quote_as_serde_json`
+- **Restore option:** Quote the note with a serde_json formatter that escapes as `json.Marshal` does; not planned (orchestrator ruling 2).
 - **Recorded in:** `crates/parity/differences.toml`
 
 #### `json.parse-into-string-lenient`: `ParseIntoString` on bytes that are not JSON: gjson reads a value out of them, the port leaves the target unset

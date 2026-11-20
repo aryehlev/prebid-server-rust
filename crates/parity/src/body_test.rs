@@ -2,9 +2,13 @@ use std::io::Write as _;
 
 use base64::{DecodeError, Engine as _, engine::general_purpose::STANDARD};
 use flate2::{Compression, write::GzEncoder};
+use serde_json::value::RawValue;
 
 use super::{Body, BodyError};
-use crate::golden::{Json, TestResult, check, check_eq, decode_b64, golden_json};
+use crate::{
+    envelope::{HeaderList, HeaderPair},
+    golden::{Json, TestResult, check, check_eq, decode_b64, golden_json},
+};
 
 /// `body` as `serde_json` writes it.
 fn encoded(body: Option<&Body>) -> Result<String, String> {
@@ -32,7 +36,120 @@ fn b64_body(b64: &str) -> Body {
     }
 }
 
-// Go: parity/body_test.go TestNewBody.
+/// What Go's `TestNewBody` checks of a recorded body: the text, the base64, the `json` member's
+/// text and the content encoding.
+type Recorded<'a> = (Option<&'a str>, Option<&'a str>, Option<&'a str>, &'a str);
+
+/// What [`Body::new`] recorded in `body`.
+fn recorded(body: &Body) -> Recorded<'_> {
+    (
+        body.text.as_deref(),
+        body.b64.as_deref(),
+        body.json.as_deref().map(RawValue::get),
+        body.content_encoding.as_str(),
+    )
+}
+
+// Go: parity/body_test.go TestNewBody, case by case. Go's `json` member holds `{}\n` as recorded
+// until `encoding/json` compacts it when the trace is written; a `RawValue` holds the value
+// without the whitespace around it, so both write `{}`.
+#[test]
+fn new_body_cases() -> TestResult {
+    let gz = gzipped(br#"{"a":1}"#)?;
+    let gz_b64 = STANDARD.encode(&gz);
+    let xx_b64 = STANDARD.encode(b"xx");
+    let invalid_b64 = STANDARD.encode([0xFF, 0x00]);
+    let cases: [(&str, &[u8], &str, Recorded<'_>); 7] = [
+        (
+            "json text",
+            br#"{"a":1}"#,
+            "",
+            (Some(r#"{"a":1}"#), None, Some(r#"{"a":1}"#), ""),
+        ),
+        (
+            "plain text keeps bytes",
+            b"hello",
+            "",
+            (Some("hello"), None, None, ""),
+        ),
+        (
+            "trailing newline kept in text",
+            b"{}\n",
+            "",
+            (Some("{}\n"), None, Some("{}"), ""),
+        ),
+        (
+            "invalid utf8 becomes b64",
+            &[0xFF, 0x00],
+            "",
+            (None, Some(invalid_b64.as_str()), None, ""),
+        ),
+        (
+            "gzip is b64 plus decoded json",
+            &gz,
+            "GZIP",
+            (None, Some(gz_b64.as_str()), Some(r#"{"a":1}"#), "gzip"),
+        ),
+        (
+            "identity encoding is dropped",
+            b"[]",
+            "identity",
+            (Some("[]"), None, Some("[]"), ""),
+        ),
+        (
+            "unsupported encoding has no json",
+            b"xx",
+            "br",
+            (None, Some(xx_b64.as_str()), None, "br"),
+        ),
+    ];
+    check(Body::new(&[], "").is_none(), "empty body is nil")?;
+    for (name, raw, encoding, want) in cases {
+        let body = Body::new(raw, encoding).ok_or_else(|| format!("{name}: no body"))?;
+        check_eq(&recorded(&body), &want, name)?;
+        check_eq(
+            &body.wire_bytes(),
+            &Ok(raw.to_vec()),
+            &format!("{name}: recorded bodies must reproduce the exact wire bytes"),
+        )?;
+    }
+    Ok(())
+}
+
+// Go: parity/body_test.go TestBodyWireAndDecodedBytes, case by case. Go's nil body is the empty
+// `Body` here: a Rust body is not a pointer.
+#[test]
+fn wire_and_decoded_bytes_cases() -> TestResult {
+    let text = |s: &str, encoding: &str| Body {
+        text: Some(s.to_owned()),
+        content_encoding: encoding.to_owned(),
+        ..Body::default()
+    };
+    let json: Body = serde_json::from_str(r#"{"json":{"x":true}}"#).map_err(|e| e.to_string())?;
+    let decoded: [(&str, Body, &[u8]); 3] = [
+        ("nil body", Body::default(), b""),
+        ("text", Body::text_body("abc"), b"abc"),
+        ("json only", json, br#"{"x":true}"#),
+    ];
+    for (name, body, want) in decoded {
+        check(body.wire_bytes().is_ok(), name)?;
+        check_eq(&body.decoded_bytes(), &Ok(want.to_vec()), name)?;
+    }
+    let what = "text with gzip input is encoded by receiver";
+    let wire = text("zip me", "gzip")
+        .wire_bytes()
+        .map_err(|e| format!("{what}: {e}"))?;
+    let round_trip = Body::new(&wire, "gzip").ok_or(what)?;
+    check_eq(&round_trip.decoded_bytes(), &Ok(b"zip me".to_vec()), what)?;
+    check(b64_body("!!").wire_bytes().is_err(), "bad b64")?;
+    check(
+        text("x", "br").wire_bytes().is_err(),
+        "unsupported input encoding",
+    )
+}
+
+// Go: parity/body_test.go TestNewBody, beyond its table: the encoded documents, the encoding
+// trimmed and spelled in any case, an x-gzip body and gzip that does not inflate.
 #[test]
 fn records_wire_bytes() -> TestResult {
     check(Body::new(b"", "").is_none(), "empty")?;
@@ -75,7 +192,8 @@ fn records_wire_bytes() -> TestResult {
     )
 }
 
-// Go: parity/body_test.go TestWireBytes and TestDecodedBytes.
+// Go: parity/body_test.go TestBodyWireAndDecodedBytes, beyond its table: `b64` winning over
+// `text`, a raw `json` kept as written, and a gzip input body's wire and decoded bytes.
 #[test]
 fn produces_wire_and_decoded_bytes() -> TestResult {
     let text = Body::text_body("hi");
@@ -214,10 +332,14 @@ fn inflated(wire: &[u8]) -> Result<Vec<u8>, BodyError> {
     .decoded_bytes()
 }
 
-// The bodies' gzip is flate2's, and their Content-Encoding is lower-cased by `str::to_lowercase`
-// (gzip.parity-bodies): flate2 compresses the same content to other bytes than compress/gzip (the
-// bodies golden holds Go's) and words its errors its own way, and U+0130 lower-cases to `i` and
-// U+0307, where Go's `strings.ToLower` gives `i`, so `GZ\u{130}P` is no gzip here.
+// The bodies' gzip is flate2's, and their Content-Encoding is found and lower-cased by Rust's case
+// rules (gzip.parity-bodies): flate2 compresses the same content to other bytes than compress/gzip
+// (the bodies golden holds Go's) and words its errors its own way, and `str::to_lowercase` maps
+// U+0130 to `i` and U+0307 and a final U+03A3 to U+03C2, where Go's `strings.ToLower` maps each
+// rune on its own (parity/body.go:103-109), so `GZ\u{130}P` is no gzip here. The header names
+// compare lower-cased, where Go's `HeaderList.Values` uses `strings.EqualFold`
+// (parity/envelope.go:42-50), which the exec handler finds the Content-Encoding with
+// (parity/server/exec.go:206-221). Go 1.26.2's `NewBody` and `Values` give the values named below.
 #[test]
 fn gzip_is_flate2s_and_case_mapping_rusts() -> TestResult {
     let go = golden_input("json_gzip")?;
@@ -248,5 +370,42 @@ fn gzip_is_flate2s_and_case_mapping_rusts() -> TestResult {
         &input.wire_bytes().map_err(|e| e.to_string()),
         &Err(r#"unsupported content encoding "gzi\u{307}p""#.to_owned()),
         "not compressed",
+    )?;
+    check_eq(
+        &Body::new(b"xx", "A\u{3a3}").map(|b| b.content_encoding),
+        &Some("a\u{3c2}".to_owned()),
+        "a final sigma, which Go lower-cases to a\u{3c3}",
+    )?;
+    check_eq(
+        &Body::new(b"xx", "\u{3a3}").map(|b| b.content_encoding),
+        &Some("\u{3c3}".to_owned()),
+        "a sigma on its own, as Go",
+    )?;
+
+    let headers = HeaderList::from_pairs(vec![
+        HeaderPair::new("S", "1"),
+        HeaderPair::new("\u{17f}", "2"),
+        HeaderPair::new("\u{391}\u{3a3}", "3"),
+        HeaderPair::new("\u{130}", "4"),
+    ]);
+    check_eq(
+        &headers.values("s"),
+        &vec!["1"],
+        "U+017F does not match s, where Go's [1 2] has it",
+    )?;
+    check_eq(
+        &headers.values("\u{3b1}\u{3c3}"),
+        &Vec::<&str>::new(),
+        "a final capital sigma does not match U+03C3, where Go's [3] has it",
+    )?;
+    check_eq(
+        &headers.values("\u{3b1}\u{3c2}"),
+        &vec!["3"],
+        "it matches U+03C2, as Go",
+    )?;
+    check_eq(
+        &headers.values("i\u{307}"),
+        &vec!["4"],
+        "U+0130 matches i and U+0307, where Go's [] has nothing",
     )
 }

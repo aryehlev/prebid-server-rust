@@ -27,12 +27,36 @@ fn filter_of(stages: &str) -> Result<Result<Option<Vec<String>>, String>, String
         .map_err(|err| err.to_string()))
 }
 
-// Go: parity/envelope_test.go TestStageFilter.
+// Go: parity/envelope_test.go TestCaptureStageFilter, its cases first (the wrong type's message
+// is serde_json's, json.error-texts), then the port's own: unregistered and repeated IDs, an
+// object and a number element.
 #[test]
 fn stage_filter() -> TestResult {
-    check_eq(&CaptureSpec::default().stage_filter(), &Ok(None), "omitted")?;
-    check_eq(&filter_of("null")?, &Ok(None), "null")?;
-    check_eq(&filter_of(r#""*""#)?, &Ok(None), "star")?;
+    check_eq(
+        &CaptureSpec::default().stage_filter(),
+        &Ok(None),
+        "omitted means all",
+    )?;
+    check_eq(&filter_of("null")?, &Ok(None), "null means all")?;
+    check_eq(&filter_of(r#""*""#)?, &Ok(None), "star means all")?;
+    check_eq(
+        &filter_of(r#"["http.in","http.response"]"#)?,
+        &Ok(Some(vec!["http.in".to_owned(), "http.response".to_owned()])),
+        "list",
+    )?;
+    check_eq(
+        &filter_of("[]")?,
+        &Ok(Some(Vec::new())),
+        "empty list captures nothing",
+    )?;
+    check(
+        filter_of(r#""all""#)?.is_err_and(|e| e.contains(r#"must be "*""#)),
+        "other string",
+    )?;
+    check(
+        filter_of(r#"{"a":1}"#)?.is_err_and(|e| e.contains("capture.stages")),
+        "wrong type",
+    )?;
     check_eq(
         &filter_of(r#"["http.in","made.up","http.in"]"#)?,
         &Ok(Some(vec!["http.in".to_owned(), "made.up".to_owned()])),
@@ -63,25 +87,30 @@ fn stage_filter() -> TestResult {
     check_eq(&capture(r#"["x"]"#)?.stage_filter(), &Ok(Some(ids)), "set")
 }
 
-// Go: parity/envelope_test.go TestCaptureDefaults.
+// Go: parity/envelope_test.go TestCaptureDefaults, case by case, and one flag of each.
 #[test]
 fn capture_flags_default_on() -> TestResult {
-    let defaults = CaptureSpec::default();
-    check(
-        defaults.wants_metrics() && defaults.wants_analytics(),
-        "defaults",
-    )?;
-    let explicit = CaptureSpec {
-        metrics: Some(false),
-        analytics: Some(true),
+    let flags = |metrics, analytics| CaptureSpec {
+        metrics,
+        analytics,
         ..CaptureSpec::default()
     };
-    check(
-        !explicit.wants_metrics() && explicit.wants_analytics(),
-        "explicit",
-    )
+    for (name, spec, want) in [
+        ("defaults on", CaptureSpec::default(), (true, true)),
+        (
+            "explicit off",
+            flags(Some(false), Some(false)),
+            (false, false),
+        ),
+        ("explicit on", flags(Some(true), Some(true)), (true, true)),
+        ("one of each", flags(Some(false), Some(true)), (false, true)),
+    ] {
+        check_eq(&(spec.wants_metrics(), spec.wants_analytics()), &want, name)?;
+    }
+    Ok(())
 }
 
+// Go: parity/envelope_test.go TestMockSpecDefaults.
 #[test]
 fn mock_defaults() -> TestResult {
     let defaults = MockSpec::default();
@@ -112,7 +141,51 @@ fn envelope_with(decisions: &[(&str, &str)]) -> Result<Envelope, String> {
     })
 }
 
-// Go: parity/envelope_test.go TestDecisionInt and TestDecisionString.
+// Go: parity/envelope_test.go TestEnvelopeDecisions, case by case. Go's nil envelope is an
+// envelope without decisions here: a Rust envelope is not a pointer.
+#[test]
+fn envelope_decisions() -> TestResult {
+    let env = envelope_with(&[
+        ("floors.skip", "1"),
+        ("usersync.shuffle", r#""identity""#),
+        ("floors.enforce", r#""oops""#),
+    ])?;
+    let nil = Envelope::default();
+    check_eq(
+        &env.decision_int(DecisionId::FloorsSkip),
+        &Some(1),
+        "int override",
+    )?;
+    check_eq(
+        &env.decision_string(DecisionId::UsersyncShuffle),
+        &Some("identity".to_owned()),
+        "string override",
+    )?;
+    check_eq(
+        &env.decision_int(DecisionId::FloorsEnforce),
+        &None,
+        "wrong type is no override",
+    )?;
+    check_eq(
+        &env.decision_int(DecisionId::CategoryDedupe),
+        &None,
+        "absent",
+    )?;
+    check_eq(
+        &nil.decision_int(DecisionId::FloorsSkip),
+        &None,
+        "nil envelope",
+    )?;
+    check_eq(
+        &nil.decision_string(DecisionId::UsersyncShuffle),
+        &None,
+        "nil envelope string",
+    )
+}
+
+// Go: parity/envelope.go DecisionInt and DecisionString (json.Unmarshal into an int and a
+// string), beyond TestEnvelopeDecisions: a string is no int, a fraction is none, and null reads
+// as the zero value.
 #[test]
 fn decisions() -> TestResult {
     let env = envelope_with(&[

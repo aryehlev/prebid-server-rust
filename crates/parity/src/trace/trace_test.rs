@@ -786,6 +786,33 @@ mod live {
         )
     }
 
+    // Go: parity/trace/decide.go DecideString and quote. An override outside the allowed values
+    // is noted quoted as serde_json writes it, where Go's `json.Marshal` escapes `<`, `>`, `&`,
+    // U+2028 and U+2029 (json.parity-override-notes): Go 1.26.2 notes this override as the text
+    // `go` below. The value both record is the same JSON value.
+    #[test]
+    fn override_notes_quote_as_serde_json() -> TestResult {
+        let s = Session::new(decisions_env(&[("usersync.shuffle", r#""<x>&\u2028""#)])?);
+        check_eq(
+            &s.decide_string(DecisionId::UsersyncShuffle, || "rng".to_owned()),
+            &"rng".to_owned(),
+            "out of domain",
+        )?;
+        let go = r#"envelope override "\u003cx\u003e\u0026\u2028" is not an allowed value"#;
+        let (value, source, notes) = last(&s)?;
+        check_eq(
+            &(value.as_str(), source.as_str()),
+            &(r#""rng""#, "rng"),
+            "the value",
+        )?;
+        check_eq(
+            &notes,
+            &vec!["envelope override \"<x>&\u{2028}\" is not an allowed value".to_owned()],
+            "serde_json's quoting",
+        )?;
+        check(notes.iter().all(|n| n != go), "not Go's text")
+    }
+
     // The free functions consult the published session.
     #[tokio::test]
     async fn free_functions_use_the_published_session() -> TestResult {
