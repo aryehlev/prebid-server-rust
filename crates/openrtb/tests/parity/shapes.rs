@@ -316,10 +316,62 @@ fn same_string(a: &str, b: &str) -> bool {
     text(a).is_some() && text(a) == text(b)
 }
 
-/// Whether two number tokens hold the same value.
+/// A number token as an exact decimal: whether it is negative, its significant digits and the
+/// power of ten of the last one; zero as no digits, of either sign.
+fn decimal(token: &str) -> Option<(bool, String, i64)> {
+    let (negative, rest) = token
+        .strip_prefix('-')
+        .map_or((false, token), |rest| (true, rest));
+    let (mantissa, exponent) = match rest.split_once(['e', 'E']) {
+        Some((mantissa, exponent)) => (mantissa, exponent.parse::<i64>().ok()?),
+        None => (rest, 0),
+    };
+    let (int, frac) = mantissa.split_once('.').unwrap_or((mantissa, ""));
+    let digits = format!("{int}{frac}");
+    if int.is_empty() || !digits.bytes().all(|b| b.is_ascii_digit()) {
+        return None;
+    }
+    let significant = digits.trim_end_matches('0');
+    let shift = i64::try_from(digits.len() - significant.len()).ok()?;
+    let places = i64::try_from(frac.len()).ok()?;
+    let significant = significant.trim_start_matches('0');
+    if significant.is_empty() {
+        return Some((false, String::new(), 0));
+    }
+    let power = exponent.checked_add(shift)?.checked_sub(places)?;
+    Some((negative, significant.to_owned(), power))
+}
+
+/// Whether two number tokens hold the same value, compared as exact decimals: an integer beyond
+/// float64's 53 bits that differs in its last digits differs.
 fn same_number(a: &str, b: &str) -> bool {
-    let value = |token: &str| token.parse::<f64>().ok();
-    value(a).is_some() && value(a) == value(b)
+    decimal(a).is_some() && decimal(a) == decimal(b)
+}
+
+#[test]
+fn numbers_compare_as_exact_decimals() -> TestResult {
+    let same = [
+        ("1", "1.0"),
+        ("1e+21", "1e21"),
+        ("100000000000000000000", "1e20"),
+        ("0", "-0.0"),
+        ("0.5", "5e-1"),
+        ("-12.5", "-1.25E1"),
+    ];
+    for (a, b) in same {
+        ensure_eq(&same_number(a, b), &true, &format!("{a} and {b}"))?;
+    }
+    let different = [
+        ("9223372036854775807", "9223372036854775806"),
+        ("18446744073709551615", "1.8446744073709552e19"),
+        ("1", "-1"),
+        ("1.5", "15"),
+        ("x", "x"),
+    ];
+    for (a, b) in different {
+        ensure_eq(&same_number(a, b), &false, &format!("{a} and {b}"))?;
+    }
+    Ok(())
 }
 
 /// The ledger entries the difference between two token sequences falls in: strings with the
