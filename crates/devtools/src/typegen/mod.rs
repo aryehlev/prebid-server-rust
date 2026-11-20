@@ -49,8 +49,9 @@
 //! null in a `json.RawMessage` of a type Prebid decodes with `encoding/json`. Generation refuses
 //! what serde cannot hold as Go does: a struct without fields, two fields with one JSON key, the
 //! `,string` option, `GoString` strings, a bridged type inside a pointer, slice or map or under a
-//! named type, a named type of a slice, map or struct, and an embedded struct that is a pointer,
-//! of another package or embeds one itself.
+//! named type, a Go `int` or `uint` inside a slice or map (the bridge merges only the integer and
+//! a pointer to it), a named type of a slice, map or struct, and an embedded struct that is a
+//! pointer, of another package or embeds one itself.
 //!
 //! Each crate can also ask for two indexes ([`index`]): a Rust file with the `for_each_type!`,
 //! `for_each_struct!` and `for_each_const!` macros, the Go names of the types and constants, and
