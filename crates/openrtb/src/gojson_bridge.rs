@@ -1,14 +1,19 @@
-//! The generated serde code's bridge to the types it shares with `GoJson`'s derive.
+//! Glue (Rule B (a)): five adapters read the `ext: null` of bid responses as `json.Unmarshal`.
 //!
-//! While that derive stays (typegen's `serde_bridge`), a `json.RawMessage` is a [`RawJson`], which
-//! has no serde or `MergeClone` impls of its own, and pbs-jsonutil merges no `isize` (Go `int`).
-//! The bridge holds no Go behavior of its own: each function applies pbs-jsonutil's helper for the
-//! case to the `GoJson`-era type, so the fields read, write and merge as pbs-jsonutil's types do.
-//! It goes with `GoJson`'s derive, when `json.RawMessage` fields become `Option<Box<RawValue>>`.
+//! Real traffic sends `ext: null`, and Go's two decoders read it apart: the zentotem, loopme,
+//! resetdigital, tradplus and adverxo adapters decode their bid responses with `json.Unmarshal`,
+//! which keeps a `json.RawMessage` given null as the bytes `null`, where `jsonutil.Unmarshal`,
+//! everywhere else, leaves it nil (`json.null-raw`, restored, pinned by
+//! `tests/parity/shapes.rs::raw_null_follows_the_decoder` against the shapes golden).
+//! [`EncodingJson`] is that glue: it reads one document as `json.Unmarshal` does.
 //!
-//! [`EncodingJson`] is the one piece that outlives it: the generated types read a
-//! `json.RawMessage` given null as `jsonutil.Unmarshal` does, and through it as `json.Unmarshal`
-//! does (`json.null-raw`).
+//! The rest of the module is the generated serde code's bridge to the types it shares with
+//! `GoJson`'s derive, and holds no Go behavior of its own. While that derive stays (typegen's
+//! `serde_bridge`), a `json.RawMessage` is a [`RawJson`], which has no serde or `MergeClone` impls
+//! of its own, and pbs-jsonutil merges no `isize` (Go `int`); each function applies pbs-jsonutil's
+//! helper for the case to the `GoJson`-era type, so the fields read, write and merge as
+//! pbs-jsonutil's types do. The bridge goes with `GoJson`'s derive, when `json.RawMessage` fields
+//! become `Option<Box<RawValue>>`; [`EncodingJson`] outlives it.
 
 use core::cell::Cell;
 
