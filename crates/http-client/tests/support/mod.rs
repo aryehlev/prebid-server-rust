@@ -2,12 +2,16 @@
 //! servers that see the bytes a client writes, a test PKI, and checks that return errors.
 
 use std::{
+    collections::VecDeque,
     error::Error,
     fmt::{self, Debug},
     fs,
     future::Future,
+    io,
     path::Path,
+    pin::Pin,
     sync::{Arc, Mutex, MutexGuard, PoisonError},
+    task::{Context, Poll},
     time::{Duration, SystemTime, UNIX_EPOCH},
 };
 
@@ -34,7 +38,7 @@ use serde_json::Value;
 use tokio::{
     io::{
         AsyncBufReadExt as _, AsyncRead, AsyncReadExt as _, AsyncWrite, AsyncWriteExt as _,
-        BufReader, copy, sink,
+        BufReader, ReadBuf, copy, sink,
     },
     net::TcpListener,
     runtime,
@@ -442,9 +446,50 @@ impl RawServer {
     }
 }
 
+/// A connection's stream with the bytes a server peeked at put back in front of it.
+struct Replay {
+    peeked: VecDeque<u8>,
+    stream: Box<dyn Stream>,
+}
+
+impl AsyncRead for Replay {
+    fn poll_read(
+        self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+        buf: &mut ReadBuf<'_>,
+    ) -> Poll<io::Result<()>> {
+        let this = self.get_mut();
+        if this.peeked.is_empty() {
+            return Pin::new(&mut this.stream).poll_read(cx, buf);
+        }
+        let n = this.peeked.len().min(buf.remaining());
+        let bytes: Vec<u8> = this.peeked.drain(..n).collect();
+        buf.put_slice(&bytes);
+        Poll::Ready(Ok(()))
+    }
+}
+
+impl AsyncWrite for Replay {
+    fn poll_write(
+        self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+        buf: &[u8],
+    ) -> Poll<io::Result<usize>> {
+        Pin::new(&mut self.get_mut().stream).poll_write(cx, buf)
+    }
+
+    fn poll_flush(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
+        Pin::new(&mut self.get_mut().stream).poll_flush(cx)
+    }
+
+    fn poll_shutdown(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
+        Pin::new(&mut self.get_mut().stream).poll_shutdown(cx)
+    }
+}
+
 /// One accepted connection.
 pub struct RawConn {
-    reader: BufReader<Box<dyn Stream>>,
+    reader: BufReader<Replay>,
     alpn: Option<Vec<u8>>,
 }
 
@@ -469,7 +514,10 @@ pub struct RawRequest {
 impl RawConn {
     fn new(stream: Box<dyn Stream>, alpn: Option<Vec<u8>>) -> Self {
         Self {
-            reader: BufReader::new(stream),
+            reader: BufReader::new(Replay {
+                peeked: VecDeque::new(),
+                stream,
+            }),
             alpn,
         }
     }
@@ -518,6 +566,52 @@ impl RawConn {
     /// Reads until the client closes the connection.
     pub async fn drain(&mut self) {
         let _drained = copy(&mut self.reader, &mut sink()).await;
+    }
+
+    /// The client's first `n` bytes, fewer when it stops sooner, left unread: the next read
+    /// starts with them.
+    pub async fn peek(&mut self, n: usize) -> Vec<u8> {
+        let mut peeked = Vec::new();
+        while peeked.len() < n {
+            let chunk = match self.reader.fill_buf().await {
+                Ok(chunk) if !chunk.is_empty() => chunk.to_vec(),
+                Ok(_) | Err(_) => break,
+            };
+            self.reader.consume(chunk.len());
+            peeked.extend_from_slice(&chunk);
+        }
+        let replay = self.reader.get_mut();
+        for byte in peeked.iter().rev() {
+            replay.peeked.push_front(*byte);
+        }
+        peeked.truncate(n);
+        peeked
+    }
+
+    /// Reads exactly `n` bytes; `None` when the client closes the connection first.
+    pub async fn read_bytes(&mut self, n: usize) -> Option<Vec<u8>> {
+        let mut bytes = vec![0; n];
+        let _read = self.reader.read_exact(&mut bytes).await.ok()?;
+        Some(bytes)
+    }
+
+    /// Reads until the client closes the connection, and returns what it read.
+    pub async fn read_rest(&mut self) -> Vec<u8> {
+        let mut rest = Vec::new();
+        let _read = self.reader.read_to_end(&mut rest).await;
+        rest
+    }
+
+    /// Closes the server's side of the connection (TCP's FIN, after TLS's `close_notify`).
+    pub async fn shutdown(&mut self) {
+        let _closed = self.reader.get_mut().shutdown().await;
+    }
+
+    /// The connection as one byte stream, what was buffered or peeked at first: for a server of
+    /// another protocol (HTTP/2) to take over.
+    #[must_use]
+    pub fn into_stream(self) -> impl Stream {
+        self.reader
     }
 }
 
