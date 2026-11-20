@@ -67,6 +67,8 @@ mod tests {
 
     /// The main server on the Unix socket `unix_socket_name` names (server/server.go:33-43):
     /// served within the main server's budget, it answers on the socket and drains on shutdown.
+    // Go: Listen runs newSocketServer on newUnixListener when unix_socket_enable is set
+    // (server/server.go:33-43)
     #[test]
     fn unix_socket() -> TestResult {
         let socket = Path::new(env!("CARGO_TARGET_TMPDIR"))
@@ -114,6 +116,8 @@ mod tests {
     /// SIGTERM and SIGINT each stop a server waiting on [`shutdown_signal`], which tells them
     /// apart, as `Listen`'s `signal.Notify(stopSignals, syscall.SIGTERM, syscall.SIGINT)` does
     /// (server/server.go:23-24); the server answered before the signal and drains.
+    // Go: Listen's signal.Notify (server/server.go:23-24) and shutdownAfterSignals
+    // (server/server.go:196-207)
     #[test]
     fn stops_on_signals() -> TestResult {
         for (signal, want) in [

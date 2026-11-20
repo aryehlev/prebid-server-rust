@@ -243,6 +243,8 @@ mod tests {
 
     /// A handler that ends within the drain time is answered with `connection: close`, and the
     /// server reports it drained.
+    // Go: Server.Shutdown waits for the active connections, which close after their answer
+    // (net/http/server.go:3150-3223), from shutdownAfterSignals (server/server.go:196-207)
     #[test]
     fn drains_running_handlers() -> io::Result<()> {
         let (outcome, answer) = stop_during(Duration::from_millis(300), Duration::from_secs(5))?;
@@ -258,6 +260,8 @@ mod tests {
 
     /// A handler that outlasts the drain time leaves the server reporting it timed out; the
     /// connection goes on, and its answer is still sent.
+    // Go: shutdownAfterSignals gives Shutdown a 10 s deadline and logs the error it returns when
+    // the deadline passes first (server/server.go:196-207)
     #[test]
     fn times_out_on_long_handlers() -> io::Result<()> {
         let (outcome, answer) = stop_during(Duration::from_secs(1), Duration::from_millis(300))?;
