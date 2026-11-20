@@ -1,13 +1,13 @@
 use std::collections::BTreeMap;
 
-use pbs_gojson::stdjson;
 use pbs_metrics::prometheus::registry::{
     Bucket, Histogram, LabelPair, Metric, MetricFamily, MetricType, MetricValue,
 };
+use serde_json::Value;
 
 use super::{MetricKind, MetricsSnapshot, Series, format_bound, series_key, value_delta};
 use crate::{
-    golden::{Json, TestResult, check, check_eq, golden_json},
+    golden::{Json, TestResult, check, check_eq, check_same_json, golden_json},
     tracedoc::MetricDelta,
 };
 
@@ -147,11 +147,32 @@ fn values_and_bounds() -> TestResult {
         &0.0,
         "both infinite",
     )?;
-    check_eq(&format_bound(0.005), &"0.005".to_owned(), "0.005")?;
-    check_eq(&format_bound(1.0), &"1".to_owned(), "1")?;
-    check_eq(&format_bound(2.5), &"2.5".to_owned(), "2.5")?;
-    check_eq(&format_bound(1e21), &"1e+21".to_owned(), "exponent")?;
-    check_eq(&format_bound(f64::INFINITY), &"+Inf".to_owned(), "+Inf")?;
+    // Go 1.26.2's strconv.FormatFloat(le, 'g', -1, 64) of each bound (and `+Inf`).
+    for (le, go) in [
+        (0.005, "0.005"),
+        (1.0, "1"),
+        (2.5, "2.5"),
+        (1e21, "1e+21"),
+        (1e6, "1e+06"),
+        (123_456.0, "123456"),
+        (1_234_567.0, "1.234567e+06"),
+        (999_999.0, "999999"),
+        (12_345_678.0, "1.2345678e+07"),
+        (123_456.7, "123456.7"),
+        (0.0001, "0.0001"),
+        (0.000_01, "1e-05"),
+        (1.5e-7, "1.5e-07"),
+        (5e-324, "5e-324"),
+        (f64::MAX, "1.7976931348623157e+308"),
+        (0.0, "0"),
+        (-0.0, "-0"),
+        (-1e6, "-1e+06"),
+        (f64::INFINITY, "+Inf"),
+        (f64::NEG_INFINITY, "-Inf"),
+        (f64::NAN, "NaN"),
+    ] {
+        check_eq(&format_bound(le), &go.to_owned(), go)?;
+    }
     check_eq(
         &series_key(
             "requests",
@@ -268,26 +289,64 @@ fn snapshot_of(series: &[Json]) -> Result<MetricsSnapshot, String> {
     Ok(snap)
 }
 
+/// The deltas of a `metrics_delta` list sorted by metric name and labels, as JSON.
+fn by_series(deltas: &[u8]) -> Result<Vec<u8>, String> {
+    let mut list: Vec<Value> = serde_json::from_slice(deltas).map_err(|e| e.to_string())?;
+    list.sort_by_cached_key(|d| {
+        (
+            d.get("name").map(ToString::to_string),
+            d.get("labels").map(ToString::to_string),
+        )
+    });
+    serde_json::to_vec(&list).map_err(|e| e.to_string())
+}
+
 // Generated registries (`metricsfuzz.go`): every metric type, metric and label names that prefix
 // each other, label values that need quoting, NaN, infinite and denormal values and random
-// bucket layouts, changed between two gathers.
+// bucket layouts, changed between two gathers. Each delta is Go's; where a label value holds a
+// control or unprintable character, which Rust's `{:?}` quotes otherwise than Go's
+// `strconv.Quote`, the deltas can come in another order (metrics.parity-delta-order).
 #[test]
 fn fuzzed_deltas_match_go() -> TestResult {
     let cases = golden_json("metrics_fuzz.json")?
         .get("golden")?
         .elements()?;
     check_eq(&cases.len(), &150, "registries")?;
+    let mut reordered = 0;
     for (i, case) in cases.iter().enumerate() {
         let before = snapshot_of(&case.array("before")?)?;
         let after = snapshot_of(&case.array("after")?)?;
-        let delta = stdjson::marshal(&before.delta(&after)).map_err(|e| e.to_string())?;
-        check_eq(
-            &String::from_utf8_lossy(&delta).into_owned(),
-            &case.string("delta")?,
-            &format!("registry {i}"),
-        )?;
+        let delta = serde_json::to_vec(&before.delta(&after)).map_err(|e| e.to_string())?;
+        let go = case.string("delta")?;
+        let what = format!("registry {i}");
+        if check_same_json(&delta, go.as_bytes(), &what).is_err() {
+            check_same_json(&by_series(&delta)?, &by_series(go.as_bytes())?, &what)?;
+            reordered += 1;
+        }
     }
-    Ok(())
+    check_eq(
+        &reordered,
+        &3,
+        "registries whose deltas come in another order",
+    )
+}
+
+// The deltas are ordered by their series keys, which quote each label value: Go with
+// `strconv.Quote`, the port with `{:?}`. The two agree on printable text and differ on a control
+// or unprintable character: Go writes a form feed `\f` and U+001F `\x1f`, so `a\f` comes first
+// ('f' < 'x'); Rust writes `\u{c}` and `\u{1f}`, so `a\u{1f}` does ('1' < 'c')
+// (metrics.parity-delta-order).
+#[test]
+fn delta_order_follows_rust_quoting() -> TestResult {
+    let key = |v: &str| series_key("m", &BTreeMap::from([("l".to_owned(), v.to_owned())]));
+    check_eq(
+        &key("a<b> \"q\""),
+        &r#"m{l="a<b> \"q\""}"#.to_owned(),
+        "printable",
+    )?;
+    check_eq(&key("a\u{c}"), &r#"m{l="a\u{c}"}"#.to_owned(), "form feed")?;
+    check_eq(&key("a\u{1f}"), &r#"m{l="a\u{1f}"}"#.to_owned(), "U+001F")?;
+    check(key("a\u{1f}") < key("a\u{c}"), "U+001F first")
 }
 
 // The metrics_delta Go computes for a registry with every metric type, NaN sums, an exponent
@@ -297,19 +356,11 @@ fn delta_matches_go() -> TestResult {
     let golden = golden_json("metrics.json")?.get("golden")?;
     let before = snapshot_of(&golden.array("before")?)?;
     let after = snapshot_of(&golden.array("after")?)?;
-    let delta = stdjson::marshal(&before.delta(&after)).map_err(|e| e.to_string())?;
-    check_eq(
-        &String::from_utf8_lossy(&delta).into_owned(),
-        &golden.string("delta")?,
-        "delta",
-    )?;
-    let empty = stdjson::marshal(&MetricsSnapshot::new().delta(&MetricsSnapshot::new()))
+    let delta = serde_json::to_vec(&before.delta(&after)).map_err(|e| e.to_string())?;
+    check_same_json(&delta, golden.string("delta")?.as_bytes(), "delta")?;
+    let empty = serde_json::to_vec(&MetricsSnapshot::new().delta(&MetricsSnapshot::new()))
         .map_err(|e| e.to_string())?;
-    check_eq(
-        &String::from_utf8_lossy(&empty).into_owned(),
-        &golden.string("empty")?,
-        "empty",
-    )?;
+    check_same_json(&empty, golden.string("empty")?.as_bytes(), "empty")?;
     check_eq(
         &MetricsSnapshot::gather(None).err().map(|e| e.to_string()),
         &Some(golden.string("nil_gather")?),

@@ -77,6 +77,7 @@ func main() {
 		{"metrics.json", metricsGolden},
 		{"meta.json", metaGolden},
 		{"sessions_fuzz.json", fuzzSessionsGolden},
+		{"sessions_portable.json", portableSessionsGolden},
 		{"documents_fuzz.json", fuzzDocumentsGolden},
 		{"metrics_fuzz.json", fuzzMetricsGolden},
 		{"bodies_fuzz.json", fuzzBodiesGolden},
@@ -579,20 +580,47 @@ func uEsc(hex string) string { return string(rune(0x5c)) + "u" + hex }
 
 func rawJSON(s string) json.RawMessage { return json.RawMessage(s) }
 
-func sessionScripts() []struct {
+// sessionScript is one scripted session: the envelope it runs under and its
+// ops.
+type sessionScript struct {
 	name     string
 	envelope string
 	ops      []op
-} {
+}
+
+// runScript runs script through trace.Session, returning each op's result and
+// the trace as the server writes it.
+func runScript(script sessionScript) ([]any, string, error) {
+	var env parity.Envelope
+	if err := json.Unmarshal([]byte(script.envelope), &env); err != nil {
+		return nil, "", fmt.Errorf("%s: %w", script.name, err)
+	}
+	s, end := trace.Begin(&env)
+	results := make([]any, 0, len(script.ops))
+	for _, o := range script.ops {
+		r, err := runOp(s, o)
+		if err != nil {
+			end()
+			return nil, "", fmt.Errorf("%s: %s: %w", script.name, o.Op, err)
+		}
+		results = append(results, r)
+	}
+	snap := s.Snapshot()
+	end()
+	snap.Impl = parity.ImplRust
+	doc, err := writeJSON(snap)
+	if err != nil {
+		return nil, "", fmt.Errorf("%s: encoding the trace: %w", script.name, err)
+	}
+	return results, doc, nil
+}
+
+func sessionScripts() []sessionScript {
 	const auction = `{"schema":"pbs-parity-envelope/1","schema_version":"1.0.0","case_id":"%s","request":{"method":"POST","path":"/openrtb2/auction","query":"","headers":[]},"mock":{},"capture":%s%s}`
 	env := func(caseID, capture, extra string) string { return fmt.Sprintf(auction, caseID, capture, extra) }
 	call := `{"seq":1,"kind":"bidder","bidder":"appnexus","orig_url":"https://ib.adnxs.com/openrtb2/prebid?a=<b>&c","request":{"method":"POST","url":"http://127.0.0.1:9/appnexus","headers":[["Content-Type","application/json"],["X-Parity-Meta","e30="]],"body":{"text":"{\"id\":\"1\"}","json":{"id":"1"}}},"wire":false,"mock":{"source":"inline","id":"bidders.appnexus"},"response":{"status":200,"headers":[["Content-Type","application/json"]],"body":{"text":"{}","json":{}},"delay_ms":5},"error":null,"notes":["n"]}`
 	failed := `{"seq":2,"kind":"cache","bidder":"","orig_url":"http://cache/x","request":{"method":"POST","url":"http://cache/x","headers":[],"body":null},"wire":false,"mock":null,"response":null,"error":"timeout"}`
-	return []struct {
-		name     string
-		envelope string
-		ops      []op
-	}{
+	return []sessionScript{
 		{name: "empty", envelope: env("empty", `{}`, "")},
 		{name: "lexical", envelope: env("lex", `{}`, ""), ops: []op{
 			{Op: "record", Stage: "request.validated", Type: "map", Value: rawJSON(`{"adm":"<b>&"}`)},
@@ -699,26 +727,9 @@ func sessionScripts() []struct {
 func sessionsGolden() (any, error) {
 	cases := make([]map[string]any, 0)
 	for _, script := range sessionScripts() {
-		var env parity.Envelope
-		if err := json.Unmarshal([]byte(script.envelope), &env); err != nil {
-			return nil, fmt.Errorf("%s: %w", script.name, err)
-		}
-		s, end := trace.Begin(&env)
-		results := make([]any, 0, len(script.ops))
-		for _, o := range script.ops {
-			r, err := runOp(s, o)
-			if err != nil {
-				end()
-				return nil, fmt.Errorf("%s: %s: %w", script.name, o.Op, err)
-			}
-			results = append(results, r)
-		}
-		snap := s.Snapshot()
-		end()
-		snap.Impl = parity.ImplRust
-		doc, err := writeJSON(snap)
+		results, doc, err := runScript(script)
 		if err != nil {
-			return nil, fmt.Errorf("%s: encoding the trace: %w", script.name, err)
+			return nil, err
 		}
 		if script.ops == nil {
 			script.ops = []op{}
@@ -737,48 +748,84 @@ func sessionsGolden() (any, error) {
 	return cases, nil
 }
 
-func envelopesGolden() (any, error) {
-	base := func(extra string) string {
-		return `{"schema":"pbs-parity-envelope/1","schema_version":"1.0.0","case_id":"c","request":{"method":"POST","path":"/openrtb2/auction","query":"a=1","headers":[]},"mock":{},"capture":{}` + extra + `}`
+// envelopeMember is one member of a hand-written envelope: its name and its
+// value as JSON text.
+type envelopeMember struct{ name, value string }
+
+// minimalEnvelope is the envelope with the members of over in place of its
+// own, each member written once as a runner writes it: a member of over whose
+// name the minimal envelope has replaces that member where it stands, and any
+// other is added after the minimal envelope's members.
+func minimalEnvelope(over ...envelopeMember) string {
+	members := []envelopeMember{
+		{"schema", `"pbs-parity-envelope/1"`},
+		{"schema_version", `"1.0.0"`},
+		{"case_id", `"c"`},
+		{"request", `{"method":"POST","path":"/openrtb2/auction","query":"a=1","headers":[]}`},
+		{"mock", `{}`},
+		{"capture", `{}`},
 	}
+	for _, o := range over {
+		replaced := false
+		for i := range members {
+			if members[i].name == o.name {
+				members[i].value = o.value
+				replaced = true
+			}
+		}
+		if !replaced {
+			members = append(members, o)
+		}
+	}
+	parts := make([]string, len(members))
+	for i, m := range members {
+		parts[i] = strconv.Quote(m.name) + ":" + m.value
+	}
+	return "{" + strings.Join(parts, ",") + "}"
+}
+
+func envelopesGolden() (any, error) {
+	type m = envelopeMember
+	base := minimalEnvelope
 	inputs := []struct{ name, input string }{
-		{"minimal", base("")},
-		{"capture_star", base(`,"capture":{"stages":"*"}`)},
-		{"capture_null", base(`,"capture":{"stages":null}`)},
-		{"capture_all_string", base(`,"capture":{"stages":"all"}`)},
-		{"capture_escaped_string", base(`,"capture":{"stages":"` + uEsc("002a") + `"}`)},
-		{"capture_list", base(`,"capture":{"stages":["http.in","made.up","http.in"]}`)},
-		{"capture_empty_list", base(`,"capture":{"stages":[]}`)},
-		{"capture_null_element", base(`,"capture":{"stages":[null,"http.in"]}`)},
-		{"capture_number_list", base(`,"capture":{"stages":[1]}`)},
-		{"capture_object", base(`,"capture":{"stages":{}}`)},
-		{"capture_bool", base(`,"capture":{"stages":true}`)},
-		{"capture_number", base(`,"capture":{"stages":5}`)},
-		{"capture_flags", base(`,"capture":{"metrics":false,"analytics":true}`)},
-		{"capture_flags_null", base(`,"capture":{"metrics":null,"analytics":false}`)},
-		{"decisions", base(`,"decisions":{"floors.skip":1,"floors.data_rate":"1","floors.modelgroup":2.5,"floors.enforce":null,"category.dedupe":1e2,"pricegranularity.timesplit":-0,"usersync.shuffle":"identity","unknown.point":3}`)},
-		{"decisions_extremes", base(`,"decisions":{"floors.modelgroup":9223372036854775807,"floors.skip":9223372036854775808,"floors.enforce":-9223372036854775808,"usersync.shuffle":"","floors.data_rate":true,"category.dedupe":[1]}`)},
-		{"decisions_null", base(`,"decisions":null`)},
-		{"headers", base(`,"request":{"method":"GET","path":"/p","query":"","headers":[["Content-Type","a"],["content-type","b"],["X","c"],["only"],["a","b","c"],[],null,["K",null]]}`)},
-		{"headers_null", base(`,"request":{"method":"GET","path":"/p","query":"","headers":null}`)},
-		{"headers_object", base(`,"request":{"method":"GET","path":"/p","query":"","headers":{}}`)},
-		{"headers_pair_object", base(`,"request":{"method":"GET","path":"/p","query":"","headers":[{"a":1}]}`)},
-		{"headers_pair_number", base(`,"request":{"method":"GET","path":"/p","query":"","headers":[[1,"x"]]}`)},
-		{"headers_pair_string", base(`,"request":{"method":"GET","path":"/p","query":"","headers":["ab"]}`)},
-		{"type_error", base(`,"case_id":5`)},
-		{"nested_type_error", base(`,"mock":{"inline":{"rules":[{"response":{"status":"200"}}]}}`)},
+		{"minimal", base()},
+		{"capture_star", base(m{"capture", `{"stages":"*"}`})},
+		{"capture_null", base(m{"capture", `{"stages":null}`})},
+		{"capture_all_string", base(m{"capture", `{"stages":"all"}`})},
+		{"capture_escaped_string", base(m{"capture", `{"stages":"` + uEsc("002a") + `"}`})},
+		{"capture_list", base(m{"capture", `{"stages":["http.in","made.up","http.in"]}`})},
+		{"capture_empty_list", base(m{"capture", `{"stages":[]}`})},
+		{"capture_null_element", base(m{"capture", `{"stages":[null,"http.in"]}`})},
+		{"capture_number_list", base(m{"capture", `{"stages":[1]}`})},
+		{"capture_object", base(m{"capture", `{"stages":{}}`})},
+		{"capture_bool", base(m{"capture", `{"stages":true}`})},
+		{"capture_number", base(m{"capture", `{"stages":5}`})},
+		{"capture_flags", base(m{"capture", `{"metrics":false,"analytics":true}`})},
+		{"capture_flags_null", base(m{"capture", `{"metrics":null,"analytics":false}`})},
+		{"decisions", base(m{"decisions", `{"floors.skip":1,"floors.data_rate":"1","floors.modelgroup":2.5,"floors.enforce":null,"category.dedupe":1e2,"pricegranularity.timesplit":-0,"usersync.shuffle":"identity","unknown.point":3}`})},
+		{"decisions_extremes", base(m{"decisions", `{"floors.modelgroup":9223372036854775807,"floors.skip":9223372036854775808,"floors.enforce":-9223372036854775808,"usersync.shuffle":"","floors.data_rate":true,"category.dedupe":[1]}`})},
+		{"decisions_null", base(m{"decisions", `null`})},
+		{"headers", base(m{"request", `{"method":"GET","path":"/p","query":"","headers":[["Content-Type","a"],["content-type","b"],["X","c"],["only"],["a","b","c"],[],null,["K",null]]}`})},
+		{"headers_null", base(m{"request", `{"method":"GET","path":"/p","query":"","headers":null}`})},
+		{"headers_object", base(m{"request", `{"method":"GET","path":"/p","query":"","headers":{}}`})},
+		{"headers_pair_object", base(m{"request", `{"method":"GET","path":"/p","query":"","headers":[{"a":1}]}`})},
+		{"headers_pair_number", base(m{"request", `{"method":"GET","path":"/p","query":"","headers":[[1,"x"]]}`})},
+		{"headers_pair_string", base(m{"request", `{"method":"GET","path":"/p","query":"","headers":["ab"]}`})},
+		{"type_error", base(m{"case_id", `5`})},
+		{"nested_type_error", base(m{"mock", `{"inline":{"rules":[{"response":{"status":"200"}}]}}`})},
 		{"syntax_error", `{"case_id":`},
-		{"trailing_garbage", base("") + ` x`},
+		{"trailing_garbage", base() + ` x`},
 		{"not_object", `[1]`},
-		{"fakes", base(`,"fakes":{"now_unix_ms":1,"int63":2,"uuid":"x"}`)},
-		{"fakes_zero", base(`,"fakes":{"now_unix_ms":0,"int63":0,"uuid":""}`)},
-		{"mock_inline", base(`,"mock":{"mode":"inline","level":"http","inline":{"rules":[{"id":"r1","kind":"bidder","bidder":"appnexus","uri_regex":"^https://","response":{"status":204,"delay_ms":10}},{"response":{"fail":"timeout"}}],"bidders":{"appnexus":{"status":200,"headers":[["Content-Type","application/json"]],"body":{"json":{"id":"1"}}}},"default_bidder":{"status":204},"cache":{"status":200,"body":{"text":"{\"responses\":[]}"}},"kinds":{"currency":{"fail":"refused"},"floors":{"fail":""}}}}`)},
-		{"mock_bidder_response", base(`,"mock":{"mode":"inline","level":"bidder_response","bidder_responses":{"appnexus":{"currency":"USD","bids":[{"bid":{"id":"b","impid":"i","price":1.5},"type":"banner","seat":"s","video":{"duration":5},"meta":{"x":1},"deal_priority":2}],"fledge_auction_configs":[{"a":1}],"errors":[{"code":2,"message":"m"}]},"rubicon":{"nil_response":true,"currency":"","bids":null}}}`)},
-		{"body_variants", base(`,"request":{"method":"POST","path":"/p","query":"","headers":[],"body":{"text":"<a>","b64":"PGE+","json":{"a":"<"},"content_encoding":"br"},"remote_addr":"1.2.3.4:5","host":"h"}`)},
-		{"unknown_fields", base(`,"extra":1,"request":{"method":"GET","path":"/p","query":"","headers":[],"extra":2}`)},
-		{"case_insensitive_keys", base(`,"CASE_ID":"upper","Profile":"p"`)},
-		{"duplicate_keys", base(`,"case_id":"a","case_id":"b"`)},
-		{"html_in_strings", base(`,"case_id":"<&>","fixture_path":"a` + uEsc("2028") + `b"`)},
+		{"fakes", base(m{"fakes", `{"now_unix_ms":1,"int63":2,"uuid":"x"}`})},
+		{"fakes_zero", base(m{"fakes", `{"now_unix_ms":0,"int63":0,"uuid":""}`})},
+		{"mock_inline", base(m{"mock", `{"mode":"inline","level":"http","inline":{"rules":[{"id":"r1","kind":"bidder","bidder":"appnexus","uri_regex":"^https://","response":{"status":204,"delay_ms":10}},{"response":{"fail":"timeout"}}],"bidders":{"appnexus":{"status":200,"headers":[["Content-Type","application/json"]],"body":{"json":{"id":"1"}}}},"default_bidder":{"status":204},"cache":{"status":200,"body":{"text":"{\"responses\":[]}"}},"kinds":{"currency":{"fail":"refused"},"floors":{"fail":""}}}}`})},
+		{"mock_bidder_response", base(m{"mock", `{"mode":"inline","level":"bidder_response","bidder_responses":{"appnexus":{"currency":"USD","bids":[{"bid":{"id":"b","impid":"i","price":1.5},"type":"banner","seat":"s","video":{"duration":5},"meta":{"x":1},"deal_priority":2}],"fledge_auction_configs":[{"a":1}],"errors":[{"code":2,"message":"m"}]},"rubicon":{"nil_response":true,"currency":"","bids":null}}}`})},
+		{"body_variants", base(m{"request", `{"method":"POST","path":"/p","query":"","headers":[],"body":{"text":"<a>","b64":"PGE+","json":{"a":"<"},"content_encoding":"br"},"remote_addr":"1.2.3.4:5","host":"h"}`})},
+		{"unknown_fields", base(m{"request", `{"method":"GET","path":"/p","query":"","headers":[],"extra":2}`}, m{"extra", `1`})},
+		{"case_insensitive_keys", base(m{"CASE_ID", `"upper"`}, m{"Profile", `"p"`})},
+		// The one case that repeats a member: the second case_id replaces the first.
+		{"duplicate_keys", base(m{"case_id", `"a","case_id":"b"`})},
+		{"html_in_strings", base(m{"case_id", `"<&>"`}, m{"fixture_path", `"a` + uEsc("2028") + `b"`})},
 	}
 	for _, name := range []string{"envelope.oracle.json", "envelope.inline.json", "envelope.bidder_response.json"} {
 		raw, err := schema.Example(name)

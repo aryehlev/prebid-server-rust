@@ -13,9 +13,10 @@ use std::{
     sync::{Arc, Mutex, PoisonError, RwLock},
 };
 
+use base64::{Engine as _, engine::general_purpose::STANDARD};
 use pbs_errortypes::GoError;
-use pbs_gocompat::{base64::STD_ENCODING, strconv::quote_bytes};
-use pbs_gojson::{GoEncode, GoString, RawJson, jsonutil, stdjson};
+use serde::Serialize;
+use serde_json::value::RawValue;
 use tokio::{
     sync::{Mutex as AsyncMutex, MutexGuard as AsyncMutexGuard, Notify},
     time::timeout,
@@ -136,7 +137,7 @@ struct State {
     decisions: Vec<Decision>,
     http_out: Vec<OutboundCall>,
     analytics: Vec<AnalyticsRecord>,
-    notes: Vec<GoString>,
+    notes: Vec<String>,
 }
 
 /// Registers one task of the case that can still change observable state after the handler
@@ -170,7 +171,7 @@ impl Session {
                     .fold(0, |set, stage| set | stage.bit()),
             ),
             Err(err) => {
-                notes.push(GoString::from(format!("capture.stages ignored: {err}")));
+                notes.push(format!("capture.stages ignored: {err}"));
                 None
             }
         };
@@ -214,31 +215,31 @@ impl Session {
         self.0.filter.is_none_or(|set| set & stage.bit() != 0)
     }
 
-    /// Records `value` under (`stage`, `key`) as the bytes `jsonutil.Marshal` writes, so the raw
-    /// form keeps Go's lexical form (Go: `Session.Record`). An empty key means [`UNKEYED_STAGE`].
-    /// Recording the same (stage, key) again replaces the value and counts the write. A marshal
-    /// error is noted on the entry instead.
-    pub fn record<T: GoEncode + ?Sized>(&self, stage: StageId, key: &str, value: &T) {
+    /// Records `value` under (`stage`, `key`) as the bytes `jsonutil.Marshal` writes
+    /// ([`pbs_jsonutil::marshal`]), so the raw form keeps the implementation's lexical form (Go:
+    /// `Session.Record`). An empty key means [`UNKEYED_STAGE`]. Recording the same (stage, key)
+    /// again replaces the value and counts the write. A marshal error is noted on the entry
+    /// instead.
+    pub fn record<T: Serialize + ?Sized>(&self, stage: StageId, key: &str, value: &T) {
         if !self.wants(stage) {
             return;
         }
-        match jsonutil::marshal(value) {
+        match pbs_jsonutil::marshal(value) {
             Ok(raw) => self.record_raw(stage, key, &raw),
             Err(err) => {
-                let mut note = b"marshal error: ".to_vec();
-                note.extend_from_slice(err.message.as_bytes());
+                let note = format!("marshal error: {}", err.message());
                 self.with_state(|rec| {
                     entry(&mut rec.stages, stage, key)
                         .notes
                         .get_or_insert_with(Vec::new)
-                        .push(GoString::from_bytes(note));
+                        .push(note);
                 });
             }
         }
     }
 
     /// [`Session::record`] of the value `build` returns, built only when `stage` is captured.
-    pub fn record_with<T: GoEncode, F: FnOnce() -> T>(&self, stage: StageId, key: &str, build: F) {
+    pub fn record_with<T: Serialize, F: FnOnce() -> T>(&self, stage: StageId, key: &str, build: F) {
         if self.wants(stage) {
             self.record(stage, key, &build());
         }
@@ -251,10 +252,12 @@ impl Session {
             return;
         }
         let (text, b64) = str::from_utf8(raw).map_or_else(
-            |_| (None, Some(STD_ENCODING.encode_to_string(raw))),
+            |_| (None, Some(STANDARD.encode(raw))),
             |text| (Some(text.to_owned()), None),
         );
-        let json = stdjson::valid(raw).then(|| RawJson::from_slice(raw));
+        let json = text
+            .as_ref()
+            .and_then(|text| RawValue::from_string(text.clone()).ok());
         self.with_state(|rec| {
             rec.seq += 1;
             let e = entry(&mut rec.stages, stage, key);
@@ -265,9 +268,9 @@ impl Session {
             if json.is_none() {
                 e.notes
                     .get_or_insert_with(Vec::new)
-                    .push(GoString::from("raw value is not valid JSON"));
+                    .push("raw value is not valid JSON".to_owned());
             }
-            e.json = json.unwrap_or_default();
+            e.json = json;
         });
     }
 
@@ -297,7 +300,7 @@ impl Session {
     }
 
     /// Appends a free-form note to the trace (Go: `Session.Note`).
-    pub fn note<N: Into<GoString>>(&self, note: N) {
+    pub fn note<N: Into<String>>(&self, note: N) {
         let note = note.into();
         self.with_state(|rec| rec.notes.push(note));
     }
@@ -315,33 +318,27 @@ impl Session {
         });
     }
 
-    /// Marshals one analytics object with `jsonutil.Marshal` and appends it
-    /// (Go: `Session.AddAnalytics`). An object that does not marshal to valid JSON (a raw message
-    /// member that does not compact leaves `"ext":}`) is noted instead, so the trace stays
-    /// encodable.
-    pub fn add_analytics<T: GoEncode + ?Sized>(&self, kind: &str, object: &T) {
+    /// Marshals one analytics object with `jsonutil.Marshal` ([`pbs_jsonutil::marshal_raw`]) and
+    /// appends it (Go: `Session.AddAnalytics`). A marshal error is noted instead. (Go also notes
+    /// an object `jsonutil.Marshal` writes as invalid JSON, a raw message member that does not
+    /// compact leaving `"ext":}`; a `RawValue` always holds JSON, so that cannot happen here.)
+    pub fn add_analytics<T: Serialize + ?Sized>(&self, kind: &str, object: &T) {
         if !self.wants(StageId::Analytics) || !self.0.env.capture.wants_analytics() {
             return;
         }
-        let raw = match jsonutil::marshal(object) {
-            Ok(raw) => raw,
+        let object = match pbs_jsonutil::marshal_raw(object) {
+            Ok(object) => object,
             Err(err) => {
-                let mut note = format!("analytics {kind}: marshal error: ").into_bytes();
-                note.extend_from_slice(err.message.as_bytes());
-                self.note(note);
+                self.note(format!(
+                    "analytics {kind}: marshal error: {}",
+                    err.message()
+                ));
                 return;
             }
         };
-        if !stdjson::valid(&raw) {
-            self.note(format!(
-                "analytics {kind}: marshaled object is not valid JSON, not recorded: {}",
-                quote_bytes(&raw)
-            ));
-            return;
-        }
         let record = AnalyticsRecord {
             kind: kind.to_owned(),
-            object: RawJson::from_vec(raw),
+            object: Some(object),
         };
         self.with_state(|rec| {
             rec.analytics.push(record);
@@ -502,13 +499,13 @@ impl Session {
     /// The value most recently recorded for `point`, or `None` when the case did not reach it
     /// (Go: `Session.LastDecision`).
     #[must_use]
-    pub fn last_decision(&self, point: DecisionId) -> Option<RawJson> {
+    pub fn last_decision(&self, point: DecisionId) -> Option<Box<RawValue>> {
         self.with_state(|rec| {
             rec.decisions
                 .iter()
                 .rev()
                 .find(|d| d.point == point)
-                .map(|d| d.value.clone())
+                .and_then(|d| d.value.clone())
         })
     }
 
@@ -559,9 +556,9 @@ impl Session {
     ) {
         let decision = Decision {
             point,
-            value: RawJson::from_vec(value.into_bytes()),
+            value: RawValue::from_string(value).ok(),
             source: source.to_owned(),
-            notes: note.map(|n| vec![GoString::from(n)]),
+            notes: note.map(|n| vec![n]),
         };
         self.with_state(|rec| rec.decisions.push(decision));
     }
@@ -581,12 +578,10 @@ fn entry<'a>(
         .or_default()
 }
 
-/// `json.Marshal` of a string (Go: `trace.quote`).
+/// A string as a JSON value (Go: `trace.quote`, `json.Marshal` of the string, which writes `<`,
+/// `>` and `&` as `\u` escapes).
 fn json_string(v: &str) -> String {
-    stdjson::marshal(v)
-        .ok()
-        .and_then(|raw| String::from_utf8(raw).ok())
-        .unwrap_or_else(|| "\"\"".to_owned())
+    serde_json::to_string(v).unwrap_or_else(|_| "\"\"".to_owned())
 }
 
 /// Go's `int64(n)` of an `int`.

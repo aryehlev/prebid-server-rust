@@ -1,9 +1,10 @@
 package main
 
 // Generated differential cases: scripted sessions drawn from a fixed seed
-// (sessions_fuzz.json) and the fake values, UUID streams and map orders the
-// installed fakes serve across a sequence of cases (cases.json). The Rust
-// crate replays both against its own Session and fakes.
+// (sessions_fuzz.json, and the portable forms of portable.go) and the fake
+// values, UUID streams and map orders the installed fakes serve across a
+// sequence of cases (cases.json). The Rust crate replays them against its own
+// Session and fakes.
 
 import (
 	"cmp"
@@ -541,42 +542,35 @@ func (f *fuzzer) op() op {
 	return o
 }
 
-// fuzzSessionsGolden runs generated scripts through trace.Session, recording
-// each op's result and the encoded trace as exact bytes.
-func fuzzSessionsGolden() (any, error) {
+// fuzzSessions draws the generated scripts.
+func fuzzSessions() []sessionScript {
 	f := newFuzzer(fuzzSeed)
-	cases := make([]map[string]any, 0, fuzzScripts)
+	scripts := make([]sessionScript, 0, fuzzScripts)
 	for i := 0; i < fuzzScripts; i++ {
 		envelope := f.envelope(i)
 		ops := make([]op, f.intn(40))
 		for j := range ops {
 			ops[j] = f.op()
 		}
-		var env parity.Envelope
-		if err := json.Unmarshal([]byte(envelope), &env); err != nil {
-			return nil, fmt.Errorf("script %d: %w", i, err)
-		}
-		s, end := trace.Begin(&env)
-		results := make([]any, 0, len(ops))
-		for _, o := range ops {
-			r, err := runOp(s, o)
-			if err != nil {
-				end()
-				return nil, fmt.Errorf("script %d: %s: %w", i, o.Op, err)
-			}
-			results = append(results, r)
-		}
-		snap := s.Snapshot()
-		end()
-		snap.Impl = parity.ImplRust
-		doc, err := writeJSON(snap)
+		scripts = append(scripts, sessionScript{name: fmt.Sprintf("fuzz-%d", i), envelope: envelope, ops: ops})
+	}
+	return scripts
+}
+
+// fuzzSessionsGolden runs generated scripts through trace.Session, recording
+// each op's result and the encoded trace as exact bytes.
+func fuzzSessionsGolden() (any, error) {
+	scripts := fuzzSessions()
+	cases := make([]map[string]any, 0, len(scripts))
+	for _, script := range scripts {
+		results, doc, err := runScript(script)
 		if err != nil {
-			return nil, fmt.Errorf("script %d: encoding the trace: %w", i, err)
+			return nil, err
 		}
 		cases = append(cases, map[string]any{
-			"name":      fmt.Sprintf("fuzz-%d", i),
-			"envelope":  envelope,
-			"ops":       ops,
+			"name":      script.name,
+			"envelope":  script.envelope,
+			"ops":       script.ops,
 			"results":   results,
 			"trace_b64": base64.StdEncoding.EncodeToString([]byte(doc)),
 		})

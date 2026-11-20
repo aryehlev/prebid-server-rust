@@ -1205,11 +1205,14 @@ dependencies = [
 name = "pbs-parity"
 version = "0.1.0"
 dependencies = [
+ "base64",
+ "flate2",
  "pbs-errortypes",
  "pbs-gocompat",
- "pbs-gojson",
+ "pbs-jsonutil",
  "pbs-metrics",
  "pbs-util",
+ "serde",
  "serde_json",
  "sha2",
  "tokio",

@@ -6,6 +6,7 @@
     "crates/gpp/differences.toml",
     "crates/http-client/differences.toml",
     "crates/jsonutil/differences.toml",
+    "crates/parity/differences.toml",
     "crates/router/differences.toml",
     "crates/server/differences.toml",
     "crates/tcf2/differences.toml"
@@ -76,6 +77,29 @@
       "restore_pending": false,
       "note": "The bytes are the crate's. go-gpp pads an incomplete last quantum with `A` before decoding (util/bitstream.go:35-41), which is go-gpp's own logic and is ported as it is.",
       "fragment": "crates/tcf2/differences.toml"
+    },
+    {
+      "id": "base64.parity-std-encoding",
+      "category": "base64",
+      "status": "ledgered",
+      "title": "Parity bodies and meta headers: Go's `base64.StdEncoding` skips line breaks and ignores unused bits, the base64 crate refuses both",
+      "go": "A body's `b64` member and the `X-Parity-Meta` header are decoded with `base64.StdEncoding.DecodeString` (parity/body.go:67, parity/transport/meta.go:28): it skips `\\r` and `\\n` anywhere, accepts a last digit whose unused bits are set (`aGl=` is `hi`), and reports `illegal base64 data at input byte N`.",
+      "rust": "The base64 crate's `STANDARD` engine refuses a line break and a last digit with unused bits set, and words its errors its own way: `body.b64: Invalid symbol 33, offset 0.` where Go says `body.b64: illegal base64 data at input byte 0`.",
+      "who": [
+        "none"
+      ],
+      "visible_in": "Which `b64` bodies and `X-Parity-Meta` values the Rust server reads, and the error texts, for values the runner never writes: it encodes them with `base64.StdEncoding.EncodeToString`",
+      "harness": [],
+      "pin": "crates/parity/src/body_test.rs::b64_is_read_by_the_standard_engine",
+      "restore": "Glue that drops line breaks and clears unused bits before decoding, as pbs-tcf2's `base64` does for consent strings; not planned, since only the runner writes these values.",
+      "default": null,
+      "decision": null,
+      "rule_b": null,
+      "restore_by": [],
+      "restorations": [],
+      "restore_pending": false,
+      "note": null,
+      "fragment": "crates/parity/differences.toml"
     },
     {
       "id": "cache.large-entries",
@@ -560,6 +584,29 @@
       "restore_pending": false,
       "note": "`crates/tcf2/tests/vendorlist.rs::gvl_corpus` counts, per reason, how the 5,017 documents of the two Go corpora read beside Go. Reading the list through JSONUTIL's decode entry for outside bytes, once it merges (orchestrator ruling 7), would restore keys with a lone surrogate.",
       "fragment": "crates/tcf2/differences.toml"
+    },
+    {
+      "id": "gzip.parity-bodies",
+      "category": "gzip",
+      "status": "ledgered",
+      "title": "Parity bodies: flate2 writes and reads their gzip, and a `Content-Encoding` outside ASCII is found and lower-cased by Rust's case rules",
+      "go": "A body's content is compressed with `gzip.NewWriter` and inflated with `gzip.NewReader` (parity/body.go:111-148), under the trimmed `Content-Encoding` lower-cased by `strings.ToLower`, which maps each rune on its own: U+0130 to `i`, so `GZ\\u0130P` is gzip, and U+03A3 to U+03C3, so `A\\u03a3` is `a\\u03c3` (parity/body.go:103-109). The exec handler finds the request's `Content-Encoding` with `HeaderList.Values`, which compares names with `strings.EqualFold` (parity/envelope.go:42-50, parity/server/exec.go:206-221), so `s` finds `\\u017f` and `\\u03b1\\u03c3` finds `\\u0391\\u03a3`. An empty gzip body fails with `gzip decode: EOF`.",
+      "rust": "flate2 compresses the same content to other bytes (`gzip.payload-bytes`) and words its errors its own way (`gzip decode: unexpected end of file` for an empty body). `str::to_lowercase` maps U+0130 to `i` and U+0307, so under `GZ\\u0130P` a recorded body is kept as `b64` without `json` and an input body is refused (`unsupported content encoding`), and a final U+03A3 to U+03C2, so `A\\u03a3` is recorded as `a\\u03c2`. `HeaderList::values` compares the names lower-cased, so `s` does not find `\\u017f`, `\\u03b1\\u03c3` does not find `\\u0391\\u03a3` and `i\\u0307` finds `\\u0130`.",
+      "who": [
+        "none"
+      ],
+      "visible_in": "The trace's recorded bodies and the bodies the Rust server sends for an envelope: their gzip bytes, and the reading of a `Content-Encoding`, or of a header name, outside ASCII, which the runner never writes",
+      "harness": [],
+      "pin": "crates/parity/src/body_test.rs::gzip_is_flate2s_and_case_mapping_rusts",
+      "restore": "Go's case mapping and folding for the encoding and the header names; not planned, since content codings and field names are ASCII tokens (RFC 9110).",
+      "default": null,
+      "decision": null,
+      "rule_b": null,
+      "restore_by": [],
+      "restorations": [],
+      "restore_pending": false,
+      "note": null,
+      "fragment": "crates/parity/differences.toml"
     },
     {
       "id": "gzip.payload-bytes",
@@ -2039,6 +2086,52 @@
       "fragment": "crates/jsonutil/differences.toml"
     },
     {
+      "id": "json.parity-documents",
+      "category": "json",
+      "status": "ledgered",
+      "title": "Parity documents: Go reads and writes them with `encoding/json`, pbs-parity with serde",
+      "go": "The `parity` packages read the harness documents (envelopes, adapter inputs and outputs, the outbound meta, health, config and bidders dumps, reset results and traces) with `json.Unmarshal` and write them with `json.Marshal` and a `json.Encoder`: a key fills the member it matches ignoring case, the last of repeated members wins, `null` leaves a value member unset, a `null` raw member is kept as `null`, a header pair is padded or cut to two strings, the ID string types take any value, a string that is not UTF-8 reads with U+FFFD, `<`, `>`, `&`, U+2028 and U+2029 are written as escapes, and a NaN that `Session.Record` or `Session.AddAnalytics` gets is a marshal error, noted in the trace in its place.",
+      "rust": "The documents are serde types that serde_json reads and writes (orchestrator ruling 3), so the JSON entries apply: `json.key-case`, `json.duplicate-keys`, `json.null-into-value`, `json.null-elements`, `json.null-raw`, `json.invalid-utf8`, `json.html-escape`, `json.float-format`, `json.raw-not-compacted`, `json.struct-from-array`, `json.error-texts`, `json.negative-zero-int` and `json.non-finite`. A header pair of another length is refused (`invalid length 1, expected a tuple of size 2`), the stage, status and decision IDs are closed enums that refuse a name outside the registry (`parity: unregistered parity.StageID value \"made.up\"`), a NaN is recorded as `null` (an analytics object that is NaN makes `analytics[].object` null, which the trace schema refuses), a raw value that is not JSON has no Rust form, so nothing records one or notes it as Go does, bytes `Session::record_raw` gets that are JSON but for invalid UTF-8 get no `json` member and the note `raw value is not valid JSON` where Go's `json.Valid` takes them, and the crate's own messages quote with `{:?}` where Go uses `%q`. Every other document compares equal with Go's as a JSON value, which is how the runner compares the two servers' documents, but for the decision notes of `json.parity-override-notes`. The golden tests count the generated sessions each of these touches and replay those sessions without the input in full.",
+      "who": [
+        "none"
+      ],
+      "visible_in": "The parity harness's documents, which only the Go runner writes and reads: their spelling, and how a document the runner never writes reads",
+      "harness": [],
+      "pin": "crates/parity/src/envelope_test.rs::documents_read_as_serde_reads_them",
+      "restore": "`encoding/json`'s reading on the documents' derives; not planned (orchestrator rulings 2 and 3).",
+      "default": null,
+      "decision": null,
+      "rule_b": null,
+      "restore_by": [],
+      "restorations": [],
+      "restore_pending": false,
+      "note": null,
+      "fragment": "crates/parity/differences.toml"
+    },
+    {
+      "id": "json.parity-override-notes",
+      "category": "json",
+      "status": "ledgered",
+      "title": "Trace decision notes: Go quotes a refused override with `json.Marshal`, which escapes HTML characters, pbs-parity with serde_json",
+      "go": "`Session.DecideString` notes an override outside the point's allowed values as `envelope override <value> is not an allowed value`, the value quoted by `json.Marshal` (parity/trace/decide.go:117-119, 176-182), which writes `<`, `>` and `&` as `\\u003c`, `\\u003e` and `\\u0026` and U+2028 and U+2029 as `\\u2028` and `\\u2029`.",
+      "rust": "The note quotes with `serde_json::to_string`, which writes the five as they are (`json.html-escape`), so the note of an override holding one is another string. The values both record are the same JSON value.",
+      "who": [
+        "none"
+      ],
+      "visible_in": "A trace's `decisions[].notes`, for an envelope override outside the allowed values that holds one of those characters, which the runner never writes",
+      "harness": [],
+      "pin": "crates/parity/src/trace/trace_test.rs::override_notes_quote_as_serde_json",
+      "restore": "Quote the note with a serde_json formatter that escapes as `json.Marshal` does; not planned (orchestrator ruling 2).",
+      "default": null,
+      "decision": null,
+      "rule_b": null,
+      "restore_by": [],
+      "restorations": [],
+      "restore_pending": false,
+      "note": null,
+      "fragment": "crates/parity/differences.toml"
+    },
+    {
       "id": "json.parse-into-string-lenient",
       "category": "json",
       "status": "ledgered",
@@ -2294,6 +2387,29 @@
       "restore_pending": false,
       "note": "The glog calls that bypass the facade (the rules engine's observer.go:14 and :20, and the WURFL module) write their own file and line; no pin covers them.",
       "fragment": "crates/differences/differences.toml"
+    },
+    {
+      "id": "metrics.parity-delta-order",
+      "category": "metrics",
+      "status": "ledgered",
+      "title": "Trace metric deltas: ordered by series keys that quote label values with `{:?}`, not `strconv.Quote`",
+      "go": "`trace.MetricsDelta` sorts the changed series by `seriesKey`: the metric name and its labels sorted by name, each value quoted with `strconv.Quote` (parity/trace/metrics.go:55-68, 144-163).",
+      "rust": "The port quotes with `{:?}`, which agrees on printable text and escapes control and unprintable characters otherwise (`\\u{c}` where Go writes `\\f`, `\\u{1f}` for `\\x1f`), so two series whose label values differ there can come in the other order; each delta is Go's. 3 of the 150 generated registries of metrics_fuzz.json come out reordered.",
+      "who": [
+        "none"
+      ],
+      "visible_in": "The order of a trace's `metrics_delta` list when label values hold control or unprintable characters",
+      "harness": [],
+      "pin": "crates/parity/src/trace/metrics_test.rs::delta_order_follows_rust_quoting",
+      "restore": "A port of `strconv.Quote` for the key, which needs Go's tables of printable characters; not planned.",
+      "default": null,
+      "decision": null,
+      "rule_b": null,
+      "restore_by": [],
+      "restorations": [],
+      "restore_pending": false,
+      "note": null,
+      "fragment": "crates/parity/differences.toml"
     },
     {
       "id": "metrics.sample-float-format",

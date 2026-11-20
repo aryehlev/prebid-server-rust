@@ -4,7 +4,7 @@
 //! The strings are a cross-language contract: they change only together with the schema files
 //! and a `schema_version` bump on the Go side.
 
-use pbs_gojson::{GoEncode, GoJson, JsonError, stdjson};
+use serde::Serialize;
 
 /// The semantic version of every parity document (Go: `parity.SchemaVersion`).
 pub const SCHEMA_VERSION: &str = "1.0.0";
@@ -117,35 +117,35 @@ impl Domain {
     }
 }
 
-/// The bytes the Go server writes for a parity document (Go: `parity/server` `writeJSON`).
+/// The bytes the Rust server writes for a parity document (Go: `parity/server` `writeJSON`).
 ///
-/// That is `encoding/json`'s `Encoder` with `SetEscapeHTML(false)`, so embedded
-/// `json.RawMessage` members keep `<`, `>` and `&`, plus the trailing newline.
+/// The document as `serde_json` writes it, plus the trailing newline of Go's `encoding/json`
+/// `Encoder` (with `SetEscapeHTML(false)`). The runner reads these documents as JSON, so they need
+/// not be Go's bytes: `serde_json` leaves U+2028 and U+2029 unescaped, spells floats its way and
+/// writes raw members as they were read (`json.parity-documents`).
 ///
 /// # Errors
 ///
-/// Go's encode error (`json: unsupported value: NaN`, an invalid raw message, ...), which the Go
-/// server answers with a 500 `parity: encoding response: <error>`.
-pub fn encode_document<T: GoEncode + ?Sized>(doc: &T) -> Result<Vec<u8>, JsonError> {
-    stdjson::encode_no_escape_html(doc)
+/// `serde_json`'s error when `doc` cannot be written (a `Serialize` implementation that fails).
+pub fn encode_document<T: Serialize + ?Sized>(doc: &T) -> Result<Vec<u8>, serde_json::Error> {
+    let mut out = serde_json::to_vec(doc)?;
+    out.push(b'\n');
+    Ok(out)
 }
 
-/// The body of a `/__parity/*` error answer (Go: `wiring.WriteError`): `{"error": msg}` as
-/// `json.Marshal` writes it, without a trailing newline, sent as `application/json`.
+/// The body of a `/__parity/*` error answer (Go: `wiring.WriteError`): `{"error": msg}`, without a
+/// trailing newline, sent as `application/json`.
 #[must_use]
 pub fn error_document(msg: &str) -> Vec<u8> {
-    stdjson::marshal(&ErrorDocument {
-        error: msg.to_owned(),
-    })
-    .unwrap_or_else(|_| br#"{"error":"parity: internal error"}"#.to_vec())
+    serde_json::to_vec(&ErrorDocument { error: msg })
+        .unwrap_or_else(|_| br#"{"error":"parity: internal error"}"#.to_vec())
 }
 
-/// Go's `map[string]string{"error": msg}` (one key, so a struct writes the same bytes).
-#[derive(GoJson)]
-#[gojson(go_type = "map[string]string")]
-struct ErrorDocument {
-    #[gojson(json = "error")]
-    error: String,
+/// Go's `map[string]string{"error": msg}` (one key, so a struct writes the same members).
+#[derive(Serialize)]
+struct ErrorDocument<'a> {
+    /// The message.
+    error: &'a str,
 }
 
 #[cfg(test)]

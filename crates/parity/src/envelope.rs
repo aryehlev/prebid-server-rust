@@ -4,114 +4,120 @@
 use core::{error::Error, fmt};
 use std::collections::{BTreeMap, BTreeSet};
 
-use pbs_gocompat::{strconv::quote, strings::equal_fold};
-use pbs_gojson::{
-    Encoder, GoEncode, GoJson, GoKind, GoType, JsonError, JsoniterDecode, RawJson, StdDecode,
-    jsoniter::{self, Iter},
-    stdjson::{self, Class, StdDecoder, Token, literal_store, std_decode_slice},
-};
+use serde::{Deserialize, Serialize};
+use serde_json::value::RawValue;
 
 use crate::{
     body::Body,
     ids::{DecisionId, MOCK_LEVEL_HTTP, MOCK_MODE_ORACLE},
 };
 
+/// The `omitempty` test of a number or bool member of the documents' Go structs, for
+/// `skip_serializing_if`: `true` for its zero value.
+pub(crate) fn is_zero<T: Default + PartialEq>(value: &T) -> bool {
+    *value == T::default()
+}
+
+/// The `omitempty` test of a slice or map member, an `Option` of a collection: `true` when it is
+/// nil (`None`) or holds nothing (the `Option` iterates over the one collection it holds, or none).
+pub(crate) fn nil_or_empty<C, I>(value: &C) -> bool
+where
+    for<'a> &'a C: IntoIterator<Item = &'a I>,
+    for<'a> &'a I: IntoIterator,
+{
+    value
+        .into_iter()
+        .all(|inner| inner.into_iter().next().is_none())
+}
+
 /// One parity case (Go: `parity.Envelope`).
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
-#[gojson(go_type = "parity.Envelope")]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[serde(default)]
 pub struct Envelope {
     /// Always [`SCHEMA_ENVELOPE`](crate::contracts::SCHEMA_ENVELOPE).
-    #[gojson(json = "schema")]
     pub schema: String,
     /// The contract version.
-    #[gojson(json = "schema_version")]
     pub schema_version: String,
     /// The case ID.
-    #[gojson(go = "CaseID", json = "case_id")]
     pub case_id: String,
     /// The fixture the case was generated from.
-    #[gojson(json = "fixture_path,omitempty")]
+    #[serde(skip_serializing_if = "String::is_empty")]
     pub fixture_path: String,
     /// The server profile the case needs.
-    #[gojson(json = "profile,omitempty")]
+    #[serde(skip_serializing_if = "String::is_empty")]
     pub profile: String,
     /// The inbound request to dispatch through the full handler chain.
-    #[gojson(json = "request")]
     pub request: ExecRequest,
     /// How outbound calls are answered.
-    #[gojson(json = "mock")]
     pub mock: MockSpec,
     /// Pinned decision points, by decision ID.
-    #[gojson(json = "decisions,omitempty")]
-    pub decisions: Option<BTreeMap<String, RawJson>>,
+    #[serde(skip_serializing_if = "nil_or_empty")]
+    pub decisions: Option<BTreeMap<String, Box<RawValue>>>,
     /// The fake clock, random and UUID values for the case.
-    #[gojson(json = "fakes,omitempty")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub fakes: Option<FakeValues>,
     /// What the server records.
-    #[gojson(json = "capture")]
     pub capture: CaptureSpec,
 }
 
 impl Envelope {
-    /// The integer override for `point`, if the envelope has one that `json.Unmarshal` accepts
-    /// into an `int64` (`null` reads as 0) (Go: `Envelope.DecisionInt`).
+    /// The integer override for `point`, if the envelope has one that reads as an `int64` (`null`
+    /// reads as 0, as in Go's `json.Unmarshal`) (Go: `Envelope.DecisionInt`).
     #[must_use]
     pub fn decision_int(&self, point: DecisionId) -> Option<i64> {
         let raw = self.decision(point)?;
-        let mut n = 0_i64;
-        stdjson::unmarshal(raw.as_bytes(), &mut n).ok()?;
-        Some(n)
+        serde_json::from_str::<Option<i64>>(raw.get())
+            .ok()
+            .map(Option::unwrap_or_default)
     }
 
-    /// The string override for `point`, if the envelope has one that `json.Unmarshal` accepts
-    /// into a `string` (`null` reads as `""`) (Go: `Envelope.DecisionString`).
+    /// The string override for `point`, if the envelope has one that reads as a `string` (`null`
+    /// reads as `""`) (Go: `Envelope.DecisionString`).
     #[must_use]
     pub fn decision_string(&self, point: DecisionId) -> Option<String> {
         let raw = self.decision(point)?;
-        let mut s = String::new();
-        stdjson::unmarshal(raw.as_bytes(), &mut s).ok()?;
-        Some(s)
+        serde_json::from_str::<Option<String>>(raw.get())
+            .ok()
+            .map(Option::unwrap_or_default)
     }
 
     /// The raw envelope value of `point`, whatever its type.
     #[must_use]
-    pub fn decision(&self, point: DecisionId) -> Option<&RawJson> {
-        self.decisions.as_ref()?.get(point.as_str())
+    pub fn decision(&self, point: DecisionId) -> Option<&RawValue> {
+        self.decisions
+            .as_ref()?
+            .get(point.as_str())
+            .map(AsRef::as_ref)
     }
 }
 
 /// The inbound HTTP request the server dispatches through its outer handler chain
 /// (Go: `parity.ExecRequest`).
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
-#[gojson(go_type = "parity.ExecRequest")]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[serde(default)]
 pub struct ExecRequest {
     /// The method.
-    #[gojson(json = "method")]
     pub method: String,
     /// The path.
-    #[gojson(json = "path")]
     pub path: String,
     /// The raw query, without `?`.
-    #[gojson(json = "query")]
     pub query: String,
     /// The `Host`, when it differs from the server's.
-    #[gojson(json = "host,omitempty")]
+    #[serde(skip_serializing_if = "String::is_empty")]
     pub host: String,
     /// The headers in wire order.
-    #[gojson(json = "headers")]
     pub headers: HeaderList,
     /// The client address.
-    #[gojson(json = "remote_addr,omitempty")]
+    #[serde(skip_serializing_if = "String::is_empty")]
     pub remote_addr: String,
     /// The body.
-    #[gojson(json = "body,omitempty")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub body: Option<Body>,
 }
 
-/// One `[name, value]` header pair (Go: `[2]string`).
-///
-/// It decodes like a Go array: missing elements become `""` and extra ones are dropped.
-#[derive(Clone, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+/// One `[name, value]` header pair (Go: `[2]string`), written and read as a two-element array.
+#[derive(Clone, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(from = "(String, String)", into = "(String, String)")]
 pub struct HeaderPair {
     /// The name, in its original case.
     pub name: String,
@@ -130,184 +136,23 @@ impl HeaderPair {
     }
 }
 
-impl GoType for HeaderPair {
-    // Go arrays are neither nil-able nor `,string`-quotable, like structs.
-    const KIND: GoKind = GoKind::Struct;
-
-    fn go_type_name(out: &mut String) {
-        out.push_str("[2]string");
+impl From<(String, String)> for HeaderPair {
+    fn from((name, value): (String, String)) -> Self {
+        Self { name, value }
     }
 }
 
-impl GoEncode for HeaderPair {
-    fn go_encode(&self, enc: &mut Encoder) {
-        // Go: encoding/json arrayEncoder, json-iterator arrayEncoder.
-        enc.write_byte(b'[');
-        self.name.go_encode(enc);
-        enc.write_byte(b',');
-        self.value.go_encode(enc);
-        enc.write_byte(b']');
-    }
-
-    fn go_is_empty(&self) -> bool {
-        // Go: isEmptyValue is len(v) == 0 for arrays.
-        false
-    }
-}
-
-impl JsoniterDecode for HeaderPair {
-    fn jsoniter_decode(&mut self, it: &mut Iter<'_>) {
-        // Go: json-iterator/go reflect_array.go arrayDecoder.Decode and doDecode (elements past
-        // the array length are skipped, missing ones keep their values).
-        decode_pair_jsoniter(self, it);
-        it.wrap_error_with_type::<Self>(": ");
-    }
-}
-
-/// jsoniter's `arrayDecoder.doDecode` for `[2]string`.
-fn decode_pair_jsoniter(pair: &mut HeaderPair, it: &mut Iter<'_>) {
-    if it.read_nil() {
-        return;
-    }
-    let mut c = it.next_token();
-    if c != b'[' {
-        it.report_error(
-            "decode array",
-            &[b"expect [ or n, but found ".as_slice(), &[c]].concat(),
-        );
-        return;
-    }
-    c = it.next_token();
-    if c == b']' {
-        return;
-    }
-    it.unread_byte();
-    pair.name.jsoniter_decode(it);
-    let mut length = 1_usize;
-    loop {
-        c = it.next_token();
-        if c != b',' {
-            break;
-        }
-        if length >= 2 {
-            it.skip();
-            continue;
-        }
-        length += 1;
-        pair.value.jsoniter_decode(it);
-    }
-    if c != b']' {
-        it.report_error(
-            "decode array",
-            &[b"expect ], but found ".as_slice(), &[c]].concat(),
-        );
-    }
-}
-
-impl StdDecode for HeaderPair {
-    fn std_decode_as<N: GoType + ?Sized>(
-        &mut self,
-        d: &mut StdDecoder<'_>,
-    ) -> Result<(), JsonError> {
-        // Go: encoding/json decode.go array (fixed arrays are zero-filled past the input and
-        // drop extra elements) and object (an object into an array is a type error).
-        match d.peek() {
-            Token::Literal => {
-                let item = d.read_literal();
-                self.std_literal_as::<N>(item, false, d)
-            }
-            Token::Object => {
-                d.type_error::<N>("object");
-                d.skip();
-                Ok(())
-            }
-            Token::Array => {
-                let mut i = 0_usize;
-                if d.array_begin() {
-                    loop {
-                        match i {
-                            0 => self.name.std_decode(d)?,
-                            1 => self.value.std_decode(d)?,
-                            _ => d.skip(),
-                        }
-                        i += 1;
-                        if !d.array_next() {
-                            break;
-                        }
-                    }
-                }
-                if i < 1 {
-                    self.name.clear();
-                }
-                if i < 2 {
-                    self.value.clear();
-                }
-                Ok(())
-            }
-        }
-    }
-
-    fn std_literal_as<N: GoType + ?Sized>(
-        &mut self,
-        item: &[u8],
-        from_quoted: bool,
-        d: &mut StdDecoder<'_>,
-    ) -> Result<(), JsonError> {
-        // Go: literalStore into an array: null is ignored, anything else is a type error.
-        let _stored = literal_store::<N>(item, from_quoted, d, Class::Other)?;
-        Ok(())
+impl From<HeaderPair> for (String, String) {
+    fn from(pair: HeaderPair) -> Self {
+        (pair.name, pair.value)
     }
 }
 
 /// An ordered list of `[name, value]` pairs (Go: `parity.HeaderList`, `[][2]string`). Names keep
 /// their original case and repeated names keep their relative order.
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(transparent)]
 pub struct HeaderList(pub Option<Vec<HeaderPair>>);
-
-impl GoType for HeaderList {
-    const KIND: GoKind = <Option<Vec<HeaderPair>> as GoType>::KIND;
-
-    fn go_type_name(out: &mut String) {
-        out.push_str("parity.HeaderList");
-    }
-}
-
-impl GoEncode for HeaderList {
-    fn go_encode(&self, enc: &mut Encoder) {
-        self.0.go_encode(enc);
-    }
-
-    fn go_is_empty(&self) -> bool {
-        self.0.go_is_empty()
-    }
-}
-
-// The decoders name the named slice type in their errors, as Go's do (`cannot unmarshal object
-// into Go struct field ExecRequest.request.headers of type parity.HeaderList`).
-impl JsoniterDecode for HeaderList {
-    fn jsoniter_decode(&mut self, it: &mut Iter<'_>) {
-        // Go: json-iterator/go reflect_slice.go sliceDecoder of the named type.
-        jsoniter::decode_slice::<Self, HeaderPair>(&mut self.0, it);
-    }
-}
-
-impl StdDecode for HeaderList {
-    fn std_decode_as<N: GoType + ?Sized>(
-        &mut self,
-        d: &mut StdDecoder<'_>,
-    ) -> Result<(), JsonError> {
-        std_decode_slice::<N, HeaderPair>(&mut self.0, d)
-    }
-
-    fn std_literal_as<N: GoType + ?Sized>(
-        &mut self,
-        item: &[u8],
-        from_quoted: bool,
-        d: &mut StdDecoder<'_>,
-    ) -> Result<(), JsonError> {
-        HeaderPair::std_slice_literal::<N>(&mut self.0, item, from_quoted, d)
-    }
-}
 
 impl HeaderList {
     /// A non-nil list of `pairs`.
@@ -322,33 +167,39 @@ impl HeaderList {
         self.0.as_deref().unwrap_or_default()
     }
 
-    /// Every value of `name` (compared with `strings.EqualFold`) in list order
-    /// (Go: `HeaderList.Values`).
+    /// Whether the list is nil or holds no pair (Go's `omitempty` test).
+    #[must_use]
+    pub fn is_empty(&self) -> bool {
+        self.pairs().is_empty()
+    }
+
+    /// Every value of `name`, compared ignoring case, in list order (Go: `HeaderList.Values`).
     #[must_use]
     pub fn values(&self, name: &str) -> Vec<&str> {
+        let name = name.to_lowercase();
         self.pairs()
             .iter()
-            .filter(|kv| equal_fold(&kv.name, name))
+            .filter(|kv| kv.name.to_lowercase() == name)
             .map(|kv| kv.value.as_str())
             .collect()
     }
 }
 
 /// How outbound calls are answered during the case (Go: `parity.MockSpec`).
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
-#[gojson(go_type = "parity.MockSpec")]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[serde(default)]
 pub struct MockSpec {
     /// `oracle` (the default) or `inline`.
-    #[gojson(json = "mode,omitempty")]
+    #[serde(skip_serializing_if = "String::is_empty")]
     pub mode: String,
     /// `http` (the default) or `bidder_response`.
-    #[gojson(json = "level,omitempty")]
+    #[serde(skip_serializing_if = "String::is_empty")]
     pub level: String,
     /// The in-process answers of `inline` mode.
-    #[gojson(json = "inline,omitempty")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub inline: Option<InlineMocks>,
     /// The `MakeBids` replacements of the `bidder_response` level, by bidder.
-    #[gojson(json = "bidder_responses,omitempty")]
+    #[serde(skip_serializing_if = "nil_or_empty")]
     pub bidder_responses: Option<BTreeMap<String, BidderResponseMock>>,
 }
 
@@ -379,137 +230,131 @@ impl MockSpec {
 /// Resolution order: `rules` (first match), then `bidders[bidder]` / `default_bidder` for bidder
 /// calls, `cache` for cache calls, `kinds[kind]` for any other kind; unresolved calls get the
 /// built-in defaults.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
-#[gojson(go_type = "parity.InlineMocks")]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[serde(default)]
 pub struct InlineMocks {
     /// The rules, in match order.
-    #[gojson(json = "rules,omitempty")]
+    #[serde(skip_serializing_if = "nil_or_empty")]
     pub rules: Option<Vec<InlineRule>>,
     /// Answers to bidder calls, by bidder.
-    #[gojson(json = "bidders,omitempty")]
+    #[serde(skip_serializing_if = "nil_or_empty")]
     pub bidders: Option<BTreeMap<String, InlineResponse>>,
     /// The answer to bidder calls without their own.
-    #[gojson(json = "default_bidder,omitempty")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub default_bidder: Option<InlineResponse>,
     /// The answer to cache calls.
-    #[gojson(json = "cache,omitempty")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub cache: Option<InlineResponse>,
     /// Answers to other calls, by outbound kind.
-    #[gojson(json = "kinds,omitempty")]
+    #[serde(skip_serializing_if = "nil_or_empty")]
     pub kinds: Option<BTreeMap<String, InlineResponse>>,
 }
 
 /// An inline matcher; every non-empty matcher must match (Go: `parity.InlineRule`).
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
-#[gojson(go_type = "parity.InlineRule")]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[serde(default)]
 pub struct InlineRule {
     /// The rule ID reported in `mock.id`.
-    #[gojson(go = "ID", json = "id,omitempty")]
+    #[serde(skip_serializing_if = "String::is_empty")]
     pub id: String,
     /// The outbound kind to match.
-    #[gojson(json = "kind,omitempty")]
+    #[serde(skip_serializing_if = "String::is_empty")]
     pub kind: String,
     /// The bidder to match.
-    #[gojson(json = "bidder,omitempty")]
+    #[serde(skip_serializing_if = "String::is_empty")]
     pub bidder: String,
     /// A regular expression the request URI must match.
-    #[gojson(go = "URIRegex", json = "uri_regex,omitempty")]
+    #[serde(skip_serializing_if = "String::is_empty")]
     pub uri_regex: String,
     /// The answer.
-    #[gojson(json = "response")]
     pub response: InlineResponse,
 }
 
 /// A canned outbound response or failure (Go: `parity.InlineResponse`).
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
-#[gojson(go_type = "parity.InlineResponse")]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[serde(default)]
 pub struct InlineResponse {
     /// The status.
-    #[gojson(json = "status,omitempty")]
+    #[serde(skip_serializing_if = "is_zero")]
     pub status: isize,
     /// The headers.
-    #[gojson(json = "headers,omitempty")]
+    #[serde(skip_serializing_if = "HeaderList::is_empty")]
     pub headers: HeaderList,
     /// The body.
-    #[gojson(json = "body,omitempty")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub body: Option<Body>,
     /// A delay before answering, in milliseconds.
-    #[gojson(go = "DelayMS", json = "delay_ms,omitempty")]
+    #[serde(skip_serializing_if = "is_zero")]
     pub delay_ms: isize,
     /// When set, the call fails instead of answering: `timeout`, `refused`, `reset` or `error`.
-    #[gojson(json = "fail,omitempty")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub fail: Option<String>,
 }
 
 /// A replacement for one bidder's `MakeBids` output (Go: `parity.BidderResponseMock`).
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
-#[gojson(go_type = "parity.BidderResponseMock")]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[serde(default)]
 pub struct BidderResponseMock {
     /// `MakeBids` returns a nil `*BidderResponse` (with the errors).
-    #[gojson(json = "nil_response,omitempty")]
+    #[serde(skip_serializing_if = "is_zero")]
     pub nil_response: bool,
     /// The response currency.
-    #[gojson(json = "currency")]
     pub currency: String,
     /// The bids.
-    #[gojson(json = "bids")]
     pub bids: Option<Vec<TypedBid>>,
     /// The fledge auction configs.
-    #[gojson(json = "fledge_auction_configs,omitempty")]
-    pub fledge_auction_configs: RawJson,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub fledge_auction_configs: Option<Box<RawValue>>,
     /// The errors `MakeBids` returns.
-    #[gojson(json = "errors,omitempty")]
+    #[serde(skip_serializing_if = "nil_or_empty")]
     pub errors: Option<Vec<ErrorSpec>>,
 }
 
 /// A typed bid (Go: `parity.TypedBid`, mirroring `adapters.TypedBid`).
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
-#[gojson(go_type = "parity.TypedBid")]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[serde(default)]
 pub struct TypedBid {
     /// The `openrtb2.Bid`.
-    #[gojson(json = "bid")]
-    pub bid: RawJson,
+    pub bid: Option<Box<RawValue>>,
     /// The bid type.
-    #[gojson(go = "Type", json = "type")]
+    #[serde(rename = "type")]
     pub bid_type: String,
     /// The seat.
-    #[gojson(json = "seat,omitempty")]
+    #[serde(skip_serializing_if = "String::is_empty")]
     pub seat: String,
     /// The bid video.
-    #[gojson(json = "video,omitempty")]
-    pub video: RawJson,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub video: Option<Box<RawValue>>,
     /// The bid meta.
-    #[gojson(json = "meta,omitempty")]
-    pub meta: RawJson,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub meta: Option<Box<RawValue>>,
     /// The deal priority.
-    #[gojson(json = "deal_priority,omitempty")]
+    #[serde(skip_serializing_if = "is_zero")]
     pub deal_priority: isize,
 }
 
 /// An error to inject, with a Go `errortypes` code (Go: `parity.ErrorSpec`).
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
-#[gojson(go_type = "parity.ErrorSpec")]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(default)]
 pub struct ErrorSpec {
     /// The `errortypes` code (`error_codes.json`).
-    #[gojson(json = "code")]
     pub code: isize,
     /// The message.
-    #[gojson(json = "message")]
     pub message: String,
 }
 
 /// What the server records (Go: `parity.CaptureSpec`).
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
-#[gojson(go_type = "parity.CaptureSpec")]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[serde(default)]
 pub struct CaptureSpec {
     /// `"*"` or a list of stage IDs; omitted or `null` means every stage.
-    #[gojson(json = "stages,omitempty")]
-    pub stages: RawJson,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub stages: Option<Box<RawValue>>,
     /// Whether `metrics_delta` is captured (default true).
-    #[gojson(json = "metrics,omitempty")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub metrics: Option<bool>,
     /// Whether analytics objects are captured (default true).
-    #[gojson(json = "analytics,omitempty")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub analytics: Option<bool>,
 }
 
@@ -525,11 +370,6 @@ impl fmt::Display for CaptureError {
 
 impl Error for CaptureError {}
 
-/// `parity.StageID` as `encoding/json` decodes it (any string).
-#[derive(Clone, Debug, Default, PartialEq, Eq, PartialOrd, Ord, GoJson)]
-#[gojson(go_type = "parity.StageID")]
-struct StageName(String);
-
 impl CaptureSpec {
     /// The stage IDs to capture, or `None` for every stage (Go: `CaptureSpec.StageFilter`). The
     /// IDs are not checked against the registry.
@@ -537,36 +377,27 @@ impl CaptureSpec {
     /// # Errors
     ///
     /// Go's error for a string other than `"*"` (`capture.stages: string value must be "*", got
-    /// "all"`) or for a value that is not a list of strings (`capture.stages: json: cannot
-    /// unmarshal object into Go value of type []parity.StageID`).
+    /// "all"`), or `capture.stages:` and `serde_json`'s message for a value that is not a list of
+    /// strings (Go: `json: cannot unmarshal object into Go value of type []parity.StageID`).
     pub fn stage_filter(&self) -> Result<Option<BTreeSet<String>>, CaptureError> {
-        let raw = self.stages.as_bytes();
-        if raw.is_empty() || raw == b"null" {
+        let Some(raw) = &self.stages else {
+            return Ok(None);
+        };
+        let raw = raw.get();
+        if raw == "null" {
             return Ok(None);
         }
-        let mut all = String::new();
-        if stdjson::unmarshal(raw, &mut all).is_ok() {
+        if let Ok(all) = serde_json::from_str::<String>(raw) {
             if all == "*" {
                 return Ok(None);
             }
             return Err(CaptureError(format!(
-                "capture.stages: string value must be \"*\", got {}",
-                quote(&all)
+                "capture.stages: string value must be \"*\", got {all:?}"
             )));
         }
-        let mut list: Option<Vec<StageName>> = None;
-        if let Err(err) = stdjson::unmarshal(raw, &mut list) {
-            return Err(CaptureError(format!(
-                "capture.stages: {}",
-                String::from_utf8_lossy(&err.go_text())
-            )));
-        }
-        Ok(Some(
-            list.unwrap_or_default()
-                .into_iter()
-                .map(|id| id.0)
-                .collect(),
-        ))
+        serde_json::from_str::<Vec<String>>(raw)
+            .map(|ids| Some(ids.into_iter().collect()))
+            .map_err(|err| CaptureError(format!("capture.stages: {err}")))
     }
 
     /// Whether `metrics_delta` is captured (Go: `CaptureSpec.WantsMetrics`).
@@ -584,17 +415,17 @@ impl CaptureSpec {
 
 /// Deterministic replacements for the wall clock and the random sources (Go:
 /// `parity.FakeValues`, `fakes.json`). Zero fields take the defaults.
-#[derive(Clone, Debug, Default, PartialEq, Eq, Hash, GoJson)]
-#[gojson(go_type = "parity.FakeValues")]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(default)]
 pub struct FakeValues {
     /// The fixed instant, in Unix milliseconds.
-    #[gojson(go = "NowUnixMS", json = "now_unix_ms,omitempty")]
+    #[serde(skip_serializing_if = "is_zero")]
     pub now_unix_ms: i64,
     /// The fixed 63-bit random value.
-    #[gojson(json = "int63,omitempty")]
+    #[serde(skip_serializing_if = "is_zero")]
     pub int63: i64,
     /// The fixed UUID, also the seed of the generated-UUID stream.
-    #[gojson(go = "UUID", json = "uuid,omitempty")]
+    #[serde(skip_serializing_if = "String::is_empty")]
     pub uuid: String,
 }
 

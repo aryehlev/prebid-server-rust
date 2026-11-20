@@ -71,7 +71,7 @@
         "only": [],
         "x": []
       },
-      "input": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"c\",\"request\":{\"method\":\"POST\",\"path\":\"/openrtb2/auction\",\"query\":\"a=1\",\"headers\":[]},\"mock\":{},\"capture\":{},\"capture\":{\"stages\":\"*\"}}",
+      "input": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"c\",\"request\":{\"method\":\"POST\",\"path\":\"/openrtb2/auction\",\"query\":\"a=1\",\"headers\":[]},\"mock\":{},\"capture\":{\"stages\":\"*\"}}",
       "name": "capture_star",
       "reencoded": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"c\",\"request\":{\"method\":\"POST\",\"path\":\"/openrtb2/auction\",\"query\":\"a=1\",\"headers\":[]},\"mock\":{},\"capture\":{\"stages\":\"*\"}}",
       "stage_filter": null,
@@ -110,7 +110,7 @@
         "only": [],
         "x": []
       },
-      "input": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"c\",\"request\":{\"method\":\"POST\",\"path\":\"/openrtb2/auction\",\"query\":\"a=1\",\"headers\":[]},\"mock\":{},\"capture\":{},\"capture\":{\"stages\":null}}",
+      "input": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"c\",\"request\":{\"method\":\"POST\",\"path\":\"/openrtb2/auction\",\"query\":\"a=1\",\"headers\":[]},\"mock\":{},\"capture\":{\"stages\":null}}",
       "name": "capture_null",
       "reencoded": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"c\",\"request\":{\"method\":\"POST\",\"path\":\"/openrtb2/auction\",\"query\":\"a=1\",\"headers\":[]},\"mock\":{},\"capture\":{\"stages\":null}}",
       "stage_filter": null,
@@ -149,7 +149,7 @@
         "only": [],
         "x": []
       },
-      "input": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"c\",\"request\":{\"method\":\"POST\",\"path\":\"/openrtb2/auction\",\"query\":\"a=1\",\"headers\":[]},\"mock\":{},\"capture\":{},\"capture\":{\"stages\":\"all\"}}",
+      "input": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"c\",\"request\":{\"method\":\"POST\",\"path\":\"/openrtb2/auction\",\"query\":\"a=1\",\"headers\":[]},\"mock\":{},\"capture\":{\"stages\":\"all\"}}",
       "name": "capture_all_string",
       "reencoded": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"c\",\"request\":{\"method\":\"POST\",\"path\":\"/openrtb2/auction\",\"query\":\"a=1\",\"headers\":[]},\"mock\":{},\"capture\":{\"stages\":\"all\"}}",
       "stage_filter": {
@@ -190,7 +190,7 @@
         "only": [],
         "x": []
       },
-      "input": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"c\",\"request\":{\"method\":\"POST\",\"path\":\"/openrtb2/auction\",\"query\":\"a=1\",\"headers\":[]},\"mock\":{},\"capture\":{},\"capture\":{\"stages\":\"\\u002a\"}}",
+      "input": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"c\",\"request\":{\"method\":\"POST\",\"path\":\"/openrtb2/auction\",\"query\":\"a=1\",\"headers\":[]},\"mock\":{},\"capture\":{\"stages\":\"\\u002a\"}}",
       "name": "capture_escaped_string",
       "reencoded": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"c\",\"request\":{\"method\":\"POST\",\"path\":\"/openrtb2/auction\",\"query\":\"a=1\",\"headers\":[]},\"mock\":{},\"capture\":{\"stages\":\"\\u002a\"}}",
       "stage_filter": null,
@@ -229,7 +229,7 @@
         "only": [],
         "x": []
       },
-      "input": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"c\",\"request\":{\"method\":\"POST\",\"path\":\"/openrtb2/auction\",\"query\":\"a=1\",\"headers\":[]},\"mock\":{},\"capture\":{},\"capture\":{\"stages\":[\"http.in\",\"made.up\",\"http.in\"]}}",
+      "input": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"c\",\"request\":{\"method\":\"POST\",\"path\":\"/openrtb2/auction\",\"query\":\"a=1\",\"headers\":[]},\"mock\":{},\"capture\":{\"stages\":[\"http.in\",\"made.up\",\"http.in\"]}}",
       "name": "capture_list",
       "reencoded": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"c\",\"request\":{\"method\":\"POST\",\"path\":\"/openrtb2/auction\",\"query\":\"a=1\",\"headers\":[]},\"mock\":{},\"capture\":{\"stages\":[\"http.in\",\"made.up\",\"http.in\"]}}",
       "stage_filter": [
@@ -271,7 +271,7 @@
         "only": [],
         "x": []
       },
-      "input": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"c\",\"request\":{\"method\":\"POST\",\"path\":\"/openrtb2/auction\",\"query\":\"a=1\",\"headers\":[]},\"mock\":{},\"capture\":{},\"capture\":{\"stages\":[]}}",
+      "input": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"c\",\"request\":{\"method\":\"POST\",\"path\":\"/openrtb2/auction\",\"query\":\"a=1\",\"headers\":[]},\"mock\":{},\"capture\":{\"stages\":[]}}",
       "name": "capture_empty_list",
       "reencoded": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"c\",\"request\":{\"method\":\"POST\",\"path\":\"/openrtb2/auction\",\"query\":\"a=1\",\"headers\":[]},\"mock\":{},\"capture\":{\"stages\":[]}}",
       "stage_filter": [],
@@ -310,7 +310,7 @@
         "only": [],
         "x": []
       },
-      "input": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"c\",\"request\":{\"method\":\"POST\",\"path\":\"/openrtb2/auction\",\"query\":\"a=1\",\"headers\":[]},\"mock\":{},\"capture\":{},\"capture\":{\"stages\":[null,\"http.in\"]}}",
+      "input": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"c\",\"request\":{\"method\":\"POST\",\"path\":\"/openrtb2/auction\",\"query\":\"a=1\",\"headers\":[]},\"mock\":{},\"capture\":{\"stages\":[null,\"http.in\"]}}",
       "name": "capture_null_element",
       "reencoded": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"c\",\"request\":{\"method\":\"POST\",\"path\":\"/openrtb2/auction\",\"query\":\"a=1\",\"headers\":[]},\"mock\":{},\"capture\":{\"stages\":[null,\"http.in\"]}}",
       "stage_filter": [
@@ -352,7 +352,7 @@
         "only": [],
         "x": []
       },
-      "input": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"c\",\"request\":{\"method\":\"POST\",\"path\":\"/openrtb2/auction\",\"query\":\"a=1\",\"headers\":[]},\"mock\":{},\"capture\":{},\"capture\":{\"stages\":[1]}}",
+      "input": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"c\",\"request\":{\"method\":\"POST\",\"path\":\"/openrtb2/auction\",\"query\":\"a=1\",\"headers\":[]},\"mock\":{},\"capture\":{\"stages\":[1]}}",
       "name": "capture_number_list",
       "reencoded": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"c\",\"request\":{\"method\":\"POST\",\"path\":\"/openrtb2/auction\",\"query\":\"a=1\",\"headers\":[]},\"mock\":{},\"capture\":{\"stages\":[1]}}",
       "stage_filter": {
@@ -393,7 +393,7 @@
         "only": [],
         "x": []
       },
-      "input": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"c\",\"request\":{\"method\":\"POST\",\"path\":\"/openrtb2/auction\",\"query\":\"a=1\",\"headers\":[]},\"mock\":{},\"capture\":{},\"capture\":{\"stages\":{}}}",
+      "input": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"c\",\"request\":{\"method\":\"POST\",\"path\":\"/openrtb2/auction\",\"query\":\"a=1\",\"headers\":[]},\"mock\":{},\"capture\":{\"stages\":{}}}",
       "name": "capture_object",
       "reencoded": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"c\",\"request\":{\"method\":\"POST\",\"path\":\"/openrtb2/auction\",\"query\":\"a=1\",\"headers\":[]},\"mock\":{},\"capture\":{\"stages\":{}}}",
       "stage_filter": {
@@ -434,7 +434,7 @@
         "only": [],
         "x": []
       },
-      "input": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"c\",\"request\":{\"method\":\"POST\",\"path\":\"/openrtb2/auction\",\"query\":\"a=1\",\"headers\":[]},\"mock\":{},\"capture\":{},\"capture\":{\"stages\":true}}",
+      "input": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"c\",\"request\":{\"method\":\"POST\",\"path\":\"/openrtb2/auction\",\"query\":\"a=1\",\"headers\":[]},\"mock\":{},\"capture\":{\"stages\":true}}",
       "name": "capture_bool",
       "reencoded": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"c\",\"request\":{\"method\":\"POST\",\"path\":\"/openrtb2/auction\",\"query\":\"a=1\",\"headers\":[]},\"mock\":{},\"capture\":{\"stages\":true}}",
       "stage_filter": {
@@ -475,7 +475,7 @@
         "only": [],
         "x": []
       },
-      "input": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"c\",\"request\":{\"method\":\"POST\",\"path\":\"/openrtb2/auction\",\"query\":\"a=1\",\"headers\":[]},\"mock\":{},\"capture\":{},\"capture\":{\"stages\":5}}",
+      "input": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"c\",\"request\":{\"method\":\"POST\",\"path\":\"/openrtb2/auction\",\"query\":\"a=1\",\"headers\":[]},\"mock\":{},\"capture\":{\"stages\":5}}",
       "name": "capture_number",
       "reencoded": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"c\",\"request\":{\"method\":\"POST\",\"path\":\"/openrtb2/auction\",\"query\":\"a=1\",\"headers\":[]},\"mock\":{},\"capture\":{\"stages\":5}}",
       "stage_filter": {
@@ -516,7 +516,7 @@
         "only": [],
         "x": []
       },
-      "input": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"c\",\"request\":{\"method\":\"POST\",\"path\":\"/openrtb2/auction\",\"query\":\"a=1\",\"headers\":[]},\"mock\":{},\"capture\":{},\"capture\":{\"metrics\":false,\"analytics\":true}}",
+      "input": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"c\",\"request\":{\"method\":\"POST\",\"path\":\"/openrtb2/auction\",\"query\":\"a=1\",\"headers\":[]},\"mock\":{},\"capture\":{\"metrics\":false,\"analytics\":true}}",
       "name": "capture_flags",
       "reencoded": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"c\",\"request\":{\"method\":\"POST\",\"path\":\"/openrtb2/auction\",\"query\":\"a=1\",\"headers\":[]},\"mock\":{},\"capture\":{\"metrics\":false,\"analytics\":true}}",
       "stage_filter": null,
@@ -555,7 +555,7 @@
         "only": [],
         "x": []
       },
-      "input": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"c\",\"request\":{\"method\":\"POST\",\"path\":\"/openrtb2/auction\",\"query\":\"a=1\",\"headers\":[]},\"mock\":{},\"capture\":{},\"capture\":{\"metrics\":null,\"analytics\":false}}",
+      "input": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"c\",\"request\":{\"method\":\"POST\",\"path\":\"/openrtb2/auction\",\"query\":\"a=1\",\"headers\":[]},\"mock\":{},\"capture\":{\"metrics\":null,\"analytics\":false}}",
       "name": "capture_flags_null",
       "reencoded": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"c\",\"request\":{\"method\":\"POST\",\"path\":\"/openrtb2/auction\",\"query\":\"a=1\",\"headers\":[]},\"mock\":{},\"capture\":{\"analytics\":false}}",
       "stage_filter": null,
@@ -728,7 +728,7 @@
           "c"
         ]
       },
-      "input": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"c\",\"request\":{\"method\":\"POST\",\"path\":\"/openrtb2/auction\",\"query\":\"a=1\",\"headers\":[]},\"mock\":{},\"capture\":{},\"request\":{\"method\":\"GET\",\"path\":\"/p\",\"query\":\"\",\"headers\":[[\"Content-Type\",\"a\"],[\"content-type\",\"b\"],[\"X\",\"c\"],[\"only\"],[\"a\",\"b\",\"c\"],[],null,[\"K\",null]]}}",
+      "input": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"c\",\"request\":{\"method\":\"GET\",\"path\":\"/p\",\"query\":\"\",\"headers\":[[\"Content-Type\",\"a\"],[\"content-type\",\"b\"],[\"X\",\"c\"],[\"only\"],[\"a\",\"b\",\"c\"],[],null,[\"K\",null]]},\"mock\":{},\"capture\":{}}",
       "name": "headers",
       "reencoded": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"c\",\"request\":{\"method\":\"GET\",\"path\":\"/p\",\"query\":\"\",\"headers\":[[\"Content-Type\",\"a\"],[\"content-type\",\"b\"],[\"X\",\"c\"],[\"only\",\"\"],[\"a\",\"b\"],[\"\",\"\"],[\"\",\"\"],[\"K\",\"\"]]},\"mock\":{},\"capture\":{}}",
       "stage_filter": null,
@@ -767,7 +767,7 @@
         "only": [],
         "x": []
       },
-      "input": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"c\",\"request\":{\"method\":\"POST\",\"path\":\"/openrtb2/auction\",\"query\":\"a=1\",\"headers\":[]},\"mock\":{},\"capture\":{},\"request\":{\"method\":\"GET\",\"path\":\"/p\",\"query\":\"\",\"headers\":null}}",
+      "input": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"c\",\"request\":{\"method\":\"GET\",\"path\":\"/p\",\"query\":\"\",\"headers\":null},\"mock\":{},\"capture\":{}}",
       "name": "headers_null",
       "reencoded": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"c\",\"request\":{\"method\":\"GET\",\"path\":\"/p\",\"query\":\"\",\"headers\":null},\"mock\":{},\"capture\":{}}",
       "stage_filter": null,
@@ -776,32 +776,32 @@
     },
     {
       "decode_error": "json: cannot unmarshal object into Go struct field ExecRequest.request.headers of type parity.HeaderList",
-      "input": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"c\",\"request\":{\"method\":\"POST\",\"path\":\"/openrtb2/auction\",\"query\":\"a=1\",\"headers\":[]},\"mock\":{},\"capture\":{},\"request\":{\"method\":\"GET\",\"path\":\"/p\",\"query\":\"\",\"headers\":{}}}",
+      "input": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"c\",\"request\":{\"method\":\"GET\",\"path\":\"/p\",\"query\":\"\",\"headers\":{}},\"mock\":{},\"capture\":{}}",
       "name": "headers_object"
     },
     {
       "decode_error": "json: cannot unmarshal object into Go struct field ExecRequest.request.headers of type [2]string",
-      "input": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"c\",\"request\":{\"method\":\"POST\",\"path\":\"/openrtb2/auction\",\"query\":\"a=1\",\"headers\":[]},\"mock\":{},\"capture\":{},\"request\":{\"method\":\"GET\",\"path\":\"/p\",\"query\":\"\",\"headers\":[{\"a\":1}]}}",
+      "input": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"c\",\"request\":{\"method\":\"GET\",\"path\":\"/p\",\"query\":\"\",\"headers\":[{\"a\":1}]},\"mock\":{},\"capture\":{}}",
       "name": "headers_pair_object"
     },
     {
       "decode_error": "json: cannot unmarshal number into Go struct field ExecRequest.request.headers of type string",
-      "input": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"c\",\"request\":{\"method\":\"POST\",\"path\":\"/openrtb2/auction\",\"query\":\"a=1\",\"headers\":[]},\"mock\":{},\"capture\":{},\"request\":{\"method\":\"GET\",\"path\":\"/p\",\"query\":\"\",\"headers\":[[1,\"x\"]]}}",
+      "input": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"c\",\"request\":{\"method\":\"GET\",\"path\":\"/p\",\"query\":\"\",\"headers\":[[1,\"x\"]]},\"mock\":{},\"capture\":{}}",
       "name": "headers_pair_number"
     },
     {
       "decode_error": "json: cannot unmarshal string into Go struct field ExecRequest.request.headers of type [2]string",
-      "input": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"c\",\"request\":{\"method\":\"POST\",\"path\":\"/openrtb2/auction\",\"query\":\"a=1\",\"headers\":[]},\"mock\":{},\"capture\":{},\"request\":{\"method\":\"GET\",\"path\":\"/p\",\"query\":\"\",\"headers\":[\"ab\"]}}",
+      "input": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"c\",\"request\":{\"method\":\"GET\",\"path\":\"/p\",\"query\":\"\",\"headers\":[\"ab\"]},\"mock\":{},\"capture\":{}}",
       "name": "headers_pair_string"
     },
     {
       "decode_error": "json: cannot unmarshal number into Go struct field Envelope.case_id of type string",
-      "input": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"c\",\"request\":{\"method\":\"POST\",\"path\":\"/openrtb2/auction\",\"query\":\"a=1\",\"headers\":[]},\"mock\":{},\"capture\":{},\"case_id\":5}",
+      "input": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":5,\"request\":{\"method\":\"POST\",\"path\":\"/openrtb2/auction\",\"query\":\"a=1\",\"headers\":[]},\"mock\":{},\"capture\":{}}",
       "name": "type_error"
     },
     {
       "decode_error": "json: cannot unmarshal string into Go struct field InlineResponse.mock.inline.rules.response.status of type int",
-      "input": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"c\",\"request\":{\"method\":\"POST\",\"path\":\"/openrtb2/auction\",\"query\":\"a=1\",\"headers\":[]},\"mock\":{},\"capture\":{},\"mock\":{\"inline\":{\"rules\":[{\"response\":{\"status\":\"200\"}}]}}}",
+      "input": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"c\",\"request\":{\"method\":\"POST\",\"path\":\"/openrtb2/auction\",\"query\":\"a=1\",\"headers\":[]},\"mock\":{\"inline\":{\"rules\":[{\"response\":{\"status\":\"200\"}}]}},\"capture\":{}}",
       "name": "nested_type_error"
     },
     {
@@ -929,7 +929,7 @@
         "only": [],
         "x": []
       },
-      "input": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"c\",\"request\":{\"method\":\"POST\",\"path\":\"/openrtb2/auction\",\"query\":\"a=1\",\"headers\":[]},\"mock\":{},\"capture\":{},\"mock\":{\"mode\":\"inline\",\"level\":\"http\",\"inline\":{\"rules\":[{\"id\":\"r1\",\"kind\":\"bidder\",\"bidder\":\"appnexus\",\"uri_regex\":\"^https://\",\"response\":{\"status\":204,\"delay_ms\":10}},{\"response\":{\"fail\":\"timeout\"}}],\"bidders\":{\"appnexus\":{\"status\":200,\"headers\":[[\"Content-Type\",\"application/json\"]],\"body\":{\"json\":{\"id\":\"1\"}}}},\"default_bidder\":{\"status\":204},\"cache\":{\"status\":200,\"body\":{\"text\":\"{\\\"responses\\\":[]}\"}},\"kinds\":{\"currency\":{\"fail\":\"refused\"},\"floors\":{\"fail\":\"\"}}}}}",
+      "input": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"c\",\"request\":{\"method\":\"POST\",\"path\":\"/openrtb2/auction\",\"query\":\"a=1\",\"headers\":[]},\"mock\":{\"mode\":\"inline\",\"level\":\"http\",\"inline\":{\"rules\":[{\"id\":\"r1\",\"kind\":\"bidder\",\"bidder\":\"appnexus\",\"uri_regex\":\"^https://\",\"response\":{\"status\":204,\"delay_ms\":10}},{\"response\":{\"fail\":\"timeout\"}}],\"bidders\":{\"appnexus\":{\"status\":200,\"headers\":[[\"Content-Type\",\"application/json\"]],\"body\":{\"json\":{\"id\":\"1\"}}}},\"default_bidder\":{\"status\":204},\"cache\":{\"status\":200,\"body\":{\"text\":\"{\\\"responses\\\":[]}\"}},\"kinds\":{\"currency\":{\"fail\":\"refused\"},\"floors\":{\"fail\":\"\"}}}},\"capture\":{}}",
       "name": "mock_inline",
       "reencoded": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"c\",\"request\":{\"method\":\"POST\",\"path\":\"/openrtb2/auction\",\"query\":\"a=1\",\"headers\":[]},\"mock\":{\"mode\":\"inline\",\"level\":\"http\",\"inline\":{\"rules\":[{\"id\":\"r1\",\"kind\":\"bidder\",\"bidder\":\"appnexus\",\"uri_regex\":\"^https://\",\"response\":{\"status\":204,\"delay_ms\":10}},{\"response\":{\"fail\":\"timeout\"}}],\"bidders\":{\"appnexus\":{\"status\":200,\"headers\":[[\"Content-Type\",\"application/json\"]],\"body\":{\"json\":{\"id\":\"1\"}}}},\"default_bidder\":{\"status\":204},\"cache\":{\"status\":200,\"body\":{\"text\":\"{\\\"responses\\\":[]}\"}},\"kinds\":{\"currency\":{\"fail\":\"refused\"},\"floors\":{\"fail\":\"\"}}}},\"capture\":{}}",
       "stage_filter": null,
@@ -968,7 +968,7 @@
         "only": [],
         "x": []
       },
-      "input": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"c\",\"request\":{\"method\":\"POST\",\"path\":\"/openrtb2/auction\",\"query\":\"a=1\",\"headers\":[]},\"mock\":{},\"capture\":{},\"mock\":{\"mode\":\"inline\",\"level\":\"bidder_response\",\"bidder_responses\":{\"appnexus\":{\"currency\":\"USD\",\"bids\":[{\"bid\":{\"id\":\"b\",\"impid\":\"i\",\"price\":1.5},\"type\":\"banner\",\"seat\":\"s\",\"video\":{\"duration\":5},\"meta\":{\"x\":1},\"deal_priority\":2}],\"fledge_auction_configs\":[{\"a\":1}],\"errors\":[{\"code\":2,\"message\":\"m\"}]},\"rubicon\":{\"nil_response\":true,\"currency\":\"\",\"bids\":null}}}}",
+      "input": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"c\",\"request\":{\"method\":\"POST\",\"path\":\"/openrtb2/auction\",\"query\":\"a=1\",\"headers\":[]},\"mock\":{\"mode\":\"inline\",\"level\":\"bidder_response\",\"bidder_responses\":{\"appnexus\":{\"currency\":\"USD\",\"bids\":[{\"bid\":{\"id\":\"b\",\"impid\":\"i\",\"price\":1.5},\"type\":\"banner\",\"seat\":\"s\",\"video\":{\"duration\":5},\"meta\":{\"x\":1},\"deal_priority\":2}],\"fledge_auction_configs\":[{\"a\":1}],\"errors\":[{\"code\":2,\"message\":\"m\"}]},\"rubicon\":{\"nil_response\":true,\"currency\":\"\",\"bids\":null}}},\"capture\":{}}",
       "name": "mock_bidder_response",
       "reencoded": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"c\",\"request\":{\"method\":\"POST\",\"path\":\"/openrtb2/auction\",\"query\":\"a=1\",\"headers\":[]},\"mock\":{\"mode\":\"inline\",\"level\":\"bidder_response\",\"bidder_responses\":{\"appnexus\":{\"currency\":\"USD\",\"bids\":[{\"bid\":{\"id\":\"b\",\"impid\":\"i\",\"price\":1.5},\"type\":\"banner\",\"seat\":\"s\",\"video\":{\"duration\":5},\"meta\":{\"x\":1},\"deal_priority\":2}],\"fledge_auction_configs\":[{\"a\":1}],\"errors\":[{\"code\":2,\"message\":\"m\"}]},\"rubicon\":{\"nil_response\":true,\"currency\":\"\",\"bids\":null}}},\"capture\":{}}",
       "stage_filter": null,
@@ -1007,7 +1007,7 @@
         "only": [],
         "x": []
       },
-      "input": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"c\",\"request\":{\"method\":\"POST\",\"path\":\"/openrtb2/auction\",\"query\":\"a=1\",\"headers\":[]},\"mock\":{},\"capture\":{},\"request\":{\"method\":\"POST\",\"path\":\"/p\",\"query\":\"\",\"headers\":[],\"body\":{\"text\":\"\u003ca\u003e\",\"b64\":\"PGE+\",\"json\":{\"a\":\"\u003c\"},\"content_encoding\":\"br\"},\"remote_addr\":\"1.2.3.4:5\",\"host\":\"h\"}}",
+      "input": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"c\",\"request\":{\"method\":\"POST\",\"path\":\"/p\",\"query\":\"\",\"headers\":[],\"body\":{\"text\":\"\u003ca\u003e\",\"b64\":\"PGE+\",\"json\":{\"a\":\"\u003c\"},\"content_encoding\":\"br\"},\"remote_addr\":\"1.2.3.4:5\",\"host\":\"h\"},\"mock\":{},\"capture\":{}}",
       "name": "body_variants",
       "reencoded": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"c\",\"request\":{\"method\":\"POST\",\"path\":\"/p\",\"query\":\"\",\"host\":\"h\",\"headers\":[],\"remote_addr\":\"1.2.3.4:5\",\"body\":{\"text\":\"\\u003ca\\u003e\",\"b64\":\"PGE+\",\"json\":{\"a\":\"\\u003c\"},\"content_encoding\":\"br\"}},\"mock\":{},\"capture\":{}}",
       "stage_filter": null,
@@ -1046,7 +1046,7 @@
         "only": [],
         "x": []
       },
-      "input": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"c\",\"request\":{\"method\":\"POST\",\"path\":\"/openrtb2/auction\",\"query\":\"a=1\",\"headers\":[]},\"mock\":{},\"capture\":{},\"extra\":1,\"request\":{\"method\":\"GET\",\"path\":\"/p\",\"query\":\"\",\"headers\":[],\"extra\":2}}",
+      "input": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"c\",\"request\":{\"method\":\"GET\",\"path\":\"/p\",\"query\":\"\",\"headers\":[],\"extra\":2},\"mock\":{},\"capture\":{},\"extra\":1}",
       "name": "unknown_fields",
       "reencoded": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"c\",\"request\":{\"method\":\"GET\",\"path\":\"/p\",\"query\":\"\",\"headers\":[]},\"mock\":{},\"capture\":{}}",
       "stage_filter": null,
@@ -1124,7 +1124,7 @@
         "only": [],
         "x": []
       },
-      "input": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"c\",\"request\":{\"method\":\"POST\",\"path\":\"/openrtb2/auction\",\"query\":\"a=1\",\"headers\":[]},\"mock\":{},\"capture\":{},\"case_id\":\"a\",\"case_id\":\"b\"}",
+      "input": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"a\",\"case_id\":\"b\",\"request\":{\"method\":\"POST\",\"path\":\"/openrtb2/auction\",\"query\":\"a=1\",\"headers\":[]},\"mock\":{},\"capture\":{}}",
       "name": "duplicate_keys",
       "reencoded": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"b\",\"request\":{\"method\":\"POST\",\"path\":\"/openrtb2/auction\",\"query\":\"a=1\",\"headers\":[]},\"mock\":{},\"capture\":{}}",
       "stage_filter": null,
@@ -1163,7 +1163,7 @@
         "only": [],
         "x": []
       },
-      "input": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"c\",\"request\":{\"method\":\"POST\",\"path\":\"/openrtb2/auction\",\"query\":\"a=1\",\"headers\":[]},\"mock\":{},\"capture\":{},\"case_id\":\"\u003c\u0026\u003e\",\"fixture_path\":\"a\\u2028b\"}",
+      "input": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"\u003c\u0026\u003e\",\"request\":{\"method\":\"POST\",\"path\":\"/openrtb2/auction\",\"query\":\"a=1\",\"headers\":[]},\"mock\":{},\"capture\":{},\"fixture_path\":\"a\\u2028b\"}",
       "name": "html_in_strings",
       "reencoded": "{\"schema\":\"pbs-parity-envelope/1\",\"schema_version\":\"1.0.0\",\"case_id\":\"\\u003c\\u0026\\u003e\",\"fixture_path\":\"a\\u2028b\",\"request\":{\"method\":\"POST\",\"path\":\"/openrtb2/auction\",\"query\":\"a=1\",\"headers\":[]},\"mock\":{},\"capture\":{}}",
       "stage_filter": null,

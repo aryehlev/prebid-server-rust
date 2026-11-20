@@ -22,13 +22,13 @@
 #      directory, whose parity/scripts/build-go.sh assembles a tree from them
 #      and the pinned upstream checkout there (build-go.sh --no-build), and a
 #      temporary go.work uses this module (main.go, and the generated cases
-#      of fuzz.go, docfuzz.go, metricsfuzz.go and bodyfuzz.go) with the tree
-#      in place of the upstream module: the program needs the parity
-#      packages, which the upstream checkout its go.mod names does not have.
-#      The sources must be gofmt -s clean;
+#      of fuzz.go, portable.go, docfuzz.go, metricsfuzz.go and bodyfuzz.go)
+#      with the tree in place of the upstream module: the program needs the
+#      parity packages, which the upstream checkout its go.mod names does not
+#      have. The sources must be gofmt -s clean;
 #   2. it writes testdata/golden, including the scripted and generated
-#      sessions, documents, metric deltas, bodies and fake cases the Rust
-#      crate replays;
+#      sessions (and their portable forms), documents, metric deltas, bodies
+#      and fake cases the Rust crate replays;
 #   3. the Rust golden test rewrites testdata/documents (PBS_PARITY_REGEN=1),
 #      including the traces of those sessions;
 #   4. the program runs again, so verdicts.json holds the Go schema verdict on
