@@ -502,12 +502,12 @@ impl Registry {
                 })
             }
             TypeKind::Slice => {
-                let inner = self.serde_holder(t, elem(t)?, strings)?;
+                self.serde_element(t, elem(t)?, strings)?;
                 Ok(SerdeField {
                     omit: Omit::NilOrEmpty,
                     value: false,
                     with: None,
-                    merge_bridge: inner,
+                    merge_bridge: false,
                 })
             }
             TypeKind::Map => {
@@ -516,12 +516,12 @@ impl Registry {
                     .as_deref()
                     .ok_or_else(|| ToolError::new(format!("map type {} has no key", t.reflect)))?;
                 let _ = self.serde_holder(t, k, strings)?;
-                let inner = self.serde_holder(t, elem(t)?, strings)?;
+                self.serde_element(t, elem(t)?, strings)?;
                 Ok(SerdeField {
                     omit: Omit::NilOrEmpty,
                     value: false,
                     with: None,
-                    merge_bridge: inner,
+                    merge_bridge: false,
                 })
             }
             TypeKind::Interface if t.methods.is_empty() => Ok(SerdeField {
@@ -550,6 +550,21 @@ impl Registry {
             )));
         }
         Ok(field.merge_bridge)
+    }
+
+    /// Checks the element `inner` of the slice or map `outer`: pbs-jsonutil merges a `Vec` or
+    /// `BTreeMap` only of elements with a `MergeClone` of their own, and the bridge merges no
+    /// container, so an element that merges through the bridge (a Go `int` or `uint`, or a
+    /// pointer to one) has no serde mapping.
+    fn serde_element(&self, outer: &TypeRef, inner: &TypeRef, strings: StringType) -> Result<()> {
+        if self.serde_holder(outer, inner, strings)? {
+            return Err(ToolError::new(format!(
+                "{}: a Go int or uint inside a slice or map has no serde mapping (pbs-jsonutil \
+                 merges no isize or usize); override the field",
+                outer.reflect
+            )));
+        }
+        Ok(())
     }
 }
 

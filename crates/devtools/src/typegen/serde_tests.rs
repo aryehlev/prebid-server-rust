@@ -522,7 +522,7 @@ fn refuses_fields_serde_cannot_hold() -> Result<()> {
                 "Raws",
                 &[field("R", &slice_of(&raw_message()), Some("r"))],
             )],
-            none,
+            none.clone(),
             true,
             "a bridged type inside a pointer, slice or map",
         ),
@@ -532,7 +532,56 @@ fn refuses_fields_serde_cannot_hold() -> Result<()> {
             true,
             "GoString strings have no serde mapping",
         ),
-    ])
+        (
+            vec![struct_decl(
+                "Ints",
+                &[field("N", &slice_of(&basic("int")), Some("n"))],
+            )],
+            none.clone(),
+            true,
+            "a Go int or uint inside a slice or map",
+        ),
+        (
+            vec![struct_decl(
+                "Counts",
+                &[field("N", &map_of(&string(), &basic("uint")), Some("n"))],
+            )],
+            none.clone(),
+            true,
+            "a Go int or uint inside a slice or map",
+        ),
+        (
+            vec![struct_decl(
+                "Maybe",
+                &[field("N", &slice_of(&pointer(&basic("int"))), Some("n"))],
+            )],
+            none.clone(),
+            true,
+            "a Go int or uint inside a slice or map",
+        ),
+    ])?;
+    // A Go `int` key needs no merge of its own; `int64` elements merge as themselves.
+    let content = generate(
+        &[struct_decl(
+            "Keyed",
+            &[
+                field("K", &map_of(&basic("int"), &string()), Some("k")),
+                field("W", &slice_of(&basic("int64")), Some("w")),
+            ],
+        )],
+        &none,
+        true,
+    )?;
+    check_has(
+        &content,
+        "Go int keys and int64 elements",
+        &["    pub k: Option<BTreeMap<isize, String>>,"],
+    )?;
+    check_has(
+        &content,
+        "Go int keys and int64 elements",
+        &["            \"k\" => merge_field(&mut self.k, value, GO_TYPE, \"K\"),"],
+    )
 }
 
 #[test]
