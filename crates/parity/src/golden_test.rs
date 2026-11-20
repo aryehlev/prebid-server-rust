@@ -254,6 +254,7 @@ fn contract_is_the_go_contract() -> TestResult {
     check_eq(&have, &want, "vendored contract files")
 }
 
+// Go: testdata/go/main.go idsGolden (ids.json).
 #[test]
 fn schemas_match_go() -> TestResult {
     let g = golden("ids.json")?;
@@ -402,6 +403,7 @@ fn document_lists() -> [(&'static str, Vec<String>); 6] {
     ]
 }
 
+// Go: testdata/go/main.go idsGolden (ids.json).
 #[test]
 fn identifiers_match_go() -> TestResult {
     let g = golden("ids.json")?;
@@ -417,6 +419,7 @@ fn identifiers_match_go() -> TestResult {
     Ok(())
 }
 
+// Go: testdata/go/main.go idsGolden (ids.json).
 #[test]
 fn error_codes_match_go() -> TestResult {
     let codes: Vec<(i64, String)> = golden("ids.json")?
@@ -431,6 +434,7 @@ fn error_codes_match_go() -> TestResult {
     check_eq(&ours, &codes, "error codes")
 }
 
+// Go: testdata/go/main.go fakesGolden (fakes.json).
 #[test]
 fn fakes_match_go() -> TestResult {
     let g = golden("fakes.json")?;
@@ -516,6 +520,7 @@ fn go_error(spec: &Json) -> Result<GoError, String> {
     })
 }
 
+// Go: testdata/go/main.go errorsGolden (errors.json).
 #[test]
 fn error_records_match_go() -> TestResult {
     let g = golden("errors.json")?;
@@ -622,6 +627,7 @@ fn meta_reading(
     reading.ok_or_else(|| format!("{what}: the port reads {ours:?}, Go {theirs:?}"))
 }
 
+// Go: testdata/go/main.go metaGolden (meta.json).
 #[test]
 fn outbound_meta_matches_go() -> TestResult {
     let g = golden("meta.json")?;
@@ -665,6 +671,7 @@ fn outbound_meta_matches_go() -> TestResult {
 
 // Generated X-Parity-Meta values (`bodyfuzz.go`): damaged base64 of rewritten meta JSON, decoded,
 // and each decoded meta encoded again.
+// Go: testdata/go/bodyfuzz.go fuzzMetaGolden (meta_fuzz.json).
 #[test]
 fn fuzzed_outbound_meta_matches_go() -> TestResult {
     let cases = golden("meta_fuzz.json")?.elements()?;
@@ -807,6 +814,7 @@ const ENVELOPE_READINGS: [(&str, &str); 15] = [
     ("type_error", "refused by both"),
 ];
 
+// Go: testdata/go/main.go envelopesGolden (envelopes.json).
 #[test]
 fn envelopes_match_go() -> TestResult {
     let mut otherwise = BTreeMap::new();
@@ -960,6 +968,7 @@ const BODY_READINGS: [(&str, Reading); 12] = [
     ("text_unsupported wire", Reading::BothRefuse),
 ];
 
+// Go: testdata/go/main.go bodiesGolden (bodies.json).
 #[test]
 fn bodies_match_go() -> TestResult {
     let g = golden("bodies.json")?;
@@ -981,6 +990,7 @@ fn bodies_match_go() -> TestResult {
 
 // Generated bodies (`bodyfuzz.go`): random wire bytes under Content-Encoding spellings (case,
 // Unicode spaces, the dotted capital I) and random input bodies with damaged base64.
+// Go: testdata/go/bodyfuzz.go fuzzBodiesGolden (bodies_fuzz.json).
 #[test]
 fn fuzzed_bodies_match_go() -> TestResult {
     let g = golden("bodies_fuzz.json")?;
@@ -1838,6 +1848,7 @@ mod sessions {
     }
 
     // The traces Go's trace.Session records for the same calls, as JSON values.
+    // Go: testdata/go/main.go sessionsGolden (sessions.json).
     #[test]
     fn sessions_match_go() -> TestResult {
         let cases = super::golden("sessions.json")?.elements()?;
@@ -1862,6 +1873,7 @@ mod sessions {
     // Generated scripts (`fuzz.go`): random envelopes (stage filters, flags, decisions of every
     // JSON kind), keys and values with the characters encoders treat differently, raw bytes that
     // are not JSON or not UTF-8, every error type, and outbound calls, through every op.
+    // Go: testdata/go/fuzz.go fuzzSessionsGolden (sessions_fuzz.json).
     #[test]
     fn fuzzed_sessions_match_go() -> TestResult {
         let cases = super::golden("sessions_fuzz.json")?.elements()?;
@@ -1887,6 +1899,7 @@ mod sessions {
     // that are JSON but not UTF-8 left out, and the envelope's `-0` decisions and null stage IDs
     // written as the `0` and `""` Go reads them as): Go's results and trace for the rest, which
     // the port's must be in full, so a diverging input hides nothing else its script records.
+    // Go: testdata/go/portable.go portableSessionsGolden (sessions_portable.json).
     #[test]
     fn portable_sessions_match_go() -> TestResult {
         let twins = super::golden("sessions_portable.json")?.elements()?;
