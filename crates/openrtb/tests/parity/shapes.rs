@@ -24,18 +24,18 @@ use super::{
 };
 
 /// `json.error-texts`: the library message inside Prebid's wrapper is `serde_json`'s.
-const ERROR_TEXTS: &str = "json.error-texts";
+pub(super) const ERROR_TEXTS: &str = "json.error-texts";
 /// `json.failed-merge-empty-slice`: a merge that fails on a nil slice leaves it empty, where Go
 /// leaves it nil.
 const FAILED_MERGE_SLICE: &str = "json.failed-merge-empty-slice";
 /// `json.html-escape`: jsoniter escapes `<`, `>`, `&`, U+2028 and U+2029 in strings.
-const HTML_ESCAPE: &str = "json.html-escape";
+pub(super) const HTML_ESCAPE: &str = "json.html-escape";
 /// `json.float-format`: a number spelled differently.
-const FLOAT_FORMAT: &str = "json.float-format";
+pub(super) const FLOAT_FORMAT: &str = "json.float-format";
 /// `json.nil-raw-written`: Go writes no value for a nil `json.RawMessage`, the port `null`.
-const NIL_RAW_WRITTEN: &str = "json.nil-raw-written";
+pub(super) const NIL_RAW_WRITTEN: &str = "json.nil-raw-written";
 /// `json.null-document`: Go reads the document `null`, serde rejects it.
-const NULL_DOCUMENT: &str = "json.null-document";
+pub(super) const NULL_DOCUMENT: &str = "json.null-document";
 /// `json.promoted-field-context`: a merge error in a promoted field names the struct that
 /// declares it, where Go names the bare field.
 const PROMOTED_CONTEXT: &str = "json.promoted-field-context";
@@ -53,7 +53,7 @@ const EXPECTED: &[&str] = &[
 
 /// What one side made of a document: the bytes it wrote, or the decoder's or encoder's error.
 #[derive(Debug, Clone, PartialEq, Eq)]
-enum Outcome {
+pub(super) enum Outcome {
     /// The encoded bytes.
     Encoded(String),
     /// The decoder's error text.
@@ -423,7 +423,11 @@ fn compare_encoded(port: &str, go: &str) -> Result<Vec<&'static str>, String> {
 }
 
 /// The ledger entries a difference between two outcomes falls in, or what is unexplained.
-fn compare(doc: &str, port: &Outcome, go: &Outcome) -> Result<Vec<&'static str>, String> {
+pub(super) fn compare(
+    doc: &str,
+    port: &Outcome,
+    go: &Outcome,
+) -> Result<Vec<&'static str>, String> {
     match (port, go) {
         (Outcome::Encoded(p), Outcome::Encoded(g)) => compare_encoded(p, g),
         (Outcome::DecodeFailed(p), Outcome::DecodeFailed(g))
