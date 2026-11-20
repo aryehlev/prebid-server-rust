@@ -17,23 +17,29 @@ workspace = true
 # reqwest does the HTTP; bytes, url and hyper-util (the connection info reqwest puts on each
 # response) name its types; rustls checks certificates_file roots before reqwest takes them;
 # base64 decodes their PEM blocks; ipnet matches NO_PROXY's CIDR entries; tokio gives the
-# deadlines, the per-host semaphore and the resolver's lookups; futures-util's BoxFuture is what
-# the Transport trait returns (plan principle 15).
+# deadlines, the per-host semaphore, the resolver's lookups and the h2c probe's socket;
+# futures-util's BoxFuture is what the Transport trait returns (plan principle 15). The bidder
+# client's HTTP/2: h2 names the errors reqwest's HTTP/2 connections fail with (and serves h2 in
+# the tests), and moka holds the h2c verdicts.
 [dependencies]
 base64 = { workspace = true }
 bytes = { workspace = true }
 futures-util = { workspace = true }
+h2 = { workspace = true }
 hyper-util = { workspace = true, features = ["client-legacy"] }
 ipnet = { workspace = true }
+moka = { workspace = true }
 reqwest = { workspace = true }
 rustls = { workspace = true }
 tokio = { workspace = true }
 url = { workspace = true }
 
 # The loopback servers (plain TCP, and TLS through tokio-rustls with rcgen certificates signed by
-# aws-lc-rs keys) and the goldens, read with serde_json.
+# aws-lc-rs keys) and the goldens, read with serde_json; tokio's paused clock for the h2c verdicts'
+# lifetime and the probe's timeout.
 [dev-dependencies]
 aws-lc-rs = { workspace = true }
 rcgen = { workspace = true }
 serde_json = { workspace = true }
+tokio = { workspace = true, features = ["test-util"] }
 tokio-rustls = { workspace = true }

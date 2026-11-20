@@ -63,6 +63,9 @@ config = { version = "0.15.27", default-features = false, features = ["json", "t
 cookie = "0.18.2"
 flate2 = "1.1.11"
 futures-util = "0.3.34"
+# The ads.cert remote signer's unary gRPC client (D-GRPC: tonic fails the gates). hyper and
+# reqwest already lock it.
+h2 = "0.4.20"
 # pbs-server's HTTP/1.1-only connection builder (Go's header limit and read budget, which
 # axum::serve does not set) and the loopback test servers; axum already locks it.
 hyper-util = { version = "0.1.21", features = ["server-auto", "tokio"] }
@@ -129,9 +132,6 @@ url = "2.5.8"
 # # glog's nine flags in Go's flag syntax (LOGGING). The default unicode feature resolves to the
 # # unicode-width 0.2.3 that serde-saphyr's annotate-snippets already locks.
 # getopts = "0.2.24"
-# # The ads.cert remote signer's unary gRPC client (D-GRPC: tonic fails the gates). hyper and
-# # reqwest already lock it.
-# h2 = "0.4.20"
 # # ads.cert's TXT discovery (D-DNS). No system-config: it pulls core-foundation 0.9 beside 0.10.
 # hickory-resolver = { version = "0.26.3", default-features = false, features = ["tokio"] }
 # hmac = "0.13.0"

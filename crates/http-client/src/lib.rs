@@ -22,8 +22,11 @@
 //! ([`Response::new`], [`RequestError::new`]), or wrap the transport a [`Builder`] builds
 //! ([`Builder::build_transport`], Go's `http.Transport`).
 //!
-//! Every client speaks HTTP/1.1, as router.go's do. `docs/DIFFERENCES.md` lists where the clients
-//! differ from Go's (its `http-client` and `tls` categories).
+//! Every client speaks HTTP/1.1, as router.go's do, but the bidder client
+//! ([`Builder::negotiate_http2`]): it negotiates h2 over TLS, and speaks h2c to the cleartext
+//! bidders that answer a probe with HTTP/2's SETTINGS frame (`http-client.http2`).
+//! `docs/DIFFERENCES.md` lists where the clients differ from Go's (its `http-client` and `tls`
+//! categories).
 
 pub mod error;
 pub mod metrics;
@@ -34,7 +37,9 @@ pub mod settings;
 mod client;
 mod unreachable;
 
-pub use client::{Builder, Client, GO_USER_AGENT, Response, Transport};
+pub use client::{
+    Builder, Client, GO_USER_AGENT, H2C_PROBE_TIMEOUT, H2C_VERDICT_TTL, Response, Transport,
+};
 pub use error::{DnsError, ErrorKind, RequestError};
 pub use metrics::{Event, Trace};
 pub use proxy::ProxyEnv;
