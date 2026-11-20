@@ -412,8 +412,9 @@ mod tests {
     /// a 206 range included, and keeps `http.FileServer`'s `Accept-Ranges`; tower-http compresses
     /// the whole file and drops its `accept-ranges`, and sends a range as it is. A range under
     /// 1,400 bytes is sent as it is on both.
-    // Go: GzipResponseWriter.Write compresses when the handler's Content-Length is 1,400 or more
-    // and touches neither Accept-Ranges nor the status (gziphandler v1.1.1 gzip.go:100-151)
+    // Go: GzipResponseWriter.Write compresses when the handler's Content-Length is 1,400 or more,
+    // and startGzip touches neither Accept-Ranges nor the status (gziphandler v1.1.1
+    // gzip.go:100-183)
     #[test]
     fn gzip_ranges() -> TestResult {
         let pairs = run("static_gzip", true)?;

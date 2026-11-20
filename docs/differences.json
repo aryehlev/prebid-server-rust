@@ -1759,7 +1759,7 @@
       "category": "server",
       "status": "ledgered",
       "title": "Gzip and ranges: gziphandler compresses a 206 of 1,400 bytes or more and keeps `Accept-Ranges`, tower-http sends a range as it is and drops `accept-ranges` when it compresses",
-      "go": "gziphandler decides on the handler's `Content-Length` and bytes alone (`GzipResponseWriter.Write`, gziphandler v1.1.1 gzip.go:100-151): with gzip on, a `/static` range of 1,400 bytes or more is a 206 compressed whole with its `Content-Range` kept, and every compressed file answer keeps `http.FileServer`'s `Accept-Ranges: bytes`.",
+      "go": "gziphandler decides on the handler's `Content-Length` and bytes alone (`GzipResponseWriter.Write` and `startGzip`, gziphandler v1.1.1 gzip.go:100-183): with gzip on, a `/static` range of 1,400 bytes or more is a 206 compressed whole with its `Content-Range` kept, and every compressed file answer keeps `http.FileServer`'s `Accept-Ranges: bytes`.",
       "rust": "tower-http never compresses an answer with a `content-range` and removes `accept-ranges` from every answer it compresses (`ResponseFuture::poll`, tower-http 0.6.11 src/compression/future.rs:43-117), so a range is sent as `ServeDir` gives it and a compressed file answer has no `accept-ranges`. A range under 1,400 bytes is sent as it is on both.",
       "who": [
         "publisher"
