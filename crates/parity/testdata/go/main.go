@@ -77,6 +77,7 @@ func main() {
 		{"metrics.json", metricsGolden},
 		{"meta.json", metaGolden},
 		{"sessions_fuzz.json", fuzzSessionsGolden},
+		{"sessions_portable.json", portableSessionsGolden},
 		{"documents_fuzz.json", fuzzDocumentsGolden},
 		{"metrics_fuzz.json", fuzzMetricsGolden},
 		{"bodies_fuzz.json", fuzzBodiesGolden},
@@ -579,20 +580,47 @@ func uEsc(hex string) string { return string(rune(0x5c)) + "u" + hex }
 
 func rawJSON(s string) json.RawMessage { return json.RawMessage(s) }
 
-func sessionScripts() []struct {
+// sessionScript is one scripted session: the envelope it runs under and its
+// ops.
+type sessionScript struct {
 	name     string
 	envelope string
 	ops      []op
-} {
+}
+
+// runScript runs script through trace.Session, returning each op's result and
+// the trace as the server writes it.
+func runScript(script sessionScript) ([]any, string, error) {
+	var env parity.Envelope
+	if err := json.Unmarshal([]byte(script.envelope), &env); err != nil {
+		return nil, "", fmt.Errorf("%s: %w", script.name, err)
+	}
+	s, end := trace.Begin(&env)
+	results := make([]any, 0, len(script.ops))
+	for _, o := range script.ops {
+		r, err := runOp(s, o)
+		if err != nil {
+			end()
+			return nil, "", fmt.Errorf("%s: %s: %w", script.name, o.Op, err)
+		}
+		results = append(results, r)
+	}
+	snap := s.Snapshot()
+	end()
+	snap.Impl = parity.ImplRust
+	doc, err := writeJSON(snap)
+	if err != nil {
+		return nil, "", fmt.Errorf("%s: encoding the trace: %w", script.name, err)
+	}
+	return results, doc, nil
+}
+
+func sessionScripts() []sessionScript {
 	const auction = `{"schema":"pbs-parity-envelope/1","schema_version":"1.0.0","case_id":"%s","request":{"method":"POST","path":"/openrtb2/auction","query":"","headers":[]},"mock":{},"capture":%s%s}`
 	env := func(caseID, capture, extra string) string { return fmt.Sprintf(auction, caseID, capture, extra) }
 	call := `{"seq":1,"kind":"bidder","bidder":"appnexus","orig_url":"https://ib.adnxs.com/openrtb2/prebid?a=<b>&c","request":{"method":"POST","url":"http://127.0.0.1:9/appnexus","headers":[["Content-Type","application/json"],["X-Parity-Meta","e30="]],"body":{"text":"{\"id\":\"1\"}","json":{"id":"1"}}},"wire":false,"mock":{"source":"inline","id":"bidders.appnexus"},"response":{"status":200,"headers":[["Content-Type","application/json"]],"body":{"text":"{}","json":{}},"delay_ms":5},"error":null,"notes":["n"]}`
 	failed := `{"seq":2,"kind":"cache","bidder":"","orig_url":"http://cache/x","request":{"method":"POST","url":"http://cache/x","headers":[],"body":null},"wire":false,"mock":null,"response":null,"error":"timeout"}`
-	return []struct {
-		name     string
-		envelope string
-		ops      []op
-	}{
+	return []sessionScript{
 		{name: "empty", envelope: env("empty", `{}`, "")},
 		{name: "lexical", envelope: env("lex", `{}`, ""), ops: []op{
 			{Op: "record", Stage: "request.validated", Type: "map", Value: rawJSON(`{"adm":"<b>&"}`)},
@@ -699,26 +727,9 @@ func sessionScripts() []struct {
 func sessionsGolden() (any, error) {
 	cases := make([]map[string]any, 0)
 	for _, script := range sessionScripts() {
-		var env parity.Envelope
-		if err := json.Unmarshal([]byte(script.envelope), &env); err != nil {
-			return nil, fmt.Errorf("%s: %w", script.name, err)
-		}
-		s, end := trace.Begin(&env)
-		results := make([]any, 0, len(script.ops))
-		for _, o := range script.ops {
-			r, err := runOp(s, o)
-			if err != nil {
-				end()
-				return nil, fmt.Errorf("%s: %s: %w", script.name, o.Op, err)
-			}
-			results = append(results, r)
-		}
-		snap := s.Snapshot()
-		end()
-		snap.Impl = parity.ImplRust
-		doc, err := writeJSON(snap)
+		results, doc, err := runScript(script)
 		if err != nil {
-			return nil, fmt.Errorf("%s: encoding the trace: %w", script.name, err)
+			return nil, err
 		}
 		if script.ops == nil {
 			script.ops = []op{}

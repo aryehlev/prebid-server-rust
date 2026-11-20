@@ -1322,13 +1322,14 @@ fn documents_validate_with_go() -> TestResult {
     check(docs.len() > EXAMPLES.len(), "documents beyond the examples")
 }
 
-/// The scripted sessions of `sessions.json` and `sessions_fuzz.json`, run against
-/// [`Session`](crate::trace::Session).
+/// The scripted sessions of `sessions.json`, `sessions_fuzz.json` and `sessions_portable.json`,
+/// run against [`Session`](crate::trace::Session).
 ///
 /// A script the port runs as Go does has Go's op results and Go's trace, compared as JSON
 /// values: each side writes its own spelling of a value, inside the recorded `raw` texts too.
 /// A script with a step the two read or write differently by a ledgered difference
-/// ([`Divergence`]) is counted by it instead.
+/// ([`Divergence`]) is counted by it instead, and its portable form, which Go ran without that
+/// step, is compared in full.
 #[cfg(feature = "trace")]
 mod sessions {
     use std::{
@@ -1878,6 +1879,41 @@ mod sessions {
                 ]),
             ),
             "scripts run as in Go, and the others by why they diverge",
+        )
+    }
+
+    // The scripts above that hold an input the port reads otherwise than Go, each without that
+    // input (`portable.go`: the ops of a NaN, an infinity, a raw value that is not JSON or bytes
+    // that are JSON but not UTF-8 left out, and the envelope's `-0` decisions and null stage IDs
+    // written as the `0` and `""` Go reads them as): Go's results and trace for the rest, which
+    // the port's must be in full, so a diverging input hides nothing else its script records.
+    #[test]
+    fn portable_sessions_match_go() -> TestResult {
+        let twins = super::golden("sessions_portable.json")?.elements()?;
+        let names = twins
+            .iter()
+            .map(|twin| twin.string("name"))
+            .collect::<Result<BTreeSet<_>, _>>()?;
+        check_eq(&names.len(), &twins.len(), "one portable script per name")?;
+        let mut originals = 0;
+        for file in ["sessions.json", "sessions_fuzz.json"] {
+            for case in super::golden(file)?.elements()? {
+                let name = case.string("name")?;
+                if !run(&case)?.diverged.is_empty() {
+                    originals += 1;
+                    if !names.contains(&name) {
+                        return Err(format!(
+                            "{file}: {name} diverges and has no portable script"
+                        ));
+                    }
+                }
+            }
+        }
+        check_eq(&originals, &(2 + 193), "diverging scripts")?;
+        check_eq(
+            &replay(&twins)?,
+            &(257, BTreeMap::new()),
+            "every portable script runs as in Go",
         )
     }
 }
