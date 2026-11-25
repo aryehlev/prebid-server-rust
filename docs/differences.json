@@ -6,6 +6,7 @@
     "crates/gpp/differences.toml",
     "crates/http-client/differences.toml",
     "crates/jsonutil/differences.toml",
+    "crates/logger/differences.toml",
     "crates/parity/differences.toml",
     "crates/router/differences.toml",
     "crates/server/differences.toml",
@@ -2366,6 +2367,161 @@
       "fragment": "crates/jsonutil/differences.toml"
     },
     {
+      "id": "logging.debug-level",
+      "category": "logging",
+      "status": "restored",
+      "title": "`logger.Debugf`'s level: glog's INFO, where tracing has a DEBUG level",
+      "go": "`GlogLogger.Debugf` calls `glog.InfoDepthf` (logger/glog.go:13-15), so a `Debugf` line is an INFO line, written as `I...` wherever INFO lines go.",
+      "rust": "tracing has a DEBUG level below INFO: a `debug!` event is dropped by a subscriber that keeps Prebid's crates from INFO up, and written as `DEBUG` by one that keeps it.",
+      "who": [
+        "operator"
+      ],
+      "visible_in": "The server's log output",
+      "harness": [],
+      "pin": "crates/logger/tests/facade.rs::debugf_is_info",
+      "restore": "`debugf!` expands to tracing's `info!` (crates/logger/src/facade.rs), so its lines are INFO lines, kept and written as `infof!`'s are.",
+      "default": null,
+      "decision": null,
+      "rule_b": "prebid-logic",
+      "restore_by": [],
+      "restorations": [
+        {
+          "pin": "crates/logger/tests/facade.rs::debugf_is_info",
+          "note": "The sinks golden's `Debugf` line is an INFO line; `debugf!`'s is an INFO event, written as `INFO`.",
+          "fragment": "crates/logger/differences.toml"
+        }
+      ],
+      "restore_pending": false,
+      "note": null,
+      "fragment": "crates/logger/differences.toml"
+    },
+    {
+      "id": "logging.fatal",
+      "category": "logging",
+      "status": "ledgered",
+      "title": "`logger.Fatalf`: glog's FATAL line, every goroutine's stack and SIGABRT, against an error `main` reports",
+      "go": "`Fatalf` writes the FATAL line to stderr and every file, then every goroutine's stack, and raises SIGABRT, which the Go runtime answers with `SIGABRT: abort`, another stack dump and exit code 2, where the call stands (logger/glog.go:33-35; glog v1.2.5, glog.go:656-671).",
+      "rust": "`fatalf!` builds a `Fatal` error that the caller returns up to `main`, whose report writes the message as one ERROR line at the `pbs_logger::fatal` target, to stderr at every threshold and to the file, and gives exit code 2. No stack is written, and the callers between the failure and `main` return as the error comes up (the clippy `exit` lint forbids an exit in place).",
+      "who": [
+        "operator"
+      ],
+      "visible_in": "stderr and the exit status when the server stops on a fatal error",
+      "harness": [],
+      "pin": "crates/logger/tests/facade.rs::fatal_exit_code",
+      "restore": null,
+      "default": null,
+      "decision": null,
+      "rule_b": null,
+      "restore_by": [],
+      "restorations": [],
+      "restore_pending": false,
+      "note": null,
+      "fragment": "crates/logger/differences.toml"
+    },
+    {
+      "id": "logging.files",
+      "category": "logging",
+      "status": "ledgered",
+      "title": "Log files: glog's per-severity files with headers and symlinks, against one daily file without either",
+      "go": "Without `-logtostderr`, glog writes `<program>.<host>.<user>.log.<SEVERITY>.<yyyymmdd-hhmmss>.<pid>` for INFO, WARNING, ERROR and, after `Fatalf`, FATAL, each with a five-line header and the lines at or above its severity, with a `<program>.<SEVERITY>` symlink beside each and another in `-log_link`. It writes them in `-log_dir`, or in the temp directory when `-log_dir` is empty or no file can be made there (a missing `-log_dir` included), and flushes lines above `-logbuflevel` at once and the others every 30 seconds.",
+      "rust": "tracing-appender writes one file, `<program>.<yyyy-mm-dd>.log`, rolled over at midnight UTC, with every line, no header and no symlink, through a non-blocking worker that never drops a line (`lossy(false)`). A missing `-log_dir` is made, and a `-log_dir` that cannot be made stops the start with `log: cannot create log in <dir>: <reason>` and exit code 2. `-log_link` and `-logbuflevel` are accepted and change nothing.",
+      "who": [
+        "operator"
+      ],
+      "visible_in": "Log files, when the server runs without `-logtostderr` (the image runs with it)",
+      "harness": [],
+      "pin": "crates/logger/tests/files.rs::appender_layout",
+      "restore": null,
+      "default": null,
+      "decision": "D-LOGFILE",
+      "rule_b": null,
+      "restore_by": [],
+      "restorations": [],
+      "restore_pending": false,
+      "note": null,
+      "fragment": "crates/logger/differences.toml"
+    },
+    {
+      "id": "logging.flag-texts",
+      "category": "logging",
+      "status": "ledgered",
+      "title": "Flag errors and usage: the flag package's lines and listing, against Go's words with Rust's quoting and getopts' listing",
+      "go": "A failure writes one error line, such as `flag provided but not defined: -x`, `flag needs an argument: -v`, `bad flag syntax: ---x`, `invalid value \"x\" for flag -v: strconv.Atoi: parsing \"x\": invalid syntax` or `invalid boolean value \"x\" for -logtostderr: parse error`, with values quoted by `%q`, then the usage listing of `PrintDefaults`: each flag as `  -name` and its value's type (none for a bool), its help text on the next line after four spaces and a tab, and `(default 2)` after `-stderrthreshold`'s. `-h` writes the listing alone.",
+      "rust": "The error lines are Go's words, with values quoted by Rust's `{:?}`, which writes a control character as `\\u{1}` where `%q` writes `\\x01` (the matrix's `-v=\\x01` and `-logtostderr=\\x7f` rows). The listing is getopts', with glog's help texts: `Options:`, then each flag indented by eight (`-v` by four) with `[=bool]` after a bool and the value's type after the others, its help text from column 24 wrapped at 54 characters, and no default.",
+      "who": [
+        "operator"
+      ],
+      "visible_in": "stderr when the command line fails or asks for the usage",
+      "harness": [],
+      "pin": "crates/logger/tests/flags.rs::error_lines",
+      "restore": null,
+      "default": null,
+      "decision": null,
+      "rule_b": null,
+      "restore_by": [],
+      "restorations": [],
+      "restore_pending": false,
+      "note": "Every other error line of the matrix and of the 50,000 seeded command lines is Go's, byte for byte.",
+      "fragment": "crates/logger/differences.toml"
+    },
+    {
+      "id": "logging.flag-utf8",
+      "category": "logging",
+      "status": "ledgered",
+      "title": "Command-line arguments that are not UTF-8: Go reads them as bytes, getopts refuses them",
+      "go": "Go's `os.Args` are byte strings: `-log_dir=<bytes>` names a directory, an argument after the flags is left in `flag.Args()` whatever its bytes, and `-v=<bytes>` fails `strconv.Atoi` with exit code 2.",
+      "rust": "getopts takes UTF-8 arguments only, so the first argument that is not UTF-8 stops the start with `argument is not UTF-8: <the argument, its bad bytes as U+FFFD>`, the usage and exit code 2.",
+      "who": [
+        "operator"
+      ],
+      "visible_in": "Startup with a command-line argument that is not UTF-8",
+      "harness": [],
+      "pin": "crates/logger/tests/flags.rs::non_utf8_arguments",
+      "restore": null,
+      "default": null,
+      "decision": null,
+      "rule_b": null,
+      "restore_by": [],
+      "restorations": [],
+      "restore_pending": false,
+      "note": null,
+      "fragment": "crates/logger/differences.toml"
+    },
+    {
+      "id": "logging.flags",
+      "category": "logging",
+      "status": "restored",
+      "title": "Command line: Go's flag package reads glog's nine flags in its syntax, getopts reads options its own way",
+      "go": "`flag.Parse` (main.go:28) reads glog v1.2.5's nine flags: `-name` or `--name`, a value after `=` or as the next argument, a bool set by `-name` or `-name=<strconv.ParseBool value>` and never by the next argument. Each value is set in argument order by its flag's `Set` (`strconv.Atoi` for `-v`, `ParseInt` with base 0 for `-logbuflevel`, glog's parsers for `-vmodule`, `-log_backtrace_at` and `-stderrthreshold`), the last one winning; parsing stops at the first argument that is not a flag and after `--`; `-h` and `-help` print the usage and exit 0, and every other failure prints an error line and the usage and exits 2.",
+      "rust": "getopts alone reads `-logtostderr` as a cluster of eleven one-letter options, keeps values as strings, reports a failure as its own `Fail` value without the options before it, and knows no help flag or exit code.",
+      "who": [
+        "operator"
+      ],
+      "visible_in": "Startup: the server's command line (the image runs `-v 1 -logtostderr`)",
+      "harness": [],
+      "pin": "crates/logger/tests/flags.rs::go_flag_matrix",
+      "restore": "crates/logger/src/flags: getopts with `long_only` and `StopAtFirstFree`, `-v` as its one letter and the bools as optional values, so `-name false` leaves `false` as an argument; the glue sets the values in argument order with ports of strconv's `ParseBool`, `Atoi` and `ParseInt` and of glog's `Set` methods, reruns getopts on the longest prefix it parses so that an earlier bad value fails first, as in Go, and turns `-h` and `-help` into the usage with exit code 0 and every other failure into exit code 2.",
+      "default": null,
+      "decision": null,
+      "rule_b": "c",
+      "restore_by": [],
+      "restorations": [
+        {
+          "pin": "crates/logger/tests/flags.rs::go_flag_matrix",
+          "note": "The matrix's 123 command lines give Go's outcome and exit code and, when they parse, every flag's value as Go's `String` writes it and the arguments left.",
+          "fragment": "crates/logger/differences.toml"
+        },
+        {
+          "pin": "crates/logger/tests/flags.rs::seeded_command_lines_match_go",
+          "note": "50,000 seeded command lines of flags, odd names, values and specials give Go's outcome, values and arguments left in every batch's digest.",
+          "fragment": "crates/logger/differences.toml"
+        }
+      ],
+      "restore_pending": false,
+      "note": null,
+      "fragment": "crates/logger/differences.toml"
+    },
+    {
       "id": "logging.line-format",
       "category": "logging",
       "status": "ledgered",
@@ -2387,6 +2543,104 @@
       "restore_pending": false,
       "note": "The glog calls that bypass the facade (the rules engine's observer.go:14 and :20, and the WURFL module) write their own file and line; no pin covers them.",
       "fragment": "crates/differences/differences.toml"
+    },
+    {
+      "id": "logging.message-bytes",
+      "category": "logging",
+      "status": "ledgered",
+      "title": "Message bytes: glog cuts a line at 15,000 bytes and adds no newline after one, tracing-subscriber writes the whole message and always ends the line",
+      "go": "glog cuts a formatted line, header included, to 14,999 bytes and its newline (`MaxLogMessageLen`; glog v1.2.5, internal/logsink/logsink.go:29-33 and 247-254), and adds no newline to a message that ends with one, as the formats of `logger.Infof` at router/router.go:133 and :140 and of `logger.Fatalf` at config/config.go:767 do.",
+      "rust": "tracing-subscriber writes the whole message and then a newline of its own, so a message that ends with a newline leaves an empty line after it.",
+      "who": [
+        "operator"
+      ],
+      "visible_in": "The server's log output: long messages and those whose format ends with `\\n`",
+      "harness": [],
+      "pin": "crates/logger/tests/format.rs::message_bytes",
+      "restore": null,
+      "default": null,
+      "decision": null,
+      "rule_b": null,
+      "restore_by": [],
+      "restorations": [],
+      "restore_pending": false,
+      "note": null,
+      "fragment": "crates/logger/differences.toml"
+    },
+    {
+      "id": "logging.std-log-lines",
+      "category": "logging",
+      "status": "ledgered",
+      "title": "Lines of other code: Go's standard logger, against tracing lines through Prebid's subscriber",
+      "go": "net/http's servers (`http: TLS handshake error from ...`, net/http/server.go:1943) and go-metrics-influxdb (influxdb.go:37-86) write through Go's standard logger: `2006/01/02 15:04:05 message` on stderr whatever glog's flags say, and never in glog's files.",
+      "rust": "Other crates log through tracing (axum, h2, hyper-util and tower do) or through the `log` crate, which tracing-log hands to tracing (reqwest does), into the subscriber Prebid's lines go through: from WARN up only, in tracing-subscriber's format, to stderr and the log file as glog's flags send a line of that level. The Influx reporter logs through pbs-logger, as Prebid's code does.",
+      "who": [
+        "operator"
+      ],
+      "visible_in": "The server's log output: the lines of libraries",
+      "harness": [],
+      "pin": "crates/logger/tests/format.rs::dependency_lines",
+      "restore": null,
+      "default": null,
+      "decision": null,
+      "rule_b": null,
+      "restore_by": [],
+      "restorations": [],
+      "restore_pending": false,
+      "note": null,
+      "fragment": "crates/logger/differences.toml"
+    },
+    {
+      "id": "logging.stderr-threshold",
+      "category": "logging",
+      "status": "restored",
+      "title": "Where lines go: glog's -logtostderr, -alsologtostderr and -stderrthreshold, against tracing-subscriber's one writer per layer",
+      "go": "glog writes a line to stderr when `-logtostderr` or `-alsologtostderr` is set or the line's severity is at or above `-stderrthreshold` (ERROR unless set; INFO, WARNING, ERROR, FATAL or 0 to 3), and to its files unless `-logtostderr` is set (glog v1.2.5, glog_file.go:198-236).",
+      "rust": "tracing-subscriber's fmt layer writes every event its filter lets through to its one writer, with no notion of glog's flags or of a FATAL severity.",
+      "who": [
+        "operator"
+      ],
+      "visible_in": "The server's stderr and log file under the stderr flags",
+      "harness": [],
+      "pin": "crates/logger/tests/files.rs::stderr_threshold",
+      "restore": "crates/logger/src/sinks.rs builds a stderr layer whose filter is glog's `stderrSink.Enabled` and a file layer unless `-logtostderr` is set; the report of `Fatal` logs at ERROR with the `pbs_logger::fatal` target, which counts as FATAL, so `-stderrthreshold=FATAL` still lets it through.",
+      "default": null,
+      "decision": null,
+      "rule_b": "c",
+      "restore_by": [],
+      "restorations": [
+        {
+          "pin": "crates/logger/tests/files.rs::stderr_threshold",
+          "note": "Every levels and fatal run of the sinks golden writes glog's lines, in order and with glog's severities, to stderr, and a file exactly when glog writes one, holding the lines of glog's INFO file.",
+          "fragment": "crates/logger/differences.toml"
+        }
+      ],
+      "restore_pending": false,
+      "note": null,
+      "fragment": "crates/logger/differences.toml"
+    },
+    {
+      "id": "logging.v-flags",
+      "category": "logging",
+      "status": "ledgered",
+      "title": "-v, -vmodule and -log_backtrace_at: read as glog reads them, with no effect",
+      "go": "glog reads `-v` and `-vmodule` for `glog.V`, which no Prebid code calls, so they change nothing; `-log_backtrace_at=file.go:N` writes a stack after every line logged at that file and line, which through the facade is one of the facade's own, `logger.go:17` for every `Warnf`.",
+      "rust": "The three flags are parsed and checked as glog parses them (a bad value fails with exit code 2) and change nothing: no stack is written.",
+      "who": [
+        "operator"
+      ],
+      "visible_in": "stderr under `-log_backtrace_at`",
+      "harness": [],
+      "pin": "crates/logger/tests/flags.rs::v_flags_accepted",
+      "restore": null,
+      "default": null,
+      "decision": null,
+      "rule_b": null,
+      "restore_by": [],
+      "restorations": [],
+      "restore_pending": false,
+      "note": null,
+      "fragment": "crates/logger/differences.toml"
     },
     {
       "id": "metrics.parity-delta-order",
