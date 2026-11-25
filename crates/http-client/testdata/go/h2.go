@@ -34,13 +34,16 @@ const h2ContentType = "application/json;charset=utf-8"
 //     them with (probe);
 //   - what an HTTP/1 Go server answers a bid request sent with prior knowledge, which is what an
 //     h2c client sends to an origin that no longer speaks h2c (answers);
-//   - the request Go's HTTP/2 client sends, as a raw HTTP/2 server decodes it (requests).
+//   - the request Go's HTTP/2 client sends, as a raw HTTP/2 server decodes it (requests);
+//   - gamma's bid request, whose adapter adds a connection-specific field, as router.go's
+//     Transport writes it over HTTP/1.1 and as Go's HTTP/2 client sends it (gamma).
 type h2Doc struct {
 	Header    header        `json:"header"`
 	Selection []h2Selection `json:"selection"`
 	Probe     h2Probe       `json:"probe"`
 	Answers   []h2Answer    `json:"answers"`
 	Requests  []h2Request   `json:"requests"`
+	Gamma     h2Gamma       `json:"gamma"`
 }
 
 // h2Selection is two bid requests in turn from one client to one kind of bidder server.
@@ -128,6 +131,20 @@ type h2Request struct {
 	Body string `json:"body"`
 }
 
+// h2Gamma is gamma's bid request: the adapter adds Connection: keep-alive
+// (adapters/gamma/gamma.go:134), a connection-specific field, which HTTP/2 forbids (RFC 9113
+// section 8.2.2).
+type h2Gamma struct {
+	// Field is the header line the adapter adds.
+	Field string `json:"field"`
+	// HTTP1 is the request head router.go's Transport writes over HTTP/1.1, line by line as a raw
+	// server reads it, the port written as PORT: Request.write writes the field.
+	HTTP1 []string `json:"http1"`
+	// Requests are the requests Go's HTTP/2 client sends with it over h2 and h2c, as Requests
+	// records them: they carry no connection-specific field (encodeHeaders drops them).
+	Requests []h2Request `json:"requests"`
+}
+
 func h2Golden() h2Doc {
 	pki := newTestPKI()
 	return h2Doc{
@@ -135,7 +152,8 @@ func h2Golden() h2Doc {
 		Selection: h2Selections(pki),
 		Probe:     h2ProbeGolden(),
 		Answers:   h2Answers(),
-		Requests:  []h2Request{h2RequestGolden("h2", pki), h2RequestGolden("h2c", pki)},
+		Requests:  []h2Request{h2RequestGolden("h2", pki, bidRequest), h2RequestGolden("h2c", pki, bidRequest)},
+		Gamma:     h2GammaGolden(pki),
 	}
 }
 
@@ -225,6 +243,18 @@ func bidRequest(url string) *http.Request {
 		panic(err)
 	}
 	req.Header.Set("Content-Type", h2ContentType)
+	return req
+}
+
+// gammaField is the connection-specific header line gamma's adapter adds
+// (adapters/gamma/gamma.go:134).
+const gammaField = "Connection: keep-alive"
+
+// gammaRequest is a bid request to url carrying gammaField, as gamma's adapter sends it.
+func gammaRequest(url string) *http.Request {
+	req := bidRequest(url)
+	name, value, _ := strings.Cut(gammaField, ": ")
+	req.Header.Add(name, value)
 	return req
 }
 
@@ -385,9 +415,9 @@ func h2Answers() []h2Answer {
 	return answers
 }
 
-// h2RequestGolden sends a bid request with Go's HTTP/2 client over transport ("h2" or "h2c") to a
-// raw HTTP/2 server, which decodes it and answers 200.
-func h2RequestGolden(transport string, pki testPKI) h2Request {
+// h2RequestGolden sends the bid request newRequest makes with Go's HTTP/2 client over transport
+// ("h2" or "h2c") to a raw HTTP/2 server, which decodes it and answers 200.
+func h2RequestGolden(transport string, pki testPKI, newRequest func(url string) *http.Request) h2Request {
 	var ln net.Listener
 	var err error
 	if transport == "h2" {
@@ -418,7 +448,7 @@ func h2RequestGolden(transport string, pki testPKI) h2Request {
 		scheme, server = "https", "https_h2"
 	}
 	client := h2Transport("http2", server, pki)
-	resp, body, err := roundTrip(&http.Client{Transport: client}, bidRequest(scheme+"://127.0.0.1:"+port+"/bid"))
+	resp, body, err := roundTrip(&http.Client{Transport: client}, newRequest(scheme+"://127.0.0.1:"+port+"/bid"))
 	if err != nil {
 		panic(err)
 	}
@@ -432,6 +462,37 @@ func h2RequestGolden(transport string, pki testPKI) h2Request {
 		panic(err)
 	}
 	return request
+}
+
+// h2GammaGolden sends gamma's bid request with router.go's Transport over HTTP/1.1 to a raw
+// server, which reads its head and answers 200, and with Go's HTTP/2 client over h2 and h2c.
+func h2GammaGolden(pki testPKI) h2Gamma {
+	heads := make(chan []string, 1)
+	server := newRawServer(func(c *rawConn) {
+		req, ok := c.readRequest()
+		if !ok {
+			return
+		}
+		heads <- req.head
+		c.write("HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nok")
+		c.drain()
+	})
+	transport := generalTransport(pki.roots)
+	resp, body, err := roundTrip(&http.Client{Transport: transport}, gammaRequest("http://"+server.addr()+"/bid"))
+	if err != nil {
+		panic(err)
+	}
+	if resp.Proto != "HTTP/1.1" || string(body) != "ok" {
+		panic("unexpected answer " + resp.Proto + " " + string(body))
+	}
+	gamma := h2Gamma{Field: gammaField}
+	for _, line := range <-heads {
+		gamma.HTTP1 = append(gamma.HTTP1, withPorts(line, map[string]string{server.port: "PORT"}))
+	}
+	transport.CloseIdleConnections()
+	server.close()
+	gamma.Requests = []h2Request{h2RequestGolden("h2", pki, gammaRequest), h2RequestGolden("h2c", pki, gammaRequest)}
+	return gamma
 }
 
 // serveH2Request serves one HTTP/2 connection: it reads the preface, sends an empty SETTINGS

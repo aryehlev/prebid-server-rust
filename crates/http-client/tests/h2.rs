@@ -19,7 +19,7 @@ mod tests {
 
     use bytes::Bytes;
     use h2::{
-        RecvStream,
+        Reason, RecvStream,
         server::{SendResponse, handshake},
     };
     use pbs_http_client::{
@@ -27,7 +27,7 @@ mod tests {
         Trace,
         reqwest::{
             Request, StatusCode, Url,
-            header::{CONTENT_TYPE, HeaderMap, HeaderValue, LOCATION, USER_AGENT},
+            header::{CONTENT_TYPE, HeaderMap, HeaderName, HeaderValue, LOCATION, USER_AGENT},
         },
     };
     use serde_json::Value;
@@ -91,6 +91,8 @@ mod tests {
     struct Seen {
         /// The requests its handlers read, as `h2.go` writes them.
         requests: Vec<String>,
+        /// The HTTP/1.1 requests' heads, line by line as they came.
+        heads: Vec<Vec<String>>,
         /// The h2 requests' pseudo-header fields, fields (sorted) and body, as `h2.json` writes
         /// them.
         h2: Vec<(Vec<String>, Vec<String>, String)>,
@@ -335,7 +337,10 @@ mod tests {
                 field("user-agent"),
                 request.body.len()
             );
-            shared.record(|seen| seen.requests.push(handled));
+            shared.record(|seen| {
+                seen.requests.push(handled);
+                seen.heads.push(request.head.clone());
+            });
             let ok = "HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nok".to_owned();
             let answer = match target {
                 "/slow" => {
@@ -468,6 +473,23 @@ mod tests {
                 sleep(WAIT).await;
                 send(&mut respond, StatusCode::OK, HeaderMap::new(), "ok");
             }
+            "/refused" | "/refusing" => {
+                // `/refused` refuses the first stream that asks for it, as a server short of
+                // streams does, and answers the next; `/refusing` refuses every one.
+                let first = shared
+                    .seen
+                    .borrow()
+                    .requests
+                    .iter()
+                    .filter(|line| line.contains(" /refused "))
+                    .count()
+                    == 1;
+                if head.path == "/refusing" || first {
+                    respond.send_reset(Reason::REFUSED_STREAM);
+                } else {
+                    send(&mut respond, StatusCode::OK, HeaderMap::new(), "ok");
+                }
+            }
             "/same" => send(
                 &mut respond,
                 StatusCode::TEMPORARY_REDIRECT,
@@ -548,6 +570,18 @@ mod tests {
         )
     }
 
+    /// gamma's bid request to `url`: [`bid`]'s, with `field` (`h2.json`'s gamma field), which
+    /// gamma's adapter adds.
+    fn gamma(url: &str, field: &str) -> Result<Request, BoxError> {
+        let mut request = bid(url)?;
+        let (name, value) = field.split_once(": ").ok_or("a field without a value")?;
+        let _previous = request.headers_mut().insert(
+            HeaderName::from_bytes(name.as_bytes())?,
+            HeaderValue::from_str(value)?,
+        );
+        Ok(request)
+    }
+
     /// A bid request to `url`: a POST of `{"id":"r"}` with the Content-Type `h2.go` sets.
     fn bid(url: &str) -> Result<Request, BoxError> {
         let mut bid = request("POST", url)?;
@@ -560,7 +594,12 @@ mod tests {
 
     /// The protocol of the answer to a bid request to `url`, or the error's kind.
     async fn post(client: &Client, url: &str) -> Result<String, BoxError> {
-        Ok(match client.send(bid(url)?, None, None).await {
+        sent(client, bid(url)?).await
+    }
+
+    /// The protocol of the answer to `request`, or the error's kind.
+    async fn sent(client: &Client, request: Request) -> Result<String, BoxError> {
+        Ok(match client.send(request, None, None).await {
             Ok(response) => {
                 let fetched = fetch(response).await;
                 drop(fetched.body?);
@@ -1202,22 +1241,10 @@ mod tests {
                 let port = bidder.port();
                 let _counts = bidder.close().await;
                 got.push((transport.to_owned(), protocol, read));
-                let pseudo: Vec<String> = strings(request, "/pseudo")?
-                    .iter()
-                    .map(|field| ports_in(field, &[(port, "PORT")]))
-                    .collect();
-                // D-UA's User-Agent, and reqwest's Accept (http-client.default-accept).
-                let mut fields: Vec<String> = strings(request, "/fields")?
-                    .iter()
-                    .map(|field| field.replace("Go-http-client/2.0", "Go-http-client/1.1"))
-                    .collect();
-                fields.push("accept: */*".to_owned());
-                fields.sort();
-                let body = text(request, "/body")?.to_owned();
                 want.push((
                     transport.to_owned(),
                     "HTTP/2.0".to_owned(),
-                    (pseudo, fields, body),
+                    as_sent(request, port)?,
                 ));
             }
             check_eq(
@@ -1225,6 +1252,146 @@ mod tests {
                 &want,
                 "each transport's bid request as the bidder read it: pseudo-header fields, \
                  fields, body",
+            )
+        })
+    }
+
+    /// One of `h2.json`'s requests of Go's HTTP/2 client as the bidder client sends it to a bidder
+    /// on `port`: the pseudo-header fields, the fields with D-UA's User-Agent and reqwest's Accept
+    /// (http-client.default-accept), sorted, and the body.
+    fn as_sent(request: &Value, port: u16) -> Result<(Vec<String>, Vec<String>, String), BoxError> {
+        let pseudo = strings(request, "/pseudo")?
+            .iter()
+            .map(|field| ports_in(field, &[(port, "PORT")]))
+            .collect();
+        let mut fields: Vec<String> = strings(request, "/fields")?
+            .iter()
+            .map(|field| field.replace("Go-http-client/2.0", "Go-http-client/1.1"))
+            .collect();
+        fields.push("accept: */*".to_owned());
+        fields.sort();
+        Ok((pseudo, fields, text(request, "/body")?.to_owned()))
+    }
+
+    /// The protocol of the answer to gamma's bid request, carrying `field`, from a TLS bidder that
+    /// offers HTTP/1.1 only, and the head the bidder read.
+    async fn gamma_over_http1(
+        pki: &TestPki,
+        doc: &Value,
+        field: &str,
+    ) -> Result<(String, Vec<String>), BoxError> {
+        let bidder = Bidder::tls(pki, &[b"http/1.1"], doc).await?;
+        let client = bidder_client(pki)?;
+        let url = format!("https://127.0.0.1:{}/bid", bidder.port());
+        let protocol = sent(&client, gamma(&url, field)?).await?;
+        drop(client);
+        let head = bidder
+            .seen()
+            .heads
+            .last()
+            .cloned()
+            .ok_or("no HTTP/1.1 request")?;
+        let _counts = bidder.close().await;
+        Ok((protocol, head))
+    }
+
+    // Go: adapters/gamma/gamma.go:134 (Connection: keep-alive); net/http/request.go Request.write,
+    // which writes it over HTTP/1.1 (h2.json's gamma http1), and net/http/h2_bundle.go
+    // encodeHeaders, which leaves the connection-specific fields out of an HTTP/2 request (gamma
+    // requests), as hyper's HTTP/2 client does (RFC 9113 section 8.2.2).
+    #[test]
+    fn connection_fields_dropped_on_h2() -> TestResult {
+        run(async {
+            let doc = golden("h2.json")?;
+            let pki = TestPki::new()?;
+            let field = text(&doc, "/gamma/field")?;
+            let carries =
+                |lines: &[String]| lines.iter().any(|line| line.eq_ignore_ascii_case(field));
+            // Over HTTP/1.1 the field goes as Go's bidder client sends it.
+            let (http1, head) = gamma_over_http1(&pki, &doc, field).await?;
+            check_eq(
+                &(http1, carries(&head)),
+                &(
+                    "HTTP/1.1".to_owned(),
+                    carries(&strings(&doc, "/gamma/http1")?),
+                ),
+                "the protocol of gamma's bid request to an HTTP/1.1 bidder, and whether it carries \
+                 the field, as Go's does",
+            )?;
+            // Over h2 and h2c it goes as Go's HTTP/2 client sends it: without the field.
+            let mut got = Vec::new();
+            let mut want = Vec::new();
+            for request in list(&doc, "/gamma/requests")? {
+                let transport = text(request, "/transport")?;
+                let (bidder, client, base) = on_h2(transport, &pki, &doc).await?;
+                let protocol = sent(&client, gamma(&format!("{base}/bid"), field)?).await?;
+                drop(client);
+                let read = bidder
+                    .seen()
+                    .h2
+                    .last()
+                    .cloned()
+                    .ok_or("no HTTP/2 request")?;
+                let port = bidder.port();
+                let _counts = bidder.close().await;
+                got.push((transport.to_owned(), protocol, read));
+                want.push((
+                    transport.to_owned(),
+                    "HTTP/2.0".to_owned(),
+                    as_sent(request, port)?,
+                ));
+            }
+            check_eq(
+                &got,
+                &want,
+                "each transport's gamma bid request as the bidder read it: pseudo-header fields, \
+                 fields, body",
+            )
+        })
+    }
+
+    // Go: none: Go's bidder client speaks HTTP/1.1, which has no REFUSED_STREAM. reqwest's default
+    // retry policy (its retry module: protocol NACKs) sends a request whose stream the server
+    // refused unprocessed (RFC 9113 section 8.7) again, at most twice, as Go's HTTP/2 client sends
+    // it again (net/http/h2_bundle.go http2canRetryError).
+    #[test]
+    fn refused_streams_go_again() -> TestResult {
+        run(async {
+            let doc = golden("h2.json")?;
+            let pki = TestPki::new()?;
+            let mut got = Vec::new();
+            for transport in ["h2", "h2c"] {
+                let (bidder, client, base) = on_h2(transport, &pki, &doc).await?;
+                let refused = post(&client, &format!("{base}/refused")).await?;
+                let refusing = post(&client, &format!("{base}/refusing")).await?;
+                let next = post(&client, &format!("{base}/bid")).await?;
+                drop(client);
+                let seen = bidder.seen();
+                let read = |path: &str| {
+                    let path = format!(" {path} ");
+                    seen.requests
+                        .iter()
+                        .filter(|line| line.contains(&path))
+                        .count()
+                };
+                let reads = (read("/refused"), read("/refusing"));
+                let _counts = bidder.close().await;
+                got.push((transport, (refused, reads.0), (refusing, reads.1), next));
+            }
+            // Over h2c the failure moves the origin back to HTTP/1.1 (http-client.h2c-demotion).
+            let want = |transport, next: &str| {
+                (
+                    transport,
+                    ("HTTP/2.0".to_owned(), 2),
+                    ("error Request".to_owned(), 3),
+                    next.to_owned(),
+                )
+            };
+            check_eq(
+                &got,
+                &vec![want("h2", "HTTP/2.0"), want("h2c", "HTTP/1.1")],
+                "each transport: a request refused once and one refused every time, each with the \
+                 streams the bidder got for it, then the protocol of the next request",
             )
         })
     }

@@ -968,11 +968,11 @@
       "status": "ledgered",
       "title": "Bidder requests: Go's bidder client speaks HTTP/1.1 only, the bidder client takes HTTP/2",
       "go": "Every bidder request goes over HTTP/1.1: router.go's bidder Transport sets neither `ForceAttemptHTTP2` nor `Protocols` (router/router.go:143-158), so `Transport.protocols` leaves HTTP/2 off (net/http/transport.go:477).",
-      "rust": "The bidder client (`Builder::negotiate_http2`, the user's decision of 2026-11-18) offers ALPN `h2` and `http/1.1` over TLS and speaks what the bidder picks, and speaks h2c with prior knowledge to a cleartext bidder it reaches without a proxy once the bidder has answered a probe with SETTINGS (`http-client.h2c-probe`), from the origin's request after the probe. `User-Agent` stays `Go-http-client/1.1` on h2 (D-UA), where Go's HTTP/2 sends `Go-http-client/2.0`; the request's fields and body are the ones it carries over HTTP/1.1. Every other client stays on HTTP/1.1.",
+      "rust": "The bidder client (`Builder::negotiate_http2`, the user's decision of 2026-11-18) offers ALPN `h2` and `http/1.1` over TLS and speaks what the bidder picks, and speaks h2c with prior knowledge to a cleartext bidder it reaches without a proxy once the bidder has answered a probe with SETTINGS (`http-client.h2c-probe`), from the origin's request after the probe. `User-Agent` stays `Go-http-client/1.1` on h2 (D-UA), where Go's HTTP/2 sends `Go-http-client/2.0`. The request's fields and body are the ones it carries over HTTP/1.1, its host going as the `:authority` pseudo-header field, less the connection-specific fields that HTTP/2 forbids (RFC 9113 section 8.2.2), which hyper leaves out as Go's HTTP/2 client does: gamma's `Connection: keep-alive` (adapters/gamma/gamma.go:134), which Go's bidder client sends, does not reach a gamma that takes h2. A request whose stream the bidder refuses unread (`REFUSED_STREAM`), or leaves out of a graceful `GOAWAY`, goes again over HTTP/2, at most twice more (reqwest's default retry of protocol NACKs), as Go's HTTP/2 client sends it again; HTTP/1.1 has neither signal. Every other client stays on HTTP/1.1.",
       "who": [
         "bidder"
       ],
-      "visible_in": "The protocol of bid requests to bidders that offer h2 over TLS or take h2c",
+      "visible_in": "The protocol of bid requests to bidders that offer h2 over TLS or take h2c, the connection-specific fields of those requests (gamma's `Connection`), and the requests sent again after a bidder refuses a stream",
       "harness": [],
       "pin": "crates/http-client/tests/h2.rs::alpn_and_h2c_selection",
       "restore": "Not planned (the user's decision): a bidder client built without `negotiate_http2` speaks HTTP/1.1 only, as Go's does.",
@@ -982,7 +982,7 @@
       "restore_by": [],
       "restorations": [],
       "restore_pending": false,
-      "note": "`crates/http-client/tests/h2.rs::user_agent_on_h2` compares the h2 and h2c requests' pseudo-header fields, fields and body with the ones Go's HTTP/2 client sends.",
+      "note": "`crates/http-client/tests/h2.rs::user_agent_on_h2` compares the h2 and h2c requests' pseudo-header fields, fields and body with the ones Go's HTTP/2 client sends, `crates/http-client/tests/h2.rs::connection_fields_dropped_on_h2` compares gamma's with the head Go's bidder client writes over HTTP/1.1 and the requests Go's HTTP/2 client sends (testdata/golden/h2.json), and `crates/http-client/tests/h2.rs::refused_streams_go_again` pins the requests sent again after a refused stream. Over h2c, a request refused three times fails as `http-client.h2c-demotion` says.",
       "fragment": "crates/http-client/differences.toml"
     },
     {
