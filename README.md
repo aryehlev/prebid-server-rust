@@ -48,7 +48,8 @@ key and no per-bidder setting. Go's server sends every bidder request over HTTP/
 client here stays on HTTP/1.1, as router.go's clients do, and so do the currency and analytics
 clients, which Go's `http.DefaultTransport` would take to h2 (`http-client.default-transport-h2`).
 Only the framing changes: a bid request carries the same method, path, fields and body over
-HTTP/2 as over HTTP/1.1, and auction results differ from Go's only in the fallback cases below.
+HTTP/2 as over HTTP/1.1, and auction results differ from Go's only in the fallback and redirect
+cases below.
 
 - **HTTPS bidders.** The TLS handshake offers ALPN `h2` and `http/1.1`, and requests go in
   whichever the bidder picks.
@@ -69,10 +70,11 @@ HTTP/2 as over HTTP/1.1, and auction results differ from Go's only in the fallba
   bidder error with no bid.
 - **Redirects.** Over h2c a redirect is followed when it stays on the origin. One to another
   origin comes back unfollowed, and the adapter reads the 3xx as the bidder's answer: that request
-  brings no bid, where Go's client would follow a 307 or 308 and could still get one. The origin
-  then goes back to HTTP/1.1 for ten minutes, where its requests follow redirects as Go's do, and
-  a later probe can mark it h2c again, so a bidder that keeps redirecting to another origin loses
-  at most one request in ten minutes.
+  brings no bid, where Go's client would follow a 307 or 308 and could still get one. The first
+  such answer moves the origin back to HTTP/1.1 for ten minutes, where its requests follow
+  redirects as Go's do; requests already on their way over h2c then come back unfollowed too when
+  the bidder redirects them the same way. A later probe can mark the origin h2c again, so a bidder
+  that keeps redirecting to another origin loses those requests once in every ten minutes or so.
 - **Proxies.** A request that goes through a proxy never takes h2c and starts no probe. An https
   request through a proxy negotiates h2 with the bidder inside the proxy's tunnel.
 - **What differs on the wire.** HTTP/2's framing, header compression and SETTINGS are those of
