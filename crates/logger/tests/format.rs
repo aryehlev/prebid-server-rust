@@ -1,8 +1,8 @@
 //! The lines against glog's (`testdata/golden/sinks.json`, which `testdata/go/sinks` writes):
 //! tracing-subscriber's layout where glog writes its header (`logging.line-format`), what each
-//! does to a long message and to one that ends with a newline (`logging.message-bytes`), and the
-//! lines of crates other than Prebid Server's own where Go's standard logger writes its own
-//! (`logging.std-log-lines`).
+//! does to a long message and to one that ends with a newline (`logging.message-bytes`) and to
+//! control characters (`logging.control-characters`), and the lines of crates other than Prebid
+//! Server's own where Go's standard logger writes its own (`logging.std-log-lines`).
 
 #[cfg(test)]
 pub mod support;
@@ -224,6 +224,60 @@ mod tests {
                 ("\n".to_owned(), 1),
             ][..],
             "Rust: the whole message, and an empty line after the newline",
+        )
+    }
+
+    /// glog writes a message's control characters as `fmt.Sprintf` made them; tracing-subscriber's
+    /// fmt layer writes ESC, BEL, BS, FF, DEL and the C1 controls (U+0080 to U+009F) as escapes, so
+    /// that a message cannot drive a terminal, and the other control characters as they are.
+    // Go: glog v1.2.5, internal/logsink/logsink.go:247-258 (the message formatted into the line
+    // and handed to the sinks as it is); tracing-subscriber 0.3.23, src/fmt/format/mod.rs:445 and
+    // 1316-1323 and src/fmt/format/escape.rs:22-44 (the sanitizing it does by default)
+    #[test]
+    fn control_characters() -> TestResult {
+        const ESCAPED: &str = "esc \\x1b[31m bel \\x07 bs \\x08 ff \\x0c del \\x7f nel \\u{85} csi \
+                               \\u{9b} tab \t vt \x0b cr \r nul \0 end";
+        let sinks = golden("sinks.json")?;
+        let message = text(&sinks, "/control_message")?;
+        check_eq(
+            message,
+            "esc \x1b[31m bel \x07 bs \x08 ff \x0c del \x7f nel \u{85} csi \u{9b} tab \t vt \
+             \x0b cr \r nul \0 end",
+            "the golden's message",
+        )?;
+        let run = sinks_run(&sinks, "control", &["-logtostderr"])?;
+        let go = list(run, "/raw")?
+            .iter()
+            .map(|piece| text(piece, "/text").map(str::to_owned))
+            .collect::<TestResult<Vec<String>>>()?;
+        check_eq(
+            go.as_slice(),
+            &[format!(
+                "Immdd hh:mm:ss.uuuuuu threadid logger.go:12] {message}\n"
+            )][..],
+            "Go: the message as it is",
+        )?;
+
+        let stderr = Buffer::default();
+        let scratch = Scratch::new()?;
+        let (built, logging) = subscriber(
+            &flags(&["-logtostderr"])?,
+            "prebid-server",
+            scratch.path(),
+            stderr.clone(),
+        )?;
+        with_default(built, || infof!(target: PREBID, "{message}"));
+        drop(logging);
+        let rust: Vec<String> = pieces(&stderr.text(), without_time)?
+            .into_iter()
+            .map(|(piece, _)| piece)
+            .collect();
+        check_eq(
+            rust.as_slice(),
+            &[format!(
+                "YYYY-MM-DDThh:mm:ss.uuuuuuZ  INFO {PREBID}: {ESCAPED}\n"
+            )][..],
+            "Rust: ESC, BEL, BS, FF, DEL and the C1 controls escaped, the rest as they are",
         )
     }
 

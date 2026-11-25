@@ -1,7 +1,7 @@
 //! `init_from_glog_flags`, which `main` calls first: what it writes and returns when the command
 //! line asks for the usage, does not parse or names a log directory that cannot be made, the
-//! global subscriber it installs and the log file it names after the program, and a second call.
-//! One test, as a process has one global subscriber.
+//! global subscriber it installs, which the `log` crate's records reach too, and the log file it
+//! names after the program, and a second call. One test, as a process has one global subscriber.
 
 #[cfg(test)]
 pub mod support;
@@ -36,13 +36,37 @@ mod tests {
             .collect()
     }
 
+    /// Logs from another thread and from this one: through the facade, as a dependency through
+    /// tracing, and through the `log` crate as a dependency (reqwest) and as Prebid's code
+    /// (pbs-currency) do. Returns the level and message of the lines the subscriber keeps.
+    fn log_everywhere() -> TestResult<Vec<(String, String)>> {
+        thread::spawn(|| infof!(target: PREBID, "from another thread"))
+            .join()
+            .map_err(|_panic| "the logging thread panicked")?;
+        warnf!(target: PREBID, "warnf {}", 3);
+        info!(target: "h2::proto::connection", "an INFO line of a dependency");
+        log::info!(target: "reqwest::connect", "an INFO line of a dependency through log");
+        log::warn!(target: "reqwest::connect", "a WARN line of a dependency through log");
+        log::info!(target: "pbs_currency::rates", "an INFO line of Prebid's through log");
+        log::debug!(target: "pbs_currency::rates", "a DEBUG line of Prebid's through log");
+        Ok([
+            ("INFO", "from another thread"),
+            ("WARN", "warnf 3"),
+            ("WARN", "a WARN line of a dependency through log"),
+            ("INFO", "an INFO line of Prebid's through log"),
+        ]
+        .map(|(level, message)| (level.to_owned(), message.to_owned()))
+        .to_vec())
+    }
+
     /// `flag.Parse` with `flag.ExitOnError` writes the usage and exits 0 on `-help`, and writes
     /// the error line and the usage and exits 2 on a bad flag; the usage names the program as
     /// `os.Args[0]` gives it. glog names its files after the program's base name. Here the
     /// failures come back as [`Exit`], whose report is the exit code; a log directory that
     /// cannot be made stops startup with exit code 2 (`logging.files`); the subscriber becomes
-    /// every thread's, the log file is named after the program's base name, and a second start
-    /// fails with exit code 2.
+    /// every thread's and takes the records of crates that log through the `log` crate, as
+    /// reqwest and pbs-currency do, under the same filter (`logging.std-log-lines`); the log file
+    /// is named after the program's base name, and a second start fails with exit code 2.
     // Go: main.go:28; flag/flag.go:684-691 (defaultUsage) and 1153-1177 (Parse); glog v1.2.5,
     // glog_file.go:57-62 (the program name)
     #[test]
@@ -107,16 +131,8 @@ mod tests {
             stderr.clone(),
         )
         .map_err(|failed| format!("{failed:?}: {}", stderr.text()))?;
-        thread::spawn(|| infof!(target: PREBID, "from another thread"))
-            .join()
-            .map_err(|_panic| "the logging thread panicked")?;
-        warnf!(target: PREBID, "warnf {}", 3);
-        info!(target: "h2::proto::connection", "an INFO line of a dependency");
+        let want = log_everywhere()?;
         drop(logging);
-        let want = vec![
-            ("INFO".to_owned(), "from another thread".to_owned()),
-            ("WARN".to_owned(), "warnf 3".to_owned()),
-        ];
         check_eq(&shown(&written(&stderr.text())?), &want, "stderr")?;
         let names = Scratch::names(&logs)?;
         let [name] = names.as_slice() else {

@@ -99,6 +99,30 @@ visible_in = "Startup with a command-line argument that is not UTF-8"
 pin = "crates/logger/tests/flags.rs::non_utf8_arguments"
 
 [[difference]]
+id = "logging.httptest-flag"
+category = "logging"
+status = "ledgered"
+title = "`-httptest.serve`: a flag net/http/httptest adds to Go's command line, unknown to Rust's"
+go = """\
+    The binary links net/http/httptest: endpoints/openrtb2/test_utils.go:11 imports it, and so \
+    does testify's assert package, which hooks/hookexecution/test_utils.go:8 imports and \
+    metrics/metrics_mock.go:7 through testify's mock. Its init defines `-httptest.serve` when an \
+    argument starts with `-httptest.serve=` or `--httptest.serve=` \
+    (net/http/httptest/server.go:89-93): `flag.Parse` then takes its value, as the next argument \
+    too, and the usage listing names it. Only an httptest server reads the value, and no code of \
+    the server starts one."""
+rust = """\
+    The command line has glog's nine flags only, so `-httptest.serve=<address>` among the flags \
+    fails with `flag provided but not defined: -httptest.serve`, the usage and exit code 2, where \
+    Go's parses."""
+who = ["operator"]
+visible_in = "Startup with `-httptest.serve=<address>` on the command line"
+pin = "crates/logger/tests/flags.rs::httptest_serve_flag"
+note = """\
+    Without an argument that starts so, Go has no such flag either and both fail alike, and an \
+    argument after the flags is left over in both."""
+
+[[difference]]
 id = "logging.debug-level"
 category = "logging"
 status = "restored"
@@ -241,6 +265,9 @@ rust = """\
 who = ["operator"]
 visible_in = "The server's log output: the lines of libraries"
 pin = "crates/logger/tests/format.rs::dependency_lines"
+note = """\
+    crates/logger/tests/init.rs::init_once logs through the `log` crate after \
+    `init_from_glog_flags` and finds those lines filtered and written as tracing's."""
 
 [[difference]]
 id = "logging.message-bytes"
@@ -260,3 +287,28 @@ rust = """\
 who = ["operator"]
 visible_in = "The server's log output: long messages and those whose format ends with `\\n`"
 pin = "crates/logger/tests/format.rs::message_bytes"
+
+[[difference]]
+id = "logging.control-characters"
+category = "logging"
+status = "ledgered"
+title = """\
+    Control characters in a message: glog writes them as they are, tracing-subscriber escapes \
+    those that can drive a terminal"""
+go = """\
+    glog writes a message as `fmt.Sprintf` made it, control characters included (glog v1.2.5, \
+    internal/logsink/logsink.go:247-258): ESC, BEL, BS, FF, DEL and the C1 controls U+0080 to \
+    U+009F reach stderr and the files unchanged."""
+rust = """\
+    tracing-subscriber 0.3.23's fmt layer sanitizes messages by default: it writes ESC, BEL, BS, \
+    FF and DEL as `\\x1b`, `\\x07`, `\\x08`, `\\x0c` and `\\x7f` and U+0080 to U+009F as \
+    `\\u{80}` to `\\u{9f}`, so that a message cannot drive a terminal; tab, vertical tab, \
+    carriage return, NUL and the other control characters pass as they are."""
+who = ["operator"]
+visible_in = """\
+    The server's log output: messages that hold control characters, such as text from a request \
+    or a bidder's response"""
+pin = "crates/logger/tests/format.rs::control_characters"
+note = """\
+    `with_ansi_sanitization(false)` on the fmt layers of crates/logger/src/sinks.rs would write \
+    Go's bytes, and with them the terminal escapes Go lets through."""

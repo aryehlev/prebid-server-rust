@@ -1563,5 +1563,117 @@
       "exit": 2,
       "error_line": "invalid value \"\\xff\" for flag -v: strconv.Atoi: parsing \"\\xff\": invalid syntax"
     }
+  ],
+  "httptest_rows": [
+    {
+      "args": [
+        "-httptest.serve=127.0.0.1:8000"
+      ],
+      "outcome": "parsed",
+      "values": {
+        "alsologtostderr": "false",
+        "httptest.serve": "127.0.0.1:8000",
+        "log_backtrace_at": "",
+        "log_dir": "",
+        "log_link": "",
+        "logbuflevel": "0",
+        "logtostderr": "false",
+        "stderrthreshold": "2",
+        "v": "0",
+        "vmodule": ""
+      }
+    },
+    {
+      "args": [
+        "--httptest.serve=127.0.0.1:8000",
+        "-v",
+        "1",
+        "-logtostderr"
+      ],
+      "outcome": "parsed",
+      "values": {
+        "alsologtostderr": "false",
+        "httptest.serve": "127.0.0.1:8000",
+        "log_backtrace_at": "",
+        "log_dir": "",
+        "log_link": "",
+        "logbuflevel": "0",
+        "logtostderr": "true",
+        "stderrthreshold": "2",
+        "v": "1",
+        "vmodule": ""
+      }
+    },
+    {
+      "args": [
+        "-httptest.serve",
+        "127.0.0.1:8000",
+        "-httptest.serve="
+      ],
+      "outcome": "parsed",
+      "values": {
+        "alsologtostderr": "false",
+        "httptest.serve": "",
+        "log_backtrace_at": "",
+        "log_dir": "",
+        "log_link": "",
+        "logbuflevel": "0",
+        "logtostderr": "false",
+        "stderrthreshold": "2",
+        "v": "0",
+        "vmodule": ""
+      }
+    },
+    {
+      "args": [
+        "-httptest.serve",
+        "127.0.0.1:8000"
+      ],
+      "outcome": "error",
+      "exit": 2,
+      "error_line": "flag provided but not defined: -httptest.serve"
+    },
+    {
+      "args": [
+        "-h",
+        "-httptest.serve="
+      ],
+      "outcome": "help",
+      "exit": 0,
+      "usage": "Usage of prebid-server:\n  -alsologtostderr\n    \tlog to standard error as well as files\n  -httptest.serve string\n    \tif non-empty, httptest.NewServer serves on this address and blocks.\n  -log_backtrace_at value\n    \twhen logging hits line file:N, emit a stack trace\n  -log_dir string\n    \tIf non-empty, write log files in this directory\n  -log_link string\n    \tIf non-empty, add symbolic links in this directory to the log files\n  -logbuflevel int\n    \tBuffer log messages logged at this level or lower (-1 means don't buffer; 0 means buffer INFO only; ...). Has limited applicability on non-prod platforms.\n  -logtostderr\n    \tlog to standard error instead of files\n  -stderrthreshold value\n    \tlogs at or above this threshold go to stderr (default 2)\n  -v value\n    \tlog level for V logs\n  -vmodule value\n    \tcomma-separated list of pattern=N settings for file-filtered logging\n"
+    },
+    {
+      "args": [
+        "-nope",
+        "-httptest.serve=127.0.0.1:8000"
+      ],
+      "outcome": "error",
+      "exit": 2,
+      "error_line": "flag provided but not defined: -nope",
+      "usage": "Usage of prebid-server:\n  -alsologtostderr\n    \tlog to standard error as well as files\n  -httptest.serve string\n    \tif non-empty, httptest.NewServer serves on this address and blocks.\n  -log_backtrace_at value\n    \twhen logging hits line file:N, emit a stack trace\n  -log_dir string\n    \tIf non-empty, write log files in this directory\n  -log_link string\n    \tIf non-empty, add symbolic links in this directory to the log files\n  -logbuflevel int\n    \tBuffer log messages logged at this level or lower (-1 means don't buffer; 0 means buffer INFO only; ...). Has limited applicability on non-prod platforms.\n  -logtostderr\n    \tlog to standard error instead of files\n  -stderrthreshold value\n    \tlogs at or above this threshold go to stderr (default 2)\n  -v value\n    \tlog level for V logs\n  -vmodule value\n    \tcomma-separated list of pattern=N settings for file-filtered logging\n"
+    },
+    {
+      "args": [
+        "arg",
+        "-httptest.serve=127.0.0.1:8000"
+      ],
+      "outcome": "parsed",
+      "values": {
+        "alsologtostderr": "false",
+        "httptest.serve": "",
+        "log_backtrace_at": "",
+        "log_dir": "",
+        "log_link": "",
+        "logbuflevel": "0",
+        "logtostderr": "false",
+        "stderrthreshold": "2",
+        "v": "0",
+        "vmodule": ""
+      },
+      "rest": [
+        "arg",
+        "-httptest.serve=127.0.0.1:8000"
+      ]
+    }
   ]
 }

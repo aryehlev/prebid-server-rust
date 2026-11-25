@@ -8,7 +8,9 @@
 //! exit 0; every other failure prints an error line and the usage and exits 2 (ledger:
 //! `logging.flags`, restored). The error lines keep Go's words with values quoted as Rust quotes
 //! strings and the usage listing is getopts' (ledger: `logging.flag-texts`); an argument that is
-//! not UTF-8 fails (ledger: `logging.flag-utf8`).
+//! not UTF-8 fails (ledger: `logging.flag-utf8`), and so does the `-httptest.serve` that
+//! net/http/httptest adds to Go's command line when an argument starts with `-httptest.serve=`
+//! (ledger: `logging.httptest-flag`).
 
 mod strconv;
 

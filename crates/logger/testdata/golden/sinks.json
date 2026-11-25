@@ -16,6 +16,7 @@
   "std_message": "http: TLS handshake error from 127.0.0.1:1234: EOF",
   "long_message_length": 20000,
   "newline_message": "ends with a newline\n",
+  "control_message": "esc \u001b[31m bel \u0007 bs \b ff \f del  nel  csi  tab \t vt \u000b cr \r nul \u0000 end",
   "runs": [
     {
       "scenario": "levels",
@@ -1956,6 +1957,29 @@
         {
           "text": "Immdd hh:mm:ss.uuuuuu threadid logger.go:12] ends with a newline\n",
           "bytes": 64
+        }
+      ]
+    },
+    {
+      "scenario": "control",
+      "args": [
+        "-logtostderr"
+      ],
+      "exit": 0,
+      "stderr": [
+        {
+          "kind": "glog",
+          "severity": "I",
+          "file_line": "logger.go:12",
+          "message": "esc \u001b[31m bel \u0007 bs \b ff \f del  nel  csi  tab \t vt \u000b cr \r nul \u0000 end"
+        }
+      ],
+      "dir": "",
+      "files": [],
+      "raw": [
+        {
+          "text": "Immdd hh:mm:ss.uuuuuu threadid logger.go:12] esc \u001b[31m bel \u0007 bs \b ff \f del  nel  csi  tab \t vt \u000b cr \r nul \u0000 end\n",
+          "bytes": 116
         }
       ]
     }

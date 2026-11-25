@@ -22,7 +22,9 @@ tracing = { workspace = true }
 tracing-appender = { workspace = true }
 tracing-subscriber = { workspace = true }
 
-# serde_json reads the goldens and sha2 hashes the seeded command lines as the Go side does.
+# log stands in for the crates that log through it (reqwest, pbs-currency), serde_json reads the
+# goldens and sha2 hashes the seeded command lines as the Go side does.
 [dev-dependencies]
+log = { workspace = true }
 serde_json = { workspace = true }
 sha2 = { workspace = true }

@@ -1180,6 +1180,7 @@ name = "pbs-logger"
 version = "0.1.0"
 dependencies = [
  "getopts",
+ "log",
  "serde_json",
  "sha2",
  "tracing",

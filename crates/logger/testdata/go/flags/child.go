@@ -103,7 +103,8 @@ func runChild(args []string) (result, int) {
 }
 
 // glogFlags are glog's flags as flag.CommandLine holds them. alone says that it holds nothing
-// else, as in Prebid Server; a test binary adds the testing package's flags.
+// else, as in Prebid Server when no argument starts with -httptest.serve= (the generator's own
+// arguments never do); a test binary adds the testing package's flags.
 func glogFlags(alone bool) []*flag.Flag {
 	var flags []*flag.Flag
 	var names, all []string

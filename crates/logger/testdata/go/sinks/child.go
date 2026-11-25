@@ -32,6 +32,11 @@ const (
 	// newlineMessage ends with the newline some of Prebid's calls put at the end of their format
 	// (router/router.go:133, for one), after which glog writes no other.
 	newlineMessage = "ends with a newline\n"
+	// controlMessage holds control characters, as text from a request or a bidder may: ESC,
+	// BEL, BS, FF, DEL and the C1 controls U+0085 and U+009B, then tab, vertical tab, carriage
+	// return and NUL. glog writes them as they are.
+	controlMessage = "esc \x1b[31m bel \x07 bs \x08 ff \x0c del \x7f nel \u0085 csi \u009b " +
+		"tab \t vt \x0b cr \r nul \x00 end"
 )
 
 // child parses its arguments as Prebid Server does and runs one scenario.
@@ -53,6 +58,8 @@ func child(scenario string) {
 	case "message":
 		logger.Infof("%s", strings.Repeat("x", longMessage))
 		logger.Infof(newlineMessage)
+	case "control":
+		logger.Infof("%s", controlMessage)
 	default:
 		os.Exit(4)
 	}

@@ -24,7 +24,7 @@ Rule B's cases: (a) input real production traffic sends that the crate would rej
 | Gzip | 0 | 2 | 0 |
 | HTTP client | 0 | 18 | 5 |
 | JSON | 4 | 34 | 5 |
-| Logging | 0 | 8 | 3 |
+| Logging | 0 | 10 | 3 |
 | Prometheus metrics | 0 | 2 | 0 |
 | Public suffix list | 1 | 0 | 0 |
 | Regular expressions | 0 | 0 | 2 |
@@ -33,7 +33,7 @@ Rule B's cases: (a) input real production traffic sends that the crate would rej
 | TLS | 0 | 2 | 1 |
 | URLs | 0 | 1 | 0 |
 | YAML | 0 | 3 | 0 |
-| All | 5 | 106 | 29 |
+| All | 5 | 108 | 29 |
 
 ## Decisions pending
 
@@ -1147,6 +1147,17 @@ No entry names the classes `other` and `unrecorded` or the kinds `stage_missing`
 
 ### Ledgered
 
+#### `logging.control-characters`: Control characters in a message: glog writes them as they are, tracing-subscriber escapes those that can drive a terminal
+
+- **Go:** glog writes a message as `fmt.Sprintf` made it, control characters included (glog v1.2.5, internal/logsink/logsink.go:247-258): ESC, BEL, BS, FF, DEL and the C1 controls U+0080 to U+009F reach stderr and the files unchanged.
+- **Rust:** tracing-subscriber 0.3.23's fmt layer sanitizes messages by default: it writes ESC, BEL, BS, FF and DEL as `\x1b`, `\x07`, `\x08`, `\x0c` and `\x7f` and U+0080 to U+009F as `\u{80}` to `\u{9f}`, so that a message cannot drive a terminal; tab, vertical tab, carriage return, NUL and the other control characters pass as they are.
+- **Who notices:** operator
+- **Visible in:** The server's log output: messages that hold control characters, such as text from a request or a bidder's response
+- **Harness:** none
+- **Pin:** `crates/logger/tests/format.rs::control_characters`
+- **Note:** `with_ansi_sanitization(false)` on the fmt layers of crates/logger/src/sinks.rs would write Go's bytes, and with them the terminal escapes Go lets through.
+- **Recorded in:** `crates/logger/differences.toml`
+
 #### `logging.fatal`: `logger.Fatalf`: glog's FATAL line, every goroutine's stack and SIGABRT, against an error `main` reports
 
 - **Go:** `Fatalf` writes the FATAL line to stderr and every file, then every goroutine's stack, and raises SIGABRT, which the Go runtime answers with `SIGABRT: abort`, another stack dump and exit code 2, where the call stands (logger/glog.go:33-35; glog v1.2.5, glog.go:656-671).
@@ -1189,6 +1200,17 @@ No entry names the classes `other` and `unrecorded` or the kinds `stage_missing`
 - **Pin:** `crates/logger/tests/flags.rs::non_utf8_arguments`
 - **Recorded in:** `crates/logger/differences.toml`
 
+#### `logging.httptest-flag`: `-httptest.serve`: a flag net/http/httptest adds to Go's command line, unknown to Rust's
+
+- **Go:** The binary links net/http/httptest: endpoints/openrtb2/test_utils.go:11 imports it, and so does testify's assert package, which hooks/hookexecution/test_utils.go:8 imports and metrics/metrics_mock.go:7 through testify's mock. Its init defines `-httptest.serve` when an argument starts with `-httptest.serve=` or `--httptest.serve=` (net/http/httptest/server.go:89-93): `flag.Parse` then takes its value, as the next argument too, and the usage listing names it. Only an httptest server reads the value, and no code of the server starts one.
+- **Rust:** The command line has glog's nine flags only, so `-httptest.serve=<address>` among the flags fails with `flag provided but not defined: -httptest.serve`, the usage and exit code 2, where Go's parses.
+- **Who notices:** operator
+- **Visible in:** Startup with `-httptest.serve=<address>` on the command line
+- **Harness:** none
+- **Pin:** `crates/logger/tests/flags.rs::httptest_serve_flag`
+- **Note:** Without an argument that starts so, Go has no such flag either and both fail alike, and an argument after the flags is left over in both.
+- **Recorded in:** `crates/logger/differences.toml`
+
 #### `logging.line-format`: Log lines: glog's header with the facade's file and line, against tracing-subscriber's format
 
 - **Go:** glog writes `W1118 12:00:00.000000 4242 logger.go:17] message`: the level letter and the date, the time to the microsecond, the PID and the file and line, which through Prebid's logger facade (depth 1, logger/glog.go:37-41) are always the facade's own, `logger.go:17` for a warning.
@@ -1218,6 +1240,7 @@ No entry names the classes `other` and `unrecorded` or the kinds `stage_missing`
 - **Visible in:** The server's log output: the lines of libraries
 - **Harness:** none
 - **Pin:** `crates/logger/tests/format.rs::dependency_lines`
+- **Note:** crates/logger/tests/init.rs::init_once logs through the `log` crate after `init_from_glog_flags` and finds those lines filtered and written as tracing's.
 - **Recorded in:** `crates/logger/differences.toml`
 
 #### `logging.v-flags`: -v, -vmodule and -log_backtrace_at: read as glog reads them, with no effect

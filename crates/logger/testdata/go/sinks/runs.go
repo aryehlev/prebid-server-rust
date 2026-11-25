@@ -25,7 +25,7 @@ const (
 
 // runs are the golden's child runs: the stderr flags with the four facade levels, the file flags,
 // the flags glog accepts and Prebid Server never uses, Fatalf, the standard logger, and what glog
-// does to a long message and to one that ends with a newline.
+// does to a long message, to one that ends with a newline and to one with control characters.
 var runs = []struct {
 	scenario string
 	args     []string
@@ -53,6 +53,7 @@ var runs = []struct {
 	{"stdlog", []string{}},
 	{"stdlog", []string{"-logtostderr"}},
 	{"message", []string{"-logtostderr"}},
+	{"control", []string{"-logtostderr"}},
 }
 
 type sinksDoc struct {
@@ -62,8 +63,10 @@ type sinksDoc struct {
 	Fatal    string            `json:"fatal_message"`
 	Std      string            `json:"std_message"`
 	// Long is the length of the message scenario's long message; Newline its other message.
-	Long    int      `json:"long_message_length"`
-	Newline string   `json:"newline_message"`
+	Long    int    `json:"long_message_length"`
+	Newline string `json:"newline_message"`
+	// Control is the control scenario's message.
+	Control string   `json:"control_message"`
 	Runs    []runDoc `json:"runs"`
 }
 
@@ -77,7 +80,8 @@ type runDoc struct {
 	Files []fileDoc `json:"files"`
 	// Links are the symlinks glog made in -log_link, to the files in Dir.
 	Links []fileDoc `json:"links,omitempty"`
-	// Raw is the message scenario's stderr cut after each newline, each piece with its length.
+	// Raw is the message and control scenarios' stderr cut after each newline, each piece with
+	// its length.
 	Raw []rawLine `json:"raw,omitempty"`
 }
 
@@ -108,7 +112,7 @@ type fileDoc struct {
 func build(h header) sinksDoc {
 	doc := sinksDoc{
 		Header: h, Messages: map[string]string{}, Fatal: fatalMessage, Std: stdMessage,
-		Long: longMessage, Newline: newlineMessage,
+		Long: longMessage, Newline: newlineMessage, Control: controlMessage,
 	}
 	for _, m := range levelMessages {
 		doc.Messages[m.call] = m.message
@@ -166,7 +170,7 @@ func run(scenario string, args []string) runDoc {
 		fail(err.Error())
 	}
 	text := stderr.String()
-	if scenario == "message" {
+	if scenario == "message" || scenario == "control" {
 		doc.Raw = rawLines(text)
 		text = countRuns(text)
 	}

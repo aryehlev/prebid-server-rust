@@ -1,8 +1,8 @@
 //! The command line against Go's `flag.Parse` with glog's nine flags (`testdata/golden/flags.json`
 //! and `flags_seeded.json`, which `testdata/go/flags` writes): outcome, exit code, values and the
 //! arguments left (`logging.flags`, restored), the error lines and usage (`logging.flag-texts`),
-//! the flags Prebid Server never uses (`logging.v-flags`) and arguments that are not UTF-8
-//! (`logging.flag-utf8`).
+//! the flags Prebid Server never uses (`logging.v-flags`), arguments that are not UTF-8
+//! (`logging.flag-utf8`) and net/http/httptest's `-httptest.serve` (`logging.httptest-flag`).
 
 #[cfg(test)]
 pub mod support;
@@ -507,5 +507,113 @@ Options:
             ][..],
             "Go's outcome, Rust's outcome and error line",
         )
+    }
+
+    /// What Go and Rust did with one of the httptest rows.
+    #[derive(Debug, PartialEq, Eq)]
+    struct Served {
+        /// Go's outcome and error line.
+        go: (String, Option<String>),
+        /// `-httptest.serve`'s value once Go parsed the command line.
+        go_serve: Option<String>,
+        /// Whether the usage listing Go wrote names `-httptest.serve`.
+        go_lists_it: bool,
+        /// Rust's outcome and error line.
+        rust: (&'static str, Option<String>),
+    }
+
+    /// `-httptest.serve`: Go's binary links net/http/httptest, whose init defines the flag when
+    /// an argument starts with `-httptest.serve=` or `--httptest.serve=`, so `flag.Parse` takes
+    /// its value, also as the next argument, and the usage listing names it. Here it is not a
+    /// flag, so those command lines fail with exit code 2 where Go's parse; without such an
+    /// argument both fail alike, and after a free argument both leave it over.
+    // Go: net/http/httptest/server.go:89-93 (the flag); endpoints/openrtb2/test_utils.go:11,
+    // hooks/hookexecution/test_utils.go:8 and metrics/metrics_mock.go:7 (the imports that link
+    // it, the last two through testify's assert package)
+    #[test]
+    fn httptest_serve_flag() -> TestResult {
+        let doc = golden("flags.json")?;
+        let mut served = Vec::new();
+        for row in list(&doc, "/httptest_rows")? {
+            let args = strings(row, "/args")?;
+            let parsed = Parsed::of(&command_line(&args));
+            let outcome = text(row, "/outcome")?;
+            if parsed.outcome() == outcome {
+                check_row(row, &parsed)?;
+            }
+            let listing = match parsed.result {
+                Err(Exit::Error) => parsed.stderr.split_once('\n').map_or("", |(_, rest)| rest),
+                _ => parsed.stderr.as_str(),
+            };
+            check(
+                !listing.contains("httptest"),
+                &format!("{args:?}: Rust's listing names no -httptest.serve"),
+            )?;
+            served.push(Served {
+                go: (
+                    outcome.to_owned(),
+                    row.pointer("/error_line")
+                        .and_then(Value::as_str)
+                        .map(str::to_owned),
+                ),
+                go_serve: row
+                    .pointer("/values/httptest.serve")
+                    .and_then(Value::as_str)
+                    .map(str::to_owned),
+                go_lists_it: row
+                    .pointer("/usage")
+                    .and_then(Value::as_str)
+                    .is_some_and(|usage| usage.contains("\n  -httptest.serve string\n")),
+                rust: (parsed.outcome(), parsed.error_line().map(str::to_owned)),
+            });
+        }
+        let line = |text: &str| Some(text.to_owned());
+        let undefined = "flag provided but not defined: -httptest.serve";
+        let parsed_by_go = |serve: &str| Served {
+            go: ("parsed".to_owned(), None),
+            go_serve: line(serve),
+            go_lists_it: false,
+            rust: ("error", line(undefined)),
+        };
+        let want = vec![
+            // -httptest.serve=127.0.0.1:8000
+            parsed_by_go("127.0.0.1:8000"),
+            // --httptest.serve=127.0.0.1:8000 -v 1 -logtostderr
+            parsed_by_go("127.0.0.1:8000"),
+            // -httptest.serve 127.0.0.1:8000 -httptest.serve=
+            parsed_by_go(""),
+            // -httptest.serve 127.0.0.1:8000: no argument defines it
+            Served {
+                go: ("error".to_owned(), line(undefined)),
+                go_serve: None,
+                go_lists_it: false,
+                rust: ("error", line(undefined)),
+            },
+            // -h -httptest.serve=
+            Served {
+                go: ("help".to_owned(), None),
+                go_serve: None,
+                go_lists_it: true,
+                rust: ("help", None),
+            },
+            // -nope -httptest.serve=127.0.0.1:8000
+            Served {
+                go: (
+                    "error".to_owned(),
+                    line("flag provided but not defined: -nope"),
+                ),
+                go_serve: None,
+                go_lists_it: true,
+                rust: ("error", line("flag provided but not defined: -nope")),
+            },
+            // arg -httptest.serve=127.0.0.1:8000: both leave the flag over
+            Served {
+                go: ("parsed".to_owned(), None),
+                go_serve: line(""),
+                go_lists_it: false,
+                rust: ("parsed", None),
+            },
+        ];
+        check_eq(&served, &want, "Go's outcome and Rust's, row by row")
     }
 }

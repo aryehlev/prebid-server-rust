@@ -146,6 +146,21 @@ var bytesCases = [][]string{
 	{"-v=\xff"},
 }
 
+// httptestCases hold -httptest.serve, which net/http/httptest's init registers when an argument
+// starts with -httptest.serve= or --httptest.serve= (net/http/httptest/server.go:89-93): the
+// flag then takes a value as glog's string flags do, the listing names it, and only an httptest
+// server, which no code of Prebid Server starts, reads it. Without such an argument it is not
+// defined.
+var httptestCases = [][]string{
+	{"-httptest.serve=127.0.0.1:8000"},
+	{"--httptest.serve=127.0.0.1:8000", "-v", "1", "-logtostderr"},
+	{"-httptest.serve", "127.0.0.1:8000", "-httptest.serve="},
+	{"-httptest.serve", "127.0.0.1:8000"},
+	{"-h", "-httptest.serve="},
+	{"-nope", "-httptest.serve=127.0.0.1:8000"},
+	{"arg", "-httptest.serve=127.0.0.1:8000"},
+}
+
 type matrixDoc struct {
 	Header header `json:"header"`
 	// Usage is what flag.Parse writes after -h, and after the error line of a failure.
@@ -153,6 +168,8 @@ type matrixDoc struct {
 	Rows  []matrixRow `json:"rows"`
 	// BytesRows are command lines with arguments that are not UTF-8, hex-encoded.
 	BytesRows []matrixRow `json:"bytes_rows"`
+	// HTTPTestRows are the command lines of httptestCases, parsed by the child alone.
+	HTTPTestRows []matrixRow `json:"httptest_rows"`
 }
 
 type matrixRow struct {
@@ -167,6 +184,9 @@ type matrixRow struct {
 	Values map[string]string `json:"values,omitempty"`
 	// Rest is flag.Args() once parsed.
 	Rest []string `json:"rest,omitempty"`
+	// Usage is the listing written after -h or the error line when it is not the document's,
+	// as when it names -httptest.serve.
+	Usage string `json:"usage,omitempty"`
 }
 
 func buildMatrix(h header) matrixDoc {
@@ -187,7 +207,44 @@ func buildMatrix(h header) matrixDoc {
 	for _, args := range bytesCases {
 		doc.BytesRows = append(doc.BytesRows, row(flags, args, doc.Usage, true))
 	}
+	for _, args := range httptestCases {
+		doc.HTTPTestRows = append(doc.HTTPTestRows, httptestRow(args, doc.Usage))
+	}
 	return doc
+}
+
+// httptestRow runs args in the child alone, as the copy of glog's flags has no -httptest.serve,
+// checks what flag.Parse wrote as row does, and records the listing when it is not usage.
+func httptestRow(args []string, usage string) matrixRow {
+	r, exit := runChild(args)
+	out := matrixRow{Args: args, Outcome: r.Outcome}
+	listing := ""
+	switch r.Outcome {
+	case "help":
+		listing = r.Stderr
+		out.Exit = &exit
+	case "error":
+		line, after, ok := strings.Cut(r.Stderr, "\n")
+		if !ok {
+			fail("an error wrote no line")
+		}
+		listing = after
+		out.Exit = &exit
+		out.ErrorLine = line
+	case "parsed":
+		if r.Stderr != "" {
+			fail("a parse wrote to stderr")
+		}
+		out.Values = r.Values
+		out.Rest = r.Rest
+	}
+	if listing != usage && r.Outcome != "parsed" {
+		if !strings.HasPrefix(listing, "Usage of "+program+":\n") {
+			fail("unexpected usage listing: " + listing)
+		}
+		out.Usage = listing
+	}
+	return out
 }
 
 // row runs args in the child and through the emulation, checks that they agree and that
