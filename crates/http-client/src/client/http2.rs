@@ -387,8 +387,9 @@ impl Failure {
         }
         // A connection's failure with no HTTP/2 or I/O error behind it: hyper gave the request
         // back unsent (its `Canceled`), or dropped it with the connection's task, which can
-        // follow the request's stream opening (its `DispatchGone`). Only hyper's own error type
-        // tells the two apart, so the request counts as one the origin may have read.
+        // follow the request's stream opening (its `DispatchGone`). Only hyper's own error type,
+        // which this crate does not depend on, and the message of hyper-util's private error
+        // kind tell the two apart, so the request counts as one the origin may have read.
         if given { Self::Failed } else { Self::Other }
     }
 }
