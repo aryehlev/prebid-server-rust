@@ -66,9 +66,13 @@ HTTP/2 as over HTTP/1.1, and auction results differ from Go's only in the fallba
   answered the preface with HTTP/1.x, or the connection failed before it was ready for the
   request. When it failed any other way (an HTTP/2 error, a reset or a close once the connection
   had the request, after which the origin may have read it), it is not sent again, and it is a
-  bidder error with no bid. Over h2c a redirect is followed when it stays on the origin; one to another
-  origin comes back unfollowed and moves the origin back to HTTP/1.1, where the next request
-  follows redirects as Go does.
+  bidder error with no bid.
+- **Redirects.** Over h2c a redirect is followed when it stays on the origin. One to another
+  origin comes back unfollowed, and the adapter reads the 3xx as the bidder's answer: that request
+  brings no bid, where Go's client would follow a 307 or 308 and could still get one. The origin
+  then goes back to HTTP/1.1 for ten minutes, where its requests follow redirects as Go's do, and
+  a later probe can mark it h2c again, so a bidder that keeps redirecting to another origin loses
+  at most one request in ten minutes.
 - **Proxies.** A request that goes through a proxy never takes h2c and starts no probe. An https
   request through a proxy negotiates h2 with the bidder inside the proxy's tunnel.
 - **What differs on the wire.** HTTP/2's framing, header compression and SETTINGS are those of

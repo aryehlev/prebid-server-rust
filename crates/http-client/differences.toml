@@ -176,21 +176,30 @@ status = "ledgered"
 title = "Redirects over h2c: followed on the request's origin only"
 go = """\
     Go's bidder client follows a bidder's redirect to any origin over HTTP/1.1, up to ten \
-    requests (net/http/client.go `Client.do`)."""
+    requests (net/http/client.go `Client.do`). On a 307 or 308 it sends the bid request, body \
+    included, to the new origin, and the adapter reads that origin's answer, which can carry a \
+    bid; a 301, 302 or 303 turns the POST into a GET without a body \
+    (testdata/golden/redirects.json: `post_307_cross_host`, `post_301` to `post_303`)."""
 rust = """\
-    Over h2c the client follows the redirects that stay on the request's origin. A redirect to \
-    another origin comes back unfollowed, as the answer the adapter reads, and moves the origin \
-    back to HTTP/1.1 for `H2C_VERDICT_TTL`, where the next request's redirects are followed as \
-    Go follows them: the h2c connection speaks prior knowledge, which only the probed origin \
-    takes."""
+    Over h2c the client follows the redirects that stay on the request's origin, as Go does. A \
+    redirect to another origin comes back unfollowed, and the adapter reads the 3xx as the \
+    bidder's answer, an unexpected status (adapters/response.go:10-24 makes it a bidder error): \
+    that request brings no bid, where Go's client, following a 307 or 308, can still get one. \
+    The request is not sent again, because the origin has read it (the demotion rule of \
+    2026-11-19). The origin goes back to HTTP/1.1 for `H2C_VERDICT_TTL`, where its requests' \
+    redirects are followed as Go follows them, and once the verdict runs out a probe can mark it \
+    h2c again, so a bidder that keeps redirecting to another origin costs one request per \
+    verdict. The h2c connection speaks prior knowledge, which only the probed origin takes."""
 who = ["bidder", "publisher"]
 visible_in = """\
-    Bid requests over h2c that a bidder redirects to another origin: one unfollowed 3xx per \
-    verdict"""
+    Bid requests over h2c that a bidder redirects to another origin: the 3xx in place of the \
+    redirected answer, a bidder error and no bid, once per verdict"""
 pin = "crates/http-client/tests/h2.rs::h2c_redirects_stay_on_the_origin"
 restore = """\
-    Following the redirect's hop over HTTP/1.1 outside reqwest's redirect loop, with Go's \
-    redirect rules (not planned)."""
+    Following the redirect's hop over HTTP/1.1 outside reqwest's redirect loop (not planned): \
+    reqwest follows a chain inside one client, and hyper-util cannot pick h2c per connection, so \
+    the hop's method, body, credentials, `Referer` and the ten-request budget would be written by \
+    hand, as `http-client.transport-redirects` declines to do."""
 
 [[difference]]
 id = "http-client.h2-connection-counts"

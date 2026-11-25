@@ -40,7 +40,7 @@ mod tests {
 
     use crate::support::{
         BoxError, Counts, RawConn, RawServer, Stream, TestPki, TestResult, check_eq, fetch, golden,
-        list, ports_in, request, run, strings, text, unhex,
+        int, list, ports_in, request, run, strings, text, unhex,
     };
 
     /// HTTP/2's client connection preface.
@@ -561,8 +561,14 @@ mod tests {
         })
     }
 
-    /// The protocol, status and `Location` of the answer to a bid request to `url`.
-    async fn answered(client: &Client, url: &str) -> Result<String, BoxError> {
+    /// A bid request to `url`, which `bidder` may redirect: the protocol, status and `Location`
+    /// of the answer, and the requests the bidder read for it.
+    async fn redirected(
+        bidder: &Bidder,
+        client: &Client,
+        url: &str,
+    ) -> Result<(String, Vec<String>), BoxError> {
+        let before = bidder.seen().requests.len();
         let fetched = fetch(client.send(bid(url)?, None, None).await?).await;
         let location = fetched
             .headers
@@ -570,11 +576,54 @@ mod tests {
             .and_then(|value| value.to_str().ok())
             .map_or_else(String::new, |location| format!(" {location}"));
         drop(fetched.body?);
-        Ok(format!(
+        let read = bidder
+            .seen()
+            .requests
+            .get(before..)
+            .map_or_default(<[String]>::to_vec);
+        let answer = format!(
             "{:?} {}{location}",
             fetched.version,
             fetched.status.as_u16()
-        ))
+        );
+        Ok((answer, read))
+    }
+
+    /// `redirects.json`'s case `name`: what Go's client did with a chain of redirects.
+    fn redirect_case<'d>(redirects: &'d Value, name: &str) -> Result<&'d Value, BoxError> {
+        list(redirects, "/cases")?
+            .iter()
+            .find(|case| text(case, "/name").ok() == Some(name))
+            .ok_or_else(|| format!("redirects.json has no {name}").into())
+    }
+
+    /// The requests Go's client sent in `case`, one of `redirects.json`'s, each as its method and
+    /// the length of its body, and the status of the answer it returned.
+    fn go_chain(case: &Value) -> Result<(Vec<String>, i64), BoxError> {
+        let mut sent = Vec::new();
+        for hop in list(case, "/hops")? {
+            let (method, body) = (text(hop, "/method")?, text(hop, "/body")?);
+            sent.push(format!("{method} body={}", body.len()));
+        }
+        Ok((sent, int(case, "/status")?))
+    }
+
+    /// The requests a bidder read, each as [`go_chain`] writes Go's, and the status of `answer`
+    /// as [`redirected`] writes it.
+    fn chain_of(answer: &str, read: &[String]) -> Result<(Vec<String>, i64), BoxError> {
+        let sent = read
+            .iter()
+            .map(|line| {
+                let mut words = line.split(' ');
+                let method = words.next().unwrap_or_default();
+                format!("{method} {}", words.next_back().unwrap_or_default())
+            })
+            .collect();
+        let status = answer
+            .split(' ')
+            .nth(1)
+            .ok_or("an answer without a status")?;
+        Ok((sent, status.parse()?))
     }
 
     /// The protocol of the answer to a bid request to `url`, and its `GotConn` events, as
@@ -981,43 +1030,56 @@ mod tests {
         })
     }
 
-    // Go: net/http/client.go Client.do and redirectBehavior (Go's bidder client follows a 307 to
-    // any origin, the body sent again, over HTTP/1.1).
+    // Go: net/http/client.go Client.do and redirectBehavior (redirects.json's post_307 and
+    // post_307_cross_host: Go's bidder client follows a 307 on the origin and to another origin
+    // over HTTP/1.1, the body sent again).
     #[test]
     fn h2c_redirects_stay_on_the_origin() -> TestResult {
         run(async {
             let doc = golden("h2.json")?;
+            let redirects = golden("redirects.json")?;
             let pki = TestPki::new()?;
             let (bidder, client, base) = on_h2("h2c", &pki, &doc).await?;
             let port = bidder.port();
-            let same = answered(&client, &format!("{base}/same")).await?;
-            let away = answered(&client, &format!("{base}/away")).await?;
-            let again = answered(&client, &format!("{base}/away")).await?;
+            let mut got = Vec::new();
+            for path in ["/same", "/away", "/away"] {
+                let (answer, read) = redirected(&bidder, &client, &format!("{base}{path}")).await?;
+                let chain = chain_of(&answer, &read)?;
+                got.push((answer, read, chain));
+            }
             drop(client);
-            let seen = bidder.seen();
             let _counts = bidder.close().await;
             let line = |path: &str, protocol: &str| {
                 format!("POST {path} {protocol} ua=Go-http-client/1.1 body=10")
             };
+            let on_origin = go_chain(redirect_case(&redirects, "post_307")?)?;
+            let cross = redirect_case(&redirects, "post_307_cross_host")?;
+            let (sent, status) = go_chain(cross)?;
+            // Over h2c the client stops at the 307, where Go's sends its second request.
+            let first = sent.get(..1).map_or_default(<[String]>::to_vec);
+            let stopped = (first, int(cross, "/steps/0/status")?);
             check_eq(
-                &(vec![same, away, again], seen.requests),
-                &(
-                    vec![
+                &got,
+                &vec![
+                    (
                         "HTTP/2.0 200".to_owned(),
+                        vec![line("/same", "HTTP/2.0"), line("/bid", "HTTP/2.0")],
+                        on_origin,
+                    ),
+                    (
                         format!("HTTP/2.0 307 http://localhost:{port}/bid"),
+                        vec![line("/away", "HTTP/2.0")],
+                        stopped,
+                    ),
+                    (
                         "HTTP/1.1 200".to_owned(),
-                    ],
-                    vec![
-                        line("/bid", "HTTP/1.1"),
-                        line("/same", "HTTP/2.0"),
-                        line("/bid", "HTTP/2.0"),
-                        line("/away", "HTTP/2.0"),
-                        line("/away", "HTTP/1.1"),
-                        line("/bid", "HTTP/1.1"),
-                    ],
-                ),
-                "the answers to a redirect on the origin, to another twice, and what the bidder \
-                 read",
+                        vec![line("/away", "HTTP/1.1"), line("/bid", "HTTP/1.1")],
+                        (sent, status),
+                    ),
+                ],
+                "a 307 on the origin, one to another origin, and that one again once the origin is \
+                 back on HTTP/1.1: the answer, the requests the bidder read, and those requests \
+                 and the status next to Go's",
             )
         })
     }
