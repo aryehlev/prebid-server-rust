@@ -36,8 +36,6 @@
 //	core_bidder_names.txt  openrtb_ext.CoreBidderNames(), one per line
 //	float_g.txt            strconv.FormatFloat(f, 'g', -1, 64) table
 //	to_lower.txt           "<rune hex> <lower hex>" for every rune strings.ToLower changes
-//	quote_ranges.txt       "<lo hex> <hi hex>" runs of runes strconv.Quote escapes
-//	quote_samples.txt      "<rune hex> <strconv.Quote>" for sampled runes
 //	semantics.txt          the families and samples of every complete scrape (see writeSemantics)
 //	go_families.txt        "<name> <type>" of every Go collector family under the prefix pbs_
 //	negotiation.txt        what the promhttp handler answers each Accept and Accept-Encoding with
@@ -157,9 +155,6 @@ func main() {
 		log.Fatal(err)
 	}
 	if err := writeToLowerTable(filepath.Join(*outDir, "to_lower.txt")); err != nil {
-		log.Fatal(err)
-	}
-	if err := writeQuoteTables(filepath.Join(*outDir, "quote_ranges.txt"), filepath.Join(*outDir, "quote_samples.txt")); err != nil {
 		log.Fatal(err)
 	}
 }
@@ -980,48 +975,6 @@ func writeToLowerTable(path string) error {
 		}
 	}
 	return os.WriteFile(path, []byte(b.String()), 0o644)
-}
-
-// writeQuoteTables writes the runs of runes that strconv.Quote (the %q verb of the registration
-// error texts) escapes, and the exact quoting of every rune below 0x100, every run boundary and
-// a random sample.
-func writeQuoteTables(rangesPath, samplesPath string) error {
-	escaped := func(r rune) bool { return strconv.Quote(string(r)) != `"`+string(r)+`"` }
-	var runs [][2]rune
-	for r := rune(0); r <= utf8.MaxRune; r++ {
-		if !utf8.ValidRune(r) || !escaped(r) {
-			continue
-		}
-		if n := len(runs); n > 0 && runs[n-1][1] == r-1 {
-			runs[n-1][1] = r
-		} else {
-			runs = append(runs, [2]rune{r, r})
-		}
-	}
-	var ranges, samples strings.Builder
-	sample := func(r rune) {
-		if utf8.ValidRune(r) {
-			fmt.Fprintf(&samples, "%x %s\n", r, strconv.Quote(string(r)))
-		}
-	}
-	for r := rune(0); r < 0x100; r++ {
-		sample(r)
-	}
-	for _, run := range runs {
-		fmt.Fprintf(&ranges, "%x %x\n", run[0], run[1])
-		sample(run[0] - 1)
-		sample(run[0])
-		sample(run[1])
-		sample(run[1] + 1)
-	}
-	rnd := rand.New(rand.NewSource(20261117))
-	for i := 0; i < 3000; i++ {
-		sample(rune(rnd.Int63n(utf8.MaxRune + 1)))
-	}
-	if err := os.WriteFile(rangesPath, []byte(ranges.String()), 0o644); err != nil {
-		return err
-	}
-	return os.WriteFile(samplesPath, []byte(samples.String()), 0o644)
 }
 
 // generateScenarios returns the machine-generated script: every combination of the
