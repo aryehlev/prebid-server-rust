@@ -3,8 +3,8 @@ module github.com/aryehlev/prebid-server-rust/crates/logger/testdata/go
 go 1.25.0
 
 require (
-	github.com/chasex/glog v0.0.0-20160217080310-c62392af379c
 	github.com/golang/glog v1.2.5
+	github.com/prebid/prebid-server/v4 v4.11.2-0.20261112141353-4e296450de2f
 )
 
-require github.com/google/go-cmp v0.7.0 // indirect
+replace github.com/prebid/prebid-server/v4 => ../../../../.upstream

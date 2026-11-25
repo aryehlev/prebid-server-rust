@@ -1,0 +1,1928 @@
+{
+  "header": {
+    "generator": "crates/logger/testdata/go/sinks",
+    "go_version": "go1.26.2",
+    "goarch": "amd64",
+    "glog": "v1.2.5",
+    "upstream": "v4.11.2-0.20261112141353-4e296450de2f"
+  },
+  "messages": {
+    "Debugf": "debugf 1",
+    "Errorf": "errorf 4",
+    "Infof": "infof 2",
+    "Warnf": "warnf 3"
+  },
+  "fatal_message": "fatalf 5",
+  "std_message": "http: TLS handshake error from 127.0.0.1:1234: EOF",
+  "runs": [
+    {
+      "scenario": "levels",
+      "args": [],
+      "exit": 0,
+      "stderr": [
+        {
+          "kind": "glog",
+          "severity": "E",
+          "file_line": "logger.go:22",
+          "message": "errorf 4"
+        }
+      ],
+      "dir": "temp",
+      "files": [
+        {
+          "name": "prebid-server.ERROR",
+          "link": "prebid-server.HOST.USER.log.ERROR.YYYYMMDD-HHMMSS.PID"
+        },
+        {
+          "name": "prebid-server.HOST.USER.log.ERROR.YYYYMMDD-HHMMSS.PID",
+          "header": [
+            "Log file created at: YYYY/MM/DD hh:mm:ss",
+            "Running on machine: HOST",
+            "Binary: Built with gc go1.26.2 for GOOS/GOARCH",
+            "Previous log: \u003cnone\u003e",
+            "Log line format: [IWEF]mmdd hh:mm:ss.uuuuuu threadid file:line] msg"
+          ],
+          "lines": [
+            {
+              "kind": "glog",
+              "severity": "E",
+              "file_line": "logger.go:22",
+              "message": "errorf 4"
+            }
+          ]
+        },
+        {
+          "name": "prebid-server.HOST.USER.log.INFO.YYYYMMDD-HHMMSS.PID",
+          "header": [
+            "Log file created at: YYYY/MM/DD hh:mm:ss",
+            "Running on machine: HOST",
+            "Binary: Built with gc go1.26.2 for GOOS/GOARCH",
+            "Previous log: \u003cnone\u003e",
+            "Log line format: [IWEF]mmdd hh:mm:ss.uuuuuu threadid file:line] msg"
+          ],
+          "lines": [
+            {
+              "kind": "glog",
+              "severity": "I",
+              "file_line": "logger.go:7",
+              "message": "debugf 1"
+            },
+            {
+              "kind": "glog",
+              "severity": "I",
+              "file_line": "logger.go:12",
+              "message": "infof 2"
+            },
+            {
+              "kind": "glog",
+              "severity": "W",
+              "file_line": "logger.go:17",
+              "message": "warnf 3"
+            },
+            {
+              "kind": "glog",
+              "severity": "E",
+              "file_line": "logger.go:22",
+              "message": "errorf 4"
+            }
+          ]
+        },
+        {
+          "name": "prebid-server.HOST.USER.log.WARNING.YYYYMMDD-HHMMSS.PID",
+          "header": [
+            "Log file created at: YYYY/MM/DD hh:mm:ss",
+            "Running on machine: HOST",
+            "Binary: Built with gc go1.26.2 for GOOS/GOARCH",
+            "Previous log: \u003cnone\u003e",
+            "Log line format: [IWEF]mmdd hh:mm:ss.uuuuuu threadid file:line] msg"
+          ],
+          "lines": [
+            {
+              "kind": "glog",
+              "severity": "W",
+              "file_line": "logger.go:17",
+              "message": "warnf 3"
+            },
+            {
+              "kind": "glog",
+              "severity": "E",
+              "file_line": "logger.go:22",
+              "message": "errorf 4"
+            }
+          ]
+        },
+        {
+          "name": "prebid-server.INFO",
+          "link": "prebid-server.HOST.USER.log.INFO.YYYYMMDD-HHMMSS.PID"
+        },
+        {
+          "name": "prebid-server.WARNING",
+          "link": "prebid-server.HOST.USER.log.WARNING.YYYYMMDD-HHMMSS.PID"
+        }
+      ]
+    },
+    {
+      "scenario": "levels",
+      "args": [
+        "-logtostderr"
+      ],
+      "exit": 0,
+      "stderr": [
+        {
+          "kind": "glog",
+          "severity": "I",
+          "file_line": "logger.go:7",
+          "message": "debugf 1"
+        },
+        {
+          "kind": "glog",
+          "severity": "I",
+          "file_line": "logger.go:12",
+          "message": "infof 2"
+        },
+        {
+          "kind": "glog",
+          "severity": "W",
+          "file_line": "logger.go:17",
+          "message": "warnf 3"
+        },
+        {
+          "kind": "glog",
+          "severity": "E",
+          "file_line": "logger.go:22",
+          "message": "errorf 4"
+        }
+      ],
+      "dir": "",
+      "files": []
+    },
+    {
+      "scenario": "levels",
+      "args": [
+        "-v",
+        "1",
+        "-logtostderr"
+      ],
+      "exit": 0,
+      "stderr": [
+        {
+          "kind": "glog",
+          "severity": "I",
+          "file_line": "logger.go:7",
+          "message": "debugf 1"
+        },
+        {
+          "kind": "glog",
+          "severity": "I",
+          "file_line": "logger.go:12",
+          "message": "infof 2"
+        },
+        {
+          "kind": "glog",
+          "severity": "W",
+          "file_line": "logger.go:17",
+          "message": "warnf 3"
+        },
+        {
+          "kind": "glog",
+          "severity": "E",
+          "file_line": "logger.go:22",
+          "message": "errorf 4"
+        }
+      ],
+      "dir": "",
+      "files": []
+    },
+    {
+      "scenario": "levels",
+      "args": [
+        "-alsologtostderr"
+      ],
+      "exit": 0,
+      "stderr": [
+        {
+          "kind": "glog",
+          "severity": "I",
+          "file_line": "logger.go:7",
+          "message": "debugf 1"
+        },
+        {
+          "kind": "glog",
+          "severity": "I",
+          "file_line": "logger.go:12",
+          "message": "infof 2"
+        },
+        {
+          "kind": "glog",
+          "severity": "W",
+          "file_line": "logger.go:17",
+          "message": "warnf 3"
+        },
+        {
+          "kind": "glog",
+          "severity": "E",
+          "file_line": "logger.go:22",
+          "message": "errorf 4"
+        }
+      ],
+      "dir": "temp",
+      "files": [
+        {
+          "name": "prebid-server.ERROR",
+          "link": "prebid-server.HOST.USER.log.ERROR.YYYYMMDD-HHMMSS.PID"
+        },
+        {
+          "name": "prebid-server.HOST.USER.log.ERROR.YYYYMMDD-HHMMSS.PID",
+          "header": [
+            "Log file created at: YYYY/MM/DD hh:mm:ss",
+            "Running on machine: HOST",
+            "Binary: Built with gc go1.26.2 for GOOS/GOARCH",
+            "Previous log: \u003cnone\u003e",
+            "Log line format: [IWEF]mmdd hh:mm:ss.uuuuuu threadid file:line] msg"
+          ],
+          "lines": [
+            {
+              "kind": "glog",
+              "severity": "E",
+              "file_line": "logger.go:22",
+              "message": "errorf 4"
+            }
+          ]
+        },
+        {
+          "name": "prebid-server.HOST.USER.log.INFO.YYYYMMDD-HHMMSS.PID",
+          "header": [
+            "Log file created at: YYYY/MM/DD hh:mm:ss",
+            "Running on machine: HOST",
+            "Binary: Built with gc go1.26.2 for GOOS/GOARCH",
+            "Previous log: \u003cnone\u003e",
+            "Log line format: [IWEF]mmdd hh:mm:ss.uuuuuu threadid file:line] msg"
+          ],
+          "lines": [
+            {
+              "kind": "glog",
+              "severity": "I",
+              "file_line": "logger.go:7",
+              "message": "debugf 1"
+            },
+            {
+              "kind": "glog",
+              "severity": "I",
+              "file_line": "logger.go:12",
+              "message": "infof 2"
+            },
+            {
+              "kind": "glog",
+              "severity": "W",
+              "file_line": "logger.go:17",
+              "message": "warnf 3"
+            },
+            {
+              "kind": "glog",
+              "severity": "E",
+              "file_line": "logger.go:22",
+              "message": "errorf 4"
+            }
+          ]
+        },
+        {
+          "name": "prebid-server.HOST.USER.log.WARNING.YYYYMMDD-HHMMSS.PID",
+          "header": [
+            "Log file created at: YYYY/MM/DD hh:mm:ss",
+            "Running on machine: HOST",
+            "Binary: Built with gc go1.26.2 for GOOS/GOARCH",
+            "Previous log: \u003cnone\u003e",
+            "Log line format: [IWEF]mmdd hh:mm:ss.uuuuuu threadid file:line] msg"
+          ],
+          "lines": [
+            {
+              "kind": "glog",
+              "severity": "W",
+              "file_line": "logger.go:17",
+              "message": "warnf 3"
+            },
+            {
+              "kind": "glog",
+              "severity": "E",
+              "file_line": "logger.go:22",
+              "message": "errorf 4"
+            }
+          ]
+        },
+        {
+          "name": "prebid-server.INFO",
+          "link": "prebid-server.HOST.USER.log.INFO.YYYYMMDD-HHMMSS.PID"
+        },
+        {
+          "name": "prebid-server.WARNING",
+          "link": "prebid-server.HOST.USER.log.WARNING.YYYYMMDD-HHMMSS.PID"
+        }
+      ]
+    },
+    {
+      "scenario": "levels",
+      "args": [
+        "-stderrthreshold=INFO"
+      ],
+      "exit": 0,
+      "stderr": [
+        {
+          "kind": "glog",
+          "severity": "I",
+          "file_line": "logger.go:7",
+          "message": "debugf 1"
+        },
+        {
+          "kind": "glog",
+          "severity": "I",
+          "file_line": "logger.go:12",
+          "message": "infof 2"
+        },
+        {
+          "kind": "glog",
+          "severity": "W",
+          "file_line": "logger.go:17",
+          "message": "warnf 3"
+        },
+        {
+          "kind": "glog",
+          "severity": "E",
+          "file_line": "logger.go:22",
+          "message": "errorf 4"
+        }
+      ],
+      "dir": "temp",
+      "files": [
+        {
+          "name": "prebid-server.ERROR",
+          "link": "prebid-server.HOST.USER.log.ERROR.YYYYMMDD-HHMMSS.PID"
+        },
+        {
+          "name": "prebid-server.HOST.USER.log.ERROR.YYYYMMDD-HHMMSS.PID",
+          "header": [
+            "Log file created at: YYYY/MM/DD hh:mm:ss",
+            "Running on machine: HOST",
+            "Binary: Built with gc go1.26.2 for GOOS/GOARCH",
+            "Previous log: \u003cnone\u003e",
+            "Log line format: [IWEF]mmdd hh:mm:ss.uuuuuu threadid file:line] msg"
+          ],
+          "lines": [
+            {
+              "kind": "glog",
+              "severity": "E",
+              "file_line": "logger.go:22",
+              "message": "errorf 4"
+            }
+          ]
+        },
+        {
+          "name": "prebid-server.HOST.USER.log.INFO.YYYYMMDD-HHMMSS.PID",
+          "header": [
+            "Log file created at: YYYY/MM/DD hh:mm:ss",
+            "Running on machine: HOST",
+            "Binary: Built with gc go1.26.2 for GOOS/GOARCH",
+            "Previous log: \u003cnone\u003e",
+            "Log line format: [IWEF]mmdd hh:mm:ss.uuuuuu threadid file:line] msg"
+          ],
+          "lines": [
+            {
+              "kind": "glog",
+              "severity": "I",
+              "file_line": "logger.go:7",
+              "message": "debugf 1"
+            },
+            {
+              "kind": "glog",
+              "severity": "I",
+              "file_line": "logger.go:12",
+              "message": "infof 2"
+            },
+            {
+              "kind": "glog",
+              "severity": "W",
+              "file_line": "logger.go:17",
+              "message": "warnf 3"
+            },
+            {
+              "kind": "glog",
+              "severity": "E",
+              "file_line": "logger.go:22",
+              "message": "errorf 4"
+            }
+          ]
+        },
+        {
+          "name": "prebid-server.HOST.USER.log.WARNING.YYYYMMDD-HHMMSS.PID",
+          "header": [
+            "Log file created at: YYYY/MM/DD hh:mm:ss",
+            "Running on machine: HOST",
+            "Binary: Built with gc go1.26.2 for GOOS/GOARCH",
+            "Previous log: \u003cnone\u003e",
+            "Log line format: [IWEF]mmdd hh:mm:ss.uuuuuu threadid file:line] msg"
+          ],
+          "lines": [
+            {
+              "kind": "glog",
+              "severity": "W",
+              "file_line": "logger.go:17",
+              "message": "warnf 3"
+            },
+            {
+              "kind": "glog",
+              "severity": "E",
+              "file_line": "logger.go:22",
+              "message": "errorf 4"
+            }
+          ]
+        },
+        {
+          "name": "prebid-server.INFO",
+          "link": "prebid-server.HOST.USER.log.INFO.YYYYMMDD-HHMMSS.PID"
+        },
+        {
+          "name": "prebid-server.WARNING",
+          "link": "prebid-server.HOST.USER.log.WARNING.YYYYMMDD-HHMMSS.PID"
+        }
+      ]
+    },
+    {
+      "scenario": "levels",
+      "args": [
+        "-stderrthreshold=WARNING"
+      ],
+      "exit": 0,
+      "stderr": [
+        {
+          "kind": "glog",
+          "severity": "W",
+          "file_line": "logger.go:17",
+          "message": "warnf 3"
+        },
+        {
+          "kind": "glog",
+          "severity": "E",
+          "file_line": "logger.go:22",
+          "message": "errorf 4"
+        }
+      ],
+      "dir": "temp",
+      "files": [
+        {
+          "name": "prebid-server.ERROR",
+          "link": "prebid-server.HOST.USER.log.ERROR.YYYYMMDD-HHMMSS.PID"
+        },
+        {
+          "name": "prebid-server.HOST.USER.log.ERROR.YYYYMMDD-HHMMSS.PID",
+          "header": [
+            "Log file created at: YYYY/MM/DD hh:mm:ss",
+            "Running on machine: HOST",
+            "Binary: Built with gc go1.26.2 for GOOS/GOARCH",
+            "Previous log: \u003cnone\u003e",
+            "Log line format: [IWEF]mmdd hh:mm:ss.uuuuuu threadid file:line] msg"
+          ],
+          "lines": [
+            {
+              "kind": "glog",
+              "severity": "E",
+              "file_line": "logger.go:22",
+              "message": "errorf 4"
+            }
+          ]
+        },
+        {
+          "name": "prebid-server.HOST.USER.log.INFO.YYYYMMDD-HHMMSS.PID",
+          "header": [
+            "Log file created at: YYYY/MM/DD hh:mm:ss",
+            "Running on machine: HOST",
+            "Binary: Built with gc go1.26.2 for GOOS/GOARCH",
+            "Previous log: \u003cnone\u003e",
+            "Log line format: [IWEF]mmdd hh:mm:ss.uuuuuu threadid file:line] msg"
+          ],
+          "lines": [
+            {
+              "kind": "glog",
+              "severity": "I",
+              "file_line": "logger.go:7",
+              "message": "debugf 1"
+            },
+            {
+              "kind": "glog",
+              "severity": "I",
+              "file_line": "logger.go:12",
+              "message": "infof 2"
+            },
+            {
+              "kind": "glog",
+              "severity": "W",
+              "file_line": "logger.go:17",
+              "message": "warnf 3"
+            },
+            {
+              "kind": "glog",
+              "severity": "E",
+              "file_line": "logger.go:22",
+              "message": "errorf 4"
+            }
+          ]
+        },
+        {
+          "name": "prebid-server.HOST.USER.log.WARNING.YYYYMMDD-HHMMSS.PID",
+          "header": [
+            "Log file created at: YYYY/MM/DD hh:mm:ss",
+            "Running on machine: HOST",
+            "Binary: Built with gc go1.26.2 for GOOS/GOARCH",
+            "Previous log: \u003cnone\u003e",
+            "Log line format: [IWEF]mmdd hh:mm:ss.uuuuuu threadid file:line] msg"
+          ],
+          "lines": [
+            {
+              "kind": "glog",
+              "severity": "W",
+              "file_line": "logger.go:17",
+              "message": "warnf 3"
+            },
+            {
+              "kind": "glog",
+              "severity": "E",
+              "file_line": "logger.go:22",
+              "message": "errorf 4"
+            }
+          ]
+        },
+        {
+          "name": "prebid-server.INFO",
+          "link": "prebid-server.HOST.USER.log.INFO.YYYYMMDD-HHMMSS.PID"
+        },
+        {
+          "name": "prebid-server.WARNING",
+          "link": "prebid-server.HOST.USER.log.WARNING.YYYYMMDD-HHMMSS.PID"
+        }
+      ]
+    },
+    {
+      "scenario": "levels",
+      "args": [
+        "-stderrthreshold=ERROR"
+      ],
+      "exit": 0,
+      "stderr": [
+        {
+          "kind": "glog",
+          "severity": "E",
+          "file_line": "logger.go:22",
+          "message": "errorf 4"
+        }
+      ],
+      "dir": "temp",
+      "files": [
+        {
+          "name": "prebid-server.ERROR",
+          "link": "prebid-server.HOST.USER.log.ERROR.YYYYMMDD-HHMMSS.PID"
+        },
+        {
+          "name": "prebid-server.HOST.USER.log.ERROR.YYYYMMDD-HHMMSS.PID",
+          "header": [
+            "Log file created at: YYYY/MM/DD hh:mm:ss",
+            "Running on machine: HOST",
+            "Binary: Built with gc go1.26.2 for GOOS/GOARCH",
+            "Previous log: \u003cnone\u003e",
+            "Log line format: [IWEF]mmdd hh:mm:ss.uuuuuu threadid file:line] msg"
+          ],
+          "lines": [
+            {
+              "kind": "glog",
+              "severity": "E",
+              "file_line": "logger.go:22",
+              "message": "errorf 4"
+            }
+          ]
+        },
+        {
+          "name": "prebid-server.HOST.USER.log.INFO.YYYYMMDD-HHMMSS.PID",
+          "header": [
+            "Log file created at: YYYY/MM/DD hh:mm:ss",
+            "Running on machine: HOST",
+            "Binary: Built with gc go1.26.2 for GOOS/GOARCH",
+            "Previous log: \u003cnone\u003e",
+            "Log line format: [IWEF]mmdd hh:mm:ss.uuuuuu threadid file:line] msg"
+          ],
+          "lines": [
+            {
+              "kind": "glog",
+              "severity": "I",
+              "file_line": "logger.go:7",
+              "message": "debugf 1"
+            },
+            {
+              "kind": "glog",
+              "severity": "I",
+              "file_line": "logger.go:12",
+              "message": "infof 2"
+            },
+            {
+              "kind": "glog",
+              "severity": "W",
+              "file_line": "logger.go:17",
+              "message": "warnf 3"
+            },
+            {
+              "kind": "glog",
+              "severity": "E",
+              "file_line": "logger.go:22",
+              "message": "errorf 4"
+            }
+          ]
+        },
+        {
+          "name": "prebid-server.HOST.USER.log.WARNING.YYYYMMDD-HHMMSS.PID",
+          "header": [
+            "Log file created at: YYYY/MM/DD hh:mm:ss",
+            "Running on machine: HOST",
+            "Binary: Built with gc go1.26.2 for GOOS/GOARCH",
+            "Previous log: \u003cnone\u003e",
+            "Log line format: [IWEF]mmdd hh:mm:ss.uuuuuu threadid file:line] msg"
+          ],
+          "lines": [
+            {
+              "kind": "glog",
+              "severity": "W",
+              "file_line": "logger.go:17",
+              "message": "warnf 3"
+            },
+            {
+              "kind": "glog",
+              "severity": "E",
+              "file_line": "logger.go:22",
+              "message": "errorf 4"
+            }
+          ]
+        },
+        {
+          "name": "prebid-server.INFO",
+          "link": "prebid-server.HOST.USER.log.INFO.YYYYMMDD-HHMMSS.PID"
+        },
+        {
+          "name": "prebid-server.WARNING",
+          "link": "prebid-server.HOST.USER.log.WARNING.YYYYMMDD-HHMMSS.PID"
+        }
+      ]
+    },
+    {
+      "scenario": "levels",
+      "args": [
+        "-stderrthreshold=FATAL"
+      ],
+      "exit": 0,
+      "stderr": [],
+      "dir": "temp",
+      "files": [
+        {
+          "name": "prebid-server.ERROR",
+          "link": "prebid-server.HOST.USER.log.ERROR.YYYYMMDD-HHMMSS.PID"
+        },
+        {
+          "name": "prebid-server.HOST.USER.log.ERROR.YYYYMMDD-HHMMSS.PID",
+          "header": [
+            "Log file created at: YYYY/MM/DD hh:mm:ss",
+            "Running on machine: HOST",
+            "Binary: Built with gc go1.26.2 for GOOS/GOARCH",
+            "Previous log: \u003cnone\u003e",
+            "Log line format: [IWEF]mmdd hh:mm:ss.uuuuuu threadid file:line] msg"
+          ],
+          "lines": [
+            {
+              "kind": "glog",
+              "severity": "E",
+              "file_line": "logger.go:22",
+              "message": "errorf 4"
+            }
+          ]
+        },
+        {
+          "name": "prebid-server.HOST.USER.log.INFO.YYYYMMDD-HHMMSS.PID",
+          "header": [
+            "Log file created at: YYYY/MM/DD hh:mm:ss",
+            "Running on machine: HOST",
+            "Binary: Built with gc go1.26.2 for GOOS/GOARCH",
+            "Previous log: \u003cnone\u003e",
+            "Log line format: [IWEF]mmdd hh:mm:ss.uuuuuu threadid file:line] msg"
+          ],
+          "lines": [
+            {
+              "kind": "glog",
+              "severity": "I",
+              "file_line": "logger.go:7",
+              "message": "debugf 1"
+            },
+            {
+              "kind": "glog",
+              "severity": "I",
+              "file_line": "logger.go:12",
+              "message": "infof 2"
+            },
+            {
+              "kind": "glog",
+              "severity": "W",
+              "file_line": "logger.go:17",
+              "message": "warnf 3"
+            },
+            {
+              "kind": "glog",
+              "severity": "E",
+              "file_line": "logger.go:22",
+              "message": "errorf 4"
+            }
+          ]
+        },
+        {
+          "name": "prebid-server.HOST.USER.log.WARNING.YYYYMMDD-HHMMSS.PID",
+          "header": [
+            "Log file created at: YYYY/MM/DD hh:mm:ss",
+            "Running on machine: HOST",
+            "Binary: Built with gc go1.26.2 for GOOS/GOARCH",
+            "Previous log: \u003cnone\u003e",
+            "Log line format: [IWEF]mmdd hh:mm:ss.uuuuuu threadid file:line] msg"
+          ],
+          "lines": [
+            {
+              "kind": "glog",
+              "severity": "W",
+              "file_line": "logger.go:17",
+              "message": "warnf 3"
+            },
+            {
+              "kind": "glog",
+              "severity": "E",
+              "file_line": "logger.go:22",
+              "message": "errorf 4"
+            }
+          ]
+        },
+        {
+          "name": "prebid-server.INFO",
+          "link": "prebid-server.HOST.USER.log.INFO.YYYYMMDD-HHMMSS.PID"
+        },
+        {
+          "name": "prebid-server.WARNING",
+          "link": "prebid-server.HOST.USER.log.WARNING.YYYYMMDD-HHMMSS.PID"
+        }
+      ]
+    },
+    {
+      "scenario": "levels",
+      "args": [
+        "-logtostderr",
+        "-stderrthreshold=FATAL"
+      ],
+      "exit": 0,
+      "stderr": [
+        {
+          "kind": "glog",
+          "severity": "I",
+          "file_line": "logger.go:7",
+          "message": "debugf 1"
+        },
+        {
+          "kind": "glog",
+          "severity": "I",
+          "file_line": "logger.go:12",
+          "message": "infof 2"
+        },
+        {
+          "kind": "glog",
+          "severity": "W",
+          "file_line": "logger.go:17",
+          "message": "warnf 3"
+        },
+        {
+          "kind": "glog",
+          "severity": "E",
+          "file_line": "logger.go:22",
+          "message": "errorf 4"
+        }
+      ],
+      "dir": "",
+      "files": []
+    },
+    {
+      "scenario": "levels",
+      "args": [
+        "-alsologtostderr",
+        "-stderrthreshold=FATAL"
+      ],
+      "exit": 0,
+      "stderr": [
+        {
+          "kind": "glog",
+          "severity": "I",
+          "file_line": "logger.go:7",
+          "message": "debugf 1"
+        },
+        {
+          "kind": "glog",
+          "severity": "I",
+          "file_line": "logger.go:12",
+          "message": "infof 2"
+        },
+        {
+          "kind": "glog",
+          "severity": "W",
+          "file_line": "logger.go:17",
+          "message": "warnf 3"
+        },
+        {
+          "kind": "glog",
+          "severity": "E",
+          "file_line": "logger.go:22",
+          "message": "errorf 4"
+        }
+      ],
+      "dir": "temp",
+      "files": [
+        {
+          "name": "prebid-server.ERROR",
+          "link": "prebid-server.HOST.USER.log.ERROR.YYYYMMDD-HHMMSS.PID"
+        },
+        {
+          "name": "prebid-server.HOST.USER.log.ERROR.YYYYMMDD-HHMMSS.PID",
+          "header": [
+            "Log file created at: YYYY/MM/DD hh:mm:ss",
+            "Running on machine: HOST",
+            "Binary: Built with gc go1.26.2 for GOOS/GOARCH",
+            "Previous log: \u003cnone\u003e",
+            "Log line format: [IWEF]mmdd hh:mm:ss.uuuuuu threadid file:line] msg"
+          ],
+          "lines": [
+            {
+              "kind": "glog",
+              "severity": "E",
+              "file_line": "logger.go:22",
+              "message": "errorf 4"
+            }
+          ]
+        },
+        {
+          "name": "prebid-server.HOST.USER.log.INFO.YYYYMMDD-HHMMSS.PID",
+          "header": [
+            "Log file created at: YYYY/MM/DD hh:mm:ss",
+            "Running on machine: HOST",
+            "Binary: Built with gc go1.26.2 for GOOS/GOARCH",
+            "Previous log: \u003cnone\u003e",
+            "Log line format: [IWEF]mmdd hh:mm:ss.uuuuuu threadid file:line] msg"
+          ],
+          "lines": [
+            {
+              "kind": "glog",
+              "severity": "I",
+              "file_line": "logger.go:7",
+              "message": "debugf 1"
+            },
+            {
+              "kind": "glog",
+              "severity": "I",
+              "file_line": "logger.go:12",
+              "message": "infof 2"
+            },
+            {
+              "kind": "glog",
+              "severity": "W",
+              "file_line": "logger.go:17",
+              "message": "warnf 3"
+            },
+            {
+              "kind": "glog",
+              "severity": "E",
+              "file_line": "logger.go:22",
+              "message": "errorf 4"
+            }
+          ]
+        },
+        {
+          "name": "prebid-server.HOST.USER.log.WARNING.YYYYMMDD-HHMMSS.PID",
+          "header": [
+            "Log file created at: YYYY/MM/DD hh:mm:ss",
+            "Running on machine: HOST",
+            "Binary: Built with gc go1.26.2 for GOOS/GOARCH",
+            "Previous log: \u003cnone\u003e",
+            "Log line format: [IWEF]mmdd hh:mm:ss.uuuuuu threadid file:line] msg"
+          ],
+          "lines": [
+            {
+              "kind": "glog",
+              "severity": "W",
+              "file_line": "logger.go:17",
+              "message": "warnf 3"
+            },
+            {
+              "kind": "glog",
+              "severity": "E",
+              "file_line": "logger.go:22",
+              "message": "errorf 4"
+            }
+          ]
+        },
+        {
+          "name": "prebid-server.INFO",
+          "link": "prebid-server.HOST.USER.log.INFO.YYYYMMDD-HHMMSS.PID"
+        },
+        {
+          "name": "prebid-server.WARNING",
+          "link": "prebid-server.HOST.USER.log.WARNING.YYYYMMDD-HHMMSS.PID"
+        }
+      ]
+    },
+    {
+      "scenario": "levels",
+      "args": [
+        "-logtostderr=false",
+        "-alsologtostderr=false"
+      ],
+      "exit": 0,
+      "stderr": [
+        {
+          "kind": "glog",
+          "severity": "E",
+          "file_line": "logger.go:22",
+          "message": "errorf 4"
+        }
+      ],
+      "dir": "temp",
+      "files": [
+        {
+          "name": "prebid-server.ERROR",
+          "link": "prebid-server.HOST.USER.log.ERROR.YYYYMMDD-HHMMSS.PID"
+        },
+        {
+          "name": "prebid-server.HOST.USER.log.ERROR.YYYYMMDD-HHMMSS.PID",
+          "header": [
+            "Log file created at: YYYY/MM/DD hh:mm:ss",
+            "Running on machine: HOST",
+            "Binary: Built with gc go1.26.2 for GOOS/GOARCH",
+            "Previous log: \u003cnone\u003e",
+            "Log line format: [IWEF]mmdd hh:mm:ss.uuuuuu threadid file:line] msg"
+          ],
+          "lines": [
+            {
+              "kind": "glog",
+              "severity": "E",
+              "file_line": "logger.go:22",
+              "message": "errorf 4"
+            }
+          ]
+        },
+        {
+          "name": "prebid-server.HOST.USER.log.INFO.YYYYMMDD-HHMMSS.PID",
+          "header": [
+            "Log file created at: YYYY/MM/DD hh:mm:ss",
+            "Running on machine: HOST",
+            "Binary: Built with gc go1.26.2 for GOOS/GOARCH",
+            "Previous log: \u003cnone\u003e",
+            "Log line format: [IWEF]mmdd hh:mm:ss.uuuuuu threadid file:line] msg"
+          ],
+          "lines": [
+            {
+              "kind": "glog",
+              "severity": "I",
+              "file_line": "logger.go:7",
+              "message": "debugf 1"
+            },
+            {
+              "kind": "glog",
+              "severity": "I",
+              "file_line": "logger.go:12",
+              "message": "infof 2"
+            },
+            {
+              "kind": "glog",
+              "severity": "W",
+              "file_line": "logger.go:17",
+              "message": "warnf 3"
+            },
+            {
+              "kind": "glog",
+              "severity": "E",
+              "file_line": "logger.go:22",
+              "message": "errorf 4"
+            }
+          ]
+        },
+        {
+          "name": "prebid-server.HOST.USER.log.WARNING.YYYYMMDD-HHMMSS.PID",
+          "header": [
+            "Log file created at: YYYY/MM/DD hh:mm:ss",
+            "Running on machine: HOST",
+            "Binary: Built with gc go1.26.2 for GOOS/GOARCH",
+            "Previous log: \u003cnone\u003e",
+            "Log line format: [IWEF]mmdd hh:mm:ss.uuuuuu threadid file:line] msg"
+          ],
+          "lines": [
+            {
+              "kind": "glog",
+              "severity": "W",
+              "file_line": "logger.go:17",
+              "message": "warnf 3"
+            },
+            {
+              "kind": "glog",
+              "severity": "E",
+              "file_line": "logger.go:22",
+              "message": "errorf 4"
+            }
+          ]
+        },
+        {
+          "name": "prebid-server.INFO",
+          "link": "prebid-server.HOST.USER.log.INFO.YYYYMMDD-HHMMSS.PID"
+        },
+        {
+          "name": "prebid-server.WARNING",
+          "link": "prebid-server.HOST.USER.log.WARNING.YYYYMMDD-HHMMSS.PID"
+        }
+      ]
+    },
+    {
+      "scenario": "levels",
+      "args": [
+        "-log_dir=LOGDIR"
+      ],
+      "exit": 0,
+      "stderr": [
+        {
+          "kind": "glog",
+          "severity": "E",
+          "file_line": "logger.go:22",
+          "message": "errorf 4"
+        }
+      ],
+      "dir": "log_dir",
+      "files": [
+        {
+          "name": "prebid-server.ERROR",
+          "link": "prebid-server.HOST.USER.log.ERROR.YYYYMMDD-HHMMSS.PID"
+        },
+        {
+          "name": "prebid-server.HOST.USER.log.ERROR.YYYYMMDD-HHMMSS.PID",
+          "header": [
+            "Log file created at: YYYY/MM/DD hh:mm:ss",
+            "Running on machine: HOST",
+            "Binary: Built with gc go1.26.2 for GOOS/GOARCH",
+            "Previous log: \u003cnone\u003e",
+            "Log line format: [IWEF]mmdd hh:mm:ss.uuuuuu threadid file:line] msg"
+          ],
+          "lines": [
+            {
+              "kind": "glog",
+              "severity": "E",
+              "file_line": "logger.go:22",
+              "message": "errorf 4"
+            }
+          ]
+        },
+        {
+          "name": "prebid-server.HOST.USER.log.INFO.YYYYMMDD-HHMMSS.PID",
+          "header": [
+            "Log file created at: YYYY/MM/DD hh:mm:ss",
+            "Running on machine: HOST",
+            "Binary: Built with gc go1.26.2 for GOOS/GOARCH",
+            "Previous log: \u003cnone\u003e",
+            "Log line format: [IWEF]mmdd hh:mm:ss.uuuuuu threadid file:line] msg"
+          ],
+          "lines": [
+            {
+              "kind": "glog",
+              "severity": "I",
+              "file_line": "logger.go:7",
+              "message": "debugf 1"
+            },
+            {
+              "kind": "glog",
+              "severity": "I",
+              "file_line": "logger.go:12",
+              "message": "infof 2"
+            },
+            {
+              "kind": "glog",
+              "severity": "W",
+              "file_line": "logger.go:17",
+              "message": "warnf 3"
+            },
+            {
+              "kind": "glog",
+              "severity": "E",
+              "file_line": "logger.go:22",
+              "message": "errorf 4"
+            }
+          ]
+        },
+        {
+          "name": "prebid-server.HOST.USER.log.WARNING.YYYYMMDD-HHMMSS.PID",
+          "header": [
+            "Log file created at: YYYY/MM/DD hh:mm:ss",
+            "Running on machine: HOST",
+            "Binary: Built with gc go1.26.2 for GOOS/GOARCH",
+            "Previous log: \u003cnone\u003e",
+            "Log line format: [IWEF]mmdd hh:mm:ss.uuuuuu threadid file:line] msg"
+          ],
+          "lines": [
+            {
+              "kind": "glog",
+              "severity": "W",
+              "file_line": "logger.go:17",
+              "message": "warnf 3"
+            },
+            {
+              "kind": "glog",
+              "severity": "E",
+              "file_line": "logger.go:22",
+              "message": "errorf 4"
+            }
+          ]
+        },
+        {
+          "name": "prebid-server.INFO",
+          "link": "prebid-server.HOST.USER.log.INFO.YYYYMMDD-HHMMSS.PID"
+        },
+        {
+          "name": "prebid-server.WARNING",
+          "link": "prebid-server.HOST.USER.log.WARNING.YYYYMMDD-HHMMSS.PID"
+        }
+      ]
+    },
+    {
+      "scenario": "levels",
+      "args": [
+        "-log_dir=LOGDIR",
+        "-log_link=LINKDIR"
+      ],
+      "exit": 0,
+      "stderr": [
+        {
+          "kind": "glog",
+          "severity": "E",
+          "file_line": "logger.go:22",
+          "message": "errorf 4"
+        }
+      ],
+      "dir": "log_dir",
+      "files": [
+        {
+          "name": "prebid-server.ERROR",
+          "link": "prebid-server.HOST.USER.log.ERROR.YYYYMMDD-HHMMSS.PID"
+        },
+        {
+          "name": "prebid-server.HOST.USER.log.ERROR.YYYYMMDD-HHMMSS.PID",
+          "header": [
+            "Log file created at: YYYY/MM/DD hh:mm:ss",
+            "Running on machine: HOST",
+            "Binary: Built with gc go1.26.2 for GOOS/GOARCH",
+            "Previous log: \u003cnone\u003e",
+            "Log line format: [IWEF]mmdd hh:mm:ss.uuuuuu threadid file:line] msg"
+          ],
+          "lines": [
+            {
+              "kind": "glog",
+              "severity": "E",
+              "file_line": "logger.go:22",
+              "message": "errorf 4"
+            }
+          ]
+        },
+        {
+          "name": "prebid-server.HOST.USER.log.INFO.YYYYMMDD-HHMMSS.PID",
+          "header": [
+            "Log file created at: YYYY/MM/DD hh:mm:ss",
+            "Running on machine: HOST",
+            "Binary: Built with gc go1.26.2 for GOOS/GOARCH",
+            "Previous log: \u003cnone\u003e",
+            "Log line format: [IWEF]mmdd hh:mm:ss.uuuuuu threadid file:line] msg"
+          ],
+          "lines": [
+            {
+              "kind": "glog",
+              "severity": "I",
+              "file_line": "logger.go:7",
+              "message": "debugf 1"
+            },
+            {
+              "kind": "glog",
+              "severity": "I",
+              "file_line": "logger.go:12",
+              "message": "infof 2"
+            },
+            {
+              "kind": "glog",
+              "severity": "W",
+              "file_line": "logger.go:17",
+              "message": "warnf 3"
+            },
+            {
+              "kind": "glog",
+              "severity": "E",
+              "file_line": "logger.go:22",
+              "message": "errorf 4"
+            }
+          ]
+        },
+        {
+          "name": "prebid-server.HOST.USER.log.WARNING.YYYYMMDD-HHMMSS.PID",
+          "header": [
+            "Log file created at: YYYY/MM/DD hh:mm:ss",
+            "Running on machine: HOST",
+            "Binary: Built with gc go1.26.2 for GOOS/GOARCH",
+            "Previous log: \u003cnone\u003e",
+            "Log line format: [IWEF]mmdd hh:mm:ss.uuuuuu threadid file:line] msg"
+          ],
+          "lines": [
+            {
+              "kind": "glog",
+              "severity": "W",
+              "file_line": "logger.go:17",
+              "message": "warnf 3"
+            },
+            {
+              "kind": "glog",
+              "severity": "E",
+              "file_line": "logger.go:22",
+              "message": "errorf 4"
+            }
+          ]
+        },
+        {
+          "name": "prebid-server.INFO",
+          "link": "prebid-server.HOST.USER.log.INFO.YYYYMMDD-HHMMSS.PID"
+        },
+        {
+          "name": "prebid-server.WARNING",
+          "link": "prebid-server.HOST.USER.log.WARNING.YYYYMMDD-HHMMSS.PID"
+        }
+      ],
+      "links": [
+        {
+          "name": "prebid-server.ERROR",
+          "link": "LOGDIR/prebid-server.HOST.USER.log.ERROR.YYYYMMDD-HHMMSS.PID"
+        },
+        {
+          "name": "prebid-server.INFO",
+          "link": "LOGDIR/prebid-server.HOST.USER.log.INFO.YYYYMMDD-HHMMSS.PID"
+        },
+        {
+          "name": "prebid-server.WARNING",
+          "link": "LOGDIR/prebid-server.HOST.USER.log.WARNING.YYYYMMDD-HHMMSS.PID"
+        }
+      ]
+    },
+    {
+      "scenario": "levels",
+      "args": [
+        "-log_dir=MISSING"
+      ],
+      "exit": 0,
+      "stderr": [
+        {
+          "kind": "glog",
+          "severity": "E",
+          "file_line": "logger.go:22",
+          "message": "errorf 4"
+        }
+      ],
+      "dir": "temp",
+      "files": [
+        {
+          "name": "prebid-server.ERROR",
+          "link": "prebid-server.HOST.USER.log.ERROR.YYYYMMDD-HHMMSS.PID"
+        },
+        {
+          "name": "prebid-server.HOST.USER.log.ERROR.YYYYMMDD-HHMMSS.PID",
+          "header": [
+            "Log file created at: YYYY/MM/DD hh:mm:ss",
+            "Running on machine: HOST",
+            "Binary: Built with gc go1.26.2 for GOOS/GOARCH",
+            "Previous log: \u003cnone\u003e",
+            "Log line format: [IWEF]mmdd hh:mm:ss.uuuuuu threadid file:line] msg"
+          ],
+          "lines": [
+            {
+              "kind": "glog",
+              "severity": "E",
+              "file_line": "logger.go:22",
+              "message": "errorf 4"
+            }
+          ]
+        },
+        {
+          "name": "prebid-server.HOST.USER.log.INFO.YYYYMMDD-HHMMSS.PID",
+          "header": [
+            "Log file created at: YYYY/MM/DD hh:mm:ss",
+            "Running on machine: HOST",
+            "Binary: Built with gc go1.26.2 for GOOS/GOARCH",
+            "Previous log: \u003cnone\u003e",
+            "Log line format: [IWEF]mmdd hh:mm:ss.uuuuuu threadid file:line] msg"
+          ],
+          "lines": [
+            {
+              "kind": "glog",
+              "severity": "I",
+              "file_line": "logger.go:7",
+              "message": "debugf 1"
+            },
+            {
+              "kind": "glog",
+              "severity": "I",
+              "file_line": "logger.go:12",
+              "message": "infof 2"
+            },
+            {
+              "kind": "glog",
+              "severity": "W",
+              "file_line": "logger.go:17",
+              "message": "warnf 3"
+            },
+            {
+              "kind": "glog",
+              "severity": "E",
+              "file_line": "logger.go:22",
+              "message": "errorf 4"
+            }
+          ]
+        },
+        {
+          "name": "prebid-server.HOST.USER.log.WARNING.YYYYMMDD-HHMMSS.PID",
+          "header": [
+            "Log file created at: YYYY/MM/DD hh:mm:ss",
+            "Running on machine: HOST",
+            "Binary: Built with gc go1.26.2 for GOOS/GOARCH",
+            "Previous log: \u003cnone\u003e",
+            "Log line format: [IWEF]mmdd hh:mm:ss.uuuuuu threadid file:line] msg"
+          ],
+          "lines": [
+            {
+              "kind": "glog",
+              "severity": "W",
+              "file_line": "logger.go:17",
+              "message": "warnf 3"
+            },
+            {
+              "kind": "glog",
+              "severity": "E",
+              "file_line": "logger.go:22",
+              "message": "errorf 4"
+            }
+          ]
+        },
+        {
+          "name": "prebid-server.INFO",
+          "link": "prebid-server.HOST.USER.log.INFO.YYYYMMDD-HHMMSS.PID"
+        },
+        {
+          "name": "prebid-server.WARNING",
+          "link": "prebid-server.HOST.USER.log.WARNING.YYYYMMDD-HHMMSS.PID"
+        }
+      ]
+    },
+    {
+      "scenario": "levels",
+      "args": [
+        "-logbuflevel=-1",
+        "-log_dir=LOGDIR"
+      ],
+      "exit": 0,
+      "stderr": [
+        {
+          "kind": "glog",
+          "severity": "E",
+          "file_line": "logger.go:22",
+          "message": "errorf 4"
+        }
+      ],
+      "dir": "log_dir",
+      "files": [
+        {
+          "name": "prebid-server.ERROR",
+          "link": "prebid-server.HOST.USER.log.ERROR.YYYYMMDD-HHMMSS.PID"
+        },
+        {
+          "name": "prebid-server.HOST.USER.log.ERROR.YYYYMMDD-HHMMSS.PID",
+          "header": [
+            "Log file created at: YYYY/MM/DD hh:mm:ss",
+            "Running on machine: HOST",
+            "Binary: Built with gc go1.26.2 for GOOS/GOARCH",
+            "Previous log: \u003cnone\u003e",
+            "Log line format: [IWEF]mmdd hh:mm:ss.uuuuuu threadid file:line] msg"
+          ],
+          "lines": [
+            {
+              "kind": "glog",
+              "severity": "E",
+              "file_line": "logger.go:22",
+              "message": "errorf 4"
+            }
+          ]
+        },
+        {
+          "name": "prebid-server.HOST.USER.log.INFO.YYYYMMDD-HHMMSS.PID",
+          "header": [
+            "Log file created at: YYYY/MM/DD hh:mm:ss",
+            "Running on machine: HOST",
+            "Binary: Built with gc go1.26.2 for GOOS/GOARCH",
+            "Previous log: \u003cnone\u003e",
+            "Log line format: [IWEF]mmdd hh:mm:ss.uuuuuu threadid file:line] msg"
+          ],
+          "lines": [
+            {
+              "kind": "glog",
+              "severity": "I",
+              "file_line": "logger.go:7",
+              "message": "debugf 1"
+            },
+            {
+              "kind": "glog",
+              "severity": "I",
+              "file_line": "logger.go:12",
+              "message": "infof 2"
+            },
+            {
+              "kind": "glog",
+              "severity": "W",
+              "file_line": "logger.go:17",
+              "message": "warnf 3"
+            },
+            {
+              "kind": "glog",
+              "severity": "E",
+              "file_line": "logger.go:22",
+              "message": "errorf 4"
+            }
+          ]
+        },
+        {
+          "name": "prebid-server.HOST.USER.log.WARNING.YYYYMMDD-HHMMSS.PID",
+          "header": [
+            "Log file created at: YYYY/MM/DD hh:mm:ss",
+            "Running on machine: HOST",
+            "Binary: Built with gc go1.26.2 for GOOS/GOARCH",
+            "Previous log: \u003cnone\u003e",
+            "Log line format: [IWEF]mmdd hh:mm:ss.uuuuuu threadid file:line] msg"
+          ],
+          "lines": [
+            {
+              "kind": "glog",
+              "severity": "W",
+              "file_line": "logger.go:17",
+              "message": "warnf 3"
+            },
+            {
+              "kind": "glog",
+              "severity": "E",
+              "file_line": "logger.go:22",
+              "message": "errorf 4"
+            }
+          ]
+        },
+        {
+          "name": "prebid-server.INFO",
+          "link": "prebid-server.HOST.USER.log.INFO.YYYYMMDD-HHMMSS.PID"
+        },
+        {
+          "name": "prebid-server.WARNING",
+          "link": "prebid-server.HOST.USER.log.WARNING.YYYYMMDD-HHMMSS.PID"
+        }
+      ]
+    },
+    {
+      "scenario": "levels",
+      "args": [
+        "-v=4",
+        "-vmodule=logger=3,glog=2",
+        "-logtostderr"
+      ],
+      "exit": 0,
+      "stderr": [
+        {
+          "kind": "glog",
+          "severity": "I",
+          "file_line": "logger.go:7",
+          "message": "debugf 1"
+        },
+        {
+          "kind": "glog",
+          "severity": "I",
+          "file_line": "logger.go:12",
+          "message": "infof 2"
+        },
+        {
+          "kind": "glog",
+          "severity": "W",
+          "file_line": "logger.go:17",
+          "message": "warnf 3"
+        },
+        {
+          "kind": "glog",
+          "severity": "E",
+          "file_line": "logger.go:22",
+          "message": "errorf 4"
+        }
+      ],
+      "dir": "",
+      "files": []
+    },
+    {
+      "scenario": "levels",
+      "args": [
+        "-log_backtrace_at=logger.go:17",
+        "-logtostderr"
+      ],
+      "exit": 0,
+      "stderr": [
+        {
+          "kind": "glog",
+          "severity": "I",
+          "file_line": "logger.go:7",
+          "message": "debugf 1"
+        },
+        {
+          "kind": "glog",
+          "severity": "I",
+          "file_line": "logger.go:12",
+          "message": "infof 2"
+        },
+        {
+          "kind": "glog",
+          "severity": "W",
+          "file_line": "logger.go:17",
+          "message": "warnf 3"
+        },
+        {
+          "kind": "stack"
+        },
+        {
+          "kind": "glog",
+          "severity": "E",
+          "file_line": "logger.go:22",
+          "message": "errorf 4"
+        }
+      ],
+      "dir": "",
+      "files": []
+    },
+    {
+      "scenario": "fatal",
+      "args": [
+        "-logtostderr"
+      ],
+      "exit": 2,
+      "stderr": [
+        {
+          "kind": "glog",
+          "severity": "F",
+          "file_line": "logger.go:27",
+          "message": "fatalf 5"
+        },
+        {
+          "kind": "stack"
+        },
+        {
+          "kind": "signal",
+          "message": "SIGABRT: abort"
+        },
+        {
+          "kind": "stack"
+        }
+      ],
+      "dir": "",
+      "files": []
+    },
+    {
+      "scenario": "fatal",
+      "args": [],
+      "exit": 2,
+      "stderr": [
+        {
+          "kind": "glog",
+          "severity": "F",
+          "file_line": "logger.go:27",
+          "message": "fatalf 5"
+        },
+        {
+          "kind": "stack"
+        },
+        {
+          "kind": "signal",
+          "message": "SIGABRT: abort"
+        },
+        {
+          "kind": "stack"
+        }
+      ],
+      "dir": "temp",
+      "files": [
+        {
+          "name": "prebid-server.ERROR",
+          "link": "prebid-server.HOST.USER.log.ERROR.YYYYMMDD-HHMMSS.PID"
+        },
+        {
+          "name": "prebid-server.FATAL",
+          "link": "prebid-server.HOST.USER.log.FATAL.YYYYMMDD-HHMMSS.PID"
+        },
+        {
+          "name": "prebid-server.HOST.USER.log.ERROR.YYYYMMDD-HHMMSS.PID",
+          "header": [
+            "Log file created at: YYYY/MM/DD hh:mm:ss",
+            "Running on machine: HOST",
+            "Binary: Built with gc go1.26.2 for GOOS/GOARCH",
+            "Previous log: \u003cnone\u003e",
+            "Log line format: [IWEF]mmdd hh:mm:ss.uuuuuu threadid file:line] msg"
+          ],
+          "lines": [
+            {
+              "kind": "glog",
+              "severity": "F",
+              "file_line": "logger.go:27",
+              "message": "fatalf 5"
+            },
+            {
+              "kind": "stack"
+            }
+          ]
+        },
+        {
+          "name": "prebid-server.HOST.USER.log.FATAL.YYYYMMDD-HHMMSS.PID",
+          "header": [
+            "Log file created at: YYYY/MM/DD hh:mm:ss",
+            "Running on machine: HOST",
+            "Binary: Built with gc go1.26.2 for GOOS/GOARCH",
+            "Previous log: \u003cnone\u003e",
+            "Log line format: [IWEF]mmdd hh:mm:ss.uuuuuu threadid file:line] msg"
+          ],
+          "lines": [
+            {
+              "kind": "glog",
+              "severity": "F",
+              "file_line": "logger.go:27",
+              "message": "fatalf 5"
+            },
+            {
+              "kind": "stack"
+            }
+          ]
+        },
+        {
+          "name": "prebid-server.HOST.USER.log.INFO.YYYYMMDD-HHMMSS.PID",
+          "header": [
+            "Log file created at: YYYY/MM/DD hh:mm:ss",
+            "Running on machine: HOST",
+            "Binary: Built with gc go1.26.2 for GOOS/GOARCH",
+            "Previous log: \u003cnone\u003e",
+            "Log line format: [IWEF]mmdd hh:mm:ss.uuuuuu threadid file:line] msg"
+          ],
+          "lines": [
+            {
+              "kind": "glog",
+              "severity": "F",
+              "file_line": "logger.go:27",
+              "message": "fatalf 5"
+            },
+            {
+              "kind": "stack"
+            }
+          ]
+        },
+        {
+          "name": "prebid-server.HOST.USER.log.WARNING.YYYYMMDD-HHMMSS.PID",
+          "header": [
+            "Log file created at: YYYY/MM/DD hh:mm:ss",
+            "Running on machine: HOST",
+            "Binary: Built with gc go1.26.2 for GOOS/GOARCH",
+            "Previous log: \u003cnone\u003e",
+            "Log line format: [IWEF]mmdd hh:mm:ss.uuuuuu threadid file:line] msg"
+          ],
+          "lines": [
+            {
+              "kind": "glog",
+              "severity": "F",
+              "file_line": "logger.go:27",
+              "message": "fatalf 5"
+            },
+            {
+              "kind": "stack"
+            }
+          ]
+        },
+        {
+          "name": "prebid-server.INFO",
+          "link": "prebid-server.HOST.USER.log.INFO.YYYYMMDD-HHMMSS.PID"
+        },
+        {
+          "name": "prebid-server.WARNING",
+          "link": "prebid-server.HOST.USER.log.WARNING.YYYYMMDD-HHMMSS.PID"
+        }
+      ]
+    },
+    {
+      "scenario": "fatal",
+      "args": [
+        "-stderrthreshold=FATAL"
+      ],
+      "exit": 2,
+      "stderr": [
+        {
+          "kind": "glog",
+          "severity": "F",
+          "file_line": "logger.go:27",
+          "message": "fatalf 5"
+        },
+        {
+          "kind": "stack"
+        },
+        {
+          "kind": "signal",
+          "message": "SIGABRT: abort"
+        },
+        {
+          "kind": "stack"
+        }
+      ],
+      "dir": "temp",
+      "files": [
+        {
+          "name": "prebid-server.ERROR",
+          "link": "prebid-server.HOST.USER.log.ERROR.YYYYMMDD-HHMMSS.PID"
+        },
+        {
+          "name": "prebid-server.FATAL",
+          "link": "prebid-server.HOST.USER.log.FATAL.YYYYMMDD-HHMMSS.PID"
+        },
+        {
+          "name": "prebid-server.HOST.USER.log.ERROR.YYYYMMDD-HHMMSS.PID",
+          "header": [
+            "Log file created at: YYYY/MM/DD hh:mm:ss",
+            "Running on machine: HOST",
+            "Binary: Built with gc go1.26.2 for GOOS/GOARCH",
+            "Previous log: \u003cnone\u003e",
+            "Log line format: [IWEF]mmdd hh:mm:ss.uuuuuu threadid file:line] msg"
+          ],
+          "lines": [
+            {
+              "kind": "glog",
+              "severity": "F",
+              "file_line": "logger.go:27",
+              "message": "fatalf 5"
+            },
+            {
+              "kind": "stack"
+            }
+          ]
+        },
+        {
+          "name": "prebid-server.HOST.USER.log.FATAL.YYYYMMDD-HHMMSS.PID",
+          "header": [
+            "Log file created at: YYYY/MM/DD hh:mm:ss",
+            "Running on machine: HOST",
+            "Binary: Built with gc go1.26.2 for GOOS/GOARCH",
+            "Previous log: \u003cnone\u003e",
+            "Log line format: [IWEF]mmdd hh:mm:ss.uuuuuu threadid file:line] msg"
+          ],
+          "lines": [
+            {
+              "kind": "glog",
+              "severity": "F",
+              "file_line": "logger.go:27",
+              "message": "fatalf 5"
+            },
+            {
+              "kind": "stack"
+            }
+          ]
+        },
+        {
+          "name": "prebid-server.HOST.USER.log.INFO.YYYYMMDD-HHMMSS.PID",
+          "header": [
+            "Log file created at: YYYY/MM/DD hh:mm:ss",
+            "Running on machine: HOST",
+            "Binary: Built with gc go1.26.2 for GOOS/GOARCH",
+            "Previous log: \u003cnone\u003e",
+            "Log line format: [IWEF]mmdd hh:mm:ss.uuuuuu threadid file:line] msg"
+          ],
+          "lines": [
+            {
+              "kind": "glog",
+              "severity": "F",
+              "file_line": "logger.go:27",
+              "message": "fatalf 5"
+            },
+            {
+              "kind": "stack"
+            }
+          ]
+        },
+        {
+          "name": "prebid-server.HOST.USER.log.WARNING.YYYYMMDD-HHMMSS.PID",
+          "header": [
+            "Log file created at: YYYY/MM/DD hh:mm:ss",
+            "Running on machine: HOST",
+            "Binary: Built with gc go1.26.2 for GOOS/GOARCH",
+            "Previous log: \u003cnone\u003e",
+            "Log line format: [IWEF]mmdd hh:mm:ss.uuuuuu threadid file:line] msg"
+          ],
+          "lines": [
+            {
+              "kind": "glog",
+              "severity": "F",
+              "file_line": "logger.go:27",
+              "message": "fatalf 5"
+            },
+            {
+              "kind": "stack"
+            }
+          ]
+        },
+        {
+          "name": "prebid-server.INFO",
+          "link": "prebid-server.HOST.USER.log.INFO.YYYYMMDD-HHMMSS.PID"
+        },
+        {
+          "name": "prebid-server.WARNING",
+          "link": "prebid-server.HOST.USER.log.WARNING.YYYYMMDD-HHMMSS.PID"
+        }
+      ]
+    },
+    {
+      "scenario": "stdlog",
+      "args": [],
+      "exit": 0,
+      "stderr": [
+        {
+          "kind": "std",
+          "message": "http: TLS handshake error from 127.0.0.1:1234: EOF"
+        }
+      ],
+      "dir": "temp",
+      "files": [
+        {
+          "name": "prebid-server.HOST.USER.log.INFO.YYYYMMDD-HHMMSS.PID",
+          "header": [
+            "Log file created at: YYYY/MM/DD hh:mm:ss",
+            "Running on machine: HOST",
+            "Binary: Built with gc go1.26.2 for GOOS/GOARCH",
+            "Previous log: \u003cnone\u003e",
+            "Log line format: [IWEF]mmdd hh:mm:ss.uuuuuu threadid file:line] msg"
+          ],
+          "lines": [
+            {
+              "kind": "glog",
+              "severity": "W",
+              "file_line": "logger.go:17",
+              "message": "warnf 3"
+            }
+          ]
+        },
+        {
+          "name": "prebid-server.HOST.USER.log.WARNING.YYYYMMDD-HHMMSS.PID",
+          "header": [
+            "Log file created at: YYYY/MM/DD hh:mm:ss",
+            "Running on machine: HOST",
+            "Binary: Built with gc go1.26.2 for GOOS/GOARCH",
+            "Previous log: \u003cnone\u003e",
+            "Log line format: [IWEF]mmdd hh:mm:ss.uuuuuu threadid file:line] msg"
+          ],
+          "lines": [
+            {
+              "kind": "glog",
+              "severity": "W",
+              "file_line": "logger.go:17",
+              "message": "warnf 3"
+            }
+          ]
+        },
+        {
+          "name": "prebid-server.INFO",
+          "link": "prebid-server.HOST.USER.log.INFO.YYYYMMDD-HHMMSS.PID"
+        },
+        {
+          "name": "prebid-server.WARNING",
+          "link": "prebid-server.HOST.USER.log.WARNING.YYYYMMDD-HHMMSS.PID"
+        }
+      ]
+    },
+    {
+      "scenario": "stdlog",
+      "args": [
+        "-logtostderr"
+      ],
+      "exit": 0,
+      "stderr": [
+        {
+          "kind": "std",
+          "message": "http: TLS handshake error from 127.0.0.1:1234: EOF"
+        },
+        {
+          "kind": "glog",
+          "severity": "W",
+          "file_line": "logger.go:17",
+          "message": "warnf 3"
+        }
+      ],
+      "dir": "",
+      "files": []
+    }
+  ]
+}
