@@ -20,11 +20,12 @@
 //! in no connection metric.
 //!
 //! A request over h2c that fails moves its origin back to HTTP/1.1 (`http-client.h2c-demotion`,
-//! [`Failure`]). It is sent again, once, over HTTP/1.1 only when the origin answered the preface
-//! with bytes that are not HTTP/2, so it read no request: HTTP/2's client reads an HTTP/1.x
-//! status line as a frame header whose length is too large, as Go's framer does ("the frame
-//! header looked like an HTTP/1.1 header", testdata/golden/h2.json). A request that failed after
-//! the origin may have read it is not sent again; it is a bidder error, as Go's failures are.
+//! [`Failure`]). It is sent again, once, over HTTP/1.1 only when the origin read none of it: the
+//! origin answered the preface with bytes that are not HTTP/2 (HTTP/2's client reads an HTTP/1.x
+//! status line as a frame header whose length is too large, as Go's framer does: "the frame
+//! header looked like an HTTP/1.1 header", testdata/golden/h2.json), or the connection failed
+//! before it was ready to take the request. A request that failed after the origin may have read
+//! it is not sent again; it is a bidder error, as Go's failures are.
 //!
 //! The h2c connection carries requests for its origin only (`http-client.h2c-redirects`): a
 //! redirect that stays on the origin is followed over it, and one to another origin comes back as
@@ -33,6 +34,7 @@
 
 use std::{error::Error as _, io, iter, net::SocketAddr, time::Duration};
 
+use hyper_util::client::legacy;
 use moka::{
     ops::compute::{CompResult, Op},
     sync::Cache,
@@ -336,14 +338,16 @@ async fn goodbye(mut stream: TcpStream, h2c: bool, deadline: Instant) {
 /// How a request over h2c failed.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(super) enum Failure {
-    /// The origin answered the preface with bytes that are not HTTP/2, so it read no request:
-    /// HTTP/2's client tore the connection down on a frame too large, as an HTTP/1.x status line
-    /// reads (its `HTT` is a length of 4,740,180). The origin goes back to HTTP/1.1 and the
-    /// request is sent again over it, once.
-    NotHttp2,
-    /// The connection failed once the request was on it: an HTTP/2 error of either side, or the
-    /// connection closing or resetting, after which the origin may have read the request. The
-    /// origin goes back to HTTP/1.1; the request is not sent again.
+    /// The origin read none of the request. Either it answered the preface with bytes that are
+    /// not HTTP/2: HTTP/2's client tore the connection down on a frame too large, as an HTTP/1.x
+    /// status line reads (its `HTT` is a length of 4,740,180). Or the connection failed before
+    /// it was ready to take the request: in HTTP/2's handshake, or closed by then. The origin
+    /// goes back to HTTP/1.1 and the request is sent again over it, once.
+    Unread,
+    /// The connection failed once it had the request: an HTTP/2 error of either side, the
+    /// connection closing or resetting, or hyper giving the request up with the connection,
+    /// after which the origin may have read the request. The origin goes back to HTTP/1.1; the
+    /// request is not sent again.
     Failed,
     /// Nothing the origin's HTTP/2 said: the dial failed or timed out, or a redirect was refused.
     /// The verdict stays.
@@ -356,23 +360,36 @@ impl Failure {
         if error.is_connect() || error.is_timeout() || error.is_redirect() {
             return Self::Other;
         }
-        let causes = iter::successors(error.source(), |&cause| cause.source());
-        for cause in causes {
-            if let Some(h2) = cause.downcast_ref::<h2::Error>() {
+        // Whether hyper-util's client gave the request to a connection: its error then names
+        // the connection.
+        let mut given = false;
+        for cause in iter::successors(error.source(), |&cause| cause.source()) {
+            if let Some(client) = cause.downcast_ref::<legacy::Error>() {
+                // No connection named: the request failed while hyper-util set its connection
+                // up, in HTTP/2's handshake or on a connection gone before it was ready, so no
+                // connection took the request.
+                if client.connect_info().is_none() {
+                    return Self::Unread;
+                }
+                given = true;
+            } else if let Some(h2) = cause.downcast_ref::<h2::Error>() {
                 let frame_too_large = h2.is_go_away()
                     && h2.is_library()
                     && h2.reason() == Some(h2::Reason::FRAME_SIZE_ERROR);
                 return if frame_too_large {
-                    Self::NotHttp2
+                    Self::Unread
                 } else {
                     Self::Failed
                 };
-            }
-            if cause.is::<io::Error>() {
+            } else if cause.is::<io::Error>() {
                 return Self::Failed;
             }
         }
-        Self::Other
+        // A connection's failure with no HTTP/2 or I/O error behind it: hyper gave the request
+        // back unsent (its `Canceled`), or dropped it with the connection's task, which can
+        // follow the request's stream opening (its `DispatchGone`). Only hyper's own error type
+        // tells the two apart, so the request counts as one the origin may have read.
+        if given { Self::Failed } else { Self::Other }
     }
 }
 

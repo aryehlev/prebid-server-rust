@@ -595,6 +595,21 @@ impl RawConn {
         Some(bytes)
     }
 
+    /// Reads until the client has sent `needle`, or closes the connection first, and returns
+    /// what it read.
+    pub async fn read_through(&mut self, needle: &[u8]) -> Vec<u8> {
+        let mut read = Vec::new();
+        while !needle.is_empty() && !read.windows(needle.len()).any(|window| window == needle) {
+            let chunk = match self.reader.fill_buf().await {
+                Ok(chunk) if !chunk.is_empty() => chunk.to_vec(),
+                Ok(_) | Err(_) => break,
+            };
+            self.reader.consume(chunk.len());
+            read.extend_from_slice(&chunk);
+        }
+        read
+    }
+
     /// Reads until the client closes the connection, and returns what it read.
     pub async fn read_rest(&mut self) -> Vec<u8> {
         let mut rest = Vec::new();

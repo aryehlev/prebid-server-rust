@@ -48,7 +48,7 @@ key and no per-bidder setting. Go's server sends every bidder request over HTTP/
 client here stays on HTTP/1.1, as router.go's clients do, and so do the currency and analytics
 clients, which Go's `http.DefaultTransport` would take to h2 (`http-client.default-transport-h2`).
 Only the framing changes: a bid request carries the same method, path, fields and body over
-HTTP/2 as over HTTP/1.1, and the auction results never change.
+HTTP/2 as over HTTP/1.1, and auction results differ from Go's only in the fallback cases below.
 
 - **HTTPS bidders.** The TLS handshake offers ALPN `h2` and `http/1.1`, and requests go in
   whichever the bidder picks.
@@ -62,10 +62,11 @@ HTTP/2 as over HTTP/1.1, and the auction results never change.
   `PRI * HTTP/2.0` request: Go's server answers it with 400 behind a ServeMux, and runs a bare
   handler for it.
 - **Fallback.** When a request over h2c fails, the origin goes back to HTTP/1.1 for ten minutes.
-  The request is sent again over HTTP/1.1, once, only when the origin answered the preface with
-  HTTP/1.x, so it read no request. When it failed any other way (an HTTP/2 error, a reset or a
-  close, after which the origin may have read it), it is not sent again, and it is a bidder
-  error with no bid. Over h2c a redirect is followed when it stays on the origin; one to another
+  The request is sent again over HTTP/1.1, once, only when the origin read none of it: it
+  answered the preface with HTTP/1.x, or the connection failed before it was ready for the
+  request. When it failed any other way (an HTTP/2 error, a reset or a close once the connection
+  had the request, after which the origin may have read it), it is not sent again, and it is a
+  bidder error with no bid. Over h2c a redirect is followed when it stays on the origin; one to another
   origin comes back unfollowed and moves the origin back to HTTP/1.1, where the next request
   follows redirects as Go does.
 - **Proxies.** A request that goes through a proxy never takes h2c and starts no probe. An https

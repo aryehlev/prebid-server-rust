@@ -76,9 +76,11 @@ mod tests {
         /// As `Serve`, but drops a client's connection once it has read a request.
         Crash,
         /// Answers as one of Go's HTTP/1.1 servers does (`h2.json`), then closes; `handled`: its
-        /// handler ran for `PRI * HTTP/2.0`.
+        /// handler ran for `PRI * HTTP/2.0`. A connection with prior knowledge is answered once
+        /// its request has come ([`serve_cleartext`]).
         Answer { answer: Vec<u8>, handled: bool },
-        /// Closes the connection unanswered.
+        /// Closes the connection unanswered: a probe's at once, one with prior knowledge once its
+        /// request has come.
         Close,
         /// Reads, and never answers.
         Stall,
@@ -235,6 +237,12 @@ mod tests {
     }
 
     /// Serves one connection of a cleartext bidder.
+    ///
+    /// With prior knowledge, an answer or a close waits until the request has come, as one that
+    /// crosses a network comes after the request. One that came sooner could close the connection
+    /// before hyper's client handed it the request, and the request's outcome would hang on
+    /// timing (`http-client.h2c-demotion`): sent again over HTTP/1.1, failed unsent, or, rarely,
+    /// queued until its deadline.
     async fn serve_cleartext(mut conn: RawConn, shared: Arc<Shared>) {
         if conn.peek(PREFACE.len()).await != PREFACE {
             return http1(conn, &shared).await;
@@ -262,7 +270,11 @@ mod tests {
             (Preface::Serve, false) => serve_h2(conn.into_stream(), &shared, false).await,
             (Preface::Crash, false) => serve_h2(conn.into_stream(), &shared, true).await,
             (Preface::Answer { answer, handled }, _) => {
-                let mut sent = conn.read_bytes(PREFACE.len()).await.unwrap_or_default();
+                let mut sent = if probe {
+                    conn.read_bytes(PREFACE.len()).await.unwrap_or_default()
+                } else {
+                    conn.read_through(BODY.as_bytes()).await
+                };
                 if handled {
                     let pri = "PRI * HTTP/2.0 ua= body=0".to_owned();
                     shared.record(|seen| seen.requests.push(pri));
@@ -277,6 +289,8 @@ mod tests {
             (Preface::Close, _) => {
                 if probe {
                     ended(&hello);
+                } else {
+                    let _request = conn.read_through(BODY.as_bytes()).await;
                 }
             }
             (Preface::Stall, _) => {

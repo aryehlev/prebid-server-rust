@@ -418,7 +418,7 @@ impl Reqwest {
                 Ok(response)
             }
             Err(error) => match Failure::of(&error) {
-                Failure::NotHttp2 => {
+                Failure::Unread => {
                     h2c.demote(&origin);
                     match again {
                         Some(again) => self.http.execute(again).await,
