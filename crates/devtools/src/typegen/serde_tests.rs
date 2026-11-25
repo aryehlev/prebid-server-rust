@@ -69,6 +69,11 @@ fn named_decl(name: &str, under: &Value) -> Value {
 /// `extra` (`overrides`, `strings`), serde on and the bridge `crate::gojson_bridge` when `bridge`
 /// is set.
 fn generate(decls: &[Value], extra: &Value, bridge: bool) -> Result<String> {
+    generate_with(decls, extra, bridge, &json!({}))
+}
+
+/// [`generate`] with the config's `extern_types`.
+fn generate_with(decls: &[Value], extra: &Value, bridge: bool, externs: &Value) -> Result<String> {
     let mut package = json!({
         "go": PKG,
         "rust": "p",
@@ -82,6 +87,7 @@ fn generate(decls: &[Value], extra: &Value, bridge: bool) -> Result<String> {
         "crate": "pbs_example",
         "serde": true,
         "serde_bridge": bridge.then_some("crate::gojson_bridge"),
+        "extern_types": externs,
         "packages": [package],
     }))?;
     "crates/example/typegen.json".clone_into(&mut config.source);
@@ -654,6 +660,116 @@ fn merges_containers_through_the_bridge() -> Result<()> {
             .get(start..)
             .is_some_and(|item| held.contains(item.trim_end())),
         "crates/openrtb/tests/parity/containers.rs holds the generated p.Containers",
+    )
+}
+
+/// Prebid's `jsonutil` package.
+const JSONUTIL: &str = "github.com/prebid/prebid-server/v4/util/jsonutil";
+
+/// A struct of the scalar types the bridge reads and writes, as bidder params hold them: appnexus
+/// `placement_id` and `member`, rubicon `accountId` and `playerHeight`, freewheelssp `zoneId`
+/// with `omitempty` (as targetvideo's `placementId` has it), and a pointer to a `json.Number`.
+fn params_package() -> Vec<Value> {
+    let number = || named("encoding/json", "json", "Number");
+    let string_int = || named(JSONUTIL, "jsonutil", "StringInt");
+    vec![struct_decl(
+        "Params",
+        &[
+            field("PlacementId", &string_int(), Some("placement_id")),
+            field(
+                "Member",
+                &named(JSONUTIL, "jsonutil", "IntString"),
+                Some("member"),
+            ),
+            field("AccountId", &number(), Some("accountId")),
+            field("PlayerHeight", &number(), Some("playerHeight,omitempty")),
+            field("ZoneId", &string_int(), Some("zoneId,omitempty")),
+            field("Floor", &pointer(&number()), Some("floor,omitempty")),
+        ],
+    )]
+}
+
+/// The params package's module, `jsonutil.StringInt` and `IntString` mapped as pbs-openrtb-ext
+/// maps them, each with its bridge module.
+fn params() -> Result<String> {
+    let externs = json!({
+        format!("{JSONUTIL}.StringInt"): {
+            "rust": "jsonutil::StringInt",
+            "use": "pbs_gojson::jsonutil",
+            "copy": true,
+            "eq": true,
+            "serde_bridge": "string_int",
+        },
+        format!("{JSONUTIL}.IntString"): {
+            "rust": "jsonutil::IntString",
+            "use": "pbs_gojson::jsonutil",
+            "eq": true,
+            "serde_bridge": "int_string",
+        },
+    });
+    generate_with(&params_package(), &json!({}), true, &externs)
+}
+
+#[test]
+fn maps_numbers_and_lenient_ints_through_the_bridge() -> Result<()> {
+    let content = params()?;
+    check_has(
+        &content,
+        "a json.Number with omitempty",
+        &[
+            "    #[serde(",
+            "        rename = \"playerHeight\",",
+            "        skip_serializing_if = \"gojson_bridge::json_number::is_empty\",",
+            "        with = \"gojson_bridge::json_number\"",
+            "    )]",
+            "    #[gojson(go = \"PlayerHeight\", json = \"playerHeight,omitempty\")]",
+            "    pub player_height: JsonNumber,",
+        ],
+    )?;
+    check_has(
+        &content,
+        "an extern type with a bridge module",
+        &[
+            "    #[serde(rename = \"placement_id\", with = \"gojson_bridge::string_int\")]",
+            "    #[gojson(go = \"PlacementId\", json = \"placement_id\")]",
+            "    pub placement_id: jsonutil::StringInt,",
+            "    /// Go field `Member`.",
+            "    #[serde(rename = \"member\", with = \"gojson_bridge::int_string\")]",
+        ],
+    )?;
+    check_has(
+        &content,
+        "a pointer to a json.Number",
+        &[
+            "        skip_serializing_if = \"Option::is_none\",",
+            "        with = \"gojson_bridge::bridged\"",
+            "    )]",
+            "    #[gojson(go = \"Floor\", json = \"floor,omitempty\")]",
+            "    pub floor: Option<JsonNumber>,",
+        ],
+    )?;
+    check_has(
+        &content,
+        "merges",
+        &[
+            "            \"zoneId\" => gojson_bridge::merge_field(&mut self.zone_id, value, \
+             GO_TYPE, \"ZoneId\"),",
+            "            \"floor\" => gojson_bridge::merge_field(&mut self.floor, value, \
+             GO_TYPE, \"Floor\"),",
+        ],
+    )?;
+    // pbs-openrtb's params parity test reads, merges and writes bidder params through this
+    // struct, which it holds byte for byte.
+    let start = content
+        .find("/// Go type `p.Params`.")
+        .ok_or_else(|| ToolError::new("no p.Params in the generated module"))?;
+    let parity = Path::new(env!("CARGO_MANIFEST_DIR")).join("../openrtb/tests/parity/params.rs");
+    let held = fs::read_to_string(&parity)?;
+    check(
+        content
+            .get(start..)
+            .is_some_and(|item| held.contains(item.trim_end())),
+        "crates/openrtb/tests/parity/params.rs holds the generated p.Params",
     )
 }
 

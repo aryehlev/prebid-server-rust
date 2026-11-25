@@ -23,7 +23,7 @@ Rule B's cases: (a) input real production traffic sends that the crate would rej
 | Global vendor list | 0 | 1 | 0 |
 | Gzip | 0 | 1 | 0 |
 | HTTP client | 0 | 1 | 1 |
-| JSON | 4 | 37 | 5 |
+| JSON | 4 | 38 | 5 |
 | Logging | 0 | 1 | 0 |
 | Prometheus metrics | 0 | 1 | 0 |
 | Public suffix list | 1 | 0 | 0 |
@@ -32,7 +32,7 @@ Rule B's cases: (a) input real production traffic sends that the crate would rej
 | Time formatting | 0 | 0 | 1 |
 | URLs | 0 | 1 | 0 |
 | YAML | 0 | 1 | 0 |
-| All | 5 | 48 | 13 |
+| All | 5 | 49 | 13 |
 
 ## Decisions pending
 
@@ -578,6 +578,18 @@ No entry names the classes `other` and `unrecorded` or the kinds `stage_missing`
 - **Pin:** `crates/differences/tests/json.rs::go_difference_non_finite_floats`
 - **Restore option:** A `serialize_with` helper on every f32 and f64 field that fails as the Go writer does; not planned (orchestrator rulings 2 and 5).
 - **Recorded in:** `crates/differences/differences.toml`
+
+#### `json.number-text`: `json.Number`: jsoniter reads any run of number bytes and jsonutil.Marshal writes any text; the port reads and writes JSON only
+
+- **Go:** jsoniter (`jsonutil.Unmarshal`, `UnmarshalValid`, `MergeClone`) reads any run of the bytes `+-.eE0123456789` into a `json.Number` as written (`+1`, `.5`, `1.2.3`, `01`, `-`), and a string's text unvalidated (`"aid": "abc"` reads `abc`); `jsonutil.Marshal` writes the text as it is, JSON or not (`{"n":abc}`, `{"n":1 2}`, `{"n":+1}`). `json.Marshal` fails on any text that is not a number literal (`json: invalid number literal "true"`), which adtarget, adtelligent and bidmatic meet when they write their params back into `imp.ext` (adtarget.go:175, adtelligent.go:176, bidmatic.go:182).
+- **Rust:** serde_json fails a document holding such a run, as `encoding/json` does. `gojson_bridge::json_number` reads a string's text unvalidated, as jsoniter does, and writes the text only when it is one JSON value: it fails on `abc`, `1 2` and `+1`, which Go writes, and writes `true`, `{}` and `"abc"`, on which `json.Marshal` fails.
+- **Who notices:** publisher, bidder
+- **Visible in:** The `imp.ext` adtarget, adtelligent and bidmatic send, and whether they send it, when a publisher's number param is a string holding JSON that is not a number (`"aid": "true"`); the runs themselves never reach an adapter, since jsoniter's skip of the request's `imp.ext` fails on each of them first
+- **Harness:** none
+- **Pin:** `crates/openrtb/src/gojson_bridge.rs::numbers_read_merge_and_write_as_jsoniter`
+- **Decision:** D-DECODE
+- **Restore option:** Read number runs with a tokenizer of our own, write text serde_json's `RawValue` refuses, and give the three adapters a `json.Marshal` writer; not planned (D-DECODE).
+- **Recorded in:** `crates/openrtb/differences.toml`
 
 #### `json.out-of-range-numbers`: Numbers beyond float64's range that no field reads: jsoniter fails the document, serde_json reads it
 

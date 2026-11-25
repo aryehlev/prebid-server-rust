@@ -8,24 +8,31 @@
 //! [`EncodingJson`] is that glue: it reads one document as `json.Unmarshal` does.
 //!
 //! The rest of the module is the generated serde code's bridge to the types it shares with
-//! `GoJson`'s derive, and holds no Go behavior of its own. While that derive stays (typegen's
-//! `serde_bridge`), a `json.RawMessage` is a [`RawJson`], which has no serde or `MergeClone` impls
-//! of its own, and pbs-jsonutil merges no `isize` (Go `int`); each function applies pbs-jsonutil's
-//! helper for the case to the `GoJson`-era type, so the fields read, write and merge as
-//! pbs-jsonutil's types do: [`raw_json`] for a `json.RawMessage` field, [`bridged`] for a pointer,
-//! slice or map that holds them (`map[string]json.RawMessage`), and [`merge_field`] over
-//! [`BridgeMerge`], which merges Go `int`, `uint`, `RawJson` and the `Option`, `Vec` and
-//! `BTreeMap` that hold them with pbs-jsonutil's own rules. Another crate's generated code uses
-//! the module as its `serde_bridge` too (`"serde_bridge": "pbs_openrtb::gojson_bridge"`), so its
-//! `json.RawMessage` fields follow [`EncodingJson`] as well. The bridge goes with `GoJson`'s
-//! derive, when `json.RawMessage` fields become `Option<Box<RawValue>>`; [`EncodingJson`] outlives
-//! it.
+//! `GoJson`'s derive. While that derive stays (typegen's `serde_bridge`), a `json.RawMessage` is a
+//! [`RawJson`], a `json.Number` a [`JsonNumber`] and `jsonutil.StringInt` and `IntString`
+//! pbs-gojson's [`StringInt`] and [`IntString`], which have no serde or `MergeClone` impls of their
+//! own, and pbs-jsonutil merges no `isize` (Go `int`); each function applies pbs-jsonutil's helper
+//! or type for the case to the `GoJson`-era type, so the fields read, write and merge as
+//! pbs-jsonutil's types do: [`raw_json`] for a `json.RawMessage` field, [`string_int`] and
+//! [`int_string`] for pbs-jsonutil's `StringInt` and `IntString`, [`bridged`] for a pointer, slice
+//! or map that holds them (`map[string]json.RawMessage`), and [`merge_field`] over
+//! [`BridgeMerge`], which merges them, Go `int` and `uint`, and the `Option`, `Vec` and `BTreeMap`
+//! that hold them with pbs-jsonutil's own rules. pbs-jsonutil has no `json.Number`, so
+//! [`json_number`] reads and writes one itself, by pbs-gojson's rules for it. Another crate's
+//! generated code uses the module as its `serde_bridge` too (`"serde_bridge":
+//! "pbs_openrtb::gojson_bridge"`, and an extern type's `serde_bridge` names `string_int` or
+//! `int_string`), so its fields follow [`EncodingJson`] as well. The bridge goes with `GoJson`'s
+//! derive, when the fields take pbs-jsonutil's types (`Option<Box<RawValue>>` for a
+//! `json.RawMessage`); [`EncodingJson`] outlives it.
 
-use core::{cell::Cell, mem};
+use core::{cell::Cell, mem, num::TryFromIntError};
 use std::collections::BTreeMap;
 
 use pbs_errortypes::GoError;
-use pbs_gojson::RawJson;
+use pbs_gojson::{
+    JsonNumber, RawJson,
+    jsonutil::{IntString, StringInt},
+};
 use pbs_jsonutil::{
     MergeClone, MergeCloneError, raw_compact, raw_keep_null, replace_lone_surrogates,
 };
@@ -179,13 +186,164 @@ pub mod raw_json_keep_null {
     }
 }
 
+/// A `json.Number` field (`with = "gojson_bridge::json_number"`).
+///
+/// Read as jsoniter reads it (pbs-gojson's [`JsonNumber`] gives the rules): a string's text
+/// unvalidated, null as `""` and a number's literal text as it is written; inside an
+/// [`EncodingJson`], as `encoding/json` reads it, a string only when its text is a JSON number.
+/// Written as `jsonutil.Marshal` writes it: the text as it is, and `0` for `""`. `serde_json`
+/// reads and writes only JSON, where jsoniter keeps any run of number bytes (`+1`, `.5`) and writes
+/// any text (`json.number-text`).
+pub mod json_number {
+    use serde::de::Error as _;
+
+    use super::{
+        Deserialize as _, Deserializer, ENCODING_JSON, JsonNumber, RawValue, Serialize as _,
+        SerializeError as _, Serializer,
+    };
+
+    /// Writes the text as it is, and `0` for `""`.
+    ///
+    /// # Errors
+    ///
+    /// When the text is not one JSON value, which Go writes as it is (`json.number-text`), or
+    /// `serializer` fails.
+    pub fn serialize<S: Serializer>(number: &JsonNumber, serializer: S) -> Result<S::Ok, S::Error> {
+        let text = if number.is_empty() {
+            "0".to_owned()
+        } else {
+            String::from_utf8_lossy(number.as_bytes()).into_owned()
+        };
+        RawValue::from_string(text)
+            .map_err(S::Error::custom)?
+            .serialize(serializer)
+    }
+
+    /// Reads a number as jsoniter does, and inside an [`EncodingJson`](super::EncodingJson) as
+    /// `encoding/json` does.
+    ///
+    /// # Errors
+    ///
+    /// When the value is not a number, a string or null, or is a string whose text is not a JSON
+    /// number inside an [`EncodingJson`](super::EncodingJson).
+    pub fn deserialize<'de, D: Deserializer<'de>>(deserializer: D) -> Result<JsonNumber, D::Error> {
+        let raw = Box::<RawValue>::deserialize(deserializer)?;
+        read(&raw, ENCODING_JSON.get()).map_err(D::Error::custom)
+    }
+
+    /// Go's `omitempty` test for a `json.Number`: `""`.
+    #[must_use]
+    pub const fn is_empty(number: &JsonNumber) -> bool {
+        number.is_empty()
+    }
+
+    /// `raw` read as a `json.Number`: as `encoding/json` reads it when `std`, else as jsoniter
+    /// does.
+    pub(super) fn read(raw: &RawValue, std: bool) -> Result<JsonNumber, String> {
+        let text = raw.get();
+        match text.as_bytes().first() {
+            Some(b'"') => {
+                let inner: String = serde_json::from_str(text).map_err(|e| e.to_string())?;
+                if std && !is_number(&inner) {
+                    return Err(format!(
+                        "invalid number literal, trying to unmarshal {text} into Number"
+                    ));
+                }
+                Ok(JsonNumber::from(inner))
+            }
+            Some(b'n') => Ok(JsonNumber::default()),
+            Some(b'-' | b'0'..=b'9') => Ok(JsonNumber::from(text)),
+            _ => Err("readNumberAsString: invalid number".to_owned()),
+        }
+    }
+
+    /// Go's `isValidNumber`: whether `text` is one JSON number literal, with nothing around it.
+    fn is_number(text: &str) -> bool {
+        let bytes = text.as_bytes();
+        matches!(bytes.first(), Some(b'-' | b'0'..=b'9'))
+            && bytes.last().is_some_and(u8::is_ascii_digit)
+            && serde_json::from_str::<&RawValue>(text).is_ok()
+    }
+}
+
+/// A `jsonutil.StringInt` field (`with = "gojson_bridge::string_int"`): read and written as
+/// pbs-jsonutil's `StringInt` (`json.string-int-parse`).
+pub mod string_int {
+    use serde::de::Error as _;
+
+    use super::{
+        Deserialize as _, Deserializer, Serialize as _, SerializeError as _, Serializer, StringInt,
+    };
+
+    /// Writes the integer as a number.
+    ///
+    /// # Errors
+    ///
+    /// When `serializer` fails.
+    pub fn serialize<S: Serializer>(value: &StringInt, serializer: S) -> Result<S::Ok, S::Error> {
+        pbs_jsonutil::StringInt(i64::try_from(value.0).map_err(S::Error::custom)?)
+            .serialize(serializer)
+    }
+
+    /// Reads an integer, or a string holding one, as `(*StringInt).UnmarshalJSON` does.
+    ///
+    /// # Errors
+    ///
+    /// When the value is neither.
+    pub fn deserialize<'de, D: Deserializer<'de>>(deserializer: D) -> Result<StringInt, D::Error> {
+        let pbs_jsonutil::StringInt(value) = pbs_jsonutil::StringInt::deserialize(deserializer)?;
+        isize::try_from(value)
+            .map(StringInt)
+            .map_err(D::Error::custom)
+    }
+
+    /// Go's `omitempty` test for a `jsonutil.StringInt`: 0.
+    #[must_use]
+    pub const fn is_empty(value: &StringInt) -> bool {
+        value.0 == 0
+    }
+}
+
+/// A `jsonutil.IntString` field (`with = "gojson_bridge::int_string"`): read and written as
+/// pbs-jsonutil's `IntString`.
+pub mod int_string {
+    use super::{Deserialize as _, Deserializer, IntString, Serialize as _, Serializer};
+
+    /// Writes the text as a string.
+    ///
+    /// # Errors
+    ///
+    /// When `serializer` fails.
+    pub fn serialize<S: Serializer>(value: &IntString, serializer: S) -> Result<S::Ok, S::Error> {
+        pbs_jsonutil::IntString(value.0.to_string_lossy()).serialize(serializer)
+    }
+
+    /// Reads a string as its text, and a number as gjson writes it, as
+    /// `(*IntString).UnmarshalJSON` does.
+    ///
+    /// # Errors
+    ///
+    /// When the value is neither.
+    pub fn deserialize<'de, D: Deserializer<'de>>(deserializer: D) -> Result<IntString, D::Error> {
+        let pbs_jsonutil::IntString(text) = pbs_jsonutil::IntString::deserialize(deserializer)?;
+        Ok(IntString(text.into()))
+    }
+
+    /// Go's `omitempty` test for a `jsonutil.IntString`: `""`.
+    #[must_use]
+    pub const fn is_empty(value: &IntString) -> bool {
+        value.0.is_empty()
+    }
+}
+
 /// `raw` as a `RawValue`.
 fn raw_value<E: SerializeError>(raw: &RawJson) -> Result<Box<RawValue>, E> {
     serde_json::from_slice(raw.as_bytes()).map_err(E::custom)
 }
 
 /// How the bridge reads and writes a type that holds bridged types (see [`bridged`]): a
-/// [`RawJson`], or an `Option`, `Vec` or `BTreeMap` of a type that is one.
+/// [`RawJson`], [`JsonNumber`], [`StringInt`] or [`IntString`], or an `Option`, `Vec` or
+/// `BTreeMap` of a type that is one.
 pub trait BridgeSerde: Sized {
     /// Writes `self` as the generated code writes it.
     ///
@@ -202,16 +360,29 @@ pub trait BridgeSerde: Sized {
     fn bridge_deserialize<'de, D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error>;
 }
 
-/// A `json.RawMessage` reads and writes as [`raw_json`] does.
-impl BridgeSerde for RawJson {
-    fn bridge_serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        raw_json::serialize(self, serializer)
-    }
+/// A bridged type reads and writes as its module does.
+macro_rules! bridge_serde {
+    ($($ty:ty => $module:ident),+) => {$(
+        impl BridgeSerde for $ty {
+            fn bridge_serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+                $module::serialize(self, serializer)
+            }
 
-    fn bridge_deserialize<'de, D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-        raw_json::deserialize(deserializer)
-    }
+            fn bridge_deserialize<'de, D: Deserializer<'de>>(
+                deserializer: D,
+            ) -> Result<Self, D::Error> {
+                $module::deserialize(deserializer)
+            }
+        }
+    )+};
 }
+
+bridge_serde!(
+    RawJson => raw_json,
+    JsonNumber => json_number,
+    StringInt => string_int,
+    IntString => int_string
+);
 
 /// A pointer: nil is null, as Go writes it, and null reads nil.
 impl<T: BridgeSerde> BridgeSerde for Option<T> {
@@ -336,6 +507,38 @@ impl BridgeMerge for RawJson {
     }
 }
 
+/// A `json.Number` merges as jsoniter decodes one ([`json_number`]): the value replaces it, null
+/// with `""`.
+impl BridgeMerge for JsonNumber {
+    fn bridge_merge(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        *self = json_number::read(patch, false).map_err(MergeCloneError::new)?;
+        Ok(())
+    }
+}
+
+/// A `jsonutil.StringInt` merges as pbs-jsonutil's `StringInt` does: `""` leaves it as it is, and
+/// any other value is read into it.
+impl BridgeMerge for StringInt {
+    fn bridge_merge(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        let wide = |e: TryFromIntError| MergeCloneError::new(e.to_string());
+        let mut value = pbs_jsonutil::StringInt(i64::try_from(self.0).map_err(wide)?);
+        value.merge_clone(patch)?;
+        self.0 = isize::try_from(value.0).map_err(wide)?;
+        Ok(())
+    }
+}
+
+/// A `jsonutil.IntString` merges as pbs-jsonutil's `IntString` does: the value, null included, is
+/// read into it.
+impl BridgeMerge for IntString {
+    fn bridge_merge(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        let mut value = pbs_jsonutil::IntString(self.0.to_string_lossy());
+        value.merge_clone(patch)?;
+        self.0 = value.0.into();
+        Ok(())
+    }
+}
+
 /// Go `int` and `uint` merge as pbs-jsonutil merges the other integers: null leaves the value as
 /// it is, any other value replaces it.
 macro_rules! bridge_integer {
@@ -440,13 +643,204 @@ mod tests {
     use std::collections::BTreeMap;
 
     use pbs_errortypes::{FAILED_TO_UNMARSHAL_ERROR_CODE, UNKNOWN_ERROR_CODE, read_code};
-    use pbs_gojson::RawJson;
-    use pbs_jsonutil::{is_nil_or_empty, unmarshal};
+    use pbs_gojson::{
+        JsonNumber, RawJson,
+        jsoniter::JsoniterDecode,
+        jsonutil::{self as gojsonutil, IntString, StringInt},
+        stdjson,
+    };
+    use pbs_jsonutil::{is_nil_or_empty, marshal, merge_clone, unmarshal};
     use serde::{Deserialize, Serialize};
     use serde_json::value::RawValue;
 
-    use super::{BridgeMerge as _, EncodingJson, merge_field};
+    use super::{BridgeMerge, EncodingJson, Merged, merge_field};
     use crate::openrtb2::BidResponse;
+
+    /// A `json.Number`, held as the generated code holds one.
+    #[derive(Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+    struct Number(#[serde(with = "super::json_number")] JsonNumber);
+
+    /// A `jsonutil.StringInt`, held as the generated code holds one.
+    #[derive(Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+    struct Int(#[serde(with = "super::string_int")] StringInt);
+
+    /// A `jsonutil.IntString`, held as the generated code holds one.
+    #[derive(Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+    struct Text(#[serde(with = "super::int_string")] IntString);
+
+    /// The inputs whose outcome differs between pbs-gojson's port of Go (`go`) and the bridge
+    /// (`port`), each `None` where it fails.
+    fn differing<I: Copy, T: PartialEq>(
+        inputs: &[I],
+        go: impl Fn(I) -> Option<T>,
+        port: impl Fn(I) -> Option<T>,
+    ) -> Vec<I> {
+        inputs
+            .iter()
+            .copied()
+            .filter(|&input| go(input) != port(input))
+            .collect()
+    }
+
+    /// `doc` read as `jsonutil.Unmarshal` reads it, by pbs-gojson.
+    fn go_read<T: JsoniterDecode + Default>(doc: &str) -> Option<T> {
+        let mut value = T::default();
+        gojsonutil::unmarshal(doc.as_bytes(), &mut value)
+            .ok()
+            .map(|()| value)
+    }
+
+    /// `doc` read as `json.Unmarshal` reads it, by pbs-gojson.
+    fn go_read_std(doc: &str) -> Option<JsonNumber> {
+        let mut value = JsonNumber::default();
+        stdjson::unmarshal(doc.as_bytes(), &mut value)
+            .ok()
+            .map(|()| value)
+    }
+
+    /// `doc` merged into `value` as `jsonutil.MergeClone` merges it, by pbs-gojson.
+    fn go_merge<T: JsoniterDecode>(mut value: T, doc: &str) -> Option<T> {
+        gojsonutil::merge_clone(&mut value, doc.as_bytes())
+            .ok()
+            .map(|()| value)
+    }
+
+    /// `doc` merged into `value` through the bridge, as the generated code merges a field.
+    fn port_merge<T: BridgeMerge>(value: T, doc: &str) -> Option<T> {
+        let mut merged = Merged(value);
+        merge_clone(&mut merged, doc.as_bytes())
+            .ok()
+            .map(|()| merged.0)
+    }
+
+    #[test]
+    fn numbers_read_merge_and_write_as_jsoniter() -> Result<(), String> {
+        let docs = [
+            "1", "-0", "1.50", "1e400", r#""abc""#, r#""1""#, r#""""#, "null", "true", "[1]", "{}",
+            "+1", ".5", "1.2.3", "01", "-",
+        ];
+        let read = differing(&docs, go_read::<JsonNumber>, |doc| {
+            unmarshal::<Number>(doc.as_bytes()).ok().map(|Number(n)| n)
+        });
+        let std = differing(&docs, go_read_std, |doc| {
+            EncodingJson::<Number>::unmarshal(doc.as_bytes())
+                .ok()
+                .map(|Number(n)| n)
+        });
+        let merged = differing(
+            &docs,
+            |doc| go_merge(JsonNumber::from("7"), doc),
+            |doc| port_merge(JsonNumber::from("7"), doc),
+        );
+        // json.number-text: jsoniter reads any run of number bytes, which serde_json rejects.
+        let runs = ["+1", ".5", "1.2.3", "01", "-"];
+        if read != runs || merged != runs || !std.is_empty() {
+            return Err(format!(
+                "read {read:?}, merged {merged:?}, json.Unmarshal {std:?}"
+            ));
+        }
+        let texts = [
+            "", "1", "1.50", "-0", r#""abc""#, "true", "abc", "1 2", "+1", "<1>",
+        ];
+        let written = differing(
+            &texts,
+            |text| gojsonutil::marshal(&JsonNumber::from(text)).ok(),
+            |text| marshal(&Number(JsonNumber::from(text))).ok(),
+        );
+        let std_written = differing(
+            &texts,
+            |text| stdjson::marshal(&JsonNumber::from(text)).ok(),
+            |text| marshal(&Number(JsonNumber::from(text))).ok(),
+        );
+        // json.number-text: `jsonutil.Marshal` writes the text as it is, JSON or not, and
+        // `json.Marshal` fails on a text that is not a number literal.
+        if written != ["abc", "1 2", "+1", "<1>"] || std_written != [r#""abc""#, "true"] {
+            return Err(format!("written {written:?}, json.Marshal {std_written:?}"));
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn string_ints_and_int_strings_follow_pbs_jsonutil() -> Result<(), String> {
+        let ints = [
+            "5",
+            r#""5""#,
+            r#""""#,
+            "-0",
+            r#"" 5""#,
+            r#""\u0035""#,
+            "9223372036854775807",
+            "9223372036854775808",
+            "1.5",
+            r#""1.5""#,
+            "null",
+            "true",
+            "[]",
+            "{}",
+            r#""+5""#,
+            r#""-""#,
+        ];
+        let read = differing(&ints, go_read::<StringInt>, |doc| {
+            unmarshal::<Int>(doc.as_bytes())
+                .ok()
+                .map(|Int(value)| value)
+        });
+        let merged = differing(
+            &ints,
+            |doc| go_merge(StringInt(7), doc),
+            |doc| port_merge(StringInt(7), doc),
+        );
+        let texts = [
+            r#""a""#,
+            "5",
+            "1.50",
+            "15e-1",
+            "-0",
+            "1E2",
+            "0.1",
+            r#""\u00e9""#,
+            "null",
+            "true",
+            "[1]",
+            "{}",
+            "1e400",
+        ];
+        let text_read = differing(&texts, go_read::<IntString>, |doc| {
+            unmarshal::<Text>(doc.as_bytes())
+                .ok()
+                .map(|Text(value)| value)
+        });
+        let text_merged = differing(
+            &texts,
+            |doc| go_merge(IntString::default(), doc),
+            |doc| port_merge(IntString::default(), doc),
+        );
+        // json.string-int-parse: `"+5"` reads 5 where Go fails, and `"-"` fails where Go reads 0;
+        // json.out-of-range-numbers: jsoniter fails the document on `1e400`, which reads +Inf.
+        let parsed = [r#""+5""#, r#""-""#];
+        if read != parsed || merged != parsed || text_read != ["1e400"] || text_merged != ["1e400"]
+        {
+            return Err(format!(
+                "StringInt read {read:?}, merged {merged:?}; IntString read {text_read:?}, \
+                 merged {text_merged:?}"
+            ));
+        }
+        let written = differing(
+            &[0, 5, -5],
+            |n| gojsonutil::marshal(&StringInt(n)).ok(),
+            |n| marshal(&Int(StringInt(n))).ok(),
+        );
+        let text_written = differing(
+            &["", "a", "\u{e9}", "<"],
+            |text| gojsonutil::marshal(&IntString(text.into())).ok(),
+            |text| marshal(&Text(IntString(text.into()))).ok(),
+        );
+        // json.html-escape: jsoniter writes `<` as `\u003c`, serde_json as it is.
+        if !written.is_empty() || text_written != ["<"] {
+            return Err(format!("written {written:?} {text_written:?}"));
+        }
+        Ok(())
+    }
 
     #[derive(Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
     #[serde(default)]

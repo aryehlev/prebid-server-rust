@@ -40,6 +40,8 @@ pub mod inventory;
 #[cfg(test)]
 pub mod module;
 #[cfg(test)]
+pub mod params;
+#[cfg(test)]
 pub mod serde_goldens;
 #[cfg(test)]
 pub mod shapes;

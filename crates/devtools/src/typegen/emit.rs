@@ -28,12 +28,12 @@
 //! Types `GoJson`'s derive still needs, which have no serde or `MergeClone` impls (`RawJson` for
 //! `json.RawMessage`, `JsonNumber`, extern types with a `serde_bridge` module), and Go `int` and
 //! `uint`, whose `isize` and `usize` pbs-jsonutil does not merge, go through the config's
-//! `serde_bridge` module: `with = "<bridge>::raw_json"` and its `is_empty`, `with =
-//! "<bridge>::bridged"` for a pointer, slice or map that holds a bridged type, at any depth
-//! (`map[string]json.RawMessage`), and the bridge's `merge_field` and `merge` for every field that
-//! holds a bridged type or a Go `int` or `uint` (`[]int`, `*[][]int`). A `json.RawMessage` reads
-//! null as nil, as jsoniter does, unless its override sets `keep_null` (`encoding/json`'s bytes
-//! `null`).
+//! `serde_bridge` module: `with = "<bridge>::raw_json"` (`json_number`, or the extern type's
+//! module) and its `is_empty`, `with = "<bridge>::bridged"` for a pointer, slice or map that holds
+//! a bridged type, at any depth (`map[string]json.RawMessage`), and the bridge's `merge_field` and
+//! `merge` for every field that holds a bridged type or a Go `int` or `uint` (`[]int`, `*[][]int`).
+//! A `json.RawMessage` reads null as nil, as jsoniter does, unless its override sets `keep_null`
+//! (`encoding/json`'s bytes `null`).
 
 use core::{iter::Peekable, str::Chars};
 use std::{

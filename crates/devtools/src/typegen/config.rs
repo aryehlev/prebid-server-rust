@@ -43,13 +43,15 @@ pub struct Config {
     /// consumer reads the serde code.
     #[serde(default)]
     pub serde: bool,
-    /// The module the serde code calls for what the `GoJson`-era Rust types lack while `GoJson`'s
-    /// derive stays, as code in the crate names it (`crate::gojson_bridge`, or
+    /// The module the serde code calls for what the `GoJson`-era Rust types lack while
+    /// `GoJson`'s derive stays, as code in the crate names it (`crate::gojson_bridge`, or
     /// `pbs_openrtb::gojson_bridge` from another crate): one module per bridged type with serde's
-    /// `with` functions and `is_empty` (`raw_json` for `json.RawMessage`, which stays `RawJson`),
-    /// `bridged`, whose generic `with` functions read and write a pointer, slice or map holding
-    /// bridged types, and `merge_field` and `merge`, `MergeClone` for the bridged types, Go `int`
-    /// and `uint`, and the `Option`, `Vec` and `BTreeMap` that hold them.
+    /// `with` functions and `is_empty` (`raw_json` for `json.RawMessage`, which stays `RawJson`,
+    /// `json_number` for `json.Number`, which stays `JsonNumber`, and the module an extern type's
+    /// `serde_bridge` names: pbs-openrtb's has `string_int` and `int_string` for pbs-gojson's
+    /// `jsonutil` types), `bridged`, whose generic `with` functions read and write a pointer,
+    /// slice or map holding bridged types, and `merge_field` and `merge`, `MergeClone` for the
+    /// bridged types, Go `int` and `uint`, and the `Option`, `Vec` and `BTreeMap` that hold them.
     #[serde(default)]
     pub serde_bridge: Option<String>,
     /// The crate directory (set when the file is loaded).
