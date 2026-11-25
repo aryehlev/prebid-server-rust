@@ -796,7 +796,7 @@
         "bidder",
         "publisher"
       ],
-      "visible_in": "Bid requests to a cleartext bidder that stops taking h2c: one request sent again over HTTP/1.1, or one bidder error",
+      "visible_in": "Bid requests to a cleartext bidder that stops taking h2c: each request on its way over h2c then (one connection carries them all), sent again over HTTP/1.1 or a bidder error",
       "harness": [],
       "pin": "crates/http-client/tests/h2.rs::demotion_resends_only_unread",
       "restore": null,
