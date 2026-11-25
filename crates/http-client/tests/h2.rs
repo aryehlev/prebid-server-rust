@@ -1417,8 +1417,9 @@ mod tests {
 
     // Go: none: Go's bidder client speaks HTTP/1.1, which has no REFUSED_STREAM. reqwest's default
     // retry policy (its retry module: protocol NACKs) sends a request whose stream the server
-    // refused unprocessed (RFC 9113 section 8.7) again, at most twice, as Go's HTTP/2 client sends
-    // it again (net/http/h2_bundle.go http2canRetryError).
+    // refused unprocessed (RFC 9113 section 8.7) again at once, at most twice; Go's HTTP/2 client
+    // sends it again up to seven times, backing off a second and longer after the first
+    // (net/http/h2_bundle.go:7893-7923 and http2canRetryError).
     #[test]
     fn refused_streams_go_again() -> TestResult {
         run(async {

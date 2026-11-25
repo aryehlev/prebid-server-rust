@@ -102,8 +102,10 @@ rust = """\
     them out: gamma's `Connection: keep-alive` (adapters/gamma/gamma.go:134), which Go's bidder \
     client sends, does not reach a gamma that takes h2. A request whose stream the bidder \
     refuses unread (`REFUSED_STREAM`), or leaves out of a graceful `GOAWAY`, goes again over \
-    HTTP/2, at most twice more (reqwest's default retry of protocol NACKs), as Go's HTTP/2 \
-    client sends it again; HTTP/1.1 has neither signal. Every other client stays on HTTP/1.1."""
+    HTTP/2 at once, at most twice more (reqwest's default retry of protocol NACKs), where Go's \
+    HTTP/2 client, which Go's bidder client does not use, sends it again up to seven times \
+    more, backing off a second and longer after the first (net/http/h2_bundle.go:7893-7923); \
+    HTTP/1.1 has neither signal. Every other client stays on HTTP/1.1."""
 who = ["bidder"]
 visible_in = """\
     The protocol of bid requests to bidders that offer h2 over TLS or take h2c, the \
