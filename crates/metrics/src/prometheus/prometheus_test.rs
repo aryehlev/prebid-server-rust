@@ -1,9 +1,15 @@
 //! Go: `metrics/prometheus/prometheus_test.go`.
 
 use std::{
-    collections::{BTreeMap, BTreeSet},
+    collections::{BTreeMap, BTreeSet, HashMap},
     error::Error,
     fs,
+};
+
+use ::prometheus::{
+    Histogram, HistogramVec, IntCounter, IntCounterVec,
+    core::Collector,
+    proto::{self, Metric},
 };
 
 use super::{
@@ -15,11 +21,10 @@ use super::{
     REQUEST_REJECT_LABEL, REQUEST_STATUS_LABEL, REQUEST_SUCCESS_LABEL, REQUEST_SUCCESSFUL,
     REQUEST_TYPE_LABEL, SOURCE_LABEL, SOURCE_REQUEST, STAGE_LABEL, STATUS_LABEL,
     STORED_DATA_ERROR_LABEL, STORED_DATA_FETCH_TYPE_LABEL, SUBSYSTEM_LABEL, SUCCESS_LABEL,
-    SYNCER_LABEL, VERSION_LABEL,
-    registry::{CounterVec, Histogram, HistogramVec, MetricValue, PromLabels},
+    SYNCER_LABEL, VERSION_LABEL, count,
 };
 use crate::{
-    goconv::i64_to_f64,
+    float_from_i64, float_from_u64,
     metrics::{
         AdapterBid, AdapterError, AdapterLabels, CacheResult, CcpaLabels, CookieFlag,
         CookieSyncStatus, EndpointType, FetcherBackendResult, FetcherOperation, FetcherResult,
@@ -79,31 +84,42 @@ fn create_metrics_for_testing() -> Result<Metrics, Box<dyn Error>> {
     )?)
 }
 
-fn prom_labels(pairs: &[(&str, &str)]) -> PromLabels {
-    pairs
+/// A count as the `float64` Go's tests compare it with.
+fn value(count: u64) -> f64 {
+    float_from_u64(count)
+}
+
+/// The value of the label `name` of a gathered series.
+fn label<'a>(metric: &'a Metric, name: &str) -> Option<&'a str> {
+    metric
+        .get_label()
         .iter()
-        .map(|(k, v)| ((*k).to_owned(), (*v).to_owned()))
+        .find(|pair| pair.name() == name)
+        .map(proto::LabelPair::value)
+}
+
+/// The series of a family, as Go's tests collect them.
+fn series<C: Collector>(family: &C) -> Vec<Metric> {
+    family
+        .collect()
+        .into_iter()
+        .flat_map(|mut f| f.take_metric())
         .collect()
 }
 
 /// Go: `assertCounterVecValue`'s read — `counterVec.With(labels)`, which creates the series.
 fn counter_vec_value(
-    counter_vec: Option<&CounterVec>,
+    counter_vec: Option<&IntCounterVec>,
     labels: &[(&str, &str)],
 ) -> Result<f64, Box<dyn Error>> {
     let counter_vec = counter_vec.ok_or("the counter vector is nil")?;
-    let counter = counter_vec
-        .with(&prom_labels(labels))
-        .ok_or("inconsistent label names")?;
-    Ok(counter.value())
+    let labels: HashMap<&str, &str> = labels.iter().copied().collect();
+    Ok(value(counter_vec.get_metric_with(&labels)?.get()))
 }
 
 /// Go: `assertCounterValue` for a counter without labels.
-fn counter_value(counter: &CounterVec) -> Result<f64, Box<dyn Error>> {
-    Ok(counter
-        .with_label_values(&[])
-        .ok_or("the counter has labels")?
-        .value())
+fn counter_value(counter: &IntCounter) -> f64 {
+    value(counter.get())
 }
 
 /// Go: `getHistogramFromHistogramVec` — the series with `label_key=label_value`, or the zero
@@ -112,14 +128,12 @@ fn histogram_from_vec(
     histogram: Option<&HistogramVec>,
     label_key: &str,
     label_value: &str,
-) -> (Histogram, bool) {
-    let mut result = Histogram::default();
+) -> (proto::Histogram, bool) {
+    let mut result = proto::Histogram::default();
     let mut found = false;
-    for metric in histogram.map_or_else(Vec::new, HistogramVec::metrics) {
-        if metric.label(label_key) == Some(label_value)
-            && let MetricValue::Histogram(h) = metric.value
-        {
-            result = *h;
+    for metric in histogram.map_or_else(Vec::new, series) {
+        if label(&metric, label_key) == Some(label_value) {
+            result = metric.get_histogram().clone();
             found = true;
         }
     }
@@ -131,36 +145,35 @@ fn histogram_from_vec_by_two_keys(
     histogram: &HistogramVec,
     (label1_key, label1_value): (&str, &str),
     (label2_key, label2_value): (&str, &str),
-) -> Histogram {
-    let mut result = Histogram::default();
-    for metric in histogram.metrics() {
-        if metric.label(label1_key) == Some(label1_value)
-            && metric.label(label2_key) == Some(label2_value)
-            && let MetricValue::Histogram(h) = metric.value
+) -> proto::Histogram {
+    let mut result = proto::Histogram::default();
+    for metric in series(histogram) {
+        if label(&metric, label1_key) == Some(label1_value)
+            && label(&metric, label2_key) == Some(label2_value)
         {
-            result = *h;
+            result = metric.get_histogram().clone();
         }
     }
     result
 }
 
 /// Go: `dto.Metric` of a histogram without labels.
-fn plain_histogram(histogram: &HistogramVec) -> Result<Histogram, Box<dyn Error>> {
-    Ok(histogram
-        .with_label_values(&[])
-        .ok_or("the histogram has labels")?
-        .snapshot())
+fn plain_histogram(histogram: &Histogram) -> proto::Histogram {
+    let mut result = proto::Histogram::default();
+    result.set_sample_count(histogram.get_sample_count());
+    result.set_sample_sum(histogram.get_sample_sum());
+    result
 }
 
 /// Go: `assertHistogram`.
 fn check_histogram(
     name: &str,
-    histogram: &Histogram,
+    histogram: &proto::Histogram,
     expected_count: u64,
     expected_sum: f64,
 ) -> TestResult {
-    ensure_eq!(histogram.sample_count, expected_count, "{name}:count");
-    ensure_eq!(histogram.sample_sum, expected_sum, "{name}:sum");
+    ensure_eq!(histogram.get_sample_count(), expected_count, "{name}:count");
+    ensure_eq!(histogram.get_sample_sum(), expected_sum, "{name}:sum");
     Ok(())
 }
 
@@ -186,8 +199,8 @@ fn metric_count_gatekeeping() -> TestResult {
     let mut general_cardinality_count = 0_usize;
     let mut adapter_cardinality_count = 0_usize;
     for family in m.gatherer().gather() {
-        for metric in &family.metrics {
-            if metric.label(ADAPTER_LABEL).is_some() {
+        for metric in family.get_metric() {
+            if label(metric, ADAPTER_LABEL).is_some() {
                 adapter_cardinality_count += 1;
             } else {
                 general_cardinality_count += 1;
@@ -264,12 +277,12 @@ fn connection_metrics() -> TestResult {
             dial_time,
         ] = expected;
         ensure_eq!(
-            counter_value(&m.connections_closed)?,
+            counter_value(&m.connections_closed),
             closed,
             "{description}"
         );
         ensure_eq!(
-            counter_value(&m.connections_opened)?,
+            counter_value(&m.connections_opened),
             opened,
             "{description}"
         );
@@ -284,12 +297,12 @@ fn connection_metrics() -> TestResult {
         )?;
         ensure_eq!(actual_close_errors, closed_errors, "{description}");
         let dial = counter_vec_value(
-            m.adapter_connection_dial_errors.as_deref(),
+            m.adapter_connection_dial_errors.as_ref(),
             &[(ADAPTER_LABEL, "anyname")],
         )?;
         ensure_eq!(dial, dial_errors, "{description}");
         let (histogram, found) = histogram_from_vec(
-            m.adapter_connection_dial_time.as_deref(),
+            m.adapter_connection_dial_time.as_ref(),
             ADAPTER_LABEL,
             "anyname",
         );
@@ -380,7 +393,7 @@ fn debug_request_metric() -> TestResult {
             "{description}: account debug requests"
         );
         ensure_eq!(
-            counter_value(&m.debug_requests)?,
+            counter_value(&m.debug_requests),
             debug_count,
             "{description}: debug requests"
         );
@@ -534,13 +547,11 @@ fn impressions_metric() -> TestResult {
         m.record_imps(labels);
 
         let mut counts: BTreeMap<String, f64> = BTreeMap::new();
-        for metric in m.impressions.metrics() {
-            let MetricValue::Counter(value) = metric.value else {
-                return Err("impressions is a counter".into());
-            };
-            for label in &metric.labels {
-                if label.value == "true" {
-                    *counts.entry(label.name.clone()).or_default() += value;
+        for metric in series(&m.impressions) {
+            let value = metric.get_counter().get_value();
+            for label in metric.get_label() {
+                if label.value() == "true" {
+                    *counts.entry(label.name().to_owned()).or_default() += value;
                 }
             }
         }
@@ -643,10 +654,10 @@ fn stored_fetch_timer(m: &Metrics, data_type: StoredDataType) -> Option<&Histogr
         (StoredDataType::RESPONSE, &m.stored_responses_fetch_timer),
     ]
     .into_iter()
-    .find_map(|(t, timer)| (t == data_type).then_some(timer.as_ref()))
+    .find_map(|(t, timer)| (t == data_type).then_some(timer))
 }
 
-fn stored_errors(m: &Metrics, data_type: StoredDataType) -> Option<&CounterVec> {
+fn stored_errors(m: &Metrics, data_type: StoredDataType) -> Option<&IntCounterVec> {
     [
         (StoredDataType::ACCOUNT, &m.stored_account_errors),
         (StoredDataType::AMP, &m.stored_amp_errors),
@@ -656,7 +667,7 @@ fn stored_errors(m: &Metrics, data_type: StoredDataType) -> Option<&CounterVec> 
         (StoredDataType::RESPONSE, &m.stored_responses_errors),
     ]
     .into_iter()
-    .find_map(|(t, errors)| (t == data_type).then_some(errors.as_ref()))
+    .find_map(|(t, errors)| (t == data_type).then_some(errors))
 }
 
 /// Go: `TestRecordStoredDataFetchTime`.
@@ -768,28 +779,26 @@ fn record_adapter_price_metric() -> TestResult {
 }
 
 /// Sums the adapter request counters of `anyname` by cookie value and `has_bids`.
-fn adapter_request_totals(m: &Metrics) -> Result<[f64; 5], Box<dyn Error>> {
+fn adapter_request_totals(m: &Metrics) -> [f64; 5] {
     let mut totals = [0.0; 5];
-    for metric in m.adapter_requests.metrics() {
-        if metric.label(ADAPTER_LABEL) != Some("anyname") {
+    for metric in series(&m.adapter_requests) {
+        if label(&metric, ADAPTER_LABEL) != Some("anyname") {
             continue;
         }
-        let MetricValue::Counter(value) = metric.value else {
-            return Err("adapter_requests is a counter".into());
-        };
+        let value = metric.get_counter().get_value();
         let [total, cookie_no, cookie_yes, cookie_unknown, has_bids] = &mut totals;
         *total += value;
-        if metric.label(HAS_BIDS_LABEL) == Some("true") {
+        if label(&metric, HAS_BIDS_LABEL) == Some("true") {
             *has_bids += value;
         }
-        match metric.label(COOKIE_LABEL) {
+        match label(&metric, COOKIE_LABEL) {
             Some("no") => *cookie_no += value,
             Some("exists") => *cookie_yes += value,
             Some("unknown") => *cookie_unknown += value,
             _ => {}
         }
     }
-    Ok(totals)
+    totals
 }
 
 /// Go: `TestAdapterRequestMetrics`.
@@ -841,7 +850,7 @@ fn adapter_request_metrics() -> TestResult {
             adapter_bids,
             ..AdapterLabels::default()
         });
-        ensure_eq!(adapter_request_totals(&m)?, expected, "{description}");
+        ensure_eq!(adapter_request_totals(&m), expected, "{description}");
     }
     Ok(())
 }
@@ -875,15 +884,13 @@ fn adapter_request_error_metrics() -> TestResult {
         });
         let mut errors = 0.0;
         let mut bad_input = 0.0;
-        for metric in m.adapter_errors.metrics() {
-            if metric.label(ADAPTER_LABEL) != Some("anyname") {
+        for metric in series(&m.adapter_errors) {
+            if label(&metric, ADAPTER_LABEL) != Some("anyname") {
                 continue;
             }
-            let MetricValue::Counter(value) = metric.value else {
-                return Err("adapter_errors is a counter".into());
-            };
+            let value = metric.get_counter().get_value();
             errors += value;
-            if metric.label(ADAPTER_ERROR_LABEL) == Some(AdapterError::BAD_INPUT.as_str()) {
+            if label(&metric, ADAPTER_ERROR_LABEL) == Some(AdapterError::BAD_INPUT.as_str()) {
                 bad_input += value;
             }
         }
@@ -960,6 +967,37 @@ fn cache_result_metrics() -> TestResult {
         ensure_eq!(actual_hit, hit, "{name}:hit");
         ensure_eq!(actual_miss, miss, "{name}:miss");
     }
+    Ok(())
+}
+
+/// Go adds `uint64(float64(n))` to a counter's integer: a count above 2^53 is rounded to the
+/// nearest `f64`, a tie to the even one, before it is added.
+#[test]
+fn cache_counts_round_as_go_converts_them() -> TestResult {
+    const TWO_POW_53: u64 = 9_007_199_254_740_992;
+    for (n, expected) in [
+        (0, 0),
+        (1, 1),
+        (TWO_POW_53 - 1, TWO_POW_53 - 1),
+        (TWO_POW_53, TWO_POW_53),
+        (TWO_POW_53 + 1, TWO_POW_53),
+        (TWO_POW_53 + 2, TWO_POW_53 + 2),
+        (TWO_POW_53 + 3, TWO_POW_53 + 4),
+        (123_456_789_012_345_678, 123_456_789_012_345_680),
+    ] {
+        ensure_eq!(count(usize::try_from(n)?), expected, "count({n})");
+    }
+
+    // Go's integer part holds 2^53 + 1, which its scrape reads as 2^53; adding 2^53 + 1 and 1
+    // exactly would read 2^53 + 2.
+    let m = create_metrics_for_testing()?;
+    m.record_account_cache_result(CacheResult::HIT, usize::try_from(TWO_POW_53 + 1)?);
+    m.record_account_cache_result(CacheResult::HIT, 1);
+    let actual = counter_vec_value(
+        Some(&m.account_cache_result),
+        &[(CACHE_RESULT_LABEL, "hit")],
+    )?;
+    ensure_eq!(actual, float_from_u64(TWO_POW_53), "accountCacheResult:hit");
     Ok(())
 }
 
@@ -1088,7 +1126,7 @@ fn record_request_queue_time_metric() -> TestResult {
             (REQUEST_TYPE_LABEL, "video"),
             (REQUEST_STATUS_LABEL, status),
         );
-        let sum = i64_to_f64(secs);
+        let sum = float_from_i64(secs);
         check_histogram(description, &result, 1, sum)?;
     }
     Ok(())
@@ -1145,7 +1183,7 @@ fn unlabelled_timers() -> TestResult {
     type Case = (
         &'static str,
         fn(&Metrics, GoDuration),
-        fn(&Metrics) -> &HistogramVec,
+        fn(&Metrics) -> &Histogram,
     );
     let timers: [Case; 4] = [
         (
@@ -1180,7 +1218,7 @@ fn unlabelled_timers() -> TestResult {
         for (duration, expected_sum) in durations {
             let m = create_metrics_for_testing()?;
             record(&m, duration);
-            let histogram = plain_histogram(timer(&m))?;
+            let histogram = plain_histogram(timer(&m));
             check_histogram(&format!("{name} {duration:?}"), &histogram, 1, expected_sum)?;
         }
     }
@@ -1224,11 +1262,11 @@ fn record_adapter_connections() -> TestResult {
         let m = create_metrics_for_testing()?;
         m.record_adapter_connections("Adapter", conn_was_reused, conn_wait);
         let actual_reused = counter_vec_value(
-            m.adapter_reused_connections.as_deref(),
+            m.adapter_reused_connections.as_ref(),
             &[(ADAPTER_LABEL, "adapter")],
         )?;
         let actual_created = counter_vec_value(
-            m.adapter_created_connections.as_deref(),
+            m.adapter_created_connections.as_ref(),
             &[(ADAPTER_LABEL, "adapter")],
         )?;
         ensure_eq!(
@@ -1242,7 +1280,7 @@ fn record_adapter_connections() -> TestResult {
             "{description}: adapter_connection_created"
         );
         let (histogram, found) = histogram_from_vec(
-            m.adapter_connection_wait_time.as_deref(),
+            m.adapter_connection_wait_time.as_ref(),
             ADAPTER_LABEL,
             "adapter",
         );
@@ -1299,7 +1337,12 @@ fn disabled_metrics() -> TestResult {
     m.record_adapter_connection_dial_error("appnexus");
     m.record_adapter_connection_dial_time("appnexus", seconds(1));
     m.record_adapter_connections("appnexus", true, seconds(1));
-    let names: Vec<String> = m.gatherer().gather().into_iter().map(|f| f.name).collect();
+    let names: Vec<String> = m
+        .gatherer()
+        .gather()
+        .iter()
+        .map(|f| f.name().to_owned())
+        .collect();
     ensure!(
         !names.iter().any(|n| n.contains("adapter_connection")),
         "{names:?}"
@@ -1375,7 +1418,7 @@ fn record_adapter_privacy_counters() -> TestResult {
             .set(DisabledMetric::AdapterBuyerUidScrubbed, disabled);
         m.record_adapter_buyer_uid_scrubbed("AnyName");
         let actual = counter_vec_value(
-            m.adapter_scrubbed_buyer_uids.as_deref(),
+            m.adapter_scrubbed_buyer_uids.as_ref(),
             &[(ADAPTER_LABEL, "anyname")],
         )?;
         ensure_eq!(
@@ -1387,7 +1430,7 @@ fn record_adapter_privacy_counters() -> TestResult {
     let m = create_metrics_for_testing()?;
     m.record_adapter_gdpr_request_blocked("AnyName");
     let actual = counter_vec_value(
-        m.adapter_gdpr_blocked_requests.as_deref(),
+        m.adapter_gdpr_blocked_requests.as_ref(),
         &[(ADAPTER_LABEL, "anyname")],
     )?;
     ensure_eq!(actual, 1.0, "adapter_gdpr_requests_blocked");
@@ -1421,7 +1464,7 @@ fn stored_responses_metric() -> TestResult {
             "{description}: account stored responses"
         );
         ensure_eq!(
-            counter_value(&m.stored_responses)?,
+            counter_value(&m.stored_responses),
             1.0,
             "{description}: stored responses"
         );
@@ -1435,7 +1478,7 @@ fn record_gvl_list_request() -> TestResult {
     let m = create_metrics_for_testing()?;
     m.record_gvl_list_request();
     ensure_eq!(
-        counter_value(&m.gvl_list_requests)?,
+        counter_value(&m.gvl_list_requests),
         1.0,
         "Record instance of fetched GVL list"
     );
@@ -1461,11 +1504,8 @@ fn record_module_metrics() -> TestResult {
             m.record_module_execution_error(&labels);
             m.record_module_timeout(&labels);
 
-            let (result, found) = histogram_from_vec(
-                m.modules.duration.get(&module).map(AsRef::as_ref),
-                STAGE_LABEL,
-                &stage,
-            );
+            let (result, found) =
+                histogram_from_vec(m.modules.duration.get(&module), STAGE_LABEL, &stage);
             ensure!(found, "module_{module}_duration found");
             check_histogram(&format!("module_{module}_duration"), &result, 1, 0.001)?;
             for (name, families) in [
@@ -1477,10 +1517,7 @@ fn record_module_metrics() -> TestResult {
                 ("Module execution error", &m.modules.execution_errors),
                 ("Module timeout", &m.modules.timeouts),
             ] {
-                let actual = counter_vec_value(
-                    families.get(&module).map(AsRef::as_ref),
-                    &[(STAGE_LABEL, &stage)],
-                )?;
+                let actual = counter_vec_value(families.get(&module), &[(STAGE_LABEL, &stage)])?;
                 ensure_eq!(
                     actual,
                     1.0,
@@ -1497,9 +1534,10 @@ fn record_module_metrics() -> TestResult {
     Ok(())
 }
 
-/// Go's `MustRegister` panics on an invalid metric name; the port returns the same error text.
+/// Go's `MustRegister` panics on an invalid metric name; the port returns the prometheus crate's
+/// error for the same family (ledger: `metrics.registration-errors`).
 #[test]
-fn invalid_namespace_reports_the_go_registration_error() -> TestResult {
+fn invalid_namespace_is_a_registration_error() -> TestResult {
     let cfg = PrometheusMetrics {
         namespace: "1bad".to_owned(),
         ..testing_config()
@@ -1509,9 +1547,7 @@ fn invalid_namespace_reports_the_go_registration_error() -> TestResult {
     };
     ensure_eq!(
         err.to_string(),
-        "descriptor Desc{fqName: \"1bad_server_connections_closed\", help: \"Count of successful \
-         connections closed to Prebid Server.\", constLabels: {}, variableLabels: []} is invalid: \
-         \"1bad_server_connections_closed\" is not a valid metric name",
+        "Error: '1bad_server_connections_closed' is not a valid metric name",
         "registration error"
     );
     Ok(())

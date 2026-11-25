@@ -1,5 +1,5 @@
 # Differential scenarios for the Prometheus engine. The Go generator in go/main.go and the Rust
-# test in src/prometheus/golden_test.rs both replay this file; the Go output is in golden/.
+# tests in tests/exposition.rs both replay this file; the Go output is in golden/.
 # Values are percent-decoded (%20 space, %22 quote, %5C backslash, %0A newline, %25 percent).
 # Every argument not given is the Go zero value.
 

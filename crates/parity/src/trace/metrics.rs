@@ -3,7 +3,10 @@
 use core::{error::Error, fmt};
 use std::collections::BTreeMap;
 
-use pbs_metrics::prometheus::registry::{MetricFamily, MetricType, MetricValue, Registry};
+use pbs_metrics::prometheus::{
+    Registry,
+    proto::{MetricFamily, MetricType},
+};
 
 use crate::tracedoc::{
     METRIC_COUNTER, METRIC_GAUGE, METRIC_HISTOGRAM, METRIC_SUMMARY, METRIC_UNTYPED, MetricDelta,
@@ -100,41 +103,51 @@ impl MetricsSnapshot {
             ))
     }
 
-    /// Snapshots gathered metric families (Go: the loop of `trace.GatherMetrics`).
+    /// Snapshots gathered metric families (Go: the loop of `trace.GatherMetrics`). The
+    /// prometheus crate gathers counters and histograms from pbs-metrics; an untyped family,
+    /// which no crate metric makes, gets the value 0 (the crate reads untyped values only
+    /// through accessors it has deprecated).
     #[must_use]
     pub fn from_families(families: &[MetricFamily]) -> Self {
         let mut snap = Self::new();
         for family in families {
-            for metric in &family.metrics {
+            for metric in family.get_metric() {
                 let mut series = Series {
-                    name: family.name.clone(),
+                    name: family.name().to_owned(),
                     labels: metric
-                        .labels
+                        .get_label()
                         .iter()
-                        .map(|lp| (lp.name.clone(), lp.value.clone()))
+                        .map(|lp| (lp.name().to_owned(), lp.value().to_owned()))
                         .collect(),
                     ..Series::default()
                 };
-                match (&family.metric_type, &metric.value) {
-                    (MetricType::Counter, value) => {
+                match family.get_field_type() {
+                    MetricType::COUNTER => {
                         series.kind = MetricKind::Counter;
-                        series.value = match value {
-                            MetricValue::Counter(v) => *v,
-                            MetricValue::Histogram(_) => 0.0,
-                        };
+                        series.value = metric.get_counter().get_value();
                     }
-                    (MetricType::Histogram, value) => {
+                    MetricType::GAUGE => {
+                        series.kind = MetricKind::Gauge;
+                        series.value = metric.get_gauge().get_value();
+                    }
+                    MetricType::HISTOGRAM => {
+                        let h = metric.get_histogram();
                         series.kind = MetricKind::Histogram;
-                        if let MetricValue::Histogram(h) = value {
-                            series.value = h.sample_sum;
-                            series.count = h.sample_count;
-                            series.buckets = h
-                                .buckets
-                                .iter()
-                                .map(|b| (format_bound(b.upper_bound), b.cumulative_count))
-                                .collect();
-                        }
+                        series.value = h.get_sample_sum();
+                        series.count = h.get_sample_count();
+                        series.buckets = h
+                            .get_bucket()
+                            .iter()
+                            .map(|b| (format_bound(b.upper_bound()), b.cumulative_count()))
+                            .collect();
                     }
+                    MetricType::SUMMARY => {
+                        let s = metric.get_summary();
+                        series.kind = MetricKind::Summary;
+                        series.value = s.sample_sum();
+                        series.count = s.sample_count();
+                    }
+                    MetricType::UNTYPED => series.kind = MetricKind::Untyped,
                 }
                 snap.insert(series);
             }

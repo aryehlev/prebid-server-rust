@@ -9,7 +9,7 @@
 
 use std::{collections::BTreeSet, fmt, time};
 
-use crate::goconv;
+use crate::float_from_i64;
 
 /// Declares a Go `string`-typed label with its constants and, when Go has one, the function that
 /// lists its values.
@@ -721,7 +721,7 @@ impl GoDuration {
     pub fn seconds(self) -> f64 {
         let sec = self.0 / Self::SECOND.0;
         let nsec = self.0 % Self::SECOND.0;
-        goconv::i64_to_f64(sec) + goconv::i64_to_f64(nsec) / 1e9
+        float_from_i64(sec) + float_from_i64(nsec) / 1e9
     }
 }
 

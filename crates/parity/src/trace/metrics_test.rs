@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 
-use pbs_metrics::prometheus::registry::{
-    Bucket, Histogram, LabelPair, Metric, MetricFamily, MetricType, MetricValue,
+use pbs_metrics::prometheus::proto::{
+    Bucket, Counter, Gauge, Histogram, LabelPair, Metric, MetricFamily, MetricType, Summary,
 };
 use serde_json::Value;
 
@@ -14,48 +14,86 @@ use crate::{
 fn labels(pairs: &[(&str, &str)]) -> Vec<LabelPair> {
     pairs
         .iter()
-        .map(|(name, value)| LabelPair {
-            name: (*name).to_owned(),
-            value: (*value).to_owned(),
+        .map(|(name, value)| {
+            let mut pair = LabelPair::default();
+            pair.set_name((*name).to_owned());
+            pair.set_value((*value).to_owned());
+            pair
         })
         .collect()
 }
 
-fn counter(name: &str, series: &[(&[(&str, &str)], f64)]) -> MetricFamily {
-    MetricFamily {
-        name: name.to_owned(),
-        help: String::new(),
-        metric_type: MetricType::Counter,
-        metrics: series
+/// A gathered family, as the prometheus crate's registry returns it.
+fn family(name: &str, kind: MetricType, metrics: Vec<Metric>) -> MetricFamily {
+    let mut family = MetricFamily::default();
+    family.set_name(name.to_owned());
+    family.set_field_type(kind);
+    family.set_metric(metrics);
+    family
+}
+
+fn counter_metric(pairs: Vec<LabelPair>, value: f64) -> Metric {
+    let mut counter = Counter::default();
+    counter.set_value(value);
+    let mut metric = Metric::from_label(pairs);
+    metric.set_counter(counter);
+    metric
+}
+
+fn gauge_metric(pairs: Vec<LabelPair>, value: f64) -> Metric {
+    let mut gauge = Gauge::default();
+    gauge.set_value(value);
+    let mut metric = Metric::from_label(pairs);
+    metric.set_gauge(gauge);
+    metric
+}
+
+fn histogram_metric(pairs: Vec<LabelPair>, sum: f64, count: u64, buckets: &[(f64, u64)]) -> Metric {
+    let mut histogram = Histogram::default();
+    histogram.set_sample_sum(sum);
+    histogram.set_sample_count(count);
+    histogram.set_bucket(
+        buckets
             .iter()
-            .map(|(l, v)| Metric {
-                labels: labels(l),
-                value: MetricValue::Counter(*v),
+            .map(|&(le, c)| {
+                let mut bucket = Bucket::default();
+                bucket.set_upper_bound(le);
+                bucket.set_cumulative_count(c);
+                bucket
             })
             .collect(),
-    }
+    );
+    let mut metric = Metric::from_label(pairs);
+    metric.set_histogram(histogram);
+    metric
+}
+
+fn summary_metric(pairs: Vec<LabelPair>, sum: f64, count: u64) -> Metric {
+    let mut summary = Summary::default();
+    summary.set_sample_sum(sum);
+    summary.set_sample_count(count);
+    let mut metric = Metric::from_label(pairs);
+    metric.set_summary(summary);
+    metric
+}
+
+fn counter(name: &str, series: &[(&[(&str, &str)], f64)]) -> MetricFamily {
+    family(
+        name,
+        MetricType::COUNTER,
+        series
+            .iter()
+            .map(|(l, v)| counter_metric(labels(l), *v))
+            .collect(),
+    )
 }
 
 fn histogram(name: &str, sum: f64, count: u64, buckets: &[(f64, u64)]) -> MetricFamily {
-    MetricFamily {
-        name: name.to_owned(),
-        help: String::new(),
-        metric_type: MetricType::Histogram,
-        metrics: vec![Metric {
-            labels: Vec::new(),
-            value: MetricValue::Histogram(Box::new(Histogram {
-                sample_count: count,
-                sample_sum: sum,
-                buckets: buckets
-                    .iter()
-                    .map(|(le, c)| Bucket {
-                        cumulative_count: *c,
-                        upper_bound: *le,
-                    })
-                    .collect(),
-            })),
-        }],
-    }
+    family(
+        name,
+        MetricType::HISTOGRAM,
+        vec![histogram_metric(Vec::new(), sum, count, buckets)],
+    )
 }
 
 fn gauge(value: f64) -> Series {
@@ -200,9 +238,9 @@ fn kind_of(name: &str) -> Result<MetricKind, String> {
     .ok_or_else(|| format!("unknown metric type {name}"))
 }
 
-/// The snapshot of the neutral series the Go program gathered: counters and histograms go
-/// through [`MetricsSnapshot::from_families`] (what a pbs-metrics registry gathers), the other
-/// types through [`MetricsSnapshot::insert`].
+/// The snapshot of the neutral series the Go program gathered: counters, gauges, histograms and
+/// summaries go through [`MetricsSnapshot::from_families`] (what the prometheus crate's registry
+/// gathers), untyped series, which no crate metric makes, through [`MetricsSnapshot::insert`].
 fn snapshot_of(series: &[Json]) -> Result<MetricsSnapshot, String> {
     let mut families = Vec::new();
     let mut others = Vec::new();
@@ -211,9 +249,11 @@ fn snapshot_of(series: &[Json]) -> Result<MetricsSnapshot, String> {
         let kind = kind_of(&s.string("type")?)?;
         let pairs: Vec<LabelPair> = s.get("labels")?.0.as_object().map_or_default(|m| {
             m.iter()
-                .map(|(k, v)| LabelPair {
-                    name: k.clone(),
-                    value: v.as_str().unwrap_or_default().to_owned(),
+                .map(|(k, v)| {
+                    let mut pair = LabelPair::default();
+                    pair.set_name(k.clone());
+                    pair.set_value(v.as_str().unwrap_or_default().to_owned());
+                    pair
                 })
                 .collect()
         });
@@ -241,38 +281,33 @@ fn snapshot_of(series: &[Json]) -> Result<MetricsSnapshot, String> {
             })
             .collect::<Result<_, String>>()?;
         match kind {
-            MetricKind::Counter => families.push(MetricFamily {
-                name,
-                help: String::new(),
-                metric_type: MetricType::Counter,
-                metrics: vec![Metric {
-                    labels: pairs,
-                    value: MetricValue::Counter(value),
-                }],
-            }),
-            MetricKind::Histogram => families.push(MetricFamily {
-                name,
-                help: String::new(),
-                metric_type: MetricType::Histogram,
-                metrics: vec![Metric {
-                    labels: pairs,
-                    value: MetricValue::Histogram(Box::new(Histogram {
-                        sample_count: count,
-                        sample_sum: value,
-                        buckets: buckets
-                            .iter()
-                            .map(|(le, c)| Bucket {
-                                cumulative_count: *c,
-                                upper_bound: *le,
-                            })
-                            .collect(),
-                    })),
-                }],
-            }),
-            MetricKind::Gauge | MetricKind::Summary | MetricKind::Untyped => others.push(Series {
+            MetricKind::Counter => families.push(family(
+                &name,
+                MetricType::COUNTER,
+                vec![counter_metric(pairs, value)],
+            )),
+            MetricKind::Gauge => families.push(family(
+                &name,
+                MetricType::GAUGE,
+                vec![gauge_metric(pairs, value)],
+            )),
+            MetricKind::Histogram => families.push(family(
+                &name,
+                MetricType::HISTOGRAM,
+                vec![histogram_metric(pairs, value, count, &buckets)],
+            )),
+            MetricKind::Summary => families.push(family(
+                &name,
+                MetricType::SUMMARY,
+                vec![summary_metric(pairs, value, count)],
+            )),
+            MetricKind::Untyped => others.push(Series {
+                labels: pairs
+                    .iter()
+                    .map(|p| (p.name().to_owned(), p.value().to_owned()))
+                    .collect(),
                 name,
                 kind,
-                labels: pairs.into_iter().map(|p| (p.name, p.value)).collect(),
                 value,
                 count,
                 buckets: buckets

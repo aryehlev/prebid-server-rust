@@ -328,7 +328,7 @@ func scrape(m *prometheusmetrics.Metrics, req *http.Request) *httptest.ResponseR
 // and samples (name, unescaped label set and value) in sorted order, whatever the order and
 // spelling of the scrape; <values> is the digest of the scrape's lines in their order with each
 // sample value in canonical form, so only the spelling of the values is left out. Both sides
-// compute the same digests from their own scrape (pbs-metrics' golden_test.rs).
+// compute the same digests from their own scrape (pbs-metrics' tests/exposition.rs).
 func writeSemantics(b *strings.Builder, name, body string) error {
 	if strings.HasPrefix(body, "panic: ") {
 		fmt.Fprintf(b, "%s panic\n", name)
