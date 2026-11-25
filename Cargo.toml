@@ -64,6 +64,9 @@ config = { version = "0.15.27", default-features = false, features = ["json", "t
 cookie = "0.18.2"
 flate2 = "1.1.11"
 futures-util = "0.3.34"
+# glog's nine flags in Go's flag syntax (LOGGING). The default unicode feature resolves to the
+# unicode-width 0.2.3 that serde-saphyr's annotate-snippets already locks.
+getopts = "0.2.24"
 # pbs-server's HTTP/1.1-only connection builder (Go's header limit and read budget, which
 # axum::serve does not set) and the loopback test servers; axum already locks it.
 hyper-util = { version = "0.1.21", features = ["server-auto", "tokio"] }
@@ -110,6 +113,8 @@ toml = { version = "1.2.1", default-features = false, features = ["parse", "serd
 tower-http = { version = "0.6.11", features = ["compression-gzip", "cors", "fs", "limit", "timeout"] }
 # No attributes feature: tracing-attributes is on syn 2.
 tracing = { version = "0.1.44", default-features = false, features = ["std"] }
+# One log file (D-LOGFILE); glog's per-severity files are ledgered.
+tracing-appender = { version = "0.2.5", default-features = false }
 tracing-subscriber = { version = "0.3.23", features = ["env-filter"] }
 url = "2.5.8"
 
@@ -127,9 +132,6 @@ url = "2.5.8"
 # # Dev-only: COW's benches. Cargo.lock must keep half at 2.6.0: half 2.7.1 depends on zerocopy,
 # # whose zerocopy-derive is on syn 2.
 # criterion = { version = "0.8.2", default-features = false }
-# # glog's nine flags in Go's flag syntax (LOGGING). The default unicode feature resolves to the
-# # unicode-width 0.2.3 that serde-saphyr's annotate-snippets already locks.
-# getopts = "0.2.24"
 # # The ads.cert remote signer's unary gRPC client (D-GRPC: tonic fails the gates). hyper and
 # # reqwest already lock it.
 # h2 = "0.4.20"
@@ -155,8 +157,6 @@ url = "2.5.8"
 # similar = { version = "3.2.1", default-features = false, features = ["text"] }
 # # Error types (pbs-errortypes and each crate's own); prometheus and quinn already lock it.
 # thiserror = "2.0.21"
-# # One log file (D-LOGFILE); glog's per-severity files are ledgered.
-# tracing-appender = { version = "0.2.5", default-features = false }
 # uuid = { version = "1.29.3", features = ["v4"] }
 
 # Lint policy. Every crate opts in with `[lints] workspace = true`.

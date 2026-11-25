@@ -1,95 +1,171 @@
-//! Go: `logger/logger.go`: the package-level logger and its functions.
+//! The facade (logger/logger.go, logger/glog.go): the macros Prebid's code logs with, glog's
+//! severities and the fatal error `main` ends with.
 
-use std::sync::{Arc, LazyLock, PoisonError, RwLock};
-
-use pbs_gocompat::fmt::Value;
-
-use crate::{
-    glog::{Severity, Site},
-    glog_logger::GlogLogger,
-    interface::Logger,
+use std::{
+    error::Error,
+    fmt,
+    process::{ExitCode, Termination},
 };
 
-/// Go: the package variable `logger` when it is not the default `NewGlogLogger()`.
-static INSTALLED: RwLock<Option<Arc<dyn Logger>>> = RwLock::new(None);
+use tracing::{Level, Metadata};
 
-/// Go: `var logger Logger = NewGlogLogger()`.
-static DEFAULT: LazyLock<GlogLogger> = LazyLock::new(GlogLogger::new);
+/// The target [`Fatal`] is reported with: `ERROR` at this target is glog's FATAL, which
+/// `-stderrthreshold=FATAL` still lets through to stderr.
+pub const FATAL_TARGET: &str = "pbs_logger::fatal";
 
-/// Replaces the package logger (Go tests assign the package variable `logger`).
-pub fn set_logger(logger: Arc<dyn Logger>) {
-    *INSTALLED.write().unwrap_or_else(PoisonError::into_inner) = Some(logger);
+/// `logger.Debugf` (logger/logger.go:6-8): an INFO line, as `GlogLogger.Debugf` calls
+/// `glog.InfoDepthf` (logger/glog.go:13-15). It takes `tracing::info!`'s arguments.
+#[macro_export]
+macro_rules! debugf {
+    ($($arg:tt)+) => {
+        $crate::__private::info!($($arg)+)
+    };
 }
 
-/// Restores the default glog logger (Go: `logger = NewGlogLogger()`).
-pub fn reset_logger() {
-    *INSTALLED.write().unwrap_or_else(PoisonError::into_inner) = None;
+/// `logger.Infof` (logger/logger.go:11-13): an INFO line. It takes `tracing::info!`'s arguments.
+#[macro_export]
+macro_rules! infof {
+    ($($arg:tt)+) => {
+        $crate::__private::info!($($arg)+)
+    };
 }
 
-/// Whether the package logger is the default glog logger.
-#[must_use]
-pub fn uses_default_logger() -> bool {
-    INSTALLED
-        .read()
-        .unwrap_or_else(PoisonError::into_inner)
-        .is_none()
+/// `logger.Warnf` (logger/logger.go:16-18): a WARN line, glog's WARNING. It takes
+/// `tracing::warn!`'s arguments.
+#[macro_export]
+macro_rules! warnf {
+    ($($arg:tt)+) => {
+        $crate::__private::warn!($($arg)+)
+    };
 }
 
-/// The installed logger, if it is not the default.
-fn installed() -> Option<Arc<dyn Logger>> {
-    INSTALLED
-        .read()
-        .unwrap_or_else(PoisonError::into_inner)
-        .as_ref()
-        .map(Arc::clone)
+/// `logger.Errorf` (logger/logger.go:21-23): an ERROR line. It takes `tracing::error!`'s
+/// arguments.
+#[macro_export]
+macro_rules! errorf {
+    ($($arg:tt)+) => {
+        $crate::__private::error!($($arg)+)
+    };
 }
 
-/// The site Go's default logger reports for the package function whose body is at `line` of
-/// `logger/logger.go`.
-const fn go_site(line: u32) -> Site<'static> {
-    Site {
-        file: "logger.go",
-        line,
+/// `logger.Fatalf` (logger/logger.go:26-28) without the exit, which only `main` may take: a
+/// [`Fatal`](crate::Fatal) with the message `format!` makes of the arguments, for `main` to
+/// return and report.
+#[macro_export]
+macro_rules! fatalf {
+    ($($arg:tt)+) => {
+        $crate::Fatal::new(::std::format!($($arg)+))
+    };
+}
+
+/// glog's severities (`logsink.Severity`), lowest first.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum Severity {
+    /// INFO (0).
+    Info,
+    /// WARNING (1).
+    Warning,
+    /// ERROR (2).
+    Error,
+    /// FATAL (3).
+    Fatal,
+}
+
+impl Severity {
+    /// Every severity, lowest first.
+    pub const ALL: [Self; 4] = [Self::Info, Self::Warning, Self::Error, Self::Fatal];
+
+    /// The severity of a line: its level, with `ERROR` at [`FATAL_TARGET`] as FATAL and `DEBUG`
+    /// and `TRACE`, which glog has not, as INFO.
+    #[must_use]
+    pub fn of(metadata: &Metadata<'_>) -> Self {
+        let level = *metadata.level();
+        if level == Level::ERROR {
+            if metadata.target() == FATAL_TARGET {
+                Self::Fatal
+            } else {
+                Self::Error
+            }
+        } else if level == Level::WARN {
+            Self::Warning
+        } else {
+            Self::Info
+        }
+    }
+
+    /// glog's name: `INFO`, `WARNING`, `ERROR` or `FATAL`.
+    #[must_use]
+    pub const fn name(self) -> &'static str {
+        match self {
+            Self::Info => "INFO",
+            Self::Warning => "WARNING",
+            Self::Error => "ERROR",
+            Self::Fatal => "FATAL",
+        }
+    }
+
+    /// glog's number, which `-stderrthreshold`'s value prints as.
+    #[must_use]
+    pub const fn number(self) -> i8 {
+        match self {
+            Self::Info => 0,
+            Self::Warning => 1,
+            Self::Error => 2,
+            Self::Fatal => 3,
+        }
+    }
+
+    /// The severity with glog's number `n`, if one has it.
+    #[must_use]
+    pub const fn from_number(n: i8) -> Option<Self> {
+        match n {
+            0 => Some(Self::Info),
+            1 => Some(Self::Warning),
+            2 => Some(Self::Error),
+            3 => Some(Self::Fatal),
+            _ => None,
+        }
     }
 }
 
-/// Go: `logger.Debugf`, logged at glog's INFO severity.
-pub fn debugf(msg: &str, args: &[Value]) {
-    match installed() {
-        Some(logger) => logger.debugf(msg, args),
-        None => DEFAULT.log_at(go_site(7), Severity::Info, msg, args),
+/// What `logger.Fatalf` ends the process with.
+///
+/// Go logs the message with a stack and exits 2 on the spot; here the error travels up to `main`,
+/// whose [`Termination::report`] logs the message at ERROR with [`FATAL_TARGET`] and returns exit
+/// code 2 (ledger: `logging.fatal`).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Fatal {
+    message: String,
+}
+
+impl Fatal {
+    /// A fatal error with `message`.
+    #[must_use]
+    pub fn new<M: Into<String>>(message: M) -> Self {
+        Self {
+            message: message.into(),
+        }
+    }
+
+    /// The message.
+    #[must_use]
+    pub const fn message(&self) -> &str {
+        self.message.as_str()
     }
 }
 
-/// Go: `logger.Infof`.
-pub fn infof(msg: &str, args: &[Value]) {
-    match installed() {
-        Some(logger) => logger.infof(msg, args),
-        None => DEFAULT.log_at(go_site(12), Severity::Info, msg, args),
+impl fmt::Display for Fatal {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(&self.message)
     }
 }
 
-/// Go: `logger.Warnf`.
-pub fn warnf(msg: &str, args: &[Value]) {
-    match installed() {
-        Some(logger) => logger.warnf(msg, args),
-        None => DEFAULT.log_at(go_site(17), Severity::Warning, msg, args),
-    }
-}
+impl Error for Fatal {}
 
-/// Go: `logger.Errorf`.
-pub fn errorf(msg: &str, args: &[Value]) {
-    match installed() {
-        Some(logger) => logger.errorf(msg, args),
-        None => DEFAULT.log_at(go_site(22), Severity::Error, msg, args),
-    }
-}
-
-/// Go: `logger.Fatalf`: logs with a stack trace, flushes and ends the process through the
-/// [`ExitFn`](crate::exit::ExitFn); returns only when a replacement logger returns.
-pub fn fatalf(msg: &str, args: &[Value]) {
-    match installed() {
-        Some(logger) => logger.fatalf(msg, args),
-        None => DEFAULT.log_at(go_site(27), Severity::Fatal, msg, args),
+impl Termination for Fatal {
+    /// Logs the message at ERROR with [`FATAL_TARGET`] and returns exit code 2, glog's.
+    fn report(self) -> ExitCode {
+        tracing::error!(target: FATAL_TARGET, "{}", self.message);
+        ExitCode::from(2)
     }
 }
