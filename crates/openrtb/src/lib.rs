@@ -34,6 +34,36 @@
 //! # Ok::<(), Box<dyn std::error::Error>>(())
 //! ```
 //!
+//! Next to that derive, typegen generates serde code (`"serde": true` in `typegen.json`):
+//! `Serialize` and `Deserialize` and pbs-jsonutil's `MergeClone`, with Go's rules for each field.
+//! A field is renamed to its JSON key; `omitempty` skips nil pointers, nil or empty slices, maps
+//! and `json.RawMessage`s, and zero numbers, bools and strings, never a struct; a value field given
+//! null keeps its zero value (`null_default`); and a `json.RawMessage` given null reads nil, as
+//! `jsonutil.Unmarshal` does, or the bytes `null` through [`gojson_bridge::EncodingJson`], as
+//! `json.Unmarshal` does. A Go named type is `#[serde(transparent)]`, and `adcom1::App`, `Site`
+//! and `Dooh` read the members they promote from their embedded `DistributionChannel` directly.
+//! [`gojson_bridge`] carries the serde code over `RawJson` and Go `int` while the `GoJson` derive
+//! stays:
+//!
+//! ```
+//! use pbs_jsonutil::{MergeClone as _, marshal, unmarshal};
+//! use pbs_openrtb::{adcom1, openrtb2};
+//! use serde_json::value::RawValue;
+//!
+//! let mut imp: openrtb2::Imp =
+//!     unmarshal(br#"{"id":"1","banner":{"w":300,"pos":1},"bidfloor":null}"#)?;
+//! let banner = imp.banner.as_deref().ok_or("no banner")?;
+//! assert_eq!(banner.pos, Some(adcom1::POSITION_ABOVE_FOLD));
+//! imp.merge_clone(&RawValue::from_string(
+//!     r#"{"banner":{"h":250}}"#.to_owned(),
+//! )?)?;
+//! assert_eq!(
+//!     marshal(&imp)?,
+//!     br#"{"id":"1","banner":{"w":300,"h":250,"pos":1}}"#
+//! );
+//! # Ok::<(), Box<dyn std::error::Error>>(())
+//! ```
+//!
 //! The Go functions and methods are ported by hand next to the generated code:
 //! [`openrtb2::int8_ptr`], [`openrtb2::int64_ptr`], [`native1::response::int64_ptr`], and the
 //! `Ptr`/`Val` methods of [`openrtb3::NoBidReason`] and of the `adcom1` types that have them.
@@ -48,11 +78,17 @@
 //!   at the cost of byte-string fields.
 //! * Six untyped Go constants (`openrtb3.SecondPricePlus` and `DealPrice`, the four
 //!   `native1.PlacementType*`) have the named type they are used as.
+//! * The serde code's differences are the ledger's: `serde_json`'s error texts, floats and
+//!   escaping, `null` written for a nil `json.RawMessage` without `omitempty` and the document
+//!   `null` refused (pbs-jsonutil's and pbs-differences' JSON entries), and, in `MergeClone`, the
+//!   struct named in an error in a promoted field and an empty slice left by a failed merge
+//!   (`differences.toml`).
 //!
 //! The parity tests (`tests/parity`) replay the goldens of `testdata/go` and the openrtb module's
-//! own tests; see their crate docs.
+//! own tests, and check the serde code of every type against Go's shapes; see their crate docs.
 
 pub mod adcom1;
+pub mod gojson_bridge;
 pub mod native1;
 pub mod openrtb2;
 pub mod openrtb3;

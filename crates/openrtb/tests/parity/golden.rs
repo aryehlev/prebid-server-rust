@@ -95,7 +95,7 @@ pub(super) fn runners() -> TestResult<Runners> {
 
 /// A golden encoding, resolved to what Rust must produce.
 #[derive(Clone)]
-enum Want {
+pub(super) enum Want {
     /// These bytes.
     Bytes(Vec<u8>),
     /// Bytes of this length and FNV-1a 64 hash, then a newline when `newline` is set.
@@ -106,7 +106,7 @@ enum Want {
 
 /// Resolves an encoding cell of a row whose document is `doc`; `earlier` are the row's
 /// encodings before it.
-fn want(cell: &[u8], doc: &[u8], earlier: &[Want]) -> TestResult<Want> {
+pub(super) fn want(cell: &[u8], doc: &[u8], earlier: &[Want]) -> TestResult<Want> {
     let bad = || format!("bad encoding cell {}", show(cell));
     let (&tag, rest) = cell.split_first().ok_or_else(bad)?;
     match tag {
@@ -152,7 +152,7 @@ fn want(cell: &[u8], doc: &[u8], earlier: &[Want]) -> TestResult<Want> {
     }
 }
 
-fn matches(want: &Want, got: &Encoded) -> bool {
+pub(super) fn matches(want: &Want, got: &Encoded) -> bool {
     match (want, got) {
         (Want::Bytes(want), Ok(got)) | (Want::Error(want), Err(got)) => want == got,
         (Want::Hash { len, fnv, newline }, Ok(got)) => {
@@ -247,7 +247,7 @@ fn regenerate(what: &str) -> String {
 }
 
 /// A corpus file of a `#file` row: its path and bytes, checked against the hash Go recorded.
-fn corpus_file(row: &[Vec<u8>]) -> TestResult<(String, Vec<u8>)> {
+pub(super) fn corpus_file(row: &[Vec<u8>]) -> TestResult<(String, Vec<u8>)> {
     let [_, path, hash] = row else {
         return Err(format!("bad #file row of {} fields", row.len()));
     };
@@ -261,7 +261,7 @@ fn corpus_file(row: &[Vec<u8>]) -> TestResult<(String, Vec<u8>)> {
 }
 
 /// The document of a row: `'` and its bytes, or `@file:offset:length` into a corpus file.
-fn document(field: &[u8], files: &[Vec<u8>]) -> TestResult<Vec<u8>> {
+pub(super) fn document(field: &[u8], files: &[Vec<u8>]) -> TestResult<Vec<u8>> {
     if let Some(inline) = field.strip_prefix(b"'") {
         return Ok(inline.to_vec());
     }

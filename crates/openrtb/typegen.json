@@ -1,5 +1,7 @@
 {
   "crate": "pbs_openrtb",
+  "serde": true,
+  "serde_bridge": "crate::gojson_bridge",
   "rust_index": "tests/parity/index.rs",
   "go_index": {
     "out": "testdata/go/ported_types_gen.go",
