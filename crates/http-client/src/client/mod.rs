@@ -603,7 +603,7 @@ fn redirect_policy(rules: Arc<ProxyRules>, loopback_only: bool, on_origin: bool)
             && attempt
                 .previous()
                 .first()
-                .is_some_and(|first| first.origin() != next.origin())
+                .is_some_and(|first| !http2::stays_on(first, next))
         {
             return attempt.stop();
         }

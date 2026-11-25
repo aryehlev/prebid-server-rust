@@ -109,7 +109,7 @@ pub(super) struct Origin {
 impl Origin {
     /// The origin of `url` when a request for it may go over h2c: an `http` URL whose request
     /// goes straight to the host, not through `proxy`.
-    fn of(url: &Url, proxy: Option<&ProxyUrl>) -> Option<Self> {
+    pub(super) fn of(url: &Url, proxy: Option<&ProxyUrl>) -> Option<Self> {
         if url.scheme() != "http" || proxy.is_some() {
             return None;
         }
@@ -393,6 +393,15 @@ impl Failure {
     }
 }
 
+/// Whether `next`, where a redirect over h2c leads, stays on `first`'s origin, the h2c origin of
+/// the redirect's first request: the redirects the h2c connection may follow
+/// (`http-client.h2c-redirects`). The origins compare as [`leaves`] compares them, as
+/// [`Origin`]s, and not with `Url::origin`, which url 2.5.8 lets recurse through nested `blob:`
+/// URLs without bound (RUSTSEC-2026-0592).
+pub(super) fn stays_on(first: &Url, next: &Url) -> bool {
+    Origin::of(next, None).is_some_and(|next| Origin::of(first, None).as_ref() == Some(&next))
+}
+
 /// Whether `response`, an answer over h2c from `origin`, is a redirect the client stopped at
 /// because it leaves the origin: one reqwest follows (301, 302, 303, 307 or 308) whose `Location`
 /// names another origin.
@@ -417,7 +426,7 @@ pub(super) fn leaves(response: &Response, origin: &Origin) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use super::{EMPTY_SETTINGS, GOAWAY, PREFACE, opens_preface};
+    use super::{EMPTY_SETTINGS, GOAWAY, PREFACE, Url, opens_preface, stays_on};
 
     // Go: golang.org/x/net/http2 frame.go Framer.WriteSettings and WriteGoAway (the bytes
     // testdata/golden/h2.json records), and readFrameHeader with invalidHTTP1LookingFrameHeader.
@@ -465,5 +474,28 @@ mod tests {
             !opens_preface([0, 0, 4, 8, 0, 0, 0, 0, 0]),
             "a WINDOW_UPDATE first"
         );
+    }
+
+    // Go: no h2c (`http-client.h2c-redirects`): the redirects an h2c connection follows, those
+    // that stay on the scheme, host and port of its origin.
+    #[test]
+    fn redirects_stay_on_the_h2c_origin() {
+        let first = Url::parse("http://bidder.test/bid");
+        let nested = format!("{}http://bidder.test/", "blob:".repeat(10_000));
+        let cases = [
+            ("http://bidder.test:80/next?page=2", true),
+            ("http://BIDDER.test/bid", true),
+            ("http://bidder.test:8080/bid", false),
+            ("http://other.test/bid", false),
+            ("https://bidder.test/bid", false),
+            (nested.as_str(), false),
+        ];
+        for (next, stays) in cases {
+            let got = match (&first, Url::parse(next)) {
+                (Ok(first), Ok(next)) => Some(stays_on(first, &next)),
+                _ => None,
+            };
+            assert_eq!(got, Some(stays), "{next:.40}");
+        }
     }
 }
