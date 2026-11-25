@@ -28,12 +28,12 @@ Rule B's cases: (a) input real production traffic sends that the crate would rej
 | Prometheus metrics | 0 | 2 | 0 |
 | Public suffix list | 1 | 0 | 0 |
 | Regular expressions | 0 | 0 | 2 |
-| HTTP server | 0 | 24 | 4 |
+| HTTP server | 0 | 25 | 4 |
 | Time formatting | 0 | 0 | 1 |
 | TLS | 0 | 2 | 1 |
 | URLs | 0 | 1 | 0 |
 | YAML | 0 | 3 | 0 |
-| All | 5 | 99 | 26 |
+| All | 5 | 100 | 26 |
 
 ## Decisions pending
 
@@ -1237,7 +1237,7 @@ No entry names the classes `other` and `unrecorded` or the kinds `stage_missing`
 #### `server.bad-requests`: Malformed requests: net/http answers with its status text and `Connection: close`, hyper with an empty body, and they refuse different requests
 
 - **Go:** net/http refuses a request it cannot read before any handler runs, with its status text as the body, `Content-Type: text/plain; charset=utf-8` and `Connection: close` (`conn.serve`, net/http/server.go:2003-2042): 400, some with a reason such as `missing required Host header`, 431 past the head limit, 505 for an unknown version and 501 for an unknown transfer coding. It refuses a request without `Host`, with two, with a malformed one (`Host: a b`) or after a blank line, answers an expectation other than `100-continue` with 417, ignores `Transfer-Encoding` on HTTP/1.0, and serves a folded header line.
-- **Rust:** hyper's refusals have an empty body. It serves a request without `Host`, with two, with a malformed one or after a blank line, and one with any expectation; it refuses a folded header line and an HTTP/1.0 request with `Transfer-Encoding` with 400, and answers 400 where net/http has 505 and 501. A broken chunked body reaches the handler as an error on both, in the library's words. The HTTP/2 preface is `server.h2c`, the bytes of the target `server.request-target`.
+- **Rust:** hyper's refusals have an empty body. It serves a request without `Host`, with two, with a malformed one or after a blank line, and one with any expectation; it refuses a folded header line and an HTTP/1.0 request with `Transfer-Encoding` with 400, and answers 400 where net/http has 505 and 501. A broken chunked body reaches the handler as an error on both, in the library's words. The HTTP/2 preface is `server.h2c` and the bytes of the target `server.request-target`; after a 431 whose client is still sending its head, that client reads the connection's end on net/http and its end or a reset on hyper (`server.lingering-close`).
 - **Who notices:** publisher
 - **Visible in:** Answers to malformed HTTP requests
 - **Harness:** none
@@ -1381,6 +1381,18 @@ No entry names the classes `other` and `unrecorded` or the kinds `stage_missing`
 - **Pin:** `crates/server/tests/wire.rs::header_order`
 - **Recorded in:** `crates/server/differences.toml`
 
+#### `server.lingering-close`: Closing on a client still sending: net/http shuts the write side and waits 500 ms before it closes, hyper closes at once
+
+- **Go:** After the 431 for a head past the limit, and after an answer that leaves 256 KiB or more of the body unread (`requestBodyLimitHit` or `closedRequestBodyEarly`), `conn.serve` calls `closeWriteAndWait` (net/http/server.go:2007-2016 and 2082-2086): it sends the answer and a FIN, sleeps `rstAvoidanceDelay`, 500 ms, with the read side still open, and only then closes (net/http/server.go:1759-1811). A client still sending reads the whole answer and its end, and its writes are accepted for those 500 ms. Its other refusals (400, 417, 501 and 505) close at once, as hyper does.
+- **Rust:** hyper sends the answer and a FIN and closes the socket at once, so the bytes a client sends after the answer meet a reset: its next writes fail, and a client that has not yet read the end of the answer may read the reset in its place (macOS reports it first). A stack that drops unread data on a reset can lose the answer itself, as net/http's comment on `closeWriteAndWait` warns. Neither hyper nor hyper-util has a setting for a lingering close.
+- **Who notices:** publisher
+- **Visible in:** Clients that go on sending a request head past 1 MiB + 4,096 bytes after its 431, or a body of which 256 KiB or more is left unread after its answer (a 404 or 405 to a large POST): how their connection ends
+- **Harness:** none
+- **Pin:** `crates/server/tests/wire.rs::no_lingering_close`
+- **Restore option:** A wrapper around each accepted socket whose shutdown hands the socket to a task that reads and discards for 500 ms before it closes, net/http's `closeWriteAndWait`; not planned, since it is none of Rule B's four cases: the request is refused or answered alike on both.
+- **Note:** The golden's `header_over_64kib_paced`, `header_2mib_paced` and `unread_300kib` clients go on writing after the answer and read its end on net/http; on the macOS stack the golden was made on, a reset that came before that read would end them with ECONNRESET, so their end is the 500 ms wait's doing. On pbs-server they read the end or a reset as the timing falls, which `malformed_request` and `unread_body` take as one outcome.
+- **Recorded in:** `crates/server/differences.toml`
+
 #### `server.long-request-target`: Long request targets: net/http takes any the head limit allows, hyper refuses one over 65,534 bytes
 
 - **Go:** net/http reads the request line within the head limit (`readRequest`, net/http/request.go), so targets of 65,535 and 100,000 bytes are served.
@@ -1468,8 +1480,8 @@ No entry names the classes `other` and `unrecorded` or the kinds `stage_missing`
 
 #### `server.unread-body`: Request bodies a handler leaves unread: net/http reads up to 256 KiB of them and keeps the connection, hyper closes it unless one more read ends the body
 
-- **Go:** Before it writes the answer, net/http reads and discards what is left of the request body, waiting for it within the read budget, up to `maxPostHandlerReadBytes`, 256 KiB (`chunkWriter.writeHeader`, net/http/server.go:1374-1443), and keeps the connection for the next request; it answers with `Connection: close` when 256 KiB or more is left, or when the request asked for `Expect: 100-continue` and its body was not read.
-- **Rust:** hyper sends the answer at once, then makes one read of what is left of the body (`poll_drain_or_close_read`, hyper 1.12.0 src/proto/h1/conn.rs:876) and keeps the connection only when that read ends the body, a short rest that has already arrived; otherwise it closes the connection after the answer, without `connection: close`, and a client still sending the body may read a reset. Both send `100 Continue` to a handler that reads the body.
+- **Go:** Before it writes the answer, net/http reads and discards what is left of the request body, waiting for it within the read budget, up to `maxPostHandlerReadBytes`, 256 KiB (`chunkWriter.writeHeader`, net/http/server.go:1374-1443), and keeps the connection for the next request; it answers with `Connection: close` when the request asked for `Expect: 100-continue` and its body was not read, or when 256 KiB or more is left, and then waits 500 ms before it closes (`server.lingering-close`).
+- **Rust:** hyper sends the answer at once, then makes one read of what is left of the body (`poll_drain_or_close_read`, hyper 1.12.0 src/proto/h1/conn.rs:876) and keeps the connection only when that read ends the body, a short rest that has already arrived; otherwise it closes the connection after the answer, without `connection: close`, and a client still sending the body may read a reset (`server.lingering-close`). Both send `100 Continue` to a handler that reads the body.
 - **Who notices:** publisher, operator
 - **Visible in:** Connections whose request carries a body the handler answers without reading (404s, 405s and answers given before the body is read), and the connection counts that follow
 - **Harness:** none

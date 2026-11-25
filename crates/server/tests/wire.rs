@@ -4,11 +4,12 @@
 //! newSocketServer and newAdminServer on loopback: header order and case, framing, sniffed
 //! content types, the header limit and its edge, header counts, long request targets and the
 //! bytes of request targets, malformed requests, the HTTP/2 preface, the read and write budgets
-//! (scaled to 1 s), bodies a handler leaves unread, clients that go away, gziphandler's Vary and
-//! graceful shutdown. Each case is one connection and a client script of
-//! writes, pauses and closes; the same scripts run here against the same stand-in handlers on
-//! axum, served by [`pbs_server::serve`] with the budget of the Go server they stand for, and what
-//! the client read is described as the generator describes Go's answer.
+//! (scaled to 1 s), bodies a handler leaves unread, how a connection ends on a client still
+//! sending, clients that go away, gziphandler's Vary and graceful shutdown. Each case is one
+//! connection and a client script of writes, pauses and closes; the same scripts run here against
+//! the same stand-in handlers on axum, served by [`pbs_server::serve`] with the budget of the Go
+//! server they stand for, and what the client read is described as the generator describes Go's
+//! answer.
 
 #[cfg(test)]
 mod tests {
@@ -1120,12 +1121,16 @@ mod tests {
     /// or after a blank line, and one with an expectation other than 100-continue (net/http's
     /// 417), refuses a folded header and an HTTP/1.0 request with Transfer-Encoding (which
     /// net/http ignores), and its codes are 400 where net/http has 505 and 501. A body error
-    /// reaches the handler on both, in the library's words.
+    /// reaches the handler on both, in the library's words. The paced head past the limit is
+    /// still arriving when the 431 comes: net/http waits 500 ms before it closes, so its client
+    /// reads the end of the answer, and hyper closes at once, so its client reads the end or a
+    /// reset, as the timing falls (`server.lingering-close`).
     // Go: conn.serve's error answers (net/http/server.go) and readRequest's checks
     // (net/http/request.go)
     #[test]
     fn malformed_request() -> TestResult {
         let pairs = run_groups(&["malformed", "header_limit"])?;
+        let still_sending = "header_2mib_paced";
         let names = [
             "missing_host",
             "two_hosts",
@@ -1148,10 +1153,10 @@ mod tests {
             "malformed_host",
             "unknown_expectation",
             "chunked_http_10",
-            "header_2mib_paced",
         ];
+        let all: Vec<&str> = names.into_iter().chain([still_sending]).collect();
         ensure_eq(
-            &rows(&pairs, &names, go, answer)?,
+            &rows(&pairs, &all, go, answer)?,
             &[
                 "missing_host: HTTP/1.1 400 Bad Request: missing required Host header | 400 Bad \
                  Request: missing required Host header | eof",
@@ -1186,8 +1191,17 @@ mod tests {
             ],
             "net/http",
         )?;
+        let mut hyper = rows(&pairs, &names, rust, answer)?;
+        hyper.extend(rows(&pairs, &[still_sending], rust, |outcome| {
+            format!(
+                "{} | {} | {}",
+                outcome.status(),
+                outcome.body,
+                closed(outcome)
+            )
+        })?);
         ensure_eq(
-            &rows(&pairs, &names, rust, answer)?,
+            &hyper,
             &[
                 "missing_host: HTTP/1.1 200 OK | body=0 | eof",
                 "two_hosts: HTTP/1.1 200 OK | body=0 | eof",
@@ -1211,7 +1225,7 @@ mod tests {
                 "malformed_host: HTTP/1.1 200 OK | body=0 | eof",
                 "unknown_expectation: HTTP/1.1 200 OK | body=2 | eof",
                 "chunked_http_10: HTTP/1.1 400 Bad Request |  | eof",
-                "header_2mib_paced: HTTP/1.1 431 Request Header Fields Too Large |  | eof",
+                "header_2mib_paced: HTTP/1.1 431 Request Header Fields Too Large |  | closed",
             ],
             "hyper",
         )
@@ -1264,6 +1278,127 @@ mod tests {
                 "expect_unread: 200 | closed",
             ],
             "hyper",
+        )
+    }
+
+    /// How long [`still_sending`] keeps writing after the answer: well within net/http's
+    /// `rstAvoidanceDelay` (500 ms), during which its client finds the connection open.
+    const STILL_SENDING_FOR: Duration = Duration::from_millis(300);
+
+    /// A client still sending after its answer: sends `request` to `address` (write errors
+    /// ignored, as the scripts ignore them) while it reads the answer's head (for at most 5 s),
+    /// then writes a KiB every 20 ms for [`STILL_SENDING_FOR`]. Returns the status line and
+    /// `refused` when one of those writes met a reset or a broken pipe, else `accepted`.
+    async fn still_sending(address: SocketAddr, request: Vec<u8>) -> TestResult<String> {
+        let mut stream = TcpStream::connect(address).await?;
+        let (mut reader, mut writer) = stream.split();
+        let reading = async {
+            let mut head = Vec::new();
+            let mut buf = vec![0; 64 << 10];
+            while !head.windows(4).any(|window| window == b"\r\n\r\n") {
+                match reader.read(&mut buf).await {
+                    Ok(0) => break,
+                    Ok(n) => head.extend_from_slice(buf.get(..n).unwrap_or_default()),
+                    Err(e) if e.kind() == ErrorKind::ConnectionReset => break,
+                    Err(e) => return Err(BoxError::from(e)),
+                }
+            }
+            Ok(head)
+        };
+        let ((), head) = tokio::join!(
+            async { drop(writer.write_all(&request).await) },
+            time::timeout(Duration::from_secs(5), reading)
+        );
+        let head = String::from_utf8_lossy(&head??).into_owned();
+        let status = head.split("\r\n").next().unwrap_or_default().to_owned();
+        let until = Instant::now() + STILL_SENDING_FOR;
+        while Instant::now() < until {
+            match writer.write_all(&[b'a'; 1024]).await {
+                Ok(()) => time::sleep(Duration::from_millis(20)).await,
+                Err(e)
+                    if matches!(e.kind(), ErrorKind::ConnectionReset | ErrorKind::BrokenPipe) =>
+                {
+                    return Ok(format!("{status} | refused"));
+                }
+                Err(e) => return Err(e.into()),
+            }
+        }
+        Ok(format!("{status} | accepted"))
+    }
+
+    /// Where net/http ends a connection whose client is still sending (a head past the limit,
+    /// answered with 431, and an answer that leaves 256 KiB or more of the body unread), it shuts
+    /// the write side, waits 500 ms and only then closes, so the golden's clients, which go on
+    /// writing after the answer, read its end: on the macOS stack the golden was made on, a reset
+    /// that came first would end them with ECONNRESET. hyper shuts the write side and closes at
+    /// once, so the bytes a client sends after the answer meet a reset: its writes are refused
+    /// well within the 500 ms, and a client that has not yet read the end reads a reset
+    /// (`malformed_request` and `unread_body` take either).
+    // Go: conn.serve calls closeWriteAndWait after errTooLarge's 431 and when
+    // requestBodyLimitHit or closedRequestBodyEarly ends the connection, and closeWriteAndWait
+    // sleeps rstAvoidanceDelay, 500 ms, before the close (net/http/server.go:1759-1811,
+    // 2007-2016, 2082-2086)
+    #[test]
+    fn no_lingering_close() -> TestResult {
+        let doc = golden()?;
+        let names = [
+            "header_over_64kib_paced",
+            "header_2mib_paced",
+            "unread_300kib",
+        ];
+        let mut lingered = Vec::new();
+        for case in list(&doc, "/cases")? {
+            let name = text(case, "/name")?;
+            if names.contains(&name) {
+                let outcome = Outcome::go(case)?;
+                lingered.push(format!("{name}: {} | {}", outcome.status(), outcome.end));
+            }
+        }
+        ensure_eq(
+            &lingered,
+            &[
+                "header_over_64kib_paced: HTTP/1.1 431 Request Header Fields Too Large | eof",
+                "header_2mib_paced: HTTP/1.1 431 Request Header Fields Too Large | eof",
+                "unread_300kib: HTTP/1.1 200 OK | eof",
+            ],
+            "net/http",
+        )?;
+        let past_limit = usize::try_from(count(&doc, "/header_limit")?)? + (8 << 10);
+        let host = text(&doc, "/host")?;
+        let mut head = format!("GET /echo HTTP/1.1\r\nHost: {host}\r\nX-Big: ").into_bytes();
+        head.resize(past_limit, b'a');
+        let mut unread = format!(
+            "POST /typed HTTP/1.1\r\nHost: {host}\r\nContent-Length: {}\r\n\r\n",
+            300 << 10
+        )
+        .into_bytes();
+        unread.resize(unread.len() + (299 << 10), b'a');
+        let probes = runtime()?.block_on(async {
+            let server = Server::start(stand_ins(), Budget::MAIN).await?;
+            let runs = [
+                (
+                    "head_past_limit",
+                    task::spawn(still_sending(server.address, head)),
+                ),
+                (
+                    "unread_300kib",
+                    task::spawn(still_sending(server.address, unread)),
+                ),
+            ];
+            let mut probes = Vec::new();
+            for (name, run) in runs {
+                probes.push(format!("{name}: {}", run.await??));
+            }
+            drop(server);
+            Ok::<_, BoxError>(probes)
+        })?;
+        ensure_eq(
+            &probes,
+            &[
+                "head_past_limit: HTTP/1.1 431 Request Header Fields Too Large | refused",
+                "unread_300kib: HTTP/1.1 200 OK | refused",
+            ],
+            "pbs-server",
         )
     }
 
