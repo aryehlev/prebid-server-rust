@@ -202,7 +202,7 @@ jobs:
         run: .github/port/scripts/upstream-pin.sh
       - name: Restore the upstream checkout
         id: upstream
-        uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: .upstream
           key: upstream-${{ steps.pin.outputs.sha }}
@@ -210,7 +210,7 @@ jobs:
         run: scripts/fetch-upstream.sh
       - name: Save the upstream checkout
         if: steps.upstream.outputs.cache-hit != 'true' && github.ref == 'refs/heads/main'
-        uses: actions/cache/save@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: .upstream
           key: upstream-${{ steps.pin.outputs.sha }}
@@ -241,7 +241,7 @@ jobs:
         run: .github/port/scripts/upstream-pin.sh
       - name: Restore the upstream checkout
         id: upstream
-        uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: .upstream
           key: upstream-${{ steps.pin.outputs.sha }}
@@ -249,7 +249,7 @@ jobs:
         run: scripts/fetch-upstream.sh
       - name: Save the upstream checkout
         if: steps.upstream.outputs.cache-hit != 'true' && github.ref == 'refs/heads/main'
-        uses: actions/cache/save@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: .upstream
           key: upstream-${{ steps.pin.outputs.sha }}
@@ -290,7 +290,7 @@ jobs:
         run: .github/port/scripts/upstream-pin.sh
       - name: Restore the upstream checkout
         id: upstream
-        uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: .upstream
           key: upstream-${{ steps.pin.outputs.sha }}
@@ -298,7 +298,7 @@ jobs:
         run: scripts/fetch-upstream.sh
       - name: Save the upstream checkout
         if: steps.upstream.outputs.cache-hit != 'true' && github.ref == 'refs/heads/main'
-        uses: actions/cache/save@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: .upstream
           key: upstream-${{ steps.pin.outputs.sha }}
@@ -306,7 +306,7 @@ jobs:
         id: go
         run: .github/port/scripts/go-version.sh
       - name: Install Go
-        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7.1.0
         with:
           go-version: ${{ steps.go.outputs.version }}
           cache-dependency-path: "crates/**/go.sum"
@@ -334,7 +334,7 @@ jobs:
         run: .github/port/scripts/upstream-pin.sh
       - name: Restore the upstream checkout
         id: upstream
-        uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: .upstream
           key: upstream-${{ steps.pin.outputs.sha }}
@@ -342,7 +342,7 @@ jobs:
         run: scripts/fetch-upstream.sh
       - name: Save the upstream checkout
         if: steps.upstream.outputs.cache-hit != 'true' && github.ref == 'refs/heads/main'
-        uses: actions/cache/save@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: .upstream
           key: upstream-${{ steps.pin.outputs.sha }}
@@ -350,7 +350,7 @@ jobs:
         id: go
         run: .github/port/scripts/go-version.sh
       - name: Install Go
-        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7.1.0
         with:
           go-version: ${{ steps.go.outputs.version }}
           cache-dependency-path: "crates/**/go.sum"
@@ -367,7 +367,7 @@ jobs:
         with:
           persist-credentials: false
       - name: Install taplo
-        uses: taiki-e/install-action@ab49d3c64680143e184118bed66a46419fc15519 # v2.90.5
+        uses: taiki-e/install-action@25f51f6b1bf4e18876107cece836f4f77ac17c8c # v2.90.7
         with:
           tool: taplo@0.10.0
       - name: Scan for suppressions
@@ -385,12 +385,12 @@ jobs:
         with:
           persist-credentials: false
       - name: Install Go (to build actionlint)
-        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7.1.0
         with:
           go-version-file: crates/devtools/go/go.mod
           cache: false
       - name: Install shellcheck and taplo
-        uses: taiki-e/install-action@ab49d3c64680143e184118bed66a46419fc15519 # v2.90.5
+        uses: taiki-e/install-action@25f51f6b1bf4e18876107cece836f4f77ac17c8c # v2.90.7
         with:
           tool: shellcheck@0.11.0,taplo@0.10.0
       - name: Install actionlint
@@ -424,7 +424,7 @@ jobs:
           mirror=$(.github/port/scripts/upstream-mirror.sh "${RUNNER_TEMP}/upstream.git")
           printf 'PORT_TESTS_UPSTREAM_GIT=%s\n' "${mirror}" >> "${GITHUB_ENV}"
       - name: Install Go (the module sync test runs go mod tidy against a local module proxy)
-        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7.1.0
         with:
           go-version-file: crates/devtools/go/go.mod
           cache: false
@@ -443,7 +443,7 @@ jobs:
       - name: Install the toolchain from rust-toolchain.toml
         run: rustup toolchain install
       - name: Install cargo-deny
-        uses: taiki-e/install-action@ab49d3c64680143e184118bed66a46419fc15519 # v2.90.5
+        uses: taiki-e/install-action@25f51f6b1bf4e18876107cece836f4f77ac17c8c # v2.90.7
         with:
           tool: cargo-deny@0.20.2
       - name: cargo deny (advisories, bans, licenses, sources)
@@ -461,7 +461,7 @@ jobs:
       - name: Install the toolchain from rust-toolchain.toml
         run: rustup toolchain install
       - name: Install cargo-machete
-        uses: taiki-e/install-action@ab49d3c64680143e184118bed66a46419fc15519 # v2.90.5
+        uses: taiki-e/install-action@25f51f6b1bf4e18876107cece836f4f77ac17c8c # v2.90.7
         with:
           tool: cargo-machete@0.9.2
       - name: cargo machete
@@ -506,7 +506,7 @@ jobs:
         run: .github/port/scripts/upstream-pin.sh
       - name: Restore the upstream checkout
         id: upstream
-        uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: .upstream
           key: upstream-${{ steps.pin.outputs.sha }}
@@ -517,7 +517,7 @@ jobs:
       # main's): a push to it saves, and its pull requests and later pushes restore.
       - name: Save the upstream checkout
         if: steps.upstream.outputs.cache-hit != 'true' && github.ref == 'refs/heads/parity-harness'
-        uses: actions/cache/save@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: .upstream
           key: upstream-${{ steps.pin.outputs.sha }}
@@ -525,7 +525,7 @@ jobs:
         id: go
         run: .github/port/scripts/go-version.sh
       - name: Install Go
-        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7.1.0
         with:
           go-version: ${{ steps.go.outputs.version }}
           cache-dependency-path: |
