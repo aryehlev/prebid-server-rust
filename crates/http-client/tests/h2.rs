@@ -1229,21 +1229,20 @@ mod tests {
         })
     }
 
-    /// What a bid request to `/slow` with a deadline, and one dropped while it waits, come to:
-    /// the deadline's error, the streams the bidder saw reset, the `GotConn` events of a request
-    /// after each (the first response on its connection, then a reused one), and the connections
-    /// the bidder accepted and saw with prior knowledge.
-    type Stopped = (
-        String,
-        Vec<String>,
-        Vec<String>,
-        Vec<String>,
-        (usize, usize),
-    );
+    /// What a bid request to `/slow` with a deadline, and one dropped while it waits, come to on
+    /// the connection a first bid request opened: the deadline's error, the streams the bidder
+    /// saw reset, the `GotConn` events of the first request (the first response on its
+    /// connection) and of a request after each (reused ones), and the connections the bidder
+    /// accepted and saw with prior knowledge.
+    type Stopped = (String, Vec<String>, [Vec<String>; 3], (usize, usize));
 
     /// [`Stopped`] over `transport`.
     async fn stopped(transport: &str, pki: &TestPki, doc: &Value) -> Result<Stopped, BoxError> {
         let (bidder, client, base) = on_h2(transport, pki, doc).await?;
+        // The connection is up before the deadline starts, so the deadline passes on an open
+        // stream: on a loaded machine a handshake can outlast it, and the request then fails
+        // with no stream to reset.
+        let (_, opened) = traced_post(&client, &format!("{base}/bid")).await?;
         let slow = format!("{base}/slow");
         let deadline = Instant::now().checked_add(WAIT).ok_or("no deadline")?;
         let timed_out = match client.send(bid(&slow)?, Some(deadline), None).await {
@@ -1279,8 +1278,7 @@ mod tests {
         Ok((
             timed_out,
             seen.resets,
-            after_deadline,
-            after_drop,
+            [opened, after_deadline, after_drop],
             connections,
         ))
     }
@@ -1300,13 +1298,17 @@ mod tests {
             // accepted; over h2c the one with prior knowledge, beside the probe's request's and
             // the probe's.
             let want = |transport, connections| {
+                let reused = vec!["GotConn reused=true".to_owned()];
                 (
                     transport,
                     (
                         "DeadlineExceeded context deadline exceeded".to_owned(),
                         vec!["/slow CANCEL".to_owned(); 2],
-                        vec!["GotConn reused=false".to_owned()],
-                        vec!["GotConn reused=true".to_owned()],
+                        [
+                            vec!["GotConn reused=false".to_owned()],
+                            reused.clone(),
+                            reused,
+                        ],
                         connections,
                     ),
                 )
@@ -1314,8 +1316,8 @@ mod tests {
             check_eq(
                 &got,
                 &vec![want("h2", (1, 0)), want("h2c", (3, 1))],
-                "each transport: the deadline's error, the resets, the connection after each, the \
-                 connections",
+                "each transport: the deadline's error, the resets, the connection of the first \
+                 request and of one after each, the connections",
             )
         })
     }
