@@ -165,7 +165,9 @@ note = """\
     HTTP/1.x answer and read the request again. A request hyper's client queues in the instant \
     the connection's task ends, after the task emptied its queue, stays queued until its deadline \
     and fails as one, and the verdict stays: a race between hyper's request queue (tokio's \
-    unbounded channel) and the connection's end, not this crate's."""
+    unbounded channel) and the connection's end, not this crate's. A request sent again can \
+    report two DNS lookups to its trace (the DNS time metric), its h2c connection's and its \
+    HTTP/1.1 connection's, where Go's one HTTP/1.1 request reports one."""
 
 [[difference]]
 id = "http-client.h2c-redirects"
