@@ -861,7 +861,13 @@ mod tests {
 
     /// What two bid requests to a cleartext bidder doing `preface` come to: the protocols of
     /// their answers, the bytes of the probe the first started, the requests the bidder read
-    /// (sorted), the probes it saw begin and the connections it accepted.
+    /// (sorted), the probes it saw begin and the connections that opened with prior knowledge.
+    ///
+    /// Not every connection it accepted: hyper-util's client hands an HTTP/1.1 connection back to
+    /// its pool from a task of its own once the connection is ready again, so the second request,
+    /// which can follow the first at once, can open another under load, where Go's Transport has
+    /// the connection back in its pool before the body's reader sees EOF
+    /// (net/http/transport.go:2316-2320).
     type Probed = (Vec<String>, Vec<String>, Vec<String>, usize, usize);
 
     /// [`Probed`] for `preface`.
@@ -874,7 +880,6 @@ mod tests {
         let after = post(&client, &url).await?;
         let mut seen = bidder.seen();
         seen.requests.sort();
-        let accepted = bidder.accepted();
         drop(client);
         let _counts = bidder.close().await;
         Ok((
@@ -882,7 +887,7 @@ mod tests {
             probed.probes,
             seen.requests,
             seen.probing,
-            accepted,
+            seen.prior,
         ))
     }
 
@@ -919,10 +924,10 @@ mod tests {
                 } else {
                     hello.clone()
                 };
-                let accepted = if h2c { 3 } else { 2 };
+                let prior = usize::from(h2c);
                 want.push((
                     name.to_owned(),
-                    (vec![http1(), after], vec![sent], requests, 1, accepted),
+                    (vec![http1(), after], vec![sent], requests, 1, prior),
                 ));
             }
             got.push((
@@ -936,14 +941,14 @@ mod tests {
                     vec![hello.clone()],
                     vec![line("HTTP/1.1"), line("HTTP/1.1")],
                     1,
-                    2,
+                    0,
                 ),
             ));
             check_eq(
                 &got,
                 &want,
                 "each server's probe: the protocols before and after it, what it sent, the \
-                 requests read, the probes and the connections",
+                 requests read, the probes and the connections with prior knowledge",
             )
         })
     }
