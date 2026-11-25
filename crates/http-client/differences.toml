@@ -358,8 +358,9 @@ go = """\
     malformed escape in the path."""
 rust = """\
     The url crate escapes those query bytes, resolves dot segments, reads a backslash as a \
-    slash, keeps `|` and `^`, drops tabs and newlines and keeps a malformed escape. Over the 409 \
-    adapter fixture URIs and the 393 rendered bidder-info endpoints every target is Go's."""
+    slash, keeps `|` (since url 2.5.9 it escapes `^` like Go), drops tabs and newlines and \
+    keeps a malformed escape. Over the 409 adapter fixture URIs and the 393 rendered \
+    bidder-info endpoints every target is Go's."""
 who = ["bidder"]
 visible_in = """\
     The request line of bidder requests whose URL holds such bytes, which adapters that write \

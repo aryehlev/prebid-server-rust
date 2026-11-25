@@ -188,8 +188,9 @@ mod tests {
                     ),
                     // A backslash is a slash to the url crate, and Go escapes it.
                     ("http://bidder.test/p\\q", sent("/p/q", "bidder.test")),
-                    // Go escapes `|` and `^` in the path; the url crate keeps them.
-                    ("http://bidder.test/p|x^y", sent("/p|x^y", "bidder.test")),
+                    // Go escapes `|` and `^` in the path; the url crate keeps `|` and, since
+                    // 2.5.9, escapes `^` too.
+                    ("http://bidder.test/p|x^y", sent("/p|x%5Ey", "bidder.test")),
                     ("http://bidder.test:80/p", sent("/p", "bidder.test")),
                     ("https://bidder.test:443/p", sent("/p", "bidder.test")),
                 ]
