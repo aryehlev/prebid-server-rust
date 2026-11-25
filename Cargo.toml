@@ -61,7 +61,7 @@ bytes = "1.12.1"
 config = { version = "0.15.27", default-features = false, features = ["json", "toml"] }
 # No features: Go writes and reads cookie values raw, and percent-encode's encoded() would turn
 # the base64 padding of the uids value into %3D.
-cookie = "0.18.2"
+cookie = "0.18.3"
 flate2 = "1.1.11"
 futures-util = "0.3.34"
 # pbs-server's HTTP/1.1-only connection builder (Go's header limit and read budget, which
@@ -111,7 +111,7 @@ tower-http = { version = "0.6.11", features = ["compression-gzip", "cors", "fs",
 # No attributes feature: tracing-attributes is on syn 2.
 tracing = { version = "0.1.44", default-features = false, features = ["std"] }
 tracing-subscriber = { version = "0.3.23", features = ["env-filter"] }
-url = "2.5.8"
+url = "2.5.9"
 
 # Stack entries that no member uses yet (orchestrator ruling 6). Each waits here as its exact
 # lines and comments, every line behind one more "# ". The first unit that uses an entry moves it

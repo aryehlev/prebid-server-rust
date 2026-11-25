@@ -513,7 +513,7 @@ No entry names the classes `other` and `unrecorded` or the kinds `stage_missing`
 #### `http-client.request-target`: Request-target: Go writes `url.Parse` then `RequestURI`, reqwest the url crate's WHATWG serialisation
 
 - **Go:** Go sends the path re-escaped only where it is no valid encoding (`|`, `^` and a backslash escaped, dot segments kept) and the query as written, so a space, quote, apostrophe, `<`, `>` or non-ASCII byte in it goes out raw; it refuses a URL with a control character or a malformed escape in the path.
-- **Rust:** The url crate escapes those query bytes, resolves dot segments, reads a backslash as a slash, keeps `|` and `^`, drops tabs and newlines and keeps a malformed escape. Over the 409 adapter fixture URIs and the 393 rendered bidder-info endpoints every target is Go's.
+- **Rust:** The url crate escapes those query bytes, resolves dot segments, reads a backslash as a slash, keeps `|` (since url 2.5.9 it escapes `^` like Go), drops tabs and newlines and keeps a malformed escape. Over the 409 adapter fixture URIs and the 393 rendered bidder-info endpoints every target is Go's.
 - **Who notices:** bidder
 - **Visible in:** The request line of bidder requests whose URL holds such bytes, which adapters that write publisher values into their URL unescaped can send
 - **Harness:** none
