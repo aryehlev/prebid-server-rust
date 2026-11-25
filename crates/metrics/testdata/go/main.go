@@ -3,7 +3,8 @@
 // It builds the real Go Prometheus metrics engine (metrics/prometheus.NewMetrics) for every
 // scenario of a script, replays the scenario's scripted MetricsEngine calls, scrapes the engine
 // through the same promhttp handler server/prometheus.go uses, and writes the exposition text.
-// The Rust tests replay the same script and compare byte for byte.
+// The Rust tests replay the same script and compare the families and samples of both scrapes
+// (semantics.txt), and the lines of the committed scrapes.
 //
 // Run from the directory of this module, crates/metrics/testdata/go (the generated script is
 // rewritten first, then every script is replayed):
@@ -37,20 +38,27 @@
 //	to_lower.txt           "<rune hex> <lower hex>" for every rune strings.ToLower changes
 //	quote_ranges.txt       "<lo hex> <hi hex>" runs of runes strconv.Quote escapes
 //	quote_samples.txt      "<rune hex> <strconv.Quote>" for sampled runes
+//	semantics.txt          the families and samples of every complete scrape (see writeSemantics)
+//	go_families.txt        "<name> <type>" of every Go collector family under the prefix pbs_
+//	negotiation.txt        what the promhttp handler answers each Accept and Accept-Encoding with
+//	label_collision.prom   adapter_errors series whose label values concatenate to the same text
 package main
 
 import (
 	"bufio"
+	"encoding/hex"
 	"flag"
 	"fmt"
 	"hash/fnv"
 	"log"
 	"math"
 	"math/rand"
+	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"os"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -104,10 +112,13 @@ func main() {
 	if err := os.MkdirAll(*outDir, 0o755); err != nil {
 		log.Fatal(err)
 	}
-	var digests strings.Builder
+	var digests, semantics strings.Builder
 	for _, s := range scenarios {
 		body, contentType, err := run(s)
 		if err != nil {
+			log.Fatalf("scenario %s: %v", s.name, err)
+		}
+		if err := writeSemantics(&semantics, s.name, body); err != nil {
 			log.Fatalf("scenario %s: %v", s.name, err)
 		}
 		if !s.digestOnly {
@@ -125,6 +136,18 @@ func main() {
 		fmt.Fprintf(&digests, "%s %d %016x\n", s.name, len(body), h.Sum64())
 	}
 	if err := os.WriteFile(filepath.Join(*outDir, "digests.txt"), []byte(digests.String()), 0o644); err != nil {
+		log.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(*outDir, "semantics.txt"), []byte(semantics.String()), 0o644); err != nil {
+		log.Fatal(err)
+	}
+	if err := writeGoFamilies(filepath.Join(*outDir, "go_families.txt")); err != nil {
+		log.Fatal(err)
+	}
+	if err := writeNegotiation(filepath.Join(*outDir, "negotiation.txt")); err != nil {
+		log.Fatal(err)
+	}
+	if err := writeLabelCollision(filepath.Join(*outDir, "label_collision.prom")); err != nil {
 		log.Fatal(err)
 	}
 	if err := writeCoreBidderNames(filepath.Join(*outDir, "core_bidder_names.txt")); err != nil {
@@ -273,13 +296,7 @@ func run(s *scenario) (string, string, error) {
 		}
 	}
 
-	// Same handler options as server/prometheus.go (ErrorLog only logs).
-	handler := promhttp.HandlerFor(m.Gatherer, promhttp.HandlerOpts{
-		MaxRequestsInFlight: 5,
-		Timeout:             10 * time.Second,
-	})
-	rec := httptest.NewRecorder()
-	handler.ServeHTTP(rec, httptest.NewRequest("GET", "/metrics", nil))
+	rec := scrape(m, httptest.NewRequest("GET", "/metrics", nil))
 	if rec.Code != 200 {
 		return "", "", fmt.Errorf("scrape returned %d", rec.Code)
 	}
@@ -291,6 +308,281 @@ func run(s *scenario) (string, string, error) {
 		prefix += s.cfg.Subsystem + "_"
 	}
 	return dropGoCollector(rec.Body.String(), prefix+"go_"), rec.Header().Get("Content-Type"), nil
+}
+
+// scrape serves req with the promhttp handler server/prometheus.go builds (the same options;
+// ErrorLog only logs).
+func scrape(m *prometheusmetrics.Metrics, req *http.Request) *httptest.ResponseRecorder {
+	handler := promhttp.HandlerFor(m.Gatherer, promhttp.HandlerOpts{
+		MaxRequestsInFlight: 5,
+		Timeout:             10 * time.Second,
+	})
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+	return rec
+}
+
+// writeSemantics appends "<scenario> <families> <samples> <semantic> <values>" for a complete
+// scrape, or "<scenario> panic" when NewMetrics panicked. <families> and <samples> are counts;
+// <semantic> is the FNV-1a 64 digest of the scrape's families (name, TYPE and unescaped HELP)
+// and samples (name, unescaped label set and value) in sorted order, whatever the order and
+// spelling of the scrape; <values> is the digest of the scrape's lines in their order with each
+// sample value in canonical form, so only the spelling of the values is left out. Both sides
+// compute the same digests from their own scrape (pbs-metrics' golden_test.rs).
+func writeSemantics(b *strings.Builder, name, body string) error {
+	if strings.HasPrefix(body, "panic: ") {
+		fmt.Fprintf(b, "%s panic\n", name)
+		return nil
+	}
+	e, err := readExposition(body)
+	if err != nil {
+		return err
+	}
+	families, samples, semantic, values := e.digests()
+	fmt.Fprintf(b, "%s %d %d %016x %016x\n", name, families, samples, semantic, values)
+	return nil
+}
+
+// exposition is a text scrape read back: the HELP and TYPE of each family, a canonical record
+// of each sample, and the lines with each sample value in canonical form.
+type exposition struct {
+	help, typ map[string]string
+	samples   []string
+	lines     []string
+}
+
+// readExposition parses a scrape in the text format 0.0.4 as client_golang writes it.
+func readExposition(text string) (*exposition, error) {
+	e := &exposition{help: map[string]string{}, typ: map[string]string{}}
+	for _, line := range strings.SplitAfter(text, "\n") {
+		if line == "" {
+			continue
+		}
+		line = strings.TrimSuffix(line, "\n")
+		switch {
+		case strings.HasPrefix(line, "# HELP "):
+			name, help, _ := strings.Cut(line[len("# HELP "):], " ")
+			e.help[name] = unescape(help, false)
+			e.lines = append(e.lines, line)
+		case strings.HasPrefix(line, "# TYPE "):
+			name, typ, _ := strings.Cut(line[len("# TYPE "):], " ")
+			e.typ[name] = typ
+			e.lines = append(e.lines, line)
+		default:
+			name, pairs, value, err := parseSample(line)
+			if err != nil {
+				return nil, fmt.Errorf("%q: %v", line, err)
+			}
+			canonical, err := canonicalValue(value)
+			if err != nil {
+				return nil, fmt.Errorf("%q: %v", line, err)
+			}
+			sort.Strings(pairs)
+			e.samples = append(e.samples, "S "+hexOf(name)+" "+strings.Join(pairs, ",")+" "+canonical)
+			e.lines = append(e.lines, line[:strings.LastIndexByte(line, ' ')]+" "+canonical)
+		}
+	}
+	return e, nil
+}
+
+// digests returns the family and sample counts and the semantic and values digests.
+func (e *exposition) digests() (int, int, uint64, uint64) {
+	names := map[string]bool{}
+	for n := range e.help {
+		names[n] = true
+	}
+	for n := range e.typ {
+		names[n] = true
+	}
+	var records []string
+	for n := range names {
+		records = append(records, "F "+hexOf(n)+" "+e.typ[n]+" "+hexOf(e.help[n]))
+	}
+	sort.Strings(records)
+	samples := append([]string(nil), e.samples...)
+	sort.Strings(samples)
+	records = append(records, samples...)
+	return len(names), len(e.samples), fnv64a(strings.Join(records, "\n") + "\n"), fnv64a(strings.Join(e.lines, "\n") + "\n")
+}
+
+// parseSample splits a sample line into its name, its label pairs as "<hex name>=<hex value>"
+// with the values unescaped, and its value token.
+func parseSample(line string) (string, []string, string, error) {
+	cut := strings.LastIndexByte(line, ' ')
+	if cut < 0 {
+		return "", nil, "", fmt.Errorf("no value")
+	}
+	head, value := line[:cut], line[cut+1:]
+	open := strings.IndexByte(head, '{')
+	if open < 0 {
+		return head, nil, value, nil
+	}
+	if !strings.HasSuffix(head, "}") {
+		return "", nil, "", fmt.Errorf("unterminated labels")
+	}
+	var pairs []string
+	rest := head[open+1 : len(head)-1]
+	for rest != "" {
+		eq := strings.IndexByte(rest, '=')
+		if eq < 0 || eq+1 >= len(rest) || rest[eq+1] != '"' {
+			return "", nil, "", fmt.Errorf("bad label at %q", rest)
+		}
+		end := eq + 2
+		for ; end < len(rest) && rest[end] != '"'; end++ {
+			if rest[end] == '\\' {
+				end++
+			}
+		}
+		if end >= len(rest) {
+			return "", nil, "", fmt.Errorf("unterminated label value at %q", rest)
+		}
+		pairs = append(pairs, hexOf(rest[:eq])+"="+hexOf(unescape(rest[eq+2:end], true)))
+		rest = rest[end+1:]
+		if strings.HasPrefix(rest, ",") {
+			rest = rest[1:]
+		} else if rest != "" {
+			return "", nil, "", fmt.Errorf("bad label separator at %q", rest)
+		}
+	}
+	return head[:open], pairs, value, nil
+}
+
+// unescape reads the text format's escapes: \\ and \n, and \" in a label value (quote).
+func unescape(s string, quote bool) string {
+	var b strings.Builder
+	for i := 0; i < len(s); i++ {
+		if s[i] == '\\' && i+1 < len(s) {
+			switch next := s[i+1]; {
+			case next == '\\':
+				b.WriteByte('\\')
+				i++
+				continue
+			case next == 'n':
+				b.WriteByte('\n')
+				i++
+				continue
+			case next == '"' && quote:
+				b.WriteByte('"')
+				i++
+				continue
+			}
+		}
+		b.WriteByte(s[i])
+	}
+	return b.String()
+}
+
+// canonicalValue is a sample value as both sides compare it: "NaN", "0" for either zero, else
+// the IEEE-754 bits in hex.
+func canonicalValue(token string) (string, error) {
+	f, err := strconv.ParseFloat(token, 64)
+	switch {
+	case err != nil:
+		return "", err
+	case math.IsNaN(f):
+		return "NaN", nil
+	case f == 0:
+		return "0", nil
+	}
+	return fmt.Sprintf("%016x", math.Float64bits(f)), nil
+}
+
+func hexOf(s string) string { return hex.EncodeToString([]byte(s)) }
+
+func fnv64a(s string) uint64 {
+	h := fnv.New64a()
+	h.Write([]byte(s))
+	return h.Sum64()
+}
+
+// writeGoFamilies writes "<name> <type>" for each family the Go collector adds to the scrape,
+// registered as NewMetrics registers it (prometheus.go:584-585), with the namespace pbs.
+func writeGoFamilies(path string) error {
+	m := prometheusmetrics.NewMetrics(config.PrometheusMetrics{Namespace: "pbs"}, config.DisabledMetrics{}, nil, nil)
+	families, err := m.Gatherer.Gather()
+	if err != nil {
+		return err
+	}
+	var b strings.Builder
+	for _, f := range families {
+		if strings.HasPrefix(f.GetName(), "pbs_go_") {
+			fmt.Fprintf(&b, "%s %s\n", f.GetName(), strings.ToLower(f.GetType().String()))
+		}
+	}
+	return os.WriteFile(path, []byte(b.String()), 0o644)
+}
+
+// negotiationAccepts are the Accept headers of writeNegotiation: none, the text format, the
+// three protobuf encodings expfmt.Negotiate knows, OpenMetrics (which Prebid leaves off) and
+// types no format answers.
+var negotiationAccepts = []string{
+	"",
+	"text/plain",
+	"text/plain; version=0.0.4",
+	"*/*",
+	"application/vnd.google.protobuf;proto=io.prometheus.client.MetricFamily;encoding=delimited",
+	"application/vnd.google.protobuf;proto=io.prometheus.client.MetricFamily;encoding=text",
+	"application/vnd.google.protobuf;proto=io.prometheus.client.MetricFamily;encoding=compact-text",
+	"application/vnd.google.protobuf;proto=io.prometheus.client.MetricFamily;encoding=delimited;q=0.7,text/plain;version=0.0.4;q=0.3",
+	"application/openmetrics-text; version=0.0.1",
+	"application/openmetrics-text; version=1.0.0",
+	"application/json",
+}
+
+// writeNegotiation writes "<accept>\t<accept-encoding>\t<status>\t<content-type>\t<content-encoding>"
+// for each Accept of negotiationAccepts and each Accept-Encoding of none, gzip and gzip;q=0, as
+// server/prometheus.go's handler answers a GET of /metrics; a header that is absent is "-".
+func writeNegotiation(path string) error {
+	m := prometheusmetrics.NewMetrics(config.PrometheusMetrics{Port: 8080}, config.DisabledMetrics{}, nil, nil)
+	var b strings.Builder
+	for _, accept := range negotiationAccepts {
+		for _, encoding := range []string{"", "gzip", "gzip;q=0"} {
+			req := httptest.NewRequest("GET", "/metrics", nil)
+			if accept != "" {
+				req.Header.Set("Accept", accept)
+			}
+			if encoding != "" {
+				req.Header.Set("Accept-Encoding", encoding)
+			}
+			rec := scrape(m, req)
+			fmt.Fprintf(&b, "%s\t%s\t%d\t%s\t%s\n", orDash(accept), orDash(encoding), rec.Code,
+				orDash(rec.Header().Get("Content-Type")), orDash(rec.Header().Get("Content-Encoding")))
+		}
+	}
+	return os.WriteFile(path, []byte(b.String()), 0o644)
+}
+
+func orDash(s string) string {
+	if s == "" {
+		return "-"
+	}
+	return s
+}
+
+// writeLabelCollision writes the adapter_errors series of two adapters whose label values
+// concatenate to the same text: adapter x with the error tmaxtimeout and adapter xtmax with the
+// error timeout, each recorded once (namespace pbs).
+func writeLabelCollision(path string) error {
+	m := prometheusmetrics.NewMetrics(config.PrometheusMetrics{Namespace: "pbs"}, config.DisabledMetrics{}, nil, nil)
+	m.RecordAdapterRequest(metrics.AdapterLabels{
+		Adapter:       "x",
+		AdapterErrors: map[metrics.AdapterError]struct{}{metrics.AdapterErrorTmaxTimeout: {}},
+	})
+	m.RecordAdapterRequest(metrics.AdapterLabels{
+		Adapter:       "xtmax",
+		AdapterErrors: map[metrics.AdapterError]struct{}{metrics.AdapterErrorTimeout: {}},
+	})
+	rec := scrape(m, httptest.NewRequest("GET", "/metrics", nil))
+	if rec.Code != 200 {
+		return fmt.Errorf("scrape returned %d", rec.Code)
+	}
+	var b strings.Builder
+	for _, line := range strings.SplitAfter(rec.Body.String(), "\n") {
+		if a, ok := adapterLabel(line); ok && (a == "x" || a == "xtmax") && strings.HasPrefix(line, "pbs_adapter_errors{") {
+			b.WriteString(line)
+		}
+	}
+	return os.WriteFile(path, []byte(b.String()), 0o644)
 }
 
 // dropGoCollector removes every line that belongs to a family whose name starts with goPrefix.

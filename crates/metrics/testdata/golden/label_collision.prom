@@ -1,0 +1,2 @@
+pbs_adapter_errors{adapter="x",adapter_error="tmaxtimeout"} 1
+pbs_adapter_errors{adapter="xtmax",adapter_error="timeout"} 1
