@@ -48,8 +48,8 @@ key and no per-bidder setting. Go's server sends every bidder request over HTTP/
 client here stays on HTTP/1.1, as router.go's clients do, and so do the currency and analytics
 clients, which Go's `http.DefaultTransport` would take to h2 (`http-client.default-transport-h2`).
 Only the framing changes: a bid request carries the same method, path, fields and body over
-HTTP/2 as over HTTP/1.1, less the connection-specific fields HTTP/2 forbids (below), and auction
-results differ from Go's only in the fallback and redirect cases below.
+HTTP/2 as over HTTP/1.1, but for the fields the last item below names, and auction results differ
+from Go's only in the fallback and redirect cases below.
 
 - **HTTPS bidders.** The TLS handshake offers ALPN `h2` and `http/1.1`, and requests go in
   whichever the bidder picks.
@@ -77,18 +77,19 @@ results differ from Go's only in the fallback and redirect cases below.
   that keeps redirecting to another origin loses those requests once in every ten minutes or so.
 - **Proxies.** A request that goes through a proxy never takes h2c and starts no probe. An https
   request through a proxy negotiates h2 with the bidder inside the proxy's tunnel.
-- **What differs on the wire.** HTTP/2's framing, header compression and SETTINGS are those of
-  the `h2` crate, not Go's, and field names are in lower case, as they are over HTTP/1.1 here.
+- **What differs on the wire.** HTTP/2's framing, header compression and SETTINGS are those of the
+  `h2` crate, not Go's, and field names are in lower case, as they are over HTTP/1.1 here.
   `User-Agent` stays `Go-http-client/1.1`, where Go's own HTTP/2 sends `Go-http-client/2.0`. The
-  host goes as the `:authority` pseudo-header field, and the connection-specific fields HTTP/2
-  forbids are left out, as Go's own HTTP/2 leaves them out: gamma's adapter adds
-  `Connection: keep-alive`, which Go's bidder client sends and a gamma that takes h2 no longer
-  gets. A request whose stream the bidder refuses unread (`REFUSED_STREAM`), or leaves out of a
-  graceful `GOAWAY`, goes again over HTTP/2, at most twice more. One connection carries a
-  bidder's concurrent requests, so the adapter connection metrics count fewer new connections
-  than Go's, and the probe's connection is in none of them. `max_connections_per_host` still caps
-  the requests in flight to a bidder, and response header fields may take up to 10 MiB, as Go's
-  Transport allows.
+  host goes as the `:authority` pseudo-header field. A POST without a body carries
+  `content-length: 0`, as Go's does, where this client's HTTP/1.1 sends no length. The
+  connection-specific fields HTTP/2 forbids are left out, as Go's own HTTP/2 leaves them out:
+  gamma's adapter adds `Connection: keep-alive`, which Go's bidder client sends and a gamma that
+  takes h2 no longer gets. A request whose stream the bidder refuses unread (`REFUSED_STREAM`), or
+  leaves out of a graceful `GOAWAY`, goes again over HTTP/2, at most twice more. One connection
+  carries a bidder's concurrent requests, so the adapter connection metrics count fewer new
+  connections than Go's, and the probe's connection is in none of them. `max_connections_per_host`
+  still caps the requests in flight to a bidder, and response header fields may take up to 10 MiB,
+  as Go's Transport allows.
 
 The ledger records each of these in [docs/DIFFERENCES.md](docs/DIFFERENCES.md):
 `http-client.http2`, `http-client.h2c-probe`, `http-client.h2c-demotion`,

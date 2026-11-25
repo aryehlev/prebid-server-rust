@@ -95,9 +95,11 @@ rust = """\
     probe with SETTINGS (`http-client.h2c-probe`), from the origin's request after the probe. \
     `User-Agent` stays `Go-http-client/1.1` on h2 (D-UA), where Go's HTTP/2 sends \
     `Go-http-client/2.0`. The request's fields and body are the ones it carries over HTTP/1.1, \
-    its host going as the `:authority` pseudo-header field, less the connection-specific fields \
-    that HTTP/2 forbids (RFC 9113 section 8.2.2), which hyper leaves out as Go's HTTP/2 client \
-    does: gamma's `Connection: keep-alive` (adapters/gamma/gamma.go:134), which Go's bidder \
+    its host going as the `:authority` pseudo-header field, with two exceptions. A POST, PUT or \
+    PATCH without a body carries `content-length: 0`, as Go's requests do over HTTP/1.1, so \
+    `http-client.empty-body-length` holds over HTTP/1.1 only. The connection-specific fields \
+    that HTTP/2 forbids (RFC 9113 section 8.2.2) are left out, as Go's HTTP/2 client leaves \
+    them out: gamma's `Connection: keep-alive` (adapters/gamma/gamma.go:134), which Go's bidder \
     client sends, does not reach a gamma that takes h2. A request whose stream the bidder \
     refuses unread (`REFUSED_STREAM`), or leaves out of a graceful `GOAWAY`, goes again over \
     HTTP/2, at most twice more (reqwest's default retry of protocol NACKs), as Go's HTTP/2 \
@@ -116,9 +118,11 @@ note = """\
     pseudo-header fields, fields and body with the ones Go's HTTP/2 client sends, \
     `crates/http-client/tests/h2.rs::connection_fields_dropped_on_h2` compares gamma's with the \
     head Go's bidder client writes over HTTP/1.1 and the requests Go's HTTP/2 client sends \
-    (testdata/golden/h2.json), and `crates/http-client/tests/h2.rs::refused_streams_go_again` \
-    pins the requests sent again after a refused stream. Over h2c, a request refused three times \
-    fails as `http-client.h2c-demotion` says."""
+    (testdata/golden/h2.json), `crates/http-client/tests/h2.rs::empty_bodies_framed_on_h2` \
+    compares the lengths of requests without a body with Go's (testdata/golden/headers.json), \
+    and `crates/http-client/tests/h2.rs::refused_streams_go_again` pins the requests sent again \
+    after a refused stream. Over h2c, a request refused three times fails as \
+    `http-client.h2c-demotion` says."""
 
 [[difference]]
 id = "http-client.h2c-probe"

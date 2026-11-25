@@ -1350,6 +1350,66 @@ mod tests {
         })
     }
 
+    // Go: net/http/transfer.go transferWriter.shouldSendContentLength (Content-Length: 0 for a
+    // POST, PUT or PATCH without a body, none for a DELETE: headers.json's cases post_empty to
+    // delete_empty). hyper's HTTP/2 client writes the same lengths, where its HTTP/1.1 writes none
+    // (http-client.empty-body-length).
+    #[test]
+    fn empty_bodies_framed_on_h2() -> TestResult {
+        run(async {
+            let doc = golden("h2.json")?;
+            let heads = golden("headers.json")?;
+            let pki = TestPki::new()?;
+            let lengths = |lines: &[String], prefix: &str| -> Vec<String> {
+                lines
+                    .iter()
+                    .filter_map(|line| line.strip_prefix(prefix))
+                    .map(ToOwned::to_owned)
+                    .collect()
+            };
+            let mut got = Vec::new();
+            let mut want = Vec::new();
+            for transport in ["h2", "h2c"] {
+                let (bidder, client, base) = on_h2(transport, &pki, &doc).await?;
+                for case in list(&heads, "/cases")? {
+                    let name = text(case, "/name")?;
+                    if !name.ends_with("_empty") {
+                        continue;
+                    }
+                    let method = text(case, "/method")?;
+                    let protocol =
+                        sent(&client, request(method, &format!("{base}/p?q=1"))?).await?;
+                    let read = bidder
+                        .seen()
+                        .h2
+                        .last()
+                        .cloned()
+                        .ok_or("no HTTP/2 request")?;
+                    got.push((
+                        transport,
+                        name.to_owned(),
+                        protocol,
+                        lengths(&read.1, "content-length: "),
+                    ));
+                    want.push((
+                        transport,
+                        name.to_owned(),
+                        "HTTP/2.0".to_owned(),
+                        lengths(&strings(case, "/head")?, "Content-Length: "),
+                    ));
+                }
+                drop(client);
+                let _counts = bidder.close().await;
+            }
+            check_eq(
+                &got,
+                &want,
+                "each transport and bodiless case of headers.json: the protocol, and the \
+                 content-length the bidder read (Go's)",
+            )
+        })
+    }
+
     // Go: none: Go's bidder client speaks HTTP/1.1, which has no REFUSED_STREAM. reqwest's default
     // retry policy (its retry module: protocol NACKs) sends a request whose stream the server
     // refused unprocessed (RFC 9113 section 8.7) again, at most twice, as Go's HTTP/2 client sends
