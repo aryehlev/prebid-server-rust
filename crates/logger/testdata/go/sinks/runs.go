@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -23,7 +24,8 @@ const (
 )
 
 // runs are the golden's child runs: the stderr flags with the four facade levels, the file flags,
-// the flags glog accepts and Prebid Server never uses, Fatalf, and the standard logger.
+// the flags glog accepts and Prebid Server never uses, Fatalf, the standard logger, and what glog
+// does to a long message and to one that ends with a newline.
 var runs = []struct {
 	scenario string
 	args     []string
@@ -50,6 +52,7 @@ var runs = []struct {
 	{"fatal", []string{"-stderrthreshold=FATAL"}},
 	{"stdlog", []string{}},
 	{"stdlog", []string{"-logtostderr"}},
+	{"message", []string{"-logtostderr"}},
 }
 
 type sinksDoc struct {
@@ -58,7 +61,10 @@ type sinksDoc struct {
 	Messages map[string]string `json:"messages"`
 	Fatal    string            `json:"fatal_message"`
 	Std      string            `json:"std_message"`
-	Runs     []runDoc          `json:"runs"`
+	// Long is the length of the message scenario's long message; Newline its other message.
+	Long    int      `json:"long_message_length"`
+	Newline string   `json:"newline_message"`
+	Runs    []runDoc `json:"runs"`
 }
 
 type runDoc struct {
@@ -71,6 +77,15 @@ type runDoc struct {
 	Files []fileDoc `json:"files"`
 	// Links are the symlinks glog made in -log_link, to the files in Dir.
 	Links []fileDoc `json:"links,omitempty"`
+	// Raw is the message scenario's stderr cut after each newline, each piece with its length.
+	Raw []rawLine `json:"raw,omitempty"`
+}
+
+// rawLine is a piece of output up to and with its newline: the glog header's time and thread
+// id are placeholders and every run of more than 16 x's is written x*N.
+type rawLine struct {
+	Text  string `json:"text"`
+	Bytes int    `json:"bytes"`
 }
 
 // entry is one line of output: a glog line, a standard logger line, a stack dump or the
@@ -91,7 +106,10 @@ type fileDoc struct {
 }
 
 func build(h header) sinksDoc {
-	doc := sinksDoc{Header: h, Messages: map[string]string{}, Fatal: fatalMessage, Std: stdMessage}
+	doc := sinksDoc{
+		Header: h, Messages: map[string]string{}, Fatal: fatalMessage, Std: stdMessage,
+		Long: longMessage, Newline: newlineMessage,
+	}
 	for _, m := range levelMessages {
 		doc.Messages[m.call] = m.message
 	}
@@ -147,7 +165,12 @@ func run(scenario string, args []string) runDoc {
 	default:
 		fail(err.Error())
 	}
-	doc.Stderr = parseLines(stderr.String())
+	text := stderr.String()
+	if scenario == "message" {
+		doc.Raw = rawLines(text)
+		text = countRuns(text)
+	}
+	doc.Stderr = parseLines(text)
 	for _, where := range []struct{ name, dir string }{{"log_dir", dirs[logDirArg]}, {"temp", dirs["temp"]}} {
 		files := listDir(where.dir, dirs)
 		if len(files) == 0 {
@@ -171,7 +194,29 @@ var (
 	fileName = regexp.MustCompile(`^prebid-server\.[^.]+\.[A-Za-z0-9_]+\.log\.(INFO|WARNING|ERROR|FATAL)\.\d{8}-\d{6}\.\d+$`)
 	created  = regexp.MustCompile(`^Log file created at: \d{4}/\d{2}/\d{2} \d{2}:\d{2}:\d{2}$`)
 	binary   = regexp.MustCompile(`^Binary: Built with gc (go\S+) for \S+/\S+$`)
+
+	glogHeader = regexp.MustCompile(`^([IWEF])\d{4} \d{2}:\d{2}:\d{2}\.\d{6} +\d+ `)
+	xRun       = regexp.MustCompile(`x{17,}`)
 )
+
+// rawLines cuts text after each newline, so a message's own trailing newline shows as the
+// piece it ends and an empty line as a piece of its own.
+func rawLines(text string) []rawLine {
+	lines := []rawLine{}
+	for _, piece := range strings.SplitAfter(text, "\n") {
+		if piece == "" {
+			continue
+		}
+		norm := glogHeader.ReplaceAllString(piece, "${1}mmdd hh:mm:ss.uuuuuu threadid ")
+		lines = append(lines, rawLine{Text: countRuns(norm), Bytes: len(piece)})
+	}
+	return lines
+}
+
+// countRuns writes every run of more than 16 x's in text as x*N.
+func countRuns(text string) string {
+	return xRun.ReplaceAllStringFunc(text, func(run string) string { return fmt.Sprintf("x*%d", len(run)) })
+}
 
 // parseLines turns output into entries. A stack dump becomes one "stack" entry however many
 // goroutines it lists: its frames, register lines and goroutine headers name addresses and paths

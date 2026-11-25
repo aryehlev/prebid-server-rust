@@ -14,6 +14,8 @@
   },
   "fatal_message": "fatalf 5",
   "std_message": "http: TLS handshake error from 127.0.0.1:1234: EOF",
+  "long_message_length": 20000,
+  "newline_message": "ends with a newline\n",
   "runs": [
     {
       "scenario": "levels",
@@ -1923,6 +1925,39 @@
       ],
       "dir": "",
       "files": []
+    },
+    {
+      "scenario": "message",
+      "args": [
+        "-logtostderr"
+      ],
+      "exit": 0,
+      "stderr": [
+        {
+          "kind": "glog",
+          "severity": "I",
+          "file_line": "logger.go:12",
+          "message": "x*14955"
+        },
+        {
+          "kind": "glog",
+          "severity": "I",
+          "file_line": "logger.go:12",
+          "message": "ends with a newline"
+        }
+      ],
+      "dir": "",
+      "files": [],
+      "raw": [
+        {
+          "text": "Immdd hh:mm:ss.uuuuuu threadid logger.go:12] x*14955\n",
+          "bytes": 15000
+        },
+        {
+          "text": "Immdd hh:mm:ss.uuuuuu threadid logger.go:12] ends with a newline\n",
+          "bytes": 64
+        }
+      ]
     }
   ]
 }
