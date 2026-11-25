@@ -1,6 +1,6 @@
 [package]
 name = "pbs-logger"
-description = "Prebid Server Go logger package with glog-compatible output"
+description = "Prebid Server's logger facade over tracing, with glog's command-line flags in Go's syntax"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -14,6 +14,17 @@ categories.workspace = true
 [lints]
 workspace = true
 
+# tracing carries the lines, tracing-subscriber writes them, tracing-appender writes the log file
+# (D-LOGFILE) and getopts reads glog's flags in Go's syntax.
 [dependencies]
+getopts = { workspace = true }
+tracing = { workspace = true }
+tracing-appender = { workspace = true }
+tracing-subscriber = { workspace = true }
+
+# log stands in for the crates that log through it (reqwest, pbs-currency), serde_json reads the
+# goldens and sha2 hashes the seeded command lines as the Go side does.
+[dev-dependencies]
 log = { workspace = true }
-pbs-gocompat = { path = "../gocompat", version = "0.1.0" }
+serde_json = { workspace = true }
+sha2 = { workspace = true }

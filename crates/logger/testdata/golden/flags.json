@@ -1,0 +1,1679 @@
+{
+  "header": {
+    "generator": "crates/logger/testdata/go/flags",
+    "go_version": "go1.26.2",
+    "glog": "v1.2.5",
+    "upstream": "v4.11.2-0.20261112141353-4e296450de2f"
+  },
+  "usage": "Usage of prebid-server:\n  -alsologtostderr\n    \tlog to standard error as well as files\n  -log_backtrace_at value\n    \twhen logging hits line file:N, emit a stack trace\n  -log_dir string\n    \tIf non-empty, write log files in this directory\n  -log_link string\n    \tIf non-empty, add symbolic links in this directory to the log files\n  -logbuflevel int\n    \tBuffer log messages logged at this level or lower (-1 means don't buffer; 0 means buffer INFO only; ...). Has limited applicability on non-prod platforms.\n  -logtostderr\n    \tlog to standard error instead of files\n  -stderrthreshold value\n    \tlogs at or above this threshold go to stderr (default 2)\n  -v value\n    \tlog level for V logs\n  -vmodule value\n    \tcomma-separated list of pattern=N settings for file-filtered logging\n",
+  "rows": [
+    {
+      "args": [],
+      "outcome": "parsed",
+      "values": {
+        "alsologtostderr": "false",
+        "log_backtrace_at": "",
+        "log_dir": "",
+        "log_link": "",
+        "logbuflevel": "0",
+        "logtostderr": "false",
+        "stderrthreshold": "2",
+        "v": "0",
+        "vmodule": ""
+      }
+    },
+    {
+      "args": [
+        "-v",
+        "1",
+        "-logtostderr"
+      ],
+      "outcome": "parsed",
+      "values": {
+        "alsologtostderr": "false",
+        "log_backtrace_at": "",
+        "log_dir": "",
+        "log_link": "",
+        "logbuflevel": "0",
+        "logtostderr": "true",
+        "stderrthreshold": "2",
+        "v": "1",
+        "vmodule": ""
+      }
+    },
+    {
+      "args": [
+        "--stderrthreshold=WARNING",
+        "-v=2"
+      ],
+      "outcome": "parsed",
+      "values": {
+        "alsologtostderr": "false",
+        "log_backtrace_at": "",
+        "log_dir": "",
+        "log_link": "",
+        "logbuflevel": "0",
+        "logtostderr": "false",
+        "stderrthreshold": "1",
+        "v": "2",
+        "vmodule": ""
+      }
+    },
+    {
+      "args": [
+        "--alsologtostderr"
+      ],
+      "outcome": "parsed",
+      "values": {
+        "alsologtostderr": "true",
+        "log_backtrace_at": "",
+        "log_dir": "",
+        "log_link": "",
+        "logbuflevel": "0",
+        "logtostderr": "false",
+        "stderrthreshold": "2",
+        "v": "0",
+        "vmodule": ""
+      }
+    },
+    {
+      "args": [
+        "-logtostderr=false",
+        "-alsologtostderr=1",
+        "-stderrthreshold",
+        "info"
+      ],
+      "outcome": "parsed",
+      "values": {
+        "alsologtostderr": "true",
+        "log_backtrace_at": "",
+        "log_dir": "",
+        "log_link": "",
+        "logbuflevel": "0",
+        "logtostderr": "false",
+        "stderrthreshold": "0",
+        "v": "0",
+        "vmodule": ""
+      }
+    },
+    {
+      "args": [
+        "-stderrthreshold=fatal"
+      ],
+      "outcome": "parsed",
+      "values": {
+        "alsologtostderr": "false",
+        "log_backtrace_at": "",
+        "log_dir": "",
+        "log_link": "",
+        "logbuflevel": "0",
+        "logtostderr": "false",
+        "stderrthreshold": "3",
+        "v": "0",
+        "vmodule": ""
+      }
+    },
+    {
+      "args": [
+        "-stderrthreshold=3"
+      ],
+      "outcome": "parsed",
+      "values": {
+        "alsologtostderr": "false",
+        "log_backtrace_at": "",
+        "log_dir": "",
+        "log_link": "",
+        "logbuflevel": "0",
+        "logtostderr": "false",
+        "stderrthreshold": "3",
+        "v": "0",
+        "vmodule": ""
+      }
+    },
+    {
+      "args": [
+        "-stderrthreshold=256"
+      ],
+      "outcome": "parsed",
+      "values": {
+        "alsologtostderr": "false",
+        "log_backtrace_at": "",
+        "log_dir": "",
+        "log_link": "",
+        "logbuflevel": "0",
+        "logtostderr": "false",
+        "stderrthreshold": "0",
+        "v": "0",
+        "vmodule": ""
+      }
+    },
+    {
+      "args": [
+        "-stderrthreshold=259"
+      ],
+      "outcome": "parsed",
+      "values": {
+        "alsologtostderr": "false",
+        "log_backtrace_at": "",
+        "log_dir": "",
+        "log_link": "",
+        "logbuflevel": "0",
+        "logtostderr": "false",
+        "stderrthreshold": "3",
+        "v": "0",
+        "vmodule": ""
+      }
+    },
+    {
+      "args": [
+        "-stderrthreshold=-1"
+      ],
+      "outcome": "error",
+      "exit": 2,
+      "error_line": "invalid value \"-1\" for flag -stderrthreshold: Severity -1 out of range (min 0, max 3)."
+    },
+    {
+      "args": [
+        "-stderrthreshold=4"
+      ],
+      "outcome": "error",
+      "exit": 2,
+      "error_line": "invalid value \"4\" for flag -stderrthreshold: Severity 4 out of range (min 0, max 3)."
+    },
+    {
+      "args": [
+        "-stderrthreshold=x"
+      ],
+      "outcome": "error",
+      "exit": 2,
+      "error_line": "invalid value \"x\" for flag -stderrthreshold: strconv.Atoi: parsing \"x\": invalid syntax"
+    },
+    {
+      "args": [
+        "-stderrthreshold="
+      ],
+      "outcome": "error",
+      "exit": 2,
+      "error_line": "invalid value \"\" for flag -stderrthreshold: strconv.Atoi: parsing \"\": invalid syntax"
+    },
+    {
+      "args": [
+        "-stderrthreshold=Warning"
+      ],
+      "outcome": "parsed",
+      "values": {
+        "alsologtostderr": "false",
+        "log_backtrace_at": "",
+        "log_dir": "",
+        "log_link": "",
+        "logbuflevel": "0",
+        "logtostderr": "false",
+        "stderrthreshold": "1",
+        "v": "0",
+        "vmodule": ""
+      }
+    },
+    {
+      "args": [
+        "-stderrthreshold=ınfo"
+      ],
+      "outcome": "parsed",
+      "values": {
+        "alsologtostderr": "false",
+        "log_backtrace_at": "",
+        "log_dir": "",
+        "log_link": "",
+        "logbuflevel": "0",
+        "logtostderr": "false",
+        "stderrthreshold": "0",
+        "v": "0",
+        "vmodule": ""
+      }
+    },
+    {
+      "args": [
+        "-stderrthreshold=+2"
+      ],
+      "outcome": "parsed",
+      "values": {
+        "alsologtostderr": "false",
+        "log_backtrace_at": "",
+        "log_dir": "",
+        "log_link": "",
+        "logbuflevel": "0",
+        "logtostderr": "false",
+        "stderrthreshold": "2",
+        "v": "0",
+        "vmodule": ""
+      }
+    },
+    {
+      "args": [
+        "-stderrthreshold=0x2"
+      ],
+      "outcome": "error",
+      "exit": 2,
+      "error_line": "invalid value \"0x2\" for flag -stderrthreshold: strconv.Atoi: parsing \"0x2\": invalid syntax"
+    },
+    {
+      "args": [
+        "-stderrthreshold=99999999999999999999"
+      ],
+      "outcome": "error",
+      "exit": 2,
+      "error_line": "invalid value \"99999999999999999999\" for flag -stderrthreshold: strconv.Atoi: parsing \"99999999999999999999\": value out of range"
+    },
+    {
+      "args": [
+        "-stderrthreshold"
+      ],
+      "outcome": "error",
+      "exit": 2,
+      "error_line": "flag needs an argument: -stderrthreshold"
+    },
+    {
+      "args": [
+        "-v=x"
+      ],
+      "outcome": "error",
+      "exit": 2,
+      "error_line": "invalid value \"x\" for flag -v: strconv.Atoi: parsing \"x\": invalid syntax"
+    },
+    {
+      "args": [
+        "-v="
+      ],
+      "outcome": "error",
+      "exit": 2,
+      "error_line": "invalid value \"\" for flag -v: strconv.Atoi: parsing \"\": invalid syntax"
+    },
+    {
+      "args": [
+        "-v=-3"
+      ],
+      "outcome": "parsed",
+      "values": {
+        "alsologtostderr": "false",
+        "log_backtrace_at": "",
+        "log_dir": "",
+        "log_link": "",
+        "logbuflevel": "0",
+        "logtostderr": "false",
+        "stderrthreshold": "2",
+        "v": "-3",
+        "vmodule": ""
+      }
+    },
+    {
+      "args": [
+        "-v=4294967297"
+      ],
+      "outcome": "parsed",
+      "values": {
+        "alsologtostderr": "false",
+        "log_backtrace_at": "",
+        "log_dir": "",
+        "log_link": "",
+        "logbuflevel": "0",
+        "logtostderr": "false",
+        "stderrthreshold": "2",
+        "v": "1",
+        "vmodule": ""
+      }
+    },
+    {
+      "args": [
+        "-v=99999999999999999999"
+      ],
+      "outcome": "error",
+      "exit": 2,
+      "error_line": "invalid value \"99999999999999999999\" for flag -v: strconv.Atoi: parsing \"99999999999999999999\": value out of range"
+    },
+    {
+      "args": [
+        "-v",
+        "+5"
+      ],
+      "outcome": "parsed",
+      "values": {
+        "alsologtostderr": "false",
+        "log_backtrace_at": "",
+        "log_dir": "",
+        "log_link": "",
+        "logbuflevel": "0",
+        "logtostderr": "false",
+        "stderrthreshold": "2",
+        "v": "5",
+        "vmodule": ""
+      }
+    },
+    {
+      "args": [
+        "-v=0x10"
+      ],
+      "outcome": "error",
+      "exit": 2,
+      "error_line": "invalid value \"0x10\" for flag -v: strconv.Atoi: parsing \"0x10\": invalid syntax"
+    },
+    {
+      "args": [
+        "-v=1_0"
+      ],
+      "outcome": "error",
+      "exit": 2,
+      "error_line": "invalid value \"1_0\" for flag -v: strconv.Atoi: parsing \"1_0\": invalid syntax"
+    },
+    {
+      "args": [
+        "-v"
+      ],
+      "outcome": "error",
+      "exit": 2,
+      "error_line": "flag needs an argument: -v"
+    },
+    {
+      "args": [
+        "-v",
+        "-logtostderr"
+      ],
+      "outcome": "error",
+      "exit": 2,
+      "error_line": "invalid value \"-logtostderr\" for flag -v: strconv.Atoi: parsing \"-logtostderr\": invalid syntax"
+    },
+    {
+      "args": [
+        "--v=3"
+      ],
+      "outcome": "parsed",
+      "values": {
+        "alsologtostderr": "false",
+        "log_backtrace_at": "",
+        "log_dir": "",
+        "log_link": "",
+        "logbuflevel": "0",
+        "logtostderr": "false",
+        "stderrthreshold": "2",
+        "v": "3",
+        "vmodule": ""
+      }
+    },
+    {
+      "args": [
+        "-vmodule=recordio=2,foo/bar/baz=1,gfs*=3"
+      ],
+      "outcome": "parsed",
+      "values": {
+        "alsologtostderr": "false",
+        "log_backtrace_at": "",
+        "log_dir": "",
+        "log_link": "",
+        "logbuflevel": "0",
+        "logtostderr": "false",
+        "stderrthreshold": "2",
+        "v": "0",
+        "vmodule": "recordio=2,foo/bar/baz=1,gfs*=3"
+      }
+    },
+    {
+      "args": [
+        "-vmodule=a=1,,b=2,"
+      ],
+      "outcome": "parsed",
+      "values": {
+        "alsologtostderr": "false",
+        "log_backtrace_at": "",
+        "log_dir": "",
+        "log_link": "",
+        "logbuflevel": "0",
+        "logtostderr": "false",
+        "stderrthreshold": "2",
+        "v": "0",
+        "vmodule": "a=1,b=2"
+      }
+    },
+    {
+      "args": [
+        "-vmodule=a"
+      ],
+      "outcome": "error",
+      "exit": 2,
+      "error_line": "invalid value \"a\" for flag -vmodule: syntax error: expect comma-separated list of filename=N"
+    },
+    {
+      "args": [
+        "-vmodule=a=b"
+      ],
+      "outcome": "error",
+      "exit": 2,
+      "error_line": "invalid value \"a=b\" for flag -vmodule: syntax error: expect comma-separated list of filename=N"
+    },
+    {
+      "args": [
+        "-vmodule==1"
+      ],
+      "outcome": "error",
+      "exit": 2,
+      "error_line": "invalid value \"=1\" for flag -vmodule: syntax error: expect comma-separated list of filename=N"
+    },
+    {
+      "args": [
+        "-vmodule=a=1=2"
+      ],
+      "outcome": "error",
+      "exit": 2,
+      "error_line": "invalid value \"a=1=2\" for flag -vmodule: syntax error: expect comma-separated list of filename=N"
+    },
+    {
+      "args": [
+        "-vmodule=a=4294967296"
+      ],
+      "outcome": "parsed",
+      "values": {
+        "alsologtostderr": "false",
+        "log_backtrace_at": "",
+        "log_dir": "",
+        "log_link": "",
+        "logbuflevel": "0",
+        "logtostderr": "false",
+        "stderrthreshold": "2",
+        "v": "0",
+        "vmodule": "a=0"
+      }
+    },
+    {
+      "args": [
+        "-vmodule=a=99999999999999999999"
+      ],
+      "outcome": "error",
+      "exit": 2,
+      "error_line": "invalid value \"a=99999999999999999999\" for flag -vmodule: syntax error: expect comma-separated list of filename=N"
+    },
+    {
+      "args": [
+        "-vmodule="
+      ],
+      "outcome": "parsed",
+      "values": {
+        "alsologtostderr": "false",
+        "log_backtrace_at": "",
+        "log_dir": "",
+        "log_link": "",
+        "logbuflevel": "0",
+        "logtostderr": "false",
+        "stderrthreshold": "2",
+        "v": "0",
+        "vmodule": ""
+      }
+    },
+    {
+      "args": [
+        "-vmodule=a="
+      ],
+      "outcome": "error",
+      "exit": 2,
+      "error_line": "invalid value \"a=\" for flag -vmodule: syntax error: expect comma-separated list of filename=N"
+    },
+    {
+      "args": [
+        "-log_backtrace_at=recordio.go:234,sstable.go:456"
+      ],
+      "outcome": "parsed",
+      "values": {
+        "alsologtostderr": "false",
+        "log_backtrace_at": "recordio.go:234,sstable.go:456",
+        "log_dir": "",
+        "log_link": "",
+        "logbuflevel": "0",
+        "logtostderr": "false",
+        "stderrthreshold": "2",
+        "v": "0",
+        "vmodule": ""
+      }
+    },
+    {
+      "args": [
+        "-log_backtrace_at=x:1"
+      ],
+      "outcome": "error",
+      "exit": 2,
+      "error_line": "invalid value \"x:1\" for flag -log_backtrace_at: syntax error: expect file.go:234"
+    },
+    {
+      "args": [
+        "-log_backtrace_at=x.go"
+      ],
+      "outcome": "error",
+      "exit": 2,
+      "error_line": "invalid value \"x.go\" for flag -log_backtrace_at: syntax error: expect file.go:234"
+    },
+    {
+      "args": [
+        "-log_backtrace_at=x.go:-1"
+      ],
+      "outcome": "error",
+      "exit": 2,
+      "error_line": "invalid value \"x.go:-1\" for flag -log_backtrace_at: negative value for line"
+    },
+    {
+      "args": [
+        "-log_backtrace_at=x.go:y"
+      ],
+      "outcome": "error",
+      "exit": 2,
+      "error_line": "invalid value \"x.go:y\" for flag -log_backtrace_at: syntax error: expect file.go:234"
+    },
+    {
+      "args": [
+        "-log_backtrace_at=a.go:1:2"
+      ],
+      "outcome": "error",
+      "exit": 2,
+      "error_line": "invalid value \"a.go:1:2\" for flag -log_backtrace_at: syntax error: expect file.go:234"
+    },
+    {
+      "args": [
+        "-log_backtrace_at=,a.go:3,"
+      ],
+      "outcome": "parsed",
+      "values": {
+        "alsologtostderr": "false",
+        "log_backtrace_at": "a.go:3",
+        "log_dir": "",
+        "log_link": "",
+        "logbuflevel": "0",
+        "logtostderr": "false",
+        "stderrthreshold": "2",
+        "v": "0",
+        "vmodule": ""
+      }
+    },
+    {
+      "args": [
+        "-log_backtrace_at=a.go:+7"
+      ],
+      "outcome": "parsed",
+      "values": {
+        "alsologtostderr": "false",
+        "log_backtrace_at": "a.go:7",
+        "log_dir": "",
+        "log_link": "",
+        "logbuflevel": "0",
+        "logtostderr": "false",
+        "stderrthreshold": "2",
+        "v": "0",
+        "vmodule": ""
+      }
+    },
+    {
+      "args": [
+        "-log_backtrace_at="
+      ],
+      "outcome": "parsed",
+      "values": {
+        "alsologtostderr": "false",
+        "log_backtrace_at": "",
+        "log_dir": "",
+        "log_link": "",
+        "logbuflevel": "0",
+        "logtostderr": "false",
+        "stderrthreshold": "2",
+        "v": "0",
+        "vmodule": ""
+      }
+    },
+    {
+      "args": [
+        "-log_dir=/var/log/pbs",
+        "-log_link",
+        "/tmp/links"
+      ],
+      "outcome": "parsed",
+      "values": {
+        "alsologtostderr": "false",
+        "log_backtrace_at": "",
+        "log_dir": "/var/log/pbs",
+        "log_link": "/tmp/links",
+        "logbuflevel": "0",
+        "logtostderr": "false",
+        "stderrthreshold": "2",
+        "v": "0",
+        "vmodule": ""
+      }
+    },
+    {
+      "args": [
+        "-log_dir"
+      ],
+      "outcome": "error",
+      "exit": 2,
+      "error_line": "flag needs an argument: -log_dir"
+    },
+    {
+      "args": [
+        "-log_dir="
+      ],
+      "outcome": "parsed",
+      "values": {
+        "alsologtostderr": "false",
+        "log_backtrace_at": "",
+        "log_dir": "",
+        "log_link": "",
+        "logbuflevel": "0",
+        "logtostderr": "false",
+        "stderrthreshold": "2",
+        "v": "0",
+        "vmodule": ""
+      }
+    },
+    {
+      "args": [
+        "-log_dir",
+        "-h"
+      ],
+      "outcome": "parsed",
+      "values": {
+        "alsologtostderr": "false",
+        "log_backtrace_at": "",
+        "log_dir": "-h",
+        "log_link": "",
+        "logbuflevel": "0",
+        "logtostderr": "false",
+        "stderrthreshold": "2",
+        "v": "0",
+        "vmodule": ""
+      }
+    },
+    {
+      "args": [
+        "-logbuflevel=-1"
+      ],
+      "outcome": "parsed",
+      "values": {
+        "alsologtostderr": "false",
+        "log_backtrace_at": "",
+        "log_dir": "",
+        "log_link": "",
+        "logbuflevel": "-1",
+        "logtostderr": "false",
+        "stderrthreshold": "2",
+        "v": "0",
+        "vmodule": ""
+      }
+    },
+    {
+      "args": [
+        "-logbuflevel=0x7f"
+      ],
+      "outcome": "parsed",
+      "values": {
+        "alsologtostderr": "false",
+        "log_backtrace_at": "",
+        "log_dir": "",
+        "log_link": "",
+        "logbuflevel": "127",
+        "logtostderr": "false",
+        "stderrthreshold": "2",
+        "v": "0",
+        "vmodule": ""
+      }
+    },
+    {
+      "args": [
+        "-logbuflevel=1_0"
+      ],
+      "outcome": "parsed",
+      "values": {
+        "alsologtostderr": "false",
+        "log_backtrace_at": "",
+        "log_dir": "",
+        "log_link": "",
+        "logbuflevel": "10",
+        "logtostderr": "false",
+        "stderrthreshold": "2",
+        "v": "0",
+        "vmodule": ""
+      }
+    },
+    {
+      "args": [
+        "-logbuflevel=_1"
+      ],
+      "outcome": "error",
+      "exit": 2,
+      "error_line": "invalid value \"_1\" for flag -logbuflevel: parse error"
+    },
+    {
+      "args": [
+        "-logbuflevel=0_7"
+      ],
+      "outcome": "parsed",
+      "values": {
+        "alsologtostderr": "false",
+        "log_backtrace_at": "",
+        "log_dir": "",
+        "log_link": "",
+        "logbuflevel": "7",
+        "logtostderr": "false",
+        "stderrthreshold": "2",
+        "v": "0",
+        "vmodule": ""
+      }
+    },
+    {
+      "args": [
+        "-logbuflevel=08"
+      ],
+      "outcome": "error",
+      "exit": 2,
+      "error_line": "invalid value \"08\" for flag -logbuflevel: parse error"
+    },
+    {
+      "args": [
+        "-logbuflevel=0b101"
+      ],
+      "outcome": "parsed",
+      "values": {
+        "alsologtostderr": "false",
+        "log_backtrace_at": "",
+        "log_dir": "",
+        "log_link": "",
+        "logbuflevel": "5",
+        "logtostderr": "false",
+        "stderrthreshold": "2",
+        "v": "0",
+        "vmodule": ""
+      }
+    },
+    {
+      "args": [
+        "-logbuflevel=0o17"
+      ],
+      "outcome": "parsed",
+      "values": {
+        "alsologtostderr": "false",
+        "log_backtrace_at": "",
+        "log_dir": "",
+        "log_link": "",
+        "logbuflevel": "15",
+        "logtostderr": "false",
+        "stderrthreshold": "2",
+        "v": "0",
+        "vmodule": ""
+      }
+    },
+    {
+      "args": [
+        "-logbuflevel=0x"
+      ],
+      "outcome": "error",
+      "exit": 2,
+      "error_line": "invalid value \"0x\" for flag -logbuflevel: parse error"
+    },
+    {
+      "args": [
+        "-logbuflevel=x"
+      ],
+      "outcome": "error",
+      "exit": 2,
+      "error_line": "invalid value \"x\" for flag -logbuflevel: parse error"
+    },
+    {
+      "args": [
+        "-logbuflevel=9223372036854775807"
+      ],
+      "outcome": "parsed",
+      "values": {
+        "alsologtostderr": "false",
+        "log_backtrace_at": "",
+        "log_dir": "",
+        "log_link": "",
+        "logbuflevel": "9223372036854775807",
+        "logtostderr": "false",
+        "stderrthreshold": "2",
+        "v": "0",
+        "vmodule": ""
+      }
+    },
+    {
+      "args": [
+        "-logbuflevel=9223372036854775808"
+      ],
+      "outcome": "error",
+      "exit": 2,
+      "error_line": "invalid value \"9223372036854775808\" for flag -logbuflevel: value out of range"
+    },
+    {
+      "args": [
+        "-logbuflevel=-9223372036854775808"
+      ],
+      "outcome": "parsed",
+      "values": {
+        "alsologtostderr": "false",
+        "log_backtrace_at": "",
+        "log_dir": "",
+        "log_link": "",
+        "logbuflevel": "-9223372036854775808",
+        "logtostderr": "false",
+        "stderrthreshold": "2",
+        "v": "0",
+        "vmodule": ""
+      }
+    },
+    {
+      "args": [
+        "-logbuflevel=-9223372036854775809"
+      ],
+      "outcome": "error",
+      "exit": 2,
+      "error_line": "invalid value \"-9223372036854775809\" for flag -logbuflevel: value out of range"
+    },
+    {
+      "args": [
+        "-logbuflevel=99999999999999999999x"
+      ],
+      "outcome": "error",
+      "exit": 2,
+      "error_line": "invalid value \"99999999999999999999x\" for flag -logbuflevel: value out of range"
+    },
+    {
+      "args": [
+        "-logbuflevel",
+        "0b101"
+      ],
+      "outcome": "parsed",
+      "values": {
+        "alsologtostderr": "false",
+        "log_backtrace_at": "",
+        "log_dir": "",
+        "log_link": "",
+        "logbuflevel": "5",
+        "logtostderr": "false",
+        "stderrthreshold": "2",
+        "v": "0",
+        "vmodule": ""
+      }
+    },
+    {
+      "args": [
+        "-logtostderr=x"
+      ],
+      "outcome": "error",
+      "exit": 2,
+      "error_line": "invalid boolean value \"x\" for -logtostderr: parse error"
+    },
+    {
+      "args": [
+        "-logtostderr=T"
+      ],
+      "outcome": "parsed",
+      "values": {
+        "alsologtostderr": "false",
+        "log_backtrace_at": "",
+        "log_dir": "",
+        "log_link": "",
+        "logbuflevel": "0",
+        "logtostderr": "true",
+        "stderrthreshold": "2",
+        "v": "0",
+        "vmodule": ""
+      }
+    },
+    {
+      "args": [
+        "-logtostderr=FALSE"
+      ],
+      "outcome": "parsed",
+      "values": {
+        "alsologtostderr": "false",
+        "log_backtrace_at": "",
+        "log_dir": "",
+        "log_link": "",
+        "logbuflevel": "0",
+        "logtostderr": "false",
+        "stderrthreshold": "2",
+        "v": "0",
+        "vmodule": ""
+      }
+    },
+    {
+      "args": [
+        "-logtostderr=tRUE"
+      ],
+      "outcome": "error",
+      "exit": 2,
+      "error_line": "invalid boolean value \"tRUE\" for -logtostderr: parse error"
+    },
+    {
+      "args": [
+        "-logtostderr="
+      ],
+      "outcome": "error",
+      "exit": 2,
+      "error_line": "invalid boolean value \"\" for -logtostderr: parse error"
+    },
+    {
+      "args": [
+        "-logtostderr",
+        "true"
+      ],
+      "outcome": "parsed",
+      "values": {
+        "alsologtostderr": "false",
+        "log_backtrace_at": "",
+        "log_dir": "",
+        "log_link": "",
+        "logbuflevel": "0",
+        "logtostderr": "true",
+        "stderrthreshold": "2",
+        "v": "0",
+        "vmodule": ""
+      },
+      "rest": [
+        "true"
+      ]
+    },
+    {
+      "args": [
+        "-logtostderr",
+        "-logtostderr=x"
+      ],
+      "outcome": "error",
+      "exit": 2,
+      "error_line": "invalid boolean value \"x\" for -logtostderr: parse error"
+    },
+    {
+      "args": [
+        "-alsologtostderr",
+        "-alsologtostderr=2"
+      ],
+      "outcome": "error",
+      "exit": 2,
+      "error_line": "invalid boolean value \"2\" for -alsologtostderr: parse error"
+    },
+    {
+      "args": [
+        "-logbuflevel=5",
+        "-logbuflevel=x"
+      ],
+      "outcome": "error",
+      "exit": 2,
+      "error_line": "invalid value \"x\" for flag -logbuflevel: parse error"
+    },
+    {
+      "args": [
+        "-v=7",
+        "-v=x"
+      ],
+      "outcome": "error",
+      "exit": 2,
+      "error_line": "invalid value \"x\" for flag -v: strconv.Atoi: parsing \"x\": invalid syntax"
+    },
+    {
+      "args": [
+        "-stderrthreshold=0",
+        "-stderrthreshold=9"
+      ],
+      "outcome": "error",
+      "exit": 2,
+      "error_line": "invalid value \"9\" for flag -stderrthreshold: Severity 9 out of range (min 0, max 3)."
+    },
+    {
+      "args": [
+        "-vmodule=a=1",
+        "-vmodule=b"
+      ],
+      "outcome": "error",
+      "exit": 2,
+      "error_line": "invalid value \"b\" for flag -vmodule: syntax error: expect comma-separated list of filename=N"
+    },
+    {
+      "args": [
+        "-log_backtrace_at=a.go:1",
+        "-log_backtrace_at=b"
+      ],
+      "outcome": "error",
+      "exit": 2,
+      "error_line": "invalid value \"b\" for flag -log_backtrace_at: syntax error: expect file.go:234"
+    },
+    {
+      "args": [
+        "-h"
+      ],
+      "outcome": "help",
+      "exit": 0
+    },
+    {
+      "args": [
+        "-help"
+      ],
+      "outcome": "help",
+      "exit": 0
+    },
+    {
+      "args": [
+        "--help"
+      ],
+      "outcome": "help",
+      "exit": 0
+    },
+    {
+      "args": [
+        "--h"
+      ],
+      "outcome": "help",
+      "exit": 0
+    },
+    {
+      "args": [
+        "-help=1"
+      ],
+      "outcome": "help",
+      "exit": 0
+    },
+    {
+      "args": [
+        "-h=x"
+      ],
+      "outcome": "help",
+      "exit": 0
+    },
+    {
+      "args": [
+        "-nope"
+      ],
+      "outcome": "error",
+      "exit": 2,
+      "error_line": "flag provided but not defined: -nope"
+    },
+    {
+      "args": [
+        "-x"
+      ],
+      "outcome": "error",
+      "exit": 2,
+      "error_line": "flag provided but not defined: -x"
+    },
+    {
+      "args": [
+        "-v=1",
+        "-nope"
+      ],
+      "outcome": "error",
+      "exit": 2,
+      "error_line": "flag provided but not defined: -nope"
+    },
+    {
+      "args": [
+        "---v"
+      ],
+      "outcome": "error",
+      "exit": 2,
+      "error_line": "bad flag syntax: ---v"
+    },
+    {
+      "args": [
+        "---"
+      ],
+      "outcome": "error",
+      "exit": 2,
+      "error_line": "bad flag syntax: ---"
+    },
+    {
+      "args": [
+        "-=x"
+      ],
+      "outcome": "error",
+      "exit": 2,
+      "error_line": "bad flag syntax: -=x"
+    },
+    {
+      "args": [
+        "--=x"
+      ],
+      "outcome": "error",
+      "exit": 2,
+      "error_line": "bad flag syntax: --=x"
+    },
+    {
+      "args": [
+        "-="
+      ],
+      "outcome": "error",
+      "exit": 2,
+      "error_line": "bad flag syntax: -="
+    },
+    {
+      "args": [
+        "-"
+      ],
+      "outcome": "parsed",
+      "values": {
+        "alsologtostderr": "false",
+        "log_backtrace_at": "",
+        "log_dir": "",
+        "log_link": "",
+        "logbuflevel": "0",
+        "logtostderr": "false",
+        "stderrthreshold": "2",
+        "v": "0",
+        "vmodule": ""
+      },
+      "rest": [
+        "-"
+      ]
+    },
+    {
+      "args": [
+        "--"
+      ],
+      "outcome": "parsed",
+      "values": {
+        "alsologtostderr": "false",
+        "log_backtrace_at": "",
+        "log_dir": "",
+        "log_link": "",
+        "logbuflevel": "0",
+        "logtostderr": "false",
+        "stderrthreshold": "2",
+        "v": "0",
+        "vmodule": ""
+      }
+    },
+    {
+      "args": [
+        "--",
+        "-v=1"
+      ],
+      "outcome": "parsed",
+      "values": {
+        "alsologtostderr": "false",
+        "log_backtrace_at": "",
+        "log_dir": "",
+        "log_link": "",
+        "logbuflevel": "0",
+        "logtostderr": "false",
+        "stderrthreshold": "2",
+        "v": "0",
+        "vmodule": ""
+      },
+      "rest": [
+        "-v=1"
+      ]
+    },
+    {
+      "args": [
+        "arg",
+        "-v=1"
+      ],
+      "outcome": "parsed",
+      "values": {
+        "alsologtostderr": "false",
+        "log_backtrace_at": "",
+        "log_dir": "",
+        "log_link": "",
+        "logbuflevel": "0",
+        "logtostderr": "false",
+        "stderrthreshold": "2",
+        "v": "0",
+        "vmodule": ""
+      },
+      "rest": [
+        "arg",
+        "-v=1"
+      ]
+    },
+    {
+      "args": [
+        "-v=1",
+        "arg",
+        "-logtostderr"
+      ],
+      "outcome": "parsed",
+      "values": {
+        "alsologtostderr": "false",
+        "log_backtrace_at": "",
+        "log_dir": "",
+        "log_link": "",
+        "logbuflevel": "0",
+        "logtostderr": "false",
+        "stderrthreshold": "2",
+        "v": "1",
+        "vmodule": ""
+      },
+      "rest": [
+        "arg",
+        "-logtostderr"
+      ]
+    },
+    {
+      "args": [
+        "-v=1",
+        "-v=2",
+        "-logtostderr",
+        "-logtostderr=0"
+      ],
+      "outcome": "parsed",
+      "values": {
+        "alsologtostderr": "false",
+        "log_backtrace_at": "",
+        "log_dir": "",
+        "log_link": "",
+        "logbuflevel": "0",
+        "logtostderr": "false",
+        "stderrthreshold": "2",
+        "v": "2",
+        "vmodule": ""
+      }
+    },
+    {
+      "args": [
+        "-logtostderr",
+        "-stderrthreshold=WARNING",
+        "-stderrthreshold=ERROR"
+      ],
+      "outcome": "parsed",
+      "values": {
+        "alsologtostderr": "false",
+        "log_backtrace_at": "",
+        "log_dir": "",
+        "log_link": "",
+        "logbuflevel": "0",
+        "logtostderr": "true",
+        "stderrthreshold": "2",
+        "v": "0",
+        "vmodule": ""
+      }
+    },
+    {
+      "args": [
+        "-logtostderr=x",
+        "-h"
+      ],
+      "outcome": "error",
+      "exit": 2,
+      "error_line": "invalid boolean value \"x\" for -logtostderr: parse error"
+    },
+    {
+      "args": [
+        "-v=x",
+        "-nope"
+      ],
+      "outcome": "error",
+      "exit": 2,
+      "error_line": "invalid value \"x\" for flag -v: strconv.Atoi: parsing \"x\": invalid syntax"
+    },
+    {
+      "args": [
+        "-h",
+        "-v=x"
+      ],
+      "outcome": "help",
+      "exit": 0
+    },
+    {
+      "args": [
+        "-nope",
+        "-h"
+      ],
+      "outcome": "error",
+      "exit": 2,
+      "error_line": "flag provided but not defined: -nope"
+    },
+    {
+      "args": [
+        "-logtostderr",
+        "-h"
+      ],
+      "outcome": "help",
+      "exit": 0
+    },
+    {
+      "args": [
+        "-v",
+        "-h"
+      ],
+      "outcome": "error",
+      "exit": 2,
+      "error_line": "invalid value \"-h\" for flag -v: strconv.Atoi: parsing \"-h\": invalid syntax"
+    },
+    {
+      "args": [
+        "-logtostderr=x",
+        "-v"
+      ],
+      "outcome": "error",
+      "exit": 2,
+      "error_line": "invalid boolean value \"x\" for -logtostderr: parse error"
+    },
+    {
+      "args": [
+        "-stderrthreshold=9",
+        "---v"
+      ],
+      "outcome": "error",
+      "exit": 2,
+      "error_line": "invalid value \"9\" for flag -stderrthreshold: Severity 9 out of range (min 0, max 3)."
+    },
+    {
+      "args": [
+        "-v=1",
+        "-log_dir"
+      ],
+      "outcome": "error",
+      "exit": 2,
+      "error_line": "flag needs an argument: -log_dir"
+    },
+    {
+      "args": [
+        "-",
+        "-h"
+      ],
+      "outcome": "parsed",
+      "values": {
+        "alsologtostderr": "false",
+        "log_backtrace_at": "",
+        "log_dir": "",
+        "log_link": "",
+        "logbuflevel": "0",
+        "logtostderr": "false",
+        "stderrthreshold": "2",
+        "v": "0",
+        "vmodule": ""
+      },
+      "rest": [
+        "-",
+        "-h"
+      ]
+    },
+    {
+      "args": [
+        "x",
+        "-h"
+      ],
+      "outcome": "parsed",
+      "values": {
+        "alsologtostderr": "false",
+        "log_backtrace_at": "",
+        "log_dir": "",
+        "log_link": "",
+        "logbuflevel": "0",
+        "logtostderr": "false",
+        "stderrthreshold": "2",
+        "v": "0",
+        "vmodule": ""
+      },
+      "rest": [
+        "x",
+        "-h"
+      ]
+    },
+    {
+      "args": [
+        "--",
+        "-h"
+      ],
+      "outcome": "parsed",
+      "values": {
+        "alsologtostderr": "false",
+        "log_backtrace_at": "",
+        "log_dir": "",
+        "log_link": "",
+        "logbuflevel": "0",
+        "logtostderr": "false",
+        "stderrthreshold": "2",
+        "v": "0",
+        "vmodule": ""
+      },
+      "rest": [
+        "-h"
+      ]
+    },
+    {
+      "args": [
+        "-logtostderr",
+        "true",
+        "-v=x"
+      ],
+      "outcome": "parsed",
+      "values": {
+        "alsologtostderr": "false",
+        "log_backtrace_at": "",
+        "log_dir": "",
+        "log_link": "",
+        "logbuflevel": "0",
+        "logtostderr": "true",
+        "stderrthreshold": "2",
+        "v": "0",
+        "vmodule": ""
+      },
+      "rest": [
+        "true",
+        "-v=x"
+      ]
+    },
+    {
+      "args": [
+        "-v=\u0001"
+      ],
+      "outcome": "error",
+      "exit": 2,
+      "error_line": "invalid value \"\\x01\" for flag -v: strconv.Atoi: parsing \"\\x01\": invalid syntax"
+    },
+    {
+      "args": [
+        "-logtostderr="
+      ],
+      "outcome": "error",
+      "exit": 2,
+      "error_line": "invalid boolean value \"\\x7f\" for -logtostderr: parse error"
+    },
+    {
+      "args": [
+        "-v=\t"
+      ],
+      "outcome": "error",
+      "exit": 2,
+      "error_line": "invalid value \"\\t\" for flag -v: strconv.Atoi: parsing \"\\t\": invalid syntax"
+    },
+    {
+      "args": [
+        "-stderrthreshold=é"
+      ],
+      "outcome": "error",
+      "exit": 2,
+      "error_line": "invalid value \"é\" for flag -stderrthreshold: strconv.Atoi: parsing \"é\": invalid syntax"
+    },
+    {
+      "args": [
+        "-é"
+      ],
+      "outcome": "error",
+      "exit": 2,
+      "error_line": "flag provided but not defined: -é"
+    },
+    {
+      "args": [
+        "-log_dir=é"
+      ],
+      "outcome": "parsed",
+      "values": {
+        "alsologtostderr": "false",
+        "log_backtrace_at": "",
+        "log_dir": "é",
+        "log_link": "",
+        "logbuflevel": "0",
+        "logtostderr": "false",
+        "stderrthreshold": "2",
+        "v": "0",
+        "vmodule": ""
+      }
+    },
+    {
+      "args": [
+        "-v=\"q\""
+      ],
+      "outcome": "error",
+      "exit": 2,
+      "error_line": "invalid value \"\\\"q\\\"\" for flag -v: strconv.Atoi: parsing \"\\\"q\\\"\": invalid syntax"
+    }
+  ],
+  "bytes_rows": [
+    {
+      "args": [
+        "2d6c6f675f6469723dff"
+      ],
+      "outcome": "parsed",
+      "values": {
+        "alsologtostderr": "66616c7365",
+        "log_backtrace_at": "",
+        "log_dir": "ff",
+        "log_link": "",
+        "logbuflevel": "30",
+        "logtostderr": "66616c7365",
+        "stderrthreshold": "32",
+        "v": "30",
+        "vmodule": ""
+      }
+    },
+    {
+      "args": [
+        "78ff"
+      ],
+      "outcome": "parsed",
+      "values": {
+        "alsologtostderr": "66616c7365",
+        "log_backtrace_at": "",
+        "log_dir": "",
+        "log_link": "",
+        "logbuflevel": "30",
+        "logtostderr": "66616c7365",
+        "stderrthreshold": "32",
+        "v": "30",
+        "vmodule": ""
+      },
+      "rest": [
+        "78ff"
+      ]
+    },
+    {
+      "args": [
+        "2d763dff"
+      ],
+      "outcome": "error",
+      "exit": 2,
+      "error_line": "invalid value \"\\xff\" for flag -v: strconv.Atoi: parsing \"\\xff\": invalid syntax"
+    }
+  ],
+  "httptest_rows": [
+    {
+      "args": [
+        "-httptest.serve=127.0.0.1:8000"
+      ],
+      "outcome": "parsed",
+      "values": {
+        "alsologtostderr": "false",
+        "httptest.serve": "127.0.0.1:8000",
+        "log_backtrace_at": "",
+        "log_dir": "",
+        "log_link": "",
+        "logbuflevel": "0",
+        "logtostderr": "false",
+        "stderrthreshold": "2",
+        "v": "0",
+        "vmodule": ""
+      }
+    },
+    {
+      "args": [
+        "--httptest.serve=127.0.0.1:8000",
+        "-v",
+        "1",
+        "-logtostderr"
+      ],
+      "outcome": "parsed",
+      "values": {
+        "alsologtostderr": "false",
+        "httptest.serve": "127.0.0.1:8000",
+        "log_backtrace_at": "",
+        "log_dir": "",
+        "log_link": "",
+        "logbuflevel": "0",
+        "logtostderr": "true",
+        "stderrthreshold": "2",
+        "v": "1",
+        "vmodule": ""
+      }
+    },
+    {
+      "args": [
+        "-httptest.serve",
+        "127.0.0.1:8000",
+        "-httptest.serve="
+      ],
+      "outcome": "parsed",
+      "values": {
+        "alsologtostderr": "false",
+        "httptest.serve": "",
+        "log_backtrace_at": "",
+        "log_dir": "",
+        "log_link": "",
+        "logbuflevel": "0",
+        "logtostderr": "false",
+        "stderrthreshold": "2",
+        "v": "0",
+        "vmodule": ""
+      }
+    },
+    {
+      "args": [
+        "-httptest.serve",
+        "127.0.0.1:8000"
+      ],
+      "outcome": "error",
+      "exit": 2,
+      "error_line": "flag provided but not defined: -httptest.serve"
+    },
+    {
+      "args": [
+        "-h",
+        "-httptest.serve="
+      ],
+      "outcome": "help",
+      "exit": 0,
+      "usage": "Usage of prebid-server:\n  -alsologtostderr\n    \tlog to standard error as well as files\n  -httptest.serve string\n    \tif non-empty, httptest.NewServer serves on this address and blocks.\n  -log_backtrace_at value\n    \twhen logging hits line file:N, emit a stack trace\n  -log_dir string\n    \tIf non-empty, write log files in this directory\n  -log_link string\n    \tIf non-empty, add symbolic links in this directory to the log files\n  -logbuflevel int\n    \tBuffer log messages logged at this level or lower (-1 means don't buffer; 0 means buffer INFO only; ...). Has limited applicability on non-prod platforms.\n  -logtostderr\n    \tlog to standard error instead of files\n  -stderrthreshold value\n    \tlogs at or above this threshold go to stderr (default 2)\n  -v value\n    \tlog level for V logs\n  -vmodule value\n    \tcomma-separated list of pattern=N settings for file-filtered logging\n"
+    },
+    {
+      "args": [
+        "-nope",
+        "-httptest.serve=127.0.0.1:8000"
+      ],
+      "outcome": "error",
+      "exit": 2,
+      "error_line": "flag provided but not defined: -nope",
+      "usage": "Usage of prebid-server:\n  -alsologtostderr\n    \tlog to standard error as well as files\n  -httptest.serve string\n    \tif non-empty, httptest.NewServer serves on this address and blocks.\n  -log_backtrace_at value\n    \twhen logging hits line file:N, emit a stack trace\n  -log_dir string\n    \tIf non-empty, write log files in this directory\n  -log_link string\n    \tIf non-empty, add symbolic links in this directory to the log files\n  -logbuflevel int\n    \tBuffer log messages logged at this level or lower (-1 means don't buffer; 0 means buffer INFO only; ...). Has limited applicability on non-prod platforms.\n  -logtostderr\n    \tlog to standard error instead of files\n  -stderrthreshold value\n    \tlogs at or above this threshold go to stderr (default 2)\n  -v value\n    \tlog level for V logs\n  -vmodule value\n    \tcomma-separated list of pattern=N settings for file-filtered logging\n"
+    },
+    {
+      "args": [
+        "arg",
+        "-httptest.serve=127.0.0.1:8000"
+      ],
+      "outcome": "parsed",
+      "values": {
+        "alsologtostderr": "false",
+        "httptest.serve": "",
+        "log_backtrace_at": "",
+        "log_dir": "",
+        "log_link": "",
+        "logbuflevel": "0",
+        "logtostderr": "false",
+        "stderrthreshold": "2",
+        "v": "0",
+        "vmodule": ""
+      },
+      "rest": [
+        "arg",
+        "-httptest.serve=127.0.0.1:8000"
+      ]
+    }
+  ]
+}

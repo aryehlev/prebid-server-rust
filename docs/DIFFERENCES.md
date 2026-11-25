@@ -24,7 +24,7 @@ Rule B's cases: (a) input real production traffic sends that the crate would rej
 | Gzip | 0 | 2 | 0 |
 | HTTP client | 0 | 18 | 5 |
 | JSON | 4 | 40 | 5 |
-| Logging | 0 | 1 | 0 |
+| Logging | 0 | 10 | 3 |
 | Prometheus metrics | 0 | 2 | 0 |
 | Public suffix list | 1 | 0 | 0 |
 | Regular expressions | 0 | 0 | 2 |
@@ -33,7 +33,7 @@ Rule B's cases: (a) input real production traffic sends that the crate would rej
 | TLS | 0 | 2 | 1 |
 | URLs | 0 | 1 | 0 |
 | YAML | 0 | 3 | 0 |
-| All | 5 | 106 | 26 |
+| All | 5 | 115 | 29 |
 
 ## Decisions pending
 
@@ -1215,6 +1215,70 @@ No entry names the classes `other` and `unrecorded` or the kinds `stage_missing`
 
 ### Ledgered
 
+#### `logging.control-characters`: Control characters in a message: glog writes them as they are, tracing-subscriber escapes those that can drive a terminal
+
+- **Go:** glog writes a message as `fmt.Sprintf` made it, control characters included (glog v1.2.5, internal/logsink/logsink.go:247-258): ESC, BEL, BS, FF, DEL and the C1 controls U+0080 to U+009F reach stderr and the files unchanged.
+- **Rust:** tracing-subscriber 0.3.23's fmt layer sanitizes messages by default: it writes ESC, BEL, BS, FF and DEL as `\x1b`, `\x07`, `\x08`, `\x0c` and `\x7f` and U+0080 to U+009F as `\u{80}` to `\u{9f}`, so that a message cannot drive a terminal; tab, vertical tab, carriage return, NUL and the other control characters pass as they are.
+- **Who notices:** operator
+- **Visible in:** The server's log output: messages that hold control characters, such as text from a request or a bidder's response
+- **Harness:** none
+- **Pin:** `crates/logger/tests/format.rs::control_characters`
+- **Note:** `with_ansi_sanitization(false)` on the fmt layers of crates/logger/src/sinks.rs would write Go's bytes, and with them the terminal escapes Go lets through.
+- **Recorded in:** `crates/logger/differences.toml`
+
+#### `logging.fatal`: `logger.Fatalf`: glog's FATAL line, every goroutine's stack and SIGABRT, against an error `main` reports
+
+- **Go:** `Fatalf` writes the FATAL line to stderr and every file, then every goroutine's stack, and raises SIGABRT, which the Go runtime answers with `SIGABRT: abort`, another stack dump and exit code 2, where the call stands (logger/glog.go:33-35; glog v1.2.5, glog.go:656-671).
+- **Rust:** `fatalf!` builds a `Fatal` error that the caller returns up to `main`, whose report writes the message as one ERROR line at the `pbs_logger::fatal` target, to stderr at every threshold and to the file, and gives exit code 2. No stack is written, and the callers between the failure and `main` return as the error comes up (the clippy `exit` lint forbids an exit in place).
+- **Who notices:** operator
+- **Visible in:** stderr and the exit status when the server stops on a fatal error
+- **Harness:** none
+- **Pin:** `crates/logger/tests/facade.rs::fatal_exit_code`
+- **Recorded in:** `crates/logger/differences.toml`
+
+#### `logging.files`: Log files: glog's per-severity files with headers and symlinks, against one daily file without either
+
+- **Go:** Without `-logtostderr`, glog writes `<program>.<host>.<user>.log.<SEVERITY>.<yyyymmdd-hhmmss>.<pid>` for INFO, WARNING, ERROR and, after `Fatalf`, FATAL, each with a five-line header and the lines at or above its severity, with a `<program>.<SEVERITY>` symlink beside each and another in `-log_link`. It writes them in `-log_dir`, or in the temp directory when `-log_dir` is empty or no file can be made there (a missing `-log_dir` included), and flushes lines above `-logbuflevel` at once and the others every 30 seconds.
+- **Rust:** tracing-appender writes one file, `<program>.<yyyy-mm-dd>.log`, rolled over at midnight UTC, with every line, no header and no symlink, through a non-blocking worker that never drops a line (`lossy(false)`). A missing `-log_dir` is made, and a `-log_dir` that cannot be made stops the start with `log: cannot create log in <dir>: <reason>` and exit code 2. `-log_link` and `-logbuflevel` are accepted and change nothing.
+- **Who notices:** operator
+- **Visible in:** Log files, when the server runs without `-logtostderr` (the image runs with it)
+- **Harness:** none
+- **Pin:** `crates/logger/tests/files.rs::appender_layout`
+- **Decision:** D-LOGFILE
+- **Recorded in:** `crates/logger/differences.toml`
+
+#### `logging.flag-texts`: Flag errors and usage: the flag package's lines and listing, against Go's words with Rust's quoting and getopts' listing
+
+- **Go:** A failure writes one error line, such as `flag provided but not defined: -x`, `flag needs an argument: -v`, `bad flag syntax: ---x`, `invalid value "x" for flag -v: strconv.Atoi: parsing "x": invalid syntax` or `invalid boolean value "x" for -logtostderr: parse error`, with values quoted by `%q`, then the usage listing of `PrintDefaults`: each flag as `  -name` and its value's type (none for a bool), its help text on the next line after four spaces and a tab, and `(default 2)` after `-stderrthreshold`'s. `-h` writes the listing alone.
+- **Rust:** The error lines are Go's words, with values quoted by Rust's `{:?}`, which writes a control character as `\u{1}` where `%q` writes `\x01` (the matrix's `-v=\x01` and `-logtostderr=\x7f` rows). The listing is getopts', with glog's help texts: `Options:`, then each flag indented by eight (`-v` by four) with `[=bool]` after a bool and the value's type after the others, its help text from column 24 wrapped at 54 characters, and no default.
+- **Who notices:** operator
+- **Visible in:** stderr when the command line fails or asks for the usage
+- **Harness:** none
+- **Pin:** `crates/logger/tests/flags.rs::error_lines`
+- **Note:** Every other error line of the matrix and of the 50,000 seeded command lines is Go's, byte for byte.
+- **Recorded in:** `crates/logger/differences.toml`
+
+#### `logging.flag-utf8`: Command-line arguments that are not UTF-8: Go reads them as bytes, getopts refuses them
+
+- **Go:** Go's `os.Args` are byte strings: `-log_dir=<bytes>` names a directory, an argument after the flags is left in `flag.Args()` whatever its bytes, and `-v=<bytes>` fails `strconv.Atoi` with exit code 2.
+- **Rust:** getopts takes UTF-8 arguments only, so the first argument that is not UTF-8 stops the start with `argument is not UTF-8: <the argument, its bad bytes as U+FFFD>`, the usage and exit code 2.
+- **Who notices:** operator
+- **Visible in:** Startup with a command-line argument that is not UTF-8
+- **Harness:** none
+- **Pin:** `crates/logger/tests/flags.rs::non_utf8_arguments`
+- **Recorded in:** `crates/logger/differences.toml`
+
+#### `logging.httptest-flag`: `-httptest.serve`: a flag net/http/httptest adds to Go's command line, unknown to Rust's
+
+- **Go:** The binary links net/http/httptest: endpoints/openrtb2/test_utils.go:11 imports it, and so does testify's assert package, which hooks/hookexecution/test_utils.go:8 imports and metrics/metrics_mock.go:7 through testify's mock. Its init defines `-httptest.serve` when an argument starts with `-httptest.serve=` or `--httptest.serve=` (net/http/httptest/server.go:89-93): `flag.Parse` then takes its value, as the next argument too, and the usage listing names it. Only an httptest server reads the value, and no code of the server starts one.
+- **Rust:** The command line has glog's nine flags only, so `-httptest.serve=<address>` among the flags fails with `flag provided but not defined: -httptest.serve`, the usage and exit code 2, where Go's parses.
+- **Who notices:** operator
+- **Visible in:** Startup with `-httptest.serve=<address>` on the command line
+- **Harness:** none
+- **Pin:** `crates/logger/tests/flags.rs::httptest_serve_flag`
+- **Note:** Without an argument that starts so, Go has no such flag either and both fail alike, and an argument after the flags is left over in both.
+- **Recorded in:** `crates/logger/differences.toml`
+
 #### `logging.line-format`: Log lines: glog's header with the facade's file and line, against tracing-subscriber's format
 
 - **Go:** glog writes `W1118 12:00:00.000000 4242 logger.go:17] message`: the level letter and the date, the time to the microsecond, the PID and the file and line, which through Prebid's logger facade (depth 1, logger/glog.go:37-41) are always the facade's own, `logger.go:17` for a warning.
@@ -1225,6 +1289,78 @@ No entry names the classes `other` and `unrecorded` or the kinds `stage_missing`
 - **Pin:** `crates/differences/tests/logging.rs::go_difference_line_format`
 - **Note:** The glog calls that bypass the facade (the rules engine's observer.go:14 and :20, and the WURFL module) write their own file and line; no pin covers them.
 - **Recorded in:** `crates/differences/differences.toml`
+
+#### `logging.message-bytes`: Message bytes: glog cuts a line at 15,000 bytes and adds no newline after one, tracing-subscriber writes the whole message and always ends the line
+
+- **Go:** glog cuts a formatted line, header included, to 14,999 bytes and its newline (`MaxLogMessageLen`; glog v1.2.5, internal/logsink/logsink.go:29-33 and 247-254), and adds no newline to a message that ends with one, as the formats of `logger.Infof` at router/router.go:133 and :140 and of `logger.Fatalf` at config/config.go:767 do.
+- **Rust:** tracing-subscriber writes the whole message and then a newline of its own, so a message that ends with a newline leaves an empty line after it.
+- **Who notices:** operator
+- **Visible in:** The server's log output: long messages and those whose format ends with `\n`
+- **Harness:** none
+- **Pin:** `crates/logger/tests/format.rs::message_bytes`
+- **Recorded in:** `crates/logger/differences.toml`
+
+#### `logging.std-log-lines`: Lines of other code: Go's standard logger, against tracing lines through Prebid's subscriber
+
+- **Go:** net/http's servers (`http: TLS handshake error from ...`, net/http/server.go:1943) and go-metrics-influxdb (influxdb.go:37-86) write through Go's standard logger: `2006/01/02 15:04:05 message` on stderr whatever glog's flags say, and never in glog's files.
+- **Rust:** Other crates log through tracing (axum, h2, hyper-util and tower do) or through the `log` crate, which tracing-log hands to tracing (reqwest does), into the subscriber Prebid's lines go through: from WARN up only, in tracing-subscriber's format, to stderr and the log file as glog's flags send a line of that level. The Influx reporter logs through pbs-logger, as Prebid's code does.
+- **Who notices:** operator
+- **Visible in:** The server's log output: the lines of libraries
+- **Harness:** none
+- **Pin:** `crates/logger/tests/format.rs::dependency_lines`
+- **Note:** crates/logger/tests/init.rs::init_once logs through the `log` crate after `init_from_glog_flags` and finds those lines filtered and written as tracing's.
+- **Recorded in:** `crates/logger/differences.toml`
+
+#### `logging.v-flags`: -v, -vmodule and -log_backtrace_at: read as glog reads them, with no effect
+
+- **Go:** glog reads `-v` and `-vmodule` for `glog.V`, which no Prebid code calls, so they change nothing; `-log_backtrace_at=file.go:N` writes a stack after every line logged at that file and line, which through the facade is one of the facade's own, `logger.go:17` for every `Warnf`.
+- **Rust:** The three flags are parsed and checked as glog parses them (a bad value fails with exit code 2) and change nothing: no stack is written.
+- **Who notices:** operator
+- **Visible in:** stderr under `-log_backtrace_at`
+- **Harness:** none
+- **Pin:** `crates/logger/tests/flags.rs::v_flags_accepted`
+- **Recorded in:** `crates/logger/differences.toml`
+
+### Go behaviour kept
+
+#### `logging.debug-level`: `logger.Debugf`'s level: glog's INFO, where tracing has a DEBUG level
+
+- **Go:** `GlogLogger.Debugf` calls `glog.InfoDepthf` (logger/glog.go:13-15), so a `Debugf` line is an INFO line, written as `I...` wherever INFO lines go.
+- **Rust:** tracing has a DEBUG level below INFO: a `debug!` event is dropped by a subscriber that keeps Prebid's crates from INFO up, and written as `DEBUG` by one that keeps it.
+- **Who notices:** operator
+- **Visible in:** The server's log output
+- **Harness:** none: a mismatch here is unexpected
+- **Pin:** `crates/logger/tests/facade.rs::debugf_is_info`
+- **Rule B:** Prebid's own logic ported onto the crate, not glue
+- **How Go's behaviour is kept:** `debugf!` expands to tracing's `info!` (crates/logger/src/facade.rs), so its lines are INFO lines, kept and written as `infof!`'s are.
+- **Restore pin:** `crates/logger/tests/facade.rs::debugf_is_info` (The sinks golden's `Debugf` line is an INFO line; `debugf!`'s is an INFO event, written as `INFO`.)
+- **Recorded in:** `crates/logger/differences.toml`
+
+#### `logging.flags`: Command line: Go's flag package reads glog's nine flags in its syntax, getopts reads options its own way
+
+- **Go:** `flag.Parse` (main.go:28) reads glog v1.2.5's nine flags: `-name` or `--name`, a value after `=` or as the next argument, a bool set by `-name` or `-name=<strconv.ParseBool value>` and never by the next argument. Each value is set in argument order by its flag's `Set` (`strconv.Atoi` for `-v`, `ParseInt` with base 0 for `-logbuflevel`, glog's parsers for `-vmodule`, `-log_backtrace_at` and `-stderrthreshold`), the last one winning; parsing stops at the first argument that is not a flag and after `--`; `-h` and `-help` print the usage and exit 0, and every other failure prints an error line and the usage and exits 2.
+- **Rust:** getopts alone reads `-logtostderr` as a cluster of eleven one-letter options, keeps values as strings, reports a failure as its own `Fail` value without the options before it, and knows no help flag or exit code.
+- **Who notices:** operator
+- **Visible in:** Startup: the server's command line (the image runs `-v 1 -logtostderr`)
+- **Harness:** none: a mismatch here is unexpected
+- **Pin:** `crates/logger/tests/flags.rs::go_flag_matrix`
+- **Rule B:** Rule B (c): the operator interface (config keys, defaults, `PBS_` variables, CLI flags, metric names, labels and types)
+- **How Go's behaviour is kept:** crates/logger/src/flags: getopts with `long_only` and `StopAtFirstFree`, `-v` as its one letter and the bools as optional values, so `-name false` leaves `false` as an argument; the glue sets the values in argument order with ports of strconv's `ParseBool`, `Atoi` and `ParseInt` and of glog's `Set` methods, reruns getopts on the longest prefix it parses so that an earlier bad value fails first, as in Go, and turns `-h` and `-help` into the usage with exit code 0 and every other failure into exit code 2.
+- **Restore pin:** `crates/logger/tests/flags.rs::go_flag_matrix` (The matrix's 123 command lines give Go's outcome and exit code and, when they parse, every flag's value as Go's `String` writes it and the arguments left.); `crates/logger/tests/flags.rs::seeded_command_lines_match_go` (50,000 seeded command lines of flags, odd names, values and specials give Go's outcome, values and arguments left in every batch's digest.)
+- **Recorded in:** `crates/logger/differences.toml`
+
+#### `logging.stderr-threshold`: Where lines go: glog's -logtostderr, -alsologtostderr and -stderrthreshold, against tracing-subscriber's one writer per layer
+
+- **Go:** glog writes a line to stderr when `-logtostderr` or `-alsologtostderr` is set or the line's severity is at or above `-stderrthreshold` (ERROR unless set; INFO, WARNING, ERROR, FATAL or 0 to 3), and to its files unless `-logtostderr` is set (glog v1.2.5, glog_file.go:198-236).
+- **Rust:** tracing-subscriber's fmt layer writes every event its filter lets through to its one writer, with no notion of glog's flags or of a FATAL severity.
+- **Who notices:** operator
+- **Visible in:** The server's stderr and log file under the stderr flags
+- **Harness:** none: a mismatch here is unexpected
+- **Pin:** `crates/logger/tests/files.rs::stderr_threshold`
+- **Rule B:** Rule B (c): the operator interface (config keys, defaults, `PBS_` variables, CLI flags, metric names, labels and types)
+- **How Go's behaviour is kept:** crates/logger/src/sinks.rs builds a stderr layer whose filter is glog's `stderrSink.Enabled` and a file layer unless `-logtostderr` is set; the report of `Fatal` logs at ERROR with the `pbs_logger::fatal` target, which counts as FATAL, so `-stderrthreshold=FATAL` still lets it through.
+- **Restore pin:** `crates/logger/tests/files.rs::stderr_threshold` (Every levels and fatal run of the sinks golden writes glog's lines, in order and with glog's severities, to stderr, and a file exactly when glog writes one, holding the lines of glog's INFO file.)
+- **Recorded in:** `crates/logger/differences.toml`
 
 ## Prometheus metrics
 

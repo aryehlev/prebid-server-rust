@@ -1,62 +1,29 @@
-//! Prebid Server Go `logger` package with `glog`-compatible output.
+//! Prebid Server's logger (`logger/`): the facade Prebid's code logs through and the command line
+//! that says where the lines go, over `tracing`.
 //!
-//! Go: `logger/` (the [`Logger`] interface, the package functions [`debugf()`], [`infof()`],
-//! [`warnf()`], [`errorf()`] and [`fatalf()`], and the default [`GlogLogger`]), with ports of the
-//! two logging libraries Prebid's Go code uses: [`glog`] (`github.com/golang/glog` v1.2.5, which
-//! writes every server log line) and [`chasex`] (`github.com/chasex/glog`, the file logger of
-//! the filesystem analytics module).
-//!
-//! Messages are Go format strings over [`Value`] operands, formatted by Go's `fmt` rules, and
-//! lines are glog's byte for byte:
-//!
-//! ```text
-//! I1117 10:23:45.123456   12345 logger.go:12] Loaded 348 bidders
-//! ```
-//!
-//! The package functions report the call site Go reports for them, `logger.go` at the line of
-//! the Go function's body, because Go's default logger skips exactly one frame: every Go
-//! Prebid log line names `logger.go:7` (Debugf), `:12` (Infof), `:17` (Warnf), `:22` (Errorf)
-//! or `:27` (Fatalf), and so does this port. Calls made directly on a [`Logger`], and glog's
-//! own functions, report the Rust file and line of their caller.
-//!
-//! The macros [`debugf!`], [`infof!`], [`warnf!`], [`errorf!`] and [`fatalf!`] call the package
-//! functions with Go's variadic shape, converting each argument with `Value::from`:
-//! `logger.Infof("Loaded %d bidders", n)` ports as `pbs_logger::infof!("Loaded %d bidders", n)`.
-//!
-//! Start-up mirrors Go's `main`: parse glog's command-line flags with
-//! [`glog::parse_command_line`] (Go: `flag.Parse`) and route the `log` crate through glog with
-//! [`glog::install_log_bridge`]. A fatal log ends the process with Go's status 2 through
-//! [`std::process::exit`] unless [`exit::set_exit_fn`] installs another way to end it.
-//!
-//! ```
-//! use pbs_logger::{Logger as _, Value, glog};
-//!
-//! // Go: `prebid-server -logtostderr`.
-//! glog::parse_command_line(&["-logtostderr".to_owned()]).map_err(|e| e.to_string())?;
-//! let logger = pbs_logger::GlogLogger::new();
-//! logger.infof("%d bidders, %s", &[Value::from(348), Value::from("ok")]);
-//! pbs_logger::warnf("stored request %s not found", &[Value::from("abc")]);
-//! pbs_logger::warnf!("stored request %s not found", "abc");
-//! glog::flush();
-//! # Ok::<(), String>(())
-//! ```
+//! Go: `logger.Debugf`, `Infof`, `Warnf`, `Errorf` and `Fatalf` (logger/logger.go) call glog
+//! v1.2.5 through `GlogLogger` with depth 1 (logger/glog.go), and `main.go:28`'s `flag.Parse`
+//! reads glog's nine flags, and net/http/httptest's `-httptest.serve` when an argument starts with
+//! `-httptest.serve=` (not a flag here: `logging.httptest-flag`). Here [`debugf!`], [`infof!`],
+//! [`warnf!`] and [`errorf!`] are `tracing` events (`debugf!` at INFO, as `Debugf` calls
+//! `glog.InfoDepthf`); [`fatalf!`] builds a [`Fatal`] that `main` returns and reports, which logs
+//! it at ERROR and gives exit code 2; [`init_from_glog_flags`] reads glog's flags in Go's syntax
+//! with getopts and installs a `tracing-subscriber` that writes the lines where glog would; and
+//! [`Capture`] keeps the lines a test logs, as Go's tests swap in a mock logger. What differs from
+//! Go is in `crates/logger/differences.toml`.
 
-pub mod chasex;
-pub mod exit;
+mod capture;
 mod facade;
-pub mod glog;
-mod glog_logger;
-pub mod goerr;
-mod interface;
-mod macros;
-#[cfg(test)]
-mod tests;
-#[cfg(test)]
-pub mod testutil;
+mod flags;
+mod sinks;
 
-pub use facade::{
-    debugf, errorf, fatalf, infof, reset_logger, set_logger, uses_default_logger, warnf,
-};
-pub use glog_logger::GlogLogger;
-pub use interface::Logger;
-pub use pbs_gocompat::fmt::Value;
+pub use capture::{Capture, Line};
+pub use facade::{FATAL_TARGET, Fatal, Severity};
+pub use flags::{CommandLine, Exit, GlogFlags, ModulePattern, TraceLocation, parse_command_line};
+pub use sinks::{LogFileError, Logging, init_from_glog_flags, subscriber};
+
+/// What the facade macros expand to; not part of the API.
+#[doc(hidden)]
+pub mod __private {
+    pub use tracing::{error, info, warn};
+}
