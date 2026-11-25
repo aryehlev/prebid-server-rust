@@ -19,8 +19,8 @@ use serde_json::value::RawValue;
 use super::{
     shapes::{
         Case, ELEMENT_CONTEXT, ERROR_TEXTS, FAILED_MERGE_ELEMENTS, FAILED_MERGE_SLICE, Merged,
-        NIL_RAW_WRITTEN, Outcome, Runner, cases_in, compare, emptied_slices_as_nil,
-        ensure_explained, go_merge_error, run, runner,
+        NIL_RAW_WRITTEN, Outcome, Runner, STD_ERROR_TEXTS, cases_in, compare,
+        emptied_slices_as_nil, ensure_explained, go_merge_error, run, runner,
     },
     support::{TestResult, ensure_eq},
 };
@@ -130,6 +130,7 @@ fn containers_match_go() -> TestResult {
             FAILED_MERGE_ELEMENTS,
             FAILED_MERGE_SLICE,
             NIL_RAW_WRITTEN,
+            STD_ERROR_TEXTS,
         ],
         &format!("the ledger entries the differences fall in ({classes:?})"),
     )

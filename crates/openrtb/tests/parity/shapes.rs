@@ -25,6 +25,9 @@ use super::{
 
 /// `json.error-texts`: the library message inside Prebid's wrapper is `serde_json`'s.
 pub(super) const ERROR_TEXTS: &str = "json.error-texts";
+/// `json.std-error-texts`: a document `EncodingJson::unmarshal` cannot decode fails with
+/// `serde_json`'s message, where `json.Unmarshal`'s is `encoding/json`'s.
+pub(super) const STD_ERROR_TEXTS: &str = "json.std-error-texts";
 /// `json.element-merge-context`: a merge error in a slice element names the field, where Go names
 /// the slice's type.
 pub(super) const ELEMENT_CONTEXT: &str = "json.element-merge-context";
@@ -55,6 +58,7 @@ const EXPECTED: &[&str] = &[
     NIL_RAW_WRITTEN,
     NULL_DOCUMENT,
     PROMOTED_CONTEXT,
+    STD_ERROR_TEXTS,
 ];
 
 /// What one side made of a document: the bytes it wrote, or the decoder's or encoder's error.
@@ -118,10 +122,25 @@ fn decode<T: DeserializeOwned + Serialize>(doc: &str) -> TestResult<Outcome> {
 
 /// `doc` decoded as `T` the way `json.Unmarshal` decodes it, and written back.
 fn decode_std<T: DeserializeOwned + Serialize>(doc: &str) -> TestResult<Outcome> {
-    match unmarshal::<EncodingJson<T>>(doc.as_bytes()) {
-        Ok(EncodingJson(value)) => encoded(&value),
+    match EncodingJson::<T>::unmarshal(doc.as_bytes()) {
+        Ok(value) => encoded(&value),
         Err(e) => Ok(Outcome::DecodeFailed(e.to_string())),
     }
+}
+
+/// The ledger entries of a difference from `json.Unmarshal`'s outcome: its error texts are
+/// `json.std-error-texts`, not jsoniter's `json.error-texts`.
+pub(super) fn std_classes(classes: Vec<&'static str>) -> Vec<&'static str> {
+    classes
+        .into_iter()
+        .map(|class| {
+            if class == ERROR_TEXTS {
+                STD_ERROR_TEXTS
+            } else {
+                class
+            }
+        })
+        .collect()
 }
 
 /// `patch` merged into `doc` decoded as `T`.
@@ -573,8 +592,9 @@ fn check_case(
             let mut classes =
                 compare(doc, &port, jsoniter).map_err(|e| format!("jsoniter: {e}"))?;
             let port_std = (runner.decode_std)(doc)?;
-            classes
-                .extend(compare(doc, &port_std, std).map_err(|e| format!("encoding/json: {e}"))?);
+            classes.extend(std_classes(
+                compare(doc, &port_std, std).map_err(|e| format!("encoding/json: {e}"))?,
+            ));
             Ok(classes)
         }
         Case::Merge {

@@ -23,6 +23,7 @@ use super::{
     index::for_each_type,
     shapes::{
         self, ERROR_TEXTS, FLOAT_FORMAT, HTML_ESCAPE, NIL_RAW_WRITTEN, NULL_DOCUMENT, Outcome,
+        STD_ERROR_TEXTS,
     },
     support::{TestResult, ensure_eq, golden_rows, report, show},
 };
@@ -105,7 +106,7 @@ fn written<T: Serialize>(value: &T) -> Outcome {
 /// `encoding_json` is set) and written back.
 fn serde_outcome<T: DeserializeOwned + Serialize>(doc: &[u8], encoding_json: bool) -> Outcome {
     let decoded = if encoding_json {
-        unmarshal::<EncodingJson<T>>(doc).map(|EncodingJson(value)| value)
+        EncodingJson::<T>::unmarshal(doc)
     } else {
         unmarshal::<T>(doc)
     };
@@ -403,7 +404,7 @@ impl Tally {
             return;
         };
         let doc = String::from_utf8_lossy(row.doc);
-        let classes = match shapes::compare(&doc, port, go) {
+        let found = match shapes::compare(&doc, port, go) {
             Ok(classes) => classes,
             Err(why) => {
                 if let Some(classes) = entry(row, port, go, rerun) {
@@ -418,6 +419,11 @@ impl Tally {
                     return;
                 }
             }
+        };
+        let classes = if decoder == ENCODING_JSON {
+            shapes::std_classes(found)
+        } else {
+            found
         };
         for class in classes {
             *self.entries.entry(class).or_default() += 1;
@@ -532,7 +538,13 @@ fn corpus_differs_only_lexically_and_in_key_case() -> TestResult {
     let tally = check(
         "corpus.tsv",
         8100,
-        &[ERROR_TEXTS, FLOAT_FORMAT, HTML_ESCAPE, KEY_CASE],
+        &[
+            ERROR_TEXTS,
+            FLOAT_FORMAT,
+            HTML_ESCAPE,
+            KEY_CASE,
+            STD_ERROR_TEXTS,
+        ],
     )?;
     let want: BTreeMap<(&str, &str), usize> = KEY_CASE_FIXTURES
         .iter()
@@ -576,6 +588,7 @@ fn mutations_differ_in_ledger_entries() -> TestResult {
             NIL_RAW_WRITTEN,
             NULL_DOCUMENT,
             NULL_ELEMENTS,
+            STD_ERROR_TEXTS,
             STRUCT_FROM_ARRAY,
         ],
     )?;
@@ -604,6 +617,7 @@ fn adversarial_documents_differ_in_ledger_entries() -> TestResult {
             NIL_RAW_WRITTEN,
             NULL_ELEMENTS,
             OUT_OF_RANGE_NUMBERS,
+            STD_ERROR_TEXTS,
             STRUCT_FROM_ARRAY,
         ],
     )?;
