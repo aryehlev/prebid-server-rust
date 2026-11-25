@@ -11,7 +11,9 @@
 //! budget and no 408 or 503 timeout layer, so a late answer is still sent (`server.timeouts`).
 //! What hyper does with a body the handler leaves unread is its own: it keeps the connection only
 //! when one more read ends the body, where net/http reads up to 256 KiB of it
-//! (`server.unread-body`).
+//! (`server.unread-body`). It closes a connection at once after a 431 or an unread body, where
+//! net/http shuts the write side and waits 500 ms for a client still sending
+//! (`server.lingering-close`).
 //!
 //! On the shutdown signal it stops accepting, closes the connections that wait for a request,
 //! lets the others finish their answer (sent with `connection: close`) and waits at most
