@@ -45,13 +45,14 @@
 //! `#[serde(flatten)]` and reads every member, promoted ones included, through a private mirror
 //! struct (`#[serde(from = "...Fields")]`). The config's `serde_bridge` names the module that
 //! carries what pbs-jsonutil cannot read, write or merge itself (`RawJson`, the merge of Go `int`
-//! and `uint`, and the `extern_types` that name a bridge); a field override's `keep_null` keeps
-//! null in a `json.RawMessage` of a type Prebid decodes with `encoding/json`. Generation refuses
-//! what serde cannot hold as Go does: a struct without fields, two fields with one JSON key, the
-//! `,string` option, `GoString` strings, a bridged type inside a pointer, slice or map or under a
-//! named type, a Go `int` or `uint` inside a slice or map (the bridge merges only the integer and
-//! a pointer to it), a named type of a slice, map or struct, and an embedded struct that is a
-//! pointer, of another package or embeds one itself.
+//! and `uint`, and the `extern_types` that name a bridge), also inside pointers, slices and maps
+//! (its generic `bridged` module, and its merges of `Option`, `Vec` and `BTreeMap`); a field
+//! override's `keep_null` keeps null in a `json.RawMessage` of a type Prebid decodes with
+//! `encoding/json`. Generation refuses what serde cannot hold as Go does: a struct without
+//! fields, two fields with one JSON key, the `,string` option, `GoString` strings, a bridged type
+//! as a map key or under a named type, a type's `keep_null` over a `json.RawMessage` inside a
+//! pointer, slice or map, a named type of a slice, map or struct, and an embedded struct that is
+//! a pointer, of another package or embeds one itself.
 //!
 //! Each crate can also ask for two indexes ([`index`]): a Rust file with the `for_each_type!`,
 //! `for_each_struct!` and `for_each_const!` macros, the Go names of the types and constants, and

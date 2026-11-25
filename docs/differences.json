@@ -416,6 +416,29 @@
       "fragment": "crates/differences/differences.toml"
     },
     {
+      "id": "json.element-merge-context",
+      "category": "json",
+      "status": "ledgered",
+      "title": "A merge error in a slice element: Go names the slice's type, the port the field",
+      "go": "`jsonutil.MergeClone` names the operation of jsoniter's error stack that holds the failure, which for a value of the wrong JSON type as a slice element, or for an inner slice, is the slice's type: `cannot unmarshal []string: ...` for `{\"bcat\":[1]}` into an `openrtb2.BidRequest` and `{\"imp\":[{\"iframebuster\":[2]}]}`, `[]openrtb2.Format` for a format that is not an object, and `[]int` and `[][]int` for the `openrtb_ext` fields that hold them (`ExtRequestTargeting.DurationRangeSec`, `ImpExtConcert.Sizes`). A struct inside a slice names its own field (`openrtb2.Format.W`).",
+      "rust": "The generated `MergeClone` names the field that holds the slice (`cannot unmarshal openrtb2.BidRequest.BCat: ...`, `openrtb2.Imp.IframeBuster`, `openrtb2.Banner.Format`), since a slice's merge adds no context of its own and `merge_field` names the field; a struct inside a slice names its own field, as Go does.",
+      "who": [
+        "none"
+      ],
+      "visible_in": "Nothing in production: Prebid's `MergeClone` callers keep no more of the text than whether it holds `invalid json on existing object` (exchange/utils.go:719-727, firstpartydata/first_party_data.go:348-353, account/fetcher.go:141-151)",
+      "harness": [],
+      "pin": "crates/openrtb/tests/parity/containers.rs::element_merge_errors_name_the_field",
+      "restore": "A slice merge that names its Go type, which pbs-jsonutil's `Vec` merge does not know; not planned while no caller reads the context.",
+      "default": null,
+      "decision": null,
+      "rule_b": null,
+      "restore_by": [],
+      "restorations": [],
+      "restore_pending": false,
+      "note": null,
+      "fragment": "crates/openrtb/differences.toml"
+    },
+    {
       "id": "json.error-texts",
       "category": "json",
       "status": "ledgered",
@@ -438,6 +461,29 @@
       "restore_pending": false,
       "note": null,
       "fragment": "crates/jsonutil/differences.toml"
+    },
+    {
+      "id": "json.failed-merge-elements",
+      "category": "json",
+      "status": "ledgered",
+      "title": "A merge that fails in a slice element or map value: Go keeps that element or entry, the port drops it",
+      "go": "jsoniter appends each slice element and sets each map entry it starts to read, so after `jsonutil.MergeClone` fails in one the slice or map holds it with what was read, a zero value: `[4,0]` for `[4,\"x\"]` into a `[]int`, `{\"a\":1,\"b\":0}` for `{\"b\":\"x\"}` into a `map[string]int` holding `a`, an `imp` holding the `openrtb2.Imp` whose merge failed; a slice of strings goes on to the elements after it (`[\"a\",\"\",\"b\"]` for `[\"a\",1,\"b\"]`).",
+      "rust": "pbs-jsonutil's `Vec` and `BTreeMap` merges, which the generated code and `gojson_bridge` use, keep only what merged before the failure (`[4]`, `{\"a\":1}`, `[\"a\"]`, an empty `imp`).",
+      "who": [
+        "none"
+      ],
+      "visible_in": "Nothing in production: every `MergeClone` caller drops the value when the merge fails (exchange/utils.go:719-727, firstpartydata/first_party_data.go:198, 267, 322 and 405, account/fetcher.go:141 and 147)",
+      "harness": [],
+      "pin": "crates/openrtb/tests/parity/containers.rs::failed_merges_keep_what_merged_before",
+      "restore": "pbs-jsonutil's container merges keeping the element or entry that failed; not planned while no caller keeps a failed merge's value.",
+      "default": null,
+      "decision": null,
+      "rule_b": null,
+      "restore_by": [],
+      "restorations": [],
+      "restore_pending": false,
+      "note": null,
+      "fragment": "crates/openrtb/differences.toml"
     },
     {
       "id": "json.failed-merge-empty-slice",
@@ -1337,6 +1383,29 @@
       "restore_pending": false,
       "note": null,
       "fragment": "crates/differences/differences.toml"
+    },
+    {
+      "id": "json.std-error-texts",
+      "category": "json",
+      "status": "ledgered",
+      "title": "Bid responses read as json.Unmarshal reads them: the error text is serde_json's",
+      "go": "The zentotem, loopme, tradplus and adverxo adapters return `json.Unmarshal`'s error for a bid response that does not decode as an `openrtb2.BidResponse` (zentotem.go:71, loopme.go:58, tradplus.go:111, adverxo.go:99), and resetdigital puts its text into a `BadServerResponse` (resetdigital.go:131): `encoding/json`'s messages, `unexpected end of JSON input`, `json: cannot unmarshal string into Go struct field Bid.seatbid.bid.price of type float64`.",
+      "rust": "`gojson_bridge::EncodingJson::unmarshal` fails as `json.Unmarshal` does, with a plain error that no `errortypes` type wraps (`errortypes.ReadCode` gives 999), holding serde_json's message: `EOF while parsing an object at line 1 column 1`, `invalid type: string \"1\", expected f64 at line 1 column 32`.",
+      "who": [
+        "publisher"
+      ],
+      "visible_in": "The bidder errors in `ext.errors` of auction responses, and Prebid's logs and debug output, when a bid response to one of the five adapters does not decode",
+      "harness": [],
+      "pin": "crates/openrtb/src/gojson_bridge.rs::unmarshals_and_fails_as_encoding_json",
+      "restore": "Write encoding/json's messages from serde_json's error categories; not planned (D-DECODE).",
+      "default": null,
+      "decision": "D-DECODE",
+      "rule_b": null,
+      "restore_by": [],
+      "restorations": [],
+      "restore_pending": false,
+      "note": null,
+      "fragment": "crates/openrtb/differences.toml"
     },
     {
       "id": "json.string-int-parse",

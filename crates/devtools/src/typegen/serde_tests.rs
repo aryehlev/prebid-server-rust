@@ -2,7 +2,7 @@
 //! mapping rule and per refusal.
 
 use core::slice;
-use std::collections::BTreeMap;
+use std::{collections::BTreeMap, fs, path::Path};
 
 use serde_json::{Value, json};
 
@@ -462,6 +462,201 @@ fn reads_promoted_members_directly() -> Result<()> {
     )
 }
 
+/// The shapes of the `openrtb_ext` fields that hold a Go `int` or a `json.RawMessage` inside a
+/// pointer, slice or map (`ExtImpPrebid.Bidder`, `ExtBidResponse.ResponseTimeMillis`,
+/// `PodConfig.DurationRangeSec`, `ImpExtConcert.Sizes`), and the slice, pointer and map cases of
+/// the same kind no Prebid field has yet: the fields of `p.Containers` in pbs-openrtb's Go
+/// golden program (`crates/openrtb/testdata/go/p`).
+fn containers_package() -> Vec<Value> {
+    let int = || basic("int");
+    let string = || basic("string");
+    vec![struct_decl(
+        "Containers",
+        &[
+            field(
+                "Bidder",
+                &map_of(&string(), &raw_message()),
+                Some("bidder,omitempty"),
+            ),
+            field(
+                "ResponseTimeMillis",
+                &map_of(&string(), &int()),
+                Some("responsetimemillis,omitempty"),
+            ),
+            field(
+                "DurationRangeSec",
+                &slice_of(&int()),
+                Some("durationrangesec"),
+            ),
+            field(
+                "Sizes",
+                &pointer(&slice_of(&slice_of(&int()))),
+                Some("sizes,omitempty"),
+            ),
+            field("Raws", &slice_of(&raw_message()), Some("raws,omitempty")),
+            field("RawPtr", &pointer(&raw_message()), Some("rawptr,omitempty")),
+            field(
+                "Counts",
+                &slice_of(&pointer(&int())),
+                Some("counts,omitempty"),
+            ),
+            field(
+                "Wide",
+                &map_of(&string(), &basic("uint")),
+                Some("wide,omitempty"),
+            ),
+        ],
+    )]
+}
+
+/// The containers package's module.
+fn containers() -> Result<String> {
+    // Go `*[][]int` has no generated Rust type (`ImpExtConcert.Sizes` overrides it the same way);
+    // the serde attributes and the merge still follow its Go type.
+    let extra = json!({"overrides": {"Containers.Sizes": {
+        "reason": "a pointer to a slice",
+        "rust_type": "Option<Option<Vec<Option<Vec<isize>>>>>",
+        "implements": ["Eq"],
+    }}});
+    generate(&containers_package(), &extra, true)
+}
+
+#[test]
+fn maps_containers_of_bridged_types() -> Result<()> {
+    let content = containers()?;
+    check_has(
+        &content,
+        "a map of json.RawMessage",
+        &[
+            "    #[serde(",
+            "        rename = \"bidder\",",
+            "        skip_serializing_if = \"is_nil_or_empty\",",
+            "        with = \"gojson_bridge::bridged\"",
+            "    )]",
+            "    #[gojson(go = \"Bidder\", json = \"bidder,omitempty\")]",
+            "    pub bidder: Option<BTreeMap<String, RawJson>>,",
+        ],
+    )?;
+    check_has(
+        &content,
+        "a map of Go int",
+        &[
+            "    #[serde(rename = \"responsetimemillis\", skip_serializing_if = \
+             \"is_nil_or_empty\")]",
+            "    #[gojson(go = \"ResponseTimeMillis\", json = \"responsetimemillis,omitempty\")]",
+            "    pub responsetimemillis: Option<BTreeMap<String, isize>>,",
+        ],
+    )?;
+    check_has(
+        &content,
+        "a slice of Go int without omitempty",
+        &[
+            "    #[serde(rename = \"durationrangesec\")]",
+            "    #[gojson(go = \"DurationRangeSec\", json = \"durationrangesec\")]",
+            "    pub durationrangesec: Option<Vec<isize>>,",
+        ],
+    )?;
+    check_has(
+        &content,
+        "a pointer to slices of Go int",
+        &[
+            "    #[serde(rename = \"sizes\", skip_serializing_if = \"Option::is_none\")]",
+            "    #[gojson(go = \"Sizes\", json = \"sizes,omitempty\")]",
+            "    pub sizes: Option<Option<Vec<Option<Vec<isize>>>>>,",
+        ],
+    )?;
+    check_has(
+        &content,
+        "a slice of json.RawMessage",
+        &[
+            "    #[serde(",
+            "        rename = \"raws\",",
+            "        skip_serializing_if = \"is_nil_or_empty\",",
+            "        with = \"gojson_bridge::bridged\"",
+            "    )]",
+            "    #[gojson(go = \"Raws\", json = \"raws,omitempty\")]",
+            "    pub raws: Option<Vec<RawJson>>,",
+        ],
+    )?;
+    check_has(
+        &content,
+        "a pointer to json.RawMessage",
+        &[
+            "    #[serde(",
+            "        rename = \"rawptr\",",
+            "        skip_serializing_if = \"Option::is_none\",",
+            "        with = \"gojson_bridge::bridged\"",
+            "    )]",
+            "    #[gojson(go = \"RawPtr\", json = \"rawptr,omitempty\")]",
+            "    pub rawptr: Option<RawJson>,",
+        ],
+    )?;
+    check_has(
+        &content,
+        "a slice of pointers to Go int and a map of Go uint",
+        &[
+            "    pub counts: Option<Vec<Option<isize>>>,",
+            "    /// Go field `Wide`.",
+            "    #[serde(rename = \"wide\", skip_serializing_if = \"is_nil_or_empty\")]",
+            "    #[gojson(go = \"Wide\", json = \"wide,omitempty\")]",
+            "    pub wide: Option<BTreeMap<String, usize>>,",
+        ],
+    )
+}
+
+#[test]
+fn merges_containers_through_the_bridge() -> Result<()> {
+    let content = containers()?;
+    // Every field merges through the bridge, which merges the containers by pbs-jsonutil's rules.
+    check_has(
+        &content,
+        "merges",
+        &[
+            "        merge_struct(patch, |key, value| match key {",
+            "            \"bidder\" => gojson_bridge::merge_field(&mut self.bidder, value, \
+             GO_TYPE, \"Bidder\"),",
+            "            \"responsetimemillis\" => gojson_bridge::merge_field(",
+            "                &mut self.responsetimemillis,",
+            "                value,",
+            "                GO_TYPE,",
+            "                \"ResponseTimeMillis\",",
+            "            ),",
+            "            \"durationrangesec\" => gojson_bridge::merge_field(",
+            "                &mut self.durationrangesec,",
+            "                value,",
+            "                GO_TYPE,",
+            "                \"DurationRangeSec\",",
+            "            ),",
+            "            \"sizes\" => gojson_bridge::merge_field(&mut self.sizes, value, \
+             GO_TYPE, \"Sizes\"),",
+            "            \"raws\" => gojson_bridge::merge_field(&mut self.raws, value, \
+             GO_TYPE, \"Raws\"),",
+            "            \"rawptr\" => gojson_bridge::merge_field(&mut self.rawptr, value, \
+             GO_TYPE, \"RawPtr\"),",
+            "            \"counts\" => gojson_bridge::merge_field(&mut self.counts, value, \
+             GO_TYPE, \"Counts\"),",
+            "            \"wide\" => gojson_bridge::merge_field(&mut self.wide, value, \
+             GO_TYPE, \"Wide\"),",
+            "            _ => Ok(()),",
+            "        })",
+        ],
+    )?;
+    // pbs-openrtb's containers parity test replays Go's shapes of the same fields through this
+    // struct, which it holds byte for byte.
+    let start = content
+        .find("/// Go type `p.Containers`.")
+        .ok_or_else(|| ToolError::new("no p.Containers in the generated module"))?;
+    let parity =
+        Path::new(env!("CARGO_MANIFEST_DIR")).join("../openrtb/tests/parity/containers.rs");
+    let held = fs::read_to_string(&parity)?;
+    check(
+        content
+            .get(start..)
+            .is_some_and(|item| held.contains(item.trim_end())),
+        "crates/openrtb/tests/parity/containers.rs holds the generated p.Containers",
+    )
+}
+
 /// A refusal case: the declarations, the package config's extras, whether the config names a
 /// bridge, and what the refusal says.
 type Refusal<'a> = (Vec<Value>, Value, bool, &'a str);
@@ -519,45 +714,31 @@ fn refuses_fields_serde_cannot_hold() -> Result<()> {
         ),
         (
             vec![struct_decl(
-                "Raws",
-                &[field("R", &slice_of(&raw_message()), Some("r"))],
+                "Numbers",
+                &[field(
+                    "N",
+                    &map_of(&named("encoding/json", "json", "Number"), &string()),
+                    Some("n"),
+                )],
             )],
             none.clone(),
             true,
-            "a bridged type inside a pointer, slice or map",
+            "a bridged type as a map key",
+        ),
+        (
+            vec![struct_decl(
+                "KeptRaws",
+                &[field("R", &slice_of(&raw_message()), Some("r"))],
+            )],
+            json!({"overrides": {"KeptRaws": {"reason": "r", "keep_null": true}}}),
+            true,
+            "keep_null does not reach a json.RawMessage inside a pointer, slice or map",
         ),
         (
             vec![struct_decl("Bytes", &[field("S", &string(), Some("s"))])],
             json!({"strings": "GoString"}),
             true,
             "GoString strings have no serde mapping",
-        ),
-        (
-            vec![struct_decl(
-                "Ints",
-                &[field("N", &slice_of(&basic("int")), Some("n"))],
-            )],
-            none.clone(),
-            true,
-            "a Go int or uint inside a slice or map",
-        ),
-        (
-            vec![struct_decl(
-                "Counts",
-                &[field("N", &map_of(&string(), &basic("uint")), Some("n"))],
-            )],
-            none.clone(),
-            true,
-            "a Go int or uint inside a slice or map",
-        ),
-        (
-            vec![struct_decl(
-                "Maybe",
-                &[field("N", &slice_of(&pointer(&basic("int"))), Some("n"))],
-            )],
-            none.clone(),
-            true,
-            "a Go int or uint inside a slice or map",
         ),
     ])?;
     // A Go `int` key needs no merge of its own; `int64` elements merge as themselves.

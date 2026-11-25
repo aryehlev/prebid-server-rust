@@ -1168,6 +1168,7 @@ name = "pbs-openrtb"
 version = "0.1.0"
 dependencies = [
  "pbs-devtools",
+ "pbs-errortypes",
  "pbs-gocompat",
  "pbs-gojson",
  "pbs-jsonutil",

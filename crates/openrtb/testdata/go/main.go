@@ -34,8 +34,11 @@
 // sample, zero and null values and its integer extremes, decoded with both decoders and
 // re-encoded with the matching encoder, and jsonutil.MergeClone of samples, null and values of
 // the wrong JSON type into each field. pbs-openrtb's serde parity test (tests/parity/shapes.rs)
-// compares its outputs semantically, so they are written in full; writeShapes documents the
-// format.
+// compares its outputs semantically, so they are written in full; writeShapeCases documents the
+// format. containers.jsonl holds the same cases, and edges of its own, in the same format, for
+// p.Containers, a struct of the containers typegen maps through pbs-openrtb's gojson_bridge,
+// which no OpenRTB type has (containers.go); pbs-openrtb's tests/parity/containers.rs replays
+// it.
 //
 // Run it from the directory of this module, crates/openrtb/testdata/go (the toolchain the other
 // goldens use):
@@ -119,11 +122,12 @@ func main() {
 	writeEncodings(filepath.Join(*out, "encode.tsv"), enc)
 
 	shapes := writeShapes(filepath.Join(*out, "shapes.jsonl"))
+	containers := writeContainers(filepath.Join(*out, "containers.jsonl"))
 
 	log.Printf("corpus: %d roots, %d files, %d cases; module: %d cases; mutations: %d cases; "+
-		"adversarial: %d cases; encode: %d values; shapes: %d cases",
+		"adversarial: %d cases; encode: %d values; shapes: %d cases; containers: %d cases",
 		len(c.roots), len(c.files), len(c.cases), len(m.cases), len(mutations), len(adv), len(enc),
-		shapes)
+		shapes, containers)
 }
 
 // testCase is one document to decode as one Go type.

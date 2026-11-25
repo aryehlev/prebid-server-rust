@@ -25,9 +25,15 @@ use super::{
 
 /// `json.error-texts`: the library message inside Prebid's wrapper is `serde_json`'s.
 pub(super) const ERROR_TEXTS: &str = "json.error-texts";
+/// `json.element-merge-context`: a merge error in a slice element names the field, where Go names
+/// the slice's type.
+pub(super) const ELEMENT_CONTEXT: &str = "json.element-merge-context";
+/// `json.failed-merge-elements`: after a merge that fails inside a slice or map, the field holds
+/// what merged before the failure, where Go's holds the element or entry that failed as well.
+pub(super) const FAILED_MERGE_ELEMENTS: &str = "json.failed-merge-elements";
 /// `json.failed-merge-empty-slice`: a merge that fails on a nil slice leaves it empty, where Go
 /// leaves it nil.
-const FAILED_MERGE_SLICE: &str = "json.failed-merge-empty-slice";
+pub(super) const FAILED_MERGE_SLICE: &str = "json.failed-merge-empty-slice";
 /// `json.html-escape`: jsoniter escapes `<`, `>`, `&`, U+2028 and U+2029 in strings.
 pub(super) const HTML_ESCAPE: &str = "json.html-escape";
 /// `json.float-format`: a number spelled differently.
@@ -75,11 +81,11 @@ impl Outcome {
 
 /// A merge's error and the merged value written.
 #[derive(Debug)]
-struct Merged {
+pub(super) struct Merged {
     /// The merge's error.
-    error: Option<MergeCloneError>,
+    pub(super) error: Option<MergeCloneError>,
     /// The value after the merge, written.
-    encoded: Outcome,
+    pub(super) encoded: Outcome,
 }
 
 /// `value` written with `marshal`, which must write what `serde_json` writes.
@@ -133,14 +139,23 @@ fn merge<T: DeserializeOwned + Serialize + MergeClone>(
     })
 }
 
-/// The serde code of one ported type.
-struct Runner {
+/// The serde code of one type.
+pub(super) struct Runner {
     /// Decodes a document and writes it back.
     decode: fn(&str) -> TestResult<Outcome>,
     /// Decodes a document as `json.Unmarshal` does and writes it back.
     decode_std: fn(&str) -> TestResult<Outcome>,
     /// Merges a patch into a decoded document.
-    merge: fn(&str, &str) -> TestResult<Merged>,
+    pub(super) merge: fn(&str, &str) -> TestResult<Merged>,
+}
+
+/// The runner of `T`.
+pub(super) fn runner<T: DeserializeOwned + Serialize + MergeClone>() -> Runner {
+    Runner {
+        decode: decode::<T>,
+        decode_std: decode_std::<T>,
+        merge: merge::<T>,
+    }
 }
 
 /// The runner of every ported type by Go name; fails unless the names are those of [`TYPES`].
@@ -148,12 +163,10 @@ fn runners() -> TestResult<BTreeMap<String, Runner>> {
     let mut by_name = BTreeMap::new();
     macro_rules! runner {
         ($ty:ty) => {{
-            let runner = Runner {
-                decode: decode::<$ty>,
-                decode_std: decode_std::<$ty>,
-                merge: merge::<$ty>,
-            };
-            if by_name.insert(go_type_name::<$ty>(), runner).is_some() {
+            if by_name
+                .insert(go_type_name::<$ty>(), runner::<$ty>())
+                .is_some()
+            {
                 return Err(format!(
                     "two Rust types for Go type {}",
                     go_type_name::<$ty>()
@@ -170,7 +183,7 @@ fn runners() -> TestResult<BTreeMap<String, Runner>> {
 
 /// One case of the golden.
 #[derive(Debug, Clone)]
-enum Case {
+pub(super) enum Case {
     /// A document decoded and written back by both Go decoders.
     Decode {
         /// The Go type.
@@ -214,7 +227,12 @@ impl Case {
 
 /// The golden's cases.
 fn cases() -> TestResult<Vec<Case>> {
-    let golden = crate_dir().join("testdata/golden/shapes.jsonl");
+    cases_in("shapes.jsonl")
+}
+
+/// The cases of the golden `testdata/golden/<name>`, in the format of `shapes.jsonl`.
+pub(super) fn cases_in(name: &str) -> TestResult<Vec<Case>> {
+    let golden = crate_dir().join("testdata/golden").join(name);
     let text = String::from_utf8(read(&golden)?).map_err(|e| e.to_string())?;
     let mut lines = text.lines();
     let head: Vec<String> =
@@ -242,7 +260,7 @@ fn cases() -> TestResult<Vec<Case>> {
                     err: err.clone(),
                     merged: Outcome::from_cell(merged),
                 }),
-                _ => Err(format!("shapes.jsonl:{}: bad row {line}", n + 2)),
+                _ => Err(format!("{name}:{}: bad row {line}", n + 2)),
             }
         })
         .collect()
@@ -444,7 +462,7 @@ pub(super) fn compare(
 }
 
 /// Go's merge error text split into its field (`openrtb2.Imp.Banner`) and its message.
-fn go_merge_error(text: &str) -> (Option<&str>, &str) {
+pub(super) fn go_merge_error(text: &str) -> (Option<&str>, &str) {
     text.strip_prefix("cannot unmarshal ")
         .and_then(|rest| rest.split_once(": "))
         .map_or((None, text), |(context, message)| (Some(context), message))
@@ -453,6 +471,7 @@ fn go_merge_error(text: &str) -> (Option<&str>, &str) {
 /// The ledger entries a merge case falls in, or what is unexplained.
 fn compare_merge(
     merged: &Merged,
+    patch: &str,
     err: &str,
     go_merged: &Outcome,
 ) -> Result<Vec<&'static str>, String> {
@@ -465,6 +484,9 @@ fn compare_merge(
                 (ours, theirs) if ours == theirs => {}
                 (Some(ours), Some(theirs)) if is_promoted_context(ours, theirs) => {
                     classes.push(PROMOTED_CONTEXT);
+                }
+                (Some(ours), Some(theirs)) if theirs.starts_with("[]") && ours.contains('.') => {
+                    classes.push(ELEMENT_CONTEXT);
                 }
                 (ours, theirs) => {
                     return Err(format!("merge error in {ours:?}, Go's in {theirs:?}"));
@@ -479,17 +501,44 @@ fn compare_merge(
     match compare("", &merged.encoded, go_merged) {
         Ok(found) => classes.extend(found),
         Err(e) => {
-            let nil = emptied_slices_as_nil(merged).ok_or(e)?;
-            classes.push(FAILED_MERGE_SLICE);
-            classes.extend(compare("", &nil, go_merged)?);
+            let emptied = emptied_slices_as_nil(merged)
+                .map(|nil| compare("", &nil, go_merged))
+                .and_then(Result::ok);
+            if let Some(found) = emptied {
+                classes.push(FAILED_MERGE_SLICE);
+                classes.extend(found);
+            } else if differs_only_in_patched_fields(merged, patch, go_merged) {
+                classes.push(FAILED_MERGE_ELEMENTS);
+            } else {
+                return Err(e);
+            }
         }
     }
     Ok(classes)
 }
 
+/// Whether, after a merge that failed, the port's value and Go's differ only in the members the
+/// patch names: the fields the failure was in.
+fn differs_only_in_patched_fields(merged: &Merged, patch: &str, go: &Outcome) -> bool {
+    let (Some(_), Outcome::Encoded(port), Outcome::Encoded(go)) =
+        (&merged.error, &merged.encoded, go)
+    else {
+        return false;
+    };
+    let parse = |text: &str| serde_json::from_str::<serde_json::Map<String, Value>>(text).ok();
+    let (Some(patch), Some(mut port), Some(mut go)) = (parse(patch), parse(port), parse(go)) else {
+        return false;
+    };
+    for key in patch.keys() {
+        let _port = port.remove(key);
+        let _go = go.remove(key);
+    }
+    port == go
+}
+
 /// After a merge that failed, the merged value with its empty slices written as Go writes nil
 /// ones, `None` when the merge succeeded or has no empty slices.
-fn emptied_slices_as_nil(merged: &Merged) -> Option<Outcome> {
+pub(super) fn emptied_slices_as_nil(merged: &Merged) -> Option<Outcome> {
     match &merged.encoded {
         Outcome::Encoded(text) if merged.error.is_some() && text.contains(":[]") => {
             Some(Outcome::Encoded(text.replace(":[]", ":null")))
@@ -539,19 +588,21 @@ fn check_case(
             let runner = runners
                 .get(ty)
                 .ok_or_else(|| format!("no Rust type for {ty}"))?;
-            compare_merge(&(runner.merge)(doc, patch)?, err, merged)
+            compare_merge(&(runner.merge)(doc, patch)?, patch, err, merged)
         }
     }
 }
 
 /// Every case: the ledger entries the differences fall in, with the number of cases of each,
 /// and what is unexplained.
-fn run() -> TestResult<(BTreeMap<&'static str, usize>, Vec<String>)> {
-    let runners = runners()?;
+pub(super) fn run(
+    runners: &BTreeMap<String, Runner>,
+    cases: &[Case],
+) -> (BTreeMap<&'static str, usize>, Vec<String>) {
     let mut classes = BTreeMap::new();
     let mut unexplained = Vec::new();
-    for case in cases()? {
-        match check_case(&runners, &case) {
+    for case in cases {
+        match check_case(runners, case) {
             Ok(found) => {
                 for class in found {
                     *classes.entry(class).or_insert(0) += 1;
@@ -560,7 +611,24 @@ fn run() -> TestResult<(BTreeMap<&'static str, usize>, Vec<String>)> {
             Err(e) => unexplained.push(format!("{}: {e}", case.name())),
         }
     }
-    Ok((classes, unexplained))
+    (classes, unexplained)
+}
+
+/// Fails, listing the first of them, when some cases differ from Go outside the ledger.
+pub(super) fn ensure_explained(unexplained: &[String]) -> TestResult {
+    if unexplained.is_empty() {
+        return Ok(());
+    }
+    Err(format!(
+        "{} cases differ from Go outside the ledger:\n{}",
+        unexplained.len(),
+        unexplained
+            .iter()
+            .take(40)
+            .cloned()
+            .collect::<Vec<_>>()
+            .join("\n")
+    ))
 }
 
 /// Every case of the golden matches Go, or differs in the ledger entries of [`EXPECTED`], each of
@@ -579,19 +647,8 @@ fn shapes_match_go() -> TestResult {
         &TYPES.iter().copied().collect(),
         "the types the golden has cases for",
     )?;
-    let (classes, unexplained) = run()?;
-    if !unexplained.is_empty() {
-        return Err(format!(
-            "{} cases differ from Go outside the ledger:\n{}",
-            unexplained.len(),
-            unexplained
-                .iter()
-                .take(40)
-                .cloned()
-                .collect::<Vec<_>>()
-                .join("\n")
-        ));
-    }
+    let (classes, unexplained) = run(&runners()?, &cases);
+    ensure_explained(&unexplained)?;
     ensure_eq(
         &classes.keys().copied().collect::<Vec<_>>(),
         &EXPECTED.to_vec(),

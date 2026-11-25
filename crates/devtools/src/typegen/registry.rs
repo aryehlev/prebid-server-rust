@@ -10,6 +10,12 @@ use super::{
 };
 use crate::error::{Result, ToolError};
 
+/// The bridge module of a pointer, slice or map that holds a bridged type.
+///
+/// Its generic `serialize` and `deserialize` read and write the whole value, whatever the nesting
+/// (`Option<RawJson>`, `Option<BTreeMap<String, RawJson>>`), through each element's bridge.
+pub const BRIDGED: &str = "bridged";
+
 /// Go types with a fixed Rust counterpart in pbs-gojson: the Go type, the Rust type, its `use`
 /// path, and the serde bridge module that serializes and merges it (pbs-gojson's types have no
 /// serde or `MergeClone` impls).
@@ -456,7 +462,7 @@ impl Registry {
     ///
     /// Fails for types the serde code cannot represent: those [`Registry::render`] refuses but an
     /// unnamed struct or a pointer to a slice or map (which a `rust_type` override spells), a
-    /// bridged type inside a pointer, slice or map, and `GoString` strings.
+    /// bridged type as a map key, and `GoString` strings.
     pub fn serde_field(&self, t: &TypeRef, strings: StringType) -> Result<SerdeField> {
         let value = |omit| SerdeField {
             omit,
@@ -492,37 +498,20 @@ impl Registry {
                 },
             }),
             TypeKind::Struct => Ok(value(Omit::Never)),
-            TypeKind::Pointer => {
-                let inner = self.serde_holder(t, elem(t)?, strings)?;
-                Ok(SerdeField {
-                    omit: Omit::Nil,
-                    value: false,
-                    with: None,
-                    merge_bridge: inner,
-                })
-            }
-            TypeKind::Slice => {
-                self.serde_element(t, elem(t)?, strings)?;
-                Ok(SerdeField {
-                    omit: Omit::NilOrEmpty,
-                    value: false,
-                    with: None,
-                    merge_bridge: false,
-                })
-            }
+            TypeKind::Pointer => self.serde_container(elem(t)?, Omit::Nil, strings),
+            TypeKind::Slice => self.serde_container(elem(t)?, Omit::NilOrEmpty, strings),
             TypeKind::Map => {
                 let k = t
                     .key
                     .as_deref()
                     .ok_or_else(|| ToolError::new(format!("map type {} has no key", t.reflect)))?;
-                let _ = self.serde_holder(t, k, strings)?;
-                self.serde_element(t, elem(t)?, strings)?;
-                Ok(SerdeField {
-                    omit: Omit::NilOrEmpty,
-                    value: false,
-                    with: None,
-                    merge_bridge: false,
-                })
+                if self.serde_field(k, strings)?.with.is_some() {
+                    return Err(ToolError::new(format!(
+                        "{}: a bridged type as a map key has no serde mapping",
+                        t.reflect
+                    )));
+                }
+                self.serde_container(elem(t)?, Omit::NilOrEmpty, strings)
             }
             TypeKind::Interface if t.methods.is_empty() => Ok(SerdeField {
                 omit: Omit::Zero,
@@ -538,33 +527,27 @@ impl Registry {
         }
     }
 
-    /// Whether `MergeClone` of the pointer, slice or map `outer` goes through the bridge for its
-    /// element or key `inner`.
-    fn serde_holder(&self, outer: &TypeRef, inner: &TypeRef, strings: StringType) -> Result<bool> {
-        let field = self.serde_field(inner, strings)?;
-        if field.with.is_some() {
-            return Err(ToolError::new(format!(
-                "{}: a bridged type inside a pointer, slice or map has no serde mapping; \
-                 override the field",
-                outer.reflect
-            )));
-        }
-        Ok(field.merge_bridge)
-    }
-
-    /// Checks the element `inner` of the slice or map `outer`: pbs-jsonutil merges a `Vec` or
-    /// `BTreeMap` only of elements with a `MergeClone` of their own, and the bridge merges no
-    /// container, so an element that merges through the bridge (a Go `int` or `uint`, or a
-    /// pointer to one) has no serde mapping.
-    fn serde_element(&self, outer: &TypeRef, inner: &TypeRef, strings: StringType) -> Result<()> {
-        if self.serde_holder(outer, inner, strings)? {
-            return Err(ToolError::new(format!(
-                "{}: a Go int or uint inside a slice or map has no serde mapping (pbs-jsonutil \
-                 merges no isize or usize); override the field",
-                outer.reflect
-            )));
-        }
-        Ok(())
+    /// How the serde code treats a pointer, slice or map (Go's `omitempty` test `omit`) of
+    /// `inner`, its element (a map's key never needs the bridge).
+    ///
+    /// serde reads and writes the container itself, unless `inner` holds a bridged type: then the
+    /// bridge's generic [`BRIDGED`] module reads and writes the whole value, element by element
+    /// through the element's bridge. It merges through the bridge when `inner` does (it holds a
+    /// bridged type, or a Go `int` or `uint`, which pbs-jsonutil does not merge): the bridge
+    /// merges a pointer, slice and map by pbs-jsonutil's rules for them.
+    fn serde_container(
+        &self,
+        inner: &TypeRef,
+        omit: Omit,
+        strings: StringType,
+    ) -> Result<SerdeField> {
+        let inner = self.serde_field(inner, strings)?;
+        Ok(SerdeField {
+            omit,
+            value: false,
+            with: inner.with.map(|_| BRIDGED.to_owned()),
+            merge_bridge: inner.merge_bridge,
+        })
     }
 }
 
@@ -576,7 +559,9 @@ pub struct SerdeField {
     /// Whether the type is a Go value (a number, bool, string, named type or struct): JSON null
     /// leaves it at its zero value (`null_default`), where serde would fail.
     pub value: bool,
-    /// The bridge module (`raw_json`) of a bridged type held directly.
+    /// The bridge module that reads and writes the type: `raw_json` (or the extern type's
+    /// module) for a bridged type held directly, [`BRIDGED`] for a pointer, slice or map that
+    /// holds one.
     pub with: Option<String>,
     /// Whether `MergeClone` goes through the bridge: the type holds a bridged type, or a Go `int`
     /// or `uint` (pbs-jsonutil has no `MergeClone` for `isize` and `usize`).

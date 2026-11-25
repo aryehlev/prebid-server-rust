@@ -25,14 +25,24 @@ type shapeCase struct {
 	patch string // the merged document ("M" only)
 }
 
-// shapeCases are the shape cases of one ported type. A struct gets, for each JSON field (embedded
-// structs' fields promoted): every sample value, the zero value (an empty slice or map for
-// those), null and, for integers, the extremes of the type and one beyond each; and the merges
-// of a sample into the zero value, of the last sample over the first, of null over the first
-// and of a value of the wrong JSON type. The struct as a whole gets the empty object (every
-// field absent) and every field at once, sampled, zero and null. A named type gets the same
-// values as top-level documents.
-func shapeCases(t reflect.Type) []shapeCase {
+// shapeValues are the values shapeCases gives a field of a Go type: its JSON values and its
+// integer extremes.
+type shapeValues struct {
+	values   func(reflect.Type) values
+	extremes func(reflect.Type) []string
+}
+
+// portedValues are the values of the ported types' fields.
+var portedValues = shapeValues{values: valuesFor, extremes: intExtremes}
+
+// shapeCases are the shape cases of one type, with the values of sv. A struct gets, for each JSON
+// field (embedded structs' fields promoted): every sample value, the zero value (an empty slice
+// or map for those), null and, for integers, the extremes of the type and one beyond each; and
+// the merges of a sample into the zero value, of the last sample over the first, of null over
+// the first and of a value of the wrong JSON type. The struct as a whole gets the empty object
+// (every field absent) and every field at once, sampled, zero and null. A named type gets the
+// same values as top-level documents.
+func shapeCases(t reflect.Type, sv shapeValues) []shapeCase {
 	var out []shapeCase
 	decode := func(label, doc string) {
 		out = append(out, shapeCase{kind: "D", typ: t, label: label, doc: doc})
@@ -41,13 +51,13 @@ func shapeCases(t reflect.Type) []shapeCase {
 		out = append(out, shapeCase{kind: "M", typ: t, label: label, doc: doc, patch: patch})
 	}
 	if t.Kind() != reflect.Struct {
-		v := valuesFor(t)
+		v := sv.values(t)
 		for i, s := range v.samples {
 			decode(fmt.Sprintf("sample %d", i), s)
 		}
 		decode("zero", v.zero)
 		decode("null", "null")
-		for i, e := range intExtremes(t) {
+		for i, e := range sv.extremes(t) {
 			decode(fmt.Sprintf("extreme %d", i), e)
 		}
 		first, last := v.samples[0], v.samples[len(v.samples)-1]
@@ -60,7 +70,7 @@ func shapeCases(t reflect.Type) []shapeCase {
 	fields := jsonFields(t, nil)
 	var every, zeros, nulls []string
 	for _, f := range fields {
-		v := valuesFor(f.typ)
+		v := sv.values(f.typ)
 		key := strconv.Quote(f.key)
 		member := func(value string) string { return "{" + key + ":" + value + "}" }
 		for i, s := range v.samples {
@@ -68,7 +78,7 @@ func shapeCases(t reflect.Type) []shapeCase {
 		}
 		decode(f.key+" zero", member(v.zero))
 		decode(f.key+" null", member("null"))
-		for i, e := range intExtremes(f.typ) {
+		for i, e := range sv.extremes(f.typ) {
 			decode(fmt.Sprintf("%s extreme %d", f.key, i), member(e))
 		}
 		first, last := v.samples[0], v.samples[len(v.samples)-1]
@@ -135,7 +145,16 @@ func shapeResult(doc []byte, t reflect.Type, decode func([]byte, interface{}) er
 	return string(out)
 }
 
-// writeShapes writes shapes.jsonl: a first line ["#go", version], then one JSON array of
+// writeShapes writes shapes.jsonl, the shape cases of every ported type (see writeShapeCases).
+func writeShapes(path string) int {
+	var cases []shapeCase
+	for _, p := range portedTypes {
+		cases = append(cases, shapeCases(p.goType, portedValues)...)
+	}
+	return writeShapeCases(path, cases)
+}
+
+// writeShapeCases writes shape cases: a first line ["#go", version], then one JSON array of
 // strings per case,
 //
 //	["D", type, label, doc, jsoniter, std]
@@ -145,7 +164,7 @@ func shapeResult(doc []byte, t reflect.Type, decode func([]byte, interface{}) er
 // the same with json.Unmarshal and json.Marshal (each a shapeResult), err the text of
 // jsonutil.MergeClone's error (empty for none) after doc was decoded with jsonutil.Unmarshal,
 // and merged the merged value encoded with jsonutil.Marshal ("?" and the error when that fails).
-func writeShapes(path string) int {
+func writeShapeCases(path string, cases []shapeCase) int {
 	f, err := os.Create(path)
 	if err != nil {
 		log.Fatal(err)
@@ -159,34 +178,30 @@ func writeShapes(path string) int {
 		}
 	}
 	row("#go", runtime.Version())
-	n := 0
-	for _, p := range portedTypes {
-		for _, c := range shapeCases(p.goType) {
-			n++
-			name := c.typ.String()
-			if c.kind == "D" {
-				doc := []byte(c.doc)
-				row("D", name, c.label, c.doc,
-					shapeResult(doc, c.typ, jsonutil.Unmarshal, jsonutil.Marshal),
-					shapeResult(doc, c.typ, json.Unmarshal, json.Marshal))
-				continue
-			}
-			v := reflect.New(c.typ)
-			if err := jsonutil.Unmarshal([]byte(c.doc), v.Interface()); err != nil {
-				log.Fatalf("%s %s: the merge target does not decode: %v", name, c.label, err)
-			}
-			errText := ""
-			if err := jsonutil.MergeClone(v.Interface(), json.RawMessage(c.patch)); err != nil {
-				errText = err.Error()
-			}
-			merged := "?"
-			if out, err := jsonutil.Marshal(v.Elem().Interface()); err != nil {
-				merged += err.Error()
-			} else {
-				merged = string(out)
-			}
-			row("M", name, c.label, c.doc, c.patch, errText, merged)
+	for _, c := range cases {
+		name := c.typ.String()
+		if c.kind == "D" {
+			doc := []byte(c.doc)
+			row("D", name, c.label, c.doc,
+				shapeResult(doc, c.typ, jsonutil.Unmarshal, jsonutil.Marshal),
+				shapeResult(doc, c.typ, json.Unmarshal, json.Marshal))
+			continue
 		}
+		v := reflect.New(c.typ)
+		if err := jsonutil.Unmarshal([]byte(c.doc), v.Interface()); err != nil {
+			log.Fatalf("%s %s: the merge target does not decode: %v", name, c.label, err)
+		}
+		errText := ""
+		if err := jsonutil.MergeClone(v.Interface(), json.RawMessage(c.patch)); err != nil {
+			errText = err.Error()
+		}
+		merged := "?"
+		if out, err := jsonutil.Marshal(v.Elem().Interface()); err != nil {
+			merged += err.Error()
+		} else {
+			merged = string(out)
+		}
+		row("M", name, c.label, c.doc, c.patch, errText, merged)
 	}
 	if err := w.Flush(); err != nil {
 		log.Fatal(err)
@@ -194,5 +209,5 @@ func writeShapes(path string) int {
 	if err := f.Close(); err != nil {
 		log.Fatal(err)
 	}
-	return n
+	return len(cases)
 }

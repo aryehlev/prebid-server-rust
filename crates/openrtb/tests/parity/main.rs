@@ -26,6 +26,8 @@
 //! the Go root (`$PBS_GO_ROOT`, else `.upstream`, which `scripts/fetch-upstream.sh` makes).
 
 #[cfg(test)]
+pub mod containers;
+#[cfg(test)]
 pub mod encode;
 #[cfg(test)]
 pub mod functions;
