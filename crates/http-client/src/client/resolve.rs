@@ -1,6 +1,7 @@
 //! The resolver the clients look host names up with: the system's (`getaddrinfo` through
 //! tokio), timed for [`Event::Dns`], or under the loopback guard 127.0.0.1 for every name but
-//! the names under `invalid.`. A lookup fails with a [`DnsError`].
+//! the names under `invalid.`. A lookup fails with a [`DnsError`]. The bidder client's h2c probe
+//! looks its origins up the same way, untimed ([`lookup`]).
 
 use std::{
     future::Future,
@@ -41,25 +42,7 @@ impl Resolve for Resolver {
         let loopback = self.loopback;
         Box::pin(async move {
             let start = Instant::now();
-            let host = name.as_str();
-            let rooted = host.strip_suffix('.').unwrap_or(host);
-            let found = match loopback {
-                Some(_) if rooted == "invalid" || rooted.ends_with(".invalid") => {
-                    Err(DnsError::no_such_host(host))
-                }
-                Some(port) => Ok(vec![SocketAddr::from((Ipv4Addr::LOCALHOST, port))]),
-                None => match lookup_host((host, 0)).await {
-                    Ok(addrs) => {
-                        let addrs: Vec<SocketAddr> = addrs.collect();
-                        if addrs.is_empty() {
-                            Err(DnsError::no_such_host(host))
-                        } else {
-                            Ok(addrs)
-                        }
-                    }
-                    Err(error) => Err(DnsError::from_lookup(host, &error)),
-                },
-            };
+            let found = lookup(loopback, name.as_str()).await;
             if let Some(trace) = trace {
                 trace.emit(Event::Dns {
                     elapsed: start.elapsed(),
@@ -68,5 +51,28 @@ impl Resolve for Resolver {
             let addrs: Addrs = Box::new(found?.into_iter());
             Ok(addrs)
         })
+    }
+}
+
+/// The addresses of `host`, as the resolver of a client with the loopback guard `loopback` finds
+/// them: their port is the guard's (0 under no guard, which leaves the port to the URL).
+pub(super) async fn lookup(loopback: Option<u16>, host: &str) -> Result<Vec<SocketAddr>, DnsError> {
+    let rooted = host.strip_suffix('.').unwrap_or(host);
+    match loopback {
+        Some(_) if rooted == "invalid" || rooted.ends_with(".invalid") => {
+            Err(DnsError::no_such_host(host))
+        }
+        Some(port) => Ok(vec![SocketAddr::from((Ipv4Addr::LOCALHOST, port))]),
+        None => match lookup_host((host, 0)).await {
+            Ok(addrs) => {
+                let addrs: Vec<SocketAddr> = addrs.collect();
+                if addrs.is_empty() {
+                    Err(DnsError::no_such_host(host))
+                } else {
+                    Ok(addrs)
+                }
+            }
+            Err(error) => Err(DnsError::from_lookup(host, &error)),
+        },
     }
 }

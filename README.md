@@ -41,6 +41,71 @@ Planned:
   preface marks the bidders that accept h2c; every other bidder stays on HTTP/1.1. Only the
   framing changes: the content of bidder requests and the auction results never do.
 
+## HTTP/2 and h2c to bidders
+
+The bidder client speaks HTTP/2 to the bidders that take it, by itself: there is no configuration
+key and no per-bidder setting. Go's server sends every bidder request over HTTP/1.1. Every other
+client here stays on HTTP/1.1, as router.go's clients do, and so do the currency and analytics
+clients, which Go's `http.DefaultTransport` would take to h2 (`http-client.default-transport-h2`).
+Only the framing changes: a bid request carries the same method, path, fields and body over
+HTTP/2 as over HTTP/1.1, but for the fields the last item below names, and auction results differ
+from Go's only in the fallback and redirect cases below.
+
+- **HTTPS bidders.** The TLS handshake offers ALPN `h2` and `http/1.1`, and requests go in
+  whichever the bidder picks.
+- **Cleartext bidders.** The first bid request to an origin goes over HTTP/1.1 at once and starts
+  a probe beside it. The probe is one connection that sends the HTTP/2 connection preface and an
+  empty SETTINGS frame, never a bid request. A SETTINGS frame in answer marks the origin h2c, and
+  the probe then says GOAWAY and closes. Anything else (an HTTP/1.1 answer, a close, or no answer
+  within five seconds) keeps the origin on HTTP/1.1. The verdict holds for ten minutes, and the
+  origin's first request after that starts a new probe. A probe runs only for an origin a bid
+  request is about to use, never at startup. An HTTP/1.1 bidder reads the probe as a
+  `PRI * HTTP/2.0` request: Go's server answers it with 400 behind a ServeMux, and runs a bare
+  handler for it.
+- **Fallback.** When a request over h2c fails, the origin goes back to HTTP/1.1 for ten minutes.
+  The request is sent again over HTTP/1.1, once, only when the origin read none of it: it
+  answered the preface with HTTP/1.x, or the connection failed before it was ready for the
+  request. When it failed any other way (an HTTP/2 error, a reset or a close once the connection
+  had the request, after which the origin may have read it), it is not sent again, and it is a
+  bidder error with no bid.
+- **Redirects.** Over h2c a redirect is followed when it stays on the origin. One to another
+  origin comes back unfollowed, and the adapter reads the 3xx as the bidder's answer: that request
+  brings no bid, where Go's client would follow a 307 or 308 and could still get one. The first
+  such answer moves the origin back to HTTP/1.1 for ten minutes, where its requests follow
+  redirects as Go's do; requests already on their way over h2c then come back unfollowed too when
+  the bidder redirects them the same way. A later probe can mark the origin h2c again, so a bidder
+  that keeps redirecting to another origin loses those requests once in every ten minutes or so.
+- **Proxies.** A request that goes through a proxy never takes h2c and starts no probe. An https
+  request through a proxy negotiates h2 with the bidder inside the proxy's tunnel.
+- **The general client.** Go's bidders share one client with the modules, the stored-request
+  fetchers and the vendor list. Here that client is two halves over one transport
+  (`Builder::build_general`): only the bidders' half negotiates HTTP/2, and both halves wait for
+  the same `max_connections_per_host` slots and share their cleartext HTTP/1.1 connections. A
+  client offers one set of ALPN protocols, so the bidders' TLS connections are their own: a bid
+  request does not take a TLS connection that a module or a fetcher left idle to the same host.
+- **What differs on the wire.** HTTP/2's framing, header compression and SETTINGS are those of the
+  `h2` crate, not Go's, and field names are in lower case, as they are over HTTP/1.1 here.
+  `User-Agent` stays `Go-http-client/1.1`, where Go's own HTTP/2 sends `Go-http-client/2.0`. The
+  host goes as the `:authority` pseudo-header field. A POST without a body carries
+  `content-length: 0`, as Go's does, where this client's HTTP/1.1 sends no length. The
+  connection-specific fields HTTP/2 forbids are left out, as Go's own HTTP/2 leaves them out:
+  gamma's adapter adds `Connection: keep-alive`, which Go's bidder client sends and a gamma that
+  takes h2 no longer gets. A request whose stream the bidder refuses unread (`REFUSED_STREAM`), or
+  leaves out of a graceful `GOAWAY`, goes again over HTTP/2, at most twice more. One connection
+  carries a bidder's concurrent requests, so the adapter connection metrics count fewer new
+  connections than Go's, and the probe's connection is in none of them. `max_connections_per_host`
+  still caps the requests in flight to a bidder, and response header fields may take up to 10 MiB,
+  as Go's Transport allows.
+
+The ledger records each of these in [docs/DIFFERENCES.md](docs/DIFFERENCES.md):
+`http-client.http2`, `http-client.h2c-probe`, `http-client.h2c-demotion`,
+`http-client.h2c-redirects`, `http-client.h2-connection-counts` and
+`http-client.bidder-tls-pool`.
+
+**Status.** `pbs-http-client` has the bidder client's HTTP/2 (`Builder::negotiate_http2`) and the
+general client whose bidders' half takes it (`Builder::build_general`). The server sends bidder
+traffic this way once ROUTER-MAIN (R8) builds the clients.
+
 ## Getting started
 
 You need git, bash 4.4 or newer and a Rust toolchain installed with rustup (`rust-toolchain.toml`

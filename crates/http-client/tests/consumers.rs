@@ -1,10 +1,10 @@
 //! The crate's API against the Go call sites its consumers port: bidder.go's request with its
 //! client trace, its timeout notification and its seat non-bid reasons, the fetcher's and the
 //! cache client's errors and bodies, the floors fetch's `client.Do` texts and drain, scope3's
-//! `Client.Timeout`, the recaptcha check's own Transport, and the parity transport that wraps
-//! router.go's clients. Each pin compiles the shapes the port needs (trait objects, futures that
-//! cross tasks, errors that copy, responses and errors a transport makes) and checks what Go's
-//! call site sees; each names the Go it models.
+//! `Client.Timeout`, the recaptcha check's own Transport, router.go's general client handed to its
+//! callers, and the parity transport that wraps router.go's clients. Each pin compiles the shapes
+//! the port needs (trait objects, futures that cross tasks, errors that copy, responses and errors
+//! a transport makes) and checks what Go's call site sees; each names the Go it models.
 
 #[cfg(test)]
 pub mod support;
@@ -21,8 +21,8 @@ mod tests {
     use bytes::Bytes;
     use futures_util::future::BoxFuture;
     use pbs_http_client::{
-        Builder, Client, DnsError, ErrorKind, Event, HttpClientSettings, ProxyEnv, RequestError,
-        Response, Trace, Transport,
+        Builder, Client, DnsError, ErrorKind, Event, General, HttpClientSettings, ProxyEnv,
+        RequestError, Response, Trace, Transport,
         reqwest::{
             Body, Method, Request, StatusCode, Url, Version,
             header::{ACCEPT, CONTENT_TYPE, HeaderMap, HeaderName, HeaderValue, LOCATION},
@@ -942,6 +942,146 @@ mod tests {
             drop((wrapped, down));
             let _counts = oracle.close().await;
             Ok(())
+        })
+    }
+
+    /// `moduledeps.ModuleDeps` (modules/moduledeps/deps.go:12): what each module's builder gets,
+    /// router.go's general client among it.
+    #[derive(Debug, Clone)]
+    struct ModuleDeps {
+        http_client: Client,
+    }
+
+    /// What router.go hands the callers of its general client.
+    #[derive(Debug)]
+    struct Wired {
+        modules: ModuleDeps,
+        stored_requests: Client,
+        vendor_list: Client,
+        gvl_vendor_ids: Client,
+        adapters: Client,
+    }
+
+    impl Wired {
+        /// router.go's wiring of `generalHttpClient`: its own half to the modules (:211), the
+        /// stored-request fetchers (:219), the vendor-list fetcher (:234) and the GVL vendor-id
+        /// task (:237), its bidders' half to `exchange.BuildAdapters` (:247).
+        fn new(general: &General<Client>) -> Self {
+            Self {
+                modules: ModuleDeps {
+                    http_client: general.general.clone(),
+                },
+                stored_requests: general.general.clone(),
+                vendor_list: general.general.clone(),
+                gvl_vendor_ids: general.general.clone(),
+                adapters: general.bidders.clone(),
+            }
+        }
+    }
+
+    // Go: router/router.go:143-158 and :211-247 (generalHttpClient and the callers it is handed
+    // to), modules/scope3/rtd/module.go:75-80 (a Timeout over its Transport), and
+    // parity/wiring/clients.go:18 with parity/transport/transport.go:105-117 (the parity
+    // transport around it, telling a bidder's calls by their context, each sent through a clone
+    // of the production Transport with the oracle as its proxy).
+    #[test]
+    fn general_client_wired_like_router_go() -> TestResult {
+        shared::<General<Client>>();
+        shared::<General<Arc<dyn Transport>>>();
+        run(async {
+            let (sender, mut lines) = mpsc::unbounded_channel();
+            let oracle = RawServer::start(move |mut conn| {
+                let sender = sender.clone();
+                async move {
+                    while let Some(request) = conn.read_request().await {
+                        let _sent = sender.send(request.head.first().cloned().unwrap_or_default());
+                        conn.write(b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nok")
+                            .await;
+                    }
+                }
+            })
+            .await?;
+            let parity = Builder::new(HttpClientSettings::GENERAL, ProxyEnv::default())
+                .loopback_only(0)
+                .negotiate_http2()
+                .proxy_url(Url::parse(&format!("http://127.0.0.1:{}", oracle.port()))?)
+                .build_general_transports()?
+                .map(|production| Arc::new(Parity::new(Mode::Oracle(production))));
+            let general = parity.clone().map(|transport| {
+                let transport: Arc<dyn Transport> = transport;
+                Client::from_transport(transport)
+            });
+            let wired = Wired::new(&general);
+            let mut bid = request("POST", "https://bidder.test/openrtb2")?;
+            *bid.body_mut() = Some(Body::from(r#"{"id":"r"}"#));
+            let adapters = wired.adapters.clone();
+            let bidding = tokio::spawn(BIDDER.scope("appnexus".to_owned(), async move {
+                adapters.send(bid, after(5000), None).await?.bytes().await
+            }));
+            let scope3 = wired
+                .modules
+                .http_client
+                .with_timeout(Duration::from_secs(5));
+            let mut answers = Vec::new();
+            for (client, url) in [
+                (&scope3, "http://scope3.test/prebid/prebid"),
+                (&wired.stored_requests, "http://stored.test/stored?id=1"),
+                (
+                    &wired.vendor_list,
+                    "https://vendorlist.test/v3/vendor-list.json",
+                ),
+                (
+                    &wired.gvl_vendor_ids,
+                    "https://vendorlist.test/v3/vendor-list.json",
+                ),
+            ] {
+                let sent = client.send(request("GET", url)?, after(5000), None);
+                answers.push(sent.await?.bytes().await?);
+            }
+            answers.push(bidding.await??);
+            let calls = parity.map(|half| -> Vec<(Option<String>, String)> {
+                let calls = half.calls().into_iter();
+                calls.map(|seen| (seen.bidder, seen.url)).collect()
+            });
+            drop((wired, general, scope3));
+            let _counts = oracle.close().await;
+            let mut read = Vec::new();
+            while let Ok(line) = lines.try_recv() {
+                read.push(line);
+            }
+            read.sort();
+            let get = |url: &str| format!("GET {url} HTTP/1.1");
+            let (scope3_url, stored) = (
+                "http://scope3.test/prebid/prebid".to_owned(),
+                "http://stored.test/stored?id=1".to_owned(),
+            );
+            let vendor_list = "https://vendorlist.test/v3/vendor-list.json".to_owned();
+            let oracle_list = "http://vendorlist.test/v3/vendor-list.json";
+            check_eq(
+                &(answers, read, calls.general, calls.bidders),
+                &(
+                    vec![Bytes::from_static(b"ok"); 5],
+                    vec![
+                        get(&scope3_url),
+                        get(&stored),
+                        get(oracle_list),
+                        get(oracle_list),
+                        "POST http://bidder.test/openrtb2 HTTP/1.1".to_owned(),
+                    ],
+                    vec![
+                        (None, scope3_url),
+                        (None, stored),
+                        (None, vendor_list.clone()),
+                        (None, vendor_list),
+                    ],
+                    vec![(
+                        Some("appnexus".to_owned()),
+                        "https://bidder.test/openrtb2".to_owned(),
+                    )],
+                ),
+                "the answers, what the oracle read as the proxy of both halves (HTTP/1.1 only: \
+                 no h2c through a proxy), and each half's calls with the bidder their task names",
+            )
         })
     }
 
