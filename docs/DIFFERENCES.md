@@ -32,14 +32,14 @@ Rule B's cases: (a) input real production traffic sends that the crate would rej
 | Public suffix list | 1 | 0 | 0 |
 | Random numbers | 0 | 1 | 0 |
 | Regular expressions | 0 | 2 | 2 |
-| HTTP server | 0 | 25 | 4 |
+| HTTP server | 0 | 23 | 7 |
 | Background tasks | 0 | 0 | 1 |
 | Time formatting | 0 | 3 | 1 |
 | TLS | 0 | 2 | 1 |
 | URLs | 0 | 2 | 2 |
 | User syncs | 0 | 1 | 0 |
 | YAML | 0 | 3 | 0 |
-| All | 7 | 152 | 36 |
+| All | 7 | 150 | 39 |
 
 ## Decisions pending
 
@@ -412,14 +412,14 @@ No entry names the classes `other` and `unrecorded` or the kinds `stage_missing`
 - **Restore option:** Go's case mapping and folding for the encoding and the header names; not planned, since content codings and field names are ASCII tokens (RFC 9110).
 - **Recorded in:** `crates/parity/differences.toml`
 
-#### `gzip.payload-bytes`: Gzip bytes: compress/gzip and flate2 write different deflate streams of the same payload
+#### `gzip.payload-bytes`: Gzip bytes: compress/gzip and fastgzip write different deflate streams of the same payload
 
-- **Go:** `compress/gzip` at the default level writes Go's deflate stream, and its `Close` adds an empty stored block: 129 bytes for the pinned bid request (exchange/bidder.go:848-880).
-- **Rust:** flate2 (miniz_oxide) writes another valid stream, 128 bytes for the same request, with the same 10-byte header (`1f 8b 08 00`, MTIME 0, XFL 0, OS 255). Both inflate to the same bytes; a bidder sees other compressed bytes and another Content-Length.
+- **Go:** `compress/gzip` at the default level writes Go's deflate stream, and its `Close` adds an empty stored block: 129 bytes for the pinned bid request (exchange/bidder.go:848-880), with the header `1f 8b 08 00`, MTIME 0, XFL 0, OS 255.
+- **Rust:** fastgzip, which writes the server's gzip (D-FASTGZIP), writes another valid stream at level 0, its default, with the same header but XFL 4 and the same trailer; its bytes also depend on the payloads its compressor was given before. Both inflate to the same bytes; a bidder sees other compressed bytes and another Content-Length.
 - **Who notices:** bidder, publisher
 - **Visible in:** The bodies and Content-Length of bidder requests sent with `endpoint_compression: gzip`
 - **Harness:** wire `gzip_bytes` at `$[*].request.body`
-- **Pin:** `crates/differences/tests/gzip.rs::go_difference_header_same_payload_differs`
+- **Pin:** `crates/server/tests/compression.rs::go_difference_header_same_payload`
 - **Recorded in:** `crates/differences/differences.toml`
 
 ## HTTP client
@@ -1962,41 +1962,32 @@ No entry names the classes `other` and `unrecorded` or the kinds `stage_missing`
 #### `server.framing`: Response framing: net/http chunks long bodies and leaves some unframed, hyper sends a length for every full body
 
 - **Go:** net/http gives an answer whose handler wrote at most 2,048 bytes a `Content-Length` and chunks a longer one (`bufferBeforeChunkingSize`, net/http/server.go:341); over HTTP/1.0 a longer answer is unframed and the closed connection ends it, a HEAD answer gets no length unless the handler's bytes fit the buffer, and a gzip answer whose compressed bytes fit it gets their length.
-- **Rust:** hyper sends `content-length` for every full body, over HTTP/1.0 and to HEAD too, and chunks what tower-http compresses.
+- **Rust:** hyper sends `content-length` for every full body, over HTTP/1.0 and to HEAD too. pbs-server's gzip layer compresses a body whole, so a gzip answer gets the length of its compressed bytes however long they are, a HEAD answer that of the GET's; a stream it sends on uncompressed keeps the handler's framing (`server.gzip-streams`).
 - **Who notices:** publisher
 - **Visible in:** The framing of answers longer than 2,048 bytes, of HTTP/1.0 and HEAD answers, and of gzip answers
 - **Harness:** wire `framing` at `$['@headers'].**`
 - **Pin:** `crates/server/tests/wire.rs::content_length_always`
 - **Recorded in:** `crates/server/differences.toml`
 
-#### `server.gzip-bytes`: Gzip answers: compress/gzip and flate2 write different streams of the same body
+#### `server.gzip-bytes`: Gzip answers: compress/gzip and fastgzip write different streams of the same body
 
-- **Go:** gziphandler compresses at `gzip.DefaultCompression` through compress/gzip (gziphandler v1.1.1 gzip.go:443-446, from `startGzip`, gzip.go:150).
-- **Rust:** tower-http compresses through flate2: another valid stream, of another length, and chunked (`server.framing`). Both gunzip to the handler's bytes, and the same answers are compressed, ranges aside (`server.gzip-ranges`), with the same status, encoding and type.
+- **Go:** gziphandler compresses at `gzip.DefaultCompression` through compress/gzip (gziphandler v1.1.1 gzip.go:443-446, from `startGzip`, gzip.go:150): a header with XFL 0, Go's deflate stream and its trailer.
+- **Rust:** pbs-server's gzip layer compresses through fastgzip at level 0, its default (D-FASTGZIP), with one compressor per kind of payload (JSON, other text, the rest) on each worker thread. The answers of a compressor share their Huffman codes, so an answer's bytes also depend on the answers compressed before it on that thread. The header says XFL 4 where compress/gzip's says 0, the deflate stream is another, of another length, and it is sent with a `content-length` (`server.framing`). Both gunzip to the handler's bytes, with the same trailer, and the same answers are compressed, with the same status, encoding, type and Vary.
 - **Who notices:** publisher
 - **Visible in:** The bytes and length of gzip-compressed answers
 - **Harness:** none
-- **Pin:** `crates/server/tests/compression.rs::gzip_bytes_differ`
+- **Pin:** `crates/server/tests/compression.rs::gzip_bytes`
 - **Recorded in:** `crates/server/differences.toml`
 
-#### `server.gzip-negotiation`: Which Accept-Encoding values get gzip: gziphandler's parser and tower-http's RFC 9110 reading disagree on 542 of the golden's 1,556 values
+#### `server.gzip-streams`: Long streamed answers with gzip on: gziphandler compresses them as they are written, pbs-server sends one past 1 MiB as it is
 
-- **Go:** gziphandler compresses when its own parser gives gzip a q above 0 (`acceptsGzip`, gziphandler v1.1.1 gzip.go:450-453, over `parseEncodings` and `parseCoding`, gzip.go:483-532): it trims Unicode spaces and lower-cases Unicode (`gzİp` is gzip), ignores `x-gzip` and `identity`, keeps the last q of a repeated gzip and of repeated parameters, reads q with `ParseFloat`'s syntax clamped to 0 to 1, and ignores `Q=` and other parameters.
-- **Rust:** tower-http reads the header with RFC 9110's grammar: a value with a byte outside visible ASCII and tab is ignored whole, `x-gzip` is gzip, a repeated gzip takes its best q, a coding with a parameter that is not one strict q-value is dropped, and identity is preferred to a gzip of lower q. Of the golden's values, 456 get gzip from gziphandler only and 86 from tower-http only; the 345 values with none of those features never differ.
+- **Go:** gziphandler compresses as the handler writes, so an answer whose `Content-Length` is unset or at least 1,400 bytes is gzipped however long it is (`GzipResponseWriter.Write`, gziphandler v1.1.1 gzip.go:100-147).
+- **Rust:** pbs-server's gzip layer compresses a body whole. It reads a streamed body, as `ServeDir` gives a file, up to 1 MiB (`compression::STREAM_LIMIT`) and sends a longer one on uncompressed, with the handler's framing and `Vary`, so no answer is held in memory past that size; a body in memory, as Prebid's handlers answer with, is compressed whatever its length.
 - **Who notices:** publisher
-- **Visible in:** Whether answers of 1,400 bytes or more are gzipped for requests with unusual Accept-Encoding values, when gzip compression is on
+- **Visible in:** Streamed answers longer than 1 MiB with gzip on: files over 1 MiB under /static, of which Prebid's static directory has none (its largest is 19,572 bytes)
 - **Harness:** none
-- **Pin:** `crates/server/tests/compression.rs::gzip_negotiation`
-- **Recorded in:** `crates/server/differences.toml`
-
-#### `server.gzip-ranges`: Gzip and ranges: gziphandler compresses a 206 of 1,400 bytes or more and keeps `Accept-Ranges`, tower-http sends a range as it is and drops `accept-ranges` when it compresses
-
-- **Go:** gziphandler decides on the handler's `Content-Length` and bytes alone (`GzipResponseWriter.Write` and `startGzip`, gziphandler v1.1.1 gzip.go:100-183): with gzip on, a `/static` range of 1,400 bytes or more is a 206 compressed whole with its `Content-Range` kept, and every compressed file answer keeps `http.FileServer`'s `Accept-Ranges: bytes`.
-- **Rust:** tower-http never compresses an answer with a `content-range` and removes `accept-ranges` from every answer it compresses (`ResponseFuture::poll`, tower-http 0.6.11 src/compression/future.rs:43-117), so a range is sent as `ServeDir` gives it and a compressed file answer has no `accept-ranges`. A range under 1,400 bytes is sent as it is on both.
-- **Who notices:** publisher
-- **Visible in:** Range requests under /static and the `Accept-Ranges` of compressed /static answers, when gzip compression is on
-- **Harness:** none
-- **Pin:** `crates/server/tests/static.rs::gzip_ranges`
+- **Pin:** `crates/server/tests/compression.rs::long_streams_uncompressed`
+- **Restore option:** A streaming gzip encoder for the rest of a long stream, which fastgzip does not have; not planned while Prebid streams no answer past the limit.
 - **Recorded in:** `crates/server/differences.toml`
 
 #### `server.head-method`: HEAD: httprouter answers 405 on Prebid's GET routes, axum runs the GET handler
@@ -2133,7 +2124,7 @@ No entry names the classes `other` and `unrecorded` or the kinds `stage_missing`
 #### `server.static-files`: /static: `http.FileServer`'s listings, redirects, types and error texts against tower-http `ServeDir`'s
 
 - **Go:** `ServeFiles` serves `/static/*filepath` with `http.FileServer` (router/router.go:295; httprouter v1.3.0 router.go:296-307): it lists a directory without `index.html`, redirects `/index.html` to `./` and a directory without its slash or a file with one with 301 and a relative `Location`, types files with Go's table (`text/plain; charset=utf-8`, `text/html; charset=utf-8`) and sniffs the ones whose extension it does not know, answers 404 and 416 with its text and without `NoCache`'s `Cache-Control` (`serveError`, net/http/fs.go:188-212), sends `Last-Modified` with a 304, and HEAD gets httprouter's 405.
-- **Rust:** `ServeDir` answers a directory without `index.html` with 404, serves `/index.html` and a file with a trailing slash, redirects a directory without its slash with 307 to an absolute `Location`, types files with `mime_guess`'s table (`text/plain`, `text/html`, unknown extensions `application/octet-stream`), answers 404 and 416 with an empty body and `NoCache`'s headers, the 416 with the reason `Range Not Satisfiable` where Go's is `Requested Range Not Satisfiable`, sends no `Last-Modified` with a 304, and serves HEAD. Files, ranges and conditional requests are otherwise answered alike; with gzip on, ranges are `server.gzip-ranges`.
+- **Rust:** `ServeDir` answers a directory without `index.html` with 404, serves `/index.html` and a file with a trailing slash, redirects a directory without its slash with 307 to an absolute `Location`, types files with `mime_guess`'s table (`text/plain`, `text/html`, unknown extensions `application/octet-stream`), answers 404 and 416 with an empty body and `NoCache`'s headers, the 416 with the reason `Range Not Satisfiable` where Go's is `Requested Range Not Satisfiable`, sends no `Last-Modified` with a 304, and serves HEAD. Files, ranges and conditional requests are otherwise answered alike, and with gzip on they are compressed as Go compresses them (`server.gzip-ranges`).
 - **Who notices:** publisher
 - **Visible in:** Answers under /static, the bidder parameter schemas and the other static files
 - **Harness:** none
@@ -2159,17 +2150,6 @@ No entry names the classes `other` and `unrecorded` or the kinds `stage_missing`
 - **Harness:** none
 - **Pin:** `crates/server/tests/wire.rs::unread_body`
 - **Note:** The auction endpoint discards the rest of a body over `max_request_size` itself so that the connection can be reused (endpoints/openrtb2/auction.go:455-456); that is Prebid logic its port keeps, and a body read to its end keeps the connection on both.
-- **Recorded in:** `crates/server/differences.toml`
-
-#### `server.vary`: Vary with gzip on: gziphandler adds `Vary: Accept-Encoding` to every answer, tower-http only to answers it would compress
-
-- **Go:** With `compression.response.enable_gzip` on, gziphandler adds `Vary: Accept-Encoding` to every answer of the main and Unix-socket servers (gziphandler v1.1.1 gzip.go:324), whatever its size and whether or not the request accepts gzip.
-- **Rust:** tower-http's compression layer adds `vary: accept-encoding` only to answers it would compress (1,400 bytes or more, not already encoded and not a range), whether or not the request accepts gzip. The bodies it compresses gunzip to Go's.
-- **Who notices:** publisher
-- **Visible in:** The Vary header of answers under 1,400 bytes when gzip compression is on
-- **Harness:** none
-- **Pin:** `crates/server/tests/wire.rs::vary_only_on_compressible`
-- **Note:** The `Vary` pattern of `server.cors-actual-requests`, whose CORS Vary differs on every answer, takes these mismatches.
 - **Recorded in:** `crates/server/differences.toml`
 
 ### Go behaviour kept
@@ -2200,6 +2180,32 @@ No entry names the classes `other` and `unrecorded` or the kinds `stage_missing`
 - **Restore pin:** `crates/server/tests/wire.rs::handler_outlives_client` (The wire golden's handlers whose clients close with a FIN or a reset complete on pbs-server as on net/http.)
 - **Recorded in:** `crates/server/differences.toml`
 
+#### `server.gzip-negotiation`: Which Accept-Encoding values get gzip: gziphandler's parser and tower-http's RFC 9110 reading disagree on 542 of the golden's 1,556 values
+
+- **Go:** gziphandler compresses when its own parser gives gzip a q above 0 (`acceptsGzip`, gziphandler v1.1.1 gzip.go:450-453, over `parseEncodings` and `parseCoding`, gzip.go:483-532): it trims Unicode spaces and lower-cases Unicode (`gzİp` is gzip), ignores `x-gzip` and `identity`, keeps the last q of a repeated gzip and of repeated parameters, reads q with `ParseFloat`'s syntax clamped to 0 to 1, and ignores `Q=` and other parameters.
+- **Rust:** tower-http reads the header with RFC 9110's grammar: a value with a byte outside visible ASCII and tab is ignored whole, `x-gzip` is gzip, a repeated gzip takes its best q, a coding with a parameter that is not one strict q-value is dropped, and identity is preferred to a gzip of lower q. Of the golden's values, 456 get gzip from gziphandler only and 86 from tower-http only; the 345 values with none of those features never differ.
+- **Who notices:** publisher
+- **Visible in:** Whether answers of 1,400 bytes or more are gzipped for requests with unusual Accept-Encoding values, when gzip compression is on
+- **Harness:** none: a mismatch here is unexpected
+- **Pin:** `crates/server/tests/compression.rs::gzip_negotiation`
+- **Decision:** D-FASTGZIP
+- **How Go's behaviour is kept:** pbs-server reads the first Accept-Encoding value with a port of `parseEncodings` and `parseCoding` (crates/server/src/compression/negotiation.rs, D-FASTGZIP), its q values with `strconv.ParseFloat`'s syntax as pbs-config's loader ports it, so each of the golden's 1,679 values, 123 of them q values and codings at the edges of that syntax and of Unicode, gets gziphandler's answer.
+- **Restore pin:** `crates/server/src/compression/tests.rs::q_values_like_go` (gzip's q for each of the golden's values is the one `parseEncodings` gives it, to the bit, and absent where Go's is.); `crates/server/tests/compression.rs::gzip_negotiation` (Each of the golden's 1,679 Accept-Encoding values, sent on loopback, gets gzip from pbs-server exactly when gziphandler compresses for it.)
+- **Recorded in:** `crates/server/differences.toml`
+
+#### `server.gzip-ranges`: Gzip and ranges: gziphandler compresses a 206 of 1,400 bytes or more and keeps `Accept-Ranges`, tower-http sends a range as it is and drops `accept-ranges` when it compresses
+
+- **Go:** gziphandler decides on the handler's `Content-Length` and bytes alone (`GzipResponseWriter.Write` and `startGzip`, gziphandler v1.1.1 gzip.go:100-183): with gzip on, a `/static` range of 1,400 bytes or more is a 206 compressed whole with its `Content-Range` kept, and every compressed file answer keeps `http.FileServer`'s `Accept-Ranges: bytes`.
+- **Rust:** tower-http never compresses an answer with a `content-range` and removes `accept-ranges` from every answer it compresses (`ResponseFuture::poll`, tower-http 0.6.11 src/compression/future.rs:43-117), so a range is sent as `ServeDir` gives it and a compressed file answer has no `accept-ranges`. A range under 1,400 bytes is sent as it is on both.
+- **Who notices:** publisher
+- **Visible in:** Range requests under /static and the `Accept-Ranges` of compressed /static answers, when gzip compression is on
+- **Harness:** none: a mismatch here is unexpected
+- **Pin:** `crates/server/tests/static.rs::gzip_ranges`
+- **Decision:** D-FASTGZIP
+- **How Go's behaviour is kept:** pbs-server's gzip layer (crates/server/src/compression, D-FASTGZIP) decides on the handler's `Content-Length` and body alone, as gziphandler does: it compresses a 206 of 1,400 bytes or more whole and keeps `Accept-Ranges` and `Content-Range`.
+- **Restore pin:** `crates/server/tests/static.rs::gzip_ranges` (The wire golden's /static answers with gzip on, the whole file and a 1,500-byte range compressed and a 100-byte range sent as it is, get Go's status, Content-Encoding, Accept-Ranges, Content-Range and Vary on pbs-server, and gunzip to Go's file and range.)
+- **Recorded in:** `crates/server/differences.toml`
+
 #### `server.h2c`: HTTP/2 without TLS: net/http serves none, hyper-util's builder as it comes does
 
 - **Go:** Prebid's servers set no `Protocols` (server/server.go:90-118), so net/http serves no unencrypted HTTP/2: it answers the prior-knowledge preface as a malformed HTTP/1.1 request, with 400, and serves a request asking to upgrade to h2c as HTTP/1.1.
@@ -2224,6 +2230,19 @@ No entry names the classes `other` and `unrecorded` or the kinds `stage_missing`
 - **Rule B:** Rule B (a): input real production traffic sends that the crate would reject or misread
 - **How Go's behaviour is kept:** pbs-server's connection builder sets hyper's `max_buf_size` to 1 MiB + 4,096 bytes (crates/server/src/serve/limits.rs), so the heads Go serves are served and longer ones get 431. The 431's form is `server.bad-requests`, and a head whose last read crosses the limit is `server.header-limit-edge`.
 - **Restore pin:** `crates/server/tests/wire.rs::header_limit_like_go` (The wire golden's 600 KiB, 1 MiB and at-limit heads get 200 on pbs-server as on net/http, and its paced heads past the limit 431.)
+- **Recorded in:** `crates/server/differences.toml`
+
+#### `server.vary`: Vary with gzip on: gziphandler adds `Vary: Accept-Encoding` to every answer, tower-http only to answers it would compress
+
+- **Go:** With `compression.response.enable_gzip` on, gziphandler adds `Vary: Accept-Encoding` to every answer of the main and Unix-socket servers before the handler runs (gziphandler v1.1.1 gzip.go:324), whatever its size and whether or not the request accepts gzip, so it comes ahead of the Vary values the handler adds.
+- **Rust:** tower-http's compression layer adds `vary: accept-encoding` only to answers it would compress (1,400 bytes or more, not already encoded and not a range), whether or not the request accepts gzip.
+- **Who notices:** publisher
+- **Visible in:** The Vary header of answers under 1,400 bytes when gzip compression is on
+- **Harness:** none: a mismatch here is unexpected
+- **Pin:** `crates/server/tests/wire.rs::vary_on_every_answer`
+- **Decision:** D-FASTGZIP
+- **How Go's behaviour is kept:** pbs-server's gzip layer over fastgzip (crates/server/src/compression, D-FASTGZIP) puts `Vary: Accept-Encoding` on every answer, ahead of the Vary values the handler added. The CORS middleware's own Vary line is `server.cors-actual-requests`.
+- **Restore pin:** `crates/server/src/compression/tests.rs::writer_decisions_like_go` (The 452 `gzip` rows of the golden with Prebid's options whose plan an axum answer stands for, over seven Accept-Encoding values, get gziphandler's status, Content-Encoding, Content-Length and Vary from the layer, and bodies that are Go's or gunzip to the handler's bytes.); `crates/server/tests/wire.rs::vary_on_every_answer` (The wire golden's gzip answers, compressed or not, to requests with and without `Accept-Encoding: gzip`, GET and HEAD, carry Go's Vary on pbs-server, with Go's status and Content-Encoding, and bodies that gunzip to Go's.)
 - **Recorded in:** `crates/server/differences.toml`
 
 ## Background tasks

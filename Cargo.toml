@@ -62,6 +62,10 @@ config = { version = "0.15.27", default-features = false, features = ["json", "t
 # No features: Go writes and reads cookie values raw, and percent-encode's encoded() would turn
 # the base64 padding of the uids value into %3D.
 cookie = "0.18.3"
+# Every gzip the server writes (the user's ruling 10 (b), D-FASTGZIP): pbs-server's response
+# compression, one compressor per kind of payload per worker thread. Pure Rust; its one dependency, crc32fast,
+# is already locked through flate2.
+fastgzip = "0.2.0"
 flate2 = "1.1.11"
 futures-util = "0.3.34"
 # glog's nine flags in Go's flag syntax (LOGGING). The default unicode feature resolves to the
@@ -119,7 +123,7 @@ tokio-rustls = { version = "0.26.6", default-features = false, features = ["aws_
 toml = { version = "1.2.1", default-features = false, features = ["parse", "serde", "std"] }
 # 0.6, not 0.7: reqwest 0.13.5's gzip feature depends on tower-http 0.6. fs is ServeDir for
 # /static, as docs/DECISIONS.md accepts it (server.static-files).
-tower-http = { version = "0.6.11", features = ["compression-gzip", "cors", "fs", "limit", "timeout"] }
+tower-http = { version = "0.6.11", features = ["cors", "fs", "limit", "timeout"] }
 # No attributes feature: tracing-attributes is on syn 2.
 tracing = { version = "0.1.44", default-features = false, features = ["std"] }
 # One log file (D-LOGFILE); glog's per-severity files are ledgered.

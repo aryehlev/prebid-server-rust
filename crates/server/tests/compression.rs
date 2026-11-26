@@ -1,33 +1,40 @@
 //! Pins of pbs-server's gzip compression against gziphandler v1.1.1 as server/server.go uses it.
 //!
 //! `testdata/golden/gziphandler.golden` is what `testdata/go/gziphandler` recorded of
-//! gziphandler: its `encodings` rows say, for 1,556 Accept-Encoding values, whether
+//! gziphandler: its `encodings` rows say, for 1,679 Accept-Encoding values, whether
 //! `GzipHandler` compresses for a request that carries the value, and its `prebid` rows what
 //! `getCompressionEnabledHandler` (server/server.go:120-125) does to six handler plans, with
 //! `compression.response.enable_gzip` on and off and with and without `Accept-Encoding: gzip`.
 //! The same requests go here, on loopback, to the same handlers behind
-//! [`pbs_server::compression::compression_enabled`] on [`pbs_server::serve`].
+//! [`pbs_server::compression::compression_enabled`] on [`pbs_server::serve`]. The gzip bytes
+//! are fastgzip's, not compress/gzip's, so the pins compare what they gunzip to and the gzip
+//! header's fixed fields, never the compressed bytes.
 
 #[cfg(test)]
 mod tests {
     use std::{
+        collections::BTreeMap,
         error::Error,
         fmt::Debug,
         fs,
-        io::{ErrorKind, Read as _},
+        io::{self, ErrorKind, Read as _},
         net::SocketAddr,
+        ops::Range,
         time::Duration,
     };
 
     use axum::{
         Router,
-        body::Body,
+        body::{Body, Bytes},
+        extract::Query,
         http::{StatusCode, header},
         response::{IntoResponse as _, Response},
         routing::get,
     };
     use flate2::{Crc, read::GzDecoder};
+    use futures_util::stream;
     use pbs_server::{Budget, Stopped, compression, serve};
+    use serde_json::Value;
     use tokio::{
         io::{AsyncReadExt as _, AsyncWriteExt as _},
         net::{TcpListener, TcpStream},
@@ -228,7 +235,12 @@ mod tests {
 
     /// An answer of `bytes` with the type net/http gives the generator's handler.
     fn typed(content_type: &'static str, bytes: Vec<u8>) -> Response {
-        ([(header::CONTENT_TYPE, content_type)], Body::from(bytes)).into_response()
+        typed_body(content_type, Body::from(bytes))
+    }
+
+    /// An answer of `body` with `content_type`.
+    fn typed_body(content_type: &'static str, body: Body) -> Response {
+        ([(header::CONTENT_TYPE, content_type)], body).into_response()
     }
 
     /// The generator's plans as routes: `/` writes nothing, `/w10` and `/w2000` write pattern
@@ -256,6 +268,38 @@ mod tests {
                 "/tjson.w1400",
                 get(|| async { typed("application/json", pattern(1400)) }),
             )
+            .route("/stream", get(streamed))
+    }
+
+    /// `/stream?n=N&chunk=C&length=1`: N pattern bytes as text/plain, streamed in chunks of C
+    /// bytes (64 KiB by default) as `ServeDir` streams a file, with a Content-Length when
+    /// `length` is set, as `ServeDir` sets one.
+    async fn streamed(Query(params): Query<BTreeMap<String, String>>) -> Response {
+        let number = |name: &str, default: usize| {
+            params
+                .get(name)
+                .and_then(|value| value.parse().ok())
+                .unwrap_or(default)
+        };
+        let n = number("n", 0);
+        let bytes = Bytes::from(pattern(n));
+        let chunk = number("chunk", 64 << 10).max(1);
+        let chunks: Vec<Result<Bytes, io::Error>> = (0..n)
+            .step_by(chunk)
+            .map(|at| Ok(bytes.slice(at..n.min(at + chunk))))
+            .collect();
+        let mut response = typed_body(
+            "text/plain; charset=utf-8",
+            Body::from_stream(stream::iter(chunks)),
+        );
+        if params.contains_key("length") {
+            drop(
+                response
+                    .headers_mut()
+                    .insert(header::CONTENT_LENGTH, n.into()),
+            );
+        }
+        response
     }
 
     /// A GET request for `path` with `accept` as its Accept-Encoding, when there is one.
@@ -292,76 +336,11 @@ mod tests {
             .map_or("", |(_, value)| value)
     }
 
-    /// The data of a chunked body, or `None` when its framing is broken.
-    fn unchunk(mut body: &[u8]) -> Option<Vec<u8>> {
-        let mut plain = Vec::new();
-        loop {
-            let end = body.windows(2).position(|window| window == b"\r\n")?;
-            let (line, rest) = body.split_at_checked(end)?;
-            let size = usize::from_str_radix(str::from_utf8(line).ok()?, 16).ok()?;
-            if size == 0 {
-                return Some(plain);
-            }
-            plain.extend_from_slice(rest.get(2..2 + size)?);
-            body = rest.get(4 + size..)?;
-        }
-    }
-
     /// The length and CRC-32 (IEEE) of `bytes`, as the generator prints them.
     fn sum(bytes: &[u8]) -> String {
         let mut crc = Crc::new();
         crc.update(bytes);
         format!("{}/{:08x}", bytes.len(), crc.sum())
-    }
-
-    /// Whether `param` is one q-value as RFC 9110 writes it, which tower-http and gziphandler
-    /// read alike: `q=`, then 0 or 1 with at most three decimals, at most 1.
-    fn strict_q(param: &str) -> bool {
-        let Some(number) = param.strip_prefix("q=") else {
-            return false;
-        };
-        let (whole, fraction) = number.split_once('.').unwrap_or((number, ""));
-        fraction.len() <= 3
-            && fraction.bytes().all(|b| b.is_ascii_digit())
-            && (whole == "0" || (whole == "1" && fraction.bytes().all(|b| b == b'0')))
-    }
-
-    /// The class of an Accept-Encoding value: the first of the features that can set
-    /// gziphandler's answer apart from tower-http's, or `plain` when it has none.
-    fn class(value: &[u8]) -> &'static str {
-        let Ok(text) = str::from_utf8(value) else {
-            return "non-ascii";
-        };
-        if value
-            .iter()
-            .any(|&b| b != b'\t' && !(0x20..0x7F).contains(&b))
-        {
-            return "non-ascii";
-        }
-        let items: Vec<(String, Option<&str>)> = text
-            .split(',')
-            .map(|item| {
-                let (coding, params) = item
-                    .split_once(';')
-                    .map_or((item, None), |(coding, params)| (coding, Some(params)));
-                (coding.trim().to_ascii_lowercase(), params)
-            })
-            .collect();
-        let named = |name: &'static str| items.iter().filter(move |(coding, _)| coding == name);
-        if named("x-gzip").next().is_some() {
-            "x-gzip"
-        } else if named("gzip").count() > 1 {
-            "repeated"
-        } else if named("gzip")
-            .chain(named("identity"))
-            .any(|(_, params)| params.is_some_and(|params| !strict_q(params.trim())))
-        {
-            "loose parameter"
-        } else if named("identity").next().is_some() {
-            "identity"
-        } else {
-            "plain"
-        }
     }
 
     /// Each `encodings` value of the golden with whether gziphandler compresses for it and
@@ -388,9 +367,11 @@ mod tests {
         Ok(verdicts)
     }
 
-    /// Accept-Encoding values the negotiation pin shows with both answers: plain ones, and some
-    /// of each class.
-    const EXAMPLES: [&str; 21] = [
+    /// Accept-Encoding values the negotiation pin shows with both answers: plain ones, ones
+    /// tower-http's RFC 9110 reading answered otherwise (Unicode spaces and letters, `x-gzip`, a
+    /// repeated gzip, parameters that are not one strict q and `identity`), and q values at the
+    /// edges of `ParseFloat`'s syntax.
+    const EXAMPLES: [&str; 28] = [
         "gzip",
         "compress, gzip",
         "GZIP",
@@ -412,113 +393,89 @@ mod tests {
         "gzip;level=9",
         "gzip; q=0.0000001",
         ";q=0;x , ;q=1.5, \tgzip;q=0.5 ,identity",
+        "gzip;q=1_000",
+        "gzip;q=0x1p-1074",
+        "gzip;q=0x1p-1075",
+        "gzip;q=1e309",
+        "gzip;q=+nan",
+        "\u{200b}gzip",
+        "gzip, gzip;q=abc;x",
     ];
 
-    /// Which Accept-Encoding values get gzip. gziphandler reads the header with its own parser
-    /// and tower-http with RFC 9110's grammar, and of the golden's 1,556 values (the package's
-    /// test values, hand-picked ones and 1,500 seeded combinations) 542 get different answers:
-    /// 456 that gziphandler compresses and tower-http does not, 86 the other way. Each has at
-    /// least one of five features, and the 345 values with none, `plain`, never differ:
-    /// `non-ascii`, a byte outside visible ASCII and tab, so tower-http reads no Accept-Encoding
-    /// at all, where gziphandler trims Unicode spaces and lower-cases Unicode (`gzİp` is gzip);
-    /// `x-gzip`, which tower-http takes for gzip and gziphandler ignores; `repeated`, gzip
-    /// twice, where gziphandler keeps the last q and tower-http the best; `loose parameter`, a
-    /// parameter on gzip or identity that is not one strict q-value, which makes tower-http drop
-    /// the coding, where gziphandler reads `ParseFloat`'s syntax clamped to 0 to 1, ignores `Q=`
-    /// and other parameters and keeps the last parameter's q; and `identity`, which tower-http
-    /// prefers to a gzip of lower q and gziphandler ignores.
+    /// Which Accept-Encoding values get gzip: pbs-server reads Accept-Encoding with gziphandler's
+    /// parser, so each of the golden's 1,679 values (the package's test values, hand-picked ones,
+    /// 1,500 seeded combinations and 123 q values and codings at the edges of `ParseFloat`'s
+    /// syntax and of Unicode) gets gziphandler's answer. That includes the 542 values
+    /// tower-http's RFC 9110 reading answered otherwise.
     // Go: acceptsGzip (gziphandler v1.1.1 gzip.go:450-453) over parseEncodings and parseCoding
     // (gzip.go:483-532)
     #[test]
     fn gzip_negotiation() -> TestResult {
         let verdicts = verdicts()?;
-        let classes = [
-            "non-ascii",
-            "x-gzip",
-            "repeated",
-            "loose parameter",
-            "identity",
-            "plain",
-        ];
-        let counts: Vec<String> = classes
+        let differ: Vec<String> = verdicts
             .iter()
-            .map(|&name| {
-                let of_class = verdicts.iter().filter(|(value, ..)| class(value) == name);
-                let values = of_class.clone().count();
-                let differ = of_class.filter(|(_, go, rust)| go != rust).count();
-                format!("{name}: {values} values, {differ} differ")
-            })
+            .filter(|(_, go, rust)| go != rust)
+            .map(|(value, go, _)| format!("{:?}: gziphandler {go}", String::from_utf8_lossy(value)))
             .collect();
         ensure_eq(
-            &counts,
-            &[
-                "non-ascii: 288 values, 201 differ",
-                "x-gzip: 267 values, 100 differ",
-                "repeated: 229 values, 81 differ",
-                "loose parameter: 394 values, 158 differ",
-                "identity: 33 values, 2 differ",
-                "plain: 345 values, 0 differ",
-            ],
-            "the classes",
+            &differ,
+            &Vec::<String>::new(),
+            "values pbs-server answers otherwise",
         )?;
-        let only_go = verdicts
-            .iter()
-            .filter(|(_, go, rust)| *go && !*rust)
-            .count();
-        let only_rust = verdicts
-            .iter()
-            .filter(|(_, go, rust)| !*go && *rust)
-            .count();
+        let gzipped = verdicts.iter().filter(|(_, go, _)| *go).count();
         ensure_eq(
-            &(verdicts.len(), only_go, only_rust),
-            &(1556, 456, 86),
-            "values, gzip from gziphandler only, gzip from tower-http only",
+            &(verdicts.len(), gzipped),
+            &(1679, 794),
+            "values, and values that get gzip",
         )?;
         let shown: Vec<String> = EXAMPLES
             .iter()
             .map(|example| {
-                let (value, go, rust) = verdicts
+                let (_, go, rust) = verdicts
                     .iter()
                     .find(|(value, ..)| value.as_slice() == example.as_bytes())
                     .ok_or_else(|| format!("the golden has no value {example:?}"))?;
-                Ok(format!(
-                    "{example:?} ({}): gziphandler {go}, tower-http {rust}",
-                    class(value)
-                ))
+                Ok(format!("{example:?}: gziphandler {go}, pbs-server {rust}"))
             })
             .collect::<TestResult<_>>()?;
         ensure_eq(
             &shown,
             &[
-                "\"gzip\" (plain): gziphandler true, tower-http true",
-                "\"compress, gzip\" (plain): gziphandler true, tower-http true",
-                "\"GZIP\" (plain): gziphandler true, tower-http true",
-                "\"gzip;q=0\" (plain): gziphandler false, tower-http false",
-                "\"gzip;q=0.001\" (plain): gziphandler true, tower-http true",
-                "\"br;q=1.0, gzip;q=0.8, *;q=0.1\" (plain): gziphandler true, tower-http true",
-                "\"*\" (plain): gziphandler false, tower-http false",
-                "\"\\u{a0}gzip\" (non-ascii): gziphandler true, tower-http false",
-                "\"gzİp\" (non-ascii): gziphandler true, tower-http false",
-                "\"x-gzip\" (x-gzip): gziphandler false, tower-http true",
-                "\"gzip;q=0, gzip\" (repeated): gziphandler true, tower-http true",
-                "\"gzip, gzip;q=0\" (repeated): gziphandler false, tower-http true",
-                "\"gzip;q=2\" (loose parameter): gziphandler true, tower-http false",
-                "\"gzip;Q=0\" (loose parameter): gziphandler true, tower-http false",
-                "\"gzip;q = 0\" (loose parameter): gziphandler true, tower-http false",
-                "\"gzip;q=inf\" (loose parameter): gziphandler true, tower-http false",
-                "\"gzip;q=.5\" (loose parameter): gziphandler true, tower-http false",
-                "\"gzip;q=0;foo\" (loose parameter): gziphandler true, tower-http false",
-                "\"gzip;level=9\" (loose parameter): gziphandler true, tower-http false",
-                "\"gzip; q=0.0000001\" (loose parameter): gziphandler true, tower-http false",
-                "\";q=0;x , ;q=1.5, \\tgzip;q=0.5 ,identity\" (identity): gziphandler true, \
-                 tower-http false",
+                "\"gzip\": gziphandler true, pbs-server true",
+                "\"compress, gzip\": gziphandler true, pbs-server true",
+                "\"GZIP\": gziphandler true, pbs-server true",
+                "\"gzip;q=0\": gziphandler false, pbs-server false",
+                "\"gzip;q=0.001\": gziphandler true, pbs-server true",
+                "\"br;q=1.0, gzip;q=0.8, *;q=0.1\": gziphandler true, pbs-server true",
+                "\"*\": gziphandler false, pbs-server false",
+                "\"\\u{a0}gzip\": gziphandler true, pbs-server true",
+                "\"gzİp\": gziphandler true, pbs-server true",
+                "\"x-gzip\": gziphandler false, pbs-server false",
+                "\"gzip;q=0, gzip\": gziphandler true, pbs-server true",
+                "\"gzip, gzip;q=0\": gziphandler false, pbs-server false",
+                "\"gzip;q=2\": gziphandler true, pbs-server true",
+                "\"gzip;Q=0\": gziphandler true, pbs-server true",
+                "\"gzip;q = 0\": gziphandler true, pbs-server true",
+                "\"gzip;q=inf\": gziphandler true, pbs-server true",
+                "\"gzip;q=.5\": gziphandler true, pbs-server true",
+                "\"gzip;q=0;foo\": gziphandler true, pbs-server true",
+                "\"gzip;level=9\": gziphandler true, pbs-server true",
+                "\"gzip; q=0.0000001\": gziphandler true, pbs-server true",
+                "\";q=0;x , ;q=1.5, \\tgzip;q=0.5 ,identity\": gziphandler true, pbs-server true",
+                "\"gzip;q=1_000\": gziphandler true, pbs-server true",
+                "\"gzip;q=0x1p-1074\": gziphandler true, pbs-server true",
+                "\"gzip;q=0x1p-1075\": gziphandler false, pbs-server false",
+                "\"gzip;q=1e309\": gziphandler false, pbs-server false",
+                "\"gzip;q=+nan\": gziphandler false, pbs-server false",
+                "\"\\u{200b}gzip\": gziphandler false, pbs-server false",
+                "\"gzip, gzip;q=abc;x\": gziphandler true, pbs-server true",
             ],
             "the examples",
         )
     }
 
-    /// One `prebid` row's answer: status, Content-Encoding, Content-Type and the body's length
-    /// and CRC-32, with what it gunzips to when it is gzip.
+    /// One `prebid` row's answer: status, Content-Encoding, Content-Type, Vary and the body's
+    /// length and CRC-32, or for a gzip body those of what it gunzips to.
     #[derive(Debug, Clone, PartialEq, Eq)]
     struct Answer {
         /// The status code.
@@ -527,7 +484,9 @@ mod tests {
         encoding: String,
         /// Content-Type, or empty.
         content_type: String,
-        /// The body as sent, without chunked framing: `<length>/<crc32>`.
+        /// Vary, or empty.
+        vary: String,
+        /// The body as sent, `<length>/<crc32>`.
         body: String,
     }
 
@@ -544,16 +503,55 @@ mod tests {
         Ok(String::from_utf8(value)?)
     }
 
-    /// The gzip Prebid's servers send. getCompressionEnabledHandler gzips the same answers as
-    /// tower-http's layer with gziphandler's 1,400-byte minimum: with gzip on, an answer of
-    /// 1,400 bytes or more to a request that accepts gzip, whatever its type, and never a 204 or
-    /// an empty answer; the types and every other body are the same. The gzip bytes are not:
-    /// compress/gzip's deflate stream and flate2's differ in length and content (and tower-http
-    /// chunks them, `server.framing`), though both gunzip to the handler's bytes.
+    /// gzip's fixed header fields as RFC 1952 numbers them: ID1, ID2, CM and FLG, MTIME, XFL
+    /// and OS, in hex.
+    fn gzip_header(gzip: &[u8]) -> String {
+        let hex = |range: Range<usize>| {
+            gzip.get(range)
+                .unwrap_or_default()
+                .iter()
+                .flat_map(|byte| [byte >> 4, byte & 0x0F])
+                .map(|nibble| char::from_digit(u32::from(nibble), 16).unwrap_or('?'))
+                .collect::<String>()
+        };
+        format!(
+            "id, cm, flg {} | mtime {} | xfl {} | os {}",
+            hex(0..4),
+            hex(4..8),
+            hex(8..9),
+            hex(9..10)
+        )
+    }
+
+    /// The trailer of a gzip stream as the length and CRC-32 of what it holds, as the generator
+    /// prints a body: ISIZE and CRC32, little-endian.
+    fn gzip_trailer(gzip: &[u8]) -> TestResult<String> {
+        let at = gzip
+            .len()
+            .checked_sub(8)
+            .ok_or("a gzip stream shorter than its trailer")?;
+        let word = |from: usize| -> TestResult<u32> {
+            let bytes: [u8; 4] = gzip
+                .get(from..from + 4)
+                .ok_or("a short trailer")?
+                .try_into()?;
+            Ok(u32::from_le_bytes(bytes))
+        };
+        Ok(format!("{}/{:08x}", word(at + 4)?, word(at)?))
+    }
+
+    /// The gzip Prebid's servers send: with gzip on, an answer of 1,400 bytes or more to a
+    /// request that accepts gzip is compressed, whatever its type, and never a 204 or an empty
+    /// answer; every answer, compressed or not, has `Vary: Accept-Encoding`, and the status and
+    /// type are the handler's. On pbs-server as from gziphandler, the same answers are
+    /// compressed, with the same fields, and gunzip to the handler's bytes, which the gzip
+    /// trailer's length and CRC-32 name. The gzip bytes are fastgzip's: its header says XFL 4
+    /// where compress/gzip's says 0 (`gzip.payload-bytes`), its deflate stream is another, of
+    /// another length, and it is sent with a Content-Length.
     // Go: GzipHandler compresses at gzip.DefaultCompression (gziphandler v1.1.1 gzip.go:443-446)
     // from startGzip (gzip.go:150) on, through compress/gzip
     #[test]
-    fn gzip_bytes_differ() -> TestResult {
+    fn gzip_bytes() -> TestResult {
         let prebid = rows("prebid")?;
         let mut cases = Vec::new();
         for row in &prebid {
@@ -573,54 +571,62 @@ mod tests {
                 code,
                 encoding: go_field(&row.output, "Content-Encoding")?,
                 content_type: go_field(&row.output, "Content-Type")?,
+                vary: go_field(&row.output, "Vary")?,
                 body: go_body.split('/').take(2).collect::<Vec<_>>().join("/"),
             };
             let name = format!("{enable}/{accept}/{plan}");
             let router = compression::compression_enabled(plans(), *enable == "true");
             let accept = (!accept.is_empty()).then_some(accept.as_bytes());
             let answers = exchange_all(router, vec![request(&format!("/{plan}"), accept)])?;
-            let (head, body) = split(answers.first().map_or(&[][..], Vec::as_slice));
-            let sent = if field(&head, "transfer-encoding") == "chunked" {
-                unchunk(body).ok_or("a broken chunked body")?
+            let (head, sent) = split(answers.first().map_or(&[][..], Vec::as_slice));
+            // A 204 has no length and no bytes.
+            let length = field(&head, "content-length");
+            ensure_eq(
+                if length.is_empty() { "0" } else { length },
+                sent.len().to_string().as_str(),
+                &format!("{name}: the length"),
+            )?;
+            let encoding = field(&head, "content-encoding").to_owned();
+            let mut fixed = String::new();
+            let body = if encoding == "gzip" {
+                let mut gunzipped = Vec::new();
+                let _read = GzDecoder::new(sent).read_to_end(&mut gunzipped)?;
+                ensure_eq(
+                    &gzip_trailer(sent)?,
+                    &sum(&gunzipped),
+                    &format!("{name}: the trailer"),
+                )?;
+                fixed = gzip_header(sent);
+                sum(&gunzipped)
             } else {
-                body.to_vec()
+                sum(sent)
             };
-            let mut gunzipped = Vec::new();
-            if field(&head, "content-encoding") == "gzip" {
-                let _read = GzDecoder::new(sent.as_slice()).read_to_end(&mut gunzipped)?;
-            }
             let rust = Answer {
                 code: head.split(' ').nth(1).unwrap_or_default().to_owned(),
-                encoding: field(&head, "content-encoding").to_owned(),
+                encoding,
                 content_type: field(&head, "content-type").to_owned(),
-                body: sum(&sent),
+                vary: field(&head, "vary").to_owned(),
+                body,
             };
-            cases.push((name, go, rust, gunzipped));
+            cases.push((name, go, rust, fixed));
         }
         let mut gzipped = Vec::new();
-        for (name, go, rust, gunzipped) in &cases {
-            let same = |answer: &Answer| {
-                (
-                    answer.code.clone(),
-                    answer.encoding.clone(),
-                    answer.content_type.clone(),
-                )
-            };
-            ensure_eq(&same(rust), &same(go), name)?;
+        for (name, go, rust, fixed) in &cases {
+            let mut want = go.clone();
             if go.encoding == "gzip" {
                 gzipped.push(name.clone());
-                if rust.body == go.body {
-                    return Err(format!("{name}: flate2 wrote compress/gzip's bytes").into());
-                }
-                let plain = cases
+                ensure_eq(
+                    fixed.as_str(),
+                    "id, cm, flg 1f8b0800 | mtime 00000000 | xfl 04 | os ff",
+                    &format!("{name}: fastgzip's header"),
+                )?;
+                want.body = cases
                     .iter()
                     .find(|(other, ..)| *other == name.replacen("true", "false", 1))
                     .map(|(_, go_plain, ..)| go_plain.body.clone())
                     .ok_or("no row with gzip off")?;
-                ensure_eq(&sum(gunzipped), &plain, name)?;
-            } else {
-                ensure_eq(&rust.body, &go.body, name)?;
             }
+            ensure_eq(rust, &want, name)?;
         }
         ensure_eq(
             &gzipped,
@@ -631,5 +637,213 @@ mod tests {
             ],
             "the gzipped answers",
         )
+    }
+
+    /// Bytes of a hexadecimal string.
+    fn unhex(hex: &str) -> TestResult<Vec<u8>> {
+        (0..hex.len())
+            .step_by(2)
+            .map(|at| {
+                let pair = hex.get(at..at + 2).ok_or("an odd hex string")?;
+                Ok(u8::from_str_radix(pair, 16)?)
+            })
+            .collect()
+    }
+
+    /// pbs-differences' gzip golden: the bid request the exchange compresses for a bidder with
+    /// `endpointCompression: gzip`, and what compress/gzip writes of it, its header checked.
+    fn bid_request_golden() -> TestResult<(String, Vec<u8>)> {
+        let path = concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../differences/testdata/golden/gzip.json"
+        );
+        let doc: Value = serde_json::from_slice(&fs::read(path)?)?;
+        let text = |pointer: &str| -> TestResult<String> {
+            doc.pointer(pointer)
+                .and_then(Value::as_str)
+                .map(str::to_owned)
+                .ok_or_else(|| format!("the golden has no string at {pointer}").into())
+        };
+        ensure_eq(
+            text("/header/generator")?.as_str(),
+            "crates/differences/testdata/go",
+            "the gzip golden's generator",
+        )?;
+        ensure_eq(
+            text("/header/goarch")?.as_str(),
+            "amd64",
+            "the gzip golden's goarch",
+        )?;
+        Ok((text("/payload")?, unhex(&text("/compressed_hex")?)?))
+    }
+
+    /// compress/gzip and fastgzip write the same gzip header but for XFL (compress/gzip's 0 at
+    /// its default level, fastgzip's 4, "fastest", at level 0) and the same trailer, and both
+    /// streams inflate to the bid request; the deflate streams between them differ, so a bidder
+    /// or a publisher sees other compressed bytes and another Content-Length.
+    // Go: exchange/bidder.go:848-874 (getRequestBody: w.Reset, Write, Close) and :876-880
+    // (gzipWriterPool of gzip.NewWriter at the default level); compress/gzip's Writer.Write
+    // writes XFL 0 below BestCompression
+    #[test]
+    fn go_difference_header_same_payload() -> TestResult {
+        let (payload, go) = bid_request_golden()?;
+        let mut compressor = fastgzip::Gzip::new();
+        let rust = compressor.compress(payload.as_bytes()).to_vec();
+        let inflate = |gzip: &[u8]| -> TestResult<bool> {
+            let mut plain = Vec::new();
+            let _read = GzDecoder::new(gzip).read_to_end(&mut plain)?;
+            Ok(plain == payload.as_bytes())
+        };
+        let table = |gzip: &[u8]| -> TestResult<Vec<String>> {
+            Ok(vec![
+                gzip_header(gzip),
+                format!("trailer {}", gzip_trailer(gzip)?),
+                format!("inflates to the payload {}", inflate(gzip)?),
+            ])
+        };
+        ensure_eq(
+            &table(&go)?,
+            &[
+                "id, cm, flg 1f8b0800 | mtime 00000000 | xfl 00 | os ff",
+                "trailer 896/b7352e45",
+                "inflates to the payload true",
+            ],
+            "compress/gzip",
+        )?;
+        ensure_eq(
+            &table(&rust)?,
+            &[
+                "id, cm, flg 1f8b0800 | mtime 00000000 | xfl 04 | os ff",
+                "trailer 896/b7352e45",
+                "inflates to the payload true",
+            ],
+            "fastgzip",
+        )
+    }
+
+    /// Streamed bodies, which `ServeDir` gives its files, and long ones. A stream of up to
+    /// [`compression::STREAM_LIMIT`] bytes is read whole and compressed, with a Content-Length
+    /// of its gzip; a longer one is sent on as it is, chunked or with the handler's length, with
+    /// `Vary` and without gzip, so no answer is held in memory past that size. gziphandler
+    /// compresses those too, as the handler writes. A body in memory past
+    /// [`compression::SHARED_LIMIT`] bytes is compressed by a compressor of its own.
+    // Go: GzipResponseWriter.Write starts the gzip writer once 1,400 bytes are buffered and
+    // writes the rest through it (gziphandler v1.1.1 gzip.go:100-147)
+    #[test]
+    fn long_streams_uncompressed() -> TestResult {
+        let limit = compression::STREAM_LIMIT;
+        let big = compression::SHARED_LIMIT * 2;
+        let cases = [
+            (
+                "19,572 bytes, chunked",
+                "/stream?n=19572&chunk=8192".to_owned(),
+            ),
+            (
+                "19,572 bytes, with a length",
+                "/stream?n=19572&chunk=8192&length=1".to_owned(),
+            ),
+            (
+                "the limit, with a length",
+                format!("/stream?n={limit}&length=1"),
+            ),
+            (
+                "a byte past the limit, chunked",
+                format!("/stream?n={}", limit + 1),
+            ),
+            (
+                "a byte past the limit, with a length",
+                format!("/stream?n={}&length=1", limit + 1),
+            ),
+            (
+                "twice the limit, with a length",
+                format!("/stream?n={big}&length=1"),
+            ),
+            ("twice the limit, in memory", format!("/w?n={big}")),
+        ];
+        let router = compression::compression_enabled(
+            plans().route(
+                "/w",
+                get(
+                    |Query(params): Query<BTreeMap<String, String>>| async move {
+                        let n = params.get("n").and_then(|n| n.parse().ok()).unwrap_or(0);
+                        typed("text/plain; charset=utf-8", pattern(n))
+                    },
+                ),
+            ),
+            true,
+        );
+        let requests = cases
+            .iter()
+            .map(|(_, path)| request(path, Some(b"gzip")))
+            .collect();
+        let answers = exchange_all(router, requests)?;
+        let mut seen = Vec::new();
+        for ((name, path), answer) in cases.iter().zip(&answers) {
+            let (head, body) = split(answer);
+            let n: usize = path
+                .split_once("n=")
+                .and_then(|(_, rest)| rest.split('&').next())
+                .and_then(|n| n.parse().ok())
+                .ok_or("a path without n")?;
+            let encoding = field(&head, "content-encoding");
+            let plain = if encoding == "gzip" {
+                let mut gunzipped = Vec::new();
+                let _read = GzDecoder::new(body).read_to_end(&mut gunzipped)?;
+                gunzipped
+            } else if field(&head, "transfer-encoding") == "chunked" {
+                unchunked(body).ok_or("a broken chunked body")?
+            } else {
+                body.to_vec()
+            };
+            ensure_eq(&sum(&plain), &sum(&pattern(n)), path)?;
+            let framing = if field(&head, "transfer-encoding") == "chunked" {
+                "chunked".to_owned()
+            } else if field(&head, "content-length") == body.len().to_string() {
+                "length of what is sent".to_owned()
+            } else {
+                format!("length {}", field(&head, "content-length"))
+            };
+            seen.push(format!(
+                "{name}: {} | vary {} | {framing}",
+                if encoding.is_empty() {
+                    "as it is"
+                } else {
+                    encoding
+                },
+                field(&head, "vary"),
+            ));
+        }
+        ensure_eq(
+            &seen,
+            &[
+                "19,572 bytes, chunked: gzip | vary Accept-Encoding | length of what is sent",
+                "19,572 bytes, with a length: gzip | vary Accept-Encoding | length of what is \
+                 sent",
+                "the limit, with a length: gzip | vary Accept-Encoding | length of what is sent",
+                "a byte past the limit, chunked: as it is | vary Accept-Encoding | chunked",
+                "a byte past the limit, with a length: as it is | vary Accept-Encoding | length \
+                 of what is sent",
+                "twice the limit, with a length: as it is | vary Accept-Encoding | length of \
+                 what is sent",
+                "twice the limit, in memory: gzip | vary Accept-Encoding | length of what is \
+                 sent",
+            ],
+            "streamed and long answers",
+        )
+    }
+
+    /// The data of a chunked body, or `None` when its framing is broken.
+    fn unchunked(mut body: &[u8]) -> Option<Vec<u8>> {
+        let mut plain = Vec::new();
+        loop {
+            let end = body.windows(2).position(|window| window == b"\r\n")?;
+            let (line, rest) = body.split_at_checked(end)?;
+            let size = usize::from_str_radix(str::from_utf8(line).ok()?, 16).ok()?;
+            if size == 0 {
+                return Some(plain);
+            }
+            plain.extend_from_slice(rest.get(2..2 + size)?);
+            body = rest.get(4 + size..)?;
+        }
     }
 }

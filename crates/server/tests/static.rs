@@ -17,7 +17,7 @@ mod tests {
         error::Error,
         fmt::Debug,
         fs::{self, File},
-        io::ErrorKind,
+        io::{ErrorKind, Read as _},
         net::SocketAddr,
         path::{Path, PathBuf},
         process,
@@ -25,6 +25,7 @@ mod tests {
     };
 
     use axum::Router;
+    use flate2::{Crc, read::GzDecoder};
     use pbs_router::middleware;
     use pbs_server::{Budget, Stopped, compression, serve};
     use serde_json::Value;
@@ -102,6 +103,9 @@ mod tests {
         head: String,
         /// The body, as text.
         body: String,
+        /// The length and CRC-32 of what a gzip body gunzips to, as the generator writes them,
+        /// or empty.
+        gunzipped: String,
     }
 
     impl Answer {
@@ -109,7 +113,29 @@ mod tests {
         fn read(bytes: &[u8]) -> Self {
             let text = String::from_utf8_lossy(bytes);
             let (head, body) = text.split_once("\r\n\r\n").unwrap_or((&text, ""));
+            let raw = bytes
+                .windows(4)
+                .position(|window| window == b"\r\n\r\n")
+                .and_then(|at| bytes.get(at + 4..))
+                .unwrap_or_default();
+            let gunzipped = if head
+                .to_ascii_lowercase()
+                .contains("\r\ncontent-encoding: gzip")
+            {
+                let mut plain = Vec::new();
+                match GzDecoder::new(raw).read_to_end(&mut plain) {
+                    Ok(_) => {
+                        let mut crc = Crc::new();
+                        crc.update(&plain);
+                        format!("{}/{:08x}", plain.len(), crc.sum())
+                    }
+                    Err(e) => format!("<{e}>"),
+                }
+            } else {
+                String::new()
+            };
             Self {
+                gunzipped,
                 head: head
                     .split("\r\n")
                     .map(|line| match line.get(..6) {
@@ -172,6 +198,7 @@ mod tests {
                     go: Answer {
                         head: head.strip_suffix("\r\n\r\n").unwrap_or(head).to_owned(),
                         body: text(case, "/body")?.to_owned(),
+                        gunzipped: text(case, "/gunzipped").unwrap_or_default().to_owned(),
                     },
                 })
             })
@@ -408,10 +435,11 @@ mod tests {
         ensure_eq(&rust, &SERVE_DIR, "ServeDir")
     }
 
-    /// `/static` with gzip on: gziphandler compresses a file answer of 1,400 bytes or more,
-    /// a 206 range included, and keeps `http.FileServer`'s `Accept-Ranges`; tower-http compresses
-    /// the whole file and drops its `accept-ranges`, and sends a range as it is. A range under
-    /// 1,400 bytes is sent as it is on both.
+    /// `/static` with gzip on: a file answer of 1,400 bytes or more is compressed, a 206 range
+    /// included, with `http.FileServer`'s `Accept-Ranges` and the range's `Content-Range` kept,
+    /// on pbs-server as from gziphandler, and it gunzips to Go's bytes: the file, or the range. A
+    /// range under 1,400 bytes is sent as it is. Both send `Vary: Accept-Encoding` ahead of the
+    /// CORS middleware's `Vary` line.
     // Go: GzipResponseWriter.Write compresses when the handler's Content-Length is 1,400 or more,
     // and startGzip touches neither Accept-Ranges nor the status (gziphandler v1.1.1
     // gzip.go:100-183)
@@ -419,12 +447,27 @@ mod tests {
     fn gzip_ranges() -> TestResult {
         let pairs = run("static_gzip", true)?;
         let summary = |answer: &Answer| {
+            // The first name of each Vary line: the CORS middleware's line has two more names on
+            // pbs-server (`server.cors-actual-requests`).
+            let vary: Vec<&str> = answer
+                .head
+                .split("\r\n")
+                .filter_map(|line| line.split_once(": "))
+                .filter(|(field, _)| field.eq_ignore_ascii_case("vary"))
+                .filter_map(|(_, value)| value.split(',').next())
+                .collect();
             format!(
-                "{} | encoding {} | accept-ranges {} | range {}",
+                "{} | encoding {} | accept-ranges {} | range {} | vary {} | gunzipped {}",
                 answer.status(),
                 answer.field("content-encoding"),
                 answer.field("accept-ranges"),
-                answer.field("content-range")
+                answer.field("content-range"),
+                vary.join(", ").to_ascii_lowercase(),
+                if answer.gunzipped.is_empty() {
+                    "-"
+                } else {
+                    &answer.gunzipped
+                }
             )
         };
         let go: Vec<String> = pairs
@@ -434,12 +477,15 @@ mod tests {
         ensure_eq(
             &go,
             &[
-                "big_file_identity: HTTP/1.1 200 OK | encoding - | accept-ranges bytes | range -",
-                "big_file_gzip: HTTP/1.1 200 OK | encoding gzip | accept-ranges bytes | range -",
+                "big_file_identity: HTTP/1.1 200 OK | encoding - | accept-ranges bytes | range - \
+                 | vary accept-encoding, origin | gunzipped -",
+                "big_file_gzip: HTTP/1.1 200 OK | encoding gzip | accept-ranges bytes | range - | \
+                 vary accept-encoding, origin | gunzipped 3000/ec2e699a",
                 "big_range_gzip: HTTP/1.1 206 Partial Content | encoding gzip | accept-ranges \
-                 bytes | range bytes 0-1499/3000",
+                 bytes | range bytes 0-1499/3000 | vary accept-encoding, origin | gunzipped \
+                 1500/b5cb45cd",
                 "small_range_gzip: HTTP/1.1 206 Partial Content | encoding - | accept-ranges \
-                 bytes | range bytes 0-99/3000",
+                 bytes | range bytes 0-99/3000 | vary accept-encoding, origin | gunzipped -",
             ],
             "gziphandler",
         )?;
@@ -447,17 +493,6 @@ mod tests {
             .iter()
             .map(|(case, rust)| format!("{}: {}", case.name, summary(rust)))
             .collect();
-        ensure_eq(
-            &rust,
-            &[
-                "big_file_identity: HTTP/1.1 200 OK | encoding - | accept-ranges bytes | range -",
-                "big_file_gzip: HTTP/1.1 200 OK | encoding gzip | accept-ranges - | range -",
-                "big_range_gzip: HTTP/1.1 206 Partial Content | encoding - | accept-ranges \
-                 bytes | range bytes 0-1499/3000",
-                "small_range_gzip: HTTP/1.1 206 Partial Content | encoding - | accept-ranges \
-                 bytes | range bytes 0-99/3000",
-            ],
-            "tower-http",
-        )
+        ensure_eq(&rust, &go, "pbs-server")
     }
 }

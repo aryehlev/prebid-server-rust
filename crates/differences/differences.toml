@@ -126,18 +126,20 @@ path = "$['@headers']['Set-Cookie']"
 id = "gzip.payload-bytes"
 category = "gzip"
 status = "ledgered"
-title = "Gzip bytes: compress/gzip and flate2 write different deflate streams of the same payload"
+title = "Gzip bytes: compress/gzip and fastgzip write different deflate streams of the same payload"
 go = """\
     `compress/gzip` at the default level writes Go's deflate stream, and its `Close` adds an \
-    empty stored block: 129 bytes for the pinned bid request (exchange/bidder.go:848-880)."""
+    empty stored block: 129 bytes for the pinned bid request (exchange/bidder.go:848-880), with \
+    the header `1f 8b 08 00`, MTIME 0, XFL 0, OS 255."""
 rust = """\
-    flate2 (miniz_oxide) writes another valid stream, 128 bytes for the same request, with the \
-    same 10-byte header (`1f 8b 08 00`, MTIME 0, XFL 0, OS 255). Both inflate to the same bytes; \
-    a bidder sees other compressed bytes and another Content-Length."""
+    fastgzip, which writes the server's gzip (D-FASTGZIP), writes another valid stream at level 0, \
+    its default, with the same header but XFL 4 and the same trailer; its bytes also depend on \
+    the payloads its compressor was given before. Both inflate to the same bytes; a bidder sees \
+    other compressed bytes and another Content-Length."""
 who = ["bidder", "publisher"]
 visible_in = """\
     The bodies and Content-Length of bidder requests sent with `endpoint_compression: gzip`"""
-pin = "crates/differences/tests/gzip.rs::go_difference_header_same_payload_differs"
+pin = "crates/server/tests/compression.rs::go_difference_header_same_payload"
 
 [[difference.harness]]
 kind = "wire"

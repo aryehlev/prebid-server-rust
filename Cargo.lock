@@ -418,6 +418,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "fastgzip"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "dc921fed98c0cdb8d7e9f944e09d39ad5c0fef0d74879f0c9c53c1f1c4a63af6"
+dependencies = [
+ "crc32fast",
+]
+
+[[package]]
 name = "find-msvc-tools"
 version = "0.1.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1307,7 +1316,9 @@ name = "pbs-server"
 version = "0.1.0"
 dependencies = [
  "axum",
+ "fastgzip",
  "flate2",
+ "futures-util",
  "hyper-util",
  "pbs-router",
  "serde_json",

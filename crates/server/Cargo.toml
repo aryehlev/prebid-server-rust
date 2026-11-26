@@ -1,6 +1,6 @@
 [package]
 name = "pbs-server"
-description = "Prebid Server's listeners on axum, hyper-util and tower-http: server/server.go's budgets, header limit, gzip compression and graceful shutdown, with the differences from net/http pinned against Go goldens"
+description = "Prebid Server's listeners on axum, hyper-util and tower-http, and gziphandler's compression on fastgzip: server/server.go's budgets, header limit, gzip and graceful shutdown, with the differences from net/http pinned against Go goldens"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -14,9 +14,12 @@ categories.workspace = true
 [lints]
 workspace = true
 
-# hyper-util's graceful shutdown and its adapter from the router's tower service to hyper's.
+# hyper-util's graceful shutdown and its adapter from the router's tower service to hyper's;
+# fastgzip for the gzip answers, and futures-util to send on a streamed body it does not compress.
 [dependencies]
 axum = { workspace = true }
+fastgzip = { workspace = true }
+futures-util = { workspace = true }
 hyper-util = { workspace = true, features = ["server-graceful", "service"] }
 tokio = { workspace = true }
 tower-http = { workspace = true }
