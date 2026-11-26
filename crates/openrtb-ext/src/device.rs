@@ -5,7 +5,7 @@ use pbs_errortypes::GoError;
 use pbs_gocompat::strconv;
 use pbs_gojson::{
     GoJson, GoUnmarshaler, JsonError,
-    jsonparser::{self, ParserError, ValueType},
+    jsonparser::{self, ValueType},
 };
 use pbs_jsonutil::{MergeClone, MergeCloneError};
 use serde::{
@@ -169,26 +169,125 @@ pub fn is_known_ios_app_tracking_status(v: i64) -> bool {
     )
 }
 
-/// Go: `ParseDeviceExtATTS(deviceExt)`: the `atts` value of `request.device.ext`, read with
-/// `jsonparser.GetInt` (`None` when it is absent, which is also what malformed JSON gives).
+/// The member `jsonparser.GetInt` finds for `ParseDeviceExtATTS`, read as a typed partial
+/// struct: the top-level `atts` of an object, raw, null included (an `atts` inside another
+/// value is ignored, as jsonparser does not look there). A repeated `atts` fails the read, where
+/// jsonparser takes the first (`json.duplicate-keys`).
+#[derive(Deserialize)]
+struct AttsMember {
+    /// The raw value of `atts`, `None` when absent.
+    #[serde(default, deserialize_with = "present")]
+    atts: Option<Box<RawValue>>,
+}
+
+/// A member's raw value, null included, as present.
+fn present<'de, D: Deserializer<'de>>(deserializer: D) -> Result<Option<Box<RawValue>>, D::Error> {
+    Box::<RawValue>::deserialize(deserializer).map(Some)
+}
+
+/// Go: `ParseDeviceExtATTS(deviceExt)`: the iOS app tracking status in `request.device.ext`.
+///
+/// Go reads `atts` with `jsonparser.GetInt`. `None` when it is absent, and for bytes that do not
+/// start an object, where jsonparser finds no member. The ext is read with `serde_json`, which
+/// fails on a repeated `atts`, where jsonparser takes the first (`json.duplicate-keys`), and on
+/// bytes it does not read, where jsonparser reads `atts` as it scans to it (`{"atts":01}` gives 1,
+/// `{"atts":2` 2) and stops at a top-level key with a lone surrogate escape, finding no `atts`
+/// after it (`json.jsonparser-scan`). The request's decode writes that escape as U+FFFD, a key
+/// `serde_json` reads past, so an `atts` after it gives a status where Go has none. Go's one caller
+/// (privacy/lmt/ios.go:52) treats an error as no status.
 ///
 /// # Errors
 ///
-/// jsonparser's error (`Value is not a number: "1"`, ...), or `invalid status` for a number
-/// that is not a known status.
+/// `serde_json`'s error for an ext that does not decode or an `atts` that is not an integer
+/// (Go's are jsonparser's: `json.error-texts`), or `invalid status` for a number that is not a
+/// known status.
 pub fn parse_device_ext_atts(device_ext: &[u8]) -> Result<Option<IOSAppTrackingStatus>, GoError> {
     // Go: openrtb_ext/device.go:103
-    let v = match jsonparser::get_int(device_ext, &["atts"]) {
-        Ok(v) => v,
-        Err(ParserError::KeyPathNotFound) => return Ok(None),
-        Err(err) => {
-            return Err(GoError::generic(
-                String::from_utf8_lossy(&err.go_text()).into_owned(),
-            ));
-        }
+    let object = device_ext
+        .iter()
+        .find(|b| !matches!(b, b' ' | b'\t' | b'\n' | b'\r'))
+        == Some(&b'{');
+    if !object {
+        return Ok(None);
+    }
+    let member: AttsMember =
+        serde_json::from_slice(device_ext).map_err(|e| GoError::generic(e.to_string()))?;
+    let Some(atts) = member.atts else {
+        return Ok(None);
     };
+    // jsonparser reads a JSON number as an optional `-` and decimal digits, as `str::parse`
+    // reads its text (`-0` is 0), failing on a fraction, an exponent and a value beyond 64 bits.
+    let v = atts.get().parse::<i64>().map_err(|parse| {
+        GoError::generic(
+            serde_json::from_str::<i64>(atts.get())
+                .err()
+                .map_or_else(|| parse.to_string(), |e| e.to_string()),
+        )
+    })?;
     if !is_known_ios_app_tracking_status(v) {
         return Err(GoError::generic("invalid status"));
     }
     Ok(isize::try_from(v).ok().map(IOSAppTrackingStatus))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::parse_device_ext_atts;
+    use crate::generated::IOSAppTrackingStatus;
+
+    /// A test result whose error is the failure message.
+    type TestResult = Result<(), String>;
+
+    /// Bytes that `serde_json` does not read fail, where jsonparser reads `atts` as it scans to it
+    /// (`json.jsonparser-scan`): go1.26.2 gives 1 for `{"atts":01}` and 2 for `{"atts":2`
+    /// (`functions.tsv`), 0 for `{"atts":-}` and `{"x":1,"atts":00}` (`review_functions.tsv`), and,
+    /// run by hand, 1 for `{"atts":1,"\ud800":1}` and no status for `{"\ud800":1,"atts":1}`, whose
+    /// key ends jsonparser's scan. Only those two pass the request's decode, in Go and in the port,
+    /// and `pbs_jsonutil`'s decode writes their escape as U+FFFD (`json.lone-surrogates-raw`),
+    /// after which `atts` reads 1 from both: Go's status for the first, and a status where Go has
+    /// none for the second. JSON reads as Go reads it, and bytes that do not start an object give
+    /// no status, as in Go: the values below are the goldens'.
+    // Go: openrtb_ext/device.go:103-117
+    #[test]
+    fn atts_read_only_from_json() -> TestResult {
+        const LONE_SURROGATE_KEYS: [&str; 2] =
+            [r#"{"atts":1,"\ud800":1}"#, r#"{"\ud800":1,"atts":1}"#];
+        for doc in [
+            r#"{"atts":01}"#,
+            r#"{"atts":2"#,
+            r#"{"atts":-}"#,
+            r#"{"x":1,"atts":00}"#,
+        ]
+        .into_iter()
+        .chain(LONE_SURROGATE_KEYS)
+        {
+            if let Ok(got) = parse_device_ext_atts(doc.as_bytes()) {
+                return Err(format!("{doc}: got {got:?}, want an error"));
+            }
+        }
+        for doc in LONE_SURROGATE_KEYS {
+            let decoded = pbs_jsonutil::replace_lone_surrogates(doc.as_bytes());
+            let rewritten =
+                parse_device_ext_atts(&decoded).map_err(|e| format!("{doc} rewritten: {e}"))?;
+            if rewritten != Some(IOSAppTrackingStatus(1)) {
+                return Err(format!("{doc} rewritten: got {rewritten:?}, want Some(1)"));
+            }
+        }
+        for (doc, want) in [
+            ("", None),
+            ("malformed", None),
+            (r#"[{"atts":1}]"#, None),
+            (r#"{"a":{"atts":1}}"#, None),
+            (r#"{"ATTS":1}"#, None),
+            (r#"{"atts":3}"#, Some(3)),
+            (r#"{"x":"y","atts":1}"#, Some(1)),
+            (r#"{"a":{"atts":9},"atts":-0}"#, Some(0)),
+        ] {
+            let got = parse_device_ext_atts(doc.as_bytes()).map_err(|e| format!("{doc}: {e}"))?;
+            if got != want.map(IOSAppTrackingStatus) {
+                return Err(format!("{doc}: got {got:?}, want {want:?}"));
+            }
+        }
+        Ok(())
+    }
 }

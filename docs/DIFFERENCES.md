@@ -25,7 +25,7 @@ Rule B's cases: (a) input real production traffic sends that the crate would rej
 | Gzip | 0 | 3 | 0 |
 | HTTP client | 0 | 24 | 5 |
 | IP addresses | 0 | 1 | 1 |
-| JSON | 5 | 44 | 6 |
+| JSON | 5 | 45 | 6 |
 | Logging | 0 | 10 | 3 |
 | Prometheus metrics | 1 | 7 | 1 |
 | Public suffix list | 1 | 0 | 0 |
@@ -38,7 +38,7 @@ Rule B's cases: (a) input real production traffic sends that the crate would rej
 | URLs | 0 | 2 | 2 |
 | User syncs | 0 | 1 | 0 |
 | YAML | 0 | 3 | 0 |
-| All | 7 | 144 | 35 |
+| All | 7 | 145 | 35 |
 
 ## Decisions pending
 
@@ -1039,6 +1039,17 @@ No entry names the classes `other` and `unrecorded` or the kinds `stage_missing`
 - **Decision:** D-DECODE
 - **Restore option:** Replace invalid sequences with U+FFFD and decode again, which is `encoding/json`'s result (a Rust String cannot hold jsoniter's raw byte); not planned (D-DECODE).
 - **Recorded in:** `crates/differences/differences.toml`
+
+#### `json.jsonparser-scan`: `ParseDeviceExtATTS`: Go reads `atts` as jsonparser scans to it, the port decodes the ext
+
+- **Go:** `ParseDeviceExtATTS` reads `atts` with `jsonparser.GetInt` (openrtb_ext/device.go:103-117), which scans the bytes only as far as the member and reads a number as a run of digits: `{"atts":01}` gives 1, `{"atts":2` 2, `{"atts":-}` and `{"x":1,"atts":00}` 0. A top-level key with a lone surrogate escape, which jsonparser cannot unescape, ends the scan with the member not found: `{"\ud800":1,"atts":1}` gives no status, `{"atts":1,"\ud800":1}` 1.
+- **Rust:** The port decodes the ext with `serde_json`, which fails on each of them (`invalid number at line 1 column 10`, `EOF while parsing an object`, `unexpected end of hex escape`); JSON reads as in Go. The request's decode writes a lone surrogate escape as the escape of U+FFFD (`json.lone-surrogates-raw`), a key the port reads past, so the ext it reads gives 1 for both.
+- **Who notices:** bidder
+- **Visible in:** The `device.lmt` that the auction sets from the status (endpoints/openrtb2/auction.go:570, privacy/lmt/ios.go:51-67) for an iOS 14.2 or later app request whose `device.ext` has a key with a lone surrogate escape before `atts`: Go leaves it as it came, the port sets it from `atts`. The bytes that are not JSON reach the read in neither: the request's decode rejects them first, in Go (`leading zero is invalid`, `invalid number`) and in the port
+- **Harness:** none
+- **Pin:** `crates/openrtb-ext/src/device.rs::atts_read_only_from_json`
+- **Restore option:** Not planned: the port's request holds no lone surrogate escape for the read to stop at (ruling 7 rewrites the bytes before serde_json sees them, as for json.lone-surrogates-raw).
+- **Recorded in:** `crates/openrtb-ext/differences.toml`
 
 #### `json.key-case`: JSON keys: Go matches struct fields ignoring case, serde matches exactly
 
