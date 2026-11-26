@@ -3,7 +3,8 @@
 //! servers that answer with the bytes Go's did. The outcomes, the fallback to the constant rates,
 //! the requests, Prebid's error texts and log lines and the deadline's texts are Go's; the words
 //! of the client, the body reader and the URL parser are reqwest's and the url crate's where Go
-//! has net/http's and net/url's (`currency.fetch-error-texts`).
+//! has net/http's and net/url's (`currency.fetch-error-texts`), and the JSON decoder's
+//! `serde_json`'s where Go has jsoniter's (`json.error-texts`).
 
 #[cfg(test)]
 pub mod support;
@@ -35,7 +36,9 @@ mod tests {
     fn library_words(scenario: &str) -> (Option<Library>, Option<Library>) {
         const SENT: &str = "Get \"http://127.0.0.1:PORT/latest.json\": *";
         const BODY: &str = "the currency rates request failed: *";
+        const JSON: &str = "the currency rates request failed to parse json: *";
         match scenario {
+            "empty_body" | "invalid_json" => (Some(library(JSON)), None),
             "gzip_corrupt" | "body_cut_short" => (Some(library(BODY)), Some(library("*"))),
             "body_cut_short_500" => (None, Some(library("*"))),
             // Go's drain reads the closed connection again; the body here keeps its deadline.

@@ -1062,8 +1062,11 @@ version = "0.1.0"
 dependencies = [
  "bytes",
  "futures-util",
+ "pbs-errortypes",
  "pbs-http-client",
+ "pbs-jsonutil",
  "pbs-logger",
+ "serde",
  "tokio",
  "url",
 ]

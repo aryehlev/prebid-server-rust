@@ -1,8 +1,10 @@
 //! What the test files share.
 //!
 //! The Go goldens of `testdata/golden` (written by `testdata/go`), lines of tab-separated fields
-//! whose values are hex; loopback servers that answer with the bytes Go's servers did; the fetch
-//! replayed against them as `testdata/go/fetch.go` ran it; and checks that return errors.
+//! whose values are hex; the currency file decode and Go's rendering of its outcome; the
+//! generator Go's seeded corpora come from; loopback servers that answer with the bytes Go's
+//! servers did; the fetch replayed against them as `testdata/go/fetch.go` ran it; and checks
+//! that return errors.
 
 use std::{
     error::Error,
@@ -19,8 +21,9 @@ use std::{
     time::Duration,
 };
 
-use pbs_currency::{RateConverter, default_http_client};
+use pbs_currency::{ConversionRates, RateConverter, Rates, default_http_client};
 use pbs_http_client::ProxyEnv;
+use pbs_jsonutil::unmarshal_valid;
 use pbs_logger::{Capture, Severity};
 use tokio::runtime;
 
@@ -85,6 +88,106 @@ pub fn unhex(hex: &str) -> TestResult<Vec<u8>> {
         .chunks(2)
         .map(|pair| Ok(u8::from_str_radix(str::from_utf8(pair)?, 16)?))
         .collect()
+}
+
+/// Lower-case hex of `bytes` (Go: `hex.EncodeToString`).
+#[must_use]
+pub fn hex(bytes: &[u8]) -> String {
+    bytes
+        .iter()
+        .flat_map(|byte| [byte >> 4, byte & 0x0F])
+        .filter_map(|nibble| char::from_digit(u32::from(nibble), 16))
+        .collect()
+}
+
+/// Go: `fnv64a`, FNV-1a's 64-bit hash of `data` in hex.
+#[must_use]
+pub fn fnv64a(data: &[u8]) -> String {
+    let hash = data.iter().fold(0xCBF2_9CE4_8422_2325_u64, |hash, byte| {
+        (hash ^ u64::from(*byte)).wrapping_mul(0x0000_0100_0000_01B3)
+    });
+    format!("{hash:016x}")
+}
+
+/// Go's `dumpConversions`: `nil`, or each currency in key order, as hex, with `nil` or its rates
+/// as hex and the bits of each rate.
+#[must_use]
+pub fn dump(conversions: Option<&ConversionRates>) -> String {
+    let Some(conversions) = conversions else {
+        return "nil".to_owned();
+    };
+    let currencies: Vec<String> = conversions
+        .iter()
+        .map(|(from, inner)| {
+            let rendered = inner.as_ref().map_or_else(
+                || "nil;".to_owned(),
+                |rates| {
+                    let pairs: Vec<String> = rates
+                        .iter()
+                        .map(|(to, rate)| {
+                            format!("{}={:016x},", hex(to.as_bytes()), rate.to_bits())
+                        })
+                        .collect();
+                    format!("{{{}}};", pairs.concat())
+                },
+            );
+            format!("{}:{rendered}", hex(from.as_bytes()))
+        })
+        .collect();
+    format!("{{{}}}", currencies.concat())
+}
+
+/// How the fetch decodes `data` (`pbs_jsonutil::unmarshal_valid` into [`Rates`]), rendered as
+/// Go's `decodeOutcome` renders jsoniter's: `err`, or `ok:` and [`dump`] of the rates.
+#[must_use]
+pub fn decode(data: &[u8]) -> String {
+    match unmarshal_valid::<Rates>(data) {
+        Ok(rates) => format!("ok:{}", dump(rates.conversions.as_ref())),
+        Err(_) => "err".to_owned(),
+    }
+}
+
+/// splitmix64, the generator `testdata/go/random.go` draws its corpora from (Go:
+/// `splitmix64`).
+#[derive(Debug, Clone, Copy)]
+pub struct SplitMix64 {
+    state: u64,
+}
+
+impl SplitMix64 {
+    /// Go: `&splitmix64{state: seed}`.
+    #[must_use]
+    pub const fn new(seed: u64) -> Self {
+        Self { state: seed }
+    }
+
+    /// Go: `next`.
+    pub const fn next_u64(&mut self) -> u64 {
+        self.state = self.state.wrapping_add(0x9E37_79B9_7F4A_7C15);
+        let mut z = self.state;
+        z = (z ^ (z >> 30)).wrapping_mul(0xBF58_476D_1CE4_E5B9);
+        z = (z ^ (z >> 27)).wrapping_mul(0x94D0_49BB_1331_11EB);
+        z ^ (z >> 31)
+    }
+
+    /// Go: `below(n)`, `next() % n`.
+    pub fn below(&mut self, n: usize) -> usize {
+        let n = u64::try_from(n).unwrap_or(u64::MAX);
+        usize::try_from(self.next_u64().checked_rem(n).unwrap_or_default()).unwrap_or_default()
+    }
+
+    /// Go: `pick`: one of `options`, a copy.
+    pub fn pick(&mut self, options: &[Vec<u8>]) -> Vec<u8> {
+        let index = self.below(options.len());
+        options.get(index).cloned().unwrap_or_default()
+    }
+
+    /// Go: `digits`: `count` random decimal digits.
+    pub fn digits(&mut self, count: usize) -> Vec<u8> {
+        (0..count)
+            .map(|_| b'0' + u8::try_from(self.below(10)).unwrap_or_default())
+            .collect()
+    }
 }
 
 /// The text of a hex field.

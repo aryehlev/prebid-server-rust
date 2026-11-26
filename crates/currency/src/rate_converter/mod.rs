@@ -7,20 +7,19 @@ use std::{
     time::{Duration, SystemTime},
 };
 
+use pbs_errortypes::GoError;
 use pbs_http_client::{
     Builder, Client, HttpClientSettings, ProxyEnv, RequestError,
     reqwest::{Method, Request},
 };
+use pbs_jsonutil::unmarshal_valid;
 use pbs_logger::errorf;
 use tokio::time::Instant;
 use url::{ParseError, Url};
 
-use self::rates_json::unmarshal_valid;
 use crate::{
     constant_rates::ConstantRates, converter_info::ConverterInfo, errors::RateError, rates::Rates,
 };
-
-mod rates_json;
 
 /// Conversion rates between currencies (Go: `currency.Conversions`).
 pub trait Conversions: Send + Sync + fmt::Debug {
@@ -52,7 +51,8 @@ pub fn default_http_client(proxy: ProxyEnv) -> Result<Client, RequestError> {
 /// Why fetching the currency file failed (Go: the errors of `RateConverter.fetch`).
 ///
 /// Prebid's texts are Go's; the words of the client, the body reader and the URL parser are
-/// reqwest's and the url crate's (`currency.fetch-error-texts`).
+/// reqwest's and the url crate's (`currency.fetch-error-texts`), and those of the JSON decoder
+/// `serde_json`'s (`json.error-texts`).
 #[derive(Debug)]
 pub enum FetchError {
     /// Go: the `*url.Error` of `http.NewRequestWithContext` for a URL that does not parse,
@@ -76,9 +76,9 @@ pub enum FetchError {
     /// Go: `fmt.Errorf("the currency rates request failed: %v", err)` when reading the body
     /// fails, including on the fetch deadline.
     ReadBody(RequestError),
-    /// Go: `fmt.Errorf("the currency rates request failed to parse json: %v", err)`; the message
-    /// is the raw bytes of Go's `jsonutil` error, which can quote any input bytes.
-    ParseJson(Vec<u8>),
+    /// Go: `fmt.Errorf("the currency rates request failed to parse json: %v", err)`, `err` the
+    /// `FailedToUnmarshal` of `jsonutil.UnmarshalValid`.
+    ParseJson(GoError),
 }
 
 impl fmt::Display for FetchError {
@@ -97,11 +97,9 @@ impl fmt::Display for FetchError {
                 )
             }
             Self::ReadBody(err) => write!(f, "the currency rates request failed: {err}"),
-            Self::ParseJson(message) => write!(
-                f,
-                "the currency rates request failed to parse json: {}",
-                String::from_utf8_lossy(message)
-            ),
+            Self::ParseJson(err) => {
+                write!(f, "the currency rates request failed to parse json: {err}")
+            }
         }
     }
 }
@@ -111,7 +109,8 @@ impl Error for FetchError {
         match self {
             Self::Url { reason, .. } => Some(reason),
             Self::Request(err) | Self::ReadBody(err) => Some(err),
-            Self::BadServerResponse { .. } | Self::ParseJson(_) => None,
+            Self::ParseJson(err) => Some(err),
+            Self::BadServerResponse { .. } => None,
         }
     }
 }
@@ -227,6 +226,8 @@ impl RateConverter {
         if let Some(err) = read_error {
             return Err(FetchError::ReadBody(err));
         }
+        // Go: jsonutil.UnmarshalValid(bytesJSON, &Rates{}), here into serde's Rates
+        // (currency.rates-json).
         unmarshal_valid(&body).map_err(FetchError::ParseJson)
     }
 
@@ -756,17 +757,22 @@ mod tests {
                 Scripted::Respond(404, "{}"),
                 "the currency rates request failed with status code 404",
             ),
+            // Go's words around serde_json's, where Go has jsoniter's `expect { or n, but found
+            // \x00` and `do not know how to skip: 73` (json.error-texts).
             (
                 Scripted::Respond(399, ""),
-                "the currency rates request failed to parse json: expect { or n, but found \u{0}",
+                "the currency rates request failed to parse json: EOF while parsing a value at \
+                 line 1 column 0",
             ),
             (
                 Scripted::Respond(200, ""),
-                "the currency rates request failed to parse json: expect { or n, but found \u{0}",
+                "the currency rates request failed to parse json: EOF while parsing a value at \
+                 line 1 column 0",
             ),
             (
                 Scripted::Respond(200, r#"{"message": Invalid-JSON-No-Surrounding-Quotes}"#),
-                "the currency rates request failed to parse json: do not know how to skip: 73",
+                "the currency rates request failed to parse json: expected value at line 1 \
+                 column 13",
             ),
             (
                 Scripted::BodyFails(200, "unexpected EOF"),
@@ -821,7 +827,7 @@ mod tests {
         // fetched rates, none for the constant rates)
         let client = ScriptedTransport::client(vec![
             Scripted::Respond(200, MOCK_RATES),
-            Scripted::Respond(200, "null"),
+            Scripted::Respond(200, r#"{"conversions":null}"#),
         ]);
         let initial = initial_fake_time();
         let (converter, _clock) = converter(client, Duration::ZERO, initial);
@@ -836,7 +842,8 @@ mod tests {
         check_eq(&after.last_updated(), &Some(initial), "updated")?;
         check_eq(&after.rates().cloned(), &Some(expected_rates()), "rates")?;
 
-        // Go: `null` decodes to a nil map, so the table is there but holds nothing.
+        // Go: a null `conversions` decodes to a nil map, so the table is there but holds
+        // nothing.
         check(converter.run().await.is_ok(), "update with null")?;
         check_eq(
             &converter.get_info().rates().cloned(),

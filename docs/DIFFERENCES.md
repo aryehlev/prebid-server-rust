@@ -20,7 +20,7 @@ Rule B's cases: (a) input real production traffic sends that the crate would rej
 | In-memory caches | 0 | 1 | 0 |
 | Configuration loading | 0 | 8 | 7 |
 | Cookies | 0 | 1 | 0 |
-| Currency rates | 0 | 1 | 0 |
+| Currency rates | 0 | 2 | 0 |
 | Global vendor list | 0 | 1 | 0 |
 | Gzip | 0 | 2 | 0 |
 | HTTP client | 0 | 24 | 5 |
@@ -34,7 +34,7 @@ Rule B's cases: (a) input real production traffic sends that the crate would rej
 | TLS | 0 | 2 | 1 |
 | URLs | 0 | 1 | 0 |
 | YAML | 0 | 3 | 0 |
-| All | 6 | 127 | 30 |
+| All | 6 | 128 | 30 |
 
 ## Decisions pending
 
@@ -332,6 +332,16 @@ No entry names the classes `other` and `unrecorded` or the kinds `stage_missing`
 - **Visible in:** The server's log: the lines of a failed currency rates fetch
 - **Harness:** none
 - **Pin:** `crates/currency/tests/fetch.rs::error_texts`
+- **Recorded in:** `crates/currency/differences.toml`
+
+#### `currency.rates-json`: Currency file decode: what jsoniter reads otherwise than serde in Go's rates file
+
+- **Go:** `RateConverter.fetch` decodes the currency file with `jsonutil.UnmarshalValid` into `currency.Rates` (jsoniter, currency/rate_converter.go:81-85), so what every jsoniter decode does applies to it: it reads another case of the member, `{"Conversions":...}` (`json.key-case`), decodes a second `conversions` member into the first one's map (`json.duplicate-keys`), reads the document `null` as rates without conversions (`json.null-document`) and a null rate as 0 (`json.null-elements`), reads a rate with a leading plus (`json.plus-float`), a raw control character after an escape or in a member name (`json.control-characters`) and a key's bytes that are not UTF-8 as they came (`json.invalid-utf8`), and stops at a NUL after the document (`json.trailing-nul`); it fails on a skipped number past float64's range, or past float32's where it starts with 0 (`json.out-of-range-numbers`), on nesting past 10000 levels (`json.nesting-depth`) and on an array for the document (`json.struct-from-array`). Beyond those it reads `null` where a key of either map belongs as the key `""` (`{"conversions":{"USD":{null:1}}}`), and its skipper reads a malformed number that starts with a minus in a member Rates skips (`-01`, `-.5`, `-01e5`, `-00e999999999999`).
+- **Rust:** serde reads the file into `Rates` through `pbs_jsonutil::unmarshal_valid` with those entries' rules. `json.key-case` and `json.duplicate-keys` apply: a `Conversions` member is skipped, so the fetch stores rates without conversions, on which a conversion fails with `rates are nil`, and a second `conversions` member fails the fetch. A null document, a null rate or key, a leading plus, a raw control character, bytes that are not UTF-8, a NUL after the document and a malformed number in a skipped member fail it too, and the converter logs the failure and keeps the rates it had, or falls back to the constant rates once they are stale. A skipped number past float64's or float32's range, deep nesting in a skipped member and an array for the document, read as the struct's fields (`[{"USD":{"GBP":1}}]`), decode where Go's fetch fails.
+- **Who notices:** operator
+- **Visible in:** The conversion rates a server loads from a currency file that spells `conversions` in another case or bends JSON's rules, and the log line of a fetch that fails on one
+- **Harness:** none
+- **Pin:** `crates/currency/tests/rates.rs::decode_like_go`
 - **Recorded in:** `crates/currency/differences.toml`
 
 ## Global vendor list

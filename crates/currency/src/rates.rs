@@ -2,6 +2,8 @@
 
 use std::collections::BTreeMap;
 
+use serde::Deserialize;
+
 use crate::{
     errors::{ConversionNotFoundError, RateError},
     iso4217::{Unit, parse_iso},
@@ -16,7 +18,10 @@ use crate::{
 pub type ConversionRates = BTreeMap<String, Option<BTreeMap<String, f64>>>;
 
 /// Currency rates, as in the currency file `{"conversions": {...}}` (Go: `currency.Rates`).
-#[derive(Debug, Clone, Default, PartialEq)]
+///
+/// It decodes from the currency file as Go's `json:"conversions"` tag reads it, through serde;
+/// where serde reads a document otherwise than jsoniter is `currency.rates-json`.
+#[derive(Debug, Clone, Default, PartialEq, Deserialize)]
 pub struct Rates {
     /// Go: `Conversions`; `None` is Go's nil map, which [`Conversions::get_rate`] reports as
     /// `rates are nil`, unlike an empty map.
