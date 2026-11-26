@@ -14,8 +14,9 @@ categories.workspace = true
 [lints]
 workspace = true
 
-# prometheus holds the Prometheus engine's registry; the go-metrics library's samples draw from
-# rand.
+# prometheus holds the Prometheus engine's registry. The go-metrics engine logs through
+# pbs-logger, and the go-metrics library's samples draw from rand.
 [dependencies]
+pbs-logger = { path = "../logger", version = "0.1.0" }
 prometheus = { workspace = true }
 rand = { workspace = true }

@@ -1194,6 +1194,7 @@ dependencies = [
 name = "pbs-metrics"
 version = "0.1.0"
 dependencies = [
+ "pbs-logger",
  "prometheus",
  "rand",
 ]

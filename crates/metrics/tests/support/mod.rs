@@ -11,10 +11,10 @@ use std::{
 };
 
 use pbs_metrics::{
-    MetricsEngine as _,
+    MetricsEngine,
     metrics::{
-        self, AdapterLabels, CcpaLabels, FetcherOperation, GdprLabels, GoDuration, ImpLabels,
-        ImpMediaType, Labels, ModuleLabels, PrivacyLabels, StoredDataLabels,
+        self, AdapterError, AdapterLabels, CcpaLabels, FetcherOperation, GdprLabels, GoDuration,
+        ImpLabels, ImpMediaType, Labels, ModuleLabels, PrivacyLabels, StoredDataLabels,
     },
     options::{DisabledMetric, DisabledMetrics, PrometheusMetrics},
     prometheus::Metrics,
@@ -254,8 +254,17 @@ pub fn parse_script(text: &str) -> TestResult<Vec<Scenario>> {
 ///
 /// When a script cannot be read or parsed.
 pub fn all_scenarios() -> TestResult<Vec<Scenario>> {
+    read_scenarios(&["scenarios.txt", "scenarios_generated.txt"])
+}
+
+/// The scenarios of the `scripts` under `testdata`, in order.
+///
+/// # Errors
+///
+/// When a script cannot be read or parsed.
+pub fn read_scenarios(scripts: &[&str]) -> TestResult<Vec<Scenario>> {
     let mut scenarios = Vec::new();
-    for script in ["scenarios.txt", "scenarios_generated.txt"] {
+    for script in scripts {
         let path = format!("{TESTDATA}/{script}");
         let text = fs::read_to_string(&path).map_err(|e| format!("{path}: {e}"))?;
         scenarios.extend(parse_script(&text)?);
@@ -367,11 +376,16 @@ impl Args {
         let errors = self.str("errors");
         if !errors.is_empty() {
             for e in errors.split(',') {
-                let error = metrics::adapter_errors()
-                    .iter()
-                    .copied()
-                    .find(|v| v.as_str() == e)
-                    .ok_or_else(|| format!("unknown adapter error {e:?}"))?;
+                // Go: an empty element is the zero AdapterError, as for the other labels.
+                let error = if e.is_empty() {
+                    AdapterError::default()
+                } else {
+                    metrics::adapter_errors()
+                        .iter()
+                        .copied()
+                        .find(|v| v.as_str() == e)
+                        .ok_or_else(|| format!("unknown adapter error {e:?}"))?
+                };
                 let _new = labels.adapter_errors.insert(error);
             }
         }
@@ -430,12 +444,12 @@ const FETCHER_OPERATIONS: [FetcherOperation; 3] = [
     FetcherOperation::BACKGROUND_REFRESH,
 ];
 
-/// Go: `replay`: one scripted call.
+/// Go: `replay`: one scripted call, through either engine.
 ///
 /// # Errors
 ///
 /// When the call names an unknown method, argument or label value.
-pub fn replay(m: &Metrics, tokens: &[String]) -> TestResult {
+pub fn replay(m: &dyn MetricsEngine, tokens: &[String]) -> TestResult {
     let method = tokens.first().map_or("", String::as_str);
     let mut a = Args::parse(tokens.get(1..).unwrap_or_default())?;
     if replay_request_call(m, method, &mut a)?
@@ -448,7 +462,7 @@ pub fn replay(m: &Metrics, tokens: &[String]) -> TestResult {
     }
 }
 
-fn replay_request_call(m: &Metrics, method: &str, a: &mut Args) -> TestResult<bool> {
+fn replay_request_call(m: &dyn MetricsEngine, method: &str, a: &mut Args) -> TestResult<bool> {
     match method {
         "RecordConnectionAccept" => m.record_connection_accept(a.boolean("success")?),
         "RecordTMaxTimeout" => m.record_tmax_timeout(),
@@ -503,7 +517,7 @@ fn replay_request_call(m: &Metrics, method: &str, a: &mut Args) -> TestResult<bo
     Ok(true)
 }
 
-fn replay_adapter_call(m: &Metrics, method: &str, a: &mut Args) -> TestResult<bool> {
+fn replay_adapter_call(m: &dyn MetricsEngine, method: &str, a: &mut Args) -> TestResult<bool> {
     match method {
         "RecordAdapterRequest" => m.record_adapter_request(&a.adapter_labels()?),
         "RecordAdapterConnections" => {
@@ -557,7 +571,7 @@ fn replay_adapter_call(m: &Metrics, method: &str, a: &mut Args) -> TestResult<bo
     Ok(true)
 }
 
-fn replay_other_call(m: &Metrics, method: &str, a: &mut Args) -> TestResult<bool> {
+fn replay_other_call(m: &dyn MetricsEngine, method: &str, a: &mut Args) -> TestResult<bool> {
     match method {
         "RecordStoredReqCacheResult" => m.record_stored_req_cache_result(
             a.label("result", metrics::cache_results())?,

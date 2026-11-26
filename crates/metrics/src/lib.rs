@@ -63,6 +63,7 @@ macro_rules! ensure_eq {
 }
 
 pub mod config;
+pub mod go_metrics;
 pub mod gometrics;
 pub mod metrics;
 pub mod metrics_mock;
