@@ -27,8 +27,6 @@
 //!
 //! Not ported:
 //!
-//! - Starting the go-metrics engine and its `InfluxDB` reporter: [`new_metrics_engine`] returns
-//!   [`MetricsEngineError::InfluxNotSupported`] when `metrics.influxdb.host` is set.
 //! - Go's runtime collector (`collectors.NewGoCollector()`, the `<prefix>go_*` families).
 //! - The HTTP handler (`promhttp`) and its content negotiation, which belong to the server.
 

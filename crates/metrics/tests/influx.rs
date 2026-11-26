@@ -11,16 +11,19 @@ pub mod support;
 mod tests {
     use std::{
         collections::BTreeMap,
-        mem,
+        mem, thread,
         time::{Duration, Instant},
     };
 
     use influxdb::{Query as _, Type};
     use pbs_logger::{Capture, Severity};
     use pbs_metrics::{
+        MetricsEngine as _,
         gometrics::{Registry, Sample, new_exp_decay_sample, new_uniform_sample},
         influx::{Client, Settings, USER_AGENT, point, run, truncate},
         metrics::GoDuration,
+        new_metrics_engine,
+        options::{InfluxMetrics, Metrics},
     };
     use reqwest::Url;
     use tokio::{
@@ -1521,5 +1524,58 @@ mod tests {
             check(first != second, "other values from one sample to the next")?;
         }
         Ok(())
+    }
+
+    /// The engine selection starts the reporter of the go-metrics engine's registry when
+    /// `metrics.influxdb.host` is set, with the configured database, measurement, credentials,
+    /// interval and alignment.
+    #[test]
+    fn engine_reports_to_influxdb() -> TestResult {
+        // Go: metrics/config/metrics.go:29-38
+        let endpoint = Endpoint::new(vec![NO_CONTENT.to_vec()])?;
+        let cfg = Metrics {
+            influxdb: InfluxMetrics {
+                host: format!("http://{}", endpoint.addr()),
+                database: "pbsdb".to_owned(),
+                measurement: "pbs".to_owned(),
+                username: "admin".to_owned(),
+                password: "pw".to_owned(),
+                align_timestamps: true,
+                metric_send_interval: 1,
+            },
+            ..Metrics::default()
+        };
+        let engine = new_metrics_engine(&cfg, &[], &[], &BTreeMap::new())?;
+        engine.record_tmax_timeout();
+        let deadline = Instant::now() + Duration::from_secs(5);
+        let first = loop {
+            if let Some(request) = endpoint.requests().into_iter().next() {
+                break request;
+            }
+            if Instant::now() > deadline {
+                return Err("no write in 5 s".into());
+            }
+            thread::sleep(Duration::from_millis(20));
+        };
+        let request = parse_request(&first)?;
+        check_eq(&request.path.as_str(), &"/write", "the path")?;
+        check_eq(
+            &write_query(&request.query),
+            &pairs(&[("db", "pbsdb")]),
+            "the database",
+        )?;
+        check_eq(
+            &request.header("Authorization"),
+            &vec!["Basic YWRtaW46cHc="],
+            "the credentials",
+        )?;
+        let line = request
+            .body
+            .lines()
+            .find(|line| line.starts_with("pbs prebidserver.tmax_timeout.count="))
+            .ok_or("no tmax_timeout line")?;
+        let (value, time) = value_and_time(line)?;
+        check_eq(&value, &"1i", "the counter")?;
+        check(time.parse::<i64>()? % 1_000_000_000 == 0, "an aligned time")
     }
 }

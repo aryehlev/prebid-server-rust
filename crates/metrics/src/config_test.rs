@@ -1,10 +1,10 @@
-//! Go: `metrics/config/metrics_test.go`. The assertions Go makes on the go-metrics engine are
-//! made on the Prometheus engine here, which is the engine this crate ports.
+//! Go: `metrics/config/metrics_test.go`, and its multi-engine calls through the Prometheus
+//! engine as well.
 
 use std::{
     collections::{BTreeMap, BTreeSet},
     error::Error,
-    fs,
+    fs, io, ptr,
     sync::Arc,
 };
 
@@ -13,12 +13,14 @@ use super::{
     new_metrics_engine,
 };
 use crate::{
+    go_metrics,
+    gometrics::{Meter, Registry},
     metrics::{
         AdapterBid, AdapterLabels, CacheResult, CookieFlag, CookieSyncStatus, DemandSource,
-        FetcherBackendResult, FetcherOperation, FetcherResult, GoDuration, ImpLabels, ImpMediaType,
-        Labels, MetricsEngine, ModuleLabels, OverheadType, PrivacyLabels, RequestStatus,
-        RequestType, SetUidStatus, StoredDataLabels, SyncerCookieSyncStatus, SyncerSetUidStatus,
-        adapter_errors,
+        EndpointType, FetcherBackendResult, FetcherOperation, FetcherResult, GoDuration, ImpLabels,
+        ImpMediaType, Labels, MetricsEngine, ModuleLabels, OverheadType, PrivacyLabels,
+        RequestStatus, RequestType, SetUidStatus, StoredDataLabels, SyncerCookieSyncStatus,
+        SyncerSetUidStatus, adapter_errors,
     },
     metrics_mock::{Expectation, MetricsCall, MetricsEngineMock},
     options::{self, DisabledMetrics, PrometheusMetrics},
@@ -76,17 +78,56 @@ fn nil_metrics_engine() -> TestResult {
     Ok(())
 }
 
-/// Go: `TestGoMetricsEngine`. The go-metrics engine is not ported, so an `InfluxDB` host is an
-/// error instead of an engine.
+/// Go: `TestGoMetricsEngine`: an `InfluxDB` host selects the go-metrics engine alone.
 #[test]
-fn go_metrics_engine_is_not_ported() -> TestResult {
+fn go_metrics_engine() -> TestResult {
+    // Go: metrics/config/metrics_test.go:31
     let mut cfg = options::Metrics::default();
     cfg.influxdb.host = "localhost".to_owned();
-    let result = new_metrics_engine(&cfg, &[], &syncer_keys(), &modules_stages());
+    let engine = new_metrics_engine(&cfg, &[], &syncer_keys(), &modules_stages())?;
+    let go = engine.go_metrics.as_ref().ok_or("a go-metrics engine")?;
     ensure!(
-        matches!(result, Err(MetricsEngineError::InfluxNotSupported)),
-        "an InfluxDB host is rejected"
+        ptr::addr_eq(Arc::as_ptr(&engine.metrics_engine), Arc::as_ptr(go)),
+        "the go-metrics engine is the MetricsEngine"
     );
+    ensure!(engine.prometheus_metrics.is_none(), "no Prometheus engine");
+    Ok(())
+}
+
+/// Both hosts select both engines, the go-metrics one first, as Go's list has them.
+#[test]
+fn go_metrics_and_prometheus_engines() -> TestResult {
+    // Go: metrics/config/metrics.go:23-45
+    let mut cfg = options::Metrics::default();
+    cfg.influxdb.host = "localhost".to_owned();
+    cfg.prometheus.port = 8080;
+    let engine = new_metrics_engine(&cfg, &[], &syncer_keys(), &modules_stages())?;
+    let go = engine.go_metrics.clone().ok_or("a go-metrics engine")?;
+    ensure!(engine.prometheus_metrics.is_some(), "a Prometheus engine");
+    engine.record_tmax_timeout();
+    ensure_eq!(
+        go.tmax_timeout_counter.count(),
+        1,
+        "recorded through the detailed engine"
+    );
+    let multi = format!("{:?}", engine.metrics_engine);
+    ensure!(
+        multi.starts_with(&format!("MultiMetricsEngine([{go:?}, ")),
+        "the go-metrics engine first"
+    );
+    Ok(())
+}
+
+/// The reporter's thread failing to start is the engine's error.
+#[test]
+fn reporter_error_text() -> TestResult {
+    let err = MetricsEngineError::Reporter(io::Error::other("no threads"));
+    ensure_eq!(
+        err.to_string(),
+        "cannot start the InfluxDB reporter: no threads",
+        "the error"
+    );
+    ensure!(Error::source(&err).is_some(), "the io error is the source");
     Ok(())
 }
 
@@ -203,9 +244,233 @@ fn histogram_count(
     }
 }
 
-/// Go: `TestMultiMetricsEngine`, with the Prometheus engine in the place of the go-metrics one.
+/// Go: `TestMultiMetricsEngine`: the go-metrics engine and the no-op one record its calls into
+/// the go-metrics engine's metrics.
 #[test]
 fn multi_metrics_engine() -> TestResult {
+    // Go: metrics/config/metrics_test.go:43
+    let go = Arc::new(go_metrics::new_metrics(
+        Registry::new_prefixed("prebidserver."),
+        &core_bidder_names()?,
+        DisabledMetrics::NONE,
+        &[],
+        &modules_stages(),
+    ));
+    let go_engine: Arc<dyn MetricsEngine> = Arc::<go_metrics::Metrics>::clone(&go);
+    let metrics_engine = MultiMetricsEngine(vec![go_engine, Arc::new(NilMetricsEngine)]);
+    record_multi_engine_calls(&metrics_engine);
+    check_go_requests(&go)?;
+    check_go_adapters_and_caches(&go)?;
+    check_go_modules(&go)
+}
+
+/// Go: `TestMultiMetricsEngine`'s checks of the request statuses, sizes and imps.
+fn check_go_requests(go: &go_metrics::Metrics) -> TestResult {
+    let status = |r_type: RequestType, status: RequestStatus| -> Result<i64, Box<dyn Error>> {
+        Ok(go
+            .request_statuses
+            .get(&r_type)
+            .and_then(|statuses| statuses.get(&status))
+            .ok_or_else(|| format!("no {r_type:?} {status:?} meter"))?
+            .count())
+    };
+    let web = RequestType::ORTB2_WEB;
+    ensure_eq!(
+        status(web, RequestStatus::OK)?,
+        5,
+        "RequestStatuses.OpenRTB2.OK"
+    );
+    ensure_eq!(
+        status(RequestType::AMP, RequestStatus::OK)?,
+        0,
+        "RequestStatuses.AMP.OK"
+    );
+    ensure_eq!(
+        status(RequestType::AMP, RequestStatus::BLOCKED_APP)?,
+        1,
+        "RequestStatuses.AMP.BlockedApp"
+    );
+    ensure_eq!(
+        status(RequestType::VIDEO, RequestStatus::OK)?,
+        0,
+        "RequestStatuses.Video.OK"
+    );
+    ensure_eq!(
+        status(RequestType::VIDEO, RequestStatus::ERR)?,
+        0,
+        "RequestStatuses.Video.Error"
+    );
+    ensure_eq!(
+        status(RequestType::VIDEO, RequestStatus::BAD_INPUT)?,
+        0,
+        "RequestStatuses.Video.BadInput"
+    );
+    ensure_eq!(
+        status(RequestType::VIDEO, RequestStatus::BLOCKED_APP)?,
+        1,
+        "RequestStatuses.Video.BlockedApp"
+    );
+    ensure_eq!(
+        status(web, RequestStatus::ERR)?,
+        0,
+        "RequestStatuses.OpenRTB2.Error"
+    );
+    ensure_eq!(
+        status(web, RequestStatus::BAD_INPUT)?,
+        0,
+        "RequestStatuses.OpenRTB2.BadInput"
+    );
+    ensure_eq!(
+        status(web, RequestStatus::BLOCKED_APP)?,
+        0,
+        "RequestStatuses.OpenRTB2.BlockedApp"
+    );
+    let auction = go
+        .request_size_by_endpoint
+        .get(&EndpointType::AUCTION)
+        .ok_or("no auction size histogram")?;
+    ensure_eq!(auction.count(), 5, "RequestSizeByEndpoint.Auction");
+    ensure_eq!(
+        auction.snapshot().max(),
+        1024,
+        "RequestSizeByEndpoint.Auction"
+    );
+    ensure_eq!(go.imps_type_banner.count(), 5, "ImpsTypeBanner");
+    ensure_eq!(go.imps_type_video.count(), 3, "ImpsTypeVideo");
+    ensure_eq!(go.imps_type_audio.count(), 5, "ImpsTypeAudio");
+    ensure_eq!(go.imps_type_native.count(), 5, "ImpsTypeNative");
+    ensure_eq!(
+        go.prebid_cache_request_timer_success.count(),
+        5,
+        "RecordPrebidCacheRequestTime"
+    );
+    ensure_eq!(status(web, RequestStatus::OK)?, 5, "Request");
+    ensure_eq!(go.imp_meter.count(), 8, "ImpMeter");
+    ensure_eq!(go.no_cookie_meter.count(), 0, "NoCookieMeter");
+    Ok(())
+}
+
+/// Go: `TestMultiMetricsEngine`'s checks of the adapters, the queue timers and the caches.
+fn check_go_adapters_and_caches(go: &go_metrics::Metrics) -> TestResult {
+    let pubmatic = go.adapters.get("pubmatic").ok_or("no pubmatic metrics")?;
+    ensure_eq!(
+        pubmatic.got_bids_meter.count(),
+        5,
+        "AdapterMetrics.pubmatic.GotBidsMeter"
+    );
+    ensure_eq!(
+        pubmatic.no_bid_meter.count(),
+        0,
+        "AdapterMetrics.pubmatic.NoBidMeter"
+    );
+    for err in adapter_errors() {
+        let meter = pubmatic
+            .error_meters
+            .get(err)
+            .ok_or_else(|| format!("no pubmatic {err:?} meter"))?;
+        ensure_eq!(
+            meter.count(),
+            0,
+            "AdapterMetrics.pubmatic.Request.ErrorMeter.{err:?}"
+        );
+    }
+    let appnexus = go.adapters.get("appnexus").ok_or("no appnexus metrics")?;
+    ensure_eq!(
+        appnexus.got_bids_meter.count(),
+        0,
+        "AdapterMetrics.appnexus.GotBidsMeter"
+    );
+    ensure_eq!(
+        appnexus.no_bid_meter.count(),
+        5,
+        "AdapterMetrics.appnexus.NoBidMeter"
+    );
+    let queue = |accepted: bool| -> Result<i64, Box<dyn Error>> {
+        Ok(go
+            .requests_queue_timer
+            .get(&RequestType::VIDEO)
+            .and_then(|timers| timers.get(&accepted))
+            .ok_or("no video queue timer")?
+            .count())
+    };
+    ensure_eq!(queue(false)?, 1, "RecordRequestQueueTime.Video.Rejected");
+    ensure_eq!(queue(true)?, 0, "RecordRequestQueueTime.Video.Accepted");
+    let cache = |meters: &BTreeMap<CacheResult, Meter>, result: CacheResult| {
+        meters.get(&result).map(Meter::count)
+    };
+    ensure_eq!(
+        cache(&go.stored_req_cache_meter, CacheResult::MISS),
+        Some(1),
+        "StoredReqCache.Miss"
+    );
+    ensure_eq!(
+        cache(&go.stored_imp_cache_meter, CacheResult::MISS),
+        Some(2),
+        "StoredImpCache.Miss"
+    );
+    ensure_eq!(
+        cache(&go.account_cache_meter, CacheResult::MISS),
+        Some(3),
+        "AccountCache.Miss"
+    );
+    ensure_eq!(
+        cache(&go.stored_req_cache_meter, CacheResult::HIT),
+        Some(4),
+        "StoredReqCache.Hit"
+    );
+    ensure_eq!(
+        cache(&go.stored_imp_cache_meter, CacheResult::HIT),
+        Some(5),
+        "StoredImpCache.Hit"
+    );
+    ensure_eq!(
+        cache(&go.account_cache_meter, CacheResult::HIT),
+        Some(6),
+        "AccountCache.Hit"
+    );
+    ensure_eq!(
+        appnexus.buyer_uid_scrubbed.count(),
+        1,
+        "AdapterMetrics.appNexus.BuyerUIDScrubbed"
+    );
+    ensure_eq!(
+        appnexus.gdpr_request_blocked.count(),
+        1,
+        "AdapterMetrics.appNexus.GDPRRequestBlocked"
+    );
+    Ok(())
+}
+
+/// Go: `TestMultiMetricsEngine`'s checks of every module stage's metrics.
+fn check_go_modules(go: &go_metrics::Metrics) -> TestResult {
+    for (module, stages) in modules_stages() {
+        for stage in stages {
+            let m = go
+                .module_stages
+                .get(&module)
+                .and_then(|by_stage| by_stage.get(&stage))
+                .ok_or_else(|| format!("no {module} {stage} metrics"))?;
+            let counts = [
+                ("Duration", m.duration_timer.count()),
+                ("Call", m.call_counter.count()),
+                ("Fail", m.failure_counter.count()),
+                ("SuccessNoop", m.success_noop_counter.count()),
+                ("SuccessUpdate", m.success_update_counter.count()),
+                ("SuccessReject", m.success_reject_counter.count()),
+                ("ExecutionError", m.execution_error_counter.count()),
+                ("Timeout", m.timeout_counter.count()),
+            ];
+            for (name, count) in counts {
+                ensure_eq!(count, 1, "ModuleMetrics.{module}.{stage}.{name}");
+            }
+        }
+    }
+    Ok(())
+}
+
+/// `TestMultiMetricsEngine`'s calls through the Prometheus engine, into its families.
+#[test]
+fn multi_metrics_engine_prometheus() -> TestResult {
     let cfg = PrometheusMetrics {
         port: 8080,
         ..PrometheusMetrics::default()
@@ -545,6 +810,7 @@ fn multi_and_detailed_engines_forward_every_method() -> TestResult {
     ]));
     let detailed = DetailedMetricsEngine {
         metrics_engine: multi,
+        go_metrics: None,
         prometheus_metrics: None,
     };
     record_every_method(&detailed);
