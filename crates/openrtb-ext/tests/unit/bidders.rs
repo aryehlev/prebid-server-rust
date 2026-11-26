@@ -50,10 +50,12 @@ fn bidder_param_validator_validate() -> TestResult {
             "{}",
             "(root): placementId is required",
         ),
+        // Go: "invalid character 'm' looking for beginning of value"
+        // (jsonschema.decode-errors).
         (
             "Malformed",
             "malformedJSON",
-            "invalid character 'm' looking for beginning of value",
+            "expected value at line 1 column 1",
         ),
     ];
     all_ok(cases.into_iter().map(|(description, ext, expected_error)| {
@@ -129,12 +131,14 @@ fn new_bidder_params_validator_errors() -> TestResult {
     let missing = temp_path("missing");
     let not_a_bidder = TempDir::new("not-a-bidder", &[("anyBidder.json", "{}")])?;
     let cases = [
+        // Go: "... directory {missing}. open {missing}: no such file or directory": std words
+        // the os error inside Prebid's message (jsonschema.schema-files).
         (
             "failed to read directory",
             missing.clone(),
             format!(
-                "Failed to read JSON schemas from directory {missing}. open {missing}: no such \
-                 file or directory"
+                "Failed to read JSON schemas from directory {missing}. No such file or directory \
+                 (os error 2)"
             ),
         ),
         (
