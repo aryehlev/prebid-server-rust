@@ -21,6 +21,7 @@ package main
 //	points.txt        client.Point.MarshalString for crafted and random points
 //	truncate.txt      time.Time.Truncate for random times and durations (unquoted)
 //	wire.txt          influxdb1-client Write and Ping against a fake endpoint (see influx.go)
+//	redirects.txt     the same, redirected to a second endpoint on another port (see influx.go)
 //	reporter.txt      the InfluxDB reporter's batches and log lines (see influx.go)
 //	keys.txt, paths.txt, errorf.txt, urls.txt
 //	                  the escaping, path, error-text and URL edge cases (see influxedge.go)
@@ -150,6 +151,7 @@ func runGoMetrics(scenarios []*scenario, outDir string) error {
 		{"points.txt", writePoints},
 		{"truncate.txt", writeTruncate},
 		{"wire.txt", writeWire},
+		{"redirects.txt", writeRedirects},
 		{"reporter.txt", writeReporter},
 		{"keys.txt", writeKeys},
 		{"paths.txt", writePaths},

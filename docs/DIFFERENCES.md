@@ -23,7 +23,7 @@ Rule B's cases: (a) input real production traffic sends that the crate would rej
 | Global vendor list | 0 | 1 | 0 |
 | Gzip | 0 | 3 | 0 |
 | HTTP client | 0 | 24 | 5 |
-| InfluxDB metrics | 0 | 8 | 1 |
+| InfluxDB metrics | 0 | 9 | 1 |
 | IP addresses | 0 | 1 | 1 |
 | JSON | 4 | 40 | 5 |
 | Logging | 0 | 10 | 3 |
@@ -38,7 +38,7 @@ Rule B's cases: (a) input real production traffic sends that the crate would rej
 | URLs | 0 | 2 | 2 |
 | User syncs | 0 | 1 | 0 |
 | YAML | 0 | 3 | 0 |
-| All | 6 | 144 | 35 |
+| All | 6 | 145 | 35 |
 
 ## Decisions pending
 
@@ -750,6 +750,18 @@ No entry names the classes `other` and `unrecorded` or the kinds `stage_missing`
 - **Harness:** none
 - **Pin:** `crates/metrics/tests/influx.rs::key_escapes`
 - **Restore option:** A writer of the reporter's own that escapes as Go does, the fallback D-INFLUX names; not planned.
+- **Recorded in:** `crates/metrics/differences.toml`
+
+#### `influx.redirect-auth`: InfluxDB redirects: Go's basic auth follows a redirect to another port, scheme or subdomain of the host, reqwest's does not
+
+- **Go:** net/http copies the `Authorization` header that influxdb1-client's `SetBasicAuth` sets (`metrics.influxdb.username`) to a redirect whose host name is the first request's or a subdomain of it, on any port and scheme, so a write or ping redirected there is authorised; the host URL's user info is in no such header and reaches only the redirects that stay on its origin (net/http/client.go `shouldCopyHeaderOnRedirect`; influxdb.go:332-334 and :428-430 there).
+- **Rust:** reqwest drops the `Authorization` header on any change of host, port or scheme from the previous hop, as `http-client.redirects` says of the bidder clients, so the redirected write or ping goes without the credentials; the user info behaves as Go's.
+- **Who notices:** operator
+- **Visible in:** The reporter's writes, with `metrics.influxdb.username` set, to a server or proxy that redirects them with a 307 or 308 to another port, to https or to a subdomain: the server's 401 and the `unable to send metrics` log line at every interval, where Go's writes are authorised
+- **Harness:** none
+- **Pin:** `crates/metrics/tests/influx.rs::redirect_auth`
+- **Decision:** D-INFLUX
+- **Restore option:** Write with reqwest without its redirect policy and follow the redirects with Go's header rules, the fallback D-INFLUX names; not planned: InfluxDB answers writes itself.
 - **Recorded in:** `crates/metrics/differences.toml`
 
 #### `influx.sampled-values`: Histogram and timer reservoirs: rand's draws, not `math/rand`'s

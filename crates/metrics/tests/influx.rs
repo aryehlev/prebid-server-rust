@@ -2,8 +2,9 @@
 //! `influxedge.go` recorded from influxdata/influxdb1-client 8bf82d3c094d and
 //! vrischmann/go-metrics-influxdb v0.1.1 talking to a raw HTTP endpoint that `support::endpoint`
 //! reimplements: the requests of the client's writes and pings and what it made of the answers,
-//! the reporter's batches and log lines, the client's spelling of points and keys, the host URLs
-//! and `Time.Truncate`. The tests are also the pins of the ledger's `influx` entries.
+//! redirected to another port of the host as well, the reporter's batches and log lines, the
+//! client's spelling of points and keys, the host URLs and `Time.Truncate`. The tests are also
+//! the pins of the ledger's `influx` entries.
 
 pub mod support;
 
@@ -172,16 +173,32 @@ mod tests {
         version: String,
     }
 
+    /// A field as text.
+    fn text(field: &[u8]) -> TestResult<String> {
+        Ok(String::from_utf8(field.to_vec())?)
+    }
+
+    /// The parts of a field joined by U+001D, none for an empty field.
+    fn split(field: &str) -> Vec<String> {
+        field
+            .split('\u{1d}')
+            .filter(|_| !field.is_empty())
+            .map(str::to_owned)
+            .collect()
+    }
+
+    /// The responses of a field, joined by U+001D.
+    fn responses(field: &[u8]) -> Vec<Vec<u8>> {
+        field.split(|&b| b == 0x1D).map(<[u8]>::to_vec).collect()
+    }
+
+    /// The points of a field, `wirePoint.encode`s joined by U+001D.
+    fn points(field: &[u8]) -> TestResult<Vec<TestPoint>> {
+        split(&text(field)?).iter().map(|p| wire_point(p)).collect()
+    }
+
     /// Go: `wireCases`, as `writeWire` recorded them.
     fn wire_cases() -> TestResult<Vec<WireCase>> {
-        let text = |field: &[u8]| String::from_utf8(field.to_vec());
-        let split = |field: &str| -> Vec<String> {
-            field
-                .split('\u{1d}')
-                .filter(|_| !field.is_empty())
-                .map(str::to_owned)
-                .collect()
-        };
         let mut cases = Vec::new();
         for row in golden("gometrics/wire.txt")?.lines() {
             let fields = quoted_fields(row)?;
@@ -192,8 +209,8 @@ mod tests {
                 password,
                 op,
                 db,
-                points,
-                responses,
+                point_field,
+                answers,
                 has,
                 requests,
                 error,
@@ -209,18 +226,68 @@ mod tests {
                 password: text(password)?,
                 op: text(op)?,
                 db: text(db)?,
-                points: split(&text(points)?)
-                    .iter()
-                    .map(|p| wire_point(p))
-                    .collect::<TestResult<_>>()?,
-                responses: responses
-                    .split(|&b| b == 0x1D)
-                    .map(<[u8]>::to_vec)
-                    .collect(),
+                points: points(point_field)?,
+                responses: responses(answers),
                 has_endpoint: text(has)? == "true",
                 requests: split(&text(requests)?),
                 error: text(error)?.strip_prefix("error: ").map(str::to_owned),
                 version: text(version)?,
+            });
+        }
+        Ok(cases)
+    }
+
+    /// One row of `redirects.txt`: a wire case whose endpoint redirects it to a second endpoint
+    /// on another port of the host, and what influxdb1-client sent to each.
+    struct RedirectCase {
+        /// The case, with the first endpoint's responses and the requests it read.
+        case: WireCase,
+        /// The second endpoint's responses.
+        next_responses: Vec<Vec<u8>>,
+        /// The requests the second endpoint read.
+        next_requests: Vec<String>,
+    }
+
+    /// Go: `redirectCases`, as `writeRedirects` recorded them.
+    fn redirect_cases() -> TestResult<Vec<RedirectCase>> {
+        let mut cases = Vec::new();
+        for row in golden("gometrics/redirects.txt")?.lines() {
+            let fields = quoted_fields(row)?;
+            let [
+                name,
+                url,
+                username,
+                password,
+                op,
+                db,
+                point_field,
+                answers,
+                next_answers,
+                requests,
+                next_requests,
+                error,
+                version,
+            ] = fields.as_slice()
+            else {
+                return Err(format!("{row:?}: not 13 fields").into());
+            };
+            cases.push(RedirectCase {
+                case: WireCase {
+                    name: text(name)?,
+                    url: text(url)?,
+                    username: text(username)?,
+                    password: text(password)?,
+                    op: text(op)?,
+                    db: text(db)?,
+                    points: points(point_field)?,
+                    responses: responses(answers),
+                    has_endpoint: true,
+                    requests: split(&text(requests)?),
+                    error: text(error)?.strip_prefix("error: ").map(str::to_owned),
+                    version: text(version)?,
+                },
+                next_responses: responses(next_answers),
+                next_requests: split(&text(next_requests)?),
             });
         }
         Ok(cases)
@@ -703,6 +770,132 @@ mod tests {
             ),
             "the crate fails a 200 that names an error",
         )
+    }
+
+    /// Go: `replaceAddrs`: the endpoints' addresses written `{addr}` and `{addr2}`, the longer
+    /// one first.
+    fn replace_addrs(s: &str, first: &str, next: &str) -> String {
+        let mut pairs = [(first, "{addr}"), (next, "{addr2}")];
+        if next.len() > first.len() {
+            pairs.swap(0, 1);
+        }
+        pairs
+            .iter()
+            .fold(s.to_owned(), |s, (addr, name)| s.replace(addr, name))
+    }
+
+    /// The redirect case through [`Client`], against two endpoints, the first answering with the
+    /// case's redirect to the second: what the client did, with the first endpoint's requests,
+    /// and the second endpoint's requests.
+    fn run_redirect(redirect: &RedirectCase) -> TestResult<(Wire, Vec<String>)> {
+        let case = &redirect.case;
+        let next = Endpoint::new(redirect.next_responses.clone())?;
+        let next_at = next.addr();
+        let first = Endpoint::new(
+            case.responses
+                .iter()
+                .map(|r| text(r).map(|r| r.replace("{addr2}", &next_at).into_bytes()))
+                .collect::<TestResult<_>>()?,
+        )?;
+        let first_at = first.addr();
+        let url = Url::parse(&case.url.replace("{addr}", &first_at))?;
+        let client = Client::new(&url, &case.username, &case.password, &case.db)?;
+        let rt = runtime()?;
+        let (error, version) = if case.op == "write" {
+            let points = case.points.iter().map(TestPoint::build).collect();
+            let result = rt.block_on(client.write(points));
+            (result.err().map(|e| e.to_string()), String::new())
+        } else {
+            match rt.block_on(client.ping()) {
+                Ok(version) => (None, version),
+                Err(err) => (Some(err.to_string()), String::new()),
+            }
+        };
+        let normalize = |s: &str| replace_addrs(s, &first_at, &next_at);
+        let wire = Wire {
+            requests: first.requests().iter().map(|r| normalize(r)).collect(),
+            error: error.as_deref().map(normalize),
+            version,
+        };
+        let next_requests = next.requests().iter().map(|r| normalize(r)).collect();
+        Ok((wire, next_requests))
+    }
+
+    /// The request without its `Authorization` lines.
+    fn without_authorization(mut request: Request) -> Request {
+        request
+            .headers
+            .retain(|(name, _)| !name.eq_ignore_ascii_case("Authorization"));
+        request
+    }
+
+    /// `influx.redirect-auth`: a write or ping that the server redirects to another port of its
+    /// host carries the basic auth of `metrics.influxdb.username` on in Go, net/http copying
+    /// the header to a redirect on the same host name, and goes without it from the reporter's
+    /// client, reqwest dropping it on any change of host, port or scheme. The host URL's user
+    /// info stays behind in both, and the requests are Go's otherwise, the ledgered differences
+    /// aside.
+    #[test]
+    fn redirect_auth() -> TestResult {
+        // Go: testdata/go/influx.go (writeRedirects), over net/http client.go
+        // (shouldCopyHeaderOnRedirect) and influxdb1-client influxdb.go:332-334 and :428-430
+        // (SetBasicAuth)
+        let cases = redirect_cases()?;
+        check_eq(&cases.len(), &3, "the redirect cases")?;
+        for redirect in &cases {
+            let case = &redirect.case;
+            let (rust, rust_next) = run_redirect(redirect)?;
+            check_eq(
+                &rust.error,
+                &None,
+                &format!("{}: the reporter's error", case.name),
+            )?;
+            check_eq(&case.error, &None, &format!("{}: Go's error", case.name))?;
+            check_eq(
+                &rust.version,
+                &case.version,
+                &format!("{}: version", case.name),
+            )?;
+            check_eq(
+                &canonical_all(&rust.requests, Side::Rust)?,
+                &canonical_all(&case.requests, Side::Go)?,
+                &format!("{}: the first requests", case.name),
+            )?;
+            let go_first = only(&case.requests)?;
+            let go_next = only(&redirect.next_requests)?;
+            let rust_next = only(&rust_next)?;
+            let carried = if case.username.is_empty() {
+                Vec::new()
+            } else {
+                go_first.header("Authorization")
+            };
+            check(
+                !case.username.is_empty() || !go_first.header("Authorization").is_empty(),
+                &format!("{}: the first request carries credentials", case.name),
+            )?;
+            check_eq(
+                &go_next.header("Authorization"),
+                &carried,
+                &format!("{}: the credentials Go's redirect carries", case.name),
+            )?;
+            check_eq(
+                &rust_next.header("Authorization"),
+                &Vec::<&str>::new(),
+                &format!(
+                    "{}: the credentials the reporter's redirect carries",
+                    case.name
+                ),
+            )?;
+            check_eq(
+                &canonical(&without_authorization(rust_next), Side::Rust),
+                &canonical(&without_authorization(go_next), Side::Go),
+                &format!(
+                    "{}: the redirected request, its credentials aside",
+                    case.name
+                ),
+            )?;
+        }
+        Ok(())
     }
 
     /// The forms of the crate's and reqwest's error texts.

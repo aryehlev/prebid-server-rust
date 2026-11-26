@@ -19,10 +19,11 @@
 //! The names, tags and field types are go-metrics-influxdb's (Rule B (c), D-INFLUX); influxdb
 //! 0.8.0 spells the points and writes them. The ledger's `influx` entries hold what differs: the
 //! write request (`influx.write-request`), the statuses a write succeeds on
-//! (`influx.write-status`), the error texts (`influx.error-texts`), host URLs
-//! (`influx.host-url`), escapes (`influx.key-escapes`), the ticks (`influx.cadence`) and the
-//! values the samples keep (`influx.sampled-values`). The lines go through pbs-logger at ERROR,
-//! where Go's go to its standard logger (`logging.std-log-lines`).
+//! (`influx.write-status`), the credentials of a redirect (`influx.redirect-auth`), the error
+//! texts (`influx.error-texts`), host URLs (`influx.host-url`), escapes (`influx.key-escapes`),
+//! the ticks (`influx.cadence`) and the values the samples keep (`influx.sampled-values`). The
+//! lines go through pbs-logger at ERROR, where Go's go to its standard logger
+//! (`logging.std-log-lines`).
 
 mod client;
 

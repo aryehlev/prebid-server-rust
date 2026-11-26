@@ -14,6 +14,11 @@ package main
 // (wirePoint.encode, joined by U+001D), the endpoint's responses (joined by U+001D), whether the
 // case runs an endpoint, the requests the endpoint read (joined by U+001D), "error: <text>" or ""
 // when the call returned no error, and the version Ping returned.
+//
+// A redirects.txt row is a wire case whose endpoint redirects to a second endpoint, on another
+// port of 127.0.0.1 and written {addr2}: name, URL, username, password, op, database, the
+// points, the first endpoint's responses, the second endpoint's responses, the requests each
+// read, the error and the version, as in wire.txt.
 
 import (
 	"bufio"
@@ -361,6 +366,110 @@ func writeWire(path string) error {
 		if e != nil {
 			e.close()
 		}
+	}
+	return os.WriteFile(path, []byte(b.String()), 0o644)
+}
+
+// redirectCase is a wire case whose endpoint ({addr}) redirects to a second endpoint ({addr2}):
+// responses are the first endpoint's answers, next the second's.
+type redirectCase struct {
+	wireCase
+	next []string
+}
+
+// redirectCases send a write or a ping, with SetBasicAuth's credentials or the host URL's user
+// info, to an endpoint that redirects it to another port of its host. net/http copies the
+// initial request's Authorization header to a redirect whose host name is the initial one's or
+// a subdomain of it, on any port and scheme (net/http/client.go shouldCopyHeaderOnRedirect); the
+// user info is not part of that header.
+func redirectCases() []redirectCase {
+	counter := wirePoint{"prebidserver", nil, "prebidserver.active_connections.count", int64(42), 1731940000123456789}
+	ok204 := "HTTP/1.1 204 No Content\r\nX-Influxdb-Version: 1.8.10\r\n\r\n"
+	to := func(status, location string) string {
+		return "HTTP/1.1 " + status + "\r\nLocation: " + location + "\r\nContent-Length: 0\r\n\r\n"
+	}
+	return []redirectCase{
+		{wireCase{name: "write_307_other_port", url: "http://{addr}", username: "admin", password: "pw", op: "write", db: "pbs", points: []wirePoint{counter}, responses: []string{to("307 Temporary Redirect", "http://{addr2}/moved?x=1")}}, []string{ok204}},
+		{wireCase{name: "write_308_other_port_userinfo", url: "http://u:p@{addr}", op: "write", db: "pbs", points: []wirePoint{counter}, responses: []string{to("308 Permanent Redirect", "http://{addr2}/moved")}}, []string{ok204}},
+		{wireCase{name: "ping_301_other_port", url: "http://{addr}/base", username: "admin", password: "pw", op: "ping", responses: []string{to("301 Moved Permanently", "http://{addr2}/ping2")}}, []string{ok204}},
+	}
+}
+
+// replaceAddrs writes the endpoints' addresses as {addr} and {addr2}, the longer one first, so
+// that neither is read inside the other.
+func replaceAddrs(s, first, next string) string {
+	pairs := [][2]string{{first, "{addr}"}, {next, "{addr2}"}}
+	if len(next) > len(first) {
+		pairs[0], pairs[1] = pairs[1], pairs[0]
+	}
+	for _, p := range pairs {
+		s = strings.ReplaceAll(s, p[0], p[1])
+	}
+	return s
+}
+
+func writeRedirects(path string) error {
+	var b strings.Builder
+	for _, c := range redirectCases() {
+		next, err := newFakeEndpoint(c.next...)
+		if err != nil {
+			return err
+		}
+		responses := make([]string, len(c.responses))
+		for i, r := range c.responses {
+			responses[i] = strings.ReplaceAll(r, "{addr2}", next.addr())
+		}
+		first, err := newFakeEndpoint(responses...)
+		if err != nil {
+			return err
+		}
+		u, err := uurl.Parse(strings.ReplaceAll(c.url, "{addr}", first.addr()))
+		if err != nil {
+			return fmt.Errorf("%s: %v", c.name, err)
+		}
+		cl, err := client.NewClient(client.Config{URL: *u, Username: c.username, Password: c.password})
+		if err != nil {
+			return fmt.Errorf("%s: %v", c.name, err)
+		}
+		var callErr error
+		version := ""
+		switch c.op {
+		case "write":
+			var pts []client.Point
+			for _, p := range c.points {
+				pts = append(pts, p.point())
+			}
+			_, callErr = cl.Write(client.BatchPoints{Points: pts, Database: c.db})
+		case "ping":
+			_, version, callErr = cl.Ping()
+		default:
+			return fmt.Errorf("%s: unknown op %q", c.name, c.op)
+		}
+		// Each endpoint read its requests before it answered them.
+		if _, err := next.wait(5 * time.Second); err != nil {
+			return fmt.Errorf("%s: %v", c.name, err)
+		}
+		errText := ""
+		if callErr != nil {
+			errText = "error: " + callErr.Error()
+		}
+		var encoded []string
+		for _, p := range c.points {
+			encoded = append(encoded, p.encode())
+		}
+		fields := []string{c.name, c.url, c.username, c.password, c.op, c.db, strings.Join(encoded, "\x1d"),
+			strings.Join(c.responses, "\x1d"), strings.Join(c.next, "\x1d"),
+			replaceAddrs(first.all(), first.addr(), next.addr()), replaceAddrs(next.all(), first.addr(), next.addr()),
+			replaceAddrs(errText, first.addr(), next.addr()), version}
+		for i, f := range fields {
+			if i > 0 {
+				b.WriteByte('\t')
+			}
+			b.WriteString(strconv.Quote(f))
+		}
+		b.WriteByte('\n')
+		first.close()
+		next.close()
 	}
 	return os.WriteFile(path, []byte(b.String()), 0o644)
 }
