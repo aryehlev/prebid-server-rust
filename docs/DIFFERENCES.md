@@ -25,7 +25,7 @@ Rule B's cases: (a) input real production traffic sends that the crate would rej
 | HTTP client | 0 | 24 | 5 |
 | IP addresses | 0 | 1 | 1 |
 | JSON | 5 | 42 | 6 |
-| JSON Schema | 0 | 3 | 2 |
+| JSON Schema | 0 | 4 | 2 |
 | Logging | 0 | 10 | 3 |
 | Prometheus metrics | 1 | 7 | 1 |
 | Public suffix list | 1 | 0 | 0 |
@@ -38,7 +38,7 @@ Rule B's cases: (a) input real production traffic sends that the crate would rej
 | URLs | 0 | 2 | 3 |
 | User syncs | 0 | 1 | 0 |
 | YAML | 0 | 3 | 0 |
-| All | 7 | 141 | 38 |
+| All | 7 | 142 | 38 |
 
 ## Decisions pending
 
@@ -1400,6 +1400,18 @@ No entry names the classes `other` and `unrecorded` or the kinds `stage_missing`
 - **Pin:** `crates/bidder-params/tests/go_adversarial.rs::huge_numbers`
 - **Decision:** D-DECODE
 - **Restore option:** Read numbers as exact decimals, which needs serde_json's `arbitrary_precision` that the rulings forbid; not planned.
+- **Recorded in:** `crates/bidder-params/differences.toml`
+
+#### `jsonschema.schema-files`: Opening static/bidder-params: Go loads each schema through a `file://` URL, the port by its path
+
+- **Go:** `NewBidderParamsValidator` makes each schema's path absolute with `filepath.Abs` (`os.Getwd`, which gives `$PWD` when `$PWD` names the working directory, then `filepath.Clean`, which drops `..`) and compiles it through gojsonschema's reference loader for `"file:///" + path` (openrtb_ext/bidders.go:819-827): `url.Parse` refuses a control character or a bad `%` escape (in the fragment too), a `#` cuts the path and what follows is resolved as a JSON pointer into the file before it, and `url.QueryUnescape` decodes `%XX` and turns `+` into a space, so a directory whose path holds one of them fails to load, or compiles another file when one answers to the decoded name; os's failures read `open <path>: no such file or directory` (`*fs.PathError`).
+- **Rust:** The port compiles the file at `std::path::absolute`'s path (the working directory from `getcwd`, `..` kept): it loads every such directory, always from the file whose contents `Schema` returns, and std words the failures (`No such file or directory (os error 2)`) inside Prebid's messages, which keep Go's words.
+- **Who notices:** operator
+- **Visible in:** Startup from a working directory whose path holds `+`, `%`, `#` or a control character, where Go fails to start (or compiles the file another name decodes to) and the port starts, and the path and file error in the fatal error of a static/bidder-params that does not load
+- **Harness:** none
+- **Pin:** `crates/bidder-params/tests/go_loader.rs::schema_files_open_by_path`
+- **Restore option:** Port `net/url`'s parse, fragment and unescape rules, gojsonschema's JSON pointers, `os.Getwd` and Go's errno texts; not planned: the schema path is no config key, Go's refusals keep no operator's deployment working, and orchestrator ruling 2 ledgers library error wording.
+- **Note:** The 23 cases of testdata/golden/loader.jsonl (`go_loader.rs::go_opens_a_file_url` reads Go's side off it) cover each character, a bad escape after a `#` and after multi-byte text, a schema file answering to the decoded name, `..`, `$PWD` (in a child process, so no test changes the working directory or the environment) and the failures os reports.
 - **Recorded in:** `crates/bidder-params/differences.toml`
 
 #### `jsonschema.unsupported-keywords`: Keywords no Prebid schema uses: gojsonschema reads them, the port fails the schema's load

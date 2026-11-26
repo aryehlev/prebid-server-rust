@@ -4,14 +4,17 @@
 //! Aliases share their parent's schema. `Validate` returns the concatenated gojsonschema
 //! `ResultError.String()` values (no separator), which request validation wraps as
 //! `request.imp[%d].ext.prebid.bidder.%s failed validation.\n%v`.
+//!
+//! The loader opens each schema file at its absolute path with std: Go's path handling and
+//! file errors are library behaviour (`filepath.Abs`, gojsonschema's `file://` reference loader
+//! over `net/url`, `*fs.PathError`), which the port does not copy (jsonschema.schema-files).
+//! Prebid's own messages around them stay Go's.
 
 use std::{
     collections::{BTreeMap, BTreeSet},
-    env,
     error::Error,
-    fmt,
-    fs::{self, File},
-    io,
+    fmt, fs, io,
+    path::{self, Path},
     sync::Arc,
 };
 
@@ -132,16 +135,24 @@ impl BidderParamValidator for StandardBidderParamValidator {
 /// the call: the keys of `BuildBidderMap()` (core bidders plus the aliases registered from
 /// `static/bidder-info`) and `GetAliasBidderToParent()`.
 ///
+/// Each schema is read from the absolute path [`std::path::absolute`] makes of the directory and
+/// file name. Go loads it through a `file://` URL of `filepath.Abs`'s path instead, in which a
+/// path that holds `+`, `%`, `#` or a control character fails to load or names another file,
+/// and Go's texts spell paths and file errors as its libraries do (jsonschema.schema-files).
+///
 /// # Errors
 ///
-/// Go's messages: the directory cannot be read, a file name is not a bidder name
+/// Go's messages: the directory cannot be read
+/// (`Failed to read JSON schemas from directory %s. %v`), a file name is not a bidder name
 /// (`File %s/%s does not match a valid BidderName.`), or a schema fails to load
-/// (`Failed to load json schema at %s: %v`).
+/// (`Failed to load json schema at %s: %v`), each holding std's error where Go's holds its
+/// libraries'.
 pub fn new_bidder_params_validator(
     schema_directory: &str,
     bidder_names: &BTreeSet<String>,
     alias_bidder_to_parent: &BTreeMap<String, String>,
 ) -> Result<StandardBidderParamValidator, LoadError> {
+    // Go: openrtb_ext/bidders.go:804-807
     let entries = read_dir_sorted(schema_directory).map_err(|e| {
         LoadError(format!(
             "Failed to read JSON schemas from directory {schema_directory}. {e}"
@@ -150,6 +161,7 @@ pub fn new_bidder_params_validator(
     let mut schema_contents = BTreeMap::new();
     let mut parsed_schemas = BTreeMap::new();
     for file_name in entries {
+        // Go: openrtb_ext/bidders.go:814-817
         let bidder_name = file_name
             .strip_suffix(".json")
             .unwrap_or(&file_name)
@@ -159,25 +171,27 @@ pub fn new_bidder_params_validator(
                 "File {schema_directory}/{file_name} does not match a valid BidderName."
             )));
         }
-        // Go: filepath.Join (which cleans) then filepath.Abs; on failure Go prints the empty
-        // result.
-        let joined = if schema_directory.is_empty() {
-            file_name.clone()
-        } else {
-            format!("{schema_directory}/{file_name}")
-        };
-        let to_open = go_abs(&joined).map_err(|e| {
-            LoadError(format!(
-                "Failed to get an absolute representation of the path: , {e}"
-            ))
-        })?;
-        let schema = load_schema(&to_open)
-            .map_err(|e| LoadError(format!("Failed to load json schema at {to_open}: {e}")))?;
+        // Go: openrtb_ext/bidders.go:819-822 (filepath.Abs gives "" with its error).
+        let to_open =
+            path::absolute(Path::new(schema_directory).join(&file_name)).map_err(|e| {
+                LoadError(format!(
+                    "Failed to get an absolute representation of the path: , {e}"
+                ))
+            })?;
+        // Go: openrtb_ext/bidders.go:823-827 (gojsonschema.NewSchema of a reference loader).
+        let schema = fs::read(&to_open)
+            .map_err(|e| e.to_string())
+            .and_then(|bytes| Schema::new(&bytes))
+            .map_err(|e| {
+                LoadError(format!(
+                    "Failed to load json schema at {}: {e}",
+                    to_open.display()
+                ))
+            })?;
+        // Go: openrtb_ext/bidders.go:829-832
         let file_path = format!("{schema_directory}/{file_name}");
-        let contents = fs::read(&file_path).map_err(|e| {
-            let reason = path_error("open", &file_path, &e);
-            LoadError(format!("Failed to read file {file_path}: {reason}"))
-        })?;
+        let contents = fs::read(&file_path)
+            .map_err(|e| LoadError(format!("Failed to read file {file_path}: {e}")))?;
         let _replaced = parsed_schemas.insert(bidder_name.clone(), Some(Arc::new(schema)));
         let _previous =
             schema_contents.insert(bidder_name, String::from_utf8_lossy(&contents).into_owned());
@@ -196,109 +210,12 @@ pub fn new_bidder_params_validator(
 }
 
 /// Go: `os.ReadDir(name)` (entries sorted by file name), as file names.
-fn read_dir_sorted(dir: &str) -> Result<Vec<String>, String> {
-    let entries = fs::read_dir(dir).map_err(|e| path_error("open", dir, &e))?;
-    let mut names = Vec::new();
-    for entry in entries {
-        let entry = entry.map_err(|e| path_error("readdirent", dir, &e))?;
-        names.push(entry.file_name().to_string_lossy().into_owned());
-    }
+fn read_dir_sorted(dir: &str) -> io::Result<Vec<String>> {
+    let mut names = fs::read_dir(dir)?
+        .map(|entry| entry.map(|e| e.file_name().to_string_lossy().into_owned()))
+        .collect::<io::Result<Vec<String>>>()?;
     names.sort();
     Ok(names)
-}
-
-/// Go: `gojsonschema.NewSchema(gojsonschema.NewReferenceLoader("file:///" + toOpen))`.
-fn load_schema(to_open: &str) -> Result<Schema, String> {
-    let opened = go_reference_loader_path(to_open)?;
-    // Go: `os.Open` then `ioutil.ReadAll`; the two failures are reported differently.
-    let _opened_file = File::open(&opened).map_err(|e| path_error("open", &opened, &e))?;
-    let bytes = fs::read(&opened).map_err(|e| path_error("read", &opened, &e))?;
-    Schema::new(&bytes)
-}
-
-/// The path gojsonschema's reference loader opens for `"file:///" + abs`: the URL keeps the
-/// extra slash, drops a fragment, and `url.QueryUnescape` decodes `%XX` and turns `+` into a
-/// space.
-fn go_reference_loader_path(abs: &str) -> Result<String, String> {
-    let without_fragment = abs.split('#').next().unwrap_or(abs);
-    let raw = format!("/{without_fragment}");
-    let bytes = raw.as_bytes();
-    let mut out = Vec::with_capacity(bytes.len());
-    let mut i = 0;
-    while let Some(&b) = bytes.get(i) {
-        match b {
-            b'+' => out.push(b' '),
-            b'%' => {
-                let hex = bytes.get(i + 1..i + 3).and_then(|h| str::from_utf8(h).ok());
-                let value = hex.and_then(|h| u8::from_str_radix(h, 16).ok());
-                let Some(value) = value else {
-                    let bad: String = raw.chars().skip(i).take(3).collect();
-                    return Err(format!(
-                        "parse \"file:///{abs}\": invalid URL escape \"{bad}\""
-                    ));
-                };
-                out.push(value);
-                i += 2;
-            }
-            other => out.push(other),
-        }
-        i += 1;
-    }
-    Ok(String::from_utf8_lossy(&out).into_owned())
-}
-
-/// Go: `filepath.Abs(path)`: joins relative paths to the working directory, then `Clean`s.
-fn go_abs(path: &str) -> Result<String, String> {
-    if path.starts_with('/') {
-        return Ok(go_clean(path));
-    }
-    let wd = env::current_dir().map_err(|e| path_error("getwd", ".", &e))?;
-    Ok(go_clean(&format!("{}/{path}", wd.to_string_lossy())))
-}
-
-/// Go: `filepath.Clean` for Unix paths.
-fn go_clean(path: &str) -> String {
-    let rooted = path.starts_with('/');
-    let mut parts: Vec<&str> = Vec::new();
-    for part in path.split('/') {
-        match part {
-            "" | "." => {}
-            ".." => {
-                if parts.last().is_some_and(|p| *p != "..") {
-                    let _parent = parts.pop();
-                } else if !rooted {
-                    parts.push("..");
-                }
-            }
-            other => parts.push(other),
-        }
-    }
-    let joined = parts.join("/");
-    match (rooted, joined.is_empty()) {
-        (true, _) => format!("/{joined}"),
-        (false, true) => ".".to_owned(),
-        (false, false) => joined,
-    }
-}
-
-/// Go: `*fs.PathError.Error()`: `op path: errno text`.
-///
-/// Go's errno texts are the C library's `strerror` texts with a lower-case first letter; std
-/// renders an OS error as `strerror (os error N)`.
-fn path_error(op: &str, path: &str, err: &io::Error) -> String {
-    let rendered = err.to_string();
-    let text = err.raw_os_error().map_or_else(
-        || rendered.clone(),
-        |code| {
-            let suffix = format!(" (os error {code})");
-            let message = rendered.strip_suffix(&suffix).unwrap_or(&rendered);
-            let mut chars = message.chars();
-            chars.next().map_or_else(String::new, |first| {
-                first.to_lowercase().chain(chars).collect::<String>()
-            })
-        },
-    );
-    format!("{op} {path}: {text}")
 }
 
 #[cfg(test)]
@@ -309,12 +226,13 @@ mod tests {
     };
 
     use super::{
-        BidderParamValidator as _, ParamsError, StandardBidderParamValidator, go_abs, go_clean,
-        go_reference_loader_path, new_bidder_params_validator,
+        BidderParamValidator as _, ParamsError, StandardBidderParamValidator,
+        new_bidder_params_validator,
     };
     use crate::gojsonschema::Schema;
 
     /// Go: `openrtb_ext.TestBidderParamValidatorValidate`.
+    // Go: openrtb_ext/bidders_test.go:15-79, openrtb_ext/bidders.go:858-871
     #[test]
     fn validate_matches_go() -> Result<(), String> {
         let schema = Schema::new(
@@ -382,6 +300,7 @@ mod tests {
     }
 
     /// Go: `openrtb_ext.TestBidderParamValidatorSchema`.
+    // Go: openrtb_ext/bidders_test.go:81-92, openrtb_ext/bidders.go:873-875
     #[test]
     fn schema_matches_go() -> Result<(), String> {
         let validator = StandardBidderParamValidator::from_schemas(
@@ -402,12 +321,16 @@ mod tests {
     struct TempDir(String);
 
     impl TempDir {
+        /// The scratch path of `name`, which no other test uses.
+        fn path(name: &str) -> String {
+            env::temp_dir()
+                .join(format!("pbs-bidder-params-{}-{name}", process::id()))
+                .display()
+                .to_string()
+        }
+
         fn new(name: &str, files: &[(&str, &str)]) -> Result<Self, String> {
-            let dir = format!(
-                "{}/pbs-bidder-params-{}-{name}",
-                env::temp_dir().display(),
-                process::id()
-            );
+            let dir = Self::path(name);
             let _cleared = fs::remove_dir_all(&dir);
             fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
             for (file, contents) in files {
@@ -433,6 +356,7 @@ mod tests {
 
     /// Go: `openrtb_ext.TestNewBidderParamsValidator`, valid case: aliases share their parent's
     /// schema.
+    // Go: openrtb_ext/bidders_test.go:199-209 and 270-283, openrtb_ext/bidders.go:838-845
     #[test]
     fn new_validator_shares_parent_schemas() -> Result<(), String> {
         let dir = TempDir::new("valid", &[("appnexus.json", "{}")])?;
@@ -446,15 +370,17 @@ mod tests {
             .map_err(|e| e.to_string())
     }
 
-    /// Go: `openrtb_ext.TestNewBidderParamsValidator`, the failures a real file system can
-    /// produce.
+    /// Go: `openrtb_ext.TestNewBidderParamsValidator`, the error cases a real file system can
+    /// give. Prebid's messages are Go's; the file error inside the first is std's, where Go's
+    /// mock file system says `open t: file does not exist` and the operating system's
+    /// `open <dir>: no such file or directory` (jsonschema.schema-files).
+    // Go: openrtb_ext/bidders_test.go:210-227 and 242-254, openrtb_ext/bidders.go:804-827
     #[test]
     fn new_validator_errors_match_go() -> Result<(), String> {
-        let valid = TempDir::new("errors", &[])?;
-        let missing = format!("{}-missing", valid.0);
+        let missing = TempDir::path("missing");
         let missing_error = format!(
-            "Failed to read JSON schemas from directory {missing}. open {missing}: {}",
-            "no such file or directory"
+            "Failed to read JSON schemas from directory {missing}. No such file or directory \
+             (os error 2)"
         );
         let bad_name = TempDir::new("badname", &[("anyBidder.json", "{}")])?;
         let bad_name_error = format!(
@@ -462,10 +388,10 @@ mod tests {
             bad_name.0
         );
         let bad_schema = TempDir::new("badschema", &[("appnexus.json", r#"{"type":1}"#)])?;
-        let abs = go_abs(&format!("{}/appnexus.json", bad_schema.0))?;
         let bad_schema_error = format!(
-            "Failed to load json schema at {abs}: {}",
-            "Invalid type. Expected: string/array of strings, given: type"
+            "Failed to load json schema at {}/appnexus.json: Invalid type. Expected: \
+             string/array of strings, given: type",
+            bad_schema.0
         );
         for (dir, want) in [
             (&missing, missing_error),
@@ -475,44 +401,6 @@ mod tests {
             match new_bidder_params_validator(dir, &bidders(), &aliases()) {
                 Err(e) if e.message() == want => {}
                 other => return Err(format!("{dir}: got {other:?}, want {want}")),
-            }
-        }
-        Ok(())
-    }
-
-    #[test]
-    fn clean_matches_go() -> Result<(), String> {
-        let cases = [
-            ("/a/b/../c", "/a/c"),
-            ("/a//b/./c/", "/a/b/c"),
-            ("/../a", "/a"),
-            ("a/../..", ".."),
-            ("", "."),
-        ];
-        for (input, want) in cases {
-            let got = go_clean(input);
-            if got != want {
-                return Err(format!("Clean({input:?}) = {got:?}, want {want:?}"));
-            }
-        }
-        Ok(())
-    }
-
-    #[test]
-    fn reference_loader_path_matches_go() -> Result<(), String> {
-        let cases = [
-            (
-                "/srv/static/bidder-params/a.json",
-                "//srv/static/bidder-params/a.json",
-            ),
-            ("/srv/a+b/x.json", "//srv/a b/x.json"),
-            ("/srv/a%41/x.json", "//srv/aA/x.json"),
-            ("/srv/a#b/x.json", "//srv/a"),
-        ];
-        for (input, want) in cases {
-            let got = go_reference_loader_path(input)?;
-            if got != want {
-                return Err(format!("{input:?}: got {got:?}, want {want:?}"));
             }
         }
         Ok(())
