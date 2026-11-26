@@ -1060,8 +1060,12 @@ dependencies = [
 name = "pbs-currency"
 version = "0.1.0"
 dependencies = [
- "log",
+ "bytes",
+ "futures-util",
+ "pbs-http-client",
+ "pbs-logger",
  "tokio",
+ "url",
 ]
 
 [[package]]

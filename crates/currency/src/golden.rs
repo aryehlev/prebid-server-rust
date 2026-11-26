@@ -1,8 +1,6 @@
 //! Test support: reading the goldens written by `testdata/go` and checking without panics.
 
-use std::{
-    collections::BTreeMap, error::Error, fmt::Debug, fs, path::PathBuf, sync::Arc, time::Duration,
-};
+use std::{collections::BTreeMap, error::Error, fmt::Debug, fs, path::PathBuf, time::Duration};
 
 use tokio::runtime;
 
@@ -12,6 +10,10 @@ use crate::{
     rate_converter::RateConverter,
     rates::{ConversionRates, Rates},
 };
+
+/// The URL the tests fetch from. Go's tests use `currency.fake.com`, which `url.Parse` reads
+/// as a path and Go's mock client never looks at; the converter here parses the URL first.
+pub const FAKE_URL: &str = "http://currency.fake.com/latest.json";
 
 /// The result type of every test in this crate.
 pub type TestResult = Result<(), Box<dyn Error>>;
@@ -60,13 +62,14 @@ pub fn rates_from_json(json: &str) -> Result<Rates, Box<dyn Error>> {
 ///
 /// When the document does not decode.
 pub async fn fetch_rates(json: &str) -> Result<Rates, Box<dyn Error>> {
-    let client = Arc::new(MockCurrencyRatesHttpClient {
+    let client = MockCurrencyRatesHttpClient {
         response_body: json.to_owned(),
-    });
+    }
+    .into_client();
     let converter = RateConverter::new(
         client,
         Duration::from_mins(1),
-        String::new(),
+        FAKE_URL.to_owned(),
         Duration::ZERO,
     );
     converter.run().await?;

@@ -3,13 +3,17 @@
 use std::{
     error::Error,
     fmt::{self, Write as _},
-    future::{self, Future},
-    pin::Pin,
     sync::{Arc, PoisonError, RwLock, RwLockReadGuard, RwLockWriteGuard},
     time::{Duration, SystemTime},
 };
 
-use tokio::time::{Instant, timeout_at};
+use pbs_http_client::{
+    Builder, Client, HttpClientSettings, ProxyEnv, RequestError,
+    reqwest::{Method, Request},
+};
+use pbs_logger::errorf;
+use tokio::time::Instant;
+use url::{ParseError, Url};
 
 use self::rates_json::unmarshal_valid;
 use crate::{
@@ -32,79 +36,38 @@ pub trait Conversions: Send + Sync + fmt::Debug {
     fn get_rates(&self) -> Option<&Rates>;
 }
 
-/// An error from an [`HttpClient`].
-pub type BoxError = Box<dyn Error + Send + Sync>;
-
-/// The rest of a response body, read to the end.
-pub type BodyFuture = Pin<Box<dyn Future<Output = Result<Vec<u8>, BoxError>> + Send>>;
-
-/// A pending response (status line and headers) from [`HttpClient::get`].
-pub type ResponseFuture<'a> =
-    Pin<Box<dyn Future<Output = Result<HttpResponse, BoxError>> + Send + 'a>>;
-
-/// The HTTP client the converter fetches the currency file with (Go: the `httpClient`
-/// interface, `Do(req *http.Request) (*http.Response, error)`).
+/// The client `main.go:72` hands the converter: Go's `&http.Client{}`.
 ///
-/// The converter applies the fetch timeout to both futures, like Go's request context does,
-/// so an implementation needs no timeout of its own. Go returns the `*url.Error` of
-/// `http.Client.Do` unchanged (for example `Get "invalidurl": unsupported protocol scheme ""`,
-/// with the URL as `url.URL.String()` prints it and any password shown as `***`), and a URL
-/// that does not parse fails earlier, in `http.NewRequestWithContext`, as
-/// `parse "http://[::1": missing ']' in host`. An implementation that should match Go's log
-/// lines formats its errors the same way; checks that Go makes before waiting (scheme, host)
-/// should fail without waiting, because Go reports them even when the timeout is zero.
-pub trait HttpClient: Send + Sync + fmt::Debug {
-    /// Sends `GET url` and resolves once the status line and headers have arrived.
-    fn get<'a>(&'a self, url: &'a str) -> ResponseFuture<'a>;
-}
-
-/// A response from an [`HttpClient`] (Go: `*http.Response`).
-pub struct HttpResponse {
-    /// Go: `StatusCode`.
-    pub status_code: u16,
-    /// Go: `Body`, read with `io.ReadAll`.
-    pub body: BodyFuture,
-}
-
-impl HttpResponse {
-    /// A response whose body arrives when `body` resolves.
-    #[must_use]
-    pub fn new<F>(status_code: u16, body: F) -> Self
-    where
-        F: Future<Output = Result<Vec<u8>, BoxError>> + Send + 'static,
-    {
-        Self {
-            status_code,
-            body: Box::pin(body),
-        }
-    }
-
-    /// A response whose body is already complete.
-    #[must_use]
-    pub fn from_bytes(status_code: u16, body: Vec<u8>) -> Self {
-        Self::new(status_code, future::ready(Ok(body)))
-    }
-}
-
-impl fmt::Debug for HttpResponse {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("HttpResponse")
-            .field("status_code", &self.status_code)
-            .finish_non_exhaustive()
-    }
+/// That is `http.DefaultTransport`'s settings, the proxies `proxy` names (the server passes
+/// [`ProxyEnv::from_process`]) and no timeout of its own; pbs-http-client sends
+/// `User-Agent: Go-http-client/1.1` and asks for gzip, as Go's Transport does.
+///
+/// # Errors
+///
+/// When reqwest cannot build the client.
+pub fn default_http_client(proxy: ProxyEnv) -> Result<Client, RequestError> {
+    Builder::new(HttpClientSettings::DEFAULT_TRANSPORT, proxy).build()
 }
 
 /// Why fetching the currency file failed (Go: the errors of `RateConverter.fetch`).
+///
+/// Prebid's texts are Go's; the words of the client, the body reader and the URL parser are
+/// reqwest's and the url crate's (`currency.fetch-error-texts`).
 #[derive(Debug)]
 pub enum FetchError {
-    /// Go: the error of `httpClient.Do`, returned unwrapped.
-    Request(BoxError),
-    /// Go: `httpClient.Do` failing on the expired request context, whose `*url.Error` reads
-    /// `Get "<url>": context deadline exceeded`.
-    Timeout {
-        /// The fetched URL.
+    /// Go: the `*url.Error` of `http.NewRequestWithContext` for a URL that does not parse,
+    /// `parse "<url>": <reason>`. Go parses a URL without a scheme (`invalidurl`) and fails in
+    /// `client.Do` instead (`Get "invalidurl": unsupported protocol scheme ""`); the url crate
+    /// refuses it here.
+    Url {
+        /// The configured URL.
         url: String,
+        /// Why it does not parse.
+        reason: ParseError,
     },
+    /// Go: the error of `client.Do`, returned as it is. It reads as [`RequestError::do_text`]:
+    /// `Get "<url>": context deadline exceeded` once the fetch timeout has passed.
+    Request(RequestError),
     /// Go: `errortypes.BadServerResponse` (error code 4) for a status code of 400 or more.
     BadServerResponse {
         /// The response status code.
@@ -112,7 +75,7 @@ pub enum FetchError {
     },
     /// Go: `fmt.Errorf("the currency rates request failed: %v", err)` when reading the body
     /// fails, including on the fetch deadline.
-    ReadBody(BoxError),
+    ReadBody(RequestError),
     /// Go: `fmt.Errorf("the currency rates request failed to parse json: %v", err)`; the message
     /// is the raw bytes of Go's `jsonutil` error, which can quote any input bytes.
     ParseJson(Vec<u8>),
@@ -121,12 +84,12 @@ pub enum FetchError {
 impl fmt::Display for FetchError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::Request(err) => err.fmt(f),
-            Self::Timeout { url } => {
-                f.write_str("Get ")?;
+            Self::Url { url, reason } => {
+                f.write_str("parse ")?;
                 write_go_quoted(f, url)?;
-                f.write_str(": context deadline exceeded")
+                write!(f, ": {reason}")
             }
+            Self::Request(err) => f.write_str(&err.do_text()),
             Self::BadServerResponse { status_code } => {
                 write!(
                     f,
@@ -146,23 +109,12 @@ impl fmt::Display for FetchError {
 impl Error for FetchError {
     fn source(&self) -> Option<&(dyn Error + 'static)> {
         match self {
-            Self::Request(err) | Self::ReadBody(err) => Some(err.as_ref()),
-            Self::Timeout { .. } | Self::BadServerResponse { .. } | Self::ParseJson(_) => None,
+            Self::Url { reason, .. } => Some(reason),
+            Self::Request(err) | Self::ReadBody(err) => Some(err),
+            Self::BadServerResponse { .. } | Self::ParseJson(_) => None,
         }
     }
 }
-
-/// Go: `context.DeadlineExceeded`, the body read error once the fetch timeout expires.
-#[derive(Debug, Clone, Copy)]
-struct DeadlineExceeded;
-
-impl fmt::Display for DeadlineExceeded {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str("context deadline exceeded")
-    }
-}
-
-impl Error for DeadlineExceeded {}
 
 /// Go's `%q` for a string (`strconv.Quote`).
 fn write_go_quoted(f: &mut fmt::Formatter<'_>, text: &str) -> fmt::Result {
@@ -207,7 +159,7 @@ impl Clock for RealClock {
 /// than the stale threshold, [`rates`](Self::rates) serves [`ConstantRates`].
 #[derive(Debug)]
 pub struct RateConverter {
-    http_client: Arc<dyn HttpClient>,
+    http_client: Client,
     http_timeout: Duration,
     stale_rates_threshold: Duration,
     sync_source_url: String,
@@ -220,13 +172,19 @@ pub struct RateConverter {
 impl RateConverter {
     /// Go: `NewRateConverter(httpClient, httpTimeout, syncSourceURL, staleRatesThreshold)`.
     ///
-    /// Go's durations are signed: a non-positive `httpTimeout` makes every real request fail
-    /// with the expired deadline and a non-positive `staleRatesThreshold` means the rates never
-    /// go stale. Callers pass [`Duration::ZERO`] for both. Go's server builds them from
-    /// `currency_converter.fetch_timeout_ms` and `currency_converter.stale_rates_seconds`.
+    /// The server passes [`default_http_client`]; a test passes a [`Client`] over a
+    /// [`Transport`](pbs_http_client::Transport) of its own, such as
+    /// [`MockCurrencyRatesHttpClient`](crate::MockCurrencyRatesHttpClient). Go's test doubles
+    /// stand in for the whole client and may be handed a URL without a scheme; here the
+    /// converter parses the URL before the client sees it, so it must be absolute.
+    ///
+    /// Go's durations are signed: a non-positive `httpTimeout` makes every request over the
+    /// network fail with the expired deadline and a non-positive `staleRatesThreshold` means the
+    /// rates never go stale. Callers pass [`Duration::ZERO`] for both. Go's server builds them
+    /// from `currency_converter.fetch_timeout_ms` and `currency_converter.stale_rates_seconds`.
     #[must_use]
     pub fn new(
-        http_client: Arc<dyn HttpClient>,
+        http_client: Client,
         http_timeout: Duration,
         sync_source_url: String,
         stale_rates_threshold: Duration,
@@ -247,31 +205,29 @@ impl RateConverter {
     async fn fetch(&self) -> Result<Rates, FetchError> {
         // Go: context.WithTimeout covers the request and the body read.
         let deadline = Instant::now().checked_add(self.http_timeout);
-        let response =
-            match with_deadline(deadline, self.http_client.get(&self.sync_source_url)).await {
-                Some(Ok(response)) => response,
-                Some(Err(err)) => return Err(FetchError::Request(err)),
-                None => {
-                    return Err(FetchError::Timeout {
-                        url: self.sync_source_url.clone(),
-                    });
-                }
-            };
+        // Go: http.NewRequestWithContext parses the URL.
+        let url = Url::parse(&self.sync_source_url).map_err(|reason| FetchError::Url {
+            url: self.sync_source_url.clone(),
+            reason,
+        })?;
         // Go reads the body once: with io.ReadAll below a 400 status, and in the deferred drain
         // (which logs its error before the caller sees the result) for every status.
-        let body = with_deadline(deadline, response.body)
-            .await
-            .unwrap_or_else(|| Err(Box::new(DeadlineExceeded)));
-        if let Err(err) = &body {
-            log::error!("error draining conversion rates response body: {err}");
+        let request = Request::new(Method::GET, url);
+        let (status_code, (body, read_error)) =
+            match self.http_client.send(request, deadline, None).await {
+                Ok(response) => (response.status().as_u16(), response.read_all().await),
+                Err(err) => return Err(FetchError::Request(err)),
+            };
+        if let Some(err) = &read_error {
+            errorf!("error draining conversion rates response body: {err}");
         }
-        if response.status_code >= 400 {
-            return Err(FetchError::BadServerResponse {
-                status_code: response.status_code,
-            });
+        if status_code >= 400 {
+            return Err(FetchError::BadServerResponse { status_code });
         }
-        let bytes = body.map_err(FetchError::ReadBody)?;
-        unmarshal_valid(&bytes).map_err(FetchError::ParseJson)
+        if let Some(err) = read_error {
+            return Err(FetchError::ReadBody(err));
+        }
+        unmarshal_valid(&body).map_err(FetchError::ParseJson)
     }
 
     /// Go: `update`.
@@ -285,11 +241,11 @@ impl RateConverter {
             Err(err) => {
                 if self.check_stale_rates() {
                     self.clear_rates();
-                    log::error!(
+                    errorf!(
                         "Error updating conversion rates, falling back to constant rates: {err}"
                     );
                 } else {
-                    log::error!("Error updating conversion rates: {err}");
+                    errorf!("Error updating conversion rates: {err}");
                 }
                 Err(err)
             }
@@ -353,14 +309,6 @@ impl RateConverter {
     }
 }
 
-/// Awaits `future` until `deadline` (`None` is a deadline too far away to represent).
-async fn with_deadline<F: Future>(deadline: Option<Instant>, future: F) -> Option<F::Output> {
-    match deadline {
-        Some(deadline) => timeout_at(deadline, future).await.ok(),
-        None => Some(future.await),
-    }
-}
-
 fn read<T>(lock: &RwLock<T>) -> RwLockReadGuard<'_, T> {
     lock.read().unwrap_or_else(PoisonError::into_inner)
 }
@@ -409,15 +357,22 @@ mod tests {
         time::{Duration, SystemTime},
     };
 
-    use tokio::time::{self, Instant};
-
-    use super::{
-        BoxError, Clock, FetchError, HttpClient, HttpResponse, RateConverter, ResponseFuture,
-        go_seconds, go_sub, write,
+    use bytes::Bytes;
+    use futures_util::future::BoxFuture;
+    use pbs_http_client::{
+        Client, ErrorKind, RequestError, Response, Trace, Transport,
+        reqwest::{Request, StatusCode, header::HeaderMap},
     };
+    use tokio::time::{self, Instant};
+    use url::Url;
+
+    use super::{Clock, FetchError, RateConverter, go_seconds, go_sub, write};
     use crate::{
         currency_mock::MockCurrencyRatesHttpClient,
-        golden::{SplitMix64, TestResult, check, check_eq, check_random_corpus, conversion_rates},
+        golden::{
+            FAKE_URL, SplitMix64, TestResult, check, check_eq, check_random_corpus,
+            conversion_rates,
+        },
         rates::Rates,
         ticker_task::TickerTask,
     };
@@ -464,10 +419,11 @@ mod tests {
         }
     }
 
-    /// Answers each call with the next scripted response (the last one repeats).
+    /// Answers each request with the next scripted answer (the last one repeats), as the Go
+    /// tests' servers and mock clients do.
     #[derive(Debug)]
-    struct ScriptedClient {
-        responses: Vec<Scripted>,
+    struct ScriptedTransport {
+        answers: Vec<Scripted>,
         calls: AtomicUsize,
     }
 
@@ -477,57 +433,65 @@ mod tests {
         Fail(&'static str),
         BodyFails(u16, &'static str),
         Hang,
-        HangBody(u16),
     }
 
-    impl ScriptedClient {
-        fn new(responses: Vec<Scripted>) -> Self {
-            Self {
-                responses,
+    impl ScriptedTransport {
+        fn client(answers: Vec<Scripted>) -> Client {
+            Client::from_transport(Arc::new(Self {
+                answers,
                 calls: AtomicUsize::new(0),
-            }
+            }))
         }
     }
 
-    impl HttpClient for ScriptedClient {
-        fn get<'a>(&'a self, _url: &'a str) -> ResponseFuture<'a> {
+    /// A response from `url` with `status` and `body`.
+    fn response(url: Url, status: u16, body: &'static str) -> Result<Response, RequestError> {
+        let status = StatusCode::from_u16(status)
+            .map_err(|err| RequestError::new(ErrorKind::Request, err))?;
+        Ok(Response::new(
+            url,
+            status,
+            HeaderMap::new(),
+            Bytes::from_static(body.as_bytes()),
+        ))
+    }
+
+    impl Transport for ScriptedTransport {
+        fn round_trip(
+            &self,
+            request: Request,
+            _deadline: Option<Instant>,
+            _trace: Option<Trace>,
+        ) -> BoxFuture<'_, Result<Response, RequestError>> {
             let call = self.calls.fetch_add(1, Ordering::SeqCst);
             let scripted = self
-                .responses
+                .answers
                 .get(call)
-                .or_else(|| self.responses.last())
+                .or_else(|| self.answers.last())
                 .cloned()
-                .unwrap_or(Scripted::Fail("no response scripted"));
+                .unwrap_or(Scripted::Fail("no answer scripted"));
+            let url = request.url().clone();
             Box::pin(async move {
                 match scripted {
-                    Scripted::Respond(status, body) => {
-                        Ok(HttpResponse::from_bytes(status, body.as_bytes().to_vec()))
-                    }
-                    Scripted::Fail(message) => Err(BoxError::from(message)),
-                    Scripted::BodyFails(status, message) => {
-                        Ok(HttpResponse::new(status, async move {
-                            Err(BoxError::from(message))
-                        }))
-                    }
+                    Scripted::Respond(status, body) => response(url, status, body),
+                    Scripted::Fail(message) => Err(RequestError::new(ErrorKind::Request, message)),
+                    Scripted::BodyFails(status, message) => response(url, status, "").map(|made| {
+                        made.with_body_error(RequestError::new(ErrorKind::Body, message))
+                    }),
                     Scripted::Hang => future::pending().await,
-                    Scripted::HangBody(status) => Ok(HttpResponse::new(status, future::pending())),
                 }
             })
         }
     }
 
     fn converter(
-        client: Arc<dyn HttpClient>,
+        client: Client,
         stale: Duration,
         now: SystemTime,
     ) -> (RateConverter, Arc<FakeClock>) {
         let clock = Arc::new(FakeClock(Mutex::new(now)));
-        let mut converter = RateConverter::new(
-            client,
-            Duration::from_secs(60),
-            "currency.fake.com".to_owned(),
-            stale,
-        );
+        let mut converter =
+            RateConverter::new(client, Duration::from_secs(60), FAKE_URL.to_owned(), stale);
         converter.clock = Arc::<FakeClock>::clone(&clock);
         (converter, clock)
     }
@@ -542,43 +506,54 @@ mod tests {
 
     #[tokio::test]
     async fn read_write_rates() -> TestResult {
-        // Go: TestReadWriteRates (the URL case needs a real client and lives with the wiring).
+        // Go: TestReadWriteRates
         let fake_time = initial_fake_time();
         let cases = [
             (
                 "Fetching currency rates successfully",
+                FAKE_URL,
                 Scripted::Respond(200, MOCK_RATES),
                 Some(expected_rates()),
             ),
             (
                 "Currency rates endpoint returns empty response",
+                FAKE_URL,
                 Scripted::Respond(200, "{}"),
                 Some(Rates::new(None)),
             ),
             (
                 "Currency rates endpoint returns nil response",
+                FAKE_URL,
                 Scripted::Respond(200, ""),
                 None,
             ),
             (
                 "Currency rates endpoint returns non-2xx status code",
+                FAKE_URL,
                 Scripted::Respond(404, r#"{"message": "Not Found"}"#),
                 None,
             ),
             (
                 "Currency rates endpoint returns invalid json response",
+                FAKE_URL,
                 Scripted::Respond(200, r#"{"message": Invalid-JSON-No-Surrounding-Quotes}"#),
                 None,
             ),
             (
                 "Currency rates endpoint url is invalid",
-                Scripted::Fail(r#"Get "invalidurl": unsupported protocol scheme """#),
+                "invalidurl",
+                Scripted::Respond(200, MOCK_RATES),
                 None,
             ),
         ];
-        for (description, response, want_rates) in cases {
-            let client = Arc::new(ScriptedClient::new(vec![response]));
-            let (converter, _clock) = converter(client, Duration::from_hours(24), fake_time);
+        for (description, url, answer, want_rates) in cases {
+            let mut converter = RateConverter::new(
+                ScriptedTransport::client(vec![answer]),
+                Duration::from_secs(60),
+                url.to_owned(),
+                Duration::from_hours(24),
+            );
+            converter.clock = Arc::new(FakeClock(Mutex::new(fake_time)));
             let result = converter.run().await;
             check_eq(&result.is_err(), &want_rates.is_none(), description)?;
             if let Some(rates) = want_rates {
@@ -597,13 +572,13 @@ mod tests {
         // Go: TestRateStaleness
         let not_found = Scripted::Respond(404, r#"{"message": "Not Found"}"#);
         let ok = Scripted::Respond(200, MOCK_RATES);
-        let client = Arc::new(ScriptedClient::new(vec![
+        let client = ScriptedTransport::client(vec![
             not_found.clone(),
             ok.clone(),
             not_found.clone(),
             not_found,
             ok,
-        ]));
+        ]);
         let initial = initial_fake_time();
         let (converter, clock) = converter(client, Duration::from_secs(30), initial);
 
@@ -671,10 +646,10 @@ mod tests {
     #[tokio::test]
     async fn rates_are_never_considered_stale() -> TestResult {
         // Go: TestRatesAreNeverConsideredStale
-        let client = Arc::new(ScriptedClient::new(vec![
+        let client = ScriptedTransport::client(vec![
             Scripted::Respond(200, MOCK_RATES),
             Scripted::Respond(404, r#"{"message": "Not Found"}"#),
-        ]));
+        ]);
         let initial = initial_fake_time();
         let (converter, clock) = converter(client, Duration::ZERO, initial);
 
@@ -707,13 +682,14 @@ mod tests {
     #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
     async fn race() -> TestResult {
         // Go: TestRace: clients update and read while the ticker updates every millisecond.
-        let client = Arc::new(MockCurrencyRatesHttpClient {
+        let client = MockCurrencyRatesHttpClient {
             response_body: MOCK_RATES.to_owned(),
-        });
+        }
+        .into_client();
         let converter = Arc::new(RateConverter::new(
             client,
             Duration::from_secs(60),
-            "currency.fake.com".to_owned(),
+            FAKE_URL.to_owned(),
             Duration::from_hours(24),
         ));
         let ticker = TickerTask::new(Duration::from_millis(1), Arc::clone(&converter));
@@ -751,9 +727,10 @@ mod tests {
 
     #[tokio::test(start_paused = true)]
     async fn fetch_timeout_while_waiting_for_the_response() -> TestResult {
-        let client = Arc::new(ScriptedClient::new(vec![Scripted::Hang]));
+        // Go: currency/rate_converter.go:50-61 (the request runs under context.WithTimeout,
+        // whose expiry client.Do reports with the URL)
         let converter = RateConverter::new(
-            client,
+            ScriptedTransport::client(vec![Scripted::Hang]),
             Duration::from_millis(100),
             "https://cdn.example/latest.json".to_owned(),
             Duration::ZERO,
@@ -770,41 +747,10 @@ mod tests {
         )
     }
 
-    #[tokio::test(start_paused = true)]
-    async fn fetch_timeout_while_reading_the_body() -> TestResult {
-        for (status, expected) in [
-            (
-                200,
-                "the currency rates request failed: context deadline exceeded",
-            ),
-            (
-                500,
-                "the currency rates request failed with status code 500",
-            ),
-        ] {
-            let client = Arc::new(ScriptedClient::new(vec![Scripted::HangBody(status)]));
-            let converter = RateConverter::new(
-                client,
-                Duration::from_millis(100),
-                "currency.fake.com".to_owned(),
-                Duration::ZERO,
-            );
-            let err = converter
-                .run()
-                .await
-                .err()
-                .ok_or("the fetch must time out")?;
-            check_eq(
-                &err.to_string(),
-                &expected.to_owned(),
-                "body timeout message",
-            )?;
-        }
-        Ok(())
-    }
-
     #[tokio::test]
     async fn fetch_error_messages_match_go() -> TestResult {
+        // Go: currency/rate_converter.go:58-84 (client.Do's error as it is, then Prebid's texts
+        // for the status, the body and the JSON)
         let cases = [
             (
                 Scripted::Respond(404, "{}"),
@@ -831,23 +777,23 @@ mod tests {
                 "the currency rates request failed with status code 503",
             ),
             (
-                Scripted::Fail("Get \"x\": dial tcp: lookup x: no such host"),
-                "Get \"x\": dial tcp: lookup x: no such host",
+                Scripted::Fail("dial tcp: lookup currency.fake.com: no such host"),
+                "Get \"http://currency.fake.com/latest.json\": dial tcp: lookup currency.fake.com: \
+                 no such host",
             ),
         ];
-        for (response, expected) in cases {
-            let client = Arc::new(ScriptedClient::new(vec![response.clone()]));
+        for (answer, expected) in cases {
             let converter = RateConverter::new(
-                client,
+                ScriptedTransport::client(vec![answer.clone()]),
                 Duration::from_secs(60),
-                "u".to_owned(),
+                FAKE_URL.to_owned(),
                 Duration::ZERO,
             );
             let err = converter.run().await.err().ok_or("the fetch must fail")?;
             check_eq(
                 &err.to_string(),
                 &expected.to_owned(),
-                &format!("{response:?}"),
+                &format!("{answer:?}"),
             )?;
         }
         Ok(())
@@ -855,13 +801,11 @@ mod tests {
 
     #[tokio::test]
     async fn status_399_with_valid_json_succeeds() -> TestResult {
-        let client = Arc::new(ScriptedClient::new(vec![Scripted::Respond(
-            399, MOCK_RATES,
-        )]));
+        // Go: currency/rate_converter.go:72 (only a status code of 400 or more fails)
         let converter = RateConverter::new(
-            client,
+            ScriptedTransport::client(vec![Scripted::Respond(399, MOCK_RATES)]),
             Duration::from_secs(60),
-            "u".to_owned(),
+            FAKE_URL.to_owned(),
             Duration::ZERO,
         );
         check(
@@ -873,15 +817,17 @@ mod tests {
 
     #[tokio::test]
     async fn get_info() -> TestResult {
-        let client = Arc::new(ScriptedClient::new(vec![
+        // Go: currency/rate_converter.go:151-159 (GetInfo: the source, the last update and the
+        // fetched rates, none for the constant rates)
+        let client = ScriptedTransport::client(vec![
             Scripted::Respond(200, MOCK_RATES),
             Scripted::Respond(200, "null"),
-        ]));
+        ]);
         let initial = initial_fake_time();
         let (converter, _clock) = converter(client, Duration::ZERO, initial);
 
         let before = converter.get_info();
-        check_eq(&before.source(), &"currency.fake.com", "source")?;
+        check_eq(&before.source(), &FAKE_URL, "source")?;
         check_eq(&before.last_updated(), &None, "never updated")?;
         check(before.rates().is_none(), "constant rates have no table")?;
 
@@ -909,6 +855,7 @@ mod tests {
 
     #[test]
     fn go_duration_seconds() -> TestResult {
+        // Go: currency/rate_converter.go:144 (checkStaleRates compares Duration.Seconds())
         let base = initial_fake_time();
         check_eq(
             &go_seconds(go_sub(base + Duration::from_nanos(1_500_000_001), base)),
@@ -994,9 +941,8 @@ mod tests {
             };
             let (last_unix, last_nanos, last_updated) = go_unix(updated_seconds, updated_fraction)?;
             let (now_unix, now_nanos, now) = go_unix(current_seconds, current_fraction)?;
-            let client = Arc::new(ScriptedClient::new(Vec::new()));
             let stale = Duration::from_nanos(u64::try_from(threshold)?);
-            let (converter, _clock) = converter(client, stale, now);
+            let (converter, _clock) = converter(ScriptedTransport::client(Vec::new()), stale, now);
             *write(&converter.last_updated) = Some(last_updated);
             outcomes.push((
                 format!("{last_unix}.{last_nanos:09}\t{now_unix}.{now_nanos:09}\t{threshold}"),
@@ -1008,18 +954,23 @@ mod tests {
 
     #[test]
     fn fetch_error_sources() -> TestResult {
-        let err = FetchError::ReadBody(BoxError::from("boom"));
+        // Go: currency/rate_converter.go:53-56 (http.NewRequestWithContext's url.Error, which
+        // quotes the URL with %q)
+        let err = FetchError::ReadBody(RequestError::new(ErrorKind::Body, "boom"));
         check_eq(
             &err.source().map(ToString::to_string),
             &Some("boom".to_owned()),
             "source",
         )?;
+        let url = "http://a/\"b\"\n[";
+        let reason = Url::parse("http://[::1").err().ok_or("the URL parses")?;
         check_eq(
-            &FetchError::Timeout {
-                url: "http://a/\"b\"\n".to_owned(),
+            &FetchError::Url {
+                url: url.to_owned(),
+                reason,
             }
             .to_string(),
-            &r#"Get "http://a/\"b\"\n": context deadline exceeded"#.to_owned(),
+            &r#"parse "http://a/\"b\"\n[": invalid IPv6 address"#.to_owned(),
             "quoted URL",
         )
     }

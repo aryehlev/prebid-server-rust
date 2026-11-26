@@ -20,6 +20,7 @@ Rule B's cases: (a) input real production traffic sends that the crate would rej
 | In-memory caches | 0 | 1 | 0 |
 | Configuration loading | 0 | 8 | 7 |
 | Cookies | 0 | 1 | 0 |
+| Currency rates | 0 | 1 | 0 |
 | Global vendor list | 0 | 1 | 0 |
 | Gzip | 0 | 2 | 0 |
 | HTTP client | 0 | 24 | 5 |
@@ -33,7 +34,7 @@ Rule B's cases: (a) input real production traffic sends that the crate would rej
 | TLS | 0 | 2 | 1 |
 | URLs | 0 | 1 | 0 |
 | YAML | 0 | 3 | 0 |
-| All | 6 | 126 | 30 |
+| All | 6 | 127 | 30 |
 
 ## Decisions pending
 
@@ -318,6 +319,20 @@ No entry names the classes `other` and `unrecorded` or the kinds `stage_missing`
 - **Pin:** `crates/differences/tests/cookie.rs::go_difference_set_cookie_attribute_order`
 - **Note:** The cookie's value, the uids JSON in base64, keeps Go's format under Rule B (b), and the harness compares it as JSON after base64 decoding.
 - **Recorded in:** `crates/differences/differences.toml`
+
+## Currency rates
+
+### Ledgered
+
+#### `currency.fetch-error-texts`: Currency fetch errors: net/http's and net/url's words in Go's log lines, reqwest's and the url crate's here
+
+- **Go:** A failed fetch logs `Error updating conversion rates: <err>`, and `error draining conversion rates response body: <err>` before it when the body fails (currency/rate_converter.go:49-102), with net/http's words in the errors: `Get "<url>": EOF` when the server closes the connection, `Get "<url>": dial tcp 127.0.0.1:PORT: connect: connection refused`, `Get "<url>": net/http: HTTP/1.x transport connection broken: malformed HTTP response "garbage"`, `Get "ftp://...": unsupported protocol scheme "ftp"`, `unexpected EOF` for a body cut short or a corrupt gzip body, and `read tcp ...: use of closed network connection` for the drain after the deadline; net/url's `parse "http://[::1": missing ']' in host`; and `Get "invalidurl": unsupported protocol scheme ""` for a URL without a scheme, which `url.Parse` takes and `client.Do` refuses.
+- **Rust:** Prebid's words, the `Get "<url>"` shape and the deadline's `context deadline exceeded` are Go's, and the words after them are reqwest's chain: `error sending request: client error (SendRequest): connection closed before message completed`, `error sending request: client error (Connect): tcp connect error: Connection refused (os error 61)` on macOS, `error sending request: client error (SendRequest): invalid HTTP version parsed`, `builder error: URL scheme is not allowed`, and `error decoding response body: ...` for the bodies; the drain after the deadline reads `context deadline exceeded`. The url crate refuses the URLs it cannot parse before any request, a URL without a scheme among them, in its own words: `parse "invalidurl": relative URL without a base`, `parse "http://[::1": invalid IPv6 address`.
+- **Who notices:** operator
+- **Visible in:** The server's log: the lines of a failed currency rates fetch
+- **Harness:** none
+- **Pin:** `crates/currency/tests/fetch.rs::error_texts`
+- **Recorded in:** `crates/currency/differences.toml`
 
 ## Global vendor list
 

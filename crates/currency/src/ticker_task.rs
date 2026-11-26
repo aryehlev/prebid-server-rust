@@ -96,6 +96,7 @@ async fn run_recurring(
 #[cfg(test)]
 mod tests {
     use std::{
+        future,
         sync::{
             Arc,
             atomic::{AtomicUsize, Ordering},
@@ -103,30 +104,50 @@ mod tests {
         time::Duration,
     };
 
-    use tokio::{task, time};
+    use bytes::Bytes;
+    use futures_util::future::BoxFuture;
+    use pbs_http_client::{
+        Client, RequestError, Response, Trace, Transport,
+        reqwest::{Request, StatusCode, header::HeaderMap},
+    };
+    use tokio::{
+        task,
+        time::{self, Instant},
+    };
 
     use super::TickerTask;
     use crate::{
-        golden::{TestResult, check_eq},
-        rate_converter::{HttpClient, HttpResponse, RateConverter, ResponseFuture},
+        golden::{FAKE_URL, TestResult, check_eq},
+        rate_converter::RateConverter,
     };
 
     /// Counts the fetches and answers each with an empty currency file.
     #[derive(Debug, Default)]
     struct CountingClient(AtomicUsize);
 
-    impl HttpClient for CountingClient {
-        fn get<'a>(&'a self, _url: &'a str) -> ResponseFuture<'a> {
+    impl Transport for CountingClient {
+        fn round_trip(
+            &self,
+            request: Request,
+            _deadline: Option<Instant>,
+            _trace: Option<Trace>,
+        ) -> BoxFuture<'_, Result<Response, RequestError>> {
             let _previous = self.0.fetch_add(1, Ordering::SeqCst);
-            Box::pin(async { Ok(HttpResponse::from_bytes(200, b"{}".to_vec())) })
+            let response = Response::new(
+                request.url().clone(),
+                StatusCode::OK,
+                HeaderMap::new(),
+                Bytes::from_static(b"{}"),
+            );
+            Box::pin(future::ready(Ok(response)))
         }
     }
 
     fn converter(client: &Arc<CountingClient>) -> Arc<RateConverter> {
         Arc::new(RateConverter::new(
-            Arc::<CountingClient>::clone(client),
+            Client::from_transport(Arc::<CountingClient>::clone(client)),
             Duration::from_secs(60),
-            "currency.fake.com".to_owned(),
+            FAKE_URL.to_owned(),
             Duration::ZERO,
         ))
     }
@@ -139,6 +160,7 @@ mod tests {
 
     #[tokio::test(start_paused = true)]
     async fn runs_once_then_every_interval_until_stopped() -> TestResult {
+        // Go: TestStartWithPeriodicRun
         let client = Arc::new(CountingClient::default());
         let task = TickerTask::new(Duration::from_mins(30), converter(&client));
         task.start().await;
@@ -172,6 +194,7 @@ mod tests {
 
     #[tokio::test(start_paused = true)]
     async fn zero_interval_runs_once() -> TestResult {
+        // Go: TestStartWithSingleRun
         let client = Arc::new(CountingClient::default());
         let task = TickerTask::new(Duration::ZERO, converter(&client));
         task.start().await;
@@ -221,6 +244,7 @@ mod tests {
 
     #[tokio::test(start_paused = true)]
     async fn dropping_the_task_does_not_stop_it() -> TestResult {
+        // Go: util/task/ticker_task.go:42-52 (runRecurring returns only once done is closed)
         let client = Arc::new(CountingClient::default());
         let task = TickerTask::new(Duration::from_mins(30), converter(&client));
         task.start().await;
@@ -236,8 +260,9 @@ mod tests {
 
     #[tokio::test(start_paused = true)]
     async fn an_interval_too_long_to_schedule_never_ticks() -> TestResult {
-        // Go's ticker never fires within a run of the server for its longest intervals; an
-        // interval whose first tick cannot even be scheduled must not tick at once instead.
+        // Go: util/task/ticker_task.go:43 (time.NewTicker: for the longest intervals the first
+        // tick never comes within a run of the server; one that cannot even be scheduled must
+        // not tick at once instead)
         let client = Arc::new(CountingClient::default());
         let task = TickerTask::new(Duration::MAX, converter(&client));
         task.start().await;

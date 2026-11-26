@@ -8,10 +8,13 @@
 //! - [`Conversions`] is Go's interface for conversion rates, implemented by [`Rates`] (direct,
 //!   reverse and intermediate rates), [`ConstantRates`] (only a currency to itself) and
 //!   [`AggregateConversions`] (request rates in front of the server's).
-//! - [`RateConverter`] fetches the currency file through an injected [`HttpClient`], decodes it
-//!   exactly like Go's `jsonutil.UnmarshalValid` (json-iterator), logs failures with Go's texts
-//!   through the `log` facade, and falls back to [`ConstantRates`] before the first fetch and once
-//!   the fetched rates are stale. [`TickerTask`] runs it periodically on tokio.
+//! - [`RateConverter`] fetches the currency file through a pbs-http-client [`Client`] (the server's
+//!   is [`default_http_client`], Go's `&http.Client{}`), decodes it exactly like Go's
+//!   `jsonutil.UnmarshalValid` (json-iterator), logs failures with Prebid's texts through
+//!   pbs-logger, and falls back to [`ConstantRates`] before the first fetch and once the fetched
+//!   rates are stale. [`TickerTask`] runs it periodically on tokio. Where the client's and the URL
+//!   parser's words differ from net/http's is `currency.fetch-error-texts` in
+//!   `docs/DIFFERENCES.md`.
 //! - [`get_auction_currency_rates`] and [`validate_custom_rates`] handle the request's
 //!   `ext.prebid.currency`.
 //!
@@ -19,6 +22,8 @@
 //! search and the custom rate validation. This port uses key order ([`ConversionRates`] is a
 //! `BTreeMap`), which always yields one of the results Go can produce; see
 //! [`find_intermediate_conversion_rate`] and [`validate_custom_rates`].
+//!
+//! [`Client`]: pbs_http_client::Client
 //!
 //! ```
 //! use pbs_currency::{Conversions as _, RateError, Rates};
@@ -58,10 +63,7 @@ pub use currency::{RequestCurrency, get_auction_currency_rates};
 pub use currency_mock::MockCurrencyRatesHttpClient;
 pub use errors::{ConversionNotFoundError, RateError};
 pub use iso4217::{ParseIsoError, Unit, parse_iso};
-pub use rate_converter::{
-    BodyFuture, BoxError, Conversions, FetchError, HttpClient, HttpResponse, RateConverter,
-    ResponseFuture,
-};
+pub use rate_converter::{Conversions, FetchError, RateConverter, default_http_client};
 pub use rates::{ConversionRates, Rates, find_intermediate_conversion_rate};
 pub use ticker_task::TickerTask;
 pub use validation::{InvalidCurrencyCodeError, validate_custom_rates};

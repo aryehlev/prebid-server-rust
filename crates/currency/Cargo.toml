@@ -14,9 +14,16 @@ categories.workspace = true
 [lints]
 workspace = true
 
+# pbs-http-client fetches the currency file (Go's &http.Client{}) and url parses its URL first,
+# as http.NewRequestWithContext does; pbs-logger writes the failures; tokio bounds the fetch and
+# runs the ticker; bytes and futures-util make the mock transport's response and future.
 [dependencies]
-log = { workspace = true }
+bytes = { workspace = true }
+futures-util = { workspace = true }
+pbs-http-client = { path = "../http-client", version = "0.1.0" }
+pbs-logger = { path = "../logger", version = "0.1.0" }
 tokio = { workspace = true }
+url = { workspace = true }
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["test-util"] }
