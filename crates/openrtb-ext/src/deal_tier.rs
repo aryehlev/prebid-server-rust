@@ -65,7 +65,11 @@ struct ImpPrebidExt {
 /// last; here the names are visited in byte order.
 ///
 /// `imp.ext` is decoded with `pbs_jsonutil::unmarshal` (Go: `jsonutil.Unmarshal`), whose keys
-/// match the fields exactly where jsoniter's match whatever their case (`json.key-case`).
+/// match the fields exactly where jsoniter's match whatever their case (`json.key-case`), which
+/// rejects a repeated member where jsoniter decodes each into the field (`json.duplicate-keys`),
+/// reads a struct from an array where jsoniter fails (`json.struct-from-array`) and fails on the
+/// `imp.ext` `null`, which jsoniter reads as nothing (`json.null-document`). The exchange skips
+/// the deal tiers of an imp whose read fails (exchange/exchange.go:673-676).
 ///
 /// # Errors
 ///
