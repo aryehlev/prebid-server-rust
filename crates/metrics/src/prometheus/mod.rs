@@ -25,7 +25,6 @@ use ::prometheus::{
     core::Collector,
 };
 
-use self::lower::to_lower;
 use crate::{
     float_from_usize,
     metrics::{
@@ -37,6 +36,12 @@ use crate::{
     },
     options::{DisabledMetric, DisabledMetrics, PrometheusMetrics},
 };
+
+/// Go: `strings.ToLower` (see [`lower`]), which the go-metrics engine also applies to the
+/// adapter names in its metric names (`metrics/go_metrics.go:297`).
+pub(crate) fn to_lower(s: &str) -> String {
+    lower::to_lower(s)
+}
 
 const ACCOUNT_LABEL: &str = "account";
 const ADAPTER_ERROR_LABEL: &str = "adapter_error";

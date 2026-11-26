@@ -11,6 +11,16 @@
 //
 //	go run . -gen ../scenarios_generated.txt
 //	go run . -script ../scenarios.txt,../scenarios_generated.txt -out ../golden
+//	GOARCH=amd64 go run . -script ../scenarios.txt,../scenarios_generated.txt,../gometrics_scenarios.txt -gometrics ../golden/gometrics
+//	go test ./arbiter -args -update
+//
+// The third command builds the go-metrics engine (metrics/go_metrics.go) instead and writes the
+// goldens of the go-metrics library, the engine and the InfluxDB reporter (see gometrics.go,
+// influx.go and influxedge.go). It takes about 6 seconds (the reporter's first ping is 5 seconds
+// in). Under GOARCH=arm64 Go fuses multiply-adds (EWMA rates, sample variances and percentiles)
+// and converts out-of-range floats to int64 differently, so those goldens are amd64's. The last
+// command rewrites ../golden/gometrics/ticks.txt, the meter arbiter's tick schedule on a
+// synctest clock, which go test ./... checks (see arbiter/arbiter_test.go).
 //
 // Script format (one directive per line, tokens separated by single spaces, every token value
 // percent-decoded with url.PathUnescape, '#' starts a comment line):
@@ -88,6 +98,7 @@ func main() {
 	scriptPaths := flag.String("script", "", "comma-separated scenario scripts")
 	outDir := flag.String("out", "", "output directory")
 	genPath := flag.String("gen", "", "write the generated scenario script to this path and exit")
+	goMetricsDir := flag.String("gometrics", "", "write the go-metrics and InfluxDB goldens to this directory instead")
 	flag.Parse()
 	if *genPath != "" {
 		if err := os.WriteFile(*genPath, []byte(generateScenarios()), 0o644); err != nil {
@@ -95,8 +106,8 @@ func main() {
 		}
 		return
 	}
-	if *scriptPaths == "" || *outDir == "" {
-		log.Fatal("both -script and -out are required")
+	if *scriptPaths == "" || (*outDir == "" && *goMetricsDir == "") {
+		log.Fatal("-script and one of -out and -gometrics are required")
 	}
 
 	var scenarios []*scenario
@@ -106,6 +117,12 @@ func main() {
 			log.Fatal(err)
 		}
 		scenarios = append(scenarios, s...)
+	}
+	if *goMetricsDir != "" {
+		if err := runGoMetrics(scenarios, *goMetricsDir); err != nil {
+			log.Fatal(err)
+		}
+		return
 	}
 	if err := os.MkdirAll(*outDir, 0o755); err != nil {
 		log.Fatal(err)
@@ -778,7 +795,7 @@ func adapter(a *args) openrtb_ext.BidderName {
 	return openrtb_ext.BidderName(a.str("adapter"))
 }
 
-func replay(m *prometheusmetrics.Metrics, c call) error {
+func replay(m metrics.MetricsEngine, c call) error {
 	a, err := parseArgs(c.tokens[1:])
 	if err != nil {
 		return err

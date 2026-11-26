@@ -14,5 +14,15 @@ categories.workspace = true
 [lints]
 workspace = true
 
+# prometheus holds the Prometheus engine's registry. The go-metrics engine logs through
+# pbs-logger, and the go-metrics library's samples draw from rand. The InfluxDB reporter writes
+# its points with influxdb (D-INFLUX) over a reqwest client of its own, encodes its basic auth
+# with base64 and runs its tickers on tokio.
 [dependencies]
+base64 = { workspace = true }
+influxdb = { workspace = true }
+pbs-logger = { path = "../logger", version = "0.1.0" }
 prometheus = { workspace = true }
+rand = { workspace = true }
+reqwest = { workspace = true }
+tokio = { workspace = true }

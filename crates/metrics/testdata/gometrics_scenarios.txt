@@ -1,0 +1,132 @@
+# Differential scenarios for the go-metrics engine only (metrics/go_metrics.go). The go-metrics
+# goldens replay scenarios.txt, scenarios_generated.txt and this file (see go/gometrics.go);
+# the format is that of scenarios.txt. These cover what only the go-metrics engine does: the
+# per-account metrics it registers on first use, its log lines, and the calls whose labels are
+# outside the sets NewMetrics registers, where Go dereferences a nil metric and the call stops.
+
+# Accounts: names with dots, spaces and non-ASCII text, the "unknown" account, the empty one,
+# and every per-account metric with account_adapter_details and account_modules_metrics on.
+scenario gm_accounts
+syncer keyA
+module mod_a entrypoint raw
+module mod_b auction
+RecordRequest source=web rtype=openrtb2-web pub=acct.with.dots cookie=no status=ok size=10
+RecordRequest source=app rtype=openrtb2-app pub=%C3%A9t%C3%A9%20%F0%9F%98%80 status=ok size=0
+RecordRequest rtype=amp pub=unknown status=ok size=2048
+RecordRequest rtype=video pub= status=ok size=77
+RecordDebugRequest enabled=true pub=acct.with.dots
+RecordDebugRequest enabled=true pub=fresh-debug
+RecordStoredResponse pub=fresh-stored
+RecordAdapterRequest adapter=AppNexus pub=acct.with.dots bids=bid cookie=no
+RecordAdapterRequest adapter=AppNexus pub=acct.with.dots bids=nobid errors=timeout
+RecordAdapterBidReceived adapter=Rubicon pub=acct.with.dots bidtype=audio adm=false
+RecordAdapterPrice adapter=Rubicon pub=acct.with.dots cpm=3.99
+RecordAdapterPrice adapter=Rubicon pub=acct.with.dots cpm=-3.99
+RecordAdapterTime adapter=Rubicon pub=acct.with.dots d=12345
+RecordBidValidationCreativeSizeError adapter=pubmatic account=acct.with.dots
+RecordBidValidationSecureMarkupWarn adapter=pubmatic account=fresh-validation
+RecordModuleCalled module=mod_a stage=raw account=acct.with.dots d=777
+RecordModuleFailed module=mod_a stage=entrypoint account=acct.with.dots
+RecordModuleSuccessNooped module=mod_b stage=auction account=acct.with.dots
+RecordModuleSuccessUpdated module=mod_b stage=auction account=unknown
+RecordModuleSuccessRejected module=mod_b stage=auction account=
+RecordModuleExecutionError module=mod_a stage=raw account=fresh-module
+RecordModuleTimeout module=mod_a stage=raw account=fresh-module
+
+# The same calls with the account-level details off.
+scenario gm_accounts_disabled
+disabled account_adapter_details=true account_debug=true account_stored_responses=true account_modules_metrics=true
+module mod_a entrypoint raw
+RecordRequest source=web rtype=openrtb2-web pub=acct cookie=no status=ok size=10
+RecordDebugRequest enabled=true pub=acct
+RecordStoredResponse pub=acct
+RecordAdapterRequest adapter=AppNexus pub=acct bids=bid
+RecordAdapterBidReceived adapter=AppNexus pub=acct bidtype=banner adm=true
+RecordAdapterPrice adapter=AppNexus pub=acct cpm=1
+RecordAdapterTime adapter=AppNexus pub=acct d=1
+RecordBidValidationCreativeSizeWarn adapter=AppNexus account=acct
+RecordModuleCalled module=mod_a stage=raw account=acct d=1
+
+# Labels outside the registered sets. Each call stops where Go dereferences the missing metric;
+# what it recorded before that stays recorded. Label types (rtype, status, bids, the adapter
+# error set...) can only hold Go's constants or the empty value in Rust, so the empty value
+# stands for every unregistered one; the plain strings (adapter, bid type, module, stage,
+# syncer key) take any value. errors=, is the set holding only the empty error.
+scenario gm_unregistered_labels
+module mod_a entrypoint
+RecordRequest rtype=openrtb2-web pub=acct status= cookie=no size=10
+RecordRequest rtype= pub=acct status=ok cookie=no size=10
+RecordRequestTime rtype= status=ok d=5
+RecordAdapterRequest adapter=AppNexus pub=acct bids=bid cookie=no errors=,
+RecordAdapterRequest adapter=AppNexus pub=acct bids=nobid cookie=no
+RecordAdapterRequest adapter=AppNexus pub=acct bids= cookie=no
+RecordAdapterBidReceived adapter=AppNexus pub=acct bidtype=bogus adm=true
+RecordAdapterBidReceived adapter=AppNexus pub=acct bidtype= adm=false
+RecordAdapterBidReceived adapter=AppNexus pub=acct bidtype=BANNER adm=false
+RecordOverheadTime type= d=5
+RecordStoredDataFetchTime type= fetch=all d=5
+RecordStoredDataFetchTime type=account fetch= d=5
+RecordStoredDataError type= error=network
+RecordStoredDataError type=account error=
+RecordStoredReqCacheResult result= inc=1
+RecordStoredImpCacheResult result= inc=1
+RecordAccountCacheResult result= inc=1
+RecordCookieSync status=
+RecordSetUid status=
+RecordSyncerRequest key=missing status=ok
+RecordSyncerSet key=missing status=ok
+RecordRequestPrivacy gdpr=true tcf=
+RecordRequestQueueTime success=true rtype= d=5
+RecordAdapterConnectionDialError adapter=NotRegistered
+RecordAdapterConnectionDialTime adapter=NotRegistered d=5
+RecordAdapterConnectionDialError adapter=APPNEXUS
+RecordAdapterConnectionDialTime adapter=APPNEXUS d=5
+RecordModuleCalled module=mod_a stage=bogus account=acct d=5
+RecordModuleCalled module=bogus stage=entrypoint account=acct d=5
+RecordModuleFailed module=mod_a stage= account=acct
+RecordAdapterPanic adapter=NotRegistered
+RecordAdapterPrice adapter=NotRegistered cpm=1
+RecordAdapterTime adapter=NotRegistered d=1
+RecordAdapterBuyerUIDScrubbed adapter=NotRegistered
+RecordAdapterGDPRRequestBlocked adapter=NotRegistered
+RecordAdapterThrottled adapter=NotRegistered
+RecordBidValidationCreativeSizeError adapter=NotRegistered account=acct
+RecordBidValidationCreativeSizeWarn adapter=NotRegistered account=acct
+RecordBidValidationSecureMarkupError adapter=NotRegistered account=acct
+RecordBidValidationSecureMarkupWarn adapter=NotRegistered account=acct
+
+# Adapters whose strings.ToLower is not ASCII, recorded under other cases.
+scenario gm_unicode_adapters
+disabled adapter_connections_metrics=false adapter_buyeruid_scrubbed=false adapter_gdpr_request_blocked=false
+RecordAdapterRequest adapter=%C3%80CCENT pub=acct bids=bid
+RecordAdapterPanic adapter=%CF%83igma
+RecordAdapterPrice adapter=%C4%B0STANBUL pub=acct cpm=7.5
+RecordAdapterTime adapter=istanbul pub=acct d=9
+RecordAdapterConnections adapter=%E1%B2%89NEW reused=true d=3
+RecordAdapterBuyerUIDScrubbed adapter=%C3%A0ccent
+RecordAdapterGDPRRequestBlocked adapter=%CE%A3IGMA
+RecordAdapterThrottled adapter=%C3%80ccent
+RecordAdapterConnectionDialError adapter=%CE%A3igma
+RecordAdapterConnectionDialTime adapter=%C4%B0stanbul d=11
+
+# Counter, meter and histogram arithmetic at the int64 edges.
+scenario gm_int64_edges
+RecordConnectionClose success=true
+RecordConnectionClose success=true
+RecordConnectionAccept success=true
+RecordStoredReqCacheResult result=hit inc=9223372036854775807
+RecordStoredReqCacheResult result=hit inc=1
+RecordStoredImpCacheResult result=miss inc=0
+RecordAdapterPrice adapter=BigPrice pub=acct cpm=9223372036854775807
+RecordAdapterPrice adapter=BigPrice pub=acct cpm=9.3e18
+RecordAdapterPrice adapter=BigPrice pub=acct cpm=-9.3e18
+RecordAdapterPrice adapter=BigPrice pub=acct cpm=NaN
+RecordAdapterPrice adapter=BigPrice pub=acct cpm=+Inf
+RecordAdapterPrice adapter=BigPrice pub=acct cpm=-Inf
+RecordAdapterPrice adapter=BigPrice pub=acct cpm=-0.999
+RecordRequestTime rtype=openrtb2-web status=ok d=9223372036854775807
+RecordRequestTime rtype=openrtb2-web status=ok d=9223372036854775807
+RecordRequestTime rtype=openrtb2-web status=ok d=-9223372036854775808
+RecordDNSTime d=9223372036854775807
+RecordDNSTime d=-9223372036854775808
+RecordRequest rtype=openrtb2-web pub=acct status=ok size=9223372036854775807

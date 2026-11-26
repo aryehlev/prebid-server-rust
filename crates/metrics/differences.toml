@@ -1,8 +1,10 @@
 # pbs-metrics' differences from Go (see the pbs_differences ledger module for the schema): the
 # Prometheus engine on the prometheus crate where Go has client_golang v1.12.1, each pinned in
 # tests/exposition.rs against the scrapes testdata/go recorded from Go's engine and promhttp
-# handler. The exponent form of sample values is `metrics.sample-float-format` in
-# pbs-differences' fragment.
+# handler; and the InfluxDB reporter of the go-metrics engine on influxdb 0.8.0 and reqwest where
+# Go has go-metrics-influxdb v0.1.1 over influxdb1-client, pinned in tests/influx.rs against the
+# requests, batches and log lines testdata/go recorded. The exponent form of sample values is
+# `metrics.sample-float-format` in pbs-differences' fragment.
 # pbs-differences validates this file and writes docs/DIFFERENCES.md and docs/differences.json
 # from every fragment.
 
@@ -183,9 +185,297 @@ rust = """\
     `𐵰garay` (U+10D70). The other characters are lowered as Go lowers them."""
 who = ["operator"]
 visible_in = """\
-    The adapter label of /metrics series, for bidder, alias or seat names with a letter cased \
-    after Unicode 15.0.0"""
+    The adapter label of /metrics series and the adapter part of the go-metrics engine's metric \
+    names, which the InfluxDB reporter writes, for bidder, alias or seat names with a letter \
+    cased after Unicode 15.0.0"""
 pin = "crates/metrics/tests/exposition.rs::label_unicode"
 restore = """\
     Carry Unicode 15.0.0's case tables for the labels, as the deleted goconv tables did; not \
     planned: they hold the labels to a Unicode version std has left."""
+
+[[difference]]
+id = "influx.user-agent"
+category = "influx"
+status = "restored"
+title = "The InfluxDB reporter's User-Agent: influxdb1-client sends `InfluxDBClient`, reqwest none"
+go = """\
+    influxdb1-client sends `User-Agent: InfluxDBClient` with every write and ping \
+    (influxdb.go:188, :331 and :427)."""
+rust = "reqwest sends no `User-Agent`, and influxdb 0.8.0 sets none on its requests."
+who = ["operator"]
+visible_in = "The User-Agent of the reporter's writes and pings, in the InfluxDB server's logs"
+pin = "crates/metrics/tests/influx.rs::user_agent"
+restore = """\
+    The reporter's reqwest client sets `User-Agent: InfluxDBClient`, one line of client \
+    configuration (D-UA)."""
+decision = "D-UA"
+
+[[restoration]]
+id = "influx.user-agent"
+pin = "crates/metrics/tests/influx.rs::wire_matches_go"
+note = """\
+    Every request of the 45 wire cases, the writes, pings and redirects, has Go's `User-Agent` \
+    line."""
+
+[[difference]]
+id = "influx.write-request"
+category = "influx"
+status = "ledgered"
+title = """\
+    InfluxDB writes: influxdb1-client's query, headers and comment lines, against influxdb \
+    0.8.0's"""
+go = """\
+    `Client.Write` posts to `<path>/write?consistency=&db=<db>&precision=&rp=`, sorted and \
+    beside the host URL's own query pairs, with an empty `Content-Type`, and ends every line \
+    with a newline; it writes a point with a NaN or infinite field, an empty field name, a key \
+    over 65535 bytes or a time outside 1677 to 2262 as a `# ERROR: <reason> <measurement>` \
+    comment line, leaves out a zero time and writes a time before 1970 as negative \
+    nanoseconds (influxdb.go:294-346, :642-646)."""
+rust = """\
+    influxdb 0.8.0 posts `?db=<db>&precision=ns` in its hash map's order (`precision=ms` for \
+    an empty batch, which hyper sends without a `Content-Length`), with reqwest's \
+    `Accept: */*` and no `Content-Type`, and joins the lines without a final newline; it writes \
+    every point as a line, a non-finite field as `NaN`, `inf` or `-inf`, and the reporter \
+    writes a time before 1970 as 0."""
+who = ["operator"]
+visible_in = """\
+    The reporter's write requests, and its batches with a point InfluxDB refuses: a metric name \
+    of some 64 KiB (an account id that long), or a clock outside 1970 to 2262"""
+pin = "crates/metrics/tests/influx.rs::write_request"
+restore = """\
+    Write the requests and lines with reqwest from a writer of the reporter's own, the fallback \
+    D-INFLUX names; not planned: the server reads both requests alike."""
+decision = "D-INFLUX"
+note = """\
+    crates/metrics/tests/influx.rs::points_match_go finds every point of points.txt Go writes \
+    spelled alike, the ledgered escapes and times aside, and a line of the crate's for every \
+    point Go refuses."""
+
+[[difference]]
+id = "influx.write-status"
+category = "influx"
+status = "ledgered"
+title = """\
+    InfluxDB write answers: Go succeeds on 200 and 204 alone, influxdb 0.8.0 on any 2xx whose \
+    body names no error"""
+go = """\
+    A write succeeds on a 200 or a 204, whatever the body, and fails on any other status \
+    (influxdb.go:360-364)."""
+rust = """\
+    influxdb 0.8.0 succeeds on any 2xx status unless the body holds `"error"` or `"Error"`, \
+    quotes included: a 201 or 202 succeeds, and a 200 that names an error fails."""
+who = ["operator"]
+visible_in = """\
+    The reporter's `unable to send metrics` log lines, for a server or proxy that answers a \
+    write with another 2xx status or with a 200 that names an error"""
+pin = "crates/metrics/tests/influx.rs::write_status"
+restore = """\
+    Write with reqwest and check Go's statuses, the fallback D-INFLUX names; not planned: \
+    InfluxDB answers a write with 204, or with 4xx or 5xx when it fails."""
+
+[[difference]]
+id = "influx.redirect-auth"
+category = "influx"
+status = "ledgered"
+title = """\
+    InfluxDB redirects: Go's basic auth follows a redirect to another port, scheme or \
+    subdomain of the host and its user info no absolute redirect; reqwest's credentials follow \
+    the redirects on the origin alone"""
+go = """\
+    net/http copies the `Authorization` header that influxdb1-client's `SetBasicAuth` sets \
+    (`metrics.influxdb.username`) to a redirect whose host name is the first request's or a \
+    subdomain of it, on any port and scheme, so a write or ping redirected there is \
+    authorised. The host URL's user info is in no such header: net/http adds it to each \
+    request whose own URL has it, which a relative `Location` keeps and an absolute one drops, \
+    on the same origin as well, so an absolute redirect goes without it (net/http/client.go \
+    `shouldCopyHeaderOnRedirect` and `send`; influxdb.go:332-334 and :428-430 there)."""
+rust = """\
+    reqwest sends both kinds of credentials as an `Authorization` header and keeps it on a \
+    redirect while the host, port and scheme stay the previous hop's, dropping it on any \
+    change, as `http-client.redirects` says of the bidder clients: a write or ping redirected \
+    to another port, to https or to a subdomain goes without the `username` credentials, and \
+    one redirected to an absolute URL on the origin carries the user info's."""
+who = ["operator"]
+visible_in = """\
+    The reporter's writes to a server or proxy that redirects them with a 307 or 308: with \
+    `metrics.influxdb.username` set, to another port, to https or to a subdomain, the \
+    server's 401 and the `unable to send metrics` log line at every interval, where Go's \
+    writes are authorised; with the credentials in the host URL's user info, to an absolute \
+    URL on the same origin, authorised writes, where Go's get the 401"""
+pin = "crates/metrics/tests/influx.rs::redirect_auth"
+restore = """\
+    Write with reqwest without its redirect policy and follow the redirects with Go's header \
+    rules, the fallback D-INFLUX names; not planned: InfluxDB answers writes itself."""
+decision = "D-INFLUX"
+
+[[difference]]
+id = "influx.error-texts"
+category = "influx"
+status = "ledgered"
+title = "InfluxDB errors: the reporter logs the crate's, reqwest's and the url crate's texts"
+go = """\
+    A write that fails on its status is the answer's body read as a `fmt.Errorf` format \
+    (`%!d(MISSING) oops`); one that fails to send is net/http's `Post "<url>": <reason>`, a \
+    failed ping `Get "<url>": <reason>`, and a host `url.Parse` refuses \
+    `parse "<host>": <reason>` (influxdb.go:348-364; go-metrics-influxdb influxdb.go:35-37)."""
+rust = """\
+    `API error with a status code: <status>` whatever the body, `connection error: <reqwest's \
+    text>`, `http protocol error: ...` or `InfluxDB encountered the following error: ...` for \
+    a write, reqwest's `error sending request for url (<url>)` for a ping, and the url crate's \
+    reason, such as `relative URL without a base`, for a host."""
+who = ["operator"]
+visible_in = "The `err=` part of the reporter's log lines"
+pin = "crates/metrics/tests/influx.rs::error_texts"
+restore = """\
+    Map the crate's and reqwest's errors to Go's texts; not planned: the texts are not \
+    Prebid's, and Go's reads the server's body as a format."""
+note = """\
+    crates/metrics/tests/influx.rs::reporter_matches_go finds the reporter's log lines Go's up \
+    to their `err=`."""
+
+[[difference]]
+id = "influx.host-url"
+category = "influx"
+status = "ledgered"
+title = """\
+    `metrics.influxdb.host`: Go's `url.Parse` and `path.Join`, against the url crate and \
+    influxdb 0.8.0's `<host>/write`"""
+go = """\
+    `url.Parse` accepts `localhost`, `//influx/p`, a zone such as `[fe80::1%25en0]`, a port \
+    over 65535, `h:8086:8086` and `user@:80`, and refuses `%61` or `%41` in a host, `%zz` in a \
+    path or fragment, control characters and a leading space; the writes go to \
+    `path.Join(path, "write")`, repeated slashes collapsed and `%2F` decoded, with the host \
+    URL's query beside Go's own pairs, and the pings to `<path>/ping` with the query \
+    (influxdb.go:296, :341-346 and :421)."""
+rust = """\
+    The url crate refuses the first hosts, so the reporter logs `unable to parse InfluxDB url` \
+    once and stops, and reads the second ones (`ex%61mple.com` as `example.com`, a trailing \
+    newline or a leading space dropped); it lowercases hosts, reads `http:///p` as the host \
+    `p` and writes international names in punycode. The writes go to `<path>/write` with the \
+    repeated slashes and `%2F` kept and without the host URL's query; the pings keep it."""
+who = ["operator"]
+visible_in = """\
+    Whether the reporter starts and where it writes, for hosts spelled as above, with a path \
+    that holds `//` or `%2F`, or with a query"""
+pin = "crates/metrics/tests/influx.rs::host_url"
+restore = """\
+    Read the host with a port of `url.Parse` and post to Go's path and query; not planned: \
+    such hosts are misconfigurations."""
+
+[[difference]]
+id = "influx.key-escapes"
+category = "influx"
+status = "ledgered"
+title = """\
+    Line-protocol escapes: influxdb1-client's and influxdb 0.8.0's differ on backslashes and \
+    double quotes"""
+go = """\
+    influxdb1-client unescapes a backslash before a comma or space in the measurement, then \
+    escapes its commas and spaces; it escapes commas, spaces and `=` in tag keys and values, \
+    and commas, double quotes, spaces and `=` in field keys (models/points.go:1225-1257, \
+    pkg/escape/strings.go:6)."""
+rust = """\
+    influxdb 0.8.0 escapes the measurement's commas and spaces as written, field keys' commas, \
+    spaces and `=` but not their double quotes, and tag values' backslashes and double quotes \
+    as well."""
+who = ["operator"]
+visible_in = """\
+    The lines of metrics whose names hold a double quote (an account id or a bidder alias with \
+    one), and of a measurement with a backslash before a comma or space; the reporter's one \
+    tag, `bucket`, holds neither"""
+pin = "crates/metrics/tests/influx.rs::key_escapes"
+restore = """\
+    A writer of the reporter's own that escapes as Go does, the fallback D-INFLUX names; not \
+    planned."""
+
+[[difference]]
+id = "influx.cadence"
+category = "influx"
+status = "ledgered"
+title = "Reporter ticks: Go's `time.Tick` timers, against tokio intervals on a millisecond wheel"
+go = """\
+    The reporter sends at every `time.Tick(interval)` and pings at every `time.Tick(5 s)`, from \
+    one period after it starts, on Go's runtime timers; a tick the loop is too busy to take \
+    comes when it is free, the next one back on the period's grid (influxdb.go:70-91)."""
+rust = """\
+    tokio intervals with `MissedTickBehavior::Skip` tick alike, rounded up to tokio's \
+    millisecond timer wheel; a tick at most 5 ms late is followed by the next one a period \
+    after it, so a period of 5 ms or less can tick twice to catch up."""
+who = ["operator"]
+visible_in = """\
+    The operator's InfluxDB, below a millisecond only: when the writes and pings arrive and the \
+    times of unaligned points (`align_timestamps` false), the periods being whole seconds \
+    (`metric_send_interval`) and 5 s"""
+pin = "crates/metrics/tests/influx.rs::cadence"
+restore = "Not needed at whole-second periods."
+
+[[difference]]
+id = "influx.meter-ticks"
+category = "influx"
+status = "ledgered"
+title = """\
+    Meter rates: go-metrics' arbiter ticks on a five-second grid from start-up, the port's from \
+    the first meter"""
+go = """\
+    go-metrics folds the events of every meter, and of every timer's meter, into their one-, \
+    five- and fifteen-minute rates at the ticks of a `time.NewTicker(5e9)` made when the \
+    package initialises, as the process starts: the first tick comes five seconds after \
+    start-up, or as soon as the first meter is made when start-up took longer, and the ticks \
+    stay on that grid; the goroutine that reads them never ends (meter.go:233 and :44-46)."""
+rust = """\
+    The arbiter's thread starts with the first meter, which the engine makes when it is built, \
+    and takes its first tick five seconds after it, then every five seconds on that grid; it \
+    ends once no meter is left, and a later meter starts it again."""
+who = ["operator"]
+visible_in = """\
+    The `m1`, `m5`, `m15`, `mean` and `meanrate` points of meters and timers in the operator's \
+    InfluxDB, which change on a grid offset from Go's by the time start-up takes before the \
+    engine is built, modulo five seconds; at a `metric_send_interval` that is a multiple of \
+    five seconds, the reporter's sends, which start as the engine is built, fall just after the \
+    arbiter's ticks"""
+pin = "crates/metrics/tests/meter_ticks.rs::first_tick_follows_the_first_meter"
+restore = """\
+    Count the grid from the process's start; not planned: std does not tell when the process \
+    started, and Go's offset from the reporter's sends depends on start-up time as well."""
+
+[[difference]]
+id = "influx.sampled-values"
+category = "influx"
+status = "ledgered"
+title = "Histogram and timer reservoirs: rand's draws, not `math/rand`'s"
+go = """\
+    `ExpDecaySample` and `UniformSample` draw their priorities and slots from `math/rand`'s \
+    process-wide source, which Go seeds at random at start-up (sample.go:172 and :514)."""
+rust = "They draw from rand's thread-local generator: the same distributions, other values."
+who = ["operator"]
+visible_in = """\
+    The operator's InfluxDB: which values a histogram or timer keeps once it recorded more than \
+    its 1028 or 1024, and so the percentiles the reporter sends of it, which are random in Go \
+    as well"""
+pin = "crates/metrics/tests/influx.rs::reservoir_shape"
+restore = "A port of `math/rand`'s source; not planned."
+
+[[difference]]
+id = "influx.tls"
+category = "influx"
+status = "ledgered"
+title = "An https host: rustls and its platform verifier, not crypto/tls and crypto/x509"
+go = """\
+    influxdb1-client's transport verifies an https host's chain with crypto/x509 against the \
+    system roots, go-metrics-influxdb leaving `UnsafeSsl` false, and its ClientHello is \
+    crypto/tls's without ALPN, the transport having a TLS config of its own (influxdb.go:158-167 \
+    there)."""
+rust = """\
+    The reporter's reqwest client speaks rustls with rustls-platform-verifier, as \
+    pbs-http-client's clients do (D-TLS): the chains `tls.acceptance` lists verify on one side \
+    only, and the ClientHello differs as `tls.client-hello` says."""
+who = ["operator"]
+visible_in = """\
+    Writes and pings to an https host whose chain or TLS server is like one of those cases: the \
+    reporter logs the failure and sends nothing, or sends where Go's would not"""
+pin = "crates/http-client/tests/tls.rs::x509_goldens"
+decision = "D-TLS"
+note = """\
+    The pin runs webpki, the verifier rustls-platform-verifier uses on Linux, which verifies the \
+    reporter's hosts through reqwest's `rustls` feature as well; \
+    `crates/http-client/tests/tls.rs::client_hello_differs` pins the ClientHello."""

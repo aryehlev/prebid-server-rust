@@ -4,6 +4,7 @@ use std::error::Error;
 
 use super::{
     float_from_i64 as from_i64, float_from_u64 as from_u64, float_from_usize as from_usize,
+    i64_from_float as to_i64,
 };
 
 type TestResult = Result<(), Box<dyn Error>>;
@@ -74,5 +75,43 @@ fn larger_numbers_round_to_nearest_even() -> TestResult {
         -9_007_199_254_740_992.0,
         "a negative tie rounds to even"
     );
+    Ok(())
+}
+
+/// Go's `int64(f)` on amd64 truncates toward zero and gives `math.MinInt64` for NaN and for every
+/// value outside `int64`'s range, of either sign.
+#[test]
+fn float_to_int64_truncates_and_overflows_to_min() -> TestResult {
+    // Go: metrics/go_metrics.go:859 (Update(int64(cpm))) on go1.26.2's amd64 conversion
+    // (CVTTSD2SQ), which rcrowley/go-metrics cf1acfcdf475 sample.go:290 (int(pos)) also uses
+    for (f, expected) in [
+        (0.0, 0),
+        (-0.0, 0),
+        (0.999_999, 0),
+        (-0.999_999, 0),
+        (1.0, 1),
+        (1.5, 1),
+        (-1.5, -1),
+        (2.5e-300, 0),
+        (f64::MIN_POSITIVE, 0),
+        (9_007_199_254_740_994.0, 9_007_199_254_740_994),
+        (-TWO_POW_63, i64::MIN),
+        (TWO_POW_63, i64::MIN),
+        (TWO_POW_64, i64::MIN),
+        (-TWO_POW_64, i64::MIN),
+        (f64::INFINITY, i64::MIN),
+        (f64::NEG_INFINITY, i64::MIN),
+        (f64::NAN, i64::MIN),
+        (
+            f64::from_bits(0x43DF_FFFF_FFFF_FFFF),
+            9_223_372_036_854_774_784,
+        ),
+        (
+            -f64::from_bits(0x43DF_FFFF_FFFF_FFFF),
+            -9_223_372_036_854_774_784,
+        ),
+    ] {
+        ensure_eq!(to_i64(f), expected, "int64({f:?})");
+    }
     Ok(())
 }

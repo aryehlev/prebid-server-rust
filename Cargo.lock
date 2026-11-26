@@ -800,6 +800,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "influxdb"
+version = "0.8.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "dd89c62e90277619e21910689e0d4864287161f733125bac2d739238ad93e63f"
+dependencies = [
+ "futures-util",
+ "http",
+ "lazy-regex",
+ "reqwest",
+ "thiserror",
+]
+
+[[package]]
 name = "ipnet"
 version = "2.12.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -844,6 +857,29 @@ checksum = "eb3fa5a61630976fc4c353c70297f2e93f1930e3ccee574d59d618ccbd5154ce"
 dependencies = [
  "serde",
  "serde_json",
+]
+
+[[package]]
+name = "lazy-regex"
+version = "3.6.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f0a2cce8a22920a29fdcc8c9170aa5d29edd9fbcf8bea856e24c2cb1c2419f67"
+dependencies = [
+ "lazy-regex-proc_macros",
+ "once_cell",
+ "regex",
+]
+
+[[package]]
+name = "lazy-regex-proc_macros"
+version = "3.6.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6f1e4b1f1d8c71edb4ff2b2150ec4606445fd2ddf67ddc097655daf59286baa6"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "regex",
+ "syn",
 ]
 
 [[package]]
@@ -1201,7 +1237,13 @@ dependencies = [
 name = "pbs-metrics"
 version = "0.1.0"
 dependencies = [
+ "base64",
+ "influxdb",
+ "pbs-logger",
  "prometheus",
+ "rand",
+ "reqwest",
+ "tokio",
 ]
 
 [[package]]
@@ -1551,6 +1593,7 @@ dependencies = [
  "rustls-platform-verifier",
  "serde",
  "serde_json",
+ "serde_urlencoded",
  "sync_wrapper",
  "tokio",
  "tokio-rustls",

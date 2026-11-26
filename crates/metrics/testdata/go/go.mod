@@ -3,8 +3,11 @@ module github.com/aryehlev/prebid-server-rust/crates/metrics/testdata/go
 go 1.25.0
 
 require (
+	github.com/influxdata/influxdb1-client v0.0.0-20191209144304-8bf82d3c094d
 	github.com/prebid/prebid-server/v4 v4.11.2-0.20261112141353-4e296450de2f
 	github.com/prometheus/client_golang v1.12.1
+	github.com/rcrowley/go-metrics v0.0.0-20201227073835-cf1acfcdf475
+	github.com/vrischmann/go-metrics-influxdb v0.1.1
 )
 
 require (
@@ -32,7 +35,6 @@ require (
 	github.com/prometheus/client_model v0.2.0 // indirect
 	github.com/prometheus/common v0.32.1 // indirect
 	github.com/prometheus/procfs v0.7.3 // indirect
-	github.com/rcrowley/go-metrics v0.0.0-20201227073835-cf1acfcdf475 // indirect
 	github.com/spf13/afero v1.8.2 // indirect
 	github.com/spf13/cast v1.5.0 // indirect
 	github.com/spf13/jwalterweatherman v1.1.0 // indirect

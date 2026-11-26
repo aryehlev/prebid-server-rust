@@ -2,9 +2,12 @@
 //!
 //! Go: `metrics/config/metrics.go` (package `config` of the metrics tree).
 
-use std::{collections::BTreeMap, error::Error, fmt, sync::Arc};
+use std::{collections::BTreeMap, error::Error, fmt, io, sync::Arc};
 
 use crate::{
+    go_metrics,
+    gometrics::Registry,
+    influx,
     metrics::{
         AdapterLabels, CacheResult, CookieSyncStatus, FetcherBackendResult, FetcherOperation,
         FetcherResult, GoDuration, ImpLabels, Labels, MetricsEngine, ModuleLabels, OverheadType,
@@ -18,9 +21,9 @@ use crate::{
 /// Why [`new_metrics_engine`] could not build the configured engines.
 #[derive(Debug)]
 pub enum MetricsEngineError {
-    /// `metrics.influxdb.host` is set. Go then builds the go-metrics engine and an
-    /// `InfluxDB` reporter (`metrics/go_metrics.go`), which this crate does not port.
-    InfluxNotSupported,
+    /// The thread of the `InfluxDB` reporter could not start, where Go starts a goroutine,
+    /// which cannot fail.
+    Reporter(io::Error),
     /// The Prometheus engine could not register a family: the prometheus crate's error for the
     /// family Go's `MustRegister` panics on during startup (ledger:
     /// `metrics.registration-errors`).
@@ -30,9 +33,7 @@ pub enum MetricsEngineError {
 impl fmt::Display for MetricsEngineError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::InfluxNotSupported => f.write_str(
-                "metrics.influxdb.host is set, but the InfluxDB (go-metrics) engine is not ported",
-            ),
+            Self::Reporter(err) => write!(f, "cannot start the InfluxDB reporter: {err}"),
             Self::Registration(err) => fmt::Display::fmt(err, f),
         }
     }
@@ -41,7 +42,7 @@ impl fmt::Display for MetricsEngineError {
 impl Error for MetricsEngineError {
     fn source(&self) -> Option<&(dyn Error + 'static)> {
         match self {
-            Self::InfluxNotSupported => None,
+            Self::Reporter(err) => Some(err),
             Self::Registration(err) => Some(err),
         }
     }
@@ -59,13 +60,16 @@ impl From<RegistrationError> for MetricsEngineError {
 /// caller (`router/router.go`) passes `openrtb_ext.CoreBidderNames()` as `adapterList`, which is
 /// also the list the Prometheus engine preloads; `core_bidder_names` is that list.
 ///
-/// The Prometheus engine exists when `metrics.prometheus.port` is not 0. With no engine the result
-/// records nothing ([`NilMetricsEngine`]); with one engine it is that engine; with several it is a
-/// [`MultiMetricsEngine`] in Go's order (go-metrics first, then Prometheus).
+/// The go-metrics engine exists when `metrics.influxdb.host` is set: over a registry with the
+/// prefix `prebidserver.`, which the `InfluxDB` reporter ([`influx::influx_db`]) sends every
+/// `metrics.influxdb.metric_send_interval` seconds on a thread of its own until the engine is
+/// dropped. The Prometheus engine exists when `metrics.prometheus.port` is not 0. With no engine
+/// the result records nothing ([`NilMetricsEngine`]); with one engine it is that engine; with
+/// several it is a [`MultiMetricsEngine`] in Go's order (go-metrics first, then Prometheus).
 ///
 /// # Errors
 ///
-/// [`MetricsEngineError::InfluxNotSupported`] when `metrics.influxdb.host` is set, and
+/// [`MetricsEngineError::Reporter`] when the reporter's thread cannot start, and
 /// [`MetricsEngineError::Registration`] when Go would panic while registering the Prometheus
 /// families.
 pub fn new_metrics_engine(
@@ -75,10 +79,35 @@ pub fn new_metrics_engine(
     module_stage_names: &BTreeMap<String, Vec<String>>,
 ) -> Result<DetailedMetricsEngine, MetricsEngineError> {
     let mut engine_list: Vec<Arc<dyn MetricsEngine>> = Vec::with_capacity(2);
+    let mut go_metrics = None;
     let mut prometheus_metrics = None;
 
     if !cfg.influxdb.host.is_empty() {
-        return Err(MetricsEngineError::InfluxNotSupported);
+        // Go: metrics/config/metrics.go:25
+        let registry = Registry::new_prefixed("prebidserver.");
+        let engine = Arc::new(go_metrics::new_metrics(
+            registry.clone(),
+            core_bidder_names,
+            cfg.disabled,
+            syncer_keys,
+            module_stage_names,
+        ));
+        let as_engine: Arc<dyn MetricsEngine> = Arc::<go_metrics::Metrics>::clone(&engine);
+        engine_list.push(as_engine);
+        go_metrics = Some(engine);
+        let influxdb = &cfg.influxdb;
+        let settings = influx::Settings {
+            // Go: time.Second*time.Duration(MetricSendInterval), which wraps.
+            interval: GoDuration::times(influxdb.metric_send_interval, GoDuration::SECOND),
+            url: influxdb.host.clone(),
+            database: influxdb.database.clone(),
+            measurement: influxdb.measurement.clone(),
+            username: influxdb.username.clone(),
+            password: influxdb.password.clone(),
+            align: influxdb.align_timestamps,
+        };
+        // Go: `go influxdb.InfluxDB(...)`: the reporter runs on, detached.
+        drop(influx::influx_db(&registry, settings).map_err(MetricsEngineError::Reporter)?);
     }
     if cfg.prometheus.port != 0 {
         let engine = Arc::new(prometheus::Metrics::new(
@@ -103,19 +132,21 @@ pub fn new_metrics_engine(
 
     Ok(DetailedMetricsEngine {
         metrics_engine,
+        go_metrics,
         prometheus_metrics,
     })
 }
 
 /// The selected engine plus links to the underlying engines.
 ///
-/// Go: `config.DetailedMetricsEngine` (its `GoMetrics` field belongs to the go-metrics engine,
-/// which is not ported). It implements [`MetricsEngine`] by delegating to `metrics_engine`, as the
-/// embedded Go interface does.
+/// Go: `config.DetailedMetricsEngine`. It implements [`MetricsEngine`] by delegating to
+/// `metrics_engine`, as the embedded Go interface does.
 #[derive(Clone, Debug)]
 pub struct DetailedMetricsEngine {
     /// Go: the embedded `metrics.MetricsEngine`.
     pub metrics_engine: Arc<dyn MetricsEngine>,
+    /// Go: `GoMetrics`, `None` (Go: nil) when no `InfluxDB` host is configured.
+    pub go_metrics: Option<Arc<go_metrics::Metrics>>,
     /// Go: `PrometheusMetrics`, `None` (Go: nil) when the Prometheus engine is not configured.
     pub prometheus_metrics: Option<Arc<prometheus::Metrics>>,
 }
