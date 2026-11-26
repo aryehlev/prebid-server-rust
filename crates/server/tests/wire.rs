@@ -5,11 +5,11 @@
 //! content types, the header limit and its edge, header counts, long request targets and the
 //! bytes of request targets, malformed requests, the HTTP/2 preface, the read and write budgets
 //! (scaled to 1 s), bodies a handler leaves unread, how a connection ends on a client still
-//! sending, clients that go away, gziphandler's Vary and graceful shutdown. Each case is one
-//! connection and a client script of writes, pauses and closes; the same scripts run here against
-//! the same stand-in handlers on axum, served by [`pbs_server::serve`] with the budget of the Go
-//! server they stand for, and what the client read is described as the generator describes Go's
-//! answer.
+//! sending, clients that go away, gziphandler's Vary and HEAD answers, and graceful shutdown. Each
+//! case is one connection and a client script of writes, pauses and closes; the same scripts run
+//! here against the same stand-in handlers on axum, served by [`pbs_server::serve`] with the budget
+//! of the Go server they stand for, and what the client read is described as the generator
+//! describes Go's answer.
 
 #[cfg(test)]
 mod tests {
@@ -905,8 +905,9 @@ mod tests {
     /// net/http gives an answer whose handler wrote at most 2048 bytes a Content-Length and
     /// chunks a longer one, which over HTTP/1.0 the closed connection ends, and sends no length
     /// to HEAD; a gzip answer whose compressed bytes fit that buffer gets their length. hyper
-    /// sends content-length for every full body, to HEAD and HTTP/1.0 too, and chunks what
-    /// tower-http compresses.
+    /// sends content-length for every full body, to HEAD and HTTP/1.0 too, and pbs-server's gzip
+    /// layer compresses a body whole, so a gzip answer gets the length of its compressed bytes
+    /// however long they are.
     // Go: bufferBeforeChunkingSize and chunkWriter.writeHeader (net/http/server.go)
     #[test]
     fn content_length_always() -> TestResult {
@@ -922,8 +923,19 @@ mod tests {
             "bytes_n_1400_gzip",
             "bytes_n_3000_gzip",
         ];
+        // The compressed lengths differ (`server.gzip-bytes`); each is the length of its bytes.
+        let framed = |outcome: &Outcome| {
+            let framed = framing(outcome);
+            if outcome.field("content-encoding") == "gzip"
+                && framed == format!("length {}", outcome.body_len)
+            {
+                "length of the gzip".to_owned()
+            } else {
+                framed
+            }
+        };
         ensure_eq(
-            &rows(&pairs, &names, go, framing)?,
+            &rows(&pairs, &names, go, framed)?,
             &[
                 "bytes_0: length 0",
                 "bytes_100: length 100",
@@ -932,13 +944,13 @@ mod tests {
                 "bytes_3000: chunked",
                 "bytes_3000_http10: unframed",
                 "head_bytes_3000: unframed",
-                "bytes_n_1400_gzip: length 62",
-                "bytes_n_3000_gzip: length 69",
+                "bytes_n_1400_gzip: length of the gzip",
+                "bytes_n_3000_gzip: length of the gzip",
             ],
             "net/http",
         )?;
         ensure_eq(
-            &rows(&pairs, &names, rust, framing)?,
+            &rows(&pairs, &names, rust, framed)?,
             &[
                 "bytes_0: length 0",
                 "bytes_100: length 100",
@@ -947,8 +959,8 @@ mod tests {
                 "bytes_3000: length 3000",
                 "bytes_3000_http10: length 3000",
                 "head_bytes_3000: length 3000",
-                "bytes_n_1400_gzip: chunked",
-                "bytes_n_3000_gzip: chunked",
+                "bytes_n_1400_gzip: length of the gzip",
+                "bytes_n_3000_gzip: length of the gzip",
             ],
             "hyper",
         )
@@ -1607,45 +1619,92 @@ mod tests {
         )
     }
 
-    /// With gzip on, gziphandler adds `Vary: Accept-Encoding` to every answer; tower-http adds
-    /// it only to answers its predicate would compress (1,400 bytes or more), whether or not the
-    /// request accepts gzip. The bodies it compresses gunzip to Go's.
-    // Go: GzipResponseWriter.WriteHeader and Write add Vary (gziphandler v1.1.1 gzip.go)
+    /// With gzip on, every answer gets `Vary: Accept-Encoding`, compressed or not and whether or
+    /// not the request accepts gzip, on pbs-server as from gziphandler; the same answers are
+    /// compressed, with the same status, and the bodies are Go's, the compressed ones once
+    /// gunzipped. A HEAD answer is decided as its GET's: the 3,000-byte one is sent as gzip with
+    /// the length of the GET's compressed bytes and none of them, the 10-byte one as it is.
+    // Go: GzipHandlerWithOpts's handler adds Vary before the handler runs (gziphandler v1.1.1
+    // gzip.go:324); for HEAD, net/http's chunkWriter.Write drops the bytes the gzip writer sends
+    // and writeHeader sets their length (net/http/server.go)
     #[test]
-    fn vary_only_on_compressible() -> TestResult {
-        let pairs = run_groups(&["gzip"])?;
+    fn vary_on_every_answer() -> TestResult {
+        let pairs = run_groups(&["gzip", "gzip_head"])?;
         let names: Vec<&str> = pairs.iter().map(|pair| pair.case.name.as_str()).collect();
-        let vary = |outcome: &Outcome| outcome.field("vary");
-        let go_rows = rows(&pairs, &names, go, vary)?;
+        let decided = |outcome: &Outcome| {
+            format!(
+                "{} | vary {} | encoding {}",
+                outcome.status(),
+                outcome.field("vary"),
+                outcome.field("content-encoding")
+            )
+        };
+        let go_rows = rows(&pairs, &names, go, decided)?;
         check(
-            go_rows.iter().all(|row| row.ends_with(": Accept-Encoding")),
+            go_rows
+                .iter()
+                .all(|row| row.contains(" | vary Accept-Encoding | ")),
             "gziphandler varies every answer",
         )?;
         ensure_eq(
-            &rows(&pairs, &names, rust, vary)?,
-            &[
-                "bytes_n_10_gzip: ",
-                "bytes_n_1399_gzip: ",
-                "bytes_n_1400_gzip: accept-encoding",
-                "bytes_n_3000_gzip: accept-encoding",
-                "sniff_kind_empty_gzip: ",
-                "headers_gzip: ",
-                "bytes_n_10_identity: ",
-                "bytes_n_1399_identity: ",
-                "bytes_n_1400_identity: accept-encoding",
-                "bytes_n_3000_identity: accept-encoding",
-                "sniff_kind_empty_identity: ",
-                "headers_identity: ",
-            ],
-            "tower-http",
+            &rows(&pairs, &names, rust, decided)?,
+            &go_rows,
+            "status, Vary and Content-Encoding",
         )?;
-        let gunzipped = |outcome: &Outcome| outcome.gunzipped.clone();
-        let compressed = ["bytes_n_1400_gzip", "bytes_n_3000_gzip"];
+        // net/http chunks the 3,000-byte answer it does not compress (`server.framing`), so
+        // its bytes on the wire are not the body's.
+        let gets: Vec<&str> = pairs
+            .iter()
+            .filter(|pair| {
+                !pair.case.name.starts_with("head_")
+                    && pair.go.field("transfer-encoding") != "chunked"
+            })
+            .map(|pair| pair.case.name.as_str())
+            .collect();
         ensure_eq(
-            &rows(&pairs, &compressed, rust, gunzipped)?,
-            &rows(&pairs, &compressed, go, gunzipped)?,
-            "the gunzipped bodies",
-        )
+            &gets.len(),
+            &(names.len() - 3),
+            "the GET answers net/http does not chunk",
+        )?;
+        let body = |outcome: &Outcome| {
+            if outcome.field("content-encoding") == "gzip" {
+                format!("gzip of {}", outcome.gunzipped)
+            } else {
+                format!("{}/{}", outcome.body_len, outcome.body_crc32)
+            }
+        };
+        ensure_eq(
+            &rows(&pairs, &gets, rust, body)?,
+            &rows(&pairs, &gets, go, body)?,
+            "the bodies",
+        )?;
+        let heads = |side: fn(&Pair) -> &Outcome| -> TestResult<Vec<String>> {
+            let get = side(find(&pairs, "bytes_n_3000_gzip")?);
+            ["head_bytes_10_gzip", "head_bytes_3000_gzip"]
+                .iter()
+                .map(|name| {
+                    let head = side(find(&pairs, name)?);
+                    let mut length = head.field("content-length");
+                    if length == get.body_len.to_string() {
+                        "that of the GET's gzip".clone_into(&mut length);
+                    }
+                    Ok(format!("{name}: {} bytes, length {length}", head.body_len))
+                })
+                .collect()
+        };
+        ensure_eq(
+            &heads(go)?,
+            &[
+                "head_bytes_10_gzip: 0 bytes, length 10",
+                "head_bytes_3000_gzip: 0 bytes, length that of the GET's gzip",
+            ],
+            "net/http's HEAD answers",
+        )?;
+        // fastgzip compresses these pattern bytes alike whatever pattern answers its compressor
+        // had before, so the HEAD's length is the GET's on pbs-server too; for other bodies the
+        // two may differ, as an answer's gzip depends on what the thread compressed before
+        // (`server.gzip-bytes`).
+        ensure_eq(&heads(rust)?, &heads(go)?, "the HEAD answers")
     }
 
     /// Go's shutdown and hyper's agree on the connections that are idle, serving a request or

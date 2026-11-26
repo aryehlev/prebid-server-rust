@@ -2104,6 +2104,39 @@
       "body_len": 100,
       "body_crc32": "6d0404c4",
       "end": "eof"
+    },
+    {
+      "group": "gzip_head",
+      "name": "head_bytes_10_gzip",
+      "server": "main_gzip",
+      "steps": [
+        {
+          "text": "HEAD /bytes?n=10 HTTP/1.1\r\nHost: pbs.example\r\nAccept-Encoding: gzip\r\nConnection: close\r\n\r\n"
+        }
+      ],
+      "window_ms": 2000,
+      "head": "HTTP/1.1 200 OK\r\nContent-Type: text/plain; charset=utf-8\r\nVary: Accept-Encoding\r\nDate: <date>\r\nContent-Length: 10\r\nConnection: close\r\n\r\n",
+      "body": "",
+      "body_len": 0,
+      "body_crc32": "00000000",
+      "end": "eof"
+    },
+    {
+      "group": "gzip_head",
+      "name": "head_bytes_3000_gzip",
+      "server": "main_gzip",
+      "steps": [
+        {
+          "text": "HEAD /bytes?n=3000 HTTP/1.1\r\nHost: pbs.example\r\nAccept-Encoding: gzip\r\nConnection: close\r\n\r\n"
+        }
+      ],
+      "window_ms": 2000,
+      "head": "HTTP/1.1 200 OK\r\nContent-Encoding: gzip\r\nContent-Type: text/plain; charset=utf-8\r\nVary: Accept-Encoding\r\nDate: <date>\r\nContent-Length: 69\r\nConnection: close\r\n\r\n",
+      "body": "",
+      "body_len": 0,
+      "body_crc32": "00000000",
+      "gunzipped": "<EOF>",
+      "end": "eof"
     }
   ],
   "shutdown": {

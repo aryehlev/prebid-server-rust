@@ -282,5 +282,12 @@ func allCases() []wireCase {
 	} {
 		cs = append(cs, one("static_gzip", s.name, "static_gzip", text(s.request)))
 	}
+
+	// HEAD with gzip on: gziphandler decides on what the handler writes for a HEAD as for a GET,
+	// and net/http sends the head of the answer without its bytes.
+	for _, n := range []string{"10", "3000"} {
+		cs = append(cs, one("gzip_head", "head_bytes_"+n+"_gzip", "main_gzip",
+			text("HEAD /bytes?n="+n+" HTTP/1.1\r\nHost: "+host+"\r\nAccept-Encoding: gzip\r\nConnection: close\r\n\r\n")))
+	}
 	return cs
 }

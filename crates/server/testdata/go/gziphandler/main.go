@@ -115,7 +115,43 @@ func encodingInputs() []string {
 		}
 		in = append(in, b.String())
 	}
-	return in
+	return append(in, qValueInputs()...)
+}
+
+// qValueInputs are values FASTGZIP added after the seeded combinations, for pbs-server's port of
+// parseCoding: q values at the edges of strconv.ParseFloat's syntax (underscores, hexadecimal
+// mantissas and exponents, the special spellings, the range and the capped exponent), Unicode
+// spaces and letters around a coding, bytes that are not UTF-8, and parameters after a q.
+func qValueInputs() []string {
+	qs := []string{
+		"1_000", "_1", "1__0", "1_", "0_5", "0._5", "0.5_", "1e1_0", "1e_1", "+_1", "0_x1p0",
+		"0x1p0", "0x_1p0", "0x1_0p-4", "0x1", "0x.8p1", "0x1.p-1", "0x0p0", "0x0p99999", "0x",
+		"0xp1", "0x1p", "0x1p+", "0x1g", "0X1P-2", "-0x1p-2", "0x1p-1074", "0x1p-1075",
+		"0x1.8p-1075", "0x1.0000000000001p-1075", "0x1p-1076", "0x1p1023", "0x1p1024",
+		"0x1.fffffffffffff7p1023", "0x1.fffffffffffff8p1023", "0x1.fffffffffffffp1023",
+		"0x1p99999", "0x1p-99999", "0x00000000000000000001p-4", "0x123456789abcdef01p-68",
+		"0x.0000000000000000000000001p100",
+		"1e-400", "4.9e-324", "2.4703282292062327e-324", "2.4703282292062328e-324",
+		"1.7976931348623157e308", "1.7976931348623158e308", "1.7976931348623159e308", "1e308",
+		"1e309", "0e999999", "1e-99999", "1e99999", "0.0000000000000000000000000001e10",
+		"100000000000000000000000000000e-30", "+0.5", "+.5", "-.5", ".", "+", "-", "e1", "1e",
+		"1e+", "1e-", "1.5.5", "00.5", "0.0000", "0.0001e1", "1E-1", "5e-1", "0.5e", "0.5x",
+		"Infinity", "INFINITY", "+inf", "-inf", "+Infinity", "infin", "infinityx", "infx",
+		"+nan", "-nan", "nan", "NAN", "nanx", "in", "i", "n", " 0.5", "0.5 ", " 0.5",
+		"0.5 ", "\xff", "0.5\xff",
+	}
+	in := make([]string, 0, len(qs)+32)
+	for _, q := range qs {
+		in = append(in, "gzip;q="+q)
+	}
+	return append(in,
+		" gzip", "gzip　", "​gzip", "᠎gzip", " gzip;q=0.5",
+		" gzip ", "gZiP", "GZİp", "gzıp", "Kgzip", "gzi̇p",
+		"\xffgzip", "gzip\xff", "gzip;\xffq=0", "gzip, \xff;q=0", "\xff, gzip",
+		"gzip;q=0;q=1", "gzip;q=1;q=0", "gzip;q=0;", "gzip;q=0; ", "gzip;q=abc;x",
+		"gzip, gzip;q=abc;x", "gzip;q=0, gzip;q=abc", "gzip;q=0.5;level=1;q=0",
+		"gzip;q=0;level=1", "identity, gzip;q=0.001", "gzip; Q=0", "gzip;q==0",
+	)
 }
 
 // encodings reports what gziphandler makes of an Accept-Encoding value: the codings of

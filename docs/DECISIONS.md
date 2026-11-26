@@ -43,6 +43,7 @@ ids this file names are proposals for the adopting unit, which writes the entrie
 | HTTP/2 | decided (user, 2026-11-18; demotion rule by the orchestrator, 2026-11-19) | Automatic for bidder requests, with no configuration; one HTTP/1.1 resend, only when the origin read no request | HTTP-H2, EXCH-BIDDER, ROUTER-MAIN, PH-PROFILES, PH-WIRE-COVER |
 | D-51D | decided (user, 2026-11-18) | The full 51Degrees engine through FFI in `pbs-fiftyone-dd` | GOC-51D-DD, GOC-51D-ONPREMISE, MOD-51D |
 | D-WURFL | decided | The module over a `WurflApi` trait, with no binding | MOD-WURFL |
+| D-FASTGZIP | decided (user, 2026-11-25, ruling 10 (b)) | fastgzip writes the server's gzip: pbs-server's own response layer keeps gziphandler's semantics in place of tower-http's `compression-gzip` | FASTGZIP, EXCH-BIDDER |
 | D-COW | decided (keep) | `Option<Arc<T>>` on serde's rc feature, re-measured by COW | COW |
 | D-TEMPLATE | default applies | `pbs-gocompat`'s template module: gtmpl fails the gates and the error goldens | ENT-MACROS, USERSYNC-PBS, CLEANUP |
 | D-XML | default applies | quick-xml 0.42.0 for tokens, with Go's encoder output and attribute escaping as glue | INJECTOR |
@@ -454,6 +455,35 @@ probe against an h2c server (SETTINGS seen) and against an HTTP/1.1 server (not 
 rustls client config with ALPN `h2` then `http/1.1`. Since STACK, h2 0.4.20 is locked through
 hyper 1.12.0 and reqwest 0.13.5 (with its `http2` feature), and this spike's
 [h2 row](#results) shows that a direct dependency on it adds nothing.
+
+## D-FASTGZIP: the server's gzip
+
+**Status.** Decided by the user on 2026-11-25 (ruling 10 (b)).
+
+**Decision.** fastgzip 0.2.0, the user's crate, writes every gzip the server writes. For responses,
+a layer of pbs-server's own (`crates/server/src/compression`) replaces tower-http's
+`compression-gzip`, which the workspace drops (tower-http keeps `cors`, `fs`, `limit` and
+`timeout`), and decides as gziphandler v1.1.1 does: the 1,400-byte threshold, every type and
+status, gziphandler's Accept-Encoding parser (its q values read by std's float parser rather than a
+port of `strconv.ParseFloat`, `server.gzip-qvalue-syntax`), `Vary: Accept-Encoding` on every
+answer, Content-Encoding and Content-Length as gziphandler reads them, and a range compressed
+whole. The layer buffers a body and compresses it in one call; a streamed body past 1 MiB goes out
+uncompressed (`server.gzip-streams`). Each worker thread keeps one `fastgzip::Gzip` per kind of
+payload (JSON, other text, the rest), used inside the request's task and never on a blocking pool,
+at level 0, fastgzip's default: the pins compare decompressed bytes and the gzip header's fixed
+fields, and no level writes compress/gzip's bytes. Decompression stays flate2 and reqwest's gzip.
+`server.vary`, `server.gzip-negotiation` and `server.gzip-ranges` are restored;
+`server.gzip-bytes`, `server.framing` and `gzip.payload-bytes` name fastgzip, and
+`server.gzip-streams` and `server.gzip-qvalue-syntax` are ledgered.
+
+**Evidence.** Per response on an Apple M1, release build, against flate2 1.1.11 (miniz_oxide) at
+its default level, which tower-http's layer used: 6.1 µs against 71.1 µs on the 67 adapter-fixture
+bidder responses of 1,400 bytes or more (median 3,253 bytes), 6.4 µs against 54.8 µs on 102
+auction-shaped bodies of four of them (median 2,363 bytes), and 6.8 µs against 75.3 µs on 84 of
+sixteen (median 4,889 bytes), for output 7 to 13% larger. A compressor's first payload costs
+about twice its later ones. The review reran the first set on the same kind of machine under a
+load of about 9 (68 bodies, one compressor going through them in turn): 6.6 to 6.9 µs against
+75.7 to 77.2 µs, ratio 0.550 against 0.514.
 
 ## D-TEMPLATE: Go's text/template
 
