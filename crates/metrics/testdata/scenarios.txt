@@ -264,3 +264,30 @@ RecordRequestTime rtype=openrtb2-app status=ok d=-9223372036854775808
 RecordDNSTime d=100
 RecordDNSTime d=10000
 RecordTLSHandshakeTime d=1
+
+# Adapter names at the edges of the lower casing: empty, ADKERNELADN with U+212A KELVIN SIGN for
+# its K (it lowers onto the sample adapter adkerneladn), a titlecase digraph (U+01C5) and
+# fullwidth capitals; and prices of either zero.
+scenario edge_adapter_names
+namespace edge
+RecordAdapterRequest rtype=openrtb2-web adapter= cookie=exists bids=bid errors=timeout
+RecordAdapterRequest rtype=openrtb2-app adapter=AD%E2%84%AAERNELADN cookie=no bids=nobid
+RecordAdapterRequest adapter=%EF%BC%A1%EF%BC%B0%EF%BC%B0 cookie=unknown bids=bid
+RecordAdapterConnections adapter= reused=true d=2000000
+RecordAdapterConnections adapter=AD%E2%84%AAERNELADN reused=false d=3000000
+RecordAdapterConnectionDialError adapter=
+RecordAdapterConnectionDialTime adapter=AD%E2%84%AAERNELADN d=2000000
+RecordAdapterPanic adapter=
+RecordAdapterBidReceived adapter= bidtype=banner adm=true
+RecordAdapterBidReceived adapter=%C7%85ungla bidtype=video adm=false
+RecordAdapterPrice adapter= cpm=0
+RecordAdapterPrice adapter= cpm=-0
+RecordAdapterPrice adapter=AD%E2%84%AAERNELADN cpm=-0
+RecordAdapterTime adapter= d=2000000
+RecordAdapterThrottled adapter=AD%E2%84%AAERNELADN
+RecordAdapterBuyerUIDScrubbed adapter=
+RecordAdapterGDPRRequestBlocked adapter=AD%E2%84%AAERNELADN
+RecordBidValidationCreativeSizeError adapter= account=
+RecordBidValidationCreativeSizeWarn adapter=AD%E2%84%AAERNELADN account=acct
+RecordBidValidationSecureMarkupError adapter=%C7%85ungla account=
+RecordBidValidationSecureMarkupWarn adapter= account=acct

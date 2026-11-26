@@ -4,6 +4,7 @@ no_prefix_all_disabled 52 14606 f198ab784eb98a5d e7b9179e78fabf0c
 subsystem_only_conn_without_dial 55 19394 266ada0179be3213 94145813174975f6
 namespace_only_edge_preload 69 24220 3b506941daeeb46f f02e2bc0d1ffd17d
 large_values 59 24190 c664609f307a4225 24e16236a22273cf
+edge_adapter_names 62 24231 eb95545768bc9131 c1b1b13cd1d45c92
 disabled_combo_00 74 24239 ed67a5ef51b16108 f0e3539583980a54
 disabled_combo_01 68 15200 413adae91043e3b3 2dac1fab79d03745
 disabled_combo_02 71 19444 e90f434a2fe82020 fcf1f506e6d82bb3

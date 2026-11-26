@@ -4,6 +4,7 @@ no_prefix_all_disabled 927614 0a7c43bd4a700042
 subsystem_only_conn_without_dial 1282169 d2193cbb011ffdc5
 namespace_only_edge_preload 1590892 9cedebee05a37519
 large_values 1612141 033b221b3530681c
+edge_adapter_names 1639447 eca393c2b253b205
 disabled_combo_00 1690647 32622e84f62c5255
 disabled_combo_01 1067444 8564f140b48b7052
 disabled_combo_02 1346595 7670ef7a1604f921

@@ -707,4 +707,54 @@ mod tests {
         }
         Ok(())
     }
+
+    /// Adapter names at the edges of the lower casing: the empty name has series of its own in
+    /// every adapter family; `ADKERNELADN` spelled with U+212A KELVIN SIGN for its K, which
+    /// lowers to `k`, joins the preloaded series of the core bidder `adkerneladn`; the titlecase
+    /// digraph of `ǅungla` and the fullwidth `ＡＰＰ` lower to `ǆungla` and `ａｐｐ`. Each has
+    /// Go's series, line for line, in the Rust scrape, and a price of `-0` leaves the sum at `0`
+    /// in both.
+    // Go: metrics/prometheus/prometheus.go:860 (strings.ToLower(labels.Adapter)) and the other
+    // adapter labels; go1.26.2 src/strings/strings.go:727 (ToLower)
+    #[test]
+    fn edge_adapter_names_match_go() -> TestResult {
+        let go = golden("edge_adapter_names.prom")?;
+        let rust = sample_scrape("edge_adapter_names")?;
+        for (adapter, recorded) in [
+            ("", "edge_adapter_panics{adapter=\"\"} 1"),
+            (
+                "adkerneladn",
+                "edge_adapter_gdpr_requests_blocked{adapter=\"adkerneladn\"} 1",
+            ),
+            (
+                "\u{1c6}ungla",
+                "edge_adapter_bids{adapter=\"\u{1c6}ungla\",delivery=\"nurl\"} 1",
+            ),
+            (
+                "\u{ff41}\u{ff50}\u{ff50}",
+                "edge_adapter_requests{adapter=\"\u{ff41}\u{ff50}\u{ff50}\",cookie=\"unknown\",\
+                 has_bids=\"true\"} 1",
+            ),
+        ] {
+            let go_lines = adapter_lines(&go, adapter);
+            check(
+                go_lines.contains(&recorded),
+                &format!("{adapter:?}: Go's {recorded}"),
+            )?;
+            let spellings = value_spellings(
+                &go_lines.join("\n"),
+                &adapter_lines(&rust, adapter).join("\n"),
+            )
+            .map_err(|e| format!("{adapter:?}: {e}"))?;
+            check(
+                spellings.is_empty(),
+                &format!("{adapter:?}: respelled {spellings:?}"),
+            )?;
+        }
+        check(
+            go.contains("\nedge_adapter_prices_sum{adapter=\"\"} 0\n")
+                && rust.contains("\nedge_adapter_prices_sum{adapter=\"\"} 0\n"),
+            "the sum of the prices 0 and -0",
+        )
+    }
 }
