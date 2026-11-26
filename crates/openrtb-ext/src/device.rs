@@ -172,7 +172,7 @@ pub fn is_known_ios_app_tracking_status(v: i64) -> bool {
 /// The member `jsonparser.GetInt` finds for `ParseDeviceExtATTS`, read as a typed partial
 /// struct: the top-level `atts` of an object, raw, null included (an `atts` inside another
 /// value is ignored, as jsonparser does not look there). A repeated `atts` fails the read, where
-/// jsonparser takes the first (`json.duplicate-keys`).
+/// jsonparser takes the first (`json.jsonparser-scan`).
 #[derive(Deserialize)]
 struct AttsMember {
     /// The raw value of `atts`, `None` when absent.
@@ -187,14 +187,15 @@ fn present<'de, D: Deserializer<'de>>(deserializer: D) -> Result<Option<Box<RawV
 
 /// Go: `ParseDeviceExtATTS(deviceExt)`: the iOS app tracking status in `request.device.ext`.
 ///
-/// Go reads `atts` with `jsonparser.GetInt`. `None` when it is absent, and for bytes that do not
-/// start an object, where jsonparser finds no member. The ext is read with `serde_json`, which
-/// fails on a repeated `atts`, where jsonparser takes the first (`json.duplicate-keys`), and on
-/// bytes it does not read, where jsonparser reads `atts` as it scans to it (`{"atts":01}` gives 1,
-/// `{"atts":2` 2) and stops at a top-level key with a lone surrogate escape, finding no `atts`
-/// after it (`json.jsonparser-scan`). The request's decode writes that escape as U+FFFD, a key
-/// `serde_json` reads past, so an `atts` after it gives a status where Go has none. Go's one caller
-/// (privacy/lmt/ios.go:52) treats an error as no status.
+/// Go reads `atts` with `jsonparser.GetInt`, which scans the bytes as far as the first top-level
+/// `atts`. `None` when it is absent, and for bytes that do not start an object: JSON that is not an
+/// object has no member, in Go as here. The ext is read with `serde_json`, which fails on a
+/// repeated `atts`, where jsonparser takes the first, and on bytes it does not read, where
+/// jsonparser reads `atts` as it scans to it (`{"atts":01}` gives 1, `{"atts":2` 2, and
+/// `x{"atts":1}`, which gives no status here, 1) and stops at a top-level key with a lone
+/// surrogate escape, finding no `atts` after it (`json.jsonparser-scan`). The request's decode
+/// writes that escape as U+FFFD, a key `serde_json` reads past, so an `atts` after it gives a
+/// status where Go has none. Go's one caller (privacy/lmt/ios.go:52) treats an error as no status.
 ///
 /// # Errors
 ///
@@ -245,8 +246,12 @@ mod tests {
     /// key ends jsonparser's scan. Only those two pass the request's decode, in Go and in the port,
     /// and `pbs_jsonutil`'s decode writes their escape as U+FFFD (`json.lone-surrogates-raw`),
     /// after which `atts` reads 1 from both: Go's status for the first, and a status where Go has
-    /// none for the second. JSON reads as Go reads it, and bytes that do not start an object give
-    /// no status, as in Go: the values below are the goldens'.
+    /// none for the second. A repeated `atts`, which also passes the request's decode, fails too,
+    /// where jsonparser stops at the first: go1.26.2 gives 2 for `{"atts":2,"atts":3}`
+    /// (`functions.tsv`). Bytes before an object give no status, where go1.26.2 scans past them
+    /// and gives 1 for `x{"atts":1}` (run by hand). Other JSON reads as Go reads it, and other
+    /// bytes that do not start an object give no status, as in Go: the values of the last cases
+    /// are the goldens'.
     // Go: openrtb_ext/device.go:103-117
     #[test]
     fn atts_read_only_from_json() -> TestResult {
@@ -257,6 +262,7 @@ mod tests {
             r#"{"atts":2"#,
             r#"{"atts":-}"#,
             r#"{"x":1,"atts":00}"#,
+            r#"{"atts":2,"atts":3}"#,
         ]
         .into_iter()
         .chain(LONE_SURROGATE_KEYS)
@@ -264,6 +270,12 @@ mod tests {
             if let Ok(got) = parse_device_ext_atts(doc.as_bytes()) {
                 return Err(format!("{doc}: got {got:?}, want an error"));
             }
+        }
+        let prefixed = r#"x{"atts":1}"#;
+        let got =
+            parse_device_ext_atts(prefixed.as_bytes()).map_err(|e| format!("{prefixed}: {e}"))?;
+        if got.is_some() {
+            return Err(format!("{prefixed}: got {got:?}, want None"));
         }
         for doc in LONE_SURROGATE_KEYS {
             let decoded = pbs_jsonutil::replace_lone_surrogates(doc.as_bytes());

@@ -31,7 +31,8 @@ use super::{
 };
 
 /// `json.jsonparser-scan`: `ParseDeviceExtATTS` given bytes that `serde_json` does not read as
-/// JSON, where jsonparser reads `atts` as it scans to it and the port fails.
+/// JSON, or an object that repeats `atts`, where jsonparser reads the first `atts` as it scans to
+/// it and the port fails.
 const JSONPARSER_SCAN: &str = "json.jsonparser-scan";
 
 /// The keys of the struct Go's `ReadDealTiersFromImp` decodes `imp.ext` into, which jsoniter
@@ -381,10 +382,12 @@ fn first_member_only(doc: &[u8], key: &str) -> Option<String> {
 }
 
 /// The ledger entry of a `ParseDeviceExtATTS` call that differs from Go's: the error texts of
-/// jsonparser and `serde_json`; a document that repeats `atts`, which returns Go's results once
-/// only the first is kept, as jsonparser reads it; or bytes that `serde_json` does not read as
-/// JSON (a syntax error, invalid UTF-8, a lone surrogate escape), where jsonparser reads `atts`
-/// as it scans to it.
+/// jsonparser and `serde_json`; or `json.jsonparser-scan`, where jsonparser reads `atts` as it
+/// scans to it: a document that repeats `atts`, which returns Go's results once only the first
+/// is kept (jsonparser stops at it, where the serde derive rejects the repeated member, a
+/// difference in what the auction reads and not in the request's status, which
+/// `json.duplicate-keys` is about), or bytes that `serde_json` does not read as JSON (a syntax
+/// error, invalid UTF-8, a lone surrogate escape).
 fn atts_entry(c: &Call<'_>, rust: &[Vec<u8>], go: &[Vec<u8>]) -> TestResult<Option<&'static str>> {
     if same_failure(rust, go) {
         return Ok(Some(ERROR_TEXTS));
@@ -400,7 +403,7 @@ fn atts_entry(c: &Call<'_>, rust: &[Vec<u8>], go: &[Vec<u8>]) -> TestResult<Opti
             name: c.name,
             args: &args,
         })?;
-        return Ok((again == go).then_some(DUPLICATE_KEYS));
+        return Ok((again == go).then_some(JSONPARSER_SCAN));
     }
     let not_json = from_utf8(doc).is_err() || serde_json::from_slice::<Value>(doc).is_err();
     Ok(not_json.then_some(JSONPARSER_SCAN))
@@ -728,7 +731,9 @@ fn functions() -> TestResult {
 /// The adversarial review's calls (`testdata/go/review.go`), none where Go panics: bidder names
 /// under Go's Unicode case mapping and folding, and sampled multibid, deal tier, alternate
 /// bidder code, ATTS, floors, consented-provider and clone inputs. No call differs by the
-/// `String` gap.
+/// `String` gap. The repeated members are `atts`, which jsonparser reads the first of
+/// (`json.jsonparser-scan`), and a deal tier `prebid` whose first value fails in Go, which only
+/// the error texts tell apart.
 #[test]
 fn review_functions() -> TestResult {
     replay_calls(
@@ -736,12 +741,6 @@ fn review_functions() -> TestResult {
         8500,
         0,
         &[],
-        &[
-            DUPLICATE_KEYS,
-            ERROR_TEXTS,
-            JSONPARSER_SCAN,
-            KEY_CASE,
-            STRUCT_FROM_ARRAY,
-        ],
+        &[ERROR_TEXTS, JSONPARSER_SCAN, KEY_CASE, STRUCT_FROM_ARRAY],
     )
 }
