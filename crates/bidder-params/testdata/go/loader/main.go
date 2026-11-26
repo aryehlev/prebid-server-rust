@@ -17,8 +17,9 @@
 // It writes loader.jsonl, one line per case: the files of the case's root directory, the schema
 // directory Prebid is given, the working directory and $PWD it runs with, and Go's outcome: the
 // error text, or, when the validator loads, the appnexus schema's contents and the error of
-// validating the document 1 against the schema Go compiled for appnexus. The case's root
-// directory is spelled $ROOT.
+// validating the document 1 against the schema Go compiled for appnexus, and the same two for
+// appnexusalias, an alias of appnexus every case runs with. The case's root directory is
+// spelled $ROOT.
 package main
 
 import (
@@ -35,6 +36,11 @@ import (
 
 // rootToken stands for the root directory of a case in the golden.
 const rootToken = "$ROOT"
+
+// alias is the alias of appnexus registered before every case, as Prebid registers the aliases
+// of static/bidder-info before it loads the schemas: a file of its name loads, then the alias
+// takes its parent's schema.
+const alias = "appnexusalias"
 
 // entry is one file system entry of a case, under its root.
 type entry struct {
@@ -64,9 +70,12 @@ type loaderCase struct {
 	Error string `json:"error,omitempty"`
 	// Schema is Schema("appnexus") when it loads.
 	Schema string `json:"schema,omitempty"`
-	// Probe is the error text of Validate("appnexus", `1`) when it loads, empty when valid: it
-	// tells which schema Go compiled.
+	// Probe is the text of Validate("appnexus", `1`) when it loads (see probe): it tells which
+	// schema Go compiled.
 	Probe string `json:"probe,omitempty"`
+	// AliasSchema and AliasProbe are Schema and Probe for alias.
+	AliasSchema string `json:"aliasSchema,omitempty"`
+	AliasProbe  string `json:"aliasProbe,omitempty"`
 }
 
 func fileEntry(path, contents string) entry {
@@ -147,6 +156,33 @@ func cases() []loaderCase {
 			Dir:     "d",
 			Cwd:     "real",
 		},
+		{
+			// os.ReadDir sorts the entries by name, and the first that fails stops the load.
+			Name: "files fail in the order of their names",
+			Entries: []entry{
+				fileEntry("d/m.json", anySchema), fileEntry("d/x.json", anySchema),
+				fileEntry("d/f.json", anySchema), fileEntry("d/b.json", anySchema),
+				fileEntry("d/q.json", anySchema), fileEntry("d/e.json", anySchema),
+				fileEntry("d/t.json", anySchema), fileEntry("d/k.json", anySchema),
+			},
+			Dir: "$ROOT/d",
+		},
+		{
+			Name:    "a schema fails before a later file name",
+			Entries: []entry{fileEntry("d/zz.json", anySchema), fileEntry("d/appnexus.json", badSchema)},
+			Dir:     "$ROOT/d",
+		},
+		{Name: "a file without .json", Entries: []entry{fileEntry("d/appnexus", objectSchema)}, Dir: "$ROOT/d"},
+		{
+			Name:    "an alias's own schema gives way to its parent's",
+			Entries: []entry{fileEntry("d/appnexus.json", objectSchema), fileEntry("d/appnexusalias.json", anySchema)},
+			Dir:     "$ROOT/d",
+		},
+		{
+			Name:    "an alias's own schema without its parent's",
+			Entries: []entry{fileEntry("d/appnexusalias.json", objectSchema)},
+			Dir:     "$ROOT/d",
+		},
 	}
 }
 
@@ -163,6 +199,9 @@ func main() {
 		log.Fatal(err)
 	}
 	pwd, hadPwd := os.LookupEnv("PWD")
+	if err := openrtb_ext.SetAliasBidderName(alias, openrtb_ext.BidderAppnexus); err != nil {
+		log.Fatal(err)
+	}
 
 	var lines bytes.Buffer
 	for _, c := range cases() {
@@ -234,9 +273,24 @@ func run(c *loaderCase) {
 	}
 	c.Loaded = true
 	c.Schema = validator.Schema(openrtb_ext.BidderAppnexus)
-	if err := validator.Validate(openrtb_ext.BidderAppnexus, []byte("1")); err != nil {
-		c.Probe = err.Error()
+	c.Probe = probe(validator, openrtb_ext.BidderAppnexus)
+	c.AliasSchema = validator.Schema(alias)
+	c.AliasProbe = probe(validator, alias)
+}
+
+// probe is the text of validating the document 1 against name's schema: empty when valid, the
+// error's text, or "panic" where Go panics, as it does on the nil schema of a bidder without
+// one.
+func probe(validator openrtb_ext.BidderParamValidator, name openrtb_ext.BidderName) (text string) {
+	defer func() {
+		if recover() != nil {
+			text = "panic"
+		}
+	}()
+	if err := validator.Validate(name, []byte("1")); err != nil {
+		return err.Error()
 	}
+	return ""
 }
 
 // create makes one entry under root.
