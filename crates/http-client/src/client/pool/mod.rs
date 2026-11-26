@@ -24,7 +24,10 @@
 //!
 //! Over TLS the dial offers ALPN `h2` and `http/1.1`, as reqwest does; an origin that picks
 //! `http/1.1` is left to reqwest for [`H2C_VERDICT_TTL`](super::H2C_VERDICT_TTL), its connection
-//! closed unused.
+//! closed unused. So is an h2c origin moved back to HTTP/1.1 ([`Pool::demote`]). Either way the
+//! origin's pooled connections leave the pool then, so that, once their streams in flight have
+//! ended, they close and give their `max_connections_per_host` slots back to the requests that now
+//! go over HTTP/1.1.
 
 mod dial;
 mod stream;
@@ -91,9 +94,10 @@ struct Shared {
     state: Mutex<State>,
     dialer: Dialer,
     idle_timeout: Option<Duration>,
-    /// The TLS origins that answered ALPN with `http/1.1`, until when that holds.
+    /// The origins whose requests go over reqwest, until when that holds: the TLS origins that
+    /// answered ALPN with `http/1.1`, and the h2c origins moved back to HTTP/1.1.
     http1: Cache<Key, Instant>,
-    /// How long an ALPN verdict holds.
+    /// How long such a verdict holds.
     verdict_ttl: Duration,
 }
 
@@ -164,7 +168,8 @@ pub(super) struct Answer {
 /// Why a request did not get its answer over the pool.
 #[derive(Debug)]
 pub(super) enum Failure {
-    /// Over TLS, the origin picked `http/1.1`: the request goes over reqwest, after `wait`.
+    /// Over TLS the origin picked `http/1.1`, or the h2c origin has been moved back to HTTP/1.1:
+    /// the request goes over reqwest, after `wait`.
     Http1 { wait: Duration },
     /// The URL cannot be written as HTTP/2's target.
     Target(http::Error),
@@ -254,6 +259,14 @@ impl Pool {
                 verdict_ttl,
             }),
         }
+    }
+
+    /// Moves `key`'s origin off the pool for the verdicts' time: its requests go over reqwest, and
+    /// its connections leave the pool, their streams in flight finishing, so that each closes
+    /// and gives its `max_connections_per_host` slot back once its streams have ended. The h2c
+    /// demotions call it (`http-client.h2c-demotion`, `http-client.h2c-redirects`).
+    pub(super) fn demote(&self, key: &Key) {
+        self.shared.demote(key);
     }
 
     /// Sends `hop` over one of its origin's connections and waits for the answer's head, the
@@ -428,10 +441,7 @@ impl Pool {
                 })
             }
             Ok(Dialed::Http1) => {
-                let until = Instant::now()
-                    .checked_add(self.shared.verdict_ttl)
-                    .unwrap_or_else(Instant::now);
-                self.shared.http1.insert(key.clone(), until);
+                self.shared.demote(key);
                 drop(opening.send(Opening::Http1));
                 drop(guard);
                 drop(slot);
@@ -562,6 +572,19 @@ impl Shared {
             .and_then(|host| host.conns.iter_mut().find(|conn| conn.id == id))
         {
             conn.link = Link::Ready(Box::new(send.clone()));
+        }
+    }
+
+    /// Sends `key`'s requests over reqwest until the verdicts' time has passed, and takes every
+    /// connection of `key` out of the pool: their streams in flight finish on them.
+    fn demote(&self, key: &Key) {
+        let until = Instant::now()
+            .checked_add(self.verdict_ttl)
+            .unwrap_or_else(Instant::now);
+        self.http1.insert(key.clone(), until);
+        let mut state = self.lock();
+        if let Some(host) = state.hosts.remove(key) {
+            host.changed.notify_waiters();
         }
     }
 

@@ -56,7 +56,13 @@ rust = """\
     connections reports `Event::Dns` from the pool's dial when it opens a connection to a named \
     host, and `GotConn` with a new connection for the request that opened it and a reused one \
     for every other request on it, its wait the time it waited for a free stream or a slot; each \
-    pooled connection counts once as created."""
+    pooled connection counts once as created. Over HTTP/1.1, Go's transport puts a connection \
+    back among the idle ones before the read of its response body's end returns, so the next \
+    request reuses it; hyper puts it back from the connection's task once that task sees the end, \
+    so a request sent at once after an answer's body was read may find it still busy and open \
+    another connection, counted as created (a few times in hundreds of back-to-back requests on a \
+    loaded machine; `crates/http-client/tests/h2.rs::http2_off_is_go` pauses 100 ms between its \
+    requests for this)."""
 who = ["operator"]
 visible_in = """\
     The adapter connection created, reused, wait, dial time and dial error metrics, the DNS and \
@@ -161,19 +167,30 @@ rust = """\
     pool of h2 connections, which pbs-http-client speaks with h2 itself as reqwest and hyper do: \
     a request takes the connection with the most free streams (the peer's \
     `SETTINGS_MAX_CONCURRENT_STREAMS` less its open streams; the requests that come while a \
-    connection opens wait for its SETTINGS, at most a second, then choose again); when every \
-    connection is full another opens, each holding one `max_connections_per_host` slot while it \
-    is open, and past the cap a request waits for a free stream or slot; a connection that gets \
-    GOAWAY or fails leaves the pool while its streams in flight finish; one idle for \
-    `idle_connection_timeout_seconds` closes. There is no other knob. Over TLS the pool offers \
-    `h2` and `http/1.1`; an origin that picks `http/1.1` has that connection closed unused and \
-    gets its requests over reqwest's connections for ten minutes, so it sees one more TLS \
-    handshake every ten minutes. Requests through a proxy, or with a streamed body, go over \
-    reqwest as before (h2 inside a proxy's tunnel on one connection). The pool dials a name's \
-    addresses one after another, where reqwest's connector and Go's dialer race IPv6 and IPv4 \
-    after 300 ms. Responses read as reqwest's HTTP/2 gave them: hyper's body rules, tower-http's \
-    gzip decompression and reqwest's error texts \
-    (`crates/http-client/tests/pool.rs::pooled_bodies_read_as_reqwest_h2`)."""
+    connection opens wait for its SETTINGS, at most a second, then choose again; a peer whose \
+    SETTINGS take longer is taken to allow HTTP/2's initial 100 streams, and a stream it refuses \
+    past its own limit goes again, at most twice, before it fails); when every connection is \
+    full another opens, each holding one `max_connections_per_host` slot while it is open, and \
+    past the cap a request waits for a free stream or slot; a connection that gets GOAWAY or \
+    fails leaves the pool while its streams in flight finish; one idle for \
+    `idle_connection_timeout_seconds` closes, whatever `max_idle_connections_per_host` says \
+    (that bounds the HTTP/1.1 connections kept idle; a negative value keeps none of them, but \
+    the pool keeps its connections). There is no other knob. Over TLS the pool offers `h2` and `http/1.1`; an origin that picks \
+    `http/1.1` has that connection closed unused and gets its requests over reqwest's \
+    connections for ten minutes, so it sees one more TLS handshake every ten minutes. Such an \
+    origin, and an h2c origin moved back to HTTP/1.1, has its other pooled connections leave the \
+    pool, each closing once its streams in flight have ended and giving its slot to the \
+    origin's HTTP/1.1 requests (`crates/http-client/tests/pool.rs::demotion_frees_the_slots`). \
+    Requests through a proxy, or with a streamed body, go over reqwest as before (h2 inside a \
+    proxy's tunnel on one connection). The pool dials a name's addresses one after another, \
+    each with the whole connect timeout, where reqwest's connector and Go's dialer race IPv6 and \
+    IPv4 after 300 ms and split the timeout among the addresses; its sockets get reqwest's \
+    TCP_NODELAY, the dialer's keep-alive and, on Linux, reqwest's 30-second TCP_USER_TIMEOUT. \
+    Responses read as reqwest's HTTP/2 gave them: hyper's body rules, tower-http's gzip \
+    decompression, the response URL without its fragment and reqwest's error texts, a failed \
+    dial's among them (`crates/http-client/tests/pool.rs::pooled_bodies_read_as_reqwest_h2`, \
+    `crates/http-client/tests/pool.rs::pooled_response_url_drops_the_fragment`, \
+    `crates/http-client/tests/pool.rs::dial_errors_read_as_reqwest`)."""
 who = ["operator", "bidder"]
 visible_in = """\
     The `http_client.http2.enabled` key; with it on, the protocol of bid requests, the \

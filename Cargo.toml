@@ -123,9 +123,10 @@ serde-saphyr = { version = "2.2.0", default-features = false, features = ["deser
 # Go sorts map keys, and arbitrary_precision changes what a Value number is.
 serde_json = { version = "1.0.154", features = ["float_roundtrip", "raw_value"] }
 sha2 = "0.11.1"
-# The TCP keep-alive of the bidder client's pooled h2 connections (H2-OPT-POOL), which tokio's
-# sockets do not set; tokio and hyper-util already lock it.
-socket2 = "0.6.5"
+# The TCP keep-alive and, on Linux, the TCP_USER_TIMEOUT of the bidder client's pooled h2
+# connections (H2-OPT-POOL), which tokio's sockets do not set; tokio and hyper-util already lock it.
+# all: set_tcp_user_timeout, as hyper-util's connector enables it for reqwest.
+socket2 = { version = "0.6.5", features = ["all"] }
 syn = "3.0.10"
 time = { version = "0.3.55", features = ["formatting", "macros", "parsing"] }
 tokio = { version = "1.54.1", features = ["io-util", "macros", "net", "rt-multi-thread", "signal", "sync", "time"] }

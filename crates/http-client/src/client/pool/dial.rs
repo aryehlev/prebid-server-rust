@@ -36,7 +36,7 @@ use url::{Host, Url};
 
 use super::super::{http2::MAX_HEADER_LIST, resolve::lookup};
 use crate::{
-    error::{ErrorKind, RequestError},
+    error::{DnsError, ErrorKind, RequestError},
     metrics::{Event, Trace},
     roots::Roots,
     settings::{HttpClientSettings, KEEP_ALIVE_DEFAULT, KEEP_ALIVE_PROBES},
@@ -56,6 +56,12 @@ const MAX_LOCAL_ERROR_RESETS: usize = 1024;
 /// The streams a connection is counted to take while it is being opened, before its peer's
 /// SETTINGS can say: what HTTP/2's handshake assumes.
 pub(super) const ASSUMED_STREAMS: usize = INITIAL_MAX_SEND_STREAMS;
+
+/// reqwest's TCP_USER_TIMEOUT where the system has it (reqwest 0.13 `ClientBuilder::new`): a
+/// connection whose data stays unacknowledged this long is closed, so that a pooled connection
+/// whose peer went silent leaves the pool, as reqwest's HTTP/2 connection to it would.
+#[cfg(any(target_os = "android", target_os = "fuchsia", target_os = "linux"))]
+const USER_TIMEOUT: Duration = Duration::from_secs(30);
 
 /// The port of a URL that names none.
 const fn default_port(tls: bool) -> u16 {
@@ -120,36 +126,65 @@ impl DialError {
         self.phase == Phase::Handshake
     }
 
-    /// The request's error, worded as reqwest words a failed connect.
+    /// The request's error, worded as reqwest words a failed connect, or, for HTTP/2's
+    /// handshake, as hyper-util words a failed handshake (its `Error::tx`).
     pub(in super::super) fn request_error(self: &Arc<Self>) -> RequestError {
-        let kind = match self.phase {
-            Phase::Timeout => ErrorKind::ConnectTimeout,
-            Phase::Handshake => ErrorKind::Request,
-            Phase::Dns | Phase::Connect | Phase::Tls => ErrorKind::Connect,
+        let (kind, context) = match self.phase {
+            Phase::Timeout => (
+                ErrorKind::ConnectTimeout,
+                "error sending request: client error (Connect)",
+            ),
+            Phase::Handshake => (
+                ErrorKind::Request,
+                "error sending request: client error (SendRequest)",
+            ),
+            Phase::Dns | Phase::Connect | Phase::Tls => (
+                ErrorKind::Connect,
+                "error sending request: client error (Connect)",
+            ),
         };
-        RequestError::chained(
-            kind,
-            "error sending request: client error (Connect)",
-            Arc::clone(self),
-        )
+        RequestError::chained(kind, context, Arc::clone(self))
     }
 }
 
+/// Worded as the errors under reqwest's `client error (Connect)`: hyper-util's `dns error` and
+/// `tcp connect error` around their causes, and the TLS handshake's error and reqwest's connect
+/// timeout as they are, which hyper-rustls and reqwest hand on unwrapped; HTTP/2's handshake as
+/// hyper's `http2 error` around h2's.
 impl fmt::Display for DialError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str(match self.phase {
-            Phase::Dns => "dns error",
-            Phase::Connect => "tcp connect error",
-            Phase::Tls => "tls handshake error",
-            Phase::Timeout => "connect timeout",
-            Phase::Handshake => "http2 handshake error",
-        })
+        match self.phase {
+            Phase::Dns => f.write_str("dns error"),
+            Phase::Connect => f.write_str("tcp connect error"),
+            Phase::Tls | Phase::Timeout => fmt::Display::fmt(&self.cause, f),
+            Phase::Handshake => f.write_str("http2 error"),
+        }
     }
 }
 
 impl Error for DialError {
     fn source(&self) -> Option<&(dyn Error + 'static)> {
-        Some(&*self.cause)
+        match self.phase {
+            // The error is its cause's words: what comes after them is the cause's own source.
+            Phase::Tls | Phase::Timeout => self.cause.source(),
+            Phase::Dns | Phase::Connect | Phase::Handshake => Some(&*self.cause),
+        }
+    }
+}
+
+/// reqwest's error around a resolver's failure (its `DnsError`), under hyper-util's `dns error`.
+#[derive(Debug)]
+struct Resolving(DnsError);
+
+impl fmt::Display for Resolving {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str("error resolving DNS")
+    }
+}
+
+impl Error for Resolving {
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        Some(&self.0)
     }
 }
 
@@ -283,7 +318,7 @@ impl Dialer {
                 let start = Instant::now();
                 let found = lookup(self.loopback, name).await;
                 *dns = Some(start.elapsed());
-                let mut found = found.map_err(|e| DialError::new(Phase::Dns, e))?;
+                let mut found = found.map_err(|e| DialError::new(Phase::Dns, Resolving(e)))?;
                 // hyper-util's connector: the URL's port unless it names none and the resolver
                 // gave one.
                 for address in &mut found {
@@ -324,16 +359,19 @@ impl Dialer {
         for address in addresses {
             match TcpStream::connect(address).await {
                 Ok(stream) => {
-                    // reqwest's TCP_NODELAY and the dialer's keep-alive; hyper-util logs a failure
-                    // to set either and goes on.
+                    // reqwest's TCP_NODELAY and TCP_USER_TIMEOUT and the dialer's keep-alive;
+                    // hyper-util logs a failure to set any of them and goes on.
                     drop(stream.set_nodelay(true));
+                    let socket = SockRef::from(&stream);
                     if let Some(idle) = self.keep_alive {
                         let keep_alive = TcpKeepalive::new()
                             .with_time(idle)
                             .with_interval(KEEP_ALIVE_DEFAULT)
                             .with_retries(KEEP_ALIVE_PROBES);
-                        drop(SockRef::from(&stream).set_tcp_keepalive(&keep_alive));
+                        drop(socket.set_tcp_keepalive(&keep_alive));
                     }
+                    #[cfg(any(target_os = "android", target_os = "fuchsia", target_os = "linux"))]
+                    drop(socket.set_tcp_user_timeout(Some(USER_TIMEOUT)));
                     return Ok(stream);
                 }
                 Err(error) => last = Some(error),

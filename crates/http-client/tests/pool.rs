@@ -24,13 +24,14 @@ mod tests {
         server::{Builder as ServerBuilder, SendResponse},
     };
     use pbs_http_client::{
-        Builder, Client, Event, Http2Settings, HttpClientSettings, ProxyEnv, Trace,
+        Builder, Client, DialerSettings, Event, Http2Settings, HttpClientSettings, ProxyEnv, Trace,
         reqwest::{
             self, Method, Request, StatusCode, Url,
             header::{HeaderName, HeaderValue},
         },
     };
     use tokio::{
+        net::TcpListener,
         sync::{Semaphore, mpsc, oneshot, watch},
         task::{JoinHandle, JoinSet},
         time::{Instant, sleep, timeout},
@@ -126,8 +127,18 @@ mod tests {
 
         /// A TLS bidder offering only `h2` in ALPN, advertising `streams`.
         async fn tls(pki: &TestPki, streams: u32) -> Result<Self, BoxError> {
+            Self::tls_offering(pki, &[b"h2"], streams).await
+        }
+
+        /// A TLS bidder offering `alpn`, HTTP/2 when the client takes `h2` (advertising
+        /// `streams`) and HTTP/1.1 otherwise.
+        async fn tls_offering(
+            pki: &TestPki,
+            alpn: &[&[u8]],
+            streams: u32,
+        ) -> Result<Self, BoxError> {
             let shared = Self::shared(streams);
-            let server = RawServer::start_tls(pki.acceptor(&[b"h2"])?, {
+            let server = RawServer::start_tls(pki.acceptor(alpn)?, {
                 let shared = Arc::clone(&shared);
                 move |conn| serve(conn, Arc::clone(&shared))
             })
@@ -176,17 +187,19 @@ mod tests {
         }
     }
 
-    /// Serves one connection: HTTP/2 over TLS (ALPN offers nothing else) or after HTTP/2's
-    /// preface in cleartext, HTTP/1.1 otherwise.
+    /// Serves one connection: HTTP/2 over TLS when ALPN took `h2`, or after HTTP/2's preface in
+    /// cleartext, HTTP/1.1 otherwise.
     async fn serve(mut conn: RawConn, shared: Arc<Shared>) {
-        let probe = if conn.alpn().is_none() {
-            if conn.peek(PREFACE.len()).await != PREFACE {
-                return http1(conn, &shared).await;
+        let probe = match conn.alpn() {
+            None => {
+                if conn.peek(PREFACE.len()).await != PREFACE {
+                    return http1(conn, &shared).await;
+                }
+                let hello = conn.peek(PREFACE.len() + EMPTY_SETTINGS.len()).await;
+                hello.get(PREFACE.len()..) == Some(EMPTY_SETTINGS.as_slice())
             }
-            let hello = conn.peek(PREFACE.len() + EMPTY_SETTINGS.len()).await;
-            hello.get(PREFACE.len()..) == Some(EMPTY_SETTINGS.as_slice())
-        } else {
-            false
+            Some(b"h2") => false,
+            Some(_) => return http1(conn, &shared).await,
         };
         let mut id = 0;
         if !probe {
@@ -239,8 +252,9 @@ mod tests {
 
     /// Reads a request on connection `id`, records it and answers it after its path: `/hold`
     /// once released, `/wait` after a moment, `/slow` never (its reset is recorded), `/refuse`
-    /// refused unread the first time its `x-id` comes, `/goaway` once the connection has said
-    /// GOAWAY (asked through `asks`), anything else at once.
+    /// refused unread the first time its `x-id` comes, `/reset` reset with `INTERNAL_ERROR`
+    /// once read, `/goaway` once the connection has said GOAWAY (asked through `asks`), anything
+    /// else at once.
     async fn answer(
         id: usize,
         request: http::Request<RecvStream>,
@@ -285,6 +299,10 @@ mod tests {
                     respond.send_reset(Reason::REFUSED_STREAM);
                     return;
                 }
+            }
+            "/reset" => {
+                respond.send_reset(Reason::INTERNAL_ERROR);
+                return;
             }
             "/goaway" => {
                 let (said, saying) = oneshot::channel();
@@ -1168,5 +1186,192 @@ mod tests {
             ],
             "the streams' read errors and bodies over the pool",
         )
+    }
+
+    /// What a request to `url`, sent with `client` under a ten-second deadline, failed with: its
+    /// kind, whether it is a refused connection or a name that does not exist (bidder.go's
+    /// unreachable bidder), and its text.
+    async fn failure(client: &Client, url: &str) -> Result<String, BoxError> {
+        let deadline = Instant::now()
+            .checked_add(Duration::from_secs(10))
+            .ok_or("no deadline")?;
+        Ok(
+            match client.send(bid(url, "dial")?, Some(deadline), None).await {
+                Ok(response) => format!("answered {}", response.status()),
+                Err(error) => format!(
+                    "{:?} refused={} not_found={}: {error}",
+                    error.kind(),
+                    error.is_connection_refused(),
+                    error.is_dns_not_found()
+                ),
+            },
+        )
+    }
+
+    // Go: none (HTTP-H2's requirement: with HTTP/2 on, a failed connect reads as reqwest's, the
+    // texts `http-client.error-texts` ledgers); ruling 10 (a): the pool's dial fails as reqwest's
+    // connector does, for an untrusted certificate, a refused connection, a name that does not
+    // exist and the connect timeout.
+    #[test]
+    fn dial_errors_read_as_reqwest() -> TestResult {
+        run(async {
+            let pki = TestPki::new()?;
+            // The clients trust no test root, so the bidder's certificate is untrusted.
+            let alpn: [&[u8]; 2] = [b"h2", b"http/1.1"];
+            let untrusted = RawServer::start_tls(pki.acceptor(&alpn)?, |mut conn| async move {
+                conn.drain().await;
+            })
+            .await?;
+            // Takes the connection and never answers TLS's hello.
+            let silent = RawServer::start(|mut conn: RawConn| async move {
+                conn.drain().await;
+            })
+            .await?;
+            let listener = TcpListener::bind("127.0.0.1:0").await?;
+            let closed = listener.local_addr()?.port();
+            drop(listener);
+            let quick = HttpClientSettings {
+                dialer: DialerSettings {
+                    timeout_seconds: 1,
+                    ..HTTP2_ON.dialer
+                },
+                ..HTTP2_ON
+            };
+            let build = |http2| {
+                Builder::new(HttpClientSettings { http2, ..quick }, ProxyEnv::default())
+                    .loopback_only(0)
+                    .negotiate_http2()
+                    .build()
+            };
+            let (pooled, reqwest) = (build(Http2Settings::ON)?, build(Http2Settings::OFF)?);
+            let mut differ = Vec::new();
+            for url in [
+                format!("https://127.0.0.1:{}/bid", untrusted.port()),
+                format!("https://localhost:{}/bid", untrusted.port()),
+                format!("https://127.0.0.1:{closed}/bid"),
+                format!("https://bidder.invalid:{closed}/bid"),
+                format!("https://127.0.0.1:{}/bid", silent.port()),
+            ] {
+                let (over_pool, over_reqwest) = (
+                    failure(&pooled, &url).await?,
+                    failure(&reqwest, &url).await?,
+                );
+                if over_pool != over_reqwest {
+                    differ.push((url, over_pool, over_reqwest));
+                }
+            }
+            drop((pooled, reqwest));
+            let _untrusted = untrusted.close().await;
+            let _silent = silent.close().await;
+            check_eq(
+                &differ,
+                &Vec::new(),
+                "the dials that fail otherwise over the pool than over reqwest: the URL, then the \
+                 kind, the unreachable tests and the text of each (pool, reqwest)",
+            )
+        })
+    }
+
+    // Go: net/http/transport.go Transport.queueForDial (MaxConnsPerHost counts connections);
+    // ruling 10 (a) with `http-client.h2c-demotion`: an h2c origin moved back to HTTP/1.1 takes
+    // its pooled connections out of the pool, which close once their streams end and give their
+    // max_connections_per_host slots to its HTTP/1.1 requests.
+    #[test]
+    fn demotion_frees_the_slots() -> TestResult {
+        run(async {
+            let pki = TestPki::new()?;
+            let bidder = Bidder::cleartext(1).await?;
+            let capped = HttpClientSettings {
+                max_connections_per_host: 1,
+                ..HTTP2_ON
+            };
+            let client = bidder_client(&pki, capped)?;
+            let bid_url = bidder.url("http", "127.0.0.1", "/bid");
+            let probing = send(&client, &bid_url, "probing").await?;
+            let _probed = bidder.wait(|book| book.probes == 1).await?;
+            let pooled = send(&client, &bid_url, "pooled").await?;
+            // The bidder resets a stream it read: the origin goes back to HTTP/1.1.
+            let reset = client
+                .send(
+                    bid(&bidder.url("http", "127.0.0.1", "/reset"), "reset")?,
+                    None,
+                    None,
+                )
+                .await
+                .map(|response| response.status());
+            let deadline = Instant::now()
+                .checked_add(Duration::from_secs(5))
+                .ok_or("no deadline")?;
+            let start = Instant::now();
+            let after = client
+                .send(bid(&bid_url, "after")?, Some(deadline), None)
+                .await
+                .map(|response| format!("{:?}", response.version()));
+            let prompt = start.elapsed() < Duration::from_secs(1);
+            let ended = bidder.wait(|book| book.ended == vec![0]).await?.ended;
+            drop(client);
+            bidder.close().await;
+            check_eq(
+                &(
+                    probing.version,
+                    pooled.version,
+                    reset.is_err(),
+                    after.map_err(|e| e.to_string()),
+                    prompt,
+                    ended,
+                ),
+                &(
+                    "HTTP/1.1".to_owned(),
+                    "HTTP/2.0".to_owned(),
+                    true,
+                    Ok("HTTP/1.1".to_owned()),
+                    true,
+                    vec![0],
+                ),
+                "with max_connections_per_host 1: the protocols before and after the probe, \
+                 whether the reset stream failed, the protocol of the request after it, whether \
+                 it went within a second (not waiting out the idle connection) and the h2c \
+                 connections closed",
+            )
+        })
+    }
+
+    // Go: none (HTTP-H2's requirement: with HTTP/2 on, a response reads as reqwest's gave it);
+    // ruling 10 (a): reqwest's response URL is the last request's target, without the URL's
+    // fragment.
+    #[test]
+    fn pooled_response_url_drops_the_fragment() -> TestResult {
+        run(async {
+            let pki = TestPki::new()?;
+            let alpn: [&[u8]; 2] = [b"h2", b"http/1.1"];
+            let bidder = Bidder::tls_offering(&pki, &alpn, 4).await?;
+            let url = bidder.url("https", "127.0.0.1", "/bid#part");
+            let mut urls = Vec::new();
+            for http2 in [Http2Settings::ON, Http2Settings::OFF] {
+                let client = bidder_client(&pki, HttpClientSettings { http2, ..HTTP2_ON })?;
+                let response = client.send(bid(&url, "fragment")?, None, None).await?;
+                urls.push((
+                    format!("{:?}", response.version()),
+                    response.url().to_string(),
+                ));
+            }
+            bidder.close().await;
+            let target = bidder_target(&url)?;
+            check_eq(
+                &urls,
+                &vec![
+                    ("HTTP/2.0".to_owned(), target.clone()),
+                    ("HTTP/1.1".to_owned(), target),
+                ],
+                "the protocol and the response URL over the pool and over reqwest",
+            )
+        })
+    }
+
+    /// `url` without its fragment.
+    fn bidder_target(url: &str) -> Result<String, BoxError> {
+        let mut target = Url::parse(url)?;
+        target.set_fragment(None);
+        Ok(target.to_string())
     }
 }

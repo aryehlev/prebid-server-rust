@@ -110,7 +110,10 @@ pub(super) async fn send(
                     body: stream,
                     ..
                 } = answer;
-                return Ok(Response::pooled(hop.url, status, headers, stream));
+                // reqwest's response URL is the last request's target, without a fragment.
+                let mut url = hop.url;
+                url.set_fragment(None);
+                return Ok(Response::pooled(url, status, headers, stream));
             }
             Next::Pool(next) => hop = next,
             Next::Reqwest(next) => {
@@ -160,9 +163,16 @@ impl Off<'_> {
                     reqwest_request(hop)
                 };
                 let key = limit_key(request.url(), None);
+                // An h2c origin moved back to HTTP/1.1 goes over the HTTP/1.1 connections the
+                // general client shares, as it does once its verdict is read.
+                let client = if request.url().scheme() == "https" {
+                    &self.http2.tls
+                } else {
+                    &self.core.http1
+                };
                 return self
                     .core
-                    .over(&self.http2.tls, request, self.trace, key, wait, requested)
+                    .over(client, request, self.trace, key, wait, requested)
                     .await;
             }
             Failure::Target(error) => {
@@ -177,7 +187,7 @@ impl Off<'_> {
             Failure::Unread(error) => sending(error),
             Failure::Failed(error) => {
                 if let Some(origin) = h2c {
-                    self.http2.h2c.demote(origin);
+                    demote(self.http2, origin, &hop.url);
                 }
                 return Err(sending(error));
             }
@@ -186,12 +196,20 @@ impl Off<'_> {
             return Err(unread);
         };
         // The origin read none of it: back to HTTP/1.1, and the request again over it, once.
-        self.http2.h2c.demote(origin);
+        demote(self.http2, origin, &hop.url);
         let key = limit_key(request.url(), None);
         self.core
             .over(&self.core.http1, request, self.trace, key, self.wait, 0)
             .await
     }
+}
+
+/// Moves the h2c origin `origin`, which `url` is on, back to HTTP/1.1: its verdict, and its
+/// connections in the pool, which leave it and give their `max_connections_per_host` slots back
+/// once their streams have ended.
+fn demote(http2: &Http2, origin: &Origin, url: &Url) {
+    http2.h2c.demote(origin);
+    http2.pool.demote(&limit_key(url, None));
 }
 
 /// The error of a request whose HTTP/2 stream or connection failed with `error`, worded as
@@ -274,7 +292,7 @@ fn redirect(
             .is_some_and(|first| !stays_on(first, &url))
     {
         // Off the h2c origin: the redirect is the answer, and the origin goes back to HTTP/1.1.
-        http2.h2c.demote(origin);
+        demote(http2, origin, &hop.url);
         return Ok(Next::Answer);
     }
     if let Some(refusal) = check_redirect(&core.rules, core.loopback_only, &url, requested.len()) {
