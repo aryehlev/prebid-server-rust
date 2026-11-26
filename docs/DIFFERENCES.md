@@ -1875,10 +1875,10 @@ No entry names the classes `other` and `unrecorded` or the kinds `stage_missing`
 
 #### `usersync.gpp-sid-error-text`: `gpp_sid` parse errors: std's text, not strconv's
 
-- **Go:** `stringutil.StrToInt8Slice` fails with strconv's text, `strconv.ParseInt: parsing "x": invalid syntax` or `... value out of range`, which `/cookie_sync` answers with (endpoints/cookie_sync.go:212, 464).
-- **Rust:** `str_to_int8_slice` fails with std's `ParseIntError`: `invalid digit found in string` or `number too large to fit in target type`.
-- **Who notices:** publisher
-- **Visible in:** The 400 body of `/cookie_sync` for a `gpp_sid` that is not a list of int8 values
+- **Go:** `stringutil.StrToInt8Slice` fails with a `*strconv.NumError`, whose text, `strconv.ParseInt: parsing "x": invalid syntax` or `... value out of range`, `/cookie_sync` answers with (endpoints/cookie_sync.go:212, 464), and whose fields the analytics modules write: `{"Func":"ParseInt","Num":"x","Err":{}}`.
+- **Rust:** `str_to_int8_slice` fails with std's `ParseIntError`: `invalid digit found in string` or `number too large to fit in target type`, which keeps neither the function nor the input.
+- **Who notices:** publisher, analytics
+- **Visible in:** The 400 body of `/cookie_sync` for a `gpp_sid` that is not a list of int8 values, and the errors of the cookie sync object the analytics modules get (endpoints/cookie_sync.go:463-469), which the filesystem and pubstack modules marshal as values (analytics/filesystem/file_module.go:184-200, analytics/pubstack/helpers/json.go:77-93)
 - **Harness:** none
 - **Pin:** `crates/util/src/stringutil.rs::str_to_int8_slice_go_cases`
 - **Restore option:** Write strconv's text from the input; not planned (ruling 2).
