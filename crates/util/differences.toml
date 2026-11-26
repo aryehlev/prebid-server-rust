@@ -1,0 +1,375 @@
+# The differences ledger's entries for pbs-util (see the pbs_differences ledger module for the
+# schema): the crates that stand for Go's net, net/url, regexp, time, math/rand and
+# benbjohnson/clock, and the [[restoration]] tables that give the entries crates/differences
+# records for UTIL-CRATES their restore pins. pbs-differences validates this file and writes
+# docs/DIFFERENCES.md and docs/differences.json from every fragment.
+
+[[restoration]]
+id = "regex.unicode-classes"
+pin = "crates/util/tests/goregex.rs::sites_match_go"
+note = """\
+    The 162 patterns of Prebid's code and static/bidder-params (GOC-REGEXP's sites.txt), over \
+    1,000 seeded subjects each of their own literals and class bounds and of the runes on which \
+    Go's ASCII classes and the crate's Unicode classes disagree, match as Go's \
+    `FindAllStringSubmatchIndex` does, group by group."""
+
+[[restoration]]
+id = "regex.unicode-classes"
+pin = "crates/util/tests/goregex.rs::edges_like_go"
+note = """\
+    196 edge patterns (classes in and out of brackets, case folding, braces, the characters the \
+    crate reads as set operators, escapes, flags and repetitions) fail with Go's error text or \
+    match 87 edge subjects as Go's do."""
+
+[[restoration]]
+id = "regex.quote-meta"
+pin = "crates/util/tests/goregex.rs::quoted_literals"
+note = "The 14 edge patterns with `\\Q` or `\\E` fail with Go's error text or match as Go's do."
+
+[[restoration]]
+id = "time.rfc3339-fraction"
+pin = "crates/util/tests/timeutil.rs::layouts_like_go"
+note = """\
+    `format_rfc3339` and `format_rfc3339_nano` write Go's bytes for 50,000 seeded instants in \
+    fixed zones and 16 edge instants."""
+
+[[difference]]
+id = "gzip.content-encoding-lower"
+category = "gzip"
+status = "ledgered"
+title = "`ContentEncoding.Normalize`: U+0130 lower-cases to two characters in std, to one in Go, so `gzİp` is gzip only in Go"
+go = """\
+    `strings.ToLower` lower-cases each rune on its own: U+0130 LATIN CAPITAL LETTER I WITH DOT \
+    ABOVE becomes a plain `i`, so `gzİp` and `GZİP` normalise to `gzip`, and Σ becomes σ \
+    wherever it stands."""
+rust = """\
+    `str::to_lowercase` writes Unicode's full lower case: U+0130 becomes `i` and U+0307 \
+    COMBINING DOT ABOVE, so no such value normalises to `gzip`, and a Σ that ends a word \
+    becomes ς."""
+who = ["publisher"]
+visible_in = """\
+    The 400 text of `/openrtb2/auction` with `compression.request.enable_gzip` on, for a \
+    `Content-Encoding` that spells gzip with U+0130: Go's `IsSupported` accepts `gzİp` and \
+    `getCompressionEnabledReader`, which compares the header as sent, answers `unsupported \
+    compression type 'gzİp'`, where the port's `IsSupported` refuses it and the text is \
+    `Content-Encoding of type gzİp is not supported` (endpoints/openrtb2/auction.go:424-430, \
+    588-593; config/compression.go:15-20)"""
+pin = "crates/util/src/httputil/tests.rs::misc_golden"
+restore = "Lower-case each character on its own, U+0130 to `i`; not planned."
+
+[[difference]]
+id = "ip.network-edges"
+category = "ip"
+status = "ledgered"
+title = "Networks: Go prints a mapped network as the IPv4 network it maps and masks with any bytes, ipnet does neither"
+go = """\
+    `IPNet.String` writes a network in IPv4-mapped form in its 4-byte form \
+    (`::ffff:10.0.0.0/104` as `10.0.0.0/8`), and `IP.Mask` and a hand-built `IPNet` take masks \
+    whose ones do not all lead (`255.0.255.0`) and masks of other lengths."""
+rust = """\
+    ipnet writes `::ffff:10.0.0.0/104`, and its networks and `iputil::net::mask` hold prefix \
+    masks of 32 or 128 bits only."""
+who = ["none"]
+visible_in = """\
+    Nowhere: Prebid prints no network and makes masks with `net.CIDRMask` and networks with \
+    `net.ParseCIDR` only (privacy/scrubber.go, config/requestvalidation.go)"""
+pin = "crates/util/src/iputil/tests.rs::net_parse_cidr_golden"
+restore = "A network type of Go's 4- and 16-byte forms; not planned."
+
+[[difference]]
+id = "ip.parse-edges"
+category = "ip"
+status = "restored"
+title = "Addresses and networks: IPv4-mapped addresses and zero-padded prefixes, which Go reads and std and ipnet do not"
+go = """\
+    `net.ParseIP` returns 16 bytes for every address, so `IP.String`, `IP.Mask` and \
+    `IPNet.Contains` treat `::ffff:10.1.2.3` as `10.1.2.3`, and `net.ParseCIDR` takes a prefix \
+    with any number of leading zeros (`10.0.0.0/008`) and refuses octets with one \
+    (`010.0.0.0/8`)."""
+rust = """\
+    std parses `::ffff:10.1.2.3` as an IPv6 address, which std writes as `::ffff:10.1.2.3` and \
+    no IPv4 network of ipnet contains; ipnet's `IpNet::from_str` takes octets with a leading \
+    zero and refuses an IPv4 prefix of more than two digits and an IPv6 one of more than \
+    three."""
+who = ["publisher", "bidder"]
+visible_in = """\
+    `device.ip` from a dual-stack proxy, as the private-network check (`request_validation`) and \
+    the masking of `privacy.scrubIP` see it in bidder requests, and an operator's \
+    `request_validation` networks"""
+pin = "crates/util/tests/iputil.rs::edge_list"
+restore = """\
+    `pbs_util::iputil::net` parses addresses with std and keeps an IPv4-mapped one as the IPv4 \
+    address it maps, and parses networks with std's address and Go's `dtoi` prefix into ipnet's \
+    networks."""
+rule_b = "a"
+
+[[restoration]]
+id = "ip.parse-edges"
+pin = "crates/util/tests/iputil.rs::edge_list"
+note = """\
+    79 edge addresses (leading zeros, mapped and compatible forms, zones, white space, ports, \
+    brackets and the limits of each field) give Go's bytes, text, version, validator verdict and \
+    masks."""
+
+[[restoration]]
+id = "ip.parse-edges"
+pin = "crates/util/tests/iputil.rs::seeded_addresses"
+note = """\
+    50,000 seeded addresses of eleven forms, a quarter of them with a byte inserted, deleted or \
+    replaced, with seeded masks and prefixes, give Go's outputs byte for byte."""
+
+[[restoration]]
+id = "ip.parse-edges"
+pin = "crates/util/tests/iputil.rs::cidr_edges"
+note = "42 edge networks give `net.ParseCIDR`'s verdict, network bytes and prefix."
+
+[[difference]]
+id = "rand.sequences"
+category = "rand"
+status = "ledgered"
+title = "Random numbers: rand's sequences, not `math/rand`'s"
+go = """\
+    `randomutil.RandomNumberGenerator` draws from the process-wide `math/rand` source, which Go \
+    seeds randomly at start-up."""
+rust = """\
+    rand's thread-local generator draws other sequences in the same bounds: `GenerateInt63` in \
+    [0, 2^63) and `Intn(n)` in [0, n), `None` where Go panics."""
+who = ["none"]
+visible_in = """\
+    Nowhere: no output depends on a sequence Go seeds at random; the parity fakes replace the \
+    generator"""
+pin = "crates/util/tests/randomutil.rs::bounds_only"
+restore = "A port of `math/rand`'s source; not planned."
+
+[[difference]]
+id = "regex.syntax-edges"
+category = "regex"
+status = "ledgered"
+title = "Go patterns the translation does not carry over, and forms and sizes the regex crate refuses"
+go = """\
+    `regexp.Compile` takes a repetition right after a flag group (`a(?i)*` repeats `a`) and \
+    escapes of surrogate code points (`\\x{D800}`), compiles counted repetitions of up to \
+    1,000 of any class (`\\pL{1000}`), capture names that start with a digit (`(?P<1a>x)`) or \
+    are used twice, a flag repeated or set and cleared in one group (`(?ii)`, `(?i-i)`), \
+    `\\p{Cs}` and groups nested up to 1,000 deep, and keeps a group repeated zero times \
+    (`(a){0}b` has one subexpression, which never takes part)."""
+rust = """\
+    `goregex::compile` fails with `CompileError::Unsupported` for the first two; the regex \
+    crate refuses a compiled program over its 10 MiB default, which `\\pL{1000}` and \
+    `(?:\\pL{100}){10}` are, those names and flags, `\\p{Cs}` and groups nested more than 250 \
+    deep (`CompileError::Crate`), and drops a group repeated zero times, so `(a){0}b` has no \
+    capture group."""
+who = ["publisher"]
+visible_in = """\
+    Only adquery's bids, for a request ID that is itself such a pattern: Go compiles `^` and \
+    the request ID (adapters/adquery/adquery.go:93) and removes the match from the \
+    `requestId` adquery answers with to make the bid's `impid`. None of the 162 fixed \
+    patterns of Prebid's code and static/bidder-params has such a form"""
+pin = "crates/util/tests/goregex.rs::untranslated_forms"
+restore = """\
+    Translate the forms, rename the names, merge the flags, keep a group repeated zero times \
+    and raise the limits when a Prebid pattern needs them; not planned."""
+
+[[difference]]
+id = "regex.unicode-version"
+category = "regex"
+status = "ledgered"
+title = "Unicode classes and case folding: Go 1.26's tables are Unicode 15.0, the regex crate's 16.0"
+go = """\
+    `\\pL`, the other `\\p` classes and `(?i)` follow `unicode.Version` 15.0.0, where the \
+    characters Unicode 16.0 added (U+1C89 CYRILLIC CAPITAL LETTER TJE among them) are \
+    unassigned."""
+rust = "regex-syntax's tables are Unicode 16.0.0's, so `\\pL` matches U+1C89 and `(?i)` folds it to U+1C8A."
+who = ["publisher"]
+visible_in = """\
+    Only adquery's bids, for a request ID that is itself such a pattern, a `\\p` class or \
+    `(?i)` and a character Unicode 16.0 added: Go compiles `^` and the request ID \
+    (adapters/adquery/adquery.go:93). No fixed Prebid pattern has a `\\p` class, and its four \
+    `(?i)` patterns are ASCII literals"""
+pin = "crates/util/tests/goregex.rs::unicode_16_letters"
+restore = "Ship Unicode 15.0 tables; not planned."
+
+[[difference]]
+id = "task.missed-ticks"
+category = "task"
+status = "restored"
+title = "Periodic tasks: Go's ticker drops the ticks a slow run misses, a tokio interval bursts to catch up"
+go = """\
+    `TickerTask` runs on a `time.Ticker`, whose one-tick channel drops the ticks a slow run \
+    misses: the next run starts when the slow one ends, the one after on the original schedule \
+    (util/task/ticker_task.go)."""
+rust = """\
+    A tokio `Interval` fires every missed tick at once by default \
+    (`MissedTickBehavior::Burst`)."""
+who = ["operator"]
+visible_in = """\
+    How often the currency rates, stored-request events and other periodic refreshes run after \
+    a slow one"""
+pin = "crates/util/tests/task.rs::missed_ticks"
+restore = """\
+    pbs-util's `TickerTask` drives `interval_at` with `MissedTickBehavior::Skip` (crate \
+    configuration, no glue). tokio drops a tick only once it is more than 5 ms late, so with an \
+    interval of 5 ms or less a run that outlasts a tick by at most 5 ms is followed by a \
+    catch-up run; Prebid's intervals are seconds or more."""
+rule_b = "prebid-logic"
+
+[[restoration]]
+id = "task.missed-ticks"
+pin = "crates/util/tests/task.rs::missed_ticks"
+note = """\
+    The run start times Go's `TickerTask` writes under `testing/synctest` for short, long and \
+    mixed runs, stops before, during and between runs, and zero or negative intervals."""
+
+[[difference]]
+id = "time.now-wall-clock"
+category = "time"
+status = "ledgered"
+title = "`timeutil.RealTime`: Go's `time.Now` is in the local zone with a monotonic reading, the port's the UTC wall clock"
+go = """\
+    `RealTime.Now` is `time.Now()`: in `time.Local`, so a host whose zone is not UTC writes its \
+    offset, and with a monotonic reading that `Sub` uses."""
+rust = """\
+    `RealTime::now` and `RealClock::now` are `OffsetDateTime::now_utc()`: UTC, and wall-clock \
+    only, so a step of the system clock moves the difference of two readings."""
+who = ["bidder", "operator"]
+visible_in = """\
+    On a host whose zone is not UTC, the `tzo` query parameter of adnuntius's bidder requests, \
+    minus the zone's offset in minutes in Go and 0 in the port \
+    (adapters/adnuntius/adnuntius_utils.go:67-68, 99), and the `lastUpdated` of \
+    `/currency/rates` (endpoints/currency_rates.go:49); and the staleness of the currency rates \
+    across a clock step"""
+pin = "crates/util/tests/timeutil.rs::now_is_the_utc_wall_clock"
+restore = "Read the local zone and keep a monotonic instant beside each reading; not planned."
+
+[[difference]]
+id = "time.ticker-non-positive"
+category = "time"
+status = "ledgered"
+title = "Tickers of a period that is not positive: Go panics or loops, the port's never tick"
+go = """\
+    `time.NewTicker` panics for a period that is not positive (non-positive interval for \
+    NewTicker), and benbjohnson/clock's mock loops for ever in `Add` once such a ticker is due."""
+rust = """\
+    `RealClock::ticker` and `MockClock::ticker` return a ticker that never ticks, and \
+    `TickerTask` runs once, as Go's does."""
+who = ["operator"]
+visible_in = """\
+    An analytics module configured with a buffer timeout of zero or less (agma's \
+    `buffers.timeout`, pubstack's `max_time`): Go's process panics when the module starts its \
+    ticker, and the port's ticker never fires"""
+pin = "crates/util/tests/timeutil.rs::non_positive_tickers_never_tick"
+restore = "Fail the start-up on such a period; not planned."
+
+[[difference]]
+id = "time.year-range"
+category = "time"
+status = "ledgered"
+title = "Years past 9999: a Go `time.Time` holds them, the time crate's `OffsetDateTime` does not"
+go = """\
+    `time.Time` spans billions of years, and `Format` writes a local time on 10000-01-01 with a \
+    five-digit year."""
+rust = """\
+    Without its `large-dates` feature the time crate's range ends with 9999-12-31, so such an \
+    instant, or a local time past it, has no `OffsetDateTime`: `checked_to_offset` returns \
+    `None`."""
+who = ["none"]
+visible_in = """\
+    Nowhere: Prebid's times are readings of the clock, cookie expiries a TTL ahead of it and \
+    RFC 3339 texts, whose four-digit years Go's parser requires"""
+pin = "crates/util/tests/timeutil.rs::years_past_9999"
+restore = "Enable `large-dates` and write the year without its sign; not planned."
+
+[[difference]]
+id = "url.escape-sets"
+category = "url"
+status = "restored"
+title = "`url.QueryEscape` and `url.PathEscape`: Go's byte sets, which no crate's set equals"
+go = """\
+    `url.QueryEscape` keeps ASCII letters, digits and `-_.~`, writes a space as `+` and every \
+    other byte as an upper-case `%XX`; `url.PathEscape` also keeps `$&+:=@` and writes a space \
+    as `%20`."""
+rust = """\
+    form_urlencoded's `byte_serialize` keeps `*` and escapes `~`, and the url crate's path and \
+    query sets keep other bytes still, so none writes Go's bytes."""
+who = ["bidder", "publisher"]
+visible_in = """\
+    The values Prebid's macros and user sync URLs escape (macros/provider.go, \
+    usersync/syncer.go) and the URLs 23 adapters build"""
+pin = "crates/util/tests/urlutil.rs::escape_like_go"
+restore = """\
+    `pbs_util::urlutil::query_escape` and `path_escape`: percent-encoding sets equal to Go's \
+    `shouldEscape` in its two modes."""
+rule_b = "d"
+
+[[restoration]]
+id = "url.escape-sets"
+pin = "crates/util/tests/urlutil.rs::escape_like_go"
+note = """\
+    50,000 seeded strings of ASCII and multibyte runes, every rune alone and 17 hand-picked \
+    strings escape to Go's bytes."""
+
+[[difference]]
+id = "url.query-parse"
+category = "url"
+status = "ledgered"
+title = "Query strings and form bodies: Go drops the pairs it cannot read, form_urlencoded keeps them"
+go = """\
+    `url.ParseQuery` and `URL.Query` drop a pair that holds `;` or an invalid escape and report \
+    an error, `Values.Get` gives a key's first value, and `FormValue` reads a url-encoded body \
+    before the query."""
+rust = """\
+    form_urlencoded keeps such pairs, an invalid escape as written and `;` inside the value; \
+    axum's `Query` and `Form` extractors (serde_urlencoded) also reject a key repeated for a \
+    field of one value."""
+who = ["publisher", "bidder"]
+visible_in = """\
+    The query parameters of `/openrtb2/amp`, `/setuid`, `/getuids` and the other GET endpoints, \
+    and bodies posted as forms"""
+pin = "crates/util/tests/urlutil.rs::query_parse_differs"
+restore = "A `ParseQuery` port; not planned (orchestrator rulings, 2026-11-19)."
+
+[[difference]]
+id = "url.values-order"
+category = "url"
+status = "restored"
+title = "`url.Values.Encode`: Go sorts the keys, a crate serializer writes pairs in the order given"
+go = """\
+    `Values.Encode` writes the keys in sorted order, each key's values in the order they were \
+    added, both escaped with `QueryEscape`."""
+rust = """\
+    form_urlencoded's `Serializer` writes the pairs in the order it is given them, with its own \
+    byte set."""
+who = ["bidder"]
+visible_in = "The query strings adapters write into bidder request URLs"
+pin = "crates/util/tests/urlutil.rs::values_sorted"
+restore = """\
+    `pbs_util::urlutil::values_encode`: a `BTreeMap` of the pairs, each escaped with \
+    `query_escape`."""
+rule_b = "d"
+
+[[restoration]]
+id = "url.values-order"
+pin = "crates/util/tests/urlutil.rs::values_sorted"
+note = "50,000 seeded `url.Values` and 8 hand-picked sets of pairs encode to Go's bytes."
+
+[[difference]]
+id = "usersync.gpp-sid-error-text"
+category = "usersync"
+status = "ledgered"
+title = "`gpp_sid` parse errors: std's text, not strconv's"
+go = """\
+    `stringutil.StrToInt8Slice` fails with a `*strconv.NumError`, whose text, \
+    `strconv.ParseInt: parsing \"x\": invalid syntax` or `... value out of range`, \
+    `/cookie_sync` answers with (endpoints/cookie_sync.go:212, 464), and whose fields the \
+    analytics modules write: `{\"Func\":\"ParseInt\",\"Num\":\"x\",\"Err\":{}}`."""
+rust = """\
+    `str_to_int8_slice` fails with std's `ParseIntError`: `invalid digit found in string` or \
+    `number too large to fit in target type`, which keeps neither the function nor the input."""
+who = ["publisher", "analytics"]
+visible_in = """\
+    The 400 body of `/cookie_sync` for a `gpp_sid` that is not a list of int8 values, and the \
+    errors of the cookie sync object the analytics modules get (endpoints/cookie_sync.go:463-469), \
+    which the filesystem and pubstack modules marshal as values \
+    (analytics/filesystem/file_module.go:184-200, analytics/pubstack/helpers/json.go:77-93)"""
+pin = "crates/util/src/stringutil.rs::str_to_int8_slice_go_cases"
+restore = "Write strconv's text from the input; not planned (ruling 2)."

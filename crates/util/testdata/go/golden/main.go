@@ -1,9 +1,12 @@
 // Command golden writes the golden files replayed by the pbs-util Rust tests.
 //
-// Every output line is a tab-separated list of fields, each quoted with strconv.Quote, so
-// fields may carry any bytes (Go strings are byte strings). Large sweeps are summarised by an
-// FNV-1a 64 checksum over their newline-terminated outputs, computed over inputs drawn from
-// the splitmix64 generator that the Rust tests reimplement.
+// Every output line of a .txt golden is a tab-separated list of fields, each quoted with
+// strconv.Quote, so fields may carry any bytes (Go strings are byte strings). Large sweeps are
+// summarised by an FNV-1a 64 checksum over their newline-terminated outputs, computed over
+// inputs drawn from the splitmix64 generator that the Rust tests reimplement. The .json goldens
+// (goregex, urlutil_escape, timeutil_layouts, timeutil_clock, iputil_sweep) hold valid UTF-8
+// only, and summarise their seeded sweeps by SHA-256 manifests of the inputs and outputs, which
+// the integration tests under crates/util/tests read with serde_json.
 //
 // Run from the directory of this module (crates/util/testdata/go) with the toolchain the
 // Dockerfile builds with:
@@ -12,6 +15,10 @@
 package main
 
 import (
+	"bytes"
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"hash"
 	"hash/fnv"
@@ -33,6 +40,11 @@ func main() {
 	genIPUtil()
 	genHTTPUtil()
 	genSmall()
+	genGoRegex()
+	genURLEscape()
+	genTimeLayouts()
+	genClock()
+	genIPSweep()
 }
 
 // table accumulates golden rows for one file.
@@ -113,3 +125,29 @@ func sweepString(s *splitmix64, alphabet string, maxLen int) string {
 	}
 	return string(b)
 }
+
+// writeJSON writes v as indented JSON, without Go's HTML escaping, and a final newline.
+func writeJSON(name string, v any) {
+	var b bytes.Buffer
+	enc := json.NewEncoder(&b)
+	enc.SetEscapeHTML(false)
+	enc.SetIndent("", " ")
+	check(enc.Encode(v))
+	check(os.WriteFile(filepath.Join(outDir, name), b.Bytes(), 0o644))
+}
+
+// manifest holds the SHA-256 digests of a sweep's inputs and outputs. An input is written as
+// its byte length, ":", the input and a newline; an output as the output and a newline.
+type manifest struct {
+	in, out hash.Hash
+}
+
+func newManifest() manifest { return manifest{sha256.New(), sha256.New()} }
+
+func (m manifest) add(in, out string) {
+	m.in.Write([]byte(strconv.Itoa(len(in)) + ":" + in + "\n"))
+	m.out.Write([]byte(out + "\n"))
+}
+
+func (m manifest) inputs() string  { return hex.EncodeToString(m.in.Sum(nil)) }
+func (m manifest) outputs() string { return hex.EncodeToString(m.out.Sum(nil)) }

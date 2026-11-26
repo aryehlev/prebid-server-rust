@@ -14,11 +14,24 @@ categories.workspace = true
 [lints]
 workspace = true
 
+# std::net with ipnet for addresses and networks; percent-encoding sets for Go's url escapes;
+# regex behind goregex's RE2 translation; rand and uuid for randomutil and uuidutil; the time
+# crate for timeutil's layouts and clock and the task intervals; tokio for the tickers.
 [dependencies]
-pbs-gocompat = { path = "../gocompat", version = "0.1.0" }
+ipnet = { workspace = true }
+percent-encoding = { workspace = true }
+rand = { workspace = true }
+regex = { workspace = true }
 serde_json = { workspace = true }
+time = { workspace = true }
 tokio = { workspace = true }
+uuid = { workspace = true }
 
+# The integration tests read the JSON goldens with serde (serde_json above), hash the seeded
+# sweeps with sha2 and parse query strings with url's form_urlencoded for the url.query-parse pin.
 [dev-dependencies]
 pbs-devtools = { path = "../devtools", version = "0.1.0" }
+serde = { workspace = true }
+sha2 = { workspace = true }
 tokio = { workspace = true, features = ["test-util"] }
+url = { workspace = true }

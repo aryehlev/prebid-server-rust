@@ -1,26 +1,26 @@
 //! Replays of the systematic goldens written by `testdata/go/review`: every IPv4 octet
 //! spelling, embedded-IPv4 prefixes, zones and brackets; `privacy.scrubIP` masking for every
-//! prefix length; private network boundaries in every textual form; and the text Go's HTTP
-//! server stores in `Request.RemoteAddr`.
+//! prefix length; private network boundaries in every textual form; and the address Go's HTTP
+//! server reports for each kind of peer.
 
 use std::{
     error::Error,
     net::{Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, SocketAddrV6},
+    str,
 };
+
+use ipnet::IpNet;
 
 use super::{
     IpValidator as _, IpVersion, PublicNetworkIpValidator, VersionIpValidator,
-    net::{self, Ip, IpNet, cidr_mask, ip_string, join_host_port, parse_cidr, tcp_addr_string},
-    netip, parse_ip, parse_ip_bytes,
+    net::{self, ip_string, parse_cidr},
+    parse_ip,
+    tests::{default_validator, go_hex},
 };
 use crate::{
-    golden::{TestResult, check, check_eq, err_text, fields, hex, read_golden, text},
+    golden::{TestResult, check, check_eq, fields, read_golden, text},
     httputil::{RequestHeaders, find_ip},
 };
-
-fn ip_hex(ip: Option<&Ip>) -> String {
-    ip.map_or_else(|| "nil".to_owned(), |ip| hex(ip.as_slice()))
-}
 
 fn nets(cidrs: &[&str]) -> Result<Vec<IpNet>, Box<dyn Error>> {
     cidrs.iter().map(|s| Ok(parse_cidr(s)?.1)).collect()
@@ -28,25 +28,20 @@ fn nets(cidrs: &[&str]) -> Result<Vec<IpNet>, Box<dyn Error>> {
 
 #[test]
 fn review_parse_golden() -> TestResult {
-    // net.ParseIP, IP.String, iputil.ParseIP's version and netip.ParseAddr over every octet
-    // spelling in every position, embedded IPv4 after every prefix, zones, brackets, group
-    // widths and ellipsis positions.
+    // Go: net.ParseIP, IP.String and iputil.ParseIP's version over every octet spelling in
+    // every position, embedded IPv4 after every prefix, zones, brackets, group widths and
+    // ellipsis positions.
     let rows = read_golden("review_parse.txt")?;
     check(rows.len() > 700, "review_parse.txt is complete")?;
     for row in &rows {
-        let [s, want_hex, want_string, want_ver, want_addr] = fields::<5>(row)?;
+        let [s, want_hex, want_string, want_ver, _addr] = fields::<5>(row)?;
         let what = String::from_utf8_lossy(s);
-        let ip = net::parse_ip_bytes(s);
-        check_eq(ip_hex(ip.as_ref()).as_bytes(), want_hex, &what)?;
-        check_eq(ip_string(ip.as_ref()).as_bytes(), want_string, &what)?;
-        let ver = parse_ip_bytes(s).map_or(IpVersion::Unknown, |(_, v)| v);
+        let parsed = str::from_utf8(s).ok().and_then(parse_ip);
+        let ip = parsed.map(|(ip, _)| ip);
+        check_eq(go_hex(ip).as_bytes(), want_hex, &what)?;
+        check_eq(ip_string(ip).as_bytes(), want_string, &what)?;
+        let ver = parsed.map_or(IpVersion::Unknown, |(_, v)| v);
         check_eq(ver.as_int().to_string().as_bytes(), want_ver, &what)?;
-        let addr = netip::parse_addr_bytes(s);
-        let addr_text = addr.as_ref().map_or_else(
-            |_| err_text(&addr).into_bytes(),
-            |a| [b"ok ".as_slice(), &a.string_bytes()].concat(),
-        );
-        check_eq(addr_text.as_slice(), want_addr, &what)?;
     }
     Ok(())
 }
@@ -56,33 +51,25 @@ fn scrub_ip(ip: &str, ones: i64, bits: i64) -> String {
     if ip.is_empty() {
         return String::new();
     }
-    let masked = net::mask_ip(net::parse_ip(ip).as_ref(), cidr_mask(ones, bits).as_ref());
-    ip_string(masked.as_ref())
+    ip_string(net::parse_ip(ip).and_then(|ip| net::mask(ip, ones, bits)))
 }
 
 #[test]
 fn review_mask_golden() -> TestResult {
-    // privacy.scrubIP and the masking of the 4-byte form for every prefix length from -1 to
-    // 129 with 32- and 128-bit masks, over IPv4, IPv4-mapped, IPv4-compatible, SIIT, NAT64
-    // and IPv6 addresses.
+    // Go: privacy.scrubIP for every prefix length from -1 to 129 with 32- and 128-bit masks,
+    // over IPv4, IPv4-mapped, IPv4-compatible, SIIT, NAT64 and IPv6 addresses.
     let rows = read_golden("review_mask.txt")?;
     check(rows.len() == 48, "review_mask.txt is complete")?;
     for row in &rows {
-        let [s, bits, want_scrubbed, want_four] = fields::<4>(row)?;
+        let [s, bits, want_scrubbed, _four] = fields::<4>(row)?;
         let s = text(s)?;
         let bits: i64 = text(bits)?.parse()?;
-        let mut scrubbed = Vec::new();
-        let mut four = Vec::new();
-        for ones in -1..=129 {
-            scrubbed.push(scrub_ip(s, ones, bits));
-            let short = net::parse_ip(s).and_then(|ip| ip.to4());
-            four.push(ip_string(
-                net::mask_ip(short.as_ref(), cidr_mask(ones, bits).as_ref()).as_ref(),
-            ));
-        }
-        let what = format!("{s} /{bits}");
-        check_eq(scrubbed.join(",").as_bytes(), want_scrubbed, &what)?;
-        check_eq(four.join(",").as_bytes(), want_four, &what)?;
+        let scrubbed: Vec<String> = (-1..=129).map(|ones| scrub_ip(s, ones, bits)).collect();
+        check_eq(
+            scrubbed.join(",").as_bytes(),
+            want_scrubbed,
+            &format!("{s} /{bits}"),
+        )?;
     }
     Ok(())
 }
@@ -112,29 +99,15 @@ const BOUNDARY_NETWORKS: [&str; 19] = [
 
 #[test]
 fn review_boundaries_golden() -> TestResult {
-    // The first and last address of each network and their neighbours, written in dotted,
-    // IPv4-mapped (lower and upper case, uncompressed, hex), IPv4-compatible, NAT64,
-    // compressed and expanded forms: iputil.ParseIP's version, IPNet.Contains for each network,
-    // and PublicNetworkIPValidator.IsValid with the config defaults and with mapped networks.
+    // Go: the first and last address of each network and their neighbours, written in
+    // dotted, IPv4-mapped (lower and upper case, uncompressed, hex), IPv4-compatible, NAT64,
+    // compressed and expanded forms: iputil.ParseIP's version, IPNet.Contains for each
+    // network, and PublicNetworkIPValidator.IsValid with the config defaults and with mapped
+    // networks.
     let rows = read_golden("review_boundaries.txt")?;
     check(rows.len() > 400, "review_boundaries.txt is complete")?;
     let all = nets(&BOUNDARY_NETWORKS)?;
-    let default = PublicNetworkIpValidator {
-        ipv4_private_networks: nets(&[
-            "10.0.0.0/8",
-            "172.16.0.0/12",
-            "192.168.0.0/16",
-            "169.254.0.0/16",
-            "127.0.0.0/8",
-        ])?,
-        ipv6_private_networks: nets(&[
-            "::1/128",
-            "fc00::/7",
-            "fe80::/10",
-            "ff00::/8",
-            "2001:db8::/32",
-        ])?,
-    };
+    let default = default_validator()?;
     let mapped = PublicNetworkIpValidator {
         ipv4_private_networks: nets(&["::ffff:10.0.0.0/104", "::ffff:0:0/96"])?,
         ipv6_private_networks: nets(&[
@@ -157,14 +130,14 @@ fn review_boundaries_golden() -> TestResult {
         let ver = parsed.map_or(IpVersion::Unknown, |(_, v)| v);
         check_eq(ver.as_int().to_string().as_bytes(), want_ver, s)?;
         let ip = parsed.map(|(ip, _)| ip);
-        check_eq(ip_string(ip.as_ref()).as_bytes(), want_string, s)?;
+        check_eq(ip_string(ip).as_bytes(), want_string, s)?;
         let valid = |v: &PublicNetworkIpValidator| ip.is_some_and(|ip| v.is_valid(&ip, ver));
         check_eq(valid(&default).to_string().as_bytes(), want_default, s)?;
         check_eq(valid(&mapped).to_string().as_bytes(), want_mapped, s)?;
         let bits: String = all
             .iter()
             .map(|n| {
-                if ip.is_some_and(|ip| n.contains(&ip)) {
+                if ip.is_some_and(|ip| net::contains(n, ip)) {
                     '1'
                 } else {
                     '0'
@@ -180,12 +153,13 @@ fn review_boundaries_golden() -> TestResult {
 struct NoHeaders;
 
 impl RequestHeaders for NoHeaders {
-    fn first_value(&self, _canonical_key: &str) -> Option<&[u8]> {
+    fn first_value(&self, _name: &str) -> Option<&[u8]> {
         None
     }
 }
 
-/// The `SocketAddr` of a golden row: a 4-byte address is `V4`, a 16-byte one `V6`.
+/// The peer of a golden row: a 4-byte address is `V4`, a 16-byte one `V6` with the row's
+/// scope.
 fn socket_addr(ip: &[u8], port: u16, scope_id: u32) -> Result<SocketAddr, Box<dyn Error>> {
     if let Ok(a) = <[u8; 4]>::try_from(ip) {
         check(scope_id == 0, "no zone for IPv4")?;
@@ -202,8 +176,9 @@ fn socket_addr(ip: &[u8], port: u16, scope_id: u32) -> Result<SocketAddr, Box<dy
 
 #[test]
 fn review_remote_addr_golden() -> TestResult {
-    // (*net.TCPAddr).String() for accepted peers, IPv4-mapped ones of a dual-stack listener
-    // included, and the address FindIP derives from that text.
+    // Go: the address FindIP takes from Request.RemoteAddr, which Go's server writes with
+    // (*net.TCPAddr).String(), for accepted peers, IPv4-mapped ones of a dual-stack listener
+    // and zoned ones included.
     let rows = read_golden("review_remoteaddr.txt")?;
     check(rows.len() > 60, "review_remoteaddr.txt is complete")?;
     let v4 = VersionIpValidator {
@@ -213,7 +188,7 @@ fn review_remote_addr_golden() -> TestResult {
         version: IpVersion::V6,
     };
     for row in &rows {
-        let [ip_hex_text, port, zone, want_text, want_found, want_ver] = fields::<6>(row)?;
+        let [ip_hex_text, port, zone, remote_text, want_found, want_ver] = fields::<6>(row)?;
         let ip_hex_text = text(ip_hex_text)?;
         let ip = (0..ip_hex_text.len())
             .step_by(2)
@@ -225,13 +200,13 @@ fn review_remote_addr_golden() -> TestResult {
             })
             .collect::<Result<Vec<u8>, Box<dyn Error>>>()?;
         let addr = socket_addr(&ip, text(port)?.parse()?, text(zone)?.parse()?)?;
-        let got = tcp_addr_string(&addr);
-        check_eq(got.as_bytes(), want_text, ip_hex_text)?;
-        let found = find_ip(&NoHeaders, &got, &v4).or_else(|| find_ip(&NoHeaders, &got, &v6));
+        let found =
+            find_ip(&NoHeaders, Some(&addr), &v4).or_else(|| find_ip(&NoHeaders, Some(&addr), &v6));
+        let what = text(remote_text)?;
         check_eq(
-            ip_string(found.map(|(found_ip, _)| found_ip).as_ref()).as_bytes(),
+            ip_string(found.map(|(found_ip, _)| found_ip)).as_bytes(),
             want_found,
-            &got,
+            what,
         )?;
         check_eq(
             found
@@ -240,56 +215,32 @@ fn review_remote_addr_golden() -> TestResult {
                 .to_string()
                 .as_bytes(),
             want_ver,
-            &got,
+            what,
         )?;
     }
     Ok(())
 }
 
 #[test]
-fn display_of_a_mapped_socket_addr_is_not_go_remote_addr() -> TestResult {
-    // The trap tcp_addr_string avoids: std writes the IPv4 peer of a dual-stack listener in
-    // brackets, which iputil.ParseIP then calls IPv6.
+fn a_mapped_peer_is_ipv4() -> TestResult {
+    // Go: the server writes the IPv4 peer of a dual-stack listener as "8.8.8.8:80", whose
+    // address iputil.ParseIP calls IPv4.
     let addr = SocketAddr::V6(SocketAddrV6::new(
         Ipv4Addr::new(8, 8, 8, 8).to_ipv6_mapped(),
         80,
         0,
         0,
     ));
-    check_eq(
-        addr.to_string().as_str(),
-        "[::ffff:8.8.8.8]:80",
-        "std Display",
-    )?;
-    check_eq(
-        tcp_addr_string(&addr).as_str(),
-        "8.8.8.8:80",
-        "Go TCPAddr.String",
-    )?;
-    let any = VersionIpValidator {
-        version: IpVersion::V6,
+    let v4 = VersionIpValidator {
+        version: IpVersion::V4,
     };
+    check_eq(
+        &find_ip(&NoHeaders, Some(&addr), &v4).map(|(ip, _)| ip.to_string()),
+        &Some("8.8.8.8".to_owned()),
+        "the mapped peer",
+    )?;
     check(
-        find_ip(&NoHeaders, &addr.to_string(), &any).is_some(),
-        "the bracketed text is IPv6",
-    )?;
-    check(
-        find_ip(&NoHeaders, &tcp_addr_string(&addr), &any).is_none(),
-        "Go's text is IPv4",
-    )?;
-    check_eq(
-        join_host_port("::1", "80").as_str(),
-        "[::1]:80",
-        "JoinHostPort v6",
-    )?;
-    check_eq(
-        join_host_port("1.2.3.4", "").as_str(),
-        "1.2.3.4:",
-        "JoinHostPort v4",
-    )?;
-    check_eq(
-        join_host_port("", "80").as_str(),
-        ":80",
-        "JoinHostPort empty",
+        find_ip(&NoHeaders, None, &v4).is_none(),
+        "a Unix socket peer has no address",
     )
 }

@@ -1,6 +1,8 @@
 //! Go: `util/iputil/parse.go`.
 
-use super::net::{self, Ip};
+use std::net::IpAddr;
+
+use super::net;
 
 /// Go: `iputil.IPVersion`, the numerical version of the IP address spec.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Default)]
@@ -35,22 +37,15 @@ pub const IPV4_DEFAULT_MASKING_BIT_SIZE: i64 = 24;
 /// Go: `iputil.IPv6DefaultMaskingBitSize`.
 pub const IPV6_DEFAULT_MASKING_BIT_SIZE: i64 = 56;
 
-/// Go: `iputil.ParseIP`: the address (16-byte form, as `net.ParseIP` returns it) and its
+/// Go: `iputil.ParseIP`: the address in canonical form (see [`net::parse_ip`]) and its
 /// version, or `None` (Go: `nil, IPvUnknown`) when `v` is not an address.
 ///
 /// The version is [`IpVersion::V6`] whenever the text contains `:`, so `::ffff:1.2.3.4` is
-/// IPv6 although `net.IP.String` prints it as `1.2.3.4`.
+/// IPv6 although the address is the IPv4 address it maps.
 #[must_use]
-pub fn parse_ip(v: &str) -> Option<(Ip, IpVersion)> {
-    parse_ip_bytes(v.as_bytes())
-}
-
-/// Go: `iputil.ParseIP` of a byte string (a header value, which may not be UTF-8).
-#[must_use]
-pub fn parse_ip_bytes(v: &[u8]) -> Option<(Ip, IpVersion)> {
-    let ip = net::parse_ip_bytes(v)?;
-    // Go: strings.ContainsRune(v, ':').
-    let ver = if v.contains(&b':') {
+pub fn parse_ip(v: &str) -> Option<(IpAddr, IpVersion)> {
+    let ip = net::parse_ip(v)?;
+    let ver = if v.contains(':') {
         IpVersion::V6
     } else {
         IpVersion::V4

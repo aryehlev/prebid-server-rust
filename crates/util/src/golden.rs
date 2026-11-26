@@ -13,10 +13,6 @@ use std::{
     str,
 };
 
-use pbs_gocompat::strconv::unquote_bytes;
-
-use crate::uuidutil::hex_lower;
-
 /// The result type of every test in this crate.
 pub type TestResult = Result<(), Box<dyn Error>>;
 
@@ -73,7 +69,83 @@ pub fn text(field: &[u8]) -> Result<&str, Box<dyn Error>> {
 /// Lowercase hex without punctuation (Go: `hex.EncodeToString`).
 #[must_use]
 pub fn hex(b: &[u8]) -> String {
-    hex_lower(b)
+    const DIGITS: &[u8; 16] = b"0123456789abcdef";
+    let mut s = String::with_capacity(b.len() * 2);
+    for &x in b {
+        for nibble in [x >> 4, x & 0x0F] {
+            s.push(char::from(
+                DIGITS.get(usize::from(nibble)).copied().unwrap_or(b'0'),
+            ));
+        }
+    }
+    s
+}
+
+/// Go: `strconv.Unquote` of a double-quoted literal, as bytes: the golden programs write every
+/// field with `strconv.Quote`, whose `\x` escapes carry bytes that are not UTF-8.
+///
+/// # Errors
+///
+/// When `field` is not such a literal.
+pub fn unquote_bytes(field: &str) -> Result<Vec<u8>, Box<dyn Error>> {
+    let body = field
+        .strip_prefix('"')
+        .and_then(|f| f.strip_suffix('"'))
+        .ok_or("not a quoted string")?;
+    let mut out = Vec::with_capacity(body.len());
+    let mut chars = body.chars();
+    while let Some(c) = chars.next() {
+        if c != '\\' {
+            if c == '"' {
+                return Err("unescaped quote".into());
+            }
+            let mut buf = [0_u8; 4];
+            out.extend_from_slice(c.encode_utf8(&mut buf).as_bytes());
+            continue;
+        }
+        let e = chars.next().ok_or("trailing backslash")?;
+        let simple = match e {
+            'a' => Some(0x07),
+            'b' => Some(0x08),
+            'f' => Some(0x0C),
+            'n' => Some(b'\n'),
+            'r' => Some(b'\r'),
+            't' => Some(b'\t'),
+            'v' => Some(0x0B),
+            '\\' => Some(b'\\'),
+            '"' => Some(b'"'),
+            _ => None,
+        };
+        if let Some(b) = simple {
+            out.push(b);
+            continue;
+        }
+        let mut digits = |n: usize, radix: u32| -> Result<u32, Box<dyn Error>> {
+            let text: String = chars.by_ref().take(n).collect();
+            if text.chars().count() != n {
+                return Err("short escape".into());
+            }
+            Ok(u32::from_str_radix(&text, radix)?)
+        };
+        match e {
+            'x' => out.push(u8::try_from(digits(2, 16)?)?),
+            'u' | 'U' => {
+                let rune = char::from_u32(digits(if e == 'u' { 4 } else { 8 }, 16)?)
+                    .ok_or("invalid rune")?;
+                let mut buf = [0_u8; 4];
+                out.extend_from_slice(rune.encode_utf8(&mut buf).as_bytes());
+            }
+            '0'..='7' => {
+                let rest: String = chars.by_ref().take(2).collect();
+                out.push(u8::try_from(u32::from_str_radix(
+                    &format!("{e}{rest}"),
+                    8,
+                )?)?);
+            }
+            _ => return Err(format!("unknown escape \\{e}").into()),
+        }
+    }
+    Ok(out)
 }
 
 /// Go: `errText`: `""` for success, otherwise `"error: "` and the error text.

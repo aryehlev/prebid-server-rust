@@ -85,6 +85,7 @@ mod tests {
 
     #[test]
     fn clone_copies_or_stays_nil() -> TestResult {
+        // Go: ptrutil.Clone (util/ptrutil/ptrutil.go:7): nil stays nil, a value is copied.
         check_eq(&clone::<i64>(None), &None, "nil")?;
         check_eq(
             &clone(Some(&"x".to_owned())),

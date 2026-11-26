@@ -21,19 +21,23 @@ Rule B's cases: (a) input real production traffic sends that the crate would rej
 | Configuration loading | 0 | 8 | 7 |
 | Cookies | 0 | 1 | 0 |
 | Global vendor list | 0 | 1 | 0 |
-| Gzip | 0 | 2 | 0 |
+| Gzip | 0 | 3 | 0 |
 | HTTP client | 0 | 24 | 5 |
+| IP addresses | 0 | 1 | 1 |
 | JSON | 4 | 40 | 5 |
 | Logging | 0 | 10 | 3 |
 | Prometheus metrics | 1 | 7 | 1 |
 | Public suffix list | 1 | 0 | 0 |
-| Regular expressions | 0 | 0 | 2 |
+| Random numbers | 0 | 1 | 0 |
+| Regular expressions | 0 | 2 | 2 |
 | HTTP server | 0 | 25 | 4 |
-| Time formatting | 0 | 0 | 1 |
+| Background tasks | 0 | 0 | 1 |
+| Time formatting | 0 | 3 | 1 |
 | TLS | 0 | 2 | 1 |
-| URLs | 0 | 1 | 0 |
+| URLs | 0 | 2 | 2 |
+| User syncs | 0 | 1 | 0 |
 | YAML | 0 | 3 | 0 |
-| All | 6 | 126 | 30 |
+| All | 6 | 136 | 34 |
 
 ## Decisions pending
 
@@ -46,9 +50,7 @@ Rule B's cases: (a) input real production traffic sends that the crate would rej
 
 ## Restore pins still to land
 
-- `regex.quote-meta`: brought by UTIL-CRATES.
-- `regex.unicode-classes`: brought by UTIL-CRATES.
-- `time.rfc3339-fraction`: brought by UTIL-CRATES.
+None.
 
 ## How the parity harness matches an entry
 
@@ -338,6 +340,17 @@ No entry names the classes `other` and `unrecorded` or the kinds `stage_missing`
 ## Gzip
 
 ### Ledgered
+
+#### `gzip.content-encoding-lower`: `ContentEncoding.Normalize`: U+0130 lower-cases to two characters in std, to one in Go, so `gzİp` is gzip only in Go
+
+- **Go:** `strings.ToLower` lower-cases each rune on its own: U+0130 LATIN CAPITAL LETTER I WITH DOT ABOVE becomes a plain `i`, so `gzİp` and `GZİP` normalise to `gzip`, and Σ becomes σ wherever it stands.
+- **Rust:** `str::to_lowercase` writes Unicode's full lower case: U+0130 becomes `i` and U+0307 COMBINING DOT ABOVE, so no such value normalises to `gzip`, and a Σ that ends a word becomes ς.
+- **Who notices:** publisher
+- **Visible in:** The 400 text of `/openrtb2/auction` with `compression.request.enable_gzip` on, for a `Content-Encoding` that spells gzip with U+0130: Go's `IsSupported` accepts `gzİp` and `getCompressionEnabledReader`, which compares the header as sent, answers `unsupported compression type 'gzİp'`, where the port's `IsSupported` refuses it and the text is `Content-Encoding of type gzİp is not supported` (endpoints/openrtb2/auction.go:424-430, 588-593; config/compression.go:15-20)
+- **Harness:** none
+- **Pin:** `crates/util/src/httputil/tests.rs::misc_golden`
+- **Restore option:** Lower-case each character on its own, U+0130 to `i`; not planned.
+- **Recorded in:** `crates/util/differences.toml`
 
 #### `gzip.parity-bodies`: Parity bodies: flate2 writes and reads their gzip, and a `Content-Encoding` outside ASCII is found and lower-cased by Rust's case rules
 
@@ -688,6 +701,36 @@ No entry names the classes `other` and `unrecorded` or the kinds `stage_missing`
 - **How Go's behaviour is kept:** HTTP-CLIENT sets `Go-http-client/1.1` when the caller set none, one line of client config (D-UA, orchestrator ruling 5), and HTTP-H2 keeps it on HTTP/2.
 - **Restore pin:** `crates/http-client/tests/headers.rs::default_user_agent_is_go` (The general client writes Go's `User-Agent` line for every case of headers.json: `Go-http-client/1.1` when the caller set none, the first of two values, and none for an empty one.)
 - **Recorded in:** `crates/differences/differences.toml`
+
+## IP addresses
+
+### Ledgered
+
+#### `ip.network-edges`: Networks: Go prints a mapped network as the IPv4 network it maps and masks with any bytes, ipnet does neither
+
+- **Go:** `IPNet.String` writes a network in IPv4-mapped form in its 4-byte form (`::ffff:10.0.0.0/104` as `10.0.0.0/8`), and `IP.Mask` and a hand-built `IPNet` take masks whose ones do not all lead (`255.0.255.0`) and masks of other lengths.
+- **Rust:** ipnet writes `::ffff:10.0.0.0/104`, and its networks and `iputil::net::mask` hold prefix masks of 32 or 128 bits only.
+- **Who notices:** none
+- **Visible in:** Nowhere: Prebid prints no network and makes masks with `net.CIDRMask` and networks with `net.ParseCIDR` only (privacy/scrubber.go, config/requestvalidation.go)
+- **Harness:** none
+- **Pin:** `crates/util/src/iputil/tests.rs::net_parse_cidr_golden`
+- **Restore option:** A network type of Go's 4- and 16-byte forms; not planned.
+- **Recorded in:** `crates/util/differences.toml`
+
+### Go behaviour kept
+
+#### `ip.parse-edges`: Addresses and networks: IPv4-mapped addresses and zero-padded prefixes, which Go reads and std and ipnet do not
+
+- **Go:** `net.ParseIP` returns 16 bytes for every address, so `IP.String`, `IP.Mask` and `IPNet.Contains` treat `::ffff:10.1.2.3` as `10.1.2.3`, and `net.ParseCIDR` takes a prefix with any number of leading zeros (`10.0.0.0/008`) and refuses octets with one (`010.0.0.0/8`).
+- **Rust:** std parses `::ffff:10.1.2.3` as an IPv6 address, which std writes as `::ffff:10.1.2.3` and no IPv4 network of ipnet contains; ipnet's `IpNet::from_str` takes octets with a leading zero and refuses an IPv4 prefix of more than two digits and an IPv6 one of more than three.
+- **Who notices:** publisher, bidder
+- **Visible in:** `device.ip` from a dual-stack proxy, as the private-network check (`request_validation`) and the masking of `privacy.scrubIP` see it in bidder requests, and an operator's `request_validation` networks
+- **Harness:** none: a mismatch here is unexpected
+- **Pin:** `crates/util/tests/iputil.rs::edge_list`
+- **Rule B:** Rule B (a): input real production traffic sends that the crate would reject or misread
+- **How Go's behaviour is kept:** `pbs_util::iputil::net` parses addresses with std and keeps an IPv4-mapped one as the IPv4 address it maps, and parses networks with std's address and Go's `dtoi` prefix into ipnet's networks.
+- **Restore pin:** `crates/util/tests/iputil.rs::cidr_edges` (42 edge networks give `net.ParseCIDR`'s verdict, network bytes and prefix.); `crates/util/tests/iputil.rs::edge_list` (79 edge addresses (leading zeros, mapped and compatible forms, zones, white space, ports, brackets and the limits of each field) give Go's bytes, text, version, validator verdict and masks.); `crates/util/tests/iputil.rs::seeded_addresses` (50,000 seeded addresses of eleven forms, a quarter of them with a byte inserted, deleted or replaced, with seeded masks and prefixes, give Go's outputs byte for byte.)
+- **Recorded in:** `crates/util/differences.toml`
 
 ## JSON
 
@@ -1557,7 +1600,46 @@ No entry names the classes `other` and `unrecorded` or the kinds `stage_missing`
 - **Restore option:** Check the host for empty labels and parse it as an IP address before calling psl, leaving the domain unset where Go's lookup fails: glue under Rule B (a), for referrers production traffic sends that psl reads differently.
 - **Recorded in:** `crates/differences/differences.toml`
 
+## Random numbers
+
+### Ledgered
+
+#### `rand.sequences`: Random numbers: rand's sequences, not `math/rand`'s
+
+- **Go:** `randomutil.RandomNumberGenerator` draws from the process-wide `math/rand` source, which Go seeds randomly at start-up.
+- **Rust:** rand's thread-local generator draws other sequences in the same bounds: `GenerateInt63` in [0, 2^63) and `Intn(n)` in [0, n), `None` where Go panics.
+- **Who notices:** none
+- **Visible in:** Nowhere: no output depends on a sequence Go seeds at random; the parity fakes replace the generator
+- **Harness:** none
+- **Pin:** `crates/util/tests/randomutil.rs::bounds_only`
+- **Restore option:** A port of `math/rand`'s source; not planned.
+- **Recorded in:** `crates/util/differences.toml`
+
 ## Regular expressions
+
+### Ledgered
+
+#### `regex.syntax-edges`: Go patterns the translation does not carry over, and forms and sizes the regex crate refuses
+
+- **Go:** `regexp.Compile` takes a repetition right after a flag group (`a(?i)*` repeats `a`) and escapes of surrogate code points (`\x{D800}`), compiles counted repetitions of up to 1,000 of any class (`\pL{1000}`), capture names that start with a digit (`(?P<1a>x)`) or are used twice, a flag repeated or set and cleared in one group (`(?ii)`, `(?i-i)`), `\p{Cs}` and groups nested up to 1,000 deep, and keeps a group repeated zero times (`(a){0}b` has one subexpression, which never takes part).
+- **Rust:** `goregex::compile` fails with `CompileError::Unsupported` for the first two; the regex crate refuses a compiled program over its 10 MiB default, which `\pL{1000}` and `(?:\pL{100}){10}` are, those names and flags, `\p{Cs}` and groups nested more than 250 deep (`CompileError::Crate`), and drops a group repeated zero times, so `(a){0}b` has no capture group.
+- **Who notices:** publisher
+- **Visible in:** Only adquery's bids, for a request ID that is itself such a pattern: Go compiles `^` and the request ID (adapters/adquery/adquery.go:93) and removes the match from the `requestId` adquery answers with to make the bid's `impid`. None of the 162 fixed patterns of Prebid's code and static/bidder-params has such a form
+- **Harness:** none
+- **Pin:** `crates/util/tests/goregex.rs::untranslated_forms`
+- **Restore option:** Translate the forms, rename the names, merge the flags, keep a group repeated zero times and raise the limits when a Prebid pattern needs them; not planned.
+- **Recorded in:** `crates/util/differences.toml`
+
+#### `regex.unicode-version`: Unicode classes and case folding: Go 1.26's tables are Unicode 15.0, the regex crate's 16.0
+
+- **Go:** `\pL`, the other `\p` classes and `(?i)` follow `unicode.Version` 15.0.0, where the characters Unicode 16.0 added (U+1C89 CYRILLIC CAPITAL LETTER TJE among them) are unassigned.
+- **Rust:** regex-syntax's tables are Unicode 16.0.0's, so `\pL` matches U+1C89 and `(?i)` folds it to U+1C8A.
+- **Who notices:** publisher
+- **Visible in:** Only adquery's bids, for a request ID that is itself such a pattern, a `\p` class or `(?i)` and a character Unicode 16.0 added: Go compiles `^` and the request ID (adapters/adquery/adquery.go:93). No fixed Prebid pattern has a `\p` class, and its four `(?i)` patterns are ASCII literals
+- **Harness:** none
+- **Pin:** `crates/util/tests/goregex.rs::unicode_16_letters`
+- **Restore option:** Ship Unicode 15.0 tables; not planned.
+- **Recorded in:** `crates/util/differences.toml`
 
 ### Go behaviour kept
 
@@ -1571,7 +1653,7 @@ No entry names the classes `other` and `unrecorded` or the kinds `stage_missing`
 - **Pin:** `crates/differences/tests/regex.rs::go_difference_quote_meta_escape`
 - **Rule B:** Rule B (d): Prebid-authored texts and bytes
 - **How Go's behaviour is kept:** UTIL-CRATES: goregex rewrites `\Q...\E` as escaped literals in every pattern Prebid compiles.
-- **Restore pin:** pending, brought by UTIL-CRATES
+- **Restore pin:** `crates/util/tests/goregex.rs::quoted_literals` (The 14 edge patterns with `\Q` or `\E` fail with Go's error text or match as Go's do.)
 - **Recorded in:** `crates/differences/differences.toml`
 
 #### `regex.unicode-classes`: `\d`, `\w`, `\s` and `\b`: ASCII-only in Go's regexp, Unicode-aware in the regex crate
@@ -1584,7 +1666,7 @@ No entry names the classes `other` and `unrecorded` or the kinds `stage_missing`
 - **Pin:** `crates/differences/tests/regex.rs::go_difference_unicode_classes`
 - **Rule B:** Rule B (d): Prebid-authored texts and bytes
 - **How Go's behaviour is kept:** UTIL-CRATES: `pbs_util::goregex` translates the classes, so Prebid's own patterns, in code and in static/bidder-params, keep Go's meaning.
-- **Restore pin:** pending, brought by UTIL-CRATES
+- **Restore pin:** `crates/util/tests/goregex.rs::edges_like_go` (196 edge patterns (classes in and out of brackets, case folding, braces, the characters the crate reads as set operators, escapes, flags and repetitions) fail with Go's error text or match 87 edge subjects as Go's do.); `crates/util/tests/goregex.rs::sites_match_go` (The 162 patterns of Prebid's code and static/bidder-params (GOC-REGEXP's sites.txt), over 1,000 seeded subjects each of their own literals and class bounds and of the runes on which Go's ASCII classes and the crate's Unicode classes disagree, match as Go's `FindAllStringSubmatchIndex` does, group by group.)
 - **Recorded in:** `crates/differences/differences.toml`
 
 ## HTTP server
@@ -1911,7 +1993,59 @@ No entry names the classes `other` and `unrecorded` or the kinds `stage_missing`
 - **Restore pin:** `crates/server/tests/wire.rs::header_limit_like_go` (The wire golden's 600 KiB, 1 MiB and at-limit heads get 200 on pbs-server as on net/http, and its paced heads past the limit 431.)
 - **Recorded in:** `crates/server/differences.toml`
 
+## Background tasks
+
+### Go behaviour kept
+
+#### `task.missed-ticks`: Periodic tasks: Go's ticker drops the ticks a slow run misses, a tokio interval bursts to catch up
+
+- **Go:** `TickerTask` runs on a `time.Ticker`, whose one-tick channel drops the ticks a slow run misses: the next run starts when the slow one ends, the one after on the original schedule (util/task/ticker_task.go).
+- **Rust:** A tokio `Interval` fires every missed tick at once by default (`MissedTickBehavior::Burst`).
+- **Who notices:** operator
+- **Visible in:** How often the currency rates, stored-request events and other periodic refreshes run after a slow one
+- **Harness:** none: a mismatch here is unexpected
+- **Pin:** `crates/util/tests/task.rs::missed_ticks`
+- **Rule B:** Prebid's own logic ported onto the crate, not glue
+- **How Go's behaviour is kept:** pbs-util's `TickerTask` drives `interval_at` with `MissedTickBehavior::Skip` (crate configuration, no glue). tokio drops a tick only once it is more than 5 ms late, so with an interval of 5 ms or less a run that outlasts a tick by at most 5 ms is followed by a catch-up run; Prebid's intervals are seconds or more.
+- **Restore pin:** `crates/util/tests/task.rs::missed_ticks` (The run start times Go's `TickerTask` writes under `testing/synctest` for short, long and mixed runs, stops before, during and between runs, and zero or negative intervals.)
+- **Recorded in:** `crates/util/differences.toml`
+
 ## Time formatting
+
+### Ledgered
+
+#### `time.now-wall-clock`: `timeutil.RealTime`: Go's `time.Now` is in the local zone with a monotonic reading, the port's the UTC wall clock
+
+- **Go:** `RealTime.Now` is `time.Now()`: in `time.Local`, so a host whose zone is not UTC writes its offset, and with a monotonic reading that `Sub` uses.
+- **Rust:** `RealTime::now` and `RealClock::now` are `OffsetDateTime::now_utc()`: UTC, and wall-clock only, so a step of the system clock moves the difference of two readings.
+- **Who notices:** bidder, operator
+- **Visible in:** On a host whose zone is not UTC, the `tzo` query parameter of adnuntius's bidder requests, minus the zone's offset in minutes in Go and 0 in the port (adapters/adnuntius/adnuntius_utils.go:67-68, 99), and the `lastUpdated` of `/currency/rates` (endpoints/currency_rates.go:49); and the staleness of the currency rates across a clock step
+- **Harness:** none
+- **Pin:** `crates/util/tests/timeutil.rs::now_is_the_utc_wall_clock`
+- **Restore option:** Read the local zone and keep a monotonic instant beside each reading; not planned.
+- **Recorded in:** `crates/util/differences.toml`
+
+#### `time.ticker-non-positive`: Tickers of a period that is not positive: Go panics or loops, the port's never tick
+
+- **Go:** `time.NewTicker` panics for a period that is not positive (non-positive interval for NewTicker), and benbjohnson/clock's mock loops for ever in `Add` once such a ticker is due.
+- **Rust:** `RealClock::ticker` and `MockClock::ticker` return a ticker that never ticks, and `TickerTask` runs once, as Go's does.
+- **Who notices:** operator
+- **Visible in:** An analytics module configured with a buffer timeout of zero or less (agma's `buffers.timeout`, pubstack's `max_time`): Go's process panics when the module starts its ticker, and the port's ticker never fires
+- **Harness:** none
+- **Pin:** `crates/util/tests/timeutil.rs::non_positive_tickers_never_tick`
+- **Restore option:** Fail the start-up on such a period; not planned.
+- **Recorded in:** `crates/util/differences.toml`
+
+#### `time.year-range`: Years past 9999: a Go `time.Time` holds them, the time crate's `OffsetDateTime` does not
+
+- **Go:** `time.Time` spans billions of years, and `Format` writes a local time on 10000-01-01 with a five-digit year.
+- **Rust:** Without its `large-dates` feature the time crate's range ends with 9999-12-31, so such an instant, or a local time past it, has no `OffsetDateTime`: `checked_to_offset` returns `None`.
+- **Who notices:** none
+- **Visible in:** Nowhere: Prebid's times are readings of the clock, cookie expiries a TTL ahead of it and RFC 3339 texts, whose four-digit years Go's parser requires
+- **Harness:** none
+- **Pin:** `crates/util/tests/timeutil.rs::years_past_9999`
+- **Restore option:** Enable `large-dates` and write the year without its sign; not planned.
+- **Recorded in:** `crates/util/differences.toml`
 
 ### Go behaviour kept
 
@@ -1925,7 +2059,7 @@ No entry names the classes `other` and `unrecorded` or the kinds `stage_missing`
 - **Pin:** `crates/differences/tests/time.rs::go_difference_rfc3339_fraction`
 - **Rule B:** Prebid's own logic ported onto the crate, not glue
 - **How Go's behaviour is kept:** UTIL-CRATES: format descriptions for the RFC3339 and RFC3339Nano layouts Prebid's code picks. This is Prebid's formatting choice ported in place, as ruling 4 does for floats; the uids cookie's times are Rule B (b).
-- **Restore pin:** pending, brought by UTIL-CRATES
+- **Restore pin:** `crates/util/tests/timeutil.rs::layouts_like_go` (`format_rfc3339` and `format_rfc3339_nano` write Go's bytes for 50,000 seeded instants in fixed zones and 16 edge instants.)
 - **Recorded in:** `crates/differences/differences.toml`
 
 ## TLS
@@ -1984,6 +2118,60 @@ No entry names the classes `other` and `unrecorded` or the kinds `stage_missing`
 - **Pin:** `crates/differences/tests/url.rs::go_difference_url_host_normalization`
 - **Restore option:** A Go-style URL parser for the URLs Prebid writes back; not planned (orchestrator rulings, 2026-11-19).
 - **Recorded in:** `crates/differences/differences.toml`
+
+#### `url.query-parse`: Query strings and form bodies: Go drops the pairs it cannot read, form_urlencoded keeps them
+
+- **Go:** `url.ParseQuery` and `URL.Query` drop a pair that holds `;` or an invalid escape and report an error, `Values.Get` gives a key's first value, and `FormValue` reads a url-encoded body before the query.
+- **Rust:** form_urlencoded keeps such pairs, an invalid escape as written and `;` inside the value; axum's `Query` and `Form` extractors (serde_urlencoded) also reject a key repeated for a field of one value.
+- **Who notices:** publisher, bidder
+- **Visible in:** The query parameters of `/openrtb2/amp`, `/setuid`, `/getuids` and the other GET endpoints, and bodies posted as forms
+- **Harness:** none
+- **Pin:** `crates/util/tests/urlutil.rs::query_parse_differs`
+- **Restore option:** A `ParseQuery` port; not planned (orchestrator rulings, 2026-11-19).
+- **Recorded in:** `crates/util/differences.toml`
+
+### Go behaviour kept
+
+#### `url.escape-sets`: `url.QueryEscape` and `url.PathEscape`: Go's byte sets, which no crate's set equals
+
+- **Go:** `url.QueryEscape` keeps ASCII letters, digits and `-_.~`, writes a space as `+` and every other byte as an upper-case `%XX`; `url.PathEscape` also keeps `$&+:=@` and writes a space as `%20`.
+- **Rust:** form_urlencoded's `byte_serialize` keeps `*` and escapes `~`, and the url crate's path and query sets keep other bytes still, so none writes Go's bytes.
+- **Who notices:** bidder, publisher
+- **Visible in:** The values Prebid's macros and user sync URLs escape (macros/provider.go, usersync/syncer.go) and the URLs 23 adapters build
+- **Harness:** none: a mismatch here is unexpected
+- **Pin:** `crates/util/tests/urlutil.rs::escape_like_go`
+- **Rule B:** Rule B (d): Prebid-authored texts and bytes
+- **How Go's behaviour is kept:** `pbs_util::urlutil::query_escape` and `path_escape`: percent-encoding sets equal to Go's `shouldEscape` in its two modes.
+- **Restore pin:** `crates/util/tests/urlutil.rs::escape_like_go` (50,000 seeded strings of ASCII and multibyte runes, every rune alone and 17 hand-picked strings escape to Go's bytes.)
+- **Recorded in:** `crates/util/differences.toml`
+
+#### `url.values-order`: `url.Values.Encode`: Go sorts the keys, a crate serializer writes pairs in the order given
+
+- **Go:** `Values.Encode` writes the keys in sorted order, each key's values in the order they were added, both escaped with `QueryEscape`.
+- **Rust:** form_urlencoded's `Serializer` writes the pairs in the order it is given them, with its own byte set.
+- **Who notices:** bidder
+- **Visible in:** The query strings adapters write into bidder request URLs
+- **Harness:** none: a mismatch here is unexpected
+- **Pin:** `crates/util/tests/urlutil.rs::values_sorted`
+- **Rule B:** Rule B (d): Prebid-authored texts and bytes
+- **How Go's behaviour is kept:** `pbs_util::urlutil::values_encode`: a `BTreeMap` of the pairs, each escaped with `query_escape`.
+- **Restore pin:** `crates/util/tests/urlutil.rs::values_sorted` (50,000 seeded `url.Values` and 8 hand-picked sets of pairs encode to Go's bytes.)
+- **Recorded in:** `crates/util/differences.toml`
+
+## User syncs
+
+### Ledgered
+
+#### `usersync.gpp-sid-error-text`: `gpp_sid` parse errors: std's text, not strconv's
+
+- **Go:** `stringutil.StrToInt8Slice` fails with a `*strconv.NumError`, whose text, `strconv.ParseInt: parsing "x": invalid syntax` or `... value out of range`, `/cookie_sync` answers with (endpoints/cookie_sync.go:212, 464), and whose fields the analytics modules write: `{"Func":"ParseInt","Num":"x","Err":{}}`.
+- **Rust:** `str_to_int8_slice` fails with std's `ParseIntError`: `invalid digit found in string` or `number too large to fit in target type`, which keeps neither the function nor the input.
+- **Who notices:** publisher, analytics
+- **Visible in:** The 400 body of `/cookie_sync` for a `gpp_sid` that is not a list of int8 values, and the errors of the cookie sync object the analytics modules get (endpoints/cookie_sync.go:463-469), which the filesystem and pubstack modules marshal as values (analytics/filesystem/file_module.go:184-200, analytics/pubstack/helpers/json.go:77-93)
+- **Harness:** none
+- **Pin:** `crates/util/src/stringutil.rs::str_to_int8_slice_go_cases`
+- **Restore option:** Write strconv's text from the input; not planned (ruling 2).
+- **Recorded in:** `crates/util/differences.toml`
 
 ## YAML
 

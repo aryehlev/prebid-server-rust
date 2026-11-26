@@ -1,0 +1,1499 @@
+{
+ "seed": 1592590593,
+ "count": 50000,
+ "max_runes": 12,
+ "runes": [
+  "\u0000",
+  "\u0001",
+  "\u0002",
+  "\u0003",
+  "\u0004",
+  "\u0005",
+  "\u0006",
+  "\u0007",
+  "\b",
+  "\t",
+  "\n",
+  "\u000b",
+  "\f",
+  "\r",
+  "\u000e",
+  "\u000f",
+  "\u0010",
+  "\u0011",
+  "\u0012",
+  "\u0013",
+  "\u0014",
+  "\u0015",
+  "\u0016",
+  "\u0017",
+  "\u0018",
+  "\u0019",
+  "\u001a",
+  "\u001b",
+  "\u001c",
+  "\u001d",
+  "\u001e",
+  "\u001f",
+  " ",
+  "!",
+  "\"",
+  "#",
+  "$",
+  "%",
+  "&",
+  "'",
+  "(",
+  ")",
+  "*",
+  "+",
+  ",",
+  "-",
+  ".",
+  "/",
+  "0",
+  "1",
+  "2",
+  "3",
+  "4",
+  "5",
+  "6",
+  "7",
+  "8",
+  "9",
+  ":",
+  ";",
+  "<",
+  "=",
+  ">",
+  "?",
+  "@",
+  "A",
+  "B",
+  "C",
+  "D",
+  "E",
+  "F",
+  "G",
+  "H",
+  "I",
+  "J",
+  "K",
+  "L",
+  "M",
+  "N",
+  "O",
+  "P",
+  "Q",
+  "R",
+  "S",
+  "T",
+  "U",
+  "V",
+  "W",
+  "X",
+  "Y",
+  "Z",
+  "[",
+  "\\",
+  "]",
+  "^",
+  "_",
+  "`",
+  "a",
+  "b",
+  "c",
+  "d",
+  "e",
+  "f",
+  "g",
+  "h",
+  "i",
+  "j",
+  "k",
+  "l",
+  "m",
+  "n",
+  "o",
+  "p",
+  "q",
+  "r",
+  "s",
+  "t",
+  "u",
+  "v",
+  "w",
+  "x",
+  "y",
+  "z",
+  "{",
+  "|",
+  "}",
+  "~",
+  "",
+  "é",
+  " ",
+  "日",
+  "\u2028",
+  "﻿",
+  "𝄞",
+  "İ",
+  "�"
+ ],
+ "inputs_sha256": "914b159b2ad727ead632f099516009c5703669a0e37d2864033b727f136a8fa5",
+ "outputs_sha256": "11608efcfd7c7573eeaefeb97b7ede080d267501c7672df254831ab81e3f9afa",
+ "values_seed": 1592590594,
+ "values_count": 50000,
+ "values_keys": [
+  "",
+  "a",
+  "b",
+  "B",
+  "a b",
+  "a+b",
+  "~",
+  "*",
+  "id",
+  "id[]",
+  "é",
+  "z"
+ ],
+ "values_inputs_sha256": "d76b4ca779e7fd4dd1f4f2e63d04bbc2c139f3acc2f0a1f9c8fd6af1108ace55",
+ "values_outputs_sha256": "de22d2d7dda5d9a1f36c2607b9b6db8d9866a8908ebecd5b65f127f547555bcc",
+ "edges": [
+  {
+   "input": "\u0000",
+   "query": "%00",
+   "path": "%00",
+   "query_unescape": "\u0000",
+   "query_unescape_error": ""
+  },
+  {
+   "input": "\u0001",
+   "query": "%01",
+   "path": "%01",
+   "query_unescape": "\u0001",
+   "query_unescape_error": ""
+  },
+  {
+   "input": "\u0002",
+   "query": "%02",
+   "path": "%02",
+   "query_unescape": "\u0002",
+   "query_unescape_error": ""
+  },
+  {
+   "input": "\u0003",
+   "query": "%03",
+   "path": "%03",
+   "query_unescape": "\u0003",
+   "query_unescape_error": ""
+  },
+  {
+   "input": "\u0004",
+   "query": "%04",
+   "path": "%04",
+   "query_unescape": "\u0004",
+   "query_unescape_error": ""
+  },
+  {
+   "input": "\u0005",
+   "query": "%05",
+   "path": "%05",
+   "query_unescape": "\u0005",
+   "query_unescape_error": ""
+  },
+  {
+   "input": "\u0006",
+   "query": "%06",
+   "path": "%06",
+   "query_unescape": "\u0006",
+   "query_unescape_error": ""
+  },
+  {
+   "input": "\u0007",
+   "query": "%07",
+   "path": "%07",
+   "query_unescape": "\u0007",
+   "query_unescape_error": ""
+  },
+  {
+   "input": "\b",
+   "query": "%08",
+   "path": "%08",
+   "query_unescape": "\b",
+   "query_unescape_error": ""
+  },
+  {
+   "input": "\t",
+   "query": "%09",
+   "path": "%09",
+   "query_unescape": "\t",
+   "query_unescape_error": ""
+  },
+  {
+   "input": "\n",
+   "query": "%0A",
+   "path": "%0A",
+   "query_unescape": "\n",
+   "query_unescape_error": ""
+  },
+  {
+   "input": "\u000b",
+   "query": "%0B",
+   "path": "%0B",
+   "query_unescape": "\u000b",
+   "query_unescape_error": ""
+  },
+  {
+   "input": "\f",
+   "query": "%0C",
+   "path": "%0C",
+   "query_unescape": "\f",
+   "query_unescape_error": ""
+  },
+  {
+   "input": "\r",
+   "query": "%0D",
+   "path": "%0D",
+   "query_unescape": "\r",
+   "query_unescape_error": ""
+  },
+  {
+   "input": "\u000e",
+   "query": "%0E",
+   "path": "%0E",
+   "query_unescape": "\u000e",
+   "query_unescape_error": ""
+  },
+  {
+   "input": "\u000f",
+   "query": "%0F",
+   "path": "%0F",
+   "query_unescape": "\u000f",
+   "query_unescape_error": ""
+  },
+  {
+   "input": "\u0010",
+   "query": "%10",
+   "path": "%10",
+   "query_unescape": "\u0010",
+   "query_unescape_error": ""
+  },
+  {
+   "input": "\u0011",
+   "query": "%11",
+   "path": "%11",
+   "query_unescape": "\u0011",
+   "query_unescape_error": ""
+  },
+  {
+   "input": "\u0012",
+   "query": "%12",
+   "path": "%12",
+   "query_unescape": "\u0012",
+   "query_unescape_error": ""
+  },
+  {
+   "input": "\u0013",
+   "query": "%13",
+   "path": "%13",
+   "query_unescape": "\u0013",
+   "query_unescape_error": ""
+  },
+  {
+   "input": "\u0014",
+   "query": "%14",
+   "path": "%14",
+   "query_unescape": "\u0014",
+   "query_unescape_error": ""
+  },
+  {
+   "input": "\u0015",
+   "query": "%15",
+   "path": "%15",
+   "query_unescape": "\u0015",
+   "query_unescape_error": ""
+  },
+  {
+   "input": "\u0016",
+   "query": "%16",
+   "path": "%16",
+   "query_unescape": "\u0016",
+   "query_unescape_error": ""
+  },
+  {
+   "input": "\u0017",
+   "query": "%17",
+   "path": "%17",
+   "query_unescape": "\u0017",
+   "query_unescape_error": ""
+  },
+  {
+   "input": "\u0018",
+   "query": "%18",
+   "path": "%18",
+   "query_unescape": "\u0018",
+   "query_unescape_error": ""
+  },
+  {
+   "input": "\u0019",
+   "query": "%19",
+   "path": "%19",
+   "query_unescape": "\u0019",
+   "query_unescape_error": ""
+  },
+  {
+   "input": "\u001a",
+   "query": "%1A",
+   "path": "%1A",
+   "query_unescape": "\u001a",
+   "query_unescape_error": ""
+  },
+  {
+   "input": "\u001b",
+   "query": "%1B",
+   "path": "%1B",
+   "query_unescape": "\u001b",
+   "query_unescape_error": ""
+  },
+  {
+   "input": "\u001c",
+   "query": "%1C",
+   "path": "%1C",
+   "query_unescape": "\u001c",
+   "query_unescape_error": ""
+  },
+  {
+   "input": "\u001d",
+   "query": "%1D",
+   "path": "%1D",
+   "query_unescape": "\u001d",
+   "query_unescape_error": ""
+  },
+  {
+   "input": "\u001e",
+   "query": "%1E",
+   "path": "%1E",
+   "query_unescape": "\u001e",
+   "query_unescape_error": ""
+  },
+  {
+   "input": "\u001f",
+   "query": "%1F",
+   "path": "%1F",
+   "query_unescape": "\u001f",
+   "query_unescape_error": ""
+  },
+  {
+   "input": " ",
+   "query": "+",
+   "path": "%20",
+   "query_unescape": " ",
+   "query_unescape_error": ""
+  },
+  {
+   "input": "!",
+   "query": "%21",
+   "path": "%21",
+   "query_unescape": "!",
+   "query_unescape_error": ""
+  },
+  {
+   "input": "\"",
+   "query": "%22",
+   "path": "%22",
+   "query_unescape": "\"",
+   "query_unescape_error": ""
+  },
+  {
+   "input": "#",
+   "query": "%23",
+   "path": "%23",
+   "query_unescape": "#",
+   "query_unescape_error": ""
+  },
+  {
+   "input": "$",
+   "query": "%24",
+   "path": "$",
+   "query_unescape": "$",
+   "query_unescape_error": ""
+  },
+  {
+   "input": "%",
+   "query": "%25",
+   "path": "%25",
+   "query_unescape": "",
+   "query_unescape_error": "error: invalid URL escape \"%\""
+  },
+  {
+   "input": "&",
+   "query": "%26",
+   "path": "&",
+   "query_unescape": "&",
+   "query_unescape_error": ""
+  },
+  {
+   "input": "'",
+   "query": "%27",
+   "path": "%27",
+   "query_unescape": "'",
+   "query_unescape_error": ""
+  },
+  {
+   "input": "(",
+   "query": "%28",
+   "path": "%28",
+   "query_unescape": "(",
+   "query_unescape_error": ""
+  },
+  {
+   "input": ")",
+   "query": "%29",
+   "path": "%29",
+   "query_unescape": ")",
+   "query_unescape_error": ""
+  },
+  {
+   "input": "*",
+   "query": "%2A",
+   "path": "%2A",
+   "query_unescape": "*",
+   "query_unescape_error": ""
+  },
+  {
+   "input": "+",
+   "query": "%2B",
+   "path": "+",
+   "query_unescape": " ",
+   "query_unescape_error": ""
+  },
+  {
+   "input": ",",
+   "query": "%2C",
+   "path": "%2C",
+   "query_unescape": ",",
+   "query_unescape_error": ""
+  },
+  {
+   "input": "-",
+   "query": "-",
+   "path": "-",
+   "query_unescape": "-",
+   "query_unescape_error": ""
+  },
+  {
+   "input": ".",
+   "query": ".",
+   "path": ".",
+   "query_unescape": ".",
+   "query_unescape_error": ""
+  },
+  {
+   "input": "/",
+   "query": "%2F",
+   "path": "%2F",
+   "query_unescape": "/",
+   "query_unescape_error": ""
+  },
+  {
+   "input": "0",
+   "query": "0",
+   "path": "0",
+   "query_unescape": "0",
+   "query_unescape_error": ""
+  },
+  {
+   "input": "1",
+   "query": "1",
+   "path": "1",
+   "query_unescape": "1",
+   "query_unescape_error": ""
+  },
+  {
+   "input": "2",
+   "query": "2",
+   "path": "2",
+   "query_unescape": "2",
+   "query_unescape_error": ""
+  },
+  {
+   "input": "3",
+   "query": "3",
+   "path": "3",
+   "query_unescape": "3",
+   "query_unescape_error": ""
+  },
+  {
+   "input": "4",
+   "query": "4",
+   "path": "4",
+   "query_unescape": "4",
+   "query_unescape_error": ""
+  },
+  {
+   "input": "5",
+   "query": "5",
+   "path": "5",
+   "query_unescape": "5",
+   "query_unescape_error": ""
+  },
+  {
+   "input": "6",
+   "query": "6",
+   "path": "6",
+   "query_unescape": "6",
+   "query_unescape_error": ""
+  },
+  {
+   "input": "7",
+   "query": "7",
+   "path": "7",
+   "query_unescape": "7",
+   "query_unescape_error": ""
+  },
+  {
+   "input": "8",
+   "query": "8",
+   "path": "8",
+   "query_unescape": "8",
+   "query_unescape_error": ""
+  },
+  {
+   "input": "9",
+   "query": "9",
+   "path": "9",
+   "query_unescape": "9",
+   "query_unescape_error": ""
+  },
+  {
+   "input": ":",
+   "query": "%3A",
+   "path": ":",
+   "query_unescape": ":",
+   "query_unescape_error": ""
+  },
+  {
+   "input": ";",
+   "query": "%3B",
+   "path": "%3B",
+   "query_unescape": ";",
+   "query_unescape_error": ""
+  },
+  {
+   "input": "<",
+   "query": "%3C",
+   "path": "%3C",
+   "query_unescape": "<",
+   "query_unescape_error": ""
+  },
+  {
+   "input": "=",
+   "query": "%3D",
+   "path": "=",
+   "query_unescape": "=",
+   "query_unescape_error": ""
+  },
+  {
+   "input": ">",
+   "query": "%3E",
+   "path": "%3E",
+   "query_unescape": ">",
+   "query_unescape_error": ""
+  },
+  {
+   "input": "?",
+   "query": "%3F",
+   "path": "%3F",
+   "query_unescape": "?",
+   "query_unescape_error": ""
+  },
+  {
+   "input": "@",
+   "query": "%40",
+   "path": "@",
+   "query_unescape": "@",
+   "query_unescape_error": ""
+  },
+  {
+   "input": "A",
+   "query": "A",
+   "path": "A",
+   "query_unescape": "A",
+   "query_unescape_error": ""
+  },
+  {
+   "input": "B",
+   "query": "B",
+   "path": "B",
+   "query_unescape": "B",
+   "query_unescape_error": ""
+  },
+  {
+   "input": "C",
+   "query": "C",
+   "path": "C",
+   "query_unescape": "C",
+   "query_unescape_error": ""
+  },
+  {
+   "input": "D",
+   "query": "D",
+   "path": "D",
+   "query_unescape": "D",
+   "query_unescape_error": ""
+  },
+  {
+   "input": "E",
+   "query": "E",
+   "path": "E",
+   "query_unescape": "E",
+   "query_unescape_error": ""
+  },
+  {
+   "input": "F",
+   "query": "F",
+   "path": "F",
+   "query_unescape": "F",
+   "query_unescape_error": ""
+  },
+  {
+   "input": "G",
+   "query": "G",
+   "path": "G",
+   "query_unescape": "G",
+   "query_unescape_error": ""
+  },
+  {
+   "input": "H",
+   "query": "H",
+   "path": "H",
+   "query_unescape": "H",
+   "query_unescape_error": ""
+  },
+  {
+   "input": "I",
+   "query": "I",
+   "path": "I",
+   "query_unescape": "I",
+   "query_unescape_error": ""
+  },
+  {
+   "input": "J",
+   "query": "J",
+   "path": "J",
+   "query_unescape": "J",
+   "query_unescape_error": ""
+  },
+  {
+   "input": "K",
+   "query": "K",
+   "path": "K",
+   "query_unescape": "K",
+   "query_unescape_error": ""
+  },
+  {
+   "input": "L",
+   "query": "L",
+   "path": "L",
+   "query_unescape": "L",
+   "query_unescape_error": ""
+  },
+  {
+   "input": "M",
+   "query": "M",
+   "path": "M",
+   "query_unescape": "M",
+   "query_unescape_error": ""
+  },
+  {
+   "input": "N",
+   "query": "N",
+   "path": "N",
+   "query_unescape": "N",
+   "query_unescape_error": ""
+  },
+  {
+   "input": "O",
+   "query": "O",
+   "path": "O",
+   "query_unescape": "O",
+   "query_unescape_error": ""
+  },
+  {
+   "input": "P",
+   "query": "P",
+   "path": "P",
+   "query_unescape": "P",
+   "query_unescape_error": ""
+  },
+  {
+   "input": "Q",
+   "query": "Q",
+   "path": "Q",
+   "query_unescape": "Q",
+   "query_unescape_error": ""
+  },
+  {
+   "input": "R",
+   "query": "R",
+   "path": "R",
+   "query_unescape": "R",
+   "query_unescape_error": ""
+  },
+  {
+   "input": "S",
+   "query": "S",
+   "path": "S",
+   "query_unescape": "S",
+   "query_unescape_error": ""
+  },
+  {
+   "input": "T",
+   "query": "T",
+   "path": "T",
+   "query_unescape": "T",
+   "query_unescape_error": ""
+  },
+  {
+   "input": "U",
+   "query": "U",
+   "path": "U",
+   "query_unescape": "U",
+   "query_unescape_error": ""
+  },
+  {
+   "input": "V",
+   "query": "V",
+   "path": "V",
+   "query_unescape": "V",
+   "query_unescape_error": ""
+  },
+  {
+   "input": "W",
+   "query": "W",
+   "path": "W",
+   "query_unescape": "W",
+   "query_unescape_error": ""
+  },
+  {
+   "input": "X",
+   "query": "X",
+   "path": "X",
+   "query_unescape": "X",
+   "query_unescape_error": ""
+  },
+  {
+   "input": "Y",
+   "query": "Y",
+   "path": "Y",
+   "query_unescape": "Y",
+   "query_unescape_error": ""
+  },
+  {
+   "input": "Z",
+   "query": "Z",
+   "path": "Z",
+   "query_unescape": "Z",
+   "query_unescape_error": ""
+  },
+  {
+   "input": "[",
+   "query": "%5B",
+   "path": "%5B",
+   "query_unescape": "[",
+   "query_unescape_error": ""
+  },
+  {
+   "input": "\\",
+   "query": "%5C",
+   "path": "%5C",
+   "query_unescape": "\\",
+   "query_unescape_error": ""
+  },
+  {
+   "input": "]",
+   "query": "%5D",
+   "path": "%5D",
+   "query_unescape": "]",
+   "query_unescape_error": ""
+  },
+  {
+   "input": "^",
+   "query": "%5E",
+   "path": "%5E",
+   "query_unescape": "^",
+   "query_unescape_error": ""
+  },
+  {
+   "input": "_",
+   "query": "_",
+   "path": "_",
+   "query_unescape": "_",
+   "query_unescape_error": ""
+  },
+  {
+   "input": "`",
+   "query": "%60",
+   "path": "%60",
+   "query_unescape": "`",
+   "query_unescape_error": ""
+  },
+  {
+   "input": "a",
+   "query": "a",
+   "path": "a",
+   "query_unescape": "a",
+   "query_unescape_error": ""
+  },
+  {
+   "input": "b",
+   "query": "b",
+   "path": "b",
+   "query_unescape": "b",
+   "query_unescape_error": ""
+  },
+  {
+   "input": "c",
+   "query": "c",
+   "path": "c",
+   "query_unescape": "c",
+   "query_unescape_error": ""
+  },
+  {
+   "input": "d",
+   "query": "d",
+   "path": "d",
+   "query_unescape": "d",
+   "query_unescape_error": ""
+  },
+  {
+   "input": "e",
+   "query": "e",
+   "path": "e",
+   "query_unescape": "e",
+   "query_unescape_error": ""
+  },
+  {
+   "input": "f",
+   "query": "f",
+   "path": "f",
+   "query_unescape": "f",
+   "query_unescape_error": ""
+  },
+  {
+   "input": "g",
+   "query": "g",
+   "path": "g",
+   "query_unescape": "g",
+   "query_unescape_error": ""
+  },
+  {
+   "input": "h",
+   "query": "h",
+   "path": "h",
+   "query_unescape": "h",
+   "query_unescape_error": ""
+  },
+  {
+   "input": "i",
+   "query": "i",
+   "path": "i",
+   "query_unescape": "i",
+   "query_unescape_error": ""
+  },
+  {
+   "input": "j",
+   "query": "j",
+   "path": "j",
+   "query_unescape": "j",
+   "query_unescape_error": ""
+  },
+  {
+   "input": "k",
+   "query": "k",
+   "path": "k",
+   "query_unescape": "k",
+   "query_unescape_error": ""
+  },
+  {
+   "input": "l",
+   "query": "l",
+   "path": "l",
+   "query_unescape": "l",
+   "query_unescape_error": ""
+  },
+  {
+   "input": "m",
+   "query": "m",
+   "path": "m",
+   "query_unescape": "m",
+   "query_unescape_error": ""
+  },
+  {
+   "input": "n",
+   "query": "n",
+   "path": "n",
+   "query_unescape": "n",
+   "query_unescape_error": ""
+  },
+  {
+   "input": "o",
+   "query": "o",
+   "path": "o",
+   "query_unescape": "o",
+   "query_unescape_error": ""
+  },
+  {
+   "input": "p",
+   "query": "p",
+   "path": "p",
+   "query_unescape": "p",
+   "query_unescape_error": ""
+  },
+  {
+   "input": "q",
+   "query": "q",
+   "path": "q",
+   "query_unescape": "q",
+   "query_unescape_error": ""
+  },
+  {
+   "input": "r",
+   "query": "r",
+   "path": "r",
+   "query_unescape": "r",
+   "query_unescape_error": ""
+  },
+  {
+   "input": "s",
+   "query": "s",
+   "path": "s",
+   "query_unescape": "s",
+   "query_unescape_error": ""
+  },
+  {
+   "input": "t",
+   "query": "t",
+   "path": "t",
+   "query_unescape": "t",
+   "query_unescape_error": ""
+  },
+  {
+   "input": "u",
+   "query": "u",
+   "path": "u",
+   "query_unescape": "u",
+   "query_unescape_error": ""
+  },
+  {
+   "input": "v",
+   "query": "v",
+   "path": "v",
+   "query_unescape": "v",
+   "query_unescape_error": ""
+  },
+  {
+   "input": "w",
+   "query": "w",
+   "path": "w",
+   "query_unescape": "w",
+   "query_unescape_error": ""
+  },
+  {
+   "input": "x",
+   "query": "x",
+   "path": "x",
+   "query_unescape": "x",
+   "query_unescape_error": ""
+  },
+  {
+   "input": "y",
+   "query": "y",
+   "path": "y",
+   "query_unescape": "y",
+   "query_unescape_error": ""
+  },
+  {
+   "input": "z",
+   "query": "z",
+   "path": "z",
+   "query_unescape": "z",
+   "query_unescape_error": ""
+  },
+  {
+   "input": "{",
+   "query": "%7B",
+   "path": "%7B",
+   "query_unescape": "{",
+   "query_unescape_error": ""
+  },
+  {
+   "input": "|",
+   "query": "%7C",
+   "path": "%7C",
+   "query_unescape": "|",
+   "query_unescape_error": ""
+  },
+  {
+   "input": "}",
+   "query": "%7D",
+   "path": "%7D",
+   "query_unescape": "}",
+   "query_unescape_error": ""
+  },
+  {
+   "input": "~",
+   "query": "~",
+   "path": "~",
+   "query_unescape": "~",
+   "query_unescape_error": ""
+  },
+  {
+   "input": "",
+   "query": "%7F",
+   "path": "%7F",
+   "query_unescape": "",
+   "query_unescape_error": ""
+  },
+  {
+   "input": "é",
+   "query": "%C3%A9",
+   "path": "%C3%A9",
+   "query_unescape": "é",
+   "query_unescape_error": ""
+  },
+  {
+   "input": " ",
+   "query": "%C2%A0",
+   "path": "%C2%A0",
+   "query_unescape": " ",
+   "query_unescape_error": ""
+  },
+  {
+   "input": "日",
+   "query": "%E6%97%A5",
+   "path": "%E6%97%A5",
+   "query_unescape": "日",
+   "query_unescape_error": ""
+  },
+  {
+   "input": "\u2028",
+   "query": "%E2%80%A8",
+   "path": "%E2%80%A8",
+   "query_unescape": "\u2028",
+   "query_unescape_error": ""
+  },
+  {
+   "input": "﻿",
+   "query": "%EF%BB%BF",
+   "path": "%EF%BB%BF",
+   "query_unescape": "﻿",
+   "query_unescape_error": ""
+  },
+  {
+   "input": "𝄞",
+   "query": "%F0%9D%84%9E",
+   "path": "%F0%9D%84%9E",
+   "query_unescape": "𝄞",
+   "query_unescape_error": ""
+  },
+  {
+   "input": "İ",
+   "query": "%C4%B0",
+   "path": "%C4%B0",
+   "query_unescape": "İ",
+   "query_unescape_error": ""
+  },
+  {
+   "input": "�",
+   "query": "%EF%BF%BD",
+   "path": "%EF%BF%BD",
+   "query_unescape": "�",
+   "query_unescape_error": ""
+  },
+  {
+   "input": "",
+   "query": "",
+   "path": "",
+   "query_unescape": "",
+   "query_unescape_error": ""
+  },
+  {
+   "input": "a b",
+   "query": "a+b",
+   "path": "a%20b",
+   "query_unescape": "a b",
+   "query_unescape_error": ""
+  },
+  {
+   "input": "a+b",
+   "query": "a%2Bb",
+   "path": "a+b",
+   "query_unescape": "a b",
+   "query_unescape_error": ""
+  },
+  {
+   "input": "a%20b",
+   "query": "a%2520b",
+   "path": "a%2520b",
+   "query_unescape": "a b",
+   "query_unescape_error": ""
+  },
+  {
+   "input": "100%",
+   "query": "100%25",
+   "path": "100%25",
+   "query_unescape": "",
+   "query_unescape_error": "error: invalid URL escape \"%\""
+  },
+  {
+   "input": "%zz",
+   "query": "%25zz",
+   "path": "%25zz",
+   "query_unescape": "",
+   "query_unescape_error": "error: invalid URL escape \"%zz\""
+  },
+  {
+   "input": "a/b?c#d",
+   "query": "a%2Fb%3Fc%23d",
+   "path": "a%2Fb%3Fc%23d",
+   "query_unescape": "a/b?c#d",
+   "query_unescape_error": ""
+  },
+  {
+   "input": "k=v&k2=v2",
+   "query": "k%3Dv%26k2%3Dv2",
+   "path": "k=v&k2=v2",
+   "query_unescape": "k=v&k2=v2",
+   "query_unescape_error": ""
+  },
+  {
+   "input": "~*'()!",
+   "query": "~%2A%27%28%29%21",
+   "path": "~%2A%27%28%29%21",
+   "query_unescape": "~*'()!",
+   "query_unescape_error": ""
+  },
+  {
+   "input": "$&+,/:;=?@",
+   "query": "%24%26%2B%2C%2F%3A%3B%3D%3F%40",
+   "path": "$&+%2C%2F:%3B=%3F@",
+   "query_unescape": "$& ,/:;=?@",
+   "query_unescape_error": ""
+  },
+  {
+   "input": "[]{}|\\^`",
+   "query": "%5B%5D%7B%7D%7C%5C%5E%60",
+   "path": "%5B%5D%7B%7D%7C%5C%5E%60",
+   "query_unescape": "[]{}|\\^`",
+   "query_unescape_error": ""
+  },
+  {
+   "input": "\"<>",
+   "query": "%22%3C%3E",
+   "path": "%22%3C%3E",
+   "query_unescape": "\"<>",
+   "query_unescape_error": ""
+  },
+  {
+   "input": "\u0000",
+   "query": "%00%7F",
+   "path": "%00%7F",
+   "query_unescape": "\u0000",
+   "query_unescape_error": ""
+  },
+  {
+   "input": "é日𝄞",
+   "query": "%C3%A9%E6%97%A5%F0%9D%84%9E",
+   "path": "%C3%A9%E6%97%A5%F0%9D%84%9E",
+   "query_unescape": "é日𝄞",
+   "query_unescape_error": ""
+  },
+  {
+   "input": "https://example.com/p?q=1&r=a b#f",
+   "query": "https%3A%2F%2Fexample.com%2Fp%3Fq%3D1%26r%3Da+b%23f",
+   "path": "https:%2F%2Fexample.com%2Fp%3Fq=1&r=a%20b%23f",
+   "query_unescape": "https://example.com/p?q=1&r=a b#f",
+   "query_unescape_error": ""
+  },
+  {
+   "input": "{{.RedirectURL}}",
+   "query": "%7B%7B.RedirectURL%7D%7D",
+   "path": "%7B%7B.RedirectURL%7D%7D",
+   "query_unescape": "{{.RedirectURL}}",
+   "query_unescape_error": ""
+  },
+  {
+   "input": "gdpr_consent=${GDPR}",
+   "query": "gdpr_consent%3D%24%7BGDPR%7D",
+   "path": "gdpr_consent=$%7BGDPR%7D",
+   "query_unescape": "gdpr_consent=${GDPR}",
+   "query_unescape_error": ""
+  }
+ ],
+ "values_edges": [
+  {
+   "pairs": [],
+   "encode": ""
+  },
+  {
+   "pairs": [
+    "a",
+    "1"
+   ],
+   "encode": "a=1"
+  },
+  {
+   "pairs": [
+    "b",
+    "2",
+    "a",
+    "1"
+   ],
+   "encode": "a=1&b=2"
+  },
+  {
+   "pairs": [
+    "a",
+    "2",
+    "a",
+    "1"
+   ],
+   "encode": "a=2&a=1"
+  },
+  {
+   "pairs": [
+    "",
+    "x"
+   ],
+   "encode": "=x"
+  },
+  {
+   "pairs": [
+    "a b",
+    "c d",
+    "a+b",
+    "~*"
+   ],
+   "encode": "a+b=c+d&a%2Bb=~%2A"
+  },
+  {
+   "pairs": [
+    "z",
+    "",
+    "y",
+    "é"
+   ],
+   "encode": "y=%C3%A9&z="
+  },
+  {
+   "pairs": [
+    "id[]",
+    "1",
+    "id[]",
+    "2",
+    "ID",
+    "3"
+   ],
+   "encode": "ID=3&id%5B%5D=1&id%5B%5D=2"
+  }
+ ],
+ "parse_query": [
+  {
+   "query": "a=1&b=2",
+   "values": {
+    "a": [
+     "1"
+    ],
+    "b": [
+     "2"
+    ]
+   },
+   "error": "",
+   "get": {
+    "": "",
+    "A": "",
+    "a": "1",
+    "a b": "",
+    "b": "2"
+   }
+  },
+  {
+   "query": "a=1;b=2",
+   "values": {},
+   "error": "error: invalid semicolon separator in query",
+   "get": {
+    "": "",
+    "A": "",
+    "a": "",
+    "a b": "",
+    "b": ""
+   }
+  },
+  {
+   "query": "a=1&a=2",
+   "values": {
+    "a": [
+     "1",
+     "2"
+    ]
+   },
+   "error": "",
+   "get": {
+    "": "",
+    "A": "",
+    "a": "1",
+    "a b": "",
+    "b": ""
+   }
+  },
+  {
+   "query": "a=%zz&b=2",
+   "values": {
+    "b": [
+     "2"
+    ]
+   },
+   "error": "error: invalid URL escape \"%zz\"",
+   "get": {
+    "": "",
+    "A": "",
+    "a": "",
+    "a b": "",
+    "b": "2"
+   }
+  },
+  {
+   "query": "a=%2",
+   "values": {},
+   "error": "error: invalid URL escape \"%2\"",
+   "get": {
+    "": "",
+    "A": "",
+    "a": "",
+    "a b": "",
+    "b": ""
+   }
+  },
+  {
+   "query": "a+b=c+d",
+   "values": {
+    "a b": [
+     "c d"
+    ]
+   },
+   "error": "",
+   "get": {
+    "": "",
+    "A": "",
+    "a": "",
+    "a b": "c d",
+    "b": ""
+   }
+  },
+  {
+   "query": "a=1&&b",
+   "values": {
+    "a": [
+     "1"
+    ],
+    "b": [
+     ""
+    ]
+   },
+   "error": "",
+   "get": {
+    "": "",
+    "A": "",
+    "a": "1",
+    "a b": "",
+    "b": ""
+   }
+  },
+  {
+   "query": "=x",
+   "values": {
+    "": [
+     "x"
+    ]
+   },
+   "error": "",
+   "get": {
+    "": "x",
+    "A": "",
+    "a": "",
+    "a b": "",
+    "b": ""
+   }
+  },
+  {
+   "query": "a",
+   "values": {
+    "a": [
+     ""
+    ]
+   },
+   "error": "",
+   "get": {
+    "": "",
+    "A": "",
+    "a": "",
+    "a b": "",
+    "b": ""
+   }
+  },
+  {
+   "query": "a=1&b",
+   "values": {
+    "a": [
+     "1"
+    ],
+    "b": [
+     ""
+    ]
+   },
+   "error": "",
+   "get": {
+    "": "",
+    "A": "",
+    "a": "1",
+    "a b": "",
+    "b": ""
+   }
+  },
+  {
+   "query": "%41=%42",
+   "values": {
+    "A": [
+     "B"
+    ]
+   },
+   "error": "",
+   "get": {
+    "": "",
+    "A": "B",
+    "a": "",
+    "a b": "",
+    "b": ""
+   }
+  },
+  {
+   "query": "a=1%3Bb=2",
+   "values": {
+    "a": [
+     "1;b=2"
+    ]
+   },
+   "error": "",
+   "get": {
+    "": "",
+    "A": "",
+    "a": "1;b=2",
+    "a b": "",
+    "b": ""
+   }
+  }
+ ]
+}

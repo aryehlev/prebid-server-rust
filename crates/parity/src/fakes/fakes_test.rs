@@ -1,9 +1,9 @@
 use std::{collections::BTreeMap, thread};
 
-use pbs_gocompat::time::Time as GoTime;
 use pbs_util::{
     randomutil::RandomGenerator as _, timeutil::Time as _, uuidutil::UuidGenerator as _,
 };
+use time::{OffsetDateTime, format_description::BorrowedFormatItem, macros::format_description};
 
 use super::{
     DEFAULT_INT63, DEFAULT_NOW_UNIX_MS, DEFAULT_UUID, OrderSite, ParityUuidGenerator, Source,
@@ -14,8 +14,20 @@ use crate::{
     golden::{TestResult, check, check_eq, contract_json, global_lock_blocking},
 };
 
-/// The RFC 3339 layout with milliseconds that `fakes.json` `derived` uses.
-const MILLIS: &str = "2006-01-02T15:04:05.000Z07:00";
+/// Go's `2006-01-02T15:04:05.000Z07:00`, the RFC 3339 layout with milliseconds that
+/// `fakes.json` `derived` uses, for a UTC instant.
+const MILLIS: &[BorrowedFormatItem<'_>] =
+    format_description!("[year]-[month]-[day]T[hour]:[minute]:[second].[subsecond digits:3]Z");
+
+/// Go: `t.Format(MILLIS)` of a UTC instant.
+fn millis(t: OffsetDateTime) -> Option<String> {
+    t.offset().is_utc().then(|| t.format(MILLIS).ok()).flatten()
+}
+
+/// Go: `t.UnixMilli()`.
+pub(super) fn unix_milli(t: OffsetDateTime) -> Option<i64> {
+    i64::try_from(t.unix_timestamp_nanos().div_euclid(1_000_000)).ok()
+}
 
 fn is_v4(u: &str) -> bool {
     let b = u.as_bytes();
@@ -29,12 +41,6 @@ fn is_v4(u: &str) -> bool {
         })
         && b.get(14) == Some(&b'4')
         && b.get(19).is_some_and(|c| b"89ab".contains(c))
-}
-
-/// The ISO 8601 week of a date that is not in the first or last week of its year.
-fn iso_week(t: &GoTime) -> i64 {
-    let iso_weekday = (t.weekday() + 6) % 7 + 1;
-    (t.year_day() - iso_weekday + 10) / 7
 }
 
 // fakes.json defaults, derived values and the first generated UUIDs.
@@ -62,16 +68,20 @@ fn defaults_match_the_registry() -> TestResult {
     let derived = registry.get("derived")?;
     let fixed = Source::new().now();
     check_eq(
-        &fixed.format(MILLIS),
-        &derived.string("now_rfc3339")?,
+        &millis(fixed),
+        &Some(derived.string("now_rfc3339")?),
         "rfc3339",
     )?;
     check_eq(
-        &fixed.unix(),
+        &fixed.unix_timestamp(),
         &derived.int("now_unix_seconds")?,
         "unix seconds",
     )?;
-    check_eq(&iso_week(&fixed), &derived.int("now_iso_week")?, "iso week")?;
+    check_eq(
+        &i64::from(fixed.iso_week()),
+        &derived.int("now_iso_week")?,
+        "iso week",
+    )?;
 
     let first = registry.get("generated_uuids")?.array("first")?;
     for (n, uuid) in (1_u64..).zip(&first) {
@@ -156,8 +166,8 @@ fn source_merges_values_and_restarts_the_stream() -> TestResult {
     check_eq(&src.intn(10), &Some(9), "Intn")?;
     check_eq(&src.intn(0), &Some(0), "Intn(0) does not panic")?;
     check_eq(&src.intn(-3), &Some(0), "Intn(<0) does not panic")?;
-    check_eq(&src.now().unix_milli(), &DEFAULT_NOW_UNIX_MS, "Now")?;
-    check_eq(&src.now().location().name(), &"UTC", "Now is UTC")?;
+    check_eq(&unix_milli(src.now()), &Some(DEFAULT_NOW_UNIX_MS), "Now")?;
+    check(src.now().offset().is_utc(), "Now is UTC")?;
 
     src.set(None);
     check_eq(&src.values(), &defaults(), "reset")?;
@@ -167,7 +177,7 @@ fn source_merges_values_and_restarts_the_stream() -> TestResult {
         int63: -7,
         uuid: String::new(),
     }));
-    check_eq(&src.now().unix_milli(), &-1, "negative instant")?;
+    check_eq(&unix_milli(src.now()), &Some(-1), "negative instant")?;
     check_eq(&src.intn(3), &Some(-1), "Go's % keeps the sign")
 }
 
@@ -243,10 +253,10 @@ fn uninstalled_helpers_are_production() -> TestResult {
     check(active().is_none(), "nothing installed")?;
     let keys = map_keys(["b", "c", "a"], |x, y| x < y);
     check_eq(&keys, &vec!["b", "c", "a"], "map order kept")?;
-    let before = GoTime::now().unix();
-    let t = now();
+    let before = OffsetDateTime::now_utc().unix_timestamp();
+    let t = now().unix_timestamp();
     check(
-        t.unix() >= before && t.unix() <= GoTime::now().unix(),
+        t >= before && t <= OffsetDateTime::now_utc().unix_timestamp(),
         "system clock",
     )?;
     check(int() >= 0, "rand.Int is non-negative")?;
@@ -267,9 +277,12 @@ mod installed {
 
     use pbs_util::uuidutil::UuidGenerator as _;
 
-    use super::super::{
-        DEFAULT_UUID, ParityUuidGenerator, Source, active, install, int, map_keys, new_v4, now,
-        sequence_uuid, uninstall,
+    use super::{
+        super::{
+            DEFAULT_UUID, ParityUuidGenerator, Source, active, install, int, map_keys, new_v4, now,
+            sequence_uuid, uninstall,
+        },
+        unix_milli,
     };
     use crate::{
         envelope::FakeValues,
@@ -293,7 +306,7 @@ mod installed {
         let src = install();
         check(ptr::eq(install(), src), "install is idempotent")?;
         check(active().is_some_and(|a| ptr::eq(a, src)), "active")?;
-        check_eq(&now().unix_milli(), &1_629_473_330_823, "fixed clock")?;
+        check_eq(&unix_milli(now()), &Some(1_629_473_330_823), "fixed clock")?;
         check_eq(&int(), &10, "fixed int")?;
         check_eq(
             &map_keys(["b", "c", "a"], |x, y| x < y),

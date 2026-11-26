@@ -189,7 +189,8 @@ mod tests {
 
     #[test]
     fn mut_variants_change_in_place() -> TestResult {
-        // The adapters edit the maps they read (Go maps are references).
+        // Go: maputil.ReadEmbeddedMap and ReadEmbeddedSlice hand out the values m holds
+        // (util/maputil/maputil.go:4, 14), which the adapters edit in place.
         let mut m = object(&json!({"video": {"w": 1}, "list": [1]}))?;
         if let Some(video) = read_embedded_map_mut(&mut m, "video") {
             let _previous = video.insert("h".to_owned(), json!(2));

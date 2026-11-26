@@ -79,11 +79,15 @@ ipnet = "2.12.2"
 json-patch = { version = "0.2.7", default-features = false }
 log = "0.4.35"
 moka = { version = "0.12.16", features = ["sync"] }
+# The sets of Go's url.QueryEscape and url.PathEscape (UTIL-CRATES, pbs_util::urlutil: the plan's
+# "percent-encoding sets" for net/url). url and axum already lock it.
+percent-encoding = "2.3.2"
 proc-macro2 = "1.0.107"
 # No protobuf: the default feature pulls protobuf 3.7 -> thiserror 1 (syn 2) beside thiserror 2.
 prometheus = { version = "0.14.0", default-features = false }
 psl = "2.1.257"
 quote = "1.0.47"
+rand = "0.10.4"
 # Dev-only: test certificates. rcgen's own aws_lc_rs feature names `x509-parser?/verify-aws`,
 # which puts x509-parser and untrusted 0.7.1 beside 0.9.0 into `cargo metadata`, so rcgen has no
 # crypto feature and signs through an aws-lc-rs key.
@@ -120,6 +124,7 @@ tracing = { version = "0.1.44", default-features = false, features = ["std"] }
 tracing-appender = { version = "0.2.5", default-features = false }
 tracing-subscriber = { version = "0.3.23", features = ["env-filter"] }
 url = "2.5.9"
+uuid = { version = "1.29.3", features = ["v4"] }
 
 # Stack entries that no member uses yet (orchestrator ruling 6). Each waits here as its exact
 # lines and comments, every line behind one more "# ". The first unit that uses an entry moves it
@@ -149,7 +154,6 @@ url = "2.5.9"
 # prost = { version = "0.14.6", default-features = false, features = ["std"] }
 # # The VAST tokenizer (D-XML). The injector writes Go's encoder output itself (Rule B (d)).
 # quick-xml = { version = "0.42.0", default-features = false }
-# rand = "0.10.4"
 # # Reads /etc/resolv.conf, the file Go's resolver reads, for hickory-resolver (D-DNS).
 # resolv-conf = "0.7.6"
 # semver = "1.0.28"
@@ -157,7 +161,6 @@ url = "2.5.9"
 # similar = { version = "3.2.1", default-features = false, features = ["text"] }
 # # Error types (pbs-errortypes and each crate's own); prometheus and quinn already lock it.
 # thiserror = "2.0.21"
-# uuid = { version = "1.29.3", features = ["v4"] }
 
 # Lint policy. Every crate opts in with `[lints] workspace = true`.
 # Suppressing a lint is forbidden everywhere: no #[allow], #![allow], #[expect],

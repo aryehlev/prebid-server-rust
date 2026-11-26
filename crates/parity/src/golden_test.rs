@@ -30,6 +30,7 @@ use pbs_util::{
 use serde::{Serialize, de::DeserializeOwned};
 use serde_json::Value;
 use sha2::{Digest as _, Sha256};
+use time::{OffsetDateTime, format_description::BorrowedFormatItem, macros::format_description};
 
 use crate::{
     adapterio::{
@@ -434,6 +435,25 @@ fn error_codes_match_go() -> TestResult {
     check_eq(&ours, &codes, "error codes")
 }
 
+/// Go's `2006-01-02T15:04:05.000Z07:00` of a UTC instant, as the fakes' instants are.
+const MILLIS: &[BorrowedFormatItem<'_>] =
+    format_description!("[year]-[month]-[day]T[hour]:[minute]:[second].[subsecond digits:3]Z");
+
+/// Go: `t.Format("2006-01-02T15:04:05.000Z07:00")` of a UTC instant.
+fn millis(t: OffsetDateTime) -> Option<String> {
+    t.offset().is_utc().then(|| t.format(MILLIS).ok()).flatten()
+}
+
+/// Go: `t.UnixMilli()`.
+fn unix_milli(t: OffsetDateTime) -> Option<i64> {
+    i64::try_from(t.unix_timestamp_nanos().div_euclid(1_000_000)).ok()
+}
+
+/// Go: `int(t.Weekday())`, Sunday 0.
+fn weekday(t: OffsetDateTime) -> i64 {
+    i64::from(t.weekday().number_days_from_sunday())
+}
+
 // Go: testdata/go/main.go fakesGolden (fakes.json).
 #[test]
 fn fakes_match_go() -> TestResult {
@@ -443,13 +463,21 @@ fn fakes_match_go() -> TestResult {
     let derived = g.get("derived")?;
     let fixed = Source::new().now();
     check_eq(
-        &fixed.format("2006-01-02T15:04:05.000Z07:00"),
-        &derived.string("now_rfc3339")?,
+        &millis(fixed),
+        &Some(derived.string("now_rfc3339")?),
         "rfc3339",
     )?;
-    check_eq(&fixed.unix(), &derived.int("now_unix_seconds")?, "unix")?;
-    check_eq(&fixed.weekday(), &derived.int("now_weekday")?, "weekday")?;
-    check_eq(&fixed.year_day(), &derived.int("now_year_day")?, "year day")?;
+    check_eq(
+        &fixed.unix_timestamp(),
+        &derived.int("now_unix_seconds")?,
+        "unix",
+    )?;
+    check_eq(&weekday(fixed), &derived.int("now_weekday")?, "weekday")?;
+    check_eq(
+        &i64::from(fixed.ordinal()),
+        &derived.int("now_year_day")?,
+        "year day",
+    )?;
     for case in g.array("sequence")? {
         let n = case.get("n")?.0.as_u64().ok_or("sequence n is not a u64")?;
         check_eq(
@@ -465,10 +493,14 @@ fn fakes_match_go() -> TestResult {
         src.set(set.as_ref());
         let values = serde_json::to_value(src.values()).map_err(|e| e.to_string())?;
         check_eq(&values, &case.get("values")?.0, &what)?;
-        check_eq(&src.now().unix_milli(), &case.int("now_unix_ms")?, &what)?;
         check_eq(
-            &src.now().format("2006-01-02T15:04:05.000Z07:00"),
-            &case.string("now_formatted")?,
+            &unix_milli(src.now()),
+            &Some(case.int("now_unix_ms")?),
+            &what,
+        )?;
+        check_eq(
+            &millis(src.now()),
+            &Some(case.string("now_formatted")?),
             &what,
         )?;
         check_eq(&src.generate_int63(), &case.int("int63")?, &what)?;
@@ -1937,17 +1969,23 @@ mod sessions {
 mod cases {
     use pbs_util::{
         randomutil::RandomGenerator as _,
+        timeutil::format_rfc3339_nano,
         uuidutil::{UuidGenerator as _, UuidRandomGenerator},
     };
     use serde_json::Value;
+    use time::{format_description::BorrowedFormatItem, macros::format_description};
 
-    use super::{from_json, strings};
+    use super::{from_json, strings, unix_milli, weekday};
     use crate::{
         envelope::{Envelope, FakeValues},
         fakes::{self, ParityUuidGenerator, Source},
         golden::{Json, TestResult, check, check_eq, global_lock},
         trace,
     };
+
+    /// Go's `2006-01-02 15:04:05.000`, huaweiads' request time.
+    const HUAWEIADS: &[BorrowedFormatItem<'_>] =
+        format_description!("[year]-[month]-[day] [hour]:[minute]:[second].[subsecond digits:3]");
 
     /// Runs one op of the golden program's `runFakeOp`.
     fn run_op(src: &Source, op: &Json) -> Result<Value, String> {
@@ -1963,12 +2001,12 @@ mod cases {
             "now" => {
                 let t = fakes::now();
                 serde_json::json!({
-                    "unix_milli": t.unix_milli(),
-                    "unix": t.unix(),
-                    "format": t.format("2006-01-02T15:04:05.999999999Z07:00"),
-                    "huaweiads": t.format("2006-01-02 15:04:05.000"),
-                    "weekday": t.weekday(),
-                    "year_day": t.year_day(),
+                    "unix_milli": unix_milli(t),
+                    "unix": t.unix_timestamp(),
+                    "format": format_rfc3339_nano(t),
+                    "huaweiads": t.format(HUAWEIADS).map_err(|e| e.to_string())?,
+                    "weekday": weekday(t),
+                    "year_day": t.ordinal(),
                 })
             }
             "int" => Value::from(fakes::int()),

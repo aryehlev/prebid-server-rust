@@ -10,14 +10,14 @@
 //!     atomic::{AtomicUsize, Ordering},
 //! };
 //!
-//! use pbs_gocompat::time::Duration;
 //! use pbs_util::task::ticker_task_from_func;
+//! use time::SignedDuration;
 //!
 //! # #[tokio::main(flavor = "current_thread", start_paused = true)]
 //! # async fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! let runs = Arc::new(AtomicUsize::new(0));
 //! let counter = Arc::clone(&runs);
-//! let task = ticker_task_from_func(Duration::SECOND, move || {
+//! let task = ticker_task_from_func(SignedDuration::SECOND, move || {
 //!     let counter = Arc::clone(&counter);
 //!     async move {
 //!         counter.fetch_add(1, Ordering::SeqCst);

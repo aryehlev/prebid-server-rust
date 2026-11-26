@@ -25,12 +25,12 @@ use core::sync::atomic::{AtomicBool, Ordering};
 use std::sync::OnceLock;
 use std::sync::{Mutex, MutexGuard, PoisonError};
 
-use pbs_gocompat::time::Time as GoTime;
 use pbs_util::{
     randomutil::{RandomGenerator, RandomNumberGenerator},
     timeutil::Time,
     uuidutil::{UuidError, UuidGenerator},
 };
+use time::{OffsetDateTime, PlainDateTime};
 
 pub use self::{
     order::{OrderSite, map_keys},
@@ -145,9 +145,21 @@ impl Source {
 
 impl Time for Source {
     /// The fixed instant in UTC (Go: `Source.Now`).
-    fn now(&self) -> GoTime {
-        GoTime::from_unix_milli(self.state().values.now_unix_ms).utc()
+    fn now(&self) -> OffsetDateTime {
+        instant(self.state().values.now_unix_ms)
     }
+}
+
+/// Go: `time.UnixMilli(ms).UTC()`, held at the ends of the time crate's range (the years -9999
+/// to 9999, the time.year-range ledger entry), which every value of `fakes.json` is within.
+fn instant(ms: i64) -> OffsetDateTime {
+    OffsetDateTime::from_unix_timestamp_nanos(i128::from(ms) * 1_000_000).unwrap_or_else(|_e| {
+        if ms < 0 {
+            PlainDateTime::MIN.assume_utc()
+        } else {
+            PlainDateTime::MAX.assume_utc()
+        }
+    })
 }
 
 impl RandomGenerator for Source {
@@ -229,8 +241,8 @@ pub const fn active() -> Option<&'static Source> {
 /// The fixed instant when the fakes are installed, else the system clock (Go: `fakes.Now`).
 #[must_use]
 #[inline]
-pub fn now() -> GoTime {
-    active().map_or_else(GoTime::now, Time::now)
+pub fn now() -> OffsetDateTime {
+    active().map_or_else(OffsetDateTime::now_utc, Time::now)
 }
 
 /// The fixed value when the fakes are installed, else a non-negative random Go `int`
