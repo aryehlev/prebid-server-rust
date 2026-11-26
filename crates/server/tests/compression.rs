@@ -367,11 +367,36 @@ mod tests {
         Ok(verdicts)
     }
 
+    /// Whether `number`, the text after a `q=`, is a spelling `strconv.ParseFloat` and std's
+    /// parser read otherwise (`server.gzip-qvalue-syntax`): a hexadecimal mantissa or an `_`,
+    /// which only Go reads, a sign before `nan`, which only std reads, or a finite number past
+    /// the largest float, which Go refuses and std reads as infinity.
+    fn go_only_syntax(number: &str) -> bool {
+        let unsigned = number
+            .strip_prefix(['+', '-'])
+            .unwrap_or(number)
+            .to_ascii_lowercase();
+        number.contains(['x', 'X', '_'])
+            || (unsigned.len() < number.len() && unsigned == "nan")
+            || number
+                .parse::<f64>()
+                .is_ok_and(|q| q.is_infinite() && !unsigned.starts_with("inf"))
+    }
+
+    /// Whether one of the `q=` numbers of the Accept-Encoding value `value` is such a spelling.
+    fn has_go_only_q(value: &[u8]) -> bool {
+        String::from_utf8_lossy(value)
+            .split([',', ';'])
+            .filter_map(|part| part.trim().strip_prefix("q="))
+            .any(go_only_syntax)
+    }
+
     /// Accept-Encoding values the negotiation pin shows with both answers: plain ones, ones
     /// tower-http's RFC 9110 reading answered otherwise (Unicode spaces and letters, `x-gzip`, a
     /// repeated gzip, parameters that are not one strict q and `identity`), and q values at the
-    /// edges of `ParseFloat`'s syntax.
-    const EXAMPLES: [&str; 28] = [
+    /// edges of `ParseFloat`'s syntax, which std's parser reads alike or otherwise
+    /// (`server.gzip-qvalue-syntax`).
+    const EXAMPLES: [&str; 29] = [
         "gzip",
         "compress, gzip",
         "GZIP",
@@ -393,6 +418,7 @@ mod tests {
         "gzip;level=9",
         "gzip; q=0.0000001",
         ";q=0;x , ;q=1.5, \tgzip;q=0.5 ,identity",
+        "gzip;q=1e-400",
         "gzip;q=1_000",
         "gzip;q=0x1p-1074",
         "gzip;q=0x1p-1075",
@@ -403,30 +429,34 @@ mod tests {
     ];
 
     /// Which Accept-Encoding values get gzip: pbs-server reads Accept-Encoding with gziphandler's
-    /// parser, so each of the golden's 1,679 values (the package's test values, hand-picked ones,
-    /// 1,500 seeded combinations and 123 q values and codings at the edges of `ParseFloat`'s
-    /// syntax and of Unicode) gets gziphandler's answer. That includes the 542 values
-    /// tower-http's RFC 9110 reading answered otherwise.
+    /// parser, so the golden's 1,679 values (the package's test values, hand-picked ones, 1,500
+    /// seeded combinations and 123 q values and codings at the edges of `ParseFloat`'s syntax
+    /// and of Unicode) get gziphandler's answer, the 542 values tower-http's RFC 9110 reading
+    /// answered otherwise among them. The 102 values that get another answer each have a q in a
+    /// spelling `strconv.ParseFloat` and std's float parser read otherwise
+    /// (`server.gzip-qvalue-syntax`).
     // Go: acceptsGzip (gziphandler v1.1.1 gzip.go:450-453) over parseEncodings and parseCoding
     // (gzip.go:483-532)
     #[test]
     fn gzip_negotiation() -> TestResult {
         let verdicts = verdicts()?;
-        let differ: Vec<String> = verdicts
+        let differ: Vec<&(Vec<u8>, bool, bool)> =
+            verdicts.iter().filter(|(_, go, rust)| go != rust).collect();
+        let unexpected: Vec<String> = differ
             .iter()
-            .filter(|(_, go, rust)| go != rust)
+            .filter(|(value, ..)| !has_go_only_q(value))
             .map(|(value, go, _)| format!("{:?}: gziphandler {go}", String::from_utf8_lossy(value)))
             .collect();
         ensure_eq(
-            &differ,
+            &unexpected,
             &Vec::<String>::new(),
             "values pbs-server answers otherwise",
         )?;
         let gzipped = verdicts.iter().filter(|(_, go, _)| *go).count();
         ensure_eq(
-            &(verdicts.len(), gzipped),
-            &(1679, 794),
-            "values, and values that get gzip",
+            &(verdicts.len(), gzipped, differ.len()),
+            &(1679, 794, 102),
+            "values, values that get gzip, and values of `server.gzip-qvalue-syntax`",
         )?;
         let shown: Vec<String> = EXAMPLES
             .iter()
@@ -462,10 +492,11 @@ mod tests {
                 "\"gzip;level=9\": gziphandler true, pbs-server true",
                 "\"gzip; q=0.0000001\": gziphandler true, pbs-server true",
                 "\";q=0;x , ;q=1.5, \\tgzip;q=0.5 ,identity\": gziphandler true, pbs-server true",
-                "\"gzip;q=1_000\": gziphandler true, pbs-server true",
-                "\"gzip;q=0x1p-1074\": gziphandler true, pbs-server true",
+                "\"gzip;q=1e-400\": gziphandler false, pbs-server false",
+                "\"gzip;q=1_000\": gziphandler true, pbs-server false",
+                "\"gzip;q=0x1p-1074\": gziphandler true, pbs-server false",
                 "\"gzip;q=0x1p-1075\": gziphandler false, pbs-server false",
-                "\"gzip;q=1e309\": gziphandler false, pbs-server false",
+                "\"gzip;q=1e309\": gziphandler false, pbs-server true",
                 "\"gzip;q=+nan\": gziphandler false, pbs-server false",
                 "\"\\u{200b}gzip\": gziphandler false, pbs-server false",
                 "\"gzip, gzip;q=abc;x\": gziphandler true, pbs-server true",

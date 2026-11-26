@@ -1700,6 +1700,10 @@ mod tests {
             ],
             "net/http's HEAD answers",
         )?;
+        // fastgzip compresses these pattern bytes alike whatever pattern answers its compressor
+        // had before, so the HEAD's length is the GET's on pbs-server too; for other bodies the
+        // two may differ, as an answer's gzip depends on what the thread compressed before
+        // (`server.gzip-bytes`).
         ensure_eq(&heads(rust)?, &heads(go)?, "the HEAD answers")
     }
 

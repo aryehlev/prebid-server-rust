@@ -1,5 +1,5 @@
-//! Glue (D-FASTGZIP, the user's ruling 10 (b)): response compression as server/server.go sets it
-//! up, deciding as gziphandler decides and compressing with fastgzip.
+//! Glue (ruling 10 (b), D-FASTGZIP): response compression as server/server.go sets it up,
+//! deciding as gziphandler decides and compressing with fastgzip.
 //!
 //! `getCompressionEnabledHandler` (server/server.go:120-125) wraps the main and Unix-socket
 //! handlers in `gziphandler.GzipHandler` when `compression.response.enable_gzip` is set. Here that
@@ -9,7 +9,8 @@
 //! - every answer gets `Vary: Accept-Encoding`, ahead of the Vary values the handler added, as
 //!   gziphandler adds it before the handler runs (`server.vary`);
 //! - a request gets gzip when its first Accept-Encoding value gives gzip a q above 0, read as
-//!   gziphandler reads it (`server.gzip-negotiation`);
+//!   gziphandler reads it (`server.gzip-negotiation`), its q values by std's float parser
+//!   (`server.gzip-qvalue-syntax`);
 //! - an answer is sent as it is when the handler set a Content-Encoding, when its Content-Length
 //!   (as `strconv.Atoi` reads it, 0 where it does not parse) is neither 0 nor at least
 //!   [`MIN_SIZE`], when its body is empty, or when it has no such Content-Length and its body is
@@ -22,14 +23,17 @@
 //! call. A body in memory (axum's bodies of an exact size, which is what Prebid's handlers
 //! answer with) is compressed whole. A streamed body (`ServeDir`'s files under /static) is read
 //! up to [`STREAM_LIMIT`] bytes; one that goes past it is sent on uncompressed, the bytes already
-//! read first, so no answer is held in memory past that size (`server.gzip-streams`).
+//! read first, so no answer is held in memory past that size (`server.gzip-streams`). A body the
+//! layer reads loses its HTTP trailers, which no Prebid handler sends (Go's set none).
 //!
 //! The bytes are fastgzip's level 0, its default: consecutive answers of one kind share their
 //! Huffman codes, so the output depends on the answers compressed before it, and it differs from
 //! compress/gzip's (`server.gzip-bytes`). Each worker thread keeps one compressor per kind of
 //! payload (JSON, other text, the rest), used on the worker inside the request's task and never
-//! on a blocking pool; a payload past [`SHARED_LIMIT`] bytes gets a compressor of its own, so no
-//! thread keeps a buffer of that size.
+//! on a blocking pool; a payload past [`SHARED_LIMIT`] bytes gets a compressor of its own, so a
+//! thread's compressors keep at most three output buffers of about twice that size. Each call
+//! compresses and copies the bytes out inside one `with_borrow_mut`, with no `.await`, so a task
+//! never holds a compressor across a yield and never meets another task's borrow.
 
 mod negotiation;
 
@@ -54,8 +58,10 @@ pub const MIN_SIZE: u16 = 1400;
 /// uncompressed; the largest file under Prebid's static/ is 19,572 bytes.
 pub const STREAM_LIMIT: usize = 1 << 20;
 
-/// The longest payload a worker thread's own compressors are given. A longer one gets a
-/// compressor of its own, so no thread keeps an output buffer past this size.
+/// The longest payload a worker thread's own compressors are given.
+///
+/// A longer one gets a compressor of its own, so no output buffer a thread keeps grows past
+/// about twice this size (the buffer's capacity doubles as it grows).
 pub const SHARED_LIMIT: usize = 1 << 20;
 
 /// `getCompressionEnabledHandler`: `router` behind gziphandler's compression when `enable_gzip`

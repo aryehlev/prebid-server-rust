@@ -66,8 +66,8 @@ go = """\
 rust = """\
     hyper sends `content-length` for every full body, over HTTP/1.0 and to HEAD too. pbs-server's \
     gzip layer compresses a body whole, so a gzip answer gets the length of its compressed bytes \
-    however long they are, a HEAD answer that of the GET's; a stream it sends on uncompressed \
-    keeps the handler's framing (`server.gzip-streams`)."""
+    however long they are, a HEAD answer that of its GET body's compression; a stream it sends on \
+    uncompressed keeps the handler's framing (`server.gzip-streams`)."""
 who = ["publisher"]
 visible_in = """\
     The framing of answers longer than 2,048 bytes, of HTTP/1.0 and HEAD answers, and of gzip \
@@ -88,7 +88,8 @@ go = """\
     net/http sniffs the `Content-Type` of an answer whose handler set none \
     (`http.DetectContentType` on its first bytes, net/http/server.go:1456): JSON and plain text get \
     `text/plain; charset=utf-8`, HTML `text/html; charset=utf-8`, XML `text/xml; charset=utf-8`, \
-    other bytes `application/octet-stream`, and an empty answer none."""
+    other bytes `application/octet-stream`, and an empty answer none. With gzip on, gziphandler \
+    sniffs the bytes of an answer it compresses the same way (gzip.go:129-131)."""
 rust = """\
     Nothing is sniffed: the response type sets the type (`String` `text/plain; charset=utf-8`, \
     `Json` `application/json`, bytes `application/octet-stream`, empty bytes included). A type \
@@ -490,7 +491,7 @@ category = "server"
 status = "restored"
 title = """\
     Which Accept-Encoding values get gzip: gziphandler's parser and tower-http's RFC 9110 reading \
-    disagree on 542 of the golden's 1,556 values"""
+    disagreed on 542 of the golden's first 1,556 values"""
 go = """\
     gziphandler compresses when its own parser gives gzip a q above 0 (`acceptsGzip`, gziphandler \
     v1.1.1 gzip.go:450-453, over `parseEncodings` and `parseCoding`, gzip.go:483-532): it trims \
@@ -510,10 +511,9 @@ visible_in = """\
 pin = "crates/server/tests/compression.rs::gzip_negotiation"
 restore = """\
     pbs-server reads the first Accept-Encoding value with a port of `parseEncodings` and \
-    `parseCoding` (crates/server/src/compression/negotiation.rs, D-FASTGZIP), its q values with \
-    `strconv.ParseFloat`'s syntax as pbs-config's loader ports it, so each of the golden's 1,679 \
-    values, 123 of them q values and codings at the edges of that syntax and of Unicode, gets \
-    gziphandler's answer."""
+    `parseCoding` (crates/server/src/compression/negotiation.rs, D-FASTGZIP), so each of the \
+    golden's 1,679 values gets gziphandler's answer, but for the 102 whose q only Go's \
+    `ParseFloat` or only std's float parser reads (`server.gzip-qvalue-syntax`)."""
 decision = "D-FASTGZIP"
 
 [[restoration]]
@@ -521,14 +521,43 @@ id = "server.gzip-negotiation"
 pin = "crates/server/tests/compression.rs::gzip_negotiation"
 note = """\
     Each of the golden's 1,679 Accept-Encoding values, sent on loopback, gets gzip from \
-    pbs-server exactly when gziphandler compresses for it."""
+    pbs-server exactly when gziphandler compresses for it, but for the 102 values of \
+    `server.gzip-qvalue-syntax`."""
 
 [[restoration]]
 id = "server.gzip-negotiation"
 pin = "crates/server/src/compression/tests.rs::q_values_like_go"
 note = """\
     gzip's q for each of the golden's values is the one `parseEncodings` gives it, to the bit, \
-    and absent where Go's is."""
+    and absent where Go's is, but for the 122 values of `server.gzip-qvalue-syntax`."""
+
+[[difference]]
+id = "server.gzip-qvalue-syntax"
+category = "server"
+status = "ledgered"
+title = """\
+    Accept-Encoding q values: gziphandler reads them with `strconv.ParseFloat`, pbs-server with \
+    std's float parser"""
+go = """\
+    `parseCoding` reads the number after `q=` with `strconv.ParseFloat` (gziphandler v1.1.1 \
+    gzip.go:517), which also reads hexadecimal mantissas (`0x1p-1` is 0.5) and `_` between digits \
+    (`1_0` is 10, so 1), and fails on a sign before `nan` and on a number beyond the largest float \
+    (`1e400`), so that item is dropped."""
+rust = """\
+    pbs-server's port of `parseCoding` reads it with std's `str::parse::<f64>` (Rule A), which \
+    refuses hexadecimal and `_` (the item is dropped), reads `+nan` and `-nan` as NaN (the item \
+    stays, and its q is not above 0) and a number beyond the largest float as infinity (clamped to \
+    1 or 0). Every other q, `inf`, `infinity`, `nan` and numbers that underflow to 0 included, is \
+    read alike. Of the golden's 1,679 values, 102 get another answer, all synthetic."""
+who = ["publisher"]
+visible_in = """\
+    Whether answers of 1,400 bytes or more are gzipped for requests whose Accept-Encoding gives a \
+    q in one of those spellings, which browsers and HTTP libraries do not send, when gzip \
+    compression is on"""
+pin = "crates/server/src/compression/tests.rs::q_syntax_differs"
+restore = """\
+    A port of `strconv.ParseFloat`'s syntax and range check for q values; not planned, as no \
+    client sends these spellings (Rule B (a) does not apply)."""
 
 [[difference]]
 id = "server.gzip-bytes"
@@ -543,7 +572,8 @@ rust = """\
     pbs-server's gzip layer compresses through fastgzip at level 0, its default (D-FASTGZIP), with \
     one compressor per kind of payload (JSON, other text, the rest) on each worker thread. The \
     answers of a compressor share their Huffman codes, so an answer's bytes also depend on the \
-    answers compressed before it on that thread. The header says XFL 4 where compress/gzip's says \
+    answers compressed before it on that thread: the same answer twice, or a HEAD and its GET, \
+    can get other bytes and another length. The header says XFL 4 where compress/gzip's says \
     0, the deflate stream is another, of another length, and it is sent with a `content-length` \
     (`server.framing`). Both gunzip to the handler's bytes, with the same trailer, and the same \
     answers are compressed, with the same status, encoding, type and Vary."""
@@ -604,7 +634,8 @@ go = """\
 rust = """\
     pbs-server's gzip layer compresses a body whole. It reads a streamed body, as `ServeDir` gives \
     a file, up to 1 MiB (`compression::STREAM_LIMIT`) and sends a longer one on uncompressed, \
-    with the handler's framing and `Vary`, so no answer is held in memory past that size; a body \
+    with the handler's framing and `Vary`, so no answer is held in memory past that size; a \
+    shorter one goes out once all of it is read, where gziphandler sends as it compresses. A body \
     in memory, as Prebid's handlers answer with, is compressed whatever its length."""
 who = ["publisher"]
 visible_in = """\

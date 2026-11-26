@@ -20,7 +20,7 @@ use tokio::runtime;
 
 use super::{
     Kind, SHARED_LIMIT, STREAM_LIMIT, answer, atoi, gzip_payload,
-    negotiation::{accepts_gzip, gzip_q, parse_float},
+    negotiation::{accepts_gzip, gzip_q},
     read, vary_first,
 };
 
@@ -135,16 +135,40 @@ fn go_gzip_q(output: &str) -> TestResult<Option<String>> {
     Ok(None)
 }
 
+/// Whether `number`, the text after a `q=`, is a spelling `strconv.ParseFloat` and std's parser
+/// read otherwise (`server.gzip-qvalue-syntax`): a hexadecimal mantissa or an `_`, which only Go
+/// reads, a sign before `nan`, which only std reads, or a finite number past the largest float,
+/// which Go refuses and std reads as infinity.
+fn go_only_syntax(number: &str) -> bool {
+    let unsigned = number
+        .strip_prefix(['+', '-'])
+        .unwrap_or(number)
+        .to_ascii_lowercase();
+    number.contains(['x', 'X', '_'])
+        || (unsigned.len() < number.len() && unsigned == "nan")
+        || number
+            .parse::<f64>()
+            .is_ok_and(|q| q.is_infinite() && !unsigned.starts_with("inf"))
+}
+
+/// Whether one of the `q=` numbers of the Accept-Encoding value `value` is such a spelling.
+fn has_go_only_q(value: &[u8]) -> bool {
+    String::from_utf8_lossy(value)
+        .split([',', ';'])
+        .filter_map(|part| part.trim().strip_prefix("q="))
+        .any(go_only_syntax)
+}
+
 /// gzip's q for each of the golden's 1,679 Accept-Encoding values is the one `parseEncodings`
-/// gives it, to the bit, NaN included, and absent where Go's is: the q values at the edges of
-/// `ParseFloat`'s syntax, Unicode spaces and letters, bytes that are not UTF-8, repeated
-/// codings and parameters.
-// Go: parseEncodings and parseCoding (gziphandler v1.1.1 gzip.go:483-532) over
-// strconv.ParseFloat (internal/strconv/atof.go)
+/// gives it, to the bit, NaN included, and absent where Go's is, Unicode spaces and letters,
+/// bytes that are not UTF-8, repeated codings and parameters included; it differs only for the
+/// 122 values with a q in a spelling `strconv.ParseFloat` and std's parser read otherwise.
+// Go: parseEncodings and parseCoding (gziphandler v1.1.1 gzip.go:483-532)
 #[test]
 fn q_values_like_go() -> TestResult {
     let encodings = rows("encodings")?;
-    let mut differ = Vec::new();
+    let mut unexpected = Vec::new();
+    let mut ledgered = 0_usize;
     let mut with_gzip = 0_usize;
     for (value, output) in &encodings {
         let go = go_gzip_q(output)?.map(|q| q.parse::<f64>()).transpose()?;
@@ -156,51 +180,90 @@ fn q_values_like_go() -> TestResult {
             (None, None) => true,
             (Some(_), None) | (None, Some(_)) => false,
         };
-        if !same {
-            differ.push(format!(
+        match (same, has_go_only_q(value)) {
+            (true, _) => {}
+            (false, true) => ledgered += 1,
+            (false, false) => unexpected.push(format!(
                 "{:?}: Go {go:?}, pbs-server {rust:?}",
                 String::from_utf8_lossy(value)
-            ));
+            )),
         }
         with_gzip += usize::from(go.is_some());
     }
-    ensure_eq(&differ, &Vec::<String>::new(), "q values")?;
+    ensure_eq(&unexpected, &Vec::<String>::new(), "q values")?;
     ensure_eq(
-        &(encodings.len(), with_gzip),
-        &(1679, 1062),
-        "values, and values that give gzip a q",
+        &(encodings.len(), with_gzip, ledgered),
+        &(1679, 1062, 122),
+        "values, values that give gzip a q, and values of `server.gzip-qvalue-syntax`",
     )
 }
 
-/// `strconv.ParseFloat(s, 64)` before gziphandler clamps it: Go's syntax, its range errors and
-/// its rounding.
-// Go: ParseFloat (internal/strconv/atof.go); the values as go1.26.2 prints them
+/// The q spellings `strconv.ParseFloat` and std's parser read otherwise, beside some they read
+/// alike: gzip's q from the golden's `gzip;q=<number>` values as gziphandler gives it, and as
+/// pbs-server does (`server.gzip-qvalue-syntax`).
+// Go: parseCoding over strconv.ParseFloat (gziphandler v1.1.1 gzip.go:517;
+// internal/strconv/atof.go)
 #[test]
-fn parse_float_like_go() -> TestResult {
-    let cases: [(&str, Option<f64>); 14] = [
-        ("0.5", Some(0.5)),
-        ("1_0", Some(10.0)),
-        ("0x1p-2", Some(0.25)),
-        ("0x1.8p1", Some(3.0)),
-        ("-0x1p-2", Some(-0.25)),
-        ("2", Some(2.0)),
-        ("1e400", None),
-        ("0x1p1024", None),
-        ("1e-400", Some(0.0)),
-        ("+inf", Some(f64::INFINITY)),
-        ("-Infinity", Some(f64::NEG_INFINITY)),
-        ("+nan", None),
-        ("infin", None),
-        ("", None),
+fn q_syntax_differs() -> TestResult {
+    let encodings = rows("encodings")?;
+    let numbers = [
+        "0.5", ".5", "-1", "2", "1e-400", "inf", "-Inf", "Infinity", "NaN", "0x1p-2", "0x1p0",
+        "-0x1p-2", "1_0", "1_000", "1e400", "1e309", "0x1p1024", "+nan", "-nan",
     ];
-    for (text, want) in cases {
-        ensure_eq(
-            &parse_float(text).map(f64::to_bits),
-            &want.map(f64::to_bits),
-            text,
-        )?;
-    }
-    ensure_eq(&parse_float("NaN").map(f64::is_nan), &Some(true), "NaN")
+    let show = |q: Option<f64>| q.map_or_else(|| "none".to_owned(), |q| q.to_string());
+    let table = numbers
+        .iter()
+        .map(|number| {
+            let value = format!("gzip;q={number}");
+            let (_, output) = encodings
+                .iter()
+                .find(|(input, _)| input == value.as_bytes())
+                .ok_or_else(|| format!("the golden has no value {value:?}"))?;
+            let go = go_gzip_q(output)?.map(|q| q.parse::<f64>()).transpose()?;
+            Ok(format!(
+                "{number}: gziphandler {}, pbs-server {}",
+                show(go),
+                show(gzip_q(Some(value.as_bytes())))
+            ))
+        })
+        .collect::<TestResult<Vec<_>>>()?;
+    ensure_eq(
+        &table,
+        &[
+            "0.5: gziphandler 0.5, pbs-server 0.5",
+            ".5: gziphandler 0.5, pbs-server 0.5",
+            "-1: gziphandler 0, pbs-server 0",
+            "2: gziphandler 1, pbs-server 1",
+            "1e-400: gziphandler 0, pbs-server 0",
+            "inf: gziphandler 1, pbs-server 1",
+            "-Inf: gziphandler 0, pbs-server 0",
+            "Infinity: gziphandler 1, pbs-server 1",
+            "NaN: gziphandler NaN, pbs-server NaN",
+            "0x1p-2: gziphandler 0.25, pbs-server none",
+            "0x1p0: gziphandler 1, pbs-server none",
+            "-0x1p-2: gziphandler 0, pbs-server none",
+            "1_0: gziphandler 1, pbs-server none",
+            "1_000: gziphandler 1, pbs-server none",
+            "1e400: gziphandler none, pbs-server 1",
+            "1e309: gziphandler none, pbs-server 1",
+            "0x1p1024: gziphandler none, pbs-server none",
+            "+nan: gziphandler none, pbs-server NaN",
+            "-nan: gziphandler none, pbs-server NaN",
+        ],
+        "gzip's q",
+    )?;
+    let classified: Vec<bool> = numbers
+        .iter()
+        .map(|number| go_only_syntax(number))
+        .collect();
+    ensure_eq(
+        &classified,
+        &[
+            false, false, false, false, false, false, false, false, false, true, true, true, true,
+            true, true, true, true, true, true,
+        ],
+        "the spellings of `server.gzip-qvalue-syntax`",
+    )
 }
 
 /// `n` bytes cycling through the alphabet, as the generator's `pattern`.
