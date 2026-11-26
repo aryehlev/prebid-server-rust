@@ -373,6 +373,11 @@ func edgeCases() []string {
 		"fe80::1%", "%eth0", "1.2.3.4%eth0", "[::1]", "0x1.2.3.4", " 1.2.3.4", "1.2.3.4 ",
 		"١.٢.٣.٤", "::FFFF:1.2.3.4", "0:0:0:0:0:0:0:0", "0000:0000:0000:0000:0000:0000:0000:0000",
 		"00000::", "1:2:3:4:5:6:7:", ":1:2:3:4:5:6:7",
+		// URL's \s, \S and \d are ASCII classes in Go: Unicode spaces and digits are not them.
+		"http://a.com/\u00a0", "http://a.com/x\u3000y", "http://a.com/\u0085", "http://a\u00a0b.com/",
+		"http://us\u2003er@a.com/", "http://us\u2003er:p\u00a0w@a.com/", "http://a.com:8\u0663/",
+		"http://a.com:\u0663/", "\u2028a.com", "http://\u1680a.com/", "a.com/\u00a0",
+		"http://a.com/\u200b", "http://\uff11.\uff12.\uff13.\uff14/", "http://\u0661\u0662.com/",
 	}
 	host := "http://example.com/"
 	for _, n := range []int{2081, 2082, 2083, 2084} {
