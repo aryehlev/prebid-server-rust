@@ -109,11 +109,13 @@ impl ExtDeviceInt {
 }
 
 /// Go: one percentage of `(*ExtDeviceInt).UnmarshalJSON`: a JSON number (jsonparser's `Number`
-/// type: a value that starts with `-` or a digit) that `strconv.Atoi` reads as 0 to 100.
+/// type: a value that starts with `-` or a digit) that `strconv.Atoi` reads as 0 to 100. On the
+/// text of a JSON number `str::parse` reads what `Atoi` reads: an optional `-` and decimal
+/// digits, failing on a fraction, an exponent or a value beyond `int`'s 64 bits.
 fn raw_percentage(value: Option<&RawValue>, key: &str) -> Result<i64, String> {
     let text = value.map_or("", RawValue::get);
     if matches!(text.as_bytes().first(), Some(b'-' | b'0'..=b'9'))
-        && let Ok(perc) = strconv::atoi(text)
+        && let Ok(perc) = text.parse::<i64>()
         && (0..=100).contains(&perc)
     {
         return Ok(perc);
