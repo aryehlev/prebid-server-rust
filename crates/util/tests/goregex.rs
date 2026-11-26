@@ -255,7 +255,32 @@ mod tests {
         for p in [r"\w{1000}", "[^a]{1000}", ".{1000}"] {
             let _re = goregex::compile(p).map_err(|e| format!("{p}: {e}"))?;
         }
-        Ok(())
+        // The regex crate's own rules, which the translation passes through, refuse forms Go
+        // accepts: a capture name that starts with a digit (Go takes [A-Za-z0-9_]+), a name
+        // used twice (Go's SubexpIndex gives the leftmost), a flag repeated or set and cleared in
+        // one group, \p{Cs}, which the crate's tables leave out, and groups nested more than
+        // 250 deep (Go allows 1000).
+        let deep = format!("{}a{}", "(".repeat(300), ")".repeat(300));
+        for p in [
+            "(?P<1a>x)",
+            "(?P<n>x)(?P<n>y)",
+            "(?ii)a",
+            "(?i-i)a",
+            r"\p{Cs}",
+            deep.as_str(),
+        ] {
+            check(
+                matches!(goregex::compile(p), Err(CompileError::Crate(_))),
+                &format!("{p}: the regex crate refuses it"),
+            )?;
+        }
+        // Go keeps the group of (a){0}b, which never takes part (NumSubexp is 1); the regex
+        // crate drops a group repeated zero times.
+        let zero = goregex::compile("(a){0}b")?;
+        check(
+            zero.captures_len() == 1,
+            "the regex crate drops the group of (a){0}",
+        )
     }
 
     #[test]

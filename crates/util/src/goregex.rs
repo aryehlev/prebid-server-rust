@@ -145,9 +145,10 @@ enum Last {
     /// An operand, with the product of the counts of its nested `{n,m}` repetitions (Go:
     /// `repeatIsValid`).
     Operand(i64),
-    /// A repetition, which Go does not let another follow (Go: `ErrInvalidRepeatOp`).
-    Repeat,
-    /// A flag group such as `(?i)`, after which Go repeats the operand before it.
+    /// A repetition, which Go does not let another follow (Go: `ErrInvalidRepeatOp`), with the
+    /// count product of the repeated operand.
+    Repeat(i64),
+    /// A flag group such as `(?i)` after an operand, which Go repeats when a repetition follows.
     Flags,
 }
 
@@ -156,7 +157,8 @@ struct Translator<'a> {
     /// The byte offset of the rest of the pattern.
     pos: usize,
     out: String,
-    /// The largest count product of each open group, the whole pattern first.
+    /// The largest count product of the finished operands of each open group, the whole
+    /// pattern first.
     weights: Vec<i64>,
     last: Last,
     /// The offset of the last repetition operator, for Go's error text.
@@ -174,6 +176,7 @@ impl<'a> Translator<'a> {
                 '(' => self.group()?,
                 ')' => self.close()?,
                 '|' => {
+                    self.settle();
                     self.out.push('|');
                     self.last = Last::Nothing;
                     self.pos += 1;
@@ -199,10 +202,19 @@ impl<'a> Translator<'a> {
         Ok(self.out)
     }
 
-    /// Records an operand of count product `weight`.
+    /// Records an operand of count product `weight`, once the one before it is finished.
     fn operand(&mut self, weight: i64) {
+        self.settle();
         self.last = Last::Operand(weight);
-        if let Some(w) = self.weights.last_mut() {
+    }
+
+    /// Adds the count product of the last operand, with the repetition applied to it, to its
+    /// group's. Go's `repeatIsValid` walks finished operands, so a `{0}` that follows an operand
+    /// stops the check of the counts inside it (`(?:(?:a{10}){0}){1000}` compiles).
+    fn settle(&mut self) {
+        if let Last::Operand(weight) | Last::Repeat(weight) = self.last
+            && let Some(w) = self.weights.last_mut()
+        {
             *w = (*w).max(weight);
         }
     }
@@ -271,7 +283,12 @@ impl<'a> Translator<'a> {
                             self.out.push_str(&flags);
                             self.out.push(')');
                         }
-                        self.last = Last::Flags;
+                        self.settle();
+                        // At the start of a group or an alternative Go has nothing to repeat
+                        // (`(?i)*` is ErrMissingRepeatArgument); after an operand it repeats it.
+                        if !matches!(self.last, Last::Nothing) {
+                            self.last = Last::Flags;
+                        }
                         self.pos += len;
                     }
                     return Ok(());
@@ -287,6 +304,7 @@ impl<'a> Translator<'a> {
 
     /// Opens a group whose opening text is `len` bytes long.
     fn open(&mut self, len: usize) {
+        self.settle();
         self.weights.push(0);
         self.last = Last::Nothing;
         self.pos += len;
@@ -297,9 +315,11 @@ impl<'a> Translator<'a> {
         if self.weights.len() < 2 {
             return Err(syntax(code::UNEXPECTED_PAREN, self.whole));
         }
+        self.settle();
         let weight = self.weights.pop().unwrap_or_default();
         self.out.push(')');
         self.pos += 1;
+        self.last = Last::Nothing;
         self.operand(weight);
         Ok(())
     }
@@ -309,7 +329,7 @@ impl<'a> Translator<'a> {
     fn check_repeat(&self, op: &str) -> Result<i64, CompileError> {
         match self.last {
             Last::Operand(weight) => Ok(weight),
-            Last::Repeat => {
+            Last::Repeat(_) => {
                 let end = self.pos + op.len();
                 let expr = self.whole.get(self.last_repeat..end).unwrap_or(op);
                 Err(syntax(code::INVALID_REPEAT_OP, expr))
@@ -328,10 +348,10 @@ impl<'a> Translator<'a> {
         let len = if t.get(1..2) == Some("?") { 2 } else { 1 };
         let op = t.get(..len).unwrap_or_default();
         // `*`, `+` and `?` pass the counts of their operand through (Go: repeatIsValid).
-        let _weight = self.check_repeat(op)?;
+        let weight = self.check_repeat(op)?;
         self.out.push_str(op);
         self.last_repeat = self.pos;
-        self.last = Last::Repeat;
+        self.last = Last::Repeat(weight);
         self.pos += len;
         Ok(())
     }
@@ -377,10 +397,7 @@ impl<'a> Translator<'a> {
             self.out.push('?');
         }
         self.last_repeat = self.pos;
-        self.last = Last::Repeat;
-        if let Some(w) = self.weights.last_mut() {
-            *w = (*w).max(weight);
-        }
+        self.last = Last::Repeat(weight);
         self.pos += op.len();
         Ok(())
     }

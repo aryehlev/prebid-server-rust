@@ -23,7 +23,8 @@ pub struct RandomNumberGenerator;
 
 impl RandomGenerator for RandomNumberGenerator {
     fn generate_int63(&self) -> i64 {
-        // Go: rand.Int63, the top 63 bits of a 64-bit draw.
+        // Go: rand.Int63, uniform in [0, 2^63) (Go keeps the low 63 bits of its source's
+        // draw); here the top 63 bits of a 64-bit draw.
         i64::try_from(rand::rng().random::<u64>() >> 1).unwrap_or(i64::MAX)
     }
 

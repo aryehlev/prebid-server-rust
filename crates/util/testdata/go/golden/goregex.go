@@ -250,6 +250,11 @@ var regexEdgePatterns = []string{
 	// Repetitions and empty matches.
 	`a*`, `a**`, `a+*`, `a*?`, `a??`, `a+?`, `(a*)*`, `(a|)+`, `(a|b)*c`, `x*`, `|`, `()`,
 	`a|b|`, `(?:)`,
+	// Count products (repeatIsValid stops at a {0}), and a repetition after a flag group that
+	// has nothing before it.
+	`(?:(?:a{10}){0}){1000}`, `(?:(?:a{10}){0}b){1000}`, `(?:a{0}){1000}`, `((a{10}){10}){11}`,
+	`(a{2}|b{501}){2}`, `(a{2}|b{500}){2}`, `(?:a{2,}){500}`, `(?:a{2,}){501}`, `(?i){2}`,
+	`(?i)*`, `((?i)+)`, `a|(?i)?`,
 }
 
 // genGoRegex writes goregex.json: Go's FindAllStringSubmatchIndex over the seeded subjects of

@@ -340,15 +340,15 @@ No entry names the classes `other` and `unrecorded` or the kinds `stage_missing`
 
 ### Ledgered
 
-#### `gzip.content-encoding-lower`: `ContentEncoding.Normalize`: U+0130 lower-cases to two characters in std, to one in Go
+#### `gzip.content-encoding-lower`: `ContentEncoding.Normalize`: U+0130 lower-cases to two characters in std, to one in Go, so `gzİp` is gzip only in Go
 
-- **Go:** `strings.ToLower` writes U+0130 LATIN CAPITAL LETTER I WITH DOT ABOVE as a plain `i`.
-- **Rust:** `str::to_lowercase` writes it as `i` and U+0307 COMBINING DOT ABOVE, Unicode's full lower case.
-- **Who notices:** none
-- **Visible in:** Nowhere: `CompressionInfo.IsSupported` compares the normalised text with `gzip`, which neither form is, and the error text quotes the header as sent (endpoints/openrtb2/auction.go:424-427)
+- **Go:** `strings.ToLower` lower-cases each rune on its own: U+0130 LATIN CAPITAL LETTER I WITH DOT ABOVE becomes a plain `i`, so `gzİp` and `GZİP` normalise to `gzip`, and Σ becomes σ wherever it stands.
+- **Rust:** `str::to_lowercase` writes Unicode's full lower case: U+0130 becomes `i` and U+0307 COMBINING DOT ABOVE, so no such value normalises to `gzip`, and a Σ that ends a word becomes ς.
+- **Who notices:** publisher
+- **Visible in:** The 400 text of `/openrtb2/auction` with `compression.request.enable_gzip` on, for a `Content-Encoding` that spells gzip with U+0130: Go's `IsSupported` accepts `gzİp` and `getCompressionEnabledReader`, which compares the header as sent, answers `unsupported compression type 'gzİp'`, where the port's `IsSupported` refuses it and the text is `Content-Encoding of type gzİp is not supported` (endpoints/openrtb2/auction.go:424-430, 588-593; config/compression.go:15-20)
 - **Harness:** none
 - **Pin:** `crates/util/src/httputil/tests.rs::misc_golden`
-- **Restore option:** Map U+0130 to `i` before lower-casing; not planned.
+- **Restore option:** Lower-case each character on its own, U+0130 to `i`; not planned.
 - **Recorded in:** `crates/util/differences.toml`
 
 #### `gzip.parity-bodies`: Parity bodies: flate2 writes and reads their gzip, and a `Content-Encoding` outside ASCII is found and lower-cased by Rust's case rules
@@ -1330,15 +1330,15 @@ No entry names the classes `other` and `unrecorded` or the kinds `stage_missing`
 
 ### Ledgered
 
-#### `regex.syntax-edges`: Go patterns the translation does not carry over, and sizes the regex crate refuses
+#### `regex.syntax-edges`: Go patterns the translation does not carry over, and forms and sizes the regex crate refuses
 
-- **Go:** `regexp.Compile` takes a repetition right after a flag group (`a(?i)*` repeats `a`) and escapes of surrogate code points (`\x{D800}`), and compiles counted repetitions of up to 1,000 of any class (`\pL{1000}`).
-- **Rust:** `goregex::compile` fails with `CompileError::Unsupported` for the first two, and the regex crate refuses a compiled program over its 10 MiB default (`CompileError::Crate`), which `\pL{1000}` and `(?:\pL{100}){10}` are.
+- **Go:** `regexp.Compile` takes a repetition right after a flag group (`a(?i)*` repeats `a`) and escapes of surrogate code points (`\x{D800}`), compiles counted repetitions of up to 1,000 of any class (`\pL{1000}`), capture names that start with a digit (`(?P<1a>x)`) or are used twice, a flag repeated or set and cleared in one group (`(?ii)`, `(?i-i)`), `\p{Cs}` and groups nested up to 1,000 deep, and keeps a group repeated zero times (`(a){0}b` has one subexpression, which never takes part).
+- **Rust:** `goregex::compile` fails with `CompileError::Unsupported` for the first two; the regex crate refuses a compiled program over its 10 MiB default, which `\pL{1000}` and `(?:\pL{100}){10}` are, those names and flags, `\p{Cs}` and groups nested more than 250 deep (`CompileError::Crate`), and drops a group repeated zero times, so `(a){0}b` has no capture group.
 - **Who notices:** none
-- **Visible in:** Nowhere: none of the 162 patterns of Prebid's code and static/bidder-params has such a form
+- **Visible in:** Nowhere: none of the 162 patterns of Prebid's code and static/bidder-params has such a form, and adquery's pattern of `^` and the request ID (adapters/adquery/adquery.go:93) has one only for a request ID that is itself such a pattern
 - **Harness:** none
 - **Pin:** `crates/util/tests/goregex.rs::untranslated_forms`
-- **Restore option:** Translate the forms and raise the size limit when a Prebid pattern needs them; not planned.
+- **Restore option:** Translate the forms, rename the names, merge the flags, keep a group repeated zero times and raise the limits when a Prebid pattern needs them; not planned.
 - **Recorded in:** `crates/util/differences.toml`
 
 #### `regex.unicode-version`: Unicode classes and case folding: Go 1.26's tables are Unicode 15.0, the regex crate's 16.0
@@ -1729,8 +1729,8 @@ No entry names the classes `other` and `unrecorded` or the kinds `stage_missing`
 
 - **Go:** `RealTime.Now` is `time.Now()`: in `time.Local`, so a host whose zone is not UTC writes its offset, and with a monotonic reading that `Sub` uses.
 - **Rust:** `RealTime::now` and `RealClock::now` are `OffsetDateTime::now_utc()`: UTC, and wall-clock only, so a step of the system clock moves the difference of two readings.
-- **Who notices:** operator
-- **Visible in:** The `lastUpdated` of `/currency/rates` on a host whose zone is not UTC (endpoints/currency_rates.go:49), and the staleness of the currency rates across a clock step
+- **Who notices:** bidder, operator
+- **Visible in:** On a host whose zone is not UTC, the `tzo` query parameter of adnuntius's bidder requests, minus the zone's offset in minutes in Go and 0 in the port (adapters/adnuntius/adnuntius_utils.go:67-68, 99), and the `lastUpdated` of `/currency/rates` (endpoints/currency_rates.go:49); and the staleness of the currency rates across a clock step
 - **Harness:** none
 - **Pin:** `crates/util/tests/timeutil.rs::now_is_the_utc_wall_clock`
 - **Restore option:** Read the local zone and keep a monotonic instant beside each reading; not planned.
