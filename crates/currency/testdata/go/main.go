@@ -8,7 +8,9 @@
 //	go run .
 //
 // The output files are written next to this directory, under ../golden. random.golden holds
-// digests of random corpora that the Rust tests regenerate; see random.go.
+// digests of random corpora that the Rust tests regenerate; see random.go. decode.golden holds
+// the decode outcomes without the library's error texts (decode.go), and fetch.golden the
+// fetch's texts against loopback servers (fetch.go).
 package main
 
 import (
@@ -657,4 +659,6 @@ func main() {
 	writeRates(dir)
 	writeValidation(dir)
 	writeRandom(dir)
+	writeDecode(dir)
+	writeFetch(dir)
 }
