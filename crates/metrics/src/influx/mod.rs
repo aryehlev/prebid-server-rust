@@ -21,9 +21,9 @@
 //! write request (`influx.write-request`), the statuses a write succeeds on
 //! (`influx.write-status`), the credentials of a redirect (`influx.redirect-auth`), the error
 //! texts (`influx.error-texts`), host URLs (`influx.host-url`), escapes (`influx.key-escapes`),
-//! the ticks (`influx.cadence`) and the values the samples keep (`influx.sampled-values`). The
-//! lines go through pbs-logger at ERROR, where Go's go to its standard logger
-//! (`logging.std-log-lines`).
+//! the ticks (`influx.cadence`), the meters' rate ticks (`influx.meter-ticks`) and the values the
+//! samples keep (`influx.sampled-values`). The lines go through pbs-logger at ERROR, where Go's
+//! go to its standard logger (`logging.std-log-lines`).
 
 mod client;
 

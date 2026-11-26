@@ -35,7 +35,8 @@
 //!   the no-op handle. No two metric names of the engine collide across types.
 //! - The arbiter's first tick comes five seconds after the first meter is created (Go: five-second
 //!   ticks counted from package initialisation), it ticks the meters that are still referenced, and
-//!   its thread ends when none is left (a later meter starts it again).
+//!   its thread ends when none is left (a later meter starts it again): `influx.meter-ticks` in the
+//!   ledger.
 
 mod counter;
 mod ewma;

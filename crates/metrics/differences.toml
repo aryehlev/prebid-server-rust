@@ -405,6 +405,35 @@ pin = "crates/metrics/tests/influx.rs::cadence"
 restore = "Not needed at whole-second periods."
 
 [[difference]]
+id = "influx.meter-ticks"
+category = "influx"
+status = "ledgered"
+title = """\
+    Meter rates: go-metrics' arbiter ticks on a five-second grid from start-up, the port's from \
+    the first meter"""
+go = """\
+    go-metrics folds the events of every meter, and of every timer's meter, into their one-, \
+    five- and fifteen-minute rates at the ticks of a `time.NewTicker(5e9)` made when the \
+    package initialises, as the process starts: the first tick comes five seconds after \
+    start-up, or as soon as the first meter is made when start-up took longer, and the ticks \
+    stay on that grid; the goroutine that reads them never ends (meter.go:233 and :44-46)."""
+rust = """\
+    The arbiter's thread starts with the first meter, which the engine makes when it is built, \
+    and takes its first tick five seconds after it, then every five seconds on that grid; it \
+    ends once no meter is left, and a later meter starts it again."""
+who = ["operator"]
+visible_in = """\
+    The `m1`, `m5`, `m15`, `mean` and `meanrate` points of meters and timers in the operator's \
+    InfluxDB, which change on a grid offset from Go's by the time start-up takes before the \
+    engine is built, modulo five seconds; at a `metric_send_interval` that is a multiple of \
+    five seconds, the reporter's sends, which start as the engine is built, fall just after the \
+    arbiter's ticks"""
+pin = "crates/metrics/tests/meter_ticks.rs::first_tick_follows_the_first_meter"
+restore = """\
+    Count the grid from the process's start; not planned: std does not tell when the process \
+    started, and Go's offset from the reporter's sends depends on start-up time as well."""
+
+[[difference]]
 id = "influx.sampled-values"
 category = "influx"
 status = "ledgered"

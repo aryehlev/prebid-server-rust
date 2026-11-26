@@ -23,7 +23,7 @@ Rule B's cases: (a) input real production traffic sends that the crate would rej
 | Global vendor list | 0 | 1 | 0 |
 | Gzip | 0 | 3 | 0 |
 | HTTP client | 0 | 24 | 5 |
-| InfluxDB metrics | 0 | 9 | 1 |
+| InfluxDB metrics | 0 | 10 | 1 |
 | IP addresses | 0 | 1 | 1 |
 | JSON | 4 | 40 | 5 |
 | Logging | 0 | 10 | 3 |
@@ -38,7 +38,7 @@ Rule B's cases: (a) input real production traffic sends that the crate would rej
 | URLs | 0 | 2 | 2 |
 | User syncs | 0 | 1 | 0 |
 | YAML | 0 | 3 | 0 |
-| All | 6 | 145 | 35 |
+| All | 6 | 146 | 35 |
 
 ## Decisions pending
 
@@ -750,6 +750,17 @@ No entry names the classes `other` and `unrecorded` or the kinds `stage_missing`
 - **Harness:** none
 - **Pin:** `crates/metrics/tests/influx.rs::key_escapes`
 - **Restore option:** A writer of the reporter's own that escapes as Go does, the fallback D-INFLUX names; not planned.
+- **Recorded in:** `crates/metrics/differences.toml`
+
+#### `influx.meter-ticks`: Meter rates: go-metrics' arbiter ticks on a five-second grid from start-up, the port's from the first meter
+
+- **Go:** go-metrics folds the events of every meter, and of every timer's meter, into their one-, five- and fifteen-minute rates at the ticks of a `time.NewTicker(5e9)` made when the package initialises, as the process starts: the first tick comes five seconds after start-up, or as soon as the first meter is made when start-up took longer, and the ticks stay on that grid; the goroutine that reads them never ends (meter.go:233 and :44-46).
+- **Rust:** The arbiter's thread starts with the first meter, which the engine makes when it is built, and takes its first tick five seconds after it, then every five seconds on that grid; it ends once no meter is left, and a later meter starts it again.
+- **Who notices:** operator
+- **Visible in:** The `m1`, `m5`, `m15`, `mean` and `meanrate` points of meters and timers in the operator's InfluxDB, which change on a grid offset from Go's by the time start-up takes before the engine is built, modulo five seconds; at a `metric_send_interval` that is a multiple of five seconds, the reporter's sends, which start as the engine is built, fall just after the arbiter's ticks
+- **Harness:** none
+- **Pin:** `crates/metrics/tests/meter_ticks.rs::first_tick_follows_the_first_meter`
+- **Restore option:** Count the grid from the process's start; not planned: std does not tell when the process started, and Go's offset from the reporter's sends depends on start-up time as well.
 - **Recorded in:** `crates/metrics/differences.toml`
 
 #### `influx.redirect-auth`: InfluxDB redirects: Go's basic auth follows a redirect to another port, scheme or subdomain of the host, reqwest's does not
