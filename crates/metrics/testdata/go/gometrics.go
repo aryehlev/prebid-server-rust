@@ -7,7 +7,8 @@ package main
 // the clock or on math/rand.
 //
 // Outputs written to the -gometrics directory (every field is strconv.Quote'd unless noted, and
-// fields are tab-separated):
+// fields are tab-separated; the rows of registry.txt and dumps.txt, which digests.txt hashes, are
+// strconv.QuoteToASCII'd, whose escapes need no Unicode tables to reproduce):
 //
 //	exchanges.txt     the adapter list the scripted scenarios pass to NewMetrics, one per line
 //	registry.txt      the complete dump of startup_viper_defaults: every name NewMetrics registers
@@ -24,8 +25,8 @@ package main
 //	keys.txt, paths.txt, errorf.txt, urls.txt
 //	                  the escaping, path, error-text and URL edge cases (see influxedge.go)
 //
-// A dump row is "log" <script line> <glog output with the header reduced to the severity and
-// site>, or <metric name> <kind> <values>. Timers and histograms are read the way the InfluxDB
+// A dump row is "log" <script line> <glog output with the header reduced to the severity>, or
+// <metric name> <kind> <values>. Timers and histograms are read the way the InfluxDB
 // reporter reads them: a snapshot, its percentiles (which sort the snapshot), then the other
 // statistics, so every value is independent of the order in which the reservoir holds values.
 // Meter rates depend on the clock and are not dumped.
@@ -118,7 +119,7 @@ func runGoMetrics(scenarios []*scenario, outDir string) error {
 				return err
 			}
 		}
-		fmt.Fprintf(&dumps, "%s\t%s\n", strconv.Quote("scenario"), strconv.Quote(s.name))
+		fmt.Fprintf(&dumps, "%s\t%s\n", strconv.QuoteToASCII("scenario"), strconv.QuoteToASCII(s.name))
 		dumps.WriteString(recordedRows(dump))
 		digest(s.name, dump)
 	}
@@ -200,10 +201,11 @@ func (c *stderrCapture) close() {
 	os.Remove(name)
 }
 
-// glogHeader matches the time and thread id of a glog header ("E1118 15:04:05.123456   123 ").
-var glogHeader = regexp.MustCompile(`(?m)^([IWEF])\d{4} \d{2}:\d{2}:\d{2}\.\d{6} +\d+ `)
+// glogHeader matches a glog header up to the message ("E1118 15:04:05.123456   123 logger.go:22] "):
+// the site is Prebid's logger facade, which says nothing about the engine.
+var glogHeader = regexp.MustCompile(`(?m)^([IWEF])\d{4} \d{2}:\d{2}:\d{2}\.\d{6} +\d+ [^\]\n]*\] `)
 
-// normalizeGlog keeps the severity and the "file:line] message" of every glog line.
+// normalizeGlog keeps the severity and the message of every glog line.
 func normalizeGlog(s string) string {
 	return glogHeader.ReplaceAllString(s, "$1 ")
 }
@@ -221,7 +223,7 @@ func goMetricsScenario(s *scenario, exchanges []openrtb_ext.BidderName, capture 
 			return "", err
 		}
 		if logged != "" {
-			fmt.Fprintf(&b, "%s\t%s\t%s\n", strconv.Quote("log"), strconv.Quote(strconv.Itoa(c.line)), strconv.Quote(normalizeGlog(logged)))
+			fmt.Fprintf(&b, "%s\t%s\t%s\n", strconv.QuoteToASCII("log"), strconv.QuoteToASCII(strconv.Itoa(c.line)), strconv.QuoteToASCII(normalizeGlog(logged)))
 		}
 	}
 	b.WriteString(dumpRegistry(registry))
@@ -240,7 +242,7 @@ func recordedRows(dump string) string {
 		if err != nil {
 			panic(err)
 		}
-		if fields[0] != strconv.Quote("log") && (values == "count=0" || strings.HasPrefix(values, "count=0 ")) {
+		if fields[0] != strconv.QuoteToASCII("log") && (values == "count=0" || strings.HasPrefix(values, "count=0 ")) {
 			continue
 		}
 		b.WriteString(row)
@@ -319,7 +321,7 @@ func dumpRegistry(r gometrics.Registry) string {
 		default:
 			kind = fmt.Sprintf("%T", m)
 		}
-		fmt.Fprintf(&b, "%s\t%s\t%s\n", strconv.Quote(e.name), strconv.Quote(kind), strconv.Quote(values))
+		fmt.Fprintf(&b, "%s\t%s\t%s\n", strconv.QuoteToASCII(e.name), strconv.QuoteToASCII(kind), strconv.QuoteToASCII(values))
 	}
 	return b.String()
 }
