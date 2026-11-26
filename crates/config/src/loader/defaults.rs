@@ -48,6 +48,17 @@ impl GoDefault {
     }
 }
 
+/// The defaults of the keys this port reads beyond `config.SetupViper`'s (ruling 10): opt-in
+/// extensions, each off by default, which keeps Go's behaviour. They are registered as Go's
+/// defaults are, so a value set through `PBS_` or `pbs.yaml` is cast as Viper casts any key with
+/// a bool default (`cast.ToBool`, ruling 8). Go's `Configuration` has no field for them, so the
+/// decode does not see them.
+pub(super) const EXTENSION_DEFAULTS: &[(&str, GoDefault)] = &[
+    // HTTP/2 to bidders, with a pool of h2 connections per origin (ruling 10 (a), ledger:
+    // `http-client.http2-opt-in`): off, the bidder client speaks HTTP/1.1 only, as Go's does.
+    ("http_client.http2.enabled", GoDefault::Bool(false)),
+];
+
 /// Keys `config.SetupViper` binds with `v.BindEnv(key)` before `v.SetEnvPrefix("PBS")`
 /// (config/config.go:1167-1259), which have no default: Viper reads `PBS_<KEY>` and then the
 /// un-prefixed `<KEY>` (with `.` replaced by `_`), e.g. `GDPR_DEFAULT_VALUE`.

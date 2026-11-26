@@ -15,7 +15,7 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use super::{
     cast,
-    defaults::{BIDDER_KEYS, DEFAULTS, UNPREFIXED_BINDINGS},
+    defaults::{BIDDER_KEYS, DEFAULTS, EXTENSION_DEFAULTS, UNPREFIXED_BINDINGS},
     env::EnvLayer,
     goconv::{to_lower, to_upper},
     value::GoValue,
@@ -58,10 +58,11 @@ pub(super) struct AllSettings {
 }
 
 impl Viper {
-    /// Viper after `config.SetupViper(v, "pbs", bidders)` read `config` as its file.
+    /// Viper after `config.SetupViper(v, "pbs", bidders)` read `config` as its file, with this
+    /// port's extension keys among its defaults.
     pub(super) fn new(config: Tree, env: EnvLayer, bidders: &[String]) -> Self {
         let mut defaults = Tree::new();
-        for (key, default) in DEFAULTS {
+        for (key, default) in DEFAULTS.iter().chain(EXTENSION_DEFAULTS) {
             set_default(&mut defaults, key, default.value());
         }
         let mut bound: BTreeMap<String, Vec<String>> = BTreeMap::new();

@@ -17,7 +17,8 @@ mod tests {
 
     use config::{Config, Environment, File, Map, Source as _};
     use pbs_config::loader::{
-        Decoded, GoValue, LoadError, Loader, SUPPORTED_EXTS, Settings, YamlFormat,
+        Decoded, GoValue, HTTP2_ENABLED, LoadError, Loader, SUPPORTED_EXTS, Settings, YamlFormat,
+        extension_keys,
     };
     use serde::{Serialize, de::DeserializeOwned};
     use serde_json::{Map as JsonMap, Value as Json, json};
@@ -179,10 +180,11 @@ mod tests {
     }
 
     impl Outcome {
-        /// `v.AllSettings()` in the compact form.
+        /// `v.AllSettings()` in the compact form, as Go's has it: without this port's extension
+        /// keys, which Go does not know.
         fn settings_json(&self) -> Json {
             self.settings.as_ref().map_or(Json::Null, |s| {
-                GoValue::Map(s.all_settings().clone()).compact()
+                GoValue::Map(without_extensions(s.all_settings())).compact()
             })
         }
 
@@ -875,7 +877,13 @@ mod tests {
                 let _new = keys.insert(format!("adapters.{bidder}.{}", text(suffix, "/suffix")?));
             }
         }
-        let all: BTreeSet<String> = settings.all_keys().into_iter().collect();
+        // Go knows none of this port's extension keys; `extension_keys_off_by_default` pins
+        // them.
+        let all: BTreeSet<String> = settings
+            .all_keys()
+            .into_iter()
+            .filter(|key| extension_keys().all(|extension| extension != key))
+            .collect();
         for key in all.symmetric_difference(&keys) {
             failures.push(format!(
                 "{key}: AllKeys {} it",
@@ -883,6 +891,35 @@ mod tests {
             ));
         }
         report("the defaults", &failures)
+    }
+
+    /// `tree` without this port's extension keys (ruling 10), each removed with the maps it
+    /// leaves empty.
+    fn without_extensions(tree: &BTreeMap<String, GoValue>) -> BTreeMap<String, GoValue> {
+        let mut tree = tree.clone();
+        for key in extension_keys() {
+            let path: Vec<&str> = key.split('.').collect();
+            remove_path(&mut tree, &path);
+        }
+        tree
+    }
+
+    /// Removes the key at `path` from `tree`, and each map on the way that it leaves empty.
+    fn remove_path(tree: &mut BTreeMap<String, GoValue>, path: &[&str]) {
+        match path {
+            [] => {}
+            [last] => {
+                let _removed = tree.remove(*last);
+            }
+            [first, rest @ ..] => {
+                if let Some(GoValue::Map(inner)) = tree.get_mut(*first) {
+                    remove_path(inner, rest);
+                    if inner.is_empty() {
+                        let _removed = tree.remove(*first);
+                    }
+                }
+            }
+        }
     }
 
     /// The sample the environment checks set a key to: a value of the default's type that is
@@ -1222,6 +1259,104 @@ mod tests {
             "the matrix's bool keys include a BindEnv-only one",
         )?;
         check_matrix(&|key, _, _| bool_keys.iter().any(|k| k.as_str() == key))
+    }
+
+    /// This port's extension keys (ruling 10) are Viper keys with their defaults, off, and do
+    /// not reach the decode: with each off, and set, the configuration decodes as Go's.
+    #[test]
+    fn extension_keys_off_by_default() -> TestResult {
+        let settings = Loader::new()
+            .without_file()
+            .load()
+            .map_err(|e| e.to_string())?;
+        let keys = settings.all_keys();
+        let defaults: Vec<(&str, bool, Option<GoValue>, bool)> = extension_keys()
+            .map(|key| {
+                (
+                    key,
+                    keys.iter().any(|listed| listed == key),
+                    settings.get(key),
+                    settings.is_set(key),
+                )
+            })
+            .collect();
+        check_eq(
+            &defaults,
+            &vec![(HTTP2_ENABLED, true, Some(GoValue::Bool(false)), true)],
+            "each extension key: listed by AllKeys, its Get and its IsSet",
+        )?;
+        check_eq(
+            &settings.http2_enabled(),
+            &false,
+            "http2_enabled by default",
+        )?;
+        let off = settings.decode().map_err(|e| e.to_string())?;
+        let env = BTreeMap::from([(
+            "PBS_HTTP_CLIENT_HTTP2_ENABLED".to_owned(),
+            "true".to_owned(),
+        )]);
+        let on = Loader::new()
+            .without_file()
+            .env(env)
+            .load()
+            .map_err(|e| e.to_string())?;
+        check_eq(&on.http2_enabled(), &true, "http2_enabled from PBS_")?;
+        let decoded = on.decode().map_err(|e| e.to_string())?;
+        check_eq(
+            &decoded.compact(),
+            &off.compact(),
+            "the configuration decoded with HTTP/2 on, against off",
+        )
+    }
+
+    /// `http_client.http2.enabled` converts as Viper converts a key with a bool default (ruling
+    /// 8): each `PBS_` and `pbs.yaml` input of `matrix.json`'s rows for
+    /// `http_client.throttle.enable_throttling`, Go's key with a bool default beside it, gives
+    /// Go's `Get` and `IsSet` for that key, and an empty variable is ignored.
+    // Go: viper.go:884-929 (Get's cast by the default's type, v1.12.0) and cast.ToBool v1.5.0
+    #[test]
+    fn http2_enabled_converts_like_viper() -> TestResult {
+        let sibling = "http_client.throttle.enable_throttling";
+        let doc = golden("matrix.json")?;
+        let mut failures = Vec::new();
+        let mut ran = 0_usize;
+        for row in list(&doc, "/rows")? {
+            if text(row, "/key")? != sibling {
+                continue;
+            }
+            ran += 1;
+            let via = text(row, "/via")?;
+            let value = text(row, "/input")?;
+            let got = run(&matrix_input(HTTP2_ENABLED, via, value)?)?;
+            let Ok(settings) = &got.settings else {
+                failures.push(format!("{via} {value:?}: the load failed"));
+                continue;
+            };
+            let get = settings
+                .get(HTTP2_ENABLED)
+                .map_or(Json::Null, |v| v.compact());
+            let mine = json!({"get": get, "is_set": settings.is_set(HTTP2_ENABLED)});
+            let matched = list(row, "/outcomes")?.iter().any(|outcome| {
+                outcome.get("get") == mine.get("get") && outcome.get("is_set") == mine.get("is_set")
+            });
+            let typed = Some(settings.http2_enabled()) == get.as_bool();
+            if !matched || !typed || got.error() != "" {
+                failures.push(format!(
+                    "{via} {value:?}: {mine}, http2_enabled {}, error {:?}",
+                    settings.http2_enabled(),
+                    got.error()
+                ));
+            }
+        }
+        if ran != 8 {
+            failures.push(format!("{ran} rows of {sibling}, want 8"));
+        }
+        let empty =
+            env_load(&[("PBS_HTTP_CLIENT_HTTP2_ENABLED", "")]).map_err(|e| e.to_string())?;
+        if empty.http2_enabled() || empty.get(HTTP2_ENABLED) != Some(GoValue::Bool(false)) {
+            failures.push("an empty PBS_HTTP_CLIENT_HTTP2_ENABLED is not ignored".to_owned());
+        }
+        report("http_client.http2.enabled", &failures)
     }
 
     /// The loads of `loads.json` about key case.
