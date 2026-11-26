@@ -34,6 +34,11 @@
 // type (the metadata in testdata/go_struct_meta.json lists the typed ones), checked against
 // the package's source (constants.go).
 //
+// shapes.jsonl holds the shape cases of every decodable type (shapes.go, which documents the
+// format): each JSON field with its sample, zero, null, integer extreme and unmarshaler edge
+// values, and jsonutil.MergeClone of samples, null, values of the wrong JSON type and edge values
+// into each field. pbs-openrtb-ext's serde parity test (tests/parity/shapes.rs) replays it.
+//
 // review.tsv (cases as in corpus.tsv), review_functions.tsv and review_aliases.tsv (calls as in
 // functions.tsv) hold the generated edge cases of review.go: the types with their own JSON
 // decoding at every nesting depth, the StringInt, IntString and json.Number fields, multibid,
@@ -135,6 +140,8 @@ func main() {
 	consts := untypedConstantRows()
 	writeConstants(filepath.Join(*out, "constants.tsv"), consts)
 
+	shapes := writeShapes(filepath.Join(*out, "shapes.jsonl"), decodable)
+
 	review := reviewDecodeCases(types, decodable)
 	write(filepath.Join(*out, "review.tsv"), nil, nil, review)
 	reviewFns := reviewFunctionCases()
@@ -144,9 +151,10 @@ func main() {
 	writeFunctions(filepath.Join(*out, "review_aliases.tsv"), aliases)
 
 	log.Printf("corpus: %d roots, %d files, %d cases; mutations: %d cases over %d types; "+
-		"functions: %d calls; constants: %d; review: %d cases, %d calls, %d alias calls",
+		"functions: %d calls; constants: %d; shapes: %d cases; review: %d cases, %d calls, "+
+		"%d alias calls",
 		len(c.roots), len(c.files), len(c.cases), len(mutations), len(decodable), len(fns), len(consts),
-		len(review), len(reviewFns), len(aliases))
+		shapes, len(review), len(reviewFns), len(aliases))
 }
 
 // decodableTypes are the ported types that JSON documents decode into, in generation order:
