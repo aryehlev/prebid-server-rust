@@ -10,6 +10,12 @@
 //!   crate's text format of the registry, served as [`prometheus::TEXT_FORMAT`], with the same
 //!   families, samples and values as Go's `client_golang` v1.12.1 scrape (the ledger's `metrics`
 //!   entries name what is spelled or negotiated otherwise).
+//! - [`go_metrics`] (Go `metrics/go_metrics.go`): the go-metrics engine, over [`gometrics`], the
+//!   subset of `rcrowley/go-metrics` cf1acfcdf475 Prebid uses (the registry, counters, meters,
+//!   timers, histograms and their samples).
+//! - [`influx`] (Go `vrischmann/go-metrics-influxdb` v0.1.1 over `influxdata/influxdb1-client`):
+//!   the `InfluxDB` reporter of the go-metrics registry, on influxdb 0.8.0 and reqwest (the
+//!   ledger's `influx` entries name what is sent otherwise).
 //! - [`config`] (Go `metrics/config/metrics.go`): engine selection ([`new_metrics_engine`]),
 //!   [`MultiMetricsEngine`] fan-out and [`NilMetricsEngine`].
 //! - [`metrics_mock`] (Go `metrics/metrics_mock.go`): a recording mock for tests.
@@ -21,9 +27,8 @@
 //!
 //! Not ported:
 //!
-//! - The go-metrics engine and its `InfluxDB` reporter (Go `metrics/go_metrics.go`);
-//!   [`new_metrics_engine`] returns [`MetricsEngineError::InfluxNotSupported`] when
-//!   `metrics.influxdb.host` is set.
+//! - Starting the go-metrics engine and its `InfluxDB` reporter: [`new_metrics_engine`] returns
+//!   [`MetricsEngineError::InfluxNotSupported`] when `metrics.influxdb.host` is set.
 //! - Go's runtime collector (`collectors.NewGoCollector()`, the `<prefix>go_*` families).
 //! - The HTTP handler (`promhttp`) and its content negotiation, which belong to the server.
 
@@ -65,6 +70,7 @@ macro_rules! ensure_eq {
 pub mod config;
 pub mod go_metrics;
 pub mod gometrics;
+pub mod influx;
 pub mod metrics;
 pub mod metrics_mock;
 pub mod options;

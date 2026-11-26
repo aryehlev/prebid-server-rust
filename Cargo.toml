@@ -73,6 +73,8 @@ h2 = "0.4.20"
 # pbs-server's HTTP/1.1-only connection builder (Go's header limit and read budget, which
 # axum::serve does not set) and the loopback test servers; axum already locks it.
 hyper-util = { version = "0.1.21", features = ["server-auto", "tokio"] }
+# The InfluxDB reporter's line protocol and writes (D-INFLUX), over a reqwest client of its own.
+influxdb = { version = "0.8.0", default-features = false, features = ["rustls"] }
 ipnet = "2.12.2"
 # RFC 7386 merge only (JSONUTIL). The diff feature pulls treediff; 0.3.0 through 4.1.0 need
 # thiserror 1, on syn 2.
@@ -143,8 +145,6 @@ uuid = { version = "1.29.3", features = ["v4"] }
 # # ads.cert's TXT discovery (D-DNS). No system-config: it pulls core-foundation 0.9 beside 0.10.
 # hickory-resolver = { version = "0.26.3", default-features = false, features = ["tokio"] }
 # hmac = "0.13.0"
-# # The InfluxDB reporter's line protocol and writes (D-INFLUX), over pbs-http-client's reqwest.
-# influxdb = { version = "0.8.0", default-features = false, features = ["rustls"] }
 # # golang-lru's simplelru (FETCHER). No default features: they pull foldhash, licensed Zlib.
 # lru = { version = "0.19.0", default-features = false }
 # md-5 = "0.11.0"

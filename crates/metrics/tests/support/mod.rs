@@ -1,8 +1,11 @@
-//! Helpers of the exposition tests.
+//! Helpers of the integration tests.
 //!
-//! The scenario scripts `testdata/go` replays through Go's engine, the goldens it writes from
-//! them, and a scrape read back into families and samples the way the generator reads Go's
-//! (`readExposition` of `testdata/go/main.go`).
+//! The scenario scripts `testdata/go` replays through Go's engines, the goldens it writes from
+//! them, a scrape read back into families and samples the way the generator reads Go's
+//! (`readExposition` of `testdata/go/main.go`), and the endpoint the `InfluxDB` tests talk to
+//! ([`endpoint`]).
+
+pub mod endpoint;
 
 use std::{
     collections::{BTreeMap, BTreeSet},
@@ -1063,8 +1066,18 @@ impl LabelUnicode {
 ///
 /// # Errors
 ///
-/// When `s` does not start with a quoted string `%q` writes.
+/// When `s` does not start with a quoted string `%q` writes, or that string is not UTF-8.
 pub fn go_unquote(text: &str) -> TestResult<(String, &str)> {
+    let (bytes, rest) = go_unquote_bytes(text)?;
+    Ok((String::from_utf8(bytes)?, rest))
+}
+
+/// [`go_unquote`] of a string of any bytes, such as a gzip body.
+///
+/// # Errors
+///
+/// When `s` does not start with a quoted string `%q` writes.
+pub fn go_unquote_bytes(text: &str) -> TestResult<(Vec<u8>, &str)> {
     let body = text.strip_prefix('"').ok_or("no opening quote")?;
     let bytes = body.as_bytes();
     let mut out = Vec::new();
@@ -1073,7 +1086,7 @@ pub fn go_unquote(text: &str) -> TestResult<(String, &str)> {
         let &byte = bytes.get(pos).ok_or("no closing quote")?;
         if byte == b'"' {
             let rest = body.get(pos + 1..).ok_or("no rest")?;
-            return Ok((String::from_utf8(out)?, rest));
+            return Ok((out, rest));
         }
         if byte != b'\\' {
             out.push(byte);

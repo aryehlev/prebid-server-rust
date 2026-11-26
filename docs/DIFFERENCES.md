@@ -23,6 +23,7 @@ Rule B's cases: (a) input real production traffic sends that the crate would rej
 | Global vendor list | 0 | 1 | 0 |
 | Gzip | 0 | 3 | 0 |
 | HTTP client | 0 | 24 | 5 |
+| InfluxDB metrics | 0 | 7 | 1 |
 | IP addresses | 0 | 1 | 1 |
 | JSON | 4 | 40 | 5 |
 | Logging | 0 | 10 | 3 |
@@ -37,7 +38,7 @@ Rule B's cases: (a) input real production traffic sends that the crate would rej
 | URLs | 0 | 2 | 2 |
 | User syncs | 0 | 1 | 0 |
 | YAML | 0 | 3 | 0 |
-| All | 6 | 136 | 34 |
+| All | 6 | 143 | 35 |
 
 ## Decisions pending
 
@@ -701,6 +702,105 @@ No entry names the classes `other` and `unrecorded` or the kinds `stage_missing`
 - **How Go's behaviour is kept:** HTTP-CLIENT sets `Go-http-client/1.1` when the caller set none, one line of client config (D-UA, orchestrator ruling 5), and HTTP-H2 keeps it on HTTP/2.
 - **Restore pin:** `crates/http-client/tests/headers.rs::default_user_agent_is_go` (The general client writes Go's `User-Agent` line for every case of headers.json: `Go-http-client/1.1` when the caller set none, the first of two values, and none for an empty one.)
 - **Recorded in:** `crates/differences/differences.toml`
+
+## InfluxDB metrics
+
+### Ledgered
+
+#### `influx.cadence`: Reporter ticks: Go's `time.Tick` timers, against tokio intervals on a millisecond wheel
+
+- **Go:** The reporter sends at every `time.Tick(interval)` and pings at every `time.Tick(5 s)`, from one period after it starts, on Go's runtime timers; a tick the loop is too busy to take comes when it is free, the next one back on the period's grid (influxdb.go:70-91).
+- **Rust:** tokio intervals with `MissedTickBehavior::Skip` tick alike, rounded up to tokio's millisecond timer wheel; a tick at most 5 ms late is followed by the next one a period after it, so a period of 5 ms or less can tick twice to catch up.
+- **Who notices:** none
+- **Visible in:** Nowhere: the periods are whole seconds (`metric_send_interval`) and 5 s, where only the sub-millisecond time of a tick differs
+- **Harness:** none
+- **Pin:** `crates/metrics/tests/influx.rs::cadence`
+- **Restore option:** Not needed at whole-second periods.
+- **Recorded in:** `crates/metrics/differences.toml`
+
+#### `influx.error-texts`: InfluxDB errors: the reporter logs the crate's, reqwest's and the url crate's texts
+
+- **Go:** A write that fails on its status is the answer's body read as a `fmt.Errorf` format (`%!d(MISSING) oops`); one that fails to send is net/http's `Post "<url>": <reason>`, a failed ping `Get "<url>": <reason>`, and a host `url.Parse` refuses `parse "<host>": <reason>` (influxdb.go:348-364; go-metrics-influxdb influxdb.go:35-37).
+- **Rust:** `API error with a status code: <status>` whatever the body, `connection error: <reqwest's text>`, `http protocol error: ...` or `InfluxDB encountered the following error: ...` for a write, reqwest's `error sending request for url (<url>)` for a ping, and the url crate's reason, such as `relative URL without a base`, for a host.
+- **Who notices:** operator
+- **Visible in:** The `err=` part of the reporter's log lines
+- **Harness:** none
+- **Pin:** `crates/metrics/tests/influx.rs::error_texts`
+- **Restore option:** Map the crate's and reqwest's errors to Go's texts; not planned: the texts are not Prebid's, and Go's reads the server's body as a format.
+- **Note:** crates/metrics/tests/influx.rs::reporter_matches_go finds the reporter's log lines Go's up to their `err=`.
+- **Recorded in:** `crates/metrics/differences.toml`
+
+#### `influx.host-url`: `metrics.influxdb.host`: Go's `url.Parse` and `path.Join`, against the url crate and influxdb 0.8.0's `<host>/write`
+
+- **Go:** `url.Parse` accepts `localhost`, `//influx/p`, a zone such as `[fe80::1%25en0]`, a port over 65535, `h:8086:8086` and `user@:80`, and refuses `%61` or `%41` in a host, `%zz` in a path or fragment, control characters and a leading space; the writes go to `path.Join(path, "write")`, repeated slashes collapsed and `%2F` decoded, with the host URL's query beside Go's own pairs, and the pings to `<path>/ping` with the query (influxdb.go:296, :341-346 and :421).
+- **Rust:** The url crate refuses the first hosts, so the reporter logs `unable to parse InfluxDB url` once and stops, and reads the second ones (`ex%61mple.com` as `example.com`, a trailing newline or a leading space dropped); it lowercases hosts, reads `http:///p` as the host `p` and writes international names in punycode. The writes go to `<path>/write` with the repeated slashes and `%2F` kept and without the host URL's query; the pings keep it.
+- **Who notices:** operator
+- **Visible in:** Whether the reporter starts and where it writes, for hosts spelled as above, with a path that holds `//` or `%2F`, or with a query
+- **Harness:** none
+- **Pin:** `crates/metrics/tests/influx.rs::host_url`
+- **Restore option:** Read the host with a port of `url.Parse` and post to Go's path and query; not planned: such hosts are misconfigurations.
+- **Recorded in:** `crates/metrics/differences.toml`
+
+#### `influx.key-escapes`: Line-protocol escapes: influxdb1-client's and influxdb 0.8.0's differ on backslashes and double quotes
+
+- **Go:** influxdb1-client unescapes a backslash before a comma or space in the measurement, then escapes its commas and spaces; it escapes commas, spaces and `=` in tag keys and values, and commas, double quotes, spaces and `=` in field keys (models/points.go:1225-1257, pkg/escape/strings.go:6).
+- **Rust:** influxdb 0.8.0 escapes the measurement's commas and spaces as written, field keys' commas, spaces and `=` but not their double quotes, and tag values' backslashes and double quotes as well.
+- **Who notices:** operator
+- **Visible in:** The lines of metrics whose names hold a double quote (an account id or a bidder alias with one), and of a measurement with a backslash before a comma or space; the reporter's one tag, `bucket`, holds neither
+- **Harness:** none
+- **Pin:** `crates/metrics/tests/influx.rs::key_escapes`
+- **Restore option:** A writer of the reporter's own that escapes as Go does, the fallback D-INFLUX names; not planned.
+- **Recorded in:** `crates/metrics/differences.toml`
+
+#### `influx.sampled-values`: Histogram and timer reservoirs: rand's draws, not `math/rand`'s
+
+- **Go:** `ExpDecaySample` and `UniformSample` draw their priorities and slots from `math/rand`'s process-wide source, which Go seeds at random at start-up (sample.go:172 and :514).
+- **Rust:** They draw from rand's thread-local generator: the same distributions, other values.
+- **Who notices:** none
+- **Visible in:** Nowhere: which values a histogram or timer keeps once it recorded more than its 1028 or 1024 is random in Go as well, and so are the percentiles the reporter sends of it
+- **Harness:** none
+- **Pin:** `crates/metrics/tests/influx.rs::reservoir_shape`
+- **Restore option:** A port of `math/rand`'s source; not planned.
+- **Recorded in:** `crates/metrics/differences.toml`
+
+#### `influx.write-request`: InfluxDB writes: influxdb1-client's query, headers and comment lines, against influxdb 0.8.0's
+
+- **Go:** `Client.Write` posts to `<path>/write?consistency=&db=<db>&precision=&rp=`, sorted and beside the host URL's own query pairs, with an empty `Content-Type`, and ends every line with a newline; it writes a point with a NaN or infinite field, an empty field name, a key over 65535 bytes or a time outside 1677 to 2262 as a `# ERROR: <reason> <measurement>` comment line, leaves out a zero time and writes a time before 1970 as negative nanoseconds (influxdb.go:294-346, :642-646).
+- **Rust:** influxdb 0.8.0 posts `?db=<db>&precision=ns` in its hash map's order (`precision=ms` for an empty batch, which hyper sends without a `Content-Length`), with reqwest's `Accept: */*` and no `Content-Type`, and joins the lines without a final newline; it writes every point as a line, a non-finite field as `NaN`, `inf` or `-inf`, and the reporter writes a time before 1970 as 0.
+- **Who notices:** operator
+- **Visible in:** The reporter's write requests, and its batches with a point InfluxDB refuses: a metric name of some 64 KiB (an account id that long), or a clock outside 1970 to 2262
+- **Harness:** none
+- **Pin:** `crates/metrics/tests/influx.rs::write_request`
+- **Decision:** D-INFLUX
+- **Restore option:** Write the requests and lines with reqwest from a writer of the reporter's own, the fallback D-INFLUX names; not planned: the server reads both requests alike.
+- **Note:** crates/metrics/tests/influx.rs::points_match_go finds every point of points.txt Go writes spelled alike, the ledgered escapes and times aside, and a line of the crate's for every point Go refuses.
+- **Recorded in:** `crates/metrics/differences.toml`
+
+#### `influx.write-status`: InfluxDB write answers: Go succeeds on 200 and 204 alone, influxdb 0.8.0 on any 2xx whose body names no error
+
+- **Go:** A write succeeds on a 200 or a 204, whatever the body, and fails on any other status (influxdb.go:360-364).
+- **Rust:** influxdb 0.8.0 succeeds on any 2xx status unless the body holds `"error"` or `"Error"`, quotes included: a 201 or 202 succeeds, and a 200 that names an error fails.
+- **Who notices:** operator
+- **Visible in:** The reporter's `unable to send metrics` log lines, for a server or proxy that answers a write with another 2xx status or with a 200 that names an error
+- **Harness:** none
+- **Pin:** `crates/metrics/tests/influx.rs::write_status`
+- **Restore option:** Write with reqwest and check Go's statuses, the fallback D-INFLUX names; not planned: InfluxDB answers a write with 204, or with 4xx or 5xx when it fails.
+- **Recorded in:** `crates/metrics/differences.toml`
+
+### Go behaviour kept
+
+#### `influx.user-agent`: The InfluxDB reporter's User-Agent: influxdb1-client sends `InfluxDBClient`, reqwest none
+
+- **Go:** influxdb1-client sends `User-Agent: InfluxDBClient` with every write and ping (influxdb.go:188, :331 and :427).
+- **Rust:** reqwest sends no `User-Agent`, and influxdb 0.8.0 sets none on its requests.
+- **Who notices:** operator
+- **Visible in:** The User-Agent of the reporter's writes and pings, in the InfluxDB server's logs
+- **Harness:** none: a mismatch here is unexpected
+- **Pin:** `crates/metrics/tests/influx.rs::user_agent`
+- **Decision:** D-UA
+- **How Go's behaviour is kept:** The reporter's reqwest client sets `User-Agent: InfluxDBClient`, one line of client configuration (D-UA).
+- **Restore pin:** `crates/metrics/tests/influx.rs::wire_matches_go` (Every request of the 45 wire cases, the writes, pings and redirects, has Go's `User-Agent` line.)
+- **Recorded in:** `crates/metrics/differences.toml`
 
 ## IP addresses
 
@@ -1519,7 +1619,7 @@ No entry names the classes `other` and `unrecorded` or the kinds `stage_missing`
 - **Go:** `strings.ToLower` uses go1.26.2's Unicode 15.0.0 tables, which give no lower case to the letters cased since, such as U+1C89 and the Garay capitals, so the adapter `Ᲊnew` stays `Ᲊnew` and `𐵐garay` stays `𐵐garay`.
 - **Rust:** std's tables (Unicode 18.0.0 in toolchain 1.100.0) lower them: `ᲊnew` (U+1C8A) and `𐵰garay` (U+10D70). The other characters are lowered as Go lowers them.
 - **Who notices:** operator
-- **Visible in:** The adapter label of /metrics series, for bidder, alias or seat names with a letter cased after Unicode 15.0.0
+- **Visible in:** The adapter label of /metrics series and the adapter part of the go-metrics engine's metric names, which the InfluxDB reporter writes, for bidder, alias or seat names with a letter cased after Unicode 15.0.0
 - **Harness:** none
 - **Pin:** `crates/metrics/tests/exposition.rs::label_unicode`
 - **Restore option:** Carry Unicode 15.0.0's case tables for the labels, as the deleted goconv tables did; not planned: they hold the labels to a Unicode version std has left.
