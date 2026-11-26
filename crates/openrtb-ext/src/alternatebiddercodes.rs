@@ -106,8 +106,10 @@ mod tests {
 
     /// The names in the errors are quoted as Rust quotes strings, where Go's `%q` quotes them
     /// with `strconv.Quote` (`config.alternate-code-quoting`): go1.26.2 writes `"pub\amatic"`,
-    /// `"a\x00b"`, `"\u00ad"`, and U+0301 after an `A` as it is, the port `"pub\u{7}matic"`,
-    /// `"a\0b"`, `"\u{ad}"` and `"A\u{301}"`; printable characters, `"` and `\` are quoted
+    /// `"a\x00b"`, `"x\x7f"`, `"\u00ad"`, `"a\u00a0b"` and `"\ua7cb"` (a letter Unicode assigned
+    /// after its 15.0.0), and U+0301 after an `A`, U+0488 and U+3164 as they are, the port
+    /// `"pub\u{7}matic"`, `"a\0b"`, `"x\u{7f}"`, `"\u{ad}"`, `"a\u{a0}b"`, U+A7CB as it is,
+    /// `"A\u{301}"`, `"\u{488}"` and `"\u{3164}"`; printable characters, `"` and `\` are quoted
     /// alike.
     // Go: openrtb_ext/alternatebiddercodes.go:52, 56 and 60 (fmt.Errorf with %q)
     #[test]
@@ -116,8 +118,13 @@ mod tests {
         for (bidder, quoted) in [
             ("pub\u{7}matic", r#""pub\u{7}matic""#),
             ("a\0b", r#""a\0b""#),
+            ("x\u{7f}", r#""x\u{7f}""#),
             ("\u{ad}", r#""\u{ad}""#),
+            ("a\u{a0}b", r#""a\u{a0}b""#),
+            ("\u{a7cb}", "\"\u{a7cb}\""),
             ("A\u{301}", r#""A\u{301}""#),
+            ("\u{488}", r#""\u{488}""#),
+            ("\u{3164}", r#""\u{3164}""#),
             ("pub\"matic", r#""pub\"matic""#),
             ("group\u{e9}", "\"group\u{e9}\""),
         ] {

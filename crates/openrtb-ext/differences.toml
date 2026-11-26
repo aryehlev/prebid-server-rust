@@ -247,16 +247,28 @@ status = "ledgered"
 title = "Alternate bidder code warnings: Go quotes the names with `strconv.Quote`, the port as Rust quotes strings"
 go = """\
     `IsValidBidderCode`'s errors quote the bidder and the seat with `%q` \
-    (openrtb_ext/alternatebiddercodes.go:52, 56 and 60): `strconv.Quote` writes `\\a` for U+0007, \
-    `\\x00` for NUL and `\\u00ad` for a soft hyphen, and keeps a combining mark such as U+0301."""
+    (openrtb_ext/alternatebiddercodes.go:52, 56 and 60): `strconv.Quote` writes `\\a`, `\\b`, \
+    `\\f` and `\\v` for those controls, `\\x` and two hex digits for the other ASCII controls and \
+    DEL (`\\x00`, `\\x7f`), and `\\u` or `\\U` and the hex digits for every other character Go \
+    does not print by Unicode 15.0.0's tables: C1 controls, format characters (`\\u00ad`, the \
+    soft hyphen), the spaces but U+0020 (`\\u00a0`), the line and paragraph separators, and \
+    private-use and unassigned code points, among them the characters Unicode assigned after \
+    15.0.0 (`\\ua7cb`). It keeps marks (U+0301, U+0488) and the Hangul fillers (U+3164) as they \
+    are."""
 rust = """\
-    The port quotes them with `{:?}`: `\\u{7}`, `\\0`, `\\u{ad}` and `\\u{301}`. Printable \
-    characters, `\"` and `\\` are quoted alike."""
+    The port quotes them with `{:?}`, which writes `\\0` for NUL and `\\u{`, the hex digits and \
+    `}` for each other of those characters (`\\u{7}`, `\\u{7f}`, `\\u{ad}`, `\\u{a0}`) but the \
+    ones std's later Unicode tables print, which it writes as they are (U+A7CB), and also for \
+    the marks that extend a grapheme (every nonspacing and enclosing mark and some spacing marks) \
+    and the Hangul fillers: `\\u{301}`, `\\u{488}`, `\\u{3164}`. Tab, newline, carriage return, \
+    `\"`, `\\` and every other character are quoted alike."""
 who = ["publisher"]
 visible_in = """\
     The `ext.warnings` of an auction whose bidder returns a bid under a seat the alternate bidder \
     codes reject (exchange/bidder.go:388-395), where the bidder or seat name holds a control or \
-    format character or a combining mark"""
+    format character, a space other than U+0020, a line or paragraph separator, a private-use or \
+    unassigned code point or one Unicode assigned after 15.0.0, a mark that extends a grapheme, \
+    or a Hangul filler"""
 pin = "crates/openrtb-ext/src/alternatebiddercodes.rs::names_quoted_as_rust_quotes_them"
 restore = """\
     Port `strconv.Quote` with Go's printability tables; not planned (orchestrator ruling 2 \
