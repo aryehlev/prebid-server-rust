@@ -763,12 +763,12 @@ No entry names the classes `other` and `unrecorded` or the kinds `stage_missing`
 - **Restore option:** Count the grid from the process's start; not planned: std does not tell when the process started, and Go's offset from the reporter's sends depends on start-up time as well.
 - **Recorded in:** `crates/metrics/differences.toml`
 
-#### `influx.redirect-auth`: InfluxDB redirects: Go's basic auth follows a redirect to another port, scheme or subdomain of the host, reqwest's does not
+#### `influx.redirect-auth`: InfluxDB redirects: Go's basic auth follows a redirect to another port, scheme or subdomain of the host and its user info no absolute redirect; reqwest's credentials follow the redirects on the origin alone
 
-- **Go:** net/http copies the `Authorization` header that influxdb1-client's `SetBasicAuth` sets (`metrics.influxdb.username`) to a redirect whose host name is the first request's or a subdomain of it, on any port and scheme, so a write or ping redirected there is authorised; the host URL's user info is in no such header and reaches only the redirects that stay on its origin (net/http/client.go `shouldCopyHeaderOnRedirect`; influxdb.go:332-334 and :428-430 there).
-- **Rust:** reqwest drops the `Authorization` header on any change of host, port or scheme from the previous hop, as `http-client.redirects` says of the bidder clients, so the redirected write or ping goes without the credentials; the user info behaves as Go's.
+- **Go:** net/http copies the `Authorization` header that influxdb1-client's `SetBasicAuth` sets (`metrics.influxdb.username`) to a redirect whose host name is the first request's or a subdomain of it, on any port and scheme, so a write or ping redirected there is authorised. The host URL's user info is in no such header: net/http adds it to each request whose own URL has it, which a relative `Location` keeps and an absolute one drops, on the same origin as well, so an absolute redirect goes without it (net/http/client.go `shouldCopyHeaderOnRedirect` and `send`; influxdb.go:332-334 and :428-430 there).
+- **Rust:** reqwest sends both kinds of credentials as an `Authorization` header and keeps it on a redirect while the host, port and scheme stay the previous hop's, dropping it on any change, as `http-client.redirects` says of the bidder clients: a write or ping redirected to another port, to https or to a subdomain goes without the `username` credentials, and one redirected to an absolute URL on the origin carries the user info's.
 - **Who notices:** operator
-- **Visible in:** The reporter's writes, with `metrics.influxdb.username` set, to a server or proxy that redirects them with a 307 or 308 to another port, to https or to a subdomain: the server's 401 and the `unable to send metrics` log line at every interval, where Go's writes are authorised
+- **Visible in:** The reporter's writes to a server or proxy that redirects them with a 307 or 308: with `metrics.influxdb.username` set, to another port, to https or to a subdomain, the server's 401 and the `unable to send metrics` log line at every interval, where Go's writes are authorised; with the credentials in the host URL's user info, to an absolute URL on the same origin, authorised writes, where Go's get the 401
 - **Harness:** none
 - **Pin:** `crates/metrics/tests/influx.rs::redirect_auth`
 - **Decision:** D-INFLUX

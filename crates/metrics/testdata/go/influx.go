@@ -16,9 +16,9 @@ package main
 // when the call returned no error, and the version Ping returned.
 //
 // A redirects.txt row is a wire case whose endpoint redirects to a second endpoint, on another
-// port of 127.0.0.1 and written {addr2}: name, URL, username, password, op, database, the
-// points, the first endpoint's responses, the second endpoint's responses, the requests each
-// read, the error and the version, as in wire.txt.
+// port of 127.0.0.1 and written {addr2}, or to an absolute URL of its own ({addr}): name, URL,
+// username, password, op, database, the points, the first endpoint's responses, the second
+// endpoint's responses, the requests each read, the error and the version, as in wire.txt.
 
 import (
 	"bufio"
@@ -58,11 +58,17 @@ type fakeEndpoint struct {
 }
 
 func newFakeEndpoint(responses ...string) (*fakeEndpoint, error) {
+	return newFakeEndpointFor(func(string) []string { return responses })
+}
+
+// newFakeEndpointFor is newFakeEndpoint with the responses that responses returns for the
+// endpoint's address, which they can name.
+func newFakeEndpointFor(responses func(addr string) []string) (*fakeEndpoint, error) {
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		return nil, err
 	}
-	e := &fakeEndpoint{ln: ln, responses: responses, arrived: make(chan struct{}, 1024)}
+	e := &fakeEndpoint{ln: ln, responses: responses(ln.Addr().String()), arrived: make(chan struct{}, 1024)}
 	go e.serve()
 	return e, nil
 }
@@ -370,18 +376,22 @@ func writeWire(path string) error {
 	return os.WriteFile(path, []byte(b.String()), 0o644)
 }
 
-// redirectCase is a wire case whose endpoint ({addr}) redirects to a second endpoint ({addr2}):
-// responses are the first endpoint's answers, next the second's.
+// redirectCase is a wire case whose endpoint ({addr}) redirects to a second endpoint ({addr2})
+// or to itself: responses are the first endpoint's answers, next the second's, none when no
+// request reaches it.
 type redirectCase struct {
 	wireCase
 	next []string
 }
 
 // redirectCases send a write or a ping, with SetBasicAuth's credentials or the host URL's user
-// info, to an endpoint that redirects it to another port of its host. net/http copies the
-// initial request's Authorization header to a redirect whose host name is the initial one's or
-// a subdomain of it, on any port and scheme (net/http/client.go shouldCopyHeaderOnRedirect); the
-// user info is not part of that header.
+// info, to an endpoint that redirects it to another port of its host or to an absolute URL of
+// its own. net/http copies the initial request's Authorization header to a redirect whose host
+// name is the initial one's or a subdomain of it, on any port and scheme (net/http/client.go
+// shouldCopyHeaderOnRedirect); the user info is not part of that header, and send adds it to
+// each request whose URL has it, which an absolute Location does not. The endpoint that
+// redirects to itself does so at every request, so that what it answers does not depend on the
+// connections the client opens, until the client stops after ten requests.
 func redirectCases() []redirectCase {
 	counter := wirePoint{"prebidserver", nil, "prebidserver.active_connections.count", int64(42), 1731940000123456789}
 	ok204 := "HTTP/1.1 204 No Content\r\nX-Influxdb-Version: 1.8.10\r\n\r\n"
@@ -392,6 +402,7 @@ func redirectCases() []redirectCase {
 		{wireCase{name: "write_307_other_port", url: "http://{addr}", username: "admin", password: "pw", op: "write", db: "pbs", points: []wirePoint{counter}, responses: []string{to("307 Temporary Redirect", "http://{addr2}/moved?x=1")}}, []string{ok204}},
 		{wireCase{name: "write_308_other_port_userinfo", url: "http://u:p@{addr}", op: "write", db: "pbs", points: []wirePoint{counter}, responses: []string{to("308 Permanent Redirect", "http://{addr2}/moved")}}, []string{ok204}},
 		{wireCase{name: "ping_301_other_port", url: "http://{addr}/base", username: "admin", password: "pw", op: "ping", responses: []string{to("301 Moved Permanently", "http://{addr2}/ping2")}}, []string{ok204}},
+		{wireCase{name: "write_307_same_origin_userinfo", url: "http://u:p@{addr}", op: "write", db: "pbs", points: []wirePoint{counter}, responses: []string{to("307 Temporary Redirect", "http://{addr}/moved")}}, nil},
 	}
 }
 
@@ -415,11 +426,13 @@ func writeRedirects(path string) error {
 		if err != nil {
 			return err
 		}
-		responses := make([]string, len(c.responses))
-		for i, r := range c.responses {
-			responses[i] = strings.ReplaceAll(r, "{addr2}", next.addr())
-		}
-		first, err := newFakeEndpoint(responses...)
+		first, err := newFakeEndpointFor(func(addr string) []string {
+			responses := make([]string, len(c.responses))
+			for i, r := range c.responses {
+				responses[i] = strings.ReplaceAll(strings.ReplaceAll(r, "{addr2}", next.addr()), "{addr}", addr)
+			}
+			return responses
+		})
 		if err != nil {
 			return err
 		}
@@ -446,8 +459,10 @@ func writeRedirects(path string) error {
 			return fmt.Errorf("%s: unknown op %q", c.name, c.op)
 		}
 		// Each endpoint read its requests before it answered them.
-		if _, err := next.wait(5 * time.Second); err != nil {
-			return fmt.Errorf("%s: %v", c.name, err)
+		if len(c.next) > 0 {
+			if _, err := next.wait(5 * time.Second); err != nil {
+				return fmt.Errorf("%s: %v", c.name, err)
+			}
 		}
 		errText := ""
 		if callErr != nil {

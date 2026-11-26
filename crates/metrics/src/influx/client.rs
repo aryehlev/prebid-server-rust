@@ -40,8 +40,9 @@ impl Client {
     /// `Authorization` header is set. The writes go to `<path>/write` without the URL's query
     /// and the pings to `<path>/ping` with it, the path without its trailing slashes
     /// (`influx.host-url`). No proxy, no timeout and HTTP/1.1, as influxdb1-client's transport,
-    /// and Go's ten requests at most when the server redirects; reqwest drops the basic auth on a
-    /// redirect to another host, port or scheme (`influx.redirect-auth`).
+    /// and Go's ten requests at most when the server redirects; reqwest keeps the credentials, of
+    /// either kind, on the redirects within the origin and drops them on any other
+    /// (`influx.redirect-auth`).
     ///
     /// # Errors
     ///

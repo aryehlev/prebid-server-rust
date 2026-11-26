@@ -2,9 +2,9 @@
 //! `influxedge.go` recorded from influxdata/influxdb1-client 8bf82d3c094d and
 //! vrischmann/go-metrics-influxdb v0.1.1 talking to a raw HTTP endpoint that `support::endpoint`
 //! reimplements: the requests of the client's writes and pings and what it made of the answers,
-//! redirected to another port of the host as well, the reporter's batches and log lines, the
-//! client's spelling of points and keys, the host URLs and `Time.Truncate`. The tests are also
-//! the pins of the ledger's `influx` entries.
+//! redirected to another port of the host or to the endpoint itself as well, the reporter's
+//! batches and log lines, the client's spelling of points and keys, the host URLs and
+//! `Time.Truncate`. The tests are also the pins of the ledger's `influx` entries.
 
 pub mod support;
 
@@ -238,13 +238,15 @@ mod tests {
     }
 
     /// One row of `redirects.txt`: a wire case whose endpoint redirects it to a second endpoint
-    /// on another port of the host, and what influxdb1-client sent to each.
+    /// on another port of the host or to an absolute URL of its own, and what influxdb1-client
+    /// sent to each.
     struct RedirectCase {
-        /// The case, with the first endpoint's responses and the requests it read.
+        /// The case, with the first endpoint's responses, which name it `{addr}` and the second
+        /// endpoint `{addr2}`, and the requests it read.
         case: WireCase,
         /// The second endpoint's responses.
         next_responses: Vec<Vec<u8>>,
-        /// The requests the second endpoint read.
+        /// The requests the second endpoint read, none when the first redirects to itself.
         next_requests: Vec<String>,
     }
 
@@ -785,18 +787,27 @@ mod tests {
     }
 
     /// The redirect case through [`Client`], against two endpoints, the first answering with the
-    /// case's redirect to the second: what the client did, with the first endpoint's requests,
-    /// and the second endpoint's requests.
+    /// case's redirect to the second or to itself: what the client did, with the first
+    /// endpoint's requests, and the second endpoint's requests.
     fn run_redirect(redirect: &RedirectCase) -> TestResult<(Wire, Vec<String>)> {
         let case = &redirect.case;
         let next = Endpoint::new(redirect.next_responses.clone())?;
         let next_at = next.addr();
-        let first = Endpoint::new(
-            case.responses
+        let answers = case
+            .responses
+            .iter()
+            .map(|r| text(r))
+            .collect::<TestResult<Vec<_>>>()?;
+        let first = Endpoint::for_addr(|first_at| {
+            answers
                 .iter()
-                .map(|r| text(r).map(|r| r.replace("{addr2}", &next_at).into_bytes()))
-                .collect::<TestResult<_>>()?,
-        )?;
+                .map(|r| {
+                    r.replace("{addr2}", &next_at)
+                        .replace("{addr}", first_at)
+                        .into_bytes()
+                })
+                .collect()
+        })?;
         let first_at = first.addr();
         let url = Url::parse(&case.url.replace("{addr}", &first_at))?;
         let client = Client::new(&url, &case.username, &case.password, &case.db)?;
@@ -829,71 +840,92 @@ mod tests {
         request
     }
 
-    /// `influx.redirect-auth`: a write or ping that the server redirects to another port of its
-    /// host carries the basic auth of `metrics.influxdb.username` on in Go, net/http copying
-    /// the header to a redirect on the same host name, and goes without it from the reporter's
-    /// client, reqwest dropping it on any change of host, port or scheme. The host URL's user
-    /// info stays behind in both, and the requests are Go's otherwise, the ledgered differences
-    /// aside.
+    /// The `Authorization` values of a request.
+    fn authorization(request: &Request) -> Vec<String> {
+        request
+            .header("Authorization")
+            .into_iter()
+            .map(str::to_owned)
+            .collect()
+    }
+
+    /// `influx.redirect-auth`: which requests of a write or ping that the server redirects carry
+    /// the credentials. In Go, the basic auth of `metrics.influxdb.username` follows a redirect
+    /// to another port of the host, net/http copying the header to a redirect on the same host
+    /// name, and the host URL's user info reaches no redirect to an absolute URL, not even one on
+    /// its origin, net/http adding it to each request whose own URL has it. The reporter's client
+    /// sends both as one header, which reqwest keeps while the redirects stay on the first
+    /// request's origin and drops on any change of host, port or scheme. The requests are Go's
+    /// otherwise, the ledgered differences aside.
     #[test]
     fn redirect_auth() -> TestResult {
         // Go: testdata/go/influx.go (writeRedirects), over net/http client.go
-        // (shouldCopyHeaderOnRedirect) and influxdb1-client influxdb.go:332-334 and :428-430
-        // (SetBasicAuth)
+        // (shouldCopyHeaderOnRedirect, and send for the user info) and influxdb1-client
+        // influxdb.go:332-334 and :428-430 (SetBasicAuth)
         let cases = redirect_cases()?;
-        check_eq(&cases.len(), &3, "the redirect cases")?;
+        check_eq(&cases.len(), &4, "the redirect cases")?;
         for redirect in &cases {
             let case = &redirect.case;
+            let name = &case.name;
             let (rust, rust_next) = run_redirect(redirect)?;
             check_eq(
-                &rust.error,
-                &None,
-                &format!("{}: the reporter's error", case.name),
+                &rust.error.is_some(),
+                &case.error.is_some(),
+                &format!("{name}: an error on both sides or on neither"),
             )?;
-            check_eq(&case.error, &None, &format!("{}: Go's error", case.name))?;
+            check_eq(&rust.version, &case.version, &format!("{name}: version"))?;
             check_eq(
-                &rust.version,
-                &case.version,
-                &format!("{}: version", case.name),
+                &rust.requests.len(),
+                &case.requests.len(),
+                &format!("{name}: the first endpoint's requests"),
             )?;
-            check_eq(
-                &canonical_all(&rust.requests, Side::Rust)?,
-                &canonical_all(&case.requests, Side::Go)?,
-                &format!("{}: the first requests", case.name),
-            )?;
-            let go_first = only(&case.requests)?;
-            let go_next = only(&redirect.next_requests)?;
-            let rust_next = only(&rust_next)?;
-            let carried = if case.username.is_empty() {
-                Vec::new()
-            } else {
-                go_first.header("Authorization")
+            // Every request, the first endpoint's and then the second's, as they were sent.
+            let parse_all = |requests: &[String], more: &[String]| {
+                requests
+                    .iter()
+                    .chain(more)
+                    .map(|r| parse_request(r))
+                    .collect::<TestResult<Vec<_>>>()
             };
+            let go = parse_all(&case.requests, &redirect.next_requests)?;
+            let reporter = parse_all(&rust.requests, &rust_next)?;
+            check_eq(&reporter.len(), &go.len(), &format!("{name}: the requests"))?;
+            check(go.len() > 1, &format!("{name}: the request is redirected"))?;
+            let credentials = go.first().map_or_default(authorization);
             check(
-                !case.username.is_empty() || !go_first.header("Authorization").is_empty(),
-                &format!("{}: the first request carries credentials", case.name),
+                !credentials.is_empty(),
+                &format!("{name}: the first request carries credentials"),
             )?;
-            check_eq(
-                &go_next.header("Authorization"),
-                &carried,
-                &format!("{}: the credentials Go's redirect carries", case.name),
-            )?;
-            check_eq(
-                &rust_next.header("Authorization"),
-                &Vec::<&str>::new(),
-                &format!(
-                    "{}: the credentials the reporter's redirect carries",
-                    case.name
-                ),
-            )?;
-            check_eq(
-                &canonical(&without_authorization(rust_next), Side::Rust),
-                &canonical(&without_authorization(go_next), Side::Go),
-                &format!(
-                    "{}: the redirected request, its credentials aside",
-                    case.name
-                ),
-            )?;
+            let on_origin = case.requests.len();
+            for (i, (go_request, rust_request)) in go.into_iter().zip(reporter).enumerate() {
+                // Go: SetBasicAuth's header on every request, the host name staying the first's;
+                // the user info's on the first alone, every redirect going to an absolute URL.
+                let go_carries = !case.username.is_empty() || i == 0;
+                // reqwest: the header while the requests stay on the first request's origin.
+                let rust_carries = i < on_origin;
+                let carried = |carries: bool| {
+                    if carries {
+                        credentials.clone()
+                    } else {
+                        Vec::new()
+                    }
+                };
+                check_eq(
+                    &authorization(&go_request),
+                    &carried(go_carries),
+                    &format!("{name}: the credentials of Go's request {i}"),
+                )?;
+                check_eq(
+                    &authorization(&rust_request),
+                    &carried(rust_carries),
+                    &format!("{name}: the credentials of the reporter's request {i}"),
+                )?;
+                check_eq(
+                    &canonical(&without_authorization(rust_request), Side::Rust),
+                    &canonical(&without_authorization(go_request), Side::Go),
+                    &format!("{name}: request {i}, its credentials aside"),
+                )?;
+            }
         }
         Ok(())
     }

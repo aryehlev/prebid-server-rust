@@ -34,13 +34,23 @@ impl Endpoint {
     ///
     /// When it cannot listen.
     pub fn new(responses: Vec<Vec<u8>>) -> io::Result<Self> {
+        Self::for_addr(|_| responses)
+    }
+
+    /// Go: `newFakeEndpointFor(responses)`: the responses that `responses` returns for the
+    /// endpoint's address, which they can name.
+    ///
+    /// # Errors
+    ///
+    /// When it cannot listen.
+    pub fn for_addr<F: FnOnce(&str) -> Vec<Vec<u8>>>(responses: F) -> io::Result<Self> {
         let listener = TcpListener::bind("127.0.0.1:0")?;
         let addr = listener.local_addr()?;
         let requests = Requests::default();
         let closed = Arc::new(AtomicBool::new(false));
         let accepted = Arc::clone(&requests);
         let stop = Arc::clone(&closed);
-        let responses = Arc::new(responses);
+        let responses = Arc::new(responses(&addr.to_string()));
         drop(
             thread::Builder::new()
                 .name("fake-endpoint".to_owned())
