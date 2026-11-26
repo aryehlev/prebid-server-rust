@@ -122,6 +122,7 @@ mod tests {
 
     #[test]
     fn go_golden_validation() -> TestResult {
+        // Go: currency/validation.go:15-34 (ValidateCustomRates)
         let mut checked = 0_usize;
         for fields in read_golden("validation.golden")? {
             if let [kind, json, expected] = fields.as_slice()
@@ -142,6 +143,7 @@ mod tests {
 
     #[tokio::test]
     async fn go_random_validation() -> TestResult {
+        // Go: currency/validation.go:15-34 (ValidateCustomRates)
         // Random request rates (testdata/go/random.go) where one key in 16 is malformed,
         // unknown to CLDR 32 or not ASCII, in either position.
         let mut s = SplitMix64::new(20_240_902);
@@ -160,6 +162,8 @@ mod tests {
 
     #[test]
     fn first_invalid_code_in_key_order() -> TestResult {
+        // Go: currency/validation.go:20-32 (the first invalid code in Go's map order, key order
+        // here)
         let rates = conversion_rates(&[
             ("USD", &[("BAR", 1.0), ("FOO", 2.0)]),
             ("EUR", &[("US", 1.0)]),

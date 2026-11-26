@@ -102,6 +102,8 @@ mod tests {
 
     #[test]
     fn messages_match_go() -> TestResult {
+        // Go: currency/errors.go:11-13 (ConversionNotFoundError.Error) and
+        // golang.org/x/text@v0.37.0/currency/currency.go:87-88 (errSyntax, errValue)
         let not_found = ConversionNotFoundError {
             from_cur: parse_iso("ron")?,
             to_cur: parse_iso("EUR")?,

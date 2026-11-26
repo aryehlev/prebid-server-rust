@@ -179,887 +179,887 @@ deep	object	200000	false	6572723a63757272656e63792e52617465732e696e6372656d656e7
 deep	object	200000	true	6572723a63757272656e63792e52617465732e696e6372656d656e7444657074683a206578636565646564206d61782064657074682c206572726f7220666f756e6420696e202331302062797465206f66202e2e2e7c2261223a7b2261223a7b2261223a7b2261223a7b7c2e2e2e2c2062696767657220636f6e74657874202e2e2e7c2261223a7b2261223a7b2261223a7b2261223a7b2261223a7b2261223a7b2261223a7b2261223a7b2261223a7b2261223a7b2261223a7b2261223a7b2261223a7b2261223a7b2261223a7b2261223a7b2261223a7b2261223a7b2261223a7b2261223a7b7c2e2e2e1f6578636565646564206d6178206465707468
 alphabet	7b7d5b5d222c3a5c20090a6e756c303132333435363738392e65452b2d787472666100ff
 base	0	7b226461746141734f66223a22323031382d30392d3132222c22636f6e76657273696f6e73223a7b22555344223a7b22474250223a302e37373230382c22455552223a2d312e3565337d2c22474250223a6e756c6c7d7d
-mut	0	trunc	0	1	a26767e7e98a735c
-mut	0	trunc	1	1	420befe354c0841a
-mut	0	trunc	2	1	41bf1c550f52f227
-mut	0	trunc	3	1	47b9edba8ae929aa
-mut	0	trunc	4	1	7388d4615aa2873b
-mut	0	trunc	5	1	75a5f35620b9e674
-mut	0	trunc	6	1	c992d02b2866780b
-mut	0	trunc	7	1	5f0f014b15e1f8ca
-mut	0	trunc	8	1	e5c03a06bb4dde29
-mut	0	trunc	9	1	10a685f879d4853c
-mut	0	trunc	10	1	87023411eab1968a
-mut	0	trunc	11	1	a9307dc64cf3a307
-mut	0	trunc	12	1	11e2a5804de64ab4
-mut	0	trunc	13	1	6129cf9f325f4daa
-mut	0	trunc	14	1	77af9f59b3ad94c3
-mut	0	trunc	15	1	a8d7001d32fdb1ad
-mut	0	trunc	16	1	e3ba3f33ff653586
-mut	0	trunc	17	1	02f32619feb561cf
-mut	0	trunc	18	1	03841c1a873eca14
-mut	0	trunc	19	1	a8d6a04be69954b5
-mut	0	trunc	20	1	40ab5691b5a353af
-mut	0	trunc	21	1	295acb471c38c9c5
-mut	0	trunc	22	1	508e38e7fd2f95eb
-mut	0	trunc	23	1	fd8bc4ef23130459
-mut	0	trunc	24	1	be3cf0f1145a4234
-mut	0	trunc	25	1	cab52c66a12581c8
-mut	0	trunc	26	1	8ee5ee447dc2a31b
-mut	0	trunc	27	1	d7d54799d513c0cd
-mut	0	trunc	28	1	49b4761be01437e4
-mut	0	trunc	29	1	841e3b95b56cfcb2
-mut	0	trunc	30	1	82677ace1b9dd623
-mut	0	trunc	31	1	b243fce216708be0
-mut	0	trunc	32	1	6e2b5386440e5253
-mut	0	trunc	33	1	f7f5327c1fde2999
-mut	0	trunc	34	1	6e75d893ea4f11b3
-mut	0	trunc	35	1	86e53fcf1380d1cf
-mut	0	trunc	36	1	bb84113c078850f7
-mut	0	trunc	37	1	25e813d1fbc03af2
-mut	0	trunc	38	1	7fa93ca868d34a73
-mut	0	trunc	39	1	9bf28a6be0abc6a0
-mut	0	trunc	40	1	e13df8be985f0fd2
-mut	0	trunc	41	1	436fdbc6d3dac2c7
-mut	0	trunc	42	1	85cd78505ce36eb1
-mut	0	trunc	43	1	63892fb56d3f4674
-mut	0	trunc	44	1	3198987af1580da3
-mut	0	trunc	45	1	7c3f0cd6bb23fff4
-mut	0	trunc	46	1	5fbb1c023dbc1e44
-mut	0	trunc	47	1	037ec6a7dde089c9
-mut	0	trunc	48	1	8111e5f280f06c89
-mut	0	trunc	49	1	610ee20e5edce6ab
-mut	0	trunc	50	1	d76e9c6381d57426
-mut	0	trunc	51	1	c6fc2fd5f62780eb
-mut	0	trunc	52	1	9017c5852eaeefdc
-mut	0	trunc	53	1	e66e4fe65366f070
-mut	0	trunc	54	1	3bc4745acaf0b7dc
-mut	0	trunc	55	1	f21ac67ea7a438d1
-mut	0	trunc	56	1	74b20cac804f6e35
-mut	0	trunc	57	1	19a31b67148a2a2b
-mut	0	trunc	58	1	aa0084fd42e9f4a0
-mut	0	trunc	59	1	ef2c3abea290b2e0
-mut	0	trunc	60	1	b699a70d318ea2ee
-mut	0	trunc	61	1	a35d8106b5c1dc24
-mut	0	trunc	62	1	d6963bb6b7f64e06
-mut	0	trunc	63	1	be19120f8bcbd63a
-mut	0	trunc	64	1	68467ebede9e56e4
-mut	0	trunc	65	1	98d8b785331fcdb0
-mut	0	trunc	66	1	00da66b509d56816
-mut	0	trunc	67	1	85d69fb21ef09cbe
-mut	0	trunc	68	1	b1aabeb0524b7107
-mut	0	trunc	69	1	40cdc32700e228e6
-mut	0	trunc	70	1	29af983d7b808712
-mut	0	trunc	71	1	0f20acf03d3d94de
-mut	0	trunc	72	1	63edaaa52564017f
-mut	0	trunc	73	1	38238c660faef762
-mut	0	trunc	74	1	ae3fecef57568a41
-mut	0	trunc	75	1	5c641c52a7c3282d
-mut	0	trunc	76	1	3a42743cae5000e5
-mut	0	trunc	77	1	b923f41d2fa33b30
-mut	0	trunc	78	1	49ac269c710873ca
-mut	0	trunc	79	1	994dae82fd725b93
-mut	0	trunc	80	1	7ceab1b919b80da5
-mut	0	trunc	81	1	1a475db5ee537d13
-mut	0	trunc	82	1	6fb1016dd16e042d
-mut	0	trunc	83	1	f0b887655ef2148b
-mut	0	trunc	84	1	5a193ddce0d2f96f
-mut	0	trunc	85	1	3b596427d8f74611
-mut	0	trunc	86	1	8b02f5d3cef89acc
-mut	0	trunc	87	1	25770c6450412741
-mut	0	repl	0	36	0ab3f89d1174bfdd
-mut	0	repl	1	36	7a2866b1c3b484cb
-mut	0	repl	2	36	118100ea39b191f6
-mut	0	repl	3	36	5bc388df786d71c3
-mut	0	repl	4	36	b45c3b610d55f9ca
-mut	0	repl	5	36	50ec991f0f0fc18e
-mut	0	repl	6	36	e0798d7164e1714e
-mut	0	repl	7	36	c2d0d094a6c501e0
-mut	0	repl	8	36	02de9f28f67ac50e
-mut	0	repl	9	36	3073c05ed58d3987
-mut	0	repl	10	36	1718eeb6d5d0aa84
-mut	0	repl	11	36	ac89ea866f01f576
-mut	0	repl	12	36	ad86657c33dee096
-mut	0	repl	13	36	edd9ac5035834844
-mut	0	repl	14	36	bff60b8a8e3fa6cc
-mut	0	repl	15	36	af740f35640cab7a
-mut	0	repl	16	36	3231e0d9bd986bc8
-mut	0	repl	17	36	646f0f5b7d8bed74
-mut	0	repl	18	36	2ea0141f519dc340
-mut	0	repl	19	36	862934ff3b07e722
-mut	0	repl	20	36	e9498d915d45d794
-mut	0	repl	21	36	b6b5da065f69743a
-mut	0	repl	22	36	52bc14acb70f653b
-mut	0	repl	23	36	b0971da7c3d4ac26
-mut	0	repl	24	36	a5f9ba51f3ed5fc3
-mut	0	repl	25	36	2273ef51aafdf131
-mut	0	repl	26	36	fcc52871448edc66
-mut	0	repl	27	36	096d8e3bf2c7d2ef
-mut	0	repl	28	36	4e7a7a265db0841b
-mut	0	repl	29	36	d8984757c3f178fa
-mut	0	repl	30	36	aa2f774fb726636c
-mut	0	repl	31	36	c7d022e4c1f9fcb3
-mut	0	repl	32	36	bb1dd36f5a1fe25a
-mut	0	repl	33	36	2a8fd2435903615a
-mut	0	repl	34	36	466a18dc0758e037
-mut	0	repl	35	36	885000001216396f
-mut	0	repl	36	36	c0165c9b3acf3f2f
-mut	0	repl	37	36	b238979ce573767e
-mut	0	repl	38	36	fcf7ec7c7f794c69
-mut	0	repl	39	36	e7f29adeb09fd42d
-mut	0	repl	40	36	40ff7481e355ff69
-mut	0	repl	41	36	4e9ba70627995f87
-mut	0	repl	42	36	9e6ec655caf8ffbf
-mut	0	repl	43	36	b3612fae5c54bc5a
-mut	0	repl	44	36	33fea88eafb5136b
-mut	0	repl	45	36	19a2f91e00e0b8ef
-mut	0	repl	46	36	2f7e7359a693704a
-mut	0	repl	47	36	e15acefbb967e256
-mut	0	repl	48	36	6725f26f876247c6
-mut	0	repl	49	36	352ed53a586bc3f5
-mut	0	repl	50	36	414e9398ef75055f
-mut	0	repl	51	36	e1041495f48075b6
-mut	0	repl	52	36	7420e577d7bbccec
-mut	0	repl	53	36	5128ff6ab054927a
-mut	0	repl	54	36	a85ee7038f8099ed
-mut	0	repl	55	36	23718a38336ab14a
-mut	0	repl	56	36	2e7b7e5f173c2cd9
-mut	0	repl	57	36	b965b286344502b8
-mut	0	repl	58	36	1c7051aeca65097a
-mut	0	repl	59	36	391ac83725a14c31
-mut	0	repl	60	36	4410b9eeb0a5468f
-mut	0	repl	61	36	595268bbc62f8165
-mut	0	repl	62	36	d83ebcc916609423
-mut	0	repl	63	36	620abe3536b7cb0c
-mut	0	repl	64	36	9422d725c9d7147b
-mut	0	repl	65	36	7a17ea72b79b4828
-mut	0	repl	66	36	454c4ee30b5cb935
-mut	0	repl	67	36	b249fcf303e76c08
-mut	0	repl	68	36	1bca56ae18259c93
-mut	0	repl	69	36	017fa4d7b99b562a
-mut	0	repl	70	36	50cf67a0a262fbf4
-mut	0	repl	71	36	4dcb97eec7d2b7e8
-mut	0	repl	72	36	239b6e5237451376
-mut	0	repl	73	36	3ba4197d4ef0c3c7
-mut	0	repl	74	36	15a69e2208f79398
-mut	0	repl	75	36	fd012079cadb2e11
-mut	0	repl	76	36	e43597f711e3c859
-mut	0	repl	77	36	c124e6086c907b76
-mut	0	repl	78	36	2f861205c06d841b
-mut	0	repl	79	36	5a35b19889162d50
-mut	0	repl	80	36	886ee55dd92cf460
-mut	0	repl	81	36	fbd9c757943e2dc0
-mut	0	repl	82	36	01c3cc2110af5601
-mut	0	repl	83	36	7cffcceb2999e423
-mut	0	repl	84	36	3245c24d693a4458
-mut	0	repl	85	36	1d095f010be6e0a4
-mut	0	repl	86	36	d8e66dfea18e2e74
-mut	0	ins	0	36	7084a1ebddeddcd6
-mut	0	ins	1	36	24962a6f85c2b774
-mut	0	ins	2	36	aefe72b7f1eb0a14
-mut	0	ins	3	36	f61fc8964d62a83c
-mut	0	ins	4	36	06ad2b084ec8ce20
-mut	0	ins	5	36	de7e637f8393186c
-mut	0	ins	6	36	c4748bf17546725c
-mut	0	ins	7	36	2989d2fd6e99bd44
-mut	0	ins	8	36	ba8cba922bcee598
-mut	0	ins	9	36	9079ec827e18d555
-mut	0	ins	10	36	499b14c178ebddd5
-mut	0	ins	11	36	0a8ce4067ca2862a
-mut	0	ins	12	36	fbf9f078b6320890
-mut	0	ins	13	36	31e4553d414bfe17
-mut	0	ins	14	36	809c53d68c43569f
-mut	0	ins	15	36	efcbbf7d4aca6d81
-mut	0	ins	16	36	abaa2c4dd5a83f7f
-mut	0	ins	17	36	04f96656a3632463
-mut	0	ins	18	36	3bd2c95bc587e26b
-mut	0	ins	19	36	3fd2b4fa98a354e1
-mut	0	ins	20	36	7169b9248251944b
-mut	0	ins	21	36	a73ad0232ec2ba23
-mut	0	ins	22	36	e4c80514f70d623f
-mut	0	ins	23	36	8112c02e0f126b64
-mut	0	ins	24	36	2c11542152d5b9b0
-mut	0	ins	25	36	4e66f70e111d6a90
-mut	0	ins	26	36	47873e8dede9f6f2
-mut	0	ins	27	36	57db77aa45724fa0
-mut	0	ins	28	36	0cbe9692197bec40
-mut	0	ins	29	36	447c1c1902802d5c
-mut	0	ins	30	36	d40c12189b06499e
-mut	0	ins	31	36	10ad9b509721cbdc
-mut	0	ins	32	36	82227513758132ee
-mut	0	ins	33	36	db17b4be23e76c36
-mut	0	ins	34	36	9aa3034b85cbc916
-mut	0	ins	35	36	b18bf3c11c39f6b8
-mut	0	ins	36	36	929893d72e2bafc2
-mut	0	ins	37	36	78519c5e39e4f052
-mut	0	ins	38	36	0764274b28f4e818
-mut	0	ins	39	36	01f6e2f0ca5af291
-mut	0	ins	40	36	1b3be3e3f25db7a0
-mut	0	ins	41	36	7f86310e26472be3
-mut	0	ins	42	36	10c455fa6b0c6721
-mut	0	ins	43	36	d2070634007ccc9b
-mut	0	ins	44	36	8c80bf28fbe222a3
-mut	0	ins	45	36	f83933c145f98906
-mut	0	ins	46	36	dcc5a889b1f6bb4b
-mut	0	ins	47	36	88d7210cb1c5086d
-mut	0	ins	48	36	42f4952003f04d71
-mut	0	ins	49	36	1e43017c131b028b
-mut	0	ins	50	36	b243ff0112264a59
-mut	0	ins	51	36	1bf80788f5fc611b
-mut	0	ins	52	36	d4301a37bd03bbc2
-mut	0	ins	53	36	a2c3b005a65f6f59
-mut	0	ins	54	36	06275fb8428b10a3
-mut	0	ins	55	36	9c64a608eba48b94
-mut	0	ins	56	36	6942e97396bca187
-mut	0	ins	57	36	44c29deaf5d4d22d
-mut	0	ins	58	36	398425464a0aa9ba
-mut	0	ins	59	36	2ed00cb74c80bf23
-mut	0	ins	60	36	6e49361d59276121
-mut	0	ins	61	36	ff8722259ea76f6f
-mut	0	ins	62	36	ec4c97ddae0b7a4f
-mut	0	ins	63	36	da98fbe1d7f12c35
-mut	0	ins	64	36	6c25a2a77d05ede5
-mut	0	ins	65	36	a1e184ce4fd420dd
-mut	0	ins	66	36	440bdcfded4b64f4
-mut	0	ins	67	36	f152db22da5405db
-mut	0	ins	68	36	595f9fadffe9ea0e
-mut	0	ins	69	36	ce0b691096d72e41
-mut	0	ins	70	36	7c3f565dfe412a81
-mut	0	ins	71	36	31891708a18ced7b
-mut	0	ins	72	36	0612f677d93def40
-mut	0	ins	73	36	3fbfcc89933c66b3
-mut	0	ins	74	36	12f2b608c6b1eae8
-mut	0	ins	75	36	709c80b8c9e339e3
-mut	0	ins	76	36	593ccbddc33719f5
-mut	0	ins	77	36	e5cd1113002a2407
-mut	0	ins	78	36	a79c2acccd2e5a2f
-mut	0	ins	79	36	e14aef0025b5121d
-mut	0	ins	80	36	991209a5fad3fc56
-mut	0	ins	81	36	f4fd218e7e301708
-mut	0	ins	82	36	f62b5516196722fd
-mut	0	ins	83	36	33afdb5692c03cc9
-mut	0	ins	84	36	286146a63d5c03f6
-mut	0	ins	85	36	e61ff08fccc6de71
-mut	0	ins	86	36	87694848344c29c3
-mut	0	ins	87	36	3fa24e5795ffc569
-mut	0	del	0	1	bba747dc98e696f0
-mut	0	del	1	1	4efbea862bbcacb6
-mut	0	del	2	1	25770c6450412741
-mut	0	del	3	1	25770c6450412741
-mut	0	del	4	1	25770c6450412741
-mut	0	del	5	1	25770c6450412741
-mut	0	del	6	1	25770c6450412741
-mut	0	del	7	1	25770c6450412741
-mut	0	del	8	1	25770c6450412741
-mut	0	del	9	1	25770c6450412741
-mut	0	del	10	1	e55042e1d2dd88a9
-mut	0	del	11	1	78c246548a020a78
-mut	0	del	12	1	dc7d66f521346471
-mut	0	del	13	1	25770c6450412741
-mut	0	del	14	1	25770c6450412741
-mut	0	del	15	1	25770c6450412741
-mut	0	del	16	1	25770c6450412741
-mut	0	del	17	1	25770c6450412741
-mut	0	del	18	1	25770c6450412741
-mut	0	del	19	1	25770c6450412741
-mut	0	del	20	1	25770c6450412741
-mut	0	del	21	1	25770c6450412741
-mut	0	del	22	1	25770c6450412741
-mut	0	del	23	1	9ba3b2280afa7041
-mut	0	del	24	1	3d55fd45a285ae34
-mut	0	del	25	1	8d3ebce95c74ecc1
-mut	0	del	26	1	16e3b2c0e3d5e004
-mut	0	del	27	1	16e3b2c0e3d5e004
-mut	0	del	28	1	16e3b2c0e3d5e004
-mut	0	del	29	1	16e3b2c0e3d5e004
-mut	0	del	30	1	16e3b2c0e3d5e004
-mut	0	del	31	1	16e3b2c0e3d5e004
-mut	0	del	32	1	16e3b2c0e3d5e004
-mut	0	del	33	1	16e3b2c0e3d5e004
-mut	0	del	34	1	16e3b2c0e3d5e004
-mut	0	del	35	1	16e3b2c0e3d5e004
-mut	0	del	36	1	16e3b2c0e3d5e004
-mut	0	del	37	1	df057486bf5c9f88
-mut	0	del	38	1	094a5ac8f31c615b
-mut	0	del	39	1	1489d84d9f1df580
-mut	0	del	40	1	19172e1b8258a63f
-mut	0	del	41	1	d04560850a4a819f
-mut	0	del	42	1	7dda5b6b626ca8f9
-mut	0	del	43	1	9a46f8acd562c941
-mut	0	del	44	1	93be7162151776b7
-mut	0	del	45	1	0958a0e10912484c
-mut	0	del	46	1	5d36b4701ff3ad5f
-mut	0	del	47	1	16e7164e93b9715b
-mut	0	del	48	1	83a21d154ed3f164
-mut	0	del	49	1	4906b1314a86bfaf
-mut	0	del	50	1	f796d56e89be6504
-mut	0	del	51	1	7e7bba92c34993c5
-mut	0	del	52	1	e93c39dc22c86acd
-mut	0	del	53	1	b4850e06ce402048
-mut	0	del	54	1	5144eb8f26b4e91e
-mut	0	del	55	1	59343a9cdd109b4f
-mut	0	del	56	1	59343a9cdd109b4f
-mut	0	del	57	1	b08b3c544c70100a
-mut	0	del	58	1	2c2af61989d26719
-mut	0	del	59	1	45a9b34a3558b961
-mut	0	del	60	1	92136b6e8d599a82
-mut	0	del	61	1	c7e41f8105a3187d
-mut	0	del	62	1	e413eb20f29236ba
-mut	0	del	63	1	bf8765d2675297db
-mut	0	del	64	1	024038226f3c58c6
-mut	0	del	65	1	85e938e46cf87f1b
-mut	0	del	66	1	8060004f65401af0
-mut	0	del	67	1	b205447b1835a6c0
-mut	0	del	68	1	83a1cff63a7705fe
-mut	0	del	69	1	90a1318e938bb8ea
-mut	0	del	70	1	e3591dbd17bb6a6e
-mut	0	del	71	1	3745e7a4d8917364
-mut	0	del	72	1	63edaaa52564017f
-mut	0	del	73	1	2310263c1f064e92
-mut	0	del	74	1	d793741a075a451a
-mut	0	del	75	1	2a271ae7afad7c33
-mut	0	del	76	1	c3feb44486322fc6
-mut	0	del	77	1	07edc3d2b04f1217
-mut	0	del	78	1	8070ab60944a522e
-mut	0	del	79	1	e3281227e38adedb
-mut	0	del	80	1	c26246f8cf330a71
-mut	0	del	81	1	6f1201b600c7da1c
-mut	0	del	82	1	c4e9493ec17ad339
-mut	0	del	83	1	501af6761ef2f6b4
-mut	0	del	84	1	501af6761ef2f6b4
-mut	0	del	85	1	8b02f5d3cef89acc
-mut	0	del	86	1	8b02f5d3cef89acc
+mut	0	trunc	0	1	1	b1cd6f606f7fd772
+mut	0	trunc	1	1	1	b1cd6f606f7fd772
+mut	0	trunc	2	1	1	b1cd6f606f7fd772
+mut	0	trunc	3	1	1	b1cd6f606f7fd772
+mut	0	trunc	4	1	1	b1cd6f606f7fd772
+mut	0	trunc	5	1	1	b1cd6f606f7fd772
+mut	0	trunc	6	1	1	b1cd6f606f7fd772
+mut	0	trunc	7	1	1	b1cd6f606f7fd772
+mut	0	trunc	8	1	1	b1cd6f606f7fd772
+mut	0	trunc	9	1	1	b1cd6f606f7fd772
+mut	0	trunc	10	1	1	b1cd6f606f7fd772
+mut	0	trunc	11	1	1	b1cd6f606f7fd772
+mut	0	trunc	12	1	1	b1cd6f606f7fd772
+mut	0	trunc	13	1	1	b1cd6f606f7fd772
+mut	0	trunc	14	1	1	b1cd6f606f7fd772
+mut	0	trunc	15	1	1	b1cd6f606f7fd772
+mut	0	trunc	16	1	1	b1cd6f606f7fd772
+mut	0	trunc	17	1	1	b1cd6f606f7fd772
+mut	0	trunc	18	1	1	b1cd6f606f7fd772
+mut	0	trunc	19	1	1	b1cd6f606f7fd772
+mut	0	trunc	20	1	0	cbf29ce484222325
+mut	0	trunc	21	1	0	cbf29ce484222325
+mut	0	trunc	22	1	0	cbf29ce484222325
+mut	0	trunc	23	1	0	cbf29ce484222325
+mut	0	trunc	24	1	0	cbf29ce484222325
+mut	0	trunc	25	1	0	cbf29ce484222325
+mut	0	trunc	26	1	0	cbf29ce484222325
+mut	0	trunc	27	1	0	cbf29ce484222325
+mut	0	trunc	28	1	0	cbf29ce484222325
+mut	0	trunc	29	1	0	cbf29ce484222325
+mut	0	trunc	30	1	0	cbf29ce484222325
+mut	0	trunc	31	1	0	cbf29ce484222325
+mut	0	trunc	32	1	0	cbf29ce484222325
+mut	0	trunc	33	1	0	cbf29ce484222325
+mut	0	trunc	34	1	0	cbf29ce484222325
+mut	0	trunc	35	1	0	cbf29ce484222325
+mut	0	trunc	36	1	0	cbf29ce484222325
+mut	0	trunc	37	1	0	cbf29ce484222325
+mut	0	trunc	38	1	0	cbf29ce484222325
+mut	0	trunc	39	1	0	cbf29ce484222325
+mut	0	trunc	40	1	0	cbf29ce484222325
+mut	0	trunc	41	1	0	cbf29ce484222325
+mut	0	trunc	42	1	0	cbf29ce484222325
+mut	0	trunc	43	1	0	cbf29ce484222325
+mut	0	trunc	44	1	0	cbf29ce484222325
+mut	0	trunc	45	1	0	cbf29ce484222325
+mut	0	trunc	46	1	0	cbf29ce484222325
+mut	0	trunc	47	1	0	cbf29ce484222325
+mut	0	trunc	48	1	0	cbf29ce484222325
+mut	0	trunc	49	1	0	cbf29ce484222325
+mut	0	trunc	50	1	0	cbf29ce484222325
+mut	0	trunc	51	1	0	cbf29ce484222325
+mut	0	trunc	52	1	0	cbf29ce484222325
+mut	0	trunc	53	1	0	cbf29ce484222325
+mut	0	trunc	54	1	0	cbf29ce484222325
+mut	0	trunc	55	1	0	cbf29ce484222325
+mut	0	trunc	56	1	0	cbf29ce484222325
+mut	0	trunc	57	1	0	cbf29ce484222325
+mut	0	trunc	58	1	0	cbf29ce484222325
+mut	0	trunc	59	1	0	cbf29ce484222325
+mut	0	trunc	60	1	0	cbf29ce484222325
+mut	0	trunc	61	1	0	cbf29ce484222325
+mut	0	trunc	62	1	0	cbf29ce484222325
+mut	0	trunc	63	1	0	cbf29ce484222325
+mut	0	trunc	64	1	0	cbf29ce484222325
+mut	0	trunc	65	1	0	cbf29ce484222325
+mut	0	trunc	66	1	0	cbf29ce484222325
+mut	0	trunc	67	1	0	cbf29ce484222325
+mut	0	trunc	68	1	0	cbf29ce484222325
+mut	0	trunc	69	1	0	cbf29ce484222325
+mut	0	trunc	70	1	0	cbf29ce484222325
+mut	0	trunc	71	1	0	cbf29ce484222325
+mut	0	trunc	72	1	0	cbf29ce484222325
+mut	0	trunc	73	1	0	cbf29ce484222325
+mut	0	trunc	74	1	0	cbf29ce484222325
+mut	0	trunc	75	1	0	cbf29ce484222325
+mut	0	trunc	76	1	0	cbf29ce484222325
+mut	0	trunc	77	1	0	cbf29ce484222325
+mut	0	trunc	78	1	0	cbf29ce484222325
+mut	0	trunc	79	1	0	cbf29ce484222325
+mut	0	trunc	80	1	0	cbf29ce484222325
+mut	0	trunc	81	1	0	cbf29ce484222325
+mut	0	trunc	82	1	0	cbf29ce484222325
+mut	0	trunc	83	1	0	cbf29ce484222325
+mut	0	trunc	84	1	0	cbf29ce484222325
+mut	0	trunc	85	1	0	cbf29ce484222325
+mut	0	trunc	86	1	0	cbf29ce484222325
+mut	0	trunc	87	1	0	cbf29ce484222325
+mut	0	repl	0	36	0	cbf29ce484222325
+mut	0	repl	1	36	0	cbf29ce484222325
+mut	0	repl	2	36	0	cbf29ce484222325
+mut	0	repl	3	36	0	cbf29ce484222325
+mut	0	repl	4	36	0	cbf29ce484222325
+mut	0	repl	5	36	0	cbf29ce484222325
+mut	0	repl	6	36	0	cbf29ce484222325
+mut	0	repl	7	36	0	cbf29ce484222325
+mut	0	repl	8	36	0	cbf29ce484222325
+mut	0	repl	9	36	0	cbf29ce484222325
+mut	0	repl	10	36	0	cbf29ce484222325
+mut	0	repl	11	36	0	cbf29ce484222325
+mut	0	repl	12	36	0	cbf29ce484222325
+mut	0	repl	13	36	0	cbf29ce484222325
+mut	0	repl	14	36	0	cbf29ce484222325
+mut	0	repl	15	36	0	cbf29ce484222325
+mut	0	repl	16	36	0	cbf29ce484222325
+mut	0	repl	17	36	30	c148c38fac881add
+mut	0	repl	18	36	29	805d5b8141d80931
+mut	0	repl	19	36	21	2ffc86ed289105d1
+mut	0	repl	20	36	0	cbf29ce484222325
+mut	0	repl	21	36	0	cbf29ce484222325
+mut	0	repl	22	36	0	cbf29ce484222325
+mut	0	repl	23	36	0	cbf29ce484222325
+mut	0	repl	24	36	0	cbf29ce484222325
+mut	0	repl	25	36	0	cbf29ce484222325
+mut	0	repl	26	36	0	cbf29ce484222325
+mut	0	repl	27	36	0	cbf29ce484222325
+mut	0	repl	28	36	0	cbf29ce484222325
+mut	0	repl	29	36	0	cbf29ce484222325
+mut	0	repl	30	36	0	cbf29ce484222325
+mut	0	repl	31	36	0	cbf29ce484222325
+mut	0	repl	32	36	0	cbf29ce484222325
+mut	0	repl	33	36	0	cbf29ce484222325
+mut	0	repl	34	36	0	cbf29ce484222325
+mut	0	repl	35	36	0	cbf29ce484222325
+mut	0	repl	36	36	0	cbf29ce484222325
+mut	0	repl	37	36	0	cbf29ce484222325
+mut	0	repl	38	36	0	cbf29ce484222325
+mut	0	repl	39	36	0	cbf29ce484222325
+mut	0	repl	40	36	0	cbf29ce484222325
+mut	0	repl	41	36	0	cbf29ce484222325
+mut	0	repl	42	36	0	cbf29ce484222325
+mut	0	repl	43	36	0	cbf29ce484222325
+mut	0	repl	44	36	0	cbf29ce484222325
+mut	0	repl	45	36	0	cbf29ce484222325
+mut	0	repl	46	36	0	cbf29ce484222325
+mut	0	repl	47	36	0	cbf29ce484222325
+mut	0	repl	48	36	0	cbf29ce484222325
+mut	0	repl	49	36	0	cbf29ce484222325
+mut	0	repl	50	36	0	cbf29ce484222325
+mut	0	repl	51	36	0	cbf29ce484222325
+mut	0	repl	52	36	0	cbf29ce484222325
+mut	0	repl	53	36	0	cbf29ce484222325
+mut	0	repl	54	36	0	cbf29ce484222325
+mut	0	repl	55	36	0	cbf29ce484222325
+mut	0	repl	56	36	0	cbf29ce484222325
+mut	0	repl	57	36	0	cbf29ce484222325
+mut	0	repl	58	36	0	cbf29ce484222325
+mut	0	repl	59	36	0	cbf29ce484222325
+mut	0	repl	60	36	0	cbf29ce484222325
+mut	0	repl	61	36	0	cbf29ce484222325
+mut	0	repl	62	36	0	cbf29ce484222325
+mut	0	repl	63	36	0	cbf29ce484222325
+mut	0	repl	64	36	0	cbf29ce484222325
+mut	0	repl	65	36	0	cbf29ce484222325
+mut	0	repl	66	36	0	cbf29ce484222325
+mut	0	repl	67	36	0	cbf29ce484222325
+mut	0	repl	68	36	0	cbf29ce484222325
+mut	0	repl	69	36	0	cbf29ce484222325
+mut	0	repl	70	36	0	cbf29ce484222325
+mut	0	repl	71	36	0	cbf29ce484222325
+mut	0	repl	72	36	0	cbf29ce484222325
+mut	0	repl	73	36	0	cbf29ce484222325
+mut	0	repl	74	36	0	cbf29ce484222325
+mut	0	repl	75	36	0	cbf29ce484222325
+mut	0	repl	76	36	0	cbf29ce484222325
+mut	0	repl	77	36	0	cbf29ce484222325
+mut	0	repl	78	36	0	cbf29ce484222325
+mut	0	repl	79	36	0	cbf29ce484222325
+mut	0	repl	80	36	0	cbf29ce484222325
+mut	0	repl	81	36	0	cbf29ce484222325
+mut	0	repl	82	36	0	cbf29ce484222325
+mut	0	repl	83	36	0	cbf29ce484222325
+mut	0	repl	84	36	0	cbf29ce484222325
+mut	0	repl	85	36	0	cbf29ce484222325
+mut	0	repl	86	36	0	cbf29ce484222325
+mut	0	ins	0	36	0	cbf29ce484222325
+mut	0	ins	1	36	0	cbf29ce484222325
+mut	0	ins	2	36	0	cbf29ce484222325
+mut	0	ins	3	36	0	cbf29ce484222325
+mut	0	ins	4	36	0	cbf29ce484222325
+mut	0	ins	5	36	0	cbf29ce484222325
+mut	0	ins	6	36	0	cbf29ce484222325
+mut	0	ins	7	36	0	cbf29ce484222325
+mut	0	ins	8	36	0	cbf29ce484222325
+mut	0	ins	9	36	0	cbf29ce484222325
+mut	0	ins	10	36	0	cbf29ce484222325
+mut	0	ins	11	36	0	cbf29ce484222325
+mut	0	ins	12	36	0	cbf29ce484222325
+mut	0	ins	13	36	0	cbf29ce484222325
+mut	0	ins	14	36	0	cbf29ce484222325
+mut	0	ins	15	36	0	cbf29ce484222325
+mut	0	ins	16	36	0	cbf29ce484222325
+mut	0	ins	17	36	0	cbf29ce484222325
+mut	0	ins	18	36	28	be915030c8033c35
+mut	0	ins	19	36	21	2ffc86ed289105d1
+mut	0	ins	20	36	0	cbf29ce484222325
+mut	0	ins	21	36	0	cbf29ce484222325
+mut	0	ins	22	36	0	cbf29ce484222325
+mut	0	ins	23	36	0	cbf29ce484222325
+mut	0	ins	24	36	0	cbf29ce484222325
+mut	0	ins	25	36	0	cbf29ce484222325
+mut	0	ins	26	36	0	cbf29ce484222325
+mut	0	ins	27	36	0	cbf29ce484222325
+mut	0	ins	28	36	0	cbf29ce484222325
+mut	0	ins	29	36	0	cbf29ce484222325
+mut	0	ins	30	36	0	cbf29ce484222325
+mut	0	ins	31	36	0	cbf29ce484222325
+mut	0	ins	32	36	0	cbf29ce484222325
+mut	0	ins	33	36	0	cbf29ce484222325
+mut	0	ins	34	36	0	cbf29ce484222325
+mut	0	ins	35	36	0	cbf29ce484222325
+mut	0	ins	36	36	0	cbf29ce484222325
+mut	0	ins	37	36	0	cbf29ce484222325
+mut	0	ins	38	36	0	cbf29ce484222325
+mut	0	ins	39	36	0	cbf29ce484222325
+mut	0	ins	40	36	0	cbf29ce484222325
+mut	0	ins	41	36	0	cbf29ce484222325
+mut	0	ins	42	36	0	cbf29ce484222325
+mut	0	ins	43	36	0	cbf29ce484222325
+mut	0	ins	44	36	0	cbf29ce484222325
+mut	0	ins	45	36	0	cbf29ce484222325
+mut	0	ins	46	36	0	cbf29ce484222325
+mut	0	ins	47	36	0	cbf29ce484222325
+mut	0	ins	48	36	0	cbf29ce484222325
+mut	0	ins	49	36	0	cbf29ce484222325
+mut	0	ins	50	36	0	cbf29ce484222325
+mut	0	ins	51	36	0	cbf29ce484222325
+mut	0	ins	52	36	0	cbf29ce484222325
+mut	0	ins	53	36	0	cbf29ce484222325
+mut	0	ins	54	36	0	cbf29ce484222325
+mut	0	ins	55	36	0	cbf29ce484222325
+mut	0	ins	56	36	0	cbf29ce484222325
+mut	0	ins	57	36	0	cbf29ce484222325
+mut	0	ins	58	36	0	cbf29ce484222325
+mut	0	ins	59	36	0	cbf29ce484222325
+mut	0	ins	60	36	0	cbf29ce484222325
+mut	0	ins	61	36	0	cbf29ce484222325
+mut	0	ins	62	36	0	cbf29ce484222325
+mut	0	ins	63	36	0	cbf29ce484222325
+mut	0	ins	64	36	0	cbf29ce484222325
+mut	0	ins	65	36	0	cbf29ce484222325
+mut	0	ins	66	36	0	cbf29ce484222325
+mut	0	ins	67	36	0	cbf29ce484222325
+mut	0	ins	68	36	0	cbf29ce484222325
+mut	0	ins	69	36	0	cbf29ce484222325
+mut	0	ins	70	36	0	cbf29ce484222325
+mut	0	ins	71	36	0	cbf29ce484222325
+mut	0	ins	72	36	0	cbf29ce484222325
+mut	0	ins	73	36	0	cbf29ce484222325
+mut	0	ins	74	36	0	cbf29ce484222325
+mut	0	ins	75	36	0	cbf29ce484222325
+mut	0	ins	76	36	0	cbf29ce484222325
+mut	0	ins	77	36	0	cbf29ce484222325
+mut	0	ins	78	36	0	cbf29ce484222325
+mut	0	ins	79	36	0	cbf29ce484222325
+mut	0	ins	80	36	0	cbf29ce484222325
+mut	0	ins	81	36	0	cbf29ce484222325
+mut	0	ins	82	36	0	cbf29ce484222325
+mut	0	ins	83	36	0	cbf29ce484222325
+mut	0	ins	84	36	0	cbf29ce484222325
+mut	0	ins	85	36	0	cbf29ce484222325
+mut	0	ins	86	36	0	cbf29ce484222325
+mut	0	ins	87	36	0	cbf29ce484222325
+mut	0	del	0	1	0	cbf29ce484222325
+mut	0	del	1	1	0	cbf29ce484222325
+mut	0	del	2	1	0	cbf29ce484222325
+mut	0	del	3	1	0	cbf29ce484222325
+mut	0	del	4	1	0	cbf29ce484222325
+mut	0	del	5	1	0	cbf29ce484222325
+mut	0	del	6	1	0	cbf29ce484222325
+mut	0	del	7	1	0	cbf29ce484222325
+mut	0	del	8	1	0	cbf29ce484222325
+mut	0	del	9	1	0	cbf29ce484222325
+mut	0	del	10	1	0	cbf29ce484222325
+mut	0	del	11	1	0	cbf29ce484222325
+mut	0	del	12	1	0	cbf29ce484222325
+mut	0	del	13	1	0	cbf29ce484222325
+mut	0	del	14	1	0	cbf29ce484222325
+mut	0	del	15	1	0	cbf29ce484222325
+mut	0	del	16	1	0	cbf29ce484222325
+mut	0	del	17	1	1	25770c6450412741
+mut	0	del	18	1	1	25770c6450412741
+mut	0	del	19	1	1	25770c6450412741
+mut	0	del	20	1	0	cbf29ce484222325
+mut	0	del	21	1	0	cbf29ce484222325
+mut	0	del	22	1	0	cbf29ce484222325
+mut	0	del	23	1	0	cbf29ce484222325
+mut	0	del	24	1	0	cbf29ce484222325
+mut	0	del	25	1	0	cbf29ce484222325
+mut	0	del	26	1	0	cbf29ce484222325
+mut	0	del	27	1	0	cbf29ce484222325
+mut	0	del	28	1	0	cbf29ce484222325
+mut	0	del	29	1	0	cbf29ce484222325
+mut	0	del	30	1	0	cbf29ce484222325
+mut	0	del	31	1	0	cbf29ce484222325
+mut	0	del	32	1	0	cbf29ce484222325
+mut	0	del	33	1	0	cbf29ce484222325
+mut	0	del	34	1	0	cbf29ce484222325
+mut	0	del	35	1	0	cbf29ce484222325
+mut	0	del	36	1	0	cbf29ce484222325
+mut	0	del	37	1	0	cbf29ce484222325
+mut	0	del	38	1	0	cbf29ce484222325
+mut	0	del	39	1	0	cbf29ce484222325
+mut	0	del	40	1	0	cbf29ce484222325
+mut	0	del	41	1	0	cbf29ce484222325
+mut	0	del	42	1	0	cbf29ce484222325
+mut	0	del	43	1	0	cbf29ce484222325
+mut	0	del	44	1	0	cbf29ce484222325
+mut	0	del	45	1	0	cbf29ce484222325
+mut	0	del	46	1	0	cbf29ce484222325
+mut	0	del	47	1	0	cbf29ce484222325
+mut	0	del	48	1	0	cbf29ce484222325
+mut	0	del	49	1	0	cbf29ce484222325
+mut	0	del	50	1	0	cbf29ce484222325
+mut	0	del	51	1	0	cbf29ce484222325
+mut	0	del	52	1	0	cbf29ce484222325
+mut	0	del	53	1	0	cbf29ce484222325
+mut	0	del	54	1	0	cbf29ce484222325
+mut	0	del	55	1	0	cbf29ce484222325
+mut	0	del	56	1	0	cbf29ce484222325
+mut	0	del	57	1	0	cbf29ce484222325
+mut	0	del	58	1	0	cbf29ce484222325
+mut	0	del	59	1	0	cbf29ce484222325
+mut	0	del	60	1	0	cbf29ce484222325
+mut	0	del	61	1	0	cbf29ce484222325
+mut	0	del	62	1	0	cbf29ce484222325
+mut	0	del	63	1	0	cbf29ce484222325
+mut	0	del	64	1	0	cbf29ce484222325
+mut	0	del	65	1	0	cbf29ce484222325
+mut	0	del	66	1	0	cbf29ce484222325
+mut	0	del	67	1	0	cbf29ce484222325
+mut	0	del	68	1	0	cbf29ce484222325
+mut	0	del	69	1	0	cbf29ce484222325
+mut	0	del	70	1	0	cbf29ce484222325
+mut	0	del	71	1	0	cbf29ce484222325
+mut	0	del	72	1	0	cbf29ce484222325
+mut	0	del	73	1	0	cbf29ce484222325
+mut	0	del	74	1	0	cbf29ce484222325
+mut	0	del	75	1	0	cbf29ce484222325
+mut	0	del	76	1	0	cbf29ce484222325
+mut	0	del	77	1	0	cbf29ce484222325
+mut	0	del	78	1	0	cbf29ce484222325
+mut	0	del	79	1	0	cbf29ce484222325
+mut	0	del	80	1	0	cbf29ce484222325
+mut	0	del	81	1	0	cbf29ce484222325
+mut	0	del	82	1	0	cbf29ce484222325
+mut	0	del	83	1	0	cbf29ce484222325
+mut	0	del	84	1	0	cbf29ce484222325
+mut	0	del	85	1	0	cbf29ce484222325
+mut	0	del	86	1	0	cbf29ce484222325
 base	1	7b2278223a5b302e352c2d30312c7b2279223a22c3a95c6e227d5d2c22436f6e76657273696f6e73223a7b22757364223a7b2241223a317d7d7d
-mut	1	trunc	0	1	a26767e7e98a735c
-mut	1	trunc	1	1	420befe354c0841a
-mut	1	trunc	2	1	41bf1c550f52f227
-mut	1	trunc	3	1	92101df28abff1ba
-mut	1	trunc	4	1	7f80a4eafe798f17
-mut	1	trunc	5	1	90789598adc9216b
-mut	1	trunc	6	1	674428787f444994
-mut	1	trunc	7	1	7d01b5a58d497ddc
-mut	1	trunc	8	1	aaa32bb950adf5fe
-mut	1	trunc	9	1	93eb8f6522267032
-mut	1	trunc	10	1	f3ab9ff71a53902d
-mut	1	trunc	11	1	f099f12aa5909e51
-mut	1	trunc	12	1	9ff8ae5ba2b6006d
-mut	1	trunc	13	1	041b8c5eca55ba2b
-mut	1	trunc	14	1	e84332a4c79c63a4
-mut	1	trunc	15	1	9bed67617ce9fed9
-mut	1	trunc	16	1	3f62b156bed83105
-mut	1	trunc	17	1	2d7b65b8d8b31747
-mut	1	trunc	18	1	59e6f7ff5727f01f
-mut	1	trunc	19	1	d952e930859f3af4
-mut	1	trunc	20	1	4652e1a1867d2914
-mut	1	trunc	21	1	4992e1cee0fb6f6d
-mut	1	trunc	22	1	44fd5d91fe97823d
-mut	1	trunc	23	1	f17890ef4ccd181c
-mut	1	trunc	24	1	3b31d6d494705284
-mut	1	trunc	25	1	44462f97cc6d3044
-mut	1	trunc	26	1	af4a81e1ccc6bcd8
-mut	1	trunc	27	1	854227e37641b23b
-mut	1	trunc	28	1	2b6b9d20f87a92ad
-mut	1	trunc	29	1	d7b9b5398b0ae485
-mut	1	trunc	30	1	6a98fb53487b8fd3
-mut	1	trunc	31	1	64f8b2b6e218eb5c
-mut	1	trunc	32	1	7622178f39d97205
-mut	1	trunc	33	1	ef5132c7b251aa47
-mut	1	trunc	34	1	6535ed1cb7a5fa15
-mut	1	trunc	35	1	c9471340aa0557db
-mut	1	trunc	36	1	4e033c773c56e132
-mut	1	trunc	37	1	ec58b71f85a609e5
-mut	1	trunc	38	1	8258e9ea3bfdbe7b
-mut	1	trunc	39	1	a6d0f51abe22a163
-mut	1	trunc	40	1	6e793cccfa29d0a6
-mut	1	trunc	41	1	2cd93932b77170f7
-mut	1	trunc	42	1	68ea8637427f2704
-mut	1	trunc	43	1	6113eb93924107bc
-mut	1	trunc	44	1	8cad1735245611e1
-mut	1	trunc	45	1	2754a481b2e73d25
-mut	1	trunc	46	1	4e2a1a484a45fd90
-mut	1	trunc	47	1	63ae2fbf3a242a6d
-mut	1	trunc	48	1	c655b84c0dfc4340
-mut	1	trunc	49	1	aa43fd0a80550ffe
-mut	1	trunc	50	1	6871456c2c1465e3
-mut	1	trunc	51	1	6877b621dfef0e3c
-mut	1	trunc	52	1	9ece6749445e7c60
-mut	1	trunc	53	1	2965961b9856b09b
-mut	1	trunc	54	1	4228547ea9caf170
-mut	1	trunc	55	1	f9d0dba95d7068ba
-mut	1	trunc	56	1	622093af807fe848
-mut	1	trunc	57	1	a0ace1aae3e47709
-mut	1	trunc	58	1	015dc39dd27ce523
-mut	1	repl	0	36	d7a8c9e896e0ce62
-mut	1	repl	1	36	72f3e9b7309d506b
-mut	1	repl	2	36	c9827222564e485c
-mut	1	repl	3	36	10a4da53b2f124a2
-mut	1	repl	4	36	40c46696d3b7fd00
-mut	1	repl	5	36	214bf2d64c9e89a6
-mut	1	repl	6	36	1d7d355974231e7b
-mut	1	repl	7	36	90568a39fe3d0bff
-mut	1	repl	8	36	4a313a28289bc0f0
-mut	1	repl	9	36	7a144815382a11e3
-mut	1	repl	10	36	571be482addbe998
-mut	1	repl	11	36	65bcdf62f6642900
-mut	1	repl	12	36	cb215f4eb4c26580
-mut	1	repl	13	36	e84d71499adbec5f
-mut	1	repl	14	36	f3c108acebeda360
-mut	1	repl	15	36	711fe0ff7ac3da1b
-mut	1	repl	16	36	c303707e4f3c13d6
-mut	1	repl	17	36	e515c060e5808dff
-mut	1	repl	18	36	2ca29740e826f4dd
-mut	1	repl	19	36	80f9c9a215629e12
-mut	1	repl	20	36	6123011491b874d2
-mut	1	repl	21	36	6cbd6c5814df0425
-mut	1	repl	22	36	f9a0116c694a9ba0
-mut	1	repl	23	36	8f2a778278362516
-mut	1	repl	24	36	0f07af1f2ee763eb
-mut	1	repl	25	36	df83526d0596ded5
-mut	1	repl	26	36	0397845d305f58b5
-mut	1	repl	27	36	5ba7a3f30624b454
-mut	1	repl	28	36	e281377432c27d84
-mut	1	repl	29	36	b92bf92857ecc6a6
-mut	1	repl	30	36	5bb1f2f052a739fb
-mut	1	repl	31	36	af1d9a8733c1d9b5
-mut	1	repl	32	36	bf5137e25d535922
-mut	1	repl	33	36	43357b483c885055
-mut	1	repl	34	36	d6c8a866cd5854d9
-mut	1	repl	35	36	534e6edc162da30e
-mut	1	repl	36	36	691a3c6c455aa9f6
-mut	1	repl	37	36	9f5ac1e5be9be2f2
-mut	1	repl	38	36	4834d681790efb39
-mut	1	repl	39	36	edf2a522be0c2da2
-mut	1	repl	40	36	cb103f5b9ddfad7a
-mut	1	repl	41	36	72dcac6970e9540f
-mut	1	repl	42	36	4c59cddf05d8021b
-mut	1	repl	43	36	a51c3f9323488312
-mut	1	repl	44	36	411a4f61a63ed683
-mut	1	repl	45	36	fc3af08d64a17281
-mut	1	repl	46	36	f76033723cdcc8e9
-mut	1	repl	47	36	a76a42d1e6b1578f
-mut	1	repl	48	36	2f731ae8698c3e6b
-mut	1	repl	49	36	82d4014b89a40234
-mut	1	repl	50	36	de0c515e8533f309
-mut	1	repl	51	36	f43153359b5d43e0
-mut	1	repl	52	36	90c3063796cc1ae9
-mut	1	repl	53	36	34fde7b5e89a2726
-mut	1	repl	54	36	1ca6d38ff4077745
-mut	1	repl	55	36	03f06164d5f2a67c
-mut	1	repl	56	36	c8e40bef4b84d93d
-mut	1	repl	57	36	fdc0f807b031ee71
-mut	1	ins	0	36	f7e03a58e504ecbc
-mut	1	ins	1	36	a9e1287c62d2bfb6
-mut	1	ins	2	36	234c89e8668978ee
-mut	1	ins	3	36	e4f351e99a57f95b
-mut	1	ins	4	36	289443750acf16d4
-mut	1	ins	5	36	d530a649cb87f259
-mut	1	ins	6	36	397921eaf6b1b002
-mut	1	ins	7	36	cd4db7c420a0bae9
-mut	1	ins	8	36	9efe310be4784a0b
-mut	1	ins	9	36	49718460db474335
-mut	1	ins	10	36	28a9d04facd257c1
-mut	1	ins	11	36	e30d411cdb2f3533
-mut	1	ins	12	36	52a0e1d5fdd760ed
-mut	1	ins	13	36	5b94d4280c397c5a
-mut	1	ins	14	36	24d65977b5d1adfd
-mut	1	ins	15	36	fc26c4cad55e1ff2
-mut	1	ins	16	36	661d7d35dcf34a7f
-mut	1	ins	17	36	e3f2ec2a9829c4a8
-mut	1	ins	18	36	27f14f69d42cc228
-mut	1	ins	19	36	5453f801db85b543
-mut	1	ins	20	36	37377b059d4497fb
-mut	1	ins	21	36	d17313e0b0b737e9
-mut	1	ins	22	36	b02afd0fdcdaf872
-mut	1	ins	23	36	9e1aebbb01b865a3
-mut	1	ins	24	36	ef06536e31cc9be7
-mut	1	ins	25	36	7eceb16cf143c57c
-mut	1	ins	26	36	10d9fe48a2658fa2
-mut	1	ins	27	36	0db614ed0005f467
-mut	1	ins	28	36	1e38d07330c70d31
-mut	1	ins	29	36	4c5d4d98d85d0826
-mut	1	ins	30	36	6e2103cfe47ce938
-mut	1	ins	31	36	b80d101745d320fb
-mut	1	ins	32	36	d1016d62fb3d2590
-mut	1	ins	33	36	4193a0bd7dae1772
-mut	1	ins	34	36	90f7a5f4d18f093a
-mut	1	ins	35	36	5a3607c5f6d6d596
-mut	1	ins	36	36	f614399629c10066
-mut	1	ins	37	36	bb00a7281632d2de
-mut	1	ins	38	36	0b7179e4adec8b77
-mut	1	ins	39	36	937f858ada841784
-mut	1	ins	40	36	ce6441c9da7c66ef
-mut	1	ins	41	36	8882106e377b9dde
-mut	1	ins	42	36	8d259220f8724c37
-mut	1	ins	43	36	22889ed2d3d23c05
-mut	1	ins	44	36	4188c14c2bdba99b
-mut	1	ins	45	36	7a0035100c9d81d5
-mut	1	ins	46	36	77d8e9d75b8e1503
-mut	1	ins	47	36	16280739adcfebb8
-mut	1	ins	48	36	d270e7aa0f54cb4d
-mut	1	ins	49	36	441095702dcda264
-mut	1	ins	50	36	67ac02e76762e036
-mut	1	ins	51	36	acc84772391451ba
-mut	1	ins	52	36	1deffe7309f62908
-mut	1	ins	53	36	bd52c6e7ce37bdb0
-mut	1	ins	54	36	0e46079f24e6994d
-mut	1	ins	55	36	ca68c29bb7d7db5d
-mut	1	ins	56	36	63537aef4be4b101
-mut	1	ins	57	36	e08608cf780118b8
-mut	1	ins	58	36	2f7d5ff9fa255d59
-mut	1	del	0	1	389d63ac7eea7dda
-mut	1	del	1	1	c9dd6ba9fd696e6d
-mut	1	del	2	1	015dc39dd27ce523
-mut	1	del	3	1	4d1c98870fbb03c2
-mut	1	del	4	1	928f00a63d4f1807
-mut	1	del	5	1	fb5a4534d2f5f755
-mut	1	del	6	1	ce597fe7dd81761f
-mut	1	del	7	1	45e3f784f9ef188f
-mut	1	del	8	1	915e2247d7c23f9a
-mut	1	del	9	1	d8d400124e58d8d5
-mut	1	del	10	1	fc544abf42c9d3f0
-mut	1	del	11	1	015dc39dd27ce523
-mut	1	del	12	1	015dc39dd27ce523
-mut	1	del	13	1	76b6c67cbfb65409
-mut	1	del	14	1	94ffe26e22e1a5ce
-mut	1	del	15	1	e88ae501176135fe
-mut	1	del	16	1	015dc39dd27ce523
-mut	1	del	17	1	a07aed14949a6fd6
-mut	1	del	18	1	6f3b01faca8d7785
-mut	1	del	19	1	678ef2a4a667e096
-mut	1	del	20	1	015dc39dd27ce523
-mut	1	del	21	1	015dc39dd27ce523
-mut	1	del	22	1	015dc39dd27ce523
-mut	1	del	23	1	8f7a2fadde4ea240
-mut	1	del	24	1	06b7ea97d52d7f28
-mut	1	del	25	1	93d610aaf079b2c1
-mut	1	del	26	1	4ed896a6153b2544
-mut	1	del	27	1	96dafde5fc280d21
-mut	1	del	28	1	c8f97490283db106
-mut	1	del	29	1	16e3b2c0e3d5e004
-mut	1	del	30	1	16e3b2c0e3d5e004
-mut	1	del	31	1	16e3b2c0e3d5e004
-mut	1	del	32	1	16e3b2c0e3d5e004
-mut	1	del	33	1	16e3b2c0e3d5e004
-mut	1	del	34	1	16e3b2c0e3d5e004
-mut	1	del	35	1	16e3b2c0e3d5e004
-mut	1	del	36	1	16e3b2c0e3d5e004
-mut	1	del	37	1	16e3b2c0e3d5e004
-mut	1	del	38	1	16e3b2c0e3d5e004
-mut	1	del	39	1	16e3b2c0e3d5e004
-mut	1	del	40	1	90b866418111b811
-mut	1	del	41	1	acadf118cd5aa5b1
-mut	1	del	42	1	4918b9eee7e82bcc
-mut	1	del	43	1	13aa6c9844c52364
-mut	1	del	44	1	f1487f213c6f2fd3
-mut	1	del	45	1	ae27e3678eda35b1
-mut	1	del	46	1	a5d13d9133a34b19
-mut	1	del	47	1	a4db658926646b1a
-mut	1	del	48	1	a2ff63979f45cace
-mut	1	del	49	1	1f1eb2011be3b7ab
-mut	1	del	50	1	cfb1dbf155a53b14
-mut	1	del	51	1	3922935bb1cdd904
-mut	1	del	52	1	aba0529955eb429c
-mut	1	del	53	1	5b518ea3bc8b3a85
-mut	1	del	54	1	5c9dd9717af45944
-mut	1	del	55	1	a0ace1aae3e47709
-mut	1	del	56	1	a0ace1aae3e47709
-mut	1	del	57	1	a0ace1aae3e47709
+mut	1	trunc	0	1	1	b1cd6f606f7fd772
+mut	1	trunc	1	1	1	b1cd6f606f7fd772
+mut	1	trunc	2	1	1	b1cd6f606f7fd772
+mut	1	trunc	3	1	1	b1cd6f606f7fd772
+mut	1	trunc	4	1	1	b1cd6f606f7fd772
+mut	1	trunc	5	1	1	b1cd6f606f7fd772
+mut	1	trunc	6	1	1	b1cd6f606f7fd772
+mut	1	trunc	7	1	1	b1cd6f606f7fd772
+mut	1	trunc	8	1	1	b1cd6f606f7fd772
+mut	1	trunc	9	1	1	b1cd6f606f7fd772
+mut	1	trunc	10	1	1	b1cd6f606f7fd772
+mut	1	trunc	11	1	1	b1cd6f606f7fd772
+mut	1	trunc	12	1	1	b1cd6f606f7fd772
+mut	1	trunc	13	1	0	cbf29ce484222325
+mut	1	trunc	14	1	0	cbf29ce484222325
+mut	1	trunc	15	1	0	cbf29ce484222325
+mut	1	trunc	16	1	0	cbf29ce484222325
+mut	1	trunc	17	1	0	cbf29ce484222325
+mut	1	trunc	18	1	0	cbf29ce484222325
+mut	1	trunc	19	1	0	cbf29ce484222325
+mut	1	trunc	20	1	0	cbf29ce484222325
+mut	1	trunc	21	1	0	cbf29ce484222325
+mut	1	trunc	22	1	0	cbf29ce484222325
+mut	1	trunc	23	1	0	cbf29ce484222325
+mut	1	trunc	24	1	0	cbf29ce484222325
+mut	1	trunc	25	1	0	cbf29ce484222325
+mut	1	trunc	26	1	0	cbf29ce484222325
+mut	1	trunc	27	1	0	cbf29ce484222325
+mut	1	trunc	28	1	0	cbf29ce484222325
+mut	1	trunc	29	1	0	cbf29ce484222325
+mut	1	trunc	30	1	0	cbf29ce484222325
+mut	1	trunc	31	1	0	cbf29ce484222325
+mut	1	trunc	32	1	0	cbf29ce484222325
+mut	1	trunc	33	1	0	cbf29ce484222325
+mut	1	trunc	34	1	0	cbf29ce484222325
+mut	1	trunc	35	1	0	cbf29ce484222325
+mut	1	trunc	36	1	0	cbf29ce484222325
+mut	1	trunc	37	1	0	cbf29ce484222325
+mut	1	trunc	38	1	0	cbf29ce484222325
+mut	1	trunc	39	1	0	cbf29ce484222325
+mut	1	trunc	40	1	0	cbf29ce484222325
+mut	1	trunc	41	1	0	cbf29ce484222325
+mut	1	trunc	42	1	0	cbf29ce484222325
+mut	1	trunc	43	1	0	cbf29ce484222325
+mut	1	trunc	44	1	0	cbf29ce484222325
+mut	1	trunc	45	1	0	cbf29ce484222325
+mut	1	trunc	46	1	0	cbf29ce484222325
+mut	1	trunc	47	1	0	cbf29ce484222325
+mut	1	trunc	48	1	0	cbf29ce484222325
+mut	1	trunc	49	1	0	cbf29ce484222325
+mut	1	trunc	50	1	0	cbf29ce484222325
+mut	1	trunc	51	1	0	cbf29ce484222325
+mut	1	trunc	52	1	0	cbf29ce484222325
+mut	1	trunc	53	1	0	cbf29ce484222325
+mut	1	trunc	54	1	0	cbf29ce484222325
+mut	1	trunc	55	1	0	cbf29ce484222325
+mut	1	trunc	56	1	0	cbf29ce484222325
+mut	1	trunc	57	1	0	cbf29ce484222325
+mut	1	trunc	58	1	0	cbf29ce484222325
+mut	1	repl	0	36	0	cbf29ce484222325
+mut	1	repl	1	36	0	cbf29ce484222325
+mut	1	repl	2	36	0	cbf29ce484222325
+mut	1	repl	3	36	0	cbf29ce484222325
+mut	1	repl	4	36	0	cbf29ce484222325
+mut	1	repl	5	36	0	cbf29ce484222325
+mut	1	repl	6	36	0	cbf29ce484222325
+mut	1	repl	7	36	0	cbf29ce484222325
+mut	1	repl	8	36	0	cbf29ce484222325
+mut	1	repl	9	36	0	cbf29ce484222325
+mut	1	repl	10	36	0	cbf29ce484222325
+mut	1	repl	11	36	0	cbf29ce484222325
+mut	1	repl	12	36	0	cbf29ce484222325
+mut	1	repl	13	36	0	cbf29ce484222325
+mut	1	repl	14	36	0	cbf29ce484222325
+mut	1	repl	15	36	0	cbf29ce484222325
+mut	1	repl	16	36	0	cbf29ce484222325
+mut	1	repl	17	36	0	cbf29ce484222325
+mut	1	repl	18	36	0	cbf29ce484222325
+mut	1	repl	19	36	0	cbf29ce484222325
+mut	1	repl	20	36	0	cbf29ce484222325
+mut	1	repl	21	36	0	cbf29ce484222325
+mut	1	repl	22	36	0	cbf29ce484222325
+mut	1	repl	23	36	0	cbf29ce484222325
+mut	1	repl	24	36	0	cbf29ce484222325
+mut	1	repl	25	36	0	cbf29ce484222325
+mut	1	repl	26	36	0	cbf29ce484222325
+mut	1	repl	27	36	0	cbf29ce484222325
+mut	1	repl	28	36	0	cbf29ce484222325
+mut	1	repl	29	36	0	cbf29ce484222325
+mut	1	repl	30	36	0	cbf29ce484222325
+mut	1	repl	31	36	0	cbf29ce484222325
+mut	1	repl	32	36	0	cbf29ce484222325
+mut	1	repl	33	36	0	cbf29ce484222325
+mut	1	repl	34	36	0	cbf29ce484222325
+mut	1	repl	35	36	0	cbf29ce484222325
+mut	1	repl	36	36	0	cbf29ce484222325
+mut	1	repl	37	36	0	cbf29ce484222325
+mut	1	repl	38	36	0	cbf29ce484222325
+mut	1	repl	39	36	0	cbf29ce484222325
+mut	1	repl	40	36	0	cbf29ce484222325
+mut	1	repl	41	36	0	cbf29ce484222325
+mut	1	repl	42	36	0	cbf29ce484222325
+mut	1	repl	43	36	0	cbf29ce484222325
+mut	1	repl	44	36	0	cbf29ce484222325
+mut	1	repl	45	36	0	cbf29ce484222325
+mut	1	repl	46	36	0	cbf29ce484222325
+mut	1	repl	47	36	0	cbf29ce484222325
+mut	1	repl	48	36	0	cbf29ce484222325
+mut	1	repl	49	36	0	cbf29ce484222325
+mut	1	repl	50	36	0	cbf29ce484222325
+mut	1	repl	51	36	0	cbf29ce484222325
+mut	1	repl	52	36	0	cbf29ce484222325
+mut	1	repl	53	36	0	cbf29ce484222325
+mut	1	repl	54	36	0	cbf29ce484222325
+mut	1	repl	55	36	0	cbf29ce484222325
+mut	1	repl	56	36	0	cbf29ce484222325
+mut	1	repl	57	36	0	cbf29ce484222325
+mut	1	ins	0	36	0	cbf29ce484222325
+mut	1	ins	1	36	0	cbf29ce484222325
+mut	1	ins	2	36	0	cbf29ce484222325
+mut	1	ins	3	36	0	cbf29ce484222325
+mut	1	ins	4	36	0	cbf29ce484222325
+mut	1	ins	5	36	0	cbf29ce484222325
+mut	1	ins	6	36	0	cbf29ce484222325
+mut	1	ins	7	36	0	cbf29ce484222325
+mut	1	ins	8	36	0	cbf29ce484222325
+mut	1	ins	9	36	0	cbf29ce484222325
+mut	1	ins	10	36	0	cbf29ce484222325
+mut	1	ins	11	36	0	cbf29ce484222325
+mut	1	ins	12	36	0	cbf29ce484222325
+mut	1	ins	13	36	0	cbf29ce484222325
+mut	1	ins	14	36	0	cbf29ce484222325
+mut	1	ins	15	36	0	cbf29ce484222325
+mut	1	ins	16	36	0	cbf29ce484222325
+mut	1	ins	17	36	0	cbf29ce484222325
+mut	1	ins	18	36	0	cbf29ce484222325
+mut	1	ins	19	36	0	cbf29ce484222325
+mut	1	ins	20	36	0	cbf29ce484222325
+mut	1	ins	21	36	0	cbf29ce484222325
+mut	1	ins	22	36	0	cbf29ce484222325
+mut	1	ins	23	36	0	cbf29ce484222325
+mut	1	ins	24	36	0	cbf29ce484222325
+mut	1	ins	25	36	0	cbf29ce484222325
+mut	1	ins	26	36	0	cbf29ce484222325
+mut	1	ins	27	36	0	cbf29ce484222325
+mut	1	ins	28	36	0	cbf29ce484222325
+mut	1	ins	29	36	0	cbf29ce484222325
+mut	1	ins	30	36	0	cbf29ce484222325
+mut	1	ins	31	36	0	cbf29ce484222325
+mut	1	ins	32	36	0	cbf29ce484222325
+mut	1	ins	33	36	0	cbf29ce484222325
+mut	1	ins	34	36	0	cbf29ce484222325
+mut	1	ins	35	36	0	cbf29ce484222325
+mut	1	ins	36	36	0	cbf29ce484222325
+mut	1	ins	37	36	0	cbf29ce484222325
+mut	1	ins	38	36	0	cbf29ce484222325
+mut	1	ins	39	36	0	cbf29ce484222325
+mut	1	ins	40	36	0	cbf29ce484222325
+mut	1	ins	41	36	0	cbf29ce484222325
+mut	1	ins	42	36	0	cbf29ce484222325
+mut	1	ins	43	36	0	cbf29ce484222325
+mut	1	ins	44	36	0	cbf29ce484222325
+mut	1	ins	45	36	0	cbf29ce484222325
+mut	1	ins	46	36	0	cbf29ce484222325
+mut	1	ins	47	36	0	cbf29ce484222325
+mut	1	ins	48	36	0	cbf29ce484222325
+mut	1	ins	49	36	0	cbf29ce484222325
+mut	1	ins	50	36	0	cbf29ce484222325
+mut	1	ins	51	36	0	cbf29ce484222325
+mut	1	ins	52	36	0	cbf29ce484222325
+mut	1	ins	53	36	0	cbf29ce484222325
+mut	1	ins	54	36	0	cbf29ce484222325
+mut	1	ins	55	36	0	cbf29ce484222325
+mut	1	ins	56	36	0	cbf29ce484222325
+mut	1	ins	57	36	0	cbf29ce484222325
+mut	1	ins	58	36	0	cbf29ce484222325
+mut	1	del	0	1	0	cbf29ce484222325
+mut	1	del	1	1	0	cbf29ce484222325
+mut	1	del	2	1	0	cbf29ce484222325
+mut	1	del	3	1	0	cbf29ce484222325
+mut	1	del	4	1	0	cbf29ce484222325
+mut	1	del	5	1	0	cbf29ce484222325
+mut	1	del	6	1	0	cbf29ce484222325
+mut	1	del	7	1	0	cbf29ce484222325
+mut	1	del	8	1	0	cbf29ce484222325
+mut	1	del	9	1	0	cbf29ce484222325
+mut	1	del	10	1	0	cbf29ce484222325
+mut	1	del	11	1	0	cbf29ce484222325
+mut	1	del	12	1	0	cbf29ce484222325
+mut	1	del	13	1	0	cbf29ce484222325
+mut	1	del	14	1	0	cbf29ce484222325
+mut	1	del	15	1	0	cbf29ce484222325
+mut	1	del	16	1	0	cbf29ce484222325
+mut	1	del	17	1	0	cbf29ce484222325
+mut	1	del	18	1	0	cbf29ce484222325
+mut	1	del	19	1	0	cbf29ce484222325
+mut	1	del	20	1	0	cbf29ce484222325
+mut	1	del	21	1	0	cbf29ce484222325
+mut	1	del	22	1	0	cbf29ce484222325
+mut	1	del	23	1	0	cbf29ce484222325
+mut	1	del	24	1	0	cbf29ce484222325
+mut	1	del	25	1	0	cbf29ce484222325
+mut	1	del	26	1	0	cbf29ce484222325
+mut	1	del	27	1	0	cbf29ce484222325
+mut	1	del	28	1	0	cbf29ce484222325
+mut	1	del	29	1	0	cbf29ce484222325
+mut	1	del	30	1	0	cbf29ce484222325
+mut	1	del	31	1	0	cbf29ce484222325
+mut	1	del	32	1	0	cbf29ce484222325
+mut	1	del	33	1	0	cbf29ce484222325
+mut	1	del	34	1	0	cbf29ce484222325
+mut	1	del	35	1	0	cbf29ce484222325
+mut	1	del	36	1	0	cbf29ce484222325
+mut	1	del	37	1	0	cbf29ce484222325
+mut	1	del	38	1	0	cbf29ce484222325
+mut	1	del	39	1	0	cbf29ce484222325
+mut	1	del	40	1	0	cbf29ce484222325
+mut	1	del	41	1	0	cbf29ce484222325
+mut	1	del	42	1	0	cbf29ce484222325
+mut	1	del	43	1	0	cbf29ce484222325
+mut	1	del	44	1	0	cbf29ce484222325
+mut	1	del	45	1	0	cbf29ce484222325
+mut	1	del	46	1	0	cbf29ce484222325
+mut	1	del	47	1	0	cbf29ce484222325
+mut	1	del	48	1	0	cbf29ce484222325
+mut	1	del	49	1	0	cbf29ce484222325
+mut	1	del	50	1	0	cbf29ce484222325
+mut	1	del	51	1	0	cbf29ce484222325
+mut	1	del	52	1	0	cbf29ce484222325
+mut	1	del	53	1	0	cbf29ce484222325
+mut	1	del	54	1	0	cbf29ce484222325
+mut	1	del	55	1	0	cbf29ce484222325
+mut	1	del	56	1	0	cbf29ce484222325
+mut	1	del	57	1	0	cbf29ce484222325
 base	2	7b22636f6e76657273696f6e73223a7b22555344223a7b22474250223a31322e352c224a5059223a3065317d7d2c2274223a747275652c2266223a66616c73652c226e223a6e756c6c7d
-mut	2	trunc	0	1	a26767e7e98a735c
-mut	2	trunc	1	1	420befe354c0841a
-mut	2	trunc	2	1	41bf1c550f52f227
-mut	2	trunc	3	1	5f681a2356b45bba
-mut	2	trunc	4	1	04a376a6cd0ce2cd
-mut	2	trunc	5	1	e02b9d0073a9824c
-mut	2	trunc	6	1	86c32d7b5b96f24f
-mut	2	trunc	7	1	142fa189de3aadf6
-mut	2	trunc	8	1	d969da66c07da597
-mut	2	trunc	9	1	69fcd2c28523f340
-mut	2	trunc	10	1	460977f3440cbe2e
-mut	2	trunc	11	1	644e456c964b4ce5
-mut	2	trunc	12	1	20589efad65f46cd
-mut	2	trunc	13	1	1c133f884ffaf218
-mut	2	trunc	14	1	cde00a25b2465b65
-mut	2	trunc	15	1	b2070d01599f1606
-mut	2	trunc	16	1	7c2f88e622768054
-mut	2	trunc	17	1	7e083a620590e039
-mut	2	trunc	18	1	988321c8e7c8ae8b
-mut	2	trunc	19	1	9557d2e05aeb497e
-mut	2	trunc	20	1	594b23929ad0f0ed
-mut	2	trunc	21	1	9b0ac8c7d041c2fa
-mut	2	trunc	22	1	2786a5080c181f7e
-mut	2	trunc	23	1	1f3f728e4fabc4a3
-mut	2	trunc	24	1	6293d5840ebfaedf
-mut	2	trunc	25	1	1ac8206eea226d05
-mut	2	trunc	26	1	0c6c442b60eb9dcc
-mut	2	trunc	27	1	cbbd9f20cdce1198
-mut	2	trunc	28	1	64aa667adec459bd
-mut	2	trunc	29	1	b64f878132c119b3
-mut	2	trunc	30	1	019c4c490a5f45b6
-mut	2	trunc	31	1	2f02dc51ee075b7c
-mut	2	trunc	32	1	0bc55b8af54a09db
-mut	2	trunc	33	1	25a404d14e7abbb3
-mut	2	trunc	34	1	ff0b11aeff80d939
-mut	2	trunc	35	1	698a85a88861e5fa
-mut	2	trunc	36	1	f31d005e13a832e2
-mut	2	trunc	37	1	06d312248ba9d220
-mut	2	trunc	38	1	04e9c057cc75558e
-mut	2	trunc	39	1	bde6b3953434f9d0
-mut	2	trunc	40	1	7264cf604cb45764
-mut	2	trunc	41	1	ca9c566e42288325
-mut	2	trunc	42	1	4bbadd7594801b53
-mut	2	trunc	43	1	0a3ab5cf21284438
-mut	2	trunc	44	1	d95307458675e882
-mut	2	trunc	45	1	0bd9343e243b2c8d
-mut	2	trunc	46	1	64548263daeeb0b1
-mut	2	trunc	47	1	b063ddeaf5e0e915
-mut	2	trunc	48	1	69c1f0102a35e7c6
-mut	2	trunc	49	1	df9d1be830d4a85e
-mut	2	trunc	50	1	b3bd2ba7d273bbf3
-mut	2	trunc	51	1	fa21f3f5a90ac051
-mut	2	trunc	52	1	7551feb4b254da38
-mut	2	trunc	53	1	775d0041dc80de1a
-mut	2	trunc	54	1	a6c652dd8f81def2
-mut	2	trunc	55	1	4480c522de39c09b
-mut	2	trunc	56	1	4997d3ea1c4cf8f7
-mut	2	trunc	57	1	d700bab33b9d0c4a
-mut	2	trunc	58	1	54218fca84226014
-mut	2	trunc	59	1	7457ee0d9865f13a
-mut	2	trunc	60	1	9a3e6cbff464a132
-mut	2	trunc	61	1	3737e8e95724f2cf
-mut	2	trunc	62	1	fc4c17646a9e3209
-mut	2	trunc	63	1	829d36ccf0b6a785
-mut	2	trunc	64	1	2e41b6bb3a173b8a
-mut	2	trunc	65	1	568fd869214b6d78
-mut	2	trunc	66	1	4d9545749c997395
-mut	2	trunc	67	1	70481ea442925f8f
-mut	2	trunc	68	1	001196f4816c4ad6
-mut	2	trunc	69	1	41b8b320ac0c5dd8
-mut	2	trunc	70	1	1245c7bbd719722d
-mut	2	trunc	71	1	39a996a7dd6dbcae
-mut	2	trunc	72	1	8b5b359b50f9d2dc
-mut	2	trunc	73	1	9ffc53036e5f74b2
-mut	2	trunc	74	1	62e61fd14378dc83
-mut	2	repl	0	36	90967c62d6f6cc83
-mut	2	repl	1	36	038b63ccce77f8f5
-mut	2	repl	2	36	6e7a18b68b5ae8be
-mut	2	repl	3	36	954fea632c3736bf
-mut	2	repl	4	36	7491ec773671b18d
-mut	2	repl	5	36	6744fd9e5a124386
-mut	2	repl	6	36	7f751cfedf2a7254
-mut	2	repl	7	36	cde5ad62742595cd
-mut	2	repl	8	36	855c30b9aa3c324a
-mut	2	repl	9	36	d7df89588e726a26
-mut	2	repl	10	36	b80849cf1e4ccea0
-mut	2	repl	11	36	e8993f3179c27c57
-mut	2	repl	12	36	ab40a8e06d3f70c9
-mut	2	repl	13	36	db4320ac48689d74
-mut	2	repl	14	36	641ff63f469467b5
-mut	2	repl	15	36	ac48a0a70ac30fb3
-mut	2	repl	16	36	5dbb2555ad386569
-mut	2	repl	17	36	e09d7dde70b6b273
-mut	2	repl	18	36	5708d0152647e7b5
-mut	2	repl	19	36	23e8a8354b61c1d8
-mut	2	repl	20	36	d7487ef93b475ee2
-mut	2	repl	21	36	25c8c5d23c38ae3e
-mut	2	repl	22	36	080ad36d28fe3c51
-mut	2	repl	23	36	2883085e060b399c
-mut	2	repl	24	36	740ce9779a0527d4
-mut	2	repl	25	36	39a67706b14b8e41
-mut	2	repl	26	36	13d2c9f051389c0d
-mut	2	repl	27	36	b6837919ff13d61f
-mut	2	repl	28	36	f54c0b31d9dc654b
-mut	2	repl	29	36	48747b43aeeceaa3
-mut	2	repl	30	36	34775ffa3ab9d4b1
-mut	2	repl	31	36	c20bc94cfa8d3719
-mut	2	repl	32	36	f326c703a6c18030
-mut	2	repl	33	36	b982ccf3699d6bcf
-mut	2	repl	34	36	d2f64511a46eca20
-mut	2	repl	35	36	152f031e7164f43a
-mut	2	repl	36	36	7908db0e3db99f50
-mut	2	repl	37	36	36473a9b0c045449
-mut	2	repl	38	36	bf28752207a4d2c3
-mut	2	repl	39	36	c34ee41097c54d86
-mut	2	repl	40	36	e9026b282e3ac518
-mut	2	repl	41	36	d3ef4ab2cc166990
-mut	2	repl	42	36	9e7229b714269309
-mut	2	repl	43	36	dee853a9fb06f97b
-mut	2	repl	44	36	00a1d87c70f46f20
-mut	2	repl	45	36	8b98fcb95be21fb9
-mut	2	repl	46	36	adb151b7750eb5b9
-mut	2	repl	47	36	f4ddc690ced08846
-mut	2	repl	48	36	a7320afc609d340a
-mut	2	repl	49	36	03e11923a244ed6b
-mut	2	repl	50	36	c562e0725e9d7801
-mut	2	repl	51	36	6f3751abc6ff46bc
-mut	2	repl	52	36	efe51bd14e6a66e3
-mut	2	repl	53	36	86c1a5b74c475750
-mut	2	repl	54	36	8beabdfc9f7b7158
-mut	2	repl	55	36	5963c1b95bced008
-mut	2	repl	56	36	37bee35c6e204456
-mut	2	repl	57	36	277fde0ba5cda39e
-mut	2	repl	58	36	e23fd2efa6f8de9a
-mut	2	repl	59	36	9ec46e1e9c940559
-mut	2	repl	60	36	45a271aec32166d6
-mut	2	repl	61	36	15f57789511f8776
-mut	2	repl	62	36	4b7b682c99dc957f
-mut	2	repl	63	36	abed72eb95009134
-mut	2	repl	64	36	4ce3e127dc85bd23
-mut	2	repl	65	36	942b41f72bbf25b7
-mut	2	repl	66	36	c7859f01d872f74f
-mut	2	repl	67	36	9d1e86330ca147c0
-mut	2	repl	68	36	19ce8b3034c97acf
-mut	2	repl	69	36	3fd1d0e26de04879
-mut	2	repl	70	36	865a28674bbc497e
-mut	2	repl	71	36	1cd5f2fb9873adc4
-mut	2	repl	72	36	96595c788078195c
-mut	2	repl	73	36	5c3c902d331c288d
-mut	2	ins	0	36	5bcc3d05dc31e463
-mut	2	ins	1	36	81b86cd2b86ed0d4
-mut	2	ins	2	36	c36111e18908aa24
-mut	2	ins	3	36	3ddaf8eaa757191c
-mut	2	ins	4	36	f43ed102df385f94
-mut	2	ins	5	36	53522ff9730dd3dc
-mut	2	ins	6	36	7293d9a0fa85a328
-mut	2	ins	7	36	7f761a7b68bdb7ed
-mut	2	ins	8	36	a6fa03299af9d396
-mut	2	ins	9	36	68a14ae8878f836c
-mut	2	ins	10	36	f66e0e990fcd0f3a
-mut	2	ins	11	36	014d6d7548e7798f
-mut	2	ins	12	36	5367f9466d842126
-mut	2	ins	13	36	5a485a0c2c752822
-mut	2	ins	14	36	92c5fef0f028f0b0
-mut	2	ins	15	36	f85f10e3c17fc94d
-mut	2	ins	16	36	16508cdef1eef166
-mut	2	ins	17	36	e3014a70a4967d0b
-mut	2	ins	18	36	05432df4bf819c39
-mut	2	ins	19	36	04cc14f8a27b74a5
-mut	2	ins	20	36	c240f7ffe54a8897
-mut	2	ins	21	36	0a090263d17d5363
-mut	2	ins	22	36	bdd74429c97ee59e
-mut	2	ins	23	36	5945bc7d1dc732bd
-mut	2	ins	24	36	35ce71e7571e4540
-mut	2	ins	25	36	669c9f47c38d6f92
-mut	2	ins	26	36	e1220c86a85216b2
-mut	2	ins	27	36	568fc6158a7a93e0
-mut	2	ins	28	36	956ea8b8c45bb232
-mut	2	ins	29	36	26720fe84fc82cd5
-mut	2	ins	30	36	add4ca6f609ef3e3
-mut	2	ins	31	36	d8596ef2bc110bdd
-mut	2	ins	32	36	6daece8c6bd16f97
-mut	2	ins	33	36	46943c1feeed6ad3
-mut	2	ins	34	36	3dac03101f42fc8f
-mut	2	ins	35	36	f5fbdbb4b671faa4
-mut	2	ins	36	36	a64f84b60c2c5858
-mut	2	ins	37	36	a749644450ddac66
-mut	2	ins	38	36	42681951fa713eb6
-mut	2	ins	39	36	28148aba75a0388d
-mut	2	ins	40	36	2293d85122c2d13c
-mut	2	ins	41	36	f76ad2d5ba4abd5b
-mut	2	ins	42	36	9a65d1d68d7b67bf
-mut	2	ins	43	36	6fadb4417af01315
-mut	2	ins	44	36	9ab6b149c4a43acb
-mut	2	ins	45	36	3f8b8150d321cafb
-mut	2	ins	46	36	574dbeb20af9fc7b
-mut	2	ins	47	36	6ddc95ca52c4ed8f
-mut	2	ins	48	36	80b8a281497b4ac0
-mut	2	ins	49	36	c1a8fa88242ccb63
-mut	2	ins	50	36	a1832622b3fd4b9c
-mut	2	ins	51	36	bd4b11f539f5a0d5
-mut	2	ins	52	36	fb8c6a8467fd6308
-mut	2	ins	53	36	099b7d19f63b8a01
-mut	2	ins	54	36	f7beea5c85c36396
-mut	2	ins	55	36	9dc2fc42f9f86bbe
-mut	2	ins	56	36	0ec5e2dce5ef1ee2
-mut	2	ins	57	36	611594de4782e944
-mut	2	ins	58	36	f53630d7b610a8bf
-mut	2	ins	59	36	b62020b12028588c
-mut	2	ins	60	36	485bc0d0cf048440
-mut	2	ins	61	36	4686414efc852e37
-mut	2	ins	62	36	f816b8702aebbf47
-mut	2	ins	63	36	29de91229c547bae
-mut	2	ins	64	36	8c9ee01532ed0efd
-mut	2	ins	65	36	411c88d5900559a8
-mut	2	ins	66	36	39fe14f9fc896758
-mut	2	ins	67	36	ee3213cd1cf1aee9
-mut	2	ins	68	36	3fe2afebd6f7bd68
-mut	2	ins	69	36	eb37e09e1e040fd8
-mut	2	ins	70	36	a27c8321ca49ead9
-mut	2	ins	71	36	b196a552582bf7f6
-mut	2	ins	72	36	c54a38474d990c9c
-mut	2	ins	73	36	e9e89b4741a270d4
-mut	2	ins	74	36	f908e1b4e977c3b5
-mut	2	del	0	1	5777143891292cd8
-mut	2	del	1	1	2d6c0ec79bcb83a2
-mut	2	del	2	1	16e3b2c0e3d5e004
-mut	2	del	3	1	16e3b2c0e3d5e004
-mut	2	del	4	1	16e3b2c0e3d5e004
-mut	2	del	5	1	16e3b2c0e3d5e004
-mut	2	del	6	1	16e3b2c0e3d5e004
-mut	2	del	7	1	16e3b2c0e3d5e004
-mut	2	del	8	1	16e3b2c0e3d5e004
-mut	2	del	9	1	16e3b2c0e3d5e004
-mut	2	del	10	1	16e3b2c0e3d5e004
-mut	2	del	11	1	16e3b2c0e3d5e004
-mut	2	del	12	1	16e3b2c0e3d5e004
-mut	2	del	13	1	623db76ec3f561ac
-mut	2	del	14	1	4920354890eebfb5
-mut	2	del	15	1	3489c833ae7c0b92
-mut	2	del	16	1	9e786f43fd8dfe2b
-mut	2	del	17	1	14d92ac82fae670d
-mut	2	del	18	1	0012e8be2a7ca7f3
-mut	2	del	19	1	d44abc223ac422e3
-mut	2	del	20	1	29f021a775bacac9
-mut	2	del	21	1	2320b73f6c6c3757
-mut	2	del	22	1	e8fd217b4453da2b
-mut	2	del	23	1	056d348e287850ff
-mut	2	del	24	1	8dc1c139c2f7d4ce
-mut	2	del	25	1	6fc478577e1a15b5
-mut	2	del	26	1	548ba55a7e6ad74e
-mut	2	del	27	1	457f515e0c8d91d1
-mut	2	del	28	1	cd3b97740037405d
-mut	2	del	29	1	7ac07e0c44701738
-mut	2	del	30	1	9d031b1907097041
-mut	2	del	31	1	a79f017ebc395f41
-mut	2	del	32	1	0a254638c5a5d820
-mut	2	del	33	1	2e8bf9438cdaba80
-mut	2	del	34	1	b3ef25a17c697899
-mut	2	del	35	1	53c762aa1445c0d0
-mut	2	del	36	1	d72a081d1d38ec5e
-mut	2	del	37	1	79e70d70af606f7d
-mut	2	del	38	1	520b87ccaa25e739
-mut	2	del	39	1	9bb6d10db6c410e6
-mut	2	del	40	1	459ed896d1db1f55
-mut	2	del	41	1	cfcf1277eabb0f1d
-mut	2	del	42	1	4bbadd7594801b53
-mut	2	del	43	1	b0d86b4bb6acb547
-mut	2	del	44	1	b0d86b4bb6acb547
-mut	2	del	45	1	aa29edcc7b7f9188
-mut	2	del	46	1	78495dd6cd8f913c
-mut	2	del	47	1	62e61fd14378dc83
-mut	2	del	48	1	652d4070394071e9
-mut	2	del	49	1	ce045feba848b3a2
-mut	2	del	50	1	baf86a949c0b9230
-mut	2	del	51	1	0223baa5fab0f823
-mut	2	del	52	1	9a85d4c91846f904
-mut	2	del	53	1	30269d0d3004806c
-mut	2	del	54	1	cea0bb023f84018f
-mut	2	del	55	1	d744d0dc913f2a09
-mut	2	del	56	1	62e61fd14378dc83
-mut	2	del	57	1	314e49a96b406833
-mut	2	del	58	1	6c4a8b6e6fa8b0e9
-mut	2	del	59	1	6a15223a209459a0
-mut	2	del	60	1	97a2addb75c1fd62
-mut	2	del	61	1	bb63941f707ee66e
-mut	2	del	62	1	93fb145df244b3a1
-mut	2	del	63	1	e4f075a070ed48f8
-mut	2	del	64	1	9aef239effac117c
-mut	2	del	65	1	cbf908412d852c57
-mut	2	del	66	1	62e61fd14378dc83
-mut	2	del	67	1	5066cc087a021ad0
-mut	2	del	68	1	5dde4d61c79d226f
-mut	2	del	69	1	153b87b6cf891b48
-mut	2	del	70	1	edc8a2ba80f55d8e
-mut	2	del	71	1	7e15fa9e65012190
-mut	2	del	72	1	7e15fa9e65012190
-mut	2	del	73	1	9ffc53036e5f74b2
+mut	2	trunc	0	1	1	b1cd6f606f7fd772
+mut	2	trunc	1	1	1	b1cd6f606f7fd772
+mut	2	trunc	2	1	1	b1cd6f606f7fd772
+mut	2	trunc	3	1	1	b1cd6f606f7fd772
+mut	2	trunc	4	1	1	b1cd6f606f7fd772
+mut	2	trunc	5	1	1	b1cd6f606f7fd772
+mut	2	trunc	6	1	1	b1cd6f606f7fd772
+mut	2	trunc	7	1	1	b1cd6f606f7fd772
+mut	2	trunc	8	1	1	b1cd6f606f7fd772
+mut	2	trunc	9	1	1	b1cd6f606f7fd772
+mut	2	trunc	10	1	1	b1cd6f606f7fd772
+mut	2	trunc	11	1	1	b1cd6f606f7fd772
+mut	2	trunc	12	1	1	b1cd6f606f7fd772
+mut	2	trunc	13	1	1	b1cd6f606f7fd772
+mut	2	trunc	14	1	1	b1cd6f606f7fd772
+mut	2	trunc	15	1	1	b1cd6f606f7fd772
+mut	2	trunc	16	1	1	b1cd6f606f7fd772
+mut	2	trunc	17	1	1	b1cd6f606f7fd772
+mut	2	trunc	18	1	1	b1cd6f606f7fd772
+mut	2	trunc	19	1	1	b1cd6f606f7fd772
+mut	2	trunc	20	1	1	b1cd6f606f7fd772
+mut	2	trunc	21	1	1	b1cd6f606f7fd772
+mut	2	trunc	22	1	1	b1cd6f606f7fd772
+mut	2	trunc	23	1	1	b1cd6f606f7fd772
+mut	2	trunc	24	1	1	b1cd6f606f7fd772
+mut	2	trunc	25	1	1	b1cd6f606f7fd772
+mut	2	trunc	26	1	1	b1cd6f606f7fd772
+mut	2	trunc	27	1	1	b1cd6f606f7fd772
+mut	2	trunc	28	1	1	b1cd6f606f7fd772
+mut	2	trunc	29	1	1	b1cd6f606f7fd772
+mut	2	trunc	30	1	1	b1cd6f606f7fd772
+mut	2	trunc	31	1	1	b1cd6f606f7fd772
+mut	2	trunc	32	1	1	b1cd6f606f7fd772
+mut	2	trunc	33	1	1	b1cd6f606f7fd772
+mut	2	trunc	34	1	1	b1cd6f606f7fd772
+mut	2	trunc	35	1	1	b1cd6f606f7fd772
+mut	2	trunc	36	1	1	b1cd6f606f7fd772
+mut	2	trunc	37	1	1	b1cd6f606f7fd772
+mut	2	trunc	38	1	1	b1cd6f606f7fd772
+mut	2	trunc	39	1	1	b1cd6f606f7fd772
+mut	2	trunc	40	1	1	b1cd6f606f7fd772
+mut	2	trunc	41	1	1	b1cd6f606f7fd772
+mut	2	trunc	42	1	1	b1cd6f606f7fd772
+mut	2	trunc	43	1	1	b1cd6f606f7fd772
+mut	2	trunc	44	1	1	b1cd6f606f7fd772
+mut	2	trunc	45	1	1	b1cd6f606f7fd772
+mut	2	trunc	46	1	1	b1cd6f606f7fd772
+mut	2	trunc	47	1	1	b1cd6f606f7fd772
+mut	2	trunc	48	1	1	b1cd6f606f7fd772
+mut	2	trunc	49	1	1	b1cd6f606f7fd772
+mut	2	trunc	50	1	1	b1cd6f606f7fd772
+mut	2	trunc	51	1	1	b1cd6f606f7fd772
+mut	2	trunc	52	1	1	b1cd6f606f7fd772
+mut	2	trunc	53	1	1	b1cd6f606f7fd772
+mut	2	trunc	54	1	1	b1cd6f606f7fd772
+mut	2	trunc	55	1	1	b1cd6f606f7fd772
+mut	2	trunc	56	1	1	b1cd6f606f7fd772
+mut	2	trunc	57	1	1	b1cd6f606f7fd772
+mut	2	trunc	58	1	1	b1cd6f606f7fd772
+mut	2	trunc	59	1	1	b1cd6f606f7fd772
+mut	2	trunc	60	1	1	b1cd6f606f7fd772
+mut	2	trunc	61	1	1	b1cd6f606f7fd772
+mut	2	trunc	62	1	1	b1cd6f606f7fd772
+mut	2	trunc	63	1	1	b1cd6f606f7fd772
+mut	2	trunc	64	1	1	b1cd6f606f7fd772
+mut	2	trunc	65	1	1	b1cd6f606f7fd772
+mut	2	trunc	66	1	1	b1cd6f606f7fd772
+mut	2	trunc	67	1	1	b1cd6f606f7fd772
+mut	2	trunc	68	1	1	b1cd6f606f7fd772
+mut	2	trunc	69	1	1	b1cd6f606f7fd772
+mut	2	trunc	70	1	1	b1cd6f606f7fd772
+mut	2	trunc	71	1	1	b1cd6f606f7fd772
+mut	2	trunc	72	1	1	b1cd6f606f7fd772
+mut	2	trunc	73	1	1	b1cd6f606f7fd772
+mut	2	trunc	74	1	1	62e61fd14378dc83
+mut	2	repl	0	36	31	751dfe07d15feedb
+mut	2	repl	1	36	31	898795d9dd58a93b
+mut	2	repl	2	36	31	2c9b58337644aab4
+mut	2	repl	3	36	31	5c6362194501bf84
+mut	2	repl	4	36	31	b3c7d701b733be0b
+mut	2	repl	5	36	31	2c9b58337644aab4
+mut	2	repl	6	36	30	4dadbdf59e27a69c
+mut	2	repl	7	36	31	68556512648fe6f3
+mut	2	repl	8	36	31	2c9b58337644aab4
+mut	2	repl	9	36	31	2c9b58337644aab4
+mut	2	repl	10	36	31	5c6362194501bf84
+mut	2	repl	11	36	31	b3c7d701b733be0b
+mut	2	repl	12	36	31	2c9b58337644aab4
+mut	2	repl	13	36	31	898795d9dd58a93b
+mut	2	repl	14	36	31	2861bb0792095cfb
+mut	2	repl	15	36	31	751dfe07d15feedb
+mut	2	repl	16	36	31	898795d9dd58a93b
+mut	2	repl	17	36	31	32c75609c5b726bc
+mut	2	repl	18	36	31	471e5e473c587cc6
+mut	2	repl	19	36	31	c5713ed53080da66
+mut	2	repl	20	36	31	898795d9dd58a93b
+mut	2	repl	21	36	31	2861bb0792095cfb
+mut	2	repl	22	36	31	751dfe07d15feedb
+mut	2	repl	23	36	31	898795d9dd58a93b
+mut	2	repl	24	36	31	6aeee79621a7260f
+mut	2	repl	25	36	31	6766e7f54a53bcf0
+mut	2	repl	26	36	31	7f1beb04c9f69cab
+mut	2	repl	27	36	31	898795d9dd58a93b
+mut	2	repl	28	36	31	2861bb0792095cfb
+mut	2	repl	29	36	31	652e8f9707633136
+mut	2	repl	30	36	30	dddc2f3370828322
+mut	2	repl	31	36	31	704aca578e7a5c52
+mut	2	repl	32	36	31	aa1312b431b9bdf7
+mut	2	repl	33	36	31	b223eed197cd6157
+mut	2	repl	34	36	31	898795d9dd58a93b
+mut	2	repl	35	36	31	5a5fc4885d006a65
+mut	2	repl	36	36	31	97bf1e673fb178a3
+mut	2	repl	37	36	31	c0be37f2cfa137fc
+mut	2	repl	38	36	31	898795d9dd58a93b
+mut	2	repl	39	36	31	2861bb0792095cfb
+mut	2	repl	40	36	31	993dbfc473f8ff41
+mut	2	repl	41	36	31	c63fe31a5aa21d0f
+mut	2	repl	42	36	31	5a0dea7a208562f6
+mut	2	repl	43	36	31	46329b455f902377
+mut	2	repl	44	36	31	46329b455f902377
+mut	2	repl	45	36	31	b223eed197cd6157
+mut	2	repl	46	36	31	898795d9dd58a93b
+mut	2	repl	47	36	31	0b0bb9fdd63bb1a3
+mut	2	repl	48	36	31	898795d9dd58a93b
+mut	2	repl	49	36	31	2861bb0792095cfb
+mut	2	repl	50	36	31	c41eb1a6b3599157
+mut	2	repl	51	36	31	5ff2ccd5eac05abb
+mut	2	repl	52	36	31	f87c090090dd9e9b
+mut	2	repl	53	36	31	8f170b3782803237
+mut	2	repl	54	36	31	b223eed197cd6157
+mut	2	repl	55	36	31	898795d9dd58a93b
+mut	2	repl	56	36	31	0b0bb9fdd63bb1a3
+mut	2	repl	57	36	31	898795d9dd58a93b
+mut	2	repl	58	36	31	2861bb0792095cfb
+mut	2	repl	59	36	31	db9aeec87fa94957
+mut	2	repl	60	36	31	8a2830ddff4c777b
+mut	2	repl	61	36	31	5508c251d14e8e57
+mut	2	repl	62	36	31	a82a13035f0a6d1a
+mut	2	repl	63	36	31	8f170b3782803237
+mut	2	repl	64	36	31	b223eed197cd6157
+mut	2	repl	65	36	31	898795d9dd58a93b
+mut	2	repl	66	36	31	0b0bb9fdd63bb1a3
+mut	2	repl	67	36	31	898795d9dd58a93b
+mut	2	repl	68	36	29	fa5b089126ae6933
+mut	2	repl	69	36	31	1462f2a1fb62d2f7
+mut	2	repl	70	36	31	f87c090090dd9e9b
+mut	2	repl	71	36	31	5508c251d14e8e57
+mut	2	repl	72	36	31	5508c251d14e8e57
+mut	2	repl	73	36	31	46329b455f902377
+mut	2	ins	0	36	31	9a96bcc0fe7eba5b
+mut	2	ins	1	36	31	9a96bcc0fe7eba5b
+mut	2	ins	2	36	31	2c9b58337644aab4
+mut	2	ins	3	36	31	2c9b58337644aab4
+mut	2	ins	4	36	31	5c6362194501bf84
+mut	2	ins	5	36	31	2c9b58337644aab4
+mut	2	ins	6	36	31	2c9b58337644aab4
+mut	2	ins	7	36	31	5c6362194501bf84
+mut	2	ins	8	36	31	2c9b58337644aab4
+mut	2	ins	9	36	31	2c9b58337644aab4
+mut	2	ins	10	36	31	2c9b58337644aab4
+mut	2	ins	11	36	31	5c6362194501bf84
+mut	2	ins	12	36	31	2c9b58337644aab4
+mut	2	ins	13	36	31	2c9b58337644aab4
+mut	2	ins	14	36	31	9a96bcc0fe7eba5b
+mut	2	ins	15	36	31	9a96bcc0fe7eba5b
+mut	2	ins	16	36	31	9a96bcc0fe7eba5b
+mut	2	ins	17	36	31	cbe5662eba7bf092
+mut	2	ins	18	36	31	f09f837999becd4e
+mut	2	ins	19	36	31	773ec9990c0a247e
+mut	2	ins	20	36	31	b39f85cd4d83c29e
+mut	2	ins	21	36	31	9a96bcc0fe7eba5b
+mut	2	ins	22	36	31	9a96bcc0fe7eba5b
+mut	2	ins	23	36	31	9a96bcc0fe7eba5b
+mut	2	ins	24	36	31	756a799ad9e59f6e
+mut	2	ins	25	36	31	1f3b53a5af2c070e
+mut	2	ins	26	36	31	395219b1589db17a
+mut	2	ins	27	36	31	a683438e63f3351a
+mut	2	ins	28	36	31	9a96bcc0fe7eba5b
+mut	2	ins	29	36	31	afef888b44984beb
+mut	2	ins	30	36	31	0ed779e45af76c70
+mut	2	ins	31	36	30	15c80ea6eb583827
+mut	2	ins	32	36	31	07310ab35154a4cb
+mut	2	ins	33	36	31	81e5eff26f5d6a89
+mut	2	ins	34	36	31	9a96bcc0fe7eba5b
+mut	2	ins	35	36	31	09b430d1808cf45a
+mut	2	ins	36	36	31	9a62155ea783cd6a
+mut	2	ins	37	36	31	743711303cdc38ea
+mut	2	ins	38	36	31	57c5b3ddd9523c46
+mut	2	ins	39	36	31	9a96bcc0fe7eba5b
+mut	2	ins	40	36	31	527dc47fe03e6eba
+mut	2	ins	41	36	31	a82a13035f0a6d1a
+mut	2	ins	42	36	31	af6b94e811c16a2b
+mut	2	ins	43	36	31	36a9deff7d9d2edf
+mut	2	ins	44	36	31	9a96bcc0fe7eba5b
+mut	2	ins	45	36	31	9a96bcc0fe7eba5b
+mut	2	ins	46	36	31	9a96bcc0fe7eba5b
+mut	2	ins	47	36	31	6f5742ff6329dbce
+mut	2	ins	48	36	31	0b0bb9fdd63bb1a3
+mut	2	ins	49	36	31	9a96bcc0fe7eba5b
+mut	2	ins	50	36	31	9a96bcc0fe7eba5b
+mut	2	ins	51	36	31	a82a13035f0a6d1a
+mut	2	ins	52	36	31	a82a13035f0a6d1a
+mut	2	ins	53	36	31	a82a13035f0a6d1a
+mut	2	ins	54	36	31	9a96bcc0fe7eba5b
+mut	2	ins	55	36	31	9a96bcc0fe7eba5b
+mut	2	ins	56	36	31	6f5742ff6329dbce
+mut	2	ins	57	36	31	0b0bb9fdd63bb1a3
+mut	2	ins	58	36	31	9a96bcc0fe7eba5b
+mut	2	ins	59	36	31	9a96bcc0fe7eba5b
+mut	2	ins	60	36	31	a82a13035f0a6d1a
+mut	2	ins	61	36	31	a82a13035f0a6d1a
+mut	2	ins	62	36	31	a82a13035f0a6d1a
+mut	2	ins	63	36	31	a82a13035f0a6d1a
+mut	2	ins	64	36	31	9a96bcc0fe7eba5b
+mut	2	ins	65	36	31	9a96bcc0fe7eba5b
+mut	2	ins	66	36	31	6f5742ff6329dbce
+mut	2	ins	67	36	31	0b0bb9fdd63bb1a3
+mut	2	ins	68	36	31	9a96bcc0fe7eba5b
+mut	2	ins	69	36	29	947fc6d26f2aedf3
+mut	2	ins	70	36	31	a82a13035f0a6d1a
+mut	2	ins	71	36	31	a82a13035f0a6d1a
+mut	2	ins	72	36	31	a82a13035f0a6d1a
+mut	2	ins	73	36	31	9a96bcc0fe7eba5b
+mut	2	ins	74	36	31	9a96bcc0fe7eba5b
+mut	2	del	0	1	1	b1cd6f606f7fd772
+mut	2	del	1	1	1	b1cd6f606f7fd772
+mut	2	del	2	1	1	16e3b2c0e3d5e004
+mut	2	del	3	1	1	16e3b2c0e3d5e004
+mut	2	del	4	1	1	16e3b2c0e3d5e004
+mut	2	del	5	1	1	16e3b2c0e3d5e004
+mut	2	del	6	1	1	16e3b2c0e3d5e004
+mut	2	del	7	1	1	16e3b2c0e3d5e004
+mut	2	del	8	1	1	16e3b2c0e3d5e004
+mut	2	del	9	1	1	16e3b2c0e3d5e004
+mut	2	del	10	1	1	16e3b2c0e3d5e004
+mut	2	del	11	1	1	16e3b2c0e3d5e004
+mut	2	del	12	1	1	16e3b2c0e3d5e004
+mut	2	del	13	1	1	b1cd6f606f7fd772
+mut	2	del	14	1	1	b1cd6f606f7fd772
+mut	2	del	15	1	1	b1cd6f606f7fd772
+mut	2	del	16	1	1	b1cd6f606f7fd772
+mut	2	del	17	1	1	14d92ac82fae670d
+mut	2	del	18	1	1	0012e8be2a7ca7f3
+mut	2	del	19	1	1	d44abc223ac422e3
+mut	2	del	20	1	1	b1cd6f606f7fd772
+mut	2	del	21	1	1	b1cd6f606f7fd772
+mut	2	del	22	1	1	b1cd6f606f7fd772
+mut	2	del	23	1	1	b1cd6f606f7fd772
+mut	2	del	24	1	1	8dc1c139c2f7d4ce
+mut	2	del	25	1	1	6fc478577e1a15b5
+mut	2	del	26	1	1	548ba55a7e6ad74e
+mut	2	del	27	1	1	b1cd6f606f7fd772
+mut	2	del	28	1	1	b1cd6f606f7fd772
+mut	2	del	29	1	1	7ac07e0c44701738
+mut	2	del	30	1	1	9d031b1907097041
+mut	2	del	31	1	1	a79f017ebc395f41
+mut	2	del	32	1	1	b1cd6f606f7fd772
+mut	2	del	33	1	1	b1cd6f606f7fd772
+mut	2	del	34	1	1	b1cd6f606f7fd772
+mut	2	del	35	1	1	53c762aa1445c0d0
+mut	2	del	36	1	1	d72a081d1d38ec5e
+mut	2	del	37	1	1	79e70d70af606f7d
+mut	2	del	38	1	1	b1cd6f606f7fd772
+mut	2	del	39	1	1	b1cd6f606f7fd772
+mut	2	del	40	1	1	b1cd6f606f7fd772
+mut	2	del	41	1	1	b1cd6f606f7fd772
+mut	2	del	42	1	1	b1cd6f606f7fd772
+mut	2	del	43	1	1	b1cd6f606f7fd772
+mut	2	del	44	1	1	b1cd6f606f7fd772
+mut	2	del	45	1	1	b1cd6f606f7fd772
+mut	2	del	46	1	1	b1cd6f606f7fd772
+mut	2	del	47	1	1	62e61fd14378dc83
+mut	2	del	48	1	1	b1cd6f606f7fd772
+mut	2	del	49	1	1	b1cd6f606f7fd772
+mut	2	del	50	1	1	b1cd6f606f7fd772
+mut	2	del	51	1	1	b1cd6f606f7fd772
+mut	2	del	52	1	1	b1cd6f606f7fd772
+mut	2	del	53	1	1	b1cd6f606f7fd772
+mut	2	del	54	1	1	b1cd6f606f7fd772
+mut	2	del	55	1	1	b1cd6f606f7fd772
+mut	2	del	56	1	1	62e61fd14378dc83
+mut	2	del	57	1	1	b1cd6f606f7fd772
+mut	2	del	58	1	1	b1cd6f606f7fd772
+mut	2	del	59	1	1	b1cd6f606f7fd772
+mut	2	del	60	1	1	b1cd6f606f7fd772
+mut	2	del	61	1	1	b1cd6f606f7fd772
+mut	2	del	62	1	1	b1cd6f606f7fd772
+mut	2	del	63	1	1	b1cd6f606f7fd772
+mut	2	del	64	1	1	b1cd6f606f7fd772
+mut	2	del	65	1	1	b1cd6f606f7fd772
+mut	2	del	66	1	1	62e61fd14378dc83
+mut	2	del	67	1	1	b1cd6f606f7fd772
+mut	2	del	68	1	1	b1cd6f606f7fd772
+mut	2	del	69	1	1	b1cd6f606f7fd772
+mut	2	del	70	1	1	b1cd6f606f7fd772
+mut	2	del	71	1	1	b1cd6f606f7fd772
+mut	2	del	72	1	1	b1cd6f606f7fd772
+mut	2	del	73	1	1	b1cd6f606f7fd772

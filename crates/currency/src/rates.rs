@@ -2,6 +2,8 @@
 
 use std::collections::BTreeMap;
 
+use serde::Deserialize;
+
 use crate::{
     errors::{ConversionNotFoundError, RateError},
     iso4217::{Unit, parse_iso},
@@ -16,7 +18,10 @@ use crate::{
 pub type ConversionRates = BTreeMap<String, Option<BTreeMap<String, f64>>>;
 
 /// Currency rates, as in the currency file `{"conversions": {...}}` (Go: `currency.Rates`).
-#[derive(Debug, Clone, Default, PartialEq)]
+///
+/// It decodes from the currency file as Go's `json:"conversions"` tag reads it, through serde;
+/// where serde reads a document otherwise than jsoniter is `currency.rates-json`.
+#[derive(Debug, Clone, Default, PartialEq, Deserialize)]
 pub struct Rates {
     /// Go: `Conversions`; `None` is Go's nil map, which [`Conversions::get_rate`] reports as
     /// `rates are nil`, unlike an empty map.
@@ -241,6 +246,8 @@ mod tests {
 
     #[test]
     fn intermediate_pivot_is_the_smallest_code() -> TestResult {
+        // Go: currency/rates.go:26-37 (FindIntermediateConversionRate returns the first pivot
+        // in map order)
         let rates = Rates::new(Some(conversion_rates(&[
             ("USD", &[("GBP", 0.8), ("SEK", 10.0)]),
             ("EUR", &[("GBP", 0.88), ("SEK", 11.5)]),
@@ -254,6 +261,7 @@ mod tests {
 
     #[test]
     fn get_rates_points_at_the_conversions() -> TestResult {
+        // Go: currency/rates.go:73-75 (GetRates returns &r.Conversions)
         let rates = Rates::new(None);
         check_eq(
             &rates.get_rates().map(|r| r.conversions.is_none()),
@@ -264,6 +272,7 @@ mod tests {
 
     #[test]
     fn go_golden_get_rate() -> TestResult {
+        // Go: currency/rates.go:44-70 (GetRate over the get_rate.golden tables)
         let mut tables = BTreeMap::new();
         let mut checked = 0_usize;
         for fields in read_golden("get_rate.golden")? {
@@ -285,6 +294,7 @@ mod tests {
 
     #[tokio::test]
     async fn go_random_get_rate() -> TestResult {
+        // Go: currency/rates.go:44-70 (GetRate)
         // Random tables (testdata/go/random.go) with lower- and mixed-case keys, XXX, XTS and
         // historic codes, zero, negative zero and subnormal rates, and rates with up to 17
         // decimals, so reverse and intermediate rates round. The pivot corpus uses few codes,
@@ -302,6 +312,8 @@ mod tests {
 
     #[test]
     fn hex_helper_round_trips() -> TestResult {
+        // Go: crates/currency/testdata/go/main.go:65 (hx, the hex.EncodeToString the goldens are
+        // written with)
         check_eq(&hex_decode("55534400")?, &b"USD\0".to_vec(), "hex")
     }
 }

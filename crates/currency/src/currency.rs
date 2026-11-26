@@ -54,12 +54,12 @@ pub fn get_auction_currency_rates(
 
 #[cfg(test)]
 mod tests {
-    use std::{sync::Arc, time::Duration};
+    use std::time::Duration;
 
     use super::{RequestCurrency, get_auction_currency_rates};
     use crate::{
         currency_mock::MockCurrencyRatesHttpClient,
-        golden::{TestResult, check, check_eq, conversion_rates},
+        golden::{FAKE_URL, TestResult, check, check_eq, conversion_rates},
         rate_converter::RateConverter,
         rates::ConversionRates,
     };
@@ -98,13 +98,14 @@ mod tests {
             r#"{"dataAsOf":"2018-09-12","conversions":"#,
             r#"{"MXN":{"EUR":27.82,"JPY":5.09,"USD":20.13}}}"#,
         );
-        let client = Arc::new(MockCurrencyRatesHttpClient {
+        let client = MockCurrencyRatesHttpClient {
             response_body: body.to_owned(),
-        });
+        }
+        .into_client();
         let converter = RateConverter::new(
             client,
             Duration::from_secs(60),
-            "currency.fake.com".to_owned(),
+            FAKE_URL.to_owned(),
             Duration::from_hours(24),
         );
         let _result = converter.run().await;
@@ -217,6 +218,7 @@ mod tests {
 
     #[tokio::test]
     async fn empty_custom_rates_use_the_server_rates() -> TestResult {
+        // Go: currency/currency.go:33-37 (empty request rates: the PBS rates only)
         let converter = mock_rate_converter().await;
         let empty = ConversionRates::new();
         let request = RequestCurrency {
