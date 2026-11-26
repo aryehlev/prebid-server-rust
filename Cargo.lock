@@ -1217,7 +1217,9 @@ dependencies = [
  "pbs-errortypes",
  "pbs-gocompat",
  "pbs-gojson",
+ "pbs-jsonutil",
  "pbs-openrtb",
+ "serde",
  "serde_json",
 ]
 

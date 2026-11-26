@@ -4,11 +4,41 @@
 //! `map[K]V` where Go's name the named type (`json: cannot unmarshal array into Go value of type
 //! openrtb_ext.DealTierBidderMap`), and a non-`null` literal behind a pointer would leave an empty
 //! map where Go leaves the map nil. jsoniter and the encoders behave as derived.
+//!
+//! The serde impls are those a generated named type has: the map reads and writes as the
+//! `Option<BTreeMap>` it holds (`#[serde(transparent)]`), and merges as that map does.
 
-/// Implements `GoType`, `GoEncode`, `JsoniterDecode` and `StdDecode` for `$name`, a newtype of
-/// `Option<BTreeMap<$key, $value>>` (nil is `None`) that Go names `$go`.
+/// Implements `GoType`, `GoEncode`, `JsoniterDecode`, `StdDecode`, `Serialize`, `Deserialize`
+/// and `MergeClone` for `$name`, a newtype of `Option<BTreeMap<$key, $value>>` (nil is `None`)
+/// that Go names `$go`.
 macro_rules! named_map {
     ($name:ident, $go:literal, $key:ty, $value:ty) => {
+        impl ::serde::Serialize for $name {
+            fn serialize<S: ::serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+                ::serde::Serialize::serialize(&self.0, serializer)
+            }
+        }
+
+        impl<'de> ::serde::Deserialize<'de> for $name {
+            fn deserialize<D: ::serde::Deserializer<'de>>(
+                deserializer: D,
+            ) -> Result<Self, D::Error> {
+                <Option<BTreeMap<$key, $value>> as ::serde::Deserialize<'de>>::deserialize(
+                    deserializer,
+                )
+                .map(Self)
+            }
+        }
+
+        impl ::pbs_jsonutil::MergeClone for $name {
+            fn merge_clone(
+                &mut self,
+                patch: &::serde_json::value::RawValue,
+            ) -> Result<(), ::pbs_jsonutil::MergeCloneError> {
+                ::pbs_jsonutil::MergeClone::merge_clone(&mut self.0, patch)
+            }
+        }
+
         impl ::pbs_gojson::GoType for $name {
             const KIND: ::pbs_gojson::GoKind =
                 <Option<BTreeMap<$key, $value>> as ::pbs_gojson::GoType>::KIND;

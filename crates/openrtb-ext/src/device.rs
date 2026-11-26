@@ -7,6 +7,11 @@ use pbs_gojson::{
     GoJson, GoUnmarshaler, JsonError,
     jsonparser::{self, ParserError, ValueType},
 };
+use pbs_jsonutil::{MergeClone, MergeCloneError};
+use serde::{
+    Deserialize, Deserializer, Serialize, Serializer, de::Error as _, ser::SerializeStruct as _,
+};
+use serde_json::value::RawValue;
 
 use crate::generated::{
     IOS_APP_TRACKING_STATUS_AUTHORIZED, IOS_APP_TRACKING_STATUS_DENIED,
@@ -63,6 +68,86 @@ fn percentage(data: &[u8], key: &str) -> Result<i64, JsonError> {
     match strconv::atoi(text) {
         Ok(perc) if (0..=100).contains(&perc) => Ok(perc),
         Ok(_) | Err(_) => Err(invalid()),
+    }
+}
+
+/// The members `jsonparser.Get` finds for `(*ExtDeviceInt).UnmarshalJSON`, read as a typed
+/// partial struct: an object's `minwidthperc` and `minheightperc`, raw. A repeated member fails
+/// the read, where jsonparser takes the first (`json.duplicate-keys`).
+#[derive(Deserialize)]
+struct PercentMembers<'a> {
+    /// The raw value of `minwidthperc`, `None` when absent or null.
+    #[serde(borrow)]
+    minwidthperc: Option<&'a RawValue>,
+    /// The raw value of `minheightperc`, `None` when absent or null.
+    #[serde(borrow)]
+    minheightperc: Option<&'a RawValue>,
+}
+
+impl ExtDeviceInt {
+    /// Go: `(*ExtDeviceInt).UnmarshalJSON(b)` for the JSON value `raw`: each percentage must be
+    /// a JSON number `strconv.Atoi` reads as 0 to 100. The width is set before the height is
+    /// read, so a bad height leaves a good width set, as in Go.
+    ///
+    /// Go's `len(b) == 0` test has no counterpart: serde hands over one JSON value. jsonparser
+    /// finds no member in a value that is not an object, as here, and its `Null` type fails the
+    /// number test as `None` does.
+    fn read(&mut self, raw: &RawValue) -> Result<(), String> {
+        // Go: openrtb_ext/device.go:80
+        let members = if raw.get().starts_with('{') {
+            serde_json::from_str(raw.get()).map_err(|e| e.to_string())?
+        } else {
+            PercentMembers {
+                minwidthperc: None,
+                minheightperc: None,
+            }
+        };
+        self.min_width_perc = raw_percentage(members.minwidthperc, "minwidthperc")?;
+        self.min_height_perc = raw_percentage(members.minheightperc, "minheightperc")?;
+        Ok(())
+    }
+}
+
+/// Go: one percentage of `(*ExtDeviceInt).UnmarshalJSON`: a JSON number (jsonparser's `Number`
+/// type: a value that starts with `-` or a digit) that `strconv.Atoi` reads as 0 to 100.
+fn raw_percentage(value: Option<&RawValue>, key: &str) -> Result<i64, String> {
+    let text = value.map_or("", RawValue::get);
+    if matches!(text.as_bytes().first(), Some(b'-' | b'0'..=b'9'))
+        && let Ok(perc) = strconv::atoi(text)
+        && (0..=100).contains(&perc)
+    {
+        return Ok(perc);
+    }
+    Err(format!(
+        "request.device.ext.prebid.interstitial.{key} must be a number between 0 and 100"
+    ))
+}
+
+impl Serialize for ExtDeviceInt {
+    /// Go has no `MarshalJSON`: the struct, both members always written.
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        let mut out = serializer.serialize_struct("ExtDeviceInt", 2)?;
+        out.serialize_field("minwidthperc", &self.min_width_perc)?;
+        out.serialize_field("minheightperc", &self.min_height_perc)?;
+        out.end()
+    }
+}
+
+impl<'de> Deserialize<'de> for ExtDeviceInt {
+    /// Reads through Go's `UnmarshalJSON` (see `ExtDeviceInt::read`); null fails as Go's does.
+    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        let raw = Box::<RawValue>::deserialize(deserializer)?;
+        let mut interstitial = Self::default();
+        interstitial.read(&raw).map_err(D::Error::custom)?;
+        Ok(interstitial)
+    }
+}
+
+impl MergeClone for ExtDeviceInt {
+    /// Go: jsoniter hands the patch, null included, to `UnmarshalJSON`, which reads it over the
+    /// value as `ExtDeviceInt::read` does.
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        self.read(patch).map_err(MergeCloneError::new)
     }
 }
 

@@ -10,8 +10,12 @@
 use std::collections::BTreeMap;
 
 use pbs_gojson::{GoJson, JsonNumber, RawJson, jsonutil};
-use pbs_openrtb::{adcom1, openrtb2};
-use serde_json::Value;
+use pbs_jsonutil::{
+    MergeClone, MergeCloneError, is_nil_or_empty, is_zero, merge_field, merge_struct, null_default,
+};
+use pbs_openrtb::{adcom1, gojson_bridge, openrtb2};
+use serde::{Deserialize, Serialize};
+use serde_json::{Value, value::RawValue};
 
 use super::{
     AdjustmentsByDealID, BidType, BidderName, CookieStatus, ExtDeviceInt, ExtHttpCalls,
@@ -23,62 +27,143 @@ use super::{
 /// ExtAlternateBidderCodes defines list of alternate bidder codes allowed by adatpers. This
 /// overrides host level configs.
 /// ```
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtAlternateBidderCodes")]
 pub struct ExtAlternateBidderCodes {
     /// Go field `Enabled`.
+    #[serde(rename = "enabled", deserialize_with = "null_default")]
     #[gojson(go = "Enabled", json = "enabled")]
     pub enabled: bool,
     /// Go field `Bidders`.
+    #[serde(rename = "bidders")]
     #[gojson(go = "Bidders", json = "bidders")]
     pub bidders: Option<BTreeMap<String, ExtAdapterAlternateBidderCodes>>,
 }
 
+impl MergeClone for ExtAlternateBidderCodes {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtAlternateBidderCodes";
+        merge_struct(patch, |key, value| match key {
+            "enabled" => merge_field(&mut self.enabled, value, GO_TYPE, "Enabled"),
+            "bidders" => merge_field(&mut self.bidders, value, GO_TYPE, "Bidders"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ExtAdapterAlternateBidderCodes`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtAdapterAlternateBidderCodes")]
 pub struct ExtAdapterAlternateBidderCodes {
     /// Go field `Enabled`.
+    #[serde(rename = "enabled", deserialize_with = "null_default")]
     #[gojson(go = "Enabled", json = "enabled")]
     pub enabled: bool,
     /// Go field `AllowedBidderCodes`.
+    #[serde(rename = "allowedbiddercodes")]
     #[gojson(go = "AllowedBidderCodes", json = "allowedbiddercodes")]
     pub allowed_bidder_codes: Option<Vec<String>>,
 }
 
+impl MergeClone for ExtAdapterAlternateBidderCodes {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtAdapterAlternateBidderCodes";
+        merge_struct(patch, |key, value| match key {
+            "enabled" => merge_field(&mut self.enabled, value, GO_TYPE, "Enabled"),
+            "allowedbiddercodes" => merge_field(
+                &mut self.allowed_bidder_codes,
+                value,
+                GO_TYPE,
+                "AllowedBidderCodes",
+            ),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// `ExtApp` defines the contract for bidrequest.app.ext
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtApp")]
 pub struct ExtApp {
     /// Go field `Prebid`.
+    #[serde(rename = "prebid", deserialize_with = "null_default")]
     #[gojson(go = "Prebid", json = "prebid")]
     pub prebid: ExtAppPrebid,
 }
 
+impl MergeClone for ExtApp {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtApp";
+        merge_struct(patch, |key, value| match key {
+            "prebid" => merge_field(&mut self.prebid, value, GO_TYPE, "Prebid"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// `ExtAppPrebid` further defines the contract for bidrequest.app.ext.prebid.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtAppPrebid")]
 pub struct ExtAppPrebid {
     /// Go field `Source`.
+    #[serde(
+        rename = "source",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Source", json = "source,omitempty")]
     pub source: String,
     /// Go field `Version`.
+    #[serde(
+        rename = "version",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Version", json = "version,omitempty")]
     pub version: String,
+}
+
+impl MergeClone for ExtAppPrebid {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtAppPrebid";
+        merge_struct(patch, |key, value| match key {
+            "source" => merge_field(&mut self.source, value, GO_TYPE, "Source"),
+            "version" => merge_field(&mut self.version, value, GO_TYPE, "Version"),
+            _ => Ok(()),
+        })
+    }
 }
 
 /// ```text
 /// ExtBid defines the contract for bidresponse.seatbid.bid[i].ext
 /// ```
-#[derive(Clone, Debug, Default, PartialEq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtBid")]
 pub struct ExtBid {
     /// Go field `DSA`.
+    #[serde(rename = "dsa", skip_serializing_if = "Option::is_none")]
     #[gojson(go = "DSA", json = "dsa,omitempty")]
     pub dsa: Option<Box<ExtBidDSA>>,
     /// Go field `Prebid`.
+    #[serde(rename = "prebid", skip_serializing_if = "Option::is_none")]
     #[gojson(go = "Prebid", json = "prebid,omitempty")]
     pub prebid: Option<Box<ExtBidPrebid>>,
+}
+
+impl MergeClone for ExtBid {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtBid";
+        merge_struct(patch, |key, value| match key {
+            "dsa" => merge_field(&mut self.dsa, value, GO_TYPE, "DSA"),
+            "prebid" => merge_field(&mut self.prebid, value, GO_TYPE, "Prebid"),
+            _ => Ok(()),
+        })
+    }
 }
 
 /// ```text
@@ -86,207 +171,566 @@ pub struct ExtBid {
 /// DealPriority represents priority of deal bid. If its non deal bid then value will be 0
 /// DealTierSatisfied true represents corresponding bid has satisfied the deal tier
 /// ```
-#[derive(Clone, Debug, Default, PartialEq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtBidPrebid")]
 pub struct ExtBidPrebid {
     /// Go field `Cache`.
+    #[serde(rename = "cache", skip_serializing_if = "Option::is_none")]
     #[gojson(go = "Cache", json = "cache,omitempty")]
     pub cache: Option<Box<ExtBidPrebidCache>>,
     /// Go field `DealPriority`.
+    #[serde(
+        rename = "dealpriority",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "DealPriority", json = "dealpriority,omitempty")]
     pub deal_priority: isize,
     /// Go field `DealTierSatisfied`.
+    #[serde(
+        rename = "dealtiersatisfied",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "DealTierSatisfied", json = "dealtiersatisfied,omitempty")]
     pub deal_tier_satisfied: bool,
     /// Go field `Meta`.
+    #[serde(rename = "meta", skip_serializing_if = "Option::is_none")]
     #[gojson(go = "Meta", json = "meta,omitempty")]
     pub meta: Option<Box<ExtBidPrebidMeta>>,
     /// Go field `Targeting`.
+    #[serde(rename = "targeting", skip_serializing_if = "is_nil_or_empty")]
     #[gojson(go = "Targeting", json = "targeting,omitempty")]
     pub targeting: Option<BTreeMap<String, String>>,
     /// Go field `TargetBidderCode`.
+    #[serde(
+        rename = "targetbiddercode",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "TargetBidderCode", json = "targetbiddercode,omitempty")]
     pub target_bidder_code: String,
     /// Go field `Type`.
+    #[serde(
+        rename = "type",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Type", json = "type,omitempty")]
     pub r#type: BidType,
     /// Go field `Video`.
+    #[serde(rename = "video", skip_serializing_if = "Option::is_none")]
     #[gojson(go = "Video", json = "video,omitempty")]
     pub video: Option<Box<ExtBidPrebidVideo>>,
     /// Go field `Events`.
+    #[serde(rename = "events", skip_serializing_if = "Option::is_none")]
     #[gojson(go = "Events", json = "events,omitempty")]
     pub events: Option<Box<ExtBidPrebidEvents>>,
     /// Go field `BidId`.
+    #[serde(
+        rename = "bidid",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "BidId", json = "bidid,omitempty")]
     pub bid_id: String,
     /// Go field `Passthrough`.
+    #[serde(
+        rename = "passthrough",
+        skip_serializing_if = "gojson_bridge::raw_json::is_empty",
+        with = "gojson_bridge::raw_json"
+    )]
     #[gojson(go = "Passthrough", json = "passthrough,omitempty")]
     pub passthrough: RawJson,
     /// Go field `Floors`.
+    #[serde(rename = "floors", skip_serializing_if = "Option::is_none")]
     #[gojson(go = "Floors", json = "floors,omitempty")]
     pub floors: Option<Box<ExtBidPrebidFloors>>,
+}
+
+impl MergeClone for ExtBidPrebid {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtBidPrebid";
+        merge_struct(patch, |key, value| match key {
+            "cache" => merge_field(&mut self.cache, value, GO_TYPE, "Cache"),
+            "dealpriority" => {
+                gojson_bridge::merge_field(&mut self.deal_priority, value, GO_TYPE, "DealPriority")
+            }
+            "dealtiersatisfied" => merge_field(
+                &mut self.deal_tier_satisfied,
+                value,
+                GO_TYPE,
+                "DealTierSatisfied",
+            ),
+            "meta" => merge_field(&mut self.meta, value, GO_TYPE, "Meta"),
+            "targeting" => merge_field(&mut self.targeting, value, GO_TYPE, "Targeting"),
+            "targetbiddercode" => merge_field(
+                &mut self.target_bidder_code,
+                value,
+                GO_TYPE,
+                "TargetBidderCode",
+            ),
+            "type" => merge_field(&mut self.r#type, value, GO_TYPE, "Type"),
+            "video" => merge_field(&mut self.video, value, GO_TYPE, "Video"),
+            "events" => merge_field(&mut self.events, value, GO_TYPE, "Events"),
+            "bidid" => merge_field(&mut self.bid_id, value, GO_TYPE, "BidId"),
+            "passthrough" => {
+                gojson_bridge::merge_field(&mut self.passthrough, value, GO_TYPE, "Passthrough")
+            }
+            "floors" => merge_field(&mut self.floors, value, GO_TYPE, "Floors"),
+            _ => Ok(()),
+        })
+    }
 }
 
 /// ```text
 /// ExtBidPrebidFloors defines the contract for bidresponse.seatbid.bid[i].ext.prebid.floors
 /// ```
-#[derive(Clone, Debug, Default, PartialEq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtBidPrebidFloors")]
 pub struct ExtBidPrebidFloors {
     /// Go field `FloorRule`.
+    #[serde(
+        rename = "floorRule",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "FloorRule", json = "floorRule,omitempty")]
     pub floor_rule: String,
     /// Go field `FloorRuleValue`.
+    #[serde(
+        rename = "floorRuleValue",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "FloorRuleValue", json = "floorRuleValue,omitempty")]
     pub floor_rule_value: f64,
     /// Go field `FloorValue`.
+    #[serde(
+        rename = "floorValue",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "FloorValue", json = "floorValue,omitempty")]
     pub floor_value: f64,
     /// Go field `FloorCurrency`.
+    #[serde(
+        rename = "floorCurrency",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "FloorCurrency", json = "floorCurrency,omitempty")]
     pub floor_currency: String,
+}
+
+impl MergeClone for ExtBidPrebidFloors {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtBidPrebidFloors";
+        merge_struct(patch, |key, value| match key {
+            "floorRule" => merge_field(&mut self.floor_rule, value, GO_TYPE, "FloorRule"),
+            "floorRuleValue" => {
+                merge_field(&mut self.floor_rule_value, value, GO_TYPE, "FloorRuleValue")
+            }
+            "floorValue" => merge_field(&mut self.floor_value, value, GO_TYPE, "FloorValue"),
+            "floorCurrency" => {
+                merge_field(&mut self.floor_currency, value, GO_TYPE, "FloorCurrency")
+            }
+            _ => Ok(()),
+        })
+    }
 }
 
 /// ```text
 /// ExtBidPrebidCache defines the contract for  bidresponse.seatbid.bid[i].ext.prebid.cache
 /// ```
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtBidPrebidCache")]
 pub struct ExtBidPrebidCache {
     /// Go field `Key`.
+    #[serde(rename = "key", deserialize_with = "null_default")]
     #[gojson(go = "Key", json = "key")]
     pub key: String,
     /// Go field `Url`.
+    #[serde(rename = "url", deserialize_with = "null_default")]
     #[gojson(go = "Url", json = "url")]
     pub url: String,
     /// Go field `Bids`.
+    #[serde(rename = "bids", skip_serializing_if = "Option::is_none")]
     #[gojson(go = "Bids", json = "bids,omitempty")]
     pub bids: Option<Box<ExtBidPrebidCacheBids>>,
 }
 
+impl MergeClone for ExtBidPrebidCache {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtBidPrebidCache";
+        merge_struct(patch, |key, value| match key {
+            "key" => merge_field(&mut self.key, value, GO_TYPE, "Key"),
+            "url" => merge_field(&mut self.url, value, GO_TYPE, "Url"),
+            "bids" => merge_field(&mut self.bids, value, GO_TYPE, "Bids"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ExtBidPrebidCacheBids`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtBidPrebidCacheBids")]
 pub struct ExtBidPrebidCacheBids {
     /// Go field `Url`.
+    #[serde(rename = "url", deserialize_with = "null_default")]
     #[gojson(go = "Url", json = "url")]
     pub url: String,
     /// Go field `CacheId`.
+    #[serde(rename = "cacheId", deserialize_with = "null_default")]
     #[gojson(go = "CacheId", json = "cacheId")]
     pub cache_id: String,
+}
+
+impl MergeClone for ExtBidPrebidCacheBids {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtBidPrebidCacheBids";
+        merge_struct(patch, |key, value| match key {
+            "url" => merge_field(&mut self.url, value, GO_TYPE, "Url"),
+            "cacheId" => merge_field(&mut self.cache_id, value, GO_TYPE, "CacheId"),
+            _ => Ok(()),
+        })
+    }
 }
 
 /// ```text
 /// ExtBidPrebidMeta defines the contract for bidresponse.seatbid.bid[i].ext.prebid.meta
 /// ```
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtBidPrebidMeta")]
 pub struct ExtBidPrebidMeta {
     /// Go field `AdapterCode`.
+    #[serde(
+        rename = "adaptercode",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "AdapterCode", json = "adaptercode,omitempty")]
     pub adapter_code: String,
     /// Go field `AdvertiserDomains`.
+    #[serde(rename = "advertiserDomains", skip_serializing_if = "is_nil_or_empty")]
     #[gojson(go = "AdvertiserDomains", json = "advertiserDomains,omitempty")]
     pub advertiser_domains: Option<Vec<String>>,
     /// Go field `AdvertiserID`.
+    #[serde(
+        rename = "advertiserId",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "AdvertiserID", json = "advertiserId,omitempty")]
     pub advertiser_id: isize,
     /// Go field `AdvertiserName`.
+    #[serde(
+        rename = "advertiserName",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "AdvertiserName", json = "advertiserName,omitempty")]
     pub advertiser_name: String,
     /// Go field `AgencyID`.
+    #[serde(
+        rename = "agencyId",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "AgencyID", json = "agencyId,omitempty")]
     pub agency_id: isize,
     /// Go field `AgencyName`.
+    #[serde(
+        rename = "agencyName",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "AgencyName", json = "agencyName,omitempty")]
     pub agency_name: String,
     /// Go field `BrandID`.
+    #[serde(
+        rename = "brandId",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "BrandID", json = "brandId,omitempty")]
     pub brand_id: isize,
     /// Go field `BrandName`.
+    #[serde(
+        rename = "brandName",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "BrandName", json = "brandName,omitempty")]
     pub brand_name: String,
     /// Go field `DChain`.
+    #[serde(
+        rename = "dchain",
+        skip_serializing_if = "gojson_bridge::raw_json::is_empty",
+        with = "gojson_bridge::raw_json"
+    )]
     #[gojson(go = "DChain", json = "dchain,omitempty")]
     pub d_chain: RawJson,
     /// Go field `DemandSource`.
+    #[serde(
+        rename = "demandSource",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "DemandSource", json = "demandSource,omitempty")]
     pub demand_source: String,
     /// Go field `MediaType`.
+    #[serde(
+        rename = "mediaType",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "MediaType", json = "mediaType,omitempty")]
     pub media_type: String,
     /// Go field `NetworkID`.
+    #[serde(
+        rename = "networkId",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "NetworkID", json = "networkId,omitempty")]
     pub network_id: isize,
     /// Go field `NetworkName`.
+    #[serde(
+        rename = "networkName",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "NetworkName", json = "networkName,omitempty")]
     pub network_name: String,
     /// Go field `PrimaryCategoryID`.
+    #[serde(
+        rename = "primaryCatId",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "PrimaryCategoryID", json = "primaryCatId,omitempty")]
     pub primary_category_id: String,
     /// Go field `RendererName`.
+    #[serde(
+        rename = "rendererName",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "RendererName", json = "rendererName,omitempty")]
     pub renderer_name: String,
     /// Go field `RendererVersion`.
+    #[serde(
+        rename = "rendererVersion",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "RendererVersion", json = "rendererVersion,omitempty")]
     pub renderer_version: String,
     /// Go field `RendererData`.
+    #[serde(
+        rename = "rendererData",
+        skip_serializing_if = "gojson_bridge::raw_json::is_empty",
+        with = "gojson_bridge::raw_json"
+    )]
     #[gojson(go = "RendererData", json = "rendererData,omitempty")]
     pub renderer_data: RawJson,
     /// Go field `RendererUrl`.
+    #[serde(
+        rename = "rendererUrl",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "RendererUrl", json = "rendererUrl,omitempty")]
     pub renderer_url: String,
     /// Go field `SecondaryCategoryIDs`.
+    #[serde(rename = "secondaryCatIds", skip_serializing_if = "is_nil_or_empty")]
     #[gojson(go = "SecondaryCategoryIDs", json = "secondaryCatIds,omitempty")]
     pub secondary_category_ids: Option<Vec<String>>,
     /// Go field `Seat`.
+    #[serde(
+        rename = "seat",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Seat", json = "seat,omitempty")]
     pub seat: String,
+}
+
+impl MergeClone for ExtBidPrebidMeta {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtBidPrebidMeta";
+        merge_struct(patch, |key, value| match key {
+            "adaptercode" => merge_field(&mut self.adapter_code, value, GO_TYPE, "AdapterCode"),
+            "advertiserDomains" => merge_field(
+                &mut self.advertiser_domains,
+                value,
+                GO_TYPE,
+                "AdvertiserDomains",
+            ),
+            "advertiserId" => {
+                gojson_bridge::merge_field(&mut self.advertiser_id, value, GO_TYPE, "AdvertiserID")
+            }
+            "advertiserName" => {
+                merge_field(&mut self.advertiser_name, value, GO_TYPE, "AdvertiserName")
+            }
+            "agencyId" => {
+                gojson_bridge::merge_field(&mut self.agency_id, value, GO_TYPE, "AgencyID")
+            }
+            "agencyName" => merge_field(&mut self.agency_name, value, GO_TYPE, "AgencyName"),
+            "brandId" => gojson_bridge::merge_field(&mut self.brand_id, value, GO_TYPE, "BrandID"),
+            "brandName" => merge_field(&mut self.brand_name, value, GO_TYPE, "BrandName"),
+            "dchain" => gojson_bridge::merge_field(&mut self.d_chain, value, GO_TYPE, "DChain"),
+            "demandSource" => merge_field(&mut self.demand_source, value, GO_TYPE, "DemandSource"),
+            "mediaType" => merge_field(&mut self.media_type, value, GO_TYPE, "MediaType"),
+            "networkId" => {
+                gojson_bridge::merge_field(&mut self.network_id, value, GO_TYPE, "NetworkID")
+            }
+            "networkName" => merge_field(&mut self.network_name, value, GO_TYPE, "NetworkName"),
+            "primaryCatId" => merge_field(
+                &mut self.primary_category_id,
+                value,
+                GO_TYPE,
+                "PrimaryCategoryID",
+            ),
+            "rendererName" => merge_field(&mut self.renderer_name, value, GO_TYPE, "RendererName"),
+            "rendererVersion" => merge_field(
+                &mut self.renderer_version,
+                value,
+                GO_TYPE,
+                "RendererVersion",
+            ),
+            "rendererData" => {
+                gojson_bridge::merge_field(&mut self.renderer_data, value, GO_TYPE, "RendererData")
+            }
+            "rendererUrl" => merge_field(&mut self.renderer_url, value, GO_TYPE, "RendererUrl"),
+            "secondaryCatIds" => merge_field(
+                &mut self.secondary_category_ids,
+                value,
+                GO_TYPE,
+                "SecondaryCategoryIDs",
+            ),
+            "seat" => merge_field(&mut self.seat, value, GO_TYPE, "Seat"),
+            _ => Ok(()),
+        })
+    }
 }
 
 /// ```text
 /// ExtBidPrebidVideo defines the contract for bidresponse.seatbid.bid[i].ext.prebid.video
 /// ```
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtBidPrebidVideo")]
 pub struct ExtBidPrebidVideo {
     /// Go field `Duration`.
+    #[serde(rename = "duration", deserialize_with = "null_default")]
     #[gojson(go = "Duration", json = "duration")]
     pub duration: isize,
     /// Go field `PrimaryCategory`.
+    #[serde(rename = "primary_category", deserialize_with = "null_default")]
     #[gojson(go = "PrimaryCategory", json = "primary_category")]
     pub primary_category: String,
+}
+
+impl MergeClone for ExtBidPrebidVideo {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtBidPrebidVideo";
+        merge_struct(patch, |key, value| match key {
+            "duration" => {
+                gojson_bridge::merge_field(&mut self.duration, value, GO_TYPE, "Duration")
+            }
+            "primary_category" => merge_field(
+                &mut self.primary_category,
+                value,
+                GO_TYPE,
+                "PrimaryCategory",
+            ),
+            _ => Ok(()),
+        })
+    }
 }
 
 /// ```text
 /// ExtBidPrebidEvents defines the contract for bidresponse.seatbid.bid[i].ext.prebid.events
 /// ```
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtBidPrebidEvents")]
 pub struct ExtBidPrebidEvents {
     /// Go field `Win`.
+    #[serde(
+        rename = "win",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Win", json = "win,omitempty")]
     pub win: String,
     /// Go field `Imp`.
+    #[serde(
+        rename = "imp",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Imp", json = "imp,omitempty")]
     pub imp: String,
+}
+
+impl MergeClone for ExtBidPrebidEvents {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtBidPrebidEvents";
+        merge_struct(patch, |key, value| match key {
+            "win" => merge_field(&mut self.win, value, GO_TYPE, "Win"),
+            "imp" => merge_field(&mut self.imp, value, GO_TYPE, "Imp"),
+            _ => Ok(()),
+        })
+    }
 }
 
 /// ```text
 /// ExtBidDSA defines the contract for bidresponse.seatbid.bid[i].ext.dsa
 /// ```
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtBidDSA")]
 pub struct ExtBidDSA {
     /// Go field `AdRender`.
+    #[serde(rename = "adrender", skip_serializing_if = "Option::is_none")]
     #[gojson(go = "AdRender", json = "adrender,omitempty")]
     pub ad_render: Option<i8>,
     /// Go field `Behalf`.
+    #[serde(
+        rename = "behalf",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Behalf", json = "behalf,omitempty")]
     pub behalf: String,
     /// Go field `Paid`.
+    #[serde(
+        rename = "paid",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Paid", json = "paid,omitempty")]
     pub paid: String,
+}
+
+impl MergeClone for ExtBidDSA {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtBidDSA";
+        merge_struct(patch, |key, value| match key {
+            "adrender" => merge_field(&mut self.ad_render, value, GO_TYPE, "AdRender"),
+            "behalf" => merge_field(&mut self.behalf, value, GO_TYPE, "Behalf"),
+            "paid" => merge_field(&mut self.paid, value, GO_TYPE, "Paid"),
+            _ => Ok(()),
+        })
+    }
 }
 
 /// `EnvAppValue` used as a value for `EnvKey`
@@ -314,7 +758,8 @@ pub const ORIGINAL_BID_CUR_KEY: &str = "origbidcur";
 pub const PASSTHROUGH: &str = "passthrough";
 
 /// Go type `openrtb_ext.BidRequestVideo`.
-#[derive(Clone, Debug, Default, PartialEq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.BidRequestVideo")]
 pub struct BidRequestVideo {
     /// ```text
@@ -325,6 +770,7 @@ pub struct BidRequestVideo {
     /// Description:
     ///   Unique ID of the stored request
     /// ```
+    #[serde(rename = "storedrequestid", deserialize_with = "null_default")]
     #[gojson(go = "StoredRequestId", json = "storedrequestid")]
     pub stored_request_id: String,
     /// ```text
@@ -335,6 +781,7 @@ pub struct BidRequestVideo {
     /// Description:
     ///   Container object for describing all the pod configurations
     /// ```
+    #[serde(rename = "podconfig", deserialize_with = "null_default")]
     #[gojson(go = "PodConfig", json = "podconfig")]
     pub pod_config: PodConfig,
     /// ```text
@@ -345,6 +792,7 @@ pub struct BidRequestVideo {
     /// Description:
     ///   Application where the impression will be shown
     /// ```
+    #[serde(rename = "app")]
     #[gojson(go = "App", json = "app")]
     pub app: Option<Box<openrtb2::App>>,
     /// ```text
@@ -355,6 +803,7 @@ pub struct BidRequestVideo {
     /// Description:
     ///   Site where the impression will be shown
     /// ```
+    #[serde(rename = "site")]
     #[gojson(go = "Site", json = "site")]
     pub site: Option<Box<openrtb2::Site>>,
     /// ```text
@@ -365,6 +814,7 @@ pub struct BidRequestVideo {
     /// Description:
     ///   Container object for the user of of the actual device
     /// ```
+    #[serde(rename = "user", skip_serializing_if = "Option::is_none")]
     #[gojson(go = "User", json = "user,omitempty")]
     pub user: Option<Box<openrtb2::User>>,
     /// ```text
@@ -375,6 +825,7 @@ pub struct BidRequestVideo {
     /// Description:
     ///   Device specific data
     /// ```
+    #[serde(rename = "device", deserialize_with = "null_default")]
     #[gojson(go = "Device", json = "device,omitempty")]
     pub device: openrtb2::Device,
     /// ```text
@@ -385,6 +836,10 @@ pub struct BidRequestVideo {
     /// Description:
     ///   Indicates that the response requires an adserver specific content category
     /// ```
+    #[serde(
+        rename = "includebrandcategory",
+        skip_serializing_if = "Option::is_none"
+    )]
     #[gojson(go = "IncludeBrandCategory", json = "includebrandcategory,omitempty")]
     pub include_brand_category: Option<Box<IncludeBrandCategory>>,
     /// ```text
@@ -395,6 +850,7 @@ pub struct BidRequestVideo {
     /// Description:
     ///   Player container object
     /// ```
+    #[serde(rename = "video", skip_serializing_if = "Option::is_none")]
     #[gojson(go = "Video", json = "video,omitempty")]
     pub video: Option<Box<openrtb2::Video>>,
     /// ```text
@@ -405,6 +861,7 @@ pub struct BidRequestVideo {
     /// Description:
     ///  Misc content meta data that can be used for targeting the adPod(s)
     /// ```
+    #[serde(rename = "content", deserialize_with = "null_default")]
     #[gojson(go = "Content", json = "content,omitempty")]
     pub content: openrtb2::Content,
     /// ```text
@@ -415,6 +872,7 @@ pub struct BidRequestVideo {
     /// Description:
     ///  Container object for all Prebid Cache configs
     /// ```
+    #[serde(rename = "cacheconfig", deserialize_with = "null_default")]
     #[gojson(go = "Cacheconfig", json = "cacheconfig,omitempty")]
     pub cacheconfig: Cacheconfig,
     /// ```text
@@ -426,6 +884,11 @@ pub struct BidRequestVideo {
     ///    Indicator of test mode in which auctions are not billable,
     ///    where 0 = live mode, 1 = test mode.
     /// ```
+    #[serde(
+        rename = "test",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Test", json = "test,omitempty")]
     pub test: i8,
     /// ```text
@@ -436,6 +899,7 @@ pub struct BidRequestVideo {
     /// Description:
     ///    Object to tell ad server how much money the “bidder” demand is worth to you
     /// ```
+    #[serde(rename = "pricegranularity", skip_serializing_if = "Option::is_none")]
     #[gojson(go = "PriceGranularity", json = "pricegranularity,omitempty")]
     pub price_granularity: Option<Box<PriceGranularity>>,
     /// ```text
@@ -448,6 +912,11 @@ pub struct BidRequestVideo {
     ///    be received including Internet latency to avoid timeout. This
     ///    value supersedes any a priori guidance from the exchange.
     /// ```
+    #[serde(
+        rename = "tmax",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "TMax", json = "tmax,omitempty")]
     pub t_max: i64,
     /// ```text
@@ -459,6 +928,7 @@ pub struct BidRequestVideo {
     ///   Blocked advertiser categories using the IAB content
     ///   categories. Refer to List 5.1.
     /// ```
+    #[serde(rename = "bcat", skip_serializing_if = "is_nil_or_empty")]
     #[gojson(go = "BCat", json = "bcat,omitempty")]
     pub b_cat: Option<Vec<String>>,
     /// ```text
@@ -469,6 +939,7 @@ pub struct BidRequestVideo {
     /// Description:
     ///   Block list of advertisers by their domains (e.g., “ford.com”).
     /// ```
+    #[serde(rename = "badv", skip_serializing_if = "is_nil_or_empty")]
     #[gojson(go = "BAdv", json = "badv,omitempty")]
     pub b_adv: Option<Vec<String>>,
     /// ```text
@@ -479,6 +950,7 @@ pub struct BidRequestVideo {
     /// Description:
     ///   Contains the OpenRTB Regs object to be passed to OpenRTB request
     /// ```
+    #[serde(rename = "regs", skip_serializing_if = "Option::is_none")]
     #[gojson(go = "Regs", json = "regs,omitempty")]
     pub regs: Option<Box<openrtb2::Regs>>,
     /// ```text
@@ -489,6 +961,11 @@ pub struct BidRequestVideo {
     /// Description:
     ///   Indicates that the response should update key to include prefix and tier
     /// ```
+    #[serde(
+        rename = "supportdeals",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "SupportDeals", json = "supportdeals,omitempty")]
     pub support_deals: bool,
     /// ```text
@@ -498,12 +975,65 @@ pub struct BidRequestVideo {
     ///   boolean, optional
     ///  Flag indicating if the bidder name will be added to the hb_pb_cat_dur. Default is false.
     /// ```
+    #[serde(
+        rename = "appendbiddernames",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "AppendBidderNames", json = "appendbiddernames,omitempty")]
     pub append_bidder_names: bool,
 }
 
+impl MergeClone for BidRequestVideo {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.BidRequestVideo";
+        merge_struct(patch, |key, value| match key {
+            "storedrequestid" => merge_field(
+                &mut self.stored_request_id,
+                value,
+                GO_TYPE,
+                "StoredRequestId",
+            ),
+            "podconfig" => merge_field(&mut self.pod_config, value, GO_TYPE, "PodConfig"),
+            "app" => merge_field(&mut self.app, value, GO_TYPE, "App"),
+            "site" => merge_field(&mut self.site, value, GO_TYPE, "Site"),
+            "user" => merge_field(&mut self.user, value, GO_TYPE, "User"),
+            "device" => merge_field(&mut self.device, value, GO_TYPE, "Device"),
+            "includebrandcategory" => merge_field(
+                &mut self.include_brand_category,
+                value,
+                GO_TYPE,
+                "IncludeBrandCategory",
+            ),
+            "video" => merge_field(&mut self.video, value, GO_TYPE, "Video"),
+            "content" => merge_field(&mut self.content, value, GO_TYPE, "Content"),
+            "cacheconfig" => merge_field(&mut self.cacheconfig, value, GO_TYPE, "Cacheconfig"),
+            "test" => merge_field(&mut self.test, value, GO_TYPE, "Test"),
+            "pricegranularity" => merge_field(
+                &mut self.price_granularity,
+                value,
+                GO_TYPE,
+                "PriceGranularity",
+            ),
+            "tmax" => merge_field(&mut self.t_max, value, GO_TYPE, "TMax"),
+            "bcat" => merge_field(&mut self.b_cat, value, GO_TYPE, "BCat"),
+            "badv" => merge_field(&mut self.b_adv, value, GO_TYPE, "BAdv"),
+            "regs" => merge_field(&mut self.regs, value, GO_TYPE, "Regs"),
+            "supportdeals" => merge_field(&mut self.support_deals, value, GO_TYPE, "SupportDeals"),
+            "appendbiddernames" => merge_field(
+                &mut self.append_bidder_names,
+                value,
+                GO_TYPE,
+                "AppendBidderNames",
+            ),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.PodConfig`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.PodConfig")]
 pub struct PodConfig {
     /// ```text
@@ -514,6 +1044,7 @@ pub struct PodConfig {
     /// Description:
     ///  Range of ad durations allowed in the response
     /// ```
+    #[serde(rename = "durationrangesec")]
     #[gojson(go = "DurationRangeSec", json = "durationrangesec")]
     pub duration_range_sec: Option<Vec<isize>>,
     /// ```text
@@ -523,6 +1054,11 @@ pub struct PodConfig {
     ///   boolean, optional
     ///  Flag indicating exact ad duration requirement. Default is false.
     /// ```
+    #[serde(
+        rename = "requireexactduration",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "RequireExactDuration", json = "requireexactduration,omitempty")]
     pub require_exact_duration: bool,
     /// ```text
@@ -532,12 +1068,36 @@ pub struct PodConfig {
     ///   object; required
     ///  Container object for describing the adPod(s) to be requested.
     /// ```
+    #[serde(rename = "pods")]
     #[gojson(go = "Pods", json = "pods")]
     pub pods: Option<Vec<Pod>>,
 }
 
+impl MergeClone for PodConfig {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.PodConfig";
+        merge_struct(patch, |key, value| match key {
+            "durationrangesec" => gojson_bridge::merge_field(
+                &mut self.duration_range_sec,
+                value,
+                GO_TYPE,
+                "DurationRangeSec",
+            ),
+            "requireexactduration" => merge_field(
+                &mut self.require_exact_duration,
+                value,
+                GO_TYPE,
+                "RequireExactDuration",
+            ),
+            "pods" => merge_field(&mut self.pods, value, GO_TYPE, "Pods"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.Pod`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.Pod")]
 pub struct Pod {
     /// ```text
@@ -547,6 +1107,7 @@ pub struct Pod {
     ///   integer; required
     ///  Unique id of the pod within a particular request.
     /// ```
+    #[serde(rename = "podid", deserialize_with = "null_default")]
     #[gojson(go = "PodId", json = "podid")]
     pub pod_id: isize,
     /// ```text
@@ -556,6 +1117,7 @@ pub struct Pod {
     ///   integer; required
     ///  Duration of the adPod
     /// ```
+    #[serde(rename = "adpoddurationsec", deserialize_with = "null_default")]
     #[gojson(go = "AdPodDurationSec", json = "adpoddurationsec")]
     pub ad_pod_duration_sec: isize,
     /// ```text
@@ -565,12 +1127,31 @@ pub struct Pod {
     ///   string; required
     ///  ID of the stored config that corresponds to a single pod request
     /// ```
+    #[serde(rename = "configid", deserialize_with = "null_default")]
     #[gojson(go = "ConfigId", json = "configid")]
     pub config_id: String,
 }
 
+impl MergeClone for Pod {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.Pod";
+        merge_struct(patch, |key, value| match key {
+            "podid" => gojson_bridge::merge_field(&mut self.pod_id, value, GO_TYPE, "PodId"),
+            "adpoddurationsec" => gojson_bridge::merge_field(
+                &mut self.ad_pod_duration_sec,
+                value,
+                GO_TYPE,
+                "AdPodDurationSec",
+            ),
+            "configid" => merge_field(&mut self.config_id, value, GO_TYPE, "ConfigId"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.IncludeBrandCategory`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.IncludeBrandCategory")]
 pub struct IncludeBrandCategory {
     /// ```text
@@ -580,6 +1161,7 @@ pub struct IncludeBrandCategory {
     ///   int; optional
     ///  The ad server used by the publisher. Supported Values 1- Freewheel , 2- DFP
     /// ```
+    #[serde(rename = "primaryadserver", deserialize_with = "null_default")]
     #[gojson(go = "PrimaryAdserver", json = "primaryadserver")]
     pub primary_adserver: isize,
     /// ```text
@@ -589,6 +1171,7 @@ pub struct IncludeBrandCategory {
     ///   string; optional
     ///  Identifier for the Publisher
     /// ```
+    #[serde(rename = "publisher", deserialize_with = "null_default")]
     #[gojson(go = "Publisher", json = "publisher")]
     pub publisher: String,
     /// ```text
@@ -599,12 +1182,39 @@ pub struct IncludeBrandCategory {
     /// Description:
     ///   Indicates if IAB categories should be translated to adserver category
     /// ```
+    #[serde(
+        rename = "translatecategories",
+        skip_serializing_if = "Option::is_none"
+    )]
     #[gojson(go = "TranslateCategories", json = "translatecategories,omitempty")]
     pub translate_categories: Option<bool>,
 }
 
+impl MergeClone for IncludeBrandCategory {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.IncludeBrandCategory";
+        merge_struct(patch, |key, value| match key {
+            "primaryadserver" => gojson_bridge::merge_field(
+                &mut self.primary_adserver,
+                value,
+                GO_TYPE,
+                "PrimaryAdserver",
+            ),
+            "publisher" => merge_field(&mut self.publisher, value, GO_TYPE, "Publisher"),
+            "translatecategories" => merge_field(
+                &mut self.translate_categories,
+                value,
+                GO_TYPE,
+                "TranslateCategories",
+            ),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.Cacheconfig`.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.Cacheconfig")]
 pub struct Cacheconfig {
     /// ```text
@@ -614,62 +1224,143 @@ pub struct Cacheconfig {
     ///   int; optional
     ///  Time to Live for a cache entry specified in seconds
     /// ```
+    #[serde(rename = "ttl", deserialize_with = "null_default")]
     #[gojson(go = "Ttl", json = "ttl")]
     pub ttl: isize,
 }
 
+impl MergeClone for Cacheconfig {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.Cacheconfig";
+        merge_struct(patch, |key, value| match key {
+            "ttl" => gojson_bridge::merge_field(&mut self.ttl, value, GO_TYPE, "Ttl"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.BidResponseVideo`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.BidResponseVideo")]
 pub struct BidResponseVideo {
     /// Go field `AdPods`.
+    #[serde(rename = "adPods")]
     #[gojson(go = "AdPods", json = "adPods")]
     pub ad_pods: Option<Vec<Option<Box<AdPod>>>>,
     /// Go field `Ext`.
+    #[serde(
+        rename = "ext",
+        skip_serializing_if = "gojson_bridge::raw_json::is_empty",
+        with = "gojson_bridge::raw_json"
+    )]
     #[gojson(go = "Ext", json = "ext,omitempty")]
     pub ext: RawJson,
 }
 
+impl MergeClone for BidResponseVideo {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.BidResponseVideo";
+        merge_struct(patch, |key, value| match key {
+            "adPods" => merge_field(&mut self.ad_pods, value, GO_TYPE, "AdPods"),
+            "ext" => gojson_bridge::merge_field(&mut self.ext, value, GO_TYPE, "Ext"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.AdPod`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.AdPod")]
 pub struct AdPod {
     /// Go field `PodId`.
+    #[serde(rename = "podid", deserialize_with = "null_default")]
     #[gojson(go = "PodId", json = "podid")]
     pub pod_id: i64,
     /// Go field `Targeting`.
+    #[serde(rename = "targeting")]
     #[gojson(go = "Targeting", json = "targeting")]
     pub targeting: Option<Vec<VideoTargeting>>,
     /// Go field `Errors`.
+    #[serde(rename = "errors")]
     #[gojson(go = "Errors", json = "errors")]
     pub errors: Option<Vec<String>>,
 }
 
+impl MergeClone for AdPod {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.AdPod";
+        merge_struct(patch, |key, value| match key {
+            "podid" => merge_field(&mut self.pod_id, value, GO_TYPE, "PodId"),
+            "targeting" => merge_field(&mut self.targeting, value, GO_TYPE, "Targeting"),
+            "errors" => merge_field(&mut self.errors, value, GO_TYPE, "Errors"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.VideoTargeting`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.VideoTargeting")]
 pub struct VideoTargeting {
     /// Go field `HbPb`.
+    #[serde(
+        rename = "hb_pb",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "HbPb", json = "hb_pb,omitempty")]
     pub hb_pb: String,
     /// Go field `HbPbCatDur`.
+    #[serde(
+        rename = "hb_pb_cat_dur",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "HbPbCatDur", json = "hb_pb_cat_dur,omitempty")]
     pub hb_pb_cat_dur: String,
     /// Go field `HbCacheID`.
+    #[serde(
+        rename = "hb_cache_id",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "HbCacheID", json = "hb_cache_id,omitempty")]
     pub hb_cache_id: String,
     /// Go field `HbDeal`.
+    #[serde(
+        rename = "hb_deal",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "HbDeal", json = "hb_deal,omitempty")]
     pub hb_deal: String,
 }
 
+impl MergeClone for VideoTargeting {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.VideoTargeting";
+        merge_struct(patch, |key, value| match key {
+            "hb_pb" => merge_field(&mut self.hb_pb, value, GO_TYPE, "HbPb"),
+            "hb_pb_cat_dur" => merge_field(&mut self.hb_pb_cat_dur, value, GO_TYPE, "HbPbCatDur"),
+            "hb_cache_id" => merge_field(&mut self.hb_cache_id, value, GO_TYPE, "HbCacheID"),
+            "hb_deal" => merge_field(&mut self.hb_deal, value, GO_TYPE, "HbDeal"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// `DealTier` defines the configuration of a deal tier.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.DealTier")]
 pub struct DealTier {
     /// ```text
     /// Prefix specifies the beginning of the hb_pb_cat_dur targeting key value. Must be non-empty.
     /// ```
+    #[serde(rename = "prefix", deserialize_with = "null_default")]
     #[gojson(go = "Prefix", json = "prefix")]
     pub prefix: String,
     /// ```text
@@ -677,8 +1368,22 @@ pub struct DealTier {
     /// targeting
     /// key value to be modified. Must be greater than 0.
     /// ```
+    #[serde(rename = "minDealTier", deserialize_with = "null_default")]
     #[gojson(go = "MinDealTier", json = "minDealTier")]
     pub min_deal_tier: isize,
+}
+
+impl MergeClone for DealTier {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.DealTier";
+        merge_struct(patch, |key, value| match key {
+            "prefix" => merge_field(&mut self.prefix, value, GO_TYPE, "Prefix"),
+            "minDealTier" => {
+                gojson_bridge::merge_field(&mut self.min_deal_tier, value, GO_TYPE, "MinDealTier")
+            }
+            _ => Ok(()),
+        })
+    }
 }
 
 /// Go constant `PrebidExtKey`.
@@ -690,7 +1395,8 @@ pub const PREBID_EXT_KEY: &str = "prebid";
 pub const PREBID_EXT_BIDDER_KEY: &str = "bidder";
 
 /// `ExtDevice` defines the contract for bidrequest.device.ext
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtDevice")]
 pub struct ExtDevice {
     /// ```text
@@ -704,6 +1410,7 @@ pub struct ExtDevice {
     ///   https://github.com/InteractiveAdvertisingBureau/openrtb/blob/master/extensions/community_e
     ///   xtensions/skadnetwork.md
     /// ```
+    #[serde(rename = "atts")]
     #[gojson(go = "ATTS", json = "atts")]
     pub atts: Option<IOSAppTrackingStatus>,
     /// ```text
@@ -714,14 +1421,46 @@ pub struct ExtDevice {
     /// Description:
     ///   Prebid extensions for the Device object.
     /// ```
+    #[serde(rename = "prebid", deserialize_with = "null_default")]
     #[gojson(go = "Prebid", json = "prebid")]
     pub prebid: ExtDevicePrebid,
 }
 
+impl MergeClone for ExtDevice {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtDevice";
+        merge_struct(patch, |key, value| match key {
+            "atts" => merge_field(&mut self.atts, value, GO_TYPE, "ATTS"),
+            "prebid" => merge_field(&mut self.prebid, value, GO_TYPE, "Prebid"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// `IOSAppTrackingStatus` describes the values for iOS app tracking authorization status.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash, GoJson)]
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    Serialize,
+    Deserialize,
+    GoJson,
+)]
+#[serde(transparent)]
 #[gojson(go_type = "openrtb_ext.IOSAppTrackingStatus", map_key)]
 pub struct IOSAppTrackingStatus(pub isize);
+
+impl MergeClone for IOSAppTrackingStatus {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        gojson_bridge::merge(&mut self.0, patch)
+    }
+}
 
 /// Go constant `IOSAppTrackingStatusNotDetermined`.
 #[doc(alias = "IOSAppTrackingStatusNotDetermined")]
@@ -740,12 +1479,24 @@ pub const IOS_APP_TRACKING_STATUS_DENIED: IOSAppTrackingStatus = IOSAppTrackingS
 pub const IOS_APP_TRACKING_STATUS_AUTHORIZED: IOSAppTrackingStatus = IOSAppTrackingStatus(3);
 
 /// `ExtDevicePrebid` defines the contract for bidrequest.device.ext.prebid
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtDevicePrebid")]
 pub struct ExtDevicePrebid {
     /// Go field `Interstitial`.
+    #[serde(rename = "interstitial")]
     #[gojson(go = "Interstitial", json = "interstitial")]
     pub interstitial: Option<Box<ExtDeviceInt>>,
+}
+
+impl MergeClone for ExtDevicePrebid {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtDevicePrebid";
+        merge_struct(patch, |key, value| match key {
+            "interstitial" => merge_field(&mut self.interstitial, value, GO_TYPE, "Interstitial"),
+            _ => Ok(()),
+        })
+    }
 }
 
 /// Go constant `FetchSuccess`.
@@ -781,192 +1532,522 @@ pub const REQUEST_LOCATION: &str = "request";
 pub const FETCH_LOCATION: &str = "fetch";
 
 /// `PriceFloorRules` defines the contract for bidrequest.ext.prebid.floors
-#[derive(Clone, Debug, Default, PartialEq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.PriceFloorRules")]
 pub struct PriceFloorRules {
     /// Go field `FloorMin`.
+    #[serde(
+        rename = "floormin",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "FloorMin", json = "floormin,omitempty")]
     pub floor_min: f64,
     /// Go field `FloorMinCur`.
+    #[serde(
+        rename = "floormincur",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "FloorMinCur", json = "floormincur,omitempty")]
     pub floor_min_cur: String,
     /// Go field `SkipRate`.
+    #[serde(
+        rename = "skiprate",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "SkipRate", json = "skiprate,omitempty")]
     pub skip_rate: isize,
     /// Go field `Location`.
+    #[serde(rename = "floorendpoint", skip_serializing_if = "Option::is_none")]
     #[gojson(go = "Location", json = "floorendpoint,omitempty")]
     pub location: Option<Box<PriceFloorEndpoint>>,
     /// Go field `Data`.
+    #[serde(rename = "data", skip_serializing_if = "Option::is_none")]
     #[gojson(go = "Data", json = "data,omitempty")]
     pub data: Option<Box<PriceFloorData>>,
     /// Go field `Enforcement`.
+    #[serde(rename = "enforcement", skip_serializing_if = "Option::is_none")]
     #[gojson(go = "Enforcement", json = "enforcement,omitempty")]
     pub enforcement: Option<Box<PriceFloorEnforcement>>,
     /// Go field `Enabled`.
+    #[serde(rename = "enabled", skip_serializing_if = "Option::is_none")]
     #[gojson(go = "Enabled", json = "enabled,omitempty")]
     pub enabled: Option<bool>,
     /// Go field `Skipped`.
+    #[serde(rename = "skipped", skip_serializing_if = "Option::is_none")]
     #[gojson(go = "Skipped", json = "skipped,omitempty")]
     pub skipped: Option<bool>,
     /// Go field `FloorProvider`.
+    #[serde(
+        rename = "floorprovider",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "FloorProvider", json = "floorprovider,omitempty")]
     pub floor_provider: String,
     /// Go field `FetchStatus`.
+    #[serde(
+        rename = "fetchstatus",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "FetchStatus", json = "fetchstatus,omitempty")]
     pub fetch_status: String,
     /// Go field `PriceFloorLocation`.
+    #[serde(
+        rename = "location",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "PriceFloorLocation", json = "location,omitempty")]
     pub price_floor_location: String,
 }
 
+impl MergeClone for PriceFloorRules {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.PriceFloorRules";
+        merge_struct(patch, |key, value| match key {
+            "floormin" => merge_field(&mut self.floor_min, value, GO_TYPE, "FloorMin"),
+            "floormincur" => merge_field(&mut self.floor_min_cur, value, GO_TYPE, "FloorMinCur"),
+            "skiprate" => {
+                gojson_bridge::merge_field(&mut self.skip_rate, value, GO_TYPE, "SkipRate")
+            }
+            "floorendpoint" => merge_field(&mut self.location, value, GO_TYPE, "Location"),
+            "data" => merge_field(&mut self.data, value, GO_TYPE, "Data"),
+            "enforcement" => merge_field(&mut self.enforcement, value, GO_TYPE, "Enforcement"),
+            "enabled" => merge_field(&mut self.enabled, value, GO_TYPE, "Enabled"),
+            "skipped" => merge_field(&mut self.skipped, value, GO_TYPE, "Skipped"),
+            "floorprovider" => {
+                merge_field(&mut self.floor_provider, value, GO_TYPE, "FloorProvider")
+            }
+            "fetchstatus" => merge_field(&mut self.fetch_status, value, GO_TYPE, "FetchStatus"),
+            "location" => merge_field(
+                &mut self.price_floor_location,
+                value,
+                GO_TYPE,
+                "PriceFloorLocation",
+            ),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.PriceFloorEndpoint`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.PriceFloorEndpoint")]
 pub struct PriceFloorEndpoint {
     /// Go field `URL`.
+    #[serde(
+        rename = "url",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "URL", json = "url,omitempty")]
     pub url: String,
 }
 
+impl MergeClone for PriceFloorEndpoint {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.PriceFloorEndpoint";
+        merge_struct(patch, |key, value| match key {
+            "url" => merge_field(&mut self.url, value, GO_TYPE, "URL"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.PriceFloorData`.
-#[derive(Clone, Debug, Default, PartialEq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.PriceFloorData")]
 pub struct PriceFloorData {
     /// Go field `Currency`.
+    #[serde(
+        rename = "currency",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Currency", json = "currency,omitempty")]
     pub currency: String,
     /// Go field `SkipRate`.
+    #[serde(
+        rename = "skiprate",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "SkipRate", json = "skiprate,omitempty")]
     pub skip_rate: isize,
     /// Go field `FloorsSchemaVersion`.
+    #[serde(
+        rename = "floorsschemaversion",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "FloorsSchemaVersion", json = "floorsschemaversion,omitempty")]
     pub floors_schema_version: isize,
     /// Go field `ModelTimestamp`.
+    #[serde(
+        rename = "modeltimestamp",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "ModelTimestamp", json = "modeltimestamp,omitempty")]
     pub model_timestamp: isize,
     /// Go field `ModelGroups`.
+    #[serde(rename = "modelgroups", skip_serializing_if = "is_nil_or_empty")]
     #[gojson(go = "ModelGroups", json = "modelgroups,omitempty")]
     pub model_groups: Option<Vec<PriceFloorModelGroup>>,
     /// Go field `FloorProvider`.
+    #[serde(
+        rename = "floorprovider",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "FloorProvider", json = "floorprovider,omitempty")]
     pub floor_provider: String,
     /// Go field `UseFetchDataRate`.
+    #[serde(rename = "usefetchdatarate", skip_serializing_if = "Option::is_none")]
     #[gojson(go = "UseFetchDataRate", json = "usefetchdatarate,omitempty")]
     pub use_fetch_data_rate: Option<isize>,
 }
 
+impl MergeClone for PriceFloorData {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.PriceFloorData";
+        merge_struct(patch, |key, value| match key {
+            "currency" => merge_field(&mut self.currency, value, GO_TYPE, "Currency"),
+            "skiprate" => {
+                gojson_bridge::merge_field(&mut self.skip_rate, value, GO_TYPE, "SkipRate")
+            }
+            "floorsschemaversion" => gojson_bridge::merge_field(
+                &mut self.floors_schema_version,
+                value,
+                GO_TYPE,
+                "FloorsSchemaVersion",
+            ),
+            "modeltimestamp" => gojson_bridge::merge_field(
+                &mut self.model_timestamp,
+                value,
+                GO_TYPE,
+                "ModelTimestamp",
+            ),
+            "modelgroups" => merge_field(&mut self.model_groups, value, GO_TYPE, "ModelGroups"),
+            "floorprovider" => {
+                merge_field(&mut self.floor_provider, value, GO_TYPE, "FloorProvider")
+            }
+            "usefetchdatarate" => gojson_bridge::merge_field(
+                &mut self.use_fetch_data_rate,
+                value,
+                GO_TYPE,
+                "UseFetchDataRate",
+            ),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.PriceFloorModelGroup`.
-#[derive(Clone, Debug, Default, PartialEq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.PriceFloorModelGroup")]
 pub struct PriceFloorModelGroup {
     /// Go field `Currency`.
+    #[serde(
+        rename = "currency",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Currency", json = "currency,omitempty")]
     pub currency: String,
     /// Go field `ModelWeight`.
+    #[serde(rename = "modelweight", skip_serializing_if = "Option::is_none")]
     #[gojson(go = "ModelWeight", json = "modelweight,omitempty")]
     pub model_weight: Option<isize>,
     /// Go field `ModelVersion`.
+    #[serde(
+        rename = "modelversion",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "ModelVersion", json = "modelversion,omitempty")]
     pub model_version: String,
     /// Go field `SkipRate`.
+    #[serde(
+        rename = "skiprate",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "SkipRate", json = "skiprate,omitempty")]
     pub skip_rate: isize,
     /// Go field `Schema`.
+    #[serde(rename = "schema", deserialize_with = "null_default")]
     #[gojson(go = "Schema", json = "schema,omitempty")]
     pub schema: PriceFloorSchema,
     /// Go field `Values`.
+    #[serde(rename = "values", skip_serializing_if = "is_nil_or_empty")]
     #[gojson(go = "Values", json = "values,omitempty")]
     pub values: Option<BTreeMap<String, f64>>,
     /// Go field `Default`.
+    #[serde(
+        rename = "default",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Default", json = "default,omitempty")]
     pub default: f64,
 }
 
+impl MergeClone for PriceFloorModelGroup {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.PriceFloorModelGroup";
+        merge_struct(patch, |key, value| match key {
+            "currency" => merge_field(&mut self.currency, value, GO_TYPE, "Currency"),
+            "modelweight" => {
+                gojson_bridge::merge_field(&mut self.model_weight, value, GO_TYPE, "ModelWeight")
+            }
+            "modelversion" => merge_field(&mut self.model_version, value, GO_TYPE, "ModelVersion"),
+            "skiprate" => {
+                gojson_bridge::merge_field(&mut self.skip_rate, value, GO_TYPE, "SkipRate")
+            }
+            "schema" => merge_field(&mut self.schema, value, GO_TYPE, "Schema"),
+            "values" => merge_field(&mut self.values, value, GO_TYPE, "Values"),
+            "default" => merge_field(&mut self.default, value, GO_TYPE, "Default"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.PriceFloorSchema`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.PriceFloorSchema")]
 pub struct PriceFloorSchema {
     /// Go field `Fields`.
+    #[serde(rename = "fields", skip_serializing_if = "is_nil_or_empty")]
     #[gojson(go = "Fields", json = "fields,omitempty")]
     pub fields: Option<Vec<String>>,
     /// Go field `Delimiter`.
+    #[serde(
+        rename = "delimiter",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Delimiter", json = "delimiter,omitempty")]
     pub delimiter: String,
 }
 
+impl MergeClone for PriceFloorSchema {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.PriceFloorSchema";
+        merge_struct(patch, |key, value| match key {
+            "fields" => merge_field(&mut self.fields, value, GO_TYPE, "Fields"),
+            "delimiter" => merge_field(&mut self.delimiter, value, GO_TYPE, "Delimiter"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.PriceFloorEnforcement`.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.PriceFloorEnforcement")]
 pub struct PriceFloorEnforcement {
     /// Go field `EnforceJS`.
+    #[serde(rename = "enforcejs", skip_serializing_if = "Option::is_none")]
     #[gojson(go = "EnforceJS", json = "enforcejs,omitempty")]
     pub enforce_js: Option<bool>,
     /// Go field `EnforcePBS`.
+    #[serde(rename = "enforcepbs", skip_serializing_if = "Option::is_none")]
     #[gojson(go = "EnforcePBS", json = "enforcepbs,omitempty")]
     pub enforce_pbs: Option<bool>,
     /// Go field `FloorDeals`.
+    #[serde(rename = "floordeals", skip_serializing_if = "Option::is_none")]
     #[gojson(go = "FloorDeals", json = "floordeals,omitempty")]
     pub floor_deals: Option<bool>,
     /// Go field `BidAdjustment`.
+    #[serde(rename = "bidadjustment", skip_serializing_if = "Option::is_none")]
     #[gojson(go = "BidAdjustment", json = "bidadjustment,omitempty")]
     pub bid_adjustment: Option<bool>,
     /// Go field `EnforceRate`.
+    #[serde(
+        rename = "enforcerate",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "EnforceRate", json = "enforcerate,omitempty")]
     pub enforce_rate: isize,
 }
 
+impl MergeClone for PriceFloorEnforcement {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.PriceFloorEnforcement";
+        merge_struct(patch, |key, value| match key {
+            "enforcejs" => merge_field(&mut self.enforce_js, value, GO_TYPE, "EnforceJS"),
+            "enforcepbs" => merge_field(&mut self.enforce_pbs, value, GO_TYPE, "EnforcePBS"),
+            "floordeals" => merge_field(&mut self.floor_deals, value, GO_TYPE, "FloorDeals"),
+            "bidadjustment" => {
+                merge_field(&mut self.bid_adjustment, value, GO_TYPE, "BidAdjustment")
+            }
+            "enforcerate" => {
+                gojson_bridge::merge_field(&mut self.enforce_rate, value, GO_TYPE, "EnforceRate")
+            }
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ImpFloorExt`.
-#[derive(Clone, Debug, Default, PartialEq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ImpFloorExt")]
 pub struct ImpFloorExt {
     /// Go field `FloorRule`.
+    #[serde(
+        rename = "floorrule",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "FloorRule", json = "floorrule,omitempty")]
     pub floor_rule: String,
     /// Go field `FloorRuleValue`.
+    #[serde(
+        rename = "floorrulevalue",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "FloorRuleValue", json = "floorrulevalue,omitempty")]
     pub floor_rule_value: f64,
     /// Go field `FloorValue`.
+    #[serde(
+        rename = "floorvalue",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "FloorValue", json = "floorvalue,omitempty")]
     pub floor_value: f64,
 }
 
+impl MergeClone for ImpFloorExt {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ImpFloorExt";
+        merge_struct(patch, |key, value| match key {
+            "floorrule" => merge_field(&mut self.floor_rule, value, GO_TYPE, "FloorRule"),
+            "floorrulevalue" => {
+                merge_field(&mut self.floor_rule_value, value, GO_TYPE, "FloorRuleValue")
+            }
+            "floorvalue" => merge_field(&mut self.floor_value, value, GO_TYPE, "FloorValue"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.Price`.
-#[derive(Clone, Debug, Default, PartialEq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.Price")]
 pub struct Price {
     /// Go field `FloorMin`.
+    #[serde(
+        rename = "floormin",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "FloorMin", json = "floormin,omitempty")]
     pub floor_min: f64,
     /// Go field `FloorMinCur`.
+    #[serde(
+        rename = "floormincur",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "FloorMinCur", json = "floormincur,omitempty")]
     pub floor_min_cur: String,
 }
 
+impl MergeClone for Price {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.Price";
+        merge_struct(patch, |key, value| match key {
+            "floormin" => merge_field(&mut self.floor_min, value, GO_TYPE, "FloorMin"),
+            "floormincur" => merge_field(&mut self.floor_min_cur, value, GO_TYPE, "FloorMinCur"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ExtImp`.
-#[derive(Clone, Debug, Default, PartialEq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtImp")]
 pub struct ExtImp {
     /// Go field `Prebid`.
+    #[serde(rename = "prebid", skip_serializing_if = "Option::is_none")]
     #[gojson(go = "Prebid", json = "prebid,omitempty")]
     pub prebid: Option<Box<ImpExtPrebid>>,
 }
 
+impl MergeClone for ExtImp {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtImp";
+        merge_struct(patch, |key, value| match key {
+            "prebid" => merge_field(&mut self.prebid, value, GO_TYPE, "Prebid"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ImpExtPrebid`.
-#[derive(Clone, Debug, Default, PartialEq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ImpExtPrebid")]
 pub struct ImpExtPrebid {
     /// Go field `Floors`.
+    #[serde(rename = "floors", deserialize_with = "null_default")]
     #[gojson(go = "Floors", json = "floors,omitempty")]
     pub floors: Price,
+}
+
+impl MergeClone for ImpExtPrebid {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ImpExtPrebid";
+        merge_struct(patch, |key, value| match key {
+            "floors" => merge_field(&mut self.floors, value, GO_TYPE, "Floors"),
+            _ => Ok(()),
+        })
+    }
 }
 
 /// ```text
 /// AuctionEnvironmentType is a Google Privacy Sandbox flag indicating where the auction may take
 /// place
 /// ```
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash, GoJson)]
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    Serialize,
+    Deserialize,
+    GoJson,
+)]
+#[serde(transparent)]
 #[gojson(go_type = "openrtb_ext.AuctionEnvironmentType", map_key)]
 pub struct AuctionEnvironmentType(pub i8);
+
+impl MergeClone for AuctionEnvironmentType {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        self.0.merge_clone(patch)
+    }
+}
 
 /// 0 Standard server-side auction
 #[doc(alias = "ServerSideAuction")]
@@ -991,1477 +2072,3449 @@ pub const OPTIONS_KEY: &str = "options";
 /// ```text
 /// ExtImpPrebid defines the contract for bidrequest.imp[i].ext.prebid
 /// ```
-#[derive(Clone, Debug, Default, PartialEq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtImpPrebid")]
 pub struct ExtImpPrebid {
     /// `StoredRequest` specifies which stored impression to use, if any.
+    #[serde(rename = "storedrequest", skip_serializing_if = "Option::is_none")]
     #[gojson(go = "StoredRequest", json = "storedrequest,omitempty")]
     pub stored_request: Option<Box<ExtStoredRequest>>,
     /// `StoredResponse` specifies which stored impression to use, if any.
+    #[serde(
+        rename = "storedauctionresponse",
+        skip_serializing_if = "Option::is_none"
+    )]
     #[gojson(go = "StoredAuctionResponse", json = "storedauctionresponse,omitempty")]
     pub stored_auction_response: Option<Box<ExtStoredAuctionResponse>>,
     /// Stored bid response determines if imp has stored bid response for bidder
+    #[serde(rename = "storedbidresponse", skip_serializing_if = "is_nil_or_empty")]
     #[gojson(go = "StoredBidResponse", json = "storedbidresponse,omitempty")]
     pub stored_bid_response: Option<Vec<ExtStoredBidResponse>>,
     /// `IsRewardedInventory` is a signal intended for video impressions. Must be 0 or 1.
+    #[serde(
+        rename = "is_rewarded_inventory",
+        skip_serializing_if = "Option::is_none"
+    )]
     #[gojson(go = "IsRewardedInventory", json = "is_rewarded_inventory,omitempty")]
     pub is_rewarded_inventory: Option<i8>,
     /// ```text
     /// Bidder is the preferred approach for providing parameters to be interpreted by the bidder's
     /// adapter.
     /// ```
+    #[serde(
+        rename = "bidder",
+        skip_serializing_if = "is_nil_or_empty",
+        with = "gojson_bridge::bridged"
+    )]
     #[gojson(go = "Bidder", json = "bidder,omitempty")]
     pub bidder: Option<BTreeMap<String, RawJson>>,
     /// Go field `Options`.
+    #[serde(rename = "options", skip_serializing_if = "Option::is_none")]
     #[gojson(go = "Options", json = "options,omitempty")]
     pub options: Option<Box<Options>>,
     /// Go field `AdUnitCode`.
+    #[serde(
+        rename = "adunitcode",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "AdUnitCode", json = "adunitcode,omitempty")]
     pub ad_unit_code: String,
     /// Go field `Passthrough`.
+    #[serde(
+        rename = "passthrough",
+        skip_serializing_if = "gojson_bridge::raw_json::is_empty",
+        with = "gojson_bridge::raw_json"
+    )]
     #[gojson(go = "Passthrough", json = "passthrough,omitempty")]
     pub passthrough: RawJson,
     /// Go field `Floors`.
+    #[serde(rename = "floors", skip_serializing_if = "Option::is_none")]
     #[gojson(go = "Floors", json = "floors,omitempty")]
     pub floors: Option<Box<ExtImpPrebidFloors>>,
     /// Imp specifies any imp bidder-specific first party data
+    #[serde(
+        rename = "imp",
+        skip_serializing_if = "is_nil_or_empty",
+        with = "gojson_bridge::bridged"
+    )]
     #[gojson(go = "Imp", json = "imp,omitempty")]
     pub imp: Option<BTreeMap<String, RawJson>>,
 }
 
+impl MergeClone for ExtImpPrebid {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtImpPrebid";
+        merge_struct(patch, |key, value| match key {
+            "storedrequest" => {
+                merge_field(&mut self.stored_request, value, GO_TYPE, "StoredRequest")
+            }
+            "storedauctionresponse" => merge_field(
+                &mut self.stored_auction_response,
+                value,
+                GO_TYPE,
+                "StoredAuctionResponse",
+            ),
+            "storedbidresponse" => merge_field(
+                &mut self.stored_bid_response,
+                value,
+                GO_TYPE,
+                "StoredBidResponse",
+            ),
+            "is_rewarded_inventory" => merge_field(
+                &mut self.is_rewarded_inventory,
+                value,
+                GO_TYPE,
+                "IsRewardedInventory",
+            ),
+            "bidder" => gojson_bridge::merge_field(&mut self.bidder, value, GO_TYPE, "Bidder"),
+            "options" => merge_field(&mut self.options, value, GO_TYPE, "Options"),
+            "adunitcode" => merge_field(&mut self.ad_unit_code, value, GO_TYPE, "AdUnitCode"),
+            "passthrough" => {
+                gojson_bridge::merge_field(&mut self.passthrough, value, GO_TYPE, "Passthrough")
+            }
+            "floors" => merge_field(&mut self.floors, value, GO_TYPE, "Floors"),
+            "imp" => gojson_bridge::merge_field(&mut self.imp, value, GO_TYPE, "Imp"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ExtImpDataAdServer`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtImpDataAdServer")]
 pub struct ExtImpDataAdServer {
     /// Go field `Name`.
+    #[serde(rename = "name", deserialize_with = "null_default")]
     #[gojson(go = "Name", json = "name")]
     pub name: String,
     /// Go field `AdSlot`.
+    #[serde(rename = "adslot", deserialize_with = "null_default")]
     #[gojson(go = "AdSlot", json = "adslot")]
     pub ad_slot: String,
 }
 
+impl MergeClone for ExtImpDataAdServer {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtImpDataAdServer";
+        merge_struct(patch, |key, value| match key {
+            "name" => merge_field(&mut self.name, value, GO_TYPE, "Name"),
+            "adslot" => merge_field(&mut self.ad_slot, value, GO_TYPE, "AdSlot"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ExtImpData`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtImpData")]
 pub struct ExtImpData {
     /// Go field `PbAdslot`.
+    #[serde(
+        rename = "pbadslot",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "PbAdslot", json = "pbadslot,omitempty")]
     pub pb_adslot: String,
     /// Go field `AdServer`.
+    #[serde(rename = "adserver", skip_serializing_if = "Option::is_none")]
     #[gojson(go = "AdServer", json = "adserver,omitempty")]
     pub ad_server: Option<Box<ExtImpDataAdServer>>,
 }
 
+impl MergeClone for ExtImpData {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtImpData";
+        merge_struct(patch, |key, value| match key {
+            "pbadslot" => merge_field(&mut self.pb_adslot, value, GO_TYPE, "PbAdslot"),
+            "adserver" => merge_field(&mut self.ad_server, value, GO_TYPE, "AdServer"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ExtImpPrebidFloors`.
-#[derive(Clone, Debug, Default, PartialEq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtImpPrebidFloors")]
 pub struct ExtImpPrebidFloors {
     /// Go field `FloorRule`.
+    #[serde(
+        rename = "floorrule",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "FloorRule", json = "floorrule,omitempty")]
     pub floor_rule: String,
     /// Go field `FloorRuleValue`.
+    #[serde(
+        rename = "floorrulevalue",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "FloorRuleValue", json = "floorrulevalue,omitempty")]
     pub floor_rule_value: f64,
     /// Go field `FloorValue`.
+    #[serde(
+        rename = "floorvalue",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "FloorValue", json = "floorvalue,omitempty")]
     pub floor_value: f64,
     /// Go field `FloorMin`.
+    #[serde(
+        rename = "floormin",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "FloorMin", json = "floormin,omitempty")]
     pub floor_min: f64,
     /// Go field `FloorMinCur`.
+    #[serde(
+        rename = "floorminCur",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "FloorMinCur", json = "floorminCur,omitempty")]
     pub floor_min_cur: String,
+}
+
+impl MergeClone for ExtImpPrebidFloors {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtImpPrebidFloors";
+        merge_struct(patch, |key, value| match key {
+            "floorrule" => merge_field(&mut self.floor_rule, value, GO_TYPE, "FloorRule"),
+            "floorrulevalue" => {
+                merge_field(&mut self.floor_rule_value, value, GO_TYPE, "FloorRuleValue")
+            }
+            "floorvalue" => merge_field(&mut self.floor_value, value, GO_TYPE, "FloorValue"),
+            "floormin" => merge_field(&mut self.floor_min, value, GO_TYPE, "FloorMin"),
+            "floorminCur" => merge_field(&mut self.floor_min_cur, value, GO_TYPE, "FloorMinCur"),
+            _ => Ok(()),
+        })
+    }
 }
 
 /// ```text
 /// ExtStoredRequest defines the contract for bidrequest.imp[i].ext.prebid.storedrequest
 /// ```
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtStoredRequest")]
 pub struct ExtStoredRequest {
     /// Go field `ID`.
+    #[serde(rename = "id", deserialize_with = "null_default")]
     #[gojson(go = "ID", json = "id")]
     pub id: String,
+}
+
+impl MergeClone for ExtStoredRequest {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtStoredRequest";
+        merge_struct(patch, |key, value| match key {
+            "id" => merge_field(&mut self.id, value, GO_TYPE, "ID"),
+            _ => Ok(()),
+        })
+    }
 }
 
 /// ```text
 /// ExtStoredAuctionResponse defines the contract for
 /// bidrequest.imp[i].ext.prebid.storedauctionresponse
 /// ```
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtStoredAuctionResponse")]
 pub struct ExtStoredAuctionResponse {
     /// Go field `ID`.
+    #[serde(rename = "id", deserialize_with = "null_default")]
     #[gojson(go = "ID", json = "id")]
     pub id: String,
+}
+
+impl MergeClone for ExtStoredAuctionResponse {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtStoredAuctionResponse";
+        merge_struct(patch, |key, value| match key {
+            "id" => merge_field(&mut self.id, value, GO_TYPE, "ID"),
+            _ => Ok(()),
+        })
+    }
 }
 
 /// ```text
 /// ExtStoredBidResponse defines the contract for bidrequest.imp[i].ext.prebid.storedbidresponse
 /// ```
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtStoredBidResponse")]
 pub struct ExtStoredBidResponse {
     /// Go field `ID`.
+    #[serde(rename = "id", deserialize_with = "null_default")]
     #[gojson(go = "ID", json = "id")]
     pub id: String,
     /// Go field `Bidder`.
+    #[serde(rename = "bidder", deserialize_with = "null_default")]
     #[gojson(go = "Bidder", json = "bidder")]
     pub bidder: String,
     /// Go field `ReplaceImpId`.
+    #[serde(rename = "replaceimpid")]
     #[gojson(go = "ReplaceImpId", json = "replaceimpid")]
     pub replace_imp_id: Option<bool>,
 }
 
+impl MergeClone for ExtStoredBidResponse {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtStoredBidResponse";
+        merge_struct(patch, |key, value| match key {
+            "id" => merge_field(&mut self.id, value, GO_TYPE, "ID"),
+            "bidder" => merge_field(&mut self.bidder, value, GO_TYPE, "Bidder"),
+            "replaceimpid" => merge_field(&mut self.replace_imp_id, value, GO_TYPE, "ReplaceImpId"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.Options`.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.Options")]
 pub struct Options {
     /// Go field `EchoVideoAttrs`.
+    #[serde(rename = "echovideoattrs", deserialize_with = "null_default")]
     #[gojson(go = "EchoVideoAttrs", json = "echovideoattrs")]
     pub echo_video_attrs: bool,
+}
+
+impl MergeClone for Options {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.Options";
+        merge_struct(patch, |key, value| match key {
+            "echovideoattrs" => {
+                merge_field(&mut self.echo_video_attrs, value, GO_TYPE, "EchoVideoAttrs")
+            }
+            _ => Ok(()),
+        })
+    }
 }
 
 /// ```text
 /// ExtImp33across defines the contract for bidrequest.imp[i].ext.prebid.bidder.33across
 /// ```
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtImp33across")]
 pub struct ExtImp33across {
     /// Go field `ZoneId`.
+    #[serde(
+        rename = "zoneId",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "ZoneId", json = "zoneId,omitempty")]
     pub zone_id: String,
     /// Go field `SiteId`.
+    #[serde(
+        rename = "siteId",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "SiteId", json = "siteId,omitempty")]
     pub site_id: String,
     /// Go field `ProductId`.
+    #[serde(
+        rename = "productId",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "ProductId", json = "productId,omitempty")]
     pub product_id: String,
 }
 
+impl MergeClone for ExtImp33across {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtImp33across";
+        merge_struct(patch, |key, value| match key {
+            "zoneId" => merge_field(&mut self.zone_id, value, GO_TYPE, "ZoneId"),
+            "siteId" => merge_field(&mut self.site_id, value, GO_TYPE, "SiteId"),
+            "productId" => merge_field(&mut self.product_id, value, GO_TYPE, "ProductId"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ExtImpAax`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtImpAax")]
 pub struct ExtImpAax {
     /// Go field `Cid`.
+    #[serde(rename = "cid", deserialize_with = "null_default")]
     #[gojson(go = "Cid", json = "cid")]
     pub cid: String,
     /// Go field `Crid`.
+    #[serde(rename = "crid", deserialize_with = "null_default")]
     #[gojson(go = "Crid", json = "crid")]
     pub crid: String,
 }
 
+impl MergeClone for ExtImpAax {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtImpAax";
+        merge_struct(patch, |key, value| match key {
+            "cid" => merge_field(&mut self.cid, value, GO_TYPE, "Cid"),
+            "crid" => merge_field(&mut self.crid, value, GO_TYPE, "Crid"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ExtAceex`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtAceex")]
 pub struct ExtAceex {
     /// Go field `AccountID`.
+    #[serde(rename = "accountid", deserialize_with = "null_default")]
     #[gojson(go = "AccountID", json = "accountid")]
     pub account_id: String,
+}
+
+impl MergeClone for ExtAceex {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtAceex";
+        merge_struct(patch, |key, value| match key {
+            "accountid" => merge_field(&mut self.account_id, value, GO_TYPE, "AccountID"),
+            _ => Ok(()),
+        })
+    }
 }
 
 /// Go type `openrtb_ext.ExtAcuityAds`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtAcuityAds")]
 pub struct ExtAcuityAds {
     /// Go field `Host`.
+    #[serde(rename = "host", deserialize_with = "null_default")]
     #[gojson(go = "Host", json = "host")]
     pub host: String,
     /// Go field `AccountID`.
+    #[serde(rename = "accountid", deserialize_with = "null_default")]
     #[gojson(go = "AccountID", json = "accountid")]
     pub account_id: String,
 }
 
+impl MergeClone for ExtAcuityAds {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtAcuityAds";
+        merge_struct(patch, |key, value| match key {
+            "host" => merge_field(&mut self.host, value, GO_TYPE, "Host"),
+            "accountid" => merge_field(&mut self.account_id, value, GO_TYPE, "AccountID"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ExtImpAdagio`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtImpAdagio")]
 pub struct ExtImpAdagio {
     /// Go field `OrganizationID`.
+    #[serde(rename = "organizationId", deserialize_with = "null_default")]
     #[gojson(go = "OrganizationID", json = "organizationId")]
     pub organization_id: String,
     /// Go field `Placement`.
+    #[serde(rename = "placement", deserialize_with = "null_default")]
     #[gojson(go = "Placement", json = "placement")]
     pub placement: String,
     /// Go field `Site`.
+    #[serde(
+        rename = "site",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Site", json = "site,omitempty")]
     pub site: String,
     /// Go field `Pagetype`.
+    #[serde(
+        rename = "pagetype",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Pagetype", json = "pagetype,omitempty")]
     pub pagetype: String,
     /// Go field `Category`.
+    #[serde(
+        rename = "category",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Category", json = "category,omitempty")]
     pub category: String,
 }
 
+impl MergeClone for ExtImpAdagio {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtImpAdagio";
+        merge_struct(patch, |key, value| match key {
+            "organizationId" => {
+                merge_field(&mut self.organization_id, value, GO_TYPE, "OrganizationID")
+            }
+            "placement" => merge_field(&mut self.placement, value, GO_TYPE, "Placement"),
+            "site" => merge_field(&mut self.site, value, GO_TYPE, "Site"),
+            "pagetype" => merge_field(&mut self.pagetype, value, GO_TYPE, "Pagetype"),
+            "category" => merge_field(&mut self.category, value, GO_TYPE, "Category"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ExtAdelement`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtAdelement")]
 pub struct ExtAdelement {
     /// Go field `SupplyId`.
+    #[serde(rename = "supply_id", deserialize_with = "null_default")]
     #[gojson(go = "SupplyId", json = "supply_id")]
     pub supply_id: String,
 }
 
+impl MergeClone for ExtAdelement {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtAdelement";
+        merge_struct(patch, |key, value| match key {
+            "supply_id" => merge_field(&mut self.supply_id, value, GO_TYPE, "SupplyId"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ExtImpAdf`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtImpAdf")]
 pub struct ExtImpAdf {
     /// Go field `MasterTagID`.
+    #[serde(
+        rename = "mid",
+        skip_serializing_if = "gojson_bridge::json_number::is_empty",
+        with = "gojson_bridge::json_number"
+    )]
     #[gojson(go = "MasterTagID", json = "mid,omitempty")]
     pub master_tag_id: JsonNumber,
     /// Go field `InventorySourceID`.
+    #[serde(
+        rename = "inv",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "InventorySourceID", json = "inv,omitempty")]
     pub inventory_source_id: isize,
     /// Go field `PlacementName`.
+    #[serde(
+        rename = "mname",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "PlacementName", json = "mname,omitempty")]
     pub placement_name: String,
     /// Go field `PriceType`.
+    #[serde(
+        rename = "priceType",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "PriceType", json = "priceType,omitempty")]
     pub price_type: String,
 }
 
+impl MergeClone for ExtImpAdf {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtImpAdf";
+        merge_struct(patch, |key, value| match key {
+            "mid" => {
+                gojson_bridge::merge_field(&mut self.master_tag_id, value, GO_TYPE, "MasterTagID")
+            }
+            "inv" => gojson_bridge::merge_field(
+                &mut self.inventory_source_id,
+                value,
+                GO_TYPE,
+                "InventorySourceID",
+            ),
+            "mname" => merge_field(&mut self.placement_name, value, GO_TYPE, "PlacementName"),
+            "priceType" => merge_field(&mut self.price_type, value, GO_TYPE, "PriceType"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ExtImpAdgeneration`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtImpAdgeneration")]
 pub struct ExtImpAdgeneration {
     /// Go field `Id`.
+    #[serde(rename = "id", deserialize_with = "null_default")]
     #[gojson(go = "Id", json = "id")]
     pub id: String,
 }
 
+impl MergeClone for ExtImpAdgeneration {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtImpAdgeneration";
+        merge_struct(patch, |key, value| match key {
+            "id" => merge_field(&mut self.id, value, GO_TYPE, "Id"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ExtImpAdhese`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtImpAdhese")]
 pub struct ExtImpAdhese {
     /// Go field `Account`.
+    #[serde(rename = "account", deserialize_with = "null_default")]
     #[gojson(go = "Account", json = "account")]
     pub account: String,
     /// Go field `Location`.
+    #[serde(rename = "location", deserialize_with = "null_default")]
     #[gojson(go = "Location", json = "location")]
     pub location: String,
     /// Go field `Format`.
+    #[serde(rename = "format", deserialize_with = "null_default")]
     #[gojson(go = "Format", json = "format")]
     pub format: String,
     /// Go field `Targets`.
+    #[serde(rename = "targets", skip_serializing_if = "is_nil_or_empty")]
     #[gojson(go = "Targets", json = "targets,omitempty")]
     pub targets: Option<BTreeMap<String, Option<Vec<String>>>>,
+}
+
+impl MergeClone for ExtImpAdhese {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtImpAdhese";
+        merge_struct(patch, |key, value| match key {
+            "account" => merge_field(&mut self.account, value, GO_TYPE, "Account"),
+            "location" => merge_field(&mut self.location, value, GO_TYPE, "Location"),
+            "format" => merge_field(&mut self.format, value, GO_TYPE, "Format"),
+            "targets" => merge_field(&mut self.targets, value, GO_TYPE, "Targets"),
+            _ => Ok(()),
+        })
+    }
 }
 
 /// ```text
 /// ExtImpAdkernel defines the contract for bidrequest.imp[i].ext.prebid.bidder.adkernel
 /// ```
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtImpAdkernel")]
 pub struct ExtImpAdkernel {
     /// Go field `ZoneId`.
+    #[serde(rename = "zoneId", deserialize_with = "null_default")]
     #[gojson(go = "ZoneId", json = "zoneId")]
     pub zone_id: isize,
+}
+
+impl MergeClone for ExtImpAdkernel {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtImpAdkernel";
+        merge_struct(patch, |key, value| match key {
+            "zoneId" => gojson_bridge::merge_field(&mut self.zone_id, value, GO_TYPE, "ZoneId"),
+            _ => Ok(()),
+        })
+    }
 }
 
 /// ```text
 /// ExtImpAdkernelAdn defines the contract for bidrequest.imp[i].ext.prebid.bidder.adkernelAdn
 /// ```
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtImpAdkernelAdn")]
 pub struct ExtImpAdkernelAdn {
     /// Go field `PublisherID`.
+    #[serde(rename = "pubId", deserialize_with = "null_default")]
     #[gojson(go = "PublisherID", json = "pubId")]
     pub publisher_id: isize,
 }
 
+impl MergeClone for ExtImpAdkernelAdn {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtImpAdkernelAdn";
+        merge_struct(patch, |key, value| match key {
+            "pubId" => {
+                gojson_bridge::merge_field(&mut self.publisher_id, value, GO_TYPE, "PublisherID")
+            }
+            _ => Ok(()),
+        })
+    }
+}
+
 /// `ExtImpAdman` defines adman specifiec param
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtImpAdman")]
 pub struct ExtImpAdman {
     /// Go field `TagID`.
+    #[serde(rename = "TagID", deserialize_with = "null_default")]
     #[gojson(go = "TagID", json = "TagID")]
     pub tag_id: String,
 }
 
+impl MergeClone for ExtImpAdman {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtImpAdman";
+        merge_struct(patch, |key, value| match key {
+            "TagID" => merge_field(&mut self.tag_id, value, GO_TYPE, "TagID"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ImpExtAdmatic`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ImpExtAdmatic")]
 pub struct ImpExtAdmatic {
     /// Go field `Host`.
+    #[serde(rename = "host", deserialize_with = "null_default")]
     #[gojson(go = "Host", json = "host")]
     pub host: String,
     /// Go field `NetworkId`.
+    #[serde(rename = "networkId", deserialize_with = "null_default")]
     #[gojson(go = "NetworkId", json = "networkId")]
     pub network_id: isize,
 }
 
+impl MergeClone for ImpExtAdmatic {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ImpExtAdmatic";
+        merge_struct(patch, |key, value| match key {
+            "host" => merge_field(&mut self.host, value, GO_TYPE, "Host"),
+            "networkId" => {
+                gojson_bridge::merge_field(&mut self.network_id, value, GO_TYPE, "NetworkId")
+            }
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ExtImpAdmixer`.
-#[derive(Clone, Debug, Default, PartialEq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtImpAdmixer")]
 pub struct ExtImpAdmixer {
     /// Go field `ZoneId`.
+    #[serde(rename = "zone", deserialize_with = "null_default")]
     #[gojson(go = "ZoneId", json = "zone")]
     pub zone_id: String,
     /// Go field `CustomBidFloor`.
+    #[serde(rename = "customFloor", deserialize_with = "null_default")]
     #[gojson(go = "CustomBidFloor", json = "customFloor")]
     pub custom_bid_floor: f64,
     /// Go field `CustomParams`.
+    #[serde(rename = "customParams")]
     #[gojson(go = "CustomParams", json = "customParams")]
     pub custom_params: Option<BTreeMap<String, Value>>,
 }
 
+impl MergeClone for ExtImpAdmixer {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtImpAdmixer";
+        merge_struct(patch, |key, value| match key {
+            "zone" => merge_field(&mut self.zone_id, value, GO_TYPE, "ZoneId"),
+            "customFloor" => {
+                merge_field(&mut self.custom_bid_floor, value, GO_TYPE, "CustomBidFloor")
+            }
+            "customParams" => merge_field(&mut self.custom_params, value, GO_TYPE, "CustomParams"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ImpExtAdnunitus`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ImpExtAdnunitus")]
 pub struct ImpExtAdnunitus {
     /// Go field `Auid`.
+    #[serde(rename = "auId", deserialize_with = "null_default")]
     #[gojson(go = "Auid", json = "auId")]
     pub auid: String,
     /// Go field `NoCookies`.
+    #[serde(rename = "noCookies", deserialize_with = "null_default")]
     #[gojson(go = "NoCookies", json = "noCookies")]
     pub no_cookies: bool,
     /// Go field `MaxDeals`.
+    #[serde(rename = "maxDeals", deserialize_with = "null_default")]
     #[gojson(go = "MaxDeals", json = "maxDeals")]
     pub max_deals: isize,
     /// Go field `Network`.
+    #[serde(rename = "network", deserialize_with = "null_default")]
     #[gojson(go = "Network", json = "network")]
     pub network: String,
     /// Go field `BidType`.
+    #[serde(
+        rename = "bidType",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "BidType", json = "bidType,omitempty")]
     pub bid_type: String,
     /// Go field `Targeting`.
+    #[serde(rename = "targeting", deserialize_with = "null_default")]
     #[gojson(go = "Targeting", json = "targeting,omitempty")]
     pub targeting: ImpExtAdnunitusTargeting,
 }
 
+impl MergeClone for ImpExtAdnunitus {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ImpExtAdnunitus";
+        merge_struct(patch, |key, value| match key {
+            "auId" => merge_field(&mut self.auid, value, GO_TYPE, "Auid"),
+            "noCookies" => merge_field(&mut self.no_cookies, value, GO_TYPE, "NoCookies"),
+            "maxDeals" => {
+                gojson_bridge::merge_field(&mut self.max_deals, value, GO_TYPE, "MaxDeals")
+            }
+            "network" => merge_field(&mut self.network, value, GO_TYPE, "Network"),
+            "bidType" => merge_field(&mut self.bid_type, value, GO_TYPE, "BidType"),
+            "targeting" => merge_field(&mut self.targeting, value, GO_TYPE, "Targeting"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ExtImpAdot`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtImpAdot")]
 pub struct ExtImpAdot {
     /// Go field `Parallax`.
+    #[serde(
+        rename = "parallax",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Parallax", json = "parallax,omitempty")]
     pub parallax: bool,
     /// Go field `PlacementId`.
+    #[serde(
+        rename = "placementId",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "PlacementId", json = "placementId,omitempty")]
     pub placement_id: String,
     /// Go field `PublisherPath`.
+    #[serde(
+        rename = "publisherPath",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "PublisherPath", json = "publisherPath,omitempty")]
     pub publisher_path: String,
 }
 
+impl MergeClone for ExtImpAdot {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtImpAdot";
+        merge_struct(patch, |key, value| match key {
+            "parallax" => merge_field(&mut self.parallax, value, GO_TYPE, "Parallax"),
+            "placementId" => merge_field(&mut self.placement_id, value, GO_TYPE, "PlacementId"),
+            "publisherPath" => {
+                merge_field(&mut self.publisher_path, value, GO_TYPE, "PublisherPath")
+            }
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ExtAdpone`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtAdpone")]
 pub struct ExtAdpone {
     /// Go field `PlacementId`.
+    #[serde(
+        rename = "placementId",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "PlacementId", json = "placementId,omitempty")]
     pub placement_id: String,
 }
 
+impl MergeClone for ExtAdpone {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtAdpone";
+        merge_struct(patch, |key, value| match key {
+            "placementId" => merge_field(&mut self.placement_id, value, GO_TYPE, "PlacementId"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// `ExtImpAdprime` defines adprime specifiec param
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtImpAdprime")]
 pub struct ExtImpAdprime {
     /// Go field `TagID`.
+    #[serde(rename = "TagID", deserialize_with = "null_default")]
     #[gojson(go = "TagID", json = "TagID")]
     pub tag_id: String,
     /// Go field `Keywords`.
+    #[serde(rename = "keywords")]
     #[gojson(go = "Keywords", json = "keywords")]
     pub keywords: Option<Vec<String>>,
     /// Go field `Audiences`.
+    #[serde(rename = "audiences")]
     #[gojson(go = "Audiences", json = "audiences")]
     pub audiences: Option<Vec<String>>,
 }
 
+impl MergeClone for ExtImpAdprime {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtImpAdprime";
+        merge_struct(patch, |key, value| match key {
+            "TagID" => merge_field(&mut self.tag_id, value, GO_TYPE, "TagID"),
+            "keywords" => merge_field(&mut self.keywords, value, GO_TYPE, "Keywords"),
+            "audiences" => merge_field(&mut self.audiences, value, GO_TYPE, "Audiences"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ImpExtAdQuery`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ImpExtAdQuery")]
 pub struct ImpExtAdQuery {
     /// Go field `PlacementID`.
+    #[serde(rename = "placementId", deserialize_with = "null_default")]
     #[gojson(go = "PlacementID", json = "placementId")]
     pub placement_id: String,
     /// Go field `Type`.
+    #[serde(rename = "type", deserialize_with = "null_default")]
     #[gojson(go = "Type", json = "type")]
     pub r#type: String,
 }
 
+impl MergeClone for ImpExtAdQuery {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ImpExtAdQuery";
+        merge_struct(patch, |key, value| match key {
+            "placementId" => merge_field(&mut self.placement_id, value, GO_TYPE, "PlacementID"),
+            "type" => merge_field(&mut self.r#type, value, GO_TYPE, "Type"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ExtImpAdrino`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtImpAdrino")]
 pub struct ExtImpAdrino {
     /// Go field `Hash`.
+    #[serde(rename = "hash", deserialize_with = "null_default")]
     #[gojson(go = "Hash", json = "hash")]
     pub hash: String,
+}
+
+impl MergeClone for ExtImpAdrino {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtImpAdrino";
+        merge_struct(patch, |key, value| match key {
+            "hash" => merge_field(&mut self.hash, value, GO_TYPE, "Hash"),
+            _ => Ok(()),
+        })
+    }
 }
 
 /// ```text
 /// ExtImpAdtarget defines the contract for bidrequest.imp[i].ext.prebid.bidder.adtarget
 /// ```
-#[derive(Clone, Debug, Default, PartialEq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtImpAdtarget")]
 pub struct ExtImpAdtarget {
     /// Go field `SourceId`.
+    #[serde(rename = "aid", with = "gojson_bridge::json_number")]
     #[gojson(go = "SourceId", json = "aid")]
     pub source_id: JsonNumber,
     /// Go field `PlacementId`.
+    #[serde(
+        rename = "placementId",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "PlacementId", json = "placementId,omitempty")]
     pub placement_id: isize,
     /// Go field `SiteId`.
+    #[serde(
+        rename = "siteId",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "SiteId", json = "siteId,omitempty")]
     pub site_id: isize,
     /// Go field `BidFloor`.
+    #[serde(
+        rename = "bidFloor",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "BidFloor", json = "bidFloor,omitempty")]
     pub bid_floor: f64,
+}
+
+impl MergeClone for ExtImpAdtarget {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtImpAdtarget";
+        merge_struct(patch, |key, value| match key {
+            "aid" => gojson_bridge::merge_field(&mut self.source_id, value, GO_TYPE, "SourceId"),
+            "placementId" => {
+                gojson_bridge::merge_field(&mut self.placement_id, value, GO_TYPE, "PlacementId")
+            }
+            "siteId" => gojson_bridge::merge_field(&mut self.site_id, value, GO_TYPE, "SiteId"),
+            "bidFloor" => merge_field(&mut self.bid_floor, value, GO_TYPE, "BidFloor"),
+            _ => Ok(()),
+        })
+    }
 }
 
 /// ```text
 /// ExtImpAdtelligent defines the contract for bidrequest.imp[i].ext.prebid.bidder.adtelligent
 /// ```
-#[derive(Clone, Debug, Default, PartialEq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtImpAdtelligent")]
 pub struct ExtImpAdtelligent {
     /// Go field `SourceId`.
+    #[serde(rename = "aid", with = "gojson_bridge::json_number")]
     #[gojson(go = "SourceId", json = "aid")]
     pub source_id: JsonNumber,
     /// Go field `PlacementId`.
+    #[serde(
+        rename = "placementId",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "PlacementId", json = "placementId,omitempty")]
     pub placement_id: isize,
     /// Go field `SiteId`.
+    #[serde(
+        rename = "siteId",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "SiteId", json = "siteId,omitempty")]
     pub site_id: isize,
     /// Go field `BidFloor`.
+    #[serde(
+        rename = "bidFloor",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "BidFloor", json = "bidFloor,omitempty")]
     pub bid_floor: f64,
 }
 
+impl MergeClone for ExtImpAdtelligent {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtImpAdtelligent";
+        merge_struct(patch, |key, value| match key {
+            "aid" => gojson_bridge::merge_field(&mut self.source_id, value, GO_TYPE, "SourceId"),
+            "placementId" => {
+                gojson_bridge::merge_field(&mut self.placement_id, value, GO_TYPE, "PlacementId")
+            }
+            "siteId" => gojson_bridge::merge_field(&mut self.site_id, value, GO_TYPE, "SiteId"),
+            "bidFloor" => merge_field(&mut self.bid_floor, value, GO_TYPE, "BidFloor"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ImpExtAdTonos`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ImpExtAdTonos")]
 pub struct ImpExtAdTonos {
     /// Go field `SupplierID`.
+    #[serde(rename = "supplierId", deserialize_with = "null_default")]
     #[gojson(go = "SupplierID", json = "supplierId")]
     pub supplier_id: String,
+}
+
+impl MergeClone for ImpExtAdTonos {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ImpExtAdTonos";
+        merge_struct(patch, |key, value| match key {
+            "supplierId" => merge_field(&mut self.supplier_id, value, GO_TYPE, "SupplierID"),
+            _ => Ok(()),
+        })
+    }
 }
 
 /// ```text
 /// ExtImpAdtrgtme defines the contract for bidrequest.imp[i].ext.prebid.bidder.adtrgtme
 /// ```
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtImpAdtrgtme")]
 pub struct ExtImpAdtrgtme {
     /// Go field `SiteID`.
+    #[serde(rename = "site_id", deserialize_with = "null_default")]
     #[gojson(go = "SiteID", json = "site_id")]
     pub site_id: u64,
 }
 
+impl MergeClone for ExtImpAdtrgtme {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtImpAdtrgtme";
+        merge_struct(patch, |key, value| match key {
+            "site_id" => merge_field(&mut self.site_id, value, GO_TYPE, "SiteID"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ExtImpAduptech`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtImpAduptech")]
 pub struct ExtImpAduptech {
     /// Go field `Publisher`.
+    #[serde(rename = "publisher", deserialize_with = "null_default")]
     #[gojson(go = "Publisher", json = "publisher")]
     pub publisher: String,
     /// Go field `Placement`.
+    #[serde(rename = "placement", deserialize_with = "null_default")]
     #[gojson(go = "Placement", json = "placement")]
     pub placement: String,
     /// Go field `Query`.
+    #[serde(rename = "query", deserialize_with = "null_default")]
     #[gojson(go = "Query", json = "query")]
     pub query: String,
     /// Go field `AdTest`.
+    #[serde(rename = "adtest", deserialize_with = "null_default")]
     #[gojson(go = "AdTest", json = "adtest")]
     pub ad_test: bool,
     /// Go field `Debug`.
+    #[serde(
+        rename = "debug",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Debug", json = "debug,omitempty")]
     pub debug: bool,
     /// Go field `Ext`.
+    #[serde(
+        rename = "ext",
+        skip_serializing_if = "gojson_bridge::raw_json::is_empty",
+        with = "gojson_bridge::raw_json"
+    )]
     #[gojson(go = "Ext", json = "ext,omitempty")]
     pub ext: RawJson,
 }
 
+impl MergeClone for ExtImpAduptech {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtImpAduptech";
+        merge_struct(patch, |key, value| match key {
+            "publisher" => merge_field(&mut self.publisher, value, GO_TYPE, "Publisher"),
+            "placement" => merge_field(&mut self.placement, value, GO_TYPE, "Placement"),
+            "query" => merge_field(&mut self.query, value, GO_TYPE, "Query"),
+            "adtest" => merge_field(&mut self.ad_test, value, GO_TYPE, "AdTest"),
+            "debug" => merge_field(&mut self.debug, value, GO_TYPE, "Debug"),
+            "ext" => gojson_bridge::merge_field(&mut self.ext, value, GO_TYPE, "Ext"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ExtImpAdvangelists`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtImpAdvangelists")]
 pub struct ExtImpAdvangelists {
     /// Go field `PublisherID`.
+    #[serde(rename = "pubid", deserialize_with = "null_default")]
     #[gojson(go = "PublisherID", json = "pubid")]
     pub publisher_id: String,
     /// Go field `Placement`.
+    #[serde(
+        rename = "placement",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Placement", json = "placement,omitempty")]
     pub placement: String,
 }
 
+impl MergeClone for ExtImpAdvangelists {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtImpAdvangelists";
+        merge_struct(patch, |key, value| match key {
+            "pubid" => merge_field(&mut self.publisher_id, value, GO_TYPE, "PublisherID"),
+            "placement" => merge_field(&mut self.placement, value, GO_TYPE, "Placement"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ImpExtAdverxo`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ImpExtAdverxo")]
 pub struct ImpExtAdverxo {
     /// Go field `AdUnitId`.
+    #[serde(rename = "adUnitId", deserialize_with = "null_default")]
     #[gojson(go = "AdUnitId", json = "adUnitId")]
     pub ad_unit_id: isize,
     /// Go field `Auth`.
+    #[serde(rename = "auth", deserialize_with = "null_default")]
     #[gojson(go = "Auth", json = "auth")]
     pub auth: String,
 }
 
+impl MergeClone for ImpExtAdverxo {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ImpExtAdverxo";
+        merge_struct(patch, |key, value| match key {
+            "adUnitId" => {
+                gojson_bridge::merge_field(&mut self.ad_unit_id, value, GO_TYPE, "AdUnitId")
+            }
+            "auth" => merge_field(&mut self.auth, value, GO_TYPE, "Auth"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ExtImpAdView`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtImpAdView")]
 pub struct ExtImpAdView {
     /// Go field `MasterTagID`.
+    #[serde(rename = "placementId", deserialize_with = "null_default")]
     #[gojson(go = "MasterTagID", json = "placementId")]
     pub master_tag_id: String,
     /// Go field `AccountID`.
+    #[serde(rename = "accountId", deserialize_with = "null_default")]
     #[gojson(go = "AccountID", json = "accountId")]
     pub account_id: String,
+}
+
+impl MergeClone for ExtImpAdView {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtImpAdView";
+        merge_struct(patch, |key, value| match key {
+            "placementId" => merge_field(&mut self.master_tag_id, value, GO_TYPE, "MasterTagID"),
+            "accountId" => merge_field(&mut self.account_id, value, GO_TYPE, "AccountID"),
+            _ => Ok(()),
+        })
+    }
 }
 
 /// ```text
 /// ExtImpAdyoulike defines the contract for bidrequest.imp[i].ext.prebid.bidder.adyoulike
 /// ```
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtImpAdyoulike")]
 pub struct ExtImpAdyoulike {
     /// placementId, only mandatory field
+    #[serde(rename = "placement", deserialize_with = "null_default")]
     #[gojson(go = "PlacementId", json = "placement")]
     pub placement_id: String,
     /// Id of the forced campaign
+    #[serde(rename = "campaign", deserialize_with = "null_default")]
     #[gojson(go = "Campaign", json = "campaign")]
     pub campaign: String,
     /// Id of the forced track
+    #[serde(rename = "track", deserialize_with = "null_default")]
     #[gojson(go = "Track", json = "track")]
     pub track: String,
     /// Id of the forced creative
+    #[serde(rename = "creative", deserialize_with = "null_default")]
     #[gojson(go = "Creative", json = "creative")]
     pub creative: String,
     /// ```text
     /// Context of the campaign values [SSP|AdServer]
     /// ```
+    #[serde(rename = "source", deserialize_with = "null_default")]
     #[gojson(go = "Source", json = "source")]
     pub source: String,
     /// Abitrary Id used for debug purpose
+    #[serde(rename = "debug", deserialize_with = "null_default")]
     #[gojson(go = "Debug", json = "debug")]
     pub debug: String,
 }
 
+impl MergeClone for ExtImpAdyoulike {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtImpAdyoulike";
+        merge_struct(patch, |key, value| match key {
+            "placement" => merge_field(&mut self.placement_id, value, GO_TYPE, "PlacementId"),
+            "campaign" => merge_field(&mut self.campaign, value, GO_TYPE, "Campaign"),
+            "track" => merge_field(&mut self.track, value, GO_TYPE, "Track"),
+            "creative" => merge_field(&mut self.creative, value, GO_TYPE, "Creative"),
+            "source" => merge_field(&mut self.source, value, GO_TYPE, "Source"),
+            "debug" => merge_field(&mut self.debug, value, GO_TYPE, "Debug"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ExtAfront`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtAfront")]
 pub struct ExtAfront {
     /// Go field `AccountID`.
+    #[serde(rename = "accountId", deserialize_with = "null_default")]
     #[gojson(go = "AccountID", json = "accountId")]
     pub account_id: String,
     /// Go field `SourceId`.
+    #[serde(rename = "sourceId", deserialize_with = "null_default")]
     #[gojson(go = "SourceId", json = "sourceId")]
     pub source_id: String,
 }
 
+impl MergeClone for ExtAfront {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtAfront";
+        merge_struct(patch, |key, value| match key {
+            "accountId" => merge_field(&mut self.account_id, value, GO_TYPE, "AccountID"),
+            "sourceId" => merge_field(&mut self.source_id, value, GO_TYPE, "SourceId"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ExtImpAidem`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtImpAidem")]
 pub struct ExtImpAidem {
     /// Go field `PlacementId`.
+    #[serde(rename = "placementId", deserialize_with = "null_default")]
     #[gojson(go = "PlacementId", json = "placementId")]
     pub placement_id: String,
     /// Go field `SiteId`.
+    #[serde(rename = "siteId", deserialize_with = "null_default")]
     #[gojson(go = "SiteId", json = "siteId")]
     pub site_id: String,
     /// Go field `PublisherId`.
+    #[serde(rename = "publisherId", deserialize_with = "null_default")]
     #[gojson(go = "PublisherId", json = "publisherId")]
     pub publisher_id: String,
     /// Go field `RateLimit`.
+    #[serde(rename = "rateLimit", deserialize_with = "null_default")]
     #[gojson(go = "RateLimit", json = "rateLimit")]
     pub rate_limit: String,
 }
 
+impl MergeClone for ExtImpAidem {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtImpAidem";
+        merge_struct(patch, |key, value| match key {
+            "placementId" => merge_field(&mut self.placement_id, value, GO_TYPE, "PlacementId"),
+            "siteId" => merge_field(&mut self.site_id, value, GO_TYPE, "SiteId"),
+            "publisherId" => merge_field(&mut self.publisher_id, value, GO_TYPE, "PublisherId"),
+            "rateLimit" => merge_field(&mut self.rate_limit, value, GO_TYPE, "RateLimit"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ExtImpAJA`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtImpAJA")]
 pub struct ExtImpAJA {
     /// Go field `AdSpotID`.
+    #[serde(rename = "asi", deserialize_with = "null_default")]
     #[gojson(go = "AdSpotID", json = "asi")]
     pub ad_spot_id: String,
 }
 
+impl MergeClone for ExtImpAJA {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtImpAJA";
+        merge_struct(patch, |key, value| match key {
+            "asi" => merge_field(&mut self.ad_spot_id, value, GO_TYPE, "AdSpotID"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ExtImpAkcelo`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtImpAkcelo")]
 pub struct ExtImpAkcelo {
     /// Go field `AdUnitID`.
+    #[serde(
+        rename = "adUnitId",
+        skip_serializing_if = "gojson_bridge::json_number::is_empty",
+        with = "gojson_bridge::json_number"
+    )]
     #[gojson(go = "AdUnitID", json = "adUnitId,omitempty")]
     pub ad_unit_id: JsonNumber,
     /// Go field `SiteID`.
+    #[serde(
+        rename = "siteId",
+        skip_serializing_if = "gojson_bridge::json_number::is_empty",
+        with = "gojson_bridge::json_number"
+    )]
     #[gojson(go = "SiteID", json = "siteId,omitempty")]
     pub site_id: JsonNumber,
     /// Go field `Test`.
+    #[serde(
+        rename = "test",
+        skip_serializing_if = "gojson_bridge::json_number::is_empty",
+        with = "gojson_bridge::json_number"
+    )]
     #[gojson(go = "Test", json = "test,omitempty")]
     pub test: JsonNumber,
+}
+
+impl MergeClone for ExtImpAkcelo {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtImpAkcelo";
+        merge_struct(patch, |key, value| match key {
+            "adUnitId" => {
+                gojson_bridge::merge_field(&mut self.ad_unit_id, value, GO_TYPE, "AdUnitID")
+            }
+            "siteId" => gojson_bridge::merge_field(&mut self.site_id, value, GO_TYPE, "SiteID"),
+            "test" => gojson_bridge::merge_field(&mut self.test, value, GO_TYPE, "Test"),
+            _ => Ok(()),
+        })
+    }
 }
 
 /// ```text
 /// ExtImpAlgoriX defines the contract for bidrequest.imp[i].ext.prebid.bidder.algorix
 /// ```
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtImpAlgorix")]
 pub struct ExtImpAlgorix {
     /// Go field `Sid`.
+    #[serde(rename = "sid", deserialize_with = "null_default")]
     #[gojson(go = "Sid", json = "sid")]
     pub sid: String,
     /// Go field `Token`.
+    #[serde(rename = "token", deserialize_with = "null_default")]
     #[gojson(go = "Token", json = "token")]
     pub token: String,
     /// Go field `PlacementId`.
+    #[serde(rename = "placementId", deserialize_with = "null_default")]
     #[gojson(go = "PlacementId", json = "placementId")]
     pub placement_id: String,
     /// Go field `AppId`.
+    #[serde(rename = "appId", deserialize_with = "null_default")]
     #[gojson(go = "AppId", json = "appId")]
     pub app_id: String,
     /// Go field `Region`.
+    #[serde(rename = "region", deserialize_with = "null_default")]
     #[gojson(go = "Region", json = "region")]
     pub region: String,
 }
 
+impl MergeClone for ExtImpAlgorix {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtImpAlgorix";
+        merge_struct(patch, |key, value| match key {
+            "sid" => merge_field(&mut self.sid, value, GO_TYPE, "Sid"),
+            "token" => merge_field(&mut self.token, value, GO_TYPE, "Token"),
+            "placementId" => merge_field(&mut self.placement_id, value, GO_TYPE, "PlacementId"),
+            "appId" => merge_field(&mut self.app_id, value, GO_TYPE, "AppId"),
+            "region" => merge_field(&mut self.region, value, GO_TYPE, "Region"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ExtImpAlkimi`.
-#[derive(Clone, Debug, Default, PartialEq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtImpAlkimi")]
 pub struct ExtImpAlkimi {
     /// Go field `Token`.
+    #[serde(rename = "token", deserialize_with = "null_default")]
     #[gojson(go = "Token", json = "token")]
     pub token: String,
     /// Go field `BidFloor`.
+    #[serde(rename = "bidFloor", deserialize_with = "null_default")]
     #[gojson(go = "BidFloor", json = "bidFloor")]
     pub bid_floor: f64,
     /// Go field `Instl`.
+    #[serde(rename = "instl", deserialize_with = "null_default")]
     #[gojson(go = "Instl", json = "instl")]
     pub instl: i8,
     /// Go field `Exp`.
+    #[serde(rename = "exp", deserialize_with = "null_default")]
     #[gojson(go = "Exp", json = "exp")]
     pub exp: i64,
     /// Go field `AdUnitCode`.
+    #[serde(rename = "adUnitCode", deserialize_with = "null_default")]
     #[gojson(go = "AdUnitCode", json = "adUnitCode")]
     pub ad_unit_code: String,
 }
 
+impl MergeClone for ExtImpAlkimi {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtImpAlkimi";
+        merge_struct(patch, |key, value| match key {
+            "token" => merge_field(&mut self.token, value, GO_TYPE, "Token"),
+            "bidFloor" => merge_field(&mut self.bid_floor, value, GO_TYPE, "BidFloor"),
+            "instl" => merge_field(&mut self.instl, value, GO_TYPE, "Instl"),
+            "exp" => merge_field(&mut self.exp, value, GO_TYPE, "Exp"),
+            "adUnitCode" => merge_field(&mut self.ad_unit_code, value, GO_TYPE, "AdUnitCode"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ExtImpAllianceGravity`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtImpAllianceGravity")]
 pub struct ExtImpAllianceGravity {
     /// Go field `SrId`.
+    #[serde(rename = "srid", deserialize_with = "null_default")]
     #[gojson(go = "SrId", json = "srid")]
     pub sr_id: String,
 }
 
+impl MergeClone for ExtImpAllianceGravity {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtImpAllianceGravity";
+        merge_struct(patch, |key, value| match key {
+            "srid" => merge_field(&mut self.sr_id, value, GO_TYPE, "SrId"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// `ExtImpAMX` is the imp.ext format for the AMX bidder
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtImpAMX")]
 pub struct ExtImpAMX {
     /// Go field `TagID`.
+    #[serde(
+        rename = "tagId",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "TagID", json = "tagId,omitempty")]
     pub tag_id: String,
     /// Go field `AdUnitID`.
+    #[serde(
+        rename = "adUnitId",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "AdUnitID", json = "adUnitId,omitempty")]
     pub ad_unit_id: String,
 }
 
+impl MergeClone for ExtImpAMX {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtImpAMX";
+        merge_struct(patch, |key, value| match key {
+            "tagId" => merge_field(&mut self.tag_id, value, GO_TYPE, "TagID"),
+            "adUnitId" => merge_field(&mut self.ad_unit_id, value, GO_TYPE, "AdUnitID"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ExtImpApacdex`.
-#[derive(Clone, Debug, Default, PartialEq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtImpApacdex")]
 pub struct ExtImpApacdex {
     /// Go field `PlacementID`.
+    #[serde(rename = "placementId", deserialize_with = "null_default")]
     #[gojson(go = "PlacementID", json = "placementId")]
     pub placement_id: String,
     /// Go field `SiteID`.
+    #[serde(rename = "siteId", deserialize_with = "null_default")]
     #[gojson(go = "SiteID", json = "siteId")]
     pub site_id: String,
     /// Go field `FloorPrice`.
+    #[serde(rename = "floorPrice", deserialize_with = "null_default")]
     #[gojson(go = "FloorPrice", json = "floorPrice")]
     pub floor_price: f64,
+}
+
+impl MergeClone for ExtImpApacdex {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtImpApacdex";
+        merge_struct(patch, |key, value| match key {
+            "placementId" => merge_field(&mut self.placement_id, value, GO_TYPE, "PlacementID"),
+            "siteId" => merge_field(&mut self.site_id, value, GO_TYPE, "SiteID"),
+            "floorPrice" => merge_field(&mut self.floor_price, value, GO_TYPE, "FloorPrice"),
+            _ => Ok(()),
+        })
+    }
 }
 
 /// ```text
 /// ExtImpAppnexus defines the contract for bidrequest.imp[i].ext.prebid.bidder.appnexus
 /// ```
-#[derive(Clone, Debug, Default, PartialEq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtImpAppnexus")]
 pub struct ExtImpAppnexus {
     /// Go field `DeprecatedPlacementId`.
+    #[serde(rename = "placementId", with = "gojson_bridge::string_int")]
     #[gojson(go = "DeprecatedPlacementId", json = "placementId")]
     pub deprecated_placement_id: jsonutil::StringInt,
     /// Go field `LegacyInvCode`.
+    #[serde(rename = "invCode", deserialize_with = "null_default")]
     #[gojson(go = "LegacyInvCode", json = "invCode")]
     pub legacy_inv_code: String,
     /// Go field `LegacyTrafficSourceCode`.
+    #[serde(rename = "trafficSourceCode", deserialize_with = "null_default")]
     #[gojson(go = "LegacyTrafficSourceCode", json = "trafficSourceCode")]
     pub legacy_traffic_source_code: String,
     /// Go field `PlacementId`.
+    #[serde(rename = "placement_id", with = "gojson_bridge::string_int")]
     #[gojson(go = "PlacementId", json = "placement_id")]
     pub placement_id: jsonutil::StringInt,
     /// Go field `InvCode`.
+    #[serde(rename = "inv_code", deserialize_with = "null_default")]
     #[gojson(go = "InvCode", json = "inv_code")]
     pub inv_code: String,
     /// Go field `Member`.
+    #[serde(rename = "member", with = "gojson_bridge::int_string")]
     #[gojson(go = "Member", json = "member")]
     pub member: jsonutil::IntString,
     /// Go field `Keywords`.
+    #[serde(rename = "keywords", deserialize_with = "null_default")]
     #[gojson(go = "Keywords", json = "keywords")]
     pub keywords: ExtImpAppnexusKeywords,
     /// Go field `TrafficSourceCode`.
+    #[serde(rename = "traffic_source_code", deserialize_with = "null_default")]
     #[gojson(go = "TrafficSourceCode", json = "traffic_source_code")]
     pub traffic_source_code: String,
     /// Go field `Reserve`.
+    #[serde(rename = "reserve", deserialize_with = "null_default")]
     #[gojson(go = "Reserve", json = "reserve")]
     pub reserve: f64,
     /// Go field `Position`.
+    #[serde(rename = "position", deserialize_with = "null_default")]
     #[gojson(go = "Position", json = "position")]
     pub position: String,
     /// Go field `UsePaymentRule`.
+    #[serde(rename = "use_pmt_rule")]
     #[gojson(go = "UsePaymentRule", json = "use_pmt_rule")]
     pub use_payment_rule: Option<bool>,
     /// Go field `DeprecatedUsePaymentRule`.
+    #[serde(rename = "use_payment_rule")]
     #[gojson(go = "DeprecatedUsePaymentRule", json = "use_payment_rule")]
     pub deprecated_use_payment_rule: Option<bool>,
     /// At this time we do no processing on the private sizes, so just leaving it as a JSON blob.
+    #[serde(rename = "private_sizes", with = "gojson_bridge::raw_json")]
     #[gojson(go = "PrivateSizes", json = "private_sizes")]
     pub private_sizes: RawJson,
     /// Go field `AdPodId`.
+    #[serde(rename = "generate_ad_pod_id", deserialize_with = "null_default")]
     #[gojson(go = "AdPodId", json = "generate_ad_pod_id")]
     pub ad_pod_id: bool,
     /// Go field `ExtInvCode`.
+    #[serde(rename = "ext_inv_code", deserialize_with = "null_default")]
     #[gojson(go = "ExtInvCode", json = "ext_inv_code")]
     pub ext_inv_code: String,
     /// Go field `ExternalImpId`.
+    #[serde(rename = "external_imp_id", deserialize_with = "null_default")]
     #[gojson(go = "ExternalImpId", json = "external_imp_id")]
     pub external_imp_id: String,
 }
 
+impl MergeClone for ExtImpAppnexus {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtImpAppnexus";
+        merge_struct(patch, |key, value| match key {
+            "placementId" => gojson_bridge::merge_field(
+                &mut self.deprecated_placement_id,
+                value,
+                GO_TYPE,
+                "DeprecatedPlacementId",
+            ),
+            "invCode" => merge_field(&mut self.legacy_inv_code, value, GO_TYPE, "LegacyInvCode"),
+            "trafficSourceCode" => merge_field(
+                &mut self.legacy_traffic_source_code,
+                value,
+                GO_TYPE,
+                "LegacyTrafficSourceCode",
+            ),
+            "placement_id" => {
+                gojson_bridge::merge_field(&mut self.placement_id, value, GO_TYPE, "PlacementId")
+            }
+            "inv_code" => merge_field(&mut self.inv_code, value, GO_TYPE, "InvCode"),
+            "member" => gojson_bridge::merge_field(&mut self.member, value, GO_TYPE, "Member"),
+            "keywords" => merge_field(&mut self.keywords, value, GO_TYPE, "Keywords"),
+            "traffic_source_code" => merge_field(
+                &mut self.traffic_source_code,
+                value,
+                GO_TYPE,
+                "TrafficSourceCode",
+            ),
+            "reserve" => merge_field(&mut self.reserve, value, GO_TYPE, "Reserve"),
+            "position" => merge_field(&mut self.position, value, GO_TYPE, "Position"),
+            "use_pmt_rule" => {
+                merge_field(&mut self.use_payment_rule, value, GO_TYPE, "UsePaymentRule")
+            }
+            "use_payment_rule" => merge_field(
+                &mut self.deprecated_use_payment_rule,
+                value,
+                GO_TYPE,
+                "DeprecatedUsePaymentRule",
+            ),
+            "private_sizes" => {
+                gojson_bridge::merge_field(&mut self.private_sizes, value, GO_TYPE, "PrivateSizes")
+            }
+            "generate_ad_pod_id" => merge_field(&mut self.ad_pod_id, value, GO_TYPE, "AdPodId"),
+            "ext_inv_code" => merge_field(&mut self.ext_inv_code, value, GO_TYPE, "ExtInvCode"),
+            "external_imp_id" => {
+                merge_field(&mut self.external_imp_id, value, GO_TYPE, "ExternalImpId")
+            }
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ImpExtAppush`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ImpExtAppush")]
 pub struct ImpExtAppush {
     /// Go field `PlacementID`.
+    #[serde(rename = "placementId", deserialize_with = "null_default")]
     #[gojson(go = "PlacementID", json = "placementId")]
     pub placement_id: String,
     /// Go field `EndpointID`.
+    #[serde(rename = "endpointId", deserialize_with = "null_default")]
     #[gojson(go = "EndpointID", json = "endpointId")]
     pub endpoint_id: String,
+}
+
+impl MergeClone for ImpExtAppush {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ImpExtAppush";
+        merge_struct(patch, |key, value| match key {
+            "placementId" => merge_field(&mut self.placement_id, value, GO_TYPE, "PlacementID"),
+            "endpointId" => merge_field(&mut self.endpoint_id, value, GO_TYPE, "EndpointID"),
+            _ => Ok(()),
+        })
+    }
 }
 
 /// ```text
 /// ExtImpAps defines bidrequest.imp[i].ext.prebid.bidder.aps.
 /// ```
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtImpAps")]
 pub struct ExtImpAps {
     /// Go field `AccountID`.
+    #[serde(rename = "accountID", deserialize_with = "null_default")]
     #[gojson(go = "AccountID", json = "accountID")]
     pub account_id: String,
     /// Go field `Region`.
+    #[serde(
+        rename = "region",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Region", json = "region,omitempty")]
     pub region: String,
 }
 
+impl MergeClone for ExtImpAps {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtImpAps";
+        merge_struct(patch, |key, value| match key {
+            "accountID" => merge_field(&mut self.account_id, value, GO_TYPE, "AccountID"),
+            "region" => merge_field(&mut self.region, value, GO_TYPE, "Region"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ExtImpAso`.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtImpAso")]
 pub struct ExtImpAso {
     /// Go field `Zone`.
+    #[serde(rename = "zone", deserialize_with = "null_default")]
     #[gojson(go = "Zone", json = "zone")]
     pub zone: isize,
+}
+
+impl MergeClone for ExtImpAso {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtImpAso";
+        merge_struct(patch, |key, value| match key {
+            "zone" => gojson_bridge::merge_field(&mut self.zone, value, GO_TYPE, "Zone"),
+            _ => Ok(()),
+        })
+    }
 }
 
 /// ```text
 /// ExtImpAvocet defines the contract for bidrequest.imp[i].ext.prebid.bidder.avocet
 /// ```
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtImpAvocet")]
 pub struct ExtImpAvocet {
     /// Go field `Placement`.
+    #[serde(
+        rename = "placement",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Placement", json = "placement,omitempty")]
     pub placement: String,
     /// Go field `PlacementCode`.
+    #[serde(
+        rename = "placement_code",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "PlacementCode", json = "placement_code,omitempty")]
     pub placement_code: String,
 }
 
+impl MergeClone for ExtImpAvocet {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtImpAvocet";
+        merge_struct(patch, |key, value| match key {
+            "placement" => merge_field(&mut self.placement, value, GO_TYPE, "Placement"),
+            "placement_code" => {
+                merge_field(&mut self.placement_code, value, GO_TYPE, "PlacementCode")
+            }
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ImpExtAxis`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ImpExtAxis")]
 pub struct ImpExtAxis {
     /// Go field `Integration`.
+    #[serde(
+        rename = "integration",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Integration", json = "integration,omitempty")]
     pub integration: String,
     /// Go field `Token`.
+    #[serde(
+        rename = "token",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Token", json = "token,omitempty")]
     pub token: String,
 }
 
+impl MergeClone for ImpExtAxis {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ImpExtAxis";
+        merge_struct(patch, |key, value| match key {
+            "integration" => merge_field(&mut self.integration, value, GO_TYPE, "Integration"),
+            "token" => merge_field(&mut self.token, value, GO_TYPE, "Token"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ExtImpAxonix`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtImpAxonix")]
 pub struct ExtImpAxonix {
     /// Go field `SupplyId`.
+    #[serde(rename = "supplyId", deserialize_with = "null_default")]
     #[gojson(go = "SupplyId", json = "supplyId")]
     pub supply_id: String,
 }
 
+impl MergeClone for ExtImpAxonix {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtImpAxonix";
+        merge_struct(patch, |key, value| match key {
+            "supplyId" => merge_field(&mut self.supply_id, value, GO_TYPE, "SupplyId"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ExtImpBeachfront`.
-#[derive(Clone, Debug, Default, PartialEq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtImpBeachfront")]
 pub struct ExtImpBeachfront {
     /// Go field `AppId`.
+    #[serde(rename = "appId", deserialize_with = "null_default")]
     #[gojson(go = "AppId", json = "appId")]
     pub app_id: String,
     /// Go field `AppIds`.
+    #[serde(rename = "appIds", deserialize_with = "null_default")]
     #[gojson(go = "AppIds", json = "appIds")]
     pub app_ids: ExtImpBeachfrontAppIds,
     /// Go field `BidFloor`.
+    #[serde(rename = "bidfloor", deserialize_with = "null_default")]
     #[gojson(go = "BidFloor", json = "bidfloor")]
     pub bid_floor: f64,
     /// Go field `VideoResponseType`.
+    #[serde(
+        rename = "videoResponseType",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "VideoResponseType", json = "videoResponseType,omitempty")]
     pub video_response_type: String,
 }
 
+impl MergeClone for ExtImpBeachfront {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtImpBeachfront";
+        merge_struct(patch, |key, value| match key {
+            "appId" => merge_field(&mut self.app_id, value, GO_TYPE, "AppId"),
+            "appIds" => merge_field(&mut self.app_ids, value, GO_TYPE, "AppIds"),
+            "bidfloor" => merge_field(&mut self.bid_floor, value, GO_TYPE, "BidFloor"),
+            "videoResponseType" => merge_field(
+                &mut self.video_response_type,
+                value,
+                GO_TYPE,
+                "VideoResponseType",
+            ),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ExtImpBeachfrontAppIds`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtImpBeachfrontAppIds")]
 pub struct ExtImpBeachfrontAppIds {
     /// Go field `Video`.
+    #[serde(
+        rename = "video",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Video", json = "video,omitempty")]
     pub video: String,
     /// Go field `Banner`.
+    #[serde(
+        rename = "banner",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Banner", json = "banner,omitempty")]
     pub banner: String,
 }
 
+impl MergeClone for ExtImpBeachfrontAppIds {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtImpBeachfrontAppIds";
+        merge_struct(patch, |key, value| match key {
+            "video" => merge_field(&mut self.video, value, GO_TYPE, "Video"),
+            "banner" => merge_field(&mut self.banner, value, GO_TYPE, "Banner"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ExtImpBeintoo`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtImpBeintoo")]
 pub struct ExtImpBeintoo {
     /// Go field `TagID`.
+    #[serde(rename = "tagid", deserialize_with = "null_default")]
     #[gojson(go = "TagID", json = "tagid")]
     pub tag_id: String,
     /// Go field `BidFloor`.
+    #[serde(
+        rename = "bidfloor",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "BidFloor", json = "bidfloor,omitempty")]
     pub bid_floor: String,
 }
 
+impl MergeClone for ExtImpBeintoo {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtImpBeintoo";
+        merge_struct(patch, |key, value| match key {
+            "tagid" => merge_field(&mut self.tag_id, value, GO_TYPE, "TagID"),
+            "bidfloor" => merge_field(&mut self.bid_floor, value, GO_TYPE, "BidFloor"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ExtBematterfull`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtBematterfull")]
 pub struct ExtBematterfull {
     /// Go field `Env`.
+    #[serde(rename = "env", deserialize_with = "null_default")]
     #[gojson(go = "Env", json = "env")]
     pub env: String,
     /// Go field `Pid`.
+    #[serde(rename = "pid", deserialize_with = "null_default")]
     #[gojson(go = "Pid", json = "pid")]
     pub pid: String,
 }
 
+impl MergeClone for ExtBematterfull {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtBematterfull";
+        merge_struct(patch, |key, value| match key {
+            "env" => merge_field(&mut self.env, value, GO_TYPE, "Env"),
+            "pid" => merge_field(&mut self.pid, value, GO_TYPE, "Pid"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ExtImpBeop`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtImpBeop")]
 pub struct ExtImpBeop {
     /// Go field `BeopPublisherID`.
+    #[serde(
+        rename = "pid",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "BeopPublisherID", json = "pid,omitempty")]
     pub beop_publisher_id: String,
     /// Go field `BeopNetworkID`.
+    #[serde(
+        rename = "nid",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "BeopNetworkID", json = "nid,omitempty")]
     pub beop_network_id: String,
     /// Go field `BeopNetworkPartnerID`.
+    #[serde(
+        rename = "nptnid",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "BeopNetworkPartnerID", json = "nptnid,omitempty")]
     pub beop_network_partner_id: String,
 }
 
+impl MergeClone for ExtImpBeop {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtImpBeop";
+        merge_struct(patch, |key, value| match key {
+            "pid" => merge_field(
+                &mut self.beop_publisher_id,
+                value,
+                GO_TYPE,
+                "BeopPublisherID",
+            ),
+            "nid" => merge_field(&mut self.beop_network_id, value, GO_TYPE, "BeopNetworkID"),
+            "nptnid" => merge_field(
+                &mut self.beop_network_partner_id,
+                value,
+                GO_TYPE,
+                "BeopNetworkPartnerID",
+            ),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ExtImpBetween`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtImpBetween")]
 pub struct ExtImpBetween {
     /// Go field `Host`.
+    #[serde(rename = "host", deserialize_with = "null_default")]
     #[gojson(go = "Host", json = "host")]
     pub host: String,
     /// Go field `PublisherID`.
+    #[serde(rename = "publisher_id", deserialize_with = "null_default")]
     #[gojson(go = "PublisherID", json = "publisher_id")]
     pub publisher_id: String,
 }
 
+impl MergeClone for ExtImpBetween {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtImpBetween";
+        merge_struct(patch, |key, value| match key {
+            "host" => merge_field(&mut self.host, value, GO_TYPE, "Host"),
+            "publisher_id" => merge_field(&mut self.publisher_id, value, GO_TYPE, "PublisherID"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ImpExtBeyondMedia`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ImpExtBeyondMedia")]
 pub struct ImpExtBeyondMedia {
     /// Go field `PlacementID`.
+    #[serde(rename = "placementId", deserialize_with = "null_default")]
     #[gojson(go = "PlacementID", json = "placementId")]
     pub placement_id: String,
 }
 
+impl MergeClone for ImpExtBeyondMedia {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ImpExtBeyondMedia";
+        merge_struct(patch, |key, value| match key {
+            "placementId" => merge_field(&mut self.placement_id, value, GO_TYPE, "PlacementID"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ExtImpBidmachine`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtImpBidmachine")]
 pub struct ExtImpBidmachine {
     /// Go field `Host`.
+    #[serde(rename = "host", deserialize_with = "null_default")]
     #[gojson(go = "Host", json = "host")]
     pub host: String,
     /// Go field `Path`.
+    #[serde(rename = "path", deserialize_with = "null_default")]
     #[gojson(go = "Path", json = "path")]
     pub path: String,
     /// Go field `SellerID`.
+    #[serde(rename = "seller_id", deserialize_with = "null_default")]
     #[gojson(go = "SellerID", json = "seller_id")]
     pub seller_id: String,
+}
+
+impl MergeClone for ExtImpBidmachine {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtImpBidmachine";
+        merge_struct(patch, |key, value| match key {
+            "host" => merge_field(&mut self.host, value, GO_TYPE, "Host"),
+            "path" => merge_field(&mut self.path, value, GO_TYPE, "Path"),
+            "seller_id" => merge_field(&mut self.seller_id, value, GO_TYPE, "SellerID"),
+            _ => Ok(()),
+        })
+    }
 }
 
 /// ```text
 /// ExtImpBidmatic defines the contract for bidrequest.imp[i].ext.prebid.bidder.bidmatic
 /// ```
-#[derive(Clone, Debug, Default, PartialEq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtImpBidmatic")]
 pub struct ExtImpBidmatic {
     /// Go field `SourceId`.
+    #[serde(rename = "source", with = "gojson_bridge::json_number")]
     #[gojson(go = "SourceId", json = "source")]
     pub source_id: JsonNumber,
     /// Go field `PlacementId`.
+    #[serde(
+        rename = "placementId",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "PlacementId", json = "placementId,omitempty")]
     pub placement_id: isize,
     /// Go field `SiteId`.
+    #[serde(
+        rename = "siteId",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "SiteId", json = "siteId,omitempty")]
     pub site_id: isize,
     /// Go field `BidFloor`.
+    #[serde(
+        rename = "bidFloor",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "BidFloor", json = "bidFloor,omitempty")]
     pub bid_floor: f64,
 }
 
+impl MergeClone for ExtImpBidmatic {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtImpBidmatic";
+        merge_struct(patch, |key, value| match key {
+            "source" => gojson_bridge::merge_field(&mut self.source_id, value, GO_TYPE, "SourceId"),
+            "placementId" => {
+                gojson_bridge::merge_field(&mut self.placement_id, value, GO_TYPE, "PlacementId")
+            }
+            "siteId" => gojson_bridge::merge_field(&mut self.site_id, value, GO_TYPE, "SiteId"),
+            "bidFloor" => merge_field(&mut self.bid_floor, value, GO_TYPE, "BidFloor"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ExtImpBidsCube`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtImpBidsCube")]
 pub struct ExtImpBidsCube {
     /// Go field `PlacementID`.
+    #[serde(rename = "placementId", deserialize_with = "null_default")]
     #[gojson(go = "PlacementID", json = "placementId")]
     pub placement_id: String,
 }
 
+impl MergeClone for ExtImpBidsCube {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtImpBidsCube";
+        merge_struct(patch, |key, value| match key {
+            "placementId" => merge_field(&mut self.placement_id, value, GO_TYPE, "PlacementID"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ImpExtBidstack`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ImpExtBidstack")]
 pub struct ImpExtBidstack {
     /// Go field `PublisherID`.
+    #[serde(rename = "publisherId", deserialize_with = "null_default")]
     #[gojson(go = "PublisherID", json = "publisherId")]
     pub publisher_id: String,
+}
+
+impl MergeClone for ImpExtBidstack {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ImpExtBidstack";
+        merge_struct(patch, |key, value| match key {
+            "publisherId" => merge_field(&mut self.publisher_id, value, GO_TYPE, "PublisherID"),
+            _ => Ok(()),
+        })
+    }
 }
 
 /// Go type `openrtb_ext.ImpExtBidtheatre`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ImpExtBidtheatre")]
 pub struct ImpExtBidtheatre {
     /// Go field `PublisherID`.
+    #[serde(rename = "publisherId", deserialize_with = "null_default")]
     #[gojson(go = "PublisherID", json = "publisherId")]
     pub publisher_id: String,
 }
 
+impl MergeClone for ImpExtBidtheatre {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ImpExtBidtheatre";
+        merge_struct(patch, |key, value| match key {
+            "publisherId" => merge_field(&mut self.publisher_id, value, GO_TYPE, "PublisherID"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ExtImpBigoAd`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtImpBigoAd")]
 pub struct ExtImpBigoAd {
     /// Go field `SspId`.
+    #[serde(rename = "sspid", deserialize_with = "null_default")]
     #[gojson(go = "SspId", json = "sspid")]
     pub ssp_id: String,
 }
 
+impl MergeClone for ExtImpBigoAd {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtImpBigoAd";
+        merge_struct(patch, |key, value| match key {
+            "sspid" => merge_field(&mut self.ssp_id, value, GO_TYPE, "SspId"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ExtBlasto`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtBlasto")]
 pub struct ExtBlasto {
     /// Go field `AccountID`.
+    #[serde(rename = "accountId", deserialize_with = "null_default")]
     #[gojson(go = "AccountID", json = "accountId")]
     pub account_id: String,
     /// Go field `SourceID`.
+    #[serde(rename = "sourceId", deserialize_with = "null_default")]
     #[gojson(go = "SourceID", json = "sourceId")]
     pub source_id: String,
     /// Go field `Host`.
+    #[serde(rename = "host", deserialize_with = "null_default")]
     #[gojson(go = "Host", json = "host")]
     pub host: String,
     /// Go field `PlacementID`.
+    #[serde(rename = "placementId", deserialize_with = "null_default")]
     #[gojson(go = "PlacementID", json = "placementId")]
     pub placement_id: String,
 }
 
+impl MergeClone for ExtBlasto {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtBlasto";
+        merge_struct(patch, |key, value| match key {
+            "accountId" => merge_field(&mut self.account_id, value, GO_TYPE, "AccountID"),
+            "sourceId" => merge_field(&mut self.source_id, value, GO_TYPE, "SourceID"),
+            "host" => merge_field(&mut self.host, value, GO_TYPE, "Host"),
+            "placementId" => merge_field(&mut self.placement_id, value, GO_TYPE, "PlacementID"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ImpExtBliink`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ImpExtBliink")]
 pub struct ImpExtBliink {
     /// Go field `TagID`.
+    #[serde(rename = "tagId", deserialize_with = "null_default")]
     #[gojson(go = "TagID", json = "tagId")]
     pub tag_id: String,
     /// Go field `ImageUrl`.
+    #[serde(rename = "imageUrl", deserialize_with = "null_default")]
     #[gojson(go = "ImageUrl", json = "imageUrl")]
     pub image_url: String,
 }
 
+impl MergeClone for ImpExtBliink {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ImpExtBliink";
+        merge_struct(patch, |key, value| match key {
+            "tagId" => merge_field(&mut self.tag_id, value, GO_TYPE, "TagID"),
+            "imageUrl" => merge_field(&mut self.image_url, value, GO_TYPE, "ImageUrl"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ImpExtBlis`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ImpExtBlis")]
 pub struct ImpExtBlis {
     /// Go field `SupplyPartnerID`.
+    #[serde(rename = "spid", deserialize_with = "null_default")]
     #[gojson(go = "SupplyPartnerID", json = "spid")]
     pub supply_partner_id: String,
 }
 
+impl MergeClone for ImpExtBlis {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ImpExtBlis";
+        merge_struct(patch, |key, value| match key {
+            "spid" => merge_field(
+                &mut self.supply_partner_id,
+                value,
+                GO_TYPE,
+                "SupplyPartnerID",
+            ),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ExtImpBluesea`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtImpBluesea")]
 pub struct ExtImpBluesea {
     /// Go field `PubId`.
+    #[serde(rename = "pubid", deserialize_with = "null_default")]
     #[gojson(go = "PubId", json = "pubid")]
     pub pub_id: String,
     /// Go field `Token`.
+    #[serde(rename = "token", deserialize_with = "null_default")]
     #[gojson(go = "Token", json = "token")]
     pub token: String,
 }
 
+impl MergeClone for ExtImpBluesea {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtImpBluesea";
+        merge_struct(patch, |key, value| match key {
+            "pubid" => merge_field(&mut self.pub_id, value, GO_TYPE, "PubId"),
+            "token" => merge_field(&mut self.token, value, GO_TYPE, "Token"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ImpExtBmtm`.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ImpExtBmtm")]
 pub struct ImpExtBmtm {
     /// Go field `PlacementID`.
+    #[serde(rename = "placement_id", deserialize_with = "null_default")]
     #[gojson(go = "PlacementID", json = "placement_id")]
     pub placement_id: isize,
 }
 
+impl MergeClone for ImpExtBmtm {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ImpExtBmtm";
+        merge_struct(patch, |key, value| match key {
+            "placement_id" => {
+                gojson_bridge::merge_field(&mut self.placement_id, value, GO_TYPE, "PlacementID")
+            }
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ImpExtBoldwin`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ImpExtBoldwin")]
 pub struct ImpExtBoldwin {
     /// Go field `PlacementID`.
+    #[serde(rename = "placementId", deserialize_with = "null_default")]
     #[gojson(go = "PlacementID", json = "placementId")]
     pub placement_id: String,
     /// Go field `EndpointID`.
+    #[serde(rename = "endpointId", deserialize_with = "null_default")]
     #[gojson(go = "EndpointID", json = "endpointId")]
     pub endpoint_id: String,
 }
 
+impl MergeClone for ImpExtBoldwin {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ImpExtBoldwin";
+        merge_struct(patch, |key, value| match key {
+            "placementId" => merge_field(&mut self.placement_id, value, GO_TYPE, "PlacementID"),
+            "endpointId" => merge_field(&mut self.endpoint_id, value, GO_TYPE, "EndpointID"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ImpExtBoldwinRapid`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ImpExtBoldwinRapid")]
 pub struct ImpExtBoldwinRapid {
     /// Go field `Pid`.
+    #[serde(rename = "pid", deserialize_with = "null_default")]
     #[gojson(go = "Pid", json = "pid")]
     pub pid: String,
     /// Go field `Tid`.
+    #[serde(rename = "tid", deserialize_with = "null_default")]
     #[gojson(go = "Tid", json = "tid")]
     pub tid: String,
 }
 
+impl MergeClone for ImpExtBoldwinRapid {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ImpExtBoldwinRapid";
+        merge_struct(patch, |key, value| match key {
+            "pid" => merge_field(&mut self.pid, value, GO_TYPE, "Pid"),
+            "tid" => merge_field(&mut self.tid, value, GO_TYPE, "Tid"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ExtImpBrave`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtImpBrave")]
 pub struct ExtImpBrave {
     /// Go field `PlacementID`.
+    #[serde(rename = "placementId", deserialize_with = "null_default")]
     #[gojson(go = "PlacementID", json = "placementId")]
     pub placement_id: String,
 }
 
+impl MergeClone for ExtImpBrave {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtImpBrave";
+        merge_struct(patch, |key, value| match key {
+            "placementId" => merge_field(&mut self.placement_id, value, GO_TYPE, "PlacementID"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ExtBWX`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtBWX")]
 pub struct ExtBWX {
     /// Go field `Env`.
+    #[serde(rename = "env", deserialize_with = "null_default")]
     #[gojson(go = "Env", json = "env")]
     pub env: String,
     /// Go field `Pid`.
+    #[serde(rename = "pid", deserialize_with = "null_default")]
     #[gojson(go = "Pid", json = "pid")]
     pub pid: String,
 }
 
+impl MergeClone for ExtBWX {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtBWX";
+        merge_struct(patch, |key, value| match key {
+            "env" => merge_field(&mut self.env, value, GO_TYPE, "Env"),
+            "pid" => merge_field(&mut self.pid, value, GO_TYPE, "Pid"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ExtImpCadentApertureMX`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtImpCadentApertureMX")]
 pub struct ExtImpCadentApertureMX {
     /// Go field `TagID`.
+    #[serde(rename = "tagid", deserialize_with = "null_default")]
     #[gojson(go = "TagID", json = "tagid")]
     pub tag_id: String,
     /// Go field `BidFloor`.
+    #[serde(
+        rename = "bidfloor",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "BidFloor", json = "bidfloor,omitempty")]
     pub bid_floor: String,
 }
 
+impl MergeClone for ExtImpCadentApertureMX {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtImpCadentApertureMX";
+        merge_struct(patch, |key, value| match key {
+            "tagid" => merge_field(&mut self.tag_id, value, GO_TYPE, "TagID"),
+            "bidfloor" => merge_field(&mut self.bid_floor, value, GO_TYPE, "BidFloor"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ExtImpCcx`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtImpCcx")]
 pub struct ExtImpCcx {
     /// Go field `PlacementID`.
+    #[serde(rename = "placementId", deserialize_with = "null_default")]
     #[gojson(go = "PlacementID", json = "placementId")]
     pub placement_id: String,
 }
 
+impl MergeClone for ExtImpCcx {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtImpCcx";
+        merge_struct(patch, |key, value| match key {
+            "placementId" => merge_field(&mut self.placement_id, value, GO_TYPE, "PlacementID"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ImpExtClydo`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ImpExtClydo")]
 pub struct ImpExtClydo {
     /// Go field `PartnerId`.
+    #[serde(rename = "partnerId", deserialize_with = "null_default")]
     #[gojson(go = "PartnerId", json = "partnerId")]
     pub partner_id: String,
     /// Go field `Region`.
+    #[serde(
+        rename = "region",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Region", json = "region,omitempty")]
     pub region: String,
 }
 
+impl MergeClone for ImpExtClydo {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ImpExtClydo";
+        merge_struct(patch, |key, value| match key {
+            "partnerId" => merge_field(&mut self.partner_id, value, GO_TYPE, "PartnerId"),
+            "region" => merge_field(&mut self.region, value, GO_TYPE, "Region"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ExtImpCointraffic`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtImpCointraffic")]
 pub struct ExtImpCointraffic {
     /// Go field `PlacementId`.
+    #[serde(rename = "placementId", deserialize_with = "null_default")]
     #[gojson(go = "PlacementId", json = "placementId")]
     pub placement_id: String,
 }
 
+impl MergeClone for ExtImpCointraffic {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtImpCointraffic";
+        merge_struct(patch, |key, value| match key {
+            "placementId" => merge_field(&mut self.placement_id, value, GO_TYPE, "PlacementId"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// `ExtImpColossus` defines colossus specifiec param
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtImpColossus")]
 pub struct ExtImpColossus {
     /// Go field `TagID`.
+    #[serde(rename = "TagID", deserialize_with = "null_default")]
     #[gojson(go = "TagID", json = "TagID")]
     pub tag_id: String,
 }
 
+impl MergeClone for ExtImpColossus {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtImpColossus";
+        merge_struct(patch, |key, value| match key {
+            "TagID" => merge_field(&mut self.tag_id, value, GO_TYPE, "TagID"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ImpExtCompass`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ImpExtCompass")]
 pub struct ImpExtCompass {
     /// Go field `PlacementID`.
+    #[serde(rename = "placementId", deserialize_with = "null_default")]
     #[gojson(go = "PlacementID", json = "placementId")]
     pub placement_id: String,
     /// Go field `EndpointID`.
+    #[serde(rename = "endpointId", deserialize_with = "null_default")]
     #[gojson(go = "EndpointID", json = "endpointId")]
     pub endpoint_id: String,
 }
 
+impl MergeClone for ImpExtCompass {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ImpExtCompass";
+        merge_struct(patch, |key, value| match key {
+            "placementId" => merge_field(&mut self.placement_id, value, GO_TYPE, "PlacementID"),
+            "endpointId" => merge_field(&mut self.endpoint_id, value, GO_TYPE, "EndpointID"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ImpExtConcert`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ImpExtConcert")]
 pub struct ImpExtConcert {
     /// Go field `PartnerId`.
+    #[serde(rename = "partnerId", deserialize_with = "null_default")]
     #[gojson(go = "PartnerId", json = "partnerId")]
     pub partner_id: String,
     /// Go field `PlacementId`.
+    #[serde(rename = "placementId", skip_serializing_if = "Option::is_none")]
     #[gojson(go = "PlacementId", json = "placementId,omitempty")]
     pub placement_id: Option<isize>,
     /// Go field `Site`.
+    #[serde(rename = "site", skip_serializing_if = "Option::is_none")]
     #[gojson(go = "Site", json = "site,omitempty")]
     pub site: Option<String>,
     /// Go field `Slot`.
+    #[serde(rename = "slot", skip_serializing_if = "Option::is_none")]
     #[gojson(go = "Slot", json = "slot,omitempty")]
     pub slot: Option<String>,
     /// Go field `Sizes`.
+    #[serde(rename = "sizes", skip_serializing_if = "Option::is_none")]
     #[gojson(go = "Sizes", json = "sizes,omitempty")]
     pub sizes: Option<Option<Vec<Option<Vec<isize>>>>>,
 }
 
+impl MergeClone for ImpExtConcert {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ImpExtConcert";
+        merge_struct(patch, |key, value| match key {
+            "partnerId" => merge_field(&mut self.partner_id, value, GO_TYPE, "PartnerId"),
+            "placementId" => {
+                gojson_bridge::merge_field(&mut self.placement_id, value, GO_TYPE, "PlacementId")
+            }
+            "site" => merge_field(&mut self.site, value, GO_TYPE, "Site"),
+            "slot" => merge_field(&mut self.slot, value, GO_TYPE, "Slot"),
+            "sizes" => gojson_bridge::merge_field(&mut self.sizes, value, GO_TYPE, "Sizes"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ExtImpConnatix`.
-#[derive(Clone, Debug, Default, PartialEq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtImpConnatix")]
 pub struct ExtImpConnatix {
     /// Go field `PlacementId`.
+    #[serde(rename = "placementId", deserialize_with = "null_default")]
     #[gojson(go = "PlacementId", json = "placementId")]
     pub placement_id: String,
     /// Go field `ViewabilityPercentage`.
+    #[serde(rename = "viewabilityPercentage", deserialize_with = "null_default")]
     #[gojson(go = "ViewabilityPercentage", json = "viewabilityPercentage")]
     pub viewability_percentage: f64,
 }
 
+impl MergeClone for ExtImpConnatix {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtImpConnatix";
+        merge_struct(patch, |key, value| match key {
+            "placementId" => merge_field(&mut self.placement_id, value, GO_TYPE, "PlacementId"),
+            "viewabilityPercentage" => merge_field(
+                &mut self.viewability_percentage,
+                value,
+                GO_TYPE,
+                "ViewabilityPercentage",
+            ),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ExtImpConnectAd`.
-#[derive(Clone, Copy, Debug, Default, PartialEq, GoJson)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtImpConnectAd")]
 pub struct ExtImpConnectAd {
     /// Go field `NetworkID`.
+    #[serde(rename = "networkId", with = "gojson_bridge::string_int")]
     #[gojson(go = "NetworkID", json = "networkId")]
     pub network_id: jsonutil::StringInt,
     /// Go field `SiteID`.
+    #[serde(rename = "siteId", with = "gojson_bridge::string_int")]
     #[gojson(go = "SiteID", json = "siteId")]
     pub site_id: jsonutil::StringInt,
     /// Go field `Bidfloor`.
+    #[serde(
+        rename = "bidfloor",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Bidfloor", json = "bidfloor,omitempty")]
     pub bidfloor: f64,
+}
+
+impl MergeClone for ExtImpConnectAd {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtImpConnectAd";
+        merge_struct(patch, |key, value| match key {
+            "networkId" => {
+                gojson_bridge::merge_field(&mut self.network_id, value, GO_TYPE, "NetworkID")
+            }
+            "siteId" => gojson_bridge::merge_field(&mut self.site_id, value, GO_TYPE, "SiteID"),
+            "bidfloor" => merge_field(&mut self.bidfloor, value, GO_TYPE, "Bidfloor"),
+            _ => Ok(()),
+        })
+    }
 }
 
 /// ```text
 /// ExtImpConsumable defines the contract for bidrequest.imp[i].ext.prebid.bidder.consumable
 /// ```
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtImpConsumable")]
 pub struct ExtImpConsumable {
     /// Go field `NetworkId`.
+    #[serde(
+        rename = "networkId",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "NetworkId", json = "networkId,omitempty")]
     pub network_id: isize,
     /// Go field `SiteId`.
+    #[serde(
+        rename = "siteId",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "SiteId", json = "siteId,omitempty")]
     pub site_id: isize,
     /// Go field `UnitId`.
+    #[serde(
+        rename = "unitId",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "UnitId", json = "unitId,omitempty")]
     pub unit_id: isize,
     /// ```text
     ///  UnitName gets used as a classname and in the URL when building the ad markup
     /// ```
+    #[serde(
+        rename = "unitName",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "UnitName", json = "unitName,omitempty")]
     pub unit_name: String,
     /// Go field `PlacementId`.
+    #[serde(
+        rename = "placementid",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "PlacementId", json = "placementid,omitempty")]
     pub placement_id: String,
+}
+
+impl MergeClone for ExtImpConsumable {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtImpConsumable";
+        merge_struct(patch, |key, value| match key {
+            "networkId" => {
+                gojson_bridge::merge_field(&mut self.network_id, value, GO_TYPE, "NetworkId")
+            }
+            "siteId" => gojson_bridge::merge_field(&mut self.site_id, value, GO_TYPE, "SiteId"),
+            "unitId" => gojson_bridge::merge_field(&mut self.unit_id, value, GO_TYPE, "UnitId"),
+            "unitName" => merge_field(&mut self.unit_name, value, GO_TYPE, "UnitName"),
+            "placementid" => merge_field(&mut self.placement_id, value, GO_TYPE, "PlacementId"),
+            _ => Ok(()),
+        })
+    }
 }
 
 /// ```text
 /// ExtImpContxtful defines the contract for bidrequest.imp[i].ext.prebid.bidder.contxtful
 /// ```
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtImpContxtful")]
 pub struct ExtImpContxtful {
     /// Go field `PlacementId`.
+    #[serde(rename = "placementId", deserialize_with = "null_default")]
     #[gojson(go = "PlacementId", json = "placementId")]
     pub placement_id: String,
     /// Go field `CustomerId`.
+    #[serde(rename = "customerId", deserialize_with = "null_default")]
     #[gojson(go = "CustomerId", json = "customerId")]
     pub customer_id: String,
 }
 
+impl MergeClone for ExtImpContxtful {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtImpContxtful";
+        merge_struct(patch, |key, value| match key {
+            "placementId" => merge_field(&mut self.placement_id, value, GO_TYPE, "PlacementId"),
+            "customerId" => merge_field(&mut self.customer_id, value, GO_TYPE, "CustomerId"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ExtImpConversant`.
-#[derive(Clone, Debug, Default, PartialEq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtImpConversant")]
 pub struct ExtImpConversant {
     /// Go field `SiteID`.
+    #[serde(rename = "site_id", deserialize_with = "null_default")]
     #[gojson(go = "SiteID", json = "site_id")]
     pub site_id: String,
     /// Go field `Secure`.
+    #[serde(rename = "secure")]
     #[gojson(go = "Secure", json = "secure")]
     pub secure: Option<i8>,
     /// Go field `TagID`.
+    #[serde(rename = "tag_id", deserialize_with = "null_default")]
     #[gojson(go = "TagID", json = "tag_id")]
     pub tag_id: String,
     /// Go field `Position`.
+    #[serde(rename = "position")]
     #[gojson(go = "Position", json = "position")]
     pub position: Option<i8>,
     /// Go field `BidFloor`.
+    #[serde(rename = "bidfloor", deserialize_with = "null_default")]
     #[gojson(go = "BidFloor", json = "bidfloor")]
     pub bid_floor: f64,
     /// Go field `MIMEs`.
+    #[serde(rename = "mimes")]
     #[gojson(go = "MIMEs", json = "mimes")]
     pub mimes: Option<Vec<String>>,
     /// Go field `API`.
+    #[serde(rename = "api")]
     #[gojson(go = "API", json = "api")]
     pub api: Option<Vec<i8>>,
     /// Go field `Protocols`.
+    #[serde(rename = "protocols")]
     #[gojson(go = "Protocols", json = "protocols")]
     pub protocols: Option<Vec<i8>>,
     /// Go field `MaxDuration`.
+    #[serde(rename = "maxduration")]
     #[gojson(go = "MaxDuration", json = "maxduration")]
     pub max_duration: Option<i64>,
 }
 
+impl MergeClone for ExtImpConversant {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtImpConversant";
+        merge_struct(patch, |key, value| match key {
+            "site_id" => merge_field(&mut self.site_id, value, GO_TYPE, "SiteID"),
+            "secure" => merge_field(&mut self.secure, value, GO_TYPE, "Secure"),
+            "tag_id" => merge_field(&mut self.tag_id, value, GO_TYPE, "TagID"),
+            "position" => merge_field(&mut self.position, value, GO_TYPE, "Position"),
+            "bidfloor" => merge_field(&mut self.bid_floor, value, GO_TYPE, "BidFloor"),
+            "mimes" => merge_field(&mut self.mimes, value, GO_TYPE, "MIMEs"),
+            "api" => merge_field(&mut self.api, value, GO_TYPE, "API"),
+            "protocols" => merge_field(&mut self.protocols, value, GO_TYPE, "Protocols"),
+            "maxduration" => merge_field(&mut self.max_duration, value, GO_TYPE, "MaxDuration"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ImpExtCopper6ssp`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ImpExtCopper6ssp")]
 pub struct ImpExtCopper6ssp {
     /// Go field `PlacementID`.
+    #[serde(rename = "placementId", deserialize_with = "null_default")]
     #[gojson(go = "PlacementID", json = "placementId")]
     pub placement_id: String,
     /// Go field `EndpointID`.
+    #[serde(rename = "endpointId", deserialize_with = "null_default")]
     #[gojson(go = "EndpointID", json = "endpointId")]
     pub endpoint_id: String,
 }
 
+impl MergeClone for ImpExtCopper6ssp {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ImpExtCopper6ssp";
+        merge_struct(patch, |key, value| match key {
+            "placementId" => merge_field(&mut self.placement_id, value, GO_TYPE, "PlacementID"),
+            "endpointId" => merge_field(&mut self.endpoint_id, value, GO_TYPE, "EndpointID"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ExtImpCpmstar`.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtImpCpmstar")]
 pub struct ExtImpCpmstar {
     /// Go field `PoolId`.
+    #[serde(rename = "placementId", deserialize_with = "null_default")]
     #[gojson(go = "PoolId", json = "placementId")]
     pub pool_id: isize,
     /// Go field `SubPoolId`.
+    #[serde(
+        rename = "subpoolId",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "SubPoolId", json = "subpoolId,omitempty")]
     pub sub_pool_id: isize,
+}
+
+impl MergeClone for ExtImpCpmstar {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtImpCpmstar";
+        merge_struct(patch, |key, value| match key {
+            "placementId" => {
+                gojson_bridge::merge_field(&mut self.pool_id, value, GO_TYPE, "PoolId")
+            }
+            "subpoolId" => {
+                gojson_bridge::merge_field(&mut self.sub_pool_id, value, GO_TYPE, "SubPoolId")
+            }
+            _ => Ok(()),
+        })
+    }
 }
 
 /// ```text
 /// ExtImpCriteo defines the contract for bidrequest.imp[i].ext.prebid.bidder.criteo
 /// ```
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtImpCriteo")]
 pub struct ExtImpCriteo {
     /// Go field `ZoneID`.
+    #[serde(rename = "zoneId", deserialize_with = "null_default")]
     #[gojson(go = "ZoneID", json = "zoneId")]
     pub zone_id: i64,
     /// Go field `NetworkID`.
+    #[serde(rename = "networkId", deserialize_with = "null_default")]
     #[gojson(go = "NetworkID", json = "networkId")]
     pub network_id: i64,
     /// Go field `UID`.
+    #[serde(rename = "uid", deserialize_with = "null_default")]
     #[gojson(go = "UID", json = "uid")]
     pub uid: i64,
     /// Go field `PubID`.
+    #[serde(rename = "pubid", deserialize_with = "null_default")]
     #[gojson(go = "PubID", json = "pubid")]
     pub pub_id: String,
+}
+
+impl MergeClone for ExtImpCriteo {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtImpCriteo";
+        merge_struct(patch, |key, value| match key {
+            "zoneId" => merge_field(&mut self.zone_id, value, GO_TYPE, "ZoneID"),
+            "networkId" => merge_field(&mut self.network_id, value, GO_TYPE, "NetworkID"),
+            "uid" => merge_field(&mut self.uid, value, GO_TYPE, "UID"),
+            "pubid" => merge_field(&mut self.pub_id, value, GO_TYPE, "PubID"),
+            _ => Ok(()),
+        })
+    }
 }
 
 /// ```text
 /// ImpExtCwire defines the contract for MakeRequests `request.imp[i].ext.bidder`
 /// ```
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ImpExtCWire")]
 pub struct ImpExtCWire {
     /// Go field `DomainID`.
+    #[serde(
+        rename = "domainId",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "DomainID", json = "domainId,omitempty")]
     pub domain_id: isize,
     /// Go field `PlacementID`.
+    #[serde(
+        rename = "placementId",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "PlacementID", json = "placementId,omitempty")]
     pub placement_id: isize,
     /// Go field `PageID`.
+    #[serde(
+        rename = "pageId",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "PageID", json = "pageId,omitempty")]
     pub page_id: isize,
     /// Go field `CwCreative`.
+    #[serde(
+        rename = "cwcreative",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "CwCreative", json = "cwcreative,omitempty")]
     pub cw_creative: String,
     /// Go field `CwDebug`.
+    #[serde(
+        rename = "cwdebug",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "CwDebug", json = "cwdebug,omitempty")]
     pub cw_debug: bool,
     /// Go field `CwFeatures`.
+    #[serde(rename = "cwfeatures", skip_serializing_if = "is_nil_or_empty")]
     #[gojson(go = "CwFeatures", json = "cwfeatures,omitempty")]
     pub cw_features: Option<Vec<String>>,
+}
+
+impl MergeClone for ImpExtCWire {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ImpExtCWire";
+        merge_struct(patch, |key, value| match key {
+            "domainId" => {
+                gojson_bridge::merge_field(&mut self.domain_id, value, GO_TYPE, "DomainID")
+            }
+            "placementId" => {
+                gojson_bridge::merge_field(&mut self.placement_id, value, GO_TYPE, "PlacementID")
+            }
+            "pageId" => gojson_bridge::merge_field(&mut self.page_id, value, GO_TYPE, "PageID"),
+            "cwcreative" => merge_field(&mut self.cw_creative, value, GO_TYPE, "CwCreative"),
+            "cwdebug" => merge_field(&mut self.cw_debug, value, GO_TYPE, "CwDebug"),
+            "cwfeatures" => merge_field(&mut self.cw_features, value, GO_TYPE, "CwFeatures"),
+            _ => Ok(()),
+        })
+    }
 }
 
 /// ```text
 /// ExtImpDatablocks defines the contract for bidrequest.imp[i].ext.prebid.bidder.datablocks
 /// ```
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtImpDatablocks")]
 pub struct ExtImpDatablocks {
     /// Go field `SourceId`.
+    #[serde(rename = "sourceId", deserialize_with = "null_default")]
     #[gojson(go = "SourceId", json = "sourceId")]
     pub source_id: isize,
 }
 
+impl MergeClone for ExtImpDatablocks {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtImpDatablocks";
+        merge_struct(patch, |key, value| match key {
+            "sourceId" => {
+                gojson_bridge::merge_field(&mut self.source_id, value, GO_TYPE, "SourceId")
+            }
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ExtImpDecenterAds`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtImpDecenterAds")]
 pub struct ExtImpDecenterAds {
     /// Go field `PlacementID`.
+    #[serde(rename = "placementId", deserialize_with = "null_default")]
     #[gojson(go = "PlacementID", json = "placementId")]
     pub placement_id: String,
 }
 
+impl MergeClone for ExtImpDecenterAds {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtImpDecenterAds";
+        merge_struct(patch, |key, value| match key {
+            "placementId" => merge_field(&mut self.placement_id, value, GO_TYPE, "PlacementID"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ExtImpDeepintent`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtImpDeepintent")]
 pub struct ExtImpDeepintent {
     /// Go field `TagID`.
+    #[serde(rename = "tagId", deserialize_with = "null_default")]
     #[gojson(go = "TagID", json = "tagId")]
     pub tag_id: String,
 }
 
+impl MergeClone for ExtImpDeepintent {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtImpDeepintent";
+        merge_struct(patch, |key, value| match key {
+            "tagId" => merge_field(&mut self.tag_id, value, GO_TYPE, "TagID"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ImpExtDefinemedia`.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ImpExtDefinemedia")]
 pub struct ImpExtDefinemedia {
     /// Go field `MandantID`.
+    #[serde(rename = "mandantId", deserialize_with = "null_default")]
     #[gojson(go = "MandantID", json = "mandantId")]
     pub mandant_id: i64,
     /// Go field `AdslotID`.
+    #[serde(rename = "adslotId", deserialize_with = "null_default")]
     #[gojson(go = "AdslotID", json = "adslotId")]
     pub adslot_id: i64,
 }
 
+impl MergeClone for ImpExtDefinemedia {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ImpExtDefinemedia";
+        merge_struct(patch, |key, value| match key {
+            "mandantId" => merge_field(&mut self.mandant_id, value, GO_TYPE, "MandantID"),
+            "adslotId" => merge_field(&mut self.adslot_id, value, GO_TYPE, "AdslotID"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ExtImpDianomi`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtImpDianomi")]
 pub struct ExtImpDianomi {
     /// Go field `SmartadId`.
+    #[serde(
+        rename = "smartadId",
+        skip_serializing_if = "gojson_bridge::json_number::is_empty",
+        with = "gojson_bridge::json_number"
+    )]
     #[gojson(go = "SmartadId", json = "smartadId,omitempty")]
     pub smartad_id: JsonNumber,
     /// Go field `PriceType`.
+    #[serde(
+        rename = "priceType",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "PriceType", json = "priceType,omitempty")]
     pub price_type: String,
 }
 
+impl MergeClone for ExtImpDianomi {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtImpDianomi";
+        merge_struct(patch, |key, value| match key {
+            "smartadId" => {
+                gojson_bridge::merge_field(&mut self.smartad_id, value, GO_TYPE, "SmartadId")
+            }
+            "priceType" => merge_field(&mut self.price_type, value, GO_TYPE, "PriceType"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ExtImpDisplayio`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtImpDisplayio")]
 pub struct ExtImpDisplayio {
     /// Go field `PublisherId`.
+    #[serde(rename = "publisherId", deserialize_with = "null_default")]
     #[gojson(go = "PublisherId", json = "publisherId")]
     pub publisher_id: String,
     /// Go field `InventoryId`.
+    #[serde(rename = "inventoryId", deserialize_with = "null_default")]
     #[gojson(go = "InventoryId", json = "inventoryId")]
     pub inventory_id: String,
     /// Go field `PlacementId`.
+    #[serde(rename = "placementId", deserialize_with = "null_default")]
     #[gojson(go = "PlacementId", json = "placementId")]
     pub placement_id: String,
 }
 
+impl MergeClone for ExtImpDisplayio {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtImpDisplayio";
+        merge_struct(patch, |key, value| match key {
+            "publisherId" => merge_field(&mut self.publisher_id, value, GO_TYPE, "PublisherId"),
+            "inventoryId" => merge_field(&mut self.inventory_id, value, GO_TYPE, "InventoryId"),
+            "placementId" => merge_field(&mut self.placement_id, value, GO_TYPE, "PlacementId"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ExtDriftPixel`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtDriftPixel")]
 pub struct ExtDriftPixel {
     /// Go field `Env`.
+    #[serde(rename = "env", deserialize_with = "null_default")]
     #[gojson(go = "Env", json = "env")]
     pub env: String,
     /// Go field `Pid`.
+    #[serde(rename = "pid", deserialize_with = "null_default")]
     #[gojson(go = "Pid", json = "pid")]
     pub pid: String,
 }
 
+impl MergeClone for ExtDriftPixel {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtDriftPixel";
+        merge_struct(patch, |key, value| match key {
+            "env" => merge_field(&mut self.env, value, GO_TYPE, "Env"),
+            "pid" => merge_field(&mut self.pid, value, GO_TYPE, "Pid"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ImpExtEdge226`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ImpExtEdge226")]
 pub struct ImpExtEdge226 {
     /// Go field `PlacementID`.
+    #[serde(rename = "placementId", deserialize_with = "null_default")]
     #[gojson(go = "PlacementID", json = "placementId")]
     pub placement_id: String,
     /// Go field `EndpointID`.
+    #[serde(rename = "endpointId", deserialize_with = "null_default")]
     #[gojson(go = "EndpointID", json = "endpointId")]
     pub endpoint_id: String,
 }
 
+impl MergeClone for ImpExtEdge226 {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ImpExtEdge226";
+        merge_struct(patch, |key, value| match key {
+            "placementId" => merge_field(&mut self.placement_id, value, GO_TYPE, "PlacementID"),
+            "endpointId" => merge_field(&mut self.endpoint_id, value, GO_TYPE, "EndpointID"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ExtImpElementalTV`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtImpElementalTV")]
 pub struct ExtImpElementalTV {
     /// Go field `AdUnit`.
+    #[serde(rename = "adunit", deserialize_with = "null_default")]
     #[gojson(go = "AdUnit", json = "adunit")]
     pub ad_unit: String,
 }
 
+impl MergeClone for ExtImpElementalTV {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtImpElementalTV";
+        merge_struct(patch, |key, value| match key {
+            "adunit" => merge_field(&mut self.ad_unit, value, GO_TYPE, "AdUnit"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ImpExtEmtv`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ImpExtEmtv")]
 pub struct ImpExtEmtv {
     /// Go field `PlacementID`.
+    #[serde(rename = "placementId", deserialize_with = "null_default")]
     #[gojson(go = "PlacementID", json = "placementId")]
     pub placement_id: String,
     /// Go field `EndpointID`.
+    #[serde(rename = "endpointId", deserialize_with = "null_default")]
     #[gojson(go = "EndpointID", json = "endpointId")]
     pub endpoint_id: String,
+}
+
+impl MergeClone for ImpExtEmtv {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ImpExtEmtv";
+        merge_struct(patch, |key, value| match key {
+            "placementId" => merge_field(&mut self.placement_id, value, GO_TYPE, "PlacementID"),
+            "endpointId" => merge_field(&mut self.endpoint_id, value, GO_TYPE, "EndpointID"),
+            _ => Ok(()),
+        })
+    }
 }
 
 /// ```text
 /// ExtImpEPlanning defines the contract for bidrequest.imp[i].ext.prebid.bidder.eplanning
 /// ```
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtImpEPlanning")]
 pub struct ExtImpEPlanning {
     /// Go field `ClientID`.
+    #[serde(rename = "ci", deserialize_with = "null_default")]
     #[gojson(go = "ClientID", json = "ci")]
     pub client_id: String,
     /// Go field `AdUnitCode`.
+    #[serde(rename = "adunit_code", deserialize_with = "null_default")]
     #[gojson(go = "AdUnitCode", json = "adunit_code")]
     pub ad_unit_code: String,
     /// Go field `SizeString`.
+    #[serde(rename = "SizeString", deserialize_with = "null_default")]
     #[gojson(go = "SizeString")]
     pub size_string: String,
 }
 
-/// Go type `openrtb_ext.ImpExtEpom`.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, GoJson)]
-#[gojson(go_type = "openrtb_ext.ImpExtEpom")]
-pub struct ImpExtEpom;
+impl MergeClone for ExtImpEPlanning {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtImpEPlanning";
+        merge_struct(patch, |key, value| match key {
+            "ci" => merge_field(&mut self.client_id, value, GO_TYPE, "ClientID"),
+            "adunit_code" => merge_field(&mut self.ad_unit_code, value, GO_TYPE, "AdUnitCode"),
+            "SizeString" => merge_field(&mut self.size_string, value, GO_TYPE, "SizeString"),
+            _ => Ok(()),
+        })
+    }
+}
 
 /// Go type `openrtb_ext.ExtEscalax`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtEscalax")]
 pub struct ExtEscalax {
     /// Go field `AccountID`.
+    #[serde(rename = "accountId", deserialize_with = "null_default")]
     #[gojson(go = "AccountID", json = "accountId")]
     pub account_id: String,
     /// Go field `SourceID`.
+    #[serde(rename = "sourceId", deserialize_with = "null_default")]
     #[gojson(go = "SourceID", json = "sourceId")]
     pub source_id: String,
+}
+
+impl MergeClone for ExtEscalax {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtEscalax";
+        merge_struct(patch, |key, value| match key {
+            "accountId" => merge_field(&mut self.account_id, value, GO_TYPE, "AccountID"),
+            "sourceId" => merge_field(&mut self.source_id, value, GO_TYPE, "SourceID"),
+            _ => Ok(()),
+        })
+    }
 }
 
 /// ```text
@@ -2469,45 +5522,93 @@ pub struct ExtEscalax {
 /// COPPA and test flags are handled by PBS core via request.regs.coppa / request.test;
 /// they are not duplicated as bidder params.
 /// ```
-#[derive(Clone, Debug, Default, PartialEq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtImpEskimi")]
 pub struct ExtImpEskimi {
     /// Go field `PlacementID`.
+    #[serde(rename = "placementId", deserialize_with = "null_default")]
     #[gojson(go = "PlacementID", json = "placementId")]
     pub placement_id: i64,
     /// Go field `BidFloor`.
+    #[serde(
+        rename = "bidFloor",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "BidFloor", json = "bidFloor,omitempty")]
     pub bid_floor: f64,
     /// Go field `BidFloorCur`.
+    #[serde(
+        rename = "bidFloorCur",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "BidFloorCur", json = "bidFloorCur,omitempty")]
     pub bid_floor_cur: String,
     /// Go field `Bcat`.
+    #[serde(rename = "bcat", skip_serializing_if = "is_nil_or_empty")]
     #[gojson(go = "Bcat", json = "bcat,omitempty")]
     pub bcat: Option<Vec<String>>,
     /// Go field `Badv`.
+    #[serde(rename = "badv", skip_serializing_if = "is_nil_or_empty")]
     #[gojson(go = "Badv", json = "badv,omitempty")]
     pub badv: Option<Vec<String>>,
     /// Go field `Bapp`.
+    #[serde(rename = "bapp", skip_serializing_if = "is_nil_or_empty")]
     #[gojson(go = "Bapp", json = "bapp,omitempty")]
     pub bapp: Option<Vec<String>>,
     /// Go field `Battr`.
+    #[serde(rename = "battr", skip_serializing_if = "is_nil_or_empty")]
     #[gojson(go = "Battr", json = "battr,omitempty")]
     pub battr: Option<Vec<i64>>,
 }
 
+impl MergeClone for ExtImpEskimi {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtImpEskimi";
+        merge_struct(patch, |key, value| match key {
+            "placementId" => merge_field(&mut self.placement_id, value, GO_TYPE, "PlacementID"),
+            "bidFloor" => merge_field(&mut self.bid_floor, value, GO_TYPE, "BidFloor"),
+            "bidFloorCur" => merge_field(&mut self.bid_floor_cur, value, GO_TYPE, "BidFloorCur"),
+            "bcat" => merge_field(&mut self.bcat, value, GO_TYPE, "Bcat"),
+            "badv" => merge_field(&mut self.badv, value, GO_TYPE, "Badv"),
+            "bapp" => merge_field(&mut self.bapp, value, GO_TYPE, "Bapp"),
+            "battr" => merge_field(&mut self.battr, value, GO_TYPE, "Battr"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ImpExtExco`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ImpExtExco")]
 pub struct ImpExtExco {
     /// Go field `TagId`.
+    #[serde(rename = "tagId", deserialize_with = "null_default")]
     #[gojson(go = "TagId", json = "tagId")]
     pub tag_id: String,
     /// Go field `AccountId`.
+    #[serde(rename = "accountId", deserialize_with = "null_default")]
     #[gojson(go = "AccountId", json = "accountId")]
     pub account_id: String,
     /// Go field `PublisherId`.
+    #[serde(rename = "publisherId", deserialize_with = "null_default")]
     #[gojson(go = "PublisherId", json = "publisherId")]
     pub publisher_id: String,
+}
+
+impl MergeClone for ImpExtExco {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ImpExtExco";
+        merge_struct(patch, |key, value| match key {
+            "tagId" => merge_field(&mut self.tag_id, value, GO_TYPE, "TagId"),
+            "accountId" => merge_field(&mut self.account_id, value, GO_TYPE, "AccountId"),
+            "publisherId" => merge_field(&mut self.publisher_id, value, GO_TYPE, "PublisherId"),
+            _ => Ok(()),
+        })
+    }
 }
 
 /// ```text
@@ -2515,1748 +5616,3923 @@ pub struct ImpExtExco {
 /// Ezoic eligibility is resolved server-side from site.domain, so no params are
 /// required; placementId is an optional onboarding-assigned identifier.
 /// ```
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtImpEzoic")]
 pub struct ExtImpEzoic {
     /// Go field `PlacementID`.
+    #[serde(
+        rename = "placementId",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "PlacementID", json = "placementId,omitempty")]
     pub placement_id: String,
 }
 
+impl MergeClone for ExtImpEzoic {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtImpEzoic";
+        merge_struct(patch, |key, value| match key {
+            "placementId" => merge_field(&mut self.placement_id, value, GO_TYPE, "PlacementID"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ExtImpFacebook`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtImpFacebook")]
 pub struct ExtImpFacebook {
     /// Go field `PlacementId`.
+    #[serde(rename = "placementId", deserialize_with = "null_default")]
     #[gojson(go = "PlacementId", json = "placementId")]
     pub placement_id: String,
     /// Go field `PublisherId`.
+    #[serde(rename = "publisherId", deserialize_with = "null_default")]
     #[gojson(go = "PublisherId", json = "publisherId")]
     pub publisher_id: String,
 }
 
+impl MergeClone for ExtImpFacebook {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtImpFacebook";
+        merge_struct(patch, |key, value| match key {
+            "placementId" => merge_field(&mut self.placement_id, value, GO_TYPE, "PlacementId"),
+            "publisherId" => merge_field(&mut self.publisher_id, value, GO_TYPE, "PublisherId"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ExtImpFeedAd`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtImpFeedAd")]
 pub struct ExtImpFeedAd {
     /// Go field `ClientToken`.
+    #[serde(rename = "clientToken", deserialize_with = "null_default")]
     #[gojson(go = "ClientToken", json = "clientToken")]
     pub client_token: String,
     /// Go field `Decoration`.
+    #[serde(rename = "decoration", deserialize_with = "null_default")]
     #[gojson(go = "Decoration", json = "decoration")]
     pub decoration: String,
     /// Go field `PlacementId`.
+    #[serde(rename = "placementId", deserialize_with = "null_default")]
     #[gojson(go = "PlacementId", json = "placementId")]
     pub placement_id: String,
     /// Go field `SdkOptions`.
+    #[serde(rename = "sdkOptions")]
     #[gojson(go = "SdkOptions", json = "sdkOptions")]
     pub sdk_options: Option<Box<ExtImpFeedAdSdkOptions>>,
 }
 
+impl MergeClone for ExtImpFeedAd {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtImpFeedAd";
+        merge_struct(patch, |key, value| match key {
+            "clientToken" => merge_field(&mut self.client_token, value, GO_TYPE, "ClientToken"),
+            "decoration" => merge_field(&mut self.decoration, value, GO_TYPE, "Decoration"),
+            "placementId" => merge_field(&mut self.placement_id, value, GO_TYPE, "PlacementId"),
+            "sdkOptions" => merge_field(&mut self.sdk_options, value, GO_TYPE, "SdkOptions"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ExtImpFeedAdSdkOptions`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtImpFeedAdSdkOptions")]
 pub struct ExtImpFeedAdSdkOptions {
     /// Go field `AdvertisingId`.
+    #[serde(rename = "advertising_id", deserialize_with = "null_default")]
     #[gojson(go = "AdvertisingId", json = "advertising_id")]
     pub advertising_id: String,
     /// Go field `AppName`.
+    #[serde(rename = "app_name", deserialize_with = "null_default")]
     #[gojson(go = "AppName", json = "app_name")]
     pub app_name: String,
     /// Go field `BundleId`.
+    #[serde(rename = "bundle_id", deserialize_with = "null_default")]
     #[gojson(go = "BundleId", json = "bundle_id")]
     pub bundle_id: String,
     /// Go field `HybridApp`.
+    #[serde(rename = "hybrid_app", deserialize_with = "null_default")]
     #[gojson(go = "HybridApp", json = "hybrid_app")]
     pub hybrid_app: bool,
     /// Go field `HybridPlatform`.
+    #[serde(rename = "hybrid_platform", deserialize_with = "null_default")]
     #[gojson(go = "HybridPlatform", json = "hybrid_platform")]
     pub hybrid_platform: String,
     /// Go field `LimitAdTracking`.
+    #[serde(rename = "limit_ad_tracking", deserialize_with = "null_default")]
     #[gojson(go = "LimitAdTracking", json = "limit_ad_tracking")]
     pub limit_ad_tracking: bool,
 }
 
+impl MergeClone for ExtImpFeedAdSdkOptions {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtImpFeedAdSdkOptions";
+        merge_struct(patch, |key, value| match key {
+            "advertising_id" => {
+                merge_field(&mut self.advertising_id, value, GO_TYPE, "AdvertisingId")
+            }
+            "app_name" => merge_field(&mut self.app_name, value, GO_TYPE, "AppName"),
+            "bundle_id" => merge_field(&mut self.bundle_id, value, GO_TYPE, "BundleId"),
+            "hybrid_app" => merge_field(&mut self.hybrid_app, value, GO_TYPE, "HybridApp"),
+            "hybrid_platform" => {
+                merge_field(&mut self.hybrid_platform, value, GO_TYPE, "HybridPlatform")
+            }
+            "limit_ad_tracking" => merge_field(
+                &mut self.limit_ad_tracking,
+                value,
+                GO_TYPE,
+                "LimitAdTracking",
+            ),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ExtImpFerio`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtImpFerio")]
 pub struct ExtImpFerio {
     /// Go field `PublisherID`.
+    #[serde(rename = "publisherId", deserialize_with = "null_default")]
     #[gojson(go = "PublisherID", json = "publisherId")]
     pub publisher_id: String,
     /// Go field `AdUnitID`.
+    #[serde(rename = "adUnitId", deserialize_with = "null_default")]
     #[gojson(go = "AdUnitID", json = "adUnitId")]
     pub ad_unit_id: String,
     /// Go field `TenantID`.
+    #[serde(rename = "tenantId", deserialize_with = "null_default")]
     #[gojson(go = "TenantID", json = "tenantId")]
     pub tenant_id: String,
 }
 
+impl MergeClone for ExtImpFerio {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtImpFerio";
+        merge_struct(patch, |key, value| match key {
+            "publisherId" => merge_field(&mut self.publisher_id, value, GO_TYPE, "PublisherID"),
+            "adUnitId" => merge_field(&mut self.ad_unit_id, value, GO_TYPE, "AdUnitID"),
+            "tenantId" => merge_field(&mut self.tenant_id, value, GO_TYPE, "TenantID"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ImpExtFlatads`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ImpExtFlatads")]
 pub struct ImpExtFlatads {
     /// Go field `Token`.
+    #[serde(rename = "token", deserialize_with = "null_default")]
     #[gojson(go = "Token", json = "token")]
     pub token: String,
     /// Go field `PublisherId`.
+    #[serde(rename = "publisherId", deserialize_with = "null_default")]
     #[gojson(go = "PublisherId", json = "publisherId")]
     pub publisher_id: String,
 }
 
+impl MergeClone for ImpExtFlatads {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ImpExtFlatads";
+        merge_struct(patch, |key, value| match key {
+            "token" => merge_field(&mut self.token, value, GO_TYPE, "Token"),
+            "publisherId" => merge_field(&mut self.publisher_id, value, GO_TYPE, "PublisherId"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ImpExtFlipp`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ImpExtFlipp")]
 pub struct ImpExtFlipp {
     /// Go field `PublisherNameIdentifier`.
+    #[serde(rename = "publisherNameIdentifier", deserialize_with = "null_default")]
     #[gojson(go = "PublisherNameIdentifier", json = "publisherNameIdentifier")]
     pub publisher_name_identifier: String,
     /// Go field `CreativeType`.
+    #[serde(rename = "creativeType", deserialize_with = "null_default")]
     #[gojson(go = "CreativeType", json = "creativeType")]
     pub creative_type: String,
     /// Go field `SiteID`.
+    #[serde(rename = "siteId", deserialize_with = "null_default")]
     #[gojson(go = "SiteID", json = "siteId")]
     pub site_id: i64,
     /// Go field `ZoneIds`.
+    #[serde(rename = "zoneIds", skip_serializing_if = "is_nil_or_empty")]
     #[gojson(go = "ZoneIds", json = "zoneIds,omitempty")]
     pub zone_ids: Option<Vec<i64>>,
     /// Go field `UserKey`.
+    #[serde(
+        rename = "userKey",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "UserKey", json = "userKey,omitempty")]
     pub user_key: String,
     /// Go field `Options`.
+    #[serde(rename = "options", deserialize_with = "null_default")]
     #[gojson(go = "Options", json = "options,omitempty")]
     pub options: ImpExtFlippOptions,
 }
 
+impl MergeClone for ImpExtFlipp {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ImpExtFlipp";
+        merge_struct(patch, |key, value| match key {
+            "publisherNameIdentifier" => merge_field(
+                &mut self.publisher_name_identifier,
+                value,
+                GO_TYPE,
+                "PublisherNameIdentifier",
+            ),
+            "creativeType" => merge_field(&mut self.creative_type, value, GO_TYPE, "CreativeType"),
+            "siteId" => merge_field(&mut self.site_id, value, GO_TYPE, "SiteID"),
+            "zoneIds" => merge_field(&mut self.zone_ids, value, GO_TYPE, "ZoneIds"),
+            "userKey" => merge_field(&mut self.user_key, value, GO_TYPE, "UserKey"),
+            "options" => merge_field(&mut self.options, value, GO_TYPE, "Options"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ImpExtFlippOptions`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ImpExtFlippOptions")]
 pub struct ImpExtFlippOptions {
     /// Go field `StartCompact`.
+    #[serde(
+        rename = "startCompact",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "StartCompact", json = "startCompact,omitempty")]
     pub start_compact: bool,
     /// Go field `DwellExpand`.
+    #[serde(
+        rename = "dwellExpand",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "DwellExpand", json = "dwellExpand,omitempty")]
     pub dwell_expand: bool,
     /// Go field `ContentCode`.
+    #[serde(
+        rename = "contentCode",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "ContentCode", json = "contentCode,omitempty")]
     pub content_code: String,
+}
+
+impl MergeClone for ImpExtFlippOptions {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ImpExtFlippOptions";
+        merge_struct(patch, |key, value| match key {
+            "startCompact" => merge_field(&mut self.start_compact, value, GO_TYPE, "StartCompact"),
+            "dwellExpand" => merge_field(&mut self.dwell_expand, value, GO_TYPE, "DwellExpand"),
+            "contentCode" => merge_field(&mut self.content_code, value, GO_TYPE, "ContentCode"),
+            _ => Ok(()),
+        })
+    }
 }
 
 /// ```text
 /// ExtImpFloxis defines the contract for bidrequest.imp[i].ext.prebid.bidder.floxis.
 /// ```
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtImpFloxis")]
 pub struct ExtImpFloxis {
     /// Go field `Seat`.
+    #[serde(rename = "seat", deserialize_with = "null_default")]
     #[gojson(go = "Seat", json = "seat")]
     pub seat: String,
 }
 
+impl MergeClone for ExtImpFloxis {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtImpFloxis";
+        merge_struct(patch, |key, value| match key {
+            "seat" => merge_field(&mut self.seat, value, GO_TYPE, "Seat"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ImpExtFreewheelSSP`.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ImpExtFreewheelSSP")]
 pub struct ImpExtFreewheelSSP {
     /// Go field `ZoneId`.
+    #[serde(rename = "zoneId", with = "gojson_bridge::string_int")]
     #[gojson(go = "ZoneId", json = "zoneId")]
     pub zone_id: jsonutil::StringInt,
 }
 
+impl MergeClone for ImpExtFreewheelSSP {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ImpExtFreewheelSSP";
+        merge_struct(patch, |key, value| match key {
+            "zoneId" => gojson_bridge::merge_field(&mut self.zone_id, value, GO_TYPE, "ZoneId"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ImpExtFRVRAdn`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ImpExtFRVRAdn")]
 pub struct ImpExtFRVRAdn {
     /// Go field `PublisherID`.
+    #[serde(rename = "publisher_id", deserialize_with = "null_default")]
     #[gojson(go = "PublisherID", json = "publisher_id")]
     pub publisher_id: String,
     /// Go field `AdUnitID`.
+    #[serde(rename = "ad_unit_id", deserialize_with = "null_default")]
     #[gojson(go = "AdUnitID", json = "ad_unit_id")]
     pub ad_unit_id: String,
 }
 
+impl MergeClone for ImpExtFRVRAdn {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ImpExtFRVRAdn";
+        merge_struct(patch, |key, value| match key {
+            "publisher_id" => merge_field(&mut self.publisher_id, value, GO_TYPE, "PublisherID"),
+            "ad_unit_id" => merge_field(&mut self.ad_unit_id, value, GO_TYPE, "AdUnitID"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ImpExtFWSSP`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ImpExtFWSSP")]
 pub struct ImpExtFWSSP {
     /// Go field `CustomSiteSectionId`.
+    #[serde(
+        rename = "custom_site_section_id",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "CustomSiteSectionId", json = "custom_site_section_id,omitempty")]
     pub custom_site_section_id: String,
     /// Go field `NetworkId`.
+    #[serde(
+        rename = "network_id",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "NetworkId", json = "network_id,omitempty")]
     pub network_id: String,
     /// Go field `ProfileId`.
+    #[serde(
+        rename = "profile_id",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "ProfileId", json = "profile_id,omitempty")]
     pub profile_id: String,
+}
+
+impl MergeClone for ImpExtFWSSP {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ImpExtFWSSP";
+        merge_struct(patch, |key, value| match key {
+            "custom_site_section_id" => merge_field(
+                &mut self.custom_site_section_id,
+                value,
+                GO_TYPE,
+                "CustomSiteSectionId",
+            ),
+            "network_id" => merge_field(&mut self.network_id, value, GO_TYPE, "NetworkId"),
+            "profile_id" => merge_field(&mut self.profile_id, value, GO_TYPE, "ProfileId"),
+            _ => Ok(()),
+        })
+    }
 }
 
 /// ```text
 /// ExtImpGamma defines the contract for bidrequest.imp[i].ext.prebid.bidder.gamma
 /// ```
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtImpGamma")]
 pub struct ExtImpGamma {
     /// Go field `PartnerID`.
+    #[serde(rename = "id", deserialize_with = "null_default")]
     #[gojson(go = "PartnerID", json = "id")]
     pub partner_id: String,
     /// Go field `ZoneID`.
+    #[serde(rename = "zid", deserialize_with = "null_default")]
     #[gojson(go = "ZoneID", json = "zid")]
     pub zone_id: String,
     /// Go field `WebID`.
+    #[serde(rename = "wid", deserialize_with = "null_default")]
     #[gojson(go = "WebID", json = "wid")]
     pub web_id: String,
+}
+
+impl MergeClone for ExtImpGamma {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtImpGamma";
+        merge_struct(patch, |key, value| match key {
+            "id" => merge_field(&mut self.partner_id, value, GO_TYPE, "PartnerID"),
+            "zid" => merge_field(&mut self.zone_id, value, GO_TYPE, "ZoneID"),
+            "wid" => merge_field(&mut self.web_id, value, GO_TYPE, "WebID"),
+            _ => Ok(()),
+        })
+    }
 }
 
 /// ```text
 /// ExtImpGamoshi defines the contract for bidrequest.imp[i].ext.prebid.bidder.gamoshi
 /// ```
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtImpGamoshi")]
 pub struct ExtImpGamoshi {
     /// Go field `SupplyPartnerId`.
+    #[serde(rename = "supplyPartnerId", deserialize_with = "null_default")]
     #[gojson(go = "SupplyPartnerId", json = "supplyPartnerId")]
     pub supply_partner_id: String,
     /// Go field `FavoredMediaType`.
+    #[serde(rename = "favoredMediaType", deserialize_with = "null_default")]
     #[gojson(go = "FavoredMediaType", json = "favoredMediaType")]
     pub favored_media_type: String,
 }
 
+impl MergeClone for ExtImpGamoshi {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtImpGamoshi";
+        merge_struct(patch, |key, value| match key {
+            "supplyPartnerId" => merge_field(
+                &mut self.supply_partner_id,
+                value,
+                GO_TYPE,
+                "SupplyPartnerId",
+            ),
+            "favoredMediaType" => merge_field(
+                &mut self.favored_media_type,
+                value,
+                GO_TYPE,
+                "FavoredMediaType",
+            ),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ImpExtGlobalsun`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ImpExtGlobalsun")]
 pub struct ImpExtGlobalsun {
     /// Go field `PlacementID`.
+    #[serde(rename = "placementId", deserialize_with = "null_default")]
     #[gojson(go = "PlacementID", json = "placementId")]
     pub placement_id: String,
 }
 
+impl MergeClone for ImpExtGlobalsun {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ImpExtGlobalsun";
+        merge_struct(patch, |key, value| match key {
+            "placementId" => merge_field(&mut self.placement_id, value, GO_TYPE, "PlacementID"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ImpExtGoldbach`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ImpExtGoldbach")]
 pub struct ImpExtGoldbach {
     /// Go field `PublisherID`.
+    #[serde(rename = "publisherId", deserialize_with = "null_default")]
     #[gojson(go = "PublisherID", json = "publisherId")]
     pub publisher_id: String,
     /// Go field `SlotID`.
+    #[serde(rename = "slotId", deserialize_with = "null_default")]
     #[gojson(go = "SlotID", json = "slotId")]
     pub slot_id: String,
     /// Go field `CustomTargeting`.
+    #[serde(rename = "customTargeting", skip_serializing_if = "is_nil_or_empty")]
     #[gojson(go = "CustomTargeting", json = "customTargeting,omitempty")]
     pub custom_targeting: Option<BTreeMap<String, StringOrStringArray>>,
+}
+
+impl MergeClone for ImpExtGoldbach {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ImpExtGoldbach";
+        merge_struct(patch, |key, value| match key {
+            "publisherId" => merge_field(&mut self.publisher_id, value, GO_TYPE, "PublisherID"),
+            "slotId" => merge_field(&mut self.slot_id, value, GO_TYPE, "SlotID"),
+            "customTargeting" => merge_field(
+                &mut self.custom_targeting,
+                value,
+                GO_TYPE,
+                "CustomTargeting",
+            ),
+            _ => Ok(()),
+        })
+    }
 }
 
 /// ```text
 /// ExtImpGrid defines the contract for bidrequest.imp[i].ext.prebid.bidder.grid
 /// ```
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtImpGrid")]
 pub struct ExtImpGrid {
     /// Go field `Uid`.
+    #[serde(rename = "uid", deserialize_with = "null_default")]
     #[gojson(go = "Uid", json = "uid")]
     pub uid: isize,
     /// Go field `Keywords`.
+    #[serde(
+        rename = "keywords",
+        skip_serializing_if = "gojson_bridge::raw_json::is_empty",
+        with = "gojson_bridge::raw_json"
+    )]
     #[gojson(go = "Keywords", json = "keywords,omitempty")]
     pub keywords: RawJson,
+}
+
+impl MergeClone for ExtImpGrid {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtImpGrid";
+        merge_struct(patch, |key, value| match key {
+            "uid" => gojson_bridge::merge_field(&mut self.uid, value, GO_TYPE, "Uid"),
+            "keywords" => {
+                gojson_bridge::merge_field(&mut self.keywords, value, GO_TYPE, "Keywords")
+            }
+            _ => Ok(()),
+        })
+    }
 }
 
 /// ```text
 /// ExtImpGumGum defines the contract for bidrequest.imp[i].ext.prebid.bidder.gumgum
 /// Either Zone or PubId must be present, others are optional parameters
 /// ```
-#[derive(Clone, Debug, Default, PartialEq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtImpGumGum")]
 pub struct ExtImpGumGum {
     /// Go field `Zone`.
+    #[serde(
+        rename = "zone",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Zone", json = "zone,omitempty")]
     pub zone: String,
     /// Go field `PubID`.
+    #[serde(
+        rename = "pubId",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "PubID", json = "pubId,omitempty")]
     pub pub_id: f64,
     /// Go field `IrisID`.
+    #[serde(
+        rename = "irisid",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "IrisID", json = "irisid,omitempty")]
     pub iris_id: String,
     /// Go field `Slot`.
+    #[serde(
+        rename = "slot",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Slot", json = "slot,omitempty")]
     pub slot: f64,
     /// Go field `Product`.
+    #[serde(
+        rename = "product",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Product", json = "product,omitempty")]
     pub product: String,
+}
+
+impl MergeClone for ExtImpGumGum {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtImpGumGum";
+        merge_struct(patch, |key, value| match key {
+            "zone" => merge_field(&mut self.zone, value, GO_TYPE, "Zone"),
+            "pubId" => merge_field(&mut self.pub_id, value, GO_TYPE, "PubID"),
+            "irisid" => merge_field(&mut self.iris_id, value, GO_TYPE, "IrisID"),
+            "slot" => merge_field(&mut self.slot, value, GO_TYPE, "Slot"),
+            "product" => merge_field(&mut self.product, value, GO_TYPE, "Product"),
+            _ => Ok(()),
+        })
+    }
 }
 
 /// ```text
 /// ExtImpGumGumVideo defines the contract for
 /// bidresponse.seatbid.bid[i].ext.prebid.bidder.gumgum.video
 /// ```
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtImpGumGumVideo")]
 pub struct ExtImpGumGumVideo {
     /// Go field `IrisID`.
+    #[serde(
+        rename = "irisid",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "IrisID", json = "irisid,omitempty")]
     pub iris_id: String,
+}
+
+impl MergeClone for ExtImpGumGumVideo {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtImpGumGumVideo";
+        merge_struct(patch, |key, value| match key {
+            "irisid" => merge_field(&mut self.iris_id, value, GO_TYPE, "IrisID"),
+            _ => Ok(()),
+        })
+    }
 }
 
 /// ```text
 /// ExtImpGumGumBanner defines the contract for
 /// bidresponse.seatbid.bid[i].ext.prebid.bidder.gumgum.banner
 /// ```
-#[derive(Clone, Copy, Debug, Default, PartialEq, GoJson)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtImpGumGumBanner")]
 pub struct ExtImpGumGumBanner {
     /// Go field `Si`.
+    #[serde(
+        rename = "si",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Si", json = "si,omitempty")]
     pub si: f64,
     /// Go field `MaxW`.
+    #[serde(
+        rename = "maxw",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "MaxW", json = "maxw,omitempty")]
     pub max_w: f64,
     /// Go field `MaxH`.
+    #[serde(
+        rename = "maxh",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "MaxH", json = "maxh,omitempty")]
     pub max_h: f64,
 }
 
+impl MergeClone for ExtImpGumGumBanner {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtImpGumGumBanner";
+        merge_struct(patch, |key, value| match key {
+            "si" => merge_field(&mut self.si, value, GO_TYPE, "Si"),
+            "maxw" => merge_field(&mut self.max_w, value, GO_TYPE, "MaxW"),
+            "maxh" => merge_field(&mut self.max_h, value, GO_TYPE, "MaxH"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ExtImpAdUnitCode`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtImpAdUnitCode")]
 pub struct ExtImpAdUnitCode {
     /// Go field `Prebid`.
+    #[serde(rename = "prebid", deserialize_with = "null_default")]
     #[gojson(go = "Prebid", json = "prebid,omitempty")]
     pub prebid: ExtImpAdUnitCodePrebid,
 }
 
+impl MergeClone for ExtImpAdUnitCode {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtImpAdUnitCode";
+        merge_struct(patch, |key, value| match key {
+            "prebid" => merge_field(&mut self.prebid, value, GO_TYPE, "Prebid"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ExtImpHuaweiAds`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtImpHuaweiAds")]
 pub struct ExtImpHuaweiAds {
     /// Go field `SlotId`.
+    #[serde(rename = "slotid", deserialize_with = "null_default")]
     #[gojson(go = "SlotId", json = "slotid")]
     pub slot_id: String,
     /// Go field `Adtype`.
+    #[serde(rename = "adtype", deserialize_with = "null_default")]
     #[gojson(go = "Adtype", json = "adtype")]
     pub adtype: String,
     /// Go field `PublisherId`.
+    #[serde(rename = "publisherid", deserialize_with = "null_default")]
     #[gojson(go = "PublisherId", json = "publisherid")]
     pub publisher_id: String,
     /// Go field `SignKey`.
+    #[serde(rename = "signkey", deserialize_with = "null_default")]
     #[gojson(go = "SignKey", json = "signkey")]
     pub sign_key: String,
     /// Go field `KeyId`.
+    #[serde(rename = "keyid", deserialize_with = "null_default")]
     #[gojson(go = "KeyId", json = "keyid")]
     pub key_id: String,
     /// Go field `IsTestAuthorization`.
+    #[serde(
+        rename = "isTestAuthorization",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "IsTestAuthorization", json = "isTestAuthorization,omitempty")]
     pub is_test_authorization: String,
 }
 
+impl MergeClone for ExtImpHuaweiAds {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtImpHuaweiAds";
+        merge_struct(patch, |key, value| match key {
+            "slotid" => merge_field(&mut self.slot_id, value, GO_TYPE, "SlotId"),
+            "adtype" => merge_field(&mut self.adtype, value, GO_TYPE, "Adtype"),
+            "publisherid" => merge_field(&mut self.publisher_id, value, GO_TYPE, "PublisherId"),
+            "signkey" => merge_field(&mut self.sign_key, value, GO_TYPE, "SignKey"),
+            "keyid" => merge_field(&mut self.key_id, value, GO_TYPE, "KeyId"),
+            "isTestAuthorization" => merge_field(
+                &mut self.is_test_authorization,
+                value,
+                GO_TYPE,
+                "IsTestAuthorization",
+            ),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ExtUserDataHuaweiAds`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtUserDataHuaweiAds")]
 pub struct ExtUserDataHuaweiAds {
     /// Go field `Data`.
+    #[serde(rename = "data", deserialize_with = "null_default")]
     #[gojson(go = "Data", json = "data,omitempty")]
     pub data: ExtUserDataDeviceIdHuaweiAds,
 }
 
+impl MergeClone for ExtUserDataHuaweiAds {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtUserDataHuaweiAds";
+        merge_struct(patch, |key, value| match key {
+            "data" => merge_field(&mut self.data, value, GO_TYPE, "Data"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ExtUserDataDeviceIdHuaweiAds`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtUserDataDeviceIdHuaweiAds")]
 pub struct ExtUserDataDeviceIdHuaweiAds {
     /// Go field `Imei`.
+    #[serde(rename = "imei", skip_serializing_if = "is_nil_or_empty")]
     #[gojson(go = "Imei", json = "imei,omitempty")]
     pub imei: Option<Vec<String>>,
     /// Go field `Oaid`.
+    #[serde(rename = "oaid", skip_serializing_if = "is_nil_or_empty")]
     #[gojson(go = "Oaid", json = "oaid,omitempty")]
     pub oaid: Option<Vec<String>>,
     /// Go field `Gaid`.
+    #[serde(rename = "gaid", skip_serializing_if = "is_nil_or_empty")]
     #[gojson(go = "Gaid", json = "gaid,omitempty")]
     pub gaid: Option<Vec<String>>,
     /// Go field `ClientTime`.
+    #[serde(rename = "clientTime", skip_serializing_if = "is_nil_or_empty")]
     #[gojson(go = "ClientTime", json = "clientTime,omitempty")]
     pub client_time: Option<Vec<String>>,
+}
+
+impl MergeClone for ExtUserDataDeviceIdHuaweiAds {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtUserDataDeviceIdHuaweiAds";
+        merge_struct(patch, |key, value| match key {
+            "imei" => merge_field(&mut self.imei, value, GO_TYPE, "Imei"),
+            "oaid" => merge_field(&mut self.oaid, value, GO_TYPE, "Oaid"),
+            "gaid" => merge_field(&mut self.gaid, value, GO_TYPE, "Gaid"),
+            "clientTime" => merge_field(&mut self.client_time, value, GO_TYPE, "ClientTime"),
+            _ => Ok(()),
+        })
+    }
 }
 
 /// ```text
 /// ExtImpImds defines the contract for bidrequest.imp[i].ext.prebid.bidder.imds
 /// ```
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtImpImds")]
 pub struct ExtImpImds {
     /// Go field `SeatId`.
+    #[serde(rename = "seatId", deserialize_with = "null_default")]
     #[gojson(go = "SeatId", json = "seatId")]
     pub seat_id: String,
     /// Go field `TagId`.
+    #[serde(rename = "tagId", deserialize_with = "null_default")]
     #[gojson(go = "TagId", json = "tagId")]
     pub tag_id: String,
+}
+
+impl MergeClone for ExtImpImds {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtImpImds";
+        merge_struct(patch, |key, value| match key {
+            "seatId" => merge_field(&mut self.seat_id, value, GO_TYPE, "SeatId"),
+            "tagId" => merge_field(&mut self.tag_id, value, GO_TYPE, "TagId"),
+            _ => Ok(()),
+        })
+    }
 }
 
 /// ```text
 /// ExtImpImpactify defines the contract for bidrequest.imp[i].ext.prebid.bidder.impactify
 /// ```
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtImpImpactify")]
 pub struct ExtImpImpactify {
     /// Go field `AppID`.
+    #[serde(rename = "appId", deserialize_with = "null_default")]
     #[gojson(go = "AppID", json = "appId")]
     pub app_id: String,
     /// Go field `Format`.
+    #[serde(rename = "format", deserialize_with = "null_default")]
     #[gojson(go = "Format", json = "format")]
     pub format: String,
     /// Go field `Style`.
+    #[serde(rename = "style", deserialize_with = "null_default")]
     #[gojson(go = "Style", json = "style")]
     pub style: String,
 }
 
+impl MergeClone for ExtImpImpactify {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtImpImpactify";
+        merge_struct(patch, |key, value| match key {
+            "appId" => merge_field(&mut self.app_id, value, GO_TYPE, "AppID"),
+            "format" => merge_field(&mut self.format, value, GO_TYPE, "Format"),
+            "style" => merge_field(&mut self.style, value, GO_TYPE, "Style"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ImpExtInfytv`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ImpExtInfytv")]
 pub struct ImpExtInfytv {
     /// Go field `PlacementID`.
+    #[serde(rename = "placementId", deserialize_with = "null_default")]
     #[gojson(go = "PlacementID", json = "placementId")]
     pub placement_id: String,
     /// Go field `PublisherID`.
+    #[serde(rename = "publisherId", deserialize_with = "null_default")]
     #[gojson(go = "PublisherID", json = "publisherId")]
     pub publisher_id: String,
 }
 
+impl MergeClone for ImpExtInfytv {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ImpExtInfytv";
+        merge_struct(patch, |key, value| match key {
+            "placementId" => merge_field(&mut self.placement_id, value, GO_TYPE, "PlacementID"),
+            "publisherId" => merge_field(&mut self.publisher_id, value, GO_TYPE, "PublisherID"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ExtImpInMobi`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtImpInMobi")]
 pub struct ExtImpInMobi {
     /// Go field `Plc`.
+    #[serde(rename = "plc", deserialize_with = "null_default")]
     #[gojson(go = "Plc", json = "plc")]
     pub plc: String,
+}
+
+impl MergeClone for ExtImpInMobi {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtImpInMobi";
+        merge_struct(patch, |key, value| match key {
+            "plc" => merge_field(&mut self.plc, value, GO_TYPE, "Plc"),
+            _ => Ok(()),
+        })
+    }
 }
 
 /// ```text
 /// ExtImpInsticator defines the contract for bidrequest.imp[i].ext.prebid.bidder.insticator
 /// ```
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtImpInsticator")]
 pub struct ExtImpInsticator {
     /// Go field `AdUnitId`.
+    #[serde(
+        rename = "adUnitId",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "AdUnitId", json = "adUnitId,omitempty")]
     pub ad_unit_id: String,
     /// Go field `PublisherId`.
+    #[serde(
+        rename = "publisherId",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "PublisherId", json = "publisherId,omitempty")]
     pub publisher_id: String,
 }
 
+impl MergeClone for ExtImpInsticator {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtImpInsticator";
+        merge_struct(patch, |key, value| match key {
+            "adUnitId" => merge_field(&mut self.ad_unit_id, value, GO_TYPE, "AdUnitId"),
+            "publisherId" => merge_field(&mut self.publisher_id, value, GO_TYPE, "PublisherId"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ExtIntenze`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtIntenze")]
 pub struct ExtIntenze {
     /// Go field `AccountID`.
+    #[serde(rename = "accountId", deserialize_with = "null_default")]
     #[gojson(go = "AccountID", json = "accountId")]
     pub account_id: String,
 }
 
+impl MergeClone for ExtIntenze {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtIntenze";
+        merge_struct(patch, |key, value| match key {
+            "accountId" => merge_field(&mut self.account_id, value, GO_TYPE, "AccountID"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ExtImpInteractiveoffers`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtImpInteractiveoffers")]
 pub struct ExtImpInteractiveoffers {
     /// Go field `PartnerId`.
+    #[serde(rename = "partnerId", deserialize_with = "null_default")]
     #[gojson(go = "PartnerId", json = "partnerId")]
     pub partner_id: String,
 }
 
+impl MergeClone for ExtImpInteractiveoffers {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtImpInteractiveoffers";
+        merge_struct(patch, |key, value| match key {
+            "partnerId" => merge_field(&mut self.partner_id, value, GO_TYPE, "PartnerId"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ExtImpInvibes`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtImpInvibes")]
 pub struct ExtImpInvibes {
     /// Go field `PlacementID`.
+    #[serde(
+        rename = "placementId",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "PlacementID", json = "placementId,omitempty")]
     pub placement_id: String,
     /// Go field `DomainID`.
+    #[serde(rename = "domainId", deserialize_with = "null_default")]
     #[gojson(go = "DomainID", json = "domainId")]
     pub domain_id: isize,
     /// Go field `Debug`.
+    #[serde(rename = "debug", deserialize_with = "null_default")]
     #[gojson(go = "Debug", json = "debug,omitempty")]
     pub debug: ExtImpInvibesDebug,
 }
 
+impl MergeClone for ExtImpInvibes {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtImpInvibes";
+        merge_struct(patch, |key, value| match key {
+            "placementId" => merge_field(&mut self.placement_id, value, GO_TYPE, "PlacementID"),
+            "domainId" => {
+                gojson_bridge::merge_field(&mut self.domain_id, value, GO_TYPE, "DomainID")
+            }
+            "debug" => merge_field(&mut self.debug, value, GO_TYPE, "Debug"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ExtImpInvibesDebug`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtImpInvibesDebug")]
 pub struct ExtImpInvibesDebug {
     /// Go field `TestBvid`.
+    #[serde(
+        rename = "testBvid",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "TestBvid", json = "testBvid,omitempty")]
     pub test_bvid: String,
     /// Go field `TestLog`.
+    #[serde(
+        rename = "testLog",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "TestLog", json = "testLog,omitempty")]
     pub test_log: bool,
 }
 
+impl MergeClone for ExtImpInvibesDebug {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtImpInvibesDebug";
+        merge_struct(patch, |key, value| match key {
+            "testBvid" => merge_field(&mut self.test_bvid, value, GO_TYPE, "TestBvid"),
+            "testLog" => merge_field(&mut self.test_log, value, GO_TYPE, "TestLog"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ExtIQX`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtIQX")]
 pub struct ExtIQX {
     /// Go field `Env`.
+    #[serde(rename = "env", deserialize_with = "null_default")]
     #[gojson(go = "Env", json = "env")]
     pub env: String,
     /// Go field `Pid`.
+    #[serde(rename = "pid", deserialize_with = "null_default")]
     #[gojson(go = "Pid", json = "pid")]
     pub pid: String,
 }
 
+impl MergeClone for ExtIQX {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtIQX";
+        merge_struct(patch, |key, value| match key {
+            "env" => merge_field(&mut self.env, value, GO_TYPE, "Env"),
+            "pid" => merge_field(&mut self.pid, value, GO_TYPE, "Pid"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ImpExtIQZone`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ImpExtIQZone")]
 pub struct ImpExtIQZone {
     /// Go field `PlacementID`.
+    #[serde(rename = "placementId", deserialize_with = "null_default")]
     #[gojson(go = "PlacementID", json = "placementId")]
     pub placement_id: String,
     /// Go field `EndpointID`.
+    #[serde(rename = "endpointId", deserialize_with = "null_default")]
     #[gojson(go = "EndpointID", json = "endpointId")]
     pub endpoint_id: String,
+}
+
+impl MergeClone for ImpExtIQZone {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ImpExtIQZone";
+        merge_struct(patch, |key, value| match key {
+            "placementId" => merge_field(&mut self.placement_id, value, GO_TYPE, "PlacementID"),
+            "endpointId" => merge_field(&mut self.endpoint_id, value, GO_TYPE, "EndpointID"),
+            _ => Ok(()),
+        })
+    }
 }
 
 /// ```text
 /// ExtImpIx defines the contract for bidrequest.imp[i].ext.prebid.bidder.ix
 /// ```
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtImpIx")]
 pub struct ExtImpIx {
     /// Go field `SiteId`.
+    #[serde(rename = "siteId", deserialize_with = "null_default")]
     #[gojson(go = "SiteId", json = "siteId")]
     pub site_id: String,
     /// Go field `Size`.
+    #[serde(rename = "size")]
     #[gojson(go = "Size", json = "size")]
     pub size: Option<Vec<isize>>,
     /// Go field `Sid`.
+    #[serde(rename = "sid", deserialize_with = "null_default")]
     #[gojson(go = "Sid", json = "sid")]
     pub sid: String,
 }
 
+impl MergeClone for ExtImpIx {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtImpIx";
+        merge_struct(patch, |key, value| match key {
+            "siteId" => merge_field(&mut self.site_id, value, GO_TYPE, "SiteId"),
+            "size" => gojson_bridge::merge_field(&mut self.size, value, GO_TYPE, "Size"),
+            "sid" => merge_field(&mut self.sid, value, GO_TYPE, "Sid"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ExtImpJixie`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtImpJixie")]
 pub struct ExtImpJixie {
     /// Go field `Unit`.
+    #[serde(rename = "unit", deserialize_with = "null_default")]
     #[gojson(go = "Unit", json = "unit")]
     pub unit: String,
     /// Go field `AccountId`.
+    #[serde(
+        rename = "accountid",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "AccountId", json = "accountid,omitempty")]
     pub account_id: String,
     /// Go field `JxProp1`.
+    #[serde(
+        rename = "jxprop1",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "JxProp1", json = "jxprop1,omitempty")]
     pub jx_prop1: String,
     /// Go field `JxProp2`.
+    #[serde(
+        rename = "jxprop2",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "JxProp2", json = "jxprop2,omitempty")]
     pub jx_prop2: String,
 }
 
+impl MergeClone for ExtImpJixie {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtImpJixie";
+        merge_struct(patch, |key, value| match key {
+            "unit" => merge_field(&mut self.unit, value, GO_TYPE, "Unit"),
+            "accountid" => merge_field(&mut self.account_id, value, GO_TYPE, "AccountId"),
+            "jxprop1" => merge_field(&mut self.jx_prop1, value, GO_TYPE, "JxProp1"),
+            "jxprop2" => merge_field(&mut self.jx_prop2, value, GO_TYPE, "JxProp2"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ImpExtKargo`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ImpExtKargo")]
 pub struct ImpExtKargo {
     /// Go field `PlacementId`.
+    #[serde(rename = "placementId", deserialize_with = "null_default")]
     #[gojson(go = "PlacementId", json = "placementId")]
     pub placement_id: String,
     /// ```text
     /// Deprecated - Use `placementId`
     /// ```
+    #[serde(rename = "adSlotID", deserialize_with = "null_default")]
     #[gojson(go = "AdSlotID", json = "adSlotID")]
     pub ad_slot_id: String,
+}
+
+impl MergeClone for ImpExtKargo {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ImpExtKargo";
+        merge_struct(patch, |key, value| match key {
+            "placementId" => merge_field(&mut self.placement_id, value, GO_TYPE, "PlacementId"),
+            "adSlotID" => merge_field(&mut self.ad_slot_id, value, GO_TYPE, "AdSlotID"),
+            _ => Ok(()),
+        })
+    }
 }
 
 /// ```text
 /// ExtKayzen defines the contract for bidrequest.imp[i].ext.prebid.bidder.kayzen
 /// ```
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtKayzen")]
 pub struct ExtKayzen {
     /// Go field `Zone`.
+    #[serde(rename = "zone", deserialize_with = "null_default")]
     #[gojson(go = "Zone", json = "zone")]
     pub zone: String,
     /// Go field `Exchange`.
+    #[serde(rename = "exchange", deserialize_with = "null_default")]
     #[gojson(go = "Exchange", json = "exchange")]
     pub exchange: String,
 }
 
+impl MergeClone for ExtKayzen {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtKayzen";
+        merge_struct(patch, |key, value| match key {
+            "zone" => merge_field(&mut self.zone, value, GO_TYPE, "Zone"),
+            "exchange" => merge_field(&mut self.exchange, value, GO_TYPE, "Exchange"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ExtImpKidoz`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtImpKidoz")]
 pub struct ExtImpKidoz {
     /// Go field `AccessToken`.
+    #[serde(rename = "access_token", deserialize_with = "null_default")]
     #[gojson(go = "AccessToken", json = "access_token")]
     pub access_token: String,
     /// Go field `PublisherID`.
+    #[serde(rename = "publisher_id", deserialize_with = "null_default")]
     #[gojson(go = "PublisherID", json = "publisher_id")]
     pub publisher_id: String,
 }
 
+impl MergeClone for ExtImpKidoz {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtImpKidoz";
+        merge_struct(patch, |key, value| match key {
+            "access_token" => merge_field(&mut self.access_token, value, GO_TYPE, "AccessToken"),
+            "publisher_id" => merge_field(&mut self.publisher_id, value, GO_TYPE, "PublisherID"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ImpExtKiviads`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ImpExtKiviads")]
 pub struct ImpExtKiviads {
     /// Go field `PlacementID`.
+    #[serde(rename = "placementId", deserialize_with = "null_default")]
     #[gojson(go = "PlacementID", json = "placementId")]
     pub placement_id: String,
     /// Go field `EndpointID`.
+    #[serde(rename = "endpointId", deserialize_with = "null_default")]
     #[gojson(go = "EndpointID", json = "endpointId")]
     pub endpoint_id: String,
 }
 
+impl MergeClone for ImpExtKiviads {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ImpExtKiviads";
+        merge_struct(patch, |key, value| match key {
+            "placementId" => merge_field(&mut self.placement_id, value, GO_TYPE, "PlacementID"),
+            "endpointId" => merge_field(&mut self.endpoint_id, value, GO_TYPE, "EndpointID"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ExtImpKobler`.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtImpKobler")]
 pub struct ExtImpKobler {
     /// Go field `Test`.
+    #[serde(rename = "test", deserialize_with = "null_default")]
     #[gojson(go = "Test", json = "test")]
     pub test: bool,
+}
+
+impl MergeClone for ExtImpKobler {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtImpKobler";
+        merge_struct(patch, |key, value| match key {
+            "test" => merge_field(&mut self.test, value, GO_TYPE, "Test"),
+            _ => Ok(()),
+        })
+    }
 }
 
 /// ```text
 /// ExtKrushmedia defines imp[0].ext object structure
 /// ```
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtKrushmedia")]
 pub struct ExtKrushmedia {
     /// Go field `AccountID`.
+    #[serde(rename = "key", deserialize_with = "null_default")]
     #[gojson(go = "AccountID", json = "key")]
     pub account_id: String,
+}
+
+impl MergeClone for ExtKrushmedia {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtKrushmedia";
+        merge_struct(patch, |key, value| match key {
+            "key" => merge_field(&mut self.account_id, value, GO_TYPE, "AccountID"),
+            _ => Ok(()),
+        })
+    }
 }
 
 /// ```text
 /// ImpExtKueez defines the contract for bidrequest.imp[i].ext.prebid.bidder.kueezrtb
 /// ```
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ImpExtKueez")]
 pub struct ImpExtKueez {
     /// Go field `ConnectionId`.
+    #[serde(rename = "cId", deserialize_with = "null_default")]
     #[gojson(go = "ConnectionId", json = "cId")]
     pub connection_id: String,
 }
 
+impl MergeClone for ImpExtKueez {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ImpExtKueez";
+        merge_struct(patch, |key, value| match key {
+            "cId" => merge_field(&mut self.connection_id, value, GO_TYPE, "ConnectionId"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ImpExtLemmaDigital`.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ImpExtLemmaDigital")]
 pub struct ImpExtLemmaDigital {
     /// Go field `PublisherId`.
+    #[serde(rename = "pid", deserialize_with = "null_default")]
     #[gojson(go = "PublisherId", json = "pid")]
     pub publisher_id: isize,
     /// Go field `AdId`.
+    #[serde(rename = "aid", deserialize_with = "null_default")]
     #[gojson(go = "AdId", json = "aid")]
     pub ad_id: isize,
 }
 
+impl MergeClone for ImpExtLemmaDigital {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ImpExtLemmaDigital";
+        merge_struct(patch, |key, value| match key {
+            "pid" => {
+                gojson_bridge::merge_field(&mut self.publisher_id, value, GO_TYPE, "PublisherId")
+            }
+            "aid" => gojson_bridge::merge_field(&mut self.ad_id, value, GO_TYPE, "AdId"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ImpExtLimelightDigital`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ImpExtLimelightDigital")]
 pub struct ImpExtLimelightDigital {
     /// Go field `Host`.
+    #[serde(rename = "host", deserialize_with = "null_default")]
     #[gojson(go = "Host", json = "host")]
     pub host: String,
     /// Go field `PublisherID`.
+    #[serde(rename = "publisherId", with = "gojson_bridge::json_number")]
     #[gojson(go = "PublisherID", json = "publisherId")]
     pub publisher_id: JsonNumber,
 }
 
+impl MergeClone for ImpExtLimelightDigital {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ImpExtLimelightDigital";
+        merge_struct(patch, |key, value| match key {
+            "host" => merge_field(&mut self.host, value, GO_TYPE, "Host"),
+            "publisherId" => {
+                gojson_bridge::merge_field(&mut self.publisher_id, value, GO_TYPE, "PublisherID")
+            }
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ExtLmKiviads`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtLmKiviads")]
 pub struct ExtLmKiviads {
     /// Go field `Env`.
+    #[serde(rename = "env", deserialize_with = "null_default")]
     #[gojson(go = "Env", json = "env")]
     pub env: String,
     /// Go field `Pid`.
+    #[serde(rename = "pid", deserialize_with = "null_default")]
     #[gojson(go = "Pid", json = "pid")]
     pub pid: String,
+}
+
+impl MergeClone for ExtLmKiviads {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtLmKiviads";
+        merge_struct(patch, |key, value| match key {
+            "env" => merge_field(&mut self.env, value, GO_TYPE, "Env"),
+            "pid" => merge_field(&mut self.pid, value, GO_TYPE, "Pid"),
+            _ => Ok(()),
+        })
+    }
 }
 
 /// ```text
 /// ExtImpLockerDome defines the contract for bidrequest.imp[i].ext.prebid.bidder.lockerdome
 /// ```
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtImpLockerDome")]
 pub struct ExtImpLockerDome {
     /// `LockerDome` params
+    #[serde(rename = "adUnitId", deserialize_with = "null_default")]
     #[gojson(go = "AdUnitId", json = "adUnitId")]
     pub ad_unit_id: String,
 }
 
+impl MergeClone for ExtImpLockerDome {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtImpLockerDome";
+        merge_struct(patch, |key, value| match key {
+            "adUnitId" => merge_field(&mut self.ad_unit_id, value, GO_TYPE, "AdUnitId"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ImpExtLogan`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ImpExtLogan")]
 pub struct ImpExtLogan {
     /// Go field `PlacementID`.
+    #[serde(rename = "placementId", deserialize_with = "null_default")]
     #[gojson(go = "PlacementID", json = "placementId")]
     pub placement_id: String,
 }
 
+impl MergeClone for ImpExtLogan {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ImpExtLogan";
+        merge_struct(patch, |key, value| match key {
+            "placementId" => merge_field(&mut self.placement_id, value, GO_TYPE, "PlacementID"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ExtImpLogicad`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtImpLogicad")]
 pub struct ExtImpLogicad {
     /// Go field `Tid`.
+    #[serde(rename = "tid", deserialize_with = "null_default")]
     #[gojson(go = "Tid", json = "tid")]
     pub tid: String,
+}
+
+impl MergeClone for ExtImpLogicad {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtImpLogicad";
+        merge_struct(patch, |key, value| match key {
+            "tid" => merge_field(&mut self.tid, value, GO_TYPE, "Tid"),
+            _ => Ok(()),
+        })
+    }
 }
 
 /// ```text
 /// ExtImpLoopme defines the contract for bidrequest.imp[i].ext.prebid.bidder.loopme
 /// ```
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtImpLoopme")]
 pub struct ExtImpLoopme {
     /// Go field `PublisherId`.
+    #[serde(rename = "publisherId", deserialize_with = "null_default")]
     #[gojson(go = "PublisherId", json = "publisherId")]
     pub publisher_id: String,
     /// Go field `BundleId`.
+    #[serde(rename = "bundleId", deserialize_with = "null_default")]
     #[gojson(go = "BundleId", json = "bundleId")]
     pub bundle_id: String,
     /// Go field `PlacementId`.
+    #[serde(rename = "placementId", deserialize_with = "null_default")]
     #[gojson(go = "PlacementId", json = "placementId")]
     pub placement_id: String,
 }
 
+impl MergeClone for ExtImpLoopme {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtImpLoopme";
+        merge_struct(patch, |key, value| match key {
+            "publisherId" => merge_field(&mut self.publisher_id, value, GO_TYPE, "PublisherId"),
+            "bundleId" => merge_field(&mut self.bundle_id, value, GO_TYPE, "BundleId"),
+            "placementId" => merge_field(&mut self.placement_id, value, GO_TYPE, "PlacementId"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ImpExtLoyal`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ImpExtLoyal")]
 pub struct ImpExtLoyal {
     /// Go field `PlacementID`.
+    #[serde(rename = "placementId", deserialize_with = "null_default")]
     #[gojson(go = "PlacementID", json = "placementId")]
     pub placement_id: String,
     /// Go field `EndpointID`.
+    #[serde(rename = "endpointId", deserialize_with = "null_default")]
     #[gojson(go = "EndpointID", json = "endpointId")]
     pub endpoint_id: String,
 }
 
+impl MergeClone for ImpExtLoyal {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ImpExtLoyal";
+        merge_struct(patch, |key, value| match key {
+            "placementId" => merge_field(&mut self.placement_id, value, GO_TYPE, "PlacementID"),
+            "endpointId" => merge_field(&mut self.endpoint_id, value, GO_TYPE, "EndpointID"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ExtImpLunaMedia`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtImpLunaMedia")]
 pub struct ExtImpLunaMedia {
     /// Go field `PublisherID`.
+    #[serde(rename = "pubid", deserialize_with = "null_default")]
     #[gojson(go = "PublisherID", json = "pubid")]
     pub publisher_id: String,
     /// Go field `Placement`.
+    #[serde(
+        rename = "placement",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Placement", json = "placement,omitempty")]
     pub placement: String,
 }
 
+impl MergeClone for ExtImpLunaMedia {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtImpLunaMedia";
+        merge_struct(patch, |key, value| match key {
+            "pubid" => merge_field(&mut self.publisher_id, value, GO_TYPE, "PublisherID"),
+            "placement" => merge_field(&mut self.placement, value, GO_TYPE, "Placement"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ImpExtMabidder`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ImpExtMabidder")]
 pub struct ImpExtMabidder {
     /// Go field `Ppid`.
+    #[serde(rename = "ppid", deserialize_with = "null_default")]
     #[gojson(go = "Ppid", json = "ppid")]
     pub ppid: String,
 }
 
+impl MergeClone for ImpExtMabidder {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ImpExtMabidder";
+        merge_struct(patch, |key, value| match key {
+            "ppid" => merge_field(&mut self.ppid, value, GO_TYPE, "Ppid"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ExtImpMadSense`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtImpMadSense")]
 pub struct ExtImpMadSense {
     /// Go field `CompanyId`.
+    #[serde(rename = "company_id", deserialize_with = "null_default")]
     #[gojson(go = "CompanyId", json = "company_id")]
     pub company_id: String,
+}
+
+impl MergeClone for ExtImpMadSense {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtImpMadSense";
+        merge_struct(patch, |key, value| match key {
+            "company_id" => merge_field(&mut self.company_id, value, GO_TYPE, "CompanyId"),
+            _ => Ok(()),
+        })
+    }
 }
 
 /// ```text
 /// ExtImpMadvertise defines the contract for bidrequest.imp[i].ext.prebid.bidder.madvertise
 /// ```
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtImpMadvertise")]
 pub struct ExtImpMadvertise {
     /// Go field `ZoneID`.
+    #[serde(rename = "zoneId", deserialize_with = "null_default")]
     #[gojson(go = "ZoneID", json = "zoneId")]
     pub zone_id: String,
+}
+
+impl MergeClone for ExtImpMadvertise {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtImpMadvertise";
+        merge_struct(patch, |key, value| match key {
+            "zoneId" => merge_field(&mut self.zone_id, value, GO_TYPE, "ZoneID"),
+            _ => Ok(()),
+        })
+    }
 }
 
 /// ```text
 /// ExtImpMarsmedia defines the contract for bidrequest.imp[i].ext.prebid.bidder.marsmedia
 /// ```
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtImpMarsmedia")]
 pub struct ExtImpMarsmedia {
     /// Go field `ZoneID`.
+    #[serde(rename = "zoneId", with = "gojson_bridge::json_number")]
     #[gojson(go = "ZoneID", json = "zoneId")]
     pub zone_id: JsonNumber,
 }
 
+impl MergeClone for ExtImpMarsmedia {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtImpMarsmedia";
+        merge_struct(patch, |key, value| match key {
+            "zoneId" => gojson_bridge::merge_field(&mut self.zone_id, value, GO_TYPE, "ZoneID"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ExtImpMatterfullRTB`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtImpMatterfullRTB")]
 pub struct ExtImpMatterfullRTB {
     /// Go field `PublisherID`.
+    #[serde(rename = "pid", deserialize_with = "null_default")]
     #[gojson(go = "PublisherID", json = "pid")]
     pub publisher_id: String,
+}
+
+impl MergeClone for ExtImpMatterfullRTB {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtImpMatterfullRTB";
+        merge_struct(patch, |key, value| match key {
+            "pid" => merge_field(&mut self.publisher_id, value, GO_TYPE, "PublisherID"),
+            _ => Ok(()),
+        })
+    }
 }
 
 /// ```text
 /// ExtImpMediaGo defines the contract for bidrequest.imp[i].ext.prebid.bidder.mediago
 /// ```
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtImpMediaGo")]
 pub struct ExtImpMediaGo {
     /// Go field `Token`.
+    #[serde(rename = "token", deserialize_with = "null_default")]
     #[gojson(go = "Token", json = "token")]
     pub token: String,
     /// Go field `Region`.
+    #[serde(rename = "region", deserialize_with = "null_default")]
     #[gojson(go = "Region", json = "region")]
     pub region: String,
     /// Go field `PlacementId`.
+    #[serde(rename = "placementId", deserialize_with = "null_default")]
     #[gojson(go = "PlacementId", json = "placementId")]
     pub placement_id: String,
 }
 
+impl MergeClone for ExtImpMediaGo {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtImpMediaGo";
+        merge_struct(patch, |key, value| match key {
+            "token" => merge_field(&mut self.token, value, GO_TYPE, "Token"),
+            "region" => merge_field(&mut self.region, value, GO_TYPE, "Region"),
+            "placementId" => merge_field(&mut self.placement_id, value, GO_TYPE, "PlacementId"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ExtMediaGo`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtMediaGo")]
 pub struct ExtMediaGo {
     /// Go field `Token`.
+    #[serde(rename = "token", deserialize_with = "null_default")]
     #[gojson(go = "Token", json = "token")]
     pub token: String,
     /// Go field `Region`.
+    #[serde(rename = "region", deserialize_with = "null_default")]
     #[gojson(go = "Region", json = "region")]
     pub region: String,
 }
 
+impl MergeClone for ExtMediaGo {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtMediaGo";
+        merge_struct(patch, |key, value| match key {
+            "token" => merge_field(&mut self.token, value, GO_TYPE, "Token"),
+            "region" => merge_field(&mut self.region, value, GO_TYPE, "Region"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ExtImpMedianet`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtImpMedianet")]
 pub struct ExtImpMedianet {
     /// Go field `Cid`.
+    #[serde(rename = "cid", deserialize_with = "null_default")]
     #[gojson(go = "Cid", json = "cid")]
     pub cid: String,
     /// Go field `Crid`.
+    #[serde(rename = "crid", deserialize_with = "null_default")]
     #[gojson(go = "Crid", json = "crid")]
     pub crid: String,
 }
 
+impl MergeClone for ExtImpMedianet {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtImpMedianet";
+        merge_struct(patch, |key, value| match key {
+            "cid" => merge_field(&mut self.cid, value, GO_TYPE, "Cid"),
+            "crid" => merge_field(&mut self.crid, value, GO_TYPE, "Crid"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ImpExtMediasquare`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ImpExtMediasquare")]
 pub struct ImpExtMediasquare {
     /// Go field `Owner`.
+    #[serde(rename = "owner", deserialize_with = "null_default")]
     #[gojson(go = "Owner", json = "owner")]
     pub owner: String,
     /// Go field `Code`.
+    #[serde(rename = "code", deserialize_with = "null_default")]
     #[gojson(go = "Code", json = "code")]
     pub code: String,
 }
 
+impl MergeClone for ImpExtMediasquare {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ImpExtMediasquare";
+        merge_struct(patch, |key, value| match key {
+            "owner" => merge_field(&mut self.owner, value, GO_TYPE, "Owner"),
+            "code" => merge_field(&mut self.code, value, GO_TYPE, "Code"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ImpExtMeloZen`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ImpExtMeloZen")]
 pub struct ImpExtMeloZen {
     /// Go field `PubId`.
+    #[serde(rename = "pubId", deserialize_with = "null_default")]
     #[gojson(go = "PubId", json = "pubId")]
     pub pub_id: String,
+}
+
+impl MergeClone for ImpExtMeloZen {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ImpExtMeloZen";
+        merge_struct(patch, |key, value| match key {
+            "pubId" => merge_field(&mut self.pub_id, value, GO_TYPE, "PubId"),
+            _ => Ok(()),
+        })
+    }
 }
 
 /// ```text
 /// ExtImpMetaX defines the contract for bidrequest.imp[i].ext.prebid.bidder.metax
 /// ```
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtImpMetaX")]
 pub struct ExtImpMetaX {
     /// Go field `PublisherID`.
+    #[serde(rename = "publisherId", deserialize_with = "null_default")]
     #[gojson(go = "PublisherID", json = "publisherId")]
     pub publisher_id: isize,
     /// Go field `Adunit`.
+    #[serde(rename = "adunit", deserialize_with = "null_default")]
     #[gojson(go = "Adunit", json = "adunit")]
     pub adunit: isize,
+}
+
+impl MergeClone for ExtImpMetaX {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtImpMetaX";
+        merge_struct(patch, |key, value| match key {
+            "publisherId" => {
+                gojson_bridge::merge_field(&mut self.publisher_id, value, GO_TYPE, "PublisherID")
+            }
+            "adunit" => gojson_bridge::merge_field(&mut self.adunit, value, GO_TYPE, "Adunit"),
+            _ => Ok(()),
+        })
+    }
 }
 
 /// ```text
 /// ExtImpMgid defines the contract for bidrequest.imp[i].ext.prebid.bidder.mgid
 /// ```
-#[derive(Clone, Debug, Default, PartialEq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtImpMgid")]
 pub struct ExtImpMgid {
     /// Go field `AccountId`.
+    #[serde(rename = "accountId", deserialize_with = "null_default")]
     #[gojson(go = "AccountId", json = "accountId")]
     pub account_id: String,
     /// Go field `PlacementId`.
+    #[serde(
+        rename = "placementId",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "PlacementId", json = "placementId,omitempty")]
     pub placement_id: String,
     /// Go field `Cur`.
+    #[serde(rename = "cur", deserialize_with = "null_default")]
     #[gojson(go = "Cur", json = "cur")]
     pub cur: String,
     /// Go field `Currency`.
+    #[serde(rename = "currency", deserialize_with = "null_default")]
     #[gojson(go = "Currency", json = "currency")]
     pub currency: String,
     /// Go field `BidFloor`.
+    #[serde(rename = "bidfloor", deserialize_with = "null_default")]
     #[gojson(go = "BidFloor", json = "bidfloor")]
     pub bid_floor: f64,
     /// Go field `BidFloor2`.
+    #[serde(rename = "bidFloor", deserialize_with = "null_default")]
     #[gojson(go = "BidFloor2", json = "bidFloor")]
     pub bid_floor2: f64,
 }
 
+impl MergeClone for ExtImpMgid {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtImpMgid";
+        merge_struct(patch, |key, value| match key {
+            "accountId" => merge_field(&mut self.account_id, value, GO_TYPE, "AccountId"),
+            "placementId" => merge_field(&mut self.placement_id, value, GO_TYPE, "PlacementId"),
+            "cur" => merge_field(&mut self.cur, value, GO_TYPE, "Cur"),
+            "currency" => merge_field(&mut self.currency, value, GO_TYPE, "Currency"),
+            "bidfloor" => merge_field(&mut self.bid_floor, value, GO_TYPE, "BidFloor"),
+            "bidFloor" => merge_field(&mut self.bid_floor2, value, GO_TYPE, "BidFloor2"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ImpExtMgidX`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ImpExtMgidX")]
 pub struct ImpExtMgidX {
     /// Go field `PlacementID`.
+    #[serde(rename = "placementId", deserialize_with = "null_default")]
     #[gojson(go = "PlacementID", json = "placementId")]
     pub placement_id: String,
     /// Go field `EndpointID`.
+    #[serde(rename = "endpointId", deserialize_with = "null_default")]
     #[gojson(go = "EndpointID", json = "endpointId")]
     pub endpoint_id: String,
+}
+
+impl MergeClone for ImpExtMgidX {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ImpExtMgidX";
+        merge_struct(patch, |key, value| match key {
+            "placementId" => merge_field(&mut self.placement_id, value, GO_TYPE, "PlacementID"),
+            "endpointId" => merge_field(&mut self.endpoint_id, value, GO_TYPE, "EndpointID"),
+            _ => Ok(()),
+        })
+    }
 }
 
 /// ```text
 /// ImpExtMinuteMedia defines the contract for bidrequest.imp[i].ext.prebid.bidder.minutemedia
 /// ```
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ImpExtMinuteMedia")]
 pub struct ImpExtMinuteMedia {
     /// Go field `Org`.
+    #[serde(rename = "org", deserialize_with = "null_default")]
     #[gojson(go = "Org", json = "org")]
     pub org: String,
 }
 
+impl MergeClone for ImpExtMinuteMedia {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ImpExtMinuteMedia";
+        merge_struct(patch, |key, value| match key {
+            "org" => merge_field(&mut self.org, value, GO_TYPE, "Org"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ExtImpMissena`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtImpMissena")]
 pub struct ExtImpMissena {
     /// Go field `APIKey`.
+    #[serde(rename = "apiKey", deserialize_with = "null_default")]
     #[gojson(go = "APIKey", json = "apiKey")]
     pub api_key: String,
     /// Go field `Formats`.
+    #[serde(rename = "formats")]
     #[gojson(go = "Formats", json = "formats")]
     pub formats: Option<Vec<String>>,
     /// Go field `Placement`.
+    #[serde(rename = "placement", deserialize_with = "null_default")]
     #[gojson(go = "Placement", json = "placement")]
     pub placement: String,
     /// Go field `Sample`.
+    #[serde(rename = "sample", deserialize_with = "null_default")]
     #[gojson(go = "Sample", json = "sample")]
     pub sample: String,
     /// Go field `Settings`.
+    #[serde(rename = "settings", skip_serializing_if = "is_nil_or_empty")]
     #[gojson(go = "Settings", json = "settings,omitempty")]
     pub settings: Option<BTreeMap<String, Value>>,
+}
+
+impl MergeClone for ExtImpMissena {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtImpMissena";
+        merge_struct(patch, |key, value| match key {
+            "apiKey" => merge_field(&mut self.api_key, value, GO_TYPE, "APIKey"),
+            "formats" => merge_field(&mut self.formats, value, GO_TYPE, "Formats"),
+            "placement" => merge_field(&mut self.placement, value, GO_TYPE, "Placement"),
+            "sample" => merge_field(&mut self.sample, value, GO_TYPE, "Sample"),
+            "settings" => merge_field(&mut self.settings, value, GO_TYPE, "Settings"),
+            _ => Ok(()),
+        })
+    }
 }
 
 /// ```text
 /// ExtImpMobileFuse defines the contract for bidrequest.imp[i].ext.prebid.bidder.mobilefuse
 /// ```
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtImpMobileFuse")]
 pub struct ExtImpMobileFuse {
     /// Go field `PlacementId`.
+    #[serde(rename = "placement_id", deserialize_with = "null_default")]
     #[gojson(go = "PlacementId", json = "placement_id")]
     pub placement_id: isize,
 }
 
+impl MergeClone for ExtImpMobileFuse {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtImpMobileFuse";
+        merge_struct(patch, |key, value| match key {
+            "placement_id" => {
+                gojson_bridge::merge_field(&mut self.placement_id, value, GO_TYPE, "PlacementId")
+            }
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ImpExtMobkoi`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ImpExtMobkoi")]
 pub struct ImpExtMobkoi {
     /// Go field `PlacementID`.
+    #[serde(rename = "placementId", deserialize_with = "null_default")]
     #[gojson(go = "PlacementID", json = "placementId")]
     pub placement_id: String,
+}
+
+impl MergeClone for ImpExtMobkoi {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ImpExtMobkoi";
+        merge_struct(patch, |key, value| match key {
+            "placementId" => merge_field(&mut self.placement_id, value, GO_TYPE, "PlacementID"),
+            _ => Ok(()),
+        })
+    }
 }
 
 /// Go type `openrtb_ext.ExtMotorik`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtMotorik")]
 pub struct ExtMotorik {
     /// Go field `AccountID`.
+    #[serde(rename = "accountId", deserialize_with = "null_default")]
     #[gojson(go = "AccountID", json = "accountId")]
     pub account_id: String,
     /// Go field `PlacementID`.
+    #[serde(rename = "placementId", deserialize_with = "null_default")]
     #[gojson(go = "PlacementID", json = "placementId")]
     pub placement_id: String,
 }
 
+impl MergeClone for ExtMotorik {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtMotorik";
+        merge_struct(patch, |key, value| match key {
+            "accountId" => merge_field(&mut self.account_id, value, GO_TYPE, "AccountID"),
+            "placementId" => merge_field(&mut self.placement_id, value, GO_TYPE, "PlacementID"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// `ImpExtMsft` defines the contract for Microsoft bidder parameters.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ImpExtMsft")]
 pub struct ImpExtMsft {
     /// Go field `PlacementID`.
+    #[serde(rename = "placement_id", deserialize_with = "null_default")]
     #[gojson(go = "PlacementID", json = "placement_id")]
     pub placement_id: isize,
     /// Go field `Member`.
+    #[serde(rename = "member", deserialize_with = "null_default")]
     #[gojson(go = "Member", json = "member")]
     pub member: isize,
     /// Go field `InvCode`.
+    #[serde(rename = "inv_code", deserialize_with = "null_default")]
     #[gojson(go = "InvCode", json = "inv_code")]
     pub inv_code: String,
     /// Go field `AllowSmallerSizes`.
+    #[serde(rename = "allow_smaller_sizes")]
     #[gojson(go = "AllowSmallerSizes", json = "allow_smaller_sizes")]
     pub allow_smaller_sizes: Option<bool>,
     /// Go field `UsePaymentRule`.
+    #[serde(rename = "use_pmt_rule")]
     #[gojson(go = "UsePaymentRule", json = "use_pmt_rule")]
     pub use_payment_rule: Option<bool>,
     /// Go field `Keywords`.
+    #[serde(rename = "keywords", deserialize_with = "null_default")]
     #[gojson(go = "Keywords", json = "keywords")]
     pub keywords: String,
     /// Go field `TrafficSourceCode`.
+    #[serde(rename = "traffic_source_code", deserialize_with = "null_default")]
     #[gojson(go = "TrafficSourceCode", json = "traffic_source_code")]
     pub traffic_source_code: String,
     /// Go field `PubClick`.
+    #[serde(rename = "pubclick", deserialize_with = "null_default")]
     #[gojson(go = "PubClick", json = "pubclick")]
     pub pub_click: String,
     /// Go field `ExtInvCode`.
+    #[serde(rename = "ext_inv_code", deserialize_with = "null_default")]
     #[gojson(go = "ExtInvCode", json = "ext_inv_code")]
     pub ext_inv_code: String,
     /// Go field `ExtImpID`.
+    #[serde(rename = "ext_imp_id", deserialize_with = "null_default")]
     #[gojson(go = "ExtImpID", json = "ext_imp_id")]
     pub ext_imp_id: String,
     /// Go field `BannerFrameworks`.
+    #[serde(rename = "banner_frameworks")]
     #[gojson(go = "BannerFrameworks", json = "banner_frameworks")]
     pub banner_frameworks: Option<Vec<adcom1::APIFramework>>,
 }
 
+impl MergeClone for ImpExtMsft {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ImpExtMsft";
+        merge_struct(patch, |key, value| match key {
+            "placement_id" => {
+                gojson_bridge::merge_field(&mut self.placement_id, value, GO_TYPE, "PlacementID")
+            }
+            "member" => gojson_bridge::merge_field(&mut self.member, value, GO_TYPE, "Member"),
+            "inv_code" => merge_field(&mut self.inv_code, value, GO_TYPE, "InvCode"),
+            "allow_smaller_sizes" => merge_field(
+                &mut self.allow_smaller_sizes,
+                value,
+                GO_TYPE,
+                "AllowSmallerSizes",
+            ),
+            "use_pmt_rule" => {
+                merge_field(&mut self.use_payment_rule, value, GO_TYPE, "UsePaymentRule")
+            }
+            "keywords" => merge_field(&mut self.keywords, value, GO_TYPE, "Keywords"),
+            "traffic_source_code" => merge_field(
+                &mut self.traffic_source_code,
+                value,
+                GO_TYPE,
+                "TrafficSourceCode",
+            ),
+            "pubclick" => merge_field(&mut self.pub_click, value, GO_TYPE, "PubClick"),
+            "ext_inv_code" => merge_field(&mut self.ext_inv_code, value, GO_TYPE, "ExtInvCode"),
+            "ext_imp_id" => merge_field(&mut self.ext_imp_id, value, GO_TYPE, "ExtImpID"),
+            "banner_frameworks" => merge_field(
+                &mut self.banner_frameworks,
+                value,
+                GO_TYPE,
+                "BannerFrameworks",
+            ),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ImpExtNativery`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ImpExtNativery")]
 pub struct ImpExtNativery {
     /// Go field `WidgetId`.
+    #[serde(rename = "widgetId", deserialize_with = "null_default")]
     #[gojson(go = "WidgetId", json = "widgetId")]
     pub widget_id: String,
 }
 
+impl MergeClone for ImpExtNativery {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ImpExtNativery";
+        merge_struct(patch, |key, value| match key {
+            "widgetId" => merge_field(&mut self.widget_id, value, GO_TYPE, "WidgetId"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ImpExtNativo`.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ImpExtNativo")]
 pub struct ImpExtNativo {
     /// Go field `PlacementID`.
+    #[serde(rename = "placementId", with = "gojson_bridge::string_int")]
     #[gojson(go = "PlacementID", json = "placementId")]
     pub placement_id: jsonutil::StringInt,
 }
 
+impl MergeClone for ImpExtNativo {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ImpExtNativo";
+        merge_struct(patch, |key, value| match key {
+            "placementId" => {
+                gojson_bridge::merge_field(&mut self.placement_id, value, GO_TYPE, "PlacementID")
+            }
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ImpExtNextMillennium`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ImpExtNextMillennium")]
 pub struct ImpExtNextMillennium {
     /// Go field `GroupID`.
+    #[serde(
+        rename = "group_id",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "GroupID", json = "group_id,omitempty")]
     pub group_id: String,
     /// Go field `PlacementID`.
+    #[serde(rename = "placement_id", deserialize_with = "null_default")]
     #[gojson(go = "PlacementID", json = "placement_id")]
     pub placement_id: String,
     /// Go field `AdSlots`.
+    #[serde(rename = "adSlots", skip_serializing_if = "is_nil_or_empty")]
     #[gojson(go = "AdSlots", json = "adSlots,omitempty")]
     pub ad_slots: Option<Vec<String>>,
     /// Go field `AllowedAds`.
+    #[serde(rename = "allowedAds", skip_serializing_if = "is_nil_or_empty")]
     #[gojson(go = "AllowedAds", json = "allowedAds,omitempty")]
     pub allowed_ads: Option<Vec<String>>,
+}
+
+impl MergeClone for ImpExtNextMillennium {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ImpExtNextMillennium";
+        merge_struct(patch, |key, value| match key {
+            "group_id" => merge_field(&mut self.group_id, value, GO_TYPE, "GroupID"),
+            "placement_id" => merge_field(&mut self.placement_id, value, GO_TYPE, "PlacementID"),
+            "adSlots" => merge_field(&mut self.ad_slots, value, GO_TYPE, "AdSlots"),
+            "allowedAds" => merge_field(&mut self.allowed_ads, value, GO_TYPE, "AllowedAds"),
+            _ => Ok(()),
+        })
+    }
 }
 
 /// ```text
 /// ExtNexx360 defines the contract for bidrequest.imp[i].ext.prebid.bidder.nexx360
 /// ```
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtImpNexx360")]
 pub struct ExtImpNexx360 {
     /// Go field `TagId`.
+    #[serde(
+        rename = "tagId",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "TagId", json = "tagId,omitempty")]
     pub tag_id: String,
     /// Placement ID
+    #[serde(
+        rename = "placement",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Placement", json = "placement,omitempty")]
     pub placement: String,
 }
 
+impl MergeClone for ExtImpNexx360 {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtImpNexx360";
+        merge_struct(patch, |key, value| match key {
+            "tagId" => merge_field(&mut self.tag_id, value, GO_TYPE, "TagId"),
+            "placement" => merge_field(&mut self.placement, value, GO_TYPE, "Placement"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ExtImpNoBid`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtImpNoBid")]
 pub struct ExtImpNoBid {
     /// Go field `SiteID`.
+    #[serde(rename = "siteId", deserialize_with = "null_default")]
     #[gojson(go = "SiteID", json = "siteId")]
     pub site_id: String,
     /// Go field `PlacementID`.
+    #[serde(rename = "placementId", deserialize_with = "null_default")]
     #[gojson(go = "PlacementID", json = "placementId")]
     pub placement_id: String,
+}
+
+impl MergeClone for ExtImpNoBid {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtImpNoBid";
+        merge_struct(patch, |key, value| match key {
+            "siteId" => merge_field(&mut self.site_id, value, GO_TYPE, "SiteID"),
+            "placementId" => merge_field(&mut self.placement_id, value, GO_TYPE, "PlacementID"),
+            _ => Ok(()),
+        })
+    }
 }
 
 /// ```text
 /// ImpExtOdeeo defines the contract for bidrequest.imp[i].ext.prebid.bidder.odeeo
 /// ```
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ImpExtOdeeo")]
 pub struct ImpExtOdeeo {
     /// Go field `SP`.
+    #[serde(rename = "sp", deserialize_with = "null_default")]
     #[gojson(go = "SP", json = "sp")]
     pub sp: String,
     /// Go field `TK`.
+    #[serde(rename = "tk", deserialize_with = "null_default")]
     #[gojson(go = "TK", json = "tk")]
     pub tk: String,
 }
 
+impl MergeClone for ImpExtOdeeo {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ImpExtOdeeo";
+        merge_struct(patch, |key, value| match key {
+            "sp" => merge_field(&mut self.sp, value, GO_TYPE, "SP"),
+            "tk" => merge_field(&mut self.tk, value, GO_TYPE, "TK"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ImpExtOgury`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ImpExtOgury")]
 pub struct ImpExtOgury {
     /// Go field `AdUnitID`.
+    #[serde(
+        rename = "adUnitId",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "AdUnitID", json = "adUnitId,omitempty")]
     pub ad_unit_id: String,
     /// Go field `AssetKey`.
+    #[serde(
+        rename = "assetKey",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "AssetKey", json = "assetKey,omitempty")]
     pub asset_key: String,
+}
+
+impl MergeClone for ImpExtOgury {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ImpExtOgury";
+        merge_struct(patch, |key, value| match key {
+            "adUnitId" => merge_field(&mut self.ad_unit_id, value, GO_TYPE, "AdUnitID"),
+            "assetKey" => merge_field(&mut self.asset_key, value, GO_TYPE, "AssetKey"),
+            _ => Ok(()),
+        })
+    }
 }
 
 /// ```text
 /// ExtImpOms defines the contract for bidrequest.imp[i].ext.prebid.bidder.oms
 /// ```
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtImpOms")]
 pub struct ExtImpOms {
     /// Go field `Pid`.
+    #[serde(rename = "pid", deserialize_with = "null_default")]
     #[gojson(go = "Pid", json = "pid")]
     pub pid: String,
     /// Go field `PublisherID`.
+    #[serde(rename = "publisherId", deserialize_with = "null_default")]
     #[gojson(go = "PublisherID", json = "publisherId")]
     pub publisher_id: isize,
 }
 
+impl MergeClone for ExtImpOms {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtImpOms";
+        merge_struct(patch, |key, value| match key {
+            "pid" => merge_field(&mut self.pid, value, GO_TYPE, "Pid"),
+            "publisherId" => {
+                gojson_bridge::merge_field(&mut self.publisher_id, value, GO_TYPE, "PublisherID")
+            }
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ExtImpOnetag`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtImpOnetag")]
 pub struct ExtImpOnetag {
     /// Go field `PubId`.
+    #[serde(rename = "pubId", deserialize_with = "null_default")]
     #[gojson(go = "PubId", json = "pubId")]
     pub pub_id: String,
     /// Go field `Ext`.
+    #[serde(rename = "ext", with = "gojson_bridge::raw_json")]
     #[gojson(go = "Ext", json = "ext")]
     pub ext: RawJson,
+}
+
+impl MergeClone for ExtImpOnetag {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtImpOnetag";
+        merge_struct(patch, |key, value| match key {
+            "pubId" => merge_field(&mut self.pub_id, value, GO_TYPE, "PubId"),
+            "ext" => gojson_bridge::merge_field(&mut self.ext, value, GO_TYPE, "Ext"),
+            _ => Ok(()),
+        })
+    }
 }
 
 /// ```text
 /// ExtImpOpenWeb defines the contract for bidrequest.imp[i].ext.prebid.bidder.openweb
 /// ```
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtImpOpenWeb")]
 pub struct ExtImpOpenWeb {
     /// Go field `Aid`.
+    #[serde(
+        rename = "aid",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Aid", json = "aid,omitempty")]
     pub aid: isize,
     /// Go field `Org`.
+    #[serde(
+        rename = "org",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Org", json = "org,omitempty")]
     pub org: String,
     /// Go field `PlacementID`.
+    #[serde(rename = "placementId", deserialize_with = "null_default")]
     #[gojson(go = "PlacementID", json = "placementId")]
     pub placement_id: String,
+}
+
+impl MergeClone for ExtImpOpenWeb {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtImpOpenWeb";
+        merge_struct(patch, |key, value| match key {
+            "aid" => gojson_bridge::merge_field(&mut self.aid, value, GO_TYPE, "Aid"),
+            "org" => merge_field(&mut self.org, value, GO_TYPE, "Org"),
+            "placementId" => merge_field(&mut self.placement_id, value, GO_TYPE, "PlacementID"),
+            _ => Ok(()),
+        })
+    }
 }
 
 /// ```text
 /// ExtImpOpenx defines the contract for bidrequest.imp[i].ext.prebid.bidder.openx
 /// ```
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtImpOpenx")]
 pub struct ExtImpOpenx {
     /// Go field `Unit`.
+    #[serde(rename = "unit", with = "gojson_bridge::json_number")]
     #[gojson(go = "Unit", json = "unit")]
     pub unit: JsonNumber,
     /// Go field `Platform`.
+    #[serde(rename = "platform", deserialize_with = "null_default")]
     #[gojson(go = "Platform", json = "platform")]
     pub platform: String,
     /// Go field `DelDomain`.
+    #[serde(rename = "delDomain", deserialize_with = "null_default")]
     #[gojson(go = "DelDomain", json = "delDomain")]
     pub del_domain: String,
     /// Go field `CustomFloor`.
+    #[serde(rename = "customFloor", with = "gojson_bridge::json_number")]
     #[gojson(go = "CustomFloor", json = "customFloor")]
     pub custom_floor: JsonNumber,
     /// Go field `CustomParams`.
+    #[serde(rename = "customParams")]
     #[gojson(go = "CustomParams", json = "customParams")]
     pub custom_params: Option<BTreeMap<String, Value>>,
 }
 
+impl MergeClone for ExtImpOpenx {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtImpOpenx";
+        merge_struct(patch, |key, value| match key {
+            "unit" => gojson_bridge::merge_field(&mut self.unit, value, GO_TYPE, "Unit"),
+            "platform" => merge_field(&mut self.platform, value, GO_TYPE, "Platform"),
+            "delDomain" => merge_field(&mut self.del_domain, value, GO_TYPE, "DelDomain"),
+            "customFloor" => {
+                gojson_bridge::merge_field(&mut self.custom_floor, value, GO_TYPE, "CustomFloor")
+            }
+            "customParams" => merge_field(&mut self.custom_params, value, GO_TYPE, "CustomParams"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ImpExtOperaads`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ImpExtOperaads")]
 pub struct ImpExtOperaads {
     /// Go field `PlacementID`.
+    #[serde(rename = "placementId", deserialize_with = "null_default")]
     #[gojson(go = "PlacementID", json = "placementId")]
     pub placement_id: String,
     /// Go field `EndpointID`.
+    #[serde(rename = "endpointId", deserialize_with = "null_default")]
     #[gojson(go = "EndpointID", json = "endpointId")]
     pub endpoint_id: String,
     /// Go field `PublisherID`.
+    #[serde(rename = "publisherId", deserialize_with = "null_default")]
     #[gojson(go = "PublisherID", json = "publisherId")]
     pub publisher_id: String,
 }
 
+impl MergeClone for ImpExtOperaads {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ImpExtOperaads";
+        merge_struct(patch, |key, value| match key {
+            "placementId" => merge_field(&mut self.placement_id, value, GO_TYPE, "PlacementID"),
+            "endpointId" => merge_field(&mut self.endpoint_id, value, GO_TYPE, "EndpointID"),
+            "publisherId" => merge_field(&mut self.publisher_id, value, GO_TYPE, "PublisherID"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ImpExtOptidigital`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ImpExtOptidigital")]
 pub struct ImpExtOptidigital {
     /// Go field `PublisherID`.
+    #[serde(rename = "publisherId", deserialize_with = "null_default")]
     #[gojson(go = "PublisherID", json = "publisherId")]
     pub publisher_id: String,
     /// Go field `PlacementID`.
+    #[serde(rename = "placementId", deserialize_with = "null_default")]
     #[gojson(go = "PlacementID", json = "placementId")]
     pub placement_id: String,
     /// Go field `PageTemplate`.
+    #[serde(
+        rename = "pageTemplate",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "PageTemplate", json = "pageTemplate,omitempty")]
     pub page_template: String,
     /// Go field `DivID`.
+    #[serde(
+        rename = "divId",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "DivID", json = "divId,omitempty")]
     pub div_id: String,
 }
 
+impl MergeClone for ImpExtOptidigital {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ImpExtOptidigital";
+        merge_struct(patch, |key, value| match key {
+            "publisherId" => merge_field(&mut self.publisher_id, value, GO_TYPE, "PublisherID"),
+            "placementId" => merge_field(&mut self.placement_id, value, GO_TYPE, "PlacementID"),
+            "pageTemplate" => merge_field(&mut self.page_template, value, GO_TYPE, "PageTemplate"),
+            "divId" => merge_field(&mut self.div_id, value, GO_TYPE, "DivID"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ImpExtOraki`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ImpExtOraki")]
 pub struct ImpExtOraki {
     /// Go field `PlacementID`.
+    #[serde(rename = "placementId", deserialize_with = "null_default")]
     #[gojson(go = "PlacementID", json = "placementId")]
     pub placement_id: String,
     /// Go field `EndpointID`.
+    #[serde(rename = "endpointId", deserialize_with = "null_default")]
     #[gojson(go = "EndpointID", json = "endpointId")]
     pub endpoint_id: String,
+}
+
+impl MergeClone for ImpExtOraki {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ImpExtOraki";
+        merge_struct(patch, |key, value| match key {
+            "placementId" => merge_field(&mut self.placement_id, value, GO_TYPE, "PlacementID"),
+            "endpointId" => merge_field(&mut self.endpoint_id, value, GO_TYPE, "EndpointID"),
+            _ => Ok(()),
+        })
+    }
 }
 
 /// ```text
 /// ExtImpOrbidder defines the contract for bidrequest.imp[i].ext.prebid.bidder.openx
 /// ```
-#[derive(Clone, Debug, Default, PartialEq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtImpOrbidder")]
 pub struct ExtImpOrbidder {
     /// Go field `AccountId`.
+    #[serde(rename = "accountId", deserialize_with = "null_default")]
     #[gojson(go = "AccountId", json = "accountId")]
     pub account_id: String,
     /// Go field `PlacementId`.
+    #[serde(rename = "placementId", deserialize_with = "null_default")]
     #[gojson(go = "PlacementId", json = "placementId")]
     pub placement_id: String,
     /// Go field `BidFloor`.
+    #[serde(rename = "bidfloor", deserialize_with = "null_default")]
     #[gojson(go = "BidFloor", json = "bidfloor")]
     pub bid_floor: f64,
+}
+
+impl MergeClone for ExtImpOrbidder {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtImpOrbidder";
+        merge_struct(patch, |key, value| match key {
+            "accountId" => merge_field(&mut self.account_id, value, GO_TYPE, "AccountId"),
+            "placementId" => merge_field(&mut self.placement_id, value, GO_TYPE, "PlacementId"),
+            "bidfloor" => merge_field(&mut self.bid_floor, value, GO_TYPE, "BidFloor"),
+            _ => Ok(()),
+        })
+    }
 }
 
 /// ```text
 /// ExtImpOutbrain defines the contract for bidrequest.imp[i].ext.prebid.bidder.outbrain
 /// ```
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtImpOutbrain")]
 pub struct ExtImpOutbrain {
     /// Go field `Publisher`.
+    #[serde(rename = "publisher", deserialize_with = "null_default")]
     #[gojson(go = "Publisher", json = "publisher")]
     pub publisher: ExtImpOutbrainPublisher,
     /// Go field `TagId`.
+    #[serde(rename = "tagid", deserialize_with = "null_default")]
     #[gojson(go = "TagId", json = "tagid")]
     pub tag_id: String,
     /// Go field `BCat`.
+    #[serde(rename = "bcat")]
     #[gojson(go = "BCat", json = "bcat")]
     pub b_cat: Option<Vec<String>>,
     /// Go field `BAdv`.
+    #[serde(rename = "badv")]
     #[gojson(go = "BAdv", json = "badv")]
     pub b_adv: Option<Vec<String>>,
 }
 
+impl MergeClone for ExtImpOutbrain {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtImpOutbrain";
+        merge_struct(patch, |key, value| match key {
+            "publisher" => merge_field(&mut self.publisher, value, GO_TYPE, "Publisher"),
+            "tagid" => merge_field(&mut self.tag_id, value, GO_TYPE, "TagId"),
+            "bcat" => merge_field(&mut self.b_cat, value, GO_TYPE, "BCat"),
+            "badv" => merge_field(&mut self.b_adv, value, GO_TYPE, "BAdv"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ExtImpOutbrainPublisher`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtImpOutbrainPublisher")]
 pub struct ExtImpOutbrainPublisher {
     /// Go field `Id`.
+    #[serde(rename = "id", deserialize_with = "null_default")]
     #[gojson(go = "Id", json = "id")]
     pub id: String,
     /// Go field `Name`.
+    #[serde(rename = "name", deserialize_with = "null_default")]
     #[gojson(go = "Name", json = "name")]
     pub name: String,
     /// Go field `Domain`.
+    #[serde(rename = "domain", deserialize_with = "null_default")]
     #[gojson(go = "Domain", json = "domain")]
     pub domain: String,
 }
 
+impl MergeClone for ExtImpOutbrainPublisher {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtImpOutbrainPublisher";
+        merge_struct(patch, |key, value| match key {
+            "id" => merge_field(&mut self.id, value, GO_TYPE, "Id"),
+            "name" => merge_field(&mut self.name, value, GO_TYPE, "Name"),
+            "domain" => merge_field(&mut self.domain, value, GO_TYPE, "Domain"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ExtImpOwnAdx`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtImpOwnAdx")]
 pub struct ExtImpOwnAdx {
     /// Go field `SspId`.
+    #[serde(rename = "sspId", deserialize_with = "null_default")]
     #[gojson(go = "SspId", json = "sspId")]
     pub ssp_id: String,
     /// Go field `SeatId`.
+    #[serde(rename = "seatId", deserialize_with = "null_default")]
     #[gojson(go = "SeatId", json = "seatId")]
     pub seat_id: String,
     /// Go field `TokenId`.
+    #[serde(rename = "tokenId", deserialize_with = "null_default")]
     #[gojson(go = "TokenId", json = "tokenId")]
     pub token_id: String,
 }
 
+impl MergeClone for ExtImpOwnAdx {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtImpOwnAdx";
+        merge_struct(patch, |key, value| match key {
+            "sspId" => merge_field(&mut self.ssp_id, value, GO_TYPE, "SspId"),
+            "seatId" => merge_field(&mut self.seat_id, value, GO_TYPE, "SeatId"),
+            "tokenId" => merge_field(&mut self.token_id, value, GO_TYPE, "TokenId"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ImpExtPangle`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ImpExtPangle")]
 pub struct ImpExtPangle {
     /// Go field `Token`.
+    #[serde(rename = "token", deserialize_with = "null_default")]
     #[gojson(go = "Token", json = "token")]
     pub token: String,
     /// Go field `AppID`.
+    #[serde(
+        rename = "appid",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "AppID", json = "appid,omitempty")]
     pub app_id: String,
     /// Go field `PlacementID`.
+    #[serde(
+        rename = "placementid",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "PlacementID", json = "placementid,omitempty")]
     pub placement_id: String,
+}
+
+impl MergeClone for ImpExtPangle {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ImpExtPangle";
+        merge_struct(patch, |key, value| match key {
+            "token" => merge_field(&mut self.token, value, GO_TYPE, "Token"),
+            "appid" => merge_field(&mut self.app_id, value, GO_TYPE, "AppID"),
+            "placementid" => merge_field(&mut self.placement_id, value, GO_TYPE, "PlacementID"),
+            _ => Ok(()),
+        })
+    }
 }
 
 /// ```text
 /// ExtImpPanxo defines the contract for bidrequest.imp[i].ext.prebid.bidder.panxo
 /// ```
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtImpPanxo")]
 pub struct ExtImpPanxo {
     /// Go field `PropertyKey`.
+    #[serde(rename = "propertyKey", deserialize_with = "null_default")]
     #[gojson(go = "PropertyKey", json = "propertyKey")]
     pub property_key: String,
+}
+
+impl MergeClone for ExtImpPanxo {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtImpPanxo";
+        merge_struct(patch, |key, value| match key {
+            "propertyKey" => merge_field(&mut self.property_key, value, GO_TYPE, "PropertyKey"),
+            _ => Ok(()),
+        })
+    }
 }
 
 /// ```text
 /// ImpExtPeak226 defines the contract for bidrequest.imp[i].ext.prebid.bidder.peak226
 /// ```
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ImpExtPeak226")]
 pub struct ImpExtPeak226 {
     /// Go field `PublisherID`.
+    #[serde(rename = "publisherId", deserialize_with = "null_default")]
     #[gojson(go = "PublisherID", json = "publisherId")]
     pub publisher_id: String,
     /// Go field `PlacementID`.
+    #[serde(rename = "placementId", deserialize_with = "null_default")]
     #[gojson(go = "PlacementID", json = "placementId")]
     pub placement_id: String,
     /// Go field `Region`.
+    #[serde(
+        rename = "region",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Region", json = "region,omitempty")]
     pub region: String,
 }
 
+impl MergeClone for ImpExtPeak226 {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ImpExtPeak226";
+        merge_struct(patch, |key, value| match key {
+            "publisherId" => merge_field(&mut self.publisher_id, value, GO_TYPE, "PublisherID"),
+            "placementId" => merge_field(&mut self.placement_id, value, GO_TYPE, "PlacementID"),
+            "region" => merge_field(&mut self.region, value, GO_TYPE, "Region"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ImpExtPgamSsp`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ImpExtPgamSsp")]
 pub struct ImpExtPgamSsp {
     /// Go field `PlacementID`.
+    #[serde(rename = "placementId", deserialize_with = "null_default")]
     #[gojson(go = "PlacementID", json = "placementId")]
     pub placement_id: String,
     /// Go field `EndpointID`.
+    #[serde(rename = "endpointId", deserialize_with = "null_default")]
     #[gojson(go = "EndpointID", json = "endpointId")]
     pub endpoint_id: String,
 }
 
+impl MergeClone for ImpExtPgamSsp {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ImpExtPgamSsp";
+        merge_struct(patch, |key, value| match key {
+            "placementId" => merge_field(&mut self.placement_id, value, GO_TYPE, "PlacementID"),
+            "endpointId" => merge_field(&mut self.endpoint_id, value, GO_TYPE, "EndpointID"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ImpExtPixfuture`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ImpExtPixfuture")]
 pub struct ImpExtPixfuture {
     /// Go field `PixID`.
+    #[serde(rename = "pix_id", deserialize_with = "null_default")]
     #[gojson(go = "PixID", json = "pix_id")]
     pub pix_id: String,
 }
 
+impl MergeClone for ImpExtPixfuture {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ImpExtPixfuture";
+        merge_struct(patch, |key, value| match key {
+            "pix_id" => merge_field(&mut self.pix_id, value, GO_TYPE, "PixID"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ImpExtPlaydigo`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ImpExtPlaydigo")]
 pub struct ImpExtPlaydigo {
     /// Go field `PlacementID`.
+    #[serde(rename = "placementId", deserialize_with = "null_default")]
     #[gojson(go = "PlacementID", json = "placementId")]
     pub placement_id: String,
     /// Go field `EndpointID`.
+    #[serde(rename = "endpointId", deserialize_with = "null_default")]
     #[gojson(go = "EndpointID", json = "endpointId")]
     pub endpoint_id: String,
 }
 
+impl MergeClone for ImpExtPlaydigo {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ImpExtPlaydigo";
+        merge_struct(patch, |key, value| match key {
+            "placementId" => merge_field(&mut self.placement_id, value, GO_TYPE, "PlacementID"),
+            "endpointId" => merge_field(&mut self.endpoint_id, value, GO_TYPE, "EndpointID"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ExtImpProxistore`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtImpProxistore")]
 pub struct ExtImpProxistore {
     /// Go field `Website`.
+    #[serde(rename = "website", deserialize_with = "null_default")]
     #[gojson(go = "Website", json = "website")]
     pub website: String,
     /// Go field `Language`.
+    #[serde(rename = "language", deserialize_with = "null_default")]
     #[gojson(go = "Language", json = "language")]
     pub language: String,
 }
 
+impl MergeClone for ExtImpProxistore {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtImpProxistore";
+        merge_struct(patch, |key, value| match key {
+            "website" => merge_field(&mut self.website, value, GO_TYPE, "Website"),
+            "language" => merge_field(&mut self.language, value, GO_TYPE, "Language"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ExtImpPubmatic`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtImpPubmatic")]
 pub struct ExtImpPubmatic {
     /// Go field `PublisherId`.
+    #[serde(rename = "publisherId", deserialize_with = "null_default")]
     #[gojson(go = "PublisherId", json = "publisherId")]
     pub publisher_id: String,
     /// Go field `AdSlot`.
+    #[serde(rename = "adSlot", deserialize_with = "null_default")]
     #[gojson(go = "AdSlot", json = "adSlot")]
     pub ad_slot: String,
     /// Go field `Dctr`.
+    #[serde(rename = "dctr", deserialize_with = "null_default")]
     #[gojson(go = "Dctr", json = "dctr")]
     pub dctr: String,
     /// Go field `PmZoneID`.
+    #[serde(rename = "pmzoneid", deserialize_with = "null_default")]
     #[gojson(go = "PmZoneID", json = "pmzoneid")]
     pub pm_zone_id: String,
     /// Go field `WrapExt`.
+    #[serde(
+        rename = "wrapper",
+        skip_serializing_if = "gojson_bridge::raw_json::is_empty",
+        with = "gojson_bridge::raw_json"
+    )]
     #[gojson(go = "WrapExt", json = "wrapper,omitempty")]
     pub wrap_ext: RawJson,
     /// Go field `Keywords`.
+    #[serde(rename = "keywords", skip_serializing_if = "is_nil_or_empty")]
     #[gojson(go = "Keywords", json = "keywords,omitempty")]
     pub keywords: Option<Vec<Option<Box<ExtImpPubmaticKeyVal>>>>,
     /// Go field `Kadfloor`.
+    #[serde(
+        rename = "kadfloor",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Kadfloor", json = "kadfloor,omitempty")]
     pub kadfloor: String,
+}
+
+impl MergeClone for ExtImpPubmatic {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtImpPubmatic";
+        merge_struct(patch, |key, value| match key {
+            "publisherId" => merge_field(&mut self.publisher_id, value, GO_TYPE, "PublisherId"),
+            "adSlot" => merge_field(&mut self.ad_slot, value, GO_TYPE, "AdSlot"),
+            "dctr" => merge_field(&mut self.dctr, value, GO_TYPE, "Dctr"),
+            "pmzoneid" => merge_field(&mut self.pm_zone_id, value, GO_TYPE, "PmZoneID"),
+            "wrapper" => gojson_bridge::merge_field(&mut self.wrap_ext, value, GO_TYPE, "WrapExt"),
+            "keywords" => merge_field(&mut self.keywords, value, GO_TYPE, "Keywords"),
+            "kadfloor" => merge_field(&mut self.kadfloor, value, GO_TYPE, "Kadfloor"),
+            _ => Ok(()),
+        })
+    }
 }
 
 /// ```text
 /// ExtImpPubmaticKeyVal defines the contract for
 /// bidrequest.imp[i].ext.prebid.bidder.pubmatic.keywords[i]
 /// ```
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtImpPubmaticKeyVal")]
 pub struct ExtImpPubmaticKeyVal {
     /// Go field `Key`.
+    #[serde(
+        rename = "key",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Key", json = "key,omitempty")]
     pub key: String,
     /// Go field `Values`.
+    #[serde(rename = "value", skip_serializing_if = "is_nil_or_empty")]
     #[gojson(go = "Values", json = "value,omitempty")]
     pub values: Option<Vec<String>>,
 }
 
+impl MergeClone for ExtImpPubmaticKeyVal {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtImpPubmaticKeyVal";
+        merge_struct(patch, |key, value| match key {
+            "key" => merge_field(&mut self.key, value, GO_TYPE, "Key"),
+            "value" => merge_field(&mut self.values, value, GO_TYPE, "Values"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ExtImpPubnative`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtImpPubnative")]
 pub struct ExtImpPubnative {
     /// Go field `ZoneID`.
+    #[serde(rename = "zone_id", deserialize_with = "null_default")]
     #[gojson(go = "ZoneID", json = "zone_id")]
     pub zone_id: isize,
     /// Go field `AppAuthToken`.
+    #[serde(rename = "app_auth_token", deserialize_with = "null_default")]
     #[gojson(go = "AppAuthToken", json = "app_auth_token")]
     pub app_auth_token: String,
 }
 
+impl MergeClone for ExtImpPubnative {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtImpPubnative";
+        merge_struct(patch, |key, value| match key {
+            "zone_id" => gojson_bridge::merge_field(&mut self.zone_id, value, GO_TYPE, "ZoneID"),
+            "app_auth_token" => {
+                merge_field(&mut self.app_auth_token, value, GO_TYPE, "AppAuthToken")
+            }
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ImpExtPubrise`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ImpExtPubrise")]
 pub struct ImpExtPubrise {
     /// Go field `PlacementID`.
+    #[serde(rename = "placementId", deserialize_with = "null_default")]
     #[gojson(go = "PlacementID", json = "placementId")]
     pub placement_id: String,
     /// Go field `EndpointID`.
+    #[serde(rename = "endpointId", deserialize_with = "null_default")]
     #[gojson(go = "EndpointID", json = "endpointId")]
     pub endpoint_id: String,
 }
 
+impl MergeClone for ImpExtPubrise {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ImpExtPubrise";
+        merge_struct(patch, |key, value| match key {
+            "placementId" => merge_field(&mut self.placement_id, value, GO_TYPE, "PlacementID"),
+            "endpointId" => merge_field(&mut self.endpoint_id, value, GO_TYPE, "EndpointID"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ExtImpPulsePoint`.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtImpPulsePoint")]
 pub struct ExtImpPulsePoint {
     /// Go field `PubID`.
+    #[serde(rename = "cp", with = "gojson_bridge::string_int")]
     #[gojson(go = "PubID", json = "cp")]
     pub pub_id: jsonutil::StringInt,
     /// Go field `TagID`.
+    #[serde(rename = "ct", with = "gojson_bridge::string_int")]
     #[gojson(go = "TagID", json = "ct")]
     pub tag_id: jsonutil::StringInt,
 }
 
+impl MergeClone for ExtImpPulsePoint {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtImpPulsePoint";
+        merge_struct(patch, |key, value| match key {
+            "cp" => gojson_bridge::merge_field(&mut self.pub_id, value, GO_TYPE, "PubID"),
+            "ct" => gojson_bridge::merge_field(&mut self.tag_id, value, GO_TYPE, "TagID"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ExtImpPwbid`.
-#[derive(Clone, Debug, Default, PartialEq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtImpPwbid")]
 pub struct ExtImpPwbid {
     /// Go field `SiteId`.
+    #[serde(rename = "siteId", deserialize_with = "null_default")]
     #[gojson(go = "SiteId", json = "siteId")]
     pub site_id: String,
     /// Go field `BidFloor`.
+    #[serde(rename = "bidFloor", deserialize_with = "null_default")]
     #[gojson(go = "BidFloor", json = "bidFloor")]
     pub bid_floor: f32,
     /// Go field `IsTest`.
+    #[serde(rename = "isTest", deserialize_with = "null_default")]
     #[gojson(go = "IsTest", json = "isTest")]
     pub is_test: bool,
 }
 
+impl MergeClone for ExtImpPwbid {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtImpPwbid";
+        merge_struct(patch, |key, value| match key {
+            "siteId" => merge_field(&mut self.site_id, value, GO_TYPE, "SiteId"),
+            "bidFloor" => merge_field(&mut self.bid_floor, value, GO_TYPE, "BidFloor"),
+            "isTest" => merge_field(&mut self.is_test, value, GO_TYPE, "IsTest"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ImpExtQT`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ImpExtQT")]
 pub struct ImpExtQT {
     /// Go field `PlacementID`.
+    #[serde(rename = "placementId", deserialize_with = "null_default")]
     #[gojson(go = "PlacementID", json = "placementId")]
     pub placement_id: String,
     /// Go field `EndpointID`.
+    #[serde(rename = "endpointId", deserialize_with = "null_default")]
     #[gojson(go = "EndpointID", json = "endpointId")]
     pub endpoint_id: String,
 }
 
+impl MergeClone for ImpExtQT {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ImpExtQT";
+        merge_struct(patch, |key, value| match key {
+            "placementId" => merge_field(&mut self.placement_id, value, GO_TYPE, "PlacementID"),
+            "endpointId" => merge_field(&mut self.endpoint_id, value, GO_TYPE, "EndpointID"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ImpExtReadpeak`.
-#[derive(Clone, Debug, Default, PartialEq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ImpExtReadpeak")]
 pub struct ImpExtReadpeak {
     /// Go field `PublisherId`.
+    #[serde(rename = "publisherId", deserialize_with = "null_default")]
     #[gojson(go = "PublisherId", json = "publisherId")]
     pub publisher_id: String,
     /// Go field `SiteId`.
+    #[serde(rename = "siteId", deserialize_with = "null_default")]
     #[gojson(go = "SiteId", json = "siteId")]
     pub site_id: String,
     /// Go field `Bidfloor`.
+    #[serde(rename = "bidfloor", deserialize_with = "null_default")]
     #[gojson(go = "Bidfloor", json = "bidfloor")]
     pub bidfloor: f64,
     /// Go field `TagId`.
+    #[serde(rename = "tagId", deserialize_with = "null_default")]
     #[gojson(go = "TagId", json = "tagId")]
     pub tag_id: String,
 }
 
+impl MergeClone for ImpExtReadpeak {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ImpExtReadpeak";
+        merge_struct(patch, |key, value| match key {
+            "publisherId" => merge_field(&mut self.publisher_id, value, GO_TYPE, "PublisherId"),
+            "siteId" => merge_field(&mut self.site_id, value, GO_TYPE, "SiteId"),
+            "bidfloor" => merge_field(&mut self.bidfloor, value, GO_TYPE, "Bidfloor"),
+            "tagId" => merge_field(&mut self.tag_id, value, GO_TYPE, "TagId"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ExtImpRediads`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtImpRediads")]
 pub struct ExtImpRediads {
     /// Go field `AccountID`.
+    #[serde(rename = "account_id", deserialize_with = "null_default")]
     #[gojson(go = "AccountID", json = "account_id")]
     pub account_id: String,
     /// Go field `Slot`.
+    #[serde(rename = "slot", deserialize_with = "null_default")]
     #[gojson(go = "Slot", json = "slot")]
     pub slot: String,
     /// Go field `Endpoint`.
+    #[serde(rename = "endpoint", deserialize_with = "null_default")]
     #[gojson(go = "Endpoint", json = "endpoint")]
     pub endpoint: String,
 }
 
+impl MergeClone for ExtImpRediads {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtImpRediads";
+        merge_struct(patch, |key, value| match key {
+            "account_id" => merge_field(&mut self.account_id, value, GO_TYPE, "AccountID"),
+            "slot" => merge_field(&mut self.slot, value, GO_TYPE, "Slot"),
+            "endpoint" => merge_field(&mut self.endpoint, value, GO_TYPE, "Endpoint"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ExtRelevantDigital`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtRelevantDigital")]
 pub struct ExtRelevantDigital {
     /// Go field `AccountId`.
+    #[serde(rename = "accountId", deserialize_with = "null_default")]
     #[gojson(go = "AccountId", json = "accountId")]
     pub account_id: String,
     /// Go field `PlacementId`.
+    #[serde(rename = "placementId", deserialize_with = "null_default")]
     #[gojson(go = "PlacementId", json = "placementId")]
     pub placement_id: String,
     /// Go field `Host`.
+    #[serde(rename = "pbsHost", deserialize_with = "null_default")]
     #[gojson(go = "Host", json = "pbsHost")]
     pub host: String,
     /// Go field `PbsBufferMs`.
+    #[serde(rename = "pbsBufferMs", deserialize_with = "null_default")]
     #[gojson(go = "PbsBufferMs", json = "pbsBufferMs")]
     pub pbs_buffer_ms: isize,
     /// Go field `UseSourceBidderCode`.
+    #[serde(
+        rename = "useSourceBidderCode",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "UseSourceBidderCode", json = "useSourceBidderCode,omitempty")]
     pub use_source_bidder_code: bool,
 }
 
+impl MergeClone for ExtRelevantDigital {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtRelevantDigital";
+        merge_struct(patch, |key, value| match key {
+            "accountId" => merge_field(&mut self.account_id, value, GO_TYPE, "AccountId"),
+            "placementId" => merge_field(&mut self.placement_id, value, GO_TYPE, "PlacementId"),
+            "pbsHost" => merge_field(&mut self.host, value, GO_TYPE, "Host"),
+            "pbsBufferMs" => {
+                gojson_bridge::merge_field(&mut self.pbs_buffer_ms, value, GO_TYPE, "PbsBufferMs")
+            }
+            "useSourceBidderCode" => merge_field(
+                &mut self.use_source_bidder_code,
+                value,
+                GO_TYPE,
+                "UseSourceBidderCode",
+            ),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ImpExtResetDigital`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ImpExtResetDigital")]
 pub struct ImpExtResetDigital {
     /// Go field `PlacementID`.
+    #[serde(rename = "placement_id", deserialize_with = "null_default")]
     #[gojson(go = "PlacementID", json = "placement_id")]
     pub placement_id: String,
 }
 
+impl MergeClone for ImpExtResetDigital {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ImpExtResetDigital";
+        merge_struct(patch, |key, value| match key {
+            "placement_id" => merge_field(&mut self.placement_id, value, GO_TYPE, "PlacementID"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ExtImpRichaudience`.
-#[derive(Clone, Debug, Default, PartialEq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtImpRichaudience")]
 pub struct ExtImpRichaudience {
     /// Go field `Pid`.
+    #[serde(rename = "pid", deserialize_with = "null_default")]
     #[gojson(go = "Pid", json = "pid")]
     pub pid: String,
     /// Go field `SupplyType`.
+    #[serde(rename = "supplyType", deserialize_with = "null_default")]
     #[gojson(go = "SupplyType", json = "supplyType")]
     pub supply_type: String,
     /// Go field `BidFloor`.
+    #[serde(rename = "bidfloor", deserialize_with = "null_default")]
     #[gojson(go = "BidFloor", json = "bidfloor")]
     pub bid_floor: f64,
     /// Go field `BidFloorCur`.
+    #[serde(rename = "bidfloorcur", deserialize_with = "null_default")]
     #[gojson(go = "BidFloorCur", json = "bidfloorcur")]
     pub bid_floor_cur: String,
     /// Go field `Test`.
+    #[serde(rename = "test", deserialize_with = "null_default")]
     #[gojson(go = "Test", json = "test")]
     pub test: bool,
+}
+
+impl MergeClone for ExtImpRichaudience {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtImpRichaudience";
+        merge_struct(patch, |key, value| match key {
+            "pid" => merge_field(&mut self.pid, value, GO_TYPE, "Pid"),
+            "supplyType" => merge_field(&mut self.supply_type, value, GO_TYPE, "SupplyType"),
+            "bidfloor" => merge_field(&mut self.bid_floor, value, GO_TYPE, "BidFloor"),
+            "bidfloorcur" => merge_field(&mut self.bid_floor_cur, value, GO_TYPE, "BidFloorCur"),
+            "test" => merge_field(&mut self.test, value, GO_TYPE, "Test"),
+            _ => Ok(()),
+        })
+    }
 }
 
 /// ```text
 /// ImpExtRise defines the contract for bidrequest.imp[i].ext.prebid.bidder.rise
 /// ```
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ImpExtRise")]
 pub struct ImpExtRise {
     /// Go field `PublisherID`.
+    #[serde(rename = "publisher_id", deserialize_with = "null_default")]
     #[gojson(go = "PublisherID", json = "publisher_id")]
     pub publisher_id: String,
     /// Go field `Org`.
+    #[serde(rename = "org", deserialize_with = "null_default")]
     #[gojson(go = "Org", json = "org")]
     pub org: String,
     /// Go field `PlacementID`.
+    #[serde(rename = "placementId", deserialize_with = "null_default")]
     #[gojson(go = "PlacementID", json = "placementId")]
     pub placement_id: String,
 }
 
+impl MergeClone for ImpExtRise {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ImpExtRise";
+        merge_struct(patch, |key, value| match key {
+            "publisher_id" => merge_field(&mut self.publisher_id, value, GO_TYPE, "PublisherID"),
+            "org" => merge_field(&mut self.org, value, GO_TYPE, "Org"),
+            "placementId" => merge_field(&mut self.placement_id, value, GO_TYPE, "PlacementID"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ExtImpRoulax`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtImpRoulax")]
 pub struct ExtImpRoulax {
     /// Go field `Pid`.
+    #[serde(
+        rename = "Pid",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Pid", json = "Pid,omitempty")]
     pub pid: String,
     /// Go field `PublisherPath`.
+    #[serde(
+        rename = "publisherPath",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "PublisherPath", json = "publisherPath,omitempty")]
     pub publisher_path: String,
+}
+
+impl MergeClone for ExtImpRoulax {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtImpRoulax";
+        merge_struct(patch, |key, value| match key {
+            "Pid" => merge_field(&mut self.pid, value, GO_TYPE, "Pid"),
+            "publisherPath" => {
+                merge_field(&mut self.publisher_path, value, GO_TYPE, "PublisherPath")
+            }
+            _ => Ok(()),
+        })
+    }
 }
 
 /// ```text
 /// ExtImpRTBHouse defines the contract for bidrequest.imp[i].ext.prebid.bidder.rtbhouse
 /// ```
-#[derive(Clone, Debug, Default, PartialEq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtImpRTBHouse")]
 pub struct ExtImpRTBHouse {
     /// Go field `PublisherId`.
+    #[serde(rename = "publisherId", deserialize_with = "null_default")]
     #[gojson(go = "PublisherId", json = "publisherId")]
     pub publisher_id: String,
     /// Go field `Region`.
+    #[serde(rename = "region", deserialize_with = "null_default")]
     #[gojson(go = "Region", json = "region")]
     pub region: String,
     /// Go field `BidFloor`.
+    #[serde(
+        rename = "bidfloor",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "BidFloor", json = "bidfloor,omitempty")]
     pub bid_floor: f64,
     /// Go field `Channel`.
+    #[serde(
+        rename = "channel",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Channel", json = "channel,omitempty")]
     pub channel: String,
 }
 
+impl MergeClone for ExtImpRTBHouse {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtImpRTBHouse";
+        merge_struct(patch, |key, value| match key {
+            "publisherId" => merge_field(&mut self.publisher_id, value, GO_TYPE, "PublisherId"),
+            "region" => merge_field(&mut self.region, value, GO_TYPE, "Region"),
+            "bidfloor" => merge_field(&mut self.bid_floor, value, GO_TYPE, "BidFloor"),
+            "channel" => merge_field(&mut self.channel, value, GO_TYPE, "Channel"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ExtImpRTBStack`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtImpRTBStack")]
 pub struct ExtImpRTBStack {
     /// Go field `Route`.
+    #[serde(rename = "route", deserialize_with = "null_default")]
     #[gojson(go = "Route", json = "route")]
     pub route: String,
     /// Go field `TagId`.
+    #[serde(rename = "tagId", deserialize_with = "null_default")]
     #[gojson(go = "TagId", json = "tagId")]
     pub tag_id: String,
     /// Go field `CustomParams`.
+    #[serde(rename = "customParams", skip_serializing_if = "is_nil_or_empty")]
     #[gojson(go = "CustomParams", json = "customParams,omitempty")]
     pub custom_params: Option<BTreeMap<String, Value>>,
+}
+
+impl MergeClone for ExtImpRTBStack {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtImpRTBStack";
+        merge_struct(patch, |key, value| match key {
+            "route" => merge_field(&mut self.route, value, GO_TYPE, "Route"),
+            "tagId" => merge_field(&mut self.tag_id, value, GO_TYPE, "TagId"),
+            "customParams" => merge_field(&mut self.custom_params, value, GO_TYPE, "CustomParams"),
+            _ => Ok(()),
+        })
+    }
 }
 
 /// ```text
 /// ExtImpRubicon defines the contract for bidrequest.imp[i].ext.prebid.bidder.rubicon
 /// ```
-#[derive(Clone, Debug, Default, PartialEq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtImpRubicon")]
 pub struct ExtImpRubicon {
     /// Go field `AccountId`.
+    #[serde(rename = "accountId", with = "gojson_bridge::json_number")]
     #[gojson(go = "AccountId", json = "accountId")]
     pub account_id: JsonNumber,
     /// Go field `SiteId`.
+    #[serde(rename = "siteId", with = "gojson_bridge::json_number")]
     #[gojson(go = "SiteId", json = "siteId")]
     pub site_id: JsonNumber,
     /// Go field `ZoneId`.
+    #[serde(rename = "zoneId", with = "gojson_bridge::json_number")]
     #[gojson(go = "ZoneId", json = "zoneId")]
     pub zone_id: JsonNumber,
     /// Go field `Inventory`.
+    #[serde(
+        rename = "inventory",
+        skip_serializing_if = "gojson_bridge::raw_json::is_empty",
+        with = "gojson_bridge::raw_json"
+    )]
     #[gojson(go = "Inventory", json = "inventory,omitempty")]
     pub inventory: RawJson,
     /// Go field `BidOnMultiformat`.
+    #[serde(
+        rename = "bidonmultiformat",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "BidOnMultiformat", json = "bidonmultiformat,omitempty")]
     pub bid_on_multiformat: bool,
     /// Go field `Keywords`.
+    #[serde(rename = "keywords", skip_serializing_if = "is_nil_or_empty")]
     #[gojson(go = "Keywords", json = "keywords,omitempty")]
     pub keywords: Option<Vec<String>>,
     /// Go field `Visitor`.
+    #[serde(
+        rename = "visitor",
+        skip_serializing_if = "gojson_bridge::raw_json::is_empty",
+        with = "gojson_bridge::raw_json"
+    )]
     #[gojson(go = "Visitor", json = "visitor,omitempty")]
     pub visitor: RawJson,
     /// Go field `Video`.
+    #[serde(rename = "video", deserialize_with = "null_default")]
     #[gojson(go = "Video", json = "video")]
     pub video: RubiconVideoParams,
     /// Go field `Debug`.
+    #[serde(rename = "debug", deserialize_with = "null_default")]
     #[gojson(go = "Debug", json = "debug,omitempty")]
     pub debug: ImpExtRubiconDebug,
 }
 
+impl MergeClone for ExtImpRubicon {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtImpRubicon";
+        merge_struct(patch, |key, value| match key {
+            "accountId" => {
+                gojson_bridge::merge_field(&mut self.account_id, value, GO_TYPE, "AccountId")
+            }
+            "siteId" => gojson_bridge::merge_field(&mut self.site_id, value, GO_TYPE, "SiteId"),
+            "zoneId" => gojson_bridge::merge_field(&mut self.zone_id, value, GO_TYPE, "ZoneId"),
+            "inventory" => {
+                gojson_bridge::merge_field(&mut self.inventory, value, GO_TYPE, "Inventory")
+            }
+            "bidonmultiformat" => merge_field(
+                &mut self.bid_on_multiformat,
+                value,
+                GO_TYPE,
+                "BidOnMultiformat",
+            ),
+            "keywords" => merge_field(&mut self.keywords, value, GO_TYPE, "Keywords"),
+            "visitor" => gojson_bridge::merge_field(&mut self.visitor, value, GO_TYPE, "Visitor"),
+            "video" => merge_field(&mut self.video, value, GO_TYPE, "Video"),
+            "debug" => merge_field(&mut self.debug, value, GO_TYPE, "Debug"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ExtImpSaLunamedia`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtImpSaLunamedia")]
 pub struct ExtImpSaLunamedia {
     /// Go field `Key`.
+    #[serde(rename = "key", deserialize_with = "null_default")]
     #[gojson(go = "Key", json = "key")]
     pub key: String,
     /// Go field `Type`.
+    #[serde(rename = "type", deserialize_with = "null_default")]
     #[gojson(go = "Type", json = "type")]
     pub r#type: String,
 }
 
+impl MergeClone for ExtImpSaLunamedia {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtImpSaLunamedia";
+        merge_struct(patch, |key, value| match key {
+            "key" => merge_field(&mut self.key, value, GO_TYPE, "Key"),
+            "type" => merge_field(&mut self.r#type, value, GO_TYPE, "Type"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ExtImpScalibur`.
-#[derive(Clone, Debug, Default, PartialEq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtImpScalibur")]
 pub struct ExtImpScalibur {
     /// required
+    #[serde(rename = "placementId", deserialize_with = "null_default")]
     #[gojson(go = "PlacementID", json = "placementId")]
     pub placement_id: String,
     /// optional, used as fallback
+    #[serde(rename = "bidfloor", skip_serializing_if = "Option::is_none")]
     #[gojson(go = "BidFloor", json = "bidfloor,omitempty")]
     pub bid_floor: Option<f64>,
     /// optional, defaults to USD if empty
+    #[serde(
+        rename = "bidfloorcur",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "BidFloorCur", json = "bidfloorcur,omitempty")]
     pub bid_floor_cur: String,
 }
 
+impl MergeClone for ExtImpScalibur {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtImpScalibur";
+        merge_struct(patch, |key, value| match key {
+            "placementId" => merge_field(&mut self.placement_id, value, GO_TYPE, "PlacementID"),
+            "bidfloor" => merge_field(&mut self.bid_floor, value, GO_TYPE, "BidFloor"),
+            "bidfloorcur" => merge_field(&mut self.bid_floor_cur, value, GO_TYPE, "BidFloorCur"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ExtRequestScalibur`.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtRequestScalibur")]
 pub struct ExtRequestScalibur {
     /// Go field `IsDebug`.
+    #[serde(
+        rename = "isDebug",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "IsDebug", json = "isDebug,omitempty")]
     pub is_debug: isize,
 }
 
+impl MergeClone for ExtRequestScalibur {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtRequestScalibur";
+        merge_struct(patch, |key, value| match key {
+            "isDebug" => gojson_bridge::merge_field(&mut self.is_debug, value, GO_TYPE, "IsDebug"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ImpExtSeedingAlliance`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ImpExtSeedingAlliance")]
 pub struct ImpExtSeedingAlliance {
     /// Go field `AdUnitID`.
+    #[serde(rename = "adUnitId", deserialize_with = "null_default")]
     #[gojson(go = "AdUnitID", json = "adUnitId")]
     pub ad_unit_id: String,
     /// Go field `SeatID`.
+    #[serde(rename = "seatId", deserialize_with = "null_default")]
     #[gojson(go = "SeatID", json = "seatId")]
     pub seat_id: String,
     /// Go field `AccountID`.
+    #[serde(rename = "accountId", deserialize_with = "null_default")]
     #[gojson(go = "AccountID", json = "accountId")]
     pub account_id: String,
 }
 
+impl MergeClone for ImpExtSeedingAlliance {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ImpExtSeedingAlliance";
+        merge_struct(patch, |key, value| match key {
+            "adUnitId" => merge_field(&mut self.ad_unit_id, value, GO_TYPE, "AdUnitID"),
+            "seatId" => merge_field(&mut self.seat_id, value, GO_TYPE, "SeatID"),
+            "accountId" => merge_field(&mut self.account_id, value, GO_TYPE, "AccountID"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ImpExtSeedtag`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ImpExtSeedtag")]
 pub struct ImpExtSeedtag {
     /// Go field `AdUnitID`.
+    #[serde(
+        rename = "adUnitId",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "AdUnitID", json = "adUnitId,omitempty")]
     pub ad_unit_id: String,
     /// Go field `PublisherID`.
+    #[serde(
+        rename = "publisherId",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "PublisherID", json = "publisherId,omitempty")]
     pub publisher_id: String,
     /// Go field `IntegrationType`.
+    #[serde(
+        rename = "integrationType",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "IntegrationType", json = "integrationType,omitempty")]
     pub integration_type: String,
 }
 
+impl MergeClone for ImpExtSeedtag {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ImpExtSeedtag";
+        merge_struct(patch, |key, value| match key {
+            "adUnitId" => merge_field(&mut self.ad_unit_id, value, GO_TYPE, "AdUnitID"),
+            "publisherId" => merge_field(&mut self.publisher_id, value, GO_TYPE, "PublisherID"),
+            "integrationType" => merge_field(
+                &mut self.integration_type,
+                value,
+                GO_TYPE,
+                "IntegrationType",
+            ),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ExtImpSharethrough`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtImpSharethrough")]
 pub struct ExtImpSharethrough {
     /// Go field `Pkey`.
+    #[serde(rename = "pkey", deserialize_with = "null_default")]
     #[gojson(go = "Pkey", json = "pkey")]
     pub pkey: String,
     /// Go field `BAdv`.
+    #[serde(rename = "badv", skip_serializing_if = "is_nil_or_empty")]
     #[gojson(go = "BAdv", json = "badv,omitempty")]
     pub b_adv: Option<Vec<String>>,
     /// Go field `BCat`.
+    #[serde(rename = "bcat", skip_serializing_if = "is_nil_or_empty")]
     #[gojson(go = "BCat", json = "bcat,omitempty")]
     pub b_cat: Option<Vec<String>>,
 }
 
+impl MergeClone for ExtImpSharethrough {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtImpSharethrough";
+        merge_struct(patch, |key, value| match key {
+            "pkey" => merge_field(&mut self.pkey, value, GO_TYPE, "Pkey"),
+            "badv" => merge_field(&mut self.b_adv, value, GO_TYPE, "BAdv"),
+            "bcat" => merge_field(&mut self.b_cat, value, GO_TYPE, "BCat"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ExtImpShowheroes`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtImpShowheroes")]
 pub struct ExtImpShowheroes {
     /// Go field `UnitID`.
+    #[serde(rename = "unitId", deserialize_with = "null_default")]
     #[gojson(go = "UnitID", json = "unitId")]
     pub unit_id: String,
+}
+
+impl MergeClone for ExtImpShowheroes {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtImpShowheroes";
+        merge_struct(patch, |key, value| match key {
+            "unitId" => merge_field(&mut self.unit_id, value, GO_TYPE, "UnitID"),
+            _ => Ok(()),
+        })
+    }
 }
 
 /// ```text
 /// ExtSilverMob defines the contract for bidrequest.imp[i].ext.prebid.bidder.silvermob
 /// ```
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtSilverMob")]
 pub struct ExtSilverMob {
     /// Go field `ZoneID`.
+    #[serde(rename = "zoneid", deserialize_with = "null_default")]
     #[gojson(go = "ZoneID", json = "zoneid")]
     pub zone_id: String,
     /// Go field `Host`.
+    #[serde(rename = "host", deserialize_with = "null_default")]
     #[gojson(go = "Host", json = "host")]
     pub host: String,
+}
+
+impl MergeClone for ExtSilverMob {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtSilverMob";
+        merge_struct(patch, |key, value| match key {
+            "zoneid" => merge_field(&mut self.zone_id, value, GO_TYPE, "ZoneID"),
+            "host" => merge_field(&mut self.host, value, GO_TYPE, "Host"),
+            _ => Ok(()),
+        })
+    }
 }
 
 /// ```text
 /// ImpExtSilverpush defines the contract for bidrequest.imp[i].ext.prebid.bidder.silverpush
 /// PublisherId  is mandatory parameters
 /// ```
-#[derive(Clone, Debug, Default, PartialEq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ImpExtSilverpush")]
 pub struct ImpExtSilverpush {
     /// Go field `PublisherId`.
+    #[serde(rename = "publisherId", deserialize_with = "null_default")]
     #[gojson(go = "PublisherId", json = "publisherId")]
     pub publisher_id: String,
     /// Go field `BidFloor`.
+    #[serde(rename = "bidfloor", deserialize_with = "null_default")]
     #[gojson(go = "BidFloor", json = "bidfloor")]
     pub bid_floor: f64,
+}
+
+impl MergeClone for ImpExtSilverpush {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ImpExtSilverpush";
+        merge_struct(patch, |key, value| match key {
+            "publisherId" => merge_field(&mut self.publisher_id, value, GO_TYPE, "PublisherId"),
+            "bidfloor" => merge_field(&mut self.bid_floor, value, GO_TYPE, "BidFloor"),
+            _ => Ok(()),
+        })
+    }
 }
 
 /// ```text
@@ -4268,403 +9544,934 @@ pub struct ImpExtSilverpush {
 /// AdSpaceId is the identifier for specific ad placement or ad tag
 /// AdBreakId is the identifier for specific ad placement or ad tag
 /// ```
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtImpSmaato")]
 pub struct ExtImpSmaato {
     /// Go field `PublisherID`.
+    #[serde(rename = "publisherId", deserialize_with = "null_default")]
     #[gojson(go = "PublisherID", json = "publisherId")]
     pub publisher_id: String,
     /// Go field `AdSpaceID`.
+    #[serde(rename = "adspaceId", deserialize_with = "null_default")]
     #[gojson(go = "AdSpaceID", json = "adspaceId")]
     pub ad_space_id: String,
     /// Go field `AdBreakID`.
+    #[serde(rename = "adbreakId", deserialize_with = "null_default")]
     #[gojson(go = "AdBreakID", json = "adbreakId")]
     pub ad_break_id: String,
+}
+
+impl MergeClone for ExtImpSmaato {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtImpSmaato";
+        merge_struct(patch, |key, value| match key {
+            "publisherId" => merge_field(&mut self.publisher_id, value, GO_TYPE, "PublisherID"),
+            "adspaceId" => merge_field(&mut self.ad_space_id, value, GO_TYPE, "AdSpaceID"),
+            "adbreakId" => merge_field(&mut self.ad_break_id, value, GO_TYPE, "AdBreakID"),
+            _ => Ok(()),
+        })
+    }
 }
 
 /// ```text
 /// ExtImpSmartadserver defines the contract for bidrequest.imp[i].ext.prebid.bidder.smartadserver
 /// ```
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtImpSmartadserverIn")]
 pub struct ExtImpSmartadserverIn {
     /// Go field `SiteID`.
+    #[serde(rename = "siteId", deserialize_with = "null_default")]
     #[gojson(go = "SiteID", json = "siteId")]
     pub site_id: isize,
     /// Go field `PageID`.
+    #[serde(rename = "pageId", deserialize_with = "null_default")]
     #[gojson(go = "PageID", json = "pageId")]
     pub page_id: isize,
     /// Go field `FormatID`.
+    #[serde(rename = "formatId", deserialize_with = "null_default")]
     #[gojson(go = "FormatID", json = "formatId")]
     pub format_id: isize,
     /// Go field `NetworkID`.
+    #[serde(rename = "networkId", deserialize_with = "null_default")]
     #[gojson(go = "NetworkID", json = "networkId")]
     pub network_id: isize,
     /// Go field `ProgrammaticGuaranteed`.
+    #[serde(rename = "programmaticGuaranteed", deserialize_with = "null_default")]
     #[gojson(go = "ProgrammaticGuaranteed", json = "programmaticGuaranteed")]
     pub programmatic_guaranteed: bool,
 }
 
+impl MergeClone for ExtImpSmartadserverIn {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtImpSmartadserverIn";
+        merge_struct(patch, |key, value| match key {
+            "siteId" => gojson_bridge::merge_field(&mut self.site_id, value, GO_TYPE, "SiteID"),
+            "pageId" => gojson_bridge::merge_field(&mut self.page_id, value, GO_TYPE, "PageID"),
+            "formatId" => {
+                gojson_bridge::merge_field(&mut self.format_id, value, GO_TYPE, "FormatID")
+            }
+            "networkId" => {
+                gojson_bridge::merge_field(&mut self.network_id, value, GO_TYPE, "NetworkID")
+            }
+            "programmaticGuaranteed" => merge_field(
+                &mut self.programmatic_guaranteed,
+                value,
+                GO_TYPE,
+                "ProgrammaticGuaranteed",
+            ),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ExtImpSmartadserverOut`.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtImpSmartadserverOut")]
 pub struct ExtImpSmartadserverOut {
     /// Go field `SiteID`.
+    #[serde(rename = "siteId", deserialize_with = "null_default")]
     #[gojson(go = "SiteID", json = "siteId")]
     pub site_id: isize,
     /// Go field `PageID`.
+    #[serde(rename = "pageId", deserialize_with = "null_default")]
     #[gojson(go = "PageID", json = "pageId")]
     pub page_id: isize,
     /// Go field `FormatID`.
+    #[serde(rename = "formatId", deserialize_with = "null_default")]
     #[gojson(go = "FormatID", json = "formatId")]
     pub format_id: isize,
     /// Go field `NetworkID`.
+    #[serde(rename = "networkId", deserialize_with = "null_default")]
     #[gojson(go = "NetworkID", json = "networkId")]
     pub network_id: isize,
     /// Go field `ProgrammaticGuaranteed`.
+    #[serde(skip)]
     #[gojson(go = "ProgrammaticGuaranteed", json = "-")]
     pub programmatic_guaranteed: bool,
 }
 
+impl MergeClone for ExtImpSmartadserverOut {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtImpSmartadserverOut";
+        merge_struct(patch, |key, value| match key {
+            "siteId" => gojson_bridge::merge_field(&mut self.site_id, value, GO_TYPE, "SiteID"),
+            "pageId" => gojson_bridge::merge_field(&mut self.page_id, value, GO_TYPE, "PageID"),
+            "formatId" => {
+                gojson_bridge::merge_field(&mut self.format_id, value, GO_TYPE, "FormatID")
+            }
+            "networkId" => {
+                gojson_bridge::merge_field(&mut self.network_id, value, GO_TYPE, "NetworkID")
+            }
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ExtSmartHub`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtSmartHub")]
 pub struct ExtSmartHub {
     /// Go field `PartnerName`.
+    #[serde(
+        rename = "partnerName",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "PartnerName", json = "partnerName,omitempty")]
     pub partner_name: String,
     /// Go field `Seat`.
+    #[serde(
+        rename = "seat",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Seat", json = "seat,omitempty")]
     pub seat: String,
     /// Go field `Token`.
+    #[serde(
+        rename = "token",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Token", json = "token,omitempty")]
     pub token: String,
 }
 
+impl MergeClone for ExtSmartHub {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtSmartHub";
+        merge_struct(patch, |key, value| match key {
+            "partnerName" => merge_field(&mut self.partner_name, value, GO_TYPE, "PartnerName"),
+            "seat" => merge_field(&mut self.seat, value, GO_TYPE, "Seat"),
+            "token" => merge_field(&mut self.token, value, GO_TYPE, "Token"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ExtImpSmartRTB`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtImpSmartRTB")]
 pub struct ExtImpSmartRTB {
     /// Go field `PubID`.
+    #[serde(
+        rename = "pub_id",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "PubID", json = "pub_id,omitempty")]
     pub pub_id: String,
     /// Go field `MedID`.
+    #[serde(
+        rename = "med_id",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "MedID", json = "med_id,omitempty")]
     pub med_id: String,
     /// Go field `ZoneID`.
+    #[serde(
+        rename = "zone_id",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "ZoneID", json = "zone_id,omitempty")]
     pub zone_id: String,
     /// Go field `ForceBid`.
+    #[serde(
+        rename = "force_bid",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "ForceBid", json = "force_bid,omitempty")]
     pub force_bid: bool,
 }
 
+impl MergeClone for ExtImpSmartRTB {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtImpSmartRTB";
+        merge_struct(patch, |key, value| match key {
+            "pub_id" => merge_field(&mut self.pub_id, value, GO_TYPE, "PubID"),
+            "med_id" => merge_field(&mut self.med_id, value, GO_TYPE, "MedID"),
+            "zone_id" => merge_field(&mut self.zone_id, value, GO_TYPE, "ZoneID"),
+            "force_bid" => merge_field(&mut self.force_bid, value, GO_TYPE, "ForceBid"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ExtImpSmartclip`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtImpSmartclip")]
 pub struct ExtImpSmartclip {
     /// Go field `TagID`.
+    #[serde(rename = "tagId", deserialize_with = "null_default")]
     #[gojson(go = "TagID", json = "tagId")]
     pub tag_id: String,
     /// Go field `PublisherID`.
+    #[serde(rename = "publisherId", deserialize_with = "null_default")]
     #[gojson(go = "PublisherID", json = "publisherId")]
     pub publisher_id: String,
     /// Go field `SiteID`.
+    #[serde(rename = "siteId", deserialize_with = "null_default")]
     #[gojson(go = "SiteID", json = "siteId")]
     pub site_id: String,
     /// Go field `AppID`.
+    #[serde(rename = "appId", deserialize_with = "null_default")]
     #[gojson(go = "AppID", json = "appId")]
     pub app_id: String,
     /// Go field `BundleID`.
+    #[serde(rename = "bundleId", deserialize_with = "null_default")]
     #[gojson(go = "BundleID", json = "bundleId")]
     pub bundle_id: String,
     /// Go field `StoreURL`.
+    #[serde(rename = "storeUrl", deserialize_with = "null_default")]
     #[gojson(go = "StoreURL", json = "storeUrl")]
     pub store_url: String,
+}
+
+impl MergeClone for ExtImpSmartclip {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtImpSmartclip";
+        merge_struct(patch, |key, value| match key {
+            "tagId" => merge_field(&mut self.tag_id, value, GO_TYPE, "TagID"),
+            "publisherId" => merge_field(&mut self.publisher_id, value, GO_TYPE, "PublisherID"),
+            "siteId" => merge_field(&mut self.site_id, value, GO_TYPE, "SiteID"),
+            "appId" => merge_field(&mut self.app_id, value, GO_TYPE, "AppID"),
+            "bundleId" => merge_field(&mut self.bundle_id, value, GO_TYPE, "BundleID"),
+            "storeUrl" => merge_field(&mut self.store_url, value, GO_TYPE, "StoreURL"),
+            _ => Ok(()),
+        })
+    }
 }
 
 /// ```text
 /// ExtSmartyAds defines the contract for bidrequest.imp[i].ext.prebid.bidder.smartyads
 /// ```
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtSmartyAds")]
 pub struct ExtSmartyAds {
     /// Go field `AccountID`.
+    #[serde(rename = "accountid", deserialize_with = "null_default")]
     #[gojson(go = "AccountID", json = "accountid")]
     pub account_id: String,
     /// Go field `SourceID`.
+    #[serde(rename = "sourceid", deserialize_with = "null_default")]
     #[gojson(go = "SourceID", json = "sourceid")]
     pub source_id: String,
     /// Go field `Host`.
+    #[serde(rename = "host", deserialize_with = "null_default")]
     #[gojson(go = "Host", json = "host")]
     pub host: String,
+}
+
+impl MergeClone for ExtSmartyAds {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtSmartyAds";
+        merge_struct(patch, |key, value| match key {
+            "accountid" => merge_field(&mut self.account_id, value, GO_TYPE, "AccountID"),
+            "sourceid" => merge_field(&mut self.source_id, value, GO_TYPE, "SourceID"),
+            "host" => merge_field(&mut self.host, value, GO_TYPE, "Host"),
+            _ => Ok(()),
+        })
+    }
 }
 
 /// ```text
 /// ExtImpSmilewanted defines the contract for bidrequest.imp[i].ext.prebid.bidder.smilewanted
 /// ```
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtImpSmilewanted")]
 pub struct ExtImpSmilewanted {
     /// Go field `ZoneId`.
+    #[serde(rename = "zoneId", deserialize_with = "null_default")]
     #[gojson(go = "ZoneId", json = "zoneId")]
     pub zone_id: String,
 }
 
+impl MergeClone for ExtImpSmilewanted {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtImpSmilewanted";
+        merge_struct(patch, |key, value| match key {
+            "zoneId" => merge_field(&mut self.zone_id, value, GO_TYPE, "ZoneId"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ImpExtSmoot`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ImpExtSmoot")]
 pub struct ImpExtSmoot {
     /// Go field `PlacementID`.
+    #[serde(rename = "placementId", deserialize_with = "null_default")]
     #[gojson(go = "PlacementID", json = "placementId")]
     pub placement_id: String,
     /// Go field `EndpointID`.
+    #[serde(rename = "endpointId", deserialize_with = "null_default")]
     #[gojson(go = "EndpointID", json = "endpointId")]
     pub endpoint_id: String,
 }
 
+impl MergeClone for ImpExtSmoot {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ImpExtSmoot";
+        merge_struct(patch, |key, value| match key {
+            "placementId" => merge_field(&mut self.placement_id, value, GO_TYPE, "PlacementID"),
+            "endpointId" => merge_field(&mut self.endpoint_id, value, GO_TYPE, "EndpointID"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ExtSmrtconnect`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtSmrtconnect")]
 pub struct ExtSmrtconnect {
     /// Go field `SupplyId`.
+    #[serde(rename = "supply_id", deserialize_with = "null_default")]
     #[gojson(go = "SupplyId", json = "supply_id")]
     pub supply_id: String,
 }
 
+impl MergeClone for ExtSmrtconnect {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtSmrtconnect";
+        merge_struct(patch, |key, value| match key {
+            "supply_id" => merge_field(&mut self.supply_id, value, GO_TYPE, "SupplyId"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ExtImpSonobi`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtImpSonobi")]
 pub struct ExtImpSonobi {
     /// Go field `TagID`.
+    #[serde(rename = "tagid", deserialize_with = "null_default")]
     #[gojson(go = "TagID", json = "tagid")]
     pub tag_id: String,
 }
 
+impl MergeClone for ExtImpSonobi {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtImpSonobi";
+        merge_struct(patch, |key, value| match key {
+            "tagid" => merge_field(&mut self.tag_id, value, GO_TYPE, "TagID"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ExtImpSovrn`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtImpSovrn")]
 pub struct ExtImpSovrn {
     /// Go field `TagId`.
+    #[serde(
+        rename = "tagId",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "TagId", json = "tagId,omitempty")]
     pub tag_id: String,
     /// Go field `Tagid`.
+    #[serde(
+        rename = "tagid",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Tagid", json = "tagid,omitempty")]
     pub tagid: String,
     /// Go field `BidFloor`.
+    #[serde(rename = "bidfloor", skip_serializing_if = "is_zero")]
     #[gojson(go = "BidFloor", json = "bidfloor,omitempty")]
     pub bid_floor: Value,
     /// Go field `AdUnitCode`.
+    #[serde(
+        rename = "adunitcode",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "AdUnitCode", json = "adunitcode,omitempty")]
     pub ad_unit_code: String,
 }
 
+impl MergeClone for ExtImpSovrn {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtImpSovrn";
+        merge_struct(patch, |key, value| match key {
+            "tagId" => merge_field(&mut self.tag_id, value, GO_TYPE, "TagId"),
+            "tagid" => merge_field(&mut self.tagid, value, GO_TYPE, "Tagid"),
+            "bidfloor" => merge_field(&mut self.bid_floor, value, GO_TYPE, "BidFloor"),
+            "adunitcode" => merge_field(&mut self.ad_unit_code, value, GO_TYPE, "AdUnitCode"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ExtImpSovrnXsp`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtImpSovrnXsp")]
 pub struct ExtImpSovrnXsp {
     /// Go field `PubID`.
+    #[serde(
+        rename = "pub_id",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "PubID", json = "pub_id,omitempty")]
     pub pub_id: String,
     /// Go field `MedID`.
+    #[serde(
+        rename = "med_id",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "MedID", json = "med_id,omitempty")]
     pub med_id: String,
     /// Go field `ZoneID`.
+    #[serde(
+        rename = "zone_id",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "ZoneID", json = "zone_id,omitempty")]
     pub zone_id: String,
     /// Go field `ForceBid`.
+    #[serde(
+        rename = "force_bid",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "ForceBid", json = "force_bid,omitempty")]
     pub force_bid: bool,
 }
 
+impl MergeClone for ExtImpSovrnXsp {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtImpSovrnXsp";
+        merge_struct(patch, |key, value| match key {
+            "pub_id" => merge_field(&mut self.pub_id, value, GO_TYPE, "PubID"),
+            "med_id" => merge_field(&mut self.med_id, value, GO_TYPE, "MedID"),
+            "zone_id" => merge_field(&mut self.zone_id, value, GO_TYPE, "ZoneID"),
+            "force_bid" => merge_field(&mut self.force_bid, value, GO_TYPE, "ForceBid"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ExtImpSparteo`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtImpSparteo")]
 pub struct ExtImpSparteo {
     /// Go field `NetworkId`.
+    #[serde(rename = "networkId", deserialize_with = "null_default")]
     #[gojson(go = "NetworkId", json = "networkId")]
     pub network_id: String,
     /// Go field `Custom1`.
+    #[serde(
+        rename = "custom1",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Custom1", json = "custom1,omitempty")]
     pub custom1: String,
     /// Go field `Custom2`.
+    #[serde(
+        rename = "custom2",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Custom2", json = "custom2,omitempty")]
     pub custom2: String,
     /// Go field `Custom3`.
+    #[serde(
+        rename = "custom3",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Custom3", json = "custom3,omitempty")]
     pub custom3: String,
     /// Go field `Custom4`.
+    #[serde(
+        rename = "custom4",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Custom4", json = "custom4,omitempty")]
     pub custom4: String,
     /// Go field `Custom5`.
+    #[serde(
+        rename = "custom5",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Custom5", json = "custom5,omitempty")]
     pub custom5: String,
 }
 
+impl MergeClone for ExtImpSparteo {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtImpSparteo";
+        merge_struct(patch, |key, value| match key {
+            "networkId" => merge_field(&mut self.network_id, value, GO_TYPE, "NetworkId"),
+            "custom1" => merge_field(&mut self.custom1, value, GO_TYPE, "Custom1"),
+            "custom2" => merge_field(&mut self.custom2, value, GO_TYPE, "Custom2"),
+            "custom3" => merge_field(&mut self.custom3, value, GO_TYPE, "Custom3"),
+            "custom4" => merge_field(&mut self.custom4, value, GO_TYPE, "Custom4"),
+            "custom5" => merge_field(&mut self.custom5, value, GO_TYPE, "Custom5"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ExtImpSspbc`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtImpSspbc")]
 pub struct ExtImpSspbc {
     /// Go field `SiteId`.
+    #[serde(rename = "siteId", deserialize_with = "null_default")]
     #[gojson(go = "SiteId", json = "siteId")]
     pub site_id: String,
     /// Go field `Id`.
+    #[serde(rename = "id", deserialize_with = "null_default")]
     #[gojson(go = "Id", json = "id")]
     pub id: String,
     /// Go field `IsTest`.
+    #[serde(rename = "test", deserialize_with = "null_default")]
     #[gojson(go = "IsTest", json = "test")]
     pub is_test: isize,
 }
 
+impl MergeClone for ExtImpSspbc {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtImpSspbc";
+        merge_struct(patch, |key, value| match key {
+            "siteId" => merge_field(&mut self.site_id, value, GO_TYPE, "SiteId"),
+            "id" => merge_field(&mut self.id, value, GO_TYPE, "Id"),
+            "test" => gojson_bridge::merge_field(&mut self.is_test, value, GO_TYPE, "IsTest"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ExtImpStackAdapt`.
-#[derive(Clone, Debug, Default, PartialEq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtImpStackAdapt")]
 pub struct ExtImpStackAdapt {
     /// Go field `PublisherId`.
+    #[serde(rename = "publisherId", deserialize_with = "null_default")]
     #[gojson(go = "PublisherId", json = "publisherId")]
     pub publisher_id: String,
     /// Go field `SupplyId`.
+    #[serde(rename = "supplyId", deserialize_with = "null_default")]
     #[gojson(go = "SupplyId", json = "supplyId")]
     pub supply_id: String,
     /// Go field `PlacementId`.
+    #[serde(rename = "placementId", skip_serializing_if = "Option::is_none")]
     #[gojson(go = "PlacementId", json = "placementId,omitempty")]
     pub placement_id: Option<String>,
     /// Go field `Banner`.
+    #[serde(rename = "banner", skip_serializing_if = "Option::is_none")]
     #[gojson(go = "Banner", json = "banner,omitempty")]
     pub banner: Option<Box<ExtImpStackAdaptBanner>>,
     /// Go field `BidFloor`.
+    #[serde(
+        rename = "bidfloor",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "BidFloor", json = "bidfloor,omitempty")]
     pub bid_floor: f64,
 }
 
+impl MergeClone for ExtImpStackAdapt {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtImpStackAdapt";
+        merge_struct(patch, |key, value| match key {
+            "publisherId" => merge_field(&mut self.publisher_id, value, GO_TYPE, "PublisherId"),
+            "supplyId" => merge_field(&mut self.supply_id, value, GO_TYPE, "SupplyId"),
+            "placementId" => merge_field(&mut self.placement_id, value, GO_TYPE, "PlacementId"),
+            "banner" => merge_field(&mut self.banner, value, GO_TYPE, "Banner"),
+            "bidfloor" => merge_field(&mut self.bid_floor, value, GO_TYPE, "BidFloor"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ExtImpStackAdaptBanner`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtImpStackAdaptBanner")]
 pub struct ExtImpStackAdaptBanner {
     /// Go field `ExpDir`.
+    #[serde(rename = "expdir", skip_serializing_if = "is_nil_or_empty")]
     #[gojson(go = "ExpDir", json = "expdir,omitempty")]
     pub exp_dir: Option<Vec<isize>>,
 }
 
+impl MergeClone for ExtImpStackAdaptBanner {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtImpStackAdaptBanner";
+        merge_struct(patch, |key, value| match key {
+            "expdir" => gojson_bridge::merge_field(&mut self.exp_dir, value, GO_TYPE, "ExpDir"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ExtImpStroeerCore`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtImpStroeerCore")]
 pub struct ExtImpStroeerCore {
     /// Go field `Sid`.
+    #[serde(
+        rename = "sid",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Sid", json = "sid,omitempty")]
     pub sid: String,
+}
+
+impl MergeClone for ExtImpStroeerCore {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtImpStroeerCore";
+        merge_struct(patch, |key, value| match key {
+            "sid" => merge_field(&mut self.sid, value, GO_TYPE, "Sid"),
+            _ => Ok(()),
+        })
+    }
 }
 
 /// ```text
 /// ExtSuperEdge defines the contract for bidrequest.imp[i].ext.prebid.bidder.superEdge
 /// ```
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtSuperEdge")]
 pub struct ExtSuperEdge {
     /// Go field `Sk`.
+    #[serde(rename = "sk", deserialize_with = "null_default")]
     #[gojson(go = "Sk", json = "sk")]
     pub sk: String,
     /// Go field `Region`.
+    #[serde(rename = "region", deserialize_with = "null_default")]
     #[gojson(go = "Region", json = "region")]
     pub region: String,
 }
 
+impl MergeClone for ExtSuperEdge {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtSuperEdge";
+        merge_struct(patch, |key, value| match key {
+            "sk" => merge_field(&mut self.sk, value, GO_TYPE, "Sk"),
+            "region" => merge_field(&mut self.region, value, GO_TYPE, "Region"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ExtImpSynapseHX`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtImpSynapseHX")]
 pub struct ExtImpSynapseHX {
     /// Go field `TenantID`.
+    #[serde(rename = "tenantId", deserialize_with = "null_default")]
     #[gojson(go = "TenantID", json = "tenantId")]
     pub tenant_id: String,
 }
 
+impl MergeClone for ExtImpSynapseHX {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtImpSynapseHX";
+        merge_struct(patch, |key, value| match key {
+            "tenantId" => merge_field(&mut self.tenant_id, value, GO_TYPE, "TenantID"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ImpExtTaboola`.
-#[derive(Clone, Debug, Default, PartialEq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ImpExtTaboola")]
 pub struct ImpExtTaboola {
     /// Go field `PublisherId`.
+    #[serde(rename = "publisherId", deserialize_with = "null_default")]
     #[gojson(go = "PublisherId", json = "publisherId")]
     pub publisher_id: String,
     /// Go field `PublisherDomain`.
+    #[serde(rename = "publisherDomain", deserialize_with = "null_default")]
     #[gojson(go = "PublisherDomain", json = "publisherDomain")]
     pub publisher_domain: String,
     /// Go field `BidFloor`.
+    #[serde(rename = "bidfloor", deserialize_with = "null_default")]
     #[gojson(go = "BidFloor", json = "bidfloor")]
     pub bid_floor: f64,
     /// Go field `TagId`.
+    #[serde(rename = "tagid", deserialize_with = "null_default")]
     #[gojson(go = "TagId", json = "tagid")]
     pub tagid: String,
     /// Go field `TagID`.
+    #[serde(rename = "tagId", deserialize_with = "null_default")]
     #[gojson(go = "TagID", json = "tagId")]
     pub tag_id: String,
     /// Go field `BCat`.
+    #[serde(rename = "bcat")]
     #[gojson(go = "BCat", json = "bcat")]
     pub b_cat: Option<Vec<String>>,
     /// Go field `BAdv`.
+    #[serde(rename = "badv")]
     #[gojson(go = "BAdv", json = "badv")]
     pub b_adv: Option<Vec<String>>,
     /// Go field `PageType`.
+    #[serde(rename = "pageType", deserialize_with = "null_default")]
     #[gojson(go = "PageType", json = "pageType")]
     pub page_type: String,
     /// Go field `Position`.
+    #[serde(rename = "position")]
     #[gojson(go = "Position", json = "position")]
     pub position: Option<isize>,
 }
 
+impl MergeClone for ImpExtTaboola {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ImpExtTaboola";
+        merge_struct(patch, |key, value| match key {
+            "publisherId" => merge_field(&mut self.publisher_id, value, GO_TYPE, "PublisherId"),
+            "publisherDomain" => merge_field(
+                &mut self.publisher_domain,
+                value,
+                GO_TYPE,
+                "PublisherDomain",
+            ),
+            "bidfloor" => merge_field(&mut self.bid_floor, value, GO_TYPE, "BidFloor"),
+            "tagid" => merge_field(&mut self.tagid, value, GO_TYPE, "TagId"),
+            "tagId" => merge_field(&mut self.tag_id, value, GO_TYPE, "TagID"),
+            "bcat" => merge_field(&mut self.b_cat, value, GO_TYPE, "BCat"),
+            "badv" => merge_field(&mut self.b_adv, value, GO_TYPE, "BAdv"),
+            "pageType" => merge_field(&mut self.page_type, value, GO_TYPE, "PageType"),
+            "position" => {
+                gojson_bridge::merge_field(&mut self.position, value, GO_TYPE, "Position")
+            }
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ImpExtTadvertising`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ImpExtTadvertising")]
 pub struct ImpExtTadvertising {
     /// Go field `PublisherId`.
+    #[serde(rename = "publisherId", deserialize_with = "null_default")]
     #[gojson(go = "PublisherId", json = "publisherId")]
     pub publisher_id: String,
 }
 
+impl MergeClone for ImpExtTadvertising {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ImpExtTadvertising";
+        merge_struct(patch, |key, value| match key {
+            "publisherId" => merge_field(&mut self.publisher_id, value, GO_TYPE, "PublisherId"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ExtImpTappx`.
-#[derive(Clone, Debug, Default, PartialEq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtImpTappx")]
 pub struct ExtImpTappx {
     /// DEPRECATED
+    #[serde(
+        rename = "host",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Host", json = "host,omitempty")]
     pub host: String,
     /// Go field `TappxKey`.
+    #[serde(rename = "tappxkey", deserialize_with = "null_default")]
     #[gojson(go = "TappxKey", json = "tappxkey")]
     pub tappx_key: String,
     /// Go field `Endpoint`.
+    #[serde(rename = "endpoint", deserialize_with = "null_default")]
     #[gojson(go = "Endpoint", json = "endpoint")]
     pub endpoint: String,
     /// Go field `BidFloor`.
+    #[serde(
+        rename = "bidfloor",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "BidFloor", json = "bidfloor,omitempty")]
     pub bid_floor: f64,
     /// Go field `Mktag`.
+    #[serde(
+        rename = "mktag",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Mktag", json = "mktag,omitempty")]
     pub mktag: String,
     /// Go field `Bcid`.
+    #[serde(rename = "bcid", skip_serializing_if = "is_nil_or_empty")]
     #[gojson(go = "Bcid", json = "bcid,omitempty")]
     pub bcid: Option<Vec<String>>,
     /// Go field `Bcrid`.
+    #[serde(rename = "bcrid", skip_serializing_if = "is_nil_or_empty")]
     #[gojson(go = "Bcrid", json = "bcrid,omitempty")]
     pub bcrid: Option<Vec<String>>,
+}
+
+impl MergeClone for ExtImpTappx {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtImpTappx";
+        merge_struct(patch, |key, value| match key {
+            "host" => merge_field(&mut self.host, value, GO_TYPE, "Host"),
+            "tappxkey" => merge_field(&mut self.tappx_key, value, GO_TYPE, "TappxKey"),
+            "endpoint" => merge_field(&mut self.endpoint, value, GO_TYPE, "Endpoint"),
+            "bidfloor" => merge_field(&mut self.bid_floor, value, GO_TYPE, "BidFloor"),
+            "mktag" => merge_field(&mut self.mktag, value, GO_TYPE, "Mktag"),
+            "bcid" => merge_field(&mut self.bcid, value, GO_TYPE, "Bcid"),
+            "bcrid" => merge_field(&mut self.bcrid, value, GO_TYPE, "Bcrid"),
+            _ => Ok(()),
+        })
+    }
 }
 
 /// ```text
 /// ExtImpTargetVideo defines the contract for bidrequest.imp[i].ext.prebid.bidder.targetVideo
 /// ```
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtImpTargetVideo")]
 pub struct ExtImpTargetVideo {
     /// Go field `PlacementId`.
+    #[serde(
+        rename = "placementId",
+        skip_serializing_if = "gojson_bridge::string_int::is_empty",
+        with = "gojson_bridge::string_int"
+    )]
     #[gojson(go = "PlacementId", json = "placementId,omitempty")]
     pub placement_id: jsonutil::StringInt,
 }
 
+impl MergeClone for ExtImpTargetVideo {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtImpTargetVideo";
+        merge_struct(patch, |key, value| match key {
+            "placementId" => {
+                gojson_bridge::merge_field(&mut self.placement_id, value, GO_TYPE, "PlacementId")
+            }
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ExtImpTeads`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtImpTeads")]
 pub struct ExtImpTeads {
     /// Go field `PlacementID`.
+    #[serde(rename = "placementId", deserialize_with = "null_default")]
     #[gojson(go = "PlacementID", json = "placementId")]
     pub placement_id: String,
+}
+
+impl MergeClone for ExtImpTeads {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtImpTeads";
+        merge_struct(patch, |key, value| match key {
+            "placementId" => merge_field(&mut self.placement_id, value, GO_TYPE, "PlacementID"),
+            _ => Ok(()),
+        })
+    }
 }
 
 /// ```text
@@ -4680,317 +10487,709 @@ pub struct ExtImpTeads {
 /// to distinguish absent (nil) from present-but-blank (non-nil → validation
 /// failure).
 /// ```
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtImpTeal")]
 pub struct ExtImpTeal {
     /// Go field `Account`.
+    #[serde(rename = "account", deserialize_with = "null_default")]
     #[gojson(go = "Account", json = "account")]
     pub account: String,
     /// Go field `Placement`.
+    #[serde(rename = "placement", skip_serializing_if = "Option::is_none")]
     #[gojson(go = "Placement", json = "placement,omitempty")]
     pub placement: Option<String>,
 }
 
+impl MergeClone for ExtImpTeal {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtImpTeal";
+        merge_struct(patch, |key, value| match key {
+            "account" => merge_field(&mut self.account, value, GO_TYPE, "Account"),
+            "placement" => merge_field(&mut self.placement, value, GO_TYPE, "Placement"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ExtImpTelaria`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtImpTelaria")]
 pub struct ExtImpTelaria {
     /// Go field `AdCode`.
+    #[serde(
+        rename = "adCode",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "AdCode", json = "adCode,omitempty")]
     pub ad_code: String,
     /// Go field `SeatCode`.
+    #[serde(rename = "seatCode", deserialize_with = "null_default")]
     #[gojson(go = "SeatCode", json = "seatCode")]
     pub seat_code: String,
     /// Go field `Extra`.
+    #[serde(
+        rename = "extra",
+        skip_serializing_if = "gojson_bridge::raw_json::is_empty",
+        with = "gojson_bridge::raw_json"
+    )]
     #[gojson(go = "Extra", json = "extra,omitempty")]
     pub extra: RawJson,
 }
 
+impl MergeClone for ExtImpTelaria {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtImpTelaria";
+        merge_struct(patch, |key, value| match key {
+            "adCode" => merge_field(&mut self.ad_code, value, GO_TYPE, "AdCode"),
+            "seatCode" => merge_field(&mut self.seat_code, value, GO_TYPE, "SeatCode"),
+            "extra" => gojson_bridge::merge_field(&mut self.extra, value, GO_TYPE, "Extra"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ImpExtTeqBlaze`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ImpExtTeqBlaze")]
 pub struct ImpExtTeqBlaze {
     /// Go field `PlacementID`.
+    #[serde(rename = "placementId", deserialize_with = "null_default")]
     #[gojson(go = "PlacementID", json = "placementId")]
     pub placement_id: String,
     /// Go field `EndpointID`.
+    #[serde(rename = "endpointId", deserialize_with = "null_default")]
     #[gojson(go = "EndpointID", json = "endpointId")]
     pub endpoint_id: String,
 }
 
+impl MergeClone for ImpExtTeqBlaze {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ImpExtTeqBlaze";
+        merge_struct(patch, |key, value| match key {
+            "placementId" => merge_field(&mut self.placement_id, value, GO_TYPE, "PlacementID"),
+            "endpointId" => merge_field(&mut self.endpoint_id, value, GO_TYPE, "EndpointID"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ExtImpTheadx`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtImpTheadx")]
 pub struct ExtImpTheadx {
     /// Go field `TagID`.
+    #[serde(rename = "tagid", with = "gojson_bridge::json_number")]
     #[gojson(go = "TagID", json = "tagid")]
     pub tag_id: JsonNumber,
     /// Go field `InventorySourceID`.
+    #[serde(
+        rename = "wid",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "InventorySourceID", json = "wid,omitempty")]
     pub inventory_source_id: isize,
     /// Go field `MemberID`.
+    #[serde(
+        rename = "pid",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "MemberID", json = "pid,omitempty")]
     pub member_id: isize,
     /// Go field `PlacementName`.
+    #[serde(
+        rename = "pname",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "PlacementName", json = "pname,omitempty")]
     pub placement_name: String,
+}
+
+impl MergeClone for ExtImpTheadx {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtImpTheadx";
+        merge_struct(patch, |key, value| match key {
+            "tagid" => gojson_bridge::merge_field(&mut self.tag_id, value, GO_TYPE, "TagID"),
+            "wid" => gojson_bridge::merge_field(
+                &mut self.inventory_source_id,
+                value,
+                GO_TYPE,
+                "InventorySourceID",
+            ),
+            "pid" => gojson_bridge::merge_field(&mut self.member_id, value, GO_TYPE, "MemberID"),
+            "pname" => merge_field(&mut self.placement_name, value, GO_TYPE, "PlacementName"),
+            _ => Ok(()),
+        })
+    }
 }
 
 /// ```text
 /// ExtImpTheTradeDesk defines the contract for bidrequest.imp[i].ext.prebid.bidder.thetradedesk
 /// ```
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtImpTheTradeDesk")]
 pub struct ExtImpTheTradeDesk {
     /// Go field `PublisherId`.
+    #[serde(rename = "publisherId", deserialize_with = "null_default")]
     #[gojson(go = "PublisherId", json = "publisherId")]
     pub publisher_id: String,
     /// Go field `SupplySourceId`.
+    #[serde(rename = "supplySourceId", deserialize_with = "null_default")]
     #[gojson(go = "SupplySourceId", json = "supplySourceId")]
     pub supply_source_id: String,
 }
 
+impl MergeClone for ExtImpTheTradeDesk {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtImpTheTradeDesk";
+        merge_struct(patch, |key, value| match key {
+            "publisherId" => merge_field(&mut self.publisher_id, value, GO_TYPE, "PublisherId"),
+            "supplySourceId" => {
+                merge_field(&mut self.supply_source_id, value, GO_TYPE, "SupplySourceId")
+            }
+            _ => Ok(()),
+        })
+    }
+}
+
 /// `ExtImpTpmn` defines TPMN specifiec param
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtImpTpmn")]
 pub struct ExtImpTpmn {
     /// Go field `InventoryId`.
+    #[serde(rename = "inventoryId", deserialize_with = "null_default")]
     #[gojson(go = "InventoryId", json = "inventoryId")]
     pub inventory_id: isize,
+}
+
+impl MergeClone for ExtImpTpmn {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtImpTpmn";
+        merge_struct(patch, |key, value| match key {
+            "inventoryId" => {
+                gojson_bridge::merge_field(&mut self.inventory_id, value, GO_TYPE, "InventoryId")
+            }
+            _ => Ok(()),
+        })
+    }
 }
 
 /// ```text
 /// ExtImpTradPlus defines the contract for bidrequest.imp[i].ext.prebid.bidder.tradplus
 /// ```
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtImpTradPlus")]
 pub struct ExtImpTradPlus {
     /// Go field `AccountID`.
+    #[serde(rename = "accountId", deserialize_with = "null_default")]
     #[gojson(go = "AccountID", json = "accountId")]
     pub account_id: String,
     /// Go field `ZoneID`.
+    #[serde(rename = "zoneId", deserialize_with = "null_default")]
     #[gojson(go = "ZoneID", json = "zoneId")]
     pub zone_id: String,
 }
 
+impl MergeClone for ExtImpTradPlus {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtImpTradPlus";
+        merge_struct(patch, |key, value| match key {
+            "accountId" => merge_field(&mut self.account_id, value, GO_TYPE, "AccountID"),
+            "zoneId" => merge_field(&mut self.zone_id, value, GO_TYPE, "ZoneID"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ExtImpTrafficGate`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtImpTrafficGate")]
 pub struct ExtImpTrafficGate {
     /// Go field `PlacementID`.
+    #[serde(rename = "placementId", deserialize_with = "null_default")]
     #[gojson(go = "PlacementID", json = "placementId")]
     pub placement_id: String,
     /// Go field `Host`.
+    #[serde(rename = "host", deserialize_with = "null_default")]
     #[gojson(go = "Host", json = "host")]
     pub host: String,
+}
+
+impl MergeClone for ExtImpTrafficGate {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtImpTrafficGate";
+        merge_struct(patch, |key, value| match key {
+            "placementId" => merge_field(&mut self.placement_id, value, GO_TYPE, "PlacementID"),
+            "host" => merge_field(&mut self.host, value, GO_TYPE, "Host"),
+            _ => Ok(()),
+        })
+    }
 }
 
 /// ```text
 /// ExtImpTriplelift defines the contract for bidrequest.imp[i].ext.prebid.bidder.triplelift
 /// ```
-#[derive(Clone, Debug, Default, PartialEq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtImpTriplelift")]
 pub struct ExtImpTriplelift {
     /// Go field `InvCode`.
+    #[serde(rename = "inventoryCode", deserialize_with = "null_default")]
     #[gojson(go = "InvCode", json = "inventoryCode")]
     pub inv_code: String,
     /// Go field `Floor`.
+    #[serde(rename = "floor")]
     #[gojson(go = "Floor", json = "floor")]
     pub floor: Option<f64>,
     /// Go field `ParentID`.
+    #[serde(rename = "parentId", skip_serializing_if = "Option::is_none")]
     #[gojson(go = "ParentID", json = "parentId,omitempty")]
     pub parent_id: Option<String>,
     /// Go field `PublisherID`.
+    #[serde(rename = "publisherId", skip_serializing_if = "Option::is_none")]
     #[gojson(go = "PublisherID", json = "publisherId,omitempty")]
     pub publisher_id: Option<String>,
 }
 
+impl MergeClone for ExtImpTriplelift {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtImpTriplelift";
+        merge_struct(patch, |key, value| match key {
+            "inventoryCode" => merge_field(&mut self.inv_code, value, GO_TYPE, "InvCode"),
+            "floor" => merge_field(&mut self.floor, value, GO_TYPE, "Floor"),
+            "parentId" => merge_field(&mut self.parent_id, value, GO_TYPE, "ParentID"),
+            "publisherId" => merge_field(&mut self.publisher_id, value, GO_TYPE, "PublisherID"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ExtImpTrustedstack`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtImpTrustedstack")]
 pub struct ExtImpTrustedstack {
     /// Go field `Cid`.
+    #[serde(rename = "cid", deserialize_with = "null_default")]
     #[gojson(go = "Cid", json = "cid")]
     pub cid: String,
     /// Go field `Crid`.
+    #[serde(rename = "crid", deserialize_with = "null_default")]
     #[gojson(go = "Crid", json = "crid")]
     pub crid: String,
+}
+
+impl MergeClone for ExtImpTrustedstack {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtImpTrustedstack";
+        merge_struct(patch, |key, value| match key {
+            "cid" => merge_field(&mut self.cid, value, GO_TYPE, "Cid"),
+            "crid" => merge_field(&mut self.crid, value, GO_TYPE, "Crid"),
+            _ => Ok(()),
+        })
+    }
 }
 
 /// ```text
 /// ExtImpTrustX defines the contract for bidrequest.imp[i].ext.prebid.bidder.trustx
 /// ```
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtImpTrustX")]
 pub struct ExtImpTrustX {
     /// Go field `Uid`.
+    #[serde(rename = "uid", deserialize_with = "null_default")]
     #[gojson(go = "Uid", json = "uid")]
     pub uid: isize,
     /// Go field `Keywords`.
+    #[serde(
+        rename = "keywords",
+        skip_serializing_if = "gojson_bridge::raw_json::is_empty",
+        with = "gojson_bridge::raw_json"
+    )]
     #[gojson(go = "Keywords", json = "keywords,omitempty")]
     pub keywords: RawJson,
+}
+
+impl MergeClone for ExtImpTrustX {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtImpTrustX";
+        merge_struct(patch, |key, value| match key {
+            "uid" => gojson_bridge::merge_field(&mut self.uid, value, GO_TYPE, "Uid"),
+            "keywords" => {
+                gojson_bridge::merge_field(&mut self.keywords, value, GO_TYPE, "Keywords")
+            }
+            _ => Ok(()),
+        })
+    }
 }
 
 /// ```text
 /// ExtImpTunnl defines the contract for bidrequest.imp[i].ext.prebid.bidder.tunnl
 /// ```
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtImpTunnl")]
 pub struct ExtImpTunnl {
     /// SID identifies the publisher to Tunnl. Tunnl issues these values, so the
     /// adapter treats the sid as opaque and only passes it through to the
     /// endpoint.
+    #[serde(rename = "sid", deserialize_with = "null_default")]
     #[gojson(go = "SID", json = "sid")]
     pub sid: String,
+}
+
+impl MergeClone for ExtImpTunnl {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtImpTunnl";
+        merge_struct(patch, |key, value| match key {
+            "sid" => merge_field(&mut self.sid, value, GO_TYPE, "SID"),
+            _ => Ok(()),
+        })
+    }
 }
 
 /// ```text
 /// ExtImpUcfunnel defines the contract for bidrequest.imp[i].ext.prebid.bidder.ucfunnel
 /// ```
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtImpUcfunnel")]
 pub struct ExtImpUcfunnel {
     /// Go field `AdUnitId`.
+    #[serde(rename = "adunitid", deserialize_with = "null_default")]
     #[gojson(go = "AdUnitId", json = "adunitid")]
     pub ad_unit_id: String,
     /// Go field `PartnerId`.
+    #[serde(rename = "partnerid", deserialize_with = "null_default")]
     #[gojson(go = "PartnerId", json = "partnerid")]
     pub partner_id: String,
 }
 
+impl MergeClone for ExtImpUcfunnel {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtImpUcfunnel";
+        merge_struct(patch, |key, value| match key {
+            "adunitid" => merge_field(&mut self.ad_unit_id, value, GO_TYPE, "AdUnitId"),
+            "partnerid" => merge_field(&mut self.partner_id, value, GO_TYPE, "PartnerId"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ExtImpUndertone`.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtImpUndertone")]
 pub struct ExtImpUndertone {
     /// Go field `PublisherID`.
+    #[serde(rename = "publisherId", deserialize_with = "null_default")]
     #[gojson(go = "PublisherID", json = "publisherId")]
     pub publisher_id: isize,
     /// Go field `PlacementID`.
+    #[serde(rename = "placementId", deserialize_with = "null_default")]
     #[gojson(go = "PlacementID", json = "placementId")]
     pub placement_id: isize,
+}
+
+impl MergeClone for ExtImpUndertone {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtImpUndertone";
+        merge_struct(patch, |key, value| match key {
+            "publisherId" => {
+                gojson_bridge::merge_field(&mut self.publisher_id, value, GO_TYPE, "PublisherID")
+            }
+            "placementId" => {
+                gojson_bridge::merge_field(&mut self.placement_id, value, GO_TYPE, "PlacementID")
+            }
+            _ => Ok(()),
+        })
+    }
 }
 
 /// ```text
 /// ExtImpUnicorn defines the contract for bidrequest.imp[i].ext.prebid.bidder.unicorn
 /// ```
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtImpUnicorn")]
 pub struct ExtImpUnicorn {
     /// Go field `PlacementID`.
+    #[serde(
+        rename = "placementId",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "PlacementID", json = "placementId,omitempty")]
     pub placement_id: String,
     /// Go field `PublisherID`.
+    #[serde(
+        rename = "publisherId",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "PublisherID", json = "publisherId,omitempty")]
     pub publisher_id: String,
     /// Go field `MediaID`.
+    #[serde(
+        rename = "mediaId",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "MediaID", json = "mediaId,omitempty")]
     pub media_id: String,
     /// Go field `AccountID`.
+    #[serde(
+        rename = "accountId",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "AccountID", json = "accountId,omitempty")]
     pub account_id: isize,
 }
 
+impl MergeClone for ExtImpUnicorn {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtImpUnicorn";
+        merge_struct(patch, |key, value| match key {
+            "placementId" => merge_field(&mut self.placement_id, value, GO_TYPE, "PlacementID"),
+            "publisherId" => merge_field(&mut self.publisher_id, value, GO_TYPE, "PublisherID"),
+            "mediaId" => merge_field(&mut self.media_id, value, GO_TYPE, "MediaID"),
+            "accountId" => {
+                gojson_bridge::merge_field(&mut self.account_id, value, GO_TYPE, "AccountID")
+            }
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ExtImpUnruly`.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtImpUnruly")]
 pub struct ExtImpUnruly {
     /// Go field `SiteIDOld`.
+    #[serde(rename = "siteid", deserialize_with = "null_default")]
     #[gojson(go = "SiteIDOld", json = "siteid")]
     pub site_id_old: isize,
     /// Go field `SiteID`.
+    #[serde(rename = "siteId", deserialize_with = "null_default")]
     #[gojson(go = "SiteID", json = "siteId")]
     pub site_id: isize,
 }
 
+impl MergeClone for ExtImpUnruly {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtImpUnruly";
+        merge_struct(patch, |key, value| match key {
+            "siteid" => {
+                gojson_bridge::merge_field(&mut self.site_id_old, value, GO_TYPE, "SiteIDOld")
+            }
+            "siteId" => gojson_bridge::merge_field(&mut self.site_id, value, GO_TYPE, "SiteID"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ImpExtViant`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ImpExtViant")]
 pub struct ImpExtViant {
     /// Go field `PublisherID`.
+    #[serde(rename = "publisherId", deserialize_with = "null_default")]
     #[gojson(go = "PublisherID", json = "publisherId")]
     pub publisher_id: String,
+}
+
+impl MergeClone for ImpExtViant {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ImpExtViant";
+        merge_struct(patch, |key, value| match key {
+            "publisherId" => merge_field(&mut self.publisher_id, value, GO_TYPE, "PublisherID"),
+            _ => Ok(()),
+        })
+    }
 }
 
 /// ```text
 /// ImpExtVidazoo defines the contract for bidrequest.imp[i].ext.prebid.bidder.vidazoo
 /// ```
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ImpExtVidazoo")]
 pub struct ImpExtVidazoo {
     /// Go field `ConnectionId`.
+    #[serde(rename = "cId", deserialize_with = "null_default")]
     #[gojson(go = "ConnectionId", json = "cId")]
     pub connection_id: String,
+}
+
+impl MergeClone for ImpExtVidazoo {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ImpExtVidazoo";
+        merge_struct(patch, |key, value| match key {
+            "cId" => merge_field(&mut self.connection_id, value, GO_TYPE, "ConnectionId"),
+            _ => Ok(()),
+        })
+    }
 }
 
 /// ```text
 /// ExtImpVideoByte defines the contract for bidrequest.imp[i].ext.prebid.bidder.videobyte
 /// ```
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtImpVideoByte")]
 pub struct ExtImpVideoByte {
     /// Go field `PublisherId`.
+    #[serde(rename = "pubId", deserialize_with = "null_default")]
     #[gojson(go = "PublisherId", json = "pubId")]
     pub publisher_id: String,
     /// Go field `PlacementId`.
+    #[serde(rename = "placementId", deserialize_with = "null_default")]
     #[gojson(go = "PlacementId", json = "placementId")]
     pub placement_id: String,
     /// Go field `NetworkId`.
+    #[serde(rename = "nid", deserialize_with = "null_default")]
     #[gojson(go = "NetworkId", json = "nid")]
     pub network_id: String,
 }
 
+impl MergeClone for ExtImpVideoByte {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtImpVideoByte";
+        merge_struct(patch, |key, value| match key {
+            "pubId" => merge_field(&mut self.publisher_id, value, GO_TYPE, "PublisherId"),
+            "placementId" => merge_field(&mut self.placement_id, value, GO_TYPE, "PlacementId"),
+            "nid" => merge_field(&mut self.network_id, value, GO_TYPE, "NetworkId"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ExtImpVideoHeroes`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtImpVideoHeroes")]
 pub struct ExtImpVideoHeroes {
     /// Go field `PlacementID`.
+    #[serde(rename = "placementId", deserialize_with = "null_default")]
     #[gojson(go = "PlacementID", json = "placementId")]
     pub placement_id: String,
 }
 
+impl MergeClone for ExtImpVideoHeroes {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtImpVideoHeroes";
+        merge_struct(patch, |key, value| match key {
+            "placementId" => merge_field(&mut self.placement_id, value, GO_TYPE, "PlacementID"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ImpExtVidoomy`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ImpExtVidoomy")]
 pub struct ImpExtVidoomy {
     /// Go field `ZoneID`.
+    #[serde(rename = "zoneId", deserialize_with = "null_default")]
     #[gojson(go = "ZoneID", json = "zoneId")]
     pub zone_id: String,
 }
 
+impl MergeClone for ImpExtVidoomy {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ImpExtVidoomy";
+        merge_struct(patch, |key, value| match key {
+            "zoneId" => merge_field(&mut self.zone_id, value, GO_TYPE, "ZoneID"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ImpExtVisibleMeasures`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ImpExtVisibleMeasures")]
 pub struct ImpExtVisibleMeasures {
     /// Go field `PlacementID`.
+    #[serde(rename = "placementId", deserialize_with = "null_default")]
     #[gojson(go = "PlacementID", json = "placementId")]
     pub placement_id: String,
     /// Go field `EndpointID`.
+    #[serde(rename = "endpointId", deserialize_with = "null_default")]
     #[gojson(go = "EndpointID", json = "endpointId")]
     pub endpoint_id: String,
 }
 
+impl MergeClone for ImpExtVisibleMeasures {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ImpExtVisibleMeasures";
+        merge_struct(patch, |key, value| match key {
+            "placementId" => merge_field(&mut self.placement_id, value, GO_TYPE, "PlacementID"),
+            "endpointId" => merge_field(&mut self.endpoint_id, value, GO_TYPE, "EndpointID"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ImpExtVox`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ImpExtVox")]
 pub struct ImpExtVox {
     /// Go field `PlacementID`.
+    #[serde(rename = "placementId", deserialize_with = "null_default")]
     #[gojson(go = "PlacementID", json = "placementId")]
     pub placement_id: String,
     /// Go field `ImageUrl`.
+    #[serde(rename = "imageUrl", deserialize_with = "null_default")]
     #[gojson(go = "ImageUrl", json = "imageUrl")]
     pub image_url: String,
     /// Go field `DisplaySizes`.
+    #[serde(rename = "displaySizes")]
     #[gojson(go = "DisplaySizes", json = "displaySizes")]
     pub display_sizes: Option<Vec<String>>,
+}
+
+impl MergeClone for ImpExtVox {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ImpExtVox";
+        merge_struct(patch, |key, value| match key {
+            "placementId" => merge_field(&mut self.placement_id, value, GO_TYPE, "PlacementID"),
+            "imageUrl" => merge_field(&mut self.image_url, value, GO_TYPE, "ImageUrl"),
+            "displaySizes" => merge_field(&mut self.display_sizes, value, GO_TYPE, "DisplaySizes"),
+            _ => Ok(()),
+        })
+    }
 }
 
 /// ```text
 /// ExtImpVrtcal defines the contract for bidrequest.imp[i].ext.prebid.bidder.vrtcal
 /// ```
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtImpVrtcal")]
 pub struct ExtImpVrtcal {
     /// Go field `Just_an_unused_vrtcal_param`.
+    #[serde(
+        rename = "Just_an_unused_vrtcal_param",
+        deserialize_with = "null_default"
+    )]
     #[gojson(
         go = "Just_an_unused_vrtcal_param",
         json = "Just_an_unused_vrtcal_param"
@@ -4998,78 +11197,170 @@ pub struct ExtImpVrtcal {
     pub just_an_unused_vrtcal_param: String,
 }
 
+impl MergeClone for ExtImpVrtcal {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtImpVrtcal";
+        merge_struct(patch, |key, value| match key {
+            "Just_an_unused_vrtcal_param" => merge_field(
+                &mut self.just_an_unused_vrtcal_param,
+                value,
+                GO_TYPE,
+                "Just_an_unused_vrtcal_param",
+            ),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ImpExtVungle`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ImpExtVungle")]
 pub struct ImpExtVungle {
     /// Go field `BidToken`.
+    #[serde(rename = "bid_token", deserialize_with = "null_default")]
     #[gojson(go = "BidToken", json = "bid_token")]
     pub bid_token: String,
     /// Go field `PubAppStoreID`.
+    #[serde(rename = "app_store_id", deserialize_with = "null_default")]
     #[gojson(go = "PubAppStoreID", json = "app_store_id")]
     pub pub_app_store_id: String,
     /// Go field `PlacementRefID`.
+    #[serde(rename = "placement_reference_id", deserialize_with = "null_default")]
     #[gojson(go = "PlacementRefID", json = "placement_reference_id")]
     pub placement_ref_id: String,
 }
 
+impl MergeClone for ImpExtVungle {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ImpExtVungle";
+        merge_struct(patch, |key, value| match key {
+            "bid_token" => merge_field(&mut self.bid_token, value, GO_TYPE, "BidToken"),
+            "app_store_id" => {
+                merge_field(&mut self.pub_app_store_id, value, GO_TYPE, "PubAppStoreID")
+            }
+            "placement_reference_id" => {
+                merge_field(&mut self.placement_ref_id, value, GO_TYPE, "PlacementRefID")
+            }
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ExtXeworks`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtXeworks")]
 pub struct ExtXeworks {
     /// Go field `Env`.
+    #[serde(rename = "env", deserialize_with = "null_default")]
     #[gojson(go = "Env", json = "env")]
     pub env: String,
     /// Go field `Pid`.
+    #[serde(rename = "pid", deserialize_with = "null_default")]
     #[gojson(go = "Pid", json = "pid")]
     pub pid: String,
+}
+
+impl MergeClone for ExtXeworks {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtXeworks";
+        merge_struct(patch, |key, value| match key {
+            "env" => merge_field(&mut self.env, value, GO_TYPE, "Env"),
+            "pid" => merge_field(&mut self.pid, value, GO_TYPE, "Pid"),
+            _ => Ok(()),
+        })
+    }
 }
 
 /// ```text
 /// ExtImpYahooAds defines the contract for bidrequest.imp[i].ext.prebid.bidder.yahooAds
 /// ```
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtImpYahooAds")]
 pub struct ExtImpYahooAds {
     /// Go field `Dcn`.
+    #[serde(rename = "dcn", deserialize_with = "null_default")]
     #[gojson(go = "Dcn", json = "dcn")]
     pub dcn: String,
     /// Go field `Pos`.
+    #[serde(rename = "pos", deserialize_with = "null_default")]
     #[gojson(go = "Pos", json = "pos")]
     pub pos: String,
+}
+
+impl MergeClone for ExtImpYahooAds {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtImpYahooAds";
+        merge_struct(patch, |key, value| match key {
+            "dcn" => merge_field(&mut self.dcn, value, GO_TYPE, "Dcn"),
+            "pos" => merge_field(&mut self.pos, value, GO_TYPE, "Pos"),
+            _ => Ok(()),
+        })
+    }
 }
 
 /// ```text
 /// ExtImpYahooAdvertising defines the contract for
 /// bidrequest.imp[i].ext.prebid.bidder.yahooAdvertising
 /// ```
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtImpYahooAdvertising")]
 pub struct ExtImpYahooAdvertising {
     /// Go field `Dcn`.
+    #[serde(rename = "dcn", deserialize_with = "null_default")]
     #[gojson(go = "Dcn", json = "dcn")]
     pub dcn: String,
     /// Go field `Pos`.
+    #[serde(rename = "pos", deserialize_with = "null_default")]
     #[gojson(go = "Pos", json = "pos")]
     pub pos: String,
+}
+
+impl MergeClone for ExtImpYahooAdvertising {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtImpYahooAdvertising";
+        merge_struct(patch, |key, value| match key {
+            "dcn" => merge_field(&mut self.dcn, value, GO_TYPE, "Dcn"),
+            "pos" => merge_field(&mut self.pos, value, GO_TYPE, "Pos"),
+            _ => Ok(()),
+        })
+    }
 }
 
 /// ```text
 /// ExtImpYahooSSP defines the contract for bidrequest.imp[i].ext.prebid.bidder.yahoossp
 /// ```
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtImpYahooSSP")]
 pub struct ExtImpYahooSSP {
     /// Go field `Dcn`.
+    #[serde(rename = "dcn", deserialize_with = "null_default")]
     #[gojson(go = "Dcn", json = "dcn")]
     pub dcn: String,
     /// Go field `Pos`.
+    #[serde(rename = "pos", deserialize_with = "null_default")]
     #[gojson(go = "Pos", json = "pos")]
     pub pos: String,
 }
 
+impl MergeClone for ExtImpYahooSSP {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtImpYahooSSP";
+        merge_struct(patch, |key, value| match key {
+            "dcn" => merge_field(&mut self.dcn, value, GO_TYPE, "Dcn"),
+            "pos" => merge_field(&mut self.pos, value, GO_TYPE, "Pos"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ExtImpYandex`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtImpYandex")]
 pub struct ExtImpYandex {
     /// ```text
@@ -5078,111 +11369,224 @@ pub struct ExtImpYandex {
     ///             - `R-123456-1`
     ///             - `123456-789`
     /// ```
+    #[serde(rename = "placement_id", deserialize_with = "null_default")]
     #[gojson(go = "PlacementID", json = "placement_id")]
     pub placement_id: String,
     /// ```text
     /// Deprecated: in favor of `PlacementID`
     /// ```
+    #[serde(rename = "page_id", deserialize_with = "null_default")]
     #[gojson(go = "PageID", json = "page_id")]
     pub page_id: i64,
     /// ```text
     /// Deprecated: in favor of `PlacementID`
     /// ```
+    #[serde(rename = "imp_id", deserialize_with = "null_default")]
     #[gojson(go = "ImpID", json = "imp_id")]
     pub imp_id: i64,
+}
+
+impl MergeClone for ExtImpYandex {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtImpYandex";
+        merge_struct(patch, |key, value| match key {
+            "placement_id" => merge_field(&mut self.placement_id, value, GO_TYPE, "PlacementID"),
+            "page_id" => merge_field(&mut self.page_id, value, GO_TYPE, "PageID"),
+            "imp_id" => merge_field(&mut self.imp_id, value, GO_TYPE, "ImpID"),
+            _ => Ok(()),
+        })
+    }
 }
 
 /// ```text
 /// ExtImpYeahmobi defines the contract for bidrequest.imp[i].ext.prebid.bidder.yeahmobi
 /// ```
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtImpYeahmobi")]
 pub struct ExtImpYeahmobi {
     /// Go field `PubId`.
+    #[serde(rename = "pubId", deserialize_with = "null_default")]
     #[gojson(go = "PubId", json = "pubId")]
     pub pub_id: String,
     /// Go field `ZoneId`.
+    #[serde(rename = "zoneId", deserialize_with = "null_default")]
     #[gojson(go = "ZoneId", json = "zoneId")]
     pub zone_id: String,
+}
+
+impl MergeClone for ExtImpYeahmobi {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtImpYeahmobi";
+        merge_struct(patch, |key, value| match key {
+            "pubId" => merge_field(&mut self.pub_id, value, GO_TYPE, "PubId"),
+            "zoneId" => merge_field(&mut self.zone_id, value, GO_TYPE, "ZoneId"),
+            _ => Ok(()),
+        })
+    }
 }
 
 /// ```text
 /// ExtImpYieldlab defines the contract for bidrequest.imp[i].ext.prebid.bidder.yieldlab
 /// ```
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtImpYieldlab")]
 pub struct ExtImpYieldlab {
     /// Go field `AdslotID`.
+    #[serde(rename = "adslotId", deserialize_with = "null_default")]
     #[gojson(go = "AdslotID", json = "adslotId")]
     pub adslot_id: String,
     /// Go field `SupplyID`.
+    #[serde(rename = "supplyId", deserialize_with = "null_default")]
     #[gojson(go = "SupplyID", json = "supplyId")]
     pub supply_id: String,
     /// Go field `Targeting`.
+    #[serde(rename = "targeting")]
     #[gojson(go = "Targeting", json = "targeting")]
     pub targeting: Option<BTreeMap<String, String>>,
     /// Go field `ExtId`.
+    #[serde(rename = "extId", deserialize_with = "null_default")]
     #[gojson(go = "ExtId", json = "extId")]
     pub ext_id: String,
+}
+
+impl MergeClone for ExtImpYieldlab {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtImpYieldlab";
+        merge_struct(patch, |key, value| match key {
+            "adslotId" => merge_field(&mut self.adslot_id, value, GO_TYPE, "AdslotID"),
+            "supplyId" => merge_field(&mut self.supply_id, value, GO_TYPE, "SupplyID"),
+            "targeting" => merge_field(&mut self.targeting, value, GO_TYPE, "Targeting"),
+            "extId" => merge_field(&mut self.ext_id, value, GO_TYPE, "ExtId"),
+            _ => Ok(()),
+        })
+    }
 }
 
 /// ```text
 /// ExtImpYieldmo defines the contract for bidrequest.imp[i].ext.prebid.bidder.yieldmo
 /// ```
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtImpYieldmo")]
 pub struct ExtImpYieldmo {
     /// Go field `PlacementId`.
+    #[serde(rename = "placementId", deserialize_with = "null_default")]
     #[gojson(go = "PlacementId", json = "placementId")]
     pub placement_id: String,
+}
+
+impl MergeClone for ExtImpYieldmo {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtImpYieldmo";
+        merge_struct(patch, |key, value| match key {
+            "placementId" => merge_field(&mut self.placement_id, value, GO_TYPE, "PlacementId"),
+            _ => Ok(()),
+        })
+    }
 }
 
 /// ```text
 /// ExtImpYieldone defines the contract for bidrequest.imp[i].ext.prebid.bidder.yieldone
 /// ```
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtImpYieldone")]
 pub struct ExtImpYieldone {
     /// Go field `PlacementId`.
+    #[serde(rename = "placementId", deserialize_with = "null_default")]
     #[gojson(go = "PlacementId", json = "placementId")]
     pub placement_id: String,
+}
+
+impl MergeClone for ExtImpYieldone {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtImpYieldone";
+        merge_struct(patch, |key, value| match key {
+            "placementId" => merge_field(&mut self.placement_id, value, GO_TYPE, "PlacementId"),
+            _ => Ok(()),
+        })
+    }
 }
 
 /// ```text
 /// ExtImpZeroClickFraud defines the contract for bidrequest.imp[i].ext.prebid.bidder.datablocks
 /// ```
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtImpZeroClickFraud")]
 pub struct ExtImpZeroClickFraud {
     /// Go field `SourceId`.
+    #[serde(rename = "sourceId", deserialize_with = "null_default")]
     #[gojson(go = "SourceId", json = "sourceId")]
     pub source_id: isize,
     /// Go field `Host`.
+    #[serde(rename = "host", deserialize_with = "null_default")]
     #[gojson(go = "Host", json = "host")]
     pub host: String,
 }
 
+impl MergeClone for ExtImpZeroClickFraud {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtImpZeroClickFraud";
+        merge_struct(patch, |key, value| match key {
+            "sourceId" => {
+                gojson_bridge::merge_field(&mut self.source_id, value, GO_TYPE, "SourceId")
+            }
+            "host" => merge_field(&mut self.host, value, GO_TYPE, "Host"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ImpExtZetaGlobalSsp`.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ImpExtZetaGlobalSsp")]
 pub struct ImpExtZetaGlobalSsp {
     /// Go field `Sid`.
+    #[serde(rename = "sid", deserialize_with = "null_default")]
     #[gojson(go = "Sid", json = "sid")]
     pub sid: isize,
+}
+
+impl MergeClone for ImpExtZetaGlobalSsp {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ImpExtZetaGlobalSsp";
+        merge_struct(patch, |key, value| match key {
+            "sid" => gojson_bridge::merge_field(&mut self.sid, value, GO_TYPE, "Sid"),
+            _ => Ok(()),
+        })
+    }
 }
 
 /// ```text
 /// ExtImpZmaticoo defines the contract for bidrequest.imp[i].ext.prebid.bidder.zmaticoo
 /// ```
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtImpZmaticoo")]
 pub struct ExtImpZmaticoo {
     /// Go field `PubId`.
+    #[serde(rename = "pubId", deserialize_with = "null_default")]
     #[gojson(go = "PubId", json = "pubId")]
     pub pub_id: String,
     /// Go field `ZoneId`.
+    #[serde(rename = "zoneId", deserialize_with = "null_default")]
     #[gojson(go = "ZoneId", json = "zoneId")]
     pub zone_id: String,
+}
+
+impl MergeClone for ExtImpZmaticoo {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtImpZmaticoo";
+        merge_struct(patch, |key, value| match key {
+            "pubId" => merge_field(&mut self.pub_id, value, GO_TYPE, "PubId"),
+            "zoneId" => merge_field(&mut self.zone_id, value, GO_TYPE, "ZoneId"),
+            _ => Ok(()),
+        })
+    }
 }
 
 /// Go constant `DefaultBidLimit`.
@@ -5197,16 +11601,29 @@ pub const MAX_BID_LIMIT: isize = 9;
 /// ExtPublisher defines the contract for ...publisher.ext (found in both bidrequest.site and
 /// bidrequest.app)
 /// ```
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtPublisher")]
 pub struct ExtPublisher {
     /// Go field `Prebid`.
+    #[serde(rename = "prebid")]
     #[gojson(go = "Prebid", json = "prebid")]
     pub prebid: Option<Box<ExtPublisherPrebid>>,
 }
 
+impl MergeClone for ExtPublisher {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtPublisher";
+        merge_struct(patch, |key, value| match key {
+            "prebid" => merge_field(&mut self.prebid, value, GO_TYPE, "Prebid"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// `ExtPublisherPrebid` defines the contract for publisher.ext.prebid
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtPublisherPrebid")]
 pub struct ExtPublisherPrebid {
     /// ```text
@@ -5214,12 +11631,26 @@ pub struct ExtPublisherPrebid {
     /// relationship with the PBS
     /// host. As such, the definition depends on the PBS hosting entity.
     /// ```
+    #[serde(rename = "parentAccount", skip_serializing_if = "Option::is_none")]
     #[gojson(go = "ParentAccount", json = "parentAccount,omitempty")]
     pub parent_account: Option<String>,
 }
 
+impl MergeClone for ExtPublisherPrebid {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtPublisherPrebid";
+        merge_struct(patch, |key, value| match key {
+            "parentAccount" => {
+                merge_field(&mut self.parent_account, value, GO_TYPE, "ParentAccount")
+            }
+            _ => Ok(()),
+        })
+    }
+}
+
 /// `ExtRegs` defines the contract for bidrequest.regs.ext
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtRegs")]
 pub struct ExtRegs {
     /// ```text
@@ -5227,6 +11658,7 @@ pub struct ExtRegs {
     /// https://github.com/InteractiveAdvertisingBureau/openrtb/blob/main/extensions/community_exten
     /// sions/dsa_transparency.md
     /// ```
+    #[serde(rename = "dsa", skip_serializing_if = "Option::is_none")]
     #[gojson(go = "DSA", json = "dsa,omitempty")]
     pub dsa: Option<Box<ExtRegsDSA>>,
     /// ```text
@@ -5235,6 +11667,7 @@ pub struct ExtRegs {
     /// if it's unknown. For more info on this parameter, see:
     /// https://iabtechlab.com/wp-content/uploads/2018/02/OpenRTB_Advisory_GDPR_2018-02.pdf
     /// ```
+    #[serde(rename = "gdpr", skip_serializing_if = "Option::is_none")]
     #[gojson(go = "GDPR", json = "gdpr,omitempty")]
     pub gdpr: Option<i8>,
     /// ```text
@@ -5242,38 +11675,91 @@ pub struct ExtRegs {
     /// https://iabtechlab.com/wp-content/uploads/2019/11/OpenRTB-Extension-U.S.-Privacy-IAB-Tech-La
     /// b.pdf
     /// ```
+    #[serde(
+        rename = "us_privacy",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "USPrivacy", json = "us_privacy,omitempty")]
     pub us_privacy: String,
 }
 
+impl MergeClone for ExtRegs {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtRegs";
+        merge_struct(patch, |key, value| match key {
+            "dsa" => merge_field(&mut self.dsa, value, GO_TYPE, "DSA"),
+            "gdpr" => merge_field(&mut self.gdpr, value, GO_TYPE, "GDPR"),
+            "us_privacy" => merge_field(&mut self.us_privacy, value, GO_TYPE, "USPrivacy"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// `ExtRegsDSA` defines the contract for bidrequest.regs.ext.dsa
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtRegsDSA")]
 pub struct ExtRegsDSA {
     /// Go field `Required`.
+    #[serde(rename = "dsarequired", skip_serializing_if = "Option::is_none")]
     #[gojson(go = "Required", json = "dsarequired,omitempty")]
     pub required: Option<i8>,
     /// Go field `PubRender`.
+    #[serde(rename = "pubrender", skip_serializing_if = "Option::is_none")]
     #[gojson(go = "PubRender", json = "pubrender,omitempty")]
     pub pub_render: Option<i8>,
     /// Go field `DataToPub`.
+    #[serde(rename = "datatopub", skip_serializing_if = "Option::is_none")]
     #[gojson(go = "DataToPub", json = "datatopub,omitempty")]
     pub data_to_pub: Option<i8>,
     /// Go field `Transparency`.
+    #[serde(rename = "transparency", skip_serializing_if = "is_nil_or_empty")]
     #[gojson(go = "Transparency", json = "transparency,omitempty")]
     pub transparency: Option<Vec<ExtBidDSATransparency>>,
 }
 
+impl MergeClone for ExtRegsDSA {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtRegsDSA";
+        merge_struct(patch, |key, value| match key {
+            "dsarequired" => merge_field(&mut self.required, value, GO_TYPE, "Required"),
+            "pubrender" => merge_field(&mut self.pub_render, value, GO_TYPE, "PubRender"),
+            "datatopub" => merge_field(&mut self.data_to_pub, value, GO_TYPE, "DataToPub"),
+            "transparency" => merge_field(&mut self.transparency, value, GO_TYPE, "Transparency"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// `ExtBidDSATransparency` defines the contract for bidrequest.regs.ext.dsa.transparency
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtBidDSATransparency")]
 pub struct ExtBidDSATransparency {
     /// Go field `Domain`.
+    #[serde(
+        rename = "domain",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Domain", json = "domain,omitempty")]
     pub domain: String,
     /// Go field `Params`.
+    #[serde(rename = "dsaparams", skip_serializing_if = "is_nil_or_empty")]
     #[gojson(go = "Params", json = "dsaparams,omitempty")]
     pub params: Option<Vec<isize>>,
+}
+
+impl MergeClone for ExtBidDSATransparency {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtBidDSATransparency";
+        merge_struct(patch, |key, value| match key {
+            "domain" => merge_field(&mut self.domain, value, GO_TYPE, "Domain"),
+            "dsaparams" => gojson_bridge::merge_field(&mut self.params, value, GO_TYPE, "Params"),
+            _ => Ok(()),
+        })
+    }
 }
 
 /// Go constant `FirstPartyDataExtKey`.
@@ -5309,107 +11795,184 @@ pub const NATIVE_EXCHANGE_SPECIFIC_LOWER_BOUND: i64 = 500;
 pub const MAX_DECIMAL_FIGURES: isize = 15;
 
 /// `ExtRequest` defines the contract for bidrequest.ext
-#[derive(Clone, Debug, Default, PartialEq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtRequest")]
 pub struct ExtRequest {
     /// Go field `Prebid`.
+    #[serde(rename = "prebid", deserialize_with = "null_default")]
     #[gojson(go = "Prebid", json = "prebid")]
     pub prebid: ExtRequestPrebid,
     /// Go field `SChain`.
+    #[serde(rename = "schain", skip_serializing_if = "Option::is_none")]
     #[gojson(go = "SChain", json = "schain,omitempty")]
     pub s_chain: Option<Box<openrtb2::SupplyChain>>,
 }
 
+impl MergeClone for ExtRequest {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtRequest";
+        merge_struct(patch, |key, value| match key {
+            "prebid" => merge_field(&mut self.prebid, value, GO_TYPE, "Prebid"),
+            "schain" => merge_field(&mut self.s_chain, value, GO_TYPE, "SChain"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// `ExtRequestPrebid` defines the contract for bidrequest.ext.prebid
-#[derive(Clone, Debug, Default, PartialEq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtRequestPrebid")]
 pub struct ExtRequestPrebid {
     /// Go field `AdServerTargeting`.
+    #[serde(rename = "adservertargeting", skip_serializing_if = "is_nil_or_empty")]
     #[gojson(go = "AdServerTargeting", json = "adservertargeting,omitempty")]
     pub ad_server_targeting: Option<Vec<AdServerTarget>>,
     /// Go field `Aliases`.
+    #[serde(rename = "aliases", skip_serializing_if = "is_nil_or_empty")]
     #[gojson(go = "Aliases", json = "aliases,omitempty")]
     pub aliases: Option<BTreeMap<String, String>>,
     /// Go field `AliasGVLIDs`.
+    #[serde(rename = "aliasgvlids", skip_serializing_if = "is_nil_or_empty")]
     #[gojson(go = "AliasGVLIDs", json = "aliasgvlids,omitempty")]
     pub alias_gvlids: Option<BTreeMap<String, u16>>,
     /// Go field `Analytics`.
+    #[serde(
+        rename = "analytics",
+        skip_serializing_if = "is_nil_or_empty",
+        with = "gojson_bridge::bridged"
+    )]
     #[gojson(go = "Analytics", json = "analytics,omitempty")]
     pub analytics: Option<BTreeMap<String, RawJson>>,
     /// Go field `BidAdjustmentFactors`.
+    #[serde(
+        rename = "bidadjustmentfactors",
+        skip_serializing_if = "is_nil_or_empty"
+    )]
     #[gojson(go = "BidAdjustmentFactors", json = "bidadjustmentfactors,omitempty")]
     pub bid_adjustment_factors: Option<BTreeMap<String, f64>>,
     /// Go field `BidAdjustments`.
+    #[serde(rename = "bidadjustments", skip_serializing_if = "Option::is_none")]
     #[gojson(go = "BidAdjustments", json = "bidadjustments,omitempty")]
     pub bid_adjustments: Option<Box<ExtRequestPrebidBidAdjustments>>,
     /// Go field `BidderConfigs`.
+    #[serde(rename = "bidderconfig", skip_serializing_if = "is_nil_or_empty")]
     #[gojson(go = "BidderConfigs", json = "bidderconfig,omitempty")]
     pub bidder_configs: Option<Vec<BidderConfig>>,
     /// Go field `BidderParams`.
+    #[serde(
+        rename = "bidderparams",
+        skip_serializing_if = "gojson_bridge::raw_json::is_empty",
+        with = "gojson_bridge::raw_json"
+    )]
     #[gojson(go = "BidderParams", json = "bidderparams,omitempty")]
     pub bidder_params: RawJson,
     /// Go field `Cache`.
+    #[serde(rename = "cache", skip_serializing_if = "Option::is_none")]
     #[gojson(go = "Cache", json = "cache,omitempty")]
     pub cache: Option<Box<ExtRequestPrebidCache>>,
     /// Go field `Channel`.
+    #[serde(rename = "channel", skip_serializing_if = "Option::is_none")]
     #[gojson(go = "Channel", json = "channel,omitempty")]
     pub channel: Option<Box<ExtRequestPrebidChannel>>,
     /// Go field `CurrencyConversions`.
+    #[serde(rename = "currency", skip_serializing_if = "Option::is_none")]
     #[gojson(go = "CurrencyConversions", json = "currency,omitempty")]
     pub currency_conversions: Option<Box<ExtRequestCurrency>>,
     /// Go field `Data`.
+    #[serde(rename = "data", skip_serializing_if = "Option::is_none")]
     #[gojson(go = "Data", json = "data,omitempty")]
     pub data: Option<Box<ExtRequestPrebidData>>,
     /// Go field `Debug`.
+    #[serde(
+        rename = "debug",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Debug", json = "debug,omitempty")]
     pub debug: bool,
     /// Go field `Events`.
+    #[serde(
+        rename = "events",
+        skip_serializing_if = "gojson_bridge::raw_json::is_empty",
+        with = "gojson_bridge::raw_json"
+    )]
     #[gojson(go = "Events", json = "events,omitempty")]
     pub events: RawJson,
     /// Go field `Experiment`.
+    #[serde(rename = "experiment", skip_serializing_if = "Option::is_none")]
     #[gojson(go = "Experiment", json = "experiment,omitempty")]
     pub experiment: Option<Box<Experiment>>,
     /// Go field `Floors`.
+    #[serde(rename = "floors", skip_serializing_if = "Option::is_none")]
     #[gojson(go = "Floors", json = "floors,omitempty")]
     pub floors: Option<Box<PriceFloorRules>>,
     /// Go field `Integration`.
+    #[serde(
+        rename = "integration",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Integration", json = "integration,omitempty")]
     pub integration: String,
     /// Go field `MultiBid`.
+    #[serde(rename = "multibid", skip_serializing_if = "is_nil_or_empty")]
     #[gojson(go = "MultiBid", json = "multibid,omitempty")]
     pub multi_bid: Option<Vec<Option<Box<ExtMultiBid>>>>,
     /// Go field `MultiBidMap`.
+    #[serde(skip)]
     #[gojson(go = "MultiBidMap", json = "-")]
     pub multi_bid_map: Option<BTreeMap<String, ExtMultiBid>>,
     /// Go field `Passthrough`.
+    #[serde(
+        rename = "passthrough",
+        skip_serializing_if = "gojson_bridge::raw_json::is_empty",
+        with = "gojson_bridge::raw_json"
+    )]
     #[gojson(go = "Passthrough", json = "passthrough,omitempty")]
     pub passthrough: RawJson,
     /// Go field `SChains`.
+    #[serde(rename = "schains", skip_serializing_if = "is_nil_or_empty")]
     #[gojson(go = "SChains", json = "schains,omitempty")]
     pub s_chains: Option<Vec<Option<Box<ExtRequestPrebidSChain>>>>,
     /// Go field `Sdk`.
+    #[serde(rename = "sdk", skip_serializing_if = "Option::is_none")]
     #[gojson(go = "Sdk", json = "sdk,omitempty")]
     pub sdk: Option<Box<ExtRequestSdk>>,
     /// Go field `Server`.
+    #[serde(rename = "server", skip_serializing_if = "Option::is_none")]
     #[gojson(go = "Server", json = "server,omitempty")]
     pub server: Option<Box<ExtRequestPrebidServer>>,
     /// Go field `StoredRequest`.
+    #[serde(rename = "storedrequest", skip_serializing_if = "Option::is_none")]
     #[gojson(go = "StoredRequest", json = "storedrequest,omitempty")]
     pub stored_request: Option<Box<ExtStoredRequest>>,
     /// Go field `SupportDeals`.
+    #[serde(
+        rename = "supportdeals",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "SupportDeals", json = "supportdeals,omitempty")]
     pub support_deals: bool,
     /// Go field `Targeting`.
+    #[serde(rename = "targeting", skip_serializing_if = "Option::is_none")]
     #[gojson(go = "Targeting", json = "targeting,omitempty")]
     pub targeting: Option<Box<ExtRequestTargeting>>,
     /// ```text
     /// AlternateBidderCodes is populated with host's AlternateBidderCodes config if not defined in
     /// request
     /// ```
+    #[serde(
+        rename = "alternatebiddercodes",
+        skip_serializing_if = "Option::is_none"
+    )]
     #[gojson(go = "AlternateBidderCodes", json = "alternatebiddercodes,omitempty")]
     pub alternate_bidder_codes: Option<Box<ExtAlternateBidderCodes>>,
     /// Macros specifies list of custom macros along with the values. This is used while forming
     /// the tracker URLs, where PBS will replace the Custom Macro with its value with url-encoding
+    #[serde(rename = "macros", skip_serializing_if = "is_nil_or_empty")]
     #[gojson(go = "Macros", json = "macros,omitempty")]
     pub macros: Option<BTreeMap<String, String>>,
     /// ```text
@@ -5417,6 +11980,7 @@ pub struct ExtRequestPrebid {
     /// passing of personally identifiable information doesn't constitute a sale per CCPA law.
     /// The array may contain a single sstar ('*') entry to represent all bidders.
     /// ```
+    #[serde(rename = "nosale", skip_serializing_if = "is_nil_or_empty")]
     #[gojson(go = "NoSale", json = "nosale,omitempty")]
     pub no_sale: Option<Vec<String>>,
     /// ```text
@@ -5424,6 +11988,11 @@ pub struct ExtRequestPrebid {
     /// was
     /// either rejected, nobid, input error
     /// ```
+    #[serde(
+        rename = "returnallbidstatus",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "ReturnAllBidStatus", json = "returnallbidstatus,omitempty")]
     pub return_all_bid_status: bool,
     /// ```text
@@ -5433,382 +12002,1021 @@ pub struct ExtRequestPrebid {
     /// - basic: excludes debugmessages and analytic_tags from output
     /// any other value or an empty string disables trace output at all.
     /// ```
+    #[serde(
+        rename = "trace",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Trace", json = "trace,omitempty")]
     pub trace: String,
     /// Go field `BidderControls`.
+    #[serde(rename = "biddercontrols", skip_serializing_if = "is_nil_or_empty")]
     #[gojson(go = "BidderControls", json = "biddercontrols,omitempty")]
     pub bidder_controls: Option<BTreeMap<BidderName, BidderControl>>,
 }
 
+impl MergeClone for ExtRequestPrebid {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtRequestPrebid";
+        merge_struct(patch, |key, value| match key {
+            "adservertargeting" => merge_field(
+                &mut self.ad_server_targeting,
+                value,
+                GO_TYPE,
+                "AdServerTargeting",
+            ),
+            "aliases" => merge_field(&mut self.aliases, value, GO_TYPE, "Aliases"),
+            "aliasgvlids" => merge_field(&mut self.alias_gvlids, value, GO_TYPE, "AliasGVLIDs"),
+            "analytics" => {
+                gojson_bridge::merge_field(&mut self.analytics, value, GO_TYPE, "Analytics")
+            }
+            "bidadjustmentfactors" => merge_field(
+                &mut self.bid_adjustment_factors,
+                value,
+                GO_TYPE,
+                "BidAdjustmentFactors",
+            ),
+            "bidadjustments" => {
+                merge_field(&mut self.bid_adjustments, value, GO_TYPE, "BidAdjustments")
+            }
+            "bidderconfig" => {
+                merge_field(&mut self.bidder_configs, value, GO_TYPE, "BidderConfigs")
+            }
+            "bidderparams" => {
+                gojson_bridge::merge_field(&mut self.bidder_params, value, GO_TYPE, "BidderParams")
+            }
+            "cache" => merge_field(&mut self.cache, value, GO_TYPE, "Cache"),
+            "channel" => merge_field(&mut self.channel, value, GO_TYPE, "Channel"),
+            "currency" => merge_field(
+                &mut self.currency_conversions,
+                value,
+                GO_TYPE,
+                "CurrencyConversions",
+            ),
+            "data" => merge_field(&mut self.data, value, GO_TYPE, "Data"),
+            "debug" => merge_field(&mut self.debug, value, GO_TYPE, "Debug"),
+            "events" => gojson_bridge::merge_field(&mut self.events, value, GO_TYPE, "Events"),
+            "experiment" => merge_field(&mut self.experiment, value, GO_TYPE, "Experiment"),
+            "floors" => merge_field(&mut self.floors, value, GO_TYPE, "Floors"),
+            "integration" => merge_field(&mut self.integration, value, GO_TYPE, "Integration"),
+            "multibid" => merge_field(&mut self.multi_bid, value, GO_TYPE, "MultiBid"),
+            "passthrough" => {
+                gojson_bridge::merge_field(&mut self.passthrough, value, GO_TYPE, "Passthrough")
+            }
+            "schains" => merge_field(&mut self.s_chains, value, GO_TYPE, "SChains"),
+            "sdk" => merge_field(&mut self.sdk, value, GO_TYPE, "Sdk"),
+            "server" => merge_field(&mut self.server, value, GO_TYPE, "Server"),
+            "storedrequest" => {
+                merge_field(&mut self.stored_request, value, GO_TYPE, "StoredRequest")
+            }
+            "supportdeals" => merge_field(&mut self.support_deals, value, GO_TYPE, "SupportDeals"),
+            "targeting" => merge_field(&mut self.targeting, value, GO_TYPE, "Targeting"),
+            "alternatebiddercodes" => merge_field(
+                &mut self.alternate_bidder_codes,
+                value,
+                GO_TYPE,
+                "AlternateBidderCodes",
+            ),
+            "macros" => merge_field(&mut self.macros, value, GO_TYPE, "Macros"),
+            "nosale" => merge_field(&mut self.no_sale, value, GO_TYPE, "NoSale"),
+            "returnallbidstatus" => merge_field(
+                &mut self.return_all_bid_status,
+                value,
+                GO_TYPE,
+                "ReturnAllBidStatus",
+            ),
+            "trace" => merge_field(&mut self.trace, value, GO_TYPE, "Trace"),
+            "biddercontrols" => {
+                merge_field(&mut self.bidder_controls, value, GO_TYPE, "BidderControls")
+            }
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.AdServerTarget`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.AdServerTarget")]
 pub struct AdServerTarget {
     /// Go field `Key`.
+    #[serde(
+        rename = "key",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Key", json = "key,omitempty")]
     pub key: String,
     /// Go field `Source`.
+    #[serde(
+        rename = "source",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Source", json = "source,omitempty")]
     pub source: String,
     /// Go field `Value`.
+    #[serde(
+        rename = "value",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Value", json = "value,omitempty")]
     pub value: String,
 }
 
+impl MergeClone for AdServerTarget {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.AdServerTarget";
+        merge_struct(patch, |key, value| match key {
+            "key" => merge_field(&mut self.key, value, GO_TYPE, "Key"),
+            "source" => merge_field(&mut self.source, value, GO_TYPE, "Source"),
+            "value" => merge_field(&mut self.value, value, GO_TYPE, "Value"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Experiment defines if experimental features are available for the request
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.Experiment")]
 pub struct Experiment {
     /// Go field `AdsCert`.
+    #[serde(rename = "adscert", skip_serializing_if = "Option::is_none")]
     #[gojson(go = "AdsCert", json = "adscert,omitempty")]
     pub ads_cert: Option<Box<AdsCert>>,
 }
 
+impl MergeClone for Experiment {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.Experiment";
+        merge_struct(patch, |key, value| match key {
+            "adscert" => merge_field(&mut self.ads_cert, value, GO_TYPE, "AdsCert"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// `AdsCert` defines if Call Sign feature is enabled for request
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.AdsCert")]
 pub struct AdsCert {
     /// Go field `Enabled`.
+    #[serde(
+        rename = "enabled",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Enabled", json = "enabled,omitempty")]
     pub enabled: bool,
 }
 
+impl MergeClone for AdsCert {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.AdsCert";
+        merge_struct(patch, |key, value| match key {
+            "enabled" => merge_field(&mut self.enabled, value, GO_TYPE, "Enabled"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.BidderConfig`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.BidderConfig")]
 pub struct BidderConfig {
     /// Go field `Bidders`.
+    #[serde(rename = "bidders", skip_serializing_if = "is_nil_or_empty")]
     #[gojson(go = "Bidders", json = "bidders,omitempty")]
     pub bidders: Option<Vec<String>>,
     /// Go field `Config`.
+    #[serde(rename = "config", skip_serializing_if = "Option::is_none")]
     #[gojson(go = "Config", json = "config,omitempty")]
     pub config: Option<Box<Config>>,
 }
 
+impl MergeClone for BidderConfig {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.BidderConfig";
+        merge_struct(patch, |key, value| match key {
+            "bidders" => merge_field(&mut self.bidders, value, GO_TYPE, "Bidders"),
+            "config" => merge_field(&mut self.config, value, GO_TYPE, "Config"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.Config`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.Config")]
 pub struct Config {
     /// Go field `ORTB2`.
+    #[serde(rename = "ortb2", skip_serializing_if = "Option::is_none")]
     #[gojson(go = "ORTB2", json = "ortb2,omitempty")]
     pub ortb2: Option<Box<ORTB2>>,
 }
 
+impl MergeClone for Config {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.Config";
+        merge_struct(patch, |key, value| match key {
+            "ortb2" => merge_field(&mut self.ortb2, value, GO_TYPE, "ORTB2"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ORTB2`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ORTB2")]
 pub struct ORTB2 {
     /// Go field `Site`.
+    #[serde(
+        rename = "site",
+        skip_serializing_if = "gojson_bridge::raw_json::is_empty",
+        with = "gojson_bridge::raw_json"
+    )]
     #[gojson(go = "Site", json = "site,omitempty")]
     pub site: RawJson,
     /// Go field `App`.
+    #[serde(
+        rename = "app",
+        skip_serializing_if = "gojson_bridge::raw_json::is_empty",
+        with = "gojson_bridge::raw_json"
+    )]
     #[gojson(go = "App", json = "app,omitempty")]
     pub app: RawJson,
     /// Go field `User`.
+    #[serde(
+        rename = "user",
+        skip_serializing_if = "gojson_bridge::raw_json::is_empty",
+        with = "gojson_bridge::raw_json"
+    )]
     #[gojson(go = "User", json = "user,omitempty")]
     pub user: RawJson,
     /// Go field `Device`.
+    #[serde(
+        rename = "device",
+        skip_serializing_if = "gojson_bridge::raw_json::is_empty",
+        with = "gojson_bridge::raw_json"
+    )]
     #[gojson(go = "Device", json = "device,omitempty")]
     pub device: RawJson,
 }
 
+impl MergeClone for ORTB2 {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ORTB2";
+        merge_struct(patch, |key, value| match key {
+            "site" => gojson_bridge::merge_field(&mut self.site, value, GO_TYPE, "Site"),
+            "app" => gojson_bridge::merge_field(&mut self.app, value, GO_TYPE, "App"),
+            "user" => gojson_bridge::merge_field(&mut self.user, value, GO_TYPE, "User"),
+            "device" => gojson_bridge::merge_field(&mut self.device, value, GO_TYPE, "Device"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ExtRequestCurrency`.
-#[derive(Clone, Debug, Default, PartialEq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtRequestCurrency")]
 pub struct ExtRequestCurrency {
     /// Go field `ConversionRates`.
+    #[serde(rename = "rates")]
     #[gojson(go = "ConversionRates", json = "rates")]
     pub conversion_rates: Option<BTreeMap<String, Option<BTreeMap<String, f64>>>>,
     /// Go field `UsePBSRates`.
+    #[serde(rename = "usepbsrates")]
     #[gojson(go = "UsePBSRates", json = "usepbsrates")]
     pub use_pbs_rates: Option<bool>,
 }
 
+impl MergeClone for ExtRequestCurrency {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtRequestCurrency";
+        merge_struct(patch, |key, value| match key {
+            "rates" => merge_field(
+                &mut self.conversion_rates,
+                value,
+                GO_TYPE,
+                "ConversionRates",
+            ),
+            "usepbsrates" => merge_field(&mut self.use_pbs_rates, value, GO_TYPE, "UsePBSRates"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// `ExtRequestPrebid` defines the contract for bidrequest.ext.prebid.schains
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtRequestPrebidSChain")]
 pub struct ExtRequestPrebidSChain {
     /// Go field `Bidders`.
+    #[serde(rename = "bidders", skip_serializing_if = "is_nil_or_empty")]
     #[gojson(go = "Bidders", json = "bidders,omitempty")]
     pub bidders: Option<Vec<String>>,
     /// Go field `SChain`.
+    #[serde(rename = "schain", deserialize_with = "null_default")]
     #[gojson(go = "SChain", json = "schain")]
     pub s_chain: openrtb2::SupplyChain,
 }
 
+impl MergeClone for ExtRequestPrebidSChain {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtRequestPrebidSChain";
+        merge_struct(patch, |key, value| match key {
+            "bidders" => merge_field(&mut self.bidders, value, GO_TYPE, "Bidders"),
+            "schain" => merge_field(&mut self.s_chain, value, GO_TYPE, "SChain"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// `ExtRequestPrebidChannel` defines the contract for bidrequest.ext.prebid.channel
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtRequestPrebidChannel")]
 pub struct ExtRequestPrebidChannel {
     /// Go field `Name`.
+    #[serde(rename = "name", deserialize_with = "null_default")]
     #[gojson(go = "Name", json = "name")]
     pub name: String,
     /// Go field `Version`.
+    #[serde(rename = "version", deserialize_with = "null_default")]
     #[gojson(go = "Version", json = "version")]
     pub version: String,
 }
 
+impl MergeClone for ExtRequestPrebidChannel {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtRequestPrebidChannel";
+        merge_struct(patch, |key, value| match key {
+            "name" => merge_field(&mut self.name, value, GO_TYPE, "Name"),
+            "version" => merge_field(&mut self.version, value, GO_TYPE, "Version"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// `ExtRequestPrebidCache` defines the contract for bidrequest.ext.prebid.cache
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtRequestPrebidCache")]
 pub struct ExtRequestPrebidCache {
     /// Go field `Bids`.
+    #[serde(rename = "bids", skip_serializing_if = "Option::is_none")]
     #[gojson(go = "Bids", json = "bids,omitempty")]
     pub bids: Option<Box<ExtRequestPrebidCacheBids>>,
     /// Go field `VastXML`.
+    #[serde(rename = "vastxml", skip_serializing_if = "Option::is_none")]
     #[gojson(go = "VastXML", json = "vastxml,omitempty")]
     pub vast_xml: Option<Box<ExtRequestPrebidCacheVAST>>,
 }
 
+impl MergeClone for ExtRequestPrebidCache {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtRequestPrebidCache";
+        merge_struct(patch, |key, value| match key {
+            "bids" => merge_field(&mut self.bids, value, GO_TYPE, "Bids"),
+            "vastxml" => merge_field(&mut self.vast_xml, value, GO_TYPE, "VastXML"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ExtRequestPrebidServer`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtRequestPrebidServer")]
 pub struct ExtRequestPrebidServer {
     /// Go field `ExternalUrl`.
+    #[serde(rename = "externalurl", deserialize_with = "null_default")]
     #[gojson(go = "ExternalUrl", json = "externalurl")]
     pub external_url: String,
     /// Go field `GvlID`.
+    #[serde(rename = "gvlid", deserialize_with = "null_default")]
     #[gojson(go = "GvlID", json = "gvlid")]
     pub gvl_id: isize,
     /// Go field `DataCenter`.
+    #[serde(rename = "datacenter", deserialize_with = "null_default")]
     #[gojson(go = "DataCenter", json = "datacenter")]
     pub data_center: String,
 }
 
+impl MergeClone for ExtRequestPrebidServer {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtRequestPrebidServer";
+        merge_struct(patch, |key, value| match key {
+            "externalurl" => merge_field(&mut self.external_url, value, GO_TYPE, "ExternalUrl"),
+            "gvlid" => gojson_bridge::merge_field(&mut self.gvl_id, value, GO_TYPE, "GvlID"),
+            "datacenter" => merge_field(&mut self.data_center, value, GO_TYPE, "DataCenter"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// `ExtRequestPrebidCacheBids` defines the contract for bidrequest.ext.prebid.cache.bids
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtRequestPrebidCacheBids")]
 pub struct ExtRequestPrebidCacheBids {
     /// Go field `ReturnCreative`.
+    #[serde(rename = "returnCreative", skip_serializing_if = "Option::is_none")]
     #[gojson(go = "ReturnCreative", json = "returnCreative,omitempty")]
     pub return_creative: Option<bool>,
+}
+
+impl MergeClone for ExtRequestPrebidCacheBids {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtRequestPrebidCacheBids";
+        merge_struct(patch, |key, value| match key {
+            "returnCreative" => {
+                merge_field(&mut self.return_creative, value, GO_TYPE, "ReturnCreative")
+            }
+            _ => Ok(()),
+        })
+    }
 }
 
 /// `ExtRequestPrebidCacheVAST` defines the contract for bidrequest.ext.prebid.cache.vastxml
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtRequestPrebidCacheVAST")]
 pub struct ExtRequestPrebidCacheVAST {
     /// Go field `ReturnCreative`.
+    #[serde(rename = "returnCreative", skip_serializing_if = "Option::is_none")]
     #[gojson(go = "ReturnCreative", json = "returnCreative,omitempty")]
     pub return_creative: Option<bool>,
 }
 
+impl MergeClone for ExtRequestPrebidCacheVAST {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtRequestPrebidCacheVAST";
+        merge_struct(patch, |key, value| match key {
+            "returnCreative" => {
+                merge_field(&mut self.return_creative, value, GO_TYPE, "ReturnCreative")
+            }
+            _ => Ok(()),
+        })
+    }
+}
+
 /// `ExtRequestPrebidBidAdjustments` defines the contract for bidrequest.ext.prebid.bidadjustments
-#[derive(Clone, Debug, Default, PartialEq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtRequestPrebidBidAdjustments")]
 pub struct ExtRequestPrebidBidAdjustments {
     /// Go field `MediaType`.
+    #[serde(rename = "mediatype", deserialize_with = "null_default")]
     #[gojson(go = "MediaType", json = "mediatype,omitempty")]
     pub media_type: MediaType,
 }
 
+impl MergeClone for ExtRequestPrebidBidAdjustments {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtRequestPrebidBidAdjustments";
+        merge_struct(patch, |key, value| match key {
+            "mediatype" => merge_field(&mut self.media_type, value, GO_TYPE, "MediaType"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// `MediaType` defines contract for bidrequest.ext.prebid.bidadjustments.mediatype
 /// `BidderName` will map to a `DealID` that will map to a slice of bid adjustments
-#[derive(Clone, Debug, Default, PartialEq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.MediaType")]
 pub struct MediaType {
     /// Go field `Banner`.
+    #[serde(rename = "banner", skip_serializing_if = "is_nil_or_empty")]
     #[gojson(go = "Banner", json = "banner,omitempty")]
     pub banner: Option<BTreeMap<BidderName, AdjustmentsByDealID>>,
     /// Go field `VideoInstream`.
+    #[serde(rename = "video-instream", skip_serializing_if = "is_nil_or_empty")]
     #[gojson(go = "VideoInstream", json = "video-instream,omitempty")]
     pub video_instream: Option<BTreeMap<BidderName, AdjustmentsByDealID>>,
     /// Go field `VideoOutstream`.
+    #[serde(rename = "video-outstream", skip_serializing_if = "is_nil_or_empty")]
     #[gojson(go = "VideoOutstream", json = "video-outstream,omitempty")]
     pub video_outstream: Option<BTreeMap<BidderName, AdjustmentsByDealID>>,
     /// Go field `Audio`.
+    #[serde(rename = "audio", skip_serializing_if = "is_nil_or_empty")]
     #[gojson(go = "Audio", json = "audio,omitempty")]
     pub audio: Option<BTreeMap<BidderName, AdjustmentsByDealID>>,
     /// Go field `Native`.
+    #[serde(rename = "native", skip_serializing_if = "is_nil_or_empty")]
     #[gojson(go = "Native", json = "native,omitempty")]
     pub native: Option<BTreeMap<BidderName, AdjustmentsByDealID>>,
     /// Go field `WildCard`.
+    #[serde(rename = "*", skip_serializing_if = "is_nil_or_empty")]
     #[gojson(go = "WildCard", json = "*,omitempty")]
     pub wild_card: Option<BTreeMap<BidderName, AdjustmentsByDealID>>,
+}
+
+impl MergeClone for MediaType {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.MediaType";
+        merge_struct(patch, |key, value| match key {
+            "banner" => merge_field(&mut self.banner, value, GO_TYPE, "Banner"),
+            "video-instream" => {
+                merge_field(&mut self.video_instream, value, GO_TYPE, "VideoInstream")
+            }
+            "video-outstream" => {
+                merge_field(&mut self.video_outstream, value, GO_TYPE, "VideoOutstream")
+            }
+            "audio" => merge_field(&mut self.audio, value, GO_TYPE, "Audio"),
+            "native" => merge_field(&mut self.native, value, GO_TYPE, "Native"),
+            "*" => merge_field(&mut self.wild_card, value, GO_TYPE, "WildCard"),
+            _ => Ok(()),
+        })
+    }
 }
 
 /// ```text
 /// Adjustment defines the object that will be present in the slice of bid adjustments found from
 /// MediaType map
 /// ```
-#[derive(Clone, Debug, Default, PartialEq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.Adjustment")]
 pub struct Adjustment {
     /// Go field `Type`.
+    #[serde(
+        rename = "adjtype",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Type", json = "adjtype,omitempty")]
     pub r#type: String,
     /// Go field `Value`.
+    #[serde(
+        rename = "value",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Value", json = "value,omitempty")]
     pub value: f64,
     /// Go field `Currency`.
+    #[serde(
+        rename = "currency",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Currency", json = "currency,omitempty")]
     pub currency: String,
 }
 
+impl MergeClone for Adjustment {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.Adjustment";
+        merge_struct(patch, |key, value| match key {
+            "adjtype" => merge_field(&mut self.r#type, value, GO_TYPE, "Type"),
+            "value" => merge_field(&mut self.value, value, GO_TYPE, "Value"),
+            "currency" => merge_field(&mut self.currency, value, GO_TYPE, "Currency"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// `ExtRequestTargeting` defines the contract for bidrequest.ext.prebid.targeting
-#[derive(Clone, Debug, Default, PartialEq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtRequestTargeting")]
 pub struct ExtRequestTargeting {
     /// Go field `PriceGranularity`.
+    #[serde(rename = "pricegranularity", skip_serializing_if = "Option::is_none")]
     #[gojson(go = "PriceGranularity", json = "pricegranularity,omitempty")]
     pub price_granularity: Option<Box<PriceGranularity>>,
     /// Go field `MediaTypePriceGranularity`.
+    #[serde(
+        rename = "mediatypepricegranularity",
+        skip_serializing_if = "Option::is_none"
+    )]
     #[gojson(
         go = "MediaTypePriceGranularity",
         json = "mediatypepricegranularity,omitempty"
     )]
     pub media_type_price_granularity: Option<Box<MediaTypePriceGranularity>>,
     /// Go field `IncludeWinners`.
+    #[serde(rename = "includewinners", skip_serializing_if = "Option::is_none")]
     #[gojson(go = "IncludeWinners", json = "includewinners,omitempty")]
     pub include_winners: Option<bool>,
     /// Go field `IncludeBidderKeys`.
+    #[serde(rename = "includebidderkeys", skip_serializing_if = "Option::is_none")]
     #[gojson(go = "IncludeBidderKeys", json = "includebidderkeys,omitempty")]
     pub include_bidder_keys: Option<bool>,
     /// Go field `IncludeBrandCategory`.
+    #[serde(
+        rename = "includebrandcategory",
+        skip_serializing_if = "Option::is_none"
+    )]
     #[gojson(go = "IncludeBrandCategory", json = "includebrandcategory,omitempty")]
     pub include_brand_category: Option<Box<ExtIncludeBrandCategory>>,
     /// Go field `IncludeFormat`.
+    #[serde(
+        rename = "includeformat",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "IncludeFormat", json = "includeformat,omitempty")]
     pub include_format: bool,
     /// Go field `DurationRangeSec`.
+    #[serde(rename = "durationrangesec", skip_serializing_if = "is_nil_or_empty")]
     #[gojson(go = "DurationRangeSec", json = "durationrangesec,omitempty")]
     pub duration_range_sec: Option<Vec<isize>>,
     /// Go field `PreferDeals`.
+    #[serde(
+        rename = "preferdeals",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "PreferDeals", json = "preferdeals,omitempty")]
     pub prefer_deals: bool,
     /// Go field `AppendBidderNames`.
+    #[serde(
+        rename = "appendbiddernames",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "AppendBidderNames", json = "appendbiddernames,omitempty")]
     pub append_bidder_names: bool,
     /// Go field `AlwaysIncludeDeals`.
+    #[serde(
+        rename = "alwaysincludedeals",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "AlwaysIncludeDeals", json = "alwaysincludedeals,omitempty")]
     pub always_include_deals: bool,
     /// Go field `Prefix`.
+    #[serde(
+        rename = "prefix",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Prefix", json = "prefix,omitempty")]
     pub prefix: String,
 }
 
+impl MergeClone for ExtRequestTargeting {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtRequestTargeting";
+        merge_struct(patch, |key, value| match key {
+            "pricegranularity" => merge_field(
+                &mut self.price_granularity,
+                value,
+                GO_TYPE,
+                "PriceGranularity",
+            ),
+            "mediatypepricegranularity" => merge_field(
+                &mut self.media_type_price_granularity,
+                value,
+                GO_TYPE,
+                "MediaTypePriceGranularity",
+            ),
+            "includewinners" => {
+                merge_field(&mut self.include_winners, value, GO_TYPE, "IncludeWinners")
+            }
+            "includebidderkeys" => merge_field(
+                &mut self.include_bidder_keys,
+                value,
+                GO_TYPE,
+                "IncludeBidderKeys",
+            ),
+            "includebrandcategory" => merge_field(
+                &mut self.include_brand_category,
+                value,
+                GO_TYPE,
+                "IncludeBrandCategory",
+            ),
+            "includeformat" => {
+                merge_field(&mut self.include_format, value, GO_TYPE, "IncludeFormat")
+            }
+            "durationrangesec" => gojson_bridge::merge_field(
+                &mut self.duration_range_sec,
+                value,
+                GO_TYPE,
+                "DurationRangeSec",
+            ),
+            "preferdeals" => merge_field(&mut self.prefer_deals, value, GO_TYPE, "PreferDeals"),
+            "appendbiddernames" => merge_field(
+                &mut self.append_bidder_names,
+                value,
+                GO_TYPE,
+                "AppendBidderNames",
+            ),
+            "alwaysincludedeals" => merge_field(
+                &mut self.always_include_deals,
+                value,
+                GO_TYPE,
+                "AlwaysIncludeDeals",
+            ),
+            "prefix" => merge_field(&mut self.prefix, value, GO_TYPE, "Prefix"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ExtIncludeBrandCategory`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtIncludeBrandCategory")]
 pub struct ExtIncludeBrandCategory {
     /// Go field `PrimaryAdServer`.
+    #[serde(
+        rename = "primaryadserver",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "PrimaryAdServer", json = "primaryadserver,omitempty")]
     pub primary_ad_server: isize,
     /// Go field `Publisher`.
+    #[serde(
+        rename = "publisher",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Publisher", json = "publisher,omitempty")]
     pub publisher: String,
     /// Go field `WithCategory`.
+    #[serde(rename = "withcategory", deserialize_with = "null_default")]
     #[gojson(go = "WithCategory", json = "withcategory")]
     pub with_category: bool,
     /// Go field `TranslateCategories`.
+    #[serde(
+        rename = "translatecategories",
+        skip_serializing_if = "Option::is_none"
+    )]
     #[gojson(go = "TranslateCategories", json = "translatecategories,omitempty")]
     pub translate_categories: Option<bool>,
 }
 
+impl MergeClone for ExtIncludeBrandCategory {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtIncludeBrandCategory";
+        merge_struct(patch, |key, value| match key {
+            "primaryadserver" => gojson_bridge::merge_field(
+                &mut self.primary_ad_server,
+                value,
+                GO_TYPE,
+                "PrimaryAdServer",
+            ),
+            "publisher" => merge_field(&mut self.publisher, value, GO_TYPE, "Publisher"),
+            "withcategory" => merge_field(&mut self.with_category, value, GO_TYPE, "WithCategory"),
+            "translatecategories" => merge_field(
+                &mut self.translate_categories,
+                value,
+                GO_TYPE,
+                "TranslateCategories",
+            ),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// `MediaTypePriceGranularity` specify price granularity configuration at the bid type level
-#[derive(Clone, Debug, Default, PartialEq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.MediaTypePriceGranularity")]
 pub struct MediaTypePriceGranularity {
     /// Go field `Banner`.
+    #[serde(rename = "banner", skip_serializing_if = "Option::is_none")]
     #[gojson(go = "Banner", json = "banner,omitempty")]
     pub banner: Option<Box<PriceGranularity>>,
     /// Go field `Video`.
+    #[serde(rename = "video", skip_serializing_if = "Option::is_none")]
     #[gojson(go = "Video", json = "video,omitempty")]
     pub video: Option<Box<PriceGranularity>>,
     /// Go field `Native`.
+    #[serde(rename = "native", skip_serializing_if = "Option::is_none")]
     #[gojson(go = "Native", json = "native,omitempty")]
     pub native: Option<Box<PriceGranularity>>,
 }
 
+impl MergeClone for MediaTypePriceGranularity {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.MediaTypePriceGranularity";
+        merge_struct(patch, |key, value| match key {
+            "banner" => merge_field(&mut self.banner, value, GO_TYPE, "Banner"),
+            "video" => merge_field(&mut self.video, value, GO_TYPE, "Video"),
+            "native" => merge_field(&mut self.native, value, GO_TYPE, "Native"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.PriceGranularityRaw`.
-#[derive(Clone, Debug, Default, PartialEq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.PriceGranularityRaw")]
 pub struct PriceGranularityRaw {
     /// Go field `Precision`.
+    #[serde(rename = "precision", skip_serializing_if = "Option::is_none")]
     #[gojson(go = "Precision", json = "precision,omitempty")]
     pub precision: Option<isize>,
     /// Go field `Ranges`.
+    #[serde(rename = "ranges", skip_serializing_if = "is_nil_or_empty")]
     #[gojson(go = "Ranges", json = "ranges,omitempty")]
     pub ranges: Option<Vec<GranularityRange>>,
 }
 
+impl MergeClone for PriceGranularityRaw {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.PriceGranularityRaw";
+        merge_struct(patch, |key, value| match key {
+            "precision" => {
+                gojson_bridge::merge_field(&mut self.precision, value, GO_TYPE, "Precision")
+            }
+            "ranges" => merge_field(&mut self.ranges, value, GO_TYPE, "Ranges"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// `GranularityRange` struct defines a range of prices used by `PriceGranularity`
-#[derive(Clone, Copy, Debug, Default, PartialEq, GoJson)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.GranularityRange")]
 pub struct GranularityRange {
     /// Go field `Min`.
+    #[serde(rename = "min", deserialize_with = "null_default")]
     #[gojson(go = "Min", json = "min")]
     pub min: f64,
     /// Go field `Max`.
+    #[serde(rename = "max", deserialize_with = "null_default")]
     #[gojson(go = "Max", json = "max")]
     pub max: f64,
     /// Go field `Increment`.
+    #[serde(rename = "increment", deserialize_with = "null_default")]
     #[gojson(go = "Increment", json = "increment")]
     pub increment: f64,
 }
 
+impl MergeClone for GranularityRange {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.GranularityRange";
+        merge_struct(patch, |key, value| match key {
+            "min" => merge_field(&mut self.min, value, GO_TYPE, "Min"),
+            "max" => merge_field(&mut self.max, value, GO_TYPE, "Max"),
+            "increment" => merge_field(&mut self.increment, value, GO_TYPE, "Increment"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// `ExtRequestPrebidData` defines Prebid's First Party Data (FPD) and related bid request options.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtRequestPrebidData")]
 pub struct ExtRequestPrebidData {
     /// Go field `EidPermissions`.
+    #[serde(rename = "eidpermissions")]
     #[gojson(go = "EidPermissions", json = "eidpermissions")]
     pub eid_permissions: Option<Vec<ExtRequestPrebidDataEidPermission>>,
     /// Go field `Bidders`.
+    #[serde(rename = "bidders", skip_serializing_if = "is_nil_or_empty")]
     #[gojson(go = "Bidders", json = "bidders,omitempty")]
     pub bidders: Option<Vec<String>>,
 }
 
+impl MergeClone for ExtRequestPrebidData {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtRequestPrebidData";
+        merge_struct(patch, |key, value| match key {
+            "eidpermissions" => {
+                merge_field(&mut self.eid_permissions, value, GO_TYPE, "EidPermissions")
+            }
+            "bidders" => merge_field(&mut self.bidders, value, GO_TYPE, "Bidders"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// `ExtRequestPrebidDataEidPermission` defines a filter rule for filter user.ext.eids
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtRequestPrebidDataEidPermission")]
 pub struct ExtRequestPrebidDataEidPermission {
     /// Go field `Source`.
+    #[serde(rename = "source", deserialize_with = "null_default")]
     #[gojson(go = "Source", json = "source")]
     pub source: String,
     /// Go field `Bidders`.
+    #[serde(rename = "bidders")]
     #[gojson(go = "Bidders", json = "bidders")]
     pub bidders: Option<Vec<String>>,
 }
 
+impl MergeClone for ExtRequestPrebidDataEidPermission {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtRequestPrebidDataEidPermission";
+        merge_struct(patch, |key, value| match key {
+            "source" => merge_field(&mut self.source, value, GO_TYPE, "Source"),
+            "bidders" => merge_field(&mut self.bidders, value, GO_TYPE, "Bidders"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ExtRequestSdk`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtRequestSdk")]
 pub struct ExtRequestSdk {
     /// Go field `Renderers`.
+    #[serde(rename = "renderers", skip_serializing_if = "is_nil_or_empty")]
     #[gojson(go = "Renderers", json = "renderers,omitempty")]
     pub renderers: Option<Vec<ExtRequestSdkRenderer>>,
 }
 
+impl MergeClone for ExtRequestSdk {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtRequestSdk";
+        merge_struct(patch, |key, value| match key {
+            "renderers" => merge_field(&mut self.renderers, value, GO_TYPE, "Renderers"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ExtRequestSdkRenderer`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtRequestSdkRenderer")]
 pub struct ExtRequestSdkRenderer {
     /// Go field `Name`.
+    #[serde(
+        rename = "name",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Name", json = "name,omitempty")]
     pub name: String,
     /// Go field `Version`.
+    #[serde(
+        rename = "version",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Version", json = "version,omitempty")]
     pub version: String,
     /// Go field `Data`.
+    #[serde(
+        rename = "data",
+        skip_serializing_if = "gojson_bridge::raw_json::is_empty",
+        with = "gojson_bridge::raw_json"
+    )]
     #[gojson(go = "Data", json = "data,omitempty")]
     pub data: RawJson,
 }
 
+impl MergeClone for ExtRequestSdkRenderer {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtRequestSdkRenderer";
+        merge_struct(patch, |key, value| match key {
+            "name" => merge_field(&mut self.name, value, GO_TYPE, "Name"),
+            "version" => merge_field(&mut self.version, value, GO_TYPE, "Version"),
+            "data" => gojson_bridge::merge_field(&mut self.data, value, GO_TYPE, "Data"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ExtMultiBid`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtMultiBid")]
 pub struct ExtMultiBid {
     /// Go field `Bidder`.
+    #[serde(
+        rename = "bidder",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Bidder", json = "bidder,omitempty")]
     pub bidder: String,
     /// Go field `Bidders`.
+    #[serde(rename = "bidders", skip_serializing_if = "is_nil_or_empty")]
     #[gojson(go = "Bidders", json = "bidders,omitempty")]
     pub bidders: Option<Vec<String>>,
     /// Go field `MaxBids`.
+    #[serde(rename = "maxbids", skip_serializing_if = "Option::is_none")]
     #[gojson(go = "MaxBids", json = "maxbids,omitempty")]
     pub max_bids: Option<isize>,
     /// Go field `TargetBidderCodePrefix`.
+    #[serde(
+        rename = "targetbiddercodeprefix",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(
         go = "TargetBidderCodePrefix",
         json = "targetbiddercodeprefix,omitempty"
@@ -5816,29 +13024,69 @@ pub struct ExtMultiBid {
     pub target_bidder_code_prefix: String,
 }
 
+impl MergeClone for ExtMultiBid {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtMultiBid";
+        merge_struct(patch, |key, value| match key {
+            "bidder" => merge_field(&mut self.bidder, value, GO_TYPE, "Bidder"),
+            "bidders" => merge_field(&mut self.bidders, value, GO_TYPE, "Bidders"),
+            "maxbids" => gojson_bridge::merge_field(&mut self.max_bids, value, GO_TYPE, "MaxBids"),
+            "targetbiddercodeprefix" => merge_field(
+                &mut self.target_bidder_code_prefix,
+                value,
+                GO_TYPE,
+                "TargetBidderCodePrefix",
+            ),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.BidderControl`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.BidderControl")]
 pub struct BidderControl {
     /// Go field `PreferredMediaType`.
+    #[serde(rename = "prefmtype", deserialize_with = "null_default")]
     #[gojson(go = "PreferredMediaType", json = "prefmtype")]
     pub preferred_media_type: BidType,
 }
 
+impl MergeClone for BidderControl {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.BidderControl";
+        merge_struct(patch, |key, value| match key {
+            "prefmtype" => merge_field(
+                &mut self.preferred_media_type,
+                value,
+                GO_TYPE,
+                "PreferredMediaType",
+            ),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// `ExtBidResponse` defines the contract for bidresponse.ext
-#[derive(Clone, Debug, Default, PartialEq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtBidResponse")]
 pub struct ExtBidResponse {
     /// Go field `Debug`.
+    #[serde(rename = "debug", skip_serializing_if = "Option::is_none")]
     #[gojson(go = "Debug", json = "debug,omitempty")]
     pub debug: Option<Box<ExtResponseDebug>>,
     /// Errors defines the contract for bidresponse.ext.errors
+    #[serde(rename = "errors", skip_serializing_if = "is_nil_or_empty")]
     #[gojson(go = "Errors", json = "errors,omitempty")]
     pub errors: Option<BTreeMap<BidderName, Option<Vec<ExtBidderMessage>>>>,
     /// Go field `Warnings`.
+    #[serde(rename = "warnings", skip_serializing_if = "is_nil_or_empty")]
     #[gojson(go = "Warnings", json = "warnings,omitempty")]
     pub warnings: Option<BTreeMap<BidderName, Option<Vec<ExtBidderMessage>>>>,
     /// `ResponseTimeMillis` defines the contract for bidresponse.ext.responsetimemillis
+    #[serde(rename = "responsetimemillis", skip_serializing_if = "is_nil_or_empty")]
     #[gojson(go = "ResponseTimeMillis", json = "responsetimemillis,omitempty")]
     pub response_time_millis: Option<BTreeMap<BidderName, isize>>,
     /// ```text
@@ -5847,295 +13095,700 @@ pub struct ExtBidResponse {
     /// Clients can run one auction, and then use this to set better connection timeouts on future
     /// auction requests.
     /// ```
+    #[serde(
+        rename = "tmaxrequest",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "RequestTimeoutMillis", json = "tmaxrequest,omitempty")]
     pub request_timeout_millis: i64,
     /// `ResponseUserSync` defines the contract for bidresponse.ext.usersync
+    #[serde(rename = "usersync", skip_serializing_if = "is_nil_or_empty")]
     #[gojson(go = "Usersync", json = "usersync,omitempty")]
     pub usersync: Option<BTreeMap<BidderName, Option<Box<ExtResponseSyncData>>>>,
     /// Prebid defines the contract for bidresponse.ext.prebid
+    #[serde(rename = "prebid", skip_serializing_if = "Option::is_none")]
     #[gojson(go = "Prebid", json = "prebid,omitempty")]
     pub prebid: Option<Box<ExtResponsePrebid>>,
 }
 
+impl MergeClone for ExtBidResponse {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtBidResponse";
+        merge_struct(patch, |key, value| match key {
+            "debug" => merge_field(&mut self.debug, value, GO_TYPE, "Debug"),
+            "errors" => merge_field(&mut self.errors, value, GO_TYPE, "Errors"),
+            "warnings" => merge_field(&mut self.warnings, value, GO_TYPE, "Warnings"),
+            "responsetimemillis" => gojson_bridge::merge_field(
+                &mut self.response_time_millis,
+                value,
+                GO_TYPE,
+                "ResponseTimeMillis",
+            ),
+            "tmaxrequest" => merge_field(
+                &mut self.request_timeout_millis,
+                value,
+                GO_TYPE,
+                "RequestTimeoutMillis",
+            ),
+            "usersync" => merge_field(&mut self.usersync, value, GO_TYPE, "Usersync"),
+            "prebid" => merge_field(&mut self.prebid, value, GO_TYPE, "Prebid"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// `ExtResponseDebug` defines the contract for bidresponse.ext.debug
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtResponseDebug")]
 pub struct ExtResponseDebug {
     /// `HttpCalls` defines the contract for bidresponse.ext.debug.httpcalls
+    #[serde(rename = "httpcalls", skip_serializing_if = "is_nil_or_empty")]
     #[gojson(go = "HttpCalls", json = "httpcalls,omitempty")]
     pub http_calls: Option<BTreeMap<BidderName, ExtHttpCalls>>,
     /// Request after resolution of stored requests and debug overrides
+    #[serde(
+        rename = "resolvedrequest",
+        skip_serializing_if = "gojson_bridge::raw_json::is_empty",
+        with = "gojson_bridge::raw_json"
+    )]
     #[gojson(go = "ResolvedRequest", json = "resolvedrequest,omitempty")]
     pub resolved_request: RawJson,
+}
+
+impl MergeClone for ExtResponseDebug {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtResponseDebug";
+        merge_struct(patch, |key, value| match key {
+            "httpcalls" => merge_field(&mut self.http_calls, value, GO_TYPE, "HttpCalls"),
+            "resolvedrequest" => gojson_bridge::merge_field(
+                &mut self.resolved_request,
+                value,
+                GO_TYPE,
+                "ResolvedRequest",
+            ),
+            _ => Ok(()),
+        })
+    }
 }
 
 /// ```text
 /// ExtResponseSyncData defines the contract for bidresponse.ext.usersync.{bidder}
 /// ```
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtResponseSyncData")]
 pub struct ExtResponseSyncData {
     /// Go field `Status`.
+    #[serde(rename = "status", deserialize_with = "null_default")]
     #[gojson(go = "Status", json = "status")]
     pub status: CookieStatus,
     /// ```text
     /// Syncs must have length > 0
     /// ```
+    #[serde(rename = "syncs")]
     #[gojson(go = "Syncs", json = "syncs")]
     pub syncs: Option<Vec<Option<Box<ExtUserSync>>>>,
 }
 
+impl MergeClone for ExtResponseSyncData {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtResponseSyncData";
+        merge_struct(patch, |key, value| match key {
+            "status" => merge_field(&mut self.status, value, GO_TYPE, "Status"),
+            "syncs" => merge_field(&mut self.syncs, value, GO_TYPE, "Syncs"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// `ExtResponsePrebid` defines the contract for bidresponse.ext.prebid
-#[derive(Clone, Debug, Default, PartialEq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtResponsePrebid")]
 pub struct ExtResponsePrebid {
     /// Go field `AuctionTimestamp`.
+    #[serde(
+        rename = "auctiontimestamp",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "AuctionTimestamp", json = "auctiontimestamp,omitempty")]
     pub auction_timestamp: i64,
     /// Go field `Passthrough`.
+    #[serde(
+        rename = "passthrough",
+        skip_serializing_if = "gojson_bridge::raw_json::is_empty",
+        with = "gojson_bridge::raw_json"
+    )]
     #[gojson(go = "Passthrough", json = "passthrough,omitempty")]
     pub passthrough: RawJson,
     /// Go field `Modules`.
+    #[serde(
+        rename = "modules",
+        skip_serializing_if = "gojson_bridge::raw_json::is_empty",
+        with = "gojson_bridge::raw_json"
+    )]
     #[gojson(go = "Modules", json = "modules,omitempty")]
     pub modules: RawJson,
     /// Go field `Fledge`.
+    #[serde(rename = "fledge", skip_serializing_if = "Option::is_none")]
     #[gojson(go = "Fledge", json = "fledge,omitempty")]
     pub fledge: Option<Box<Fledge>>,
     /// Go field `Targeting`.
+    #[serde(rename = "targeting", skip_serializing_if = "is_nil_or_empty")]
     #[gojson(go = "Targeting", json = "targeting,omitempty")]
     pub targeting: Option<BTreeMap<String, String>>,
     /// ```text
     /// SeatNonBid holds the array of Bids which are either rejected, no bids inside
     /// bidresponse.ext.prebid.seatnonbid
     /// ```
+    #[serde(rename = "seatnonbid", skip_serializing_if = "is_nil_or_empty")]
     #[gojson(go = "SeatNonBid", json = "seatnonbid,omitempty")]
     pub seat_non_bid: Option<Vec<SeatNonBid>>,
 }
 
+impl MergeClone for ExtResponsePrebid {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtResponsePrebid";
+        merge_struct(patch, |key, value| match key {
+            "auctiontimestamp" => merge_field(
+                &mut self.auction_timestamp,
+                value,
+                GO_TYPE,
+                "AuctionTimestamp",
+            ),
+            "passthrough" => {
+                gojson_bridge::merge_field(&mut self.passthrough, value, GO_TYPE, "Passthrough")
+            }
+            "modules" => gojson_bridge::merge_field(&mut self.modules, value, GO_TYPE, "Modules"),
+            "fledge" => merge_field(&mut self.fledge, value, GO_TYPE, "Fledge"),
+            "targeting" => merge_field(&mut self.targeting, value, GO_TYPE, "Targeting"),
+            "seatnonbid" => merge_field(&mut self.seat_non_bid, value, GO_TYPE, "SeatNonBid"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// `FledgeResponse` defines the contract for bidresponse.ext.fledge
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.Fledge")]
 pub struct Fledge {
     /// Go field `AuctionConfigs`.
+    #[serde(rename = "auctionconfigs", skip_serializing_if = "is_nil_or_empty")]
     #[gojson(go = "AuctionConfigs", json = "auctionconfigs,omitempty")]
     pub auction_configs: Option<Vec<Option<Box<FledgeAuctionConfig>>>>,
+}
+
+impl MergeClone for Fledge {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.Fledge";
+        merge_struct(patch, |key, value| match key {
+            "auctionconfigs" => {
+                merge_field(&mut self.auction_configs, value, GO_TYPE, "AuctionConfigs")
+            }
+            _ => Ok(()),
+        })
+    }
 }
 
 /// ```text
 /// FledgeAuctionConfig defines the container for bidresponse.ext.fledge.auctionconfigs[]
 /// ```
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.FledgeAuctionConfig")]
 pub struct FledgeAuctionConfig {
     /// Go field `ImpId`.
+    #[serde(rename = "impid", deserialize_with = "null_default")]
     #[gojson(go = "ImpId", json = "impid")]
     pub imp_id: String,
     /// Go field `Bidder`.
+    #[serde(
+        rename = "bidder",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Bidder", json = "bidder,omitempty")]
     pub bidder: String,
     /// Go field `Adapter`.
+    #[serde(
+        rename = "adapter",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Adapter", json = "adapter,omitempty")]
     pub adapter: String,
     /// Go field `Config`.
+    #[serde(rename = "config", with = "gojson_bridge::raw_json")]
     #[gojson(go = "Config", json = "config")]
     pub config: RawJson,
+}
+
+impl MergeClone for FledgeAuctionConfig {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.FledgeAuctionConfig";
+        merge_struct(patch, |key, value| match key {
+            "impid" => merge_field(&mut self.imp_id, value, GO_TYPE, "ImpId"),
+            "bidder" => merge_field(&mut self.bidder, value, GO_TYPE, "Bidder"),
+            "adapter" => merge_field(&mut self.adapter, value, GO_TYPE, "Adapter"),
+            "config" => gojson_bridge::merge_field(&mut self.config, value, GO_TYPE, "Config"),
+            _ => Ok(()),
+        })
+    }
 }
 
 /// ```text
 /// ExtUserSync defines the contract for bidresponse.ext.usersync.{bidder}.syncs[i]
 /// ```
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtUserSync")]
 pub struct ExtUserSync {
     /// Go field `Url`.
+    #[serde(rename = "url", deserialize_with = "null_default")]
     #[gojson(go = "Url", json = "url")]
     pub url: String,
     /// Go field `Type`.
+    #[serde(rename = "type", deserialize_with = "null_default")]
     #[gojson(go = "Type", json = "type")]
     pub r#type: UserSyncType,
+}
+
+impl MergeClone for ExtUserSync {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtUserSync";
+        merge_struct(patch, |key, value| match key {
+            "url" => merge_field(&mut self.url, value, GO_TYPE, "Url"),
+            "type" => merge_field(&mut self.r#type, value, GO_TYPE, "Type"),
+            _ => Ok(()),
+        })
+    }
 }
 
 /// ```text
 /// ExtBidderMessage defines an error object to be returned, consiting of a machine readable error
 /// code, and a human readable error message string.
 /// ```
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtBidderMessage")]
 pub struct ExtBidderMessage {
     /// Go field `Code`.
+    #[serde(rename = "code", deserialize_with = "null_default")]
     #[gojson(go = "Code", json = "code")]
     pub code: isize,
     /// Go field `Message`.
+    #[serde(rename = "message", deserialize_with = "null_default")]
     #[gojson(go = "Message", json = "message")]
     pub message: String,
+}
+
+impl MergeClone for ExtBidderMessage {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtBidderMessage";
+        merge_struct(patch, |key, value| match key {
+            "code" => gojson_bridge::merge_field(&mut self.code, value, GO_TYPE, "Code"),
+            "message" => merge_field(&mut self.message, value, GO_TYPE, "Message"),
+            _ => Ok(()),
+        })
+    }
 }
 
 /// ```text
 /// ExtHttpCall defines the contract for a bidresponse.ext.debug.httpcalls.{bidder}[i]
 /// ```
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtHttpCall")]
 pub struct ExtHttpCall {
     /// Go field `Uri`.
+    #[serde(rename = "uri", deserialize_with = "null_default")]
     #[gojson(go = "Uri", json = "uri")]
     pub uri: String,
     /// Go field `RequestBody`.
+    #[serde(rename = "requestbody", deserialize_with = "null_default")]
     #[gojson(go = "RequestBody", json = "requestbody")]
     pub request_body: String,
     /// Go field `RequestHeaders`.
+    #[serde(rename = "requestheaders")]
     #[gojson(go = "RequestHeaders", json = "requestheaders")]
     pub request_headers: Option<BTreeMap<String, Option<Vec<String>>>>,
     /// Go field `ResponseBody`.
+    #[serde(rename = "responsebody", deserialize_with = "null_default")]
     #[gojson(go = "ResponseBody", json = "responsebody")]
     pub response_body: String,
     /// Go field `Status`.
+    #[serde(rename = "status", deserialize_with = "null_default")]
     #[gojson(go = "Status", json = "status")]
     pub status: isize,
 }
 
+impl MergeClone for ExtHttpCall {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtHttpCall";
+        merge_struct(patch, |key, value| match key {
+            "uri" => merge_field(&mut self.uri, value, GO_TYPE, "Uri"),
+            "requestbody" => merge_field(&mut self.request_body, value, GO_TYPE, "RequestBody"),
+            "requestheaders" => {
+                merge_field(&mut self.request_headers, value, GO_TYPE, "RequestHeaders")
+            }
+            "responsebody" => merge_field(&mut self.response_body, value, GO_TYPE, "ResponseBody"),
+            "status" => gojson_bridge::merge_field(&mut self.status, value, GO_TYPE, "Status"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// `NonBidObject` is subset of Bid object with exact json signature
 /// It also contains the custom fields
-#[derive(Clone, Debug, Default, PartialEq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.NonBidObject")]
 pub struct NonBidObject {
     /// `SubSet`
+    #[serde(
+        rename = "price",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Price", json = "price,omitempty")]
     pub price: f64,
     /// Go field `ADomain`.
+    #[serde(rename = "adomain", skip_serializing_if = "is_nil_or_empty")]
     #[gojson(go = "ADomain", json = "adomain,omitempty")]
     pub a_domain: Option<Vec<String>>,
     /// Go field `CatTax`.
+    #[serde(
+        rename = "cattax",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "CatTax", json = "cattax,omitempty")]
     pub cat_tax: adcom1::CategoryTaxonomy,
     /// Go field `Cat`.
+    #[serde(rename = "cat", skip_serializing_if = "is_nil_or_empty")]
     #[gojson(go = "Cat", json = "cat,omitempty")]
     pub cat: Option<Vec<String>>,
     /// Go field `DealID`.
+    #[serde(
+        rename = "dealid",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "DealID", json = "dealid,omitempty")]
     pub deal_id: String,
     /// Go field `W`.
+    #[serde(
+        rename = "w",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "W", json = "w,omitempty")]
     pub w: i64,
     /// Go field `H`.
+    #[serde(
+        rename = "h",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "H", json = "h,omitempty")]
     pub h: i64,
     /// Go field `Dur`.
+    #[serde(
+        rename = "dur",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Dur", json = "dur,omitempty")]
     pub dur: i64,
     /// Go field `MType`.
+    #[serde(
+        rename = "mtype",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "MType", json = "mtype,omitempty")]
     pub m_type: openrtb2::MarkupType,
     /// Custom Fields
+    #[serde(
+        rename = "origbidcpm",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "OriginalBidCPM", json = "origbidcpm,omitempty")]
     pub original_bid_cpm: f64,
     /// Go field `OriginalBidCur`.
+    #[serde(
+        rename = "origbidcur",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "OriginalBidCur", json = "origbidcur,omitempty")]
     pub original_bid_cur: String,
+}
+
+impl MergeClone for NonBidObject {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.NonBidObject";
+        merge_struct(patch, |key, value| match key {
+            "price" => merge_field(&mut self.price, value, GO_TYPE, "Price"),
+            "adomain" => merge_field(&mut self.a_domain, value, GO_TYPE, "ADomain"),
+            "cattax" => merge_field(&mut self.cat_tax, value, GO_TYPE, "CatTax"),
+            "cat" => merge_field(&mut self.cat, value, GO_TYPE, "Cat"),
+            "dealid" => merge_field(&mut self.deal_id, value, GO_TYPE, "DealID"),
+            "w" => merge_field(&mut self.w, value, GO_TYPE, "W"),
+            "h" => merge_field(&mut self.h, value, GO_TYPE, "H"),
+            "dur" => merge_field(&mut self.dur, value, GO_TYPE, "Dur"),
+            "mtype" => merge_field(&mut self.m_type, value, GO_TYPE, "MType"),
+            "origbidcpm" => {
+                merge_field(&mut self.original_bid_cpm, value, GO_TYPE, "OriginalBidCPM")
+            }
+            "origbidcur" => {
+                merge_field(&mut self.original_bid_cur, value, GO_TYPE, "OriginalBidCur")
+            }
+            _ => Ok(()),
+        })
+    }
 }
 
 /// ```text
 /// ExtResponseNonBidPrebid represents bidresponse.ext.prebid.seatnonbid[].nonbid[].ext
 /// ```
-#[derive(Clone, Debug, Default, PartialEq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtResponseNonBidPrebid")]
 pub struct ExtResponseNonBidPrebid {
     /// Go field `Bid`.
+    #[serde(rename = "bid", deserialize_with = "null_default")]
     #[gojson(go = "Bid", json = "bid")]
     pub bid: NonBidObject,
 }
 
+impl MergeClone for ExtResponseNonBidPrebid {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtResponseNonBidPrebid";
+        merge_struct(patch, |key, value| match key {
+            "bid" => merge_field(&mut self.bid, value, GO_TYPE, "Bid"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.NonBidExt`.
-#[derive(Clone, Debug, Default, PartialEq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.NonBidExt")]
 pub struct NonBidExt {
     /// Go field `Prebid`.
+    #[serde(rename = "prebid", deserialize_with = "null_default")]
     #[gojson(go = "Prebid", json = "prebid")]
     pub prebid: ExtResponseNonBidPrebid,
 }
 
+impl MergeClone for NonBidExt {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.NonBidExt";
+        merge_struct(patch, |key, value| match key {
+            "prebid" => merge_field(&mut self.prebid, value, GO_TYPE, "Prebid"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// `NonBid` represnts the Non Bid Reason (statusCode) for given impression ID
-#[derive(Clone, Debug, Default, PartialEq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.NonBid")]
 pub struct NonBid {
     /// Go field `ImpId`.
+    #[serde(rename = "impid", deserialize_with = "null_default")]
     #[gojson(go = "ImpId", json = "impid")]
     pub imp_id: String,
     /// Go field `StatusCode`.
+    #[serde(rename = "statuscode", deserialize_with = "null_default")]
     #[gojson(go = "StatusCode", json = "statuscode")]
     pub status_code: isize,
     /// Go field `Ext`.
+    #[serde(rename = "ext", skip_serializing_if = "Option::is_none")]
     #[gojson(go = "Ext", json = "ext,omitempty")]
     pub ext: Option<Box<NonBidExt>>,
 }
 
+impl MergeClone for NonBid {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.NonBid";
+        merge_struct(patch, |key, value| match key {
+            "impid" => merge_field(&mut self.imp_id, value, GO_TYPE, "ImpId"),
+            "statuscode" => {
+                gojson_bridge::merge_field(&mut self.status_code, value, GO_TYPE, "StatusCode")
+            }
+            "ext" => merge_field(&mut self.ext, value, GO_TYPE, "Ext"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// `SeatNonBid` is collection of `NonBid` objects with seat information
-#[derive(Clone, Debug, Default, PartialEq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.SeatNonBid")]
 pub struct SeatNonBid {
     /// Go field `NonBid`.
+    #[serde(rename = "nonbid")]
     #[gojson(go = "NonBid", json = "nonbid")]
     pub non_bid: Option<Vec<NonBid>>,
     /// Go field `Seat`.
+    #[serde(rename = "seat", deserialize_with = "null_default")]
     #[gojson(go = "Seat", json = "seat")]
     pub seat: String,
     /// Go field `Ext`.
+    #[serde(
+        rename = "ext",
+        skip_serializing_if = "gojson_bridge::raw_json::is_empty",
+        with = "gojson_bridge::raw_json"
+    )]
     #[gojson(go = "Ext", json = "ext,omitempty")]
     pub ext: RawJson,
 }
 
+impl MergeClone for SeatNonBid {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.SeatNonBid";
+        merge_struct(patch, |key, value| match key {
+            "nonbid" => merge_field(&mut self.non_bid, value, GO_TYPE, "NonBid"),
+            "seat" => merge_field(&mut self.seat, value, GO_TYPE, "Seat"),
+            "ext" => gojson_bridge::merge_field(&mut self.ext, value, GO_TYPE, "Ext"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// `ExtSource` defines the contract for bidrequest.source.ext
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtSource")]
 pub struct ExtSource {
     /// Go field `SChain`.
+    #[serde(rename = "schain")]
     #[gojson(go = "SChain", json = "schain")]
     pub s_chain: Option<Box<openrtb2::SupplyChain>>,
 }
 
+impl MergeClone for ExtSource {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtSource";
+        merge_struct(patch, |key, value| match key {
+            "schain" => merge_field(&mut self.s_chain, value, GO_TYPE, "SChain"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// `ExtUser` defines the contract for bidrequest.user.ext
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtUser")]
 pub struct ExtUser {
     /// ```text
     /// Consent is a GDPR consent string. See "Advised Extensions" of
     /// https://iabtechlab.com/wp-content/uploads/2018/02/OpenRTB_Advisory_GDPR_2018-02.pdf
     /// ```
+    #[serde(
+        rename = "consent",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(go = "Consent", json = "consent,omitempty")]
     pub consent: String,
     /// Go field `ConsentedProvidersSettings`.
+    #[serde(
+        rename = "ConsentedProvidersSettings",
+        skip_serializing_if = "Option::is_none"
+    )]
     #[gojson(
         go = "ConsentedProvidersSettings",
         json = "ConsentedProvidersSettings,omitempty"
     )]
     pub consented_providers_settings: Option<Box<ConsentedProvidersSettingsIn>>,
     /// Go field `ConsentedProvidersSettingsParsed`.
+    #[serde(
+        rename = "consented_providers_settings",
+        skip_serializing_if = "Option::is_none"
+    )]
     #[gojson(
         go = "ConsentedProvidersSettingsParsed",
         json = "consented_providers_settings,omitempty"
     )]
     pub consented_providers_settings_parsed: Option<Box<ConsentedProvidersSettingsOut>>,
     /// Go field `Prebid`.
+    #[serde(rename = "prebid", skip_serializing_if = "Option::is_none")]
     #[gojson(go = "Prebid", json = "prebid,omitempty")]
     pub prebid: Option<Box<ExtUserPrebid>>,
     /// Go field `Eids`.
+    #[serde(rename = "eids", skip_serializing_if = "is_nil_or_empty")]
     #[gojson(go = "Eids", json = "eids,omitempty")]
     pub eids: Option<Vec<openrtb2::EID>>,
 }
 
+impl MergeClone for ExtUser {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtUser";
+        merge_struct(patch, |key, value| match key {
+            "consent" => merge_field(&mut self.consent, value, GO_TYPE, "Consent"),
+            "ConsentedProvidersSettings" => merge_field(
+                &mut self.consented_providers_settings,
+                value,
+                GO_TYPE,
+                "ConsentedProvidersSettings",
+            ),
+            "consented_providers_settings" => merge_field(
+                &mut self.consented_providers_settings_parsed,
+                value,
+                GO_TYPE,
+                "ConsentedProvidersSettingsParsed",
+            ),
+            "prebid" => merge_field(&mut self.prebid, value, GO_TYPE, "Prebid"),
+            "eids" => merge_field(&mut self.eids, value, GO_TYPE, "Eids"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// `ExtUserPrebid` defines the contract for bidrequest.user.ext.prebid
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ExtUserPrebid")]
 pub struct ExtUserPrebid {
     /// Go field `BuyerUIDs`.
+    #[serde(rename = "buyeruids", skip_serializing_if = "is_nil_or_empty")]
     #[gojson(go = "BuyerUIDs", json = "buyeruids,omitempty")]
     pub buyer_uids: Option<BTreeMap<String, String>>,
 }
 
+impl MergeClone for ExtUserPrebid {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ExtUserPrebid";
+        merge_struct(patch, |key, value| match key {
+            "buyeruids" => merge_field(&mut self.buyer_uids, value, GO_TYPE, "BuyerUIDs"),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ConsentedProvidersSettingsIn`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ConsentedProvidersSettingsIn")]
 pub struct ConsentedProvidersSettingsIn {
     /// Go field `ConsentedProvidersString`.
+    #[serde(
+        rename = "consented_providers",
+        skip_serializing_if = "is_zero",
+        deserialize_with = "null_default"
+    )]
     #[gojson(
         go = "ConsentedProvidersString",
         json = "consented_providers,omitempty"
@@ -6143,11 +13796,46 @@ pub struct ConsentedProvidersSettingsIn {
     pub consented_providers_string: String,
 }
 
+impl MergeClone for ConsentedProvidersSettingsIn {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ConsentedProvidersSettingsIn";
+        merge_struct(patch, |key, value| match key {
+            "consented_providers" => merge_field(
+                &mut self.consented_providers_string,
+                value,
+                GO_TYPE,
+                "ConsentedProvidersString",
+            ),
+            _ => Ok(()),
+        })
+    }
+}
+
 /// Go type `openrtb_ext.ConsentedProvidersSettingsOut`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, GoJson)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, GoJson)]
+#[serde(default)]
 #[gojson(go_type = "openrtb_ext.ConsentedProvidersSettingsOut")]
 pub struct ConsentedProvidersSettingsOut {
     /// Go field `ConsentedProvidersList`.
+    #[serde(
+        rename = "consented_providers",
+        skip_serializing_if = "is_nil_or_empty"
+    )]
     #[gojson(go = "ConsentedProvidersList", json = "consented_providers,omitempty")]
     pub consented_providers_list: Option<Vec<isize>>,
+}
+
+impl MergeClone for ConsentedProvidersSettingsOut {
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        const GO_TYPE: &str = "openrtb_ext.ConsentedProvidersSettingsOut";
+        merge_struct(patch, |key, value| match key {
+            "consented_providers" => gojson_bridge::merge_field(
+                &mut self.consented_providers_list,
+                value,
+                GO_TYPE,
+                "ConsentedProvidersList",
+            ),
+            _ => Ok(()),
+        })
+    }
 }

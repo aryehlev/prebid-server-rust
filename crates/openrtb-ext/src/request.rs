@@ -4,6 +4,11 @@
 use std::collections::BTreeMap;
 
 use pbs_gojson::{GoJson, GoUnmarshaler, JsonError, jsonutil};
+use pbs_jsonutil::{MergeClone, MergeCloneError, is_nil_or_empty, unmarshal};
+use serde::{
+    Deserialize, Deserializer, Serialize, Serializer, de::Error as _, ser::SerializeStruct as _,
+};
+use serde_json::value::RawValue;
 
 use crate::{
     generated::{Adjustment, ExtMultiBid, ExtRequestPrebid, GranularityRange, PriceGranularityRaw},
@@ -66,6 +71,59 @@ impl GoUnmarshaler for PriceGranularity {
             }
             Err(err) => Err(JsonError::msg(err.message.into_bytes())),
         }
+    }
+}
+
+impl PriceGranularity {
+    /// Go: `(*PriceGranularity).UnmarshalJSON(b)` for the JSON value `raw`, its decodes through
+    /// `pbs_jsonutil::unmarshal`: a legacy ID string gives its granularity, and anything else is
+    /// read as the custom model (`PriceGranularityRaw`), whose error is the error.
+    fn read(raw: &RawValue) -> Result<Self, String> {
+        // Go: openrtb_ext/request.go:240
+        let data = raw.get().as_bytes();
+        if let Ok(legacy_id) = unmarshal::<String>(data)
+            && let Some(legacy_value) = new_price_granularity_from_legacy_id(&legacy_id)
+        {
+            return Ok(legacy_value);
+        }
+        unmarshal::<PriceGranularityRaw>(data)
+            .map(Self::from)
+            .map_err(|e| e.to_string())
+    }
+}
+
+impl Serialize for PriceGranularity {
+    /// Go has no `MarshalJSON`: the struct, `precision` and `ranges` omitted when empty.
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        let mut out = serializer.serialize_struct("PriceGranularity", 2)?;
+        if self.precision.is_some() {
+            out.serialize_field("precision", &self.precision)?;
+        } else {
+            out.skip_field("precision")?;
+        }
+        if is_nil_or_empty(&self.ranges) {
+            out.skip_field("ranges")?;
+        } else {
+            out.serialize_field("ranges", &self.ranges)?;
+        }
+        out.end()
+    }
+}
+
+impl<'de> Deserialize<'de> for PriceGranularity {
+    /// Reads through Go's `UnmarshalJSON` (see `PriceGranularity::read`).
+    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        let raw = Box::<RawValue>::deserialize(deserializer)?;
+        Self::read(&raw).map_err(D::Error::custom)
+    }
+}
+
+impl MergeClone for PriceGranularity {
+    /// Go: jsoniter hands the patch to `UnmarshalJSON`, which replaces the whole value when it
+    /// reads the patch (the custom model starts from zero) and leaves it otherwise.
+    fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+        *self = Self::read(patch).map_err(MergeCloneError::new)?;
+        Ok(())
     }
 }
 
