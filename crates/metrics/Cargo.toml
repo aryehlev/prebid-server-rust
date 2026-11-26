@@ -14,5 +14,8 @@ categories.workspace = true
 [lints]
 workspace = true
 
+# prometheus holds the Prometheus engine's registry; the go-metrics library's samples draw from
+# rand.
 [dependencies]
 prometheus = { workspace = true }
+rand = { workspace = true }
