@@ -159,11 +159,12 @@ rust = """\
     `(?:\\pL{100}){10}` are, those names and flags, `\\p{Cs}` and groups nested more than 250 \
     deep (`CompileError::Crate`), and drops a group repeated zero times, so `(a){0}b` has no \
     capture group."""
-who = ["none"]
+who = ["publisher"]
 visible_in = """\
-    Nowhere: none of the 162 patterns of Prebid's code and static/bidder-params has such a \
-    form, and adquery's pattern of `^` and the request ID (adapters/adquery/adquery.go:93) has \
-    one only for a request ID that is itself such a pattern"""
+    Only adquery's bids, for a request ID that is itself such a pattern: Go compiles `^` and \
+    the request ID (adapters/adquery/adquery.go:93) and removes the match from the \
+    `requestId` adquery answers with to make the bid's `impid`. None of the 162 fixed \
+    patterns of Prebid's code and static/bidder-params has such a form"""
 pin = "crates/util/tests/goregex.rs::untranslated_forms"
 restore = """\
     Translate the forms, rename the names, merge the flags, keep a group repeated zero times \
@@ -179,10 +180,12 @@ go = """\
     characters Unicode 16.0 added (U+1C89 CYRILLIC CAPITAL LETTER TJE among them) are \
     unassigned."""
 rust = "regex-syntax's tables are Unicode 16.0.0's, so `\\pL` matches U+1C89 and `(?i)` folds it to U+1C8A."
-who = ["none"]
+who = ["publisher"]
 visible_in = """\
-    Nowhere: no Prebid pattern has a `\\p` class, and its four `(?i)` patterns are ASCII \
-    literals"""
+    Only adquery's bids, for a request ID that is itself such a pattern, a `\\p` class or \
+    `(?i)` and a character Unicode 16.0 added: Go compiles `^` and the request ID \
+    (adapters/adquery/adquery.go:93). No fixed Prebid pattern has a `\\p` class, and its four \
+    `(?i)` patterns are ASCII literals"""
 pin = "crates/util/tests/goregex.rs::unicode_16_letters"
 restore = "Ship Unicode 15.0 tables; not planned."
 

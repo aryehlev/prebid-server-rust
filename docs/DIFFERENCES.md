@@ -1334,8 +1334,8 @@ No entry names the classes `other` and `unrecorded` or the kinds `stage_missing`
 
 - **Go:** `regexp.Compile` takes a repetition right after a flag group (`a(?i)*` repeats `a`) and escapes of surrogate code points (`\x{D800}`), compiles counted repetitions of up to 1,000 of any class (`\pL{1000}`), capture names that start with a digit (`(?P<1a>x)`) or are used twice, a flag repeated or set and cleared in one group (`(?ii)`, `(?i-i)`), `\p{Cs}` and groups nested up to 1,000 deep, and keeps a group repeated zero times (`(a){0}b` has one subexpression, which never takes part).
 - **Rust:** `goregex::compile` fails with `CompileError::Unsupported` for the first two; the regex crate refuses a compiled program over its 10 MiB default, which `\pL{1000}` and `(?:\pL{100}){10}` are, those names and flags, `\p{Cs}` and groups nested more than 250 deep (`CompileError::Crate`), and drops a group repeated zero times, so `(a){0}b` has no capture group.
-- **Who notices:** none
-- **Visible in:** Nowhere: none of the 162 patterns of Prebid's code and static/bidder-params has such a form, and adquery's pattern of `^` and the request ID (adapters/adquery/adquery.go:93) has one only for a request ID that is itself such a pattern
+- **Who notices:** publisher
+- **Visible in:** Only adquery's bids, for a request ID that is itself such a pattern: Go compiles `^` and the request ID (adapters/adquery/adquery.go:93) and removes the match from the `requestId` adquery answers with to make the bid's `impid`. None of the 162 fixed patterns of Prebid's code and static/bidder-params has such a form
 - **Harness:** none
 - **Pin:** `crates/util/tests/goregex.rs::untranslated_forms`
 - **Restore option:** Translate the forms, rename the names, merge the flags, keep a group repeated zero times and raise the limits when a Prebid pattern needs them; not planned.
@@ -1345,8 +1345,8 @@ No entry names the classes `other` and `unrecorded` or the kinds `stage_missing`
 
 - **Go:** `\pL`, the other `\p` classes and `(?i)` follow `unicode.Version` 15.0.0, where the characters Unicode 16.0 added (U+1C89 CYRILLIC CAPITAL LETTER TJE among them) are unassigned.
 - **Rust:** regex-syntax's tables are Unicode 16.0.0's, so `\pL` matches U+1C89 and `(?i)` folds it to U+1C8A.
-- **Who notices:** none
-- **Visible in:** Nowhere: no Prebid pattern has a `\p` class, and its four `(?i)` patterns are ASCII literals
+- **Who notices:** publisher
+- **Visible in:** Only adquery's bids, for a request ID that is itself such a pattern, a `\p` class or `(?i)` and a character Unicode 16.0 added: Go compiles `^` and the request ID (adapters/adquery/adquery.go:93). No fixed Prebid pattern has a `\p` class, and its four `(?i)` patterns are ASCII literals
 - **Harness:** none
 - **Pin:** `crates/util/tests/goregex.rs::unicode_16_letters`
 - **Restore option:** Ship Unicode 15.0 tables; not planned.
