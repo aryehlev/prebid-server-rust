@@ -74,7 +74,7 @@ const JSONPARSER_MALFORMED: &str =
 
 /// `doc` with each number `-0` written `0`, `None` when it holds none or is not JSON: what the
 /// port reads where Go reads `-0` into an integer as 0.
-fn without_negative_zeros(doc: &str) -> Option<String> {
+pub(super) fn without_negative_zeros(doc: &str) -> Option<String> {
     fn fix(node: shapes::Node, changed: &mut bool) -> shapes::Node {
         match node {
             shapes::Node::Object(members) => shapes::Node::Object(

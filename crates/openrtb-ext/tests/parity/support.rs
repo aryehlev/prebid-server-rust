@@ -7,7 +7,8 @@ use std::{
 };
 
 use pbs_devtools::repo;
-use pbs_gocompat::strconv::unquote_bytes;
+
+use crate::go_quote::unquote;
 
 /// A test result whose error is the failure message.
 pub(super) type TestResult<T = ()> = Result<T, String>;
@@ -56,9 +57,7 @@ pub(super) fn golden_rows(file: &str) -> TestResult<Vec<Vec<Vec<u8>>>> {
         .enumerate()
         .map(|(n, line)| {
             line.split('\t')
-                .map(|field| {
-                    unquote_bytes(field).map_err(|e| format!("{file}:{}: {e}: {field}", n + 1))
-                })
+                .map(|field| unquote(field).map_err(|e| format!("{file}:{}: {e}", n + 1)))
                 .collect()
         })
         .collect()

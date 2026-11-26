@@ -1221,6 +1221,7 @@ dependencies = [
 name = "pbs-openrtb-ext"
 version = "0.1.0"
 dependencies = [
+ "flate2",
  "pbs-bidder-params",
  "pbs-devtools",
  "pbs-errortypes",

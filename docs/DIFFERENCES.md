@@ -25,7 +25,7 @@ Rule B's cases: (a) input real production traffic sends that the crate would rej
 | Gzip | 0 | 3 | 0 |
 | HTTP client | 0 | 24 | 5 |
 | IP addresses | 0 | 1 | 1 |
-| JSON | 5 | 42 | 6 |
+| JSON | 5 | 44 | 6 |
 | Logging | 0 | 10 | 3 |
 | Prometheus metrics | 1 | 7 | 1 |
 | Public suffix list | 1 | 0 | 0 |
@@ -38,7 +38,7 @@ Rule B's cases: (a) input real production traffic sends that the crate would rej
 | URLs | 0 | 2 | 2 |
 | User syncs | 0 | 1 | 0 |
 | YAML | 0 | 3 | 0 |
-| All | 7 | 142 | 35 |
+| All | 7 | 144 | 35 |
 
 ## Decisions pending
 
@@ -52,7 +52,7 @@ Rule B's cases: (a) input real production traffic sends that the crate would rej
 
 ## Restore pins still to land
 
-- `json.prebid-message-context`: brought by ORTBEXT-SERDE-WRAPPER.
+None.
 
 ## How the parity harness matches an entry
 
@@ -925,6 +925,17 @@ No entry names the classes `other` and `unrecorded` or the kinds `stage_missing`
 - **Restore option:** Write jsoniter's messages from serde_json's error categories; not planned (D-DECODE).
 - **Recorded in:** `crates/jsonutil/differences.toml`
 
+#### `json.ext-null-member`: An ext with a null member, rebuilt: Go writes bytes that are not JSON, the port the member as null
+
+- **Go:** jsoniter decodes a null member of an ext object into the wrapper's `map[string]json.RawMessage` as a nil `json.RawMessage`, which the ext's `marshal` writes as no value (`json.nil-raw-written`): once `imp.ext.tid` is set on `{"prebid":null,"other":[1,"x"]}`, `RebuildImp` stores `{"other":[1,"x"],"prebid":,"tid":"tid"}` in `imp.ext`, the request is written with no value for that ext (`"ext":}`), and reading the ext again fails (`do not know how to skip: 44`).
+- **Rust:** A nil member is `None`, which the rebuild writes as null: `{"other":[1,"x"],"prebid":null,"tid":"tid"}`, JSON that reads back.
+- **Who notices:** publisher, bidder
+- **Visible in:** The auction of a request with an `imp.ext` member that is null when Prebid sets the imp's `tid` (endpoints/openrtb2/auction.go:956-965): Go's `splitImps` then fails on the ext (`invalid json for imp[0]: ...`, exchange/utils.go:659-661) and no bidder is called, where the port runs the auction with the member null
+- **Harness:** none
+- **Pin:** `crates/openrtb-ext/tests/parity/request_wrapper/mod.rs::ext_null_members_written_null`
+- **Restore option:** Not planned: a `RawValue` holds JSON only, so the rebuild cannot store Go's bytes, and failing the auction where Go's split fails would be glue outside this crate for a request Go mishandles.
+- **Recorded in:** `crates/openrtb-ext/differences.toml`
+
 #### `json.failed-merge-elements`: A merge that fails in a slice element or map value: Go keeps that element or entry, the port drops it
 
 - **Go:** jsoniter appends each slice element and sets each map entry it starts to read, so after `jsonutil.MergeClone` fails in one the slice or map holds it with what was read, a zero value: `[4,0]` for `[4,"x"]` into a `[]int`, `{"a":1,"b":0}` for `{"b":"x"}` into a `map[string]int` holding `a`, an `imp` holding the `openrtb2.Imp` whose merge failed; a slice of strings goes on to the elements after it (`["a","","b"]` for `["a",1,"b"]`).
@@ -1265,6 +1276,17 @@ No entry names the classes `other` and `unrecorded` or the kinds `stage_missing`
 - **Restore option:** A `MergeCloneError` context without a type, which pbs-jsonutil does not offer; not planned while no caller reads the context.
 - **Recorded in:** `crates/openrtb/differences.toml`
 
+#### `json.raw-not-json`: Ext members that are not JSON: Go's ext maps hold any bytes and write no value for them, the port's hold JSON only
+
+- **Go:** An ext object's map is a `map[string]json.RawMessage`, which holds any bytes: `SetExt` takes a map with `malformed` in it, and an EID's `ext` can be `{bad`. The rebuild writes no value for bytes `json.Compact` rejects (`rawMessageCodec`, util/jsonutil/jsonutil.go:242-250).
+- **Rust:** A member is a `RawValue`, which holds JSON only, so no ext map holds `malformed`; an EID ext of `{bad` (an openrtb `RawJson`) fails the rebuild's marshal.
+- **Who notices:** none
+- **Visible in:** Nothing in production: the ext members Prebid sets are bytes jsoniter decoded, whose skip checks them, or bytes Prebid encoded
+- **Harness:** none
+- **Pin:** `crates/openrtb-ext/tests/parity/request_wrapper/mod.rs::raw_members_must_be_json`
+- **Restore option:** Not planned while no Prebid code sets an ext member that is not JSON.
+- **Recorded in:** `crates/openrtb-ext/differences.toml`
+
 #### `json.std-error-texts`: Bid responses read as json.Unmarshal reads them: the error text is serde_json's
 
 - **Go:** The zentotem, loopme, tradplus and adverxo adapters return `json.Unmarshal`'s error for a bid response that does not decode as an `openrtb2.BidResponse` (zentotem.go:71, loopme.go:58, tradplus.go:111, adverxo.go:99), and resetdigital puts its text into a `BadServerResponse` (resetdigital.go:131): `encoding/json`'s messages, `unexpected end of JSON input`, `json: cannot unmarshal string into Go struct field Bid.seatbid.bid.price of type float64`.
@@ -1402,8 +1424,8 @@ No entry names the classes `other` and `unrecorded` or the kinds `stage_missing`
 - **Harness:** none: a mismatch here is unexpected
 - **Pin:** `crates/openrtb-ext/tests/parity/shapes.rs::prebid_messages_carry_position_and_field`
 - **Rule B:** Rule B (d): Prebid-authored texts and bytes
-- **How Go's behaviour is kept:** Glue under Rule B (d), as Prebid-authored text, in pbs-jsonutil, which this unit does not own (a shared change request): `unmarshal` and `unmarshal_valid` return a message that starts with `request.` without serde_json's ` at line L column C`, and `MergeCloneError` writes such a message without its field, as `tryExtractErrorMessage` does (`EncodingJson` likewise for `json.Unmarshal`, whose sites decode none of these types). It is due before ORTBEXT-SERDE-WRAPPER reads the request's extensions with the serde code, and that unit brings the restore pin against this crate's goldens.
-- **Restore pin:** pending, brought by ORTBEXT-SERDE-WRAPPER
+- **How Go's behaviour is kept:** Glue under Rule B (d), as Prebid-authored text: the request wrapper's decodes (src/request_wrapper/prebid_messages.rs) give a `FailedToUnmarshal` whose message starts with `request.` without serde_json's ` at line L column C`, as `tryExtractErrorMessage` does. The same glue in pbs-jsonutil's `unmarshal`, `unmarshal_valid` and `MergeCloneError`, for the callers outside the wrapper, is a shared change request: no production site decodes these types there.
+- **Restore pin:** `crates/openrtb-ext/tests/parity/request_wrapper/mod.rs::prebid_messages_are_bare` (`get:device` on a device ext whose interstitial `minwidthperc` is a string fails with Prebid's bare text in Go's request wrapper goldens (review.tsv.gz, `review device ext 0`), and the port's wrapper with the same text.)
 - **Note:** `stringOrStringArray`'s `value should be of type string or []string` reaches `jsonutil.Unmarshal`'s caller with jsoniter's field around it (`cannot unmarshal openrtb_ext.ImpExtGoldbach.CustomTargeting: ...`), which is `json.error-texts`; `json.Unmarshal` gives it bare, as it gives the others.
 - **Recorded in:** `crates/openrtb-ext/differences.toml`
 

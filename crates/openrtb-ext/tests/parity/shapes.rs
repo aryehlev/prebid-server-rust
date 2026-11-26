@@ -796,7 +796,7 @@ fn lexical(port: &[Token<'_>], go: &[Token<'_>]) -> Option<Vec<&'static str>> {
 
 /// Go's bytes with each nil `json.RawMessage` without `omitempty`, which Go writes as nothing at
 /// all, written as null.
-fn nil_raw_as_null(go: &str) -> String {
+pub(super) fn nil_raw_as_null(go: &str) -> String {
     go.replace("\":,", "\":null,")
         .replace("\":}", "\":null}")
         .replace("\":]", "\":null]")
@@ -804,7 +804,7 @@ fn nil_raw_as_null(go: &str) -> String {
 
 /// The ledger entries a difference between the port's bytes and Go's falls in (none for the
 /// same bytes), or what is unexplained.
-fn compare_encoded(port: &str, go: &str) -> Result<Vec<&'static str>, String> {
+pub(super) fn compare_encoded(port: &str, go: &str) -> Result<Vec<&'static str>, String> {
     if port == go {
         return Ok(Vec::new());
     }

@@ -5,10 +5,27 @@
 //! [`SiteExt`], [`DOOHExt`], [`SourceExt`] and [`ImpExt`]. Each is decoded on first access
 //! (`get_*_ext`) into a map of its JSON members plus the members Prebid Server reads on their own
 //! (`prebid`, `consent`, `gdpr`, ...). Setters mark their member dirty;
-//! [`RequestWrapper::rebuild_request`] writes the dirty members back into the map and re-encodes
-//! the map with `jsonutil.Marshal` (keys sorted, values compacted) into the request, exactly as Go
-//! does: an ext whose map ends up empty becomes absent (nil), a member set to its zero value is
-//! deleted, and a member that was never touched keeps its original bytes.
+//! [`RequestWrapper::rebuild_request`] writes the dirty members back into the map and encodes the
+//! map into the request, as Go does: an ext whose map ends up empty becomes absent (nil), a member
+//! set to its zero value is deleted, and a member that was never touched keeps its original
+//! bytes.
+//!
+//! The JSON is `serde_json`'s, through pbs-jsonutil where Go calls `util/jsonutil`:
+//! `pbs_jsonutil::unmarshal` decodes the ext and its members (Go: `jsonutil.Unmarshal`),
+//! `pbs_jsonutil::marshal_raw` encodes them (`jsonutil.Marshal`: keys sorted, raw values
+//! compacted) and `pbs_jsonutil::parse_into_string` reads `regs.ext.gpc`
+//! (`jsonutil.ParseIntoString`). A member of an ext map is Go's `json.RawMessage`, an
+//! `Option<Box<RawValue>>` whose `None` is nil (JSON null). What `serde_json` reads or writes
+//! otherwise than jsoniter is in the ledger: the library's error texts inside Prebid's wrappers
+//! (`json.error-texts`), number spelling and escaping (`json.float-format`, `json.html-escape`,
+//! `json.control-escapes`), null for a nil member where Go writes no value
+//! (`json.nil-raw-written`; an ext map whose member is null is written as JSON where Go's rebuild
+//! writes bytes that are not: `json.ext-null-member`), NaN and infinities written as null where Go
+//! fails
+//! (`json.non-finite`), and the decodes `serde_json` fails where jsoniter reads on
+//! (`json.duplicate-keys`, `json.key-case`, `json.negative-zero-int`, `json.invalid-utf8`).
+//! Prebid's own messages from `UnmarshalJSON` methods reach the caller bare, as Go gives them
+//! (`prebid_messages`).
 //!
 //! # Impressions
 //!
@@ -32,9 +49,10 @@
 //!   the latter keeps the wrappers at their positions (Go's wrappers keep the old slice); replace
 //!   the slice with [`RequestWrapper::assign_imp`] instead.
 //! * The `get_*_ext` methods return `Err` where Go returns the ext object together with an error.
-//!   Go stores the (partly decoded) object before decoding it, and later calls return it without an
-//!   error; the `get_*_ext_pair` methods return both, for the Go code that uses the object whatever
-//!   the error.
+//!   Go stores the object before decoding it, and later calls return it without an error; the
+//!   `get_*_ext_pair` methods return both, for the Go code that uses the object whatever the error.
+//!   A member that fails to decode keeps the value it had before the decode (Go's keeps what
+//!   jsoniter read before the fault: `json.partial-results`).
 //! * The getters of the ext objects return borrows where Go returns shallow copies, and setters
 //!   take values. Go's copies share their maps, slices and pointers with the stored value, so Go
 //!   code that changes those in place changes the stored value without marking it dirty; Rust code
@@ -52,19 +70,22 @@
 //!   impression stores the wrappers detached and leaves the request's impressions alone. Each
 //!   function documents what it does instead.
 //! * Errors are [`GoError`]s: `jsonutil`'s `FailedToUnmarshal` and `FailedToMarshal`, or Go's
-//!   `errors.New` texts; invalid UTF-8 in them is U+FFFD.
-//! * Strings are `String`s, as in `pbs-openrtb`: an invalid UTF-8 byte in a decoded member
-//!   (`consent`, `us_privacy`, `tid`, ...) is U+FFFD, which a rebuild writes as its UTF-8 bytes
-//!   where Go writes the escape `�`, and the keys of an ext map that differ only in invalid bytes
-//!   are one key here (the value decoded last) where Go keeps each (and writes each as `"�"`).
-//!   Values of the ext map keep their bytes, invalid ones included.
+//!   `errors.New` texts.
+//! * A member of an ext map holds JSON (a `RawValue` cannot hold other bytes), where Go's
+//!   `json.RawMessage` holds any bytes and writes no value for bytes that are not JSON
+//!   (`json.raw-not-json`).
+
+mod prebid_messages;
 
 use core::mem;
 use std::collections::BTreeMap;
 
 use pbs_errortypes::GoError;
-use pbs_gojson::{GoEncode, GoString, JsoniterDecode, RawJson, jsonutil};
+use pbs_gojson::RawJson;
+use pbs_jsonutil::{marshal_raw, parse_into_string, unmarshal};
 use pbs_openrtb::openrtb2;
+use serde::{Serialize, de::DeserializeOwned};
+use serde_json::value::RawValue;
 
 use crate::{
     generated::{
@@ -74,8 +95,6 @@ use crate::{
     supply_chain::clone_supply_chain,
 };
 
-#[cfg(test)]
-mod golden;
 #[cfg(test)]
 mod tests;
 
@@ -116,8 +135,33 @@ const GPID_KEY: &str = "gpid";
 /// The text of Go's runtime panic on a write into a nil map, which a rebuild returns instead.
 const NIL_MAP_WRITE: &str = "assignment to entry in nil map";
 
+/// Go's `map[string]json.RawMessage`: an ext object's members, each `None` when nil.
+type Members = BTreeMap<String, Option<Box<RawValue>>>;
+
 /// An ext object's map: Go's `map[string]json.RawMessage`, `None` being nil.
-type ExtMap = Option<BTreeMap<String, RawJson>>;
+///
+/// Two maps are equal when they hold the same keys with the same bytes (a `RawValue` has no
+/// `PartialEq` of its own).
+#[derive(Clone, Debug, Default)]
+struct ExtMap(Option<Members>);
+
+impl PartialEq for ExtMap {
+    fn eq(&self, other: &Self) -> bool {
+        match (&self.0, &other.0) {
+            (Some(a), Some(b)) => {
+                a.len() == b.len()
+                    && a.iter().zip(b).all(|((key_a, a), (key_b, b))| {
+                        key_a == key_b
+                            && a.as_deref().map(RawValue::get) == b.as_deref().map(RawValue::get)
+                    })
+            }
+            (None, None) => true,
+            (Some(_), None) | (None, Some(_)) => false,
+        }
+    }
+}
+
+impl Eq for ExtMap {}
 
 /// Go's `[]openrtb2.EID`, `None` being nil (the user ext keeps a pointer to one).
 type EidSlice = Option<Vec<openrtb2::EID>>;
@@ -139,36 +183,60 @@ impl<T> Tracked<T> {
     }
 }
 
-/// `jsonutil.Unmarshal(data, v)` with its `FailedToUnmarshal` error.
-fn unmarshal_json<T: JsoniterDecode + ?Sized>(data: &[u8], v: &mut T) -> Result<(), GoError> {
-    jsonutil::unmarshal(data, v)
-        .map_err(|err| GoError::failed_to_unmarshal(err.message.to_string_lossy()))
+/// Go: `jsonutil.Unmarshal(data, &v)` into a new value: `pbs_jsonutil::unmarshal`, whose
+/// `FailedToUnmarshal` keeps Prebid's own messages bare ([`prebid_messages::bare`]).
+fn decode<T: DeserializeOwned>(data: &[u8]) -> Result<T, GoError> {
+    unmarshal(data).map_err(prebid_messages::bare)
 }
 
-/// `jsonutil.Marshal(v)` with its `FailedToMarshal` error.
-fn marshal_json<T: GoEncode + ?Sized>(v: &T) -> Result<RawJson, GoError> {
-    jsonutil::marshal(v)
-        .map(RawJson::from_vec)
-        .map_err(|err| GoError::failed_to_marshal(err.message.to_string_lossy()))
+/// Go: `jsonutil.Unmarshal(data, v)` into the value `v` points at, which keeps what it held when
+/// `data` does not decode (Go's holds what jsoniter read before the fault:
+/// `json.partial-results`).
+fn decode_into<T: DeserializeOwned>(data: &[u8], v: &mut T) -> Result<(), GoError> {
+    *v = decode(data)?;
+    Ok(())
 }
 
-/// Go's `ext[key]` on a map that may be nil.
-fn ext_get<'a>(ext: &'a ExtMap, key: &str) -> Option<&'a RawJson> {
-    ext.as_ref().and_then(|map| map.get(key))
+/// Go: `jsonutil.Marshal(v)`, as the `json.RawMessage` Prebid stores.
+fn encode<T: Serialize + ?Sized>(v: &T) -> Result<Box<RawValue>, GoError> {
+    marshal_raw(v)
+}
+
+/// The bytes of an ORTB object's `ext` (none for nil). The field is pbs-gojson's `RawJson` until
+/// the ORTB types take pbs-jsonutil's `Option<Box<RawValue>>`.
+fn field_bytes(field: &RawJson) -> &[u8] {
+    field.as_bytes()
+}
+
+/// An ORTB object's `ext` holding `json`: Go's `json.RawMessage(extJson)`, nil for `None`.
+fn field(json: Option<&RawValue>) -> RawJson {
+    json.map_or_else(RawJson::nil, |json| RawJson::from(json.get()))
+}
+
+/// Go's `ext[key]` on a map that may be nil: `Some(None)` is a nil member.
+fn ext_get<'a>(ext: &'a ExtMap, key: &str) -> Option<&'a Option<Box<RawValue>>> {
+    ext.0.as_ref().and_then(|map| map.get(key))
+}
+
+/// Go's `if json != nil` on a member that may be missing: its bytes when present and not nil.
+fn present(member: Option<&Option<Box<RawValue>>>) -> Option<&[u8]> {
+    member
+        .and_then(Option::as_deref)
+        .map(|raw| raw.get().as_bytes())
 }
 
 /// Go's `ext[key] = value`, which panics on a nil map.
-fn ext_insert(ext: &mut ExtMap, key: &str, value: RawJson) -> Result<(), GoError> {
-    let Some(map) = ext.as_mut() else {
+fn ext_insert(ext: &mut ExtMap, key: &str, value: Box<RawValue>) -> Result<(), GoError> {
+    let Some(map) = ext.0.as_mut() else {
         return Err(GoError::generic(NIL_MAP_WRITE));
     };
-    let _replaced = map.insert(key.to_owned(), value);
+    let _replaced = map.insert(key.to_owned(), Some(value));
     Ok(())
 }
 
 /// Go's `delete(ext, key)` (a no-op on a nil map).
 fn ext_delete(ext: &mut ExtMap, key: &str) {
-    if let Some(map) = ext.as_mut() {
+    if let Some(map) = ext.0.as_mut() {
         let _removed = map.remove(key);
     }
 }
@@ -177,33 +245,42 @@ fn ext_delete(ext: &mut ExtMap, key: &str) {
 /// in which case Go returns without doing anything. Otherwise the map becomes Go's
 /// `make(map[string]json.RawMessage)`.
 fn start_unmarshal(dirty: bool, ext: &mut ExtMap) -> bool {
-    if ext.as_ref().is_some_and(|map| !map.is_empty()) || dirty {
+    if ext.0.as_ref().is_some_and(|map| !map.is_empty()) || dirty {
         return true;
     }
-    *ext = Some(BTreeMap::new());
+    *ext = ExtMap(Some(BTreeMap::new()));
     false
 }
 
+/// Go's `jsonutil.Unmarshal(extJson, &x.ext)` into the map `start_unmarshal` made: JSON null makes
+/// it nil, and a failed decode leaves it empty (Go's holds the members jsoniter read before the
+/// fault: `json.partial-results`).
+fn decode_map(ext_json: &[u8], ext: &mut ExtMap) -> Result<(), GoError> {
+    ext.0 = decode(ext_json)?;
+    Ok(())
+}
+
 /// The end of every ext's `marshal`: `extDirty = false`, then nil for an empty map and the
-/// `jsonutil.Marshal` of the map otherwise.
-fn finish_marshal(ext: &mut Tracked<ExtMap>) -> Result<RawJson, GoError> {
+/// `jsonutil.Marshal` of the map otherwise (a nil member written as null, where Go writes no
+/// value: `json.nil-raw-written`).
+fn finish_marshal(ext: &mut Tracked<ExtMap>) -> Result<Option<Box<RawValue>>, GoError> {
     ext.dirty = false;
-    match ext.value.as_ref() {
-        Some(map) if !map.is_empty() => marshal_json(map),
-        Some(_) | None => Ok(RawJson::nil()),
+    match ext.value.0.as_ref() {
+        Some(map) if !map.is_empty() => encode(map).map(Some),
+        Some(_) | None => Ok(None),
     }
 }
 
 /// Go's write-back of a typed object member: set when `value` encodes longer than `{}`
 /// ([`JSON_EMPTY_OBJECT_LENGTH`]), deleted when it does not or is nil.
-fn marshal_object_member<T: GoEncode + ?Sized>(
+fn marshal_object_member<T: Serialize + ?Sized>(
     ext: &mut ExtMap,
     key: &str,
     value: Option<&T>,
 ) -> Result<(), GoError> {
     if let Some(value) = value {
-        let json = marshal_json(value)?;
-        if json.len() > JSON_EMPTY_OBJECT_LENGTH {
+        let json = encode(value)?;
+        if json.get().len() > JSON_EMPTY_OBJECT_LENGTH {
             return ext_insert(ext, key, json);
         }
     }
@@ -213,13 +290,13 @@ fn marshal_object_member<T: GoEncode + ?Sized>(
 
 /// Go's write-back of any other member: set to its encoding when `value` is `Some`, deleted
 /// otherwise.
-fn marshal_member<T: GoEncode + ?Sized>(
+fn marshal_member<T: Serialize + ?Sized>(
     ext: &mut ExtMap,
     key: &str,
     value: Option<&T>,
 ) -> Result<(), GoError> {
     if let Some(value) = value {
-        return ext_insert(ext, key, marshal_json(value)?);
+        return ext_insert(ext, key, encode(value)?);
     }
     ext_delete(ext, key);
     Ok(())
@@ -231,7 +308,7 @@ trait WrappedExt: Default {
     /// Go: `unmarshal(extJson)`.
     fn unmarshal(&mut self, ext_json: &[u8]) -> Result<(), GoError>;
     /// Go: `marshal()`: nil when the map ends up empty.
-    fn marshal(&mut self) -> Result<RawJson, GoError>;
+    fn marshal(&mut self) -> Result<Option<Box<RawValue>>, GoError>;
     /// Go: `Dirty()`.
     fn is_dirty(&self) -> bool;
 }
@@ -245,7 +322,7 @@ fn ext_pair<'a, T: WrappedExt>(
     let mut err = None;
     if slot.is_none() {
         let mut ext = Box::<T>::default();
-        err = ext.unmarshal(raw.map_or(&[], RawJson::as_bytes)).err();
+        err = ext.unmarshal(raw.map_or(&[], field_bytes)).err();
         *slot = Some(ext);
     }
     (slot.get_or_insert_with(Box::default), err)
@@ -256,11 +333,20 @@ fn pair_result<T>((ext, err): (T, Option<GoError>)) -> Result<T, GoError> {
     err.map_or(Ok(ext), Err)
 }
 
-/// Go's `rebuildXExt` test: `None` when the object is absent or clean, otherwise its `marshal`.
-fn rebuild_ext<T: WrappedExt>(ext: Option<&mut T>) -> Result<Option<RawJson>, GoError> {
+/// What Go's `rebuildXExt` does with the owner's `ext` field.
+enum Rebuilt {
+    /// The ext object is absent or clean: the field keeps its bytes.
+    Kept,
+    /// The ext object was dirty: the field becomes its `marshal`, `None` for Go's nil.
+    Written(Option<Box<RawValue>>),
+}
+
+/// Go's `rebuildXExt` test: [`Rebuilt::Kept`] when the object is absent or clean, otherwise
+/// its `marshal`.
+fn rebuild_ext<T: WrappedExt>(ext: Option<&mut T>) -> Result<Rebuilt, GoError> {
     match ext {
-        Some(ext) if ext.is_dirty() => ext.marshal().map(Some),
-        Some(_) | None => Ok(None),
+        Some(ext) if ext.is_dirty() => ext.marshal().map(Rebuilt::Written),
+        Some(_) | None => Ok(Rebuilt::Kept),
     }
 }
 
@@ -268,14 +354,14 @@ fn rebuild_ext<T: WrappedExt>(ext: Option<&mut T>) -> Result<Option<RawJson>, Go
 /// owner.Ext = json }`, for an owner object whose `ext` field `ext` returns.
 fn set_owner_ext<T: Default>(
     owner: &mut Option<Box<T>>,
-    json: RawJson,
+    json: Option<&RawValue>,
     ext: impl FnOnce(&mut T) -> &mut RawJson,
 ) {
     match owner.as_deref_mut() {
-        Some(owner) => *ext(owner) = json,
-        None if !json.is_nil() => {
+        Some(owner) => *ext(owner) = field(json),
+        None if json.is_some() => {
             let mut created = T::default();
-            *ext(&mut created) = json;
+            *ext(&mut created) = field(json);
             *owner = Some(Box::new(created));
         }
         None => {}
@@ -287,11 +373,11 @@ macro_rules! ext_map_accessors {
     ($go:literal) => {
         #[doc = concat!(
             "Go: `", $go, ".GetExt()`: a copy of the ext's members (empty, never nil, when the ",
-            "map is nil)."
+            "map is nil). A member is `None` when it is nil (JSON null)."
         )]
         #[must_use]
-        pub fn get_ext(&self) -> BTreeMap<String, RawJson> {
-            self.ext.value.clone().unwrap_or_default()
+        pub fn get_ext(&self) -> BTreeMap<String, Option<Box<RawValue>>> {
+            self.ext.value.0.clone().unwrap_or_default()
         }
 
         #[doc = concat!(
@@ -300,8 +386,8 @@ macro_rules! ext_map_accessors {
             "`None` is Go's nil map, which a later write of such a member cannot go into (the ",
             "rebuild then fails, where Go panics)."
         )]
-        pub fn set_ext(&mut self, ext: Option<BTreeMap<String, RawJson>>) {
-            self.ext.set(ext);
+        pub fn set_ext(&mut self, ext: Option<BTreeMap<String, Option<Box<RawValue>>>>) {
+            self.ext.set(ExtMap(ext));
         }
     };
 }
@@ -377,8 +463,8 @@ fn rebuild_imp_parts(
         ));
     };
     // Go: openrtb_ext/request_wrapper.go:1656
-    if let Some(json) = rebuild_ext(imp_ext.as_deref_mut())? {
-        imp.ext = json;
+    if let Rebuilt::Written(json) = rebuild_ext(imp_ext.as_deref_mut())? {
+        imp.ext = field(json.as_deref());
     }
     Ok(())
 }
@@ -824,36 +910,36 @@ impl RequestWrapper {
         };
         rebuild_imp(req, self.imp_wrappers_accessed, &mut self.imp_wrappers)?;
         // Go: openrtb_ext/request_wrapper.go:254
-        if let Some(json) = rebuild_ext(self.user_ext.as_deref_mut())? {
-            set_owner_ext(&mut req.user, json, |user| &mut user.ext);
+        if let Rebuilt::Written(json) = rebuild_ext(self.user_ext.as_deref_mut())? {
+            set_owner_ext(&mut req.user, json.as_deref(), |user| &mut user.ext);
         }
         // Go: openrtb_ext/request_wrapper.go:273
-        if let Some(json) = rebuild_ext(self.device_ext.as_deref_mut())? {
-            set_owner_ext(&mut req.device, json, |device| &mut device.ext);
+        if let Rebuilt::Written(json) = rebuild_ext(self.device_ext.as_deref_mut())? {
+            set_owner_ext(&mut req.device, json.as_deref(), |device| &mut device.ext);
         }
         // Go: openrtb_ext/request_wrapper.go:292
-        if let Some(json) = rebuild_ext(self.request_ext.as_deref_mut())? {
-            req.ext = json;
+        if let Rebuilt::Written(json) = rebuild_ext(self.request_ext.as_deref_mut())? {
+            req.ext = field(json.as_deref());
         }
         // Go: openrtb_ext/request_wrapper.go:307
-        if let Some(json) = rebuild_ext(self.app_ext.as_deref_mut())? {
-            set_owner_ext(&mut req.app, json, |app| &mut app.ext);
+        if let Rebuilt::Written(json) = rebuild_ext(self.app_ext.as_deref_mut())? {
+            set_owner_ext(&mut req.app, json.as_deref(), |app| &mut app.ext);
         }
         // Go: openrtb_ext/request_wrapper.go:345
-        if let Some(json) = rebuild_ext(self.reg_ext.as_deref_mut())? {
-            set_owner_ext(&mut req.regs, json, |regs| &mut regs.ext);
+        if let Rebuilt::Written(json) = rebuild_ext(self.reg_ext.as_deref_mut())? {
+            set_owner_ext(&mut req.regs, json.as_deref(), |regs| &mut regs.ext);
         }
         // Go: openrtb_ext/request_wrapper.go:364
-        if let Some(json) = rebuild_ext(self.site_ext.as_deref_mut())? {
-            set_owner_ext(&mut req.site, json, |site| &mut site.ext);
+        if let Rebuilt::Written(json) = rebuild_ext(self.site_ext.as_deref_mut())? {
+            set_owner_ext(&mut req.site, json.as_deref(), |site| &mut site.ext);
         }
         // Go: openrtb_ext/request_wrapper.go:326
-        if let Some(json) = rebuild_ext(self.dooh_ext.as_deref_mut())? {
-            set_owner_ext(&mut req.dooh, json, |dooh| &mut dooh.ext);
+        if let Rebuilt::Written(json) = rebuild_ext(self.dooh_ext.as_deref_mut())? {
+            set_owner_ext(&mut req.dooh, json.as_deref(), |dooh| &mut dooh.ext);
         }
         // Go: openrtb_ext/request_wrapper.go:383
-        if let Some(json) = rebuild_ext(self.source_ext.as_deref_mut())? {
-            set_owner_ext(&mut req.source, json, |source| &mut source.ext);
+        if let Rebuilt::Written(json) = rebuild_ext(self.source_ext.as_deref_mut())? {
+            set_owner_ext(&mut req.source, json.as_deref(), |source| &mut source.ext);
         }
         Ok(())
     }
@@ -1104,21 +1190,21 @@ impl WrappedExt for UserExt {
         if start_unmarshal(self.dirty(), &mut self.ext.value) || ext_json.is_empty() {
             return Ok(());
         }
-        unmarshal_json(ext_json, &mut self.ext.value)?;
+        decode_map(ext_json, &mut self.ext.value)?;
         let ext = &self.ext.value;
-        if let Some(consent_json) = ext_get(ext, CONSENT_KEY).filter(|json| !json.is_nil()) {
-            unmarshal_json(consent_json.as_bytes(), &mut self.consent.value)?;
+        if let Some(consent_json) = present(ext_get(ext, CONSENT_KEY)) {
+            decode_into(consent_json, &mut self.consent.value)?;
         }
         if let Some(prebid_json) = ext_get(ext, PREBID_KEY) {
             let prebid = self.prebid.value.insert(ExtUserPrebid::default());
-            if !prebid_json.is_nil() {
-                unmarshal_json(prebid_json.as_bytes(), prebid)?;
+            if let Some(prebid_json) = present(Some(prebid_json)) {
+                decode_into(prebid_json, prebid)?;
             }
         }
         if let Some(eids_json) = ext_get(ext, EIDS_KEY) {
             let eids = self.eids.value.insert(Some(Vec::new()));
-            if !eids_json.is_nil() {
-                unmarshal_json(eids_json.as_bytes(), eids)?;
+            if let Some(eids_json) = present(Some(eids_json)) {
+                decode_into(eids_json, eids)?;
             }
         }
         if let Some(cps_json) = ext_get(ext, CONSENTED_PROVIDERS_SETTINGS_STRING_KEY) {
@@ -1126,8 +1212,8 @@ impl WrappedExt for UserExt {
                 .consented_providers_settings_in
                 .value
                 .insert(ConsentedProvidersSettingsIn::default());
-            if !cps_json.is_nil() {
-                unmarshal_json(cps_json.as_bytes(), cps)?;
+            if let Some(cps_json) = present(Some(cps_json)) {
+                decode_into(cps_json, cps)?;
             }
         }
         if let Some(cps_json) = ext_get(ext, CONSENTED_PROVIDERS_SETTINGS_LIST_KEY) {
@@ -1135,14 +1221,14 @@ impl WrappedExt for UserExt {
                 .consented_providers_settings_out
                 .value
                 .insert(ConsentedProvidersSettingsOut::default());
-            if !cps_json.is_nil() {
-                unmarshal_json(cps_json.as_bytes(), cps)?;
+            if let Some(cps_json) = present(Some(cps_json)) {
+                decode_into(cps_json, cps)?;
             }
         }
         Ok(())
     }
 
-    fn marshal(&mut self) -> Result<RawJson, GoError> {
+    fn marshal(&mut self) -> Result<Option<Box<RawValue>>, GoError> {
         // Go: openrtb_ext/request_wrapper.go:530
         let ext = &mut self.ext.value;
         if self.consent.dirty {
@@ -1318,24 +1404,24 @@ impl WrappedExt for RequestExt {
         if start_unmarshal(self.dirty(), &mut self.ext.value) || ext_json.is_empty() {
             return Ok(());
         }
-        unmarshal_json(ext_json, &mut self.ext.value)?;
+        decode_map(ext_json, &mut self.ext.value)?;
         let ext = &self.ext.value;
         if let Some(prebid_json) = ext_get(ext, PREBID_KEY) {
             let prebid = self.prebid.value.insert(Box::default());
-            if !prebid_json.is_nil() {
-                unmarshal_json(prebid_json.as_bytes(), &mut **prebid)?;
+            if let Some(prebid_json) = present(Some(prebid_json)) {
+                decode_into(prebid_json, &mut **prebid)?;
             }
         }
         if let Some(schain_json) = ext_get(ext, SCHAIN_KEY) {
             let schain = self.schain.value.insert(openrtb2::SupplyChain::default());
-            if !schain_json.is_nil() {
-                unmarshal_json(schain_json.as_bytes(), schain)?;
+            if let Some(schain_json) = present(Some(schain_json)) {
+                decode_into(schain_json, schain)?;
             }
         }
         Ok(())
     }
 
-    fn marshal(&mut self) -> Result<RawJson, GoError> {
+    fn marshal(&mut self) -> Result<Option<Box<RawValue>>, GoError> {
         // Go: openrtb_ext/request_wrapper.go:798
         let ext = &mut self.ext.value;
         if self.prebid.dirty {
@@ -1432,21 +1518,21 @@ impl WrappedExt for DeviceExt {
         if start_unmarshal(self.dirty(), &mut self.ext.value) || ext_json.is_empty() {
             return Ok(());
         }
-        unmarshal_json(ext_json, &mut self.ext.value)?;
+        decode_map(ext_json, &mut self.ext.value)?;
         let ext = &self.ext.value;
         if let Some(prebid_json) = ext_get(ext, PREBID_KEY) {
             let prebid = self.prebid.value.insert(ExtDevicePrebid::default());
-            if !prebid_json.is_nil() {
-                unmarshal_json(prebid_json.as_bytes(), prebid)?;
+            if let Some(prebid_json) = present(Some(prebid_json)) {
+                decode_into(prebid_json, prebid)?;
             }
         }
-        if let Some(cdep_json) = ext_get(ext, CDEP_KEY).filter(|json| !json.is_nil()) {
-            unmarshal_json(cdep_json.as_bytes(), &mut self.cdep.value)?;
+        if let Some(cdep_json) = present(ext_get(ext, CDEP_KEY)) {
+            decode_into(cdep_json, &mut self.cdep.value)?;
         }
         Ok(())
     }
 
-    fn marshal(&mut self) -> Result<RawJson, GoError> {
+    fn marshal(&mut self) -> Result<Option<Box<RawValue>>, GoError> {
         // Go: openrtb_ext/request_wrapper.go:955
         let ext = &mut self.ext.value;
         if self.prebid.dirty {
@@ -1514,17 +1600,17 @@ impl WrappedExt for AppExt {
         if start_unmarshal(self.dirty(), &mut self.ext.value) || ext_json.is_empty() {
             return Ok(());
         }
-        unmarshal_json(ext_json, &mut self.ext.value)?;
+        decode_map(ext_json, &mut self.ext.value)?;
         if let Some(prebid_json) = ext_get(&self.ext.value, PREBID_KEY) {
             let prebid = self.prebid.value.insert(ExtAppPrebid::default());
-            if !prebid_json.is_nil() {
-                unmarshal_json(prebid_json.as_bytes(), prebid)?;
+            if let Some(prebid_json) = present(Some(prebid_json)) {
+                decode_into(prebid_json, prebid)?;
             }
         }
         Ok(())
     }
 
-    fn marshal(&mut self) -> Result<RawJson, GoError> {
+    fn marshal(&mut self) -> Result<Option<Box<RawValue>>, GoError> {
         // Go: openrtb_ext/request_wrapper.go:1091
         if self.prebid.dirty {
             let prebid = self.prebid.value.as_ref();
@@ -1574,10 +1660,10 @@ impl WrappedExt for DOOHExt {
         if start_unmarshal(self.dirty(), &mut self.ext.value) || ext_json.is_empty() {
             return Ok(());
         }
-        unmarshal_json(ext_json, &mut self.ext.value)
+        decode_map(ext_json, &mut self.ext.value)
     }
 
-    fn marshal(&mut self) -> Result<RawJson, GoError> {
+    fn marshal(&mut self) -> Result<Option<Box<RawValue>>, GoError> {
         // Go: openrtb_ext/request_wrapper.go:1187
         finish_marshal(&mut self.ext)
     }
@@ -1619,35 +1705,30 @@ impl WrappedExt for RegExt {
         if start_unmarshal(self.dirty(), &mut self.ext.value) || ext_json.is_empty() {
             return Ok(());
         }
-        unmarshal_json(ext_json, &mut self.ext.value)?;
+        decode_map(ext_json, &mut self.ext.value)?;
         let ext = &self.ext.value;
         if let Some(dsa_json) = ext_get(ext, DSA_KEY) {
             let dsa = self.dsa.value.insert(ExtRegsDSA::default());
-            if !dsa_json.is_nil() {
-                unmarshal_json(dsa_json.as_bytes(), dsa)?;
+            if let Some(dsa_json) = present(Some(dsa_json)) {
+                decode_into(dsa_json, dsa)?;
             }
         }
-        if let Some(gdpr_json) = ext_get(ext, GDPR_KEY).filter(|json| !json.is_nil())
-            && unmarshal_json(gdpr_json.as_bytes(), &mut self.gdpr.value).is_err()
+        if let Some(gdpr_json) = present(ext_get(ext, GDPR_KEY))
+            && decode_into(gdpr_json, &mut self.gdpr.value).is_err()
         {
             return Err(GoError::generic("gdpr must be an integer"));
         }
-        if let Some(usp_json) = ext_get(ext, US_PRIVACY_KEY).filter(|json| !json.is_nil()) {
-            unmarshal_json(usp_json.as_bytes(), &mut self.us_privacy.value)?;
+        if let Some(usp_json) = present(ext_get(ext, US_PRIVACY_KEY)) {
+            decode_into(usp_json, &mut self.us_privacy.value)?;
         }
-        if let Some(gpc_json) = ext_get(ext, GPC_KEY).filter(|json| !json.is_nil()) {
-            // Go: jsonutil.ParseIntoString(gpcJson, &re.gpc), which never fails here.
-            let mut gpc: Option<GoString> = None;
-            jsonutil::parse_into_string(gpc_json.as_bytes(), &mut gpc)
-                .map_err(|err| GoError::generic(err.to_string()))?;
-            if let Some(gpc) = gpc {
-                self.gpc.value = Some(gpc.to_string_lossy());
-            }
+        if let Some(gpc_json) = present(ext_get(ext, GPC_KEY)) {
+            // Go: return jsonutil.ParseIntoString(gpcJson, &re.gpc), which never fails here.
+            parse_into_string(gpc_json, Some(&mut self.gpc.value))?;
         }
         Ok(())
     }
 
-    fn marshal(&mut self) -> Result<RawJson, GoError> {
+    fn marshal(&mut self) -> Result<Option<Box<RawValue>>, GoError> {
         // Go: openrtb_ext/request_wrapper.go:1287
         let ext = &mut self.ext.value;
         if self.dsa.dirty {
@@ -1749,9 +1830,9 @@ impl WrappedExt for SiteExt {
         if start_unmarshal(self.dirty(), &mut self.ext.value) || ext_json.is_empty() {
             return Ok(());
         }
-        unmarshal_json(ext_json, &mut self.ext.value)?;
-        if let Some(amp_json) = ext_get(&self.ext.value, AMP_KEY).filter(|json| !json.is_nil())
-            && unmarshal_json(amp_json.as_bytes(), &mut self.amp.value).is_err()
+        decode_map(ext_json, &mut self.ext.value)?;
+        if let Some(amp_json) = present(ext_get(&self.ext.value, AMP_KEY))
+            && decode_into(amp_json, &mut self.amp.value).is_err()
         {
             return Err(GoError::generic(
                 "request.site.ext.amp must be either 1, 0, or undefined",
@@ -1760,7 +1841,7 @@ impl WrappedExt for SiteExt {
         Ok(())
     }
 
-    fn marshal(&mut self) -> Result<RawJson, GoError> {
+    fn marshal(&mut self) -> Result<Option<Box<RawValue>>, GoError> {
         // Go: openrtb_ext/request_wrapper.go:1462
         if self.amp.dirty {
             marshal_member(&mut self.ext.value, AMP_KEY, self.amp.value.as_ref())?;
@@ -1811,16 +1892,14 @@ impl WrappedExt for SourceExt {
         if start_unmarshal(self.dirty(), &mut self.ext.value) || ext_json.is_empty() {
             return Ok(());
         }
-        unmarshal_json(ext_json, &mut self.ext.value)?;
-        if let Some(schain_json) =
-            ext_get(&self.ext.value, SCHAIN_KEY).filter(|json| !json.is_nil())
-        {
-            unmarshal_json(schain_json.as_bytes(), &mut self.schain.value)?;
+        decode_map(ext_json, &mut self.ext.value)?;
+        if let Some(schain_json) = present(ext_get(&self.ext.value, SCHAIN_KEY)) {
+            decode_into(schain_json, &mut self.schain.value)?;
         }
         Ok(())
     }
 
-    fn marshal(&mut self) -> Result<RawJson, GoError> {
+    fn marshal(&mut self) -> Result<Option<Box<RawValue>>, GoError> {
         // Go: openrtb_ext/request_wrapper.go:1557
         if self.schain.dirty {
             let schain = self.schain.value.as_ref();
@@ -1892,30 +1971,30 @@ impl WrappedExt for ImpExt {
         if start_unmarshal(self.dirty(), &mut self.ext.value) || ext_json.is_empty() {
             return Ok(());
         }
-        unmarshal_json(ext_json, &mut self.ext.value)?;
+        decode_map(ext_json, &mut self.ext.value)?;
         let ext = &self.ext.value;
         if let Some(prebid_json) = ext_get(ext, PREBID_KEY) {
             let prebid = self.prebid.value.insert(Box::default());
-            if !prebid_json.is_nil() {
-                unmarshal_json(prebid_json.as_bytes(), &mut **prebid)?;
+            if let Some(prebid_json) = present(Some(prebid_json)) {
+                decode_into(prebid_json, &mut **prebid)?;
             }
         }
         if let Some(data_json) = ext_get(ext, DATA_KEY) {
             let data = self.data.insert(ExtImpData::default());
-            if !data_json.is_nil() {
-                unmarshal_json(data_json.as_bytes(), data)?;
+            if let Some(data_json) = present(Some(data_json)) {
+                decode_into(data_json, data)?;
             }
         }
-        if let Some(tid_json) = ext_get(ext, TID_KEY).filter(|json| !json.is_nil()) {
-            unmarshal_json(tid_json.as_bytes(), &mut self.tid.value)?;
+        if let Some(tid_json) = present(ext_get(ext, TID_KEY)) {
+            decode_into(tid_json, &mut self.tid.value)?;
         }
-        if let Some(gp_id_json) = ext_get(ext, GPID_KEY).filter(|json| !json.is_nil()) {
-            unmarshal_json(gp_id_json.as_bytes(), &mut self.gp_id)?;
+        if let Some(gp_id_json) = present(ext_get(ext, GPID_KEY)) {
+            decode_into(gp_id_json, &mut self.gp_id)?;
         }
         Ok(())
     }
 
-    fn marshal(&mut self) -> Result<RawJson, GoError> {
+    fn marshal(&mut self) -> Result<Option<Box<RawValue>>, GoError> {
         // Go: openrtb_ext/request_wrapper.go:1749
         let ext = &mut self.ext.value;
         if self.prebid.dirty {
@@ -1991,13 +2070,13 @@ impl ImpExt {
 /// as if decoded (nothing dirty).
 #[must_use]
 pub fn create_imp_ext_for_testing(
-    ext: Option<BTreeMap<String, RawJson>>,
+    ext: Option<BTreeMap<String, Option<Box<RawValue>>>>,
     prebid: Option<ExtImpPrebid>,
 ) -> ImpExt {
     // Go: openrtb_ext/request_wrapper.go:1847
     ImpExt {
         ext: Tracked {
-            value: ext,
+            value: ExtMap(ext),
             dirty: false,
         },
         prebid: Tracked {

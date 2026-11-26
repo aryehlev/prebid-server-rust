@@ -11,15 +11,17 @@
 //! # JSON
 //!
 //! Every type has two JSON codes. The `GoJson` code (`pbs_gojson`) reproduces jsoniter and
-//! `encoding/json`, and is what the request wrapper and the callers use until they move to serde.
-//! The serde code (`Serialize`, `Deserialize` and `pbs_jsonutil::MergeClone`) is what typegen
-//! generates for the generated types; the types with Go JSON methods (`ExtSite`, `ExtDeviceInt`,
-//! `ExtImpAppnexusKeywords`, `PriceGranularity`, `StringOrStringArray`) implement it by hand
-//! after their Go methods, reading the members Go's jsonparser finds through small borrowed
-//! structs; the named string and map types delegate to what they hold, and `ImpExtEpom`, a
-//! struct without fields that typegen does not write, reads any object. Where the serde code
-//! differs from Go, `differences.toml` and the ledgers of pbs-jsonutil and pbs-openrtb name it;
-//! `tests/parity/shapes.rs` and `tests/parity/serde_goldens.rs` hold it to Go's goldens.
+//! `encoding/json` for the callers that still use it, until it is removed. The serde code
+//! (`Serialize`, `Deserialize` and `pbs_jsonutil::MergeClone`) is what the request wrapper,
+//! [`convert_up_to26`] and [`convert_down_to25`] use: they read and write JSON with `serde_json`,
+//! through pbs-jsonutil where Go calls `util/jsonutil`. typegen generates it for the generated
+//! types; the types with Go JSON methods (`ExtSite`, `ExtDeviceInt`, `ExtImpAppnexusKeywords`,
+//! `PriceGranularity`, `StringOrStringArray`) implement it by hand after their Go methods, reading
+//! the members Go's jsonparser finds through small borrowed structs; the named string and map types
+//! delegate to what they hold, and `ImpExtEpom`, a struct without fields that typegen does not
+//! write, reads any object. Where the serde code differs from Go, `differences.toml` and the
+//! ledgers of pbs-jsonutil and pbs-openrtb name it; `tests/parity/shapes.rs` and
+//! `tests/parity/serde_goldens.rs` hold it to Go's goldens.
 //!
 //! # Differences from Go
 //!
