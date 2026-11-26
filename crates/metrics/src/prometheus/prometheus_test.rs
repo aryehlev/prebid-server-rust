@@ -973,7 +973,7 @@ fn cache_result_metrics() -> TestResult {
 /// Go adds `uint64(float64(n))` to a counter's integer: a count above 2^53 is rounded to the
 /// nearest `f64`, a tie to the even one, before it is added.
 // Go: metrics/prometheus/prometheus.go:974-990 (Add(float64(inc))); client_golang v1.12.1
-// prometheus/counter.go:107-124 (Add's integer part) and :136-140 (get)
+// prometheus/counter.go:112-116 (Add's integer part) and :136-140 (get)
 #[test]
 fn cache_counts_round_as_go_converts_them() -> TestResult {
     const TWO_POW_53: u64 = 9_007_199_254_740_992;
