@@ -1,5 +1,5 @@
 // Command review writes the break-it goldens of the review of the Rust pbs-bidder-params crate
-// from github.com/xeipuuv/gojsonschema itself: two seeded sweeps over schemas an operator's
+// from github.com/xeipuuv/gojsonschema itself: three seeded sweeps over schemas an operator's
 // bidder-params file could hold, compared by SHA-256 digests.
 //
 // Run it from the directory of this module (crates/bidder-params/testdata/go):
@@ -13,13 +13,18 @@
 //     maximum: the texts that print a limit and the verdicts that compare two numbers;
 //   - strings: enums and property names made of HTML characters, controls, line separators,
 //     astral characters and lone surrogate escapes, each spelled raw or escaped at random: the
-//     texts that print an enum's values, a property name or a context.
+//     texts that print an enum's values, a property name or a context;
+//   - scores: anyOfs and oneOfs of 2 to 4 branches drawn from schemas that fail some of a set of
+//     documents, at the root and under a property: the closest branch Go reports when no
+//     branch holds, the first of the highest score, which every keyword that adds to a
+//     result's score, or merges a child's, decides.
 //
 // A case's line holds its inputs and the outcome of each validation (the verdict and, for an
 // invalid document, Go's error strings in Go's order); both sides hash the cases and the lines.
-// Neither sweep reaches a ledgered difference: no number needs more precision than float64
-// keeps, no document fails to decode, no lone surrogate escape precedes another escape, and every
-// document has one member, so Go's map order does not change the errors.
+// No sweep reaches a ledgered difference: no number needs more precision than float64 keeps, no
+// document fails to decode, no lone surrogate escape precedes another escape, and every object
+// of a document and of a schema's properties and dependencies has one member, so Go's map
+// order does not change the errors.
 package main
 
 import (
@@ -43,9 +48,10 @@ const (
 	sweepCount = 50000
 	// sampleCount is the number of outcome lines the golden keeps in full, for diagnostics.
 	sampleCount = 8
-	// limitsSeed and stringsSeed start the two generators.
+	// limitsSeed, stringsSeed and scoresSeed start the three generators.
 	limitsSeed  = 0x6c696d697473
 	stringsSeed = 0x737472696e6773
+	scoresSeed  = 0x73636f726573
 	// outside is a document no generated enum holds: the pool has no x.
 	outside = `"xxxxxxxxxxxxxxxxxxxx"`
 )
@@ -330,6 +336,68 @@ func stringsCase(rng *splitmix64) ([]string, []string) {
 	return []string{strings.Join(values, ","), key, other}, out
 }
 
+// branches are the schemas the scores sweep puts in an anyOf or a oneOf: each fails some of
+// docs, and between them they hold every keyword the port reads that adds to a result's score
+// (type, the string, number, array and object checks, enum, required) or merges a child's
+// (properties, additionalProperties, dependencies, items, anyOf, oneOf, allOf).
+var branches = []string{
+	`{"type":"string","minLength":4}`,
+	`{"type":"string","maxLength":1}`,
+	`{"minLength":4}`,
+	`{"type":"string","pattern":"^z"}`,
+	`{"type":"string","format":"uuid"}`,
+	`{"type":"integer"}`,
+	`{"type":"number","maximum":0}`,
+	`{"type":"integer","minimum":5}`,
+	`{"type":["boolean","null"]}`,
+	`{"enum":["zz","q"]}`,
+	`{"type":"object","required":["a"]}`,
+	`{"type":"object","required":["a","b"]}`,
+	`{"type":"object","properties":{"a":{"type":"string","minLength":4}}}`,
+	`{"type":"object","properties":{"a":{"type":"integer","minimum":5}}}`,
+	`{"properties":{"a":{"type":"integer"}},"required":["a"]}`,
+	`{"type":"object","additionalProperties":{"type":"string","minLength":4}}`,
+	`{"type":"object","additionalProperties":false}`,
+	`{"type":"object","dependencies":{"a":["b"]}}`,
+	`{"type":"object","dependencies":{"a":{"required":["b"]}}}`,
+	`{"type":"array","items":{"type":"string","minLength":4}}`,
+	`{"type":"array","items":{"type":"integer"},"minItems":2}`,
+	`{"type":"array","items":{"type":"number","maximum":0}}`,
+	`{"type":"array","maxItems":0}`,
+	`{"allOf":[{"type":"string"},{"minLength":4}]}`,
+	`{"anyOf":[{"type":"integer"},{"type":"string","maxLength":1}]}`,
+	`{"oneOf":[{"type":"string"},{"type":"string","minLength":1}]}`,
+	`{"type":"string","not":{"minLength":2}}`,
+}
+
+// docs are the documents of the scores sweep: strings, numbers, true, null, and objects and
+// arrays of them.
+var docs = []string{
+	`"ab"`, `""`, `"zz"`, `"zzzzz"`, `"abcde"`, `1`, `2`, `-3`, `2.5`, `7`, `true`, `null`, `{}`,
+	`{"a":"ab"}`, `{"a":1}`, `{"a":7}`, `{"a":"zzzzz"}`, `{"b":"ab"}`, `{"a":{"a":"ab"}}`, `[]`,
+	`["ab"]`, `["abcde"]`, `[1,"ab"]`, `[1,2,3]`, `[-3,2]`,
+}
+
+// scoresCase is 2 to 4 branches and two documents, and the outcomes of the documents against
+// the anyOf and the oneOf of the branches, and of the first document under the property a of a
+// schema whose a is that anyOf or oneOf.
+func scoresCase(rng *splitmix64) ([]string, []string) {
+	picked := make([]string, 2+rng.below(3))
+	for i := range picked {
+		picked[i] = branches[rng.below(len(branches))]
+	}
+	first := docs[rng.below(len(docs))]
+	second := docs[rng.below(len(docs))]
+	list := strings.Join(picked, ",")
+	var out []string
+	for _, keyword := range []string{"anyOf", "oneOf"} {
+		combined := `{"` + keyword + `":[` + list + `]}`
+		out = append(out, outcomes(combined, first, second)...)
+		out = append(out, outcomes(`{"properties":{"a":`+combined+`}}`, `{"a":`+first+`}`)...)
+	}
+	return []string{list, first, second}, out
+}
+
 func main() {
 	if len(os.Args) != 2 {
 		log.Fatal("usage: review <output directory>")
@@ -342,6 +410,7 @@ func main() {
 	for _, line := range []sweepLine{
 		sweep("limits", limitsSeed, limitsCase),
 		sweep("strings", stringsSeed, stringsCase),
+		sweep("scores", scoresSeed, scoresCase),
 	} {
 		data, err := json.Marshal(line)
 		if err != nil {
