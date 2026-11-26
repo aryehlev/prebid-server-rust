@@ -1,17 +1,19 @@
-//! Go: `gojsonschema/format_checkers.go` (`FormatCheckers`, the default checker chain).
+//! Glue (Rule B (a)): gojsonschema's `uuid` and `hostname` format checkers, the formats the
+//! bidder schemas name (jsonschema.formats).
 //!
-//! The checkers that are pure regular expressions are ported exactly. Checkers built on other
-//! Go packages (`time.Parse`, `net/mail`, `net/url`, `net.ParseIP`) are not ported; a schema
-//! that uses one of those formats is rejected when it is compiled, so it can never be validated
-//! with different results than Go. No bidder schema uses them.
+//! Go: `gojsonschema/format_checkers.go`. Both checkers are regular expressions, compiled here
+//! by `pbs_util::goregex` so that they keep Go's meaning (`[a-f0-9]` and `$` as in RE2). A name
+//! gojsonschema has no checker for checks nothing, as in Go; its other 15 checkers are not
+//! ported, and a schema that names one fails to load (jsonschema.unsupported-keywords).
 
 use std::sync::LazyLock;
 
-use super::regexp::GoRegexp;
+use pbs_util::goregex;
+use regex::Regex;
 
 /// Go: `rxHostname`.
-static RX_HOSTNAME: LazyLock<Option<GoRegexp>> = LazyLock::new(|| {
-    GoRegexp::compile(concat!(
+static RX_HOSTNAME: LazyLock<Option<Regex>> = LazyLock::new(|| {
+    goregex::compile(concat!(
         r"^([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])",
         r"(\.([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\-]{0,61}[a-zA-Z0-9]))*$",
     ))
@@ -19,20 +21,12 @@ static RX_HOSTNAME: LazyLock<Option<GoRegexp>> = LazyLock::new(|| {
 });
 
 /// Go: `rxUUID`.
-static RX_UUID: LazyLock<Option<GoRegexp>> = LazyLock::new(|| {
-    GoRegexp::compile("^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$").ok()
+static RX_UUID: LazyLock<Option<Regex>> = LazyLock::new(|| {
+    goregex::compile("^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$").ok()
 });
 
-/// Go: `rxJSONPointer`.
-static RX_JSON_POINTER: LazyLock<Option<GoRegexp>> =
-    LazyLock::new(|| GoRegexp::compile("^(?:/(?:[^~/]|~0|~1)*)*$").ok());
-
-/// Go: `rxRelJSONPointer`.
-static RX_REL_JSON_POINTER: LazyLock<Option<GoRegexp>> =
-    LazyLock::new(|| GoRegexp::compile("^(?:0|[1-9][0-9]*)(?:#|(?:/(?:[^~/]|~0|~1)*)*)$").ok());
-
-/// Formats Go knows but whose checkers depend on Go packages that are not ported.
-const UNPORTED_FORMATS: [&str; 12] = [
+/// The formats gojsonschema's `FormatCheckers` checks, but `hostname` and `uuid`.
+const UNPORTED: [&str; 15] = [
     "date",
     "time",
     "date-time",
@@ -45,93 +39,65 @@ const UNPORTED_FORMATS: [&str; 12] = [
     "iri",
     "iri-reference",
     "uri-template",
+    "regex",
+    "json-pointer",
+    "relative-json-pointer",
 ];
 
-/// The ported checkers.
+/// A `format` the port checks (Go: the checker `FormatCheckers` holds for the name).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(super) enum Checker {
-    Hostname,
-    Uuid,
-    Regex,
-    JsonPointer,
-    RelativeJsonPointer,
-}
-
-/// Go: `subSchema.format` together with the checker `FormatCheckers` selects for it.
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub(super) enum Format {
-    /// No `format` keyword (Go: `""`, never checked).
-    #[default]
-    None,
-    /// A format without a registered checker: Go's `IsFormat` returns true.
-    Unchecked(String),
-    /// A format with a ported checker.
-    Checked(String, Checker),
+    /// `HostnameChecker`.
+    Hostname,
+    /// `UUIDFormatChecker`.
+    Uuid,
 }
 
 impl Format {
-    /// Selects the checker for `name`.
+    /// The checker for `name`, `None` for a name gojsonschema has no checker for (the empty
+    /// name among them), which passes every value in Go.
     ///
     /// # Errors
     ///
-    /// Rejects the formats whose Go checkers are not ported.
-    pub(super) fn parse(name: &str) -> Result<Self, String> {
-        let checker = match name {
-            "" => return Ok(Self::None),
-            "hostname" => Checker::Hostname,
-            "uuid" => Checker::Uuid,
-            "regex" => Checker::Regex,
-            "json-pointer" => Checker::JsonPointer,
-            "relative-json-pointer" => Checker::RelativeJsonPointer,
-            other if UNPORTED_FORMATS.contains(&other) => {
+    /// Refuses the other formats gojsonschema checks: their checkers (`time.Parse`,
+    /// `net/mail`, `net/url`, ...) are not ported, and no schema Prebid ships names one.
+    pub(super) fn parse(name: &str) -> Result<Option<Self>, String> {
+        let (format, rx) = match name {
+            "hostname" => (Self::Hostname, &RX_HOSTNAME),
+            "uuid" => (Self::Uuid, &RX_UUID),
+            other if UNPORTED.contains(&other) => {
                 return Err(format!(
-                    "format {other:?} is not supported by the Rust port of gojsonschema"
+                    "format {other:?} is not supported by the Rust port of gojsonschema, which \
+                     checks only uuid and hostname"
                 ));
             }
-            other => return Ok(Self::Unchecked(other.to_owned())),
+            _ => return Ok(None),
         };
-        Ok(Self::Checked(name.to_owned(), checker))
+        if rx.is_none() {
+            return Err(format!("the {name} checker's pattern does not compile"));
+        }
+        Ok(Some(format))
     }
 
-    /// Whether the keyword is present (Go: `format != ""`).
-    pub(super) const fn is_set(&self) -> bool {
-        !matches!(self, Self::None)
-    }
-
-    /// The format name, for `Does not match format '{{.format}}'`.
-    pub(super) fn name(&self) -> &str {
+    /// The format's name, as `Does not match format '{{.format}}'` prints it.
+    pub(super) const fn name(self) -> &'static str {
         match self {
-            Self::None => "",
-            Self::Unchecked(name) | Self::Checked(name, _) => name,
+            Self::Hostname => "hostname",
+            Self::Uuid => "uuid",
         }
     }
 
-    /// Go: `FormatCheckers.IsFormat(format, stringValue)`.
-    pub(super) fn is_format_string(&self, s: &str) -> bool {
-        let rx = match self {
-            Self::None | Self::Unchecked(_) => return true,
-            Self::Checked(_, Checker::Hostname) => {
-                return matches(&RX_HOSTNAME, s) && s.len() < 256;
-            }
-            Self::Checked(_, Checker::Regex) => {
-                return s.is_empty() || GoRegexp::compile(s).is_ok();
-            }
-            Self::Checked(_, Checker::Uuid) => &RX_UUID,
-            Self::Checked(_, Checker::JsonPointer) => &RX_JSON_POINTER,
-            Self::Checked(_, Checker::RelativeJsonPointer) => &RX_REL_JSON_POINTER,
-        };
-        matches(rx, s)
-    }
-
-    /// Go: `FormatCheckers.IsFormat(format, *big.Rat)`: every registered checker type-asserts a
-    /// `string` and fails, unregistered formats pass.
-    pub(super) const fn is_format_number(&self) -> bool {
-        matches!(self, Self::None | Self::Unchecked(_))
+    /// Go: `FormatCheckers.IsFormat(format, value)` for a string value.
+    pub(super) fn is_format(self, s: &str) -> bool {
+        match self {
+            Self::Hostname => matches(&RX_HOSTNAME, s) && s.len() < 256,
+            Self::Uuid => matches(&RX_UUID, s),
+        }
     }
 }
 
-fn matches(rx: &LazyLock<Option<GoRegexp>>, s: &str) -> bool {
-    rx.as_ref().is_some_and(|r| r.match_string(s))
+fn matches(rx: &LazyLock<Option<Regex>>, s: &str) -> bool {
+    rx.as_ref().is_some_and(|r| r.is_match(s))
 }
 
 #[cfg(test)]
@@ -140,27 +106,33 @@ mod tests {
 
     #[test]
     fn checkers_match_go() -> Result<(), String> {
-        let uuid = Format::parse("uuid")?;
-        let host = Format::parse("hostname")?;
+        let uuid = Format::parse("uuid")?.ok_or("uuid")?;
+        let host = Format::parse("hostname")?.ok_or("hostname")?;
         let cases = [
-            (&uuid, "123e4567-e89b-12d3-a456-426614174000", true),
-            (&uuid, "123E4567-E89B-12D3-A456-426614174000", false),
-            (&uuid, "123e4567e89b12d3a456426614174000", false),
-            (&host, "example.com", true),
-            (&host, "-example.com", false),
-            (&host, "a..b", false),
-            (&host, "localhost", true),
+            (uuid, "123e4567-e89b-12d3-a456-426614174000", true),
+            (uuid, "123E4567-E89B-12D3-A456-426614174000", false),
+            (uuid, "123e4567e89b12d3a456426614174000", false),
+            (uuid, "123e4567-e89b-12d3-a456-426614174000\n", false),
+            (host, "example.com", true),
+            (host, "-example.com", false),
+            (host, "a..b", false),
+            (host, "localhost", true),
         ];
         for (format, input, want) in cases {
-            if format.is_format_string(input) != want {
+            if format.is_format(input) != want {
                 return Err(format!("{} on {input:?}: want {want}", format.name()));
             }
         }
-        if Format::parse("email").is_ok() {
-            return Err("email must be rejected".to_owned());
+        for name in ["email", "date-time", "ipv4", "relative-json-pointer"] {
+            if Format::parse(name).is_ok() {
+                return Err(format!("{name:?} must be refused"));
+            }
         }
-        if !Format::parse("custom")?.is_format_string("anything") {
-            return Err("unknown formats always pass".to_owned());
+        // Go passes every value for a name it has no checker for.
+        for name in ["custom", "UUID", "hostname ", "idn-hostname", ""] {
+            if Format::parse(name) != Ok(None) {
+                return Err(format!("{name:?} must check nothing"));
+            }
         }
         Ok(())
     }

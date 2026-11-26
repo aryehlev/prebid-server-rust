@@ -1,0 +1,291 @@
+{"schema":"{\"type\":\"integer\"}","kind":"loaded"}
+{"schema":"{\"type\":\"integer\"}","doc":"9007199254740992","kind":"ok"}
+{"schema":"{\"type\":\"integer\"}","doc":"{\"n\":9007199254740992}","kind":"invalid","text":"(root): Invalid type. Expected: integer, given: object"}
+{"schema":"{\"type\":\"integer\"}","doc":"9007199254740993","kind":"ok"}
+{"schema":"{\"type\":\"integer\"}","doc":"{\"n\":9007199254740993}","kind":"invalid","text":"(root): Invalid type. Expected: integer, given: object"}
+{"schema":"{\"type\":\"integer\"}","doc":"-9007199254740993","kind":"ok"}
+{"schema":"{\"type\":\"integer\"}","doc":"{\"n\":-9007199254740993}","kind":"invalid","text":"(root): Invalid type. Expected: integer, given: object"}
+{"schema":"{\"type\":\"integer\"}","doc":"18446744073709551615","kind":"ok"}
+{"schema":"{\"type\":\"integer\"}","doc":"{\"n\":18446744073709551615}","kind":"invalid","text":"(root): Invalid type. Expected: integer, given: object"}
+{"schema":"{\"type\":\"integer\"}","doc":"18446744073709551616","kind":"ok"}
+{"schema":"{\"type\":\"integer\"}","doc":"{\"n\":18446744073709551616}","kind":"invalid","text":"(root): Invalid type. Expected: integer, given: object"}
+{"schema":"{\"type\":\"integer\"}","doc":"123456789012345678901234567890","kind":"ok"}
+{"schema":"{\"type\":\"integer\"}","doc":"{\"n\":123456789012345678901234567890}","kind":"invalid","text":"(root): Invalid type. Expected: integer, given: object"}
+{"schema":"{\"type\":\"integer\"}","doc":"1.0000000000000001","kind":"invalid","text":"(root): Invalid type. Expected: integer, given: number"}
+{"schema":"{\"type\":\"integer\"}","doc":"{\"n\":1.0000000000000001}","kind":"invalid","text":"(root): Invalid type. Expected: integer, given: object"}
+{"schema":"{\"type\":\"integer\"}","doc":"0.99999999999999999","kind":"invalid","text":"(root): Invalid type. Expected: integer, given: number"}
+{"schema":"{\"type\":\"integer\"}","doc":"{\"n\":0.99999999999999999}","kind":"invalid","text":"(root): Invalid type. Expected: integer, given: object"}
+{"schema":"{\"type\":\"integer\"}","doc":"1e308","kind":"ok"}
+{"schema":"{\"type\":\"integer\"}","doc":"{\"n\":1e308}","kind":"invalid","text":"(root): Invalid type. Expected: integer, given: object"}
+{"schema":"{\"type\":\"integer\"}","doc":"1.7976931348623157e308","kind":"ok"}
+{"schema":"{\"type\":\"integer\"}","doc":"{\"n\":1.7976931348623157e308}","kind":"invalid","text":"(root): Invalid type. Expected: integer, given: object"}
+{"schema":"{\"type\":\"integer\"}","doc":"1.5e300","kind":"ok"}
+{"schema":"{\"type\":\"integer\"}","doc":"{\"n\":1.5e300}","kind":"invalid","text":"(root): Invalid type. Expected: integer, given: object"}
+{"schema":"{\"type\":\"integer\"}","doc":"1e400","kind":"ok"}
+{"schema":"{\"type\":\"integer\"}","doc":"{\"n\":1e400}","kind":"invalid","text":"(root): Invalid type. Expected: integer, given: object"}
+{"schema":"{\"type\":\"integer\"}","doc":"-1e400","kind":"ok"}
+{"schema":"{\"type\":\"integer\"}","doc":"{\"n\":-1e400}","kind":"invalid","text":"(root): Invalid type. Expected: integer, given: object"}
+{"schema":"{\"type\":\"integer\"}","doc":"1e-400","kind":"invalid","text":"(root): Invalid type. Expected: integer, given: number"}
+{"schema":"{\"type\":\"integer\"}","doc":"{\"n\":1e-400}","kind":"invalid","text":"(root): Invalid type. Expected: integer, given: object"}
+{"schema":"{\"type\":\"integer\"}","doc":"0.1e-1000005","kind":"invalid","text":"(root): Invalid type. Expected: integer, given: number"}
+{"schema":"{\"type\":\"integer\"}","doc":"{\"n\":0.1e-1000005}","kind":"invalid","text":"(root): Invalid type. Expected: integer, given: object"}
+{"schema":"{\"type\":\"integer\"}","doc":"1e999999999","kind":"invalid","text":"(root): Invalid type. Expected: integer, given: number"}
+{"schema":"{\"type\":\"integer\"}","doc":"{\"n\":1e999999999}","kind":"invalid","text":"(root): Invalid type. Expected: integer, given: object"}
+{"schema":"{\"type\":\"integer\"}","doc":"-0","kind":"ok"}
+{"schema":"{\"type\":\"integer\"}","doc":"{\"n\":-0}","kind":"invalid","text":"(root): Invalid type. Expected: integer, given: object"}
+{"schema":"{\"type\":\"integer\"}","doc":"-0.0","kind":"ok"}
+{"schema":"{\"type\":\"integer\"}","doc":"{\"n\":-0.0}","kind":"invalid","text":"(root): Invalid type. Expected: integer, given: object"}
+{"schema":"{\"type\":\"number\",\"minimum\":1}","kind":"loaded"}
+{"schema":"{\"type\":\"number\",\"minimum\":1}","doc":"9007199254740992","kind":"ok"}
+{"schema":"{\"type\":\"number\",\"minimum\":1}","doc":"{\"n\":9007199254740992}","kind":"invalid","text":"(root): Invalid type. Expected: number, given: object"}
+{"schema":"{\"type\":\"number\",\"minimum\":1}","doc":"9007199254740993","kind":"ok"}
+{"schema":"{\"type\":\"number\",\"minimum\":1}","doc":"{\"n\":9007199254740993}","kind":"invalid","text":"(root): Invalid type. Expected: number, given: object"}
+{"schema":"{\"type\":\"number\",\"minimum\":1}","doc":"-9007199254740993","kind":"invalid","text":"(root): Must be greater than or equal to 1"}
+{"schema":"{\"type\":\"number\",\"minimum\":1}","doc":"{\"n\":-9007199254740993}","kind":"invalid","text":"(root): Invalid type. Expected: number, given: object"}
+{"schema":"{\"type\":\"number\",\"minimum\":1}","doc":"18446744073709551615","kind":"ok"}
+{"schema":"{\"type\":\"number\",\"minimum\":1}","doc":"{\"n\":18446744073709551615}","kind":"invalid","text":"(root): Invalid type. Expected: number, given: object"}
+{"schema":"{\"type\":\"number\",\"minimum\":1}","doc":"18446744073709551616","kind":"ok"}
+{"schema":"{\"type\":\"number\",\"minimum\":1}","doc":"{\"n\":18446744073709551616}","kind":"invalid","text":"(root): Invalid type. Expected: number, given: object"}
+{"schema":"{\"type\":\"number\",\"minimum\":1}","doc":"123456789012345678901234567890","kind":"ok"}
+{"schema":"{\"type\":\"number\",\"minimum\":1}","doc":"{\"n\":123456789012345678901234567890}","kind":"invalid","text":"(root): Invalid type. Expected: number, given: object"}
+{"schema":"{\"type\":\"number\",\"minimum\":1}","doc":"1.0000000000000001","kind":"ok"}
+{"schema":"{\"type\":\"number\",\"minimum\":1}","doc":"{\"n\":1.0000000000000001}","kind":"invalid","text":"(root): Invalid type. Expected: number, given: object"}
+{"schema":"{\"type\":\"number\",\"minimum\":1}","doc":"0.99999999999999999","kind":"invalid","text":"(root): Must be greater than or equal to 1"}
+{"schema":"{\"type\":\"number\",\"minimum\":1}","doc":"{\"n\":0.99999999999999999}","kind":"invalid","text":"(root): Invalid type. Expected: number, given: object"}
+{"schema":"{\"type\":\"number\",\"minimum\":1}","doc":"1e308","kind":"ok"}
+{"schema":"{\"type\":\"number\",\"minimum\":1}","doc":"{\"n\":1e308}","kind":"invalid","text":"(root): Invalid type. Expected: number, given: object"}
+{"schema":"{\"type\":\"number\",\"minimum\":1}","doc":"1.7976931348623157e308","kind":"ok"}
+{"schema":"{\"type\":\"number\",\"minimum\":1}","doc":"{\"n\":1.7976931348623157e308}","kind":"invalid","text":"(root): Invalid type. Expected: number, given: object"}
+{"schema":"{\"type\":\"number\",\"minimum\":1}","doc":"1.5e300","kind":"ok"}
+{"schema":"{\"type\":\"number\",\"minimum\":1}","doc":"{\"n\":1.5e300}","kind":"invalid","text":"(root): Invalid type. Expected: number, given: object"}
+{"schema":"{\"type\":\"number\",\"minimum\":1}","doc":"1e400","kind":"ok"}
+{"schema":"{\"type\":\"number\",\"minimum\":1}","doc":"{\"n\":1e400}","kind":"invalid","text":"(root): Invalid type. Expected: number, given: object"}
+{"schema":"{\"type\":\"number\",\"minimum\":1}","doc":"-1e400","kind":"invalid","text":"(root): Must be greater than or equal to 1"}
+{"schema":"{\"type\":\"number\",\"minimum\":1}","doc":"{\"n\":-1e400}","kind":"invalid","text":"(root): Invalid type. Expected: number, given: object"}
+{"schema":"{\"type\":\"number\",\"minimum\":1}","doc":"1e-400","kind":"invalid","text":"(root): Must be greater than or equal to 1"}
+{"schema":"{\"type\":\"number\",\"minimum\":1}","doc":"{\"n\":1e-400}","kind":"invalid","text":"(root): Invalid type. Expected: number, given: object"}
+{"schema":"{\"type\":\"number\",\"minimum\":1}","doc":"0.1e-1000005","kind":"panic","text":"runtime error: invalid memory address or nil pointer dereference"}
+{"schema":"{\"type\":\"number\",\"minimum\":1}","doc":"{\"n\":0.1e-1000005}","kind":"invalid","text":"(root): Invalid type. Expected: number, given: object"}
+{"schema":"{\"type\":\"number\",\"minimum\":1}","doc":"1e999999999","kind":"panic","text":"runtime error: invalid memory address or nil pointer dereference"}
+{"schema":"{\"type\":\"number\",\"minimum\":1}","doc":"{\"n\":1e999999999}","kind":"invalid","text":"(root): Invalid type. Expected: number, given: object"}
+{"schema":"{\"type\":\"number\",\"minimum\":1}","doc":"-0","kind":"invalid","text":"(root): Must be greater than or equal to 1"}
+{"schema":"{\"type\":\"number\",\"minimum\":1}","doc":"{\"n\":-0}","kind":"invalid","text":"(root): Invalid type. Expected: number, given: object"}
+{"schema":"{\"type\":\"number\",\"minimum\":1}","doc":"-0.0","kind":"invalid","text":"(root): Must be greater than or equal to 1"}
+{"schema":"{\"type\":\"number\",\"minimum\":1}","doc":"{\"n\":-0.0}","kind":"invalid","text":"(root): Invalid type. Expected: number, given: object"}
+{"schema":"{\"type\":\"number\",\"maximum\":9007199254740992}","kind":"loaded"}
+{"schema":"{\"type\":\"number\",\"maximum\":9007199254740992}","doc":"9007199254740992","kind":"ok"}
+{"schema":"{\"type\":\"number\",\"maximum\":9007199254740992}","doc":"{\"n\":9007199254740992}","kind":"invalid","text":"(root): Invalid type. Expected: number, given: object"}
+{"schema":"{\"type\":\"number\",\"maximum\":9007199254740992}","doc":"9007199254740993","kind":"invalid","text":"(root): Must be less than or equal to 9.007199254740992e+15"}
+{"schema":"{\"type\":\"number\",\"maximum\":9007199254740992}","doc":"{\"n\":9007199254740993}","kind":"invalid","text":"(root): Invalid type. Expected: number, given: object"}
+{"schema":"{\"type\":\"number\",\"maximum\":9007199254740992}","doc":"-9007199254740993","kind":"ok"}
+{"schema":"{\"type\":\"number\",\"maximum\":9007199254740992}","doc":"{\"n\":-9007199254740993}","kind":"invalid","text":"(root): Invalid type. Expected: number, given: object"}
+{"schema":"{\"type\":\"number\",\"maximum\":9007199254740992}","doc":"18446744073709551615","kind":"invalid","text":"(root): Must be less than or equal to 9.007199254740992e+15"}
+{"schema":"{\"type\":\"number\",\"maximum\":9007199254740992}","doc":"{\"n\":18446744073709551615}","kind":"invalid","text":"(root): Invalid type. Expected: number, given: object"}
+{"schema":"{\"type\":\"number\",\"maximum\":9007199254740992}","doc":"18446744073709551616","kind":"invalid","text":"(root): Must be less than or equal to 9.007199254740992e+15"}
+{"schema":"{\"type\":\"number\",\"maximum\":9007199254740992}","doc":"{\"n\":18446744073709551616}","kind":"invalid","text":"(root): Invalid type. Expected: number, given: object"}
+{"schema":"{\"type\":\"number\",\"maximum\":9007199254740992}","doc":"123456789012345678901234567890","kind":"invalid","text":"(root): Must be less than or equal to 9.007199254740992e+15"}
+{"schema":"{\"type\":\"number\",\"maximum\":9007199254740992}","doc":"{\"n\":123456789012345678901234567890}","kind":"invalid","text":"(root): Invalid type. Expected: number, given: object"}
+{"schema":"{\"type\":\"number\",\"maximum\":9007199254740992}","doc":"1.0000000000000001","kind":"ok"}
+{"schema":"{\"type\":\"number\",\"maximum\":9007199254740992}","doc":"{\"n\":1.0000000000000001}","kind":"invalid","text":"(root): Invalid type. Expected: number, given: object"}
+{"schema":"{\"type\":\"number\",\"maximum\":9007199254740992}","doc":"0.99999999999999999","kind":"ok"}
+{"schema":"{\"type\":\"number\",\"maximum\":9007199254740992}","doc":"{\"n\":0.99999999999999999}","kind":"invalid","text":"(root): Invalid type. Expected: number, given: object"}
+{"schema":"{\"type\":\"number\",\"maximum\":9007199254740992}","doc":"1e308","kind":"invalid","text":"(root): Must be less than or equal to 9.007199254740992e+15"}
+{"schema":"{\"type\":\"number\",\"maximum\":9007199254740992}","doc":"{\"n\":1e308}","kind":"invalid","text":"(root): Invalid type. Expected: number, given: object"}
+{"schema":"{\"type\":\"number\",\"maximum\":9007199254740992}","doc":"1.7976931348623157e308","kind":"invalid","text":"(root): Must be less than or equal to 9.007199254740992e+15"}
+{"schema":"{\"type\":\"number\",\"maximum\":9007199254740992}","doc":"{\"n\":1.7976931348623157e308}","kind":"invalid","text":"(root): Invalid type. Expected: number, given: object"}
+{"schema":"{\"type\":\"number\",\"maximum\":9007199254740992}","doc":"1.5e300","kind":"invalid","text":"(root): Must be less than or equal to 9.007199254740992e+15"}
+{"schema":"{\"type\":\"number\",\"maximum\":9007199254740992}","doc":"{\"n\":1.5e300}","kind":"invalid","text":"(root): Invalid type. Expected: number, given: object"}
+{"schema":"{\"type\":\"number\",\"maximum\":9007199254740992}","doc":"1e400","kind":"invalid","text":"(root): Must be less than or equal to 9.007199254740992e+15"}
+{"schema":"{\"type\":\"number\",\"maximum\":9007199254740992}","doc":"{\"n\":1e400}","kind":"invalid","text":"(root): Invalid type. Expected: number, given: object"}
+{"schema":"{\"type\":\"number\",\"maximum\":9007199254740992}","doc":"-1e400","kind":"ok"}
+{"schema":"{\"type\":\"number\",\"maximum\":9007199254740992}","doc":"{\"n\":-1e400}","kind":"invalid","text":"(root): Invalid type. Expected: number, given: object"}
+{"schema":"{\"type\":\"number\",\"maximum\":9007199254740992}","doc":"1e-400","kind":"ok"}
+{"schema":"{\"type\":\"number\",\"maximum\":9007199254740992}","doc":"{\"n\":1e-400}","kind":"invalid","text":"(root): Invalid type. Expected: number, given: object"}
+{"schema":"{\"type\":\"number\",\"maximum\":9007199254740992}","doc":"0.1e-1000005","kind":"panic","text":"runtime error: invalid memory address or nil pointer dereference"}
+{"schema":"{\"type\":\"number\",\"maximum\":9007199254740992}","doc":"{\"n\":0.1e-1000005}","kind":"invalid","text":"(root): Invalid type. Expected: number, given: object"}
+{"schema":"{\"type\":\"number\",\"maximum\":9007199254740992}","doc":"1e999999999","kind":"panic","text":"runtime error: invalid memory address or nil pointer dereference"}
+{"schema":"{\"type\":\"number\",\"maximum\":9007199254740992}","doc":"{\"n\":1e999999999}","kind":"invalid","text":"(root): Invalid type. Expected: number, given: object"}
+{"schema":"{\"type\":\"number\",\"maximum\":9007199254740992}","doc":"-0","kind":"ok"}
+{"schema":"{\"type\":\"number\",\"maximum\":9007199254740992}","doc":"{\"n\":-0}","kind":"invalid","text":"(root): Invalid type. Expected: number, given: object"}
+{"schema":"{\"type\":\"number\",\"maximum\":9007199254740992}","doc":"-0.0","kind":"ok"}
+{"schema":"{\"type\":\"number\",\"maximum\":9007199254740992}","doc":"{\"n\":-0.0}","kind":"invalid","text":"(root): Invalid type. Expected: number, given: object"}
+{"schema":"{\"type\":\"integer\",\"maximum\":100}","kind":"loaded"}
+{"schema":"{\"type\":\"integer\",\"maximum\":100}","doc":"9007199254740992","kind":"invalid","text":"(root): Must be less than or equal to 100"}
+{"schema":"{\"type\":\"integer\",\"maximum\":100}","doc":"{\"n\":9007199254740992}","kind":"invalid","text":"(root): Invalid type. Expected: integer, given: object"}
+{"schema":"{\"type\":\"integer\",\"maximum\":100}","doc":"9007199254740993","kind":"invalid","text":"(root): Must be less than or equal to 100"}
+{"schema":"{\"type\":\"integer\",\"maximum\":100}","doc":"{\"n\":9007199254740993}","kind":"invalid","text":"(root): Invalid type. Expected: integer, given: object"}
+{"schema":"{\"type\":\"integer\",\"maximum\":100}","doc":"-9007199254740993","kind":"ok"}
+{"schema":"{\"type\":\"integer\",\"maximum\":100}","doc":"{\"n\":-9007199254740993}","kind":"invalid","text":"(root): Invalid type. Expected: integer, given: object"}
+{"schema":"{\"type\":\"integer\",\"maximum\":100}","doc":"18446744073709551615","kind":"invalid","text":"(root): Must be less than or equal to 100"}
+{"schema":"{\"type\":\"integer\",\"maximum\":100}","doc":"{\"n\":18446744073709551615}","kind":"invalid","text":"(root): Invalid type. Expected: integer, given: object"}
+{"schema":"{\"type\":\"integer\",\"maximum\":100}","doc":"18446744073709551616","kind":"invalid","text":"(root): Must be less than or equal to 100"}
+{"schema":"{\"type\":\"integer\",\"maximum\":100}","doc":"{\"n\":18446744073709551616}","kind":"invalid","text":"(root): Invalid type. Expected: integer, given: object"}
+{"schema":"{\"type\":\"integer\",\"maximum\":100}","doc":"123456789012345678901234567890","kind":"invalid","text":"(root): Must be less than or equal to 100"}
+{"schema":"{\"type\":\"integer\",\"maximum\":100}","doc":"{\"n\":123456789012345678901234567890}","kind":"invalid","text":"(root): Invalid type. Expected: integer, given: object"}
+{"schema":"{\"type\":\"integer\",\"maximum\":100}","doc":"1.0000000000000001","kind":"invalid","text":"(root): Invalid type. Expected: integer, given: number"}
+{"schema":"{\"type\":\"integer\",\"maximum\":100}","doc":"{\"n\":1.0000000000000001}","kind":"invalid","text":"(root): Invalid type. Expected: integer, given: object"}
+{"schema":"{\"type\":\"integer\",\"maximum\":100}","doc":"0.99999999999999999","kind":"invalid","text":"(root): Invalid type. Expected: integer, given: number"}
+{"schema":"{\"type\":\"integer\",\"maximum\":100}","doc":"{\"n\":0.99999999999999999}","kind":"invalid","text":"(root): Invalid type. Expected: integer, given: object"}
+{"schema":"{\"type\":\"integer\",\"maximum\":100}","doc":"1e308","kind":"invalid","text":"(root): Must be less than or equal to 100"}
+{"schema":"{\"type\":\"integer\",\"maximum\":100}","doc":"{\"n\":1e308}","kind":"invalid","text":"(root): Invalid type. Expected: integer, given: object"}
+{"schema":"{\"type\":\"integer\",\"maximum\":100}","doc":"1.7976931348623157e308","kind":"invalid","text":"(root): Must be less than or equal to 100"}
+{"schema":"{\"type\":\"integer\",\"maximum\":100}","doc":"{\"n\":1.7976931348623157e308}","kind":"invalid","text":"(root): Invalid type. Expected: integer, given: object"}
+{"schema":"{\"type\":\"integer\",\"maximum\":100}","doc":"1.5e300","kind":"invalid","text":"(root): Must be less than or equal to 100"}
+{"schema":"{\"type\":\"integer\",\"maximum\":100}","doc":"{\"n\":1.5e300}","kind":"invalid","text":"(root): Invalid type. Expected: integer, given: object"}
+{"schema":"{\"type\":\"integer\",\"maximum\":100}","doc":"1e400","kind":"invalid","text":"(root): Must be less than or equal to 100"}
+{"schema":"{\"type\":\"integer\",\"maximum\":100}","doc":"{\"n\":1e400}","kind":"invalid","text":"(root): Invalid type. Expected: integer, given: object"}
+{"schema":"{\"type\":\"integer\",\"maximum\":100}","doc":"-1e400","kind":"ok"}
+{"schema":"{\"type\":\"integer\",\"maximum\":100}","doc":"{\"n\":-1e400}","kind":"invalid","text":"(root): Invalid type. Expected: integer, given: object"}
+{"schema":"{\"type\":\"integer\",\"maximum\":100}","doc":"1e-400","kind":"invalid","text":"(root): Invalid type. Expected: integer, given: number"}
+{"schema":"{\"type\":\"integer\",\"maximum\":100}","doc":"{\"n\":1e-400}","kind":"invalid","text":"(root): Invalid type. Expected: integer, given: object"}
+{"schema":"{\"type\":\"integer\",\"maximum\":100}","doc":"0.1e-1000005","kind":"invalid","text":"(root): Invalid type. Expected: integer, given: number"}
+{"schema":"{\"type\":\"integer\",\"maximum\":100}","doc":"{\"n\":0.1e-1000005}","kind":"invalid","text":"(root): Invalid type. Expected: integer, given: object"}
+{"schema":"{\"type\":\"integer\",\"maximum\":100}","doc":"1e999999999","kind":"invalid","text":"(root): Invalid type. Expected: integer, given: number"}
+{"schema":"{\"type\":\"integer\",\"maximum\":100}","doc":"{\"n\":1e999999999}","kind":"invalid","text":"(root): Invalid type. Expected: integer, given: object"}
+{"schema":"{\"type\":\"integer\",\"maximum\":100}","doc":"-0","kind":"ok"}
+{"schema":"{\"type\":\"integer\",\"maximum\":100}","doc":"{\"n\":-0}","kind":"invalid","text":"(root): Invalid type. Expected: integer, given: object"}
+{"schema":"{\"type\":\"integer\",\"maximum\":100}","doc":"-0.0","kind":"ok"}
+{"schema":"{\"type\":\"integer\",\"maximum\":100}","doc":"{\"n\":-0.0}","kind":"invalid","text":"(root): Invalid type. Expected: integer, given: object"}
+{"schema":"{\"enum\":[\"a\"]}","kind":"loaded"}
+{"schema":"{\"enum\":[\"a\"]}","doc":"9007199254740992","kind":"invalid","text":"(root): (root) must be one of the following: \"a\""}
+{"schema":"{\"enum\":[\"a\"]}","doc":"{\"n\":9007199254740992}","kind":"invalid","text":"(root): (root) must be one of the following: \"a\""}
+{"schema":"{\"enum\":[\"a\"]}","doc":"9007199254740993","kind":"invalid","text":"(root): (root) must be one of the following: \"a\""}
+{"schema":"{\"enum\":[\"a\"]}","doc":"{\"n\":9007199254740993}","kind":"invalid","text":"(root): (root) must be one of the following: \"a\""}
+{"schema":"{\"enum\":[\"a\"]}","doc":"-9007199254740993","kind":"invalid","text":"(root): (root) must be one of the following: \"a\""}
+{"schema":"{\"enum\":[\"a\"]}","doc":"{\"n\":-9007199254740993}","kind":"invalid","text":"(root): (root) must be one of the following: \"a\""}
+{"schema":"{\"enum\":[\"a\"]}","doc":"18446744073709551615","kind":"invalid","text":"(root): (root) must be one of the following: \"a\""}
+{"schema":"{\"enum\":[\"a\"]}","doc":"{\"n\":18446744073709551615}","kind":"invalid","text":"(root): (root) must be one of the following: \"a\""}
+{"schema":"{\"enum\":[\"a\"]}","doc":"18446744073709551616","kind":"invalid","text":"(root): (root) must be one of the following: \"a\""}
+{"schema":"{\"enum\":[\"a\"]}","doc":"{\"n\":18446744073709551616}","kind":"invalid","text":"(root): (root) must be one of the following: \"a\""}
+{"schema":"{\"enum\":[\"a\"]}","doc":"123456789012345678901234567890","kind":"invalid","text":"(root): (root) must be one of the following: \"a\""}
+{"schema":"{\"enum\":[\"a\"]}","doc":"{\"n\":123456789012345678901234567890}","kind":"invalid","text":"(root): (root) must be one of the following: \"a\""}
+{"schema":"{\"enum\":[\"a\"]}","doc":"1.0000000000000001","kind":"invalid","text":"(root): (root) must be one of the following: \"a\""}
+{"schema":"{\"enum\":[\"a\"]}","doc":"{\"n\":1.0000000000000001}","kind":"invalid","text":"(root): (root) must be one of the following: \"a\""}
+{"schema":"{\"enum\":[\"a\"]}","doc":"0.99999999999999999","kind":"invalid","text":"(root): (root) must be one of the following: \"a\""}
+{"schema":"{\"enum\":[\"a\"]}","doc":"{\"n\":0.99999999999999999}","kind":"invalid","text":"(root): (root) must be one of the following: \"a\""}
+{"schema":"{\"enum\":[\"a\"]}","doc":"1e308","kind":"invalid","text":"(root): (root) must be one of the following: \"a\""}
+{"schema":"{\"enum\":[\"a\"]}","doc":"{\"n\":1e308}","kind":"invalid","text":"(root): (root) must be one of the following: \"a\""}
+{"schema":"{\"enum\":[\"a\"]}","doc":"1.7976931348623157e308","kind":"invalid","text":"(root): (root) must be one of the following: \"a\""}
+{"schema":"{\"enum\":[\"a\"]}","doc":"{\"n\":1.7976931348623157e308}","kind":"invalid","text":"(root): (root) must be one of the following: \"a\""}
+{"schema":"{\"enum\":[\"a\"]}","doc":"1.5e300","kind":"invalid","text":"(root): (root) must be one of the following: \"a\""}
+{"schema":"{\"enum\":[\"a\"]}","doc":"{\"n\":1.5e300}","kind":"invalid","text":"(root): (root) must be one of the following: \"a\""}
+{"schema":"{\"enum\":[\"a\"]}","doc":"1e400","kind":"panic","text":"runtime error: invalid memory address or nil pointer dereference"}
+{"schema":"{\"enum\":[\"a\"]}","doc":"{\"n\":1e400}","kind":"panic","text":"runtime error: invalid memory address or nil pointer dereference"}
+{"schema":"{\"enum\":[\"a\"]}","doc":"-1e400","kind":"panic","text":"runtime error: invalid memory address or nil pointer dereference"}
+{"schema":"{\"enum\":[\"a\"]}","doc":"{\"n\":-1e400}","kind":"panic","text":"runtime error: invalid memory address or nil pointer dereference"}
+{"schema":"{\"enum\":[\"a\"]}","doc":"1e-400","kind":"invalid","text":"(root): (root) must be one of the following: \"a\""}
+{"schema":"{\"enum\":[\"a\"]}","doc":"{\"n\":1e-400}","kind":"invalid","text":"(root): (root) must be one of the following: \"a\""}
+{"schema":"{\"enum\":[\"a\"]}","doc":"0.1e-1000005","kind":"invalid","text":"(root): (root) must be one of the following: \"a\""}
+{"schema":"{\"enum\":[\"a\"]}","doc":"{\"n\":0.1e-1000005}","kind":"invalid","text":"(root): (root) must be one of the following: \"a\""}
+{"schema":"{\"enum\":[\"a\"]}","doc":"1e999999999","kind":"panic","text":"runtime error: invalid memory address or nil pointer dereference"}
+{"schema":"{\"enum\":[\"a\"]}","doc":"{\"n\":1e999999999}","kind":"panic","text":"runtime error: invalid memory address or nil pointer dereference"}
+{"schema":"{\"enum\":[\"a\"]}","doc":"-0","kind":"invalid","text":"(root): (root) must be one of the following: \"a\""}
+{"schema":"{\"enum\":[\"a\"]}","doc":"{\"n\":-0}","kind":"invalid","text":"(root): (root) must be one of the following: \"a\""}
+{"schema":"{\"enum\":[\"a\"]}","doc":"-0.0","kind":"invalid","text":"(root): (root) must be one of the following: \"a\""}
+{"schema":"{\"enum\":[\"a\"]}","doc":"{\"n\":-0.0}","kind":"invalid","text":"(root): (root) must be one of the following: \"a\""}
+{"schema":"{\"type\":\"string\"}","kind":"loaded"}
+{"schema":"{\"type\":\"string\"}","doc":"9007199254740992","kind":"invalid","text":"(root): Invalid type. Expected: string, given: integer"}
+{"schema":"{\"type\":\"string\"}","doc":"{\"n\":9007199254740992}","kind":"invalid","text":"(root): Invalid type. Expected: string, given: object"}
+{"schema":"{\"type\":\"string\"}","doc":"9007199254740993","kind":"invalid","text":"(root): Invalid type. Expected: string, given: integer"}
+{"schema":"{\"type\":\"string\"}","doc":"{\"n\":9007199254740993}","kind":"invalid","text":"(root): Invalid type. Expected: string, given: object"}
+{"schema":"{\"type\":\"string\"}","doc":"-9007199254740993","kind":"invalid","text":"(root): Invalid type. Expected: string, given: integer"}
+{"schema":"{\"type\":\"string\"}","doc":"{\"n\":-9007199254740993}","kind":"invalid","text":"(root): Invalid type. Expected: string, given: object"}
+{"schema":"{\"type\":\"string\"}","doc":"18446744073709551615","kind":"invalid","text":"(root): Invalid type. Expected: string, given: integer"}
+{"schema":"{\"type\":\"string\"}","doc":"{\"n\":18446744073709551615}","kind":"invalid","text":"(root): Invalid type. Expected: string, given: object"}
+{"schema":"{\"type\":\"string\"}","doc":"18446744073709551616","kind":"invalid","text":"(root): Invalid type. Expected: string, given: integer"}
+{"schema":"{\"type\":\"string\"}","doc":"{\"n\":18446744073709551616}","kind":"invalid","text":"(root): Invalid type. Expected: string, given: object"}
+{"schema":"{\"type\":\"string\"}","doc":"123456789012345678901234567890","kind":"invalid","text":"(root): Invalid type. Expected: string, given: integer"}
+{"schema":"{\"type\":\"string\"}","doc":"{\"n\":123456789012345678901234567890}","kind":"invalid","text":"(root): Invalid type. Expected: string, given: object"}
+{"schema":"{\"type\":\"string\"}","doc":"1.0000000000000001","kind":"invalid","text":"(root): Invalid type. Expected: string, given: number"}
+{"schema":"{\"type\":\"string\"}","doc":"{\"n\":1.0000000000000001}","kind":"invalid","text":"(root): Invalid type. Expected: string, given: object"}
+{"schema":"{\"type\":\"string\"}","doc":"0.99999999999999999","kind":"invalid","text":"(root): Invalid type. Expected: string, given: number"}
+{"schema":"{\"type\":\"string\"}","doc":"{\"n\":0.99999999999999999}","kind":"invalid","text":"(root): Invalid type. Expected: string, given: object"}
+{"schema":"{\"type\":\"string\"}","doc":"1e308","kind":"invalid","text":"(root): Invalid type. Expected: string, given: integer"}
+{"schema":"{\"type\":\"string\"}","doc":"{\"n\":1e308}","kind":"invalid","text":"(root): Invalid type. Expected: string, given: object"}
+{"schema":"{\"type\":\"string\"}","doc":"1.7976931348623157e308","kind":"invalid","text":"(root): Invalid type. Expected: string, given: integer"}
+{"schema":"{\"type\":\"string\"}","doc":"{\"n\":1.7976931348623157e308}","kind":"invalid","text":"(root): Invalid type. Expected: string, given: object"}
+{"schema":"{\"type\":\"string\"}","doc":"1.5e300","kind":"invalid","text":"(root): Invalid type. Expected: string, given: integer"}
+{"schema":"{\"type\":\"string\"}","doc":"{\"n\":1.5e300}","kind":"invalid","text":"(root): Invalid type. Expected: string, given: object"}
+{"schema":"{\"type\":\"string\"}","doc":"1e400","kind":"invalid","text":"(root): Invalid type. Expected: string, given: integer"}
+{"schema":"{\"type\":\"string\"}","doc":"{\"n\":1e400}","kind":"invalid","text":"(root): Invalid type. Expected: string, given: object"}
+{"schema":"{\"type\":\"string\"}","doc":"-1e400","kind":"invalid","text":"(root): Invalid type. Expected: string, given: integer"}
+{"schema":"{\"type\":\"string\"}","doc":"{\"n\":-1e400}","kind":"invalid","text":"(root): Invalid type. Expected: string, given: object"}
+{"schema":"{\"type\":\"string\"}","doc":"1e-400","kind":"invalid","text":"(root): Invalid type. Expected: string, given: number"}
+{"schema":"{\"type\":\"string\"}","doc":"{\"n\":1e-400}","kind":"invalid","text":"(root): Invalid type. Expected: string, given: object"}
+{"schema":"{\"type\":\"string\"}","doc":"0.1e-1000005","kind":"invalid","text":"(root): Invalid type. Expected: string, given: number"}
+{"schema":"{\"type\":\"string\"}","doc":"{\"n\":0.1e-1000005}","kind":"invalid","text":"(root): Invalid type. Expected: string, given: object"}
+{"schema":"{\"type\":\"string\"}","doc":"1e999999999","kind":"invalid","text":"(root): Invalid type. Expected: string, given: number"}
+{"schema":"{\"type\":\"string\"}","doc":"{\"n\":1e999999999}","kind":"invalid","text":"(root): Invalid type. Expected: string, given: object"}
+{"schema":"{\"type\":\"string\"}","doc":"-0","kind":"invalid","text":"(root): Invalid type. Expected: string, given: integer"}
+{"schema":"{\"type\":\"string\"}","doc":"{\"n\":-0}","kind":"invalid","text":"(root): Invalid type. Expected: string, given: object"}
+{"schema":"{\"type\":\"string\"}","doc":"-0.0","kind":"invalid","text":"(root): Invalid type. Expected: string, given: integer"}
+{"schema":"{\"type\":\"string\"}","doc":"{\"n\":-0.0}","kind":"invalid","text":"(root): Invalid type. Expected: string, given: object"}
+{"schema":"{\"properties\":{\"n\":{\"type\":\"integer\",\"minimum\":0}}}","kind":"loaded"}
+{"schema":"{\"properties\":{\"n\":{\"type\":\"integer\",\"minimum\":0}}}","doc":"9007199254740992","kind":"ok"}
+{"schema":"{\"properties\":{\"n\":{\"type\":\"integer\",\"minimum\":0}}}","doc":"{\"n\":9007199254740992}","kind":"ok"}
+{"schema":"{\"properties\":{\"n\":{\"type\":\"integer\",\"minimum\":0}}}","doc":"9007199254740993","kind":"ok"}
+{"schema":"{\"properties\":{\"n\":{\"type\":\"integer\",\"minimum\":0}}}","doc":"{\"n\":9007199254740993}","kind":"ok"}
+{"schema":"{\"properties\":{\"n\":{\"type\":\"integer\",\"minimum\":0}}}","doc":"-9007199254740993","kind":"ok"}
+{"schema":"{\"properties\":{\"n\":{\"type\":\"integer\",\"minimum\":0}}}","doc":"{\"n\":-9007199254740993}","kind":"invalid","text":"n: Must be greater than or equal to 0"}
+{"schema":"{\"properties\":{\"n\":{\"type\":\"integer\",\"minimum\":0}}}","doc":"18446744073709551615","kind":"ok"}
+{"schema":"{\"properties\":{\"n\":{\"type\":\"integer\",\"minimum\":0}}}","doc":"{\"n\":18446744073709551615}","kind":"ok"}
+{"schema":"{\"properties\":{\"n\":{\"type\":\"integer\",\"minimum\":0}}}","doc":"18446744073709551616","kind":"ok"}
+{"schema":"{\"properties\":{\"n\":{\"type\":\"integer\",\"minimum\":0}}}","doc":"{\"n\":18446744073709551616}","kind":"ok"}
+{"schema":"{\"properties\":{\"n\":{\"type\":\"integer\",\"minimum\":0}}}","doc":"123456789012345678901234567890","kind":"ok"}
+{"schema":"{\"properties\":{\"n\":{\"type\":\"integer\",\"minimum\":0}}}","doc":"{\"n\":123456789012345678901234567890}","kind":"ok"}
+{"schema":"{\"properties\":{\"n\":{\"type\":\"integer\",\"minimum\":0}}}","doc":"1.0000000000000001","kind":"ok"}
+{"schema":"{\"properties\":{\"n\":{\"type\":\"integer\",\"minimum\":0}}}","doc":"{\"n\":1.0000000000000001}","kind":"invalid","text":"n: Invalid type. Expected: integer, given: number"}
+{"schema":"{\"properties\":{\"n\":{\"type\":\"integer\",\"minimum\":0}}}","doc":"0.99999999999999999","kind":"ok"}
+{"schema":"{\"properties\":{\"n\":{\"type\":\"integer\",\"minimum\":0}}}","doc":"{\"n\":0.99999999999999999}","kind":"invalid","text":"n: Invalid type. Expected: integer, given: number"}
+{"schema":"{\"properties\":{\"n\":{\"type\":\"integer\",\"minimum\":0}}}","doc":"1e308","kind":"ok"}
+{"schema":"{\"properties\":{\"n\":{\"type\":\"integer\",\"minimum\":0}}}","doc":"{\"n\":1e308}","kind":"ok"}
+{"schema":"{\"properties\":{\"n\":{\"type\":\"integer\",\"minimum\":0}}}","doc":"1.7976931348623157e308","kind":"ok"}
+{"schema":"{\"properties\":{\"n\":{\"type\":\"integer\",\"minimum\":0}}}","doc":"{\"n\":1.7976931348623157e308}","kind":"ok"}
+{"schema":"{\"properties\":{\"n\":{\"type\":\"integer\",\"minimum\":0}}}","doc":"1.5e300","kind":"ok"}
+{"schema":"{\"properties\":{\"n\":{\"type\":\"integer\",\"minimum\":0}}}","doc":"{\"n\":1.5e300}","kind":"ok"}
+{"schema":"{\"properties\":{\"n\":{\"type\":\"integer\",\"minimum\":0}}}","doc":"1e400","kind":"ok"}
+{"schema":"{\"properties\":{\"n\":{\"type\":\"integer\",\"minimum\":0}}}","doc":"{\"n\":1e400}","kind":"ok"}
+{"schema":"{\"properties\":{\"n\":{\"type\":\"integer\",\"minimum\":0}}}","doc":"-1e400","kind":"ok"}
+{"schema":"{\"properties\":{\"n\":{\"type\":\"integer\",\"minimum\":0}}}","doc":"{\"n\":-1e400}","kind":"invalid","text":"n: Must be greater than or equal to 0"}
+{"schema":"{\"properties\":{\"n\":{\"type\":\"integer\",\"minimum\":0}}}","doc":"1e-400","kind":"ok"}
+{"schema":"{\"properties\":{\"n\":{\"type\":\"integer\",\"minimum\":0}}}","doc":"{\"n\":1e-400}","kind":"invalid","text":"n: Invalid type. Expected: integer, given: number"}
+{"schema":"{\"properties\":{\"n\":{\"type\":\"integer\",\"minimum\":0}}}","doc":"0.1e-1000005","kind":"ok"}
+{"schema":"{\"properties\":{\"n\":{\"type\":\"integer\",\"minimum\":0}}}","doc":"{\"n\":0.1e-1000005}","kind":"invalid","text":"n: Invalid type. Expected: integer, given: number"}
+{"schema":"{\"properties\":{\"n\":{\"type\":\"integer\",\"minimum\":0}}}","doc":"1e999999999","kind":"ok"}
+{"schema":"{\"properties\":{\"n\":{\"type\":\"integer\",\"minimum\":0}}}","doc":"{\"n\":1e999999999}","kind":"invalid","text":"n: Invalid type. Expected: integer, given: number"}
+{"schema":"{\"properties\":{\"n\":{\"type\":\"integer\",\"minimum\":0}}}","doc":"-0","kind":"ok"}
+{"schema":"{\"properties\":{\"n\":{\"type\":\"integer\",\"minimum\":0}}}","doc":"{\"n\":-0}","kind":"ok"}
+{"schema":"{\"properties\":{\"n\":{\"type\":\"integer\",\"minimum\":0}}}","doc":"-0.0","kind":"ok"}
+{"schema":"{\"properties\":{\"n\":{\"type\":\"integer\",\"minimum\":0}}}","doc":"{\"n\":-0.0}","kind":"ok"}
+{"schema":"{\"minimum\":1e400}","kind":"loaded"}
+{"schema":"{\"minimum\":1e400}","doc":"0","kind":"invalid","text":"(root): Must be greater than or equal to 1e+400"}
+{"schema":"{\"minimum\":1e400}","doc":"1","kind":"invalid","text":"(root): Must be greater than or equal to 1e+400"}
+{"schema":"{\"minimum\":1e400}","doc":"9007199254740993","kind":"invalid","text":"(root): Must be greater than or equal to 1e+400"}
+{"schema":"{\"minimum\":1e400}","doc":"\"abc\"","kind":"ok"}
+{"schema":"{\"minimum\":1e400}","doc":"[]","kind":"ok"}
+{"schema":"{\"maximum\":9007199254740993}","kind":"loaded"}
+{"schema":"{\"maximum\":9007199254740993}","doc":"0","kind":"ok"}
+{"schema":"{\"maximum\":9007199254740993}","doc":"1","kind":"ok"}
+{"schema":"{\"maximum\":9007199254740993}","doc":"9007199254740993","kind":"ok"}
+{"schema":"{\"maximum\":9007199254740993}","doc":"\"abc\"","kind":"ok"}
+{"schema":"{\"maximum\":9007199254740993}","doc":"[]","kind":"ok"}
+{"schema":"{\"minimum\":0.30000000000000001}","kind":"loaded"}
+{"schema":"{\"minimum\":0.30000000000000001}","doc":"0","kind":"invalid","text":"(root): Must be greater than or equal to 0.30000000000000001"}
+{"schema":"{\"minimum\":0.30000000000000001}","doc":"1","kind":"ok"}
+{"schema":"{\"minimum\":0.30000000000000001}","doc":"9007199254740993","kind":"ok"}
+{"schema":"{\"minimum\":0.30000000000000001}","doc":"\"abc\"","kind":"ok"}
+{"schema":"{\"minimum\":0.30000000000000001}","doc":"[]","kind":"ok"}
+{"schema":"{\"minLength\":-0}","kind":"loaded"}
+{"schema":"{\"minLength\":-0}","doc":"0","kind":"ok"}
+{"schema":"{\"minLength\":-0}","doc":"1","kind":"ok"}
+{"schema":"{\"minLength\":-0}","doc":"9007199254740993","kind":"ok"}
+{"schema":"{\"minLength\":-0}","doc":"\"abc\"","kind":"ok"}
+{"schema":"{\"minLength\":-0}","doc":"[]","kind":"ok"}
+{"schema":"{\"minLength\":1.0}","kind":"load_error","text":"minLength must be of an integer"}
+{"schema":"{\"minLength\":18446744073709551616}","kind":"load_error","text":"minLength must be of an integer"}
+{"schema":"{\"maxItems\":9223372036854775807}","kind":"loaded"}
+{"schema":"{\"maxItems\":9223372036854775807}","doc":"0","kind":"ok"}
+{"schema":"{\"maxItems\":9223372036854775807}","doc":"1","kind":"ok"}
+{"schema":"{\"maxItems\":9223372036854775807}","doc":"9007199254740993","kind":"ok"}
+{"schema":"{\"maxItems\":9223372036854775807}","doc":"\"abc\"","kind":"ok"}
+{"schema":"{\"maxItems\":9223372036854775807}","doc":"[]","kind":"ok"}

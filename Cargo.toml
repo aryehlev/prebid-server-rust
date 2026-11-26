@@ -14,6 +14,7 @@ members = [
     "crates/gogzip",
     "crates/gojson",
     "crates/gojson-derive",
+    "crates/govalidator",
     "crates/gpp",
     "crates/http-client",
     "crates/jsonutil",

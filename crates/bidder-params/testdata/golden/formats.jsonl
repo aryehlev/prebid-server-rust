@@ -1,0 +1,436 @@
+{"schema":"{\"$schema\":\"http://json-schema.org/draft-04/schema#\",\"format\":\"uuid\"}","kind":"loaded"}
+{"schema":"{\"$schema\":\"http://json-schema.org/draft-04/schema#\",\"format\":\"uuid\"}","doc":"\"\"","kind":"invalid","text":"(root): Does not match format 'uuid'"}
+{"schema":"{\"$schema\":\"http://json-schema.org/draft-04/schema#\",\"format\":\"uuid\"}","doc":"\"123e4567-e89b-12d3-a456-426614174000\"","kind":"ok"}
+{"schema":"{\"$schema\":\"http://json-schema.org/draft-04/schema#\",\"format\":\"uuid\"}","doc":"\"00000000-0000-0000-0000-000000000000\"","kind":"ok"}
+{"schema":"{\"$schema\":\"http://json-schema.org/draft-04/schema#\",\"format\":\"uuid\"}","doc":"\"ffffffff-ffff-ffff-ffff-ffffffffffff\"","kind":"ok"}
+{"schema":"{\"$schema\":\"http://json-schema.org/draft-04/schema#\",\"format\":\"uuid\"}","doc":"\"123E4567-E89B-12D3-A456-426614174000\"","kind":"invalid","text":"(root): Does not match format 'uuid'"}
+{"schema":"{\"$schema\":\"http://json-schema.org/draft-04/schema#\",\"format\":\"uuid\"}","doc":"\"123e4567-e89b-12d3-a456-42661417400\"","kind":"invalid","text":"(root): Does not match format 'uuid'"}
+{"schema":"{\"$schema\":\"http://json-schema.org/draft-04/schema#\",\"format\":\"uuid\"}","doc":"\"123e4567-e89b-12d3-a456-4266141740000\"","kind":"invalid","text":"(root): Does not match format 'uuid'"}
+{"schema":"{\"$schema\":\"http://json-schema.org/draft-04/schema#\",\"format\":\"uuid\"}","doc":"\"123e4567e89b12d3a456426614174000\"","kind":"invalid","text":"(root): Does not match format 'uuid'"}
+{"schema":"{\"$schema\":\"http://json-schema.org/draft-04/schema#\",\"format\":\"uuid\"}","doc":"\"{123e4567-e89b-12d3-a456-426614174000}\"","kind":"invalid","text":"(root): Does not match format 'uuid'"}
+{"schema":"{\"$schema\":\"http://json-schema.org/draft-04/schema#\",\"format\":\"uuid\"}","doc":"\"urn:uuid:123e4567-e89b-12d3-a456-426614174000\"","kind":"invalid","text":"(root): Does not match format 'uuid'"}
+{"schema":"{\"$schema\":\"http://json-schema.org/draft-04/schema#\",\"format\":\"uuid\"}","doc":"\"123e4567-e89b-12d3-a456-426614174000\\n\"","kind":"invalid","text":"(root): Does not match format 'uuid'"}
+{"schema":"{\"$schema\":\"http://json-schema.org/draft-04/schema#\",\"format\":\"uuid\"}","doc":"\" 123e4567-e89b-12d3-a456-426614174000\"","kind":"invalid","text":"(root): Does not match format 'uuid'"}
+{"schema":"{\"$schema\":\"http://json-schema.org/draft-04/schema#\",\"format\":\"uuid\"}","doc":"\"g23e4567-e89b-12d3-a456-426614174000\"","kind":"invalid","text":"(root): Does not match format 'uuid'"}
+{"schema":"{\"$schema\":\"http://json-schema.org/draft-04/schema#\",\"format\":\"uuid\"}","doc":"\"123e4567-e89b-12d3-a456_426614174000\"","kind":"invalid","text":"(root): Does not match format 'uuid'"}
+{"schema":"{\"$schema\":\"http://json-schema.org/draft-04/schema#\",\"format\":\"uuid\"}","doc":"\"٣23e4567-e89b-12d3-a456-426614174000\"","kind":"invalid","text":"(root): Does not match format 'uuid'"}
+{"schema":"{\"$schema\":\"http://json-schema.org/draft-04/schema#\",\"format\":\"uuid\"}","doc":"\"example.com\"","kind":"invalid","text":"(root): Does not match format 'uuid'"}
+{"schema":"{\"$schema\":\"http://json-schema.org/draft-04/schema#\",\"format\":\"uuid\"}","doc":"\"localhost\"","kind":"invalid","text":"(root): Does not match format 'uuid'"}
+{"schema":"{\"$schema\":\"http://json-schema.org/draft-04/schema#\",\"format\":\"uuid\"}","doc":"\"a\"","kind":"invalid","text":"(root): Does not match format 'uuid'"}
+{"schema":"{\"$schema\":\"http://json-schema.org/draft-04/schema#\",\"format\":\"uuid\"}","doc":"\"a.b\"","kind":"invalid","text":"(root): Does not match format 'uuid'"}
+{"schema":"{\"$schema\":\"http://json-schema.org/draft-04/schema#\",\"format\":\"uuid\"}","doc":"\"a.b.c\"","kind":"invalid","text":"(root): Does not match format 'uuid'"}
+{"schema":"{\"$schema\":\"http://json-schema.org/draft-04/schema#\",\"format\":\"uuid\"}","doc":"\"-a.com\"","kind":"invalid","text":"(root): Does not match format 'uuid'"}
+{"schema":"{\"$schema\":\"http://json-schema.org/draft-04/schema#\",\"format\":\"uuid\"}","doc":"\"a-.com\"","kind":"invalid","text":"(root): Does not match format 'uuid'"}
+{"schema":"{\"$schema\":\"http://json-schema.org/draft-04/schema#\",\"format\":\"uuid\"}","doc":"\"a-b.com\"","kind":"invalid","text":"(root): Does not match format 'uuid'"}
+{"schema":"{\"$schema\":\"http://json-schema.org/draft-04/schema#\",\"format\":\"uuid\"}","doc":"\"a--b.com\"","kind":"invalid","text":"(root): Does not match format 'uuid'"}
+{"schema":"{\"$schema\":\"http://json-schema.org/draft-04/schema#\",\"format\":\"uuid\"}","doc":"\"a_b.com\"","kind":"invalid","text":"(root): Does not match format 'uuid'"}
+{"schema":"{\"$schema\":\"http://json-schema.org/draft-04/schema#\",\"format\":\"uuid\"}","doc":"\"a..b\"","kind":"invalid","text":"(root): Does not match format 'uuid'"}
+{"schema":"{\"$schema\":\"http://json-schema.org/draft-04/schema#\",\"format\":\"uuid\"}","doc":"\".a\"","kind":"invalid","text":"(root): Does not match format 'uuid'"}
+{"schema":"{\"$schema\":\"http://json-schema.org/draft-04/schema#\",\"format\":\"uuid\"}","doc":"\"a.\"","kind":"invalid","text":"(root): Does not match format 'uuid'"}
+{"schema":"{\"$schema\":\"http://json-schema.org/draft-04/schema#\",\"format\":\"uuid\"}","doc":"\"xn--abc.com\"","kind":"invalid","text":"(root): Does not match format 'uuid'"}
+{"schema":"{\"$schema\":\"http://json-schema.org/draft-04/schema#\",\"format\":\"uuid\"}","doc":"\"1.2.3.4\"","kind":"invalid","text":"(root): Does not match format 'uuid'"}
+{"schema":"{\"$schema\":\"http://json-schema.org/draft-04/schema#\",\"format\":\"uuid\"}","doc":"\"123\"","kind":"invalid","text":"(root): Does not match format 'uuid'"}
+{"schema":"{\"$schema\":\"http://json-schema.org/draft-04/schema#\",\"format\":\"uuid\"}","doc":"\"ex ample.com\"","kind":"invalid","text":"(root): Does not match format 'uuid'"}
+{"schema":"{\"$schema\":\"http://json-schema.org/draft-04/schema#\",\"format\":\"uuid\"}","doc":"\"é.com\"","kind":"invalid","text":"(root): Does not match format 'uuid'"}
+{"schema":"{\"$schema\":\"http://json-schema.org/draft-04/schema#\",\"format\":\"uuid\"}","doc":"\"EXAMPLE.COM\"","kind":"invalid","text":"(root): Does not match format 'uuid'"}
+{"schema":"{\"$schema\":\"http://json-schema.org/draft-04/schema#\",\"format\":\"uuid\"}","doc":"\"a.-b.com\"","kind":"invalid","text":"(root): Does not match format 'uuid'"}
+{"schema":"{\"$schema\":\"http://json-schema.org/draft-04/schema#\",\"format\":\"uuid\"}","doc":"\"a\\n\"","kind":"invalid","text":"(root): Does not match format 'uuid'"}
+{"schema":"{\"$schema\":\"http://json-schema.org/draft-04/schema#\",\"format\":\"uuid\"}","doc":"\"a.b\\n\"","kind":"invalid","text":"(root): Does not match format 'uuid'"}
+{"schema":"{\"$schema\":\"http://json-schema.org/draft-04/schema#\",\"format\":\"uuid\"}","doc":"\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.com\"","kind":"invalid","text":"(root): Does not match format 'uuid'"}
+{"schema":"{\"$schema\":\"http://json-schema.org/draft-04/schema#\",\"format\":\"uuid\"}","doc":"\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.com\"","kind":"invalid","text":"(root): Does not match format 'uuid'"}
+{"schema":"{\"$schema\":\"http://json-schema.org/draft-04/schema#\",\"format\":\"uuid\"}","doc":"\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\"","kind":"invalid","text":"(root): Does not match format 'uuid'"}
+{"schema":"{\"$schema\":\"http://json-schema.org/draft-04/schema#\",\"format\":\"uuid\"}","doc":"\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\"","kind":"invalid","text":"(root): Does not match format 'uuid'"}
+{"schema":"{\"$schema\":\"http://json-schema.org/draft-04/schema#\",\"format\":\"uuid\"}","doc":"\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\"","kind":"invalid","text":"(root): Does not match format 'uuid'"}
+{"schema":"{\"$schema\":\"http://json-schema.org/draft-04/schema#\",\"format\":\"uuid\"}","doc":"\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\"","kind":"invalid","text":"(root): Does not match format 'uuid'"}
+{"schema":"{\"$schema\":\"http://json-schema.org/draft-04/schema#\",\"format\":\"uuid\"}","doc":"\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\"","kind":"invalid","text":"(root): Does not match format 'uuid'"}
+{"schema":"{\"$schema\":\"http://json-schema.org/draft-04/schema#\",\"format\":\"uuid\"}","doc":"1","kind":"invalid","text":"(root): Does not match format 'uuid'"}
+{"schema":"{\"$schema\":\"http://json-schema.org/draft-04/schema#\",\"format\":\"uuid\"}","doc":"1.5","kind":"invalid","text":"(root): Does not match format 'uuid'"}
+{"schema":"{\"$schema\":\"http://json-schema.org/draft-04/schema#\",\"format\":\"uuid\"}","doc":"true","kind":"ok"}
+{"schema":"{\"$schema\":\"http://json-schema.org/draft-04/schema#\",\"format\":\"uuid\"}","doc":"null","kind":"ok"}
+{"schema":"{\"$schema\":\"http://json-schema.org/draft-04/schema#\",\"format\":\"uuid\"}","doc":"[]","kind":"ok"}
+{"schema":"{\"$schema\":\"http://json-schema.org/draft-04/schema#\",\"format\":\"uuid\"}","doc":"{}","kind":"ok"}
+{"schema":"{\"$schema\":\"http://json-schema.org/draft-04/schema#\",\"format\":\"uuid\"}","doc":"[\"example.com\"]","kind":"ok"}
+{"schema":"{\"format\":\"uuid\"}","kind":"loaded"}
+{"schema":"{\"format\":\"uuid\"}","doc":"\"\"","kind":"invalid","text":"(root): Does not match format 'uuid'"}
+{"schema":"{\"format\":\"uuid\"}","doc":"\"123e4567-e89b-12d3-a456-426614174000\"","kind":"ok"}
+{"schema":"{\"format\":\"uuid\"}","doc":"\"00000000-0000-0000-0000-000000000000\"","kind":"ok"}
+{"schema":"{\"format\":\"uuid\"}","doc":"\"ffffffff-ffff-ffff-ffff-ffffffffffff\"","kind":"ok"}
+{"schema":"{\"format\":\"uuid\"}","doc":"\"123E4567-E89B-12D3-A456-426614174000\"","kind":"invalid","text":"(root): Does not match format 'uuid'"}
+{"schema":"{\"format\":\"uuid\"}","doc":"\"123e4567-e89b-12d3-a456-42661417400\"","kind":"invalid","text":"(root): Does not match format 'uuid'"}
+{"schema":"{\"format\":\"uuid\"}","doc":"\"123e4567-e89b-12d3-a456-4266141740000\"","kind":"invalid","text":"(root): Does not match format 'uuid'"}
+{"schema":"{\"format\":\"uuid\"}","doc":"\"123e4567e89b12d3a456426614174000\"","kind":"invalid","text":"(root): Does not match format 'uuid'"}
+{"schema":"{\"format\":\"uuid\"}","doc":"\"{123e4567-e89b-12d3-a456-426614174000}\"","kind":"invalid","text":"(root): Does not match format 'uuid'"}
+{"schema":"{\"format\":\"uuid\"}","doc":"\"urn:uuid:123e4567-e89b-12d3-a456-426614174000\"","kind":"invalid","text":"(root): Does not match format 'uuid'"}
+{"schema":"{\"format\":\"uuid\"}","doc":"\"123e4567-e89b-12d3-a456-426614174000\\n\"","kind":"invalid","text":"(root): Does not match format 'uuid'"}
+{"schema":"{\"format\":\"uuid\"}","doc":"\" 123e4567-e89b-12d3-a456-426614174000\"","kind":"invalid","text":"(root): Does not match format 'uuid'"}
+{"schema":"{\"format\":\"uuid\"}","doc":"\"g23e4567-e89b-12d3-a456-426614174000\"","kind":"invalid","text":"(root): Does not match format 'uuid'"}
+{"schema":"{\"format\":\"uuid\"}","doc":"\"123e4567-e89b-12d3-a456_426614174000\"","kind":"invalid","text":"(root): Does not match format 'uuid'"}
+{"schema":"{\"format\":\"uuid\"}","doc":"\"٣23e4567-e89b-12d3-a456-426614174000\"","kind":"invalid","text":"(root): Does not match format 'uuid'"}
+{"schema":"{\"format\":\"uuid\"}","doc":"\"example.com\"","kind":"invalid","text":"(root): Does not match format 'uuid'"}
+{"schema":"{\"format\":\"uuid\"}","doc":"\"localhost\"","kind":"invalid","text":"(root): Does not match format 'uuid'"}
+{"schema":"{\"format\":\"uuid\"}","doc":"\"a\"","kind":"invalid","text":"(root): Does not match format 'uuid'"}
+{"schema":"{\"format\":\"uuid\"}","doc":"\"a.b\"","kind":"invalid","text":"(root): Does not match format 'uuid'"}
+{"schema":"{\"format\":\"uuid\"}","doc":"\"a.b.c\"","kind":"invalid","text":"(root): Does not match format 'uuid'"}
+{"schema":"{\"format\":\"uuid\"}","doc":"\"-a.com\"","kind":"invalid","text":"(root): Does not match format 'uuid'"}
+{"schema":"{\"format\":\"uuid\"}","doc":"\"a-.com\"","kind":"invalid","text":"(root): Does not match format 'uuid'"}
+{"schema":"{\"format\":\"uuid\"}","doc":"\"a-b.com\"","kind":"invalid","text":"(root): Does not match format 'uuid'"}
+{"schema":"{\"format\":\"uuid\"}","doc":"\"a--b.com\"","kind":"invalid","text":"(root): Does not match format 'uuid'"}
+{"schema":"{\"format\":\"uuid\"}","doc":"\"a_b.com\"","kind":"invalid","text":"(root): Does not match format 'uuid'"}
+{"schema":"{\"format\":\"uuid\"}","doc":"\"a..b\"","kind":"invalid","text":"(root): Does not match format 'uuid'"}
+{"schema":"{\"format\":\"uuid\"}","doc":"\".a\"","kind":"invalid","text":"(root): Does not match format 'uuid'"}
+{"schema":"{\"format\":\"uuid\"}","doc":"\"a.\"","kind":"invalid","text":"(root): Does not match format 'uuid'"}
+{"schema":"{\"format\":\"uuid\"}","doc":"\"xn--abc.com\"","kind":"invalid","text":"(root): Does not match format 'uuid'"}
+{"schema":"{\"format\":\"uuid\"}","doc":"\"1.2.3.4\"","kind":"invalid","text":"(root): Does not match format 'uuid'"}
+{"schema":"{\"format\":\"uuid\"}","doc":"\"123\"","kind":"invalid","text":"(root): Does not match format 'uuid'"}
+{"schema":"{\"format\":\"uuid\"}","doc":"\"ex ample.com\"","kind":"invalid","text":"(root): Does not match format 'uuid'"}
+{"schema":"{\"format\":\"uuid\"}","doc":"\"é.com\"","kind":"invalid","text":"(root): Does not match format 'uuid'"}
+{"schema":"{\"format\":\"uuid\"}","doc":"\"EXAMPLE.COM\"","kind":"invalid","text":"(root): Does not match format 'uuid'"}
+{"schema":"{\"format\":\"uuid\"}","doc":"\"a.-b.com\"","kind":"invalid","text":"(root): Does not match format 'uuid'"}
+{"schema":"{\"format\":\"uuid\"}","doc":"\"a\\n\"","kind":"invalid","text":"(root): Does not match format 'uuid'"}
+{"schema":"{\"format\":\"uuid\"}","doc":"\"a.b\\n\"","kind":"invalid","text":"(root): Does not match format 'uuid'"}
+{"schema":"{\"format\":\"uuid\"}","doc":"\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.com\"","kind":"invalid","text":"(root): Does not match format 'uuid'"}
+{"schema":"{\"format\":\"uuid\"}","doc":"\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.com\"","kind":"invalid","text":"(root): Does not match format 'uuid'"}
+{"schema":"{\"format\":\"uuid\"}","doc":"\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\"","kind":"invalid","text":"(root): Does not match format 'uuid'"}
+{"schema":"{\"format\":\"uuid\"}","doc":"\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\"","kind":"invalid","text":"(root): Does not match format 'uuid'"}
+{"schema":"{\"format\":\"uuid\"}","doc":"\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\"","kind":"invalid","text":"(root): Does not match format 'uuid'"}
+{"schema":"{\"format\":\"uuid\"}","doc":"\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\"","kind":"invalid","text":"(root): Does not match format 'uuid'"}
+{"schema":"{\"format\":\"uuid\"}","doc":"\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\"","kind":"invalid","text":"(root): Does not match format 'uuid'"}
+{"schema":"{\"format\":\"uuid\"}","doc":"1","kind":"invalid","text":"(root): Does not match format 'uuid'"}
+{"schema":"{\"format\":\"uuid\"}","doc":"1.5","kind":"invalid","text":"(root): Does not match format 'uuid'"}
+{"schema":"{\"format\":\"uuid\"}","doc":"true","kind":"ok"}
+{"schema":"{\"format\":\"uuid\"}","doc":"null","kind":"ok"}
+{"schema":"{\"format\":\"uuid\"}","doc":"[]","kind":"ok"}
+{"schema":"{\"format\":\"uuid\"}","doc":"{}","kind":"ok"}
+{"schema":"{\"format\":\"uuid\"}","doc":"[\"example.com\"]","kind":"ok"}
+{"schema":"{\"type\":\"string\",\"format\":\"uuid\"}","kind":"loaded"}
+{"schema":"{\"type\":\"string\",\"format\":\"uuid\"}","doc":"\"\"","kind":"invalid","text":"(root): Does not match format 'uuid'"}
+{"schema":"{\"type\":\"string\",\"format\":\"uuid\"}","doc":"\"123e4567-e89b-12d3-a456-426614174000\"","kind":"ok"}
+{"schema":"{\"type\":\"string\",\"format\":\"uuid\"}","doc":"\"00000000-0000-0000-0000-000000000000\"","kind":"ok"}
+{"schema":"{\"type\":\"string\",\"format\":\"uuid\"}","doc":"\"ffffffff-ffff-ffff-ffff-ffffffffffff\"","kind":"ok"}
+{"schema":"{\"type\":\"string\",\"format\":\"uuid\"}","doc":"\"123E4567-E89B-12D3-A456-426614174000\"","kind":"invalid","text":"(root): Does not match format 'uuid'"}
+{"schema":"{\"type\":\"string\",\"format\":\"uuid\"}","doc":"\"123e4567-e89b-12d3-a456-42661417400\"","kind":"invalid","text":"(root): Does not match format 'uuid'"}
+{"schema":"{\"type\":\"string\",\"format\":\"uuid\"}","doc":"\"123e4567-e89b-12d3-a456-4266141740000\"","kind":"invalid","text":"(root): Does not match format 'uuid'"}
+{"schema":"{\"type\":\"string\",\"format\":\"uuid\"}","doc":"\"123e4567e89b12d3a456426614174000\"","kind":"invalid","text":"(root): Does not match format 'uuid'"}
+{"schema":"{\"type\":\"string\",\"format\":\"uuid\"}","doc":"\"{123e4567-e89b-12d3-a456-426614174000}\"","kind":"invalid","text":"(root): Does not match format 'uuid'"}
+{"schema":"{\"type\":\"string\",\"format\":\"uuid\"}","doc":"\"urn:uuid:123e4567-e89b-12d3-a456-426614174000\"","kind":"invalid","text":"(root): Does not match format 'uuid'"}
+{"schema":"{\"type\":\"string\",\"format\":\"uuid\"}","doc":"\"123e4567-e89b-12d3-a456-426614174000\\n\"","kind":"invalid","text":"(root): Does not match format 'uuid'"}
+{"schema":"{\"type\":\"string\",\"format\":\"uuid\"}","doc":"\" 123e4567-e89b-12d3-a456-426614174000\"","kind":"invalid","text":"(root): Does not match format 'uuid'"}
+{"schema":"{\"type\":\"string\",\"format\":\"uuid\"}","doc":"\"g23e4567-e89b-12d3-a456-426614174000\"","kind":"invalid","text":"(root): Does not match format 'uuid'"}
+{"schema":"{\"type\":\"string\",\"format\":\"uuid\"}","doc":"\"123e4567-e89b-12d3-a456_426614174000\"","kind":"invalid","text":"(root): Does not match format 'uuid'"}
+{"schema":"{\"type\":\"string\",\"format\":\"uuid\"}","doc":"\"٣23e4567-e89b-12d3-a456-426614174000\"","kind":"invalid","text":"(root): Does not match format 'uuid'"}
+{"schema":"{\"type\":\"string\",\"format\":\"uuid\"}","doc":"\"example.com\"","kind":"invalid","text":"(root): Does not match format 'uuid'"}
+{"schema":"{\"type\":\"string\",\"format\":\"uuid\"}","doc":"\"localhost\"","kind":"invalid","text":"(root): Does not match format 'uuid'"}
+{"schema":"{\"type\":\"string\",\"format\":\"uuid\"}","doc":"\"a\"","kind":"invalid","text":"(root): Does not match format 'uuid'"}
+{"schema":"{\"type\":\"string\",\"format\":\"uuid\"}","doc":"\"a.b\"","kind":"invalid","text":"(root): Does not match format 'uuid'"}
+{"schema":"{\"type\":\"string\",\"format\":\"uuid\"}","doc":"\"a.b.c\"","kind":"invalid","text":"(root): Does not match format 'uuid'"}
+{"schema":"{\"type\":\"string\",\"format\":\"uuid\"}","doc":"\"-a.com\"","kind":"invalid","text":"(root): Does not match format 'uuid'"}
+{"schema":"{\"type\":\"string\",\"format\":\"uuid\"}","doc":"\"a-.com\"","kind":"invalid","text":"(root): Does not match format 'uuid'"}
+{"schema":"{\"type\":\"string\",\"format\":\"uuid\"}","doc":"\"a-b.com\"","kind":"invalid","text":"(root): Does not match format 'uuid'"}
+{"schema":"{\"type\":\"string\",\"format\":\"uuid\"}","doc":"\"a--b.com\"","kind":"invalid","text":"(root): Does not match format 'uuid'"}
+{"schema":"{\"type\":\"string\",\"format\":\"uuid\"}","doc":"\"a_b.com\"","kind":"invalid","text":"(root): Does not match format 'uuid'"}
+{"schema":"{\"type\":\"string\",\"format\":\"uuid\"}","doc":"\"a..b\"","kind":"invalid","text":"(root): Does not match format 'uuid'"}
+{"schema":"{\"type\":\"string\",\"format\":\"uuid\"}","doc":"\".a\"","kind":"invalid","text":"(root): Does not match format 'uuid'"}
+{"schema":"{\"type\":\"string\",\"format\":\"uuid\"}","doc":"\"a.\"","kind":"invalid","text":"(root): Does not match format 'uuid'"}
+{"schema":"{\"type\":\"string\",\"format\":\"uuid\"}","doc":"\"xn--abc.com\"","kind":"invalid","text":"(root): Does not match format 'uuid'"}
+{"schema":"{\"type\":\"string\",\"format\":\"uuid\"}","doc":"\"1.2.3.4\"","kind":"invalid","text":"(root): Does not match format 'uuid'"}
+{"schema":"{\"type\":\"string\",\"format\":\"uuid\"}","doc":"\"123\"","kind":"invalid","text":"(root): Does not match format 'uuid'"}
+{"schema":"{\"type\":\"string\",\"format\":\"uuid\"}","doc":"\"ex ample.com\"","kind":"invalid","text":"(root): Does not match format 'uuid'"}
+{"schema":"{\"type\":\"string\",\"format\":\"uuid\"}","doc":"\"é.com\"","kind":"invalid","text":"(root): Does not match format 'uuid'"}
+{"schema":"{\"type\":\"string\",\"format\":\"uuid\"}","doc":"\"EXAMPLE.COM\"","kind":"invalid","text":"(root): Does not match format 'uuid'"}
+{"schema":"{\"type\":\"string\",\"format\":\"uuid\"}","doc":"\"a.-b.com\"","kind":"invalid","text":"(root): Does not match format 'uuid'"}
+{"schema":"{\"type\":\"string\",\"format\":\"uuid\"}","doc":"\"a\\n\"","kind":"invalid","text":"(root): Does not match format 'uuid'"}
+{"schema":"{\"type\":\"string\",\"format\":\"uuid\"}","doc":"\"a.b\\n\"","kind":"invalid","text":"(root): Does not match format 'uuid'"}
+{"schema":"{\"type\":\"string\",\"format\":\"uuid\"}","doc":"\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.com\"","kind":"invalid","text":"(root): Does not match format 'uuid'"}
+{"schema":"{\"type\":\"string\",\"format\":\"uuid\"}","doc":"\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.com\"","kind":"invalid","text":"(root): Does not match format 'uuid'"}
+{"schema":"{\"type\":\"string\",\"format\":\"uuid\"}","doc":"\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\"","kind":"invalid","text":"(root): Does not match format 'uuid'"}
+{"schema":"{\"type\":\"string\",\"format\":\"uuid\"}","doc":"\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\"","kind":"invalid","text":"(root): Does not match format 'uuid'"}
+{"schema":"{\"type\":\"string\",\"format\":\"uuid\"}","doc":"\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\"","kind":"invalid","text":"(root): Does not match format 'uuid'"}
+{"schema":"{\"type\":\"string\",\"format\":\"uuid\"}","doc":"\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\"","kind":"invalid","text":"(root): Does not match format 'uuid'"}
+{"schema":"{\"type\":\"string\",\"format\":\"uuid\"}","doc":"\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\"","kind":"invalid","text":"(root): Does not match format 'uuid'"}
+{"schema":"{\"type\":\"string\",\"format\":\"uuid\"}","doc":"1","kind":"invalid","text":"(root): Invalid type. Expected: string, given: integer"}
+{"schema":"{\"type\":\"string\",\"format\":\"uuid\"}","doc":"1.5","kind":"invalid","text":"(root): Invalid type. Expected: string, given: number"}
+{"schema":"{\"type\":\"string\",\"format\":\"uuid\"}","doc":"true","kind":"invalid","text":"(root): Invalid type. Expected: string, given: boolean"}
+{"schema":"{\"type\":\"string\",\"format\":\"uuid\"}","doc":"null","kind":"invalid","text":"(root): Invalid type. Expected: string, given: null"}
+{"schema":"{\"type\":\"string\",\"format\":\"uuid\"}","doc":"[]","kind":"invalid","text":"(root): Invalid type. Expected: string, given: array"}
+{"schema":"{\"type\":\"string\",\"format\":\"uuid\"}","doc":"{}","kind":"invalid","text":"(root): Invalid type. Expected: string, given: object"}
+{"schema":"{\"type\":\"string\",\"format\":\"uuid\"}","doc":"[\"example.com\"]","kind":"invalid","text":"(root): Invalid type. Expected: string, given: array"}
+{"schema":"{\"type\":[\"string\",\"integer\"],\"format\":\"uuid\"}","kind":"loaded"}
+{"schema":"{\"type\":[\"string\",\"integer\"],\"format\":\"uuid\"}","doc":"\"\"","kind":"invalid","text":"(root): Does not match format 'uuid'"}
+{"schema":"{\"type\":[\"string\",\"integer\"],\"format\":\"uuid\"}","doc":"\"123e4567-e89b-12d3-a456-426614174000\"","kind":"ok"}
+{"schema":"{\"type\":[\"string\",\"integer\"],\"format\":\"uuid\"}","doc":"\"00000000-0000-0000-0000-000000000000\"","kind":"ok"}
+{"schema":"{\"type\":[\"string\",\"integer\"],\"format\":\"uuid\"}","doc":"\"ffffffff-ffff-ffff-ffff-ffffffffffff\"","kind":"ok"}
+{"schema":"{\"type\":[\"string\",\"integer\"],\"format\":\"uuid\"}","doc":"\"123E4567-E89B-12D3-A456-426614174000\"","kind":"invalid","text":"(root): Does not match format 'uuid'"}
+{"schema":"{\"type\":[\"string\",\"integer\"],\"format\":\"uuid\"}","doc":"\"123e4567-e89b-12d3-a456-42661417400\"","kind":"invalid","text":"(root): Does not match format 'uuid'"}
+{"schema":"{\"type\":[\"string\",\"integer\"],\"format\":\"uuid\"}","doc":"\"123e4567-e89b-12d3-a456-4266141740000\"","kind":"invalid","text":"(root): Does not match format 'uuid'"}
+{"schema":"{\"type\":[\"string\",\"integer\"],\"format\":\"uuid\"}","doc":"\"123e4567e89b12d3a456426614174000\"","kind":"invalid","text":"(root): Does not match format 'uuid'"}
+{"schema":"{\"type\":[\"string\",\"integer\"],\"format\":\"uuid\"}","doc":"\"{123e4567-e89b-12d3-a456-426614174000}\"","kind":"invalid","text":"(root): Does not match format 'uuid'"}
+{"schema":"{\"type\":[\"string\",\"integer\"],\"format\":\"uuid\"}","doc":"\"urn:uuid:123e4567-e89b-12d3-a456-426614174000\"","kind":"invalid","text":"(root): Does not match format 'uuid'"}
+{"schema":"{\"type\":[\"string\",\"integer\"],\"format\":\"uuid\"}","doc":"\"123e4567-e89b-12d3-a456-426614174000\\n\"","kind":"invalid","text":"(root): Does not match format 'uuid'"}
+{"schema":"{\"type\":[\"string\",\"integer\"],\"format\":\"uuid\"}","doc":"\" 123e4567-e89b-12d3-a456-426614174000\"","kind":"invalid","text":"(root): Does not match format 'uuid'"}
+{"schema":"{\"type\":[\"string\",\"integer\"],\"format\":\"uuid\"}","doc":"\"g23e4567-e89b-12d3-a456-426614174000\"","kind":"invalid","text":"(root): Does not match format 'uuid'"}
+{"schema":"{\"type\":[\"string\",\"integer\"],\"format\":\"uuid\"}","doc":"\"123e4567-e89b-12d3-a456_426614174000\"","kind":"invalid","text":"(root): Does not match format 'uuid'"}
+{"schema":"{\"type\":[\"string\",\"integer\"],\"format\":\"uuid\"}","doc":"\"٣23e4567-e89b-12d3-a456-426614174000\"","kind":"invalid","text":"(root): Does not match format 'uuid'"}
+{"schema":"{\"type\":[\"string\",\"integer\"],\"format\":\"uuid\"}","doc":"\"example.com\"","kind":"invalid","text":"(root): Does not match format 'uuid'"}
+{"schema":"{\"type\":[\"string\",\"integer\"],\"format\":\"uuid\"}","doc":"\"localhost\"","kind":"invalid","text":"(root): Does not match format 'uuid'"}
+{"schema":"{\"type\":[\"string\",\"integer\"],\"format\":\"uuid\"}","doc":"\"a\"","kind":"invalid","text":"(root): Does not match format 'uuid'"}
+{"schema":"{\"type\":[\"string\",\"integer\"],\"format\":\"uuid\"}","doc":"\"a.b\"","kind":"invalid","text":"(root): Does not match format 'uuid'"}
+{"schema":"{\"type\":[\"string\",\"integer\"],\"format\":\"uuid\"}","doc":"\"a.b.c\"","kind":"invalid","text":"(root): Does not match format 'uuid'"}
+{"schema":"{\"type\":[\"string\",\"integer\"],\"format\":\"uuid\"}","doc":"\"-a.com\"","kind":"invalid","text":"(root): Does not match format 'uuid'"}
+{"schema":"{\"type\":[\"string\",\"integer\"],\"format\":\"uuid\"}","doc":"\"a-.com\"","kind":"invalid","text":"(root): Does not match format 'uuid'"}
+{"schema":"{\"type\":[\"string\",\"integer\"],\"format\":\"uuid\"}","doc":"\"a-b.com\"","kind":"invalid","text":"(root): Does not match format 'uuid'"}
+{"schema":"{\"type\":[\"string\",\"integer\"],\"format\":\"uuid\"}","doc":"\"a--b.com\"","kind":"invalid","text":"(root): Does not match format 'uuid'"}
+{"schema":"{\"type\":[\"string\",\"integer\"],\"format\":\"uuid\"}","doc":"\"a_b.com\"","kind":"invalid","text":"(root): Does not match format 'uuid'"}
+{"schema":"{\"type\":[\"string\",\"integer\"],\"format\":\"uuid\"}","doc":"\"a..b\"","kind":"invalid","text":"(root): Does not match format 'uuid'"}
+{"schema":"{\"type\":[\"string\",\"integer\"],\"format\":\"uuid\"}","doc":"\".a\"","kind":"invalid","text":"(root): Does not match format 'uuid'"}
+{"schema":"{\"type\":[\"string\",\"integer\"],\"format\":\"uuid\"}","doc":"\"a.\"","kind":"invalid","text":"(root): Does not match format 'uuid'"}
+{"schema":"{\"type\":[\"string\",\"integer\"],\"format\":\"uuid\"}","doc":"\"xn--abc.com\"","kind":"invalid","text":"(root): Does not match format 'uuid'"}
+{"schema":"{\"type\":[\"string\",\"integer\"],\"format\":\"uuid\"}","doc":"\"1.2.3.4\"","kind":"invalid","text":"(root): Does not match format 'uuid'"}
+{"schema":"{\"type\":[\"string\",\"integer\"],\"format\":\"uuid\"}","doc":"\"123\"","kind":"invalid","text":"(root): Does not match format 'uuid'"}
+{"schema":"{\"type\":[\"string\",\"integer\"],\"format\":\"uuid\"}","doc":"\"ex ample.com\"","kind":"invalid","text":"(root): Does not match format 'uuid'"}
+{"schema":"{\"type\":[\"string\",\"integer\"],\"format\":\"uuid\"}","doc":"\"é.com\"","kind":"invalid","text":"(root): Does not match format 'uuid'"}
+{"schema":"{\"type\":[\"string\",\"integer\"],\"format\":\"uuid\"}","doc":"\"EXAMPLE.COM\"","kind":"invalid","text":"(root): Does not match format 'uuid'"}
+{"schema":"{\"type\":[\"string\",\"integer\"],\"format\":\"uuid\"}","doc":"\"a.-b.com\"","kind":"invalid","text":"(root): Does not match format 'uuid'"}
+{"schema":"{\"type\":[\"string\",\"integer\"],\"format\":\"uuid\"}","doc":"\"a\\n\"","kind":"invalid","text":"(root): Does not match format 'uuid'"}
+{"schema":"{\"type\":[\"string\",\"integer\"],\"format\":\"uuid\"}","doc":"\"a.b\\n\"","kind":"invalid","text":"(root): Does not match format 'uuid'"}
+{"schema":"{\"type\":[\"string\",\"integer\"],\"format\":\"uuid\"}","doc":"\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.com\"","kind":"invalid","text":"(root): Does not match format 'uuid'"}
+{"schema":"{\"type\":[\"string\",\"integer\"],\"format\":\"uuid\"}","doc":"\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.com\"","kind":"invalid","text":"(root): Does not match format 'uuid'"}
+{"schema":"{\"type\":[\"string\",\"integer\"],\"format\":\"uuid\"}","doc":"\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\"","kind":"invalid","text":"(root): Does not match format 'uuid'"}
+{"schema":"{\"type\":[\"string\",\"integer\"],\"format\":\"uuid\"}","doc":"\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\"","kind":"invalid","text":"(root): Does not match format 'uuid'"}
+{"schema":"{\"type\":[\"string\",\"integer\"],\"format\":\"uuid\"}","doc":"\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\"","kind":"invalid","text":"(root): Does not match format 'uuid'"}
+{"schema":"{\"type\":[\"string\",\"integer\"],\"format\":\"uuid\"}","doc":"\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\"","kind":"invalid","text":"(root): Does not match format 'uuid'"}
+{"schema":"{\"type\":[\"string\",\"integer\"],\"format\":\"uuid\"}","doc":"\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\"","kind":"invalid","text":"(root): Does not match format 'uuid'"}
+{"schema":"{\"type\":[\"string\",\"integer\"],\"format\":\"uuid\"}","doc":"1","kind":"invalid","text":"(root): Does not match format 'uuid'"}
+{"schema":"{\"type\":[\"string\",\"integer\"],\"format\":\"uuid\"}","doc":"1.5","kind":"invalid","text":"(root): Invalid type. Expected: [string,integer], given: number"}
+{"schema":"{\"type\":[\"string\",\"integer\"],\"format\":\"uuid\"}","doc":"true","kind":"invalid","text":"(root): Invalid type. Expected: [string,integer], given: boolean"}
+{"schema":"{\"type\":[\"string\",\"integer\"],\"format\":\"uuid\"}","doc":"null","kind":"invalid","text":"(root): Invalid type. Expected: [string,integer], given: null"}
+{"schema":"{\"type\":[\"string\",\"integer\"],\"format\":\"uuid\"}","doc":"[]","kind":"invalid","text":"(root): Invalid type. Expected: [string,integer], given: array"}
+{"schema":"{\"type\":[\"string\",\"integer\"],\"format\":\"uuid\"}","doc":"{}","kind":"invalid","text":"(root): Invalid type. Expected: [string,integer], given: object"}
+{"schema":"{\"type\":[\"string\",\"integer\"],\"format\":\"uuid\"}","doc":"[\"example.com\"]","kind":"invalid","text":"(root): Invalid type. Expected: [string,integer], given: array"}
+{"schema":"{\"$schema\":\"http://json-schema.org/draft-04/schema#\",\"format\":\"hostname\"}","kind":"loaded"}
+{"schema":"{\"$schema\":\"http://json-schema.org/draft-04/schema#\",\"format\":\"hostname\"}","doc":"\"\"","kind":"invalid","text":"(root): Does not match format 'hostname'"}
+{"schema":"{\"$schema\":\"http://json-schema.org/draft-04/schema#\",\"format\":\"hostname\"}","doc":"\"123e4567-e89b-12d3-a456-426614174000\"","kind":"ok"}
+{"schema":"{\"$schema\":\"http://json-schema.org/draft-04/schema#\",\"format\":\"hostname\"}","doc":"\"00000000-0000-0000-0000-000000000000\"","kind":"ok"}
+{"schema":"{\"$schema\":\"http://json-schema.org/draft-04/schema#\",\"format\":\"hostname\"}","doc":"\"ffffffff-ffff-ffff-ffff-ffffffffffff\"","kind":"ok"}
+{"schema":"{\"$schema\":\"http://json-schema.org/draft-04/schema#\",\"format\":\"hostname\"}","doc":"\"123E4567-E89B-12D3-A456-426614174000\"","kind":"ok"}
+{"schema":"{\"$schema\":\"http://json-schema.org/draft-04/schema#\",\"format\":\"hostname\"}","doc":"\"123e4567-e89b-12d3-a456-42661417400\"","kind":"ok"}
+{"schema":"{\"$schema\":\"http://json-schema.org/draft-04/schema#\",\"format\":\"hostname\"}","doc":"\"123e4567-e89b-12d3-a456-4266141740000\"","kind":"ok"}
+{"schema":"{\"$schema\":\"http://json-schema.org/draft-04/schema#\",\"format\":\"hostname\"}","doc":"\"123e4567e89b12d3a456426614174000\"","kind":"ok"}
+{"schema":"{\"$schema\":\"http://json-schema.org/draft-04/schema#\",\"format\":\"hostname\"}","doc":"\"{123e4567-e89b-12d3-a456-426614174000}\"","kind":"invalid","text":"(root): Does not match format 'hostname'"}
+{"schema":"{\"$schema\":\"http://json-schema.org/draft-04/schema#\",\"format\":\"hostname\"}","doc":"\"urn:uuid:123e4567-e89b-12d3-a456-426614174000\"","kind":"invalid","text":"(root): Does not match format 'hostname'"}
+{"schema":"{\"$schema\":\"http://json-schema.org/draft-04/schema#\",\"format\":\"hostname\"}","doc":"\"123e4567-e89b-12d3-a456-426614174000\\n\"","kind":"invalid","text":"(root): Does not match format 'hostname'"}
+{"schema":"{\"$schema\":\"http://json-schema.org/draft-04/schema#\",\"format\":\"hostname\"}","doc":"\" 123e4567-e89b-12d3-a456-426614174000\"","kind":"invalid","text":"(root): Does not match format 'hostname'"}
+{"schema":"{\"$schema\":\"http://json-schema.org/draft-04/schema#\",\"format\":\"hostname\"}","doc":"\"g23e4567-e89b-12d3-a456-426614174000\"","kind":"ok"}
+{"schema":"{\"$schema\":\"http://json-schema.org/draft-04/schema#\",\"format\":\"hostname\"}","doc":"\"123e4567-e89b-12d3-a456_426614174000\"","kind":"invalid","text":"(root): Does not match format 'hostname'"}
+{"schema":"{\"$schema\":\"http://json-schema.org/draft-04/schema#\",\"format\":\"hostname\"}","doc":"\"٣23e4567-e89b-12d3-a456-426614174000\"","kind":"invalid","text":"(root): Does not match format 'hostname'"}
+{"schema":"{\"$schema\":\"http://json-schema.org/draft-04/schema#\",\"format\":\"hostname\"}","doc":"\"example.com\"","kind":"ok"}
+{"schema":"{\"$schema\":\"http://json-schema.org/draft-04/schema#\",\"format\":\"hostname\"}","doc":"\"localhost\"","kind":"ok"}
+{"schema":"{\"$schema\":\"http://json-schema.org/draft-04/schema#\",\"format\":\"hostname\"}","doc":"\"a\"","kind":"ok"}
+{"schema":"{\"$schema\":\"http://json-schema.org/draft-04/schema#\",\"format\":\"hostname\"}","doc":"\"a.b\"","kind":"ok"}
+{"schema":"{\"$schema\":\"http://json-schema.org/draft-04/schema#\",\"format\":\"hostname\"}","doc":"\"a.b.c\"","kind":"ok"}
+{"schema":"{\"$schema\":\"http://json-schema.org/draft-04/schema#\",\"format\":\"hostname\"}","doc":"\"-a.com\"","kind":"invalid","text":"(root): Does not match format 'hostname'"}
+{"schema":"{\"$schema\":\"http://json-schema.org/draft-04/schema#\",\"format\":\"hostname\"}","doc":"\"a-.com\"","kind":"invalid","text":"(root): Does not match format 'hostname'"}
+{"schema":"{\"$schema\":\"http://json-schema.org/draft-04/schema#\",\"format\":\"hostname\"}","doc":"\"a-b.com\"","kind":"ok"}
+{"schema":"{\"$schema\":\"http://json-schema.org/draft-04/schema#\",\"format\":\"hostname\"}","doc":"\"a--b.com\"","kind":"ok"}
+{"schema":"{\"$schema\":\"http://json-schema.org/draft-04/schema#\",\"format\":\"hostname\"}","doc":"\"a_b.com\"","kind":"invalid","text":"(root): Does not match format 'hostname'"}
+{"schema":"{\"$schema\":\"http://json-schema.org/draft-04/schema#\",\"format\":\"hostname\"}","doc":"\"a..b\"","kind":"invalid","text":"(root): Does not match format 'hostname'"}
+{"schema":"{\"$schema\":\"http://json-schema.org/draft-04/schema#\",\"format\":\"hostname\"}","doc":"\".a\"","kind":"invalid","text":"(root): Does not match format 'hostname'"}
+{"schema":"{\"$schema\":\"http://json-schema.org/draft-04/schema#\",\"format\":\"hostname\"}","doc":"\"a.\"","kind":"invalid","text":"(root): Does not match format 'hostname'"}
+{"schema":"{\"$schema\":\"http://json-schema.org/draft-04/schema#\",\"format\":\"hostname\"}","doc":"\"xn--abc.com\"","kind":"ok"}
+{"schema":"{\"$schema\":\"http://json-schema.org/draft-04/schema#\",\"format\":\"hostname\"}","doc":"\"1.2.3.4\"","kind":"ok"}
+{"schema":"{\"$schema\":\"http://json-schema.org/draft-04/schema#\",\"format\":\"hostname\"}","doc":"\"123\"","kind":"ok"}
+{"schema":"{\"$schema\":\"http://json-schema.org/draft-04/schema#\",\"format\":\"hostname\"}","doc":"\"ex ample.com\"","kind":"invalid","text":"(root): Does not match format 'hostname'"}
+{"schema":"{\"$schema\":\"http://json-schema.org/draft-04/schema#\",\"format\":\"hostname\"}","doc":"\"é.com\"","kind":"invalid","text":"(root): Does not match format 'hostname'"}
+{"schema":"{\"$schema\":\"http://json-schema.org/draft-04/schema#\",\"format\":\"hostname\"}","doc":"\"EXAMPLE.COM\"","kind":"ok"}
+{"schema":"{\"$schema\":\"http://json-schema.org/draft-04/schema#\",\"format\":\"hostname\"}","doc":"\"a.-b.com\"","kind":"invalid","text":"(root): Does not match format 'hostname'"}
+{"schema":"{\"$schema\":\"http://json-schema.org/draft-04/schema#\",\"format\":\"hostname\"}","doc":"\"a\\n\"","kind":"invalid","text":"(root): Does not match format 'hostname'"}
+{"schema":"{\"$schema\":\"http://json-schema.org/draft-04/schema#\",\"format\":\"hostname\"}","doc":"\"a.b\\n\"","kind":"invalid","text":"(root): Does not match format 'hostname'"}
+{"schema":"{\"$schema\":\"http://json-schema.org/draft-04/schema#\",\"format\":\"hostname\"}","doc":"\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.com\"","kind":"ok"}
+{"schema":"{\"$schema\":\"http://json-schema.org/draft-04/schema#\",\"format\":\"hostname\"}","doc":"\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.com\"","kind":"invalid","text":"(root): Does not match format 'hostname'"}
+{"schema":"{\"$schema\":\"http://json-schema.org/draft-04/schema#\",\"format\":\"hostname\"}","doc":"\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\"","kind":"ok"}
+{"schema":"{\"$schema\":\"http://json-schema.org/draft-04/schema#\",\"format\":\"hostname\"}","doc":"\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\"","kind":"ok"}
+{"schema":"{\"$schema\":\"http://json-schema.org/draft-04/schema#\",\"format\":\"hostname\"}","doc":"\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\"","kind":"ok"}
+{"schema":"{\"$schema\":\"http://json-schema.org/draft-04/schema#\",\"format\":\"hostname\"}","doc":"\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\"","kind":"invalid","text":"(root): Does not match format 'hostname'"}
+{"schema":"{\"$schema\":\"http://json-schema.org/draft-04/schema#\",\"format\":\"hostname\"}","doc":"\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\"","kind":"invalid","text":"(root): Does not match format 'hostname'"}
+{"schema":"{\"$schema\":\"http://json-schema.org/draft-04/schema#\",\"format\":\"hostname\"}","doc":"1","kind":"invalid","text":"(root): Does not match format 'hostname'"}
+{"schema":"{\"$schema\":\"http://json-schema.org/draft-04/schema#\",\"format\":\"hostname\"}","doc":"1.5","kind":"invalid","text":"(root): Does not match format 'hostname'"}
+{"schema":"{\"$schema\":\"http://json-schema.org/draft-04/schema#\",\"format\":\"hostname\"}","doc":"true","kind":"ok"}
+{"schema":"{\"$schema\":\"http://json-schema.org/draft-04/schema#\",\"format\":\"hostname\"}","doc":"null","kind":"ok"}
+{"schema":"{\"$schema\":\"http://json-schema.org/draft-04/schema#\",\"format\":\"hostname\"}","doc":"[]","kind":"ok"}
+{"schema":"{\"$schema\":\"http://json-schema.org/draft-04/schema#\",\"format\":\"hostname\"}","doc":"{}","kind":"ok"}
+{"schema":"{\"$schema\":\"http://json-schema.org/draft-04/schema#\",\"format\":\"hostname\"}","doc":"[\"example.com\"]","kind":"ok"}
+{"schema":"{\"format\":\"hostname\"}","kind":"loaded"}
+{"schema":"{\"format\":\"hostname\"}","doc":"\"\"","kind":"invalid","text":"(root): Does not match format 'hostname'"}
+{"schema":"{\"format\":\"hostname\"}","doc":"\"123e4567-e89b-12d3-a456-426614174000\"","kind":"ok"}
+{"schema":"{\"format\":\"hostname\"}","doc":"\"00000000-0000-0000-0000-000000000000\"","kind":"ok"}
+{"schema":"{\"format\":\"hostname\"}","doc":"\"ffffffff-ffff-ffff-ffff-ffffffffffff\"","kind":"ok"}
+{"schema":"{\"format\":\"hostname\"}","doc":"\"123E4567-E89B-12D3-A456-426614174000\"","kind":"ok"}
+{"schema":"{\"format\":\"hostname\"}","doc":"\"123e4567-e89b-12d3-a456-42661417400\"","kind":"ok"}
+{"schema":"{\"format\":\"hostname\"}","doc":"\"123e4567-e89b-12d3-a456-4266141740000\"","kind":"ok"}
+{"schema":"{\"format\":\"hostname\"}","doc":"\"123e4567e89b12d3a456426614174000\"","kind":"ok"}
+{"schema":"{\"format\":\"hostname\"}","doc":"\"{123e4567-e89b-12d3-a456-426614174000}\"","kind":"invalid","text":"(root): Does not match format 'hostname'"}
+{"schema":"{\"format\":\"hostname\"}","doc":"\"urn:uuid:123e4567-e89b-12d3-a456-426614174000\"","kind":"invalid","text":"(root): Does not match format 'hostname'"}
+{"schema":"{\"format\":\"hostname\"}","doc":"\"123e4567-e89b-12d3-a456-426614174000\\n\"","kind":"invalid","text":"(root): Does not match format 'hostname'"}
+{"schema":"{\"format\":\"hostname\"}","doc":"\" 123e4567-e89b-12d3-a456-426614174000\"","kind":"invalid","text":"(root): Does not match format 'hostname'"}
+{"schema":"{\"format\":\"hostname\"}","doc":"\"g23e4567-e89b-12d3-a456-426614174000\"","kind":"ok"}
+{"schema":"{\"format\":\"hostname\"}","doc":"\"123e4567-e89b-12d3-a456_426614174000\"","kind":"invalid","text":"(root): Does not match format 'hostname'"}
+{"schema":"{\"format\":\"hostname\"}","doc":"\"٣23e4567-e89b-12d3-a456-426614174000\"","kind":"invalid","text":"(root): Does not match format 'hostname'"}
+{"schema":"{\"format\":\"hostname\"}","doc":"\"example.com\"","kind":"ok"}
+{"schema":"{\"format\":\"hostname\"}","doc":"\"localhost\"","kind":"ok"}
+{"schema":"{\"format\":\"hostname\"}","doc":"\"a\"","kind":"ok"}
+{"schema":"{\"format\":\"hostname\"}","doc":"\"a.b\"","kind":"ok"}
+{"schema":"{\"format\":\"hostname\"}","doc":"\"a.b.c\"","kind":"ok"}
+{"schema":"{\"format\":\"hostname\"}","doc":"\"-a.com\"","kind":"invalid","text":"(root): Does not match format 'hostname'"}
+{"schema":"{\"format\":\"hostname\"}","doc":"\"a-.com\"","kind":"invalid","text":"(root): Does not match format 'hostname'"}
+{"schema":"{\"format\":\"hostname\"}","doc":"\"a-b.com\"","kind":"ok"}
+{"schema":"{\"format\":\"hostname\"}","doc":"\"a--b.com\"","kind":"ok"}
+{"schema":"{\"format\":\"hostname\"}","doc":"\"a_b.com\"","kind":"invalid","text":"(root): Does not match format 'hostname'"}
+{"schema":"{\"format\":\"hostname\"}","doc":"\"a..b\"","kind":"invalid","text":"(root): Does not match format 'hostname'"}
+{"schema":"{\"format\":\"hostname\"}","doc":"\".a\"","kind":"invalid","text":"(root): Does not match format 'hostname'"}
+{"schema":"{\"format\":\"hostname\"}","doc":"\"a.\"","kind":"invalid","text":"(root): Does not match format 'hostname'"}
+{"schema":"{\"format\":\"hostname\"}","doc":"\"xn--abc.com\"","kind":"ok"}
+{"schema":"{\"format\":\"hostname\"}","doc":"\"1.2.3.4\"","kind":"ok"}
+{"schema":"{\"format\":\"hostname\"}","doc":"\"123\"","kind":"ok"}
+{"schema":"{\"format\":\"hostname\"}","doc":"\"ex ample.com\"","kind":"invalid","text":"(root): Does not match format 'hostname'"}
+{"schema":"{\"format\":\"hostname\"}","doc":"\"é.com\"","kind":"invalid","text":"(root): Does not match format 'hostname'"}
+{"schema":"{\"format\":\"hostname\"}","doc":"\"EXAMPLE.COM\"","kind":"ok"}
+{"schema":"{\"format\":\"hostname\"}","doc":"\"a.-b.com\"","kind":"invalid","text":"(root): Does not match format 'hostname'"}
+{"schema":"{\"format\":\"hostname\"}","doc":"\"a\\n\"","kind":"invalid","text":"(root): Does not match format 'hostname'"}
+{"schema":"{\"format\":\"hostname\"}","doc":"\"a.b\\n\"","kind":"invalid","text":"(root): Does not match format 'hostname'"}
+{"schema":"{\"format\":\"hostname\"}","doc":"\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.com\"","kind":"ok"}
+{"schema":"{\"format\":\"hostname\"}","doc":"\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.com\"","kind":"invalid","text":"(root): Does not match format 'hostname'"}
+{"schema":"{\"format\":\"hostname\"}","doc":"\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\"","kind":"ok"}
+{"schema":"{\"format\":\"hostname\"}","doc":"\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\"","kind":"ok"}
+{"schema":"{\"format\":\"hostname\"}","doc":"\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\"","kind":"ok"}
+{"schema":"{\"format\":\"hostname\"}","doc":"\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\"","kind":"invalid","text":"(root): Does not match format 'hostname'"}
+{"schema":"{\"format\":\"hostname\"}","doc":"\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\"","kind":"invalid","text":"(root): Does not match format 'hostname'"}
+{"schema":"{\"format\":\"hostname\"}","doc":"1","kind":"invalid","text":"(root): Does not match format 'hostname'"}
+{"schema":"{\"format\":\"hostname\"}","doc":"1.5","kind":"invalid","text":"(root): Does not match format 'hostname'"}
+{"schema":"{\"format\":\"hostname\"}","doc":"true","kind":"ok"}
+{"schema":"{\"format\":\"hostname\"}","doc":"null","kind":"ok"}
+{"schema":"{\"format\":\"hostname\"}","doc":"[]","kind":"ok"}
+{"schema":"{\"format\":\"hostname\"}","doc":"{}","kind":"ok"}
+{"schema":"{\"format\":\"hostname\"}","doc":"[\"example.com\"]","kind":"ok"}
+{"schema":"{\"type\":\"string\",\"format\":\"hostname\"}","kind":"loaded"}
+{"schema":"{\"type\":\"string\",\"format\":\"hostname\"}","doc":"\"\"","kind":"invalid","text":"(root): Does not match format 'hostname'"}
+{"schema":"{\"type\":\"string\",\"format\":\"hostname\"}","doc":"\"123e4567-e89b-12d3-a456-426614174000\"","kind":"ok"}
+{"schema":"{\"type\":\"string\",\"format\":\"hostname\"}","doc":"\"00000000-0000-0000-0000-000000000000\"","kind":"ok"}
+{"schema":"{\"type\":\"string\",\"format\":\"hostname\"}","doc":"\"ffffffff-ffff-ffff-ffff-ffffffffffff\"","kind":"ok"}
+{"schema":"{\"type\":\"string\",\"format\":\"hostname\"}","doc":"\"123E4567-E89B-12D3-A456-426614174000\"","kind":"ok"}
+{"schema":"{\"type\":\"string\",\"format\":\"hostname\"}","doc":"\"123e4567-e89b-12d3-a456-42661417400\"","kind":"ok"}
+{"schema":"{\"type\":\"string\",\"format\":\"hostname\"}","doc":"\"123e4567-e89b-12d3-a456-4266141740000\"","kind":"ok"}
+{"schema":"{\"type\":\"string\",\"format\":\"hostname\"}","doc":"\"123e4567e89b12d3a456426614174000\"","kind":"ok"}
+{"schema":"{\"type\":\"string\",\"format\":\"hostname\"}","doc":"\"{123e4567-e89b-12d3-a456-426614174000}\"","kind":"invalid","text":"(root): Does not match format 'hostname'"}
+{"schema":"{\"type\":\"string\",\"format\":\"hostname\"}","doc":"\"urn:uuid:123e4567-e89b-12d3-a456-426614174000\"","kind":"invalid","text":"(root): Does not match format 'hostname'"}
+{"schema":"{\"type\":\"string\",\"format\":\"hostname\"}","doc":"\"123e4567-e89b-12d3-a456-426614174000\\n\"","kind":"invalid","text":"(root): Does not match format 'hostname'"}
+{"schema":"{\"type\":\"string\",\"format\":\"hostname\"}","doc":"\" 123e4567-e89b-12d3-a456-426614174000\"","kind":"invalid","text":"(root): Does not match format 'hostname'"}
+{"schema":"{\"type\":\"string\",\"format\":\"hostname\"}","doc":"\"g23e4567-e89b-12d3-a456-426614174000\"","kind":"ok"}
+{"schema":"{\"type\":\"string\",\"format\":\"hostname\"}","doc":"\"123e4567-e89b-12d3-a456_426614174000\"","kind":"invalid","text":"(root): Does not match format 'hostname'"}
+{"schema":"{\"type\":\"string\",\"format\":\"hostname\"}","doc":"\"٣23e4567-e89b-12d3-a456-426614174000\"","kind":"invalid","text":"(root): Does not match format 'hostname'"}
+{"schema":"{\"type\":\"string\",\"format\":\"hostname\"}","doc":"\"example.com\"","kind":"ok"}
+{"schema":"{\"type\":\"string\",\"format\":\"hostname\"}","doc":"\"localhost\"","kind":"ok"}
+{"schema":"{\"type\":\"string\",\"format\":\"hostname\"}","doc":"\"a\"","kind":"ok"}
+{"schema":"{\"type\":\"string\",\"format\":\"hostname\"}","doc":"\"a.b\"","kind":"ok"}
+{"schema":"{\"type\":\"string\",\"format\":\"hostname\"}","doc":"\"a.b.c\"","kind":"ok"}
+{"schema":"{\"type\":\"string\",\"format\":\"hostname\"}","doc":"\"-a.com\"","kind":"invalid","text":"(root): Does not match format 'hostname'"}
+{"schema":"{\"type\":\"string\",\"format\":\"hostname\"}","doc":"\"a-.com\"","kind":"invalid","text":"(root): Does not match format 'hostname'"}
+{"schema":"{\"type\":\"string\",\"format\":\"hostname\"}","doc":"\"a-b.com\"","kind":"ok"}
+{"schema":"{\"type\":\"string\",\"format\":\"hostname\"}","doc":"\"a--b.com\"","kind":"ok"}
+{"schema":"{\"type\":\"string\",\"format\":\"hostname\"}","doc":"\"a_b.com\"","kind":"invalid","text":"(root): Does not match format 'hostname'"}
+{"schema":"{\"type\":\"string\",\"format\":\"hostname\"}","doc":"\"a..b\"","kind":"invalid","text":"(root): Does not match format 'hostname'"}
+{"schema":"{\"type\":\"string\",\"format\":\"hostname\"}","doc":"\".a\"","kind":"invalid","text":"(root): Does not match format 'hostname'"}
+{"schema":"{\"type\":\"string\",\"format\":\"hostname\"}","doc":"\"a.\"","kind":"invalid","text":"(root): Does not match format 'hostname'"}
+{"schema":"{\"type\":\"string\",\"format\":\"hostname\"}","doc":"\"xn--abc.com\"","kind":"ok"}
+{"schema":"{\"type\":\"string\",\"format\":\"hostname\"}","doc":"\"1.2.3.4\"","kind":"ok"}
+{"schema":"{\"type\":\"string\",\"format\":\"hostname\"}","doc":"\"123\"","kind":"ok"}
+{"schema":"{\"type\":\"string\",\"format\":\"hostname\"}","doc":"\"ex ample.com\"","kind":"invalid","text":"(root): Does not match format 'hostname'"}
+{"schema":"{\"type\":\"string\",\"format\":\"hostname\"}","doc":"\"é.com\"","kind":"invalid","text":"(root): Does not match format 'hostname'"}
+{"schema":"{\"type\":\"string\",\"format\":\"hostname\"}","doc":"\"EXAMPLE.COM\"","kind":"ok"}
+{"schema":"{\"type\":\"string\",\"format\":\"hostname\"}","doc":"\"a.-b.com\"","kind":"invalid","text":"(root): Does not match format 'hostname'"}
+{"schema":"{\"type\":\"string\",\"format\":\"hostname\"}","doc":"\"a\\n\"","kind":"invalid","text":"(root): Does not match format 'hostname'"}
+{"schema":"{\"type\":\"string\",\"format\":\"hostname\"}","doc":"\"a.b\\n\"","kind":"invalid","text":"(root): Does not match format 'hostname'"}
+{"schema":"{\"type\":\"string\",\"format\":\"hostname\"}","doc":"\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.com\"","kind":"ok"}
+{"schema":"{\"type\":\"string\",\"format\":\"hostname\"}","doc":"\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.com\"","kind":"invalid","text":"(root): Does not match format 'hostname'"}
+{"schema":"{\"type\":\"string\",\"format\":\"hostname\"}","doc":"\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\"","kind":"ok"}
+{"schema":"{\"type\":\"string\",\"format\":\"hostname\"}","doc":"\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\"","kind":"ok"}
+{"schema":"{\"type\":\"string\",\"format\":\"hostname\"}","doc":"\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\"","kind":"ok"}
+{"schema":"{\"type\":\"string\",\"format\":\"hostname\"}","doc":"\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\"","kind":"invalid","text":"(root): Does not match format 'hostname'"}
+{"schema":"{\"type\":\"string\",\"format\":\"hostname\"}","doc":"\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\"","kind":"invalid","text":"(root): Does not match format 'hostname'"}
+{"schema":"{\"type\":\"string\",\"format\":\"hostname\"}","doc":"1","kind":"invalid","text":"(root): Invalid type. Expected: string, given: integer"}
+{"schema":"{\"type\":\"string\",\"format\":\"hostname\"}","doc":"1.5","kind":"invalid","text":"(root): Invalid type. Expected: string, given: number"}
+{"schema":"{\"type\":\"string\",\"format\":\"hostname\"}","doc":"true","kind":"invalid","text":"(root): Invalid type. Expected: string, given: boolean"}
+{"schema":"{\"type\":\"string\",\"format\":\"hostname\"}","doc":"null","kind":"invalid","text":"(root): Invalid type. Expected: string, given: null"}
+{"schema":"{\"type\":\"string\",\"format\":\"hostname\"}","doc":"[]","kind":"invalid","text":"(root): Invalid type. Expected: string, given: array"}
+{"schema":"{\"type\":\"string\",\"format\":\"hostname\"}","doc":"{}","kind":"invalid","text":"(root): Invalid type. Expected: string, given: object"}
+{"schema":"{\"type\":\"string\",\"format\":\"hostname\"}","doc":"[\"example.com\"]","kind":"invalid","text":"(root): Invalid type. Expected: string, given: array"}
+{"schema":"{\"type\":[\"string\",\"integer\"],\"format\":\"hostname\"}","kind":"loaded"}
+{"schema":"{\"type\":[\"string\",\"integer\"],\"format\":\"hostname\"}","doc":"\"\"","kind":"invalid","text":"(root): Does not match format 'hostname'"}
+{"schema":"{\"type\":[\"string\",\"integer\"],\"format\":\"hostname\"}","doc":"\"123e4567-e89b-12d3-a456-426614174000\"","kind":"ok"}
+{"schema":"{\"type\":[\"string\",\"integer\"],\"format\":\"hostname\"}","doc":"\"00000000-0000-0000-0000-000000000000\"","kind":"ok"}
+{"schema":"{\"type\":[\"string\",\"integer\"],\"format\":\"hostname\"}","doc":"\"ffffffff-ffff-ffff-ffff-ffffffffffff\"","kind":"ok"}
+{"schema":"{\"type\":[\"string\",\"integer\"],\"format\":\"hostname\"}","doc":"\"123E4567-E89B-12D3-A456-426614174000\"","kind":"ok"}
+{"schema":"{\"type\":[\"string\",\"integer\"],\"format\":\"hostname\"}","doc":"\"123e4567-e89b-12d3-a456-42661417400\"","kind":"ok"}
+{"schema":"{\"type\":[\"string\",\"integer\"],\"format\":\"hostname\"}","doc":"\"123e4567-e89b-12d3-a456-4266141740000\"","kind":"ok"}
+{"schema":"{\"type\":[\"string\",\"integer\"],\"format\":\"hostname\"}","doc":"\"123e4567e89b12d3a456426614174000\"","kind":"ok"}
+{"schema":"{\"type\":[\"string\",\"integer\"],\"format\":\"hostname\"}","doc":"\"{123e4567-e89b-12d3-a456-426614174000}\"","kind":"invalid","text":"(root): Does not match format 'hostname'"}
+{"schema":"{\"type\":[\"string\",\"integer\"],\"format\":\"hostname\"}","doc":"\"urn:uuid:123e4567-e89b-12d3-a456-426614174000\"","kind":"invalid","text":"(root): Does not match format 'hostname'"}
+{"schema":"{\"type\":[\"string\",\"integer\"],\"format\":\"hostname\"}","doc":"\"123e4567-e89b-12d3-a456-426614174000\\n\"","kind":"invalid","text":"(root): Does not match format 'hostname'"}
+{"schema":"{\"type\":[\"string\",\"integer\"],\"format\":\"hostname\"}","doc":"\" 123e4567-e89b-12d3-a456-426614174000\"","kind":"invalid","text":"(root): Does not match format 'hostname'"}
+{"schema":"{\"type\":[\"string\",\"integer\"],\"format\":\"hostname\"}","doc":"\"g23e4567-e89b-12d3-a456-426614174000\"","kind":"ok"}
+{"schema":"{\"type\":[\"string\",\"integer\"],\"format\":\"hostname\"}","doc":"\"123e4567-e89b-12d3-a456_426614174000\"","kind":"invalid","text":"(root): Does not match format 'hostname'"}
+{"schema":"{\"type\":[\"string\",\"integer\"],\"format\":\"hostname\"}","doc":"\"٣23e4567-e89b-12d3-a456-426614174000\"","kind":"invalid","text":"(root): Does not match format 'hostname'"}
+{"schema":"{\"type\":[\"string\",\"integer\"],\"format\":\"hostname\"}","doc":"\"example.com\"","kind":"ok"}
+{"schema":"{\"type\":[\"string\",\"integer\"],\"format\":\"hostname\"}","doc":"\"localhost\"","kind":"ok"}
+{"schema":"{\"type\":[\"string\",\"integer\"],\"format\":\"hostname\"}","doc":"\"a\"","kind":"ok"}
+{"schema":"{\"type\":[\"string\",\"integer\"],\"format\":\"hostname\"}","doc":"\"a.b\"","kind":"ok"}
+{"schema":"{\"type\":[\"string\",\"integer\"],\"format\":\"hostname\"}","doc":"\"a.b.c\"","kind":"ok"}
+{"schema":"{\"type\":[\"string\",\"integer\"],\"format\":\"hostname\"}","doc":"\"-a.com\"","kind":"invalid","text":"(root): Does not match format 'hostname'"}
+{"schema":"{\"type\":[\"string\",\"integer\"],\"format\":\"hostname\"}","doc":"\"a-.com\"","kind":"invalid","text":"(root): Does not match format 'hostname'"}
+{"schema":"{\"type\":[\"string\",\"integer\"],\"format\":\"hostname\"}","doc":"\"a-b.com\"","kind":"ok"}
+{"schema":"{\"type\":[\"string\",\"integer\"],\"format\":\"hostname\"}","doc":"\"a--b.com\"","kind":"ok"}
+{"schema":"{\"type\":[\"string\",\"integer\"],\"format\":\"hostname\"}","doc":"\"a_b.com\"","kind":"invalid","text":"(root): Does not match format 'hostname'"}
+{"schema":"{\"type\":[\"string\",\"integer\"],\"format\":\"hostname\"}","doc":"\"a..b\"","kind":"invalid","text":"(root): Does not match format 'hostname'"}
+{"schema":"{\"type\":[\"string\",\"integer\"],\"format\":\"hostname\"}","doc":"\".a\"","kind":"invalid","text":"(root): Does not match format 'hostname'"}
+{"schema":"{\"type\":[\"string\",\"integer\"],\"format\":\"hostname\"}","doc":"\"a.\"","kind":"invalid","text":"(root): Does not match format 'hostname'"}
+{"schema":"{\"type\":[\"string\",\"integer\"],\"format\":\"hostname\"}","doc":"\"xn--abc.com\"","kind":"ok"}
+{"schema":"{\"type\":[\"string\",\"integer\"],\"format\":\"hostname\"}","doc":"\"1.2.3.4\"","kind":"ok"}
+{"schema":"{\"type\":[\"string\",\"integer\"],\"format\":\"hostname\"}","doc":"\"123\"","kind":"ok"}
+{"schema":"{\"type\":[\"string\",\"integer\"],\"format\":\"hostname\"}","doc":"\"ex ample.com\"","kind":"invalid","text":"(root): Does not match format 'hostname'"}
+{"schema":"{\"type\":[\"string\",\"integer\"],\"format\":\"hostname\"}","doc":"\"é.com\"","kind":"invalid","text":"(root): Does not match format 'hostname'"}
+{"schema":"{\"type\":[\"string\",\"integer\"],\"format\":\"hostname\"}","doc":"\"EXAMPLE.COM\"","kind":"ok"}
+{"schema":"{\"type\":[\"string\",\"integer\"],\"format\":\"hostname\"}","doc":"\"a.-b.com\"","kind":"invalid","text":"(root): Does not match format 'hostname'"}
+{"schema":"{\"type\":[\"string\",\"integer\"],\"format\":\"hostname\"}","doc":"\"a\\n\"","kind":"invalid","text":"(root): Does not match format 'hostname'"}
+{"schema":"{\"type\":[\"string\",\"integer\"],\"format\":\"hostname\"}","doc":"\"a.b\\n\"","kind":"invalid","text":"(root): Does not match format 'hostname'"}
+{"schema":"{\"type\":[\"string\",\"integer\"],\"format\":\"hostname\"}","doc":"\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.com\"","kind":"ok"}
+{"schema":"{\"type\":[\"string\",\"integer\"],\"format\":\"hostname\"}","doc":"\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.com\"","kind":"invalid","text":"(root): Does not match format 'hostname'"}
+{"schema":"{\"type\":[\"string\",\"integer\"],\"format\":\"hostname\"}","doc":"\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\"","kind":"ok"}
+{"schema":"{\"type\":[\"string\",\"integer\"],\"format\":\"hostname\"}","doc":"\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\"","kind":"ok"}
+{"schema":"{\"type\":[\"string\",\"integer\"],\"format\":\"hostname\"}","doc":"\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\"","kind":"ok"}
+{"schema":"{\"type\":[\"string\",\"integer\"],\"format\":\"hostname\"}","doc":"\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\"","kind":"invalid","text":"(root): Does not match format 'hostname'"}
+{"schema":"{\"type\":[\"string\",\"integer\"],\"format\":\"hostname\"}","doc":"\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\"","kind":"invalid","text":"(root): Does not match format 'hostname'"}
+{"schema":"{\"type\":[\"string\",\"integer\"],\"format\":\"hostname\"}","doc":"1","kind":"invalid","text":"(root): Does not match format 'hostname'"}
+{"schema":"{\"type\":[\"string\",\"integer\"],\"format\":\"hostname\"}","doc":"1.5","kind":"invalid","text":"(root): Invalid type. Expected: [string,integer], given: number"}
+{"schema":"{\"type\":[\"string\",\"integer\"],\"format\":\"hostname\"}","doc":"true","kind":"invalid","text":"(root): Invalid type. Expected: [string,integer], given: boolean"}
+{"schema":"{\"type\":[\"string\",\"integer\"],\"format\":\"hostname\"}","doc":"null","kind":"invalid","text":"(root): Invalid type. Expected: [string,integer], given: null"}
+{"schema":"{\"type\":[\"string\",\"integer\"],\"format\":\"hostname\"}","doc":"[]","kind":"invalid","text":"(root): Invalid type. Expected: [string,integer], given: array"}
+{"schema":"{\"type\":[\"string\",\"integer\"],\"format\":\"hostname\"}","doc":"{}","kind":"invalid","text":"(root): Invalid type. Expected: [string,integer], given: object"}
+{"schema":"{\"type\":[\"string\",\"integer\"],\"format\":\"hostname\"}","doc":"[\"example.com\"]","kind":"invalid","text":"(root): Invalid type. Expected: [string,integer], given: array"}
+{"schema":"{\"format\":\"date\"}","kind":"loaded"}
+{"schema":"{\"format\":\"time\"}","kind":"loaded"}
+{"schema":"{\"format\":\"date-time\"}","kind":"loaded"}
+{"schema":"{\"format\":\"email\"}","kind":"loaded"}
+{"schema":"{\"format\":\"idn-email\"}","kind":"loaded"}
+{"schema":"{\"format\":\"hostname \"}","kind":"loaded"}
+{"schema":"{\"format\":\"idn-hostname\"}","kind":"loaded"}
+{"schema":"{\"format\":\"ipv4\"}","kind":"loaded"}
+{"schema":"{\"format\":\"ipv6\"}","kind":"loaded"}
+{"schema":"{\"format\":\"uri\"}","kind":"loaded"}
+{"schema":"{\"format\":\"uri-reference\"}","kind":"loaded"}
+{"schema":"{\"format\":\"iri\"}","kind":"loaded"}
+{"schema":"{\"format\":\"iri-reference\"}","kind":"loaded"}
+{"schema":"{\"format\":\"uri-template\"}","kind":"loaded"}
+{"schema":"{\"format\":\"regex\"}","kind":"loaded"}
+{"schema":"{\"format\":\"json-pointer\"}","kind":"loaded"}
+{"schema":"{\"format\":\"relative-json-pointer\"}","kind":"loaded"}
+{"schema":"{\"format\":\"custom\"}","kind":"loaded"}
+{"schema":"{\"format\":\"UUID\"}","kind":"loaded"}
+{"schema":"{\"format\":\"\"}","kind":"loaded"}

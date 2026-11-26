@@ -1087,7 +1087,12 @@ name = "pbs-bidder-params"
 version = "0.1.0"
 dependencies = [
  "pbs-devtools",
+ "pbs-jsonutil",
+ "pbs-util",
  "regex",
+ "serde",
+ "serde_json",
+ "sha2",
 ]
 
 [[package]]
@@ -1187,6 +1192,15 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn",
+]
+
+[[package]]
+name = "pbs-govalidator"
+version = "0.1.0"
+dependencies = [
+ "pbs-util",
+ "regex",
+ "sha2",
 ]
 
 [[package]]

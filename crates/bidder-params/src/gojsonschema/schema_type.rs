@@ -1,3 +1,5 @@
+//! Glue (Rule B (d)): the `type` keyword and the type names gojsonschema prints.
+//!
 //! Go: gojsonschema/types.go and gojsonschema/schemaType.go.
 
 /// Go: gojsonschema `JSON_TYPES`, in Go's order.

@@ -1,0 +1,62 @@
+# The differences ledger's entries for pbs-govalidator (see the pbs_differences ledger module for
+# the schema): govalidator's URL and IP checks, which decide which bidder-info files, host config
+# and account config Prebid accepts. pbs-differences validates this file and writes
+# docs/DIFFERENCES.md and docs/differences.json from every fragment.
+
+[[difference]]
+id = "url.govalidator-checks"
+category = "url"
+status = "restored"
+title = "`IsURL`, `IsRequestURL`, `IsRequestURI` and `IsIP`: govalidator's pattern and Go's `net/url` decide, which the url crate does not reproduce"
+go = """\
+    govalidator's `IsURL` checks the length, `url.Parse`'s verdict, host and path, then its URL \
+    pattern; `IsRequestURL` and `IsRequestURI` take `url.ParseRequestURI`'s verdict and scheme, \
+    and `IsIP` `net.ParseIP`'s. Prebid loads a bidder endpoint or user sync URL only when \
+    `IsURL` and `IsRequestURL` hold (config/bidderinfo.go:516, usersync/syncer.go:179), a VAST \
+    event URL the same way (config/events.go:141), and fetches an account's floors only from a \
+    URL `IsURL` accepts (floors/fetcher.go:133)."""
+rust = """\
+    The url crate parses by the WHATWG rules: it percent-encodes or rejects other bytes in a \
+    host, reads ports, IP literals and zones its own way and has no request-URI form, so it \
+    would decide differently which configs load and which floors are fetched."""
+who = ["operator"]
+visible_in = """\
+    Startup with the bidder-info files and host config (bidder endpoints, user sync URLs, VAST \
+    event URLs), and whether an account's floors fetch URL is used"""
+pin = "crates/govalidator/tests/golden.rs::validator_matches_go"
+restore = """\
+    pbs-govalidator: govalidator's URL pattern through `pbs_util::goregex`, the part of Go \
+    1.26.2's `url.Parse` and `url.ParseRequestURI` the checks read (the verdict, scheme, host \
+    and path, with the `urlstrictcolons=0` default Prebid's `go 1.25.0` module selects), and \
+    `pbs_util::iputil::net::parse_ip` for `net.ParseIP`."""
+rule_b = "c"
+
+[[restoration]]
+id = "url.govalidator-checks"
+pin = "crates/govalidator/tests/golden.rs::validator_matches_go"
+note = """\
+    2,844 inputs give Go's four verdicts and `net.ParseIP`'s bytes: govalidator's tests, Go's \
+    net/url, net and net/netip tests, the URLs of Prebid's bidder-info files and configs, and \
+    edge cases of lengths, ports, IP literals, zones and Unicode spaces and digits."""
+
+[[restoration]]
+id = "url.govalidator-checks"
+pin = "crates/govalidator/tests/golden.rs::sweeps_match_go"
+note = """\
+    50,000 seeded URL-like and 50,000 seeded IP-like inputs give Go's outcomes, compared by a \
+    digest per sweep."""
+
+[[restoration]]
+id = "url.govalidator-checks"
+pin = "crates/govalidator/tests/golden.rs::parts_match_go"
+note = """\
+    50,000 seeded inputs that each join one scheme, user info, host, port and path, query or \
+    fragment, chosen among edge cases of the part (IPv6 literals with zones and their escapes, \
+    user info up to the last `@`, ports after the last colon), give Go's outcomes, compared by \
+    digests: the token sweeps rarely build such parts whole, and miss a zone that escapes a \
+    byte above 0x7F or an empty zone."""
+
+[[restoration]]
+id = "url.govalidator-checks"
+pin = "crates/govalidator/tests/golden.rs::url_pattern_is_govalidators"
+note = "`URL` is govalidator's pattern byte for byte, and goregex compiles it."

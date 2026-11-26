@@ -3,13 +3,14 @@
 //! Prebid Server validates every `imp[i].ext.prebid.bidder.<bidder>` object against the
 //! bidder's JSON schema in `static/bidder-params/` (Go: `openrtb_ext.NewBidderParamsValidator`,
 //! backed by `github.com/xeipuuv/gojsonschema` v1.2.0). The error text is part of the HTTP
-//! response, so this crate reproduces gojsonschema itself rather than wrapping another JSON
-//! Schema engine:
+//! response, and no JSON Schema crate passes the workspace's gates (D-JSONSCHEMA), so this crate
+//! validates the part of JSON Schema Prebid's schemas use with gojsonschema's texts:
 //!
 //! - [`bidders`]: the `BidderParamValidator` (loading, aliases, `Validate`, `Schema`);
-//! - [`gojsonschema`]: the schema engine (drafts 4/6/7/hybrid, Go's error messages, order and
-//!   scoring, `encoding/json` decoding with `UseNumber`, `math/big` number semantics, Go `regexp`
-//!   syntax).
+//! - [`gojsonschema`]: the keywords and formats the 282 bidder schemas and
+//!   `rules-engine-schema.json` use, on `serde_json` and the regex crate (patterns through
+//!   `pbs_util::goregex`), with Go's error messages, order and scoring. A schema using any other
+//!   keyword fails to load.
 //!
 //! ```no_run
 //! use std::collections::{BTreeMap, BTreeSet};

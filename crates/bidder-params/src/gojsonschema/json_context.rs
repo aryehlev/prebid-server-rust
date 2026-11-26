@@ -1,3 +1,5 @@
+//! Glue (Rule B (d)): the paths gojsonschema prints before each error.
+//!
 //! Go: gojsonschema/jsonContext.go.
 
 /// Go: gojsonschema `STRING_CONTEXT_ROOT`.

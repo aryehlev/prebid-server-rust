@@ -1,43 +1,39 @@
-//! Go: gojsonschema/validation.go.
+//! Glue (Rule B (d)): gojsonschema's walk of a document, which decides the errors Prebid joins
+//! into its 400 response and their order.
 //!
-//! The walk, the order in which keywords add errors, and the match score that selects the
-//! closest `anyOf`/`oneOf` branch are ported statement by statement. Where Go iterates a map (the
-//! instance's keys, `patternProperties`) document order is used.
-//!
-//! A few inputs make Go dereference a nil pointer and panic; they surface as [`GoPanic`].
+//! Go: gojsonschema/validation.go, for the keywords the port reads. The order in which keywords
+//! add errors and the match score that selects the closest `anyOf`/`oneOf` branch are Go's;
+//! where Go walks a map (the document's keys) the port walks `serde_json`'s key order.
 
-use std::{collections::BTreeMap, error::Error, fmt};
+use std::{error::Error, fmt};
+
+use serde_json::{Map, Number, Value};
 
 use super::{
     errors::{Details, ErrorType, ValidationResult},
     json_context::JsonContext,
-    json_loader::{Document, Node, NodeId, rune_count},
-    marshal::marshal_without_number,
-    rat::Rat,
+    number::{compare, is_integer, limit_text},
     schema::Schema,
     schema_type::{
         TYPE_ARRAY, TYPE_BOOLEAN, TYPE_INTEGER, TYPE_NULL, TYPE_NUMBER, TYPE_OBJECT, TYPE_STRING,
     },
     sub_schema::{Additional, Dependency, SubId, SubSchema},
-    utils::check_json_integer,
 };
 
-/// A condition under which Go's gojsonschema panics instead of returning a result (a nil
-/// pointer dereference). A Go server handling the request would abort it.
+/// A condition under which Go panics instead of returning a result (a nil pointer
+/// dereference). A Go server handling the request would abort it.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct GoPanic(String);
 
 impl GoPanic {
-    fn new(what: &str) -> Self {
-        Self(format!(
-            "runtime error: invalid memory address or nil pointer dereference ({what})"
-        ))
-    }
-
     /// Go: `Validate` called on a nil `*gojsonschema.Schema` (a bidder without a schema).
     #[must_use]
     pub fn nil_schema() -> Self {
-        Self::new("no schema for this bidder")
+        Self(
+            "runtime error: invalid memory address or nil pointer dereference (no schema for \
+             this bidder)"
+                .to_owned(),
+        )
     }
 }
 
@@ -52,9 +48,11 @@ impl Error for GoPanic {}
 /// Why [`Schema::validate`] produced no [`ValidationResult`].
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ValidateError {
-    /// Go: the error `JSONLoader.LoadJSON` returned (the `encoding/json` decoder's text).
+    /// Go: the error `JSONLoader.LoadJSON` returned (here `serde_json`'s text,
+    /// jsonschema.decode-errors).
     Load(String),
-    /// Go panics while validating this document.
+    /// Go panics while validating this document. The port reads no number Go panics on
+    /// (jsonschema.number-precision), so validation does not produce this.
     Panic(GoPanic),
 }
 
@@ -69,72 +67,53 @@ impl fmt::Display for ValidateError {
 
 impl Error for ValidateError {}
 
-type Step = Result<(), GoPanic>;
-
 /// Go: `(*Schema).validateDocument(root)`.
-pub(super) fn validate_document(
-    schema: &Schema,
-    doc: &Document,
-) -> Result<ValidationResult, GoPanic> {
+pub(super) fn validate_document(schema: &Schema, document: &Value) -> ValidationResult {
     let mut result = ValidationResult::default();
-    let validator = Validator { schema, doc };
-    validator.validate_recursive(schema.root(), doc.root(), &mut result, &JsonContext::root())?;
-    Ok(result)
+    Validator { schema }.validate_recursive(
+        schema.root(),
+        document,
+        &mut result,
+        &JsonContext::root(),
+    );
+    result
 }
 
-struct Validator<'s, 'd> {
+struct Validator<'s> {
     schema: &'s Schema,
-    doc: &'d Document,
 }
 
-impl<'s> Validator<'s, '_> {
+impl<'s> Validator<'s> {
     fn sub(&self, id: SubId) -> Option<&'s SubSchema> {
         self.schema.sub(id)
     }
 
     /// Go: `subValidateWithContext`.
-    fn sub_validate(
-        &self,
-        sub: SubId,
-        node: NodeId,
-        ctx: &JsonContext<'_>,
-    ) -> Result<ValidationResult, GoPanic> {
+    fn sub_validate(&self, sub: SubId, node: &Value, ctx: &JsonContext<'_>) -> ValidationResult {
         let mut result = ValidationResult::default();
-        self.validate_recursive(sub, node, &mut result, ctx)?;
-        Ok(result)
+        self.validate_recursive(sub, node, &mut result, ctx);
+        result
     }
 
     /// Go: `validateRecursive`.
     fn validate_recursive(
         &self,
         sub_id: SubId,
-        node: NodeId,
+        node: &Value,
         result: &mut ValidationResult,
         ctx: &JsonContext<'_>,
-    ) -> Step {
+    ) {
         let Some(sub) = self.sub(sub_id) else {
-            return Ok(());
+            return;
         };
-        // Handle true/false schema as early as possible as all other fields will be nil.
-        if let Some(pass) = sub.pass {
-            if !pass {
-                result.add_internal_error(ErrorType::False, ctx, Details::None);
-            }
-            return Ok(());
-        }
-        let given = match self.doc.node(node) {
-            Node::Null => TYPE_NULL,
-            Node::Number(literal) => {
-                if check_json_integer(literal) {
-                    TYPE_INTEGER
-                } else {
-                    TYPE_NUMBER
-                }
-            }
-            Node::Array(_) => TYPE_ARRAY,
-            Node::Object(_) => TYPE_OBJECT,
-            Node::Bool(_) => TYPE_BOOLEAN,
-            Node::String(_) => TYPE_STRING,
+        let given = match node {
+            Value::Null => TYPE_NULL,
+            Value::Number(n) if is_integer(n) => TYPE_INTEGER,
+            Value::Number(_) => TYPE_NUMBER,
+            Value::Array(_) => TYPE_ARRAY,
+            Value::Object(_) => TYPE_OBJECT,
+            Value::Bool(_) => TYPE_BOOLEAN,
+            Value::String(_) => TYPE_STRING,
         };
         let valid_type = match given {
             TYPE_INTEGER => sub.types.contains(TYPE_NUMBER) || sub.types.contains(TYPE_INTEGER),
@@ -147,59 +126,58 @@ impl<'s> Validator<'s, '_> {
                 ctx,
                 Details::Types(&expected, given),
             );
-            return Ok(());
+            return;
         }
-        self.validate_schema(sub, node, result, ctx)?;
-        match self.doc.node(node) {
-            Node::Null | Node::Bool(_) => self.validate_common(sub, node, result, ctx)?,
-            Node::Number(literal) => {
-                Self::validate_number(sub, literal, result, ctx)?;
-                self.validate_common(sub, node, result, ctx)?;
+        self.validate_schema(sub, node, result, ctx);
+        match node {
+            Value::Null | Value::Bool(_) => Self::validate_common(sub, node, result, ctx),
+            Value::Number(n) => {
+                Self::validate_number(sub, n, result, ctx);
+                Self::validate_common(sub, node, result, ctx);
             }
-            Node::String(s) => {
-                self.validate_common(sub, node, result, ctx)?;
+            Value::String(s) => {
+                Self::validate_common(sub, node, result, ctx);
                 Self::validate_string(sub, s, result, ctx);
             }
-            Node::Array(items) => {
-                self.validate_array(sub, items, result, ctx)?;
-                self.validate_common(sub, node, result, ctx)?;
+            Value::Array(items) => {
+                self.validate_array(sub, items, result, ctx);
+                Self::validate_common(sub, node, result, ctx);
             }
-            Node::Object(entries) => {
-                self.validate_object(sub, entries, result, ctx)?;
-                self.validate_common(sub, node, result, ctx)?;
+            Value::Object(members) => {
+                self.validate_object(sub, members, result, ctx);
+                Self::validate_common(sub, node, result, ctx);
                 for &child in &sub.properties_children {
                     let Some(child_schema) = self.sub(child) else {
                         continue;
                     };
-                    if let Some(next) = self.doc.get(node, &child_schema.property) {
+                    if let Some(next) = members.get(&child_schema.property) {
                         let sub_ctx = ctx.child(&child_schema.property);
-                        self.validate_recursive(child, next, result, &sub_ctx)?;
+                        self.validate_recursive(child, next, result, &sub_ctx);
                     }
                 }
             }
         }
         result.increment_score();
-        Ok(())
     }
 
-    /// Go: `validateSchema`: `anyOf`, `oneOf`, `allOf`, `not`, `dependencies`, `if`.
+    /// Go: `validateSchema`: `anyOf`, `oneOf`, `allOf`, `not`, `dependencies` and `if`.
     fn validate_schema(
         &self,
         sub: &SubSchema,
-        node: NodeId,
+        node: &Value,
         result: &mut ValidationResult,
         ctx: &JsonContext<'_>,
-    ) -> Step {
+    ) {
         if !sub.any_of.is_empty() {
-            self.validate_any_of(sub, node, result, ctx)?;
+            self.validate_any_of(sub, node, result, ctx);
         }
         if !sub.one_of.is_empty() {
-            self.validate_one_of(sub, node, result, ctx)?;
+            self.validate_one_of(sub, node, result, ctx);
         }
         if !sub.all_of.is_empty() {
             let mut validated = 0usize;
             for &all_of in &sub.all_of {
-                let r = self.sub_validate(all_of, node, ctx)?;
+                let r = self.sub_validate(all_of, node, ctx);
                 if r.valid() {
                     validated += 1;
                 }
@@ -210,32 +188,40 @@ impl<'s> Validator<'s, '_> {
             }
         }
         if let Some(not) = sub.not
-            && self.sub_validate(not, node, ctx)?.valid()
+            && self.sub_validate(not, node, ctx).valid()
         {
             result.add_internal_error(ErrorType::NumberNot, ctx, Details::None);
         }
-        if !sub.dependencies.is_empty() {
-            self.validate_dependencies(sub, node, result, ctx)?;
+        if let Value::Object(members) = node
+            && !sub.dependencies.is_empty()
+        {
+            self.validate_dependencies(sub, node, members, result, ctx);
         }
-        if let Some(if_schema) = sub.if_schema {
-            self.validate_condition(sub, if_schema, node, result, ctx)?;
+        if let Some(if_schema) = sub.if_schema
+            && let Some(then_schema) = sub.then_schema
+            && self.sub_validate(if_schema, node, ctx).valid()
+        {
+            let r = self.sub_validate(then_schema, node, ctx);
+            if !r.valid() {
+                result.add_internal_error(ErrorType::ConditionThen, ctx, Details::None);
+                result.merge_errors(r);
+            }
         }
         result.increment_score();
-        Ok(())
     }
 
     fn validate_any_of(
         &self,
         sub: &SubSchema,
-        node: NodeId,
+        node: &Value,
         result: &mut ValidationResult,
         ctx: &JsonContext<'_>,
-    ) -> Step {
+    ) {
         let mut best: Option<ValidationResult> = None;
         for &any_of in &sub.any_of {
-            let r = self.sub_validate(any_of, node, ctx)?;
+            let r = self.sub_validate(any_of, node, ctx);
             if r.valid() {
-                return Ok(());
+                return;
             }
             if best.as_ref().is_none_or(|b| r.score() > b.score()) {
                 best = Some(r);
@@ -243,24 +229,23 @@ impl<'s> Validator<'s, '_> {
         }
         result.add_internal_error(ErrorType::NumberAnyOf, ctx, Details::None);
         if let Some(best) = best {
-            // Add the errors of the closest matching sub-schema, probably the one the user was
-            // trying to match.
+            // Go: add the errors of the closest matching sub-schema, probably the one the user
+            // was trying to match.
             result.merge_errors(best);
         }
-        Ok(())
     }
 
     fn validate_one_of(
         &self,
         sub: &SubSchema,
-        node: NodeId,
+        node: &Value,
         result: &mut ValidationResult,
         ctx: &JsonContext<'_>,
-    ) -> Step {
+    ) {
         let mut validated = 0usize;
         let mut best: Option<ValidationResult> = None;
         for &one_of in &sub.one_of {
-            let r = self.sub_validate(one_of, node, ctx)?;
+            let r = self.sub_validate(one_of, node, ctx);
             if r.valid() {
                 validated += 1;
             } else if validated == 0 && best.as_ref().is_none_or(|b| r.score() > b.score()) {
@@ -275,34 +260,25 @@ impl<'s> Validator<'s, '_> {
                 result.merge_errors(best);
             }
         }
-        Ok(())
     }
 
+    /// The `dependencies` part of `validateSchema`, for the keys of the object.
     fn validate_dependencies(
         &self,
         sub: &SubSchema,
-        node: NodeId,
+        node: &Value,
+        members: &Map<String, Value>,
         result: &mut ValidationResult,
         ctx: &JsonContext<'_>,
-    ) -> Step {
-        let entries = match self.doc.node(node) {
-            Node::Object(entries) => entries,
-            // Go: isKind converts a json.Number to a big.Rat and dereferences the result.
-            Node::Number(literal) if Rat::parse(literal).is_none() => {
-                return Err(GoPanic::new("isKind on a number big.Rat cannot parse"));
-            }
-            Node::Null | Node::Bool(_) | Node::Number(_) | Node::String(_) | Node::Array(_) => {
-                return Ok(());
-            }
-        };
-        for (key, _) in entries {
+    ) {
+        for key in members.keys() {
             let Some((_, dependency)) = sub.dependencies.iter().find(|(k, _)| k == key) else {
                 continue;
             };
             match dependency {
                 Dependency::Properties(names) => {
                     for name in names {
-                        if self.doc.get(node, name).is_none() {
+                        if !members.contains_key(name) {
                             result.add_internal_error(
                                 ErrorType::MissingDependency,
                                 ctx,
@@ -311,101 +287,39 @@ impl<'s> Validator<'s, '_> {
                         }
                     }
                 }
-                Dependency::Schema(schema) => {
-                    self.validate_recursive(*schema, node, result, ctx)?;
-                }
+                Dependency::Schema(schema) => self.validate_recursive(*schema, node, result, ctx),
             }
         }
-        Ok(())
     }
 
-    fn validate_condition(
-        &self,
-        sub: &SubSchema,
-        if_schema: SubId,
-        node: NodeId,
-        result: &mut ValidationResult,
-        ctx: &JsonContext<'_>,
-    ) -> Step {
-        let if_valid = self.sub_validate(if_schema, node, ctx)?.valid();
-        if let Some(then_schema) = sub.then_schema
-            && if_valid
-        {
-            let r = self.sub_validate(then_schema, node, ctx)?;
-            if !r.valid() {
-                result.add_internal_error(ErrorType::ConditionThen, ctx, Details::None);
-                result.merge_errors(r);
-            }
-        }
-        if let Some(else_schema) = sub.else_schema
-            && !if_valid
-        {
-            let r = self.sub_validate(else_schema, node, ctx)?;
-            if !r.valid() {
-                result.add_internal_error(ErrorType::ConditionElse, ctx, Details::None);
-                result.merge_errors(r);
-            }
-        }
-        Ok(())
-    }
-
-    /// Go: `validateCommon`: `const` and `enum`.
+    /// Go: `validateCommon`: `enum`, whose values are strings.
     fn validate_common(
-        &self,
         sub: &SubSchema,
-        node: NodeId,
+        node: &Value,
         result: &mut ValidationResult,
         ctx: &JsonContext<'_>,
-    ) -> Step {
-        if let Some(const_value) = &sub.const_value {
-            let text = self.canonical(node)?;
-            if text != *const_value {
-                result.add_internal_error(ErrorType::Const, ctx, Details::Allowed(const_value));
-            }
-        }
-        if !sub.enum_values.is_empty() {
-            let text = self.canonical(node)?;
-            if !sub.enum_values.contains(&text) {
-                let allowed = sub.enum_values.join(", ");
-                result.add_internal_error(ErrorType::Enum, ctx, Details::Allowed(&allowed));
-            }
+    ) {
+        if !sub.enum_values.is_empty()
+            && !matches!(node, Value::String(s) if sub.enum_values.contains(s))
+        {
+            result.add_internal_error(ErrorType::Enum, ctx, Details::Allowed(&sub.enum_allowed));
         }
         result.increment_score();
-        Ok(())
-    }
-
-    /// Go: `marshalWithoutNumber(value)`; on failure Go adds an internal error and then
-    /// dereferences the nil result.
-    fn canonical(&self, node: NodeId) -> Result<String, GoPanic> {
-        marshal_without_number(self.doc, node)
-            .map_err(|e| GoPanic::new(&format!("marshalWithoutNumber failed: {e}")))
     }
 
     /// Go: `validateArray`.
     fn validate_array(
         &self,
         sub: &SubSchema,
-        items: &[NodeId],
+        items: &[Value],
         result: &mut ValidationResult,
         ctx: &JsonContext<'_>,
-    ) -> Step {
-        if sub.items_children_is_single_schema {
-            if let Some(&item_schema) = sub.items_children.first() {
-                for (i, &item) in items.iter().enumerate() {
-                    let index = i.to_string();
-                    let r = self.sub_validate(item_schema, item, &ctx.child(&index))?;
-                    result.merge_errors(r);
-                }
-            }
-        } else if !sub.items_children.is_empty() {
-            // While we have both schemas and values, check them against each other.
-            for (i, (&item_schema, &item)) in sub.items_children.iter().zip(items).enumerate() {
+    ) {
+        if let Some(item_schema) = sub.items {
+            for (i, item) in items.iter().enumerate() {
                 let index = i.to_string();
-                let r = self.sub_validate(item_schema, item, &ctx.child(&index))?;
+                let r = self.sub_validate(item_schema, item, &ctx.child(&index));
                 result.merge_errors(r);
-            }
-            if sub.items_children.len() < items.len() {
-                self.validate_additional_items(sub, items, result, ctx)?;
             }
         }
         let count = i64::try_from(items.len()).unwrap_or(i64::MAX);
@@ -421,183 +335,59 @@ impl<'s> Validator<'s, '_> {
             let limit = max.to_string();
             result.add_internal_error(ErrorType::ArrayMaxItems, ctx, Details::Limit(&limit));
         }
-        if sub.unique_items {
-            let mut seen: BTreeMap<String, usize> = BTreeMap::new();
-            for (j, &item) in items.iter().enumerate() {
-                let text = self.canonical(item)?;
-                if let Some(&i) = seen.get(&text) {
-                    result.add_internal_error(
-                        ErrorType::Unique,
-                        ctx,
-                        Details::Unique(TYPE_ARRAY, i, j),
-                    );
-                }
-                let _previous = seen.insert(text, j);
-            }
-        }
-        if let Some(contains) = sub.contains {
-            self.validate_contains(contains, items, result, ctx)?;
-        }
         result.increment_score();
-        Ok(())
-    }
-
-    /// The `additionalItems` part of `validateArray`.
-    fn validate_additional_items(
-        &self,
-        sub: &SubSchema,
-        items: &[NodeId],
-        result: &mut ValidationResult,
-        ctx: &JsonContext<'_>,
-    ) -> Step {
-        match sub.additional_items {
-            Additional::Forbidden => {
-                result.add_internal_error(ErrorType::ArrayNoAdditionalItems, ctx, Details::None);
-            }
-            Additional::Schema(schema) => {
-                for (i, &item) in items.iter().enumerate().skip(sub.items_children.len()) {
-                    let index = i.to_string();
-                    let r = self.sub_validate(schema, item, &ctx.child(&index))?;
-                    result.merge_errors(r);
-                }
-            }
-            Additional::Allowed | Additional::Unset => {}
-        }
-        Ok(())
-    }
-
-    /// The `contains` part of `validateArray`.
-    fn validate_contains(
-        &self,
-        contains: SubId,
-        items: &[NodeId],
-        result: &mut ValidationResult,
-        ctx: &JsonContext<'_>,
-    ) -> Step {
-        let mut best: Option<ValidationResult> = None;
-        for (i, &item) in items.iter().enumerate() {
-            let index = i.to_string();
-            let r = self.sub_validate(contains, item, &ctx.child(&index))?;
-            if r.valid() {
-                return Ok(());
-            }
-            if best.as_ref().is_none_or(|b| r.score() > b.score()) {
-                best = Some(r);
-            }
-        }
-        result.add_internal_error(ErrorType::ArrayContains, ctx, Details::None);
-        if let Some(best) = best {
-            result.merge_errors(best);
-        }
-        Ok(())
     }
 
     /// Go: `validateObject`.
     fn validate_object(
         &self,
         sub: &SubSchema,
-        entries: &[(String, NodeId)],
+        members: &Map<String, Value>,
         result: &mut ValidationResult,
         ctx: &JsonContext<'_>,
-    ) -> Step {
-        let count = i64::try_from(entries.len()).unwrap_or(i64::MAX);
-        if let Some(min) = sub.min_properties
-            && count < min
-        {
-            let limit = min.to_string();
-            result.add_internal_error(ErrorType::ArrayMinProperties, ctx, Details::Limit(&limit));
-        }
-        if let Some(max) = sub.max_properties
-            && count > max
-        {
-            let limit = max.to_string();
-            result.add_internal_error(ErrorType::ArrayMaxProperties, ctx, Details::Limit(&limit));
-        }
+    ) {
         for required in &sub.required {
-            if entries.iter().any(|(k, _)| k == required) {
+            if members.contains_key(required) {
                 result.increment_score();
             } else {
                 result.add_internal_error(ErrorType::Required, ctx, Details::Property(required));
             }
         }
-        for (key, value) in entries {
-            let found = sub
-                .properties_children
-                .iter()
-                .any(|&c| self.sub(c).is_some_and(|s| s.property == *key));
-            let pattern_match = self.validate_pattern_property(sub, key, *value, result, ctx)?;
-            if found || pattern_match {
-                continue;
-            }
-            match sub.additional_properties {
-                Additional::Forbidden => {
-                    result.add_internal_error(
+        if sub.additional_properties != Additional::Allowed {
+            for (key, value) in members {
+                let found = sub
+                    .properties_children
+                    .iter()
+                    .any(|&c| self.sub(c).is_some_and(|s| s.property == *key));
+                if found {
+                    continue;
+                }
+                match sub.additional_properties {
+                    Additional::Forbidden => result.add_internal_error(
                         ErrorType::AdditionalPropertyNotAllowed,
                         ctx,
                         Details::Property(key),
-                    );
-                }
-                Additional::Schema(schema) => {
-                    let r = self.sub_validate(schema, *value, &ctx.child(key))?;
-                    result.merge_errors(r);
-                }
-                Additional::Allowed | Additional::Unset => {}
-            }
-        }
-        if let Some(property_names) = sub.property_names {
-            for (key, _) in entries {
-                let name_doc = Document::from_string(key);
-                let name_validator = Validator {
-                    schema: self.schema,
-                    doc: &name_doc,
-                };
-                let r = name_validator.sub_validate(property_names, name_doc.root(), ctx)?;
-                if !r.valid() {
-                    result.add_internal_error(
-                        ErrorType::InvalidPropertyName,
-                        ctx,
-                        Details::Property(key),
-                    );
-                    result.merge_errors(r);
+                    ),
+                    Additional::Schema(schema) => {
+                        let r = self.sub_validate(schema, value, &ctx.child(key));
+                        result.merge_errors(r);
+                    }
+                    Additional::Allowed => {}
                 }
             }
         }
         result.increment_score();
-        Ok(())
     }
 
-    /// Go: `validatePatternProperty`.
-    fn validate_pattern_property(
-        &self,
-        sub: &SubSchema,
-        key: &str,
-        value: NodeId,
-        result: &mut ValidationResult,
-        ctx: &JsonContext<'_>,
-    ) -> Result<bool, GoPanic> {
-        let mut validated = false;
-        for (pattern, schema) in &sub.pattern_properties {
-            if pattern.match_string(key) {
-                validated = true;
-                let r = self.sub_validate(*schema, value, &ctx.child(key))?;
-                result.merge_errors(r);
-            }
-        }
-        if !validated {
-            return Ok(false);
-        }
-        result.increment_score();
-        Ok(true)
-    }
-
-    /// Go: `validateString` (for string values; Go returns early for everything else).
+    /// Go: `validateString`, for a string value.
     fn validate_string(
         sub: &SubSchema,
         value: &str,
         result: &mut ValidationResult,
         ctx: &JsonContext<'_>,
     ) {
-        let length = i64::try_from(rune_count(value)).unwrap_or(i64::MAX);
+        // Go: utf8.RuneCount; serde_json strings are UTF-8.
+        let length = i64::try_from(value.chars().count()).unwrap_or(i64::MAX);
         if let Some(min) = sub.min_length
             && length < min
         {
@@ -611,64 +401,141 @@ impl<'s> Validator<'s, '_> {
             result.add_internal_error(ErrorType::StringLte, ctx, Details::Limit(&limit));
         }
         if let Some(pattern) = &sub.pattern
-            && !pattern.match_string(value)
+            && !pattern.regex.is_match(value)
         {
-            result.add_internal_error(ErrorType::Pattern, ctx, Details::Pattern(pattern.as_str()));
+            result.add_internal_error(ErrorType::Pattern, ctx, Details::Pattern(&pattern.source));
         }
-        if sub.format.is_set() && !sub.format.is_format_string(value) {
-            result.add_internal_error(ErrorType::Format, ctx, Details::Format(sub.format.name()));
+        if let Some(format) = sub.format
+            && !format.is_format(value)
+        {
+            result.add_internal_error(ErrorType::Format, ctx, Details::Format(format.name()));
         }
         result.increment_score();
     }
 
-    /// Go: `validateNumber` (for number values; Go returns early for everything else).
+    /// Go: `validateNumber`, for a number value.
     fn validate_number(
         sub: &SubSchema,
-        literal: &str,
+        value: &Number,
         result: &mut ValidationResult,
         ctx: &JsonContext<'_>,
-    ) -> Step {
-        let value = Rat::parse(literal);
-        // Go: a failed big.Rat SetString yields nil, and the comparisons dereference it.
-        let checked = || {
-            value
-                .as_ref()
-                .ok_or_else(|| GoPanic::new("big.Rat comparison on nil"))
-        };
-        if let Some(multiple) = &sub.multiple_of
-            && !checked()?.quo_is_int(multiple)
-        {
-            let limit = multiple.go_float_string();
-            result.add_internal_error(ErrorType::MultipleOf, ctx, Details::Limit(&limit));
-        }
+    ) {
         if let Some(max) = &sub.maximum
-            && checked()?.cmp_rat(max).is_gt()
+            && compare(value, max).is_gt()
         {
-            let limit = max.go_float_string();
+            let limit = limit_text(max);
             result.add_internal_error(ErrorType::NumberLte, ctx, Details::Limit(&limit));
         }
-        if let Some(max) = &sub.exclusive_maximum
-            && checked()?.cmp_rat(max).is_ge()
-        {
-            let limit = max.go_float_string();
-            result.add_internal_error(ErrorType::NumberLt, ctx, Details::Limit(&limit));
-        }
         if let Some(min) = &sub.minimum
-            && checked()?.cmp_rat(min).is_lt()
+            && compare(value, min).is_lt()
         {
-            let limit = min.go_float_string();
+            let limit = limit_text(min);
             result.add_internal_error(ErrorType::NumberGte, ctx, Details::Limit(&limit));
         }
-        if let Some(min) = &sub.exclusive_minimum
-            && checked()?.cmp_rat(min).is_le()
-        {
-            let limit = min.go_float_string();
-            result.add_internal_error(ErrorType::NumberGt, ctx, Details::Limit(&limit));
-        }
-        if sub.format.is_set() && !sub.format.is_format_number() {
-            result.add_internal_error(ErrorType::Format, ctx, Details::Format(sub.format.name()));
+        // Go's checkers fail every value that is not a string, as the *big.Rat here.
+        if let Some(format) = sub.format {
+            result.add_internal_error(ErrorType::Format, ctx, Details::Format(format.name()));
         }
         result.increment_score();
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::gojsonschema::Schema;
+
+    fn texts(schema: &str, document: &str) -> Result<Vec<String>, String> {
+        let result = Schema::new(schema.as_bytes())?
+            .validate(document.as_bytes())
+            .map_err(|e| e.to_string())?;
+        Ok(result.errors().iter().map(ToString::to_string).collect())
+    }
+
+    /// Go's texts and order for one value failing several keywords, and the closest branch
+    /// of a failed `anyOf` and `oneOf`.
+    #[test]
+    fn errors_follow_go() -> Result<(), String> {
+        let cases: [(&str, &str, &[&str]); 9] = [
+            (
+                concat!(
+                    r#"{"type":"object","required":["a","b"],"additionalProperties":false,"#,
+                    r#""properties":{"a":{"type":"integer","minimum":2}}}"#,
+                ),
+                r#"{"a":1,"c":true}"#,
+                &[
+                    "(root): b is required",
+                    "(root): Additional property c is not allowed",
+                    "a: Must be greater than or equal to 2",
+                ],
+            ),
+            (
+                r#"{"anyOf":[{"type":"string"},{"type":"object","required":["x","y"]}]}"#,
+                "{}",
+                &[
+                    "(root): Must validate at least one schema (anyOf)",
+                    "(root): x is required",
+                    "(root): y is required",
+                ],
+            ),
+            (
+                r#"{"oneOf":[{"type":"string","minLength":1},{"type":"string","maxLength":5}]}"#,
+                r#""abc""#,
+                &["(root): Must validate one and only one schema (oneOf)"],
+            ),
+            (
+                r#"{"properties":{"k":{"enum":["a","<b>"]}}}"#,
+                r#"{"k":1}"#,
+                &[r#"k: k must be one of the following: "a", "\u003cb\u003e""#],
+            ),
+            (
+                r#"{"items":{"type":"string","pattern":"^[a-z]+$"},"maxItems":1}"#,
+                r#"["ok","NO"]"#,
+                &[
+                    "1: Does not match pattern '^[a-z]+$'",
+                    "(root): Array must have at most 1 items",
+                ],
+            ),
+            (
+                r#"{"format":"uuid"}"#,
+                "1.5",
+                &["(root): Does not match format 'uuid'"],
+            ),
+            (
+                r#"{"dependencies":{"a":["b","c"]}}"#,
+                r#"{"a":1,"c":2}"#,
+                &["(root): Has a dependency on b"],
+            ),
+            (
+                concat!(
+                    r#"{"$schema":"http://json-schema.org/draft-07/schema#","#,
+                    r#""if":{"required":["a"]},"then":{"required":["b"]}}"#,
+                ),
+                r#"{"a":1}"#,
+                &[
+                    "(root): Must validate \"then\" as \"if\" was valid",
+                    "(root): b is required",
+                ],
+            ),
+            (
+                r#"{"type":["string","null"],"maximum":1e6}"#,
+                "2",
+                &["(root): Invalid type. Expected: [string,null], given: integer"],
+            ),
+        ];
+        for (schema, document, want) in cases {
+            let got = texts(schema, document)?;
+            if got != want {
+                return Err(format!(
+                    "{schema} on {document}: got {got:?}, want {want:?}"
+                ));
+            }
+        }
+        // Under draft 4 and 6 gojsonschema does not read if and then.
+        let draft4 =
+            r#"{"$schema":"http://json-schema.org/draft-04/schema#","if":{},"then":false}"#;
+        if !texts(draft4, "1")?.is_empty() {
+            return Err("draft 4 reads if".to_owned());
+        }
         Ok(())
     }
 }

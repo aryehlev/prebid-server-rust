@@ -27,6 +27,7 @@ Rule B's cases: (a) input real production traffic sends that the crate would rej
 | InfluxDB metrics | 0 | 10 | 1 |
 | IP addresses | 0 | 1 | 1 |
 | JSON | 5 | 45 | 6 |
+| JSON Schema | 0 | 4 | 2 |
 | Logging | 0 | 10 | 3 |
 | Prometheus metrics | 1 | 7 | 1 |
 | Public suffix list | 1 | 0 | 0 |
@@ -36,10 +37,10 @@ Rule B's cases: (a) input real production traffic sends that the crate would rej
 | Background tasks | 0 | 0 | 1 |
 | Time formatting | 0 | 3 | 1 |
 | TLS | 0 | 2 | 1 |
-| URLs | 0 | 2 | 2 |
+| URLs | 0 | 2 | 3 |
 | User syncs | 0 | 1 | 0 |
 | YAML | 0 | 3 | 0 |
-| All | 7 | 156 | 39 |
+| All | 7 | 160 | 42 |
 
 ## Decisions pending
 
@@ -1611,6 +1612,88 @@ No entry names the classes `other` and `unrecorded` or the kinds `stage_missing`
 - **Restore pin:** `crates/jsonutil/tests/encode.rs::raw_containers_compacted` (`marshal` and `marshal_raw` compact every raw value they write, a map value, a slice element and the value itself, as `jsonutil.Marshal` does wherever it reaches one: `RequestWrapper`'s ext maps, the exchange's sanitized imp ext and the auction endpoint's resolved imps.); `crates/jsonutil/tests/encode.rs::raw_messages_compacted` (`TestCreateEncoder` and `TestEncode`, transliterated.); `crates/jsonutil/tests/readers.rs::seeded_raw_values_compact_like_go` (50,000 seeded raw values with whitespace between and inside their tokens are written as `jsonutil.Marshal` writes them.)
 - **Recorded in:** `crates/differences/differences.toml`
 
+## JSON Schema
+
+### Ledgered
+
+#### `jsonschema.decode-errors`: Params and schemas that are not JSON: `encoding/json`'s texts in Go, `serde_json`'s in the port
+
+- **Go:** gojsonschema decodes with `encoding/json`'s `Decoder` (`UseNumber`), which fails with its own texts (`EOF`, `unexpected EOF`, `invalid character 'm' looking for beginning of value`) and reads a top-level `01` as `0`; Prebid returns the text as the params' error.
+- **Rust:** serde_json reads the first value too, fails with its texts (`EOF while parsing a value at line 1 column 0`, `expected value at line 1 column 1`) and refuses a leading zero.
+- **Who notices:** publisher
+- **Visible in:** The error of params that are not JSON, which a request shows only where its decoder accepts bytes `encoding/json` does not: Prebid validates the params the request decoder has read
+- **Harness:** none
+- **Pin:** `crates/bidder-params/tests/go_golden.rs::decode_texts_are_serde_jsons`
+- **Decision:** D-DECODE
+- **Restore option:** Write `encoding/json`'s messages from serde_json's error categories; not planned (D-DECODE).
+- **Recorded in:** `crates/bidder-params/differences.toml`
+
+#### `jsonschema.number-precision`: Numbers in params and schemas: Go compares exact rationals, the port `serde_json`'s numbers
+
+- **Go:** gojsonschema reads numbers as `json.Number` and compares them as `big.Rat`, so `1.0000000000000001` is no integer, `1e400` is a number and a limit prints with all its digits (`0.30000000000000001`); a number whose exponent is beyond `big.Rat`'s limit panics.
+- **Rust:** serde_json holds a number as `i64`, `u64` or `f64`: integers compare exactly, other numbers as `f64`, so a value of more than 15 significant digits may round across a limit or become an integer, `1e400` fails to decode and a limit prints with the `f64`'s shortest digits.
+- **Who notices:** publisher
+- **Visible in:** Bidder params with a number of more than 15 significant digits, or beyond `f64`'s range, against a schema's `type`, `minimum` or `maximum`
+- **Harness:** none
+- **Pin:** `crates/bidder-params/tests/go_adversarial.rs::huge_numbers`
+- **Decision:** D-DECODE
+- **Restore option:** Read numbers as exact decimals, which needs serde_json's `arbitrary_precision` that the rulings forbid; not planned.
+- **Recorded in:** `crates/bidder-params/differences.toml`
+
+#### `jsonschema.schema-files`: Opening static/bidder-params: Go loads each schema through a `file://` URL, the port by its path
+
+- **Go:** `NewBidderParamsValidator` makes each schema's path absolute with `filepath.Abs` (`os.Getwd`, which gives `$PWD` when `$PWD` names the working directory, then `filepath.Clean`, which drops `..`) and compiles it through gojsonschema's reference loader for `"file:///" + path` (openrtb_ext/bidders.go:819-827): `url.Parse` refuses a control character or a bad `%` escape (in the fragment too), a `#` cuts the path and what follows is resolved as a JSON pointer into the file before it, and `url.QueryUnescape` decodes `%XX` and turns `+` into a space, so a directory whose path holds one of them fails to load, or compiles another file when one answers to the decoded name; os's failures read `open <path>: no such file or directory` (`*fs.PathError`).
+- **Rust:** The port compiles the file at `std::path::absolute`'s path (the working directory from `getcwd`, `..` kept): it loads every such directory, always from the file whose contents `Schema` returns, and std words the failures (`No such file or directory (os error 2)`) inside Prebid's messages, which keep Go's words. A file name that is not UTF-8 sorts by its bytes as in Go, but Prebid's message prints the bytes that are not UTF-8 as U+FFFD where Go prints them, and `Schema` does the same with such bytes after a file's JSON value.
+- **Who notices:** operator
+- **Visible in:** Startup from a working directory whose path holds `+`, `%`, `#` or a control character, where Go fails to start (or compiles the file another name decodes to) and the port starts, and the path and file error in the fatal error of a static/bidder-params that does not load, or that holds a file whose name is not UTF-8
+- **Harness:** none
+- **Pin:** `crates/bidder-params/tests/go_loader.rs::schema_files_open_by_path`
+- **Restore option:** Port `net/url`'s parse, fragment and unescape rules, gojsonschema's JSON pointers, `os.Getwd` and Go's errno texts; not planned: the schema path is no config key, Go's refusals keep no operator's deployment working, and orchestrator ruling 2 ledgers library error wording.
+- **Note:** The 28 cases of testdata/golden/loader.jsonl (`go_loader.rs::go_opens_a_file_url` reads Go's side off it) cover each character, a bad escape after a `#` and after multi-byte text, a schema file answering to the decoded name, `..`, `$PWD` (in a child process, so no test changes the working directory or the environment) and the failures os reports; and, where the port is Go, files that fail in the order of their names, a file without `.json` and an alias's own schema file, which gives way to its parent's schema, an absent one too. No case names a file that is not UTF-8: APFS, where the goldens are written, refuses such names.
+- **Recorded in:** `crates/bidder-params/differences.toml`
+
+#### `jsonschema.unsupported-keywords`: Keywords no Prebid schema uses: gojsonschema reads them, the port fails the schema's load
+
+- **Go:** gojsonschema reads every keyword of drafts 4, 6 and 7 (`$ref`, `definitions`, `multipleOf`, `patternProperties`, `const`, the tuple form of `items`, boolean schemas and the rest), 17 formats and any pattern Go's `regexp` compiles.
+- **Rust:** `Schema::new` fails, naming the keyword, format or form, for a schema that uses one the port does not read, and for a pattern `pbs_util::goregex` does not translate (regex.syntax-edges).
+- **Who notices:** operator
+- **Visible in:** Startup with a bidder-params schema, or a rules engine schema, that uses such a keyword: none of the 282 schemas of static/bidder-params and rules-engine-schema.json does
+- **Harness:** none
+- **Pin:** `crates/bidder-params/src/gojsonschema/schema.rs::unread_keywords_are_refused`
+- **Decision:** D-JSONSCHEMA
+- **Restore option:** Port a keyword, with Go goldens, when a Prebid schema needs it (D-JSONSCHEMA); not planned until then.
+- **Recorded in:** `crates/bidder-params/differences.toml`
+
+### Go behaviour kept
+
+#### `jsonschema.error-texts`: Schema errors: gojsonschema's texts, order and closest branch, which no JSON Schema crate writes
+
+- **Go:** gojsonschema v1.2.0 words each failure itself (`(root): placementId is required`, `placementId: Invalid type. Expected: integer, given: string`), checks a value's keywords in its own order and reports the closest branch of a failed `anyOf` or `oneOf` by its score; Prebid joins the strings into the error of a request whose bidder params fail their schema (ortb/request_validator.go:133) and into the rules engine's config error (modules/prebid/rulesengine/config/config.go:80).
+- **Rust:** A JSON Schema crate (none passes the gates, D-JSONSCHEMA) words, orders and selects its errors its own way, so the texts of the 400 response would change.
+- **Who notices:** publisher
+- **Visible in:** The 400 response to an auction, AMP or video request whose `imp[].ext.prebid.bidder` params fail their bidder's schema, and the error of a rules engine account config
+- **Harness:** none: a mismatch here is unexpected
+- **Pin:** `crates/bidder-params/tests/go_golden.rs::texts_exact`
+- **Rule B:** Rule B (d): Prebid-authored texts and bytes
+- **Decision:** D-JSONSCHEMA
+- **How Go's behaviour is kept:** `pbs_bidder_params::gojsonschema`: gojsonschema's texts, order of checks and closest-branch scoring for the keywords the 282 bidder schemas and rules-engine-schema.json use, with patterns compiled by `pbs_util::goregex`.
+- **Restore pin:** `crates/bidder-params/tests/go_golden.rs::bidder_params_match_go` (The 16,547 params of Prebid's adapter tests and fixtures give Go's verdict and text through the validator, in one of the orders Go's walk of maps gives.); `crates/bidder-params/tests/go_golden.rs::texts_exact` (16,079 documents of one member per object, over the 283 schemas Prebid loads, give Go's joined text byte for byte.); `crates/bidder-params/tests/go_review.rs::limits_match_go` (50,000 seeded limits of at most 15 significant digits, and `i64` and `u64` integers, give Go's `minimum`, `maximum` and type texts (a limit printed as `big.Float`'s `%v` prints it) and Go's verdicts.); `crates/bidder-params/tests/go_review.rs::scores_match_go` (50,000 seeded `anyOf`s and `oneOf`s of 2 to 4 branches, at the root and under a property, give Go's closest branch and its errors, which the score each keyword adds and the child scores `properties`, `additionalProperties`, `dependencies`, `items` and the combinators merge decide: taking out any one of the port's score increments fails it, where the other pins missed the string and number checks' increments.); `crates/bidder-params/tests/go_review.rs::strings_match_go` (50,000 seeded enums and property names of HTML characters, controls, line separators, astral characters and lone surrogate escapes, each raw or escaped, give Go's `enum`, `required`, `additionalProperties` and context texts, and Go's duplicate enum values.); `crates/bidder-params/tests/go_seeded.rs::seeded_params_match_go` (50,000 seeded params documents per schema, of the schema's own property names and values, give Go's verdicts and error strings (a digest of each set of strings, sorted).)
+- **Recorded in:** `crates/bidder-params/differences.toml`
+
+#### `jsonschema.formats`: `format`: gojsonschema's `uuid` and `hostname` checkers, and no other format
+
+- **Go:** gojsonschema checks 17 formats with its own patterns and Go's parsers (`hostname` is its RFC 1123 pattern under 256 bytes, `uuid` its pattern of lower-case hex groups), fails a number with `Does not match format` and passes every value for a name it has no checker for; the bidder schemas use `uuid` and `hostname`.
+- **Rust:** A JSON Schema crate's checkers follow other readings of the RFCs, so params Go accepts would fail and params Go refuses would pass.
+- **Who notices:** publisher
+- **Visible in:** Whether a request's bidder params pass a schema with `"format": "uuid"` or `"format": "hostname"`, and the text when they do not
+- **Harness:** none: a mismatch here is unexpected
+- **Pin:** `crates/bidder-params/tests/go_golden.rs::formats`
+- **Rule B:** Rule B (a): input real production traffic sends that the crate would reject or misread
+- **Decision:** D-JSONSCHEMA
+- **How Go's behaviour is kept:** `uuid` and `hostname` with gojsonschema's patterns through `pbs_util::goregex`, and no check for a name Go has no checker for; a schema with one of the 15 other formats Go checks fails to load (jsonschema.unsupported-keywords).
+- **Restore pin:** `crates/bidder-params/tests/go_golden.rs::formats` (408 documents against `uuid` and `hostname` check as Go's do, with Go's text; the empty name and 4 names Go has no checker for load and check nothing, and the 15 other formats fail to load.)
+- **Recorded in:** `crates/bidder-params/differences.toml`
+
 ## Logging
 
 ### Ledgered
@@ -2463,6 +2546,19 @@ No entry names the classes `other` and `unrecorded` or the kinds `stage_missing`
 - **How Go's behaviour is kept:** `pbs_util::urlutil::query_escape` and `path_escape`: percent-encoding sets equal to Go's `shouldEscape` in its two modes.
 - **Restore pin:** `crates/util/tests/urlutil.rs::escape_like_go` (50,000 seeded strings of ASCII and multibyte runes, every rune alone and 17 hand-picked strings escape to Go's bytes.)
 - **Recorded in:** `crates/util/differences.toml`
+
+#### `url.govalidator-checks`: `IsURL`, `IsRequestURL`, `IsRequestURI` and `IsIP`: govalidator's pattern and Go's `net/url` decide, which the url crate does not reproduce
+
+- **Go:** govalidator's `IsURL` checks the length, `url.Parse`'s verdict, host and path, then its URL pattern; `IsRequestURL` and `IsRequestURI` take `url.ParseRequestURI`'s verdict and scheme, and `IsIP` `net.ParseIP`'s. Prebid loads a bidder endpoint or user sync URL only when `IsURL` and `IsRequestURL` hold (config/bidderinfo.go:516, usersync/syncer.go:179), a VAST event URL the same way (config/events.go:141), and fetches an account's floors only from a URL `IsURL` accepts (floors/fetcher.go:133).
+- **Rust:** The url crate parses by the WHATWG rules: it percent-encodes or rejects other bytes in a host, reads ports, IP literals and zones its own way and has no request-URI form, so it would decide differently which configs load and which floors are fetched.
+- **Who notices:** operator
+- **Visible in:** Startup with the bidder-info files and host config (bidder endpoints, user sync URLs, VAST event URLs), and whether an account's floors fetch URL is used
+- **Harness:** none: a mismatch here is unexpected
+- **Pin:** `crates/govalidator/tests/golden.rs::validator_matches_go`
+- **Rule B:** Rule B (c): the operator interface (config keys, defaults, `PBS_` variables, CLI flags, metric names, labels and types)
+- **How Go's behaviour is kept:** pbs-govalidator: govalidator's URL pattern through `pbs_util::goregex`, the part of Go 1.26.2's `url.Parse` and `url.ParseRequestURI` the checks read (the verdict, scheme, host and path, with the `urlstrictcolons=0` default Prebid's `go 1.25.0` module selects), and `pbs_util::iputil::net::parse_ip` for `net.ParseIP`.
+- **Restore pin:** `crates/govalidator/tests/golden.rs::parts_match_go` (50,000 seeded inputs that each join one scheme, user info, host, port and path, query or fragment, chosen among edge cases of the part (IPv6 literals with zones and their escapes, user info up to the last `@`, ports after the last colon), give Go's outcomes, compared by digests: the token sweeps rarely build such parts whole, and miss a zone that escapes a byte above 0x7F or an empty zone.); `crates/govalidator/tests/golden.rs::sweeps_match_go` (50,000 seeded URL-like and 50,000 seeded IP-like inputs give Go's outcomes, compared by a digest per sweep.); `crates/govalidator/tests/golden.rs::url_pattern_is_govalidators` (`URL` is govalidator's pattern byte for byte, and goregex compiles it.); `crates/govalidator/tests/golden.rs::validator_matches_go` (2,844 inputs give Go's four verdicts and `net.ParseIP`'s bytes: govalidator's tests, Go's net/url, net and net/netip tests, the URLs of Prebid's bidder-info files and configs, and edge cases of lengths, ports, IP literals, zones and Unicode spaces and digits.)
+- **Recorded in:** `crates/govalidator/differences.toml`
 
 #### `url.values-order`: `url.Values.Encode`: Go sorts the keys, a crate serializer writes pairs in the order given
 
