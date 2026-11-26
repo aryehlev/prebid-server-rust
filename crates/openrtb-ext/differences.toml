@@ -32,6 +32,31 @@ restore = """\
 decision = "D-DECODE"
 
 [[difference]]
+id = "json.keywords-object-order"
+category = "json"
+status = "ledgered"
+title = "Appnexus keywords given as an object: Go writes the keys in an order that varies, the port in byte order"
+go = """\
+    `(*ExtImpAppnexusKeywords).UnmarshalJSON` decodes a keywords object into a \
+    `map[string][]string` and ranges over it (openrtb_ext/imp_appnexus.go:45-64), so the keys \
+    come in an order that varies from call to call: 200 decodes of \
+    `{\"pets\":[\"dog\",\"cat\"],\"age\":[],\"Zone\":[\"1\"]}` with Go 1.26.2 gave \
+    `pets=dog,pets=cat,age,Zone=1`, `age,Zone=1,pets=dog,pets=cat` and \
+    `Zone=1,pets=dog,pets=cat,age`."""
+rust = """\
+    The GoJson and serde impls, and the merge, read the object into a `BTreeMap`, so the keys \
+    come in byte order, the same on every call: `Zone=1,age,pets=dog,pets=cat`, which those 200 \
+    decodes never gave. With two keys either order is one Go gives."""
+who = ["bidder"]
+visible_in = """\
+    The `keywords` Prebid sends Xandr in `imp.ext.appnexus` for Appnexus params whose \
+    `keywords` is an object with more than one key (adapters/appnexus/appnexus.go:399)"""
+pin = "crates/openrtb-ext/tests/unit/imp_appnexus.rs::keyword_object_keys_come_in_byte_order"
+restore = """\
+    Not planned: Go's order changes from call to call, so no fixed order matches it, and a \
+    random one would be as untestable as Go's."""
+
+[[difference]]
 id = "json.prebid-message-context"
 category = "json"
 status = "restored"

@@ -29,7 +29,8 @@
 //!   (`ExtImpAppnexusKeywords` from an object, colliding names in [`read_deal_tiers_from_imp`],
 //!   several case-insensitive matches in
 //!   [`ExtAlternateBidderCodes::is_bidder_in_alternate_bidder_codes`]), Rust walks the keys in byte
-//!   order: one of the results Go can give, always the same one.
+//!   order: always the same result, and one Go can give, except that the keywords of an object with
+//!   three keys or more can come in an order Go's walk never gives (`json.keywords-object-order`).
 //! * Go's nil receivers and nil elements that would panic are handled without panicking (each
 //!   function documents what it does instead).
 //! * Copies own their data: where a Go `Clone` or `DeepCopy` shares a map, slice or pointer with

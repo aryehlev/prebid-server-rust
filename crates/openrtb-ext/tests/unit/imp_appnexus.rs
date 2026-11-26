@@ -1,7 +1,7 @@
 //! Go: `openrtb_ext/imp_appnexus_test.go`.
 
 use pbs_gojson::GoJson;
-use pbs_jsonutil::{null_default, unmarshal_valid};
+use pbs_jsonutil::{merge_clone, null_default, unmarshal_valid};
 use pbs_openrtb_ext::openrtb_ext::ExtImpAppnexusKeywords;
 use serde::Deserialize;
 
@@ -114,4 +114,22 @@ fn keywords_unmarshal_json_serde() -> TestResult {
         };
         (desc.to_owned(), result)
     }))
+}
+
+/// `json.keywords-object-order`: Go ranges over the map it decodes a keywords object into, so the
+/// keys come in an order that varies; the `GoJson` and serde impls, and the merge, read the
+/// object into a `BTreeMap`, so the keys come in byte order, the same on every call.
+#[test]
+fn keyword_object_keys_come_in_byte_order() -> TestResult {
+    const OBJECT: &str = r#"{"pets":["dog","cat"],"age":[],"Zone":["1"]}"#;
+    const WANT: &str = "Zone=1,age,pets=dog,pets=cat";
+    let doc = format!(r#"{{"keywords":{OBJECT}}}"#);
+    let mut gojson = Keywords::default();
+    ensure_eq(&unmarshal_error(&doc, &mut gojson), &None, "GoJson error")?;
+    ensure_eq(gojson.keywords.as_str(), WANT, "GoJson keywords")?;
+    let serde = unmarshal_valid::<Keywords>(doc.as_bytes()).map_err(|e| e.to_string())?;
+    ensure_eq(serde.keywords.as_str(), WANT, "serde keywords")?;
+    let mut merged = ExtImpAppnexusKeywords::default();
+    merge_clone(&mut merged, OBJECT.as_bytes()).map_err(|e| e.to_string())?;
+    ensure_eq(merged.as_str(), WANT, "merged keywords")
 }

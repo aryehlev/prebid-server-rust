@@ -23,7 +23,7 @@ Rule B's cases: (a) input real production traffic sends that the crate would rej
 | Global vendor list | 0 | 1 | 0 |
 | Gzip | 0 | 2 | 0 |
 | HTTP client | 0 | 18 | 5 |
-| JSON | 5 | 41 | 6 |
+| JSON | 5 | 42 | 6 |
 | Logging | 0 | 10 | 3 |
 | Prometheus metrics | 1 | 7 | 1 |
 | Public suffix list | 1 | 0 | 0 |
@@ -33,7 +33,7 @@ Rule B's cases: (a) input real production traffic sends that the crate would rej
 | TLS | 0 | 2 | 1 |
 | URLs | 0 | 1 | 0 |
 | YAML | 0 | 3 | 0 |
-| All | 7 | 121 | 31 |
+| All | 7 | 122 | 31 |
 
 ## Decisions pending
 
@@ -884,6 +884,17 @@ No entry names the classes `other` and `unrecorded` or the kinds `stage_missing`
 - **Decision:** D-DECODE
 - **Restore option:** A decode pass that folds keys as jsoniter does; not planned (D-DECODE).
 - **Recorded in:** `crates/differences/differences.toml`
+
+#### `json.keywords-object-order`: Appnexus keywords given as an object: Go writes the keys in an order that varies, the port in byte order
+
+- **Go:** `(*ExtImpAppnexusKeywords).UnmarshalJSON` decodes a keywords object into a `map[string][]string` and ranges over it (openrtb_ext/imp_appnexus.go:45-64), so the keys come in an order that varies from call to call: 200 decodes of `{"pets":["dog","cat"],"age":[],"Zone":["1"]}` with Go 1.26.2 gave `pets=dog,pets=cat,age,Zone=1`, `age,Zone=1,pets=dog,pets=cat` and `Zone=1,pets=dog,pets=cat,age`.
+- **Rust:** The GoJson and serde impls, and the merge, read the object into a `BTreeMap`, so the keys come in byte order, the same on every call: `Zone=1,age,pets=dog,pets=cat`, which those 200 decodes never gave. With two keys either order is one Go gives.
+- **Who notices:** bidder
+- **Visible in:** The `keywords` Prebid sends Xandr in `imp.ext.appnexus` for Appnexus params whose `keywords` is an object with more than one key (adapters/appnexus/appnexus.go:399)
+- **Harness:** none
+- **Pin:** `crates/openrtb-ext/tests/unit/imp_appnexus.rs::keyword_object_keys_come_in_byte_order`
+- **Restore option:** Not planned: Go's order changes from call to call, so no fixed order matches it, and a random one would be as untestable as Go's.
+- **Recorded in:** `crates/openrtb-ext/differences.toml`
 
 #### `json.lone-surrogates-raw`: A lone surrogate escape inside a `json.RawMessage`: Go passes the bytes on, the port writes the escape of U+FFFD
 
