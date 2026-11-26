@@ -2901,6 +2901,11 @@
           "fragment": "crates/bidder-params/differences.toml"
         },
         {
+          "pin": "crates/bidder-params/tests/go_review.rs::scores_match_go",
+          "note": "50,000 seeded `anyOf`s and `oneOf`s of 2 to 4 branches, at the root and under a property, give Go's closest branch and its errors, which the score each keyword adds and the child scores `properties`, `additionalProperties`, `dependencies`, `items` and the combinators merge decide: taking out any one of the port's score increments fails it, where the other pins missed the string and number checks' increments.",
+          "fragment": "crates/bidder-params/differences.toml"
+        },
+        {
           "pin": "crates/bidder-params/tests/go_review.rs::strings_match_go",
           "note": "50,000 seeded enums and property names of HTML characters, controls, line separators, astral characters and lone surrogate escapes, each raw or escaped, give Go's `enum`, `required`, `additionalProperties` and context texts, and Go's duplicate enum values.",
           "fragment": "crates/bidder-params/differences.toml"
@@ -2987,7 +2992,7 @@
       "restore_by": [],
       "restorations": [],
       "restore_pending": false,
-      "note": "The 23 cases of testdata/golden/loader.jsonl (`go_loader.rs::go_opens_a_file_url` reads Go's side off it) cover each character, a bad escape after a `#` and after multi-byte text, a schema file answering to the decoded name, `..`, `$PWD` (in a child process, so no test changes the working directory or the environment) and the failures os reports.",
+      "note": "The 28 cases of testdata/golden/loader.jsonl (`go_loader.rs::go_opens_a_file_url` reads Go's side off it) cover each character, a bad escape after a `#` and after multi-byte text, a schema file answering to the decoded name, `..`, `$PWD` (in a child process, so no test changes the working directory or the environment) and the failures os reports; and, where the port is Go, files that fail in the order of their names, a file without `.json` and an alias's own schema file, which gives way to its parent's schema, an absent one too.",
       "fragment": "crates/bidder-params/differences.toml"
     },
     {

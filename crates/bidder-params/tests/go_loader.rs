@@ -10,6 +10,11 @@
 //! and std words the failures. Each case of the golden runs again on a file system laid out the
 //! same way, and the port's outcome is checked against the one `PORT` names for it: Go's, or
 //! the difference the ledger entry describes.
+//!
+//! Every case runs with `appnexusalias`, an alias of appnexus, as Prebid registers the aliases
+//! of static/bidder-info before it loads the schemas: a file of the alias's name loads, then the
+//! alias takes its parent's schema, an absent one too. The port is Go there, and where the files
+//! fail in the order of their names and a file has no `.json`.
 
 #[cfg(test)]
 mod tests {
@@ -21,7 +26,10 @@ mod tests {
         process::{self, Command},
     };
 
-    use pbs_bidder_params::{BidderParamValidator as _, new_bidder_params_validator};
+    use pbs_bidder_params::{
+        BidderParamValidator as _, ParamsError, StandardBidderParamValidator,
+        new_bidder_params_validator,
+    };
     use serde::{Deserialize, Serialize};
 
     /// The golden `testdata/go/loader` writes.
@@ -32,6 +40,9 @@ mod tests {
 
     /// The bidder whose schema every case holds.
     const BIDDER: &str = "appnexus";
+
+    /// Go: `alias`, the alias of [`BIDDER`] every case runs with.
+    const ALIAS: &str = "appnexusalias";
 
     /// The variable that names the schema directory [`child_loads`] loads.
     const CHILD_DIR: &str = "PBS_BIDDER_PARAMS_LOADER_DIR";
@@ -56,12 +67,13 @@ mod tests {
         /// A failure with this text (`$ROOT` for the root).
         Fails(&'static str),
         /// The validator loads with the appnexus schema of the directory the port is given:
-        /// the file's contents and the probe's text, which say it compiled that file.
+        /// the file's contents and the probe's text, which say it compiled that file, and
+        /// [`ALIAS`] has the same two.
         Loads(&'static str, &'static str),
     }
 
     /// The port's outcome of every case of the golden, by name.
-    const PORT: [(&str, Port); 23] = [
+    const PORT: [(&str, Port); 28] = [
         ("loads", Port::Go),
         (
             "missing directory",
@@ -137,6 +149,11 @@ mod tests {
             ),
         ),
         ("relative, $PWD unset", Port::Go),
+        ("files fail in the order of their names", Port::Go),
+        ("a schema fails before a later file name", Port::Go),
+        ("a file without .json", Port::Go),
+        ("an alias's own schema gives way to its parent's", Port::Go),
+        ("an alias's own schema without its parent's", Port::Go),
     ];
 
     /// One file system entry of a case, under its root.
@@ -153,8 +170,10 @@ mod tests {
     }
 
     /// What one call of the loader gives: the error text, or the appnexus schema's contents and
-    /// the text of validating `1` against the schema it compiled (empty when valid).
+    /// the text of validating `1` against the schema it compiled ([`probe`]), and the same two
+    /// for [`ALIAS`].
     #[derive(Debug, Default, Clone, PartialEq, Eq, Deserialize, Serialize)]
+    #[serde(rename_all = "camelCase")]
     struct Outcome {
         loaded: bool,
         #[serde(default)]
@@ -163,10 +182,15 @@ mod tests {
         schema: String,
         #[serde(default)]
         probe: String,
+        #[serde(default)]
+        alias_schema: String,
+        #[serde(default)]
+        alias_probe: String,
     }
 
     /// One case of the golden: the files of its root, the call, and Go's outcome.
     #[derive(Debug, Deserialize)]
+    #[serde(rename_all = "camelCase")]
     struct Case {
         name: String,
         entries: Option<Vec<Entry>>,
@@ -185,6 +209,10 @@ mod tests {
         schema: String,
         #[serde(default)]
         probe: String,
+        #[serde(default)]
+        alias_schema: String,
+        #[serde(default)]
+        alias_probe: String,
     }
 
     impl Case {
@@ -194,6 +222,8 @@ mod tests {
                 error: self.error.clone(),
                 schema: self.schema.clone(),
                 probe: self.probe.clone(),
+                alias_schema: self.alias_schema.clone(),
+                alias_probe: self.alias_probe.clone(),
             }
         }
     }
@@ -239,10 +269,22 @@ mod tests {
         }
     }
 
-    /// The port's outcome of loading `dir`, with the appnexus bidder known and no aliases.
+    /// Go: `probe`: the text of validating `1` against `name`'s schema, empty when valid, and
+    /// `panic` where Go panics.
+    fn probe(validator: &StandardBidderParamValidator, name: &str) -> String {
+        match validator.validate(name, b"1") {
+            Ok(()) => String::new(),
+            Err(ParamsError::Panic(_)) => "panic".to_owned(),
+            Err(e) => e.to_string(),
+        }
+    }
+
+    /// The port's outcome of loading `dir`, with the appnexus bidder and [`ALIAS`] known, as
+    /// Go's package globals know them.
     fn load(dir: &str) -> Outcome {
-        let bidders = BTreeSet::from([BIDDER.to_owned()]);
-        match new_bidder_params_validator(dir, &bidders, &BTreeMap::new()) {
+        let bidders = BTreeSet::from([BIDDER.to_owned(), ALIAS.to_owned()]);
+        let aliases = BTreeMap::from([(ALIAS.to_owned(), BIDDER.to_owned())]);
+        match new_bidder_params_validator(dir, &bidders, &aliases) {
             Err(e) => Outcome {
                 error: e.to_string(),
                 ..Outcome::default()
@@ -250,10 +292,9 @@ mod tests {
             Ok(validator) => Outcome {
                 loaded: true,
                 schema: validator.schema(BIDDER).to_owned(),
-                probe: validator
-                    .validate(BIDDER, b"1")
-                    .err()
-                    .map_or_default(|e| e.to_string()),
+                probe: probe(&validator, BIDDER),
+                alias_schema: validator.schema(ALIAS).to_owned(),
+                alias_probe: probe(&validator, ALIAS),
                 ..Outcome::default()
             },
         }
@@ -339,6 +380,8 @@ mod tests {
                 loaded: true,
                 schema: schema.to_owned(),
                 probe: probe.to_owned(),
+                alias_schema: schema.to_owned(),
+                alias_probe: probe.to_owned(),
                 ..Outcome::default()
             },
         }

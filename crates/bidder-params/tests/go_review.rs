@@ -11,11 +11,16 @@
 //! - `strings`: enums and property names made of HTML characters, controls, line separators, astral
 //!   characters and lone surrogate escapes, each spelled raw or escaped: the texts that print an
 //!   enum's values, a property name and a context.
+//! - `scores`: `anyOf`s and `oneOf`s of 2 to 4 branches drawn from schemas that fail some of a set
+//!   of documents, at the root and under a property: the closest branch gojsonschema reports when
+//!   no branch holds, the first of the highest score, which every keyword that adds to a result's
+//!   score, or merges a child's, decides.
 //!
-//! Neither sweep reaches a ledgered difference: no number needs more than `f64`'s precision
+//! No sweep reaches a ledgered difference: no number needs more than `f64`'s precision
 //! (jsonschema.number-precision), every document is JSON (jsonschema.decode-errors), no lone
-//! surrogate escape precedes another escape (json.surrogate-pairing), and every document has one
-//! member, so Go's map order does not change the errors.
+//! surrogate escape precedes another escape (json.surrogate-pairing), and every object of a
+//! document and of a schema's properties and dependencies has one member, so Go's map order does
+//! not change the errors.
 
 #[cfg(test)]
 mod tests {
@@ -304,6 +309,94 @@ mod tests {
         (vec![joined, key, other], out)
     }
 
+    /// Go: `branches`: the schemas the scores sweep puts in an `anyOf` or a `oneOf`.
+    const BRANCHES: [&str; 27] = [
+        r#"{"type":"string","minLength":4}"#,
+        r#"{"type":"string","maxLength":1}"#,
+        r#"{"minLength":4}"#,
+        r#"{"type":"string","pattern":"^z"}"#,
+        r#"{"type":"string","format":"uuid"}"#,
+        r#"{"type":"integer"}"#,
+        r#"{"type":"number","maximum":0}"#,
+        r#"{"type":"integer","minimum":5}"#,
+        r#"{"type":["boolean","null"]}"#,
+        r#"{"enum":["zz","q"]}"#,
+        r#"{"type":"object","required":["a"]}"#,
+        r#"{"type":"object","required":["a","b"]}"#,
+        r#"{"type":"object","properties":{"a":{"type":"string","minLength":4}}}"#,
+        r#"{"type":"object","properties":{"a":{"type":"integer","minimum":5}}}"#,
+        r#"{"properties":{"a":{"type":"integer"}},"required":["a"]}"#,
+        r#"{"type":"object","additionalProperties":{"type":"string","minLength":4}}"#,
+        r#"{"type":"object","additionalProperties":false}"#,
+        r#"{"type":"object","dependencies":{"a":["b"]}}"#,
+        r#"{"type":"object","dependencies":{"a":{"required":["b"]}}}"#,
+        r#"{"type":"array","items":{"type":"string","minLength":4}}"#,
+        r#"{"type":"array","items":{"type":"integer"},"minItems":2}"#,
+        r#"{"type":"array","items":{"type":"number","maximum":0}}"#,
+        r#"{"type":"array","maxItems":0}"#,
+        r#"{"allOf":[{"type":"string"},{"minLength":4}]}"#,
+        r#"{"anyOf":[{"type":"integer"},{"type":"string","maxLength":1}]}"#,
+        r#"{"oneOf":[{"type":"string"},{"type":"string","minLength":1}]}"#,
+        r#"{"type":"string","not":{"minLength":2}}"#,
+    ];
+
+    /// Go: `docs`: the documents of the scores sweep.
+    const DOCS: [&str; 25] = [
+        r#""ab""#,
+        r#""""#,
+        r#""zz""#,
+        r#""zzzzz""#,
+        r#""abcde""#,
+        "1",
+        "2",
+        "-3",
+        "2.5",
+        "7",
+        "true",
+        "null",
+        "{}",
+        r#"{"a":"ab"}"#,
+        r#"{"a":1}"#,
+        r#"{"a":7}"#,
+        r#"{"a":"zzzzz"}"#,
+        r#"{"b":"ab"}"#,
+        r#"{"a":{"a":"ab"}}"#,
+        "[]",
+        r#"["ab"]"#,
+        r#"["abcde"]"#,
+        r#"[1,"ab"]"#,
+        "[1,2,3]",
+        "[-3,2]",
+    ];
+
+    /// Go: `scoresCase`: 2 to 4 branches and two documents, and the outcomes of the documents
+    /// against the `anyOf` and the `oneOf` of the branches, and of the first document under the
+    /// property `a` of a schema whose `a` is that `anyOf` or `oneOf`.
+    fn scores_case(rng: &mut SplitMix64) -> (Vec<String>, Vec<String>) {
+        let count = 2 + rng.below(3);
+        let picked: Vec<&str> = (0..count)
+            .map(|_| {
+                BRANCHES
+                    .get(rng.below(BRANCHES.len()))
+                    .copied()
+                    .unwrap_or("{}")
+            })
+            .collect();
+        let first = DOCS.get(rng.below(DOCS.len())).copied().unwrap_or("null");
+        let second = DOCS.get(rng.below(DOCS.len())).copied().unwrap_or("null");
+        let list = picked.join(",");
+        let mut out = Vec::new();
+        for keyword in ["anyOf", "oneOf"] {
+            let combined = format!(r#"{{"{keyword}":[{list}]}}"#);
+            out.extend(outcomes(&combined, &[first, second]));
+            out.extend(outcomes(
+                &format!(r#"{{"properties":{{"a":{combined}}}}}"#),
+                &[&format!(r#"{{"a":{first}}}"#)],
+            ));
+        }
+        (vec![list, first.to_owned(), second.to_owned()], out)
+    }
+
     fn hex(digest: &[u8]) -> String {
         digest
             .iter()
@@ -386,5 +479,16 @@ mod tests {
     #[test]
     fn strings_match_go() -> TestResult {
         replay("strings", strings_case)
+    }
+
+    /// Go: `scoresCase` in `testdata/go/review/main.go`: the closest branch gojsonschema reports
+    /// for an `anyOf` or a `oneOf` no branch satisfies, the first of the highest score, over
+    /// 50,000 seeded sets of branches and documents whose scores tie or part by one: the score
+    /// each keyword adds (`type`, the string, number, array and object checks, `enum`, a
+    /// `required` property that is present) and the child scores `properties`,
+    /// `additionalProperties`, `dependencies`, `items` and the combinators merge.
+    #[test]
+    fn scores_match_go() -> TestResult {
+        replay("scores", scores_case)
     }
 }

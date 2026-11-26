@@ -67,6 +67,16 @@ note = """\
     Go's `minimum`, `maximum` and type texts (a limit printed as `big.Float`'s `%v` prints it) \
     and Go's verdicts."""
 
+[[restoration]]
+id = "jsonschema.error-texts"
+pin = "crates/bidder-params/tests/go_review.rs::scores_match_go"
+note = """\
+    50,000 seeded `anyOf`s and `oneOf`s of 2 to 4 branches, at the root and under a property, \
+    give Go's closest branch and its errors, which the score each keyword adds and the child \
+    scores `properties`, `additionalProperties`, `dependencies`, `items` and the combinators \
+    merge decide: taking out any one of the port's score increments fails it, where the other \
+    pins missed the string and number checks' increments."""
+
 [[difference]]
 id = "jsonschema.formats"
 category = "jsonschema"
@@ -175,10 +185,12 @@ restore = """\
     refusals keep no operator's deployment working, and orchestrator ruling 2 ledgers library \
     error wording."""
 note = """\
-    The 23 cases of testdata/golden/loader.jsonl (`go_loader.rs::go_opens_a_file_url` reads Go's \
+    The 28 cases of testdata/golden/loader.jsonl (`go_loader.rs::go_opens_a_file_url` reads Go's \
     side off it) cover each character, a bad escape after a `#` and after multi-byte text, a \
     schema file answering to the decoded name, `..`, `$PWD` (in a child process, so no test \
-    changes the working directory or the environment) and the failures os reports."""
+    changes the working directory or the environment) and the failures os reports; and, where \
+    the port is Go, files that fail in the order of their names, a file without `.json` and an \
+    alias's own schema file, which gives way to its parent's schema, an absent one too."""
 
 [[difference]]
 id = "jsonschema.unsupported-keywords"
