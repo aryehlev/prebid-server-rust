@@ -1050,6 +1050,22 @@ fn clone_user_ext() -> TestResult {
     ])
 }
 
+/// `Clone` turns a pointer to a nil `eids` slice into a pointer to an empty one, and keeps a nil
+/// pointer nil: go1.26.2 (run by hand) gives a clone of `SetEid(&nilSlice)` whose `GetEid()` is
+/// a pointer to a slice that is not nil, of length 0, still dirty, and a clone of a `UserExt`
+/// without eids whose `GetEid()` is nil.
+// Go: openrtb_ext/request_wrapper.go:728-736
+#[test]
+fn clone_user_ext_nil_eids() -> TestResult {
+    let mut user = UserExt::default();
+    user.set_eid(Some(None));
+    let clone = user.clone();
+    ensure_eq(&clone.get_eid(), &Some(Some(&[][..])), "clone of a nil slice")?;
+    ensure(clone.dirty(), "the clone is dirty")?;
+    ensure_eq(&user.get_eid(), &Some(None), "the original's nil slice")?;
+    ensure_eq(&UserExt::default().clone().get_eid(), &None, "clone of no eids")
+}
+
 /// The device ext of `TestRebuildDeviceExt` with `cdep` 1.
 const DEVICE_EXT_1: &str =
     r#"{"cdep":"1","prebid":{"interstitial":{"minwidthperc":1,"minheightperc":0}}}"#;
