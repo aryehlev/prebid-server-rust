@@ -27,6 +27,11 @@ time = { workspace = true }
 tokio = { workspace = true }
 uuid = { workspace = true }
 
+# The integration tests read the JSON goldens with serde (serde_json above), hash the seeded
+# sweeps with sha2 and parse query strings with url's form_urlencoded for the url.query-parse pin.
 [dev-dependencies]
 pbs-devtools = { path = "../devtools", version = "0.1.0" }
+serde = { workspace = true }
+sha2 = { workspace = true }
 tokio = { workspace = true, features = ["test-util"] }
+url = { workspace = true }
