@@ -6,7 +6,10 @@
 //!   Prebid's bidder-info files and configs, one `strconv.Quote`d input and its outcome per line;
 //! - `pattern.txt`: govalidator's `URL` pattern, quoted;
 //! - `sweep.txt`: two sweeps of 50,000 seeded URL-like and IP-like inputs, with the digests of the
-//!   inputs and of their outcomes.
+//!   inputs and of their outcomes;
+//! - `parts.txt`: a sweep of 50,000 seeded inputs that each join one scheme, user info, host,
+//!   port and path, query or fragment, chosen among edge cases of the part, with the same
+//!   digests.
 
 #[cfg(test)]
 mod tests {
@@ -187,47 +190,95 @@ mod tests {
         }
     }
 
+    /// The tokens a sweep chooses from, read from their quoted fields: each unquoted, and the
+    /// body of its quoted form. Go quotes rune by rune, so the quoted form of an input is its
+    /// tokens' quoted forms joined.
+    struct Choices<'l> {
+        unquoted: Vec<String>,
+        bodies: Vec<&'l str>,
+        len: u64,
+    }
+
+    impl<'l> Choices<'l> {
+        fn new(quoted: &[&'l str]) -> Result<Self, String> {
+            let unquoted = quoted
+                .iter()
+                .map(|t| unquote(t))
+                .collect::<Result<Vec<_>, _>>()?;
+            let bodies = quoted
+                .iter()
+                .map(|t| t.get(1..t.len().saturating_sub(1)).unwrap_or_default())
+                .collect();
+            let len = u64::try_from(unquoted.len()).map_err(|e| e.to_string())?;
+            Ok(Self {
+                unquoted,
+                bodies,
+                len,
+            })
+        }
+
+        /// Go: `tokens[rng.below(len(tokens))]`, put after `input` and its quoted form.
+        fn pick(&self, rng: &mut SplitMix64, input: &mut String, quoted: &mut String) {
+            let i = rng.below(self.len);
+            input.push_str(self.unquoted.get(i).map_or("", String::as_str));
+            quoted.push_str(self.bodies.get(i).copied().unwrap_or_default());
+        }
+    }
+
+    /// The seed and count fields of a sweep.
+    fn seed_and_count(name: &str, seed: &str, count: &str) -> Result<(u64, usize), String> {
+        Ok((
+            seed.parse().map_err(|e| format!("{name}: seed: {e}"))?,
+            count.parse().map_err(|e| format!("{name}: count: {e}"))?,
+        ))
+    }
+
+    /// Go: the digests `sweep` and `partsSweep` write: `count` inputs, each put together by
+    /// `build` with its quoted form, against Go's digests of the quoted inputs (`want.0`) and of
+    /// each quoted input with its outcome (`want.1`).
+    fn compare_digests<F>(
+        name: &str,
+        count: usize,
+        want: (&str, &str),
+        mut build: F,
+    ) -> Result<(), String>
+    where
+        F: FnMut(&mut String, &mut String),
+    {
+        let (mut inputs, mut outcomes) = (Sha256::new(), Sha256::new());
+        for _ in 0..count {
+            let (mut input, mut quoted) = (String::new(), String::from("\""));
+            build(&mut input, &mut quoted);
+            quoted.push('"');
+            inputs.update(format!("{quoted}\n"));
+            outcomes.update(format!("{quoted}\t{}\n", outcome(&input)));
+        }
+        if hex(&inputs.finalize()) != want.0 {
+            return Err(format!(
+                "{name}: the inputs differ from Go's: the generator drifted"
+            ));
+        }
+        if hex(&outcomes.finalize()) != want.1 {
+            return Err(format!("{name}: the outcomes differ from Go's"));
+        }
+        Ok(())
+    }
+
     /// One sweep.txt line: its name, seed and count, the two digests, then the tokens, each
-    /// quoted. Go quotes rune by rune, so the quoted form of an input is its tokens' quoted
-    /// forms joined.
+    /// quoted. An input joins up to [`MAX_TOKENS`] tokens.
     fn run_sweep(line: &str) -> Result<(), String> {
         let fields: Vec<&str> = line.split('\t').collect();
         let [name, seed, count, want_in, want_out, quoted @ ..] = fields.as_slice() else {
             return Err(format!("short sweep line {line:?}"));
         };
-        let seed: u64 = seed.parse().map_err(|e| format!("{name}: seed: {e}"))?;
-        let count: usize = count.parse().map_err(|e| format!("{name}: count: {e}"))?;
-        let tokens = quoted
-            .iter()
-            .map(|t| unquote(t))
-            .collect::<Result<Vec<_>, _>>()?;
-        let bodies: Vec<&str> = quoted
-            .iter()
-            .map(|t| t.get(1..t.len().saturating_sub(1)).unwrap_or_default())
-            .collect();
-        let len = u64::try_from(tokens.len()).map_err(|e| e.to_string())?;
+        let (seed, count) = seed_and_count(name, seed, count)?;
+        let tokens = Choices::new(quoted)?;
         let mut rng = SplitMix64(seed);
-        let (mut inputs, mut outcomes) = (Sha256::new(), Sha256::new());
-        for _ in 0..count {
-            let (mut input, mut quoted_input) = (String::new(), String::from("\""));
+        compare_digests(name, count, (want_in, want_out), |input, quoted_input| {
             for _ in 0..rng.below(MAX_TOKENS + 1) {
-                let i = rng.below(len);
-                input.push_str(tokens.get(i).map_or("", String::as_str));
-                quoted_input.push_str(bodies.get(i).copied().unwrap_or_default());
+                tokens.pick(&mut rng, input, quoted_input);
             }
-            quoted_input.push('"');
-            inputs.update(format!("{quoted_input}\n"));
-            outcomes.update(format!("{quoted_input}\t{}\n", outcome(&input)));
-        }
-        if hex(&inputs.finalize()) != *want_in {
-            return Err(format!(
-                "{name}: the inputs differ from Go's: the generator drifted"
-            ));
-        }
-        if hex(&outcomes.finalize()) != *want_out {
-            return Err(format!("{name}: the outcomes differ from Go's"));
-        }
-        Ok(())
+        })
     }
 
     /// url.govalidator-checks over 50,000 seeded URL-like and 50,000 seeded IP-like inputs:
@@ -260,5 +311,35 @@ mod tests {
             }
         }
         failures.finish("sweep.txt")
+    }
+
+    /// url.govalidator-checks over 50,000 seeded inputs that each join one scheme, user info,
+    /// host, port and path, query or fragment, chosen among edge cases of the part
+    /// (`urlParts` in `sweep.go`): rootless and opaque rests, user info up to the last `@`,
+    /// IPv6 literals with zones, ports after the last colon, and the escapes and bytes each part
+    /// may and may not hold, which the token sweeps rarely put together whole.
+    #[test]
+    fn parts_match_go() -> Result<(), String> {
+        let text = read("parts.txt")?;
+        let mut lines = text.lines();
+        let header: Vec<&str> = lines.next().unwrap_or_default().split('\t').collect();
+        let [name, seed, count, want_in, want_out] = header.as_slice() else {
+            return Err(format!("parts.txt: first line {header:?}"));
+        };
+        let (seed, count) = seed_and_count(name, seed, count)?;
+        let quoted: Vec<Vec<&str>> = lines.map(|line| line.split('\t').collect()).collect();
+        let parts = quoted
+            .iter()
+            .map(|part| Choices::new(part))
+            .collect::<Result<Vec<_>, _>>()?;
+        if parts.len() != 5 {
+            return Err(format!("parts.txt has {} parts", parts.len()));
+        }
+        let mut rng = SplitMix64(seed);
+        compare_digests(name, count, (want_in, want_out), |input, quoted_input| {
+            for part in &parts {
+                part.pick(&mut rng, input, quoted_input);
+            }
+        })
     }
 }
