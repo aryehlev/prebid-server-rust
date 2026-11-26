@@ -1299,6 +1299,8 @@ fn failed_scalar_merges_keep_the_value() -> TestResult {
 /// `json.prebid-message-context`: Prebid's message from an `UnmarshalJSON` method is Go's text
 /// where the method reads the whole document, and comes with `serde_json`'s position where it
 /// reads a member; a merge's error names the field it failed in, where Go's is the message alone.
+/// The entry is restored under Rule B (d) by pbs-jsonutil glue that has not landed yet; with it,
+/// these texts become Go's and this test turns into the restore pin.
 #[test]
 fn prebid_messages_carry_position_and_field() -> TestResult {
     const WIDTH: &str =

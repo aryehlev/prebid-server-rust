@@ -34,32 +34,40 @@ decision = "D-DECODE"
 [[difference]]
 id = "json.prebid-message-context"
 category = "json"
-status = "decision-pending"
+status = "restored"
 title = "Prebid's messages from `UnmarshalJSON` methods: Go gives them bare, the port with serde_json's position or the merged field"
 go = """\
     The `UnmarshalJSON` methods of `ExtDeviceInt` and `ExtSite` fail with Prebid's text \
     (`request.device.ext.prebid.interstitial.minwidthperc must be a number between 0 and 100`, \
     `request.site.ext.amp must be either 1, 0, or undefined`), which `jsonutil.Unmarshal`, \
     `UnmarshalValid`, `json.Unmarshal` and `jsonutil.MergeClone` return bare wherever the value \
-    sits in the document."""
+    sits in the document: `tryExtractErrorMessage` leaves jsoniter's context off a message that \
+    starts with `request.` (util/jsonutil/jsonutil.go:209-220)."""
 rust = """\
     The serde impls fail with the same text, which serde_json returns bare where the value is \
     the document and with its position after it where the value sits inside \
-    (`... between 0 and 100 at line 1 column 55`); `MergeClone` names the field it failed in \
+    (`... between 0 and 100 at line 1 column 55`), and pbs-jsonutil passes on as it is; \
+    `MergeClone` names the field it failed in \
     (`cannot unmarshal openrtb_ext.ExtDevicePrebid.Interstitial: request.device...`)."""
 who = ["publisher"]
 visible_in = """\
-    The error of requests whose `device.ext.prebid.interstitial` is invalid, which Prebid reads \
-    into an `ExtDevicePrebid` with `jsonutil.Unmarshal` (openrtb_ext/request_wrapper.go:940), \
-    once the request wrapper reads it with the serde code"""
+    The 400 response to a request whose `device.ext.prebid.interstitial` is invalid (`Invalid \
+    request: request.device.ext.prebid.interstitial.minwidthperc must be a number between 0 and \
+    100`, endpoints/openrtb2/sample-requests/invalid-whole/interstital-bad-perc.json:52), which \
+    Prebid reads into an `ExtDevicePrebid` with `jsonutil.Unmarshal` \
+    (openrtb_ext/request_wrapper.go:940), once the request wrapper reads it with the serde code. \
+    Merge errors reach no one: every `MergeClone` caller replaces the text."""
 pin = "crates/openrtb-ext/tests/parity/shapes.rs::prebid_messages_carry_position_and_field"
 restore = """\
-    pbs-jsonutil returning the message of an error a `Deserialize` impl raises without \
-    serde_json's position, and `MergeCloneError` passing such a message on without the field: \
-    glue under Rule B (d), as Prebid-authored text, in pbs-jsonutil, which this unit does not \
-    own."""
-default = "serde_json's text: the message with its position, a merge's with its field (crates first)."
-decision = "D-DECODE"
+    Glue under Rule B (d), as Prebid-authored text, in pbs-jsonutil, which this unit does not own \
+    (a shared change request): `unmarshal` and `unmarshal_valid` return a message that starts \
+    with `request.` without serde_json's ` at line L column C`, and `MergeCloneError` writes such \
+    a message without its field, as `tryExtractErrorMessage` does (`EncodingJson` likewise for \
+    `json.Unmarshal`, whose sites decode none of these types). It is due before \
+    ORTBEXT-SERDE-WRAPPER reads the request's extensions with the serde code, and that unit brings \
+    the restore pin against this crate's goldens."""
+rule_b = "d"
+restore_by = ["ORTBEXT-SERDE-WRAPPER"]
 note = """\
     `stringOrStringArray`'s `value should be of type string or []string` reaches \
     `jsonutil.Unmarshal`'s caller with jsoniter's field around it \
