@@ -3,9 +3,10 @@
 //! `pbs_jsonutil::unmarshal_valid` into serde's `Rates`.
 //!
 //! Go's outcomes are in `testdata/golden/rates_json.golden` (jsoniter's, with its texts, of which
-//! the verdicts and the rates count here) and `testdata/golden/decode.golden` (fixtures and a
-//! seeded corpus, without texts), written by `testdata/go`. Where serde reads a currency file
-//! otherwise is `currency.rates-json`.
+//! the verdicts and the rates count here, and digests of mutations of currency files, without
+//! texts) and `testdata/golden/decode.golden` (fixtures and a seeded corpus, without texts),
+//! written by `testdata/go`. Where serde reads a currency file otherwise is
+//! `currency.rates-json`.
 
 #[cfg(test)]
 pub mod support;
@@ -407,6 +408,105 @@ mod tests {
         check(
             unused.is_empty(),
             &format!("differences no golden holds: {unused:?}"),
+        )
+    }
+
+    /// Whether a mutated document is free of what the ledger lists for the currency file decode
+    /// (Go: `cleanMutation`): a control character or NUL, bytes that are not UTF-8, a plus sign,
+    /// another case of `conversions`, a minus before a dot or before 0 and a digit, and `null`
+    /// after `{` or `,` where a key may belong.
+    fn clean_mutation(doc: &[u8]) -> bool {
+        let Ok(text) = str::from_utf8(doc) else {
+            return false;
+        };
+        if doc.contains(&b'+') {
+            return false;
+        }
+        for (at, byte) in doc.iter().enumerate() {
+            let next = |n: usize| doc.get(at + n).copied().unwrap_or_default();
+            let malformed_minus =
+                *byte == b'-' && (next(1) == b'.' || (next(1) == b'0' && next(2).is_ascii_digit()));
+            let null_key = doc.get(at..).is_some_and(|rest| rest.starts_with(b"null"))
+                && matches!(
+                    doc.get(..at)
+                        .unwrap_or_default()
+                        .iter()
+                        .rev()
+                        .find(|before| **before != b' '),
+                    Some(b'{' | b',')
+                );
+            if *byte < 0x20 || malformed_minus || null_key {
+                return false;
+            }
+        }
+        text.to_ascii_lowercase().matches("conversions").count()
+            == text.matches("conversions").count()
+    }
+
+    /// The inputs of one mutation of `base` (Go: `writeJSON`'s loops): the truncation at
+    /// `position`, the byte there replaced by each byte of `alphabet`, each byte inserted
+    /// there, or the byte there deleted.
+    fn mutations(
+        base: &[u8],
+        alphabet: &[u8],
+        mutation: &str,
+        position: usize,
+    ) -> TestResult<Vec<Vec<u8>>> {
+        let before = base.get(..position).ok_or("position out of range")?;
+        let at_and_after = base.get(position..).ok_or("position out of range")?;
+        let after = base.get(position + 1..).unwrap_or_default();
+        Ok(match mutation {
+            "trunc" => vec![before.to_vec()],
+            "repl" => alphabet
+                .iter()
+                .map(|byte| [before, &[*byte], after].concat())
+                .collect(),
+            "ins" => alphabet
+                .iter()
+                .map(|byte| [before, &[*byte], at_and_after].concat())
+                .collect(),
+            "del" => vec![[before, after].concat()],
+            _ => return Err(format!("unknown mutation {mutation}").into()),
+        })
+    }
+
+    #[test]
+    fn mutations_like_go() -> TestResult {
+        // Go: currency/rate_converter.go:81-85 (the decode), over rates_json.golden's mutations
+        // of three currency files: each digest covers the inputs cleanMutation keeps
+        let mut alphabet = Vec::new();
+        let mut bases = Vec::new();
+        let (mut checked, mut kept) = (0_usize, 0_usize);
+        for fields in golden("rates_json.golden")? {
+            match fields.as_slice() {
+                [kind, bytes] if kind == "alphabet" => alphabet = unhex(bytes)?,
+                [kind, _index, bytes] if kind == "base" => bases.push(unhex(bytes)?),
+                [kind, base, mutation, position, inputs, clean, digest] if kind == "mut" => {
+                    let base = bases.get(base.parse::<usize>()?).ok_or("unknown base")?;
+                    let all = mutations(base, &alphabet, mutation, position.parse()?)?;
+                    let mut outcomes = Vec::new();
+                    let mut count = 0_usize;
+                    for input in all.iter().filter(|input| clean_mutation(input)) {
+                        outcomes.extend(decode(input).into_bytes());
+                        outcomes.push(b'\n');
+                        count += 1;
+                    }
+                    let what = format!(
+                        "{mutation} at {position} of {:?}",
+                        String::from_utf8_lossy(base)
+                    );
+                    check_eq(all.len().to_string().as_str(), inputs, &what)?;
+                    check_eq(count.to_string().as_str(), clean, &what)?;
+                    check_eq(fnv64a(&outcomes).as_str(), digest, &what)?;
+                    checked += 1;
+                    kept += count;
+                }
+                _ => {}
+            }
+        }
+        check(
+            checked > 800 && kept > 4000,
+            &format!("the golden holds {checked} mutations of {kept} clean inputs"),
         )
     }
 

@@ -24,6 +24,7 @@ import (
 	"runtime"
 	"sort"
 	"strings"
+	"unicode/utf8"
 
 	jsoniter "github.com/json-iterator/go"
 	"golang.org/x/text/currency"
@@ -371,14 +372,54 @@ var mutationBases = []string{
 
 const mutationAlphabet = "{}[]\",:\\ \t\nnul0123456789.eE+-xtrfa\x00\xff"
 
+// cleanMutation reports whether a mutated document is free of what the ledger lists for the
+// currency file decode (currency.rates-json and the json.* entries it names): a control
+// character or NUL, bytes that are not UTF-8, a plus sign, another case of "conversions", a
+// minus before a dot or before 0 and a digit, and null after { or , where a key may belong.
+// tests/rates.rs applies the same test, so a digest covers the documents both decode alike.
+func cleanMutation(doc string) bool {
+	if !utf8.ValidString(doc) || strings.ContainsAny(doc, "+") {
+		return false
+	}
+	for i := 0; i < len(doc); i++ {
+		if doc[i] < 0x20 {
+			return false
+		}
+		if doc[i] == '-' && i+1 < len(doc) && (doc[i+1] == '.' ||
+			doc[i+1] == '0' && i+2 < len(doc) && doc[i+2] >= '0' && doc[i+2] <= '9') {
+			return false
+		}
+		if strings.HasPrefix(doc[i:], "null") {
+			before := strings.TrimRight(doc[:i], " ")
+			if strings.HasSuffix(before, "{") || strings.HasSuffix(before, ",") {
+				return false
+			}
+		}
+	}
+	lower := strings.Map(func(r rune) rune {
+		if r >= 'A' && r <= 'Z' {
+			return r + ('a' - 'A')
+		}
+		return r
+	}, doc)
+	return strings.Count(lower, "conversions") == strings.Count(doc, "conversions")
+}
+
+// writeMutationDigest writes how many inputs a mutation makes, how many of them cleanMutation
+// keeps, and a digest of the outcomes of those, without the errors' texts.
 func writeMutationDigest(g *golden, base int, kind string, pos int, inputs []string) {
 	h := fnv.New64a()
+	clean := 0
 	for _, in := range inputs {
-		if _, err := h.Write([]byte(decodeResult([]byte(in)) + "\n")); err != nil {
+		if !cleanMutation(in) {
+			continue
+		}
+		clean++
+		if _, err := h.Write([]byte(decodeOutcome([]byte(in)) + "\n")); err != nil {
 			panic(err)
 		}
 	}
-	g.line("mut", fmt.Sprint(base), kind, fmt.Sprint(pos), fmt.Sprint(len(inputs)), fmt.Sprintf("%016x", h.Sum64()))
+	g.line("mut", fmt.Sprint(base), kind, fmt.Sprint(pos), fmt.Sprint(len(inputs)), fmt.Sprint(clean), fmt.Sprintf("%016x", h.Sum64()))
 }
 
 func writeJSON(dir string) {
