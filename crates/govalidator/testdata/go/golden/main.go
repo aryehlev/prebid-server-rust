@@ -12,7 +12,9 @@
 //   - validator.txt: IsURL, IsRequestURL, IsRequestURI, IsIP and net.ParseIP of every input of
 //     the corpus (see corpus.go), one quoted input and its outcome per line;
 //   - pattern.txt: the pattern IsURL matches with (govalidator.URL), quoted;
-//   - sweep.txt: the randomized differentials (see sweep.go).
+//   - sweep.txt: the randomized differentials (see sweep.go);
+//   - parts.txt: the parts sweep, inputs that join edge cases of each part of a URL (see
+//     sweep.go).
 package main
 
 import (
@@ -52,6 +54,7 @@ func main() {
 	writeLines(filepath.Join(out, "validator.txt"), lines)
 	writeLines(filepath.Join(out, "pattern.txt"), []string{strconv.Quote(govalidator.URL)})
 	writeLines(filepath.Join(out, "sweep.txt"), []string{urlSweep(), ipSweep()})
+	writeLines(filepath.Join(out, "parts.txt"), partsSweep())
 }
 
 // outcome is what the Rust crate ports for one input: IsURL, IsRequestURL, IsRequestURI, IsIP,
