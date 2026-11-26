@@ -14,7 +14,7 @@ use pbs_openrtb_ext::openrtb_ext::{
     PriceFloorModelGroup, PriceFloorRules, PriceFloorSchema, PriceGranularity,
 };
 
-use super::support::{TestResult, all_ok, ensure_eq, unmarshal_error};
+use super::support::{TestResult, all_ok, ensure_eq, serde_unmarshal, unmarshal_error};
 
 fn range(min: f64, max: f64, increment: f64) -> GranularityRange {
     GranularityRange {
@@ -116,22 +116,25 @@ fn range_keys(ranges: Option<&[GranularityRange]>) -> Vec<String> {
         .collect()
 }
 
-/// Go: `TestGranularityUnmarshal`: the precision, and the ranges (in any order).
-#[test]
-fn granularity_unmarshal() -> TestResult {
+/// Go: `TestGranularityUnmarshal`: the precision, and the ranges (in any order), of what `decode`
+/// makes of each document (its error, and the value it leaves), and an error for the malformed
+/// document where `malformed_fails`.
+fn check_granularity_unmarshal(
+    decode: fn(&str) -> (Option<String>, PriceGranularity),
+    malformed_fails: bool,
+) -> TestResult {
     let groups = [
         ("Unmarshal without error", valid_granularity_tests(), false),
         (
             "Malformed json. Expect unmarshall error",
             vec![("[]", PriceGranularity::default())],
-            true,
+            malformed_fails,
         ),
     ];
     let mut results = Vec::new();
     for (desc, cases, expect_error) in groups {
         for (i, (json, target)) in cases.into_iter().enumerate() {
-            let mut resolved = PriceGranularity::default();
-            let err = unmarshal_error(json, &mut resolved);
+            let (err, resolved) = decode(json);
             let result = if expect_error && err.is_none() {
                 Err("no error".to_owned())
             } else {
@@ -150,6 +153,38 @@ fn granularity_unmarshal() -> TestResult {
         }
     }
     all_ok(results)
+}
+
+/// Go: `TestGranularityUnmarshal`.
+#[test]
+fn granularity_unmarshal() -> TestResult {
+    check_granularity_unmarshal(
+        |json| {
+            let mut resolved = PriceGranularity::default();
+            let err = unmarshal_error(json, &mut resolved);
+            (err, resolved)
+        },
+        true,
+    )
+}
+
+/// Go: `TestGranularityUnmarshal`, through the serde code. The malformed document `[]` decodes
+/// to the zero value Go leaves, without Go's error: the serde derive of `PriceGranularityRaw`
+/// reads an array's elements as its fields (`json.struct-from-array`).
+#[test]
+fn granularity_unmarshal_serde() -> TestResult {
+    check_granularity_unmarshal(
+        |json| match serde_unmarshal::<PriceGranularity>(json) {
+            Ok(resolved) => (None, resolved),
+            Err(e) => (Some(e), PriceGranularity::default()),
+        },
+        false,
+    )?;
+    ensure_eq(
+        &serde_unmarshal::<PriceGranularity>("[]"),
+        &Ok(PriceGranularity::default()),
+        "[] (json.struct-from-array)",
+    )
 }
 
 fn strings(items: &[&str]) -> Vec<String> {
