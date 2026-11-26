@@ -23,8 +23,8 @@ mod tests {
         server::{SendResponse, handshake},
     };
     use pbs_http_client::{
-        Builder, Client, Event, General, H2C_PROBE_TIMEOUT, H2C_VERDICT_TTL, HttpClientSettings,
-        ProxyEnv, Trace,
+        Builder, Client, Event, General, H2C_PROBE_TIMEOUT, H2C_VERDICT_TTL, Http2Settings,
+        HttpClientSettings, ProxyEnv, Trace,
         reqwest::{
             Request, StatusCode, Url,
             header::{CONTENT_TYPE, HeaderMap, HeaderName, HeaderValue, LOCATION, USER_AGENT},
@@ -558,28 +558,31 @@ mod tests {
         T::default()
     }
 
+    /// router.go's general client settings with this port's HTTP/2 on
+    /// (`http_client.http2.enabled`), under which HTTP-H2's pins run.
+    const HTTP2_ON: HttpClientSettings = HttpClientSettings {
+        http2: Http2Settings::ON,
+        ..HttpClientSettings::GENERAL
+    };
+
     /// The bidder client: router.go's general client negotiating HTTP/2, trusting `pki`'s CA,
     /// under the loopback guard.
     fn bidder_client(pki: &TestPki) -> Result<Client, BoxError> {
-        Ok(
-            Builder::new(HttpClientSettings::GENERAL, ProxyEnv::default())
-                .roots(pki.roots())
-                .loopback_only(0)
-                .negotiate_http2()
-                .build()?,
-        )
+        Ok(Builder::new(HTTP2_ON, ProxyEnv::default())
+            .roots(pki.roots())
+            .loopback_only(0)
+            .negotiate_http2()
+            .build()?)
     }
 
     /// router.go's general client, its bidders' half negotiating HTTP/2, trusting `pki`'s CA,
     /// under the loopback guard.
     fn general_client(pki: &TestPki) -> Result<General<Client>, BoxError> {
-        Ok(
-            Builder::new(HttpClientSettings::GENERAL, ProxyEnv::default())
-                .roots(pki.roots())
-                .loopback_only(0)
-                .negotiate_http2()
-                .build_general()?,
-        )
+        Ok(Builder::new(HTTP2_ON, ProxyEnv::default())
+            .roots(pki.roots())
+            .loopback_only(0)
+            .negotiate_http2()
+            .build_general()?)
     }
 
     /// gamma's bid request to `url`: [`bid`]'s, with `field` (`h2.json`'s gamma field), which
@@ -965,6 +968,90 @@ mod tests {
         })
     }
 
+    /// The connections `h2.json`'s server accepted from Go's `client` in the selection with
+    /// `server`.
+    fn selection_connections(doc: &Value, client: &str, server: &str) -> Result<i64, BoxError> {
+        let case = list(doc, "/selection")?
+            .iter()
+            .find(|case| {
+                text(case, "/client").ok() == Some(client)
+                    && text(case, "/server").ok() == Some(server)
+            })
+            .ok_or_else(|| format!("no selection of {client} with {server}"))?;
+        int(case, "/connections")
+    }
+
+    /// A client of each kind that must speak as Go's general client does whatever its HTTP/2
+    /// setting: the bidder client and the general client's bidders' half with HTTP/2 off (the
+    /// default), and a client that is not the bidder client with HTTP/2 on.
+    fn http1_clients(pki: &TestPki) -> Result<Vec<(&'static str, Client)>, BoxError> {
+        let off = || {
+            Builder::new(HttpClientSettings::GENERAL, ProxyEnv::default())
+                .roots(pki.roots())
+                .loopback_only(0)
+                .negotiate_http2()
+        };
+        Ok(vec![
+            ("bidder client, HTTP/2 off", off().build()?),
+            ("bidders' half, HTTP/2 off", off().build_general()?.bidders),
+            (
+                "plain client, HTTP/2 on",
+                Builder::new(HTTP2_ON, ProxyEnv::default())
+                    .roots(pki.roots())
+                    .loopback_only(0)
+                    .build()?,
+            ),
+        ])
+    }
+
+    // Go: router/router.go:143-158 (the bidder client's Transport: HTTP/1.1 to every server, no
+    // h2 in ALPN) and h2.json's general client, whose selection records the protocols, the
+    // request lines and the connections of two bid requests to each server.
+    #[test]
+    fn http2_off_is_go() -> TestResult {
+        run(async {
+            let doc = golden("h2.json")?;
+            let pki = TestPki::new()?;
+            let mut differ = Vec::new();
+            for server in ["https_h2", "https_http1", "h2c", "http1"] {
+                let go = (
+                    selection(&doc, "general", server)?,
+                    selection_connections(&doc, "general", server)?,
+                    0,
+                );
+                for (name, client) in http1_clients(&pki)? {
+                    let (bidder, url) = selection_server(server, &pki, &doc).await?;
+                    let first = post(&client, &url).await?;
+                    // hyper hands an HTTP/1.1 connection back to its pool from the connection's
+                    // task once the body has ended, where Go's body read waits at EOF until the
+                    // connection is idle again: a moment lets it get there, so that the second
+                    // request finds it as Go's does.
+                    sleep(WAIT).await;
+                    let protos = vec![first, post(&client, &url).await?];
+                    drop(client);
+                    sleep(WAIT).await;
+                    let seen = bidder.seen();
+                    let mut handled = seen.requests;
+                    handled.sort();
+                    let accepted = i64::try_from(bidder.accepted())?;
+                    let _counts = bidder.close().await;
+                    let rust = ((protos, handled), accepted, seen.probing + seen.prior);
+                    if rust != go {
+                        differ.push((server, name, go.clone(), rust));
+                    }
+                }
+            }
+            check_eq(
+                &differ,
+                &Vec::new(),
+                "the servers a client with HTTP/2 off, or one that is not the bidder client, \
+                 speaks to otherwise than Go's general client: the protocols and request lines \
+                 (ALPN offering no h2 makes https_h2 pick http/1.1), the connections, the probes \
+                 (Go, Rust)",
+            )
+        })
+    }
+
     // Go: router/router.go:143-158 (the bidders' HTTP/1.1, which a redirect keeps) and
     // net/http/client.go:597-755 (Client.do follows a 307 with the method and the body).
     #[test]
@@ -1334,7 +1421,7 @@ mod tests {
             })
             .await?;
             let client = bidder_client(&pki)?;
-            let proxied = Builder::new(HttpClientSettings::GENERAL, ProxyEnv::default())
+            let proxied = Builder::new(HTTP2_ON, ProxyEnv::default())
                 .proxy_url(Url::parse(&format!("http://127.0.0.1:{}", proxy.port()))?)
                 .loopback_only(0)
                 .negotiate_http2()

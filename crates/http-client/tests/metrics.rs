@@ -12,7 +12,9 @@ mod tests {
         time::Duration,
     };
 
-    use pbs_http_client::{Builder, Client, Event, HttpClientSettings, ProxyEnv, Trace};
+    use pbs_http_client::{
+        Builder, Client, Event, Http2Settings, HttpClientSettings, ProxyEnv, Trace,
+    };
     use serde_json::Value;
     use tokio::{task::JoinSet, time::sleep};
 
@@ -135,7 +137,15 @@ mod tests {
         )
         .await?;
         let full = ports_in(url, &[(server.port(), "PORT")]);
-        let builder = Builder::new(HttpClientSettings::GENERAL, ProxyEnv::default())
+        let settings = HttpClientSettings {
+            http2: if negotiate {
+                Http2Settings::ON
+            } else {
+                Http2Settings::OFF
+            },
+            ..HttpClientSettings::GENERAL
+        };
+        let builder = Builder::new(settings, ProxyEnv::default())
             .roots(pki.roots())
             .loopback_only(0);
         let clients = if negotiate {

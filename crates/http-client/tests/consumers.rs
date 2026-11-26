@@ -21,8 +21,8 @@ mod tests {
     use bytes::Bytes;
     use futures_util::future::BoxFuture;
     use pbs_http_client::{
-        Builder, Client, DnsError, ErrorKind, Event, General, HttpClientSettings, ProxyEnv,
-        RequestError, Response, Trace, Transport,
+        Builder, Client, DnsError, ErrorKind, Event, General, Http2Settings, HttpClientSettings,
+        ProxyEnv, RequestError, Response, Trace, Transport,
         reqwest::{
             Body, Method, Request, StatusCode, Url, Version,
             header::{ACCEPT, CONTENT_TYPE, HeaderMap, HeaderName, HeaderValue, LOCATION},
@@ -979,6 +979,12 @@ mod tests {
         }
     }
 
+    /// router.go's general client settings with this port's HTTP/2 on.
+    const HTTP2_ON: HttpClientSettings = HttpClientSettings {
+        http2: Http2Settings::ON,
+        ..HttpClientSettings::GENERAL
+    };
+
     // Go: router/router.go:143-158 and :211-247 (generalHttpClient and the callers it is handed
     // to), modules/scope3/rtd/module.go:75-80 (a Timeout over its Transport), and
     // parity/wiring/clients.go:18 with parity/transport/transport.go:105-117 (the parity
@@ -1001,7 +1007,7 @@ mod tests {
                 }
             })
             .await?;
-            let parity = Builder::new(HttpClientSettings::GENERAL, ProxyEnv::default())
+            let parity = Builder::new(HTTP2_ON, ProxyEnv::default())
                 .loopback_only(0)
                 .negotiate_http2()
                 .proxy_url(Url::parse(&format!("http://127.0.0.1:{}", oracle.port()))?)

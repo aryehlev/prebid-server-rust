@@ -228,6 +228,38 @@ impl RequestError {
         }
     }
 
+    /// A failure on the bidder client's own HTTP/2 connections, worded as reqwest words its own:
+    /// `context`, then `cause` and each error behind it, `: ` between them.
+    pub(crate) fn chained<E: Error + Send + Sync + 'static>(
+        kind: ErrorKind,
+        context: &str,
+        cause: E,
+    ) -> Self {
+        let mut message = context.to_owned();
+        let first: &(dyn Error + 'static) = &cause;
+        for each in iter::successors(Some(first), |&each| each.source()) {
+            message.push_str(": ");
+            message.push_str(&each.to_string());
+        }
+        Self {
+            kind,
+            prefix: None,
+            message,
+            source: Some(Arc::new(cause)),
+        }
+    }
+
+    /// A redirect the client refused, as [`reqwest`](Self::reqwest) reads reqwest's: Go's
+    /// `url.Error` for `method` and the URL refused.
+    pub(crate) fn refused_redirect(refusal: RedirectRefusal, method: &Method) -> Self {
+        Self {
+            kind: refusal.kind,
+            prefix: Some(prefix(method, &refusal.url)),
+            message: refusal.message.clone(),
+            source: Some(Arc::new(refusal)),
+        }
+    }
+
     /// reqwest could not build the client.
     pub(crate) fn build(error: reqwest::Error) -> Self {
         Self {

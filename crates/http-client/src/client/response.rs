@@ -5,7 +5,7 @@ use bytes::{Bytes, BytesMut};
 use reqwest::{StatusCode, Url, Version, header::HeaderMap};
 use tokio::{sync::OwnedSemaphorePermit, time::Instant};
 
-use super::until;
+use super::{pool::Body, until};
 use crate::error::{READING_BODY, RequestError};
 
 /// A response whose head has arrived: one reqwest received, or one a
@@ -32,6 +32,17 @@ enum Source {
     Received(Box<reqwest::Response>),
     /// A transport made it.
     Made(Box<Made>),
+    /// It came over the bidder client's pool of HTTP/2 connections.
+    Pooled(Box<Pooled>),
+}
+
+/// A response over the bidder client's pool.
+#[derive(Debug)]
+struct Pooled {
+    url: Url,
+    status: StatusCode,
+    headers: HeaderMap,
+    body: Body,
 }
 
 /// A response a transport made.
@@ -91,6 +102,23 @@ impl Response {
         }
     }
 
+    /// A response from `url` over the bidder client's pool, with `status`, `headers` and `body`,
+    /// which holds the response's stream until it is read.
+    pub(super) fn pooled(url: Url, status: StatusCode, headers: HeaderMap, body: Body) -> Self {
+        Self {
+            source: Source::Pooled(Box::new(Pooled {
+                url,
+                status,
+                headers,
+                body,
+            })),
+            end_error: None,
+            deadline: None,
+            client_deadline: None,
+            permit: None,
+        }
+    }
+
     /// This response with its body read by `deadline`, and `client_deadline`, the client's
     /// timeout when it is earlier than the request's deadline, named by a body error after it.
     pub(crate) fn bounded(
@@ -111,6 +139,7 @@ impl Response {
         match &self.source {
             Source::Received(response) => response.status(),
             Source::Made(made) => made.status,
+            Source::Pooled(pooled) => pooled.status,
         }
     }
 
@@ -121,6 +150,7 @@ impl Response {
         match &self.source {
             Source::Received(response) => response.headers(),
             Source::Made(made) => &made.headers,
+            Source::Pooled(pooled) => &pooled.headers,
         }
     }
 
@@ -131,6 +161,7 @@ impl Response {
         match &mut self.source {
             Source::Received(response) => response.headers_mut(),
             Source::Made(made) => &mut made.headers,
+            Source::Pooled(pooled) => &mut pooled.headers,
         }
     }
 
@@ -140,6 +171,7 @@ impl Response {
         match &self.source {
             Source::Received(response) => response.version(),
             Source::Made(_) => Version::HTTP_11,
+            Source::Pooled(_) => Version::HTTP_2,
         }
     }
 
@@ -149,6 +181,7 @@ impl Response {
         match &self.source {
             Source::Received(response) => response.url(),
             Source::Made(made) => &made.url,
+            Source::Pooled(pooled) => &pooled.url,
         }
     }
 
@@ -165,6 +198,9 @@ impl Response {
                 || Err(RequestError::deadline()),
                 |read| read.map_err(RequestError::body),
             ),
+            Source::Pooled(pooled) => until(self.deadline, pooled.body.chunk())
+                .await
+                .unwrap_or_else(|| Err(RequestError::deadline())),
         };
         let next = match next {
             Ok(None) => self.end_error.take().map_or(Ok(None), Err),

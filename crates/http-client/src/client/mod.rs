@@ -2,11 +2,13 @@
 //! client, and [`Client::send`] sends a request the way bidder.go's `ctxhttp.Do` does, under the
 //! request's deadline. A client sends through a [`Transport`], Go's `http.RoundTripper`: the
 //! reqwest client a [`Builder`] builds, or one of the caller's (a test's fake, the parity
-//! transport). The bidder client's HTTP/2 is in [`http2`]; [`General`] is router.go's
-//! `generalHttpClient`, whose bidders alone take it.
+//! transport). The bidder client's HTTP/2, on when `http_client.http2.enabled` is, is in
+//! [`http2`] and [`pool`]; [`General`] is router.go's `generalHttpClient`, whose bidders alone may
+//! take it.
 
 use std::{fmt, future::Future, net::IpAddr, sync::Arc, time::Duration};
 
+use bytes::Bytes;
 use futures_util::future::BoxFuture;
 use hyper_util::client::legacy::connect::HttpInfo;
 use reqwest::{
@@ -19,14 +21,15 @@ use reqwest::{
 use tokio::time::{Instant, timeout_at};
 use url::Host;
 
-use self::{
-    http2::{Failure, H2c, MAX_HEADER_LIST, Origin},
-    limit::{HostLimiter, Key},
-    resolve::{Resolver, traced},
-};
 pub use self::{
     http2::{H2C_PROBE_TIMEOUT, H2C_VERDICT_TTL},
     response::Response,
+};
+use self::{
+    http2::{H2c, MAX_HEADER_LIST},
+    limit::{HostLimiter, Key},
+    pool::{Dialer, Pool},
+    resolve::{Resolver, traced},
 };
 use crate::{
     error::{AWAITING_HEADERS, CGI_REFUSAL, ErrorKind, RedirectRefusal, RequestError},
@@ -38,8 +41,16 @@ use crate::{
 
 mod http2;
 mod limit;
+mod pool;
+mod pooled;
 mod resolve;
 mod response;
+
+tokio::task_local! {
+    /// The requests a redirect chain has made before the reqwest client sending its next hop
+    /// takes it on: the pool's hops, which count toward Go's ten.
+    static REQUESTED: usize;
+}
 
 /// The `User-Agent` Go's `Request.write` sends when the caller set none
 /// (net/http/request.go `defaultUserAgent`; D-UA).
@@ -104,14 +115,22 @@ impl Builder {
         self
     }
 
-    /// Speaks HTTP/2 to the bidders that take it, with no setting: the bidder client
-    /// (`http-client.http2`), where Go's speaks HTTP/1.1 (router.go:143-158 sets neither
-    /// `ForceAttemptHTTP2` nor `Protocols`). Over TLS, ALPN offers `h2` and `http/1.1`. In
-    /// cleartext, an origin reached without a proxy gets h2c once it has answered a probe with
-    /// HTTP/2's SETTINGS frame: the origin's first request starts the probe and goes over
-    /// HTTP/1.1, and the verdict holds for [`H2C_VERDICT_TTL`]. An origin that fails over h2c
-    /// goes back to HTTP/1.1, and its failed request is sent again over HTTP/1.1, once, only when
-    /// the origin read none of it. `User-Agent` stays `Go-http-client/1.1` (D-UA), and the
+    /// Makes the client the bidder client: when its settings turn this port's HTTP/2 on
+    /// (`http_client.http2.enabled`, [`Http2Settings`](crate::settings::Http2Settings),
+    /// `http-client.http2-opt-in`), it speaks HTTP/2 to the bidders that take it, where Go's
+    /// speaks HTTP/1.1 (router.go:143-158 sets neither `ForceAttemptHTTP2` nor `Protocols`). With
+    /// the setting off, the default, it speaks HTTP/1.1 only, offers no `h2` in ALPN and sends no
+    /// probe, as Go's does, and so does every client not built with this whatever the setting
+    /// says.
+    ///
+    /// With it on (`http-client.http2`): over TLS, ALPN offers `h2` and `http/1.1`. In cleartext,
+    /// an origin reached without a proxy gets h2c once it has answered a probe with HTTP/2's
+    /// SETTINGS frame: the origin's first request starts the probe and goes over HTTP/1.1, and the
+    /// verdict holds for [`H2C_VERDICT_TTL`]. An origin that fails over h2c goes back to HTTP/1.1,
+    /// and its failed request is sent again over HTTP/1.1, once, only when the origin read none of
+    /// it. Each h2 or h2c origin reached without a proxy has a pool of HTTP/2 connections, a
+    /// request taking the one with the most free streams and a full pool opening another, up to
+    /// `max_connections_per_host`. `User-Agent` stays `Go-http-client/1.1` (D-UA), and the
     /// probe's connection is in no connection metric.
     ///
     /// [`build`](Self::build) and [`build_transport`](Self::build_transport) then give a client
@@ -123,6 +142,11 @@ impl Builder {
     pub const fn negotiate_http2(mut self) -> Self {
         self.http2 = true;
         self
+    }
+
+    /// Whether the client speaks HTTP/2: it is the bidder client, and its settings turn HTTP/2 on.
+    const fn speaks_http2(&self) -> bool {
+        self.http2 && self.settings.http2.enabled
     }
 
     /// The client: Go's `&http.Client{Transport: transport}` over the transport
@@ -163,7 +187,7 @@ impl Builder {
     ///
     /// As [`build_transport`](Self::build_transport).
     pub fn build_general_transports(self) -> Result<General<Arc<dyn Transport>>, RequestError> {
-        let http2 = self.http2;
+        let http2 = self.speaks_http2();
         let core = Arc::new(self.core()?);
         Ok(General {
             general: Arc::new(Reqwest {
@@ -186,7 +210,7 @@ impl Builder {
     ///
     /// reqwest could not build it: the TLS roots could not be loaded ([`ErrorKind::Build`]).
     pub fn build_transport(self) -> Result<Arc<dyn Transport>, RequestError> {
-        let http2 = self.http2;
+        let http2 = self.speaks_http2();
         Ok(Arc::new(Reqwest {
             core: Arc::new(self.core()?),
             http2,
@@ -196,13 +220,14 @@ impl Builder {
     /// The reqwest clients, the proxy rules, the per-host limit and the record of connections
     /// that the transports built from this builder share.
     fn core(self) -> Result<Core, RequestError> {
+        let http2 = self.speaks_http2();
         let Self {
             settings,
             proxy,
             proxy_url,
             roots,
             loopback,
-            http2,
+            ..
         } = self;
         let loopback_only = loopback.is_some();
         let rules = Arc::new(proxy_url.map_or_else(|| proxy.rules(), ProxyRules::fixed));
@@ -210,17 +235,12 @@ impl Builder {
         for der in roots.certificates() {
             certificates.push(reqwest::Certificate::from_der(der).map_err(RequestError::build)?);
         }
-        // What every reqwest client of the transport shares; `on_origin` keeps redirects on the
-        // first request's origin (the h2c client's).
-        let base = |on_origin: bool| {
+        // What every reqwest client of the transport shares.
+        let base = || {
             let keep_alive = settings.dialer.keep_alive();
             let mut builder = reqwest::Client::builder()
                 .gzip(true)
-                .redirect(redirect_policy(
-                    Arc::clone(&rules),
-                    loopback_only,
-                    on_origin,
-                ))
+                .redirect(redirect_policy(Arc::clone(&rules), loopback_only))
                 .pool_max_idle_per_host(settings.max_idle_per_host())
                 .pool_idle_timeout(settings.idle_timeout())
                 .tcp_keepalive(keep_alive)
@@ -233,37 +253,29 @@ impl Builder {
             if !certificates.is_empty() {
                 builder = builder.tls_certs_merge(certificates.clone());
             }
-            builder
-        };
-        // The proxy rules, for every reqwest client but the h2c one.
-        let proxied = |builder: reqwest::ClientBuilder| {
             if rules.has_proxies() {
-                let [https, http] = proxies(&rules);
-                builder.proxy(https).proxy(http)
+                let [for_https, for_http] = proxies(&rules);
+                builder.proxy(for_https).proxy(for_http)
             } else {
                 builder.no_proxy()
             }
         };
-        let http1 = proxied(base(false))
-            .http1_only()
-            .build()
-            .map_err(RequestError::build)?;
+        let http1 = base().http1_only().build().map_err(RequestError::build)?;
         let http2 = if http2 {
-            // reqwest's default versions: ALPN h2 and http/1.1 over TLS.
-            let tls = proxied(base(false))
-                .http2_max_header_list_size(MAX_HEADER_LIST)
-                .build()
-                .map_err(RequestError::build)?;
-            // h2c goes straight to an origin that answered the probe, never through a proxy.
-            let prior = base(true)
-                .no_proxy()
-                .http2_prior_knowledge()
+            // reqwest's default versions: ALPN h2 and http/1.1 over TLS, for the requests the
+            // pool does not take.
+            let tls = base()
                 .http2_max_header_list_size(MAX_HEADER_LIST)
                 .build()
                 .map_err(RequestError::build)?;
             Some(Http2 {
                 tls,
-                h2c: H2c::new(prior, loopback),
+                h2c: H2c::new(loopback),
+                pool: Pool::new(
+                    Dialer::new(&settings, &roots, loopback)?,
+                    settings.idle_timeout(),
+                    H2C_VERDICT_TTL,
+                ),
             })
         } else {
             None
@@ -288,8 +300,8 @@ pub struct General<T> {
     /// HTTP/1.1, as router.go's clients all speak.
     pub general: T,
     /// What every bidder sends through: the bidder client, which negotiates HTTP/2 when the
-    /// builder does ([`Builder::negotiate_http2`]), and speaks HTTP/1.1 as
-    /// [`general`](Self::general) does when it does not.
+    /// builder does ([`Builder::negotiate_http2`]) and HTTP/2 is on, and otherwise speaks
+    /// HTTP/1.1 as [`general`](Self::general) does.
     pub bidders: T,
 }
 
@@ -449,11 +461,15 @@ struct Core {
 /// The bidder client's HTTP/2.
 #[derive(Debug)]
 struct Http2 {
-    /// ALPN's choice of `h2` or `http/1.1`: the bidder client's requests over TLS, on TLS
-    /// connections of their own (`http-client.bidder-tls-pool`).
+    /// ALPN's choice of `h2` or `http/1.1`, for the bidder client's requests over TLS that the
+    /// pool does not take: through a proxy, to an origin that picked `http/1.1`, or a redirect's
+    /// hop off the pool. Its TLS connections are the bidder client's own
+    /// (`http-client.bidder-tls-pool`).
     tls: reqwest::Client,
-    /// h2c, to the cleartext origins that answered the probe.
+    /// The verdicts on cleartext origins, and their probes.
     h2c: H2c,
+    /// The HTTP/2 connections of the h2 and h2c origins reached without a proxy.
+    pool: Pool,
 }
 
 impl Transport for Reqwest {
@@ -482,25 +498,56 @@ impl Core {
         trace: Option<Trace>,
         http2: Option<&Http2>,
     ) -> Result<Response, RequestError> {
-        let method = request.method().clone();
         let target = request.url().clone();
         let proxy = route(&self.rules, self.loopback_only, &target)
             .map_err(|(kind, message)| RequestError::own(kind, message))?;
         go_request_headers(request.headers_mut());
+        let key = limit_key(&target, proxy);
+        let Some(http2) = http2 else {
+            return self
+                .over(&self.http1, request, trace, key, Duration::ZERO, 0)
+                .await;
+        };
+        // A cleartext origin with no verdict in force starts its probe here.
+        let h2c = http2.h2c.origin(&target, proxy);
+        // The pool takes the requests whose body is in memory, as every caller's is.
+        let body = match request.body().map(reqwest::Body::as_bytes) {
+            None => Some(None),
+            Some(Some(bytes)) => Some(Some(Bytes::copy_from_slice(bytes))),
+            Some(None) => None,
+        };
+        let tls = target.scheme() == "https";
+        if let Some(body) = body
+            && ((tls && proxy.is_none()) || h2c.is_some())
+        {
+            return pooled::send(self, http2, request, body, trace, h2c).await;
+        }
+        let client = if tls { &http2.tls } else { &self.http1 };
+        self.over(client, request, trace, key, Duration::ZERO, 0)
+            .await
+    }
 
+    /// Sends `request` with `client`, one of the reqwest clients, after `requested` requests of
+    /// its redirect chain, once a `max_connections_per_host` slot of `key` is free, and reports
+    /// the connection, the request having waited `wait` before it came here.
+    async fn over(
+        &self,
+        client: &reqwest::Client,
+        request: Request,
+        trace: Option<Trace>,
+        key: Key,
+        wait: Duration,
+        requested: usize,
+    ) -> Result<Response, RequestError> {
+        let method = request.method().clone();
         let start = Instant::now();
         let permit = match &self.limiter {
-            Some(limiter) => limiter.acquire(limit_key(&target, proxy)).await,
+            Some(limiter) => limiter.acquire(key).await,
             None => None,
         };
-        let wait = start.elapsed();
-
-        let client = match http2 {
-            Some(http2) if target.scheme() == "https" => &http2.tls,
-            Some(_) | None => &self.http1,
-        };
-        let h2c = http2.and_then(|http2| Some((&http2.h2c, http2.h2c.origin(&target, proxy)?)));
-        let response = traced(trace.clone(), self.send(client, request, h2c))
+        let wait = wait.saturating_add(start.elapsed());
+        let response = REQUESTED
+            .scope(requested, traced(trace.clone(), client.execute(request)))
             .await
             .map_err(|e| RequestError::reqwest(e, &method))?;
         if let Some(info) = response.extensions().get::<HttpInfo>() {
@@ -515,45 +562,6 @@ impl Core {
             }
         }
         Ok(Response::received(response, permit))
-    }
-
-    /// Sends `request` with `client`, or over h2c when `h2c` names the origin marked h2c it is
-    /// for. A failure over h2c moves the origin back to HTTP/1.1, and when the origin read no
-    /// request the request goes again over HTTP/1.1, once (`http-client.h2c-demotion`); a
-    /// redirect to another origin comes back unfollowed and moves the origin back to HTTP/1.1
-    /// too (`http-client.h2c-redirects`).
-    async fn send(
-        &self,
-        client: &reqwest::Client,
-        request: Request,
-        h2c: Option<(&H2c, Origin)>,
-    ) -> Result<reqwest::Response, reqwest::Error> {
-        let Some((h2c, origin)) = h2c else {
-            return client.execute(request).await;
-        };
-        let again = request.try_clone();
-        match h2c.client().execute(request).await {
-            Ok(response) => {
-                if http2::leaves(&response, &origin) {
-                    h2c.demote(&origin);
-                }
-                Ok(response)
-            }
-            Err(error) => match Failure::of(&error) {
-                Failure::Unread => {
-                    h2c.demote(&origin);
-                    match again {
-                        Some(again) => self.http1.execute(again).await,
-                        None => Err(error),
-                    }
-                }
-                Failure::Failed => {
-                    h2c.demote(&origin);
-                    Err(error)
-                }
-                Failure::Other => Err(error),
-            },
-        }
     }
 }
 
@@ -714,32 +722,41 @@ fn proxies(rules: &Arc<ProxyRules>) -> [Proxy; 2] {
     ]
 }
 
-/// Go's `defaultCheckRedirect` (at most ten requests), then the proxy rules and the loopback
-/// guard for the next URL, which Go's Transport applies to every request it sends. With
-/// `on_origin` (the h2c client's), a redirect to another origin than the first request's is not
-/// followed: the redirect is the answer.
-fn redirect_policy(rules: Arc<ProxyRules>, loopback_only: bool, on_origin: bool) -> Policy {
+/// Go's `defaultCheckRedirect` (at most ten requests, the pool's hops before reqwest took the chain
+/// on counted), then the proxy rules and the loopback guard for the next URL, which Go's Transport
+/// applies to every request it sends.
+fn redirect_policy(rules: Arc<ProxyRules>, loopback_only: bool) -> Policy {
     Policy::custom(move |attempt: Attempt<'_>| {
         let next = attempt.url();
-        if on_origin
-            && attempt
-                .previous()
-                .first()
-                .is_some_and(|first| !http2::stays_on(first, next))
-        {
-            return attempt.stop();
-        }
-        let refusal = if attempt.previous().len() >= MAX_REQUESTS {
-            Some((ErrorKind::Redirect, "stopped after 10 redirects".to_owned()))
-        } else {
-            route(&rules, loopback_only, next).err()
-        };
-        match refusal {
-            Some((kind, message)) => {
-                let url = shown_url(next);
-                attempt.error(RedirectRefusal { kind, url, message })
-            }
+        let before = REQUESTED.try_with(|requested| *requested).unwrap_or(0);
+        match check_redirect(
+            &rules,
+            loopback_only,
+            next,
+            before + attempt.previous().len(),
+        ) {
+            Some(refusal) => attempt.error(refusal),
             None => attempt.follow(),
         }
+    })
+}
+
+/// Why a redirect to `next` is refused after `requested` requests: Go's ten, the proxy rules, the
+/// loopback guard.
+fn check_redirect(
+    rules: &ProxyRules,
+    loopback_only: bool,
+    next: &Url,
+    requested: usize,
+) -> Option<RedirectRefusal> {
+    let refusal = if requested >= MAX_REQUESTS {
+        Some((ErrorKind::Redirect, "stopped after 10 redirects".to_owned()))
+    } else {
+        route(rules, loopback_only, next).err()
+    };
+    refusal.map(|(kind, message)| RedirectRefusal {
+        kind,
+        url: shown_url(next),
+        message,
     })
 }

@@ -7,7 +7,9 @@
 //! most that many connections carry requests to the host at once
 //! (`http-client.max-conns-per-host`, restored; pin
 //! `crates/http-client/tests/limits.rs::per_host_limit_waits` against
-//! `testdata/golden/limits.json`).
+//! `testdata/golden/limits.json`). With `http_client.http2.enabled`, an HTTP/2 connection of the
+//! bidder client's pool holds one of its origin's slots for as long as it is open, as Go counts
+//! connections, and its streams take none.
 
 use std::{
     collections::BTreeMap,
@@ -19,7 +21,7 @@ use tokio::sync::{OwnedSemaphorePermit, Semaphore};
 /// Go's `connectMethodKey`: the proxy (empty when there is none), the target's scheme and its
 /// `host:port`, which is empty for an `http` target sent through a proxy, since such requests
 /// share the proxy's connections.
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub(super) struct Key {
     pub(super) proxy: String,
     pub(super) scheme: String,
@@ -44,16 +46,19 @@ impl HostLimiter {
 
     /// Waits for a slot of `key`.
     pub(super) async fn acquire(&self, key: Key) -> Option<OwnedSemaphorePermit> {
-        let semaphore = {
-            let mut hosts = self.hosts.lock().unwrap_or_else(PoisonError::into_inner);
-            Arc::clone(
-                hosts
-                    .entry(key)
-                    .or_insert_with(|| Arc::new(Semaphore::new(self.limit))),
-            )
-        };
         // The semaphores are never closed, so acquiring only fails if that changes; the request
         // then goes ahead without a slot rather than failing.
-        semaphore.acquire_owned().await.ok()
+        self.semaphore(key).acquire_owned().await.ok()
+    }
+
+    /// The semaphore of `key`'s slots: an HTTP/1.1 request holds one while it is in flight, and
+    /// a pooled HTTP/2 connection while it is open.
+    pub(super) fn semaphore(&self, key: Key) -> Arc<Semaphore> {
+        let mut hosts = self.hosts.lock().unwrap_or_else(PoisonError::into_inner);
+        Arc::clone(
+            hosts
+                .entry(key)
+                .or_insert_with(|| Arc::new(Semaphore::new(self.limit))),
+        )
     }
 }

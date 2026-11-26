@@ -15,23 +15,31 @@ categories.workspace = true
 workspace = true
 
 # reqwest does the HTTP; bytes, url and hyper-util (the connection info reqwest puts on each
-# response, and the client error under a request that failed) name its types; rustls checks
-# certificates_file roots before reqwest takes them; base64 decodes their PEM blocks; ipnet
-# matches NO_PROXY's CIDR entries; tokio gives the deadlines, the per-host semaphore, the
-# resolver's lookups and the h2c probe's socket; futures-util's BoxFuture is what the Transport
-# trait returns (plan principle 15). The bidder client's HTTP/2: h2 names the errors reqwest's
-# HTTP/2 connections fail with (and serves h2 in the tests), and moka holds the h2c verdicts.
+# response) name its types; rustls checks certificates_file roots before reqwest takes them; base64
+# decodes their PEM blocks; ipnet matches NO_PROXY's CIDR entries; tokio gives the deadlines, the
+# per-host semaphore, the resolver's lookups and the h2c probe's socket; futures-util's BoxFuture is
+# what the Transport trait returns (plan principle 15). The bidder client's HTTP/2, on when
+# `http_client.http2.enabled` is: h2 speaks it over the pool's connections (and serves h2 in the
+# tests) in http's types, tokio-rustls and rustls-platform-verifier secure them as reqwest secures
+# its own, socket2 sets their TCP keep-alive, async-compression and tokio-util decompress their gzip
+# answers as tower-http decompresses reqwest's, and moka holds the h2c and ALPN verdicts.
 [dependencies]
+async-compression = { workspace = true }
 base64 = { workspace = true }
 bytes = { workspace = true }
 futures-util = { workspace = true }
 h2 = { workspace = true }
+http = { workspace = true }
 hyper-util = { workspace = true, features = ["client-legacy"] }
 ipnet = { workspace = true }
 moka = { workspace = true }
 reqwest = { workspace = true }
 rustls = { workspace = true }
+rustls-platform-verifier = { workspace = true }
+socket2 = { workspace = true }
 tokio = { workspace = true }
+tokio-rustls = { workspace = true }
+tokio-util = { workspace = true }
 url = { workspace = true }
 
 # The loopback servers (plain TCP, and TLS through tokio-rustls with rcgen certificates signed by
@@ -42,4 +50,3 @@ aws-lc-rs = { workspace = true }
 rcgen = { workspace = true }
 serde_json = { workspace = true }
 tokio = { workspace = true, features = ["test-util"] }
-tokio-rustls = { workspace = true }
