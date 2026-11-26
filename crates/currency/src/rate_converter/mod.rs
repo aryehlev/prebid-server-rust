@@ -2,7 +2,7 @@
 
 use std::{
     error::Error,
-    fmt::{self, Write as _},
+    fmt,
     sync::{Arc, PoisonError, RwLock, RwLockReadGuard, RwLockWriteGuard},
     time::{Duration, SystemTime},
 };
@@ -56,9 +56,9 @@ pub fn default_http_client(proxy: ProxyEnv) -> Result<Client, RequestError> {
 #[derive(Debug)]
 pub enum FetchError {
     /// Go: the `*url.Error` of `http.NewRequestWithContext` for a URL that does not parse,
-    /// `parse "<url>": <reason>`. Go parses a URL without a scheme (`invalidurl`) and fails in
-    /// `client.Do` instead (`Get "invalidurl": unsupported protocol scheme ""`); the url crate
-    /// refuses it here.
+    /// `parse "<url>": <reason>`, the URL quoted as Rust's `{:?}` quotes it where Go's `%q`
+    /// does. Go parses a URL without a scheme (`invalidurl`) and fails in `client.Do` instead
+    /// (`Get "invalidurl": unsupported protocol scheme ""`); the url crate refuses it here.
     Url {
         /// The configured URL.
         url: String,
@@ -84,11 +84,7 @@ pub enum FetchError {
 impl fmt::Display for FetchError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::Url { url, reason } => {
-                f.write_str("parse ")?;
-                write_go_quoted(f, url)?;
-                write!(f, ": {reason}")
-            }
+            Self::Url { url, reason } => write!(f, "parse {url:?}: {reason}"),
             Self::Request(err) => f.write_str(&err.do_text()),
             Self::BadServerResponse { status_code } => {
                 write!(
@@ -113,28 +109,6 @@ impl Error for FetchError {
             Self::BadServerResponse { .. } => None,
         }
     }
-}
-
-/// Go's `%q` for a string (`strconv.Quote`).
-fn write_go_quoted(f: &mut fmt::Formatter<'_>, text: &str) -> fmt::Result {
-    f.write_char('"')?;
-    for ch in text.chars() {
-        match ch {
-            '"' => f.write_str("\\\"")?,
-            '\\' => f.write_str("\\\\")?,
-            '\u{7}' => f.write_str("\\a")?,
-            '\u{8}' => f.write_str("\\b")?,
-            '\u{c}' => f.write_str("\\f")?,
-            '\n' => f.write_str("\\n")?,
-            '\r' => f.write_str("\\r")?,
-            '\t' => f.write_str("\\t")?,
-            '\u{b}' => f.write_str("\\v")?,
-            _ if u32::from(ch) < 0x20 || ch == '\u{7f}' => write!(f, "\\x{:02x}", u32::from(ch))?,
-            _ if ch.is_control() => write!(f, "\\u{:04x}", u32::from(ch))?,
-            _ => f.write_char(ch)?,
-        }
-    }
-    f.write_char('"')
 }
 
 /// Go: `timeutil.Time`, replaced by a fake clock in tests.
@@ -962,7 +936,7 @@ mod tests {
     #[test]
     fn fetch_error_sources() -> TestResult {
         // Go: currency/rate_converter.go:53-56 (http.NewRequestWithContext's url.Error, which
-        // quotes the URL with %q)
+        // quotes the URL with %q; `{:?}` writes these characters as %q does)
         let err = FetchError::ReadBody(RequestError::new(ErrorKind::Body, "boom"));
         check_eq(
             &err.source().map(ToString::to_string),

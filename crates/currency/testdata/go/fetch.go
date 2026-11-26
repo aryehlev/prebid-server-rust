@@ -105,6 +105,25 @@ func fetchScenarios() []fetchScenario {
 		{name: "stale_fallback", answers: []fetchAnswer{ok, notFound}, stale: time.Nanosecond, runs: 2},
 		{name: "kept_rates", answers: []fetchAnswer{ok, notFound}, stale: time.Hour, runs: 2},
 		{name: "proxy", url: "http://currency.test/latest.json"},
+		// Fetch URLs net/url and net/http read otherwise than the url crate and reqwest:
+		// credentials, which Go sends as Basic authorization and masks in its errors
+		// (currency.fetch-credentials); white space and control characters around or inside
+		// the URL, which url.Parse refuses or escapes, a backslash, missing slashes, a malformed
+		// escape and dot segments (currency.fetch-url); a control character in a URL neither
+		// parses, which %q quotes (currency.fetch-error-texts); and credentials through the
+		// proxy.
+		{name: "url_credentials", answers: []fetchAnswer{ok}, url: "http://user:p%40ss@127.0.0.1:PORT/latest.json"},
+		{name: "url_credentials_refused", url: "http://user:secret@127.0.0.1:PORT/latest.json"},
+		{name: "url_surrounding_space", answers: []fetchAnswer{ok}, url: " http://127.0.0.1:PORT/latest.json "},
+		{name: "url_trailing_space", answers: []fetchAnswer{ok}, url: "http://127.0.0.1:PORT/latest.json "},
+		{name: "url_trailing_newline", answers: []fetchAnswer{ok}, url: "http://127.0.0.1:PORT/latest.json\n"},
+		{name: "url_tab", answers: []fetchAnswer{ok}, url: "http://127.0.0.1:PORT/lat\test.json"},
+		{name: "url_backslash", answers: []fetchAnswer{ok}, url: "http://127.0.0.1:PORT/rates\\latest.json"},
+		{name: "url_no_slashes", answers: []fetchAnswer{ok}, url: "http:127.0.0.1:PORT/latest.json"},
+		{name: "url_bad_escape", answers: []fetchAnswer{ok}, url: "http://127.0.0.1:PORT/%zz.json"},
+		{name: "url_dot_segments", answers: []fetchAnswer{ok}, url: "http://127.0.0.1:PORT/rates/../latest.json"},
+		{name: "url_control_character", url: "http://[::1\x01]/latest.json"},
+		{name: "proxy_credentials", url: "http://user:pass@currency.test/latest.json"},
 	}
 	for i := range scenarios {
 		if scenarios[i].url == "" {
@@ -118,6 +137,12 @@ func fetchScenarios() []fetchScenario {
 		}
 	}
 	return scenarios
+}
+
+// viaProxy reports whether a scenario's request goes through the proxy: its host is not a
+// loopback address, so the proxy environment applies, and the proxy answers.
+func viaProxy(sc fetchScenario) bool {
+	return strings.HasPrefix(sc.name, "proxy")
 }
 
 // rawServer answers each connection with the next of its answers and keeps the request heads.
@@ -263,7 +288,7 @@ func writeFetch(dir string) {
 	scenarios := fetchScenarios()
 	var proxyAnswers []fetchAnswer
 	for _, sc := range scenarios {
-		if sc.name == "proxy" {
+		if viaProxy(sc) {
 			proxyAnswers = []fetchAnswer{respond(200, "", fetchRates)}
 		}
 	}
@@ -280,7 +305,7 @@ func writeFetch(dir string) {
 
 	for _, sc := range scenarios {
 		answers := sc.answers
-		if sc.name == "proxy" {
+		if viaProxy(sc) {
 			answers = proxyAnswers
 		}
 		g.line("scenario", sc.name, hx(sc.url), fmt.Sprint(sc.timeout.Milliseconds()), fmt.Sprint(int64(sc.stale)), fmt.Sprint(sc.runs))
@@ -298,6 +323,9 @@ func writeFetch(dir string) {
 			port = srv.port()
 		}
 		url := strings.ReplaceAll(sc.url, "PORT", port)
+		proxy.mu.Lock()
+		proxied := len(proxy.heads)
+		proxy.mu.Unlock()
 		rc := pbscurrency.NewRateConverter(&http.Client{}, sc.timeout, url, sc.stale)
 		for run := 0; run < sc.runs; run++ {
 			var runErr error
@@ -317,9 +345,9 @@ func writeFetch(dir string) {
 		if srv != nil {
 			heads = srv.close()
 		}
-		if sc.name == "proxy" {
+		if viaProxy(sc) {
 			proxy.mu.Lock()
-			heads = append(heads, proxy.heads...)
+			heads = append(heads, proxy.heads[proxied:]...)
 			proxy.mu.Unlock()
 		}
 		for i, head := range heads {

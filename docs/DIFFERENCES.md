@@ -20,7 +20,7 @@ Rule B's cases: (a) input real production traffic sends that the crate would rej
 | In-memory caches | 0 | 1 | 0 |
 | Configuration loading | 0 | 8 | 7 |
 | Cookies | 0 | 1 | 0 |
-| Currency rates | 0 | 2 | 0 |
+| Currency rates | 0 | 4 | 0 |
 | Global vendor list | 0 | 1 | 0 |
 | Gzip | 0 | 2 | 0 |
 | HTTP client | 0 | 24 | 5 |
@@ -34,7 +34,7 @@ Rule B's cases: (a) input real production traffic sends that the crate would rej
 | TLS | 0 | 2 | 1 |
 | URLs | 0 | 1 | 0 |
 | YAML | 0 | 3 | 0 |
-| All | 6 | 128 | 30 |
+| All | 6 | 130 | 30 |
 
 ## Decisions pending
 
@@ -324,14 +324,36 @@ No entry names the classes `other` and `unrecorded` or the kinds `stage_missing`
 
 ### Ledgered
 
+#### `currency.fetch-credentials`: Currency fetch URL credentials: Go sends them as Basic authorization, the port sends none and writes them into the request-target to a proxy
+
+- **Go:** `client.Do` on main.go:72's `&http.Client{}` sends a URL's userinfo as `Authorization: Basic <base64 of user:password>`, its escapes decoded (net/http/client.go `send`), and writes the request-target to an HTTP proxy without it, `GET http://currency.test/latest.json` (net/http/request.go `Request.write`); its errors show the password as `***`.
+- **Rust:** pbs-http-client hands reqwest the request as `Request::new` builds it, and reqwest takes a URL's userinfo as credentials only in its `RequestBuilder`, so the fetch sends no `Authorization` field: a rates server that wants the credentials refuses the fetch, which logs the failure and keeps the rates it had, or falls back to the constant rates once they are stale. To an HTTP proxy hyper writes the absolute-form request-target with the userinfo, `GET http://user:pass@currency.test/latest.json`. Its errors show the password as `***`, as Go's do.
+- **Who notices:** operator
+- **Visible in:** The requests of a server whose currency URL has credentials: whether the rates server accepts them, and the request line an HTTP proxy reads and may log
+- **Harness:** none
+- **Pin:** `crates/currency/tests/fetch.rs::fetch_credentials_differ`
+- **Restore option:** pbs-http-client's `Client::send` does what Go's `send` does: when the request has no `Authorization`, it sets `Basic` from the URL's decoded userinfo, and it hands reqwest the URL without the userinfo, its errors keeping the masked URL (asked of pbs-http-client).
+- **Recorded in:** `crates/currency/differences.toml`
+
 #### `currency.fetch-error-texts`: Currency fetch errors: net/http's and net/url's words in Go's log lines, reqwest's and the url crate's here
 
-- **Go:** A failed fetch logs `Error updating conversion rates: <err>`, and `error draining conversion rates response body: <err>` before it when the body fails (currency/rate_converter.go:49-102), with net/http's words in the errors: `Get "<url>": EOF` when the server closes the connection, `Get "<url>": dial tcp 127.0.0.1:PORT: connect: connection refused`, `Get "<url>": net/http: HTTP/1.x transport connection broken: malformed HTTP response "garbage"`, `Get "ftp://...": unsupported protocol scheme "ftp"`, `unexpected EOF` for a body cut short or a corrupt gzip body, and `read tcp ...: use of closed network connection` for the drain after the deadline; net/url's `parse "http://[::1": missing ']' in host`; and `Get "invalidurl": unsupported protocol scheme ""` for a URL without a scheme, which `url.Parse` takes and `client.Do` refuses.
-- **Rust:** Prebid's words, the `Get "<url>"` shape and the deadline's `context deadline exceeded` are Go's, and the words after them are reqwest's chain: `error sending request: client error (SendRequest): connection closed before message completed`, `error sending request: client error (Connect): tcp connect error: Connection refused (os error 61)` on macOS, `error sending request: client error (SendRequest): invalid HTTP version parsed`, `builder error: URL scheme is not allowed`, and `error decoding response body: ...` for the bodies; the drain after the deadline reads `context deadline exceeded`. The url crate refuses the URLs it cannot parse before any request, a URL without a scheme among them, in its own words: `parse "invalidurl": relative URL without a base`, `parse "http://[::1": invalid IPv6 address`.
+- **Go:** A failed fetch logs `Error updating conversion rates: <err>`, and `error draining conversion rates response body: <err>` before it when the body fails (currency/rate_converter.go:49-102), with net/http's words in the errors: `Get "<url>": EOF` when the server closes the connection, `Get "<url>": dial tcp 127.0.0.1:PORT: connect: connection refused`, `Get "<url>": net/http: HTTP/1.x transport connection broken: malformed HTTP response "garbage"`, `Get "ftp://...": unsupported protocol scheme "ftp"`, `unexpected EOF` for a body cut short or a corrupt gzip body, and `read tcp ...: use of closed network connection` for the drain after the deadline; net/url's `parse "http://[::1": missing ']' in host`; and `Get "invalidurl": unsupported protocol scheme ""` for a URL without a scheme, which `url.Parse` takes and `client.Do` refuses; `%q` quotes the URL of a parse error, `parse "http://[::1\x01]/latest.json": net/url: invalid control character in URL`.
+- **Rust:** Prebid's words, the `Get "<url>"` shape and the deadline's `context deadline exceeded` are Go's, and the words after them are reqwest's chain: `error sending request: client error (SendRequest): connection closed before message completed`, `error sending request: client error (Connect): tcp connect error: Connection refused (os error 61)` on macOS, `error sending request: client error (SendRequest): invalid HTTP version parsed`, `builder error: URL scheme is not allowed`, and `error decoding response body: ...` for the bodies; the drain after the deadline reads `context deadline exceeded`. The url crate refuses the URLs it cannot parse before any request, a URL without a scheme among them, in its own words: `parse "invalidurl": relative URL without a base`, `parse "http://[::1": invalid IPv6 address`, the URL quoted as Rust's `{:?}` quotes it, which writes a control character other than a tab, newline or carriage return otherwise than `%q` does (`parse "http://[::1\u{1}]/latest.json": invalid IPv6 address`).
 - **Who notices:** operator
 - **Visible in:** The server's log: the lines of a failed currency rates fetch
 - **Harness:** none
 - **Pin:** `crates/currency/tests/fetch.rs::error_texts`
+- **Recorded in:** `crates/currency/differences.toml`
+
+#### `currency.fetch-url`: Currency fetch URL: the url crate fetches URLs net/url refuses, and sends some paths otherwise
+
+- **Go:** `RateConverter.fetch` parses the configured URL with `url.Parse` through `http.NewRequestWithContext` (currency/rate_converter.go:53-58), which refuses a leading space (`first path segment in URL cannot contain colon`), a control character such as a trailing newline or a tab (`net/url: invalid control character in URL`) and a malformed escape (`invalid URL escape "%zz"`), and `client.Do` refuses `http:<host>/latest.json` (`http: no Host in request URL`): the fetch fails, logs it and keeps the rates it had, or falls back to the constant rates once they are stale. It sends a trailing space as `%20`, a backslash as `%5C` and dot segments as written (`GET /rates/../latest.json`).
+- **Rust:** The url crate strips white space and C0 controls around the URL, drops tabs and newlines inside it, reads `http:<host>` as `http://<host>`, keeps a malformed escape, reads a backslash as a slash and resolves dot segments, so each of those URLs fetches: `GET /latest.json` for the spaces, the newline, the tab, the missing slashes and the dot segments, `GET /%zz.json` and `GET /rates/latest.json`. The bidder requests' side of it is `http-client.request-target`.
+- **Who notices:** operator
+- **Visible in:** Whether a server whose currency URL has white space, a control character, a backslash, no slashes after the scheme, a malformed escape or dot segments loads rates, and the request line the rates server reads
+- **Harness:** none
+- **Pin:** `crates/currency/tests/fetch.rs::fetch_urls_differ`
+- **Restore option:** Parse the URL as net/url does (not planned: URL parsing is ledgered rather than restored, as for `http-client.request-target`).
 - **Recorded in:** `crates/currency/differences.toml`
 
 #### `currency.rates-json`: Currency file decode: what jsoniter reads otherwise than serde in Go's rates file

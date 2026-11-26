@@ -251,7 +251,7 @@ pub struct Scenario {
     pub timeout: Duration,
     /// The converter's `staleRatesThreshold`.
     pub stale: Duration,
-    /// The answers, one per connection, the last one repeated; none: nothing listens. The proxy
+    /// The answers, one per connection, the last one repeated; none: nothing listens. A proxied
     /// scenario's are the proxy's.
     pub answers: Vec<Answer>,
     /// Each call of `Run`.
@@ -260,6 +260,15 @@ pub struct Scenario {
     pub constant: bool,
     /// The request heads the server read, loopback ports written as `PORT`.
     pub heads: Vec<String>,
+}
+
+impl Scenario {
+    /// Whether its request goes through the proxy, which answers it (Go: `viaProxy`): its host
+    /// is not on loopback, so the proxy environment applies.
+    #[must_use]
+    pub fn via_proxy(&self) -> bool {
+        self.name.starts_with("proxy")
+    }
 }
 
 /// The scenario called `name`.
@@ -352,7 +361,7 @@ fn letter(severity: Severity) -> String {
 /// Replays every scenario as `writeFetch` ran it.
 ///
 /// Loopback servers answer with Go's bytes, the proxy environment names a loopback proxy, which
-/// only the proxy scenario's host goes through, and a converter on [`default_http_client`]'s
+/// only the proxied scenarios' hosts go through, and a converter on [`default_http_client`]'s
 /// client runs as often as Go's did, its lines captured. Each call runs on this thread, where
 /// the capture is, and the client's connections on a worker, which closes them once their
 /// request is gone, as Go's Transport does.
@@ -363,7 +372,7 @@ fn letter(severity: Severity) -> String {
 pub fn replay(scenarios: &[Scenario]) -> TestResult<Vec<Replayed>> {
     let proxy_answers = scenarios
         .iter()
-        .find(|scenario| scenario.name == "proxy")
+        .find(|scenario| scenario.via_proxy())
         .map_or_else(Vec::new, |scenario| scenario.answers.clone());
     let proxy = RawServer::start(proxy_answers)?;
     let proxy_url = format!("http://127.0.0.1:{}", proxy.port());
@@ -376,11 +385,12 @@ pub fn replay(scenarios: &[Scenario]) -> TestResult<Vec<Replayed>> {
         .build()?;
     let mut replayed = Vec::new();
     for scenario in scenarios {
-        let server = if scenario.name == "proxy" || scenario.answers.is_empty() {
+        let server = if scenario.via_proxy() || scenario.answers.is_empty() {
             None
         } else {
             Some(RawServer::start(scenario.answers.clone())?)
         };
+        let proxied = proxy.heads().len();
         let port = match &server {
             Some(server) => server.port(),
             None => closed_port()?,
@@ -408,8 +418,8 @@ pub fn replay(scenarios: &[Scenario]) -> TestResult<Vec<Replayed>> {
             Some(server) => server.close()?,
             None => Vec::new(),
         };
-        if scenario.name == "proxy" {
-            heads.extend(proxy.heads());
+        if scenario.via_proxy() {
+            heads.extend(proxy.heads().into_iter().skip(proxied));
         }
         replayed.push(Replayed {
             runs,
