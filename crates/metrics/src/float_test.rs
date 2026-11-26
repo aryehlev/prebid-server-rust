@@ -15,6 +15,9 @@ const TWO_POW_53: u64 = 9_007_199_254_740_992;
 const TWO_POW_63: f64 = 2_147_483_648.0 * 4_294_967_296.0;
 const TWO_POW_64: f64 = 4_294_967_296.0 * 4_294_967_296.0;
 
+/// Below 2^53 Go's conversion is exact.
+// Go: metrics/prometheus/prometheus.go:732 (Observe(float64(labels.RequestSize))) and go1.26.2
+// src/time/time.go:1090-1094 (Duration.Seconds: float64(sec) + float64(nsec)/1e9)
 #[test]
 fn whole_numbers_below_two_pow_53_convert_exactly() -> TestResult {
     ensure_eq!(from_u64(0), 0.0, "zero");
@@ -44,6 +47,8 @@ fn whole_numbers_below_two_pow_53_convert_exactly() -> TestResult {
 }
 
 /// Above 2^53 Go rounds to the nearest `f64`, a tie to the even one.
+// Go: metrics/prometheus/prometheus.go:732 (Observe(float64(labels.RequestSize))) and go1.26.2
+// src/time/time.go:1090-1094 (Duration.Seconds)
 #[test]
 fn larger_numbers_round_to_nearest_even() -> TestResult {
     ensure_eq!(

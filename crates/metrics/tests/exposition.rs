@@ -179,6 +179,11 @@ mod tests {
     /// no escape is in the source as it is.
     const GO_QUOTED: [&str; 3] = ["\"a\\\"b\\\\c\\td\\x7fe", "\\", "u00adf\\U000e0001g\" rest"];
 
+    /// The test's readers of the scripts and scrapes are the generator's: percent-decoding,
+    /// FNV-1a, the adapter label, canonical values, `%q` read back and the digests.
+    // Go: testdata/go/main.go:652-669 (parseArgs' url.PathUnescape), :487-491 (fnv64a),
+    // :631-644 (adapterLabel), :472-483 (canonicalValue), :350-401 (readExposition, digests);
+    // strconv.Unquote for the `%q` of client_golang's registration error
     #[test]
     fn script_helpers_match_go() -> TestResult {
         check_eq(

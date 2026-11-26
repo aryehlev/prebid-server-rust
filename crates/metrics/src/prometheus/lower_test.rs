@@ -65,6 +65,8 @@ fn std_lowercase_is_not_go() -> TestResult {
 /// Every rune against Go's `strings.ToLower`. The only runes that differ are letters Unicode gave
 /// a lower-case mapping after 15.0.0, the version of go1.26.2's tables: Go keeps them, std's
 /// later tables lower them (ledger: `metrics.label-unicode`).
+// Go: go1.26.2 src/strings/strings.go:727 (ToLower), which metrics/prometheus/prometheus.go:860
+// and the other adapter labels apply; the table is testdata/go's writeToLowerTable
 #[test]
 fn to_lower_matches_go_for_every_rune() -> TestResult {
     let table = go_table()?;

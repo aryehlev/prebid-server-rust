@@ -972,6 +972,8 @@ fn cache_result_metrics() -> TestResult {
 
 /// Go adds `uint64(float64(n))` to a counter's integer: a count above 2^53 is rounded to the
 /// nearest `f64`, a tie to the even one, before it is added.
+// Go: metrics/prometheus/prometheus.go:974-990 (Add(float64(inc))); client_golang v1.12.1
+// prometheus/counter.go:107-124 (Add's integer part) and :136-140 (get)
 #[test]
 fn cache_counts_round_as_go_converts_them() -> TestResult {
     const TWO_POW_53: u64 = 9_007_199_254_740_992;
@@ -1536,6 +1538,8 @@ fn record_module_metrics() -> TestResult {
 
 /// Go's `MustRegister` panics on an invalid metric name; the port returns the prometheus crate's
 /// error for the same family (ledger: `metrics.registration-errors`).
+// Go: metrics/prometheus/prometheus.go:190-192 (the first family) and :660-670
+// (newCounterWithoutLabels' MustRegister); client_golang v1.12.1 prometheus/desc.go:85-88
 #[test]
 fn invalid_namespace_is_a_registration_error() -> TestResult {
     let cfg = PrometheusMetrics {

@@ -71,6 +71,8 @@ fn register_label_permutations_produces_every_combination() -> TestResult {
 }
 
 /// A label without values (an empty syncer list, a module without stages) preloads nothing.
+// Go: metrics/prometheus/preload.go:317-331 (registerLabelPermutationsRecursive ranges over
+// each label's values)
 #[test]
 fn register_label_permutations_with_an_empty_value_list_registers_nothing() -> TestResult {
     let ab = values(&["A", "B"]);
@@ -88,6 +90,8 @@ fn register_label_permutations_with_an_empty_value_list_registers_nothing() -> T
 }
 
 /// Repeated values (duplicate syncer keys) register the same combination again.
+// Go: metrics/prometheus/preload.go:317-331 (registerLabelPermutationsRecursive registers each
+// value it ranges over)
 #[test]
 fn register_label_permutations_repeats_duplicate_values() -> TestResult {
     let dup = values(&["dup", "dup"]);
