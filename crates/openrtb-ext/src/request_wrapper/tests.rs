@@ -1060,10 +1060,17 @@ fn clone_user_ext_nil_eids() -> TestResult {
     let mut user = UserExt::default();
     user.set_eid(Some(None));
     let clone = user.clone();
-    ensure_eq(&clone.get_eid(), &Some(Some(&[][..])), "clone of a nil slice")?;
+    ensure_eq(
+        &clone.get_eid(),
+        &Some(Some(&[][..])),
+        "clone of a nil slice",
+    )?;
     ensure(clone.dirty(), "the clone is dirty")?;
     ensure_eq(&user.get_eid(), &Some(None), "the original's nil slice")?;
-    ensure_eq(&UserExt::default().clone().get_eid(), &None, "clone of no eids")
+    let empty = UserExt::default();
+    let empty_clone = empty.clone();
+    ensure_eq(&empty_clone.get_eid(), &None, "clone of no eids")?;
+    ensure_eq(&empty_clone, &empty, "clone of an empty ext")
 }
 
 /// The device ext of `TestRebuildDeviceExt` with `cdep` 1.

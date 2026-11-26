@@ -272,10 +272,10 @@ mod tests {
             }
         }
         let prefixed = r#"x{"atts":1}"#;
-        let got =
+        let prefixed_status =
             parse_device_ext_atts(prefixed.as_bytes()).map_err(|e| format!("{prefixed}: {e}"))?;
-        if got.is_some() {
-            return Err(format!("{prefixed}: got {got:?}, want None"));
+        if prefixed_status.is_some() {
+            return Err(format!("{prefixed}: got {prefixed_status:?}, want None"));
         }
         for doc in LONE_SURROGATE_KEYS {
             let decoded = pbs_jsonutil::replace_lone_surrogates(doc.as_bytes());

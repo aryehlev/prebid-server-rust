@@ -139,8 +139,8 @@ fn parse_device_ext_atts_cases() -> TestResult {
         ("Empty Object", b"{}", None, ""),
         ("Valid", br#"{"atts":3}"#, Some(authorized), ""),
         ("Invalid Value", br#"{"atts":5}"#, None, "invalid status"),
-        // Bytes that do not start an object give no status, as jsonparser finds no `atts` in
-        // them (encoding/json would fail).
+        // `malformed` gives no status, as jsonparser finds no `atts` in it (encoding/json would
+        // fail).
         ("Malformed - Standard Test Case", b"malformed", None, ""),
         (
             "Malformed - Wrong Type",
