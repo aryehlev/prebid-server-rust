@@ -128,6 +128,8 @@ fn known_ios_app_tracking_status() -> TestResult {
 }
 
 /// Go: `TestParseDeviceExtATTS`. Go's nil and empty `json.RawMessage` are both an empty slice.
+/// The ext is read with `serde_json`, so the wrong type fails with its text where Go's is
+/// jsonparser's `Value is not a number: 1` (`json.error-texts`).
 #[test]
 fn parse_device_ext_atts_cases() -> TestResult {
     let authorized = IOS_APP_TRACKING_STATUS_AUTHORIZED;
@@ -137,14 +139,14 @@ fn parse_device_ext_atts_cases() -> TestResult {
         ("Empty Object", b"{}", None, ""),
         ("Valid", br#"{"atts":3}"#, Some(authorized), ""),
         ("Invalid Value", br#"{"atts":5}"#, None, "invalid status"),
-        // jsonparser treats malformed JSON as the value not being found (encoding/json would
+        // `malformed` gives no status, as jsonparser finds no `atts` in it (encoding/json would
         // fail).
         ("Malformed - Standard Test Case", b"malformed", None, ""),
         (
             "Malformed - Wrong Type",
             br#"{"atts":"1"}"#,
             None,
-            "Value is not a number: 1",
+            r#"invalid type: string "1", expected i64 at line 1 column 3"#,
         ),
     ];
     all_ok(cases.into_iter().map(

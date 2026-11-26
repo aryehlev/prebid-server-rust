@@ -8,7 +8,6 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"unicode/utf8"
 
 	"github.com/prebid/openrtb/v20/openrtb2"
 
@@ -94,62 +93,48 @@ var suites = map[string][]string{
 // corpusSuite is the suite of every request of the corpora.
 const corpusSuite = "corpus"
 
-// obs is an observation: a sequence of parts, each its length, ":" and its bytes. lossy is the
-// same observation with each invalid UTF-8 byte of an error text replaced by U+FFFD, as the
-// Rust port's errors (whose messages are Rust strings) hold them.
+// obs is an observation: a sequence of parts, each its kind, its decimal length, ":" and its
+// bytes. The kinds are
+//
+//	e  an error text (empty for none)
+//	j  JSON that jsonutil.Marshal wrote
+//	x  the error text of a jsonutil.Marshal that failed
+//	t  a text: a flag ("t" or "f") or a number
+//	m  an ext map: its members in key order, each a "j" part (the key) and an "r" or "n" part
+//	r  a member's bytes, verbatim
+//	n  a nil member (no bytes)
+//
+// so that the replay can compare each part by what it holds: JSON by its tokens, texts exactly.
 type obs struct {
-	buf   []byte
-	lossy []byte
+	buf []byte
 }
 
-func appendPart(dst, b []byte) []byte {
-	dst = strconv.AppendInt(dst, int64(len(b)), 10)
-	dst = append(dst, ':')
-	return append(dst, b...)
-}
-
-func (o *obs) part(b []byte) {
-	o.buf = appendPart(o.buf, b)
-	o.lossy = appendPart(o.lossy, b)
+func (o *obs) part(kind byte, b []byte) {
+	o.buf = append(o.buf, kind)
+	o.buf = strconv.AppendInt(o.buf, int64(len(b)), 10)
+	o.buf = append(o.buf, ':')
+	o.buf = append(o.buf, b...)
 }
 
 func (o *obs) text(s string) {
-	o.part([]byte(s))
-}
-
-// errorText writes an error text, and its valid UTF-8 form into lossy.
-func (o *obs) errorText(s string) {
-	o.buf = appendPart(o.buf, []byte(s))
-	o.lossy = appendPart(o.lossy, []byte(validUTF8(s)))
-}
-
-// validUTF8 is s with each invalid UTF-8 byte replaced by U+FFFD.
-func validUTF8(s string) string {
-	if utf8.ValidString(s) {
-		return s
-	}
-	var b strings.Builder
-	for _, r := range s {
-		b.WriteRune(r)
-	}
-	return b.String()
+	o.part('t', []byte(s))
 }
 
 func (o *obs) err(err error) {
 	if err == nil {
-		o.part(nil)
+		o.part('e', nil)
 		return
 	}
-	o.errorText(err.Error())
+	o.part('e', []byte(err.Error()))
 }
 
 func (o *obs) marshal(v interface{}) {
 	b, err := jsonutil.Marshal(v)
 	if err != nil {
-		o.errorText("!" + err.Error())
+		o.part('x', []byte(err.Error()))
 		return
 	}
-	o.part(b)
+	o.part('j', b)
 }
 
 // request writes a step's error (empty when it has none, so that equal requests are equal
@@ -172,7 +157,7 @@ func (o *obs) int(n int) {
 }
 
 // rawMap writes the members of an ext map in key order: each key as jsonutil.Marshal writes it
-// and its bytes verbatim ("<nil>" for a nil value).
+// and its bytes verbatim (an "n" part for a nil value).
 func (o *obs) rawMap(m map[string]json.RawMessage) {
 	keys := make([]string, 0, len(m))
 	for k := range m {
@@ -183,12 +168,12 @@ func (o *obs) rawMap(m map[string]json.RawMessage) {
 	for _, k := range keys {
 		inner.marshal(k)
 		if m[k] == nil {
-			inner.text("<nil>")
+			inner.part('n', nil)
 		} else {
-			inner.part(m[k])
+			inner.part('r', m[k])
 		}
 	}
-	o.part(inner.buf)
+	o.part('m', inner.buf)
 }
 
 // runner runs the steps of a script on one wrapper.
@@ -213,7 +198,7 @@ func (r *runner) step(step string) (out obs, panicked bool) {
 		defer func() {
 			if p := recover(); p != nil {
 				text := []byte(fmt.Sprint(p))
-				out = obs{buf: text, lossy: text}
+				out = obs{buf: text}
 				panicked = true
 			}
 		}()

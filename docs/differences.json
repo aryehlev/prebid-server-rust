@@ -131,6 +131,53 @@
       "fragment": "crates/differences/differences.toml"
     },
     {
+      "id": "config.alternate-code-quoting",
+      "category": "config",
+      "status": "ledgered",
+      "title": "Alternate bidder code warnings: Go quotes the names with `strconv.Quote`, the port as Rust quotes strings",
+      "go": "`IsValidBidderCode`'s errors quote the bidder and the seat with `%q` (openrtb_ext/alternatebiddercodes.go:52, 56 and 60): `strconv.Quote` writes `\\a`, `\\b`, `\\f` and `\\v` for those controls, `\\x` and two hex digits for the other ASCII controls and DEL (`\\x00`, `\\x7f`), and `\\u` or `\\U` and the hex digits for every other character Go does not print by Unicode 15.0.0's tables: C1 controls, format characters (`\\u00ad`, the soft hyphen), the spaces but U+0020 (`\\u00a0`), the line and paragraph separators, and private-use and unassigned code points, among them the characters Unicode assigned after 15.0.0 (`\\ua7cb`). It keeps marks (U+0301, U+0488) and the Hangul fillers (U+3164) as they are.",
+      "rust": "The port quotes them with `{:?}`, which writes `\\0` for NUL and `\\u{`, the hex digits and `}` for each other of those characters (`\\u{7}`, `\\u{7f}`, `\\u{ad}`, `\\u{a0}`) but the ones std's later Unicode tables print, which it writes as they are (U+A7CB), and also for the marks that extend a grapheme (every nonspacing and enclosing mark and some spacing marks) and the Hangul fillers: `\\u{301}`, `\\u{488}`, `\\u{3164}`. Tab, newline, carriage return, `\"`, `\\` and every other character are quoted alike.",
+      "who": [
+        "publisher"
+      ],
+      "visible_in": "The `ext.warnings` of an auction whose bidder returns a bid under a seat the alternate bidder codes reject (exchange/bidder.go:388-395), where the bidder or seat name holds a control or format character, a space other than U+0020, a line or paragraph separator, a private-use or unassigned code point or one Unicode assigned after 15.0.0, a mark that extends a grapheme, or a Hangul filler",
+      "harness": [],
+      "pin": "crates/openrtb-ext/src/alternatebiddercodes.rs::names_quoted_as_rust_quotes_them",
+      "restore": "Port `strconv.Quote` with Go's printability tables; not planned (orchestrator ruling 2 ledgers library wording, as for config.error-texts).",
+      "default": null,
+      "decision": null,
+      "rule_b": null,
+      "restore_by": [],
+      "restorations": [],
+      "restore_pending": false,
+      "note": null,
+      "fragment": "crates/openrtb-ext/differences.toml"
+    },
+    {
+      "id": "config.bidder-name-unicode",
+      "category": "config",
+      "status": "ledgered",
+      "title": "Bidder name case: Go maps letters by Unicode 15.0.0, the port by std's later Unicode tables",
+      "go": "`NormalizeBidderName`, `SetAliasBidderName`, `IsBidderNameReserved` and `IsValidBidderCode` lower-case and fold names with `strings.ToLower` and `strings.EqualFold`, whose go1.26.2 tables are Unicode 15.0.0's: a letter Unicode gave a case pair since, such as U+A7CB, U+10D50 or U+1C89, stays as it is and folds with nothing else.",
+      "rust": "The port maps each character by its simple mapping, and folds it by its class, from std's tables, which are a later Unicode version's: those letters lower to their pairs (U+A7CB to U+0264, U+10D50 to U+10D70, U+1C89 to U+1C8A) and fold with them. Every other character maps and folds as in Go.",
+      "who": [
+        "operator",
+        "publisher"
+      ],
+      "visible_in": "Bidder and alias names holding such a letter: the aliases of the bidder-info files, the bidder names of requests (multibid, bid adjustments, deal tiers, `/setuid`, `/event`) and the seats the alternate bidder codes check (exchange/bidder.go:388)",
+      "harness": [],
+      "pin": "crates/openrtb-ext/src/bidders.rs::letters_cased_after_unicode_15_are_lowered",
+      "restore": "Carry Unicode 15.0.0's case tables for bidder names; not planned, as for config.key-unicode.",
+      "default": null,
+      "decision": null,
+      "rule_b": null,
+      "restore_by": [],
+      "restorations": [],
+      "restore_pending": false,
+      "note": "Go's goldens show it: review_aliases.tsv registers the alias `\\u{a7cb}new`, which go1.26.2's `NormalizeBidderName` and `NormalizeBidderNameOrUnchanged` do not find by `\\u{264}new` and the port's do (tests/review_aliases/main.rs counts those two calls); the other case-mapping probes of review_aliases.tsv and review_functions.tsv give Go's results.",
+      "fragment": "crates/openrtb-ext/differences.toml"
+    },
+    {
       "id": "config.env-bool-spellings",
       "category": "config",
       "status": "restored",
@@ -1964,6 +2011,30 @@
       "fragment": "crates/jsonutil/differences.toml"
     },
     {
+      "id": "json.ext-null-member",
+      "category": "json",
+      "status": "ledgered",
+      "title": "An ext with a null member, rebuilt: Go writes bytes that are not JSON, the port the member as null",
+      "go": "jsoniter decodes a null member of an ext object into the wrapper's `map[string]json.RawMessage` as a nil `json.RawMessage`, which the ext's `marshal` writes as no value (`json.nil-raw-written`): once `imp.ext.tid` is set on `{\"prebid\":null,\"other\":[1,\"x\"]}`, `RebuildImp` stores `{\"other\":[1,\"x\"],\"prebid\":,\"tid\":\"tid\"}` in `imp.ext`, the request is written with no value for that ext (`\"ext\":}`), and reading the ext again fails (`do not know how to skip: 44`).",
+      "rust": "A nil member is `None`, which the rebuild writes as null: `{\"other\":[1,\"x\"],\"prebid\":null,\"tid\":\"tid\"}`, JSON that reads back.",
+      "who": [
+        "publisher",
+        "bidder"
+      ],
+      "visible_in": "The auction of a request with an `imp.ext` member that is null when Prebid sets the imp's `tid` (endpoints/openrtb2/auction.go:956-965): Go's `splitImps` then fails on the ext (`invalid json for imp[0]: ...`, exchange/utils.go:659-661) and no bidder is called, where the port runs the auction with the member null",
+      "harness": [],
+      "pin": "crates/openrtb-ext/tests/parity/request_wrapper/mod.rs::ext_null_members_written_null",
+      "restore": "Not planned: a `RawValue` holds JSON only, so the rebuild cannot store Go's bytes, and failing the auction where Go's split fails would be glue outside this crate for a request Go mishandles.",
+      "default": null,
+      "decision": null,
+      "rule_b": null,
+      "restore_by": [],
+      "restorations": [],
+      "restore_pending": false,
+      "note": null,
+      "fragment": "crates/openrtb-ext/differences.toml"
+    },
+    {
       "id": "json.failed-merge-elements",
       "category": "json",
       "status": "ledgered",
@@ -2237,6 +2308,29 @@
       "restore_pending": false,
       "note": null,
       "fragment": "crates/differences/differences.toml"
+    },
+    {
+      "id": "json.jsonparser-scan",
+      "category": "json",
+      "status": "ledgered",
+      "title": "`ParseDeviceExtATTS`: Go reads `atts` as jsonparser scans to it, the port decodes the ext",
+      "go": "`ParseDeviceExtATTS` reads `atts` with `jsonparser.GetInt` (openrtb_ext/device.go:103-117), which scans the bytes only as far as the first top-level `atts` and reads a number as a run of digits: `{\"atts\":2,\"atts\":3}` gives 2, `{\"atts\":01}` 1, `{\"atts\":2` 2, `{\"atts\":-}` and `{\"x\":1,\"atts\":00}` 0, and `x{\"atts\":1}` 1, as bytes before an object do not stop the scan. A top-level key with a lone surrogate escape, which jsonparser cannot unescape, ends the scan with the member not found: `{\"\\ud800\":1,\"atts\":1}` gives no status, `{\"atts\":1,\"\\ud800\":1}` 1.",
+      "rust": "The port decodes the ext with `serde_json`, which fails on a repeated `atts` (`duplicate field`) and on the bytes that are not JSON (`invalid number at line 1 column 10`, `EOF while parsing an object`, `unexpected end of hex escape`), and gives no status for bytes that do not start an object; other JSON reads as in Go. The request's decode writes a lone surrogate escape as the escape of U+FFFD (`json.lone-surrogates-raw`), a key the port reads past, so the ext it reads gives 1 for both.",
+      "who": [
+        "bidder"
+      ],
+      "visible_in": "The `device.lmt` that the auction sets from the status (endpoints/openrtb2/auction.go:570, privacy/lmt/ios.go:51-67) for an iOS 14.2 or later app request whose `device.ext` repeats `atts`, where Go sets it from the first and the port leaves it as it came, or has a key with a lone surrogate escape before `atts`, where Go leaves it as it came and the port sets it from `atts`. The bytes that are not JSON reach the read in neither: the request's decode rejects them first, in Go (`leading zero is invalid`, `invalid number`) and in the port",
+      "harness": [],
+      "pin": "crates/openrtb-ext/src/device.rs::atts_read_only_from_json",
+      "restore": "Not planned: a repeated key is accepted as serde reads it (orchestrator ruling 2, as for json.duplicate-keys), and the port's request holds no lone surrogate escape for the read to stop at (ruling 7 rewrites the bytes before serde_json sees them, as for json.lone-surrogates-raw).",
+      "default": null,
+      "decision": null,
+      "rule_b": null,
+      "restore_by": [],
+      "restorations": [],
+      "restore_pending": false,
+      "note": null,
+      "fragment": "crates/openrtb-ext/differences.toml"
     },
     {
       "id": "json.key-case",
@@ -2949,15 +3043,19 @@
       "visible_in": "The 400 response to a request whose `device.ext.prebid.interstitial` is invalid (`Invalid request: request.device.ext.prebid.interstitial.minwidthperc must be a number between 0 and 100`, endpoints/openrtb2/sample-requests/invalid-whole/interstital-bad-perc.json:52), which Prebid reads into an `ExtDevicePrebid` with `jsonutil.Unmarshal` (openrtb_ext/request_wrapper.go:940), once the request wrapper reads it with the serde code. Merge errors reach no one: every `MergeClone` caller replaces the text.",
       "harness": [],
       "pin": "crates/openrtb-ext/tests/parity/shapes.rs::prebid_messages_carry_position_and_field",
-      "restore": "Glue under Rule B (d), as Prebid-authored text, in pbs-jsonutil, which this unit does not own (a shared change request): `unmarshal` and `unmarshal_valid` return a message that starts with `request.` without serde_json's ` at line L column C`, and `MergeCloneError` writes such a message without its field, as `tryExtractErrorMessage` does (`EncodingJson` likewise for `json.Unmarshal`, whose sites decode none of these types). It is due before ORTBEXT-SERDE-WRAPPER reads the request's extensions with the serde code, and that unit brings the restore pin against this crate's goldens.",
+      "restore": "Glue under Rule B (d), as Prebid-authored text: the request wrapper's decodes (src/request_wrapper/prebid_messages.rs) give a `FailedToUnmarshal` whose message starts with `request.` without serde_json's ` at line L column C`, as `tryExtractErrorMessage` does. The same glue in pbs-jsonutil's `unmarshal`, `unmarshal_valid` and `MergeCloneError`, for the callers outside the wrapper, is a shared change request: no production site decodes these types there.",
       "default": null,
       "decision": null,
       "rule_b": "d",
-      "restore_by": [
-        "ORTBEXT-SERDE-WRAPPER"
+      "restore_by": [],
+      "restorations": [
+        {
+          "pin": "crates/openrtb-ext/tests/parity/request_wrapper/mod.rs::prebid_messages_are_bare",
+          "note": "`get:device` on a device ext whose interstitial `minwidthperc` is a string fails with Prebid's bare text in Go's request wrapper goldens (review.tsv.gz, `review device ext 0`), and the port's wrapper with the same text.",
+          "fragment": "crates/openrtb-ext/differences.toml"
+        }
       ],
-      "restorations": [],
-      "restore_pending": true,
+      "restore_pending": false,
       "note": "`stringOrStringArray`'s `value should be of type string or []string` reaches `jsonutil.Unmarshal`'s caller with jsoniter's field around it (`cannot unmarshal openrtb_ext.ImpExtGoldbach.CustomTargeting: ...`), which is `json.error-texts`; `json.Unmarshal` gives it bare, as it gives the others.",
       "fragment": "crates/openrtb-ext/differences.toml"
     },
@@ -3025,6 +3123,29 @@
       "restore_pending": false,
       "note": null,
       "fragment": "crates/differences/differences.toml"
+    },
+    {
+      "id": "json.raw-not-json",
+      "category": "json",
+      "status": "ledgered",
+      "title": "Ext members that are not JSON: Go's ext maps hold any bytes and write no value for them, the port's hold JSON only",
+      "go": "An ext object's map is a `map[string]json.RawMessage`, which holds any bytes: `SetExt` takes a map with `malformed` in it, and an EID's `ext` can be `{bad`. The rebuild writes no value for bytes `json.Compact` rejects (`rawMessageCodec`, util/jsonutil/jsonutil.go:242-250).",
+      "rust": "A member is a `RawValue`, which holds JSON only, so no ext map holds `malformed`; an EID ext of `{bad` (an openrtb `RawJson`) fails the rebuild's marshal.",
+      "who": [
+        "none"
+      ],
+      "visible_in": "Nothing in production: the ext members Prebid sets are bytes jsoniter decoded, whose skip checks them, or bytes Prebid encoded",
+      "harness": [],
+      "pin": "crates/openrtb-ext/tests/parity/request_wrapper/mod.rs::raw_members_must_be_json",
+      "restore": "Not planned while no Prebid code sets an ext member that is not JSON.",
+      "default": null,
+      "decision": null,
+      "rule_b": null,
+      "restore_by": [],
+      "restorations": [],
+      "restore_pending": false,
+      "note": null,
+      "fragment": "crates/openrtb-ext/differences.toml"
     },
     {
       "id": "json.std-error-texts",

@@ -174,3 +174,46 @@ fn read_deal_tiers() -> TestResult {
         "bidder_dedupe appnexus",
     )
 }
+
+/// The `imp.ext` documents `serde_json` reads otherwise than jsoniter, with go1.26.2's results
+/// (run by hand at the pinned upstream): `null` gives Go an empty map, and the port an error
+/// (`json.null-document`); a repeated `prebid` gives Go both members' tiers, decoded one into
+/// the other, and the port an error (`json.duplicate-keys`); keys in another case give Go the
+/// tier and the port none (`json.key-case`); and `prebid` given as an array fails in Go
+/// (`cannot unmarshal Prebid: expect { or n, but found [`) and reads as no tiers here
+/// (`json.struct-from-array`). The exchange drops an imp's tiers when the read fails
+/// (exchange/exchange.go:673-676).
+// Go: openrtb_ext/deal_tier.go:36
+#[test]
+fn read_deal_tiers_where_serde_differs() -> TestResult {
+    let cases: [DealTierCase; 4] = [
+        (
+            "null document",
+            Some("null"),
+            Err(ErrorKind::FailedToUnmarshal),
+        ),
+        (
+            "repeated prebid",
+            Some(concat!(
+                r#"{"prebid":{"bidder":{"appnexus":"#,
+                r#"{"dealTier":{"minDealTier":5,"prefix":"a"}}}},"#,
+                r#""prebid":{"bidder":{"rubicon":"#,
+                r#"{"dealTier":{"minDealTier":8,"prefix":"r"}}}}}"#,
+            )),
+            Err(ErrorKind::FailedToUnmarshal),
+        ),
+        (
+            "keys in another case",
+            Some(concat!(
+                r#"{"Prebid":{"Bidder":{"appnexus":"#,
+                r#"{"DealTier":{"MinDealTier":5,"Prefix":"a"}}}}}"#,
+            )),
+            Ok(none()),
+        ),
+        ("prebid array", Some(r#"{"prebid":[]}"#), Ok(none())),
+    ];
+    all_ok(cases.into_iter().map(|(description, ext, expected)| {
+        let got = read_deal_tiers_from_imp(&imp(ext)).map_err(|e| e.kind().clone());
+        (description.to_owned(), ensure_eq(&got, &expected, "result"))
+    }))
+}

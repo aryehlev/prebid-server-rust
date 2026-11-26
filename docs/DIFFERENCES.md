@@ -18,7 +18,7 @@ Rule B's cases: (a) input real production traffic sends that the crate would rej
 |---|---:|---:|---:|
 | Base64 | 0 | 1 | 1 |
 | In-memory caches | 0 | 1 | 0 |
-| Configuration loading | 0 | 8 | 7 |
+| Configuration loading | 0 | 10 | 7 |
 | Cookies | 0 | 1 | 0 |
 | Currency rates | 0 | 4 | 0 |
 | Global vendor list | 0 | 1 | 0 |
@@ -26,7 +26,7 @@ Rule B's cases: (a) input real production traffic sends that the crate would rej
 | HTTP client | 0 | 24 | 5 |
 | InfluxDB metrics | 0 | 10 | 1 |
 | IP addresses | 0 | 1 | 1 |
-| JSON | 5 | 42 | 6 |
+| JSON | 5 | 45 | 6 |
 | Logging | 0 | 10 | 3 |
 | Prometheus metrics | 1 | 7 | 1 |
 | Public suffix list | 1 | 0 | 0 |
@@ -39,7 +39,7 @@ Rule B's cases: (a) input real production traffic sends that the crate would rej
 | URLs | 0 | 2 | 2 |
 | User syncs | 0 | 1 | 0 |
 | YAML | 0 | 3 | 0 |
-| All | 7 | 152 | 36 |
+| All | 7 | 157 | 36 |
 
 ## Decisions pending
 
@@ -53,7 +53,7 @@ Rule B's cases: (a) input real production traffic sends that the crate would rej
 
 ## Restore pins still to land
 
-- `json.prebid-message-context`: brought by ORTBEXT-SERDE-WRAPPER.
+None.
 
 ## How the parity harness matches an entry
 
@@ -123,6 +123,29 @@ No entry names the classes `other` and `unrecorded` or the kinds `stage_missing`
 ## Configuration loading
 
 ### Ledgered
+
+#### `config.alternate-code-quoting`: Alternate bidder code warnings: Go quotes the names with `strconv.Quote`, the port as Rust quotes strings
+
+- **Go:** `IsValidBidderCode`'s errors quote the bidder and the seat with `%q` (openrtb_ext/alternatebiddercodes.go:52, 56 and 60): `strconv.Quote` writes `\a`, `\b`, `\f` and `\v` for those controls, `\x` and two hex digits for the other ASCII controls and DEL (`\x00`, `\x7f`), and `\u` or `\U` and the hex digits for every other character Go does not print by Unicode 15.0.0's tables: C1 controls, format characters (`\u00ad`, the soft hyphen), the spaces but U+0020 (`\u00a0`), the line and paragraph separators, and private-use and unassigned code points, among them the characters Unicode assigned after 15.0.0 (`\ua7cb`). It keeps marks (U+0301, U+0488) and the Hangul fillers (U+3164) as they are.
+- **Rust:** The port quotes them with `{:?}`, which writes `\0` for NUL and `\u{`, the hex digits and `}` for each other of those characters (`\u{7}`, `\u{7f}`, `\u{ad}`, `\u{a0}`) but the ones std's later Unicode tables print, which it writes as they are (U+A7CB), and also for the marks that extend a grapheme (every nonspacing and enclosing mark and some spacing marks) and the Hangul fillers: `\u{301}`, `\u{488}`, `\u{3164}`. Tab, newline, carriage return, `"`, `\` and every other character are quoted alike.
+- **Who notices:** publisher
+- **Visible in:** The `ext.warnings` of an auction whose bidder returns a bid under a seat the alternate bidder codes reject (exchange/bidder.go:388-395), where the bidder or seat name holds a control or format character, a space other than U+0020, a line or paragraph separator, a private-use or unassigned code point or one Unicode assigned after 15.0.0, a mark that extends a grapheme, or a Hangul filler
+- **Harness:** none
+- **Pin:** `crates/openrtb-ext/src/alternatebiddercodes.rs::names_quoted_as_rust_quotes_them`
+- **Restore option:** Port `strconv.Quote` with Go's printability tables; not planned (orchestrator ruling 2 ledgers library wording, as for config.error-texts).
+- **Recorded in:** `crates/openrtb-ext/differences.toml`
+
+#### `config.bidder-name-unicode`: Bidder name case: Go maps letters by Unicode 15.0.0, the port by std's later Unicode tables
+
+- **Go:** `NormalizeBidderName`, `SetAliasBidderName`, `IsBidderNameReserved` and `IsValidBidderCode` lower-case and fold names with `strings.ToLower` and `strings.EqualFold`, whose go1.26.2 tables are Unicode 15.0.0's: a letter Unicode gave a case pair since, such as U+A7CB, U+10D50 or U+1C89, stays as it is and folds with nothing else.
+- **Rust:** The port maps each character by its simple mapping, and folds it by its class, from std's tables, which are a later Unicode version's: those letters lower to their pairs (U+A7CB to U+0264, U+10D50 to U+10D70, U+1C89 to U+1C8A) and fold with them. Every other character maps and folds as in Go.
+- **Who notices:** operator, publisher
+- **Visible in:** Bidder and alias names holding such a letter: the aliases of the bidder-info files, the bidder names of requests (multibid, bid adjustments, deal tiers, `/setuid`, `/event`) and the seats the alternate bidder codes check (exchange/bidder.go:388)
+- **Harness:** none
+- **Pin:** `crates/openrtb-ext/src/bidders.rs::letters_cased_after_unicode_15_are_lowered`
+- **Restore option:** Carry Unicode 15.0.0's case tables for bidder names; not planned, as for config.key-unicode.
+- **Note:** Go's goldens show it: review_aliases.tsv registers the alias `\u{a7cb}new`, which go1.26.2's `NormalizeBidderName` and `NormalizeBidderNameOrUnchanged` do not find by `\u{264}new` and the port's do (tests/review_aliases/main.rs counts those two calls); the other case-mapping probes of review_aliases.tsv and review_functions.tsv give Go's results.
+- **Recorded in:** `crates/openrtb-ext/differences.toml`
 
 #### `config.error-texts`: Config decode errors: mapstructure's words, with values printed as Rust prints them
 
@@ -1060,6 +1083,17 @@ No entry names the classes `other` and `unrecorded` or the kinds `stage_missing`
 - **Restore option:** Write jsoniter's messages from serde_json's error categories; not planned (D-DECODE).
 - **Recorded in:** `crates/jsonutil/differences.toml`
 
+#### `json.ext-null-member`: An ext with a null member, rebuilt: Go writes bytes that are not JSON, the port the member as null
+
+- **Go:** jsoniter decodes a null member of an ext object into the wrapper's `map[string]json.RawMessage` as a nil `json.RawMessage`, which the ext's `marshal` writes as no value (`json.nil-raw-written`): once `imp.ext.tid` is set on `{"prebid":null,"other":[1,"x"]}`, `RebuildImp` stores `{"other":[1,"x"],"prebid":,"tid":"tid"}` in `imp.ext`, the request is written with no value for that ext (`"ext":}`), and reading the ext again fails (`do not know how to skip: 44`).
+- **Rust:** A nil member is `None`, which the rebuild writes as null: `{"other":[1,"x"],"prebid":null,"tid":"tid"}`, JSON that reads back.
+- **Who notices:** publisher, bidder
+- **Visible in:** The auction of a request with an `imp.ext` member that is null when Prebid sets the imp's `tid` (endpoints/openrtb2/auction.go:956-965): Go's `splitImps` then fails on the ext (`invalid json for imp[0]: ...`, exchange/utils.go:659-661) and no bidder is called, where the port runs the auction with the member null
+- **Harness:** none
+- **Pin:** `crates/openrtb-ext/tests/parity/request_wrapper/mod.rs::ext_null_members_written_null`
+- **Restore option:** Not planned: a `RawValue` holds JSON only, so the rebuild cannot store Go's bytes, and failing the auction where Go's split fails would be glue outside this crate for a request Go mishandles.
+- **Recorded in:** `crates/openrtb-ext/differences.toml`
+
 #### `json.failed-merge-elements`: A merge that fails in a slice element or map value: Go keeps that element or entry, the port drops it
 
 - **Go:** jsoniter appends each slice element and sets each map entry it starts to read, so after `jsonutil.MergeClone` fails in one the slice or map holds it with what was read, a zero value: `[4,0]` for `[4,"x"]` into a `[]int`, `{"a":1,"b":0}` for `{"b":"x"}` into a `map[string]int` holding `a`, an `imp` holding the `openrtb2.Imp` whose merge failed; a slice of strings goes on to the elements after it (`["a","","b"]` for `["a",1,"b"]`).
@@ -1163,6 +1197,17 @@ No entry names the classes `other` and `unrecorded` or the kinds `stage_missing`
 - **Decision:** D-DECODE
 - **Restore option:** Replace invalid sequences with U+FFFD and decode again, which is `encoding/json`'s result (a Rust String cannot hold jsoniter's raw byte); not planned (D-DECODE).
 - **Recorded in:** `crates/differences/differences.toml`
+
+#### `json.jsonparser-scan`: `ParseDeviceExtATTS`: Go reads `atts` as jsonparser scans to it, the port decodes the ext
+
+- **Go:** `ParseDeviceExtATTS` reads `atts` with `jsonparser.GetInt` (openrtb_ext/device.go:103-117), which scans the bytes only as far as the first top-level `atts` and reads a number as a run of digits: `{"atts":2,"atts":3}` gives 2, `{"atts":01}` 1, `{"atts":2` 2, `{"atts":-}` and `{"x":1,"atts":00}` 0, and `x{"atts":1}` 1, as bytes before an object do not stop the scan. A top-level key with a lone surrogate escape, which jsonparser cannot unescape, ends the scan with the member not found: `{"\ud800":1,"atts":1}` gives no status, `{"atts":1,"\ud800":1}` 1.
+- **Rust:** The port decodes the ext with `serde_json`, which fails on a repeated `atts` (`duplicate field`) and on the bytes that are not JSON (`invalid number at line 1 column 10`, `EOF while parsing an object`, `unexpected end of hex escape`), and gives no status for bytes that do not start an object; other JSON reads as in Go. The request's decode writes a lone surrogate escape as the escape of U+FFFD (`json.lone-surrogates-raw`), a key the port reads past, so the ext it reads gives 1 for both.
+- **Who notices:** bidder
+- **Visible in:** The `device.lmt` that the auction sets from the status (endpoints/openrtb2/auction.go:570, privacy/lmt/ios.go:51-67) for an iOS 14.2 or later app request whose `device.ext` repeats `atts`, where Go sets it from the first and the port leaves it as it came, or has a key with a lone surrogate escape before `atts`, where Go leaves it as it came and the port sets it from `atts`. The bytes that are not JSON reach the read in neither: the request's decode rejects them first, in Go (`leading zero is invalid`, `invalid number`) and in the port
+- **Harness:** none
+- **Pin:** `crates/openrtb-ext/src/device.rs::atts_read_only_from_json`
+- **Restore option:** Not planned: a repeated key is accepted as serde reads it (orchestrator ruling 2, as for json.duplicate-keys), and the port's request holds no lone surrogate escape for the read to stop at (ruling 7 rewrites the bytes before serde_json sees them, as for json.lone-surrogates-raw).
+- **Recorded in:** `crates/openrtb-ext/differences.toml`
 
 #### `json.key-case`: JSON keys: Go matches struct fields ignoring case, serde matches exactly
 
@@ -1400,6 +1445,17 @@ No entry names the classes `other` and `unrecorded` or the kinds `stage_missing`
 - **Restore option:** A `MergeCloneError` context without a type, which pbs-jsonutil does not offer; not planned while no caller reads the context.
 - **Recorded in:** `crates/openrtb/differences.toml`
 
+#### `json.raw-not-json`: Ext members that are not JSON: Go's ext maps hold any bytes and write no value for them, the port's hold JSON only
+
+- **Go:** An ext object's map is a `map[string]json.RawMessage`, which holds any bytes: `SetExt` takes a map with `malformed` in it, and an EID's `ext` can be `{bad`. The rebuild writes no value for bytes `json.Compact` rejects (`rawMessageCodec`, util/jsonutil/jsonutil.go:242-250).
+- **Rust:** A member is a `RawValue`, which holds JSON only, so no ext map holds `malformed`; an EID ext of `{bad` (an openrtb `RawJson`) fails the rebuild's marshal.
+- **Who notices:** none
+- **Visible in:** Nothing in production: the ext members Prebid sets are bytes jsoniter decoded, whose skip checks them, or bytes Prebid encoded
+- **Harness:** none
+- **Pin:** `crates/openrtb-ext/tests/parity/request_wrapper/mod.rs::raw_members_must_be_json`
+- **Restore option:** Not planned while no Prebid code sets an ext member that is not JSON.
+- **Recorded in:** `crates/openrtb-ext/differences.toml`
+
 #### `json.std-error-texts`: Bid responses read as json.Unmarshal reads them: the error text is serde_json's
 
 - **Go:** The zentotem, loopme, tradplus and adverxo adapters return `json.Unmarshal`'s error for a bid response that does not decode as an `openrtb2.BidResponse` (zentotem.go:71, loopme.go:58, tradplus.go:111, adverxo.go:99), and resetdigital puts its text into a `BadServerResponse` (resetdigital.go:131): `encoding/json`'s messages, `unexpected end of JSON input`, `json: cannot unmarshal string into Go struct field Bid.seatbid.bid.price of type float64`.
@@ -1537,8 +1593,8 @@ No entry names the classes `other` and `unrecorded` or the kinds `stage_missing`
 - **Harness:** none: a mismatch here is unexpected
 - **Pin:** `crates/openrtb-ext/tests/parity/shapes.rs::prebid_messages_carry_position_and_field`
 - **Rule B:** Rule B (d): Prebid-authored texts and bytes
-- **How Go's behaviour is kept:** Glue under Rule B (d), as Prebid-authored text, in pbs-jsonutil, which this unit does not own (a shared change request): `unmarshal` and `unmarshal_valid` return a message that starts with `request.` without serde_json's ` at line L column C`, and `MergeCloneError` writes such a message without its field, as `tryExtractErrorMessage` does (`EncodingJson` likewise for `json.Unmarshal`, whose sites decode none of these types). It is due before ORTBEXT-SERDE-WRAPPER reads the request's extensions with the serde code, and that unit brings the restore pin against this crate's goldens.
-- **Restore pin:** pending, brought by ORTBEXT-SERDE-WRAPPER
+- **How Go's behaviour is kept:** Glue under Rule B (d), as Prebid-authored text: the request wrapper's decodes (src/request_wrapper/prebid_messages.rs) give a `FailedToUnmarshal` whose message starts with `request.` without serde_json's ` at line L column C`, as `tryExtractErrorMessage` does. The same glue in pbs-jsonutil's `unmarshal`, `unmarshal_valid` and `MergeCloneError`, for the callers outside the wrapper, is a shared change request: no production site decodes these types there.
+- **Restore pin:** `crates/openrtb-ext/tests/parity/request_wrapper/mod.rs::prebid_messages_are_bare` (`get:device` on a device ext whose interstitial `minwidthperc` is a string fails with Prebid's bare text in Go's request wrapper goldens (review.tsv.gz, `review device ext 0`), and the port's wrapper with the same text.)
 - **Note:** `stringOrStringArray`'s `value should be of type string or []string` reaches `jsonutil.Unmarshal`'s caller with jsoniter's field around it (`cannot unmarshal openrtb_ext.ImpExtGoldbach.CustomTargeting: ...`), which is `json.error-texts`; `json.Unmarshal` gives it bare, as it gives the others.
 - **Recorded in:** `crates/openrtb-ext/differences.toml`
 

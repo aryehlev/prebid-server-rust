@@ -5,8 +5,10 @@
 use core::fmt::{Debug, Display};
 
 use pbs_errortypes::{ErrorKind, GoError};
-use pbs_gojson::{JsoniterDecode, RawJson, jsonutil};
+use pbs_gojson::RawJson;
+use pbs_jsonutil::unmarshal;
 use pbs_openrtb::openrtb2;
+use serde::de::DeserializeOwned;
 
 use super::{
     clear26_fields, clear202211_fields, clear202303_fields, clear202309_fields, clear202402_fields,
@@ -41,11 +43,9 @@ fn all_ok<N: Display, I: IntoIterator<Item = (N, TestResult)>>(cases: I) -> Test
     }
 }
 
-/// The value `json` decodes into.
-fn decode<T: JsoniterDecode + Default>(json: &str) -> Result<T, String> {
-    let mut value = T::default();
-    jsonutil::unmarshal(json.as_bytes(), &mut value).map_err(|err| format!("{json}: {err}"))?;
-    Ok(value)
+/// The value `json` decodes into (Go: `jsonutil.Unmarshal`).
+fn decode<T: DeserializeOwned>(json: &str) -> Result<T, String> {
+    unmarshal(json.as_bytes()).map_err(|err| format!("{json}: {err}"))
 }
 
 /// Gives a request an invalid ext.

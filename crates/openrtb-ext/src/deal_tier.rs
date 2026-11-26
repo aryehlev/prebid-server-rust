@@ -4,8 +4,9 @@
 use std::collections::BTreeMap;
 
 use pbs_errortypes::GoError;
-use pbs_gojson::{GoJson, jsonutil};
+use pbs_jsonutil::{null_default, unmarshal};
 use pbs_openrtb::openrtb2;
+use serde::Deserialize;
 
 use crate::{
     bidders::{BidderName, normalize_bidder_name},
@@ -24,39 +25,32 @@ named_map!(
     DealTier
 );
 
-/// The unnamed struct type of `bidder` values in Go's `ReadDealTiersFromImp`.
-#[derive(Clone, Debug, Default, GoJson)]
-#[gojson(
-    go_type = "struct { DealTier *openrtb_ext.DealTier \"json:\\\"dealTier\\\"\" }",
-    anonymous
-)]
+/// The unnamed struct type of `bidder` values in Go's `ReadDealTiersFromImp`
+/// (`struct { DealTier *DealTier "json:\"dealTier\"" }`).
+#[derive(Debug, Default, Deserialize)]
+#[serde(default)]
 struct BidderDealTier {
-    #[gojson(go = "DealTier", json = "dealTier")]
+    /// Go field `DealTier`.
+    #[serde(rename = "dealTier")]
     deal_tier: Option<DealTier>,
 }
 
 /// The unnamed struct type of `prebid` in Go's `ReadDealTiersFromImp`.
-#[derive(Clone, Debug, Default, GoJson)]
-#[gojson(
-    go_type = "struct { Bidders map[string]struct { DealTier *openrtb_ext.DealTier \
-               \"json:\\\"dealTier\\\"\" } \"json:\\\"bidder\\\"\" }",
-    anonymous
-)]
+#[derive(Debug, Default, Deserialize)]
+#[serde(default)]
 struct PrebidDealTiers {
-    #[gojson(go = "Bidders", json = "bidder")]
-    bidders: Option<BTreeMap<String, BidderDealTier>>,
+    /// Go field `Bidders`. A bidder whose value is null holds Go's zero struct, which has no
+    /// tier: `None` here.
+    #[serde(rename = "bidder")]
+    bidders: Option<BTreeMap<String, Option<BidderDealTier>>>,
 }
 
 /// The unnamed struct type Go's `ReadDealTiersFromImp` decodes `imp.ext` into.
-#[derive(Clone, Debug, Default, GoJson)]
-#[gojson(
-    go_type = "struct { Prebid struct { Bidders map[string]struct { DealTier \
-               *openrtb_ext.DealTier \"json:\\\"dealTier\\\"\" } \"json:\\\"bidder\\\"\" } \
-               \"json:\\\"prebid\\\"\" }",
-    anonymous
-)]
+#[derive(Debug, Default, Deserialize)]
+#[serde(default)]
 struct ImpPrebidExt {
-    #[gojson(go = "Prebid", json = "prebid")]
+    /// Go field `Prebid`, a struct value: null reads as its zero value.
+    #[serde(deserialize_with = "null_default")]
     prebid: PrebidDealTiers,
 }
 
@@ -70,22 +64,26 @@ struct ImpPrebidExt {
 /// When two names normalize to the same bidder, Go keeps whichever its random map order visits
 /// last; here the names are visited in byte order.
 ///
+/// `imp.ext` is decoded with `pbs_jsonutil::unmarshal` (Go: `jsonutil.Unmarshal`), whose keys
+/// match the fields exactly where jsoniter's match whatever their case (`json.key-case`), which
+/// rejects a repeated member where jsoniter decodes each into the field (`json.duplicate-keys`),
+/// reads a struct from an array where jsoniter fails (`json.struct-from-array`) and fails on the
+/// `imp.ext` `null`, which jsoniter reads as nothing (`json.null-document`). The exchange skips
+/// the deal tiers of an imp whose read fails (exchange/exchange.go:673-676).
+///
 /// # Errors
 ///
-/// `jsonutil.Unmarshal`'s `FailedToUnmarshal` when `imp.ext` does not decode (Go then returns
-/// a nil map).
+/// `pbs_jsonutil::unmarshal`'s `FailedToUnmarshal` when `imp.ext` does not decode (Go then
+/// returns a nil map).
 pub fn read_deal_tiers_from_imp(imp: &openrtb2::Imp) -> Result<DealTierBidderMap, GoError> {
     // Go: openrtb_ext/deal_tier.go:22
     let mut deal_tiers = BTreeMap::new();
     if imp.ext.is_empty() {
         return Ok(DealTierBidderMap(Some(deal_tiers)));
     }
-    let mut imp_prebid_ext = ImpPrebidExt::default();
-    if let Err(err) = jsonutil::unmarshal(imp.ext.as_bytes(), &mut imp_prebid_ext) {
-        return Err(GoError::failed_to_unmarshal(err.message.to_string_lossy()));
-    }
+    let imp_prebid_ext: ImpPrebidExt = unmarshal(imp.ext.as_bytes())?;
     for (bidder, param) in imp_prebid_ext.prebid.bidders.into_iter().flatten() {
-        if let Some(deal_tier) = param.deal_tier {
+        if let Some(deal_tier) = param.and_then(|param| param.deal_tier) {
             let name = normalize_bidder_name(&bidder).unwrap_or_else(|| BidderName::from(bidder));
             drop(deal_tiers.insert(name, deal_tier));
         }

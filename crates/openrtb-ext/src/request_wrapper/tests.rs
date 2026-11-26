@@ -11,6 +11,7 @@ use std::collections::BTreeMap;
 use pbs_errortypes::ErrorKind;
 use pbs_gojson::RawJson;
 use pbs_openrtb::{adcom1, openrtb2};
+use serde_json::value::RawValue;
 
 use super::{
     AppExt, DOOHExt, DeviceExt, ExtMap, ImpExt, ImpLoc, ImpWrapper, ImpWrapperMut, ImpWrapperSlot,
@@ -72,19 +73,40 @@ const fn dirty<T>(value: T) -> Tracked<T> {
 
 /// Go's `ext = make(map[string]json.RawMessage)`, which the rebuild tests give each object.
 const fn made() -> Tracked<ExtMap> {
-    clean(Some(BTreeMap::new()))
+    clean(ExtMap(Some(BTreeMap::new())))
 }
 
-/// `json.RawMessage(json)`.
+/// `json.RawMessage(json)` in an ORTB field.
 fn raw(json: &str) -> RawJson {
     RawJson::from(json)
 }
 
-/// Go's `map[string]json.RawMessage{...}` of `members` (key, JSON).
+/// Go's `map[string]json.RawMessage{...}` of `members` (key, JSON) in an ORTB field.
 fn object(members: &[(&str, &str)]) -> BTreeMap<String, RawJson> {
     members
         .iter()
         .map(|&(key, json)| (key.to_owned(), raw(json)))
+        .collect()
+}
+
+/// `json.RawMessage(json)` in an ext map (nil when `json` is not JSON, which an ext map cannot
+/// hold here: the cases of Go's tests that put bytes such as `X` in one put `"X"`).
+fn member(json: &str) -> Option<Box<RawValue>> {
+    RawValue::from_string(json.to_owned()).ok()
+}
+
+/// An ext map's `map[string]json.RawMessage{...}` of `members` (key, JSON).
+fn members(members: &[(&str, &str)]) -> BTreeMap<String, Option<Box<RawValue>>> {
+    members
+        .iter()
+        .map(|&(key, json)| (key.to_owned(), member(json)))
+        .collect()
+}
+
+/// An ext map as texts, which compare (a `RawValue` does not).
+fn texts(map: &BTreeMap<String, Option<Box<RawValue>>>) -> BTreeMap<String, Option<String>> {
+    map.iter()
+        .map(|(key, value)| (key.clone(), value.as_deref().map(|v| v.get().to_owned())))
         .collect()
 }
 
@@ -98,7 +120,14 @@ fn string_map(members: &[(&str, &str)]) -> BTreeMap<String, String> {
 
 /// Go's `m[key] = json.RawMessage(json)` on a map that is not nil.
 fn put(ext: &mut ExtMap, key: &str, json: &str) {
-    if let Some(map) = ext.as_mut() {
+    if let Some(map) = ext.0.as_mut() {
+        let _previous = map.insert(key.to_owned(), member(json));
+    }
+}
+
+/// Go's `m[key] = json.RawMessage(json)` on an ORTB field's map that is not nil.
+fn put_raw(map: &mut Option<BTreeMap<String, RawJson>>, key: &str, json: &str) {
+    if let Some(map) = map.as_mut() {
         let _previous = map.insert(key.to_owned(), raw(json));
     }
 }
@@ -221,7 +250,7 @@ fn clone_request_wrapper_given() -> RequestWrapper {
             ..UserExt::default()
         })),
         device_ext: Some(Box::new(DeviceExt {
-            ext: dirty(None),
+            ext: dirty(ExtMap(None)),
             ..DeviceExt::default()
         })),
         request_ext: Some(Box::new(RequestExt {
@@ -356,7 +385,8 @@ fn user_ext() -> TestResult {
         r#""eids":[{"source":"source","uids":[{"id":"id"}]}],"#,
         r#""prebid":{"buyeruids":{"buyer":"id"}}}"#,
     );
-    ensure_eq(&updated_user_ext, &raw(expected), "marshalled UserExt")?;
+    let marshalled = updated_user_ext.as_deref().map(RawValue::get);
+    ensure_eq(&marshalled, &Some(expected), "marshalled UserExt")?;
     ensure(
         !user_ext.dirty(),
         "UserExt should not be dirty after marshalling",
@@ -806,11 +836,14 @@ fn rebuild_user_ext_consented_providers_list() -> TestResult {
 #[test]
 fn user_ext_unmarshal() -> TestResult {
     let decoded = UserExt {
-        ext: clean(Some(object(&[("eids", r#"[{"source":"value"}]"#)]))),
+        ext: clean(ExtMap(Some(members(&[(
+            "eids",
+            r#"[{"source":"value"}]"#,
+        )])))),
         ..UserExt::default()
     };
     let ext_dirty = UserExt {
-        ext: dirty(None),
+        ext: dirty(ExtMap(None)),
         ..UserExt::default()
     };
     let prebid = r#"{"prebid":{"buyeruids":{"elem1":"value1"}}}"#;
@@ -889,7 +922,7 @@ fn user_ext_unmarshal() -> TestResult {
 /// Go's `userExt` of the `NoMutate` and `General` cases of `TestCloneUserExt`.
 fn clone_user_ext_general() -> UserExt {
     UserExt {
-        ext: clean(Some(object(&[("A", "X"), ("B", "Y")]))),
+        ext: clean(ExtMap(Some(members(&[("A", r#""X""#), ("B", r#""Y""#)])))),
         consent: dirty(Some("Myconsent".to_owned())),
         prebid: dirty(Some(ExtUserPrebid {
             buyer_uids: Some(string_map(&[("A", "X"), ("B", "Y")])),
@@ -949,8 +982,8 @@ fn uids_of(eid: Option<&mut openrtb2::EID>) -> Option<&mut Vec<openrtb2::UID>> {
 fn clone_user_ext() -> TestResult {
     nil_clone::<UserExt>()?;
     let general = |user: &mut UserExt| {
-        put(&mut user.ext.value, "A", "G");
-        put(&mut user.ext.value, "C", "L");
+        put(&mut user.ext.value, "A", r#""G""#);
+        put(&mut user.ext.value, "C", r#""L""#);
         user.ext.dirty = true;
         user.consent = clean(None);
         if let Some(uids) = user
@@ -1015,6 +1048,29 @@ fn clone_user_ext() -> TestResult {
             clone_case(clone_user_ext_consented_providers, consented_providers),
         ),
     ])
+}
+
+/// `Clone` turns a pointer to a nil `eids` slice into a pointer to an empty one, and keeps a nil
+/// pointer nil: go1.26.2 (run by hand) gives a clone of `SetEid(&nilSlice)` whose `GetEid()` is
+/// a pointer to a slice that is not nil, of length 0, still dirty, and a clone of a `UserExt`
+/// without eids whose `GetEid()` is nil.
+// Go: openrtb_ext/request_wrapper.go:728-736
+#[test]
+fn clone_user_ext_nil_eids() -> TestResult {
+    let mut user = UserExt::default();
+    user.set_eid(Some(None));
+    let clone = user.clone();
+    ensure_eq(
+        &clone.get_eid(),
+        &Some(Some(&[][..])),
+        "clone of a nil slice",
+    )?;
+    ensure(clone.dirty(), "the clone is dirty")?;
+    ensure_eq(&user.get_eid(), &Some(None), "the original's nil slice")?;
+    let empty = UserExt::default();
+    let empty_clone = empty.clone();
+    ensure_eq(&empty_clone.get_eid(), &None, "clone of no eids")?;
+    ensure_eq(&empty_clone, &empty, "clone of an empty ext")
 }
 
 /// The device ext of `TestRebuildDeviceExt` with `cdep` 1.
@@ -1201,7 +1257,10 @@ fn rebuild_request_ext() -> TestResult {
 /// Go's `reqExt` of the `NoMutate` and `General` cases of `TestCloneRequestExt`.
 fn clone_request_ext_general() -> RequestExt {
     RequestExt {
-        ext: dirty(Some(object(&[("A", "{}"), ("B", r#"{"foo":"bar"}"#)]))),
+        ext: dirty(ExtMap(Some(members(&[
+            ("A", "{}"),
+            ("B", r#"{"foo":"bar"}"#),
+        ])))),
         prebid: clean(Some(Box::new(ExtRequestPrebid {
             bidder_params: raw("{}"),
             ..ExtRequestPrebid::default()
@@ -1282,7 +1341,10 @@ fn clone_request_ext() -> TestResult {
 /// Go's `devExt` of `TestCloneDeviceExt`.
 fn clone_device_ext_given() -> DeviceExt {
     DeviceExt {
-        ext: dirty(Some(object(&[("A", "{}"), ("B", r#"{"foo":"bar"}"#)]))),
+        ext: dirty(ExtMap(Some(members(&[
+            ("A", "{}"),
+            ("B", r#"{"foo":"bar"}"#),
+        ])))),
         prebid: clean(Some(ExtDevicePrebid {
             interstitial: Some(Box::new(ExtDeviceInt {
                 min_width_perc: 65,
@@ -1408,7 +1470,7 @@ fn rebuild_app_ext() -> TestResult {
 /// Go's `appExt` of `TestCloneAppExt`.
 fn clone_app_ext_given() -> AppExt {
     AppExt {
-        ext: dirty(Some(object(&[("A", "X"), ("B", "Y")]))),
+        ext: dirty(ExtMap(Some(members(&[("A", r#""X""#), ("B", r#""Y""#)])))),
         prebid: clean(Some(ExtAppPrebid {
             source: "Sauce".to_owned(),
             version: "2.2".to_owned(),
@@ -1470,7 +1532,7 @@ fn rebuild_dooh_ext() -> TestResult {
 /// Go's `DOOHExt` of `TestCloneDOOHExt`.
 fn clone_dooh_ext_given() -> DOOHExt {
     DOOHExt {
-        ext: dirty(Some(object(&[("A", "X"), ("B", "Y")]))),
+        ext: dirty(ExtMap(Some(members(&[("A", r#""X""#), ("B", r#""Y""#)])))),
     }
 }
 
@@ -1492,7 +1554,7 @@ fn clone_dooh_ext() -> TestResult {
 /// Go's `regExt` of `TestCloneRegExt`.
 fn clone_reg_ext_given() -> RegExt {
     RegExt {
-        ext: dirty(Some(object(&[("A", "X"), ("B", "Y")]))),
+        ext: dirty(ExtMap(Some(members(&[("A", r#""X""#), ("B", r#""Y""#)])))),
         gdpr: clean(Some(1)),
         us_privacy: dirty("priv".to_owned()),
         ..RegExt::default()
@@ -1586,7 +1648,7 @@ fn rebuild_site_ext() -> TestResult {
 /// Go's `siteExt` of `TestCloneSiteExt`.
 fn clone_site_ext_given() -> SiteExt {
     SiteExt {
-        ext: dirty(Some(object(&[("A", "X"), ("B", "Y")]))),
+        ext: dirty(ExtMap(Some(members(&[("A", r#""X""#), ("B", r#""Y""#)])))),
         amp: clean(Some(1)),
     }
 }
@@ -1686,7 +1748,7 @@ fn rebuild_source_ext() -> TestResult {
 /// Go's `sourceExt` of `TestCloneSourceExt`.
 fn clone_source_ext_given() -> SourceExt {
     SourceExt {
-        ext: dirty(Some(object(&[("A", "X"), ("B", "Y")]))),
+        ext: dirty(ExtMap(Some(members(&[("A", r#""X""#), ("B", r#""Y""#)])))),
         schain: clean(Some(clone_supply_chain_given())),
     }
 }
@@ -1804,7 +1866,7 @@ fn imp_wrapper_get_imp_ext() -> TestResult {
         r#""data":{"adserver":{"name":"ads","adslot":"adslot123"},"pbadslot":"pbadslot123"}}"#,
     );
     let populated_ext = ImpExt {
-        ext: clean(Some(object(&[
+        ext: clean(ExtMap(Some(members(&[
             ("prebid", r#"{"is_rewarded_inventory":1}"#),
             ("other", "42"),
             ("tid", r#""test-tid""#),
@@ -1813,7 +1875,7 @@ fn imp_wrapper_get_imp_ext() -> TestResult {
                 "data",
                 r#"{"adserver":{"name":"ads","adslot":"adslot123"},"pbadslot":"pbadslot123"}"#,
             ),
-        ]))),
+        ])))),
         prebid: clean(Some(Box::new(ExtImpPrebid {
             is_rewarded_inventory: Some(1),
             ..ExtImpPrebid::default()
@@ -1829,7 +1891,7 @@ fn imp_wrapper_get_imp_ext() -> TestResult {
         gp_id: "test-gpid".to_owned(),
     };
     let retrieved = || ImpExt {
-        ext: clean(Some(object(&[("foo", "bar")]))),
+        ext: clean(ExtMap(Some(members(&[("foo", r#""bar""#)])))),
         ..ImpExt::default()
     };
     let ok_cases = [
@@ -1987,7 +2049,7 @@ fn clone_imp_wrapper() -> TestResult {
 /// Go's `impExt` of the `NoMutate` and `General` cases of `TestCloneImpExt`.
 fn clone_imp_ext_general() -> ImpExt {
     ImpExt {
-        ext: dirty(Some(object(&[("A", "X"), ("B", "Y")]))),
+        ext: dirty(ExtMap(Some(members(&[("A", r#""X""#), ("B", r#""Y""#)])))),
         tid: clean("TID".to_owned()),
         ..ImpExt::default()
     }
@@ -2061,11 +2123,11 @@ fn mutate_imp_ext_prebid(imp_ext: &mut ImpExt) {
             replace_imp_id: None,
         });
         prebid.is_rewarded_inventory = None;
-        put(&mut prebid.bidder, "def", "");
+        put_raw(&mut prebid.bidder, "def", "");
         if let Some(bidder) = prebid.bidder.as_mut() {
             let _removed = bidder.remove("abc");
         }
-        put(&mut prebid.bidder, "xyz", r#"{"jar":5}"#);
+        put_raw(&mut prebid.bidder, "xyz", r#"{"jar":5}"#);
         if let Some(options) = prebid.options.as_deref_mut() {
             options.echo_video_attrs = false;
         }
@@ -2299,11 +2361,11 @@ fn reg_ext_unmarshal_cases() -> Vec<(&'static str, RegExt, &'static str, RegExtD
     let gdpr = |gdpr| (None, Some(gdpr), None, String::new());
     let gpc = |gpc: &str| (None, None, Some(gpc.to_owned()), String::new());
     let decoded = RegExt {
-        ext: clean(Some(object(&[("dsa", "{}")]))),
+        ext: clean(ExtMap(Some(members(&[("dsa", "{}")])))),
         ..RegExt::default()
     };
     let ext_dirty = RegExt {
-        ext: dirty(None),
+        ext: dirty(ExtMap(None)),
         ..RegExt::default()
     };
     let new = RegExt::default;
@@ -2340,20 +2402,24 @@ fn reg_ext_unmarshal_cases() -> Vec<(&'static str, RegExt, &'static str, RegExtD
             dsa(1),
             false,
         ),
+        // Go: dsa(0), the `dsarequired` jsoniter allocated before the fault; the port keeps the
+        // empty `dsa` it decoded into (json.partial-results).
         (
             "malformed_dsa_json",
             new(),
             r#"{"dsa":{"dsarequired":""}}"#,
-            dsa(0),
+            (Some(ExtRegsDSA::default()), None, None, String::new()),
             true,
         ),
         // GDPR
         ("valid_gdpr_json", new(), r#"{"gdpr":1}"#, gdpr(1), false),
+        // Go: gdpr(0), the value jsoniter allocated before the fault; the port keeps nil
+        // (json.partial-results).
         (
             "malformed_gdpr_json",
             new(),
             r#"{"gdpr":""}"#,
-            gdpr(0),
+            nothing(),
             true,
         ),
         // GPC
@@ -2428,17 +2494,13 @@ fn reg_ext_unmarshal() -> TestResult {
 #[test]
 fn reg_ext_get_ext_set_ext() -> TestResult {
     let mut reg_ext = RegExt::default();
-    ensure_eq(&reg_ext.get_ext(), &BTreeMap::new(), "GetExt")?;
+    ensure_eq(&texts(&reg_ext.get_ext()), &BTreeMap::new(), "GetExt")?;
     ensure(!reg_ext.dirty(), "dirty")?;
 
-    let raw_json = Some(object(&[
-        ("dsa", "{}"),
-        ("gdpr", "1"),
-        ("usprivacy", r#""consent""#),
-    ]));
-    reg_ext.set_ext(raw_json.clone());
+    let raw_json = members(&[("dsa", "{}"), ("gdpr", "1"), ("usprivacy", r#""consent""#)]);
+    reg_ext.set_ext(Some(raw_json.clone()));
     ensure(reg_ext.dirty(), "not dirty")?;
-    ensure_eq(&Some(reg_ext.get_ext()), &raw_json, "GetExt")
+    ensure_eq(&texts(&reg_ext.get_ext()), &texts(&raw_json), "GetExt")
 }
 
 /// Go: `TestRegExtGetDSASetDSA`.

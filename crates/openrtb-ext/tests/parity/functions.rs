@@ -1,11 +1,17 @@
 //! Replays `functions.tsv`: what the package's functions and methods return for the inputs of
 //! `testdata/go/functions.go`, one call per row (`function label arg... -> result...`).
+//!
+//! `ParseDeviceExtATTS` and `ReadDealTiersFromImp` read their documents with `serde_json`: a
+//! call whose results differ from Go's must fall in a ledger entry ([`ledgered`]), the error
+//! texts of the libraries (`json.error-texts`) or what `serde_json` reads otherwise than
+//! jsonparser or jsoniter.
 
 use core::{
     fmt::Display,
+    mem,
     str::{FromStr, from_utf8},
 };
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 use pbs_errortypes::GoError;
 use pbs_gojson::{GoEncode, JsoniterDecode, RawJson, jsonutil};
@@ -15,8 +21,23 @@ use pbs_openrtb_ext::openrtb_ext::{
     ExtRegsDSA, ExtRequestPrebid, PriceFloorData, PriceFloorEnforcement, PriceFloorModelGroup,
     PriceFloorRules, PriceGranularity, TargetingKey,
 };
+use serde_json::Value;
 
-use super::support::{TestResult, ensure_eq, golden_rows, report, show};
+use super::{
+    shapes::{
+        DUPLICATE_KEYS, ERROR_TEXTS, KEY_CASE, Node, RESPELLINGS, STRUCT_FROM_ARRAY, respelled_keys,
+    },
+    support::{TestResult, ensure_eq, golden_rows, report, show},
+};
+
+/// `json.jsonparser-scan`: `ParseDeviceExtATTS` given bytes that `serde_json` does not read as
+/// JSON, or an object that repeats `atts`, where jsonparser reads the first `atts` as it scans to
+/// it and the port fails.
+const JSONPARSER_SCAN: &str = "json.jsonparser-scan";
+
+/// The keys of the struct Go's `ReadDealTiersFromImp` decodes `imp.ext` into, which jsoniter
+/// matches whatever their case.
+const DEAL_TIER_KEYS: [&str; 5] = ["bidder", "dealTier", "minDealTier", "prebid", "prefix"];
 
 /// Go's nil pointer, map or slice argument.
 const NIL: &[u8] = b"nil";
@@ -322,6 +343,201 @@ fn bidders(c: &Call<'_>) -> TestResult<Option<Results>> {
     }))
 }
 
+/// Whether both calls failed, with the same first result and the same Go error type: only the
+/// texts differ.
+fn same_failure(rust: &[Vec<u8>], go: &[Vec<u8>]) -> bool {
+    matches!(
+        (rust, go),
+        ([rust_first, rust_type, _], [go_first, go_type, _])
+            if rust_first == go_first && rust_type == go_type && !rust_type.is_empty()
+    )
+}
+
+/// Whether the port's call failed.
+fn port_failed(rust: &[Vec<u8>]) -> bool {
+    rust.get(1).is_some_and(|ty| !ty.is_empty())
+}
+
+/// The document with only the first of the top-level members named `key`, the one jsonparser
+/// reads; `None` when it is not an object that repeats the key.
+fn first_member_only(doc: &[u8], key: &str) -> Option<String> {
+    let Node::Object(members) = Node::parse(from_utf8(doc).ok()?)? else {
+        return None;
+    };
+    let mut kept: Vec<(String, Node)> = Vec::new();
+    let mut repeated = false;
+    for (name, value) in members {
+        if name == key && kept.iter().any(|(seen, _)| *seen == name) {
+            repeated = true;
+        } else {
+            kept.push((name, value));
+        }
+    }
+    if !repeated {
+        return None;
+    }
+    let mut written = String::new();
+    Node::Object(kept).write(&mut written);
+    Some(written)
+}
+
+/// The ledger entry of a `ParseDeviceExtATTS` call that differs from Go's: the error texts of
+/// jsonparser and `serde_json`; or `json.jsonparser-scan`, where jsonparser reads `atts` as it
+/// scans to it: a document that repeats `atts`, which returns Go's results once only the first
+/// is kept (jsonparser stops at it, where the serde derive rejects the repeated member, a
+/// difference in what the auction reads and not in the request's status, which
+/// `json.duplicate-keys` is about), or bytes that `serde_json` does not read as JSON (a syntax
+/// error, invalid UTF-8, a lone surrogate escape).
+fn atts_entry(c: &Call<'_>, rust: &[Vec<u8>], go: &[Vec<u8>]) -> TestResult<Option<&'static str>> {
+    if same_failure(rust, go) {
+        return Ok(Some(ERROR_TEXTS));
+    }
+    if !port_failed(rust) {
+        return Ok(None);
+    }
+    let doc = c.arg(0)?;
+    let doc = if doc == NIL { &[][..] } else { doc };
+    if let Some(first) = first_member_only(doc, "atts") {
+        let args = [first.into_bytes()];
+        let again = call(&Call {
+            name: c.name,
+            args: &args,
+        })?;
+        return Ok((again == go).then_some(JSONPARSER_SCAN));
+    }
+    let not_json = from_utf8(doc).is_err() || serde_json::from_slice::<Value>(doc).is_err();
+    Ok(not_json.then_some(JSONPARSER_SCAN))
+}
+
+/// `later` decoded into `earlier` as jsoniter decodes a repeated member into the field it has
+/// set: an object member by member (a struct's fields, a map's entries, a pointer's struct),
+/// anything else replaced.
+fn decoded_into(earlier: Node, later: Node) -> Node {
+    match (earlier, later) {
+        (Node::Object(mut members), Node::Object(more)) => {
+            for (key, value) in more {
+                merge_member(&mut members, key, value);
+            }
+            Node::Object(members)
+        }
+        (_, later) => later,
+    }
+}
+
+/// Adds the member `key` to `members`, decoded into the member of that key if there is one.
+fn merge_member(members: &mut Vec<(String, Node)>, key: String, value: Node) {
+    match members.iter_mut().find(|(kept, _)| *kept == key) {
+        Some((_, kept)) => {
+            let earlier = mem::replace(kept, Node::Array(Vec::new()));
+            *kept = decoded_into(earlier, value);
+        }
+        None => members.push((key, value)),
+    }
+}
+
+/// `node` with each member an object repeats decoded into the first, as jsoniter decodes it
+/// ([`decoded_into`]); `changed` is set when one is.
+fn repeats_merged(node: Node, changed: &mut bool) -> Node {
+    match node {
+        Node::Object(members) => {
+            let mut out: Vec<(String, Node)> = Vec::new();
+            for (key, value) in members {
+                let value = repeats_merged(value, changed);
+                *changed |= out.iter().any(|(kept, _)| *kept == key);
+                merge_member(&mut out, key, value);
+            }
+            Node::Object(out)
+        }
+        Node::Array(elements) => Node::Array(
+            elements
+                .into_iter()
+                .map(|element| repeats_merged(element, changed))
+                .collect(),
+        ),
+        scalar @ Node::Scalar(_) => scalar,
+    }
+}
+
+/// The documents to call `ReadDealTiersFromImp` with again when its results differ from Go's,
+/// each with the ledger entries of what it changes: keys respelled as jsoniter matches them, and
+/// repeated members decoded into the first, as jsoniter decodes them, where the serde derives
+/// reject the document.
+fn deal_tier_fixes(doc: &str) -> Vec<(String, Vec<&'static str>)> {
+    let keys: BTreeSet<String> = DEAL_TIER_KEYS.iter().map(|&key| key.to_owned()).collect();
+    let mut candidates: Vec<(String, Vec<&'static str>)> = RESPELLINGS
+        .into_iter()
+        .filter_map(|mode| respelled_keys(doc, &keys, mode))
+        .map(|respelled| (respelled.doc, respelled.classes))
+        .collect();
+    candidates.push((doc.to_owned(), Vec::new()));
+    let mut out = Vec::new();
+    for (candidate, classes) in candidates {
+        let mut changed = false;
+        if let Some(node) = Node::parse(&candidate) {
+            let merged = repeats_merged(node, &mut changed);
+            if changed {
+                let mut written = String::new();
+                merged.write(&mut written);
+                let mut all = classes.clone();
+                if !all.contains(&DUPLICATE_KEYS) {
+                    all.push(DUPLICATE_KEYS);
+                }
+                out.push((written, all));
+            }
+        }
+        if !classes.is_empty() {
+            out.push((candidate, classes));
+        }
+    }
+    out
+}
+
+/// The ledger entries of a `ReadDealTiersFromImp` call that differs from Go's: the error texts
+/// of jsoniter and `serde_json`; a struct the serde derive reads from an array, where jsoniter
+/// fails; or a fix of the document ([`deal_tier_fixes`]) after which the call returns Go's
+/// results.
+fn deal_tier_entries(
+    c: &Call<'_>,
+    rust: &[Vec<u8>],
+    go: &[Vec<u8>],
+) -> TestResult<Vec<&'static str>> {
+    if same_failure(rust, go) {
+        return Ok(vec![ERROR_TEXTS]);
+    }
+    let go_text = go.get(2).map_or(&[][..], Vec::as_slice);
+    if !port_failed(rust) && String::from_utf8_lossy(go_text).contains("expect { or n, but found [")
+    {
+        return Ok(vec![STRUCT_FROM_ARRAY]);
+    }
+    let Ok(doc) = from_utf8(c.arg(0)?) else {
+        return Ok(Vec::new());
+    };
+    for (fixed, mut classes) in deal_tier_fixes(doc) {
+        let args = [fixed.into_bytes()];
+        let again = call(&Call {
+            name: c.name,
+            args: &args,
+        })?;
+        if again == go || same_failure(&again, go) {
+            if again != go {
+                classes.push(ERROR_TEXTS);
+            }
+            return Ok(classes);
+        }
+    }
+    Ok(Vec::new())
+}
+
+/// The ledger entries a call whose results differ from Go's falls in, empty when it falls in
+/// none: only the functions that read their documents with `serde_json` have any.
+fn ledgered(c: &Call<'_>, rust: &[Vec<u8>], go: &[Vec<u8>]) -> TestResult<Vec<&'static str>> {
+    match c.name {
+        "ParseDeviceExtATTS" => Ok(atts_entry(c, rust, go)?.into_iter().collect()),
+        "ReadDealTiersFromImp" => deal_tier_entries(c, rust, go),
+        _ => Ok(Vec::new()),
+    }
+}
+
 /// Calls the Rust port of the row's Go function with the generator's arguments.
 fn call(c: &Call<'_>) -> TestResult<Results> {
     for port in [bid_and_request, extensions, floors, bidders] {
@@ -390,31 +606,31 @@ const GO_PANICS: usize = 76;
 
 /// The calls, by function, whose results differ from Go's only by the documented `String` gap: a
 /// Go string holds any bytes, a Rust `String` holds U+FFFD for invalid UTF-8.
-/// `ParseBidType("x\xff")`'s error text; the keys that `TargetingKey.BidderKey` and
-/// `TruncateKey` cut inside a two-byte character (`é`, `ü`, `ï`), which Go leaves as a lone byte;
-/// and the error of `ReadDealTiersFromImp` whose jsoniter text ends in the byte `0xff` (jsoniter
-/// names a missing character so; a `GoError`'s text is a `String`).
-const STRING_GAPS: [(&str, usize); 4] = [
+/// `ParseBidType("x\xff")`'s error text, and the keys that `TargetingKey.BidderKey` and
+/// `TruncateKey` cut inside a two-byte character (`é`, `ü`, `ï`), which Go leaves as a lone byte.
+const STRING_GAPS: [(&str, usize); 3] = [
     ("ParseBidType", 1),
-    ("ReadDealTiersFromImp", 1),
     ("TargetingKey.BidderKey", 17),
     ("TargetingKey.TruncateKey", 2),
 ];
 
 /// Replays the calls of a golden file in the format of `functions.tsv`: every call must return
 /// Go's results, except the `go_panics` calls where Go panics (each checked against the port's
-/// documented behaviour) and the `string_gaps` calls, by function, that differ only by the
-/// documented `String` gap. At least `min_calls` calls must be replayed.
+/// documented behaviour), the `string_gaps` calls, by function, that differ only by the
+/// documented `String` gap, and the calls whose difference falls in a ledger entry
+/// ([`ledgered`]), which must be exactly `entries`. At least `min_calls` calls must be replayed.
 fn replay_calls(
     file: &str,
     min_calls: usize,
     go_panics: usize,
     string_gap_calls: &[(&str, usize)],
+    entries: &[&str],
 ) -> TestResult {
     let mut failures = Vec::new();
     let mut calls = 0;
     let mut panics = 0;
     let mut string_gaps: BTreeMap<String, usize> = BTreeMap::new();
+    let mut classes: BTreeMap<&'static str, usize> = BTreeMap::new();
     for row in golden_rows(file)? {
         if row.first().is_some_and(|f| f == b"#go") {
             continue;
@@ -453,6 +669,13 @@ fn replay_calls(
             *string_gaps.entry(c.name.to_owned()).or_default() += 1;
             continue;
         }
+        let ledger = ledgered(&c, &rust, results)?;
+        if !ledger.is_empty() {
+            for entry in ledger {
+                *classes.entry(entry).or_default() += 1;
+            }
+            continue;
+        }
         failures.push(format!(
             "{}({}): {}, Go's is {}",
             c.name,
@@ -478,6 +701,11 @@ fn replay_calls(
         &string_gaps,
         &want,
         &format!("{file}: calls that differ by the String gap"),
+    )?;
+    ensure_eq(
+        &classes.keys().copied().collect::<Vec<_>>(),
+        &entries.to_vec(),
+        &format!("{file}: the ledger entries the differences fall in ({classes:?})"),
     )
 }
 
@@ -485,20 +713,34 @@ fn replay_calls(
 /// is checked against the port's documented behaviour) and the documented `String` gap.
 #[test]
 fn functions() -> TestResult {
-    replay_calls("functions.tsv", 1200, GO_PANICS, &STRING_GAPS)
+    replay_calls(
+        "functions.tsv",
+        1200,
+        GO_PANICS,
+        &STRING_GAPS,
+        &[
+            DUPLICATE_KEYS,
+            ERROR_TEXTS,
+            JSONPARSER_SCAN,
+            KEY_CASE,
+            STRUCT_FROM_ARRAY,
+        ],
+    )
 }
 
 /// The adversarial review's calls (`testdata/go/review.go`), none where Go panics: bidder names
 /// under Go's Unicode case mapping and folding, and sampled multibid, deal tier, alternate
-/// bidder code, ATTS, floors, consented-provider and clone inputs. The only `String` gap is the
-/// one [`STRING_GAPS`] documents for `ReadDealTiersFromImp`: the `"minDealTier":"5"` documents,
-/// whose jsoniter error text ends in the byte `0xff`.
+/// bidder code, ATTS, floors, consented-provider and clone inputs. No call differs by the
+/// `String` gap. The repeated members are `atts`, which jsonparser reads the first of
+/// (`json.jsonparser-scan`), and a deal tier `prebid` whose first value fails in Go, which only
+/// the error texts tell apart.
 #[test]
 fn review_functions() -> TestResult {
     replay_calls(
         "review_functions.tsv",
         8500,
         0,
-        &[("ReadDealTiersFromImp", 5)],
+        &[],
+        &[ERROR_TEXTS, JSONPARSER_SCAN, KEY_CASE, STRUCT_FROM_ARRAY],
     )
 }

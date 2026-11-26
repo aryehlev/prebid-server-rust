@@ -6,8 +6,10 @@ use core::{
     iter,
 };
 
-use pbs_gojson::{JsoniterDecode, RawJson, jsonutil};
+use pbs_gojson::RawJson;
+use pbs_jsonutil::unmarshal;
 use pbs_openrtb::openrtb2;
+use serde::de::DeserializeOwned;
 
 use super::{
     convert_up_ensure_ext, convert_up_to26, move_consent_from25_to26, move_eid_from25_to26,
@@ -18,6 +20,10 @@ use crate::request_wrapper::{ImpWrapper, RequestWrapper};
 
 /// A test result whose error is the failure message.
 type TestResult = Result<(), String>;
+
+/// The message inside Go's `req.ext is invalid: ...` for the ext `malformed`: Go's is
+/// jsoniter's `expect { or n, but found m`, the port's `serde_json`'s (`json.error-texts`).
+const MALFORMED: &str = "expected value at line 1 column 1";
 
 /// Fails, showing both values, unless they are equal.
 fn ensure_eq<T: PartialEq + Debug + ?Sized>(got: &T, want: &T, what: &str) -> TestResult {
@@ -41,11 +47,9 @@ fn all_ok<N: Display, I: IntoIterator<Item = (N, TestResult)>>(cases: I) -> Test
     }
 }
 
-/// The value `json` decodes into.
-fn decode<T: JsoniterDecode + Default>(json: &str) -> Result<T, String> {
-    let mut value = T::default();
-    jsonutil::unmarshal(json.as_bytes(), &mut value).map_err(|err| format!("{json}: {err}"))?;
-    Ok(value)
+/// The value `json` decodes into (Go: `jsonutil.Unmarshal`).
+fn decode<T: DeserializeOwned>(json: &str) -> Result<T, String> {
+    unmarshal(json.as_bytes()).map_err(|err| format!("{json}: {err}"))
 }
 
 /// Go's test loop of the move functions: the wrapper of the request `given`, changed by `step`
@@ -121,7 +125,7 @@ fn convert_up_to26_cases() -> TestResult {
     );
     let mut malformed_ext = RequestWrapper::new(malformed_request(|req| req.ext = malformed()));
     let got = convert_up_to26(&mut malformed_ext).map_err(|err| err.to_string());
-    let want = Err("req.ext is invalid: expect { or n, but found m".to_owned());
+    let want = Err(format!("req.ext is invalid: {MALFORMED}"));
     let cases = [
         ("2.4 -> 2.6", given_24, expected_26),
         (
@@ -167,12 +171,13 @@ fn malformed() -> RawJson {
 /// Go: `TestConvertUpEnsureExt`.
 #[test]
 fn convert_up_ensure_ext_cases() -> TestResult {
+    // The Prebid prefixes of Go's errors, each followed by MALFORMED.
     let cases: [(&str, Place, Option<&str>); 6] = [
         ("Empty", |_| {}, None),
         (
             "Ext",
             |req| req.ext = malformed(),
-            Some("req.ext is invalid: expect { or n, but found m"),
+            Some("req.ext is invalid: "),
         ),
         (
             "Source.Ext",
@@ -182,7 +187,7 @@ fn convert_up_ensure_ext_cases() -> TestResult {
                     ..openrtb2::Source::default()
                 }));
             },
-            Some("req.source.ext is invalid: expect { or n, but found m"),
+            Some("req.source.ext is invalid: "),
         ),
         (
             "Regs.Ext",
@@ -192,7 +197,7 @@ fn convert_up_ensure_ext_cases() -> TestResult {
                     ..openrtb2::Regs::default()
                 }));
             },
-            Some("req.regs.ext is invalid: expect { or n, but found m"),
+            Some("req.regs.ext is invalid: "),
         ),
         (
             "User.Ext",
@@ -202,7 +207,7 @@ fn convert_up_ensure_ext_cases() -> TestResult {
                     ..openrtb2::User::default()
                 }));
             },
-            Some("req.user.ext is invalid: expect { or n, but found m"),
+            Some("req.user.ext is invalid: "),
         ),
         (
             "Imp.Ext",
@@ -212,7 +217,7 @@ fn convert_up_ensure_ext_cases() -> TestResult {
                     ..openrtb2::Imp::default()
                 }]);
             },
-            Some("imp[0].imp.ext is invalid: expect { or n, but found m"),
+            Some("imp[0].imp.ext is invalid: "),
         ),
     ];
     all_ok(cases.into_iter().map(|(name, place, expected)| {
@@ -220,7 +225,8 @@ fn convert_up_ensure_ext_cases() -> TestResult {
         let got = convert_up_ensure_ext(&mut w)
             .err()
             .map(|err| err.to_string());
-        (name, ensure_eq(&got, &expected.map(str::to_owned), "error"))
+        let want = expected.map(|prefix| format!("{prefix}{MALFORMED}"));
+        (name, ensure_eq(&got, &want, "error"))
     }))
 }
 

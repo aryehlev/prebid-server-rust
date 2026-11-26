@@ -1,6 +1,6 @@
 // Command request_wrapper writes the differential goldens of openrtb_ext's RequestWrapper and of
-// convert_up.go and convert_down.go, which pbs-openrtb-ext's request_wrapper tests replay byte
-// for byte.
+// convert_up.go and convert_down.go, which pbs-openrtb-ext's tests/parity/request_wrapper module
+// replays, comparing JSON by its tokens and texts exactly.
 //
 // Every bid request of prebid-server's test corpora (the mockBidRequest and the ORTB bodies of
 // the expected HTTP calls of the adapter fixtures under every fixture root of
@@ -10,12 +10,12 @@
 // (mutations.go), is wrapped in a RequestWrapper and run through scripts of wrapper operations
 // (steps.go): the ext getters, setters and touches (every member set to its own value), rebuilds,
 // ConvertUpTo26, ConvertDownTo25, the Clear* functions, the impression wrappers' operations and
-// the clones. corpus.tsv holds the corpus requests, mutations.tsv the mutations, and review.tsv
-// the review requests and scripts of review.go (the corpus requests run the review's corpus
-// scripts there). Each script starts from a new decode of the request. After each step the step's
-// observation is recorded: its error, the request as jsonutil.Marshal writes it, and what the
-// getters return (each ext's members verbatim, its typed members as jsonutil.Marshal writes them,
-// and its dirty flag).
+// the clones. corpus.tsv.gz holds the corpus requests, mutations.tsv.gz the mutations, and
+// review.tsv.gz the review requests and scripts of review.go (the corpus requests run the review's
+// corpus scripts there). Each script starts from a new decode of the request. After each step the
+// step's observation is recorded: its error, the request as jsonutil.Marshal writes it, and what
+// the getters return (each ext's members verbatim, its typed members as jsonutil.Marshal writes
+// them, and its dirty flag).
 //
 // Each file starts with "#go" (the Go version), then lists the corpus directories walked on
 // "#root" rows and every JSON file found there on "#file" rows (path and FNV-1a 64 of its bytes),
@@ -27,15 +27,12 @@
 //
 // with one cell per step of the suite's scripts, in order. doc is "@file:offset:length" (a byte
 // range of the corpus file of that "#file" index), "'" and the document, or "^" for the document
-// and label of the row before. A cell is "'" and the observation, "#" and the FNV-1a 64 (in hex)
-// of an observation over 32 bytes long, "=N" (the same observation as cell N of the row), "!" and
-// the panic text of a step that panicked, or "-" for the steps of a script after a panic. An
-// observation is a sequence of parts, each its decimal length, ":" and its bytes. An observation
-// with an error text that is not valid UTF-8 (jsoniter quotes the byte it did not expect as it
-// is) is "~", its FNV-1a 64, ":" and the FNV-1a 64 of the observation with each invalid byte of
-// its error texts replaced by U+FFFD: the Rust port's errors hold their messages as Rust strings,
-// so its replay can only match that form. Fields are strconv.QuoteToASCII quoted and tab
-// separated.
+// and label of the row before. A cell is "'" and the observation, "=N" (the same observation as
+// cell N of the row), "!" and the panic text of a step that panicked, or "-" for the steps of a
+// script after a panic. An observation is a sequence of parts, each its kind, its decimal length,
+// ":" and its bytes (see obs). Fields are strconv.QuoteToASCII quoted and tab separated, and each
+// file is gzip-compressed (without a name or a time, so that a run of the same toolchain writes
+// the same bytes).
 //
 // Run it from the directory of this module, crates/openrtb-ext/testdata/go (the toolchain the
 // other goldens use):
@@ -49,6 +46,7 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"compress/gzip"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -73,9 +71,6 @@ func init() {
 	jsoniter.RegisterExtension(&jsonutil.RawMessageExtension{})
 }
 
-// inlineMax is the longest observation written inline; longer ones are written as a hash.
-const inlineMax = 32
-
 func main() {
 	out := flag.String("out", "request_wrapper", "directory to write the goldens to")
 	manifest := flag.String("manifest", "../../../../testdata/go_fixture_manifest.json",
@@ -92,13 +87,13 @@ func main() {
 	for i, d := range c.docs {
 		corpusRows[i] = row{doc: d, suite: corpusSuite}
 	}
-	write(filepath.Join(*out, "corpus.tsv"), c.roots, c.files, corpusRows)
+	write(filepath.Join(*out, "corpus.tsv.gz"), c.roots, c.files, corpusRows)
 
 	mutationRows := mutations()
-	write(filepath.Join(*out, "mutations.tsv"), nil, nil, mutationRows)
+	write(filepath.Join(*out, "mutations.tsv.gz"), nil, nil, mutationRows)
 
 	reviewRows := reviewRows(c.docs)
-	write(filepath.Join(*out, "review.tsv"), c.roots, c.files, reviewRows)
+	write(filepath.Join(*out, "review.tsv.gz"), c.roots, c.files, reviewRows)
 
 	log.Printf("corpus: %d roots, %d files, %d requests; mutations: %d rows; review: %d rows",
 		len(c.roots), len(c.files), len(c.docs), len(mutationRows), len(reviewRows))
@@ -357,21 +352,14 @@ func cells(d doc, suite string) []string {
 	return out
 }
 
-// cell is an observation as written: "=N", "~" and the FNV-1a 64 of the observation and of
-// its lossy form when they differ, "'" and the bytes, or "#fnv".
+// cell is an observation as written: "=N" or "'" and the bytes.
 func cell(o obs, earlier [][]byte) string {
 	for i, e := range earlier {
 		if e != nil && bytes.Equal(e, o.buf) {
 			return "=" + strconv.Itoa(i+1)
 		}
 	}
-	if !bytes.Equal(o.buf, o.lossy) {
-		return fmt.Sprintf("~%016x:%016x", fnv64(o.buf), fnv64(o.lossy))
-	}
-	if len(o.buf) <= inlineMax {
-		return "'" + string(o.buf)
-	}
-	return fmt.Sprintf("#%016x", fnv64(o.buf))
+	return "'" + string(o.buf)
 }
 
 func fnv64(data []byte) uint64 {
@@ -380,9 +368,10 @@ func fnv64(data []byte) uint64 {
 	return h.Sum64()
 }
 
-// rowWriter writes rows of tab-separated strconv.QuoteToASCII fields.
+// rowWriter writes rows of tab-separated strconv.QuoteToASCII fields, gzip-compressed.
 type rowWriter struct {
 	f *os.File
+	z *gzip.Writer
 	w *bufio.Writer
 }
 
@@ -391,7 +380,11 @@ func newRowWriter(path string) *rowWriter {
 	if err != nil {
 		log.Fatal(err)
 	}
-	rw := &rowWriter{f: f, w: bufio.NewWriter(f)}
+	z, err := gzip.NewWriterLevel(f, gzip.BestCompression)
+	if err != nil {
+		log.Fatal(err)
+	}
+	rw := &rowWriter{f: f, z: z, w: bufio.NewWriter(z)}
 	rw.row("#go", runtime.Version())
 	return rw
 }
@@ -408,6 +401,9 @@ func (rw *rowWriter) row(fields ...string) {
 
 func (rw *rowWriter) close() {
 	if err := rw.w.Flush(); err != nil {
+		log.Fatal(err)
+	}
+	if err := rw.z.Close(); err != nil {
 		log.Fatal(err)
 	}
 	if err := rw.f.Close(); err != nil {
