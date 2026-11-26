@@ -17,7 +17,6 @@ workspace = true
 [dependencies]
 pbs-bidder-params = { path = "../bidder-params", version = "0.1.0" }
 pbs-errortypes = { path = "../errortypes", version = "0.1.0" }
-pbs-gocompat = { path = "../gocompat", version = "0.1.0" }
 pbs-gojson = { path = "../gojson", version = "0.1.0" }
 pbs-jsonutil = { path = "../jsonutil", version = "0.1.0" }
 pbs-openrtb = { path = "../openrtb", version = "0.1.0" }

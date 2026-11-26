@@ -15,9 +15,21 @@ pub use pbs_bidder_params::{
     BidderParamValidator, LoadError, ParamsError, StandardBidderParamValidator,
 };
 use pbs_errortypes::GoError;
-use pbs_gocompat::strings;
 
-use crate::cow_str::cow_string_type;
+use crate::{cow_str::cow_string_type, equal_fold};
+
+/// Go: `strings.ToLower(s)`: each character's simple lower-case mapping. std's mapping of a
+/// character is that one character, but for U+0130, whose simple mapping is the first of its two;
+/// its tables are a later Unicode version than go1.26.2's 15.0.0, so a letter cased since is
+/// lowered here and kept by Go (`config.bidder-name-unicode`).
+fn to_lower(s: &str) -> String {
+    if s.is_ascii() {
+        return s.to_ascii_lowercase();
+    }
+    s.chars()
+        .map(|c| c.to_lowercase().next().unwrap_or(c))
+        .collect()
+}
 
 cow_string_type! {
     /// `BidderName` refers to a core bidder id or an alias id.
@@ -51,7 +63,7 @@ static REGISTRY: LazyLock<RwLock<Registry>> = LazyLock::new(|| {
     // collision, as the map assignment in slice order does).
     let bidder_name_lookup = core_bidder_names
         .iter()
-        .map(|name| (strings::to_lower(name.as_str()), name.clone()))
+        .map(|name| (to_lower(name.as_str()), name.clone()))
         .collect();
     let bidder_name_set = core_bidder_names.iter().cloned().collect();
     RwLock::new(Registry {
@@ -99,7 +111,7 @@ pub fn set_alias_bidder_name(
     }
     let interned: &'static str = Box::leak(alias_bidder_name.to_owned().into_boxed_str());
     let alias_bidder = BidderName::from_static(interned);
-    let lower = strings::to_lower(alias_bidder_name);
+    let lower = to_lower(alias_bidder_name);
     let mut reg = registry_mut();
     reg.core_bidder_names.push(alias_bidder.clone());
     let _new = reg.bidder_name_set.insert(alias_bidder.clone());
@@ -132,7 +144,7 @@ const RESERVED: [BidderName; 10] = [
 pub fn is_bidder_name_reserved(name: &str) -> bool {
     RESERVED
         .iter()
-        .any(|reserved| strings::equal_fold(name, reserved.as_str()))
+        .any(|reserved| equal_fold(name, reserved.as_str()))
 }
 
 /// Go: `IsPotentialBidder(name)`: whether `name` is not reserved within the `imp[].ext` context
@@ -191,7 +203,7 @@ pub fn normalize_bidder_name(name: &str) -> Option<BidderName> {
         .bytes()
         .any(|b| !b.is_ascii() || b.is_ascii_uppercase())
     {
-        reg.bidder_name_lookup.get(&strings::to_lower(name))
+        reg.bidder_name_lookup.get(&to_lower(name))
     } else {
         reg.bidder_name_lookup.get(name)
     };
@@ -1400,3 +1412,98 @@ static CORE_BIDDER_NAMES: [BidderName; 282] = [
     BIDDER_ZETA_GLOBAL_SSP,
     BIDDER_ZMATICOO,
 ];
+
+#[cfg(test)]
+mod tests {
+    use core::fmt::Debug;
+
+    use super::to_lower;
+    use crate::equal_fold;
+
+    /// A test result whose error is the failure message.
+    type TestResult = Result<(), String>;
+
+    /// Fails with `what` unless `got` is `want`.
+    fn ensure<T: PartialEq + Debug>(got: &T, want: &T, what: &str) -> TestResult {
+        if got == want {
+            Ok(())
+        } else {
+            Err(format!("{what}: got {got:?}, want {want:?}"))
+        }
+    }
+
+    /// Go's `strings.ToLower` and `strings.EqualFold` where std's tables agree with go1.26.2's:
+    /// each character by its simple mapping (U+0130 to `i`, a final sigma kept), and the folding
+    /// classes of `ſ`, the Kelvin and Ångström signs, the sigmas, `ẞ`, the Cherokee letters and
+    /// the titlecase digraphs, with U+0130 and U+0131 apart from `i`.
+    // Go: strings.ToLower, strings.EqualFold (go1.26.2, unicode.Version 15.0.0)
+    #[test]
+    fn case_mapping_matches_go() -> TestResult {
+        for (s, lower) in [
+            ("AppNexus", "appnexus"),
+            ("\u{130}X", "ix"),
+            ("\u{3a3}IGMA\u{3a3}", "\u{3c3}igma\u{3c3}"),
+            ("\u{1c5}AB", "\u{1c6}ab"),
+            ("\u{1e9e}ETA", "\u{df}eta"),
+            ("\u{212a}ARGO", "kargo"),
+            ("\u{17f}OVRN", "\u{17f}ovrn"),
+        ] {
+            ensure(&to_lower(s).as_str(), &lower, &format!("ToLower({s:?})"))?;
+        }
+        for (s, t, want) in [
+            ("skadn", "\u{17f}kadn", true),
+            ("skadn", "s\u{212a}adn", true),
+            ("igs", "IG\u{17f}", true),
+            ("gpid", "gp\u{130}d", false),
+            ("ix", "\u{131}x", false),
+            ("IX", "\u{131}x", false),
+            ("\u{3c3}", "\u{3c2}", true),
+            ("\u{3a3}", "\u{3c2}", true),
+            ("\u{df}", "\u{1e9e}", true),
+            ("\u{df}", "ss", false),
+            ("\u{df}", "s", false),
+            ("\u{e5}", "\u{212b}", true),
+            ("\u{3c9}", "\u{2126}", true),
+            ("\u{13a0}", "\u{ab70}", true),
+            ("\u{1c4}", "\u{1c5}", true),
+            ("\u{3b8}", "\u{3d1}", true),
+            ("\u{3f4}", "\u{3d1}", true),
+            ("\u{1f80}", "\u{1f88}", true),
+            ("\u{3b9}", "\u{345}", true),
+            ("\u{1fbe}", "\u{345}", true),
+            ("\u{b5}", "\u{3bc}", true),
+            ("pubmatic", "PUBMATIC", true),
+            ("pubmatic", "pubmati", false),
+        ] {
+            ensure(
+                &equal_fold(s, t),
+                &want,
+                &format!("EqualFold({s:?}, {t:?})"),
+            )?;
+        }
+        Ok(())
+    }
+
+    /// std's case tables are a later Unicode version than go1.26.2's 15.0.0: U+A7CB, cased in
+    /// Unicode 16.0.0, is lowered to U+0264 and folds with it here, where Go's `strings.ToLower`
+    /// keeps it and `strings.EqualFold` matches it with nothing else
+    /// (`config.bidder-name-unicode`).
+    #[test]
+    fn letters_cased_after_unicode_15_are_lowered() -> TestResult {
+        ensure(
+            &(char::UNICODE_VERSION.0 >= 16),
+            &true,
+            &format!("std's Unicode {:?}", char::UNICODE_VERSION),
+        )?;
+        ensure(
+            &to_lower("\u{a7cb}x").as_str(),
+            &"\u{264}x",
+            "ToLower(U+A7CB x)",
+        )?;
+        ensure(
+            &equal_fold("\u{a7cb}", "\u{264}"),
+            &true,
+            "EqualFold(U+A7CB, U+0264)",
+        )
+    }
+}

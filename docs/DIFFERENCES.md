@@ -18,7 +18,7 @@ Rule B's cases: (a) input real production traffic sends that the crate would rej
 |---|---:|---:|---:|
 | Base64 | 0 | 1 | 1 |
 | In-memory caches | 0 | 1 | 0 |
-| Configuration loading | 0 | 8 | 7 |
+| Configuration loading | 0 | 10 | 7 |
 | Cookies | 0 | 1 | 0 |
 | Currency rates | 0 | 4 | 0 |
 | Global vendor list | 0 | 1 | 0 |
@@ -38,7 +38,7 @@ Rule B's cases: (a) input real production traffic sends that the crate would rej
 | URLs | 0 | 2 | 2 |
 | User syncs | 0 | 1 | 0 |
 | YAML | 0 | 3 | 0 |
-| All | 7 | 145 | 35 |
+| All | 7 | 147 | 35 |
 
 ## Decisions pending
 
@@ -122,6 +122,29 @@ No entry names the classes `other` and `unrecorded` or the kinds `stage_missing`
 ## Configuration loading
 
 ### Ledgered
+
+#### `config.alternate-code-quoting`: Alternate bidder code warnings: Go quotes the names with `strconv.Quote`, the port as Rust quotes strings
+
+- **Go:** `IsValidBidderCode`'s errors quote the bidder and the seat with `%q` (openrtb_ext/alternatebiddercodes.go:52, 56 and 60): `strconv.Quote` writes `\a` for U+0007, `\x00` for NUL and `\u00ad` for a soft hyphen, and keeps a combining mark such as U+0301.
+- **Rust:** The port quotes them with `{:?}`: `\u{7}`, `\0`, `\u{ad}` and `\u{301}`. Printable characters, `"` and `\` are quoted alike.
+- **Who notices:** publisher
+- **Visible in:** The `ext.warnings` of an auction whose bidder returns a bid under a seat the alternate bidder codes reject (exchange/bidder.go:388-395), where the bidder or seat name holds a control or format character or a combining mark
+- **Harness:** none
+- **Pin:** `crates/openrtb-ext/src/alternatebiddercodes.rs::names_quoted_as_rust_quotes_them`
+- **Restore option:** Port `strconv.Quote` with Go's printability tables; not planned (orchestrator ruling 2 ledgers library wording, as for config.error-texts).
+- **Recorded in:** `crates/openrtb-ext/differences.toml`
+
+#### `config.bidder-name-unicode`: Bidder name case: Go maps letters by Unicode 15.0.0, the port by std's later Unicode tables
+
+- **Go:** `NormalizeBidderName`, `SetAliasBidderName`, `IsBidderNameReserved` and `IsValidBidderCode` lower-case and fold names with `strings.ToLower` and `strings.EqualFold`, whose go1.26.2 tables are Unicode 15.0.0's: a letter Unicode gave a case pair since, such as U+A7CB, U+10D50 or U+1C89, stays as it is and folds with nothing else.
+- **Rust:** The port maps each character by its simple mapping, and folds it by its class, from std's tables, which are a later Unicode version's: those letters lower to their pairs (U+A7CB to U+0264, U+10D50 to U+10D70, U+1C89 to U+1C8A) and fold with them. Every other character maps and folds as in Go.
+- **Who notices:** operator, publisher
+- **Visible in:** Bidder and alias names holding such a letter: the aliases of the bidder-info files, the bidder names of requests (multibid, bid adjustments, deal tiers, `/setuid`, `/event`) and the seats the alternate bidder codes check (exchange/bidder.go:388)
+- **Harness:** none
+- **Pin:** `crates/openrtb-ext/src/bidders.rs::letters_cased_after_unicode_15_are_lowered`
+- **Restore option:** Carry Unicode 15.0.0's case tables for bidder names; not planned, as for config.key-unicode.
+- **Note:** Go's goldens show it: review_aliases.tsv registers the alias `\u{a7cb}new`, which go1.26.2's `NormalizeBidderName` and `NormalizeBidderNameOrUnchanged` do not find by `\u{264}new` and the port's do (tests/review_aliases/main.rs counts those two calls); the other case-mapping probes of review_aliases.tsv and review_functions.tsv give Go's results.
+- **Recorded in:** `crates/openrtb-ext/differences.toml`
 
 #### `config.error-texts`: Config decode errors: mapstructure's words, with values printed as Rust prints them
 

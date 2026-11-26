@@ -2,25 +2,26 @@
 //! types are generated).
 
 use pbs_errortypes::GoError;
-use pbs_gocompat::{strconv::quote, strings};
 
-use crate::generated::{ExtAdapterAlternateBidderCodes, ExtAlternateBidderCodes};
+use crate::{
+    equal_fold,
+    generated::{ExtAdapterAlternateBidderCodes, ExtAlternateBidderCodes},
+};
 
-/// Go: `alternateBidderDisabledError`.
+/// Go: `alternateBidderDisabledError`. Go quotes the names with `%q` (`strconv.Quote`), the
+/// port as Rust quotes strings (`config.alternate-code-quoting`).
 fn alternate_bidder_disabled_error(bidder: &str, alternate_bidder: &str) -> GoError {
     GoError::generic(format!(
-        "alternateBidderCodes disabled for {}, rejecting bids for {}",
-        quote(bidder),
-        quote(alternate_bidder)
+        "alternateBidderCodes disabled for {bidder:?}, rejecting bids for {alternate_bidder:?}"
     ))
 }
 
-/// Go: `alternateBidderNotDefinedError`.
+/// Go: `alternateBidderNotDefinedError`, the names quoted as in
+/// [`alternate_bidder_disabled_error`].
 fn alternate_bidder_not_defined_error(bidder: &str, alternate_bidder: &str) -> GoError {
     GoError::generic(format!(
-        "alternateBidderCodes not defined for adapter {}, rejecting bids for {}",
-        quote(bidder),
-        quote(alternate_bidder)
+        "alternateBidderCodes not defined for adapter {bidder:?}, rejecting bids for \
+         {alternate_bidder:?}"
     ))
 }
 
@@ -40,7 +41,7 @@ impl ExtAlternateBidderCodes {
         alternate_bidder: &str,
     ) -> Result<(), GoError> {
         // Go: openrtb_ext/alternatebiddercodes.go:19
-        if alternate_bidder.is_empty() || strings::equal_fold(bidder, alternate_bidder) {
+        if alternate_bidder.is_empty() || equal_fold(bidder, alternate_bidder) {
             return Ok(());
         }
         if !self.enabled {
@@ -65,9 +66,7 @@ impl ExtAlternateBidderCodes {
             return Ok(());
         }
         Err(GoError::generic(format!(
-            "invalid biddercode {} sent by adapter {}",
-            quote(alternate_bidder),
-            quote(bidder)
+            "invalid biddercode {alternate_bidder:?} sent by adapter {bidder:?}"
         )))
     }
 
@@ -93,7 +92,43 @@ impl ExtAlternateBidderCodes {
         }
         bidders
             .iter()
-            .find(|(bidder_name, _)| strings::equal_fold(bidder, bidder_name))
+            .find(|(bidder_name, _)| equal_fold(bidder, bidder_name))
             .map(|(_, adapter_cfg)| adapter_cfg)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::generated::ExtAlternateBidderCodes;
+
+    /// A test result whose error is the failure message.
+    type TestResult = Result<(), String>;
+
+    /// The names in the errors are quoted as Rust quotes strings, where Go's `%q` quotes them
+    /// with `strconv.Quote` (`config.alternate-code-quoting`): go1.26.2 writes `"pub\amatic"`,
+    /// `"a\x00b"`, `"\u00ad"`, and U+0301 after an `A` as it is, the port `"pub\u{7}matic"`,
+    /// `"a\0b"`, `"\u{ad}"` and `"A\u{301}"`; printable characters, `"` and `\` are quoted
+    /// alike.
+    // Go: openrtb_ext/alternatebiddercodes.go:52, 56 and 60 (fmt.Errorf with %q)
+    #[test]
+    fn names_quoted_as_rust_quotes_them() -> TestResult {
+        let codes = ExtAlternateBidderCodes::default();
+        for (bidder, quoted) in [
+            ("pub\u{7}matic", r#""pub\u{7}matic""#),
+            ("a\0b", r#""a\0b""#),
+            ("\u{ad}", r#""\u{ad}""#),
+            ("A\u{301}", r#""A\u{301}""#),
+            ("pub\"matic", r#""pub\"matic""#),
+            ("group\u{e9}", "\"group\u{e9}\""),
+        ] {
+            let want = format!(
+                "alternateBidderCodes disabled for {quoted}, rejecting bids for \"groupm\""
+            );
+            match codes.is_valid_bidder_code(bidder, "groupm") {
+                Err(e) if e.message() == want => {}
+                got => return Err(format!("{bidder:?}: got {got:?}, want {want:?}")),
+            }
+        }
+        Ok(())
     }
 }

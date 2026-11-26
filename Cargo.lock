@@ -1225,7 +1225,6 @@ dependencies = [
  "pbs-bidder-params",
  "pbs-devtools",
  "pbs-errortypes",
- "pbs-gocompat",
  "pbs-gojson",
  "pbs-jsonutil",
  "pbs-openrtb",

@@ -42,6 +42,10 @@
 //!   `UnmarshalJSON` are [`pbs_gojson::JsonError`]s, which keep only their text (as
 //!   `jsonutil.Unmarshal` does).
 //! * Go strings are Rust `String`s: invalid UTF-8 that jsoniter keeps in a Go string is U+FFFD.
+//! * Bidder names are lower-cased and case-folded by std's tables, a later Unicode version than
+//!   go1.26.2's 15.0.0 (`config.bidder-name-unicode`), and the errors of
+//!   [`ExtAlternateBidderCodes::is_valid_bidder_code`] quote names as Rust quotes strings, where Go
+//!   uses `strconv.Quote` (`config.alternate-code-quoting`).
 //! * `encoding/json` (not jsoniter, which the server uses for these types) decoding a literal other
 //!   than `null` into a nil `*[]T` field (`ImpExtConcert.Sizes`) leaves an empty slice where Go
 //!   leaves nil: `pbs_gojson`'s slices do not keep nil there.
@@ -96,4 +100,45 @@ pub use user::*;
 /// same items).
 pub mod openrtb_ext {
     pub use super::*;
+}
+
+/// `c`'s simple upper-case mapping where std maps it to one character, else `c`.
+fn upper_one(c: char) -> char {
+    let mut upper = c.to_uppercase();
+    match (upper.next(), upper.next()) {
+        (Some(one), None) => one,
+        _ => c,
+    }
+}
+
+/// `c`'s simple lower-case mapping where std maps it to one character, else `c`.
+fn lower_one(c: char) -> char {
+    let mut lower = c.to_lowercase();
+    match (lower.next(), lower.next()) {
+        (Some(one), None) => one,
+        _ => c,
+    }
+}
+
+/// A representative of `c`'s class under Unicode simple case folding: the lower case of its
+/// upper case, which puts `ſ` with `s`, the Kelvin sign with `k`, `ς` with `σ` and `ẞ` with `ß`.
+/// U+0130 stays itself (its lower case is two characters), and so does U+0131, whose upper case
+/// is `I` but which folds to nothing else.
+fn fold_class(c: char) -> char {
+    if c == '\u{131}' {
+        return c;
+    }
+    lower_one(upper_one(c))
+}
+
+/// Go: `strings.EqualFold(s, t)`: whether the strings are equal character by character under
+/// Unicode simple case folding, by std's tables (`config.bidder-name-unicode`).
+pub(crate) fn equal_fold(s: &str, t: &str) -> bool {
+    if s.is_ascii() && t.is_ascii() {
+        return s.eq_ignore_ascii_case(t);
+    }
+    s.chars().count() == t.chars().count()
+        && s.chars()
+            .zip(t.chars())
+            .all(|(a, b)| a == b || fold_class(a) == fold_class(b))
 }

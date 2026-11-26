@@ -2,7 +2,6 @@
 //! iOS app tracking status helpers (the other structs are generated).
 
 use pbs_errortypes::GoError;
-use pbs_gocompat::strconv;
 use pbs_gojson::{
     GoJson, GoUnmarshaler, JsonError,
     jsonparser::{self, ValueType},
@@ -65,7 +64,8 @@ fn percentage(data: &[u8], key: &str) -> Result<i64, JsonError> {
     let Ok(text) = str::from_utf8(got.value) else {
         return Err(invalid());
     };
-    match strconv::atoi(text) {
+    // `str::parse` reads what `strconv.Atoi` reads: an optional sign and decimal digits.
+    match text.parse::<i64>() {
         Ok(perc) if (0..=100).contains(&perc) => Ok(perc),
         Ok(_) | Err(_) => Err(invalid()),
     }
