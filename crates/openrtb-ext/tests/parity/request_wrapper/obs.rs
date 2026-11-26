@@ -134,9 +134,16 @@ fn convert_prefix(text: &str) -> Option<(&str, &str)> {
     known.then_some((prefix, rest))
 }
 
+/// Whether Prebid wrote `text`, whole or as the prefix of a conversion's error.
+fn prebid_text(text: &str) -> bool {
+    PREBID_TEXTS.contains(&text)
+        || text.starts_with(PREBID_MESSAGE)
+        || convert_prefix(text).is_some()
+}
+
 /// The ledger entries two error texts differ in, or what is unexplained: Prebid's texts must be
-/// the same, the library's (`json.error-texts`) may differ; an error on one side alone is
-/// unexplained.
+/// the same on both sides, the library's (`json.error-texts`) may differ; an error on one side
+/// alone, or a Prebid text on one side where the other has the library's, is unexplained.
 fn error_texts(port: &str, go: &str) -> Result<Vec<&'static str>, String> {
     if port == go {
         return Ok(Vec::new());
@@ -153,7 +160,7 @@ fn error_texts(port: &str, go: &str) -> Result<Vec<&'static str>, String> {
             _ => unexplained(),
         };
     }
-    if PREBID_TEXTS.contains(&go) || go.starts_with(PREBID_MESSAGE) {
+    if prebid_text(go) || prebid_text(port) {
         return unexplained();
     }
     Ok(vec![ERROR_TEXTS])
@@ -335,14 +342,15 @@ fn no_more_json(port: &str, go: &str) -> bool {
 }
 
 /// Whether the port's observation holds no more than Go's: the same parts, each of the port's
-/// holding what Go's does or less (an error where Go's has one, an object's members a subset,
-/// null for a value, an ext map's members a subset). It is what Go's decoders leave in a value
-/// that failed to decode and the port's do not (`json.partial-results`).
+/// holding what Go's does or less (an error where Go's has one, with Prebid's text where Go's is
+/// Prebid's, an object's members a subset, null for a value, an ext map's members a subset). It
+/// is what Go's decoders leave in a value that failed to decode and the port's do not
+/// (`json.partial-results`).
 pub(super) fn partial(port: &[Part], go: &[Part]) -> bool {
     port.len() == go.len()
         && port.iter().zip(go).all(|(p, g)| match (p, g) {
             _ if p == g => true,
-            (Part::Err(p), Part::Err(g)) => p.is_empty() == g.is_empty(),
+            (Part::Err(p), Part::Err(g)) => error_texts(p, g).is_ok(),
             (Part::Json(p), Part::Json(g)) => no_more_json(p, g),
             (Part::Map(p), Part::Map(g)) => p.iter().all(|(key, value)| {
                 g.iter().any(|(k, v)| {
