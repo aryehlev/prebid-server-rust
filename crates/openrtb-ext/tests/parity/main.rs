@@ -24,4 +24,8 @@ pub mod index;
 #[cfg(test)]
 pub mod inventory;
 #[cfg(test)]
+pub mod serde_goldens;
+#[cfg(test)]
+pub mod shapes;
+#[cfg(test)]
 pub mod support;

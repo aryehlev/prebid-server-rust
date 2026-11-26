@@ -8,6 +8,7 @@
     "crates/jsonutil/differences.toml",
     "crates/logger/differences.toml",
     "crates/metrics/differences.toml",
+    "crates/openrtb-ext/differences.toml",
     "crates/openrtb/differences.toml",
     "crates/parity/differences.toml",
     "crates/router/differences.toml",
@@ -1429,6 +1430,29 @@
       "fragment": "crates/openrtb/differences.toml"
     },
     {
+      "id": "json.failed-merge-scalar",
+      "category": "json",
+      "status": "ledgered",
+      "title": "A merge that fails on a named string or integer: Go leaves the zero value, the port the value it had",
+      "go": "`jsonutil.MergeClone` given a value of another JSON type for a named string or integer (`1` into an `openrtb_ext.BidType` holding `\"x\"`, `true` into an `IOSAppTrackingStatus` holding 1) fails and leaves the type's zero value, `\"\"` or 0: `BidType`, `TargetingKey`, `BidderName`, `UserSyncType`, `IOSAppTrackingStatus`, `AuctionEnvironmentType` and `CookieStatus`.",
+      "rust": "pbs-jsonutil's `MergeClone` of a string or number reads the patch before it changes the value, so the failed merge leaves the value it had.",
+      "who": [
+        "none"
+      ],
+      "visible_in": "Nothing in production: every `MergeClone` caller drops the value when the merge fails (exchange/utils.go:719-727, firstpartydata/first_party_data.go:198, 267, 322 and 405, account/fetcher.go:141 and 147)",
+      "harness": [],
+      "pin": "crates/openrtb-ext/tests/parity/shapes.rs::failed_scalar_merges_keep_the_value",
+      "restore": "pbs-jsonutil's string and number merges setting the zero value when the patch does not read; not planned while no caller keeps a failed merge's value.",
+      "default": null,
+      "decision": "D-DECODE",
+      "rule_b": null,
+      "restore_by": [],
+      "restorations": [],
+      "restore_pending": false,
+      "note": null,
+      "fragment": "crates/openrtb-ext/differences.toml"
+    },
+    {
       "id": "json.find-element-invalid",
       "category": "json",
       "status": "ledgered",
@@ -2310,6 +2334,29 @@
       "fragment": "crates/jsonutil/differences.toml"
     },
     {
+      "id": "json.prebid-message-context",
+      "category": "json",
+      "status": "decision-pending",
+      "title": "Prebid's messages from `UnmarshalJSON` methods: Go gives them bare, the port with serde_json's position or the merged field",
+      "go": "The `UnmarshalJSON` methods of `ExtDeviceInt` and `ExtSite` fail with Prebid's text (`request.device.ext.prebid.interstitial.minwidthperc must be a number between 0 and 100`, `request.site.ext.amp must be either 1, 0, or undefined`), which `jsonutil.Unmarshal`, `UnmarshalValid`, `json.Unmarshal` and `jsonutil.MergeClone` return bare wherever the value sits in the document.",
+      "rust": "The serde impls fail with the same text, which serde_json returns bare where the value is the document and with its position after it where the value sits inside (`... between 0 and 100 at line 1 column 55`); `MergeClone` names the field it failed in (`cannot unmarshal openrtb_ext.ExtDevicePrebid.Interstitial: request.device...`).",
+      "who": [
+        "publisher"
+      ],
+      "visible_in": "The error of requests whose `device.ext.prebid.interstitial` is invalid, which Prebid reads into an `ExtDevicePrebid` with `jsonutil.Unmarshal` (openrtb_ext/request_wrapper.go:940), once the request wrapper reads it with the serde code",
+      "harness": [],
+      "pin": "crates/openrtb-ext/tests/parity/shapes.rs::prebid_messages_carry_position_and_field",
+      "restore": "pbs-jsonutil returning the message of an error a `Deserialize` impl raises without serde_json's position, and `MergeCloneError` passing such a message on without the field: glue under Rule B (d), as Prebid-authored text, in pbs-jsonutil, which this unit does not own.",
+      "default": "serde_json's text: the message with its position, a merge's with its field (crates first).",
+      "decision": "D-DECODE",
+      "rule_b": null,
+      "restore_by": [],
+      "restorations": [],
+      "restore_pending": false,
+      "note": "`stringOrStringArray`'s `value should be of type string or []string` reaches `jsonutil.Unmarshal`'s caller with jsoniter's field around it (`cannot unmarshal openrtb_ext.ImpExtGoldbach.CustomTargeting: ...`), which is `json.error-texts`; `json.Unmarshal` gives it bare, as it gives the others.",
+      "fragment": "crates/openrtb-ext/differences.toml"
+    },
+    {
       "id": "json.promoted-field-context",
       "category": "json",
       "status": "ledgered",
@@ -2420,6 +2467,30 @@
       "restore_pending": false,
       "note": "`crates/jsonutil/tests/readers.rs::seeded_string_ints_match_go` classifies the seeded inputs alike on both sides.",
       "fragment": "crates/jsonutil/differences.toml"
+    },
+    {
+      "id": "json.string-or-array-null",
+      "category": "json",
+      "status": "decision-pending",
+      "title": "`stringOrStringArray` given null: Go reads `[\"\"]`, the port nil",
+      "go": "`stringOrStringArray.UnmarshalJSON` (the values of `ImpExtGoldbach.CustomTargeting`) first reads the bytes as a string with `jsonutil.UnmarshalValid`, which reads null as `\"\"` without an error, so null gives `[\"\"]`.",
+      "rust": "`StringOrStringArray`'s serde impl reads the string with `pbs_jsonutil::unmarshal_valid`, which rejects null (`json.null-document`), and then the array, which null leaves nil.",
+      "who": [
+        "publisher",
+        "bidder"
+      ],
+      "visible_in": "The `targetings` Prebid sends Goldbach (adapters/goldbach/goldbach.go:158-167) for a key a request's `imp.ext.goldbach.customTargeting` gives null: `[\"\"]` from Go, `null` from the port once the adapter reads its parameters with the serde code",
+      "harness": [],
+      "pin": "crates/openrtb-ext/tests/parity/shapes.rs::string_or_array_null_is_nil",
+      "restore": "Reading null as the string's zero value, as the restore of `json.null-document` would: glue under Rule B (a) if the user restores that entry, which this one follows.",
+      "default": "serde's result: nil (crates first).",
+      "decision": "D-DECODE",
+      "rule_b": null,
+      "restore_by": [],
+      "restorations": [],
+      "restore_pending": false,
+      "note": null,
+      "fragment": "crates/openrtb-ext/differences.toml"
     },
     {
       "id": "json.struct-from-array",
