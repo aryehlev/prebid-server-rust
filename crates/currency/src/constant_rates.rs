@@ -87,6 +87,7 @@ mod tests {
 
     #[test]
     fn get_rates_is_nil() -> TestResult {
+        // Go: currency/constant_rates.go:37-39 (GetRates is nil)
         check(
             ConstantRates::new().get_rates().is_none(),
             "ConstantRates has no rates",
@@ -95,6 +96,7 @@ mod tests {
 
     #[test]
     fn go_golden_constant_rates() -> TestResult {
+        // Go: currency/constant_rates.go:19-34 (GetRate)
         let mut checked = 0_usize;
         for fields in read_golden("get_rate.golden")? {
             if let [kind, from, to, expected] = fields.as_slice()

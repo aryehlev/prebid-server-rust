@@ -147,6 +147,7 @@ mod tests {
 
     #[test]
     fn table_is_sorted_and_matches_go() -> TestResult {
+        // Go: golang.org/x/text@v0.37.0/currency/tables.go:47 (the table ParseISO searches)
         check(CODES.is_sorted(), "CODES must be sorted for binary search")?;
         let go_codes: Vec<String> = read_golden("iso4217.golden")?
             .into_iter()
@@ -159,6 +160,7 @@ mod tests {
 
     #[test]
     fn explicit_cases_match_go() -> TestResult {
+        // Go: golang.org/x/text@v0.37.0/currency/currency.go:93-106 (ParseISO)
         let mut cases = 0_usize;
         for fields in read_golden("iso4217.golden")? {
             match fields.as_slice() {
@@ -201,6 +203,7 @@ mod tests {
 
     #[test]
     fn every_ascii_triple_matches_go() -> TestResult {
+        // Go: golang.org/x/text@v0.37.0/currency/currency.go:93-106 (ParseISO)
         let ascii: Vec<u8> = (0_u8..128).collect();
         let mut letters: Vec<u8> = (b'A'..=b'Z').collect();
         letters.extend(b'a'..=b'z');

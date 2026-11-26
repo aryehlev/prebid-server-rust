@@ -155,6 +155,8 @@ mod tests {
 
     #[test]
     fn nil_custom_rates_do_not_fall_back() -> TestResult {
+        // Go: currency/aggregate_conversions.go:22-41 (GetRate falls back only on a
+        // ConversionNotFoundError; GetRates is nil)
         let pbs = Rates::new(Some(conversion_rates(&[("USD", &[("GBP", 4.0)])])));
         let aggregate = AggregateConversions::new(Arc::new(Rates::new(None)), Arc::new(pbs));
         check_eq(
@@ -170,6 +172,7 @@ mod tests {
 
     #[test]
     fn go_golden_aggregate_conversions() -> TestResult {
+        // Go: currency/aggregate_conversions.go:22-35 (GetRate over the get_rate.golden tables)
         let mut tables = BTreeMap::new();
         let mut checked = 0_usize;
         for fields in read_golden("get_rate.golden")? {
@@ -203,6 +206,7 @@ mod tests {
 
     #[tokio::test]
     async fn go_random_aggregate_conversions() -> TestResult {
+        // Go: currency/aggregate_conversions.go:22-35 (GetRate)
         // The random tables of rates::tests::go_random_get_rate, the first as the request
         // rates and the second as the server's: precedence when both have a rate, fallback
         // only on a missing rate (not on "rates are nil" or a bad code).

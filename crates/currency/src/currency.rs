@@ -218,6 +218,7 @@ mod tests {
 
     #[tokio::test]
     async fn empty_custom_rates_use_the_server_rates() -> TestResult {
+        // Go: currency/currency.go:33-37 (empty request rates: the PBS rates only)
         let converter = mock_rate_converter().await;
         let empty = ConversionRates::new();
         let request = RequestCurrency {
