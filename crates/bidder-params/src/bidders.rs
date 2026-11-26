@@ -36,11 +36,12 @@ pub trait BidderParamValidator: fmt::Debug + Send + Sync {
 pub enum ParamsError {
     /// The params do not satisfy the schema: every `ResultError.String()` concatenated.
     Invalid(String),
-    /// The params are not JSON: Go's `encoding/json` decoder text (for example
-    /// `unexpected EOF`).
+    /// The params are not JSON: `serde_json`'s text (`EOF while parsing a value at line 1
+    /// column 0`), where Go has its `encoding/json` decoder's (`unexpected EOF`;
+    /// jsonschema.decode-errors).
     Decode(String),
-    /// Go panics here instead of returning an error (a nil pointer dereference: no schema for
-    /// the bidder, or a value gojsonschema cannot convert). A Go server would abort the request.
+    /// Go panics here instead of returning an error: `Validate` on the nil schema of a bidder
+    /// without one. A Go server would abort the request.
     Panic(GoPanic),
 }
 
@@ -351,10 +352,12 @@ mod tests {
                 b"{}",
                 Some("(root): placementId is required"),
             ),
+            // Go: "invalid character 'm' looking for beginning of value"
+            // (jsonschema.decode-errors).
             (
                 "Malformed",
                 b"malformedJSON",
-                Some("invalid character 'm' looking for beginning of value"),
+                Some("expected value at line 1 column 1"),
             ),
         ];
         for (description, ext, want) in cases {
@@ -368,8 +371,9 @@ mod tests {
             validator.validate("bar", b"{}"),
             validator.validate("bar", b"{"),
         ) {
+            // Go: "unexpected EOF".
             (Err(ParamsError::Panic(_)), Err(ParamsError::Decode(text)))
-                if text == "unexpected EOF" =>
+                if text == "EOF while parsing an object at line 1 column 1" =>
             {
                 Ok(())
             }

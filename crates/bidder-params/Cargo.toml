@@ -14,8 +14,17 @@ categories = ["parser-implementations"]
 [lints]
 workspace = true
 
+# serde_json reads the schemas and the params (after pbs-jsonutil rewrites unpaired surrogate
+# escapes, as Go decodes them); pbs-util's goregex compiles the schemas' patterns into regex's
+# Regex.
 [dependencies]
+pbs-jsonutil = { path = "../jsonutil", version = "0.1.0" }
+pbs-util = { path = "../util", version = "0.1.0" }
 regex = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
 
+# The goldens are JSON lines (serde_json above); the seeded sweep hashes with sha2.
 [dev-dependencies]
 pbs-devtools = { path = "../devtools", version = "0.1.0" }
+sha2 = { workspace = true }

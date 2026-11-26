@@ -1,26 +1,25 @@
+//! Glue (Rule B (d)): schema loading, with gojsonschema's messages for a broken schema and a
+//! loud refusal of every keyword the port does not read.
+//!
 //! Go: gojsonschema/schema.go (`parseSchema` and its helpers) and the parts of
-//! gojsonschema/schemaLoader.go `Compile` that apply to a single self-contained document.
-//!
-//! Keywords are checked in Go's order and fail with Go's messages, so a broken schema is
-//! reported the same way. Go iterates `properties`, `patternProperties`, `definitions` and
-//! `dependencies` in random map order; here they keep document order (one of Go's orders, and
-//! the most likely one for small maps).
-//!
-//! `$ref` is not supported (no bidder schema uses it); a schema containing one is rejected.
+//! gojsonschema/schemaLoader.go `Compile` that apply to a self-contained document. Keywords are
+//! read in Go's order and fail with Go's messages; Go walks `properties` and `dependencies` in
+//! random order, and the port in key order, one of Go's.
+
+use std::iter;
+
+use pbs_util::goregex::{self, CompileError};
+use serde_json::{Map, Value};
 
 use super::{
+    decode::decode_json_using_number,
     draft::{Draft, parse_schema_url},
     errors::ValidationResult,
     format_checkers::Format,
-    go_url::parse_reference,
-    json_loader::{Document, Node, NodeId, decode_json_using_number},
-    marshal::marshal_without_number,
-    rat::Rat,
-    regexp::GoRegexp,
+    number::{must_be_integer, must_be_number},
     schema_type::{TYPE_BOOLEAN, TYPE_INTEGER, TYPE_NUMBER, TYPE_OBJECT, TYPE_STRING},
-    sub_schema::{Additional, Dependency, SubId, SubSchema},
-    utils::{Kind, checked_kind, is_kind, must_be_integer, must_be_number},
-    validation::{GoPanic, ValidateError, validate_document},
+    sub_schema::{Additional, Dependency, Pattern, SubId, SubSchema},
+    validation::{ValidateError, validate_document},
 };
 
 /// Go: gojsonschema `STRING_ROOT_SCHEMA_PROPERTY`.
@@ -34,7 +33,21 @@ const STRING_ARRAY_OF_STRINGS: &str = "array of strings";
 /// Go: gojsonschema `STRING_SCHEMA_OR_ARRAY_OF_STRINGS`.
 const STRING_SCHEMA_OR_ARRAY_OF_STRINGS: &str = "schema or array of strings";
 
-const MAP_OR_BOOL: &[Kind] = &[Kind::Map, Kind::Bool];
+/// Keywords gojsonschema reads in every draft that no schema Prebid ships uses.
+const UNREAD: [&str; 10] = [
+    "$ref",
+    "definitions",
+    "patternProperties",
+    "additionalItems",
+    "multipleOf",
+    "exclusiveMinimum",
+    "exclusiveMaximum",
+    "minProperties",
+    "maxProperties",
+    "uniqueItems",
+];
+/// Keywords gojsonschema reads from draft 6 on that no schema Prebid ships uses.
+const UNREAD_FROM_DRAFT6: [&str; 3] = ["propertyNames", "contains", "const"];
 
 /// Go: `Locale.InvalidType()`.
 fn invalid_type(expected: &str, given: &str) -> String {
@@ -56,6 +69,37 @@ fn must_be_of_an(x: &str, y: &str) -> String {
     format!("{x} must be of an {y}")
 }
 
+/// Go: `Locale.ParseError()` for a value that is not a schema.
+fn not_a_schema() -> String {
+    format!("Expected: {STRING_SCHEMA}, given: Invalid JSON")
+}
+
+/// The refusal of a schema that uses `what`, which the port does not read.
+fn unsupported(what: &str) -> String {
+    format!(
+        "{what} is not supported by the Rust port of gojsonschema, which reads only the \
+         keywords Prebid's schemas use"
+    )
+}
+
+/// Go: `json.Marshal` of a string: `serde_json`'s escapes, plus Go's `\u003c`, `\u003e` and
+/// `\u0026` for `<`, `>` and `&`, and `\u2028` and `\u2029` for the line and paragraph
+/// separators.
+fn go_json_string(s: &str) -> String {
+    let mut out = String::with_capacity(s.len() + 2);
+    for c in Value::from(s).to_string().chars() {
+        match c {
+            '<' => out.push_str("\\u003c"),
+            '>' => out.push_str("\\u003e"),
+            '&' => out.push_str("\\u0026"),
+            '\u{2028}' => out.push_str("\\u2028"),
+            '\u{2029}' => out.push_str("\\u2029"),
+            other => out.push(other),
+        }
+    }
+    out
+}
+
 /// A compiled schema (Go: gojsonschema `Schema`).
 #[derive(Debug, Clone)]
 pub struct Schema {
@@ -65,31 +109,28 @@ pub struct Schema {
 
 impl Schema {
     /// Go: `gojsonschema.NewSchema(loader)` where the loader yields `document`: decodes it,
-    /// detects the draft from `$schema` (defaulting to `Hybrid`) and parses it.
+    /// takes the draft from `$schema` (`Hybrid` by default) and parses it.
     ///
     /// # Errors
     ///
-    /// Returns Go's error text: a JSON decoding error, a `$schema` problem, or the first
-    /// `parseSchema` failure. Schemas using features this port does not implement (`$ref`, the
-    /// formats whose Go checkers are not ported) are rejected too.
+    /// The decoding error, a `$schema` problem or the first `parseSchema` failure with Go's
+    /// text, or the refusal of a keyword, format or schema form the port does not read.
     pub fn new(document: &[u8]) -> Result<Self, String> {
-        let doc = decode_json_using_number(document)?;
-        Self::from_document(&doc)
+        Self::from_value(&decode_json_using_number(document)?)
     }
 
     /// Like [`Schema::new`] for an already decoded document.
     ///
     /// # Errors
     ///
-    /// As for [`Schema::new`], minus decoding errors.
-    pub fn from_document(doc: &Document) -> Result<Self, String> {
-        let draft = parse_schema_url(doc, doc.root())?.unwrap_or(Draft::Hybrid);
-        check_references(doc)?;
+    /// As for [`Schema::new`], less decoding errors.
+    pub fn from_value(document: &Value) -> Result<Self, String> {
+        let draft = parse_schema_url(document)?.unwrap_or(Draft::Hybrid);
         let mut parser = Parser {
-            doc,
+            draft,
             subs: Vec::new(),
         };
-        let root = parser.parse_schema(doc.root(), STRING_ROOT_SCHEMA_PROPERTY, draft)?;
+        let root = parser.parse_schema(document, STRING_ROOT_SCHEMA_PROPERTY)?;
         Ok(Self {
             subs: parser.subs,
             root,
@@ -100,20 +141,16 @@ impl Schema {
     ///
     /// # Errors
     ///
-    /// [`ValidateError::Load`] when the document is not JSON (Go's decoder text), and
-    /// [`ValidateError::Panic`] where Go would panic.
+    /// [`ValidateError::Load`] when the document is not JSON.
     pub fn validate(&self, document: &[u8]) -> Result<ValidationResult, ValidateError> {
-        let doc = decode_json_using_number(document).map_err(ValidateError::Load)?;
-        validate_document(self, &doc).map_err(ValidateError::Panic)
+        let value = decode_json_using_number(document).map_err(ValidateError::Load)?;
+        Ok(self.validate_value(&value))
     }
 
     /// Go: `(*Schema).validateDocument(root)` for an already decoded document.
-    ///
-    /// # Errors
-    ///
-    /// Where Go would panic.
-    pub fn validate_document(&self, doc: &Document) -> Result<ValidationResult, GoPanic> {
-        validate_document(self, doc)
+    #[must_use]
+    pub fn validate_value(&self, document: &Value) -> ValidationResult {
+        validate_document(self, document)
     }
 
     /// The root sub-schema.
@@ -127,224 +164,105 @@ impl Schema {
     }
 }
 
-/// Go: `schemaPool.parseReferences`, which walks the whole schema document before it is parsed
-/// (gojsonschema/schemaPool.go). Its errors are swallowed, so for a self-contained schema the
-/// only observable effect is a panic: `isKind` on an `id`/`$id` or `$ref` value that is a
-/// number `big.Rat` rejects. The walk skips `const` and `enum` values and, under `properties`,
-/// `dependencies` and `patternProperties`, descends only into an object's values.
-///
-/// Not ported: Go stops walking an object whose `id` resolves to an id it already saw
-/// ("Reference already exists"), which needs Go's URL resolution; such a subtree is walked here.
-fn check_references(doc: &Document) -> Result<(), String> {
-    let mut stack = vec![doc.root()];
-    while let Some(id) = stack.pop() {
-        match doc.node(id) {
-            Node::Array(items) => stack.extend(items.iter().copied()),
-            Node::Object(entries) => {
-                let key_id = if doc.get(id, "id").is_some() {
-                    "id"
-                } else {
-                    "$id"
-                };
-                for key in [key_id, "$ref"] {
-                    if let Some(value) = doc.get(id, key) {
-                        let _kind = checked_kind(doc, value)?;
-                    }
-                }
-                for (key, value) in entries {
-                    match key.as_str() {
-                        "const" | "enum" => {}
-                        "properties" | "dependencies" | "patternProperties" => {
-                            if let Node::Object(children) = doc.node(*value) {
-                                stack.extend(children.iter().map(|&(_, child)| child));
-                            }
-                        }
-                        _ => stack.push(*value),
-                    }
-                }
-            }
-            Node::Null | Node::Bool(_) | Node::Number(_) | Node::String(_) => {}
-        }
-    }
-    Ok(())
-}
-
-struct Parser<'d> {
-    doc: &'d Document,
+/// The parse of one schema document, whose draft every sub-schema inherits.
+struct Parser {
+    draft: Draft,
     subs: Vec<SubSchema>,
 }
 
-impl<'d> Parser<'d> {
+impl Parser {
     fn push(&mut self, sub: SubSchema) -> SubId {
         self.subs.push(sub);
         SubId(self.subs.len() - 1)
     }
 
-    fn node(&self, id: NodeId) -> &'d Node {
-        self.doc.node(id)
-    }
-
-    fn get(&self, obj: NodeId, key: &str) -> Option<NodeId> {
-        self.doc.get(obj, key)
-    }
-
-    /// Go: `isKind(value, kinds...)`, which panics on a number `big.Rat` rejects.
-    fn is(&self, id: NodeId, kinds: &[Kind]) -> Result<bool, String> {
-        is_kind(self.doc, id, kinds)
-    }
-
-    /// The panic of a Go `isKind` call on `id` whose result the caller works out itself.
-    fn check(&self, id: NodeId) -> Result<(), String> {
-        checked_kind(self.doc, id).map(|_| ())
-    }
-
     /// Go: `parseSchema(documentNode, currentSchema)` for a new sub-schema found under
-    /// `property`, inheriting `draft` from its parent.
-    fn parse_schema(
-        &mut self,
-        node: NodeId,
-        property: &str,
-        draft: Draft,
-    ) -> Result<SubId, String> {
+    /// `property`.
+    fn parse_schema(&mut self, node: &Value, property: &str) -> Result<SubId, String> {
+        // As of draft 6, `true` and `false` are schemas.
+        if self.draft >= Draft::Draft6 && node.is_boolean() {
+            return Err(unsupported("A boolean schema"));
+        }
+        let Value::Object(m) = node else {
+            return Err(not_a_schema());
+        };
+        self.refuse_unread(m)?;
         let mut cur = SubSchema {
             property: property.to_owned(),
             ..SubSchema::default()
         };
-        // Go: the first isKind on the node (Bool for draft 6 and later, Map otherwise) panics on
-        // a number big.Rat rejects.
-        self.check(node)?;
-        // As of draft 6 "true" is equivalent to an empty schema "{}" and false equals
-        // {"not":{}}.
-        if draft >= Draft::Draft6
-            && let Node::Bool(b) = self.node(node)
-        {
-            cur.pass = Some(*b);
-            return Ok(self.push(cur));
-        }
-        if !self.is(node, &[Kind::Map])? {
-            return Err(format!("Expected: {STRING_SCHEMA}, given: Invalid JSON"));
-        }
-        self.parse_meta(node, draft)?;
-        self.parse_type(node, &mut cur)?;
-        self.parse_object_children(node, draft, &mut cur)?;
-        self.parse_items(node, draft, &mut cur)?;
-        self.parse_numeric(node, draft, &mut cur)?;
-        self.parse_string_keywords(node, &mut cur)?;
-        self.parse_object_keywords(node, &mut cur)?;
-        self.parse_array_keywords(node, draft, &mut cur)?;
-        self.parse_values(node, draft, &mut cur)?;
-        self.parse_combinators(node, draft, &mut cur)?;
-        Ok(self.push(cur))
-    }
-
-    /// `id`/`$id`, `definitions`, `title`, `description` and `$ref`.
-    fn parse_meta(&mut self, node: NodeId, draft: Draft) -> Result<(), String> {
-        // In draft 6 the id keyword was renamed to $id; Hybrid uses the old id when present.
-        let key_id = match draft {
-            Draft::Draft4 => "id",
-            Draft::Hybrid if self.get(node, "id").is_some() => "id",
-            Draft::Hybrid | Draft::Draft6 | Draft::Draft7 => "$id",
-        };
-        if let Some(id) = self.get(node, key_id) {
-            self.check(id)?;
-            let Node::String(reference) = self.node(id) else {
-                return Err(invalid_type(TYPE_STRING, key_id));
-            };
-            // Go: `gojsonreference.NewJsonReference(id)`.
-            let _reference = parse_reference(reference)?;
-        }
-        if let Some(defs) = self.get(node, "definitions") {
-            self.check(defs)?;
-            let entries = match self.node(defs) {
-                Node::Object(entries) => entries,
-                // Go: a boolean passes the kind check and then fails the map assertion.
-                Node::Bool(_) => {
-                    return Err("panic: interface conversion: interface {} is bool, not \
-                                map[string]interface {}"
-                        .to_owned());
-                }
-                Node::Null | Node::Number(_) | Node::String(_) | Node::Array(_) => {
-                    return Err(invalid_type(STRING_ARRAY_OF_SCHEMAS, "definitions"));
-                }
-            };
-            for &(_, dv) in entries {
-                if !self.is(dv, MAP_OR_BOOL)? {
-                    return Err(invalid_type(STRING_ARRAY_OF_SCHEMAS, "definitions"));
-                }
-                let _definition = self.parse_schema(dv, "definitions", draft)?;
-            }
-        }
-        for key in ["title", "description", "$ref"] {
-            if let Some(v) = self.get(node, key)
-                && !self.is(v, &[Kind::String])?
-            {
+        for key in ["title", "description"] {
+            if m.get(key).is_some_and(|v| !v.is_string()) {
                 return Err(invalid_type(TYPE_STRING, key));
             }
         }
-        if let Some(Node::String(reference)) = self.get(node, "$ref").map(|r| self.node(r)) {
-            let _reference = parse_reference(reference)?;
-            return Err("$ref is not supported by the Rust port of gojsonschema".to_owned());
-        }
-        Ok(())
-    }
-
-    /// `type`.
-    fn parse_type(&self, node: NodeId, cur: &mut SubSchema) -> Result<(), String> {
-        let Some(t) = self.get(node, "type") else {
-            return Ok(());
-        };
-        let bad = || invalid_type(&format!("{TYPE_STRING}/{STRING_ARRAY_OF_STRINGS}"), "type");
-        self.check(t)?;
-        match self.node(t) {
-            Node::String(s) => cur.types.add(s),
-            Node::Array(items) => {
-                for &item in items {
-                    match self.node(item) {
-                        Node::String(s) => cur.types.add(s)?,
-                        // Go: a json.Number passes the reflect.String check, then the
-                        // `.(string)` assertion panics while loading.
-                        Node::Number(_) => {
-                            return Err("panic: interface conversion: interface {} is \
-                                        json.Number, not string"
-                                .to_owned());
-                        }
-                        Node::Null | Node::Bool(_) | Node::Array(_) | Node::Object(_) => {
-                            return Err(bad());
-                        }
-                    }
-                }
-                Ok(())
+        parse_type(m, &mut cur)?;
+        self.parse_object_children(m, &mut cur)?;
+        self.parse_items(m, &mut cur)?;
+        for (key, limit) in [("minimum", &mut cur.minimum), ("maximum", &mut cur.maximum)] {
+            if let Some(v) = m.get(key) {
+                let n = must_be_number(v).ok_or_else(|| must_be_of_a(key, TYPE_NUMBER))?;
+                *limit = Some(n.clone());
             }
-            Node::Null | Node::Bool(_) | Node::Number(_) | Node::Object(_) => Err(bad()),
         }
+        parse_string_keywords(m, &mut cur)?;
+        parse_required(m, &mut cur)?;
+        cur.min_items = non_negative(m, "minItems")?;
+        cur.max_items = non_negative(m, "maxItems")?;
+        parse_enum(m, &mut cur)?;
+        self.parse_combinators(m, &mut cur)?;
+        Ok(self.push(cur))
     }
 
-    /// `properties`, `additionalProperties`, `patternProperties`, `propertyNames` and
-    /// `dependencies`.
+    /// Fails on the first keyword gojsonschema reads under the draft that the port does not.
+    fn refuse_unread(&self, m: &Map<String, Value>) -> Result<(), String> {
+        // In draft 6 `id` became `$id`; Hybrid reads `id` when it is present.
+        let id = match self.draft {
+            Draft::Draft4 => "id",
+            Draft::Hybrid if m.contains_key("id") => "id",
+            Draft::Hybrid | Draft::Draft6 | Draft::Draft7 => "$id",
+        };
+        let from_draft6: &[&str] = if self.draft >= Draft::Draft6 {
+            &UNREAD_FROM_DRAFT6
+        } else {
+            &[]
+        };
+        let from_draft7: &[&str] = if self.draft >= Draft::Draft7 {
+            &["else"]
+        } else {
+            &[]
+        };
+        let mut keys = iter::once(id)
+            .chain(UNREAD)
+            .chain(from_draft6.iter().copied())
+            .chain(from_draft7.iter().copied());
+        keys.find(|key| m.contains_key(*key))
+            .map_or(Ok(()), |key| Err(unsupported(key)))
+    }
+
+    /// `properties`, `additionalProperties` and `dependencies`.
     fn parse_object_children(
         &mut self,
-        node: NodeId,
-        draft: Draft,
+        m: &Map<String, Value>,
         cur: &mut SubSchema,
     ) -> Result<(), String> {
-        if let Some(props) = self.get(node, "properties") {
-            self.check(props)?;
-            let Node::Object(entries) = self.node(props) else {
+        if let Some(props) = m.get("properties") {
+            let Value::Object(entries) = props else {
                 return Err(must_be_of_type("properties", TYPE_OBJECT));
             };
             for (k, v) in entries {
-                let child = self.parse_schema(*v, k, draft)?;
+                let child = self.parse_schema(v, k)?;
                 cur.properties_children.push(child);
             }
         }
-        if let Some(ap) = self.get(node, "additionalProperties") {
-            self.check(ap)?;
-            cur.additional_properties = match self.node(ap) {
-                Node::Bool(b) => Additional::from_bool(*b),
-                Node::Object(_) => {
-                    Additional::Schema(self.parse_schema(ap, "additionalProperties", draft)?)
+        if let Some(ap) = m.get("additionalProperties") {
+            cur.additional_properties = match ap {
+                Value::Bool(true) => Additional::Allowed,
+                Value::Bool(false) => Additional::Forbidden,
+                Value::Object(_) => {
+                    Additional::Schema(self.parse_schema(ap, "additionalProperties")?)
                 }
-                Node::Null | Node::Number(_) | Node::String(_) | Node::Array(_) => {
+                Value::Null | Value::Number(_) | Value::String(_) | Value::Array(_) => {
                     return Err(invalid_type(
                         &format!("{TYPE_BOOLEAN}/{STRING_SCHEMA}"),
                         "additionalProperties",
@@ -352,327 +270,66 @@ impl<'d> Parser<'d> {
                 }
             };
         }
-        if let Some(pp) = self.get(node, "patternProperties") {
-            self.check(pp)?;
-            let Node::Object(entries) = self.node(pp) else {
-                return Err(invalid_type(STRING_SCHEMA, "patternProperties"));
+        if let Some(deps) = m.get("dependencies") {
+            let Value::Object(entries) = deps else {
+                return Err(must_be_of_type("dependencies", TYPE_OBJECT));
             };
+            let bad = || must_be_of_type("dependency", STRING_SCHEMA_OR_ARRAY_OF_STRINGS);
             for (k, v) in entries {
-                // Go: `regexp.MatchString(k, "")` only to detect a compile error.
-                let Ok(rx) = GoRegexp::compile(k) else {
-                    return Err(format!("Invalid regex pattern '{k}'"));
-                };
-                let child = self.parse_schema(*v, k, draft)?;
-                cur.pattern_properties.push((rx, child));
-            }
-        }
-        if draft >= Draft::Draft6
-            && let Some(pn) = self.get(node, "propertyNames")
-        {
-            if !self.is(pn, MAP_OR_BOOL)? {
-                return Err(invalid_type(STRING_SCHEMA, "patternProperties"));
-            }
-            cur.property_names = Some(self.parse_schema(pn, "propertyNames", draft)?);
-        }
-        if let Some(deps) = self.get(node, "dependencies") {
-            self.parse_dependencies(deps, draft, cur)?;
-        }
-        Ok(())
-    }
-
-    /// Go: `parseDependencies`.
-    fn parse_dependencies(
-        &mut self,
-        deps: NodeId,
-        draft: Draft,
-        cur: &mut SubSchema,
-    ) -> Result<(), String> {
-        self.check(deps)?;
-        let Node::Object(entries) = self.node(deps) else {
-            return Err(must_be_of_type("dependencies", TYPE_OBJECT));
-        };
-        let bad = || must_be_of_type("dependency", STRING_SCHEMA_OR_ARRAY_OF_STRINGS);
-        for (k, v) in entries {
-            // Go switches on reflect.ValueOf(v).Kind() here, not isKind: a number never panics.
-            match self.node(*v) {
-                Node::Array(values) => {
-                    let mut names = Vec::new();
-                    for &value in values {
-                        self.check(value)?;
-                        let Node::String(name) = self.node(value) else {
-                            return Err(bad());
-                        };
-                        names.push(name.clone());
+                match v {
+                    Value::Array(values) => {
+                        let names = values
+                            .iter()
+                            .map(|value| value.as_str().map(str::to_owned).ok_or_else(bad))
+                            .collect::<Result<Vec<_>, _>>()?;
+                        // Go registers the key inside the loop: an empty list is never stored.
+                        if !names.is_empty() {
+                            cur.dependencies
+                                .push((k.clone(), Dependency::Properties(names)));
+                        }
                     }
-                    // Go registers the key inside the loop: an empty list is never stored.
-                    if !names.is_empty() {
+                    Value::Object(_) | Value::Bool(_) => {
+                        let schema = self.parse_schema(v, k)?;
                         cur.dependencies
-                            .push((k.clone(), Dependency::Properties(names)));
+                            .push((k.clone(), Dependency::Schema(schema)));
                     }
+                    Value::Null | Value::Number(_) | Value::String(_) => return Err(bad()),
                 }
-                Node::Object(_) | Node::Bool(_) => {
-                    let schema = self.parse_schema(*v, k, draft)?;
-                    cur.dependencies
-                        .push((k.clone(), Dependency::Schema(schema)));
-                }
-                Node::Null | Node::Number(_) | Node::String(_) => return Err(bad()),
             }
         }
         Ok(())
     }
 
-    /// `items` and `additionalItems`.
-    fn parse_items(
-        &mut self,
-        node: NodeId,
-        draft: Draft,
-        cur: &mut SubSchema,
-    ) -> Result<(), String> {
-        let bad_items = || {
-            invalid_type(
+    /// `items`, one schema for every item; the tuple form is refused.
+    fn parse_items(&mut self, m: &Map<String, Value>, cur: &mut SubSchema) -> Result<(), String> {
+        match m.get("items") {
+            None => Ok(()),
+            Some(Value::Array(_)) => Err(unsupported("The array form of items")),
+            Some(items @ (Value::Object(_) | Value::Bool(_))) => {
+                cur.items = Some(self.parse_schema(items, "items")?);
+                Ok(())
+            }
+            Some(Value::Null | Value::Number(_) | Value::String(_)) => Err(invalid_type(
                 &format!("{STRING_SCHEMA}/{STRING_ARRAY_OF_SCHEMAS}"),
                 "items",
-            )
-        };
-        if let Some(items) = self.get(node, "items") {
-            self.check(items)?;
-            match self.node(items) {
-                Node::Array(elements) => {
-                    for &element in elements {
-                        if !self.is(element, MAP_OR_BOOL)? {
-                            return Err(bad_items());
-                        }
-                        cur.items_children
-                            .push(self.parse_schema(element, "items", draft)?);
-                        cur.items_children_is_single_schema = false;
-                    }
-                }
-                Node::Object(_) | Node::Bool(_) => {
-                    cur.items_children
-                        .push(self.parse_schema(items, "items", draft)?);
-                    cur.items_children_is_single_schema = true;
-                }
-                Node::Null | Node::Number(_) | Node::String(_) => return Err(bad_items()),
-            }
-        }
-        if let Some(ai) = self.get(node, "additionalItems") {
-            self.check(ai)?;
-            cur.additional_items = match self.node(ai) {
-                Node::Bool(b) => Additional::from_bool(*b),
-                Node::Object(_) => {
-                    Additional::Schema(self.parse_schema(ai, "additionalItems", draft)?)
-                }
-                Node::Null | Node::Number(_) | Node::String(_) | Node::Array(_) => {
-                    return Err(invalid_type(
-                        &format!("{TYPE_BOOLEAN}/{STRING_SCHEMA}"),
-                        "additionalItems",
-                    ));
-                }
-            };
-        }
-        Ok(())
-    }
-
-    /// `multipleOf`, `minimum`, `exclusiveMinimum`, `maximum` and `exclusiveMaximum`.
-    fn parse_numeric(&self, node: NodeId, draft: Draft, cur: &mut SubSchema) -> Result<(), String> {
-        if let Some(m) = self.get(node, "multipleOf") {
-            let value = must_be_number(self.node(m))
-                .ok_or_else(|| invalid_type(TYPE_NUMBER, "multipleOf"))?;
-            if value.is_zero() || value.is_negative() {
-                return Err("multipleOf must be strictly greater than 0".to_owned());
-            }
-            cur.multiple_of = Some(value);
-        }
-        if let Some(m) = self.get(node, "minimum") {
-            let value =
-                must_be_number(self.node(m)).ok_or_else(|| must_be_of_a("minimum", TYPE_NUMBER))?;
-            cur.minimum = Some(value);
-        }
-        if let Some(e) = self.get(node, "exclusiveMinimum") {
-            let limits = self.exclusive_limit(e, draft, cur.minimum.take(), "exclusiveMinimum")?;
-            (cur.minimum, cur.exclusive_minimum) = limits;
-        }
-        if let Some(m) = self.get(node, "maximum") {
-            let value =
-                must_be_number(self.node(m)).ok_or_else(|| must_be_of_a("maximum", TYPE_NUMBER))?;
-            cur.maximum = Some(value);
-        }
-        if let Some(e) = self.get(node, "exclusiveMaximum") {
-            let limits = self.exclusive_limit(e, draft, cur.maximum.take(), "exclusiveMaximum")?;
-            (cur.maximum, cur.exclusive_maximum) = limits;
-        }
-        Ok(())
-    }
-
-    /// Go: the `exclusiveMinimum`/`exclusiveMaximum` switch on the draft. Returns the new
-    /// (inclusive, exclusive) limits.
-    fn exclusive_limit(
-        &self,
-        e: NodeId,
-        draft: Draft,
-        inclusive: Option<Rat>,
-        key: &str,
-    ) -> Result<(Option<Rat>, Option<Rat>), String> {
-        let limit_key = if key == "exclusiveMinimum" {
-            "minimum"
-        } else {
-            "maximum"
-        };
-        let boolean = |exclusive: bool, limit: Option<Rat>| {
-            let value = limit.ok_or_else(|| format!("{key} cannot be used without {limit_key}"))?;
-            Ok(if exclusive {
-                (None, Some(value))
-            } else {
-                (Some(value), None)
-            })
-        };
-        if matches!(draft, Draft::Draft4 | Draft::Hybrid) {
-            // Go: isKind(value, reflect.Bool); drafts 6 and 7 only call isJSONNumber.
-            self.check(e)?;
-        }
-        match (draft, self.node(e)) {
-            (Draft::Draft4 | Draft::Hybrid, Node::Bool(b)) => boolean(*b, inclusive),
-            (Draft::Draft4, _) => Err(invalid_type(TYPE_BOOLEAN, key)),
-            (Draft::Hybrid | Draft::Draft6 | Draft::Draft7, n @ Node::Number(_)) => {
-                Ok((inclusive, must_be_number(n)))
-            }
-            (Draft::Hybrid, _) => Err(invalid_type(&format!("{TYPE_BOOLEAN}/{TYPE_NUMBER}"), key)),
-            (Draft::Draft6 | Draft::Draft7, _) => Err(invalid_type(TYPE_NUMBER, key)),
+            )),
         }
     }
 
-    /// A non-negative integer keyword (`minLength`, `maxItems`, ...).
-    fn non_negative(&self, node: NodeId, key: &str) -> Result<Option<i64>, String> {
-        let Some(v) = self.get(node, key) else {
-            return Ok(None);
-        };
-        let value =
-            must_be_integer(self.node(v)).ok_or_else(|| must_be_of_an(key, TYPE_INTEGER))?;
-        if value < 0 {
-            return Err(format!("{key} must be greater than or equal to 0"));
-        }
-        Ok(Some(value))
-    }
-
-    /// `minLength`, `maxLength`, `pattern` and `format`.
-    fn parse_string_keywords(&self, node: NodeId, cur: &mut SubSchema) -> Result<(), String> {
-        cur.min_length = self.non_negative(node, "minLength")?;
-        cur.max_length = self.non_negative(node, "maxLength")?;
-        if let (Some(min), Some(max)) = (cur.min_length, cur.max_length)
-            && min > max
-        {
-            return Err("minLength cannot be greater than maxLength".to_owned());
-        }
-        if let Some(p) = self.get(node, "pattern") {
-            self.check(p)?;
-            let Node::String(source) = self.node(p) else {
-                return Err(must_be_of_a("pattern", TYPE_STRING));
-            };
-            let Ok(rx) = GoRegexp::compile(source) else {
-                return Err("pattern must be a valid regex".to_owned());
-            };
-            cur.pattern = Some(rx);
-        }
-        if let Some(f) = self.get(node, "format") {
-            let Node::String(name) = self.node(f) else {
-                return Err(must_be_of_type("format", TYPE_STRING));
-            };
-            cur.format = Format::parse(name)?;
-        }
-        Ok(())
-    }
-
-    /// `minProperties`, `maxProperties` and `required`.
-    fn parse_object_keywords(&self, node: NodeId, cur: &mut SubSchema) -> Result<(), String> {
-        cur.min_properties = self.non_negative(node, "minProperties")?;
-        cur.max_properties = self.non_negative(node, "maxProperties")?;
-        if let (Some(min), Some(max)) = (cur.min_properties, cur.max_properties)
-            && min > max
-        {
-            return Err("minProperties cannot be greater than maxProperties".to_owned());
-        }
-        if let Some(r) = self.get(node, "required") {
-            self.check(r)?;
-            let Node::Array(values) = self.node(r) else {
-                return Err(must_be_of_an("required", "array"));
-            };
-            for &value in values {
-                self.check(value)?;
-                let Node::String(name) = self.node(value) else {
-                    return Err("required items must be string".to_owned());
-                };
-                if cur.required.contains(name) {
-                    return Err("required items must be unique".to_owned());
-                }
-                cur.required.push(name.clone());
-            }
-        }
-        Ok(())
-    }
-
-    /// `minItems`, `maxItems`, `uniqueItems` and `contains`.
-    fn parse_array_keywords(
-        &mut self,
-        node: NodeId,
-        draft: Draft,
-        cur: &mut SubSchema,
-    ) -> Result<(), String> {
-        cur.min_items = self.non_negative(node, "minItems")?;
-        cur.max_items = self.non_negative(node, "maxItems")?;
-        if let Some(u) = self.get(node, "uniqueItems") {
-            self.check(u)?;
-            let Node::Bool(b) = self.node(u) else {
-                return Err(must_be_of_a("uniqueItems", TYPE_BOOLEAN));
-            };
-            cur.unique_items = *b;
-        }
-        if draft >= Draft::Draft6
-            && let Some(c) = self.get(node, "contains")
-        {
-            cur.contains = Some(self.parse_schema(c, "contains", draft)?);
-        }
-        Ok(())
-    }
-
-    /// `const` and `enum`.
-    fn parse_values(&self, node: NodeId, draft: Draft, cur: &mut SubSchema) -> Result<(), String> {
-        if draft >= Draft::Draft6
-            && let Some(c) = self.get(node, "const")
-        {
-            cur.const_value = Some(marshal_without_number(self.doc, c)?);
-        }
-        if let Some(e) = self.get(node, "enum") {
-            self.check(e)?;
-            let Node::Array(values) = self.node(e) else {
-                return Err(must_be_of_an("enum", "array"));
-            };
-            for &value in values {
-                let text = marshal_without_number(self.doc, value)?;
-                if cur.enum_values.contains(&text) {
-                    return Err("enum items must be unique".to_owned());
-                }
-                cur.enum_values.push(text);
-            }
-        }
-        Ok(())
-    }
-
-    /// `oneOf`, `anyOf`, `allOf`, `not`, and (draft 7 and hybrid) `if`, `then`, `else`.
+    /// `oneOf`, `anyOf`, `allOf`, `not`, and (from draft 7) `if` and `then`.
     fn parse_combinators(
         &mut self,
-        node: NodeId,
-        draft: Draft,
+        m: &Map<String, Value>,
         cur: &mut SubSchema,
     ) -> Result<(), String> {
-        cur.one_of = self.schema_list(node, "oneOf", "oneOf", draft)?;
-        cur.any_of = self.schema_list(node, "anyOf", "anyOf", draft)?;
+        cur.one_of = self.schema_list(m, "oneOf", "oneOf")?;
+        cur.any_of = self.schema_list(m, "anyOf", "anyOf")?;
         // Go reports a non-array allOf with the anyOf key.
-        cur.all_of = self.schema_list(node, "allOf", "anyOf", draft)?;
-        cur.not = self.optional_schema(node, "not", draft)?;
-        if draft >= Draft::Draft7 {
-            cur.if_schema = self.optional_schema(node, "if", draft)?;
-            cur.then_schema = self.optional_schema(node, "then", draft)?;
-            cur.else_schema = self.optional_schema(node, "else", draft)?;
+        cur.all_of = self.schema_list(m, "allOf", "anyOf")?;
+        cur.not = self.optional_schema(m, "not")?;
+        if self.draft >= Draft::Draft7 {
+            cur.if_schema = self.optional_schema(m, "if")?;
+            cur.then_schema = self.optional_schema(m, "then")?;
         }
         Ok(())
     }
@@ -680,40 +337,155 @@ impl<'d> Parser<'d> {
     /// A keyword holding an array of schemas.
     fn schema_list(
         &mut self,
-        node: NodeId,
+        m: &Map<String, Value>,
         key: &str,
         message_key: &str,
-        draft: Draft,
     ) -> Result<Vec<SubId>, String> {
-        let Some(list) = self.get(node, key) else {
+        let Some(list) = m.get(key) else {
             return Ok(Vec::new());
         };
-        self.check(list)?;
-        let Node::Array(items) = self.node(list) else {
+        let Value::Array(items) = list else {
             return Err(must_be_of_an(message_key, "array"));
         };
-        let mut children = Vec::with_capacity(items.len());
-        for &item in items {
-            children.push(self.parse_schema(item, key, draft)?);
-        }
-        Ok(children)
+        items
+            .iter()
+            .map(|item| self.parse_schema(item, key))
+            .collect()
     }
 
-    /// A keyword holding one schema (object or boolean).
+    /// A keyword holding one schema (an object, or a boolean from draft 6).
     fn optional_schema(
         &mut self,
-        node: NodeId,
+        m: &Map<String, Value>,
         key: &str,
-        draft: Draft,
     ) -> Result<Option<SubId>, String> {
-        let Some(v) = self.get(node, key) else {
-            return Ok(None);
-        };
-        if !self.is(v, MAP_OR_BOOL)? {
-            return Err(must_be_of_an(key, TYPE_OBJECT));
+        match m.get(key) {
+            None => Ok(None),
+            Some(v @ (Value::Object(_) | Value::Bool(_))) => Ok(Some(self.parse_schema(v, key)?)),
+            Some(Value::Null | Value::Number(_) | Value::String(_) | Value::Array(_)) => {
+                Err(must_be_of_an(key, TYPE_OBJECT))
+            }
         }
-        Ok(Some(self.parse_schema(v, key, draft)?))
     }
+}
+
+/// `type`.
+fn parse_type(m: &Map<String, Value>, cur: &mut SubSchema) -> Result<(), String> {
+    let bad = || invalid_type(&format!("{TYPE_STRING}/{STRING_ARRAY_OF_STRINGS}"), "type");
+    match m.get("type") {
+        None => Ok(()),
+        Some(Value::String(s)) => cur.types.add(s),
+        Some(Value::Array(items)) => {
+            for item in items {
+                match item {
+                    Value::String(s) => cur.types.add(s)?,
+                    // Go: a json.Number passes the reflect.String check, then the `.(string)`
+                    // assertion panics while loading.
+                    Value::Number(_) => {
+                        return Err("panic: interface conversion: interface {} is json.Number, \
+                                    not string"
+                            .to_owned());
+                    }
+                    Value::Null | Value::Bool(_) | Value::Array(_) | Value::Object(_) => {
+                        return Err(bad());
+                    }
+                }
+            }
+            Ok(())
+        }
+        Some(Value::Null | Value::Bool(_) | Value::Number(_) | Value::Object(_)) => Err(bad()),
+    }
+}
+
+/// A non-negative integer keyword (`minLength`, `maxItems`, ...).
+fn non_negative(m: &Map<String, Value>, key: &str) -> Result<Option<i64>, String> {
+    let Some(v) = m.get(key) else {
+        return Ok(None);
+    };
+    let value = must_be_integer(v).ok_or_else(|| must_be_of_an(key, TYPE_INTEGER))?;
+    if value < 0 {
+        return Err(format!("{key} must be greater than or equal to 0"));
+    }
+    Ok(Some(value))
+}
+
+/// `minLength`, `maxLength`, `pattern` and `format`.
+fn parse_string_keywords(m: &Map<String, Value>, cur: &mut SubSchema) -> Result<(), String> {
+    cur.min_length = non_negative(m, "minLength")?;
+    cur.max_length = non_negative(m, "maxLength")?;
+    if let (Some(min), Some(max)) = (cur.min_length, cur.max_length)
+        && min > max
+    {
+        return Err("minLength cannot be greater than maxLength".to_owned());
+    }
+    if let Some(p) = m.get("pattern") {
+        let Value::String(source) = p else {
+            return Err(must_be_of_a("pattern", TYPE_STRING));
+        };
+        let regex = match goregex::compile(source) {
+            Ok(regex) => regex,
+            Err(CompileError::Syntax { .. }) => {
+                return Err("pattern must be a valid regex".to_owned());
+            }
+            Err(other) => return Err(unsupported(&format!("The pattern {source:?} ({other})"))),
+        };
+        cur.pattern = Some(Pattern {
+            source: source.clone(),
+            regex,
+        });
+    }
+    if let Some(f) = m.get("format") {
+        let Value::String(name) = f else {
+            return Err(must_be_of_type("format", TYPE_STRING));
+        };
+        cur.format = Format::parse(name)?;
+    }
+    Ok(())
+}
+
+/// `required`.
+fn parse_required(m: &Map<String, Value>, cur: &mut SubSchema) -> Result<(), String> {
+    let Some(r) = m.get("required") else {
+        return Ok(());
+    };
+    let Value::Array(values) = r else {
+        return Err(must_be_of_an("required", "array"));
+    };
+    for value in values {
+        let Value::String(name) = value else {
+            return Err("required items must be string".to_owned());
+        };
+        if cur.required.contains(name) {
+            return Err("required items must be unique".to_owned());
+        }
+        cur.required.push(name.clone());
+    }
+    Ok(())
+}
+
+/// `enum`, of strings: an enum holding any other value is refused.
+fn parse_enum(m: &Map<String, Value>, cur: &mut SubSchema) -> Result<(), String> {
+    let Some(e) = m.get("enum") else {
+        return Ok(());
+    };
+    let Value::Array(values) = e else {
+        return Err(must_be_of_an("enum", "array"));
+    };
+    let mut allowed = Vec::with_capacity(values.len());
+    for value in values {
+        let Value::String(s) = value else {
+            return Err(unsupported(&format!(
+                "The enum value {value}, not a string,"
+            )));
+        };
+        if cur.enum_values.contains(s) {
+            return Err("enum items must be unique".to_owned());
+        }
+        cur.enum_values.push(s.clone());
+        allowed.push(go_json_string(s));
+    }
+    cur.enum_allowed = allowed.join(", ");
+    Ok(())
 }
 
 #[cfg(test)]
@@ -722,101 +494,177 @@ mod tests {
 
     use pbs_devtools::repo::go_root;
 
-    use super::Schema;
+    use super::{Schema, go_json_string};
 
-    /// Features this port does not implement fail loudly instead of validating differently.
+    /// Keywords, formats and forms the port does not read fail loudly instead of validating
+    /// differently.
     #[test]
-    fn unported_features_are_rejected() -> Result<(), String> {
-        let schemas: [&[u8]; 4] = [
-            br##"{"$ref":"#/definitions/a","definitions":{"a":{}}}"##,
-            br#"{"properties":{"a":{"$ref":"http://example.com/s.json"}}}"#,
-            br#"{"format":"date-time"}"#,
-            br#"{"properties":{"a":{"format":"email"}}}"#,
+    fn unread_keywords_are_refused() -> Result<(), String> {
+        let schemas: [&str; 16] = [
+            r##"{"$ref":"#/definitions/a","definitions":{"a":{}}}"##,
+            r#"{"properties":{"a":{"multipleOf":2}}}"#,
+            r#"{"format":"date-time"}"#,
+            r#"{"properties":{"a":{"format":"email"}}}"#,
+            r#"{"items":[{}]}"#,
+            r#"{"enum":[1]}"#,
+            r#"{"patternProperties":{"a":{}}}"#,
+            r#"{"const":1}"#,
+            r#"{"if":{},"else":{}}"#,
+            r#"{"anyOf":[true]}"#,
+            "true",
+            r#"{"id":"x"}"#,
+            r#"{"$id":"x"}"#,
+            r#"{"$schema":"http://json-schema.org/draft-06/schema#","contains":{}}"#,
+            r#"{"exclusiveMinimum":true,"minimum":1}"#,
+            r#"{"uniqueItems":true}"#,
         ];
         for schema in schemas {
-            match Schema::new(schema) {
+            match Schema::new(schema.as_bytes()) {
                 Err(e) if e.contains("not supported by the Rust port") => {}
-                other => {
-                    return Err(format!("{}: {other:?}", String::from_utf8_lossy(schema)));
-                }
+                other => return Err(format!("{schema}: {other:?}")),
             }
+        }
+        // Keywords Go does not read under the schema's draft, and unknown keys, are ignored.
+        let ignored = [
+            concat!(
+                r#"{"$schema":"http://json-schema.org/draft-04/schema#","#,
+                r#""const":1,"contains":{},"if":{},"else":{},"$id":"x"}"#,
+            ),
+            r#"{"$schema":"http://json-schema.org/draft-06/schema#","if":{},"else":{},"id":"x"}"#,
+            r#"{"default":1,"examples":[],"$comment":"x","x-anything":{}}"#,
+        ];
+        for schema in ignored {
+            let _schema = Schema::new(schema.as_bytes()).map_err(|e| format!("{schema}: {e}"))?;
         }
         Ok(())
     }
 
-    /// Go's `isKind` dereferences nil on a number `big.Rat` rejects, both while parsing and in
-    /// the `parseReferences` walk over every `id`/`$id`/`$ref` (outside `const` and `enum`).
-    /// Expected outcomes are gojsonschema v1.2.0's under Go 1.26.2.
+    /// Go's messages for broken schemas.
     #[test]
-    fn unparsable_numbers_panic_where_go_panics() -> Result<(), String> {
-        let panic = "panic: runtime error: invalid memory address or nil pointer dereference";
-        let float = "json: cannot unmarshal number 1e1000001 into Go value of type float64";
-        let cases: [(&str, Option<&str>); 18] = [
-            (r#"{"title":1e1000001}"#, Some(panic)),
-            (r#"{"type":1e1000001}"#, Some(panic)),
-            (r#"{"x":{"$ref":1e1000001}}"#, Some(panic)),
-            (r#"{"x":[{"id":1e1000001}]}"#, Some(panic)),
-            (r#"{"x":{"$id":1e1000001}}"#, Some(panic)),
-            (r#"{"x":{"id":"a","$id":1e1000001}}"#, None),
-            (r#"{"enum":[{"$ref":1e1000001}]}"#, Some(float)),
-            (r#"{"const":{"id":1e1000001}}"#, Some(float)),
+    fn broken_schemas_fail_like_go() -> Result<(), String> {
+        let cases = [
             (
-                r#"{"properties":{"$ref":{"title":"x"}},"x":{"properties":{"$ref":1e1000001}}}"#,
-                None,
+                r#"{"type":1}"#,
+                "Invalid type. Expected: string/array of strings, given: type",
             ),
             (
-                r#"{"dependencies":{"a":1e1000001}}"#,
-                Some("dependency must be of type schema or array of strings"),
-            ),
-            (r#"{"exclusiveMinimum":1e1000001}"#, Some(panic)),
-            (
+                r#"{"type":"foo"}"#,
                 concat!(
-                    r#"{"$schema":"http://json-schema.org/draft-07/schema#","#,
-                    r#""exclusiveMinimum":1e1000001}"#
+                    "has a primitive type that is NOT VALID -- given: /foo/ ",
+                    "Expected valid values are:[array boolean integer number null object string]",
                 ),
-                None,
             ),
             (
-                concat!(
-                    r#"{"$schema":"http://json-schema.org/draft-04/schema#","#,
-                    r#""exclusiveMinimum":1e1000001}"#
-                ),
-                Some(panic),
+                r#"{"type":["string","string"]}"#,
+                "string type is duplicated",
             ),
-            (r#"{"required":[1e1000001]}"#, Some(panic)),
-            (r#"{"items":[1e1000001]}"#, Some(panic)),
-            ("1e1000001", Some(panic)),
-            (r#"{"$schema":1e1000001}"#, Some(panic)),
             (
-                r#"{"minimum":1e1000001}"#,
-                Some("minimum must be of a number"),
+                r#"{"title":1}"#,
+                "Invalid type. Expected: string, given: title",
             ),
+            (r#"{"properties":[]}"#, "properties must be of type object"),
+            (
+                r#"{"properties":{"a":1}}"#,
+                "Expected: valid schema, given: Invalid JSON",
+            ),
+            (
+                r#"{"additionalProperties":1}"#,
+                "Invalid type. Expected: boolean/valid schema, given: additionalProperties",
+            ),
+            (
+                r#"{"dependencies":{"a":1}}"#,
+                "dependency must be of type schema or array of strings",
+            ),
+            (
+                r#"{"dependencies":{"a":[1]}}"#,
+                "dependency must be of type schema or array of strings",
+            ),
+            (
+                r#"{"items":1}"#,
+                "Invalid type. Expected: valid schema/array of schemas, given: items",
+            ),
+            (r#"{"minimum":"1"}"#, "minimum must be of a number"),
+            (r#"{"minLength":1.5}"#, "minLength must be of an integer"),
+            (r#"{"minLength":1.0}"#, "minLength must be of an integer"),
+            (
+                r#"{"maxItems":-1}"#,
+                "maxItems must be greater than or equal to 0",
+            ),
+            (
+                r#"{"minLength":2,"maxLength":1}"#,
+                "minLength cannot be greater than maxLength",
+            ),
+            (r#"{"pattern":1}"#, "pattern must be of a string"),
+            (r#"{"pattern":"("}"#, "pattern must be a valid regex"),
+            (r#"{"format":1}"#, "format must be of type string"),
+            (r#"{"required":"a"}"#, "required must be of an array"),
+            (r#"{"required":[1]}"#, "required items must be string"),
+            (r#"{"required":["a","a"]}"#, "required items must be unique"),
+            (r#"{"enum":{}}"#, "enum must be of an array"),
+            (r#"{"enum":["a","a"]}"#, "enum items must be unique"),
+            (r#"{"allOf":{}}"#, "anyOf must be of an array"),
+            (
+                r#"{"oneOf":[1]}"#,
+                "Expected: valid schema, given: Invalid JSON",
+            ),
+            (r#"{"not":1}"#, "not must be of an object"),
+            (r#"{"if":1}"#, "if must be of an object"),
+            (
+                r#"{"$schema":"http://json-schema.org/draft-04/schema#","not":true}"#,
+                "Expected: valid schema, given: Invalid JSON",
+            ),
+            (
+                r#"{"type":[1]}"#,
+                "panic: interface conversion: interface {} is json.Number, not string",
+            ),
+            ("[]", "schema is invalid"),
         ];
         for (schema, want) in cases {
             let got = Schema::new(schema.as_bytes()).err();
-            if got.as_deref() != want {
+            if got.as_deref() != Some(want) {
                 return Err(format!("{schema}: got {got:?}, want {want:?}"));
             }
         }
         Ok(())
     }
 
-    /// Every bidder schema of the Go root compiles (Go: `TestBidderParamSchemas`).
+    /// Go 1.26.2's `json.Marshal` of each string.
     #[test]
-    fn every_bidder_schema_compiles() -> Result<(), String> {
-        let dir = go_root()
-            .map_err(|e| e.to_string())?
-            .join("static")
-            .join("bidder-params");
-        let mut count = 0usize;
-        for entry in fs::read_dir(&dir).map_err(|e| format!("{}: {e}", dir.display()))? {
-            let path = entry.map_err(|e| e.to_string())?.path();
-            let bytes = fs::read(&path).map_err(|e| e.to_string())?;
-            let _schema = Schema::new(&bytes).map_err(|e| format!("{}: {e}", path.display()))?;
-            count += 1;
+    fn enum_values_print_like_go() -> Result<(), String> {
+        let cases = [
+            ("a", r#""a""#),
+            ("<a&b>", r#""\u003ca\u0026b\u003e""#),
+            ("\u{2028}\u{2029}", r#""\u2028\u2029""#),
+            ("\u{8}\u{c}\n\r\t\u{1}\u{1f}", r#""\b\f\n\r\t\u0001\u001f""#),
+            ("\u{7f}", "\"\u{7f}\""),
+            ("\"\\/", r#""\"\\/""#),
+            ("\u{e9}", "\"\u{e9}\""),
+        ];
+        for (value, want) in cases {
+            let got = go_json_string(value);
+            if got != want {
+                return Err(format!("{value:?}: got {got}, want {want}"));
+            }
         }
-        if count < 250 {
-            return Err(format!("only {count} schemas in {}", dir.display()));
+        Ok(())
+    }
+
+    /// Every schema Prebid loads with gojsonschema compiles (Go: `TestBidderParamSchemas`).
+    #[test]
+    fn every_prebid_schema_compiles() -> Result<(), String> {
+        let root = go_root().map_err(|e| e.to_string())?;
+        let dir = root.join("static").join("bidder-params");
+        let mut paths =
+            vec![root.join("modules/prebid/rulesengine/config/rules-engine-schema.json")];
+        for entry in fs::read_dir(&dir).map_err(|e| format!("{}: {e}", dir.display()))? {
+            paths.push(entry.map_err(|e| e.to_string())?.path());
+        }
+        for path in &paths {
+            let bytes = fs::read(path).map_err(|e| e.to_string())?;
+            let _schema = Schema::new(&bytes).map_err(|e| format!("{}: {e}", path.display()))?;
+        }
+        if paths.len() < 250 {
+            return Err(format!("only {} schemas", paths.len()));
         }
         Ok(())
     }

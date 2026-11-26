@@ -1,9 +1,14 @@
-//! Differential tests: replays the goldens that `testdata/go/golden` (a Go program running the
-//! real `openrtb_ext.NewBidderParamsValidator` and `gojsonschema`) wrote to `testdata/golden`.
+//! Differential tests: replays the goldens that `testdata/go/golden` and `testdata/go/seeded`
+//! (Go programs running the real `openrtb_ext.NewBidderParamsValidator` and `gojsonschema`)
+//! wrote to `testdata/golden`.
 //!
 //! Go walks maps in random order, so when a value has several errors Go may report them in
 //! several orders; the goldens list every order observed. Rust must produce one of them, or, when
-//! Go itself was not deterministic, the same errors in another order.
+//! Go itself was not deterministic, the same errors in another order. A case may differ only on
+//! an input a ledgered difference names (see `support::known_difference`), and a schema may
+//! fail to load only where it uses a keyword the port does not read.
+
+pub mod support;
 
 #[cfg(test)]
 mod tests {
@@ -13,124 +18,64 @@ mod tests {
     };
 
     use pbs_bidder_params::{
-        BidderParamValidator as _, ParamsError, StandardBidderParamValidator,
-        gojsonschema::{
-            Document, Node, ResultError, Schema, ValidateError, decode_json_using_number,
-        },
-        new_bidder_params_validator,
+        BidderParamValidator as _, ParamsError,
+        gojsonschema::{ResultError, Schema, ValidateError},
     };
     use pbs_devtools::repo::go_root;
+    use serde_json::Value;
 
-    const GOLDEN_DIR: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/testdata/golden");
+    use super::support::{
+        Fixture, Tally, Verdict, bytes, joined, known_difference, read_lines, reordered, required,
+        strings, text, undecodable,
+    };
 
-    /// `static/bidder-params` of the Go root, the upstream checkout the goldens were made from.
-    fn schema_dir() -> Result<String, String> {
-        let dir = go_root()
-            .map_err(|e| e.to_string())?
-            .join("static")
-            .join("bidder-params");
-        dir.to_str()
-            .map(str::to_owned)
-            .ok_or_else(|| format!("{} is not UTF-8", dir.display()))
-    }
+    /// The words of every refusal of a keyword, format or form the port does not read.
+    const UNSUPPORTED: &str = "not supported by the Rust port of gojsonschema";
 
-    /// One decoded golden record.
-    struct Record {
-        doc: Document,
-    }
-
-    impl Record {
-        fn parse(text: &str) -> Result<Self, String> {
-            let doc = decode_json_using_number(text.as_bytes())?;
-            Ok(Self { doc })
-        }
-
-        fn field(&self, key: &str) -> Option<&Node> {
-            self.doc
-                .get(self.doc.root(), key)
-                .map(|id| self.doc.node(id))
-        }
-
-        fn text(&self, key: &str) -> Option<&str> {
-            if let Some(Node::String(s)) = self.field(key) {
-                Some(s)
+    #[test]
+    fn schema_accessor_matches_go() -> Result<(), String> {
+        let fixture = Fixture::load()?;
+        for (name, file) in &fixture.files {
+            let want = if file.is_empty() {
+                String::new()
             } else {
-                None
+                fs::read_to_string(format!("{}/{file}", fixture.schema_dir))
+                    .map_err(|e| e.to_string())?
+            };
+            if fixture.validator.schema(name) != want {
+                return Err(format!(
+                    "Schema({name}) differs from Go (want the contents of {file:?})"
+                ));
             }
         }
-
-        fn required(&self, key: &str) -> Result<&str, String> {
-            self.text(key)
-                .ok_or_else(|| format!("golden record without {key}"))
-        }
-
-        fn strings(&self, key: &str) -> Vec<String> {
-            let Some(Node::Array(items)) = self.field(key) else {
-                return Vec::new();
-            };
-            items
-                .iter()
-                .filter_map(|&id| {
-                    if let Node::String(s) = self.doc.node(id) {
-                        Some(s.clone())
-                    } else {
-                        None
-                    }
-                })
-                .collect()
-        }
-
-        /// A byte string stored as text (`key`) or, when it is not UTF-8, as hex (`hex_key`).
-        fn bytes(&self, key: &str, hex_key: &str) -> Result<Option<Vec<u8>>, String> {
-            if let Some(text) = self.text(key) {
-                return Ok(Some(text.as_bytes().to_vec()));
-            }
-            self.text(hex_key).map(decode_hex).transpose()
-        }
-
-        /// `details`: the Go `ResultError`s as (type, field, context, description).
-        fn details(&self) -> Vec<[String; 4]> {
-            let Some(Node::Array(items)) = self.field("details") else {
-                return Vec::new();
-            };
-            let mut out: Vec<[String; 4]> = items
-                .iter()
-                .map(|&id| {
-                    ["type", "field", "context", "description"].map(|key| {
-                        match self.doc.get(id, key).map(|v| self.doc.node(v)) {
-                            Some(Node::String(s)) => s.clone(),
-                            Some(
-                                Node::Null
-                                | Node::Bool(_)
-                                | Node::Number(_)
-                                | Node::Array(_)
-                                | Node::Object(_),
-                            )
-                            | None => String::new(),
-                        }
-                    })
-                })
-                .collect();
-            out.sort();
-            out
-        }
+        Ok(())
     }
 
-    fn decode_hex(text: &str) -> Result<Vec<u8>, String> {
-        let digits = text.as_bytes();
-        digits
-            .chunks(2)
-            .map(|pair| {
-                str::from_utf8(pair)
-                    .ok()
-                    .and_then(|p| u8::from_str_radix(p, 16).ok())
-                    .ok_or_else(|| format!("bad hex in golden: {text}"))
+    #[test]
+    fn bidder_params_match_go() -> Result<(), String> {
+        let mut fixture = Fixture::load()?;
+        let mut tally = Tally::default();
+        for record in read_lines("bidder_cases.jsonl")? {
+            tally.add(fixture.compare(&record)?);
+        }
+        tally.finish("bidder", 16_000)
+    }
+
+    /// The Go `ResultError`s of a record as (type, field, context, description), sorted.
+    fn go_details(record: &Value) -> Vec<[String; 4]> {
+        let items = record
+            .get("details")
+            .and_then(Value::as_array)
+            .map_or_default(Vec::as_slice);
+        let mut out: Vec<[String; 4]> = items
+            .iter()
+            .map(|item| {
+                ["type", "field", "context", "description"]
+                    .map(|key| text(item, key).unwrap_or_default().to_owned())
             })
-            .collect()
-    }
-
-    fn read_golden(name: &str) -> Result<String, String> {
-        fs::read_to_string(format!("{GOLDEN_DIR}/{name}")).map_err(|e| format!("{name}: {e}"))
+            .collect();
+        out.sort();
+        out
     }
 
     fn rust_details(errors: &[ResultError]) -> Vec<[String; 4]> {
@@ -149,211 +94,263 @@ mod tests {
         out
     }
 
-    /// The validator built like Go builds it, plus the golden that describes it.
-    struct Fixture {
-        validator: StandardBidderParamValidator,
-        schemas: BTreeMap<String, String>,
-        /// The schema directory the validator was loaded from.
-        schema_dir: String,
-    }
-
-    fn load_fixture() -> Result<Fixture, String> {
-        let golden = Record::parse(&read_golden("validator.json")?)?;
-        let bidders: BTreeSet<String> = golden.strings("bidders").into_iter().collect();
-        let mut aliases = BTreeMap::new();
-        let mut schemas = BTreeMap::new();
-        for (key, target) in [("aliases", &mut aliases), ("schemas", &mut schemas)] {
-            let Some(Node::Object(entries)) = golden.field(key) else {
-                return Err(format!("validator.json without {key}"));
-            };
-            for (name, value) in entries {
-                if let Node::String(text) = golden.doc.node(*value) {
-                    let _previous = target.insert(name.clone(), text.clone());
-                }
-            }
-        }
-        if bidders.len() < 300 || aliases.len() < 50 {
-            return Err(format!(
-                "too few bidders ({}) or aliases ({})",
-                bidders.len(),
-                aliases.len()
-            ));
-        }
-        let schema_dir = schema_dir()?;
-        let validator = new_bidder_params_validator(&schema_dir, &bidders, &aliases)
-            .map_err(|e| e.to_string())?;
-        Ok(Fixture {
-            validator,
-            schemas,
-            schema_dir,
-        })
-    }
-
-    #[test]
-    fn schema_accessor_matches_go() -> Result<(), String> {
-        let fixture = load_fixture()?;
-        for (name, file) in &fixture.schemas {
-            let want = if file.is_empty() {
-                String::new()
-            } else {
-                fs::read_to_string(format!("{}/{file}", fixture.schema_dir))
-                    .map_err(|e| e.to_string())?
-            };
-            if fixture.validator.schema(name) != want {
-                return Err(format!(
-                    "Schema({name}) differs from Go (want the contents of {file:?})"
-                ));
-            }
-        }
-        Ok(())
-    }
-
-    /// Checks one bidder case; `Ok(false)` is a mismatch.
-    fn bidder_case_matches(
-        fixture: &Fixture,
-        parsed: &mut BTreeMap<String, Schema>,
-        record: &Record,
-    ) -> Result<bool, String> {
-        let bidder = record.required("bidder")?;
-        let ext = record.bytes("ext", "ext_hex")?.unwrap_or_default();
-        let kind = record.required("kind")?;
-        let outputs = record.strings("outputs");
-        let text = match (kind, fixture.validator.validate(bidder, &ext)) {
-            ("ok", Ok(())) | ("panic", Err(ParamsError::Panic(_))) => return Ok(true),
-            ("decode", Err(ParamsError::Decode(text))) => return Ok(outputs.contains(&text)),
-            ("invalid", Err(ParamsError::Invalid(text))) => text,
-            (
-                _,
-                Ok(())
-                | Err(ParamsError::Panic(_) | ParamsError::Decode(_) | ParamsError::Invalid(_)),
-            ) => {
-                return Ok(false);
-            }
+    /// Compares one engine case: a schema, and a document unless the case is about loading.
+    fn engine_case(record: &Value) -> Result<Verdict, String> {
+        let schema_bytes = bytes(record, "schema", "schema_hex")?.unwrap_or_default();
+        let kind = required(record, "kind")?;
+        let outputs = strings(record, "outputs");
+        let doc = bytes(record, "doc", "doc_hex")?;
+        let differs = |what: String| {
+            let known = known_difference(&schema_bytes)
+                .or_else(|| doc.as_deref().and_then(known_difference));
+            known.map_or_else(|| Verdict::Differs(what), Verdict::Ledgered)
         };
-        if outputs.contains(&text) {
-            return Ok(true);
-        }
-        if outputs.len() < 2 {
-            return Ok(false);
-        }
-        // Go reported these errors in several orders: compare them as a multiset.
-        let file = fixture.schemas.get(bidder).cloned().unwrap_or_default();
-        if !parsed.contains_key(&file) {
-            let bytes =
-                fs::read(format!("{}/{file}", fixture.schema_dir)).map_err(|e| e.to_string())?;
-            let _previous = parsed.insert(file.clone(), Schema::new(&bytes)?);
-        }
-        let schema = parsed.get(&file).ok_or("schema cache")?;
-        let result = schema.validate(&ext).map_err(|e| e.to_string())?;
-        let mut got: Vec<String> = result.errors().iter().map(ToString::to_string).collect();
-        got.sort();
-        Ok(got == record.strings("errors"))
-    }
-
-    #[test]
-    fn bidder_params_match_go() -> Result<(), String> {
-        let fixture = load_fixture()?;
-        let mut parsed = BTreeMap::new();
-        let mut failures = Vec::new();
-        let mut cases = 0usize;
-        for line in read_golden("bidder_cases.jsonl")?.lines() {
-            let record = Record::parse(line)?;
-            cases += 1;
-            if !bidder_case_matches(&fixture, &mut parsed, &record)? {
-                let got = record.bytes("ext", "ext_hex")?.unwrap_or_default();
-                let bidder = record.required("bidder")?;
-                failures.push(format!(
-                    "{bidder} {:?} (from {}): got {:?}, Go {}",
-                    String::from_utf8_lossy(&got),
-                    record.text("src").unwrap_or_default(),
-                    fixture.validator.validate(bidder, &got),
-                    line
-                ));
-            }
-        }
-        if cases < 16_000 {
-            return Err(format!("only {cases} bidder cases"));
-        }
-        if failures.is_empty() {
-            Ok(())
-        } else {
-            let shown: Vec<&String> = failures.iter().take(25).collect();
-            Err(format!(
-                "{} of {cases} bidder cases differ from Go:\n{shown:#?}",
-                failures.len()
-            ))
-        }
-    }
-
-    /// Checks one engine case; `Ok(false)` is a mismatch.
-    fn engine_case_matches(record: &Record) -> Result<bool, String> {
-        let schema_bytes = record.bytes("schema", "schema_hex")?.unwrap_or_default();
-        let kind = record.required("kind")?;
-        let outputs = record.strings("outputs");
+        let name = text(record, "name").unwrap_or_default();
         let schema = match Schema::new(&schema_bytes) {
             Ok(schema) => schema,
+            Err(text) if text.contains(UNSUPPORTED) => {
+                return Ok(Verdict::Ledgered("jsonschema.unsupported-keywords"));
+            }
+            Err(_) if kind == "load_error" && undecodable(&schema_bytes) => {
+                return Ok(Verdict::Ledgered("jsonschema.decode-errors"));
+            }
             Err(text) => {
-                return Ok(match kind {
+                let same = match kind {
                     "load_error" => outputs.contains(&text),
-                    "load_panic" => text.starts_with("panic: "),
+                    "load_panic" => text.starts_with("panic: ") || outputs.contains(&text),
                     _ => false,
+                };
+                return Ok(if same {
+                    Verdict::Same
+                } else {
+                    differs(format!("{name}: Go {kind} {outputs:?}, Rust {text:?}"))
                 });
             }
         };
-        let Some(doc) = record.bytes("doc", "doc_hex")? else {
-            return Ok(kind == "loaded");
+        let Some(doc) = doc.as_deref() else {
+            return Ok(if kind == "loaded" {
+                Verdict::Same
+            } else {
+                differs(format!("{name}: Go {kind} {outputs:?}, Rust loads"))
+            });
         };
-        let result = match schema.validate(&doc) {
-            Ok(result) => result,
-            Err(ValidateError::Load(text)) => {
-                return Ok(kind == "decode" && outputs.contains(&text));
+        let got = schema.validate(doc);
+        let same = match (kind, &got) {
+            // The text is serde_json's (jsonschema.decode-errors).
+            ("decode", Err(ValidateError::Load(_))) => true,
+            ("ok", Ok(result)) => result.valid(),
+            ("invalid", Ok(result)) if !result.valid() => {
+                rust_details(result.errors()) == go_details(record)
+                    && (outputs.contains(&joined(result.errors()))
+                        || outputs.len() > 1
+                        || outputs.iter().any(|o| reordered(o, result.errors(), doc)))
             }
-            Err(ValidateError::Panic(_)) => return Ok(kind == "panic"),
+            _ => false,
         };
-        if result.valid() {
-            return Ok(kind == "ok");
+        if same {
+            return Ok(Verdict::Same);
         }
-        let joined: String = result.errors().iter().map(ToString::to_string).collect();
-        let details_match = rust_details(result.errors()) == record.details();
-        Ok(kind == "invalid" && details_match && (outputs.contains(&joined) || outputs.len() > 1))
+        let shown = got.map(|r| joined(r.errors()));
+        Ok(differs(format!(
+            "{name} on {:?}: Go {kind} {outputs:?}, Rust {shown:?}",
+            String::from_utf8_lossy(doc)
+        )))
     }
 
     #[test]
     fn engine_matches_go() -> Result<(), String> {
-        let mut failures = Vec::new();
-        let mut cases = 0usize;
-        for line in read_golden("engine_cases.jsonl")?.lines() {
-            let record = Record::parse(line)?;
-            cases += 1;
-            if !engine_case_matches(&record)? {
-                let schema = record.bytes("schema", "schema_hex")?.unwrap_or_default();
-                let doc = record.bytes("doc", "doc_hex")?;
-                let got = Schema::new(&schema).map(|s| {
-                    doc.map(|d| {
-                        s.validate(&d).map(|r| {
-                            r.errors()
-                                .iter()
-                                .map(ToString::to_string)
-                                .collect::<Vec<_>>()
-                        })
-                    })
-                });
-                let name = record.text("name").unwrap_or_default();
-                let line_start: String = line.chars().take(600).collect();
-                failures.push(format!("{name}: got {got:?}\n    Go {line_start}"));
+        let mut tally = Tally::default();
+        for record in read_lines("engine_cases.jsonl")? {
+            tally.add(engine_case(&record)?);
+        }
+        tally.finish("engine", 1_500)
+    }
+
+    /// jsonschema.decode-errors: bytes that are not JSON fail on both sides, Go with
+    /// `encoding/json`'s text and the port with `serde_json`'s.
+    #[test]
+    fn decode_texts_are_serde_jsons() -> Result<(), String> {
+        let fixture = Fixture::load()?;
+        let mut pairs = BTreeSet::new();
+        for record in read_lines("bidder_cases.jsonl")? {
+            if required(&record, "kind")? != "decode" {
+                continue;
+            }
+            let ext = bytes(&record, "ext", "ext_hex")?.unwrap_or_default();
+            if known_difference(&ext).is_some() {
+                continue;
+            }
+            let bidder = required(&record, "bidder")?;
+            let rust = match fixture.validator.validate(bidder, &ext) {
+                Err(ParamsError::Decode(text)) => text,
+                other => return Err(format!("{bidder} {ext:?}: Go decode, Rust {other:?}")),
+            };
+            for go in strings(&record, "outputs") {
+                let _new = pairs.insert((go, rust.clone()));
             }
         }
-        if cases < 1_500 {
-            return Err(format!("only {cases} engine cases"));
+        for record in read_lines("engine_cases.jsonl")? {
+            let schema = bytes(&record, "schema", "schema_hex")?.unwrap_or_default();
+            if required(&record, "kind")? != "load_error" || !undecodable(&schema) {
+                continue;
+            }
+            let rust = Schema::new(&schema).err().unwrap_or_default();
+            for go in strings(&record, "outputs") {
+                let _new = pairs.insert((go, rust.clone()));
+            }
+        }
+        let expected = [
+            ("EOF", "EOF while parsing a value at line 1 column 0"),
+            (
+                "unexpected EOF",
+                "EOF while parsing an object at line 1 column 1",
+            ),
+        ];
+        let missing: Vec<_> = expected
+            .iter()
+            .filter(|(go, rust)| !pairs.contains(&((*go).to_owned(), (*rust).to_owned())))
+            .collect();
+        if pairs.len() < 10 || !missing.is_empty() || pairs.iter().any(|(go, rust)| go == rust) {
+            return Err(format!("missing {missing:?} in {pairs:#?}"));
+        }
+        Ok(())
+    }
+
+    /// A schema Prebid loads, by its path under the Go root, compiled once.
+    fn schema_at<'c>(
+        cache: &'c mut BTreeMap<String, Schema>,
+        file: &str,
+    ) -> Result<&'c Schema, String> {
+        if !cache.contains_key(file) {
+            let path = go_root().map_err(|e| e.to_string())?.join(file);
+            let bytes = fs::read(&path).map_err(|e| format!("{}: {e}", path.display()))?;
+            let _previous = cache.insert(file.to_owned(), Schema::new(&bytes)?);
+        }
+        cache.get(file).ok_or_else(|| "schema cache".to_owned())
+    }
+
+    /// jsonschema.error-texts: every schema Prebid loads, on documents whose objects hold one
+    /// member at most (so that Go's order of errors is fixed), gives Go's joined error text
+    /// byte for byte.
+    #[test]
+    fn texts_exact() -> Result<(), String> {
+        let mut cache = BTreeMap::new();
+        let mut failures = Vec::new();
+        let mut cases = 0usize;
+        let mut invalid = 0usize;
+        for record in read_lines("texts.jsonl")? {
+            let file = required(&record, "file")?;
+            let doc = required(&record, "doc")?;
+            let kind = required(&record, "kind")?;
+            let want = text(&record, "text").unwrap_or_default();
+            let result = schema_at(&mut cache, file)?
+                .validate(doc.as_bytes())
+                .map_err(|e| format!("{file} on {doc}: {e}"))?;
+            let got = joined(result.errors());
+            cases += 1;
+            invalid += usize::from(kind == "invalid");
+            let same = match kind {
+                "ok" => result.valid(),
+                "invalid" => !result.valid() && got == want,
+                _ => false,
+            };
+            if !same {
+                failures.push(format!(
+                    "{file} on {doc}:\n  Go   {kind} {want}\n  Rust {got}"
+                ));
+            }
+        }
+        if cache.len() < 283 || cases < 16_000 || invalid < 14_000 {
+            return Err(format!(
+                "only {} schemas, {cases} cases, {invalid} invalid",
+                cache.len()
+            ));
+        }
+        if failures.is_empty() {
+            return Ok(());
+        }
+        let shown: Vec<&str> = failures.iter().take(30).map(String::as_str).collect();
+        Err(format!(
+            "{} of {cases} texts differ from Go:\n{}",
+            failures.len(),
+            shown.join("\n")
+        ))
+    }
+
+    /// The formats gojsonschema checks that the port does not.
+    const UNPORTED_FORMATS: [&str; 15] = [
+        "date",
+        "time",
+        "date-time",
+        "email",
+        "idn-email",
+        "ipv4",
+        "ipv6",
+        "uri",
+        "uri-reference",
+        "iri",
+        "iri-reference",
+        "uri-template",
+        "regex",
+        "json-pointer",
+        "relative-json-pointer",
+    ];
+
+    /// jsonschema.formats: the two formats the bidder schemas use (`uuid` and `hostname`)
+    /// check as Go's checkers do, on strings and on other values, with Go's text; a name Go has
+    /// no checker for (the empty name, `UUID`, `custom`) checks nothing, as in Go; the 15 other
+    /// formats Go checks fail to load.
+    #[test]
+    fn formats() -> Result<(), String> {
+        let mut failures = Vec::new();
+        let mut documents = 0usize;
+        let mut refused = Vec::new();
+        for record in read_lines("formats.jsonl")? {
+            let schema_text = required(&record, "schema")?;
+            let kind = required(&record, "kind")?;
+            let format: Value = serde_json::from_str(schema_text).map_err(|e| e.to_string())?;
+            let format = text(&format, "format").unwrap_or_default().to_owned();
+            let ported = !UNPORTED_FORMATS.contains(&format.as_str());
+            let schema = match (Schema::new(schema_text.as_bytes()), ported) {
+                (Ok(schema), true) => schema,
+                (Err(e), false) if kind == "loaded" && e.contains(UNSUPPORTED) => {
+                    refused.push(format);
+                    continue;
+                }
+                (got, _) => {
+                    let got = got.map(|_| "loaded");
+                    failures.push(format!("{schema_text}: Go {kind}, Rust {got:?}"));
+                    continue;
+                }
+            };
+            let Some(doc) = text(&record, "doc") else {
+                continue;
+            };
+            documents += 1;
+            let result = schema.validate(doc.as_bytes()).map_err(|e| e.to_string())?;
+            let got = joined(result.errors());
+            let want = text(&record, "text").unwrap_or_default();
+            let same = match kind {
+                "ok" => result.valid(),
+                "invalid" => got == want,
+                _ => false,
+            };
+            if !same {
+                failures.push(format!(
+                    "{schema_text} on {doc}: Go {kind} {want:?}, Rust {got:?}"
+                ));
+            }
+        }
+        if documents < 400 || refused.len() != UNPORTED_FORMATS.len() {
+            return Err(format!(
+                "only {documents} documents and {} refused formats: {refused:?}",
+                refused.len()
+            ));
         }
         if failures.is_empty() {
             Ok(())
         } else {
-            let shown: Vec<&String> = failures.iter().take(40).collect();
-            Err(format!(
-                "{} of {cases} engine cases differ from Go:\n{shown:#?}",
-                failures.len()
-            ))
+            Err(failures.join("\n"))
         }
     }
 }
