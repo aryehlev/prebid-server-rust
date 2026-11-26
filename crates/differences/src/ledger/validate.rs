@@ -253,7 +253,7 @@ fn entry(
     let status = Status::parse(&raw.status);
     if status.is_none() {
         problems.add(&format!(
-            "unknown status {:?}: ledgered, restored or decision-pending",
+            "unknown status {:?}: ledgered, restored, decision-pending or extension",
             raw.status
         ));
     }
@@ -395,6 +395,29 @@ fn by_status(status: Status, raw: &RawEntry, problems: &mut Problems<'_>) {
             }
             if raw.default.is_some() {
                 problems.add("only a decision-pending entry has a default");
+            }
+        }
+        Status::Extension => {
+            if !raw.harness.is_empty() {
+                problems.add(
+                    "an extension entry has no harness pattern: parity runs keep the extension \
+                     off, and off is Go",
+                );
+            }
+            if raw.restore.is_some() {
+                problems.add(
+                    "an extension entry has no restore: off is Go, which its pin shows, and rust \
+                     says what happens with it on",
+                );
+            }
+            if raw.rule_b.is_some() {
+                problems.add("an extension entry names no Rule B case (rule_b)");
+            }
+            if raw.default.is_some() {
+                problems.add("only a decision-pending entry has a default");
+            }
+            if !raw.restore_by.is_empty() {
+                problems.add("only a restored entry names restore_by");
             }
         }
         Status::DecisionPending => {

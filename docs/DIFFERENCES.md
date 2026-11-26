@@ -9,37 +9,38 @@ An entry says what Go does, what Rust does, who could notice (publisher, bidder,
 - **Decision pending**: the default applies until the user decides; the decision is in `docs/DECISIONS.md`.
 - **Ledgered**: the crate's behaviour is accepted (Rule A).
 - **Go behaviour kept** (restored): glue under one of Rule B's four cases, Prebid's own logic ported onto the crate, or a decided decision keeps what Go does, and a restore pin compares it with a Go golden. A mismatch on such an entry is never ledgered.
+- **Extension beyond Go** (extension): an opt-in feature Go does not have, off by default. Off, the server behaves as Go's does, which the entry's pin shows; its Rust text says what happens with it on. Parity runs keep it off, so a mismatch on such an entry is unexpected.
 
 Rule B's cases: (a) input real production traffic sends that the crate would reject or misread; (b) state one server writes and the other reads while Go and Rust run side by side; (c) the operator interface: config keys, defaults, `PBS_` variables, CLI flags, metric names, labels and types; (d) Prebid-authored texts and bytes.
 
 ## Summary
 
-| Category | Decision pending | Ledgered | Go behaviour kept |
-|---|---:|---:|---:|
-| Base64 | 0 | 1 | 1 |
-| In-memory caches | 0 | 1 | 0 |
-| Configuration loading | 0 | 10 | 7 |
-| Cookies | 0 | 1 | 0 |
-| Currency rates | 0 | 4 | 0 |
-| Global vendor list | 0 | 1 | 0 |
-| Gzip | 0 | 3 | 0 |
-| HTTP client | 0 | 24 | 5 |
-| InfluxDB metrics | 0 | 10 | 1 |
-| IP addresses | 0 | 1 | 1 |
-| JSON | 5 | 45 | 6 |
-| Logging | 0 | 10 | 3 |
-| Prometheus metrics | 1 | 7 | 1 |
-| Public suffix list | 1 | 0 | 0 |
-| Random numbers | 0 | 1 | 0 |
-| Regular expressions | 0 | 2 | 2 |
-| HTTP server | 0 | 24 | 7 |
-| Background tasks | 0 | 0 | 1 |
-| Time formatting | 0 | 3 | 1 |
-| TLS | 0 | 2 | 1 |
-| URLs | 0 | 2 | 2 |
-| User syncs | 0 | 1 | 0 |
-| YAML | 0 | 3 | 0 |
-| All | 7 | 156 | 39 |
+| Category | Decision pending | Ledgered | Go behaviour kept | Extensions |
+|---|---:|---:|---:|---:|
+| Base64 | 0 | 1 | 1 | 0 |
+| In-memory caches | 0 | 1 | 0 | 0 |
+| Configuration loading | 0 | 10 | 7 | 0 |
+| Cookies | 0 | 1 | 0 | 0 |
+| Currency rates | 0 | 4 | 0 | 0 |
+| Global vendor list | 0 | 1 | 0 | 0 |
+| Gzip | 0 | 3 | 0 | 0 |
+| HTTP client | 0 | 24 | 5 | 0 |
+| InfluxDB metrics | 0 | 10 | 1 | 0 |
+| IP addresses | 0 | 1 | 1 | 0 |
+| JSON | 5 | 45 | 6 | 0 |
+| Logging | 0 | 10 | 3 | 0 |
+| Prometheus metrics | 1 | 7 | 1 | 0 |
+| Public suffix list | 1 | 0 | 0 | 0 |
+| Random numbers | 0 | 1 | 0 | 0 |
+| Regular expressions | 0 | 2 | 2 | 0 |
+| HTTP server | 0 | 24 | 7 | 0 |
+| Background tasks | 0 | 0 | 1 | 0 |
+| Time formatting | 0 | 3 | 1 | 0 |
+| TLS | 0 | 2 | 1 | 0 |
+| URLs | 0 | 2 | 2 | 0 |
+| User syncs | 0 | 1 | 0 | 0 |
+| YAML | 0 | 3 | 0 | 0 |
+| All | 7 | 156 | 39 | 0 |
 
 ## Decisions pending
 
@@ -57,7 +58,7 @@ None.
 
 ## How the parity harness matches an entry
 
-A mismatch is ledgered under an entry when one of the entry's harness patterns has the mismatch's kind, its class (the pattern's `lexical_class`, for the lexical and wire kinds) and a path that matches the mismatch's path with every array index written `[*]`; a pattern that names an input predicate matches only in a case that has it. Every other mismatch is unexpected. A restored entry has no pattern, so a mismatch where Go's behaviour is kept is unexpected too. No two patterns match one mismatch, except patterns that name different input predicates; a case with both features is tagged with the entry first in id order.
+A mismatch is ledgered under an entry when one of the entry's harness patterns has the mismatch's kind, its class (the pattern's `lexical_class`, for the lexical and wire kinds) and a path that matches the mismatch's path with every array index written `[*]`; a pattern that names an input predicate matches only in a case that has it. Every other mismatch is unexpected. A restored entry has no pattern, so a mismatch where Go's behaviour is kept is unexpected too, and neither has an extension entry, which parity runs keep off. No two patterns match one mismatch, except patterns that name different input predicates; a case with both features is tagged with the entry first in id order.
 
 Paths are the harness's JSON paths: `$` is the compared value, `.name` a member whose name is an identifier, `['name']` any other member, with `\` and `'` escaped (meta members such as `['@status']` and `['@headers']` are always bracketed), and `[*]` any array index. A pattern may also use `.*` for any one member and `.**` for any run of members and indices, the empty run included. A pattern of kind `value`, `type`, `missing_in_rust`, `extra_in_rust` or `status` names a concrete path, with no `.*` or `.**`, and a `status` pattern names an input predicate, so a status mismatch on any other case stays unexpected.
 

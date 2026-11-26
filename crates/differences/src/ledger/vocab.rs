@@ -173,11 +173,18 @@ pub(super) enum Status {
     Ledgered,
     /// Go's behaviour is kept.
     Restored,
+    /// An opt-in extension beyond Go, off by default; off, the server behaves as Go's does.
+    Extension,
 }
 
 impl Status {
     /// Every status, in document order.
-    pub(super) const ALL: [Self; 3] = [Self::DecisionPending, Self::Ledgered, Self::Restored];
+    pub(super) const ALL: [Self; 4] = [
+        Self::DecisionPending,
+        Self::Ledgered,
+        Self::Restored,
+        Self::Extension,
+    ];
 
     /// The status a fragment spells `name`.
     pub(super) fn parse(name: &str) -> Option<Self> {
@@ -190,6 +197,7 @@ impl Status {
             Self::DecisionPending => "decision-pending",
             Self::Ledgered => "ledgered",
             Self::Restored => "restored",
+            Self::Extension => "extension",
         }
     }
 
@@ -199,6 +207,7 @@ impl Status {
             Self::DecisionPending => "Decision pending",
             Self::Ledgered => "Ledgered",
             Self::Restored => "Go behaviour kept",
+            Self::Extension => "Extensions beyond Go (off by default)",
         }
     }
 }

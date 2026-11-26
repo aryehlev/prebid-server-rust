@@ -39,6 +39,9 @@ const INTRO: &[&str] = &[
     "- **Go behaviour kept** (restored): glue under one of Rule B's four cases, Prebid's own logic \
      ported onto the crate, or a decided decision keeps what Go does, and a restore pin compares \
      it with a Go golden. A mismatch on such an entry is never ledgered.",
+    "- **Extension beyond Go** (extension): an opt-in feature Go does not have, off by default. \
+     Off, the server behaves as Go's does, which the entry's pin shows; its Rust text says what \
+     happens with it on. Parity runs keep it off, so a mismatch on such an entry is unexpected.",
     "",
     "Rule B's cases: (a) input real production traffic sends that the crate would reject or \
      misread; (b) state one server writes and the other reads while Go and Rust run side by \
@@ -55,8 +58,9 @@ const MATCHING: &[&str] = &[
      and a path that matches the mismatch's path with every array index written `[*]`; a pattern \
      that names an input predicate matches only in a case that has it. Every other mismatch is \
      unexpected. A restored entry has no pattern, so a mismatch where Go's behaviour is kept is \
-     unexpected too. No two patterns match one mismatch, except patterns that name different \
-     input predicates; a case with both features is tagged with the entry first in id order.",
+     unexpected too, and neither has an extension entry, which parity runs keep off. No two \
+     patterns match one mismatch, except patterns that name different input predicates; a case \
+     with both features is tagged with the entry first in id order.",
     "",
     "Paths are the harness's JSON paths: `$` is the compared value, `.name` a member whose name \
      is an identifier, `['name']` any other member, with `\\` and `'` escaped (meta members such \
@@ -90,8 +94,10 @@ fn with_status(entries: &[Entry], status: Status) -> impl Iterator<Item = &Entry
 fn summary(ledger: &Ledger, out: &mut Vec<String>) {
     out.push("## Summary".to_owned());
     out.push(String::new());
-    out.push("| Category | Decision pending | Ledgered | Go behaviour kept |".to_owned());
-    out.push("|---|---:|---:|---:|".to_owned());
+    out.push(
+        "| Category | Decision pending | Ledgered | Go behaviour kept | Extensions |".to_owned(),
+    );
+    out.push("|---|---:|---:|---:|---:|".to_owned());
     let count = |entries: &[&Entry], status: Status| {
         entries
             .iter()
@@ -107,19 +113,21 @@ fn summary(ledger: &Ledger, out: &mut Vec<String>) {
             .collect();
         if !entries.is_empty() {
             out.push(format!(
-                "| {} | {} | {} | {} |",
+                "| {} | {} | {} | {} | {} |",
                 category.title,
                 count(&entries, Status::DecisionPending),
                 count(&entries, Status::Ledgered),
-                count(&entries, Status::Restored)
+                count(&entries, Status::Restored),
+                count(&entries, Status::Extension)
             ));
         }
     }
     out.push(format!(
-        "| All | {} | {} | {} |",
+        "| All | {} | {} | {} | {} |",
         count(&all, Status::DecisionPending),
         count(&all, Status::Ledgered),
-        count(&all, Status::Restored)
+        count(&all, Status::Restored),
+        count(&all, Status::Extension)
     ));
     out.push(String::new());
 }
@@ -217,11 +225,15 @@ fn entry(entry: &Entry, out: &mut Vec<String>) {
     out.push(format!("#### {}: {}", code(&entry.id), entry.title));
     out.push(String::new());
     out.push(format!("- **Go:** {}", entry.go));
-    out.push(format!("- **Rust:** {}", entry.rust));
+    if entry.status == Status::Extension {
+        out.push(format!("- **Rust, with the extension on:** {}", entry.rust));
+    } else {
+        out.push(format!("- **Rust:** {}", entry.rust));
+    }
     out.push(format!("- **Who notices:** {}", entry.who.join(", ")));
     out.push(format!("- **Visible in:** {}", entry.visible_in));
     let harness = if entry.harness.is_empty() {
-        if entry.status == Status::Restored {
+        if matches!(entry.status, Status::Restored | Status::Extension) {
             "none: a mismatch here is unexpected".to_owned()
         } else {
             "none".to_owned()
@@ -235,7 +247,11 @@ fn entry(entry: &Entry, out: &mut Vec<String>) {
             .join("; ")
     };
     out.push(format!("- **Harness:** {harness}"));
-    out.push(format!("- **Pin:** {}", code(&entry.pin)));
+    if entry.status == Status::Extension {
+        out.push(format!("- **Pin (off is Go):** {}", code(&entry.pin)));
+    } else {
+        out.push(format!("- **Pin:** {}", code(&entry.pin)));
+    }
     if let Some(case) = entry.rule_b {
         out.push(format!("- **Rule B:** {}", case.describe()));
     }

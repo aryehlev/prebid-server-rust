@@ -577,6 +577,72 @@ fn decision_pending_entries_give_the_default() -> TestResult {
 }
 
 #[test]
+fn extension_entries_say_what_on_does_and_pin_off() -> TestResult {
+    let scratch = Scratch::new()?;
+    let extension = edit(
+        &edit(ONE, "status = \"ledgered\"", "status = \"extension\"")?,
+        "restore = \"A Formatter; not planned.\"\n",
+        "",
+    )?;
+    scratch.fragment("x", &extension)?;
+    fails_with(
+        validate(&scratch),
+        "an extension entry has no harness pattern: parity runs keep the extension off",
+    )?;
+    let unpatterned = extension
+        .split("[[difference.harness]]")
+        .next()
+        .unwrap_or_default()
+        .to_owned();
+    scratch.fragment("x", &unpatterned)?;
+    let summary = validate(&scratch)?;
+    check(
+        summary.to_string().starts_with(
+            "1 entry from 1 fragment: 0 decision pending, 0 ledgered, 0 Go \
+                          behaviour kept, 1 extension\n",
+        ),
+        &summary.to_string(),
+    )?;
+    let markdown = scratch.read(MARKDOWN)?;
+    for line in [
+        "### Extensions beyond Go (off by default)",
+        "- **Rust, with the extension on:** serde_json does not.",
+        "- **Harness:** none: a mismatch here is unexpected",
+        "- **Pin (off is Go):** `crates/x/tests/pins.rs::go_difference_one`",
+        "| All | 0 | 0 | 0 | 1 |",
+    ] {
+        check(markdown.contains(line), line)?;
+    }
+    let json: Value = serde_json::from_str(&scratch.read(JSON)?)?;
+    check_eq(
+        &json
+            .pointer("/differences/0/status")
+            .and_then(Value::as_str),
+        &Some("extension"),
+        "the status for the harness",
+    )?;
+    for (field, problem) in [
+        ("restore = \"x\"", "an extension entry has no restore"),
+        (
+            "rule_b = \"c\"",
+            "an extension entry names no Rule B case (rule_b)",
+        ),
+        (
+            "default = \"x\"",
+            "only a decision-pending entry has a default",
+        ),
+        (
+            "restore_by = [\"H2-OPT-POOL\"]",
+            "only a restored entry names restore_by",
+        ),
+    ] {
+        scratch.fragment("x", &format!("{unpatterned}{field}\n"))?;
+        fails_with(validate(&scratch), problem)?;
+    }
+    Ok(())
+}
+
+#[test]
 fn fields_are_checked() -> TestResult {
     let scratch = Scratch::new()?;
     for (from, to, want) in [
@@ -697,7 +763,8 @@ fn the_command_line() -> TestResult {
     let report = String::from_utf8(out)?;
     check(
         report.starts_with(
-            "1 entry from 1 fragment: 0 decision pending, 1 ledgered, 0 Go behaviour kept\n",
+            "1 entry from 1 fragment: 0 decision pending, 1 ledgered, 0 Go behaviour kept, 0 \
+             extensions\n",
         ),
         &report,
     )?;
