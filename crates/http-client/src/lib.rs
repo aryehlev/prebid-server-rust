@@ -1,9 +1,10 @@
 //! The Go server's outbound HTTP clients, as `router/router.go` builds them, on reqwest.
 //!
 //! One [`Client`] stands for each Go client: the general client (bidders, modules, stored requests
-//! and the vendor list), the cache and floors clients, and the plain clients that stand for Go's
-//! `&http.Client{}` and `http.DefaultClient` (currency rates, analytics, data files). A
-//! [`Builder`] turns Go's `http_client` settings ([`HttpClientSettings`]) into reqwest's options:
+//! and the vendor list; two clients over one transport, a [`General`]), the cache and floors
+//! clients, and the plain clients that stand for Go's `&http.Client{}` and `http.DefaultClient`
+//! (currency rates, analytics, data files). A [`Builder`] turns Go's `http_client` settings
+//! ([`HttpClientSettings`]) into reqwest's options:
 //!
 //! - `User-Agent: Go-http-client/1.1` when the caller set none (D-UA);
 //! - rustls with the platform verifier, plus the `certificates_file` roots for the general client
@@ -24,9 +25,12 @@
 //!
 //! Every client speaks HTTP/1.1, as router.go's do, but the bidder client
 //! ([`Builder::negotiate_http2`]): it negotiates h2 over TLS, and speaks h2c to the cleartext
-//! bidders that answer a probe with HTTP/2's SETTINGS frame (`http-client.http2`).
-//! `docs/DIFFERENCES.md` lists where the clients differ from Go's (its `http-client` and `tls`
-//! categories).
+//! bidders that answer a probe with HTTP/2's SETTINGS frame (`http-client.http2`). router.go
+//! gives its general client to the bidders and to the modules, the stored-request fetchers and
+//! the vendor list alike; [`Builder::build_general`] builds it as a [`General`], whose bidders'
+//! client alone negotiates HTTP/2, both sharing one per-host limit and their HTTP/1.1
+//! connections. `docs/DIFFERENCES.md` lists where the clients differ from Go's (its
+//! `http-client` and `tls` categories).
 
 pub mod error;
 pub mod metrics;
@@ -38,7 +42,8 @@ mod client;
 mod unreachable;
 
 pub use client::{
-    Builder, Client, GO_USER_AGENT, H2C_PROBE_TIMEOUT, H2C_VERDICT_TTL, Response, Transport,
+    Builder, Client, GO_USER_AGENT, General, H2C_PROBE_TIMEOUT, H2C_VERDICT_TTL, Response,
+    Transport,
 };
 pub use error::{DnsError, ErrorKind, RequestError};
 pub use metrics::{Event, Trace};

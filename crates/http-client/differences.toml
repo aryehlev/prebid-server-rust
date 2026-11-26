@@ -105,7 +105,12 @@ rust = """\
     HTTP/2 at once, at most twice more (reqwest's default retry of protocol NACKs), where Go's \
     HTTP/2 client, which Go's bidder client does not use, sends it again up to seven times \
     more, backing off a second and longer after the first (net/http/h2_bundle.go:7893-7923); \
-    HTTP/1.1 has neither signal. Every other client stays on HTTP/1.1."""
+    HTTP/1.1 has neither signal. A bid request whose http URL redirects to an https one follows \
+    the redirect over HTTP/1.1, as Go's does: the client that sent it chooses the protocols of \
+    every hop (`crates/http-client/tests/h2.rs::cleartext_redirect_to_tls_stays_on_http1`). Every \
+    other client stays on HTTP/1.1, and so does the general client's own half, which the \
+    modules, stored requests and vendor list send through (`Builder::build_general`, \
+    `crates/http-client/tests/h2.rs::only_the_bidders_negotiate_http2`)."""
 who = ["bidder"]
 visible_in = """\
     The protocol of bid requests to bidders that offer h2 over TLS or take h2c, the \
@@ -246,6 +251,47 @@ who = ["operator"]
 visible_in = """\
     `adapter_connection_created` and `adapter_connection_reused` for bidders on h2 or h2c"""
 pin = "crates/http-client/tests/h2.rs::connection_counts"
+
+[[difference]]
+id = "http-client.bidder-tls-pool"
+category = "http-client"
+status = "ledgered"
+title = """\
+    General client over TLS: Go's callers share one pool, the bidders' half keeps its TLS \
+    connections apart"""
+go = """\
+    router.go's general client is one Transport (router/router.go:143-158) for the modules \
+    (:211), the stored-request fetchers (:219), the vendor list (:234-237) and the bidders \
+    (:247): a TLS connection one of them left idle to a host carries the next request any of \
+    them sends there, and `MaxConnsPerHost` and `MaxIdleConnsPerHost` count the connections of \
+    all of them together (testdata/golden/metrics.json: two requests on one Transport, the \
+    second on the first one's connection)."""
+rust = """\
+    `Builder::build_general` builds the general client as two halves over one transport, which \
+    share the per-host `max_connections_per_host` slots, the HTTP/1.1 connections in cleartext \
+    and the record that tells a reused connection. The bidders' half negotiates HTTP/2 \
+    (`http-client.http2`), and reqwest offers the same ALPN protocols on every TLS connection of \
+    a client, so that half's TLS connections are its own: a bidder request to a host does not \
+    take the TLS connection a module, stored-request or vendor-list request left idle there \
+    (its `GotConn` reports a new connection where Go's reports a reused one), and such a host \
+    can keep up to `max_idle_connections_per_host` idle TLS connections for each half and up to \
+    twice `max_connections_per_host` connections open, though no more requests in flight than \
+    the limit. A bid request whose https URL redirects to an http one follows the redirect on \
+    that half's own connections too. Built without `negotiate_http2`, the two halves share every \
+    connection, as Go's callers do."""
+who = ["operator", "bidder"]
+visible_in = """\
+    `adapter_connection_created` and `adapter_connection_reused`, and the TLS connections open \
+    to a host that serves bidder requests and module, stored-request or vendor-list requests"""
+pin = "crates/http-client/tests/metrics.rs::general_client_halves_share_connections"
+restore = """\
+    Not planned while the bidders' half negotiates HTTP/2: one reqwest client offers one set of \
+    ALPN protocols. A general client built without `negotiate_http2` keeps Go's one pool."""
+note = """\
+    `crates/http-client/tests/limits.rs::general_client_halves_share_the_per_host_limit` runs \
+    limits.json's `max_conns_per_host` through both halves, negotiating HTTP/2 or not, and \
+    `crates/http-client/tests/consumers.rs::general_client_wired_like_router_go` hands the halves \
+    to router.go's callers and wraps both in the parity transport."""
 
 [[difference]]
 id = "http-client.error-texts"
@@ -410,7 +456,10 @@ restore = """\
     connections) whose slot a request holds from its send until its body is read: with a limit \
     of 1, three concurrent requests run one after the other on one connection, as Go's do. The \
     slots count requests in flight where Go counts connections, which over HTTP/1.1 carry one \
-    request at a time."""
+    request at a time. The two halves of the general client (`Builder::build_general`) take the \
+    same slots, as the modules', stored requests', vendor list's and bidders' requests share \
+    Go's one Transport \
+    (`crates/http-client/tests/limits.rs::general_client_halves_share_the_per_host_limit`)."""
 rule_b = "c"
 
 [[restoration]]

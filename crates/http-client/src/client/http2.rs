@@ -10,6 +10,14 @@
 //! - in cleartext, a request for an origin reached without a proxy goes over h2c (HTTP/2 with prior
 //!   knowledge) once the origin has answered a probe with HTTP/2's SETTINGS frame.
 //!
+//! router.go's bidders send through its general client, as its modules, stored requests and
+//! vendor list do; [`Builder::build_general`](crate::Builder::build_general) builds that client
+//! as two over one transport, the bidders' alone negotiating HTTP/2. The bidders' cleartext
+//! requests that do not go over h2c, a demoted origin's among them, go over the general client's
+//! HTTP/1.1 connections, and both clients' requests wait for the same per-host limit. ALPN is
+//! chosen for every request of a reqwest client, so the bidders' TLS connections are their own
+//! (`http-client.bidder-tls-pool`).
+//!
 //! The probe (`http-client.h2c-probe`) starts when a request is about to go to a cleartext origin
 //! with no verdict, or one whose verdict is older than [`H2C_VERDICT_TTL`], and the request goes
 //! over HTTP/1.1 at once. In a task of its own, the probe opens one connection, writes the client

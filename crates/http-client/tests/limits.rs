@@ -1,16 +1,19 @@
 //! Pins of the clients' connection limits and timeouts against Go's general Transport with the
 //! same settings (`testdata/golden/limits.json`, `testdata/go/limits.go`):
-//! `max_connections_per_host` (restored by a per-host semaphore), the idle caps and timeouts, and
-//! the TLS handshake timeout.
+//! `max_connections_per_host` (restored by a per-host semaphore, which both halves of router.go's
+//! general client share), the idle caps and timeouts, and the TLS handshake timeout.
 
 #[cfg(test)]
 pub mod support;
 
 #[cfg(test)]
 mod tests {
-    use std::time::Duration;
+    use std::{
+        sync::{Arc, Mutex, PoisonError},
+        time::Duration,
+    };
 
-    use pbs_http_client::{Builder, HttpClientSettings, ProxyEnv};
+    use pbs_http_client::{Builder, Client, HttpClientSettings, ProxyEnv};
     use serde_json::Value;
     use tokio::{
         task::JoinSet,
@@ -88,17 +91,55 @@ mod tests {
         Ok(settings)
     }
 
+    /// The answer of [`keep_alive_server`]: 200 "ok".
+    const OK: &[u8] = b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nok";
+
+    /// HTTP/2's client connection preface, which the h2c probe's connection opens with.
+    const PREFACE: &[u8] = b"PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n";
+
     /// A server that answers every request on a connection with 200 "ok" after `delay`
     /// (`keepAliveServer`).
     async fn keep_alive_server(delay: Duration) -> Result<RawServer, BoxError> {
         RawServer::start(move |mut conn| async move {
             while conn.read_request().await.is_some() {
                 sleep(delay).await;
-                conn.write(b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nok")
-                    .await;
+                conn.write(OK).await;
             }
         })
         .await
+    }
+
+    /// [`keep_alive_server`], closing at once a connection that opens with HTTP/2's preface (the
+    /// bidders' h2c probe's, which Go's client never opens: `http-client.h2c-probe`) and counting
+    /// the others alone, each from its first bytes.
+    async fn probe_blind_server(
+        delay: Duration,
+    ) -> Result<(RawServer, Arc<Mutex<Counts>>), BoxError> {
+        let counts = Arc::new(Mutex::new(Counts::default()));
+        let server = RawServer::start({
+            let counts = Arc::clone(&counts);
+            move |mut conn| {
+                let counts = Arc::clone(&counts);
+                async move {
+                    if conn.peek(PREFACE.len()).await == PREFACE {
+                        return;
+                    }
+                    {
+                        let mut now = counts.lock().unwrap_or_else(PoisonError::into_inner);
+                        now.accepted += 1;
+                        now.open += 1;
+                        now.max_open = now.max_open.max(now.open);
+                    }
+                    while conn.read_request().await.is_some() {
+                        sleep(delay).await;
+                        conn.write(OK).await;
+                    }
+                    counts.lock().unwrap_or_else(PoisonError::into_inner).open -= 1;
+                }
+            }
+        })
+        .await?;
+        Ok((server, counts))
     }
 
     /// The final counts as the golden writes them.
@@ -114,17 +155,19 @@ mod tests {
         Ok((accepted, max_open))
     }
 
-    /// `concurrentCase`: `n` GETs at once to a server that answers each after 100 ms.
-    async fn concurrent(case: &Value, n: usize) -> Result<Outcome, BoxError> {
-        let delay = Duration::from_millis(100);
-        let server = keep_alive_server(delay).await?;
-        let client = loopback_client(settings(case)?, 0)?;
-        let url = format!("http://127.0.0.1:{}/l", server.port());
+    /// `n` GETs at once to `url`, through `clients` in turn, at a server that answers each after
+    /// `delay`: each one's status and error, and whether they ran one after the other.
+    async fn at_once(
+        clients: &[Client],
+        url: &str,
+        n: usize,
+        delay: Duration,
+    ) -> Result<(Vec<i64>, Vec<String>, bool), BoxError> {
         let start = Instant::now();
         let mut tasks = JoinSet::new();
-        for i in 0..n {
+        for (i, client) in clients.iter().cycle().take(n).enumerate() {
             let client = client.clone();
-            let req = request("GET", &url)?;
+            let req = request("GET", url)?;
             let _handle = tasks.spawn(async move {
                 let result = match client.send(req, None, None).await {
                     Ok(response) => {
@@ -147,12 +190,58 @@ mod tests {
             }
         }
         let serialized = start.elapsed() >= delay * u32::try_from(n)?;
-        drop(client);
+        Ok((
+            results.iter().map(|(status, _)| *status).collect(),
+            results.into_iter().map(|(_, error)| error).collect(),
+            serialized,
+        ))
+    }
+
+    /// `concurrentCase`: `n` GETs at once to a server that answers each after 100 ms.
+    async fn concurrent(case: &Value, n: usize) -> Result<Outcome, BoxError> {
+        let delay = Duration::from_millis(100);
+        let server = keep_alive_server(delay).await?;
+        let client = loopback_client(settings(case)?, 0)?;
+        let url = format!("http://127.0.0.1:{}/l", server.port());
+        let (statuses, errors, serialized) = at_once(&[client], &url, n, delay).await?;
         let counts = server.close().await;
         let (accepted, max_open) = counted(&[counts])?;
         Ok(Outcome {
-            statuses: results.iter().map(|(status, _)| *status).collect(),
-            errors: results.into_iter().map(|(_, error)| error).collect(),
+            statuses,
+            errors,
+            accepted,
+            max_open,
+            serialized: Some(serialized),
+            timeout: None,
+            within_limit: None,
+        })
+    }
+
+    /// [`concurrent`] through router.go's general client, the requests taking its own half and
+    /// its bidders' in turn; the bidders' half negotiates HTTP/2 when `negotiate`.
+    async fn concurrent_halves(
+        case: &Value,
+        n: usize,
+        negotiate: bool,
+    ) -> Result<Outcome, BoxError> {
+        let delay = Duration::from_millis(100);
+        let (server, counts) = probe_blind_server(delay).await?;
+        let builder = Builder::new(settings(case)?, ProxyEnv::default()).loopback_only(0);
+        let halves = if negotiate {
+            builder.negotiate_http2()
+        } else {
+            builder
+        }
+        .build_general()?;
+        let url = format!("http://127.0.0.1:{}/l", server.port());
+        let (statuses, errors, serialized) =
+            at_once(&[halves.general, halves.bidders], &url, n, delay).await?;
+        let _all = server.close().await;
+        let counts = *counts.lock().unwrap_or_else(PoisonError::into_inner);
+        let (accepted, max_open) = counted(&[counts])?;
+        Ok(Outcome {
+            statuses,
+            errors,
             accepted,
             max_open,
             serialized: Some(serialized),
@@ -262,6 +351,27 @@ mod tests {
                 check_eq(&rust, &go, name)?;
             }
             Ok(())
+        })
+    }
+
+    // Go: router/router.go:143-158 (MaxConnsPerHost on the one Transport that the modules, the
+    // stored-request fetchers, the vendor list and the bidders send through, :211-247) and
+    // net/http/transport.go Transport.queueForDial.
+    #[test]
+    fn general_client_halves_share_the_per_host_limit() -> TestResult {
+        run(async {
+            let doc = golden("limits.json")?;
+            let (case, go) = go_outcome(&doc, "max_conns_per_host")?;
+            let mut got = Vec::new();
+            for negotiate in [false, true] {
+                got.push((negotiate, concurrent_halves(&case, 3, negotiate).await?));
+            }
+            check_eq(
+                &got,
+                &vec![(false, go.clone()), (true, go)],
+                "three requests at once through the two halves, the bidders' negotiating HTTP/2 \
+                 or not",
+            )
         })
     }
 

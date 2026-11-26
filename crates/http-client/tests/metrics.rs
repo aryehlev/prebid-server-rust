@@ -119,6 +119,44 @@ mod tests {
         Ok(events)
     }
 
+    /// The events of a request through router.go's general client's own half, then of one
+    /// through its bidders' half, to `case`'s server; the bidders' half negotiates HTTP/2 when
+    /// `negotiate`.
+    async fn halves_events(
+        case: &Value,
+        pki: &TestPki,
+        negotiate: bool,
+    ) -> Result<Vec<Vec<String>>, BoxError> {
+        let url = text(case, "/url")?;
+        let server = server(
+            Duration::ZERO,
+            false,
+            url.starts_with("https:").then_some(pki),
+        )
+        .await?;
+        let full = ports_in(url, &[(server.port(), "PORT")]);
+        let builder = Builder::new(HttpClientSettings::GENERAL, ProxyEnv::default())
+            .roots(pki.roots())
+            .loopback_only(0);
+        let clients = if negotiate {
+            builder.negotiate_http2()
+        } else {
+            builder
+        }
+        .build_general()?;
+        let mut events = Vec::new();
+        for client in [&clients.general, &clients.bidders] {
+            let (recorded, failed) = traced(client, &full).await?;
+            if failed {
+                return Err(format!("{full}: a request failed").into());
+            }
+            events.push(recorded);
+        }
+        drop(clients);
+        let _counts = server.close().await;
+        Ok(events)
+    }
+
     /// Go's hooks for each request, without the ones the clients have no event for.
     fn go_events(case: &Value) -> Result<(Vec<Vec<String>>, Vec<String>), BoxError> {
         let mut kept = Vec::new();
@@ -218,6 +256,45 @@ mod tests {
                     ),
                 ],
                 "Go's hooks the clients report nothing for",
+            )
+        })
+    }
+
+    // Go: router/router.go:143-158 and :211-247 (one Transport for the modules, the
+    // stored-request fetchers, the vendor list and the bidders, so a bidder's request takes the
+    // connection another of them left idle) and exchange/bidder.go:732-798 (GotConn's Reused).
+    #[test]
+    fn general_client_halves_share_connections() -> TestResult {
+        run(async {
+            let doc = golden("metrics.json")?;
+            let pki = TestPki::new()?;
+            let mut differ = Vec::new();
+            for negotiate in [false, true] {
+                for name in ["http_ip", "https_ip"] {
+                    let case = list(&doc, "/cases")?
+                        .iter()
+                        .find(|case| text(case, "/name").ok() == Some(name))
+                        .ok_or_else(|| format!("metrics.json has no {name}"))?;
+                    let (go, _) = go_events(case)?;
+                    let rust = halves_events(case, &pki, negotiate).await?;
+                    if rust != go {
+                        differ.push((name.to_owned(), negotiate, go, rust));
+                    }
+                }
+            }
+            // Where the bidders' half negotiates HTTP/2, its TLS connections are its own
+            // (http-client.bidder-tls-pool): its request opens one where Go's takes the one the
+            // first request left idle.
+            let got = |reused: bool| vec![format!("GotConn reused={reused}")];
+            check_eq(
+                &differ,
+                &vec![(
+                    "https_ip".to_owned(),
+                    true,
+                    vec![got(false), got(true)],
+                    vec![got(false), got(false)],
+                )],
+                "the cases whose events differ (case, negotiating HTTP/2, Go, Rust)",
             )
         })
     }

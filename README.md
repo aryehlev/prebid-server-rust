@@ -77,6 +77,12 @@ from Go's only in the fallback and redirect cases below.
   that keeps redirecting to another origin loses those requests once in every ten minutes or so.
 - **Proxies.** A request that goes through a proxy never takes h2c and starts no probe. An https
   request through a proxy negotiates h2 with the bidder inside the proxy's tunnel.
+- **The general client.** Go's bidders share one client with the modules, the stored-request
+  fetchers and the vendor list. Here that client is two halves over one transport
+  (`Builder::build_general`): only the bidders' half negotiates HTTP/2, and both halves wait for
+  the same `max_connections_per_host` slots and share their cleartext HTTP/1.1 connections. A
+  client offers one set of ALPN protocols, so the bidders' TLS connections are their own: a bid
+  request does not take a TLS connection that a module or a fetcher left idle to the same host.
 - **What differs on the wire.** HTTP/2's framing, header compression and SETTINGS are those of the
   `h2` crate, not Go's, and field names are in lower case, as they are over HTTP/1.1 here.
   `User-Agent` stays `Go-http-client/1.1`, where Go's own HTTP/2 sends `Go-http-client/2.0`. The
@@ -93,10 +99,12 @@ from Go's only in the fallback and redirect cases below.
 
 The ledger records each of these in [docs/DIFFERENCES.md](docs/DIFFERENCES.md):
 `http-client.http2`, `http-client.h2c-probe`, `http-client.h2c-demotion`,
-`http-client.h2c-redirects` and `http-client.h2-connection-counts`.
+`http-client.h2c-redirects`, `http-client.h2-connection-counts` and
+`http-client.bidder-tls-pool`.
 
-**Status.** `pbs-http-client` has the bidder client's HTTP/2 (`Builder::negotiate_http2`). The
-server sends bidder traffic this way once ROUTER-MAIN (R8) builds the clients.
+**Status.** `pbs-http-client` has the bidder client's HTTP/2 (`Builder::negotiate_http2`) and the
+general client whose bidders' half takes it (`Builder::build_general`). The server sends bidder
+traffic this way once ROUTER-MAIN (R8) builds the clients.
 
 ## Getting started
 

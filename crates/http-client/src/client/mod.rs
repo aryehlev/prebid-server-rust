@@ -2,7 +2,8 @@
 //! client, and [`Client::send`] sends a request the way bidder.go's `ctxhttp.Do` does, under the
 //! request's deadline. A client sends through a [`Transport`], Go's `http.RoundTripper`: the
 //! reqwest client a [`Builder`] builds, or one of the caller's (a test's fake, the parity
-//! transport). The bidder client's HTTP/2 is in [`http2`].
+//! transport). The bidder client's HTTP/2 is in [`http2`]; [`General`] is router.go's
+//! `generalHttpClient`, whose bidders alone take it.
 
 use std::{fmt, future::Future, net::IpAddr, sync::Arc, time::Duration};
 
@@ -111,8 +112,13 @@ impl Builder {
     /// HTTP/1.1, and the verdict holds for [`H2C_VERDICT_TTL`]. An origin that fails over h2c
     /// goes back to HTTP/1.1, and its failed request is sent again over HTTP/1.1, once, only when
     /// the origin read none of it. `User-Agent` stays `Go-http-client/1.1` (D-UA), and the
-    /// probe's connection is in no connection metric. Every other client speaks HTTP/1.1, as
-    /// router.go's do.
+    /// probe's connection is in no connection metric.
+    ///
+    /// [`build`](Self::build) and [`build_transport`](Self::build_transport) then give a client
+    /// all of whose requests negotiate HTTP/2. router.go's `generalHttpClient`, which serves the
+    /// bidders and the modules, stored-request and vendor-list fetchers alike, is
+    /// [`build_general`](Self::build_general)'s: its bidders alone negotiate HTTP/2, and its
+    /// other callers speak HTTP/1.1, as router.go's clients all do.
     #[must_use]
     pub const fn negotiate_http2(mut self) -> Self {
         self.http2 = true;
@@ -129,6 +135,45 @@ impl Builder {
         Ok(Client::from_transport(self.build_transport()?))
     }
 
+    /// router.go's `generalHttpClient` (router/router.go:143-158): one Transport, which the
+    /// modules (:211, `moduledeps.ModuleDeps`), the stored-request fetchers (:219), the
+    /// vendor-list fetcher (:234) and the GVL vendor-id task (:237) send through with every
+    /// bidder (:247, `exchange.BuildAdapters`). Its [`General::general`] client is theirs and its
+    /// [`General::bidders`] client the bidders', over
+    /// [`build_general_transports`](Self::build_general_transports)'s transports: they share
+    /// the per-host `max_connections_per_host` limit, the record of connections that tells a
+    /// reused one ([`Event::GotConn`]) and the HTTP/1.1 connections, as Go's callers share the
+    /// Transport. With [`negotiate_http2`](Self::negotiate_http2) the bidders' client negotiates
+    /// HTTP/2 and its TLS connections are its own (`http-client.bidder-tls-pool`); without it the
+    /// two clients send alike, as Go's one client does.
+    ///
+    /// # Errors
+    ///
+    /// As [`build_transport`](Self::build_transport).
+    pub fn build_general(self) -> Result<General<Client>, RequestError> {
+        Ok(self.build_general_transports()?.map(Client::from_transport))
+    }
+
+    /// The transports of [`build_general`](Self::build_general)'s clients, for a [`Transport`] of
+    /// the caller's to wrap each ([`General::map`]), as the parity transport wraps the general
+    /// client's one Transport (parity/wiring/clients.go:18 `WrapClient`) and tells the bidders'
+    /// calls by the bidder their context names (parity/transport/transport.go:105-117).
+    ///
+    /// # Errors
+    ///
+    /// As [`build_transport`](Self::build_transport).
+    pub fn build_general_transports(self) -> Result<General<Arc<dyn Transport>>, RequestError> {
+        let http2 = self.http2;
+        let core = Arc::new(self.core()?);
+        Ok(General {
+            general: Arc::new(Reqwest {
+                core: Arc::clone(&core),
+                http2: false,
+            }),
+            bidders: Arc::new(Reqwest { core, http2 }),
+        })
+    }
+
     /// The transport alone: Go's `http.Transport`, for a [`Transport`] of the caller's to send
     /// through, as the parity transport sends through a clone of each production Transport with
     /// its oracle as the proxy ([`proxy_url`](Self::proxy_url),
@@ -141,6 +186,16 @@ impl Builder {
     ///
     /// reqwest could not build it: the TLS roots could not be loaded ([`ErrorKind::Build`]).
     pub fn build_transport(self) -> Result<Arc<dyn Transport>, RequestError> {
+        let http2 = self.http2;
+        Ok(Arc::new(Reqwest {
+            core: Arc::new(self.core()?),
+            http2,
+        }))
+    }
+
+    /// The reqwest clients, the proxy rules, the per-host limit and the record of connections
+    /// that the transports built from this builder share.
+    fn core(self) -> Result<Core, RequestError> {
         let Self {
             settings,
             proxy,
@@ -180,16 +235,25 @@ impl Builder {
             }
             builder
         };
-        let mut builder = base(false);
-        builder = if rules.has_proxies() {
-            let [https, http] = proxies(&rules);
-            builder.proxy(https).proxy(http)
-        } else {
-            builder.no_proxy()
+        // The proxy rules, for every reqwest client but the h2c one.
+        let proxied = |builder: reqwest::ClientBuilder| {
+            if rules.has_proxies() {
+                let [https, http] = proxies(&rules);
+                builder.proxy(https).proxy(http)
+            } else {
+                builder.no_proxy()
+            }
         };
-        let (http, h2c) = if http2 {
-            // reqwest's default versions: ALPN h2 and http/1.1 over TLS, HTTP/1.1 in cleartext.
-            let http = builder.http2_max_header_list_size(MAX_HEADER_LIST);
+        let http1 = proxied(base(false))
+            .http1_only()
+            .build()
+            .map_err(RequestError::build)?;
+        let http2 = if http2 {
+            // reqwest's default versions: ALPN h2 and http/1.1 over TLS.
+            let tls = proxied(base(false))
+                .http2_max_header_list_size(MAX_HEADER_LIST)
+                .build()
+                .map_err(RequestError::build)?;
             // h2c goes straight to an origin that answered the probe, never through a proxy.
             let prior = base(true)
                 .no_proxy()
@@ -197,19 +261,46 @@ impl Builder {
                 .http2_max_header_list_size(MAX_HEADER_LIST)
                 .build()
                 .map_err(RequestError::build)?;
-            (http, Some(H2c::new(prior, loopback)))
+            Some(Http2 {
+                tls,
+                h2c: H2c::new(prior, loopback),
+            })
         } else {
-            (builder.http1_only(), None)
+            None
         };
-        Ok(Arc::new(Reqwest {
-            http: http.build().map_err(RequestError::build)?,
-            h2c,
+        Ok(Core {
+            http1,
+            http2,
             rules,
             limiter: settings.per_host_limit().map(HostLimiter::new),
             connections: Connections::default(),
             idle_timeout: settings.idle_timeout(),
             loopback_only,
-        }))
+        })
+    }
+}
+
+/// router.go's `generalHttpClient`, as [`Builder::build_general`] builds it: what its two kinds
+/// of callers send through, over one transport's per-host limit and connections.
+#[derive(Debug, Clone)]
+pub struct General<T> {
+    /// What the modules, the stored-request fetchers and the vendor-list fetchers send through:
+    /// HTTP/1.1, as router.go's clients all speak.
+    pub general: T,
+    /// What every bidder sends through: the bidder client, which negotiates HTTP/2 when the
+    /// builder does ([`Builder::negotiate_http2`]), and speaks HTTP/1.1 as
+    /// [`general`](Self::general) does when it does not.
+    pub bidders: T,
+}
+
+impl<T> General<T> {
+    /// Both, each through `f`: the transports wrapped, or made clients.
+    #[must_use]
+    pub fn map<U, F: FnMut(T) -> U>(self, mut f: F) -> General<U> {
+        General {
+            general: f(self.general),
+            bidders: f(self.bidders),
+        }
     }
 }
 
@@ -329,18 +420,40 @@ impl Client {
     }
 }
 
-/// The transport a [`Builder`] builds: Go's `http.Transport`, on reqwest.
+/// A transport a [`Builder`] builds: Go's `http.Transport`, on reqwest, speaking the bidder
+/// client's protocols or HTTP/1.1 only over the connections of a core it may share with another
+/// ([`General`]).
 #[derive(Debug)]
 struct Reqwest {
-    /// HTTP/1.1 only, or for the bidder client ALPN's choice over TLS and HTTP/1.1 in cleartext.
-    http: reqwest::Client,
-    /// The bidder client's h2c.
-    h2c: Option<H2c>,
+    core: Arc<Core>,
+    /// Whether its requests negotiate HTTP/2 (the core has the bidder client's HTTP/2).
+    http2: bool,
+}
+
+/// What the transports of one [`Builder`] share, as Go's callers of one Transport share it.
+#[derive(Debug)]
+struct Core {
+    /// HTTP/1.1 only: the requests of a transport that does not negotiate HTTP/2, and the bidder
+    /// client's cleartext requests that do not go over h2c, which so share their connections
+    /// with the general client's.
+    http1: reqwest::Client,
+    /// The bidder client's HTTP/2, when the builder negotiates it.
+    http2: Option<Http2>,
     rules: Arc<ProxyRules>,
     limiter: Option<HostLimiter>,
     connections: Connections,
     idle_timeout: Option<Duration>,
     loopback_only: bool,
+}
+
+/// The bidder client's HTTP/2.
+#[derive(Debug)]
+struct Http2 {
+    /// ALPN's choice of `h2` or `http/1.1`: the bidder client's requests over TLS, on TLS
+    /// connections of their own (`http-client.bidder-tls-pool`).
+    tls: reqwest::Client,
+    /// h2c, to the cleartext origins that answered the probe.
+    h2c: H2c,
 }
 
 impl Transport for Reqwest {
@@ -350,17 +463,24 @@ impl Transport for Reqwest {
         _deadline: Option<Instant>,
         trace: Option<Trace>,
     ) -> BoxFuture<'_, Result<Response, RequestError>> {
-        Box::pin(self.execute(request, trace))
+        let http2 = if self.http2 {
+            self.core.http2.as_ref()
+        } else {
+            None
+        };
+        Box::pin(self.core.execute(request, trace, http2))
     }
 }
 
-impl Reqwest {
-    /// Sends `request` past the proxy rules, the loopback guard and the per-host limit, and
-    /// records its connection events. [`Client::send`] stops it at the deadline.
+impl Core {
+    /// Sends `request` past the proxy rules, the loopback guard and the per-host limit, with
+    /// `http2`, the bidder client's protocols, or HTTP/1.1 only, and records its connection
+    /// events. [`Client::send`] stops it at the deadline.
     async fn execute(
         &self,
         mut request: Request,
         trace: Option<Trace>,
+        http2: Option<&Http2>,
     ) -> Result<Response, RequestError> {
         let method = request.method().clone();
         let target = request.url().clone();
@@ -375,11 +495,12 @@ impl Reqwest {
         };
         let wait = start.elapsed();
 
-        let h2c = self
-            .h2c
-            .as_ref()
-            .and_then(|h2c| Some((h2c, h2c.origin(&target, proxy)?)));
-        let response = traced(trace.clone(), self.send(request, h2c))
+        let client = match http2 {
+            Some(http2) if target.scheme() == "https" => &http2.tls,
+            Some(_) | None => &self.http1,
+        };
+        let h2c = http2.and_then(|http2| Some((&http2.h2c, http2.h2c.origin(&target, proxy)?)));
+        let response = traced(trace.clone(), self.send(client, request, h2c))
             .await
             .map_err(|e| RequestError::reqwest(e, &method))?;
         if let Some(info) = response.extensions().get::<HttpInfo>() {
@@ -396,18 +517,19 @@ impl Reqwest {
         Ok(Response::received(response, permit))
     }
 
-    /// Sends `request` with the client's own protocols, or over h2c when `h2c` names the
-    /// origin marked h2c it is for. A failure over h2c moves the origin back to HTTP/1.1, and
-    /// when the origin read no request the request goes again over HTTP/1.1, once
-    /// (`http-client.h2c-demotion`); a redirect to another origin comes back unfollowed and
-    /// moves the origin back to HTTP/1.1 too (`http-client.h2c-redirects`).
+    /// Sends `request` with `client`, or over h2c when `h2c` names the origin marked h2c it is
+    /// for. A failure over h2c moves the origin back to HTTP/1.1, and when the origin read no
+    /// request the request goes again over HTTP/1.1, once (`http-client.h2c-demotion`); a
+    /// redirect to another origin comes back unfollowed and moves the origin back to HTTP/1.1
+    /// too (`http-client.h2c-redirects`).
     async fn send(
         &self,
+        client: &reqwest::Client,
         request: Request,
         h2c: Option<(&H2c, Origin)>,
     ) -> Result<reqwest::Response, reqwest::Error> {
         let Some((h2c, origin)) = h2c else {
-            return self.http.execute(request).await;
+            return client.execute(request).await;
         };
         let again = request.try_clone();
         match h2c.client().execute(request).await {
@@ -421,7 +543,7 @@ impl Reqwest {
                 Failure::Unread => {
                     h2c.demote(&origin);
                     match again {
-                        Some(again) => self.http.execute(again).await,
+                        Some(again) => self.http1.execute(again).await,
                         None => Err(error),
                     }
                 }

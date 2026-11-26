@@ -23,8 +23,8 @@ mod tests {
         server::{SendResponse, handshake},
     };
     use pbs_http_client::{
-        Builder, Client, Event, H2C_PROBE_TIMEOUT, H2C_VERDICT_TTL, HttpClientSettings, ProxyEnv,
-        Trace,
+        Builder, Client, Event, General, H2C_PROBE_TIMEOUT, H2C_VERDICT_TTL, HttpClientSettings,
+        ProxyEnv, Trace,
         reqwest::{
             Request, StatusCode, Url,
             header::{CONTENT_TYPE, HeaderMap, HeaderName, HeaderValue, LOCATION, USER_AGENT},
@@ -570,6 +570,18 @@ mod tests {
         )
     }
 
+    /// router.go's general client, its bidders' half negotiating HTTP/2, trusting `pki`'s CA,
+    /// under the loopback guard.
+    fn general_client(pki: &TestPki) -> Result<General<Client>, BoxError> {
+        Ok(
+            Builder::new(HttpClientSettings::GENERAL, ProxyEnv::default())
+                .roots(pki.roots())
+                .loopback_only(0)
+                .negotiate_http2()
+                .build_general()?,
+        )
+    }
+
     /// gamma's bid request to `url`: [`bid`]'s, with `field` (`h2.json`'s gamma field), which
     /// gamma's adapter adds.
     fn gamma(url: &str, field: &str) -> Result<Request, BoxError> {
@@ -775,14 +787,12 @@ mod tests {
         Ok((strings(case, "/protos")?, handled))
     }
 
-    /// What the bidder client does with two bid requests to `server`, one of `h2.json`'s
-    /// selection servers: the protocols of the answers, and the bid requests the server read,
-    /// sorted (the probe's `PRI * HTTP/2.0` is `probe_sends_no_request`'s).
-    async fn select(
+    /// `h2.json`'s selection server `server`, and the URL of a bid request to it.
+    async fn selection_server(
         server: &str,
         pki: &TestPki,
         doc: &Value,
-    ) -> Result<(Vec<String>, Vec<String>), BoxError> {
+    ) -> Result<(Bidder, String), BoxError> {
         let bidder = match server {
             "https_h2" => Bidder::tls(pki, &[b"h2", b"http/1.1"], doc).await?,
             "https_http1" => Bidder::tls(pki, &[b"http/1.1"], doc).await?,
@@ -795,9 +805,21 @@ mod tests {
             "http"
         };
         let url = format!("{scheme}://127.0.0.1:{}/bid", bidder.port());
+        Ok((bidder, url))
+    }
+
+    /// What the bidder client does with two bid requests to `server`, one of `h2.json`'s
+    /// selection servers: the protocols of the answers, and the bid requests the server read,
+    /// sorted (the probe's `PRI * HTTP/2.0` is `probe_sends_no_request`'s).
+    async fn select(
+        server: &str,
+        pki: &TestPki,
+        doc: &Value,
+    ) -> Result<(Vec<String>, Vec<String>), BoxError> {
+        let (bidder, url) = selection_server(server, pki, doc).await?;
         let client = bidder_client(pki)?;
         let before = post(&client, &url).await?;
-        if scheme == "http" {
+        if url.starts_with("http:") {
             let _probed = bidder.wait(|seen| !seen.probes.is_empty()).await?;
         }
         let after = post(&client, &url).await?;
@@ -855,6 +877,134 @@ mod tests {
                     ("h2c".to_owned(), (go_protos, go_handled), (protos, handled)),
                 ],
                 "the servers the bidder client speaks to otherwise than Go's (Go, Rust)",
+            )
+        })
+    }
+
+    /// What the general client's own half does with two bid requests to `server`, one of
+    /// `h2.json`'s selection servers, as [`select`] gives the bidder client's (the probe's
+    /// `PRI * HTTP/2.0` left in), and the connections that had opened with HTTP/2's preface a
+    /// moment after.
+    async fn select_general(
+        server: &str,
+        pki: &TestPki,
+        doc: &Value,
+    ) -> Result<((Vec<String>, Vec<String>), usize), BoxError> {
+        let (bidder, url) = selection_server(server, pki, doc).await?;
+        let clients = general_client(pki)?;
+        let protos = vec![
+            post(&clients.general, &url).await?,
+            post(&clients.general, &url).await?,
+        ];
+        drop(clients);
+        sleep(WAIT).await;
+        let seen = bidder.seen();
+        let mut handled = seen.requests;
+        handled.sort();
+        let _counts = bidder.close().await;
+        Ok(((protos, handled), seen.probing + seen.prior))
+    }
+
+    // Go: router/router.go:143-158 (generalHttpClient: one Transport, HTTP/1.1 to every server)
+    // and :211-247 (the modules, the stored-request fetchers, the vendor list and the bidders,
+    // which all send through it).
+    #[test]
+    fn only_the_bidders_negotiate_http2() -> TestResult {
+        run(async {
+            let doc = golden("h2.json")?;
+            let pki = TestPki::new()?;
+            let mut differ = Vec::new();
+            for server in ["https_h2", "https_http1", "h2c", "http1"] {
+                let go = (selection(&doc, "general", server)?, 0);
+                let rust = select_general(server, &pki, &doc).await?;
+                if rust != go {
+                    differ.push((server.to_owned(), go, rust));
+                }
+            }
+            check_eq(
+                &differ,
+                &Vec::new(),
+                "the servers the general client's own half speaks to otherwise than Go's general \
+                 client, or probes (Go, Rust)",
+            )?;
+            // Beside the bidders' half on HTTP/2, each half keeps its protocols: over h2c from
+            // the request after the probe.
+            let mut halves = Vec::new();
+            for transport in ["h2", "h2c"] {
+                let (bidder, base) = start(transport, &pki, &doc).await?;
+                let clients = general_client(&pki)?;
+                let url = format!("{base}/bid");
+                let mut protos = Vec::new();
+                if transport == "h2c" {
+                    protos.push(post(&clients.bidders, &url).await?);
+                    let _probed = bidder.wait(|seen| !seen.probes.is_empty()).await?;
+                }
+                for client in [
+                    &clients.bidders,
+                    &clients.general,
+                    &clients.bidders,
+                    &clients.general,
+                ] {
+                    protos.push(post(client, &url).await?);
+                }
+                drop(clients);
+                let seen = bidder.seen();
+                let _counts = bidder.close().await;
+                halves.push((transport, protos, seen.probing, seen.prior));
+            }
+            let (h1, h2) = ("HTTP/1.1".to_owned(), "HTTP/2.0".to_owned());
+            let in_turn = vec![h2.clone(), h1.clone(), h2, h1.clone()];
+            let mut probed = vec![h1];
+            probed.extend(in_turn.iter().cloned());
+            check_eq(
+                &halves,
+                &vec![("h2", in_turn, 0, 0), ("h2c", probed, 1, 1)],
+                "each transport: the protocols of the bidders' and the general requests in turn, \
+                 the probes and the connections with prior knowledge",
+            )
+        })
+    }
+
+    // Go: router/router.go:143-158 (the bidders' HTTP/1.1, which a redirect keeps) and
+    // net/http/client.go:597-755 (Client.do follows a 307 with the method and the body).
+    #[test]
+    fn cleartext_redirect_to_tls_stays_on_http1() -> TestResult {
+        run(async {
+            let doc = golden("h2.json")?;
+            let pki = TestPki::new()?;
+            let bidder = Bidder::tls(&pki, &[b"h2", b"http/1.1"], &doc).await?;
+            let target = format!("https://127.0.0.1:{}/bid", bidder.port());
+            let moved = redirect(&target);
+            let redirecting = RawServer::start(move |mut conn: RawConn| {
+                let moved = moved.clone();
+                async move {
+                    while conn.read_request().await.is_some() {
+                        conn.write(moved.as_bytes()).await;
+                    }
+                }
+            })
+            .await?;
+            let clients = general_client(&pki)?;
+            let url = format!("http://127.0.0.1:{}/bid", redirecting.port());
+            let protocols = vec![
+                post(&clients.bidders, &url).await?,
+                post(&clients.bidders, &target).await?,
+            ];
+            drop(clients);
+            let _redirected = redirecting.close().await;
+            let mut read = bidder.seen().requests;
+            read.sort();
+            let _counts = bidder.close().await;
+            let line =
+                |protocol: &str| format!("POST /bid {protocol} ua=Go-http-client/1.1 body=10");
+            check_eq(
+                &(protocols, read),
+                &(
+                    vec!["HTTP/1.1".to_owned(), "HTTP/2.0".to_owned()],
+                    vec![line("HTTP/1.1"), line("HTTP/2.0")],
+                ),
+                "a bid request redirected from cleartext to the TLS bidder, then one sent to it \
+                 at once: the protocols, and the requests the bidder read",
             )
         })
     }
