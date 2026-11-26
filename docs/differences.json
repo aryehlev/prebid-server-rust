@@ -2978,11 +2978,11 @@
       "status": "ledgered",
       "title": "Opening static/bidder-params: Go loads each schema through a `file://` URL, the port by its path",
       "go": "`NewBidderParamsValidator` makes each schema's path absolute with `filepath.Abs` (`os.Getwd`, which gives `$PWD` when `$PWD` names the working directory, then `filepath.Clean`, which drops `..`) and compiles it through gojsonschema's reference loader for `\"file:///\" + path` (openrtb_ext/bidders.go:819-827): `url.Parse` refuses a control character or a bad `%` escape (in the fragment too), a `#` cuts the path and what follows is resolved as a JSON pointer into the file before it, and `url.QueryUnescape` decodes `%XX` and turns `+` into a space, so a directory whose path holds one of them fails to load, or compiles another file when one answers to the decoded name; os's failures read `open <path>: no such file or directory` (`*fs.PathError`).",
-      "rust": "The port compiles the file at `std::path::absolute`'s path (the working directory from `getcwd`, `..` kept): it loads every such directory, always from the file whose contents `Schema` returns, and std words the failures (`No such file or directory (os error 2)`) inside Prebid's messages, which keep Go's words.",
+      "rust": "The port compiles the file at `std::path::absolute`'s path (the working directory from `getcwd`, `..` kept): it loads every such directory, always from the file whose contents `Schema` returns, and std words the failures (`No such file or directory (os error 2)`) inside Prebid's messages, which keep Go's words. A file name that is not UTF-8 sorts by its bytes as in Go, but Prebid's message prints the bytes that are not UTF-8 as U+FFFD where Go prints them, and `Schema` does the same with such bytes after a file's JSON value.",
       "who": [
         "operator"
       ],
-      "visible_in": "Startup from a working directory whose path holds `+`, `%`, `#` or a control character, where Go fails to start (or compiles the file another name decodes to) and the port starts, and the path and file error in the fatal error of a static/bidder-params that does not load",
+      "visible_in": "Startup from a working directory whose path holds `+`, `%`, `#` or a control character, where Go fails to start (or compiles the file another name decodes to) and the port starts, and the path and file error in the fatal error of a static/bidder-params that does not load, or that holds a file whose name is not UTF-8",
       "harness": [],
       "pin": "crates/bidder-params/tests/go_loader.rs::schema_files_open_by_path",
       "restore": "Port `net/url`'s parse, fragment and unescape rules, gojsonschema's JSON pointers, `os.Getwd` and Go's errno texts; not planned: the schema path is no config key, Go's refusals keep no operator's deployment working, and orchestrator ruling 2 ledgers library error wording.",
@@ -2992,7 +2992,7 @@
       "restore_by": [],
       "restorations": [],
       "restore_pending": false,
-      "note": "The 28 cases of testdata/golden/loader.jsonl (`go_loader.rs::go_opens_a_file_url` reads Go's side off it) cover each character, a bad escape after a `#` and after multi-byte text, a schema file answering to the decoded name, `..`, `$PWD` (in a child process, so no test changes the working directory or the environment) and the failures os reports; and, where the port is Go, files that fail in the order of their names, a file without `.json` and an alias's own schema file, which gives way to its parent's schema, an absent one too.",
+      "note": "The 28 cases of testdata/golden/loader.jsonl (`go_loader.rs::go_opens_a_file_url` reads Go's side off it) cover each character, a bad escape after a `#` and after multi-byte text, a schema file answering to the decoded name, `..`, `$PWD` (in a child process, so no test changes the working directory or the environment) and the failures os reports; and, where the port is Go, files that fail in the order of their names, a file without `.json` and an alias's own schema file, which gives way to its parent's schema, an absent one too. No case names a file that is not UTF-8: APFS, where the goldens are written, refuses such names.",
       "fragment": "crates/bidder-params/differences.toml"
     },
     {

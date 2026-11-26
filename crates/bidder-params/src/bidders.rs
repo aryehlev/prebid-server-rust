@@ -13,6 +13,7 @@
 use std::{
     collections::{BTreeMap, BTreeSet},
     error::Error,
+    ffi::OsString,
     fmt, fs, io,
     path::{self, Path},
     sync::Arc,
@@ -40,7 +41,7 @@ pub enum ParamsError {
     /// The params do not satisfy the schema: every `ResultError.String()` concatenated.
     Invalid(String),
     /// The params are not JSON: `serde_json`'s text (`EOF while parsing a value at line 1
-    /// column 0`), where Go has its `encoding/json` decoder's (`unexpected EOF`;
+    /// column 0` for empty params), where Go has its `encoding/json` decoder's (`EOF`;
     /// jsonschema.decode-errors).
     Decode(String),
     /// Go panics here instead of returning an error: `Validate` on the nil schema of a bidder
@@ -160,7 +161,10 @@ pub fn new_bidder_params_validator(
     })?;
     let mut schema_contents = BTreeMap::new();
     let mut parsed_schemas = BTreeMap::new();
-    for file_name in entries {
+    for name in entries {
+        // A name that is not UTF-8 is no bidder's, and Prebid's message prints it with U+FFFD
+        // where Go prints its bytes (jsonschema.schema-files).
+        let file_name = name.to_string_lossy().into_owned();
         // Go: openrtb_ext/bidders.go:814-817
         let bidder_name = file_name
             .strip_suffix(".json")
@@ -193,6 +197,8 @@ pub fn new_bidder_params_validator(
         let contents = fs::read(&file_path)
             .map_err(|e| LoadError(format!("Failed to read file {file_path}: {e}")))?;
         let _replaced = parsed_schemas.insert(bidder_name.clone(), Some(Arc::new(schema)));
+        // Go keeps the file's bytes: what follows the JSON value may be other than UTF-8, and
+        // reads here with U+FFFD (jsonschema.schema-files).
         let _previous =
             schema_contents.insert(bidder_name, String::from_utf8_lossy(&contents).into_owned());
     }
@@ -209,11 +215,12 @@ pub fn new_bidder_params_validator(
     })
 }
 
-/// Go: `os.ReadDir(name)` (entries sorted by file name), as file names.
-fn read_dir_sorted(dir: &str) -> io::Result<Vec<String>> {
+/// Go: `os.ReadDir(name)`: the names of the entries, sorted by their bytes as Go sorts them,
+/// which a name that is not UTF-8 keeps until it is printed.
+fn read_dir_sorted(dir: &str) -> io::Result<Vec<OsString>> {
     let mut names = fs::read_dir(dir)?
-        .map(|entry| entry.map(|e| e.file_name().to_string_lossy().into_owned()))
-        .collect::<io::Result<Vec<String>>>()?;
+        .map(|entry| entry.map(|e| e.file_name()))
+        .collect::<io::Result<Vec<OsString>>>()?;
     names.sort();
     Ok(names)
 }
