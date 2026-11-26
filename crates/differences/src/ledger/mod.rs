@@ -2,10 +2,11 @@
 //!
 //! Each crate records the observable differences it causes in `crates/<crate>/differences.toml`:
 //! `[[difference]]` tables with `id` (dotted, its first segment the category), `category`,
-//! `status` (`ledgered`, `restored` or `decision-pending`), `title`, `go`, `rust`, `who`
-//! (`publisher`, `bidder`, `operator`, `analytics` or `none`), `visible_in`, `pin` (the test that
-//! shows both behaviours, `crates/<crate>/tests/<path>.rs::<test>` or under the crate's `src/`, a
-//! test function `cargo test` runs, not `#[ignore]`d), and as the status needs them
+//! `status` (`ledgered`, `restored`, `decision-pending` or `extension`), `title`, `go`, `rust`,
+//! `who` (`publisher`, `bidder`, `operator`, `analytics` or `none`), `visible_in`, `pin` (the
+//! test that shows both behaviours, or for an extension the test that shows it off is Go,
+//! `crates/<crate>/tests/<path>.rs::<test>` or under the crate's `src/`, a test function
+//! `cargo test` runs, not `#[ignore]`d), and as the status needs them
 //! `restore`, `default`, `decision`, `rule_b` (`a`, `b`, `c`, `d` or `prebid-logic`),
 //! `restore_by` and `note`, with `[[difference.harness]]` patterns (`kind`, `lexical_class`,
 //! `path` and `input`) that tell the parity harness which mismatches the entry accounts for. A
@@ -121,8 +122,8 @@ pub enum FileState {
 pub struct Summary {
     /// The fragments read.
     fragments: usize,
-    /// The entries per status: decision pending, ledgered, restored.
-    counts: [usize; 3],
+    /// The entries per status: decision pending, ledgered, restored, extension.
+    counts: [usize; 4],
     /// The restored entries still waiting for their restore pin, with the units that bring it.
     pending: Vec<String>,
     /// The generated files, with what became of each.
@@ -145,18 +146,23 @@ impl Summary {
 
 impl fmt::Display for Summary {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let [pending, ledgered, restored] = self.counts;
-        let entries = pending + ledgered + restored;
+        let [pending, ledgered, restored, extensions] = self.counts;
+        let entries = pending + ledgered + restored + extensions;
         writeln!(
             f,
             "{entries} {} from {} {}: {pending} decision pending, {ledgered} ledgered, \
-             {restored} Go behaviour kept",
+             {restored} Go behaviour kept, {extensions} {}",
             if entries == 1 { "entry" } else { "entries" },
             self.fragments,
             if self.fragments == 1 {
                 "fragment"
             } else {
                 "fragments"
+            },
+            if extensions == 1 {
+                "extension"
+            } else {
+                "extensions"
             }
         )?;
         for entry in &self.pending {
@@ -254,7 +260,7 @@ fn generate(root: &Path, pending: Pending) -> Result<Generated, LedgerError> {
         });
     }
     let json = render::json(&ledger).map_err(|e| LedgerError::one(format!("{JSON}: {e}")))?;
-    let mut counts = [0; 3];
+    let mut counts = [0; 4];
     for (count, status) in counts.iter_mut().zip(vocab::Status::ALL) {
         *count = ledger
             .entries

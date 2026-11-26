@@ -9,38 +9,39 @@ An entry says what Go does, what Rust does, who could notice (publisher, bidder,
 - **Decision pending**: the default applies until the user decides; the decision is in `docs/DECISIONS.md`.
 - **Ledgered**: the crate's behaviour is accepted (Rule A).
 - **Go behaviour kept** (restored): glue under one of Rule B's four cases, Prebid's own logic ported onto the crate, or a decided decision keeps what Go does, and a restore pin compares it with a Go golden. A mismatch on such an entry is never ledgered.
+- **Extension beyond Go** (extension): an opt-in feature Go does not have, off by default. Off, the server behaves as Go's does, which the entry's pin shows; its Rust text says what happens with it on. Parity runs keep it off, so a mismatch on such an entry is unexpected.
 
 Rule B's cases: (a) input real production traffic sends that the crate would reject or misread; (b) state one server writes and the other reads while Go and Rust run side by side; (c) the operator interface: config keys, defaults, `PBS_` variables, CLI flags, metric names, labels and types; (d) Prebid-authored texts and bytes.
 
 ## Summary
 
-| Category | Decision pending | Ledgered | Go behaviour kept |
-|---|---:|---:|---:|
-| Base64 | 0 | 1 | 1 |
-| In-memory caches | 0 | 1 | 0 |
-| Configuration loading | 0 | 10 | 7 |
-| Cookies | 0 | 1 | 0 |
-| Currency rates | 0 | 4 | 0 |
-| Global vendor list | 0 | 1 | 0 |
-| Gzip | 0 | 3 | 0 |
-| HTTP client | 0 | 24 | 5 |
-| InfluxDB metrics | 0 | 10 | 1 |
-| IP addresses | 0 | 1 | 1 |
-| JSON | 5 | 45 | 6 |
-| JSON Schema | 0 | 4 | 2 |
-| Logging | 0 | 10 | 3 |
-| Prometheus metrics | 1 | 7 | 1 |
-| Public suffix list | 1 | 0 | 0 |
-| Random numbers | 0 | 1 | 0 |
-| Regular expressions | 0 | 2 | 2 |
-| HTTP server | 0 | 24 | 7 |
-| Background tasks | 0 | 0 | 1 |
-| Time formatting | 0 | 3 | 1 |
-| TLS | 0 | 2 | 1 |
-| URLs | 0 | 2 | 3 |
-| User syncs | 0 | 1 | 0 |
-| YAML | 0 | 3 | 0 |
-| All | 7 | 160 | 42 |
+| Category | Decision pending | Ledgered | Go behaviour kept | Extensions |
+|---|---:|---:|---:|---:|
+| Base64 | 0 | 1 | 1 | 0 |
+| In-memory caches | 0 | 1 | 0 | 0 |
+| Configuration loading | 0 | 10 | 7 | 0 |
+| Cookies | 0 | 1 | 0 | 0 |
+| Currency rates | 0 | 4 | 0 | 0 |
+| Global vendor list | 0 | 1 | 0 | 0 |
+| Gzip | 0 | 3 | 0 | 0 |
+| HTTP client | 0 | 24 | 5 | 1 |
+| InfluxDB metrics | 0 | 10 | 1 | 0 |
+| IP addresses | 0 | 1 | 1 | 0 |
+| JSON | 5 | 45 | 6 | 0 |
+| JSON Schema | 0 | 4 | 2 | 0 |
+| Logging | 0 | 10 | 3 | 0 |
+| Prometheus metrics | 1 | 7 | 1 | 0 |
+| Public suffix list | 1 | 0 | 0 | 0 |
+| Random numbers | 0 | 1 | 0 | 0 |
+| Regular expressions | 0 | 2 | 2 | 0 |
+| HTTP server | 0 | 24 | 7 | 0 |
+| Background tasks | 0 | 0 | 1 | 0 |
+| Time formatting | 0 | 3 | 1 | 0 |
+| TLS | 0 | 2 | 1 | 0 |
+| URLs | 0 | 2 | 3 | 0 |
+| User syncs | 0 | 1 | 0 | 0 |
+| YAML | 0 | 3 | 0 | 0 |
+| All | 7 | 160 | 42 | 1 |
 
 ## Decisions pending
 
@@ -58,7 +59,7 @@ None.
 
 ## How the parity harness matches an entry
 
-A mismatch is ledgered under an entry when one of the entry's harness patterns has the mismatch's kind, its class (the pattern's `lexical_class`, for the lexical and wire kinds) and a path that matches the mismatch's path with every array index written `[*]`; a pattern that names an input predicate matches only in a case that has it. Every other mismatch is unexpected. A restored entry has no pattern, so a mismatch where Go's behaviour is kept is unexpected too. No two patterns match one mismatch, except patterns that name different input predicates; a case with both features is tagged with the entry first in id order.
+A mismatch is ledgered under an entry when one of the entry's harness patterns has the mismatch's kind, its class (the pattern's `lexical_class`, for the lexical and wire kinds) and a path that matches the mismatch's path with every array index written `[*]`; a pattern that names an input predicate matches only in a case that has it. Every other mismatch is unexpected. A restored entry has no pattern, so a mismatch where Go's behaviour is kept is unexpected too, and neither has an extension entry, which parity runs keep off. No two patterns match one mismatch, except patterns that name different input predicates; a case with both features is tagged with the entry first in id order.
 
 Paths are the harness's JSON paths: `$` is the compared value, `.name` a member whose name is an identifier, `['name']` any other member, with `\` and `'` escaped (meta members such as `['@status']` and `['@headers']` are always bracketed), and `[*]` any array index. A pattern may also use `.*` for any one member and `.**` for any run of members and indices, the empty run included. A pattern of kind `value`, `type`, `missing_in_rust`, `extra_in_rust` or `status` names a concrete path, with no `.*` or `.**`, and a `status` pattern names an input predicate, so a status mismatch on any other case stays unexpected.
 
@@ -461,22 +462,22 @@ No entry names the classes `other` and `unrecorded` or the kinds `stage_missing`
 - **Restore option:** A second client with gzip off for requests whose adapter set Accept-Encoding (not planned).
 - **Recorded in:** `crates/http-client/differences.toml`
 
-#### `http-client.bidder-tls-pool`: General client over TLS: Go's callers share one pool, the bidders' half keeps its TLS connections apart
+#### `http-client.bidder-tls-pool`: General client over TLS with HTTP/2 on: Go's callers share one pool, the bidders' half keeps its TLS connections apart
 
 - **Go:** router.go's general client is one Transport (router/router.go:143-158) for the modules (:211), the stored-request fetchers (:219), the vendor list (:234-237) and the bidders (:247): a TLS connection one of them left idle to a host carries the next request any of them sends there, and `MaxConnsPerHost` and `MaxIdleConnsPerHost` count the connections of all of them together (testdata/golden/metrics.json: two requests on one Transport, the second on the first one's connection).
-- **Rust:** `Builder::build_general` builds the general client as two halves over one transport, which share the per-host `max_connections_per_host` slots, the HTTP/1.1 connections in cleartext and the record that tells a reused connection. The bidders' half negotiates HTTP/2 (`http-client.http2`), and reqwest offers the same ALPN protocols on every TLS connection of a client, so that half's TLS connections are its own: a bidder request to a host does not take the TLS connection a module, stored-request or vendor-list request left idle there (its `GotConn` reports a new connection where Go's reports a reused one), and such a host can keep up to `max_idle_connections_per_host` idle TLS connections for each half and up to twice `max_connections_per_host` connections open, though no more requests in flight than the limit. A bid request whose https URL redirects to an http one follows the redirect on that half's own connections too. Built without `negotiate_http2`, the two halves share every connection, as Go's callers do.
+- **Rust:** `Builder::build_general` builds the general client as two halves over one transport, which share the per-host `max_connections_per_host` slots, the HTTP/1.1 connections in cleartext and the record that tells a reused connection. With `http_client.http2.enabled` on (`http-client.http2-opt-in`), the bidders' half negotiates HTTP/2 (`http-client.http2`) on its pool's TLS connections, and goes to a host that picks `http/1.1` over its own reqwest client, which offers the same ALPN protocols on every TLS connection, so that half's TLS connections are its own: a bidder request to a host does not take the TLS connection a module, stored-request or vendor-list request left idle there (its `GotConn` reports a new connection where Go's reports a reused one), and such a host can keep the other half's idle TLS connections, up to `max_idle_connections_per_host`, beside the bidders' half's. A bid request whose https URL redirects to an http one follows the redirect on that half's own connections too. With the key off, the default, the two halves share every connection, as Go's callers do.
 - **Who notices:** operator, bidder
 - **Visible in:** `adapter_connection_created` and `adapter_connection_reused`, and the TLS connections open to a host that serves bidder requests and module, stored-request or vendor-list requests
 - **Harness:** none
 - **Pin:** `crates/http-client/tests/metrics.rs::general_client_halves_share_connections`
-- **Restore option:** Not planned while the bidders' half negotiates HTTP/2: one reqwest client offers one set of ALPN protocols. A general client built without `negotiate_http2` keeps Go's one pool.
+- **Restore option:** `http_client.http2.enabled` off, the default, keeps Go's one pool. With it on, not planned: one reqwest client offers one set of ALPN protocols.
 - **Note:** `crates/http-client/tests/limits.rs::general_client_halves_share_the_per_host_limit` runs limits.json's `max_conns_per_host` through both halves, negotiating HTTP/2 or not, and `crates/http-client/tests/consumers.rs::general_client_wired_like_router_go` hands the halves to router.go's callers and wraps both in the parity transport.
 - **Recorded in:** `crates/http-client/differences.toml`
 
 #### `http-client.connection-metrics`: Connection metrics: httptrace hooks in Go, reconstructed events here
 
 - **Go:** bidder.go's httptrace hooks (exchange/bidder.go:732-798) take `GetConn` to `GotConn` as the connection wait with its `Reused` flag, which also moves a bidder's `http_client.throttle` health when the connection was reused, `DNSStart` to `DNSDone` as the DNS time, `TLSHandshakeStart` to `TLSHandshakeDone` as the TLS handshake time and, when `metrics.disabled_metrics.adapter_connections_dial_metrics` is false, `ConnectStart` to `ConnectDone` as the adapter's dial time, a dial that fails counting as a dial error.
-- **Rust:** The clients report `Event::Dns` from their resolver and `Event::GotConn` off the response, its reuse read from the connection's addresses and its wait the wait for the `max_connections_per_host` slot alone, so a new connection's wait leaves out its dial and a request that fails before its response head reports no `GotConn`; there is no dial or TLS handshake event, so no TLS handshake time, dial time or dial error is recorded.
+- **Rust:** The clients report `Event::Dns` from their resolver and `Event::GotConn` off the response, its reuse read from the connection's addresses and its wait the wait for the `max_connections_per_host` slot alone, so a new connection's wait leaves out its dial and a request that fails before its response head reports no `GotConn`; there is no dial or TLS handshake event, so no TLS handshake time, dial time or dial error is recorded. With `http_client.http2.enabled` on (`http-client.http2-opt-in`), a request on the pool's h2 connections reports `Event::Dns` from the pool's dial when it opens a connection to a named host, and `GotConn` with a new connection for the request that opened it and a reused one for every other request on it, its wait the time it waited for a free stream or a slot; each pooled connection counts once as created. Over HTTP/1.1, Go's transport puts a connection back among the idle ones before the read of its response body's end returns, so the next request reuses it; hyper puts it back from the connection's task once that task sees the end, so a request sent at once after an answer's body was read may find it still busy and open another connection, counted as created (a few times in hundreds of back-to-back requests on a loaded machine; `crates/http-client/tests/h2.rs::http2_off_is_go` pauses 100 ms between its requests for this).
 - **Who notices:** operator
 - **Visible in:** The adapter connection created, reused, wait, dial time and dial error metrics, the DNS and TLS handshake time metrics, and bidder throttling under `http_client.throttle`
 - **Harness:** none
@@ -498,7 +499,7 @@ No entry names the classes `other` and `unrecorded` or the kinds `stage_missing`
 #### `http-client.default-transport-h2`: Currency and analytics client: Go's DefaultTransport negotiates HTTP/2, the plain client stays on HTTP/1.1
 
 - **Go:** `http.DefaultTransport`, which the currency fetch (main.go:72) and the analytics client (analytics/clients/http.go) use, offers h2 over TLS and, to a server that takes it, sends HTTP/2 with `User-Agent: Go-http-client/2.0`.
-- **Rust:** The plain client speaks HTTP/1.1 to every server and sends `User-Agent: Go-http-client/1.1`; HTTP-H2 gives h2 to the bidder client only.
+- **Rust:** The plain client speaks HTTP/1.1 to every server and sends `User-Agent: Go-http-client/1.1`; HTTP-H2 gives h2 to the bidder client only, and only with `http_client.http2.enabled` on (`http-client.http2-opt-in`).
 - **Who notices:** operator, analytics
 - **Visible in:** Requests of the currency fetch and the analytics modules to servers that offer h2
 - **Harness:** none
@@ -536,10 +537,10 @@ No entry names the classes `other` and `unrecorded` or the kinds `stage_missing`
 - **Pin:** `crates/http-client/tests/compression.rs::gzip_edges_differ`
 - **Recorded in:** `crates/http-client/differences.toml`
 
-#### `http-client.h2-connection-counts`: Connection counts on HTTP/2: one connection carries a bidder's concurrent requests
+#### `http-client.h2-connection-counts`: Connection counts with HTTP/2 on: a pooled connection carries a bidder's concurrent requests
 
 - **Go:** `adapter_connection_created` and `adapter_connection_reused` count HTTP/1.1 connections: two requests at once to a bidder take a connection each (testdata/golden/metrics.json).
-- **Rust:** On h2 and h2c one connection carries concurrent requests once it is up, so created falls and reused rises against Go (an https bidder's first requests at once may each open one, and each stays h2); probe connections are not counted. `max_connections_per_host` still caps the requests in flight (`http-client.max-conns-per-host`).
+- **Rust:** With `http_client.http2.enabled` on (`http-client.http2-opt-in`), a pooled h2 or h2c connection carries up to the bidder's `SETTINGS_MAX_CONCURRENT_STREAMS` requests at once, so created falls and reused rises against Go: requests at once to an origin with no connection share the one the first of them opens, the others reporting a reused connection, and another connection opens only when every pooled one is full; probe connections are not counted. `max_connections_per_host` caps the pool's connections, each holding one of the host's slots while it is open, as Go's `MaxConnsPerHost` counts connections (`http-client.max-conns-per-host`).
 - **Who notices:** operator
 - **Visible in:** `adapter_connection_created` and `adapter_connection_reused` for bidders on h2 or h2c
 - **Harness:** none
@@ -549,34 +550,34 @@ No entry names the classes `other` and `unrecorded` or the kinds `stage_missing`
 #### `http-client.h2c-demotion`: Failures over h2c: the request goes again over HTTP/1.1 only when the bidder read none of it
 
 - **Go:** No h2c: every bidder request goes over HTTP/1.1 and succeeds wherever the bidder serves HTTP/1.1.
-- **Rust:** A request to an origin marked h2c that answers the preface with HTTP/1.x is sent again once over HTTP/1.1: h2's client reads the status line as a frame header too large (`FRAME_SIZE_ERROR`), as Go's framer does ("the frame header looked like an HTTP/1.1 header"), so the origin read no request. So is one whose connection failed before it was ready to take the request, in HTTP/2's handshake or closed by then. One that fails otherwise, on an HTTP/2 error of either side or a connection that resets or closes, unanswered or after the origin read it, is not sent again and fails once: a bidder error and no bid from that request. Either way the origin is back on HTTP/1.1 for `H2C_VERDICT_TTL`; a failed connect or a deadline keeps the verdict.
+- **Rust:** With `http_client.http2.enabled` on (`http-client.http2-opt-in`), a request to an origin marked h2c that answers the preface with HTTP/1.x is sent again once over HTTP/1.1: h2's client reads the status line as a frame header too large (`FRAME_SIZE_ERROR`), as Go's framer does ("the frame header looked like an HTTP/1.1 header"), so the origin read no request. So is one whose new connection failed before it was ready to take the request, in HTTP/2's handshake or closed by then; one whose pooled connection turns out gone before the request's stream opened goes to another of the pool's connections, at most twice, and then over HTTP/1.1 the same way. One that fails otherwise, on an HTTP/2 error of either side or a connection that resets or closes, unanswered or after the origin read it, is not sent again and fails once: a bidder error and no bid from that request. Either way the origin is back on HTTP/1.1 for `H2C_VERDICT_TTL`; a failed connect or a deadline keeps the verdict.
 - **Who notices:** bidder, publisher
-- **Visible in:** Bid requests to a cleartext bidder that stops taking h2c: each request on its way over h2c then (one connection carries them all), sent again over HTTP/1.1 or a bidder error
+- **Visible in:** Bid requests to a cleartext bidder that stops taking h2c: each request on its way over h2c then (on the pool's connections), sent again over HTTP/1.1 or a bidder error
 - **Harness:** none
 - **Pin:** `crates/http-client/tests/h2.rs::demotion_resends_only_unread`
-- **Note:** A connection that closes unanswered once it took the request is not resent either: the client cannot tell an origin that read no request from one that read it and closed. Nor is one that closes once it is ready and before it takes the request, which hyper gives back unsent (`Canceled`): reqwest and hyper-util tell that failure from a request hyper drops with the connection, which can follow the request's stream opening (`DispatchGone`), only by hyper's own error type, which this crate does not depend on, and by hyper-util's private error kind, which only its message names (`client error (Canceled)`), so the client reads both as requests the origin may have read. An h2c origin that sent a frame past RFC 9113's size limit after reading a request would fail the same way as an HTTP/1.x answer and read the request again. A request hyper's client queues in the instant the connection's task ends, after the task emptied its queue, stays queued until its deadline and fails as one, and the verdict stays: a race between hyper's request queue (tokio's unbounded channel) and the connection's end, not this crate's. A request sent again can report two DNS lookups to its trace (the DNS time metric), its h2c connection's and its HTTP/1.1 connection's, where Go's one HTTP/1.1 request reports one.
+- **Note:** A connection that closes unanswered once it took the request is not resent either: the client cannot tell an origin that read no request from one that read it and closed. The pool speaks h2 itself, so it tells a stream that never opened from one that did by h2's own errors, and the notes on hyper's dispatch (`Canceled`, `DispatchGone` and its request queue) no longer apply. An h2c origin that sent a frame past RFC 9113's size limit after reading a request would fail the same way as an HTTP/1.x answer and read the request again. A request sent again can report two DNS lookups to its trace (the DNS time metric), its h2c connection's and its HTTP/1.1 connection's, where Go's one HTTP/1.1 request reports one.
 - **Recorded in:** `crates/http-client/differences.toml`
 
 #### `http-client.h2c-probe`: Cleartext bidders: Go never probes, the bidder client probes each origin for h2c
 
 - **Go:** Go connects to a bidder only to send it a request, and sends no probe.
-- **Rust:** A cleartext origin that a bid request goes to without a proxy, with no verdict in force, gets one probe connection per `H2C_VERDICT_TTL` (ten minutes), opened as such a request goes over HTTP/1.1 and never at startup. The probe carries HTTP/2's preface, an empty SETTINGS frame and, after a SETTINGS answer, GOAWAY, then closes; it carries no bid request. Any other answer, a close, or no answer within `H2C_PROBE_TIMEOUT` (five seconds) keeps the origin on HTTP/1.1. Go's HTTP/1.1 server reads the preface as a `PRI * HTTP/2.0` request: behind a ServeMux it answers 400 and closes, and a bare handler runs for it (testdata/golden/h2.json). The probe's connection is in no connection metric.
+- **Rust:** With `http_client.http2.enabled` on (`http-client.http2-opt-in`; off, no probe is sent), a cleartext origin that a bid request goes to without a proxy, with no verdict in force, gets one probe connection per `H2C_VERDICT_TTL` (ten minutes), opened as such a request goes over HTTP/1.1 and never at startup. The probe carries HTTP/2's preface, an empty SETTINGS frame and, after a SETTINGS answer, GOAWAY, then closes; it carries no bid request. Any other answer, a close, or no answer within `H2C_PROBE_TIMEOUT` (five seconds) keeps the origin on HTTP/1.1. Go's HTTP/1.1 server reads the preface as a `PRI * HTTP/2.0` request: behind a ServeMux it answers 400 and closes, and a bare handler runs for it (testdata/golden/h2.json). The probe's connection is in no connection metric.
 - **Who notices:** bidder
 - **Visible in:** Connections to cleartext bidders (one more per origin every ten minutes), and the `PRI * HTTP/2.0` request an HTTP/1.1 bidder's server reads
 - **Harness:** none
 - **Pin:** `crates/http-client/tests/h2.rs::probe_sends_no_request`
-- **Note:** The cases that move tokio's clock on, a stalling server and the verdicts' lifetime, run with `cargo test -p pbs-http-client --locked --offline -- --ignored h2c`.
+- **Note:** The cases that move tokio's clock on, a stalling server and the verdicts' lifetime, run with `cargo test -p pbs-http-client --locked --offline -- --ignored h2c`. The pool keeps one probe per origin: `crates/http-client/tests/pool.rs::h2c_origin_pooled_after_one_probe`.
 - **Recorded in:** `crates/http-client/differences.toml`
 
 #### `http-client.h2c-redirects`: Redirects over h2c: followed on the request's origin only
 
 - **Go:** Go's bidder client follows a bidder's redirect to any origin over HTTP/1.1, up to ten requests (net/http/client.go `Client.do`). On a 307 or 308 it sends the bid request, body included, to the new origin, and the adapter reads that origin's answer, which can carry a bid; a 301, 302 or 303 turns the POST into a GET without a body (testdata/golden/redirects.json: `post_307_cross_host`, `post_301` to `post_303`).
-- **Rust:** Over h2c the client follows the redirects that stay on the request's origin, as Go does. A redirect to another origin comes back unfollowed, and the adapter reads the 3xx as the bidder's answer, an unexpected status, which the adapters make a bidder error (for example adapters/response.go:10-24): that request brings no bid, where Go's client, following a 307 or 308, can still get one. The request is not sent again, because the origin has read it (orchestrator ruling 5). The first such answer moves the origin back to HTTP/1.1 for `H2C_VERDICT_TTL`, where its requests' redirects are followed as Go follows them; requests already on their way over h2c then come back unfollowed too when the bidder redirects them the same way. Once the verdict runs out a probe can mark the origin h2c again, so a bidder that keeps redirecting to another origin loses, once per verdict, the requests sent to it over h2c before its first redirect came back. The h2c connection speaks prior knowledge, which only the probed origin takes.
+- **Rust:** With `http_client.http2.enabled` on (`http-client.http2-opt-in`), over h2c the client follows the redirects that stay on the request's origin, as Go does. A redirect to another origin comes back unfollowed, and the adapter reads the 3xx as the bidder's answer, an unexpected status, which the adapters make a bidder error (for example adapters/response.go:10-24): that request brings no bid, where Go's client, following a 307 or 308, can still get one. The request is not sent again, because the origin has read it (orchestrator ruling 5). The first such answer moves the origin back to HTTP/1.1 for `H2C_VERDICT_TTL`, where its requests' redirects are followed as Go follows them; requests already on their way over h2c then come back unfollowed too when the bidder redirects them the same way. Once the verdict runs out a probe can mark the origin h2c again, so a bidder that keeps redirecting to another origin loses, once per verdict, the requests sent to it over h2c before its first redirect came back. The h2c connection speaks prior knowledge, which only the probed origin takes.
 - **Who notices:** bidder, publisher
 - **Visible in:** Bid requests over h2c that a bidder redirects to another origin: the 3xx in place of the redirected answer, a bidder error and no bid, for the requests sent before the first such answer came back, once per verdict
 - **Harness:** none
 - **Pin:** `crates/http-client/tests/h2.rs::h2c_redirects_stay_on_the_origin`
-- **Restore option:** Following each hop in the client, outside reqwest's redirect loop, so that a hop to another origin goes over HTTP/1.1 (not planned; it would also restore `http-client.transport-redirects`): reqwest follows a whole chain inside one client, and one client speaks either prior knowledge or HTTP/1.1 on every cleartext connection, so the hop's method, body, credentials, `Referer` and the ten-request budget would be written by hand, Go-matching glue that needs an orchestrator ruling under Rule B.
+- **Restore option:** `http_client.http2.enabled` off, the default, follows every redirect over HTTP/1.1 as Go's client does. With it on, the pool already follows each hop itself, as reqwest's policy and tower-http's redirect rules do (method, body, credentials, `Referer` and Go's ten requests), so a hop to another origin could go over HTTP/1.1 instead of coming back; that changes orchestrator ruling 5 and is not planned.
 - **Recorded in:** `crates/http-client/differences.toml`
 
 #### `http-client.header-case`: Header names: Go writes them canonicalised, hyper in lower case
@@ -622,15 +623,15 @@ No entry names the classes `other` and `unrecorded` or the kinds `stage_missing`
 - **Pin:** `crates/http-client/tests/headers.rs::host_normalised`
 - **Recorded in:** `crates/http-client/differences.toml`
 
-#### `http-client.http2`: Bidder requests: Go's bidder client speaks HTTP/1.1 only, the bidder client takes HTTP/2
+#### `http-client.http2`: Bidder requests with HTTP/2 on: Go's bidder client speaks HTTP/1.1 only, the bidder client takes HTTP/2
 
 - **Go:** Every bidder request goes over HTTP/1.1: router.go's bidder Transport sets neither `ForceAttemptHTTP2` nor `Protocols` (router/router.go:143-158), so `Transport.protocols` leaves HTTP/2 off (net/http/transport.go:477).
-- **Rust:** The bidder client (`Builder::negotiate_http2`, the user's decision of 2026-11-18) offers ALPN `h2` and `http/1.1` over TLS and speaks what the bidder picks, and speaks h2c with prior knowledge to a cleartext bidder it reaches without a proxy once the bidder has answered a probe with SETTINGS (`http-client.h2c-probe`), from the origin's request after the probe. `User-Agent` stays `Go-http-client/1.1` on h2 (D-UA), where Go's HTTP/2 sends `Go-http-client/2.0`. The request's fields and body are the ones it carries over HTTP/1.1, its host going as the `:authority` pseudo-header field, with two exceptions. A POST, PUT or PATCH without a body carries `content-length: 0`, as Go's requests do over HTTP/1.1, so `http-client.empty-body-length` holds over HTTP/1.1 only. The connection-specific fields that HTTP/2 forbids (RFC 9113 section 8.2.2) are left out, as Go's HTTP/2 client leaves them out: gamma's `Connection: keep-alive` (adapters/gamma/gamma.go:134), which Go's bidder client sends, does not reach a gamma that takes h2. A request whose stream the bidder refuses unread (`REFUSED_STREAM`), or leaves out of a graceful `GOAWAY`, goes again over HTTP/2 at once, at most twice more (reqwest's default retry of protocol NACKs), where Go's HTTP/2 client, which Go's bidder client does not use, sends it again up to seven times more, backing off a second and longer after the first (net/http/h2_bundle.go:7893-7923); HTTP/1.1 has neither signal. A bid request whose http URL redirects to an https one follows the redirect over HTTP/1.1, as Go's does: the client that sent it chooses the protocols of every hop (`crates/http-client/tests/h2.rs::cleartext_redirect_to_tls_stays_on_http1`). Every other client stays on HTTP/1.1, and so does the general client's own half, which the modules, stored requests and vendor list send through (`Builder::build_general`, `crates/http-client/tests/h2.rs::only_the_bidders_negotiate_http2`).
+- **Rust:** With `http_client.http2.enabled` on (`http-client.http2-opt-in`; off, the default, the bidder client speaks HTTP/1.1 only, as Go's does), the bidder client (`Builder::negotiate_http2`) offers ALPN `h2` and `http/1.1` over TLS and speaks what the bidder picks, over a pool of h2 connections per origin, and speaks h2c with prior knowledge to a cleartext bidder it reaches without a proxy once the bidder has answered a probe with SETTINGS (`http-client.h2c-probe`), from the origin's request after the probe. `User-Agent` stays `Go-http-client/1.1` on h2 (D-UA), where Go's HTTP/2 sends `Go-http-client/2.0`. The request's fields and body are the ones it carries over HTTP/1.1, its host going as the `:authority` pseudo-header field, with two exceptions. A POST, PUT or PATCH without a body carries `content-length: 0`, as Go's requests do over HTTP/1.1, so `http-client.empty-body-length` holds over HTTP/1.1 only. The connection-specific fields that HTTP/2 forbids (RFC 9113 section 8.2.2) are left out, as Go's HTTP/2 client leaves them out: gamma's `Connection: keep-alive` (adapters/gamma/gamma.go:134), which Go's bidder client sends, does not reach a gamma that takes h2. A request whose stream the bidder refuses unread (`REFUSED_STREAM`), or leaves out of a graceful `GOAWAY`, goes again over HTTP/2 at once, at most twice more (the pool retries as reqwest's default retry of protocol NACKs does), where Go's HTTP/2 client, which Go's bidder client does not use, sends it again up to seven times more, backing off a second and longer after the first (net/http/h2_bundle.go:7893-7923); HTTP/1.1 has neither signal. A bid request whose http URL redirects to an https one follows the redirect over HTTP/1.1, as Go's does: the client that sent it chooses the protocols of every hop (`crates/http-client/tests/h2.rs::cleartext_redirect_to_tls_stays_on_http1`). Every other client stays on HTTP/1.1, and so does the general client's own half, which the modules, stored requests and vendor list send through (`Builder::build_general`, `crates/http-client/tests/h2.rs::only_the_bidders_negotiate_http2`).
 - **Who notices:** bidder
 - **Visible in:** The protocol of bid requests to bidders that offer h2 over TLS or take h2c, the connection-specific fields of those requests (gamma's `Connection`), and the requests sent again after a bidder refuses a stream
 - **Harness:** none
 - **Pin:** `crates/http-client/tests/h2.rs::alpn_and_h2c_selection`
-- **Restore option:** Not planned (the user's decision): a bidder client built without `negotiate_http2` speaks HTTP/1.1 only, as Go's does.
+- **Restore option:** `http_client.http2.enabled` off, the default: the bidder client speaks HTTP/1.1 only, as Go's does (`crates/http-client/tests/h2.rs::http2_off_is_go`).
 - **Note:** `crates/http-client/tests/h2.rs::user_agent_on_h2` compares the h2 and h2c requests' pseudo-header fields, fields and body with the ones Go's HTTP/2 client sends, `crates/http-client/tests/h2.rs::connection_fields_dropped_on_h2` compares gamma's with the head Go's bidder client writes over HTTP/1.1 and the requests Go's HTTP/2 client sends (testdata/golden/h2.json), `crates/http-client/tests/h2.rs::empty_bodies_framed_on_h2` compares the lengths of requests without a body with Go's (testdata/golden/headers.json), and `crates/http-client/tests/h2.rs::refused_streams_go_again` pins the requests sent again after a refused stream. Over h2c, a request refused three times fails as `http-client.h2c-demotion` says.
 - **Recorded in:** `crates/http-client/differences.toml`
 
@@ -719,7 +720,7 @@ No entry names the classes `other` and `unrecorded` or the kinds `stage_missing`
 - **Harness:** none: a mismatch here is unexpected
 - **Pin:** `crates/http-client/tests/limits.rs::per_host_limit_waits`
 - **Rule B:** Rule B (c): the operator interface (config keys, defaults, `PBS_` variables, CLI flags, metric names, labels and types)
-- **How Go's behaviour is kept:** pbs-http-client keeps a semaphore per connect key (proxy, scheme and address, as Go keys its connections) whose slot a request holds from its send until its body is read: with a limit of 1, three concurrent requests run one after the other on one connection, as Go's do. The slots count requests in flight where Go counts connections, which over HTTP/1.1 carry one request at a time. The two halves of the general client (`Builder::build_general`) take the same slots, as the modules', stored requests', vendor list's and bidders' requests share Go's one Transport (`crates/http-client/tests/limits.rs::general_client_halves_share_the_per_host_limit`).
+- **How Go's behaviour is kept:** pbs-http-client keeps a semaphore per connect key (proxy, scheme and address, as Go keys its connections) whose slot a request holds from its send until its body is read: with a limit of 1, three concurrent requests run one after the other on one connection, as Go's do. The slots count requests in flight where Go counts connections, which over HTTP/1.1 carry one request at a time. The two halves of the general client (`Builder::build_general`) take the same slots, as the modules', stored requests', vendor list's and bidders' requests share Go's one Transport (`crates/http-client/tests/limits.rs::general_client_halves_share_the_per_host_limit`). With `http_client.http2.enabled` on, a pooled h2 connection holds one slot for as long as it is open and its streams take none, so the slots count the pool's connections as Go counts its own (`crates/http-client/tests/pool.rs::the_cap_makes_requests_wait`).
 - **Restore pin:** `crates/http-client/tests/limits.rs::per_host_limit_waits`
 - **Recorded in:** `crates/http-client/differences.toml`
 
@@ -774,6 +775,19 @@ No entry names the classes `other` and `unrecorded` or the kinds `stage_missing`
 - **How Go's behaviour is kept:** HTTP-CLIENT sets `Go-http-client/1.1` when the caller set none, one line of client config (D-UA, orchestrator ruling 5), and HTTP-H2 keeps it on HTTP/2.
 - **Restore pin:** `crates/http-client/tests/headers.rs::default_user_agent_is_go` (The general client writes Go's `User-Agent` line for every case of headers.json: `Go-http-client/1.1` when the caller set none, the first of two values, and none for an empty one.)
 - **Recorded in:** `crates/differences/differences.toml`
+
+### Extensions beyond Go (off by default)
+
+#### `http-client.http2-opt-in`: HTTP/2 to bidders: `http_client.http2.enabled`, off by default
+
+- **Go:** Go's bidder client speaks HTTP/1.1 only: router.go's Transport sets neither `ForceAttemptHTTP2` nor `Protocols` (router/router.go:143-158). Go has no `http_client.http2.enabled` key; a file that sets it is decoded without it.
+- **Rust, with the extension on:** `http_client.http2.enabled` (a bool, default false, cast as Viper casts a key with a bool default: `PBS_HTTP_CLIENT_HTTP2_ENABLED` or pbs.yaml; Viper's `AllSettings` and `AllKeys` list it) turns on HTTP-H2's negotiation for the bidder client and the general client's bidders' half, and no other client: ALPN `h2` over TLS, the h2c probe in cleartext and the demotions (`http-client.http2`, `http-client.h2c-probe`, `http-client.h2c-demotion`, `http-client.h2c-redirects`). Each bidder origin on h2 or h2c reached without a proxy gets a pool of h2 connections, which pbs-http-client speaks with h2 itself as reqwest and hyper do: a request takes the connection with the most free streams (the peer's `SETTINGS_MAX_CONCURRENT_STREAMS` less its open streams; the requests that come while a connection opens wait for its SETTINGS, at most a second, then choose again; a peer whose SETTINGS take longer is taken to allow HTTP/2's initial 100 streams, and a stream it refuses past its own limit goes again, at most twice, before it fails); when every connection is full another opens, each holding one `max_connections_per_host` slot while it is open, and past the cap a request waits for a free stream or slot; a connection that gets GOAWAY or fails leaves the pool while its streams in flight finish; one idle for `idle_connection_timeout_seconds` closes, whatever `max_idle_connections_per_host` says (that bounds the HTTP/1.1 connections kept idle; a negative value keeps none of them, but the pool keeps its connections). There is no other knob. Over TLS the pool offers `h2` and `http/1.1`; an origin that picks `http/1.1` has that connection closed unused and gets its requests over reqwest's connections for ten minutes, so it sees one more TLS handshake every ten minutes. Such an origin, and an h2c origin moved back to HTTP/1.1, has its other pooled connections leave the pool, each closing once its streams in flight have ended and giving its slot to the origin's HTTP/1.1 requests (`crates/http-client/tests/pool.rs::demotion_frees_the_slots`). Requests through a proxy, or with a streamed body, go over reqwest as before (h2 inside a proxy's tunnel on one connection). The pool dials a name's addresses one after another, each with the whole connect timeout, where reqwest's connector and Go's dialer race IPv6 and IPv4 after 300 ms and split the timeout among the addresses; its sockets get reqwest's TCP_NODELAY, the dialer's keep-alive and, on Linux, reqwest's 30-second TCP_USER_TIMEOUT. Responses read as reqwest's HTTP/2 gave them: hyper's body rules, tower-http's gzip decompression, the response URL without its fragment and reqwest's error texts, a failed dial's among them (`crates/http-client/tests/pool.rs::pooled_bodies_read_as_reqwest_h2`, `crates/http-client/tests/pool.rs::pooled_response_url_drops_the_fragment`, `crates/http-client/tests/pool.rs::dial_errors_read_as_reqwest`).
+- **Who notices:** operator, bidder
+- **Visible in:** The `http_client.http2.enabled` key; with it on, the protocol of bid requests, the connections bidders see and the adapter connection metrics
+- **Harness:** none: a mismatch here is unexpected
+- **Pin (off is Go):** `crates/http-client/tests/h2.rs::http2_off_is_go`
+- **Note:** Orchestrator ruling 10 (a). Off, the bidder client offers only `http/1.1`, sends no probe and opens Go's connections (the pin runs h2.json's selection servers through the bidder client and the general client's bidders' half with the key off, and through a plain client with it on). The pool's pins are in `crates/http-client/tests/pool.rs`: streams to the least-loaded connection, another connection at a small `SETTINGS_MAX_CONCURRENT_STREAMS`, the cap's wait, GOAWAY's drain, idle close, an h2c origin with one probe, the metrics, cancellation and deadlines, and no request read twice. `crates/config/tests/loader.rs::http2_enabled_converts_like_viper` pins the key's conversion and `crates/config/tests/loader.rs::extension_keys_off_by_default` its default.
+- **Recorded in:** `crates/http-client/differences.toml`
 
 ## InfluxDB metrics
 

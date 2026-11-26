@@ -1,14 +1,20 @@
-//! The bidder client's HTTP/2 (`http-client.http2`, the user's decision of 2026-11-18): h2 over
+//! The bidder client's HTTP/2 (`http-client.http2`, the user's decision of 2026-11-18), on when
+//! `http_client.http2.enabled` turns it on (`http-client.http2-opt-in`, ruling 10 (a)): h2 over
 //! TLS, and h2c with the cleartext bidders that answer a probe.
 //!
 //! Go's bidder client speaks HTTP/1.1 to every bidder: router.go's Transport sets neither
-//! `ForceAttemptHTTP2` nor `Protocols` (router/router.go:143-158). The bidder client
+//! `ForceAttemptHTTP2` nor `Protocols` (router/router.go:143-158), and so does this one while the
+//! setting is off, its default. With it on, the bidder client
 //! ([`Builder::negotiate_http2`](crate::Builder::negotiate_http2)) takes HTTP/2 wherever a bidder
-//! offers it, with no setting:
+//! offers it, with no per-bidder setting:
 //!
-//! - over TLS, reqwest offers `h2` and `http/1.1` in ALPN and speaks what the server picks;
+//! - over TLS, ALPN offers `h2` and `http/1.1`, and the client speaks what the server picks;
 //! - in cleartext, a request for an origin reached without a proxy goes over h2c (HTTP/2 with prior
 //!   knowledge) once the origin has answered a probe with HTTP/2's SETTINGS frame.
+//!
+//! Each origin on h2 or h2c reached without a proxy has a pool of HTTP/2 connections
+//! ([`pool`](super::pool)); through a proxy, TLS requests take reqwest's one HTTP/2 connection
+//! per origin inside the tunnel.
 //!
 //! router.go's bidders send through its general client, as its modules, stored requests and
 //! vendor list do; [`Builder::build_general`](crate::Builder::build_general) builds that client
@@ -24,30 +30,30 @@
 //! connection preface and an empty SETTINGS frame, and reads the first frame header of the
 //! answer: a SETTINGS frame on stream 0 marks the origin h2c, and the probe says GOAWAY; any
 //! other answer, a close, an error or no answer within [`H2C_PROBE_TIMEOUT`] keeps the origin on
-//! HTTP/1.1. The probe never carries a request, and it goes around reqwest, so its connection is
-//! in no connection metric.
+//! HTTP/1.1. The probe never carries a request, and it goes around the pool and reqwest, so its
+//! connection is in no connection metric. An origin has one probe at a time, however many
+//! connections its pool opens.
 //!
-//! A request over h2c that fails moves its origin back to HTTP/1.1 (`http-client.h2c-demotion`,
-//! [`Failure`]). It is sent again, once, over HTTP/1.1 only when the origin read none of it: the
-//! origin answered the preface with bytes that are not HTTP/2 (HTTP/2's client reads an HTTP/1.x
-//! status line as a frame header whose length is too large, as Go's framer does: "the frame
-//! header looked like an HTTP/1.1 header", testdata/golden/h2.json), or the connection failed
-//! before it was ready to take the request. A request that failed after the origin may have read
-//! it is not sent again; it is a bidder error, as Go's failures are.
+//! A request over h2c that fails moves its origin back to HTTP/1.1 (`http-client.h2c-demotion`).
+//! It is sent again, once, over HTTP/1.1 only when the origin read none of it: the origin
+//! answered the preface with bytes that are not HTTP/2 (HTTP/2's client reads an HTTP/1.x status
+//! line as a frame header whose length is too large, as Go's framer does: "the frame header
+//! looked like an HTTP/1.1 header", testdata/golden/h2.json), or the connection failed before the
+//! request's stream opened. A request that failed after the origin may have read it is not sent
+//! again; it is a bidder error, as Go's failures are.
 //!
-//! The h2c connection carries requests for its origin only (`http-client.h2c-redirects`): a
-//! redirect that stays on the origin is followed over it, and one to another origin comes back as
-//! the answer, unfollowed, and moves the origin back to HTTP/1.1, where the next request's
+//! The h2c connections carry requests for their origin only (`http-client.h2c-redirects`): a
+//! redirect that stays on the origin is followed over them, and one to another origin comes back
+//! as the answer, unfollowed, and moves the origin back to HTTP/1.1, where the next request's
 //! redirects are followed as Go follows them.
 
-use std::{error::Error as _, io, iter, net::SocketAddr, time::Duration};
+use std::{net::SocketAddr, time::Duration};
 
-use hyper_util::client::legacy;
 use moka::{
     ops::compute::{CompResult, Op},
     sync::Cache,
 };
-use reqwest::{Response, StatusCode, Url, header::LOCATION};
+use reqwest::Url;
 use tokio::{
     io::{AsyncReadExt as _, AsyncWriteExt as _},
     net::TcpStream,
@@ -151,24 +157,19 @@ fn after(now: Instant, duration: Duration) -> Instant {
     now.checked_add(duration).unwrap_or(now)
 }
 
-/// The bidder client's h2c: the verdicts on cleartext origins, and the client that speaks
-/// HTTP/2 with prior knowledge to the origins marked h2c.
+/// The bidder client's h2c: the verdicts on cleartext origins, which say whether a request goes
+/// to the pool with prior knowledge.
 #[derive(Debug)]
 pub(super) struct H2c {
-    /// reqwest with prior knowledge: the bidder client's pool, resolver and TLS settings, no
-    /// proxy, and redirects followed only on the origin.
-    client: reqwest::Client,
     verdicts: Cache<Origin, Verdict>,
     /// The loopback guard, which the probe's lookups follow as the client's do.
     loopback: Option<u16>,
 }
 
 impl H2c {
-    /// The h2c of a client whose prior-knowledge client is `client` and whose loopback guard is
-    /// `loopback`.
-    pub(super) fn new(client: reqwest::Client, loopback: Option<u16>) -> Self {
+    /// The h2c of a client whose loopback guard is `loopback`.
+    pub(super) fn new(loopback: Option<u16>) -> Self {
         Self {
-            client,
             verdicts: Cache::builder()
                 .max_capacity(ORIGINS)
                 .time_to_live(KEPT)
@@ -192,11 +193,6 @@ impl H2c {
         }
         self.probe(origin, url, now);
         None
-    }
-
-    /// The client that sends with prior knowledge.
-    pub(super) const fn client(&self) -> &reqwest::Client {
-        &self.client
     }
 
     /// Moves `origin` back to HTTP/1.1 until its verdict runs out.
@@ -343,94 +339,13 @@ async fn goodbye(mut stream: TcpStream, h2c: bool, deadline: Instant) {
     }
 }
 
-/// How a request over h2c failed.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(super) enum Failure {
-    /// The origin read none of the request. Either it answered the preface with bytes that are
-    /// not HTTP/2: HTTP/2's client tore the connection down on a frame too large, as an HTTP/1.x
-    /// status line reads (its `HTT` is a length of 4,740,180). Or the connection failed before
-    /// it was ready to take the request: in HTTP/2's handshake, or closed by then. The origin
-    /// goes back to HTTP/1.1 and the request is sent again over it, once.
-    Unread,
-    /// The connection failed once it had the request: an HTTP/2 error of either side, the
-    /// connection closing or resetting, or hyper giving the request up with the connection,
-    /// after which the origin may have read the request. The origin goes back to HTTP/1.1; the
-    /// request is not sent again.
-    Failed,
-    /// Nothing the origin's HTTP/2 said: the dial failed or timed out, or a redirect was refused.
-    /// The verdict stays.
-    Other,
-}
-
-impl Failure {
-    /// How `error`, reqwest's error for a request over h2c, failed.
-    pub(super) fn of(error: &reqwest::Error) -> Self {
-        if error.is_connect() || error.is_timeout() || error.is_redirect() {
-            return Self::Other;
-        }
-        // Whether hyper-util's client gave the request to a connection: its error then names
-        // the connection.
-        let mut given = false;
-        for cause in iter::successors(error.source(), |&cause| cause.source()) {
-            if let Some(client) = cause.downcast_ref::<legacy::Error>() {
-                // No connection named: the request failed while hyper-util set its connection
-                // up, in HTTP/2's handshake or on a connection gone before it was ready, so no
-                // connection took the request.
-                if client.connect_info().is_none() {
-                    return Self::Unread;
-                }
-                given = true;
-            } else if let Some(h2) = cause.downcast_ref::<h2::Error>() {
-                let frame_too_large = h2.is_go_away()
-                    && h2.is_library()
-                    && h2.reason() == Some(h2::Reason::FRAME_SIZE_ERROR);
-                return if frame_too_large {
-                    Self::Unread
-                } else {
-                    Self::Failed
-                };
-            } else if cause.is::<io::Error>() {
-                return Self::Failed;
-            }
-        }
-        // A connection's failure with no HTTP/2 or I/O error behind it: hyper gave the request
-        // back unsent (its `Canceled`), or dropped it with the connection's task, which can
-        // follow the request's stream opening (its `DispatchGone`). Only hyper's own error type,
-        // which this crate does not depend on, and the message of hyper-util's private error
-        // kind tell the two apart, so the request counts as one the origin may have read.
-        if given { Self::Failed } else { Self::Other }
-    }
-}
-
 /// Whether `next`, where a redirect over h2c leads, stays on `first`'s origin, the h2c origin of
-/// the redirect's first request: the redirects the h2c connection may follow
-/// (`http-client.h2c-redirects`). The origins compare as [`leaves`] compares them, as
-/// [`Origin`]s, and not with `Url::origin`, which url 2.5.8 lets recurse through nested `blob:`
-/// URLs without bound (RUSTSEC-2026-0592).
+/// the redirect's first request: the redirects the h2c connections may follow
+/// (`http-client.h2c-redirects`). The origins compare as [`Origin`]s, and not with
+/// `Url::origin`, which url 2.5.8 lets recurse through nested `blob:` URLs without bound
+/// (RUSTSEC-2026-0592).
 pub(super) fn stays_on(first: &Url, next: &Url) -> bool {
     Origin::of(next, None).is_some_and(|next| Origin::of(first, None).as_ref() == Some(&next))
-}
-
-/// Whether `response`, an answer over h2c from `origin`, is a redirect the client stopped at
-/// because it leaves the origin: one reqwest follows (301, 302, 303, 307 or 308) whose `Location`
-/// names another origin.
-pub(super) fn leaves(response: &Response, origin: &Origin) -> bool {
-    let followed = [
-        StatusCode::MOVED_PERMANENTLY,
-        StatusCode::FOUND,
-        StatusCode::SEE_OTHER,
-        StatusCode::TEMPORARY_REDIRECT,
-        StatusCode::PERMANENT_REDIRECT,
-    ];
-    if !followed.contains(&response.status()) {
-        return false;
-    }
-    let next = response
-        .headers()
-        .get(LOCATION)
-        .and_then(|location| location.to_str().ok())
-        .and_then(|location| response.url().join(location).ok());
-    next.is_some_and(|next| Origin::of(&next, None).as_ref() != Some(origin))
 }
 
 #[cfg(test)]

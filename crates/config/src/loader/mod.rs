@@ -54,10 +54,26 @@ pub use self::{
 };
 use self::{
     decode::{CONFIGURATION, Decoder, configuration_types},
+    defaults::EXTENSION_DEFAULTS,
     env::EnvLayer,
     file::Found,
     viper::{AllSettings, Layer, Tree, Viper},
 };
+
+/// `http_client.http2.enabled` (ruling 10 (a)): HTTP/2 to bidders.
+///
+/// Whether the bidder client negotiates HTTP/2 with bidders, over a pool of h2 connections per
+/// origin. A bool, off by default, as Go's bidder client speaks HTTP/1.1 only.
+pub const HTTP2_ENABLED: &str = "http_client.http2.enabled";
+
+/// The keys this port reads beyond `config.SetupViper`'s (ruling 10).
+///
+/// Each is an opt-in extension whose default keeps Go's behaviour. Viper's `AllSettings` and
+/// `AllKeys` list them beside Go's keys; the decode into Go's `Configuration`, which has no field
+/// for them, does not see them.
+pub fn extension_keys() -> impl Iterator<Item = &'static str> {
+    EXTENSION_DEFAULTS.iter().map(|(key, _)| *key)
+}
 
 /// Go: yaml.v3's `Unmarshal(b, &map[string]interface{})`, as Viper's YAML codec reads `pbs.yaml`.
 ///
@@ -225,6 +241,13 @@ impl Settings {
     #[must_use]
     pub fn is_set(&self, key: &str) -> bool {
         self.viper.is_set(key)
+    }
+
+    /// [`HTTP2_ENABLED`]: true when its value, cast as Viper casts a key with a bool default
+    /// (`cast.ToBool`, ruling 8), is true; false by default.
+    #[must_use]
+    pub fn http2_enabled(&self) -> bool {
+        matches!(self.get(HTTP2_ENABLED), Some(GoValue::Bool(true)))
     }
 
     /// The configuration file read, if one was found.

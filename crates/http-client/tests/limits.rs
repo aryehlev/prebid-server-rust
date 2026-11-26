@@ -13,7 +13,7 @@ mod tests {
         time::Duration,
     };
 
-    use pbs_http_client::{Builder, Client, HttpClientSettings, ProxyEnv};
+    use pbs_http_client::{Builder, Client, Http2Settings, HttpClientSettings, ProxyEnv};
     use serde_json::Value;
     use tokio::{
         task::JoinSet,
@@ -226,7 +226,13 @@ mod tests {
     ) -> Result<Outcome, BoxError> {
         let delay = Duration::from_millis(100);
         let (server, counts) = probe_blind_server(delay).await?;
-        let builder = Builder::new(settings(case)?, ProxyEnv::default()).loopback_only(0);
+        let mut configured = settings(case)?;
+        configured.http2 = if negotiate {
+            Http2Settings::ON
+        } else {
+            Http2Settings::OFF
+        };
+        let builder = Builder::new(configured, ProxyEnv::default()).loopback_only(0);
         let halves = if negotiate {
             builder.negotiate_http2()
         } else {

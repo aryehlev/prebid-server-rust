@@ -27,6 +27,29 @@ pub struct HttpClientSettings {
     pub expect_continue_timeout_seconds: i64,
     /// `dialer`.
     pub dialer: DialerSettings,
+    /// `http2`, this port's extension (`http-client.http2-opt-in`).
+    pub http2: Http2Settings,
+}
+
+/// `http_client.http2`, a key Go's `config.HTTPClient` does not have.
+///
+/// It says whether the bidder client speaks HTTP/2 to the bidders that take it. Only the bidder
+/// client reads it ([`Builder::negotiate_http2`](crate::Builder::negotiate_http2)); every other
+/// client speaks HTTP/1.1 whatever it says, as all of Go's do.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Http2Settings {
+    /// `enabled`, false by default: the bidder client speaks HTTP/1.1 only, sends no h2c probe
+    /// and offers no `h2` in ALPN, as Go's does (router/router.go:143-158). When true, it
+    /// negotiates HTTP/2 with each bidder (ALPN `h2` over TLS, h2c after a probe in cleartext)
+    /// over a pool of HTTP/2 connections per origin.
+    pub enabled: bool,
+}
+
+impl Http2Settings {
+    /// HTTP/2 off: Go's behaviour, and the default.
+    pub const OFF: Self = Self { enabled: false };
+    /// HTTP/2 on.
+    pub const ON: Self = Self { enabled: true };
 }
 
 /// Go's `config.Dialer`: the `net.Dialer` router.go builds for each Transport
@@ -56,6 +79,7 @@ impl HttpClientSettings {
             timeout_seconds: 30,
             keep_alive_seconds: 15,
         },
+        http2: Http2Settings::OFF,
     };
     /// `http.DefaultTransport` (net/http/transport.go:44-55), which Go's `&http.Client{}` and
     /// `http.DefaultClient` use: the currency fetch (main.go:72) and the analytics client
@@ -71,6 +95,7 @@ impl HttpClientSettings {
             timeout_seconds: 30,
             keep_alive_seconds: 30,
         },
+        http2: Http2Settings::OFF,
     };
     /// `price_floors.fetcher.http_client`'s defaults (config/config.go:1267-1274): the floors
     /// fetcher's client.
@@ -85,6 +110,7 @@ impl HttpClientSettings {
             timeout_seconds: 30,
             keep_alive_seconds: 15,
         },
+        http2: Http2Settings::OFF,
     };
     /// `http_client`'s defaults (config/config.go:983-990): router.go's general client, which
     /// bidders, modules, stored requests and the vendor list use.
@@ -99,6 +125,7 @@ impl HttpClientSettings {
             timeout_seconds: 30,
             keep_alive_seconds: 15,
         },
+        http2: Http2Settings::OFF,
     };
     /// Go's zero `http.Transport` with a zero `net.Dialer`, which a client that builds its own
     /// Transport without these fields has: no per-host limit, two idle connections per host kept
@@ -115,6 +142,7 @@ impl HttpClientSettings {
             timeout_seconds: 0,
             keep_alive_seconds: 0,
         },
+        http2: Http2Settings::OFF,
     };
 
     /// The per-host request limit, when there is one.

@@ -23,14 +23,16 @@
 //! ([`Response::new`], [`RequestError::new`]), or wrap the transport a [`Builder`] builds
 //! ([`Builder::build_transport`], Go's `http.Transport`).
 //!
-//! Every client speaks HTTP/1.1, as router.go's do, but the bidder client
-//! ([`Builder::negotiate_http2`]): it negotiates h2 over TLS, and speaks h2c to the cleartext
-//! bidders that answer a probe with HTTP/2's SETTINGS frame (`http-client.http2`). router.go
-//! gives its general client to the bidders and to the modules, the stored-request fetchers and
-//! the vendor list alike; [`Builder::build_general`] builds it as a [`General`], whose bidders'
-//! client alone negotiates HTTP/2, both sharing one per-host limit and their HTTP/1.1
-//! connections. `docs/DIFFERENCES.md` lists where the clients differ from Go's (its
-//! `http-client` and `tls` categories).
+//! Every client speaks HTTP/1.1, as router.go's do. The bidder client
+//! ([`Builder::negotiate_http2`]) does too unless `http_client.http2.enabled` turns this port's
+//! HTTP/2 on ([`Http2Settings`], `http-client.http2-opt-in`): it then negotiates h2 over TLS, and
+//! speaks h2c to the cleartext bidders that answer a probe with HTTP/2's SETTINGS frame
+//! (`http-client.http2`), each origin over a pool of HTTP/2 connections. router.go gives its
+//! general client to the bidders and to the modules, the stored-request fetchers and the vendor
+//! list alike; [`Builder::build_general`] builds it as a [`General`], whose bidders' client alone
+//! may negotiate HTTP/2, both sharing one per-host limit and their HTTP/1.1 connections.
+//! `docs/DIFFERENCES.md` lists where the clients differ from Go's (its `http-client` and `tls`
+//! categories).
 
 pub mod error;
 pub mod metrics;
@@ -50,4 +52,4 @@ pub use metrics::{Event, Trace};
 pub use proxy::ProxyEnv;
 pub use reqwest;
 pub use roots::Roots;
-pub use settings::{DialerSettings, HttpClientSettings};
+pub use settings::{DialerSettings, Http2Settings, HttpClientSettings};

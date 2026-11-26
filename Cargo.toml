@@ -50,6 +50,9 @@ publish = false
 # cargo warns about one that no member uses (R1 check 17); the stack's entries that wait for their
 # first user are commented out at the end of the table.
 [workspace.dependencies]
+# tower-http's gzip decoder, which the bidder client's pooled h2 connections (H2-OPT-POOL) read
+# their gzip answers through as reqwest reads its own; reqwest already locks it through tower-http.
+async-compression = { version = "0.4.52", default-features = false, features = ["gzip", "tokio"] }
 # Dev-only: the key pairs rcgen signs test certificates with.
 aws-lc-rs = { version = "1.19.0", default-features = false, features = ["alloc", "aws-lc-sys"] }
 axum = { version = "0.8.9", features = ["http2"] }
@@ -75,6 +78,9 @@ getopts = "0.2.24"
 # The ads.cert remote signer's unary gRPC client (D-GRPC: tonic fails the gates), and the bidder
 # client's HTTP/2 errors and h2 test servers (HTTP-H2). hyper and reqwest already lock it.
 h2 = "0.4.20"
+# The request and response types of the bidder client's pooled h2 connections (H2-OPT-POOL): h2's
+# API is written in them, and reqwest re-exports only some. hyper and reqwest already lock it.
+http = "1.5.0"
 # pbs-server's HTTP/1.1-only connection builder (Go's header limit and read budget, which
 # axum::serve does not set) and the loopback test servers; axum already locks it.
 hyper-util = { version = "0.1.21", features = ["server-auto", "tokio"] }
@@ -103,6 +109,10 @@ regex = "1.13.2"
 # No system-proxy (core-foundation 0.9 through system-configuration, beside 0.10): Go reads only
 # the proxy environment variables. No charset. reqwest's gzip feature pins tower-http to 0.6.
 reqwest = { version = "0.13.5", default-features = false, features = ["gzip", "http2", "json", "rustls"] }
+# The TLS verifier of the bidder client's pooled h2 connections (H2-OPT-POOL), the one reqwest
+# builds for its own (D-TLS: the platform's roots plus certificates_file's); reqwest already locks
+# it. No features.
+rustls-platform-verifier = "0.7.1"
 # pbs-http-client reads certificates_file roots with rustls (RootCertStore's trust-anchor parse
 # and CertificateDer) before reqwest, which configures its own rustls with tls12, takes them;
 # rustls also serves the TLS test servers.
@@ -114,10 +124,17 @@ serde-saphyr = { version = "2.2.0", default-features = false, features = ["deser
 # Go sorts map keys, and arbitrary_precision changes what a Value number is.
 serde_json = { version = "1.0.154", features = ["float_roundtrip", "raw_value"] }
 sha2 = "0.11.1"
+# The TCP keep-alive and, on Linux, the TCP_USER_TIMEOUT of the bidder client's pooled h2
+# connections (H2-OPT-POOL), which tokio's sockets do not set; tokio and hyper-util already lock it.
+# all: set_tcp_user_timeout, as hyper-util's connector enables it for reqwest.
+socket2 = { version = "0.6.5", features = ["all"] }
 syn = "3.0.10"
 time = { version = "0.3.55", features = ["formatting", "macros", "parsing"] }
 tokio = { version = "1.54.1", features = ["io-util", "macros", "net", "rt-multi-thread", "signal", "sync", "time"] }
 tokio-rustls = { version = "0.26.6", default-features = false, features = ["aws_lc_rs"] }
+# The StreamReader that the pooled h2 connections' gzip answers are decoded through, as tower-http
+# decodes reqwest's (H2-OPT-POOL); tower-http already locks it.
+tokio-util = { version = "0.7.20", default-features = false, features = ["io"] }
 # The differences ledger's fragments (crates/<crate>/differences.toml), which pbs-differences
 # reads. Reading into serde types needs only parse, serde and std; a crate that writes TOML adds
 # display.
