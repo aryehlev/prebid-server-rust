@@ -18,6 +18,7 @@ mod tests {
         fmt::Debug,
         fs,
         io::{self, ErrorKind, Read as _},
+        iter,
         net::SocketAddr,
         ops::Range,
         time::Duration,
@@ -861,6 +862,127 @@ mod tests {
             ],
             "streamed and long answers",
         )
+    }
+
+    /// The body of the stress pin's answer `seed`: `n` bytes of the kind `kind` (`json`, `text`
+    /// or anything else for noise), with the seed written into it so no two answers are alike,
+    /// and its Content-Type.
+    fn mixed(seed: u64, kind: &str, n: usize) -> (&'static str, Vec<u8>) {
+        let mut x = seed.wrapping_mul(0x9E37_79B9_7F4A_7C15) | 1;
+        let mut next = move || {
+            x ^= x << 13;
+            x ^= x >> 7;
+            x ^= x << 17;
+            x
+        };
+        // Each bid and each line is longer than the step it is counted by, so there are at
+        // least n bytes to keep.
+        let (content_type, mut bytes) = match kind {
+            "json" => {
+                let bids: String = iter::repeat_with(|| {
+                    let price = next() % 10_000;
+                    let imp = next() % 64;
+                    format!(
+                        "{{\"bid\":[{{\"id\":\"{seed}-{imp}\",\"impid\":\"{imp}\",\
+                         \"price\":{price}.{imp},\"adm\":\"<div id={seed}></div>\"}}]}},"
+                    )
+                })
+                .take(n / 60 + 1)
+                .collect();
+                (
+                    "application/json",
+                    format!("{{\"id\":\"{seed}\",\"seatbid\":[{bids}").into_bytes(),
+                )
+            }
+            "text" => {
+                let lines: String = iter::repeat_with(|| {
+                    format!(
+                        "<p>answer {seed} line {} lorem ipsum dolor sit amet</p>\n",
+                        next() % 1000
+                    )
+                })
+                .take(n / 40 + 1)
+                .collect();
+                ("text/html; charset=utf-8", lines.into_bytes())
+            }
+            _ => (
+                "application/octet-stream",
+                (0..n)
+                    .map(|_| next().to_be_bytes().first().copied().unwrap_or_default())
+                    .collect(),
+            ),
+        };
+        bytes.truncate(n);
+        (content_type, bytes)
+    }
+
+    /// Many answers at once on a multi-thread runtime, of the three kinds a worker keeps a
+    /// compressor for and of sizes on either side of a deflate block and of
+    /// [`compression::SHARED_LIMIT`], each handler yielding before it answers so tasks move
+    /// between workers: every answer is gzip and gunzips to its own body, so no compressor's
+    /// bytes reach another task's answer and no borrow of one meets another.
+    #[test]
+    fn concurrent_answers_gunzip() -> TestResult {
+        let kinds = ["json", "text", "other"];
+        let sizes = [1400, 2500, 5000, 16_385, 70_000, 300_000];
+        let cases: Vec<(u64, &str, usize)> = (0..600_u64)
+            .map(|seed| {
+                let at = usize::try_from(seed).unwrap_or_default();
+                let n = if seed % 97 == 0 {
+                    compression::SHARED_LIMIT + 1000
+                } else {
+                    sizes.get(at / 3 % sizes.len()).copied().unwrap_or(1400)
+                };
+                (seed, kinds.get(at % 3).copied().unwrap_or("json"), n)
+            })
+            .collect();
+        let router = compression::compression_enabled(
+            Router::new().route(
+                "/mix",
+                get(
+                    |Query(params): Query<BTreeMap<String, String>>| async move {
+                        let seed = params.get("seed").and_then(|v| v.parse().ok()).unwrap_or(0);
+                        let n = params.get("n").and_then(|v| v.parse().ok()).unwrap_or(0);
+                        let kind = params.get("kind").cloned().unwrap_or_default();
+                        task::yield_now().await;
+                        let (content_type, bytes) = mixed(seed, &kind, n);
+                        typed(content_type, bytes)
+                    },
+                ),
+            ),
+            true,
+        );
+        let requests = cases
+            .iter()
+            .map(|(seed, kind, n)| {
+                request(
+                    &format!("/mix?seed={seed}&kind={kind}&n={n}"),
+                    Some(b"gzip"),
+                )
+            })
+            .collect();
+        let answers = exchange_all(router, requests)?;
+        let mut wrong = Vec::new();
+        for ((seed, kind, n), answer) in cases.iter().zip(&answers) {
+            let (head, body) = split(answer);
+            let (content_type, want) = mixed(*seed, kind, *n);
+            let mut gunzipped = Vec::new();
+            let read = GzDecoder::new(body).read_to_end(&mut gunzipped);
+            let right = field(&head, "content-encoding") == "gzip"
+                && field(&head, "content-type") == content_type
+                && read.is_ok()
+                && gzip_trailer(body).ok() == Some(sum(&want))
+                && gunzipped == want;
+            if !right {
+                wrong.push(format!("{seed} {kind} {n}"));
+            }
+        }
+        ensure_eq(
+            &wrong,
+            &Vec::<String>::new(),
+            "answers that are not their own body's gzip",
+        )?;
+        ensure_eq(&answers.len(), &600, "the answers")
     }
 
     /// The data of a chunked body, or `None` when its framing is broken.
