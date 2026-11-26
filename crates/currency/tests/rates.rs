@@ -12,6 +12,9 @@ pub mod support;
 
 #[cfg(test)]
 mod tests {
+    use pbs_currency::Rates;
+    use pbs_jsonutil::unmarshal_valid;
+
     use crate::support::{SplitMix64, TestResult, check, check_eq, decode, fnv64a, golden, unhex};
 
     /// A document of the goldens: one written out, or a nested case of `rates_json.golden` by
@@ -404,6 +407,65 @@ mod tests {
         check(
             unused.is_empty(),
             &format!("differences no golden holds: {unused:?}"),
+        )
+    }
+
+    /// [`Rates`] of `pairs`: each currency with its rates.
+    fn rates(pairs: &[(&str, &[(&str, f64)])]) -> Rates {
+        Rates {
+            conversions: Some(
+                pairs
+                    .iter()
+                    .map(|(from, to)| {
+                        let to = to.iter().map(|(to, rate)| ((*to).to_owned(), *rate));
+                        ((*from).to_owned(), Some(to.collect()))
+                    })
+                    .collect(),
+            ),
+        }
+    }
+
+    #[test]
+    fn unmarshal_rates() -> TestResult {
+        // Go: TestUnMarshallRates (jsoniter's `expect { or n, but found m` for the malformed
+        // document is serde_json's text here, json.error-texts)
+        check(
+            unmarshal_valid::<Rates>(b"malformed").is_err(),
+            "malformed JSON object",
+        )?;
+        let valid = br#"{
+				"conversions":{
+					"USD":{
+						"GBP":0.7662523901
+					},
+					"GBP":{
+						"USD":1.3050530256
+					}
+				}
+			}"#;
+        check_eq(
+            &unmarshal_valid::<Rates>(valid).ok(),
+            &Some(rates(&[
+                ("USD", &[("GBP", 0.766_252_390_1)]),
+                ("GBP", &[("USD", 1.305_053_025_6)]),
+            ])),
+            "valid conversions",
+        )?;
+        let repeated = br#"{
+				"conversions":{
+					"USD":{
+						"GBP":0.7662523901,
+						"MXN":20.00
+					},
+					"USD":{
+						"GBP":0.4815162342
+					}
+				}
+			}"#;
+        check_eq(
+            &unmarshal_valid::<Rates>(repeated).ok(),
+            &Some(rates(&[("USD", &[("GBP", 0.481_516_234_2)])])),
+            "repeated entries, last one wins",
         )
     }
 
