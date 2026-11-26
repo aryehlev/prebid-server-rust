@@ -23,7 +23,7 @@ Rule B's cases: (a) input real production traffic sends that the crate would rej
 | Global vendor list | 0 | 1 | 0 |
 | Gzip | 0 | 3 | 0 |
 | HTTP client | 0 | 24 | 5 |
-| InfluxDB metrics | 0 | 7 | 1 |
+| InfluxDB metrics | 0 | 8 | 1 |
 | IP addresses | 0 | 1 | 1 |
 | JSON | 4 | 40 | 5 |
 | Logging | 0 | 10 | 3 |
@@ -38,7 +38,7 @@ Rule B's cases: (a) input real production traffic sends that the crate would rej
 | URLs | 0 | 2 | 2 |
 | User syncs | 0 | 1 | 0 |
 | YAML | 0 | 3 | 0 |
-| All | 6 | 143 | 35 |
+| All | 6 | 144 | 35 |
 
 ## Decisions pending
 
@@ -761,6 +761,18 @@ No entry names the classes `other` and `unrecorded` or the kinds `stage_missing`
 - **Harness:** none
 - **Pin:** `crates/metrics/tests/influx.rs::reservoir_shape`
 - **Restore option:** A port of `math/rand`'s source; not planned.
+- **Recorded in:** `crates/metrics/differences.toml`
+
+#### `influx.tls`: An https host: rustls and its platform verifier, not crypto/tls and crypto/x509
+
+- **Go:** influxdb1-client's transport verifies an https host's chain with crypto/x509 against the system roots, go-metrics-influxdb leaving `UnsafeSsl` false, and its ClientHello is crypto/tls's without ALPN, the transport having a TLS config of its own (influxdb.go:158-167 there).
+- **Rust:** The reporter's reqwest client speaks rustls with rustls-platform-verifier, as pbs-http-client's clients do (D-TLS): the chains `tls.acceptance` lists verify on one side only, and the ClientHello differs as `tls.client-hello` says.
+- **Who notices:** operator
+- **Visible in:** Writes and pings to an https host whose chain or TLS server is like one of those cases: the reporter logs the failure and sends nothing, or sends where Go's would not
+- **Harness:** none
+- **Pin:** `crates/http-client/tests/tls.rs::x509_goldens`
+- **Decision:** D-TLS
+- **Note:** The pin runs webpki, the verifier rustls-platform-verifier uses on Linux, which verifies the reporter's hosts through reqwest's `rustls` feature as well; `crates/http-client/tests/tls.rs::client_hello_differs` pins the ClientHello.
 - **Recorded in:** `crates/metrics/differences.toml`
 
 #### `influx.write-request`: InfluxDB writes: influxdb1-client's query, headers and comment lines, against influxdb 0.8.0's
