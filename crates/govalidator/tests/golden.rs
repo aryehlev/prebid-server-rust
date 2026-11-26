@@ -7,9 +7,8 @@
 //! - `pattern.txt`: govalidator's `URL` pattern, quoted;
 //! - `sweep.txt`: two sweeps of 50,000 seeded URL-like and IP-like inputs, with the digests of the
 //!   inputs and of their outcomes;
-//! - `parts.txt`: a sweep of 50,000 seeded inputs that each join one scheme, user info, host,
-//!   port and path, query or fragment, chosen among edge cases of the part, with the same
-//!   digests.
+//! - `parts.txt`: a sweep of 50,000 seeded inputs that each join one scheme, user info, host, port
+//!   and path, query or fragment, chosen among edge cases of the part, with the same digests.
 
 #[cfg(test)]
 mod tests {
