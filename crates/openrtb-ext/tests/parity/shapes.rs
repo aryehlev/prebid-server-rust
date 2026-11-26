@@ -73,7 +73,7 @@ pub(super) const KEY_CASE: &str = "json.key-case";
 pub(super) const NULL_ELEMENTS: &str = "json.null-elements";
 /// `json.partial-results`: a patch that is not JSON fails before it merges, where jsoniter merges
 /// what it reads before the fault (and hands an `UnmarshalJSON` method the bytes up to it).
-const PARTIAL_RESULTS: &str = "json.partial-results";
+pub(super) const PARTIAL_RESULTS: &str = "json.partial-results";
 /// `json.struct-from-array`: the serde derive reads a struct from an array, where Go fails.
 pub(super) const STRUCT_FROM_ARRAY: &str = "json.struct-from-array";
 
@@ -939,6 +939,19 @@ fn compare_merge(
         (None, false) if patch.trim_start().starts_with('[') => {
             return Ok(vec![STRUCT_FROM_ARRAY]);
         }
+        // A struct inside the patch given an array, which jsoniter rejects and the derive reads
+        // as the struct's fields (`[]` as its defaults): the merge goes on, and the values part
+        // in the members the patch names (and lexically elsewhere).
+        (None, false) if go_merge_error(err).1 == JSONITER_STRUCT_FROM_ARRAY => {
+            let lexical =
+                outside_patched_members(&merged.encoded, patch, go_merged).ok_or_else(|| {
+                    format!(
+                        "merged {:?}, Go's {go_merged:?} after {err:?}",
+                        merged.encoded
+                    )
+                })?;
+            return Ok([vec![STRUCT_FROM_ARRAY], lexical].concat());
+        }
         (Some(error), false) if error.context().is_none() && INNER_DECODES.contains(&ty) => {
             classes.push(ERROR_TEXTS);
         }
@@ -986,6 +999,26 @@ fn compare_merge(
         }
     }
     Ok(classes)
+}
+
+/// jsoniter's message for a struct read from a JSON array (its `readObjectStart`), as
+/// `tryExtractErrorMessage` leaves it.
+const JSONITER_STRUCT_FROM_ARRAY: &str = "expect { or n, but found [";
+
+/// The ledger entries of the lexical differences between the port's merged object and Go's
+/// outside the members the patch names, `None` when the values differ there or are not objects.
+fn outside_patched_members(port: &Outcome, patch: &str, go: &Outcome) -> Option<Vec<&'static str>> {
+    let (Outcome::Encoded(port), Outcome::Encoded(go)) = (port, go) else {
+        return None;
+    };
+    let parse = |text: &str| serde_json::from_str::<serde_json::Map<String, Value>>(text).ok();
+    let (patch, mut port, mut go) = (parse(patch)?, parse(port)?, parse(go)?);
+    for key in patch.keys() {
+        let _port = port.remove(key);
+        let _go = go.remove(key);
+    }
+    let write = |rest: &serde_json::Map<String, Value>| serde_json::to_string(rest).ok();
+    compare_encoded(&write(&port)?, &write(&go)?).ok()
 }
 
 /// Whether, after a merge that failed, the port's value and Go's differ only in the members the

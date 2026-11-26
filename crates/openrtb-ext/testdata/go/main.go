@@ -47,6 +47,11 @@
 // -review-scale and -review-seed change the random documents of review.tsv; the committed
 // goldens use the defaults.
 //
+// review_merges.jsonl (merge cases as in shapes.jsonl) holds review_merges.go's
+// jsonutil.MergeClone cases: the values of the types with their own JSON decoding merged over
+// values that hold something, and the openrtb_ext types an account holds, with fields in their
+// map entries.
+//
 // Run it from the directory of this module, crates/openrtb-ext/testdata/go (the toolchain the
 // other goldens use):
 //
@@ -144,6 +149,7 @@ func main() {
 
 	review := reviewDecodeCases(types, decodable)
 	write(filepath.Join(*out, "review.tsv"), nil, nil, review)
+	reviewMerges := writeShapeRows(filepath.Join(*out, "review_merges.jsonl"), reviewMergeCases(types))
 	reviewFns := reviewFunctionCases()
 	writeFunctions(filepath.Join(*out, "review_functions.tsv"), reviewFns)
 	// Last: registering aliases changes the package's state for good.
@@ -151,10 +157,10 @@ func main() {
 	writeFunctions(filepath.Join(*out, "review_aliases.tsv"), aliases)
 
 	log.Printf("corpus: %d roots, %d files, %d cases; mutations: %d cases over %d types; "+
-		"functions: %d calls; constants: %d; shapes: %d cases; review: %d cases, %d calls, "+
-		"%d alias calls",
+		"functions: %d calls; constants: %d; shapes: %d cases; review: %d cases, %d merges, "+
+		"%d calls, %d alias calls",
 		len(c.roots), len(c.files), len(c.cases), len(mutations), len(decodable), len(fns), len(consts),
-		shapes, len(review), len(reviewFns), len(aliases))
+		shapes, len(review), reviewMerges, len(reviewFns), len(aliases))
 }
 
 // decodableTypes are the ported types that JSON documents decode into, in generation order:

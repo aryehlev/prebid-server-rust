@@ -163,8 +163,18 @@ func shapeResult(doc []byte, t reflect.Type, decode func([]byte, interface{}) er
 	return string(out)
 }
 
-// writeShapes writes shapes.jsonl, the shape cases of types (the decodable types): a first line
-// ["#go", version], then one JSON array of strings per case,
+// writeShapes writes shapes.jsonl, the shape cases of types (the decodable types), as
+// writeShapeRows writes them.
+func writeShapes(path string, types []reflect.Type) int {
+	var cases []shapeCase
+	for _, t := range types {
+		cases = append(cases, shapeCases(t)...)
+	}
+	return writeShapeRows(path, cases)
+}
+
+// writeShapeRows writes cases to path, and returns how many: a first line ["#go", version], then
+// one JSON array of strings per case,
 //
 //	["D", type, label, doc, jsoniter, std]
 //	["M", type, label, doc, patch, err, merged]
@@ -173,11 +183,7 @@ func shapeResult(doc []byte, t reflect.Type, decode func([]byte, interface{}) er
 // the same with json.Unmarshal and json.Marshal (each a shapeResult), err the text of
 // jsonutil.MergeClone's error (empty for none) after doc was decoded with jsonutil.Unmarshal,
 // and merged the merged value encoded with jsonutil.Marshal ("?" and the error when that fails).
-func writeShapes(path string, types []reflect.Type) int {
-	var cases []shapeCase
-	for _, t := range types {
-		cases = append(cases, shapeCases(t)...)
-	}
+func writeShapeRows(path string, cases []shapeCase) int {
 	f, err := os.Create(path)
 	if err != nil {
 		log.Fatal(err)

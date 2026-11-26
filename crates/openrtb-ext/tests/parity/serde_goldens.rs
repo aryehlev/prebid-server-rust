@@ -2,7 +2,8 @@
 //!
 //! The goldens (`testdata/go/main.go` documents them) are prebid-server's own extension objects
 //! (`corpus.tsv`), the generated mutations of every type (`mutations.tsv`) and the edge cases
-//! of `review.go` (`review.tsv`). Each row's document is decoded with `pbs_jsonutil::unmarshal`,
+//! of `review.go` (`review.tsv`); the merges of `review_merges.go` (`review_merges.jsonl`) replay
+//! as `shapes` replays its merges. Each row's document is decoded with `pbs_jsonutil::unmarshal`,
 //! and through `EncodingJson`, and the value written with `marshal`, against Go's
 //! `jsonutil.Unmarshal` and `json.Unmarshal` values written with `jsonutil.Marshal` (the row's
 //! first and fourth encodings; one Go wrote as a hash is taken from the `GoJson` port when that
@@ -18,9 +19,9 @@ use std::collections::{BTreeMap, BTreeSet};
 use super::{
     golden::{self, Want},
     shapes::{
-        self, DUPLICATE_KEYS, ERROR_TEXTS, FLOAT_FORMAT, HTML_ESCAPE, KEY_CASE, NIL_RAW_WRITTEN,
-        NULL_DOCUMENT, NULL_ELEMENTS, NUMBER_TEXT, Outcome, PREBID_MESSAGE, STD_ERROR_TEXTS,
-        STRING_OR_ARRAY_NULL, STRUCT_FROM_ARRAY,
+        self, DUPLICATE_KEYS, ERROR_TEXTS, FAILED_MERGE_ELEMENTS, FLOAT_FORMAT, HTML_ESCAPE,
+        KEY_CASE, NIL_RAW_WRITTEN, NULL_DOCUMENT, NULL_ELEMENTS, NUMBER_TEXT, Outcome,
+        PARTIAL_RESULTS, PREBID_MESSAGE, STD_ERROR_TEXTS, STRING_OR_ARRAY_NULL, STRUCT_FROM_ARRAY,
     },
     support::{TestResult, ensure_eq, golden_rows, report},
 };
@@ -493,5 +494,39 @@ fn review_cases_differ_only_in_ledger_entries() -> TestResult {
             STRING_OR_ARRAY_NULL,
             STRUCT_FROM_ARRAY,
         ],
+    )
+}
+
+/// The review's merges (`review_merges.jsonl`, written by `testdata/go/review_merges.go`): the
+/// values the types with Go JSON methods tell apart merged over values that already hold
+/// something, through the pointer, value and map fields that hold them, and the `openrtb_ext`
+/// types an account holds merged with fields in their map entries. Each merge compares as the
+/// shape cases' merges do, and every difference falls in a ledger entry.
+#[test]
+fn review_merges_differ_only_in_ledger_entries() -> TestResult {
+    let cases = shapes::cases_in("review_merges.jsonl")?;
+    if cases.len() < 2600 {
+        return Err(format!("review_merges.jsonl: only {} cases", cases.len()));
+    }
+    let (classes, unexplained) = shapes::run(&shapes::runners()?, &cases);
+    shapes::ensure_explained(&unexplained)?;
+    ensure_eq(
+        &classes.keys().copied().collect::<BTreeSet<_>>(),
+        &[
+            DUPLICATE_KEYS,
+            ERROR_TEXTS,
+            FAILED_MERGE_ELEMENTS,
+            FLOAT_FORMAT,
+            HTML_ESCAPE,
+            KEY_CASE,
+            NIL_RAW_WRITTEN,
+            NULL_ELEMENTS,
+            PARTIAL_RESULTS,
+            PREBID_MESSAGE,
+            STRUCT_FROM_ARRAY,
+        ]
+        .into_iter()
+        .collect(),
+        &format!("review_merges.jsonl: the ledger entries the differences fall in ({classes:?})"),
     )
 }
