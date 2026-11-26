@@ -57,7 +57,7 @@ const MAX_LOCAL_ERROR_RESETS: usize = 1024;
 /// SETTINGS can say: what HTTP/2's handshake assumes.
 pub(super) const ASSUMED_STREAMS: usize = INITIAL_MAX_SEND_STREAMS;
 
-/// reqwest's TCP_USER_TIMEOUT where the system has it (reqwest 0.13 `ClientBuilder::new`): a
+/// reqwest's `TCP_USER_TIMEOUT` where the system has it (reqwest 0.13 `ClientBuilder::new`): a
 /// connection whose data stays unacknowledged this long is closed, so that a pooled connection
 /// whose peer went silent leaves the pool, as reqwest's HTTP/2 connection to it would.
 #[cfg(any(target_os = "android", target_os = "fuchsia", target_os = "linux"))]
