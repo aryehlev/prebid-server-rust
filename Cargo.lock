@@ -1191,6 +1191,9 @@ dependencies = [
 [[package]]
 name = "pbs-metrics"
 version = "0.1.0"
+dependencies = [
+ "prometheus",
+]
 
 [[package]]
 name = "pbs-openrtb"

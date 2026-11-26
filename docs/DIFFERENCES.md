@@ -25,7 +25,7 @@ Rule B's cases: (a) input real production traffic sends that the crate would rej
 | HTTP client | 0 | 18 | 5 |
 | JSON | 4 | 40 | 5 |
 | Logging | 0 | 10 | 3 |
-| Prometheus metrics | 0 | 2 | 0 |
+| Prometheus metrics | 1 | 7 | 1 |
 | Public suffix list | 1 | 0 | 0 |
 | Regular expressions | 0 | 0 | 2 |
 | HTTP server | 0 | 25 | 4 |
@@ -33,7 +33,7 @@ Rule B's cases: (a) input real production traffic sends that the crate would rej
 | TLS | 0 | 2 | 1 |
 | URLs | 0 | 1 | 0 |
 | YAML | 0 | 3 | 0 |
-| All | 5 | 115 | 29 |
+| All | 6 | 120 | 30 |
 
 ## Decisions pending
 
@@ -41,6 +41,7 @@ Rule B's cases: (a) input real production traffic sends that the crate would rej
 - `json.merge-patch-scalar-patch` (D-MERGEPATCH): Merge patch with a `null`, string, number or boolean patch: evanphx fails with `Invalid JSON Patch`, json-patch returns the patch. Default until decided: json-patch's result: a null or scalar patch replaces the document as RFC 7386 says (crates first).
 - `json.null-document` (D-DECODE): A document that is JSON null: Go leaves the target's zero value, serde_json rejects the document. Default until decided: serde's result: the document fails to decode (crates first).
 - `json.null-elements` (D-DECODE): null as a slice element or map value that is not a pointer: Go keeps the zero value, serde rejects the document. Default until decided: serde's result: the document fails to decode (crates first).
+- `metrics.go-families` (D-GOCOLL): Go runtime families: Go's /metrics carries 140 `go_*` families under Prebid's prefix, Rust's none. Default until decided: No `go_*` family (D-GOCOLL's option (a)); the parity harness drops `<prefix>go_*` from Go's scrape before comparing.
 - `psl.empty-labels-and-ip` (D-PSL): Public suffix lookups: x/net/publicsuffix fails on empty labels and IP addresses, psl answers. Default until decided: psl's answer, so the domain is set where Go leaves it unset (crates first).
 
 ## Restore pins still to land
@@ -1364,7 +1365,66 @@ No entry names the classes `other` and `unrecorded` or the kinds `stage_missing`
 
 ## Prometheus metrics
 
+### Decision pending
+
+#### `metrics.go-families`: Go runtime families: Go's /metrics carries 140 `go_*` families under Prebid's prefix, Rust's none
+
+- **Go:** `NewMetrics` registers client_golang v1.12.1's `collectors.NewGoCollector()` through `WrapRegistererWithPrefix("<namespace>_<subsystem>_")` (metrics/prometheus/prometheus.go:576-585): with the namespace `pbs`, 140 families of Go runtime state (76 counters, 55 gauges, 8 histograms and a summary), among them `pbs_go_goroutines`, `pbs_go_threads` and `pbs_go_info`.
+- **Rust:** The engine registers no runtime family; every Prebid family is there.
+- **Who notices:** operator
+- **Visible in:** /metrics, and the dashboards and alerts built on its `<prefix>go_*` families
+- **Harness:** none
+- **Pin:** `crates/metrics/tests/exposition.rs::no_go_families`
+- **Decision:** D-GOCOLL
+- **Default until decided:** No `go_*` family (D-GOCOLL's option (a)); the parity harness drops `<prefix>go_*` from Go's scrape before comparing.
+- **Restore option:** D-GOCOLL's option (b): a process-metrics subset under Prebid's prefix, which reports the Rust process rather than Go's runtime.
+- **Recorded in:** `crates/metrics/differences.toml`
+
 ### Ledgered
+
+#### `metrics.exposition-lexical`: Exposition spelling: an infinite sample value is `+Inf` or `-Inf` in Go's scrape, `inf` or `-inf` in the crate's
+
+- **Go:** client_golang writes the text format with prometheus/common v0.32.1's expfmt: HELP and label values with its escapes, the families by name and the series by label values, and an infinite sample value as `+Inf` or `-Inf` (`writeFloat`), so `RecordAdapterPrice` with an infinite CPM leaves `prebid_server_adapter_prices_sum{adapter="infprice"} +Inf`.
+- **Rust:** The prometheus crate escapes and orders every scrape of the goldens as Go does, and writes an infinite sample value with `f64`'s `Display`: `inf` or `-inf`. It would write `-0` where Go writes `0`, which no Prebid sample can be (counters are integers and a histogram sum starts at `+0`). Exponent forms are `metrics.sample-float-format`.
+- **Who notices:** operator
+- **Visible in:** The /metrics exposition, for the sum of a histogram that observed an infinite value, such as the adapter price histogram
+- **Harness:** none
+- **Pin:** `crates/metrics/tests/exposition.rs::lexical_classes`
+- **Restore option:** Write the scrape with an encoder of the engine's own that spells values with Go's `writeFloat`, as the deleted expfmt module did; not planned: Prometheus's text parser reads `inf` and `+Inf` as the same value.
+- **Recorded in:** `crates/metrics/differences.toml`
+
+#### `metrics.label-hash`: Labelled series: the prometheus crate merges series whose label values concatenate to the same text
+
+- **Go:** client_golang keys a series by a hash of its label values with a separator byte after each and compares the values on a collision (client_golang v1.12.1 prometheus/vec.go:225-247, 468), so adapter `x` with the error `tmaxtimeout` and adapter `xtmax` with the error `timeout` are two series of 1.
+- **Rust:** The crate keys a series by the FNV-1a hash of the values concatenated without a separator and never compares them (`MetricVecCore::hash_label_values`), so those two are one series of 2 under the labels recorded first, as are any two label sets whose hashes collide.
+- **Who notices:** operator
+- **Visible in:** /metrics, for bidder, seat or account names that spell the same text once joined with the next label's value
+- **Harness:** none
+- **Pin:** `crates/metrics/tests/exposition.rs::label_hash`
+- **Restore option:** Key the engine's series by their label values in a collector of its own over the crate's counters and histograms, or a separator in the crate's hash upstream.
+- **Recorded in:** `crates/metrics/differences.toml`
+
+#### `metrics.label-unicode`: Adapter labels: std's Unicode tables lower 75 letters that go1.26.2's Unicode 15.0.0 tables leave as they are
+
+- **Go:** `strings.ToLower` uses go1.26.2's Unicode 15.0.0 tables, which give no lower case to the letters cased since, such as U+1C89 and the Garay capitals, so the adapter `Ᲊnew` stays `Ᲊnew` and `𐵐garay` stays `𐵐garay`.
+- **Rust:** std's tables (Unicode 18.0.0 in toolchain 1.100.0) lower them: `ᲊnew` (U+1C8A) and `𐵰garay` (U+10D70). The other characters are lowered as Go lowers them.
+- **Who notices:** operator
+- **Visible in:** The adapter label of /metrics series, for bidder, alias or seat names with a letter cased after Unicode 15.0.0
+- **Harness:** none
+- **Pin:** `crates/metrics/tests/exposition.rs::label_unicode`
+- **Restore option:** Carry Unicode 15.0.0's case tables for the labels, as the deleted goconv tables did; not planned: they hold the labels to a Unicode version std has left.
+- **Recorded in:** `crates/metrics/differences.toml`
+
+#### `metrics.negotiation`: /metrics formats: promhttp negotiates protobuf by Accept and gzips on any gzip, the engine has the text format only
+
+- **Go:** `promhttp.HandlerFor` (server/prometheus.go:20-27) answers the delimited, text and compact-text protobuf encodings when Accept asks for them, and the text format 0.0.4 as `text/plain; version=0.0.4; charset=utf-8` for any other Accept, OpenMetrics too; it gzips the body whenever Accept-Encoding names gzip, `gzip;q=0` included.
+- **Rust:** The engine encodes the prometheus crate's text format 0.0.4 only, labelled `text/plain; version=0.0.4` without the charset (`prometheus::TEXT_FORMAT`), and /metrics compresses it with tower-http, which honours q-values: `gzip;q=0` gets an identity body.
+- **Who notices:** operator
+- **Visible in:** The Content-Type and Content-Encoding of /metrics, and its body for a scraper that asks for protobuf
+- **Harness:** none
+- **Pin:** `crates/metrics/tests/exposition.rs::text_only`
+- **Restore option:** Encode the protobuf formats from the gathered families and negotiate as promhttp does; not planned: Prometheus scrapes the text format, and asks for protobuf only with native histograms, which Prebid does not use.
+- **Recorded in:** `crates/metrics/differences.toml`
 
 #### `metrics.parity-delta-order`: Trace metric deltas: ordered by series keys that quote label values with `{:?}`, not `strconv.Quote`
 
@@ -1377,6 +1437,17 @@ No entry names the classes `other` and `unrecorded` or the kinds `stage_missing`
 - **Restore option:** A port of `strconv.Quote` for the key, which needs Go's tables of printable characters; not planned.
 - **Recorded in:** `crates/parity/differences.toml`
 
+#### `metrics.registration-errors`: Invalid metric names: Go's `MustRegister` panics with client_golang's text, the engine returns the crate's error
+
+- **Go:** A namespace, subsystem or module name that makes a family name invalid makes `NewMetrics` panic at startup with `descriptor Desc{fqName: "<name>", help: "<help>", constLabels: {}, variableLabels: [<labels>]} is invalid: "<name>" is not a valid metric name`, the name quoted with `%q` (client_golang v1.12.1 prometheus/desc.go:86, registry.go:292 and 400-406).
+- **Rust:** `Metrics::new` returns the prometheus crate's error for the same family, `Error: '<name>' is not a valid metric name`, the name as it is, for the startup code to report.
+- **Who notices:** operator
+- **Visible in:** The startup failure for a `metrics.prometheus.namespace`, `subsystem` or module name that is not part of a valid metric name
+- **Harness:** none
+- **Pin:** `crates/metrics/tests/exposition.rs::registration_errors`
+- **Restore option:** Write client_golang's descriptor text from the refused family's name, help and labels; not planned: the configuration fails in both, on the same family.
+- **Recorded in:** `crates/metrics/differences.toml`
+
 #### `metrics.sample-float-format`: Prometheus sample values: client_golang writes `1e+06`, the prometheus crate `1000000`
 
 - **Go:** client_golang writes a sample with `strconv.FormatFloat(v, 'g', -1, 64)`: a counter at one million is `1e+06` and one at 123456789 is `1.23456789e+08`, while 100000 and 1 are written as they are.
@@ -1386,6 +1457,21 @@ No entry names the classes `other` and `unrecorded` or the kinds `stage_missing`
 - **Harness:** none
 - **Pin:** `crates/differences/tests/metrics.rs::go_difference_sample_float_format`
 - **Recorded in:** `crates/differences/differences.toml`
+
+### Go behaviour kept
+
+#### `metrics.label-case`: Adapter labels: std's `str::to_lowercase` lowers U+0130 to two characters and a word-final sigma to the final form, Go's `strings.ToLower` does neither
+
+- **Go:** Every adapter label is `strings.ToLower` of the bidder or seat name (metrics/prometheus/prometheus.go:860 and the other adapter labels), which maps each character by its simple lower case: `İstanbul` is `istanbul` and `BIDDERΣ` is `bidderσ`.
+- **Rust:** `str::to_lowercase` applies the full mapping and the final sigma rule: `İstanbul` is `i`, U+0307 and `stanbul`, and `BIDDERΣ` is `bidderς`.
+- **Who notices:** operator
+- **Visible in:** The adapter label of /metrics series, for bidder, alias or seat names with U+0130 or a word-final sigma
+- **Harness:** none: a mismatch here is unexpected
+- **Pin:** `crates/metrics/src/prometheus/lower_test.rs::std_lowercase_is_not_go`
+- **Rule B:** Rule B (c): the operator interface (config keys, defaults, `PBS_` variables, CLI flags, metric names, labels and types)
+- **How Go's behaviour is kept:** The engine lowers adapter labels by each character's first lower-case character, Go's simple mapping (crates/metrics/src/prometheus/lower.rs).
+- **Restore pin:** `crates/metrics/tests/exposition.rs::label_case_matches_go` (The random calls' adapters `İstanbul`, `ΣIGMA`, `Straße`, `Àccent` and `Ⱟglagolitic` have Go's series in the Rust scrape, and every character Go lowers the glue lowers alike (crates/metrics/src/prometheus/lower_test.rs::to_lower_matches_go_for_every_rune).)
+- **Recorded in:** `crates/metrics/differences.toml`
 
 ## Public suffix list
 

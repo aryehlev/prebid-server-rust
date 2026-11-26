@@ -12,17 +12,18 @@ use crate::{
         SyncerSetUidStatus,
     },
     options,
-    prometheus::{self, registry::RegistrationError},
+    prometheus::{self, Error as RegistrationError},
 };
 
 /// Why [`new_metrics_engine`] could not build the configured engines.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Debug)]
 pub enum MetricsEngineError {
     /// `metrics.influxdb.host` is set. Go then builds the go-metrics engine and an
     /// `InfluxDB` reporter (`metrics/go_metrics.go`), which this crate does not port.
     InfluxNotSupported,
-    /// The Prometheus engine could not register its families. Go's `MustRegister` panics with
-    /// the same text during startup.
+    /// The Prometheus engine could not register a family: the prometheus crate's error for the
+    /// family Go's `MustRegister` panics on during startup (ledger:
+    /// `metrics.registration-errors`).
     Registration(RegistrationError),
 }
 

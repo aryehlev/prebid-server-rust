@@ -1,0 +1,33 @@
+-	-	200	text/plain; version=0.0.4; charset=utf-8	-
+-	gzip	200	text/plain; version=0.0.4; charset=utf-8	gzip
+-	gzip;q=0	200	text/plain; version=0.0.4; charset=utf-8	gzip
+text/plain	-	200	text/plain; version=0.0.4; charset=utf-8	-
+text/plain	gzip	200	text/plain; version=0.0.4; charset=utf-8	gzip
+text/plain	gzip;q=0	200	text/plain; version=0.0.4; charset=utf-8	gzip
+text/plain; version=0.0.4	-	200	text/plain; version=0.0.4; charset=utf-8	-
+text/plain; version=0.0.4	gzip	200	text/plain; version=0.0.4; charset=utf-8	gzip
+text/plain; version=0.0.4	gzip;q=0	200	text/plain; version=0.0.4; charset=utf-8	gzip
+*/*	-	200	text/plain; version=0.0.4; charset=utf-8	-
+*/*	gzip	200	text/plain; version=0.0.4; charset=utf-8	gzip
+*/*	gzip;q=0	200	text/plain; version=0.0.4; charset=utf-8	gzip
+application/vnd.google.protobuf;proto=io.prometheus.client.MetricFamily;encoding=delimited	-	200	application/vnd.google.protobuf; proto=io.prometheus.client.MetricFamily; encoding=delimited	-
+application/vnd.google.protobuf;proto=io.prometheus.client.MetricFamily;encoding=delimited	gzip	200	application/vnd.google.protobuf; proto=io.prometheus.client.MetricFamily; encoding=delimited	gzip
+application/vnd.google.protobuf;proto=io.prometheus.client.MetricFamily;encoding=delimited	gzip;q=0	200	application/vnd.google.protobuf; proto=io.prometheus.client.MetricFamily; encoding=delimited	gzip
+application/vnd.google.protobuf;proto=io.prometheus.client.MetricFamily;encoding=text	-	200	application/vnd.google.protobuf; proto=io.prometheus.client.MetricFamily; encoding=text	-
+application/vnd.google.protobuf;proto=io.prometheus.client.MetricFamily;encoding=text	gzip	200	application/vnd.google.protobuf; proto=io.prometheus.client.MetricFamily; encoding=text	gzip
+application/vnd.google.protobuf;proto=io.prometheus.client.MetricFamily;encoding=text	gzip;q=0	200	application/vnd.google.protobuf; proto=io.prometheus.client.MetricFamily; encoding=text	gzip
+application/vnd.google.protobuf;proto=io.prometheus.client.MetricFamily;encoding=compact-text	-	200	application/vnd.google.protobuf; proto=io.prometheus.client.MetricFamily; encoding=compact-text	-
+application/vnd.google.protobuf;proto=io.prometheus.client.MetricFamily;encoding=compact-text	gzip	200	application/vnd.google.protobuf; proto=io.prometheus.client.MetricFamily; encoding=compact-text	gzip
+application/vnd.google.protobuf;proto=io.prometheus.client.MetricFamily;encoding=compact-text	gzip;q=0	200	application/vnd.google.protobuf; proto=io.prometheus.client.MetricFamily; encoding=compact-text	gzip
+application/vnd.google.protobuf;proto=io.prometheus.client.MetricFamily;encoding=delimited;q=0.7,text/plain;version=0.0.4;q=0.3	-	200	application/vnd.google.protobuf; proto=io.prometheus.client.MetricFamily; encoding=delimited	-
+application/vnd.google.protobuf;proto=io.prometheus.client.MetricFamily;encoding=delimited;q=0.7,text/plain;version=0.0.4;q=0.3	gzip	200	application/vnd.google.protobuf; proto=io.prometheus.client.MetricFamily; encoding=delimited	gzip
+application/vnd.google.protobuf;proto=io.prometheus.client.MetricFamily;encoding=delimited;q=0.7,text/plain;version=0.0.4;q=0.3	gzip;q=0	200	application/vnd.google.protobuf; proto=io.prometheus.client.MetricFamily; encoding=delimited	gzip
+application/openmetrics-text; version=0.0.1	-	200	text/plain; version=0.0.4; charset=utf-8	-
+application/openmetrics-text; version=0.0.1	gzip	200	text/plain; version=0.0.4; charset=utf-8	gzip
+application/openmetrics-text; version=0.0.1	gzip;q=0	200	text/plain; version=0.0.4; charset=utf-8	gzip
+application/openmetrics-text; version=1.0.0	-	200	text/plain; version=0.0.4; charset=utf-8	-
+application/openmetrics-text; version=1.0.0	gzip	200	text/plain; version=0.0.4; charset=utf-8	gzip
+application/openmetrics-text; version=1.0.0	gzip;q=0	200	text/plain; version=0.0.4; charset=utf-8	gzip
+application/json	-	200	text/plain; version=0.0.4; charset=utf-8	-
+application/json	gzip	200	text/plain; version=0.0.4; charset=utf-8	gzip
+application/json	gzip;q=0	200	text/plain; version=0.0.4; charset=utf-8	gzip

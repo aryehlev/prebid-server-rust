@@ -24,7 +24,7 @@ use crate::{
     options::{self, DisabledMetrics, PrometheusMetrics},
     prometheus::{
         self,
-        registry::{MetricFamily, MetricValue},
+        proto::{Metric, MetricFamily, MetricType},
     },
 };
 
@@ -150,24 +150,42 @@ fn prometheus_registration_error() -> TestResult {
     Ok(())
 }
 
+/// The series `name{labels}` of a gather (the labels a subset of the series'), with the type of
+/// its family.
+fn find<'a>(
+    families: &'a [MetricFamily],
+    name: &str,
+    labels: &[(&str, &str)],
+) -> Result<(MetricType, &'a Metric), Box<dyn Error>> {
+    let family = families
+        .iter()
+        .find(|f| f.name() == name)
+        .ok_or_else(|| format!("no {name}"))?;
+    let metric = family
+        .get_metric()
+        .iter()
+        .find(|m| {
+            labels.iter().all(|(k, v)| {
+                m.get_label()
+                    .iter()
+                    .any(|pair| pair.name() == *k && pair.value() == *v)
+            })
+        })
+        .ok_or_else(|| format!("no {name}{labels:?}"))?;
+    Ok((family.get_field_type(), metric))
+}
+
 /// The value of the counter series `name{labels}` in a gather.
 fn counter(
     families: &[MetricFamily],
     name: &str,
     labels: &[(&str, &str)],
 ) -> Result<f64, Box<dyn Error>> {
-    let family = families
-        .iter()
-        .find(|f| f.name == name)
-        .ok_or_else(|| format!("no {name}"))?;
-    let metric = family
-        .metrics
-        .iter()
-        .find(|m| labels.iter().all(|(k, v)| m.label(k) == Some(*v)))
-        .ok_or_else(|| format!("no {name}{labels:?}"))?;
-    match metric.value {
-        MetricValue::Counter(value) => Ok(value),
-        MetricValue::Histogram(_) => Err(format!("{name} is a histogram").into()),
+    let (kind, metric) = find(families, name, labels)?;
+    if kind == MetricType::COUNTER {
+        Ok(metric.get_counter().get_value())
+    } else {
+        Err(format!("{name} is a {kind:?}").into())
     }
 }
 
@@ -177,18 +195,11 @@ fn histogram_count(
     name: &str,
     labels: &[(&str, &str)],
 ) -> Result<u64, Box<dyn Error>> {
-    let family = families
-        .iter()
-        .find(|f| f.name == name)
-        .ok_or_else(|| format!("no {name}"))?;
-    let metric = family
-        .metrics
-        .iter()
-        .find(|m| labels.iter().all(|(k, v)| m.label(k) == Some(*v)))
-        .ok_or_else(|| format!("no {name}{labels:?}"))?;
-    match &metric.value {
-        MetricValue::Histogram(h) => Ok(h.sample_count),
-        MetricValue::Counter(_) => Err(format!("{name} is a counter").into()),
+    let (kind, metric) = find(families, name, labels)?;
+    if kind == MetricType::HISTOGRAM {
+        Ok(metric.get_histogram().get_sample_count())
+    } else {
+        Err(format!("{name} is a {kind:?}").into())
     }
 }
 

@@ -2,24 +2,32 @@
 //!
 //! Go: `metrics/prometheus/prometheus.go` (package `prometheusmetrics`).
 //!
-//! Metric names, help strings, label names and values, buckets, registration conditions and
-//! preloading are Go's. The scrape is produced by [`Metrics::gatherer`] and
-//! [`expfmt::encode_text`], which reproduce `client_golang` v1.12.1 byte for byte.
+//! The families are the prometheus crate's counters and histograms on one [`Registry`], under
+//! Go's names, help strings, label names, types, buckets, namespace and subsystem, registered in
+//! Go's order and on Go's conditions, with Go's label values and preloading (Rule B (c): metric
+//! names, labels and types are the operator interface). [`Metrics::text_exposition`] is the
+//! crate's text format of what the registry gathers, served as [`TEXT_FORMAT`]; where it differs
+//! from the `client_golang` v1.12.1 scrape, an entry of the ledger's `metrics` category says how.
 //!
 //! Go also registers `collectors.NewGoCollector()` (the `go_*` runtime families, prefixed with
-//! `<namespace>_<subsystem>_`). Those report Go runtime internals and have no Rust equivalent,
-//! so they are not produced; no other runtime collector is registered either.
+//! `<namespace>_<subsystem>_`). Those report Go runtime internals and nothing stands in for them
+//! (D-GOCOLL; ledger: `metrics.go-families`).
 
-pub mod expfmt;
+mod lower;
 mod preload;
-pub mod registry;
 mod type_conversion;
 
-use std::{collections::BTreeMap, sync::Arc};
+use std::collections::BTreeMap;
 
-use self::registry::{CounterVec, Desc, HistogramVec, RegistrationError, Registry, build_fq_name};
+pub use ::prometheus::{Error, Registry, TEXT_FORMAT, proto};
+use ::prometheus::{
+    Histogram, HistogramOpts, HistogramVec, IntCounter, IntCounterVec, Opts, TextEncoder,
+    core::Collector,
+};
+
+use self::lower::to_lower;
 use crate::{
-    goconv,
+    float_from_usize,
     metrics::{
         AdapterBid, AdapterLabels, CacheResult, CookieFlag, CookieSyncStatus, FetcherBackendResult,
         FetcherOperation, FetcherResult, GoDuration, ImpLabels, Labels, MetricsEngine,
@@ -542,107 +550,109 @@ const ADS_CERT_REQUESTS: Spec = Spec::counter(
 /// Go: the `module*` maps of `prometheusmetrics.Metrics`, filled by `createModulesMetrics`.
 #[derive(Debug, Default)]
 struct ModuleFamilies {
-    duration: BTreeMap<String, Arc<HistogramVec>>,
-    calls: BTreeMap<String, Arc<CounterVec>>,
-    failures: BTreeMap<String, Arc<CounterVec>>,
-    success_noops: BTreeMap<String, Arc<CounterVec>>,
-    success_updates: BTreeMap<String, Arc<CounterVec>>,
-    success_rejects: BTreeMap<String, Arc<CounterVec>>,
-    execution_errors: BTreeMap<String, Arc<CounterVec>>,
-    timeouts: BTreeMap<String, Arc<CounterVec>>,
+    duration: BTreeMap<String, HistogramVec>,
+    calls: BTreeMap<String, IntCounterVec>,
+    failures: BTreeMap<String, IntCounterVec>,
+    success_noops: BTreeMap<String, IntCounterVec>,
+    success_updates: BTreeMap<String, IntCounterVec>,
+    success_rejects: BTreeMap<String, IntCounterVec>,
+    execution_errors: BTreeMap<String, IntCounterVec>,
+    timeouts: BTreeMap<String, IntCounterVec>,
 }
 
 /// The Prometheus metrics backing the [`MetricsEngine`] implementation.
 ///
-/// Go: `prometheusmetrics.Metrics`. A family that Go leaves `nil` because its disabled flag is
-/// set at construction is `None`; recording into it is a no-op (Go would dereference nil, which
-/// no Go caller does).
+/// Go: `prometheusmetrics.Metrics`. A family Go creates with `prometheus.NewCounter` or
+/// `NewHistogram` (no labels) is an [`IntCounter`] or a [`Histogram`], one with labels an
+/// [`IntCounterVec`] or a [`HistogramVec`]. A family that Go leaves `nil` because its disabled
+/// flag is set at construction is `None`; recording into it is a no-op (Go would dereference
+/// nil, which no Go caller does).
 #[derive(Debug)]
 pub struct Metrics {
     gatherer: Registry,
 
     // General metrics.
-    connections_closed: Arc<CounterVec>,
-    connections_error: Arc<CounterVec>,
-    connections_opened: Arc<CounterVec>,
-    tmax_timeout: Arc<CounterVec>,
-    cookie_sync: Arc<CounterVec>,
-    set_uid: Arc<CounterVec>,
-    impressions: Arc<CounterVec>,
-    prebid_cache_write_timer: Arc<HistogramVec>,
-    requests: Arc<CounterVec>,
-    requests_size: Arc<HistogramVec>,
-    debug_requests: Arc<CounterVec>,
-    requests_timer: Arc<HistogramVec>,
-    requests_queue_timer: Arc<HistogramVec>,
-    requests_without_cookie: Arc<CounterVec>,
-    stored_impressions_cache_result: Arc<CounterVec>,
-    stored_request_cache_result: Arc<CounterVec>,
-    account_cache_result: Arc<CounterVec>,
-    stored_account_fetch_timer: Arc<HistogramVec>,
-    stored_account_errors: Arc<CounterVec>,
-    stored_amp_fetch_timer: Arc<HistogramVec>,
-    stored_amp_errors: Arc<CounterVec>,
-    stored_category_fetch_timer: Arc<HistogramVec>,
-    stored_category_errors: Arc<CounterVec>,
-    stored_request_fetch_timer: Arc<HistogramVec>,
-    stored_request_errors: Arc<CounterVec>,
-    stored_video_fetch_timer: Arc<HistogramVec>,
-    stored_video_errors: Arc<CounterVec>,
-    timeout_notifications: Arc<CounterVec>,
-    dns_lookup_timer: Arc<HistogramVec>,
-    tls_handshake_timer: Arc<HistogramVec>,
-    privacy_ccpa: Arc<CounterVec>,
-    privacy_coppa: Arc<CounterVec>,
-    privacy_lmt: Arc<CounterVec>,
-    privacy_tcf: Arc<CounterVec>,
-    stored_responses: Arc<CounterVec>,
-    gvl_list_requests: Arc<CounterVec>,
-    live_gvl_fetch: Arc<CounterVec>,
-    stored_responses_fetch_timer: Arc<HistogramVec>,
-    stored_responses_errors: Arc<CounterVec>,
-    ads_cert_requests: Arc<CounterVec>,
-    ads_cert_sign_timer: Arc<HistogramVec>,
-    bidder_server_response_timer: Arc<HistogramVec>,
+    connections_closed: IntCounter,
+    connections_error: IntCounterVec,
+    connections_opened: IntCounter,
+    tmax_timeout: IntCounter,
+    cookie_sync: IntCounterVec,
+    set_uid: IntCounterVec,
+    impressions: IntCounterVec,
+    prebid_cache_write_timer: HistogramVec,
+    requests: IntCounterVec,
+    requests_size: HistogramVec,
+    debug_requests: IntCounter,
+    requests_timer: HistogramVec,
+    requests_queue_timer: HistogramVec,
+    requests_without_cookie: IntCounterVec,
+    stored_impressions_cache_result: IntCounterVec,
+    stored_request_cache_result: IntCounterVec,
+    account_cache_result: IntCounterVec,
+    stored_account_fetch_timer: HistogramVec,
+    stored_account_errors: IntCounterVec,
+    stored_amp_fetch_timer: HistogramVec,
+    stored_amp_errors: IntCounterVec,
+    stored_category_fetch_timer: HistogramVec,
+    stored_category_errors: IntCounterVec,
+    stored_request_fetch_timer: HistogramVec,
+    stored_request_errors: IntCounterVec,
+    stored_video_fetch_timer: HistogramVec,
+    stored_video_errors: IntCounterVec,
+    timeout_notifications: IntCounterVec,
+    dns_lookup_timer: Histogram,
+    tls_handshake_timer: Histogram,
+    privacy_ccpa: IntCounterVec,
+    privacy_coppa: IntCounterVec,
+    privacy_lmt: IntCounterVec,
+    privacy_tcf: IntCounterVec,
+    stored_responses: IntCounter,
+    gvl_list_requests: IntCounter,
+    live_gvl_fetch: IntCounterVec,
+    stored_responses_fetch_timer: HistogramVec,
+    stored_responses_errors: IntCounterVec,
+    ads_cert_requests: IntCounterVec,
+    ads_cert_sign_timer: Histogram,
+    bidder_server_response_timer: Histogram,
 
     // Fetchers 2.0 metrics.
-    fetcher_result: Arc<CounterVec>,
-    fetcher_backend_fetch: Arc<CounterVec>,
-    fetcher_backend_fetch_timer: Arc<HistogramVec>,
+    fetcher_result: IntCounterVec,
+    fetcher_backend_fetch: IntCounterVec,
+    fetcher_backend_fetch_timer: HistogramVec,
 
     // Adapter metrics.
-    adapter_bids: Arc<CounterVec>,
-    adapter_errors: Arc<CounterVec>,
-    adapter_panics: Arc<CounterVec>,
-    adapter_prices: Arc<HistogramVec>,
-    adapter_requests: Arc<CounterVec>,
-    overhead_timer: Arc<HistogramVec>,
-    adapter_requests_timer: Arc<HistogramVec>,
-    adapter_reused_connections: Option<Arc<CounterVec>>,
-    adapter_created_connections: Option<Arc<CounterVec>>,
-    adapter_connection_wait_time: Option<Arc<HistogramVec>>,
-    adapter_scrubbed_buyer_uids: Option<Arc<CounterVec>>,
-    adapter_gdpr_blocked_requests: Option<Arc<CounterVec>>,
-    adapter_bid_response_validation_size_error: Arc<CounterVec>,
-    adapter_bid_response_validation_size_warn: Arc<CounterVec>,
-    adapter_bid_response_secure_markup_error: Arc<CounterVec>,
-    adapter_bid_response_secure_markup_warn: Arc<CounterVec>,
-    adapter_throttled: Arc<CounterVec>,
-    adapter_connection_dial_errors: Option<Arc<CounterVec>>,
-    adapter_connection_dial_time: Option<Arc<HistogramVec>>,
+    adapter_bids: IntCounterVec,
+    adapter_errors: IntCounterVec,
+    adapter_panics: IntCounterVec,
+    adapter_prices: HistogramVec,
+    adapter_requests: IntCounterVec,
+    overhead_timer: HistogramVec,
+    adapter_requests_timer: HistogramVec,
+    adapter_reused_connections: Option<IntCounterVec>,
+    adapter_created_connections: Option<IntCounterVec>,
+    adapter_connection_wait_time: Option<HistogramVec>,
+    adapter_scrubbed_buyer_uids: Option<IntCounterVec>,
+    adapter_gdpr_blocked_requests: Option<IntCounterVec>,
+    adapter_bid_response_validation_size_error: IntCounterVec,
+    adapter_bid_response_validation_size_warn: IntCounterVec,
+    adapter_bid_response_secure_markup_error: IntCounterVec,
+    adapter_bid_response_secure_markup_warn: IntCounterVec,
+    adapter_throttled: IntCounterVec,
+    adapter_connection_dial_errors: Option<IntCounterVec>,
+    adapter_connection_dial_time: Option<HistogramVec>,
 
     // Syncer metrics.
-    syncer_requests: Arc<CounterVec>,
-    syncer_sets: Arc<CounterVec>,
+    syncer_requests: IntCounterVec,
+    syncer_sets: IntCounterVec,
 
     // Account metrics.
-    account_requests: Arc<CounterVec>,
-    account_debug_requests: Arc<CounterVec>,
-    account_stored_responses: Arc<CounterVec>,
-    account_bid_response_validation_size_error: Arc<CounterVec>,
-    account_bid_response_validation_size_warn: Arc<CounterVec>,
-    account_bid_response_secure_markup_error: Arc<CounterVec>,
-    account_bid_response_secure_markup_warn: Arc<CounterVec>,
+    account_requests: IntCounterVec,
+    account_debug_requests: IntCounterVec,
+    account_stored_responses: IntCounterVec,
+    account_bid_response_validation_size_error: IntCounterVec,
+    account_bid_response_validation_size_warn: IntCounterVec,
+    account_bid_response_secure_markup_error: IntCounterVec,
+    account_bid_response_secure_markup_warn: IntCounterVec,
 
     // Module metrics.
     modules: ModuleFamilies,
@@ -651,8 +661,8 @@ pub struct Metrics {
     disabled_flags: DisabledMetrics,
 }
 
-/// Registers families with Go's `newCounter`/`newHistogramVec` options (namespace and subsystem
-/// from the configuration) into one registry.
+/// Registers families with Go's `newCounter`/`newHistogramVec` options (the namespace and
+/// subsystem of the configuration) on one registry.
 struct Builder<'a> {
     cfg: &'a PrometheusMetrics,
     reg: Registry,
@@ -689,49 +699,75 @@ impl<'a> Builder<'a> {
         }
     }
 
-    fn desc(&self, name: &str, help: &str, labels: &[&str]) -> Result<Desc, RegistrationError> {
-        Desc::new(
-            build_fq_name(&self.cfg.namespace, &self.cfg.subsystem, name),
-            help,
-            labels,
-        )
+    /// Go: the `prometheus.CounterOpts` of `newCounter`.
+    fn opts(&self, name: &str, help: &str) -> Opts {
+        Opts::new(name, help)
+            .namespace(self.cfg.namespace.as_str())
+            .subsystem(self.cfg.subsystem.as_str())
+    }
+
+    /// Go: the `prometheus.HistogramOpts` of `newHistogramVec`.
+    fn histogram_opts(&self, name: &str, help: &str, buckets: &[f64]) -> HistogramOpts {
+        HistogramOpts::new(name, help)
+            .namespace(self.cfg.namespace.as_str())
+            .subsystem(self.cfg.subsystem.as_str())
+            .buckets(buckets.to_vec())
+    }
+
+    /// Go: `registry.MustRegister(collector)`.
+    fn register<C: Collector + Clone + 'static>(&self, collector: C) -> Result<C, Error> {
+        self.reg.register(Box::new(collector.clone()))?;
+        Ok(collector)
+    }
+
+    /// Go: `newCounterWithoutLabels`.
+    fn plain_counter(&self, spec: &Spec) -> Result<IntCounter, Error> {
+        self.register(IntCounter::with_opts(self.opts(spec.name, spec.help))?)
+    }
+
+    /// Go: `newHistogram`.
+    fn plain_histogram(&self, spec: &Spec) -> Result<Histogram, Error> {
+        self.register(Histogram::with_opts(self.histogram_opts(
+            spec.name,
+            spec.help,
+            spec.buckets,
+        ))?)
     }
 
     fn counter_named(
-        &mut self,
+        &self,
         name: &str,
         help: &str,
         labels: &[&str],
-    ) -> Result<Arc<CounterVec>, RegistrationError> {
-        let desc = self.desc(name, help, labels)?;
-        self.reg.register_counter(desc)
+    ) -> Result<IntCounterVec, Error> {
+        self.register(IntCounterVec::new(self.opts(name, help), labels)?)
     }
 
     fn histogram_named(
-        &mut self,
+        &self,
         name: &str,
         help: &str,
         labels: &[&str],
         buckets: &[f64],
-    ) -> Result<Arc<HistogramVec>, RegistrationError> {
-        let desc = self.desc(name, help, labels)?;
-        self.reg.register_histogram(desc, buckets)
+    ) -> Result<HistogramVec, Error> {
+        self.register(HistogramVec::new(
+            self.histogram_opts(name, help, buckets),
+            labels,
+        )?)
     }
 
-    fn counter(&mut self, spec: &Spec) -> Result<Arc<CounterVec>, RegistrationError> {
+    /// Go: `newCounter`.
+    fn counter(&self, spec: &Spec) -> Result<IntCounterVec, Error> {
         self.counter_named(spec.name, spec.help, spec.labels)
     }
 
-    fn histogram(&mut self, spec: &Spec) -> Result<Arc<HistogramVec>, RegistrationError> {
+    /// Go: `newHistogramVec`.
+    fn histogram(&self, spec: &Spec) -> Result<HistogramVec, Error> {
         self.histogram_named(spec.name, spec.help, spec.labels, spec.buckets)
     }
 
     /// A family Go registers only behind an `if !metricsDisabled...` check.
-    fn optional_counter(
-        &mut self,
-        enabled: bool,
-        spec: &Spec,
-    ) -> Result<Option<Arc<CounterVec>>, RegistrationError> {
+    fn optional_counter(&self, enabled: bool, spec: &Spec) -> Result<Option<IntCounterVec>, Error> {
         if enabled {
             self.counter(spec).map(Some)
         } else {
@@ -740,10 +776,10 @@ impl<'a> Builder<'a> {
     }
 
     fn optional_histogram(
-        &mut self,
+        &self,
         enabled: bool,
         spec: &Spec,
-    ) -> Result<Option<Arc<HistogramVec>>, RegistrationError> {
+    ) -> Result<Option<HistogramVec>, Error> {
         if enabled {
             self.histogram(spec).map(Some)
         } else {
@@ -754,9 +790,9 @@ impl<'a> Builder<'a> {
     /// Go: `createModulesMetrics`. Go ranges over the module map in random order; the set of
     /// registered families, and therefore the scrape, does not depend on the order.
     fn modules(
-        &mut self,
+        &self,
         module_stage_names: &BTreeMap<String, Vec<String>>,
-    ) -> Result<ModuleFamilies, RegistrationError> {
+    ) -> Result<ModuleFamilies, Error> {
         let mut m = ModuleFamilies::default();
         let stage = &[STAGE_LABEL];
         for module in module_stage_names.keys() {
@@ -819,35 +855,53 @@ impl Metrics {
     /// Go: `prometheusmetrics.NewMetrics(cfg, disabledMetrics, syncerKeys, moduleStageNames)`.
     /// Go reads the adapter label values to preload from `openrtb_ext.CoreBidderNames()`; they
     /// are passed here as `core_bidder_names` (the engine lowercases them, as Go does). The
-    /// families are registered in Go's order, so the first registration error is Go's.
+    /// families are registered in Go's order and the crate accepts the same names Go does, so
+    /// the family the crate refuses is the one Go's `MustRegister` panics on.
     ///
     /// # Errors
     ///
-    /// The registration error Go's `MustRegister` panics with when a family name is invalid
-    /// (for example a namespace that is not a valid metric name prefix).
+    /// The prometheus crate's error for the first family it refuses: one whose name is not a
+    /// valid metric name, as under a namespace, a subsystem or a module name that is not a valid
+    /// part of one. Go panics there instead, with its own words (ledger:
+    /// `metrics.registration-errors`).
     pub fn new(
         cfg: &PrometheusMetrics,
         disabled_metrics: DisabledMetrics,
         syncer_keys: &[String],
         module_stage_names: &BTreeMap<String, Vec<String>>,
         core_bidder_names: &[String],
-    ) -> Result<Self, RegistrationError> {
-        let mut b = Builder::new(cfg);
-        let t = Toggles(disabled_metrics);
+    ) -> Result<Self, Error> {
+        let metrics = Self::register_families(cfg, disabled_metrics, module_stage_names)?;
+        preload::preload_label_values(
+            &metrics,
+            syncer_keys,
+            module_stage_names,
+            core_bidder_names,
+        )?;
+        Ok(metrics)
+    }
 
-        // The fields are initialized, and so registered, in Go's order.
-        let metrics = Self {
-            connections_closed: b.counter(&CONNECTIONS_CLOSED)?,
+    /// Go: the registrations of `NewMetrics`, before `preloadLabelValues`. The fields are
+    /// initialized, and so registered, in Go's order.
+    fn register_families(
+        cfg: &PrometheusMetrics,
+        disabled_metrics: DisabledMetrics,
+        module_stage_names: &BTreeMap<String, Vec<String>>,
+    ) -> Result<Self, Error> {
+        let b = Builder::new(cfg);
+        let t = Toggles(disabled_metrics);
+        Ok(Self {
+            connections_closed: b.plain_counter(&CONNECTIONS_CLOSED)?,
             connections_error: b.counter(&CONNECTIONS_ERROR)?,
-            connections_opened: b.counter(&CONNECTIONS_OPENED)?,
-            tmax_timeout: b.counter(&TMAX_TIMEOUT)?,
+            connections_opened: b.plain_counter(&CONNECTIONS_OPENED)?,
+            tmax_timeout: b.plain_counter(&TMAX_TIMEOUT)?,
             cookie_sync: b.counter(&COOKIE_SYNC)?,
             set_uid: b.counter(&SET_UID)?,
             impressions: b.counter(&IMPRESSIONS)?,
             prebid_cache_write_timer: b.histogram(&PREBID_CACHE_WRITE_TIMER)?,
             requests: b.counter(&REQUESTS)?,
             requests_size: b.histogram(&REQUESTS_SIZE)?,
-            debug_requests: b.counter(&DEBUG_REQUESTS)?,
+            debug_requests: b.plain_counter(&DEBUG_REQUESTS)?,
             requests_timer: b.histogram(&REQUESTS_TIMER)?,
             requests_without_cookie: b.counter(&REQUESTS_WITHOUT_COOKIE)?,
             stored_impressions_cache_result: b.counter(&STORED_IMPRESSIONS_CACHE_RESULT)?,
@@ -867,8 +921,8 @@ impl Metrics {
             stored_video_fetch_timer: b.histogram(&STORED_VIDEO_FETCH_TIMER)?,
             stored_video_errors: b.counter(&STORED_VIDEO_ERRORS)?,
             timeout_notifications: b.counter(&TIMEOUT_NOTIFICATIONS)?,
-            dns_lookup_timer: b.histogram(&DNS_LOOKUP_TIMER)?,
-            tls_handshake_timer: b.histogram(&TLS_HANDSHAKE_TIMER)?,
+            dns_lookup_timer: b.plain_histogram(&DNS_LOOKUP_TIMER)?,
+            tls_handshake_timer: b.plain_histogram(&TLS_HANDSHAKE_TIMER)?,
             privacy_ccpa: b.counter(&PRIVACY_CCPA)?,
             privacy_coppa: b.counter(&PRIVACY_COPPA)?,
             privacy_tcf: b.counter(&PRIVACY_TCF)?,
@@ -879,8 +933,8 @@ impl Metrics {
                 .optional_counter(t.gdpr_blocked(), &ADAPTER_GDPR_BLOCKED_REQUESTS)?,
             stored_responses_fetch_timer: b.histogram(&STORED_RESPONSES_FETCH_TIMER)?,
             stored_responses_errors: b.counter(&STORED_RESPONSES_ERRORS)?,
-            stored_responses: b.counter(&STORED_RESPONSES)?,
-            gvl_list_requests: b.counter(&GVL_LIST_REQUESTS)?,
+            stored_responses: b.plain_counter(&STORED_RESPONSES)?,
+            gvl_list_requests: b.plain_counter(&GVL_LIST_REQUESTS)?,
             live_gvl_fetch: b.counter(&LIVE_GVL_FETCH)?,
             adapter_bids: b.counter(&ADAPTER_BIDS)?,
             adapter_errors: b.counter(&ADAPTER_ERRORS)?,
@@ -908,7 +962,7 @@ impl Metrics {
             adapter_throttled: b.counter(&ADAPTER_THROTTLED)?,
             overhead_timer: b.histogram(&OVERHEAD_TIMER)?,
             adapter_requests_timer: b.histogram(&ADAPTER_REQUESTS_TIMER)?,
-            bidder_server_response_timer: b.histogram(&BIDDER_SERVER_RESPONSE_TIMER)?,
+            bidder_server_response_timer: b.plain_histogram(&BIDDER_SERVER_RESPONSE_TIMER)?,
             syncer_requests: b.counter(&SYNCER_REQUESTS)?,
             syncer_sets: b.counter(&SYNCER_SETS)?,
             account_requests: b.counter(&ACCOUNT_REQUESTS)?,
@@ -923,16 +977,12 @@ impl Metrics {
                 .counter(&ACCOUNT_BID_RESPONSE_SECURE_MARKUP_WARN)?,
             requests_queue_timer: b.histogram(&REQUESTS_QUEUE_TIMER)?,
             account_stored_responses: b.counter(&ACCOUNT_STORED_RESPONSES)?,
-            ads_cert_sign_timer: b.histogram(&ADS_CERT_SIGN_TIMER)?,
+            ads_cert_sign_timer: b.plain_histogram(&ADS_CERT_SIGN_TIMER)?,
             ads_cert_requests: b.counter(&ADS_CERT_REQUESTS)?,
             modules: b.modules(module_stage_names)?,
             disabled_flags: disabled_metrics,
             gatherer: b.reg,
-        };
-
-        preload::preload_label_values(&metrics, syncer_keys, module_stage_names, core_bidder_names);
-
-        Ok(metrics)
+        })
     }
 
     /// The registry to scrape.
@@ -943,11 +993,17 @@ impl Metrics {
         &self.gatherer
     }
 
-    /// The scrape body in the text exposition format: the body of Go's `promhttp` handler for a
-    /// text scrape, without the Go collector families.
-    #[must_use]
-    pub fn text_exposition(&self) -> String {
-        expfmt::encode_text(&self.gatherer.gather())
+    /// The scrape body: the prometheus crate's text format 0.0.4 ([`TEXT_FORMAT`]) of what the
+    /// registry gathers. Go's `promhttp` handler writes the same families, samples and values,
+    /// beside the Go collector's families; the ledger's `metrics` entries say where the two
+    /// differ.
+    ///
+    /// # Errors
+    ///
+    /// The crate's error when it cannot encode a family, which it never has to for a gathered
+    /// family: the registry leaves out the families without samples.
+    pub fn text_exposition(&self) -> Result<String, Error> {
+        TextEncoder::new().encode_to_string(&self.gatherer.gather())
     }
 
     const fn disabled(&self, flag: DisabledMetric) -> bool {
@@ -960,80 +1016,132 @@ const fn format_bool(b: bool) -> &'static str {
     if b { "true" } else { "false" }
 }
 
+/// Go: `vec.With(labels).Inc()`. The values always match the family's label names, so the
+/// crate never refuses them; if it did, nothing would be recorded.
+fn inc(family: &IntCounterVec, values: &[&str]) {
+    inc_by(family, values, 1);
+}
+
+/// Go: `vec.With(labels).Add(float64(v))`, which adds a whole number to the counter's integer
+/// part.
+fn inc_by(family: &IntCounterVec, values: &[&str], v: u64) {
+    if let Ok(counter) = family.get_metric_with_label_values(values) {
+        counter.inc_by(v);
+    }
+}
+
+/// Go: `vec.With(labels).Observe(v)`.
+fn observe(family: &HistogramVec, values: &[&str], v: f64) {
+    if let Ok(histogram) = family.get_metric_with_label_values(values) {
+        histogram.observe(v);
+    }
+}
+
+/// The integer Go's `counter.Add(float64(n))` adds: `client_golang` adds an integer-valued
+/// increment to the counter's `uint64` part, as [`IntCounter`] keeps its value, so the increment
+/// is `uint64(float64(n))`, `n` rounded to the nearest `f64` (ties to even), which changes only
+/// counts above 2^53.
+fn count(n: usize) -> u64 {
+    let n = u64::try_from(n).unwrap_or(u64::MAX);
+    let dropped = n.bit_width().saturating_sub(f64::MANTISSA_DIGITS);
+    if dropped == 0 {
+        return n;
+    }
+    let unit = 1_u64 << dropped;
+    let rest = n % unit;
+    let down = n - rest;
+    let half = unit / 2;
+    if rest > half || (rest == half && (n / unit) % 2 == 1) {
+        down.saturating_add(unit)
+    } else {
+        down
+    }
+}
+
 impl MetricsEngine for Metrics {
     fn record_connection_accept(&self, success: bool) {
         if success {
-            self.connections_opened.inc(&[]);
+            self.connections_opened.inc();
         } else {
-            self.connections_error.inc(&[CONNECTION_ACCEPT_ERROR]);
+            inc(&self.connections_error, &[CONNECTION_ACCEPT_ERROR]);
         }
     }
 
     fn record_tmax_timeout(&self) {
-        self.tmax_timeout.inc(&[]);
+        self.tmax_timeout.inc();
     }
 
     fn record_connection_close(&self, success: bool) {
         if success {
-            self.connections_closed.inc(&[]);
+            self.connections_closed.inc();
         } else {
-            self.connections_error.inc(&[CONNECTION_CLOSE_ERROR]);
+            inc(&self.connections_error, &[CONNECTION_CLOSE_ERROR]);
         }
     }
 
     fn record_request(&self, labels: &Labels) {
-        self.requests
-            .inc(&[labels.r_type.as_str(), labels.request_status.as_str()]);
+        inc(
+            &self.requests,
+            &[labels.r_type.as_str(), labels.request_status.as_str()],
+        );
 
         if labels.request_size > 0 && labels.r_type != RequestType::AMP {
             let endpoint = get_endpoint_from_request_type(labels.r_type);
-            self.requests_size.observe(
+            observe(
+                &self.requests_size,
                 &[endpoint.as_str()],
-                goconv::usize_to_f64(labels.request_size),
+                float_from_usize(labels.request_size),
             );
         }
 
         if labels.cookie_flag == CookieFlag::NO {
-            self.requests_without_cookie.inc(&[labels.r_type.as_str()]);
+            inc(&self.requests_without_cookie, &[labels.r_type.as_str()]);
         }
 
         if labels.pub_id != PUBLISHER_UNKNOWN {
-            self.account_requests.inc(&[&labels.pub_id]);
+            inc(&self.account_requests, &[&labels.pub_id]);
         }
     }
 
     fn record_imps(&self, labels: ImpLabels) {
-        self.impressions.inc(&[
-            format_bool(labels.banner_imps()),
-            format_bool(labels.video_imps()),
-            format_bool(labels.audio_imps()),
-            format_bool(labels.native_imps()),
-        ]);
+        inc(
+            &self.impressions,
+            &[
+                format_bool(labels.banner_imps()),
+                format_bool(labels.video_imps()),
+                format_bool(labels.audio_imps()),
+                format_bool(labels.native_imps()),
+            ],
+        );
     }
 
     fn record_request_time(&self, labels: &Labels, length: GoDuration) {
         if labels.request_status == RequestStatus::OK {
-            self.requests_timer
-                .observe(&[labels.r_type.as_str()], length.seconds());
+            observe(
+                &self.requests_timer,
+                &[labels.r_type.as_str()],
+                length.seconds(),
+            );
         }
     }
 
     fn record_overhead_time(&self, overhead: OverheadType, length: GoDuration) {
-        self.overhead_timer
-            .observe(&[overhead.as_str()], length.seconds());
+        observe(&self.overhead_timer, &[overhead.as_str()], length.seconds());
     }
 
     fn record_adapter_request(&self, labels: &AdapterLabels) {
-        let lower_cased_adapter = goconv::to_lower(&labels.adapter);
-        self.adapter_requests.inc(&[
-            &lower_cased_adapter,
-            labels.cookie_flag.as_str(),
-            format_bool(labels.adapter_bids == AdapterBid::PRESENT),
-        ]);
+        let lower_cased_adapter = to_lower(&labels.adapter);
+        inc(
+            &self.adapter_requests,
+            &[
+                &lower_cased_adapter,
+                labels.cookie_flag.as_str(),
+                format_bool(labels.adapter_bids == AdapterBid::PRESENT),
+            ],
+        );
 
         for err in &labels.adapter_errors {
-            self.adapter_errors
-                .inc(&[&lower_cased_adapter, err.as_str()]);
+            inc(&self.adapter_errors, &[&lower_cased_adapter, err.as_str()]);
         }
     }
 
@@ -1045,7 +1153,7 @@ impl MetricsEngine for Metrics {
         conn_was_reused: bool,
         conn_wait_time: GoDuration,
     ) {
-        let lower_cased_adapter_name = goconv::to_lower(adapter_name);
+        let lower_cased_adapter_name = to_lower(adapter_name);
         if self.disabled(DisabledMetric::AdapterConnectionMetrics) {
             return;
         }
@@ -1056,32 +1164,34 @@ impl MetricsEngine for Metrics {
             &self.adapter_created_connections
         };
         if let Some(connections) = connections {
-            connections.inc(&[&lower_cased_adapter_name]);
+            inc(connections, &[&lower_cased_adapter_name]);
         }
 
         if let Some(wait_time) = &self.adapter_connection_wait_time {
-            wait_time.observe(&[&lower_cased_adapter_name], conn_wait_time.seconds());
+            observe(
+                wait_time,
+                &[&lower_cased_adapter_name],
+                conn_wait_time.seconds(),
+            );
         }
     }
 
     fn record_dns_time(&self, dns_lookup_time: GoDuration) {
-        self.dns_lookup_timer
-            .observe(&[], dns_lookup_time.seconds());
+        self.dns_lookup_timer.observe(dns_lookup_time.seconds());
     }
 
     fn record_tls_handshake_time(&self, tls_handshake_time: GoDuration) {
         self.tls_handshake_timer
-            .observe(&[], tls_handshake_time.seconds());
+            .observe(tls_handshake_time.seconds());
     }
 
     fn record_bidder_server_response_time(&self, bidder_server_response_time: GoDuration) {
         self.bidder_server_response_timer
-            .observe(&[], bidder_server_response_time.seconds());
+            .observe(bidder_server_response_time.seconds());
     }
 
     fn record_adapter_panic(&self, labels: &AdapterLabels) {
-        self.adapter_panics
-            .inc(&[&goconv::to_lower(&labels.adapter)]);
+        inc(&self.adapter_panics, &[&to_lower(&labels.adapter)]);
     }
 
     fn record_adapter_bid_received(&self, labels: &AdapterLabels, _bid_type: &str, has_adm: bool) {
@@ -1090,51 +1200,64 @@ impl MetricsEngine for Metrics {
         } else {
             MARKUP_DELIVERY_NURL
         };
-        self.adapter_bids
-            .inc(&[&goconv::to_lower(&labels.adapter), markup_delivery]);
+        inc(
+            &self.adapter_bids,
+            &[&to_lower(&labels.adapter), markup_delivery],
+        );
     }
 
     fn record_adapter_price(&self, labels: &AdapterLabels, cpm: f64) {
-        self.adapter_prices
-            .observe(&[&goconv::to_lower(&labels.adapter)], cpm);
+        observe(&self.adapter_prices, &[&to_lower(&labels.adapter)], cpm);
     }
 
     fn record_adapter_time(&self, labels: &AdapterLabels, length: GoDuration) {
         if labels.adapter_errors.is_empty() {
-            self.adapter_requests_timer
-                .observe(&[&goconv::to_lower(&labels.adapter)], length.seconds());
+            observe(
+                &self.adapter_requests_timer,
+                &[&to_lower(&labels.adapter)],
+                length.seconds(),
+            );
         }
     }
 
     fn record_cookie_sync(&self, status: CookieSyncStatus) {
-        self.cookie_sync.inc(&[status.as_str()]);
+        inc(&self.cookie_sync, &[status.as_str()]);
     }
 
     fn record_syncer_request(&self, key: &str, status: SyncerCookieSyncStatus) {
-        self.syncer_requests.inc(&[key, status.as_str()]);
+        inc(&self.syncer_requests, &[key, status.as_str()]);
     }
 
     fn record_set_uid(&self, status: SetUidStatus) {
-        self.set_uid.inc(&[status.as_str()]);
+        inc(&self.set_uid, &[status.as_str()]);
     }
 
     fn record_syncer_set(&self, key: &str, status: SyncerSetUidStatus) {
-        self.syncer_sets.inc(&[key, status.as_str()]);
+        inc(&self.syncer_sets, &[key, status.as_str()]);
     }
 
     fn record_stored_req_cache_result(&self, cache_result: CacheResult, inc: usize) {
-        self.stored_request_cache_result
-            .add(&[cache_result.as_str()], goconv::usize_to_f64(inc));
+        inc_by(
+            &self.stored_request_cache_result,
+            &[cache_result.as_str()],
+            count(inc),
+        );
     }
 
     fn record_stored_imp_cache_result(&self, cache_result: CacheResult, inc: usize) {
-        self.stored_impressions_cache_result
-            .add(&[cache_result.as_str()], goconv::usize_to_f64(inc));
+        inc_by(
+            &self.stored_impressions_cache_result,
+            &[cache_result.as_str()],
+            count(inc),
+        );
     }
 
     fn record_account_cache_result(&self, cache_result: CacheResult, inc: usize) {
-        self.account_cache_result
-            .add(&[cache_result.as_str()], goconv::usize_to_f64(inc));
+        inc_by(
+            &self.account_cache_result,
+            &[cache_result.as_str()],
+            count(inc),
+        );
     }
 
     fn record_stored_data_fetch_time(&self, labels: StoredDataLabels, length: GoDuration) {
@@ -1147,7 +1270,7 @@ impl MetricsEngine for Metrics {
             Some(StoredDataIndex::Response) => &self.stored_responses_fetch_timer,
             None => return,
         };
-        timer.observe(&[labels.data_fetch_type.as_str()], length.seconds());
+        observe(timer, &[labels.data_fetch_type.as_str()], length.seconds());
     }
 
     fn record_stored_data_error(&self, labels: StoredDataLabels) {
@@ -1160,11 +1283,11 @@ impl MetricsEngine for Metrics {
             Some(StoredDataIndex::Response) => &self.stored_responses_errors,
             None => return,
         };
-        errors.inc(&[labels.error.as_str()]);
+        inc(errors, &[labels.error.as_str()]);
     }
 
     fn record_fetcher_result(&self, subsystem: &str, result: FetcherResult) {
-        self.fetcher_result.inc(&[subsystem, result.as_str()]);
+        inc(&self.fetcher_result, &[subsystem, result.as_str()]);
     }
 
     fn record_fetcher_backend_fetch(
@@ -1174,15 +1297,23 @@ impl MetricsEngine for Metrics {
         result: FetcherBackendResult,
         length: GoDuration,
     ) {
-        self.fetcher_backend_fetch
-            .inc(&[subsystem, operation.as_str(), result.as_str()]);
-        self.fetcher_backend_fetch_timer
-            .observe(&[subsystem, operation.as_str()], length.seconds());
+        inc(
+            &self.fetcher_backend_fetch,
+            &[subsystem, operation.as_str(), result.as_str()],
+        );
+        observe(
+            &self.fetcher_backend_fetch_timer,
+            &[subsystem, operation.as_str()],
+            length.seconds(),
+        );
     }
 
     fn record_prebid_cache_request_time(&self, success: bool, length: GoDuration) {
-        self.prebid_cache_write_timer
-            .observe(&[format_bool(success)], length.seconds());
+        observe(
+            &self.prebid_cache_write_timer,
+            &[format_bool(success)],
+            length.seconds(),
+        );
     }
 
     fn record_request_queue_time(
@@ -1196,7 +1327,8 @@ impl MetricsEngine for Metrics {
         } else {
             REQUEST_REJECT_LABEL
         };
-        self.requests_queue_timer.observe(
+        observe(
+            &self.requests_queue_timer,
             &[request_type.as_str(), success_label_formatted],
             length.seconds(),
         );
@@ -1208,26 +1340,30 @@ impl MetricsEngine for Metrics {
         } else {
             REQUEST_FAILED
         };
-        self.timeout_notifications.inc(&[label]);
+        inc(&self.timeout_notifications, &[label]);
     }
 
     fn record_request_privacy(&self, privacy: PrivacyLabels) {
         if privacy.ccpa.provided {
-            self.privacy_ccpa
-                .inc(&[SOURCE_REQUEST, format_bool(privacy.ccpa.enforced)]);
+            inc(
+                &self.privacy_ccpa,
+                &[SOURCE_REQUEST, format_bool(privacy.ccpa.enforced)],
+            );
         }
 
         if privacy.coppa_enforced {
-            self.privacy_coppa.inc(&[SOURCE_REQUEST]);
+            inc(&self.privacy_coppa, &[SOURCE_REQUEST]);
         }
 
         if privacy.gdpr.enforced {
-            self.privacy_tcf
-                .inc(&[privacy.gdpr.tcf_version.as_str(), SOURCE_REQUEST]);
+            inc(
+                &self.privacy_tcf,
+                &[privacy.gdpr.tcf_version.as_str(), SOURCE_REQUEST],
+            );
         }
 
         if privacy.lmt_enforced {
-            self.privacy_lmt.inc(&[SOURCE_REQUEST]);
+            inc(&self.privacy_lmt, &[SOURCE_REQUEST]);
         }
     }
 
@@ -1236,7 +1372,7 @@ impl MetricsEngine for Metrics {
             return;
         }
         if let Some(scrubbed) = &self.adapter_scrubbed_buyer_uids {
-            scrubbed.inc(&[&goconv::to_lower(adapter_name)]);
+            inc(scrubbed, &[&to_lower(adapter_name)]);
         }
     }
 
@@ -1245,28 +1381,28 @@ impl MetricsEngine for Metrics {
             return;
         }
         if let Some(blocked) = &self.adapter_gdpr_blocked_requests {
-            blocked.inc(&[&goconv::to_lower(adapter_name)]);
+            inc(blocked, &[&to_lower(adapter_name)]);
         }
     }
 
     fn record_debug_request(&self, debug_enabled: bool, pub_id: &str) {
         if debug_enabled {
-            self.debug_requests.inc(&[]);
+            self.debug_requests.inc();
             if !self.disabled(DisabledMetric::AccountDebug) && pub_id != PUBLISHER_UNKNOWN {
-                self.account_debug_requests.inc(&[pub_id]);
+                inc(&self.account_debug_requests, &[pub_id]);
             }
         }
     }
 
     fn record_stored_response(&self, pub_id: &str) {
-        self.stored_responses.inc(&[]);
+        self.stored_responses.inc();
         if !self.disabled(DisabledMetric::AccountStoredResponses) && pub_id != PUBLISHER_UNKNOWN {
-            self.account_stored_responses.inc(&[pub_id]);
+            inc(&self.account_stored_responses, &[pub_id]);
         }
     }
 
     fn record_gvl_list_request(&self) {
-        self.gvl_list_requests.inc(&[]);
+        self.gvl_list_requests.inc();
     }
 
     fn record_live_gvl_fetch(&self, success: bool) {
@@ -1275,7 +1411,7 @@ impl MetricsEngine for Metrics {
         } else {
             REQUEST_FAILED
         };
-        self.live_gvl_fetch.inc(&[label]);
+        inc(&self.live_gvl_fetch, &[label]);
     }
 
     fn record_ads_cert_req(&self, success: bool) {
@@ -1284,50 +1420,66 @@ impl MetricsEngine for Metrics {
         } else {
             REQUEST_FAILED
         };
-        self.ads_cert_requests.inc(&[label]);
+        inc(&self.ads_cert_requests, &[label]);
     }
 
     fn record_ads_cert_sign_time(&self, ads_cert_sign_time: GoDuration) {
         self.ads_cert_sign_timer
-            .observe(&[], ads_cert_sign_time.seconds());
+            .observe(ads_cert_sign_time.seconds());
     }
 
     // Go labels the bid validation series with the literal value `success="success"` (the
     // label name, `successLabel`), while preloading uses "true"/"false".
 
     fn record_bid_validation_creative_size_error(&self, adapter: &str, account: &str) {
-        self.adapter_bid_response_validation_size_error
-            .inc(&[&goconv::to_lower(adapter), SUCCESS_LABEL]);
+        inc(
+            &self.adapter_bid_response_validation_size_error,
+            &[&to_lower(adapter), SUCCESS_LABEL],
+        );
         if !self.disabled(DisabledMetric::AccountAdapterDetails) && account != PUBLISHER_UNKNOWN {
-            self.account_bid_response_validation_size_error
-                .inc(&[account, SUCCESS_LABEL]);
+            inc(
+                &self.account_bid_response_validation_size_error,
+                &[account, SUCCESS_LABEL],
+            );
         }
     }
 
     fn record_bid_validation_creative_size_warn(&self, adapter: &str, account: &str) {
-        self.adapter_bid_response_validation_size_warn
-            .inc(&[&goconv::to_lower(adapter), SUCCESS_LABEL]);
+        inc(
+            &self.adapter_bid_response_validation_size_warn,
+            &[&to_lower(adapter), SUCCESS_LABEL],
+        );
         if !self.disabled(DisabledMetric::AccountAdapterDetails) && account != PUBLISHER_UNKNOWN {
-            self.account_bid_response_validation_size_warn
-                .inc(&[account, SUCCESS_LABEL]);
+            inc(
+                &self.account_bid_response_validation_size_warn,
+                &[account, SUCCESS_LABEL],
+            );
         }
     }
 
     fn record_bid_validation_secure_markup_error(&self, adapter: &str, account: &str) {
-        self.adapter_bid_response_secure_markup_error
-            .inc(&[&goconv::to_lower(adapter), SUCCESS_LABEL]);
+        inc(
+            &self.adapter_bid_response_secure_markup_error,
+            &[&to_lower(adapter), SUCCESS_LABEL],
+        );
         if !self.disabled(DisabledMetric::AccountAdapterDetails) && account != PUBLISHER_UNKNOWN {
-            self.account_bid_response_secure_markup_error
-                .inc(&[account, SUCCESS_LABEL]);
+            inc(
+                &self.account_bid_response_secure_markup_error,
+                &[account, SUCCESS_LABEL],
+            );
         }
     }
 
     fn record_bid_validation_secure_markup_warn(&self, adapter: &str, account: &str) {
-        self.adapter_bid_response_secure_markup_warn
-            .inc(&[&goconv::to_lower(adapter), SUCCESS_LABEL]);
+        inc(
+            &self.adapter_bid_response_secure_markup_warn,
+            &[&to_lower(adapter), SUCCESS_LABEL],
+        );
         if !self.disabled(DisabledMetric::AccountAdapterDetails) && account != PUBLISHER_UNKNOWN {
-            self.account_bid_response_secure_markup_warn
-                .inc(&[account, SUCCESS_LABEL]);
+            inc(
+                &self.account_bid_response_secure_markup_warn,
+                &[account, SUCCESS_LABEL],
+            );
         }
     }
 
@@ -1336,10 +1488,10 @@ impl MetricsEngine for Metrics {
 
     fn record_module_called(&self, labels: &ModuleLabels, duration: GoDuration) {
         if let Some(calls) = self.modules.calls.get(&labels.module) {
-            calls.inc(&[&labels.stage]);
+            inc(calls, &[&labels.stage]);
         }
         if let Some(timer) = self.modules.duration.get(&labels.module) {
-            timer.observe(&[&labels.stage], duration.seconds());
+            observe(timer, &[&labels.stage], duration.seconds());
         }
     }
 
@@ -1368,29 +1520,29 @@ impl MetricsEngine for Metrics {
     }
 
     fn record_adapter_throttled(&self, adapter_name: &str) {
-        self.adapter_throttled
-            .inc(&[&goconv::to_lower(adapter_name)]);
+        inc(&self.adapter_throttled, &[&to_lower(adapter_name)]);
     }
 
     fn record_adapter_connection_dial_error(&self, adapter_name: &str) {
         if let Some(dial_errors) = &self.adapter_connection_dial_errors {
-            dial_errors.inc(&[&goconv::to_lower(adapter_name)]);
+            inc(dial_errors, &[&to_lower(adapter_name)]);
         }
     }
 
     fn record_adapter_connection_dial_time(&self, adapter_name: &str, dial_start_time: GoDuration) {
         if let Some(dial_time) = &self.adapter_connection_dial_time {
-            dial_time.observe(
-                &[&goconv::to_lower(adapter_name)],
+            observe(
+                dial_time,
+                &[&to_lower(adapter_name)],
                 dial_start_time.seconds(),
             );
         }
     }
 }
 
-fn inc_module(families: &BTreeMap<String, Arc<CounterVec>>, labels: &ModuleLabels) {
+fn inc_module(families: &BTreeMap<String, IntCounterVec>, labels: &ModuleLabels) {
     if let Some(family) = families.get(&labels.module) {
-        family.inc(&[&labels.stage]);
+        inc(family, &[&labels.stage]);
     }
 }
 
@@ -1421,7 +1573,3 @@ fn stored_data_index(data_type: StoredDataType) -> Option<StoredDataIndex> {
 #[cfg(test)]
 #[path = "prometheus_test.rs"]
 mod tests;
-
-#[cfg(test)]
-#[path = "golden_test.rs"]
-mod golden_tests;
