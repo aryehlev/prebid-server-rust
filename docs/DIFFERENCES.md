@@ -35,10 +35,10 @@ Rule B's cases: (a) input real production traffic sends that the crate would rej
 | Background tasks | 0 | 0 | 1 |
 | Time formatting | 0 | 3 | 1 |
 | TLS | 0 | 2 | 1 |
-| URLs | 0 | 2 | 2 |
+| URLs | 0 | 2 | 3 |
 | User syncs | 0 | 1 | 0 |
 | YAML | 0 | 3 | 0 |
-| All | 7 | 141 | 37 |
+| All | 7 | 141 | 38 |
 
 ## Decisions pending
 
@@ -2266,6 +2266,19 @@ No entry names the classes `other` and `unrecorded` or the kinds `stage_missing`
 - **How Go's behaviour is kept:** `pbs_util::urlutil::query_escape` and `path_escape`: percent-encoding sets equal to Go's `shouldEscape` in its two modes.
 - **Restore pin:** `crates/util/tests/urlutil.rs::escape_like_go` (50,000 seeded strings of ASCII and multibyte runes, every rune alone and 17 hand-picked strings escape to Go's bytes.)
 - **Recorded in:** `crates/util/differences.toml`
+
+#### `url.govalidator-checks`: `IsURL`, `IsRequestURL`, `IsRequestURI` and `IsIP`: govalidator's pattern and Go's `net/url` decide, which the url crate does not reproduce
+
+- **Go:** govalidator's `IsURL` checks the length, `url.Parse`'s verdict, host and path, then its URL pattern; `IsRequestURL` and `IsRequestURI` take `url.ParseRequestURI`'s verdict and scheme, and `IsIP` `net.ParseIP`'s. Prebid loads a bidder endpoint or user sync URL only when `IsURL` and `IsRequestURL` hold (config/bidderinfo.go:516, usersync/syncer.go:179), a VAST event URL the same way (config/events.go:141), and fetches an account's floors only from a URL `IsURL` accepts (floors/fetcher.go:133).
+- **Rust:** The url crate parses by the WHATWG rules: it percent-encodes or rejects other bytes in a host, reads ports, IP literals and zones its own way and has no request-URI form, so it would decide differently which configs load and which floors are fetched.
+- **Who notices:** operator
+- **Visible in:** Startup with the bidder-info files and host config (bidder endpoints, user sync URLs, VAST event URLs), and whether an account's floors fetch URL is used
+- **Harness:** none: a mismatch here is unexpected
+- **Pin:** `crates/govalidator/tests/golden.rs::validator_matches_go`
+- **Rule B:** Rule B (c): the operator interface (config keys, defaults, `PBS_` variables, CLI flags, metric names, labels and types)
+- **How Go's behaviour is kept:** pbs-govalidator: govalidator's URL pattern through `pbs_util::goregex`, the part of Go 1.26.2's `url.Parse` and `url.ParseRequestURI` the checks read (the verdict, scheme, host and path, with the `urlstrictcolons=0` default Prebid's `go 1.25.0` module selects), and `pbs_util::iputil::net::parse_ip` for `net.ParseIP`.
+- **Restore pin:** `crates/govalidator/tests/golden.rs::sweeps_match_go` (50,000 seeded URL-like and 50,000 seeded IP-like inputs give Go's outcomes, compared by a digest per sweep.); `crates/govalidator/tests/golden.rs::url_pattern_is_govalidators` (`URL` is govalidator's pattern byte for byte, and goregex compiles it.); `crates/govalidator/tests/golden.rs::validator_matches_go` (2,844 inputs give Go's four verdicts and `net.ParseIP`'s bytes: govalidator's tests, Go's net/url, net and net/netip tests, the URLs of Prebid's bidder-info files and configs, and edge cases of lengths, ports, IP literals, zones and Unicode spaces and digits.)
+- **Recorded in:** `crates/govalidator/differences.toml`
 
 #### `url.values-order`: `url.Values.Encode`: Go sorts the keys, a crate serializer writes pairs in the order given
 

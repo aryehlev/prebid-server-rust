@@ -1,0 +1,25 @@
+[package]
+name = "pbs-govalidator"
+description = "govalidator's IsURL, IsRequestURL, IsRequestURI and IsIP, as Prebid Server's config checks call them"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+readme.workspace = true
+keywords.workspace = true
+publish.workspace = true
+categories = ["parser-implementations"]
+
+[lints]
+workspace = true
+
+# pbs-util's goregex compiles govalidator's URL pattern into regex's Regex, and its iputil reads
+# addresses as Go's net.ParseIP does.
+[dependencies]
+pbs-util = { path = "../util", version = "0.1.0" }
+regex = { workspace = true }
+
+# The sweeps hash their inputs and outcomes with sha2, as the Go program that wrote them did.
+[dev-dependencies]
+sha2 = { workspace = true }
