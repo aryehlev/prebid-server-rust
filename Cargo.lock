@@ -1211,13 +1211,13 @@ dependencies = [
  "base64",
  "flate2",
  "pbs-errortypes",
- "pbs-gocompat",
  "pbs-jsonutil",
  "pbs-metrics",
  "pbs-util",
  "serde",
  "serde_json",
  "sha2",
+ "time",
  "tokio",
 ]
 
@@ -1259,10 +1259,15 @@ dependencies = [
 name = "pbs-util"
 version = "0.1.0"
 dependencies = [
+ "ipnet",
  "pbs-devtools",
- "pbs-gocompat",
+ "percent-encoding",
+ "rand",
+ "regex",
  "serde_json",
+ "time",
  "tokio",
+ "uuid",
 ]
 
 [[package]]

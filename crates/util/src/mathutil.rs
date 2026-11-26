@@ -38,8 +38,9 @@ mod tests {
 
     #[test]
     fn round_to_4_decimals_golden() -> TestResult {
-        // Bit-exact against Go for curated values, random bit patterns and near-halves. NaN
-        // payloads are not compared: they depend on the CPU, and JSON cannot carry a NaN.
+        // Go: mathutil.RoundTo4Decimals (util/mathutil/mathutil.go:7), bit-exact for curated
+        // values, random bit patterns and near-halves. NaN payloads are not compared: they
+        // depend on the CPU, and JSON cannot carry a NaN.
         let rows = read_golden("mathutil.txt")?;
         check(rows.len() > 2000, "mathutil.txt is complete")?;
         for row in &rows {

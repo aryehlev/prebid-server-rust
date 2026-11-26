@@ -3,8 +3,6 @@
 
 use std::{error, fmt};
 
-use pbs_gocompat::strconv;
-
 /// Go: `iosutil.Version`, the version of an iOS device.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 pub struct Version {
@@ -38,8 +36,10 @@ impl fmt::Display for ParseVersionError {
 impl error::Error for ParseVersionError {}
 
 /// Go: `iosutil.ParseVersion`: the major and minor numbers of `major.minor` or
-/// `major.minor.patch`; the patch is not checked. The numbers are parsed with
-/// `strconv.Atoi`, so a sign is allowed (`+14.2`, `14.-1`).
+/// `major.minor.patch`.
+///
+/// The patch is not checked. The numbers are parsed as Go's `strconv.Atoi` parses them, so a
+/// sign is allowed (`+14.2`, `14.-1`).
 ///
 /// # Errors
 ///
@@ -53,8 +53,12 @@ pub fn parse_version(v: &str) -> Result<Version, ParseVersionError> {
         return Err(ParseVersionError::Format);
     }
     // Go replaces the strconv error with its own.
-    let major = strconv::atoi(major).map_err(|_atoi_error| ParseVersionError::Major)?;
-    let minor = strconv::atoi(minor).map_err(|_atoi_error| ParseVersionError::Minor)?;
+    let major = major
+        .parse::<i64>()
+        .map_err(|_atoi_error| ParseVersionError::Major)?;
+    let minor = minor
+        .parse::<i64>()
+        .map_err(|_atoi_error| ParseVersionError::Minor)?;
     Ok(Version { major, minor })
 }
 
@@ -206,7 +210,8 @@ mod tests {
 
     #[test]
     fn iosutil_golden() -> TestResult {
-        // Signs, leading zeros, overflow, white space and non-ASCII digits.
+        // Go: iosutil.ParseVersion and DetectVersionClassification (util/iosutil/iosutil.go:16,
+        // 70) on signs, leading zeros, overflow, white space and non-ASCII digits.
         let rows = read_golden("iosutil.txt")?;
         check(rows.len() > 30, "iosutil.txt is complete")?;
         for row in &rows {

@@ -2,11 +2,11 @@
 
 use std::{error, fmt, future, sync::Arc, time::Duration as StdDuration};
 
-use pbs_gocompat::time::Duration;
+use time::SignedDuration;
 use tokio::{
     runtime::Handle,
     sync::watch,
-    time::{self, Instant, MissedTickBehavior},
+    time::{Instant, MissedTickBehavior, interval_at},
 };
 
 /// Go: `task.Runner`: the work a [`TickerTask`] runs.
@@ -47,11 +47,12 @@ impl error::Error for NoRuntimeError {}
 /// - When a tick and [`stop`](Self::stop) are both pending, Go's `select` picks one at random, so
 ///   it may run once more; this port always stops.
 /// - Go panics when `Stop` is called twice (it closes a closed channel); here `stop` is idempotent.
-/// - For intervals of 5 ms or less, tokio catches up a tick missed by at most 5 ms instead of
-///   dropping it.
+/// - tokio drops a missed tick only once it is more than 5 ms late, so with an interval of 5 ms or
+///   less a run that outlasts a tick by at most 5 ms is followed by a catch-up run (the
+///   task.missed-ticks ledger entry).
 #[derive(Debug)]
 pub struct TickerTask<R> {
-    interval: Duration,
+    interval: SignedDuration,
     runner: Arc<R>,
     /// Go: the `done` channel; it holds `true` once [`stop`](Self::stop) has closed it.
     done: watch::Sender<bool>,
@@ -60,7 +61,7 @@ pub struct TickerTask<R> {
 impl<R: Runner> TickerTask<R> {
     /// Go: `task.NewTickerTask(interval, runner)`.
     #[must_use]
-    pub fn new(interval: Duration, runner: Arc<R>) -> Self {
+    pub fn new(interval: SignedDuration, runner: Arc<R>) -> Self {
         Self {
             interval,
             runner,
@@ -70,7 +71,7 @@ impl<R: Runner> TickerTask<R> {
 
     /// The interval between runs.
     #[must_use]
-    pub const fn interval(&self) -> Duration {
+    pub const fn interval(&self) -> SignedDuration {
         self.interval
     }
 
@@ -113,12 +114,9 @@ impl<R: Runner> TickerTask<R> {
     }
 }
 
-/// A positive Go duration as a std duration (Go: `interval > 0`).
-fn positive(d: Duration) -> Option<StdDuration> {
-    u64::try_from(d.0)
-        .ok()
-        .filter(|&n| n > 0)
-        .map(StdDuration::from_nanos)
+/// A positive duration as a std duration (Go: `interval > 0`).
+fn positive(d: SignedDuration) -> Option<StdDuration> {
+    StdDuration::try_from(d).ok().filter(|d| !d.is_zero())
 }
 
 /// Resolves once [`TickerTask::stop`] has been called (Go: `case <-t.done`).
@@ -142,7 +140,7 @@ async fn run_recurring<R: Runner>(
         stopped(&mut done).await;
         return;
     };
-    let mut ticker = time::interval_at(first, interval);
+    let mut ticker = interval_at(first, interval);
     ticker.set_missed_tick_behavior(MissedTickBehavior::Skip);
     loop {
         tokio::select! {

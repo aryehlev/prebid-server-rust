@@ -23,9 +23,6 @@ trace = ["dep:pbs-jsonutil", "dep:pbs-metrics", "dep:tokio"]
 base64 = { workspace = true }
 flate2 = { workspace = true }
 pbs-errortypes = { path = "../errortypes", version = "0.1.0" }
-# Only for the return type of pbs-util's `timeutil::Time`, which the fakes' `Source` implements;
-# UTIL-CRATES moves that trait off pbs-gocompat.
-pbs-gocompat = { path = "../gocompat", version = "0.1.0" }
 # `jsonutil.Marshal`, which Go's trace session writes recorded values and analytics objects with.
 pbs-jsonutil = { path = "../jsonutil", version = "0.1.0", optional = true }
 pbs-metrics = { path = "../metrics", version = "0.1.0", optional = true }
@@ -33,6 +30,8 @@ pbs-util = { path = "../util", version = "0.1.0" }
 serde = { workspace = true }
 serde_json = { workspace = true }
 sha2 = { workspace = true }
+# The instants of pbs-util's `timeutil::Time`, which the fakes' `Source` implements.
+time = { workspace = true }
 tokio = { workspace = true, optional = true }
 
 [dev-dependencies]

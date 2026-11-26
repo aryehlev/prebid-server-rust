@@ -2,7 +2,7 @@
 
 use std::{fmt, sync::Arc};
 
-use pbs_gocompat::time::Duration;
+use time::SignedDuration;
 
 use super::{Runner, TickerTask};
 
@@ -31,7 +31,10 @@ where
 
 /// Go: `task.NewTickerTaskFromFunc(interval, runner)`.
 #[must_use]
-pub fn ticker_task_from_func<F, Fut, E>(interval: Duration, runner: F) -> TickerTask<FuncRunner<F>>
+pub fn ticker_task_from_func<F, Fut, E>(
+    interval: SignedDuration,
+    runner: F,
+) -> TickerTask<FuncRunner<F>>
 where
     F: Fn() -> Fut + Send + Sync + 'static,
     Fut: Future<Output = Result<(), E>> + Send,
