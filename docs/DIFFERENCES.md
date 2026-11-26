@@ -711,8 +711,8 @@ No entry names the classes `other` and `unrecorded` or the kinds `stage_missing`
 
 - **Go:** The reporter sends at every `time.Tick(interval)` and pings at every `time.Tick(5 s)`, from one period after it starts, on Go's runtime timers; a tick the loop is too busy to take comes when it is free, the next one back on the period's grid (influxdb.go:70-91).
 - **Rust:** tokio intervals with `MissedTickBehavior::Skip` tick alike, rounded up to tokio's millisecond timer wheel; a tick at most 5 ms late is followed by the next one a period after it, so a period of 5 ms or less can tick twice to catch up.
-- **Who notices:** none
-- **Visible in:** Nowhere: the periods are whole seconds (`metric_send_interval`) and 5 s, where only the sub-millisecond time of a tick differs
+- **Who notices:** operator
+- **Visible in:** The operator's InfluxDB, below a millisecond only: when the writes and pings arrive and the times of unaligned points (`align_timestamps` false), the periods being whole seconds (`metric_send_interval`) and 5 s
 - **Harness:** none
 - **Pin:** `crates/metrics/tests/influx.rs::cadence`
 - **Restore option:** Not needed at whole-second periods.
@@ -756,8 +756,8 @@ No entry names the classes `other` and `unrecorded` or the kinds `stage_missing`
 
 - **Go:** `ExpDecaySample` and `UniformSample` draw their priorities and slots from `math/rand`'s process-wide source, which Go seeds at random at start-up (sample.go:172 and :514).
 - **Rust:** They draw from rand's thread-local generator: the same distributions, other values.
-- **Who notices:** none
-- **Visible in:** Nowhere: which values a histogram or timer keeps once it recorded more than its 1028 or 1024 is random in Go as well, and so are the percentiles the reporter sends of it
+- **Who notices:** operator
+- **Visible in:** The operator's InfluxDB: which values a histogram or timer keeps once it recorded more than its 1028 or 1024, and so the percentiles the reporter sends of it, which are random in Go as well
 - **Harness:** none
 - **Pin:** `crates/metrics/tests/influx.rs::reservoir_shape`
 - **Restore option:** A port of `math/rand`'s source; not planned.
