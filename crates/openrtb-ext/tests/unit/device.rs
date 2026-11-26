@@ -5,58 +5,95 @@ use pbs_openrtb_ext::openrtb_ext::{
     parse_device_ext_atts,
 };
 
-use super::support::{TestResult, all_ok, ensure_eq, unmarshal_error};
+use super::support::{
+    TestResult, all_ok, ensure_eq, serde_unmarshal, unmarshal_error, without_position,
+};
 
 const BAD_WIDTH: &str =
     "request.device.ext.prebid.interstitial.minwidthperc must be a number between 0 and 100";
 const BAD_HEIGHT: &str =
     "request.device.ext.prebid.interstitial.minheightperc must be a number between 0 and 100";
 
+/// The documents of `TestInvalidDeviceExt`, with Go's error text for each.
+const INVALID_DEVICE_EXTS: [(&str, &str); 9] = [
+    (
+        r#"{"prebid":{"interstitial":{"minheightperc":0}}}"#,
+        BAD_WIDTH,
+    ),
+    (
+        r#"{"prebid":{"interstitial":{"minwidthperc":105}}}"#,
+        BAD_WIDTH,
+    ),
+    (
+        r#"{"prebid":{"interstitial":{"minwidthperc":true,"minheightperc":0}}}"#,
+        BAD_WIDTH,
+    ),
+    (
+        r#"{"prebid":{"interstitial":{"minwidthperc":null,"minheightperc":0}}}"#,
+        BAD_WIDTH,
+    ),
+    (
+        r#"{"prebid":{"interstitial":{"minwidthperc":"75","minheightperc":0}}}"#,
+        BAD_WIDTH,
+    ),
+    (
+        r#"{"prebid":{"interstitial":{"minwidthperc":85}}}"#,
+        BAD_HEIGHT,
+    ),
+    (
+        r#"{"prebid":{"interstitial":{"minwidthperc":85,"minheightperc":-5}}}"#,
+        BAD_HEIGHT,
+    ),
+    (
+        r#"{"prebid":{"interstitial":{"minwidthperc":85,"minheightperc":false}}}"#,
+        BAD_HEIGHT,
+    ),
+    (
+        r#"{"prebid":{"interstitial":{"minwidthperc":85,"minheightperc":"75"}}}"#,
+        BAD_HEIGHT,
+    ),
+];
+
 /// Go: `TestInvalidDeviceExt`.
 #[test]
 fn invalid_device_ext() -> TestResult {
     let mut s = ExtDevice::default();
-    for (doc, want) in [
-        (
-            r#"{"prebid":{"interstitial":{"minheightperc":0}}}"#,
-            BAD_WIDTH,
-        ),
-        (
-            r#"{"prebid":{"interstitial":{"minwidthperc":105}}}"#,
-            BAD_WIDTH,
-        ),
-        (
-            r#"{"prebid":{"interstitial":{"minwidthperc":true,"minheightperc":0}}}"#,
-            BAD_WIDTH,
-        ),
-        (
-            r#"{"prebid":{"interstitial":{"minwidthperc":null,"minheightperc":0}}}"#,
-            BAD_WIDTH,
-        ),
-        (
-            r#"{"prebid":{"interstitial":{"minwidthperc":"75","minheightperc":0}}}"#,
-            BAD_WIDTH,
-        ),
-        (
-            r#"{"prebid":{"interstitial":{"minwidthperc":85}}}"#,
-            BAD_HEIGHT,
-        ),
-        (
-            r#"{"prebid":{"interstitial":{"minwidthperc":85,"minheightperc":-5}}}"#,
-            BAD_HEIGHT,
-        ),
-        (
-            r#"{"prebid":{"interstitial":{"minwidthperc":85,"minheightperc":false}}}"#,
-            BAD_HEIGHT,
-        ),
-        (
-            r#"{"prebid":{"interstitial":{"minwidthperc":85,"minheightperc":"75"}}}"#,
-            BAD_HEIGHT,
-        ),
-    ] {
+    for (doc, want) in INVALID_DEVICE_EXTS {
         ensure_eq(&unmarshal_error(doc, &mut s), &Some(want.to_owned()), doc)?;
     }
     Ok(())
+}
+
+/// Go: `TestInvalidDeviceExt`, through the serde code: Go's text, which `serde_json` gives with
+/// its position after it, the interstitial being inside the document
+/// (`json.prebid-message-context`).
+#[test]
+fn invalid_device_ext_serde() -> TestResult {
+    for (doc, want) in INVALID_DEVICE_EXTS {
+        let err = serde_unmarshal::<ExtDevice>(doc)
+            .err()
+            .ok_or_else(|| format!("{doc}: no error"))?;
+        ensure_eq(without_position(&err), want, doc)?;
+    }
+    Ok(())
+}
+
+/// Go: `TestValidDeviceExt`, through the serde code.
+#[test]
+fn valid_device_ext_serde() -> TestResult {
+    let empty_prebid: ExtDevice = serde_unmarshal(r#"{"prebid":{}}"#)?;
+    ensure_eq(
+        &empty_prebid.prebid.interstitial,
+        &None,
+        "prebid interstitial",
+    )?;
+    let empty: ExtDevice = serde_unmarshal("{}")?;
+    ensure_eq(&empty.prebid.interstitial, &None, "empty interstitial")?;
+    let s: ExtDevice =
+        serde_unmarshal(r#"{"prebid":{"interstitial":{"minwidthperc":75,"minheightperc":60}}}"#)?;
+    let interstitial = s.prebid.interstitial.ok_or("no interstitial")?;
+    ensure_eq(&interstitial.min_width_perc, &75, "MinWidthPerc")?;
+    ensure_eq(&interstitial.min_height_perc, &60, "MinHeightPerc")
 }
 
 /// Go: `TestValidDeviceExt`.

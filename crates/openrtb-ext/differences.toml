@@ -1,0 +1,124 @@
+# pbs-openrtb-ext's differences from Go (see the pbs_differences ledger module for the schema): the
+# serde code of the openrtb_ext types, which typegen generates and the types with Go (un)marshalers
+# write by hand, checked against the goldens in crates/openrtb-ext/testdata/golden
+# (tests/parity/shapes.rs and tests/parity/serde_goldens.rs). pbs-differences validates this file
+# and writes docs/DIFFERENCES.md and docs/differences.json from it; run
+#   cargo run -p pbs-differences --locked --offline -- --write
+# after a change.
+
+[[difference]]
+id = "json.failed-merge-scalar"
+category = "json"
+status = "ledgered"
+title = "A merge that fails on a named string or integer: Go leaves the zero value, the port the value it had"
+go = """\
+    `jsonutil.MergeClone` given a value of another JSON type for a named string or integer \
+    (`1` into an `openrtb_ext.BidType` holding `\"x\"`, `true` into an `IOSAppTrackingStatus` \
+    holding 1) fails and leaves the type's zero value, `\"\"` or 0: `BidType`, `TargetingKey`, \
+    `BidderName`, `UserSyncType`, `IOSAppTrackingStatus`, `AuctionEnvironmentType` and \
+    `CookieStatus`."""
+rust = """\
+    pbs-jsonutil's `MergeClone` of a string or number reads the patch before it changes the \
+    value, so the failed merge leaves the value it had."""
+who = ["none"]
+visible_in = """\
+    Nothing in production: every `MergeClone` caller drops the value when the merge fails \
+    (exchange/utils.go:719-727, firstpartydata/first_party_data.go:198, 267, 322 and 405, \
+    account/fetcher.go:141 and 147)"""
+pin = "crates/openrtb-ext/tests/parity/shapes.rs::failed_scalar_merges_keep_the_value"
+restore = """\
+    pbs-jsonutil's string and number merges setting the zero value when the patch does not \
+    read; not planned while no caller keeps a failed merge's value."""
+decision = "D-DECODE"
+
+[[difference]]
+id = "json.keywords-object-order"
+category = "json"
+status = "ledgered"
+title = "Appnexus keywords given as an object: Go writes the keys in an order that varies, the port in byte order"
+go = """\
+    `(*ExtImpAppnexusKeywords).UnmarshalJSON` decodes a keywords object into a \
+    `map[string][]string` and ranges over it (openrtb_ext/imp_appnexus.go:45-64), so the keys \
+    come in an order that varies from call to call: 200 decodes of \
+    `{\"pets\":[\"dog\",\"cat\"],\"age\":[],\"Zone\":[\"1\"]}` with Go 1.26.2 gave \
+    `pets=dog,pets=cat,age,Zone=1`, `age,Zone=1,pets=dog,pets=cat` and \
+    `Zone=1,pets=dog,pets=cat,age`."""
+rust = """\
+    The GoJson and serde impls, and the merge, read the object into a `BTreeMap`, so the keys \
+    come in byte order, the same on every call: `Zone=1,age,pets=dog,pets=cat`, which those 200 \
+    decodes never gave. With two keys either order is one Go gives."""
+who = ["bidder"]
+visible_in = """\
+    The `keywords` Prebid sends Xandr in `imp.ext.appnexus` for Appnexus params whose \
+    `keywords` is an object with more than one key (adapters/appnexus/appnexus.go:399)"""
+pin = "crates/openrtb-ext/tests/unit/imp_appnexus.rs::keyword_object_keys_come_in_byte_order"
+restore = """\
+    Not planned: Go's order changes from call to call, so no fixed order matches it, and a \
+    random one would be as untestable as Go's."""
+
+[[difference]]
+id = "json.prebid-message-context"
+category = "json"
+status = "restored"
+title = "Prebid's messages from `UnmarshalJSON` methods: Go gives them bare, the port with serde_json's position or the merged field"
+go = """\
+    The `UnmarshalJSON` methods of `ExtDeviceInt` and `ExtSite` fail with Prebid's text \
+    (`request.device.ext.prebid.interstitial.minwidthperc must be a number between 0 and 100`, \
+    `request.site.ext.amp must be either 1, 0, or undefined`), which `jsonutil.Unmarshal`, \
+    `UnmarshalValid`, `json.Unmarshal` and `jsonutil.MergeClone` return bare wherever the value \
+    sits in the document: `tryExtractErrorMessage` leaves jsoniter's context off a message that \
+    starts with `request.` (util/jsonutil/jsonutil.go:209-220)."""
+rust = """\
+    The serde impls fail with the same text, which serde_json returns bare where the value is \
+    the document and with its position after it where the value sits inside \
+    (`... between 0 and 100 at line 1 column 55`), and pbs-jsonutil passes on as it is; \
+    `MergeClone` names the field it failed in \
+    (`cannot unmarshal openrtb_ext.ExtDevicePrebid.Interstitial: request.device...`)."""
+who = ["publisher"]
+visible_in = """\
+    The 400 response to a request whose `device.ext.prebid.interstitial` is invalid (`Invalid \
+    request: request.device.ext.prebid.interstitial.minwidthperc must be a number between 0 and \
+    100`, endpoints/openrtb2/sample-requests/invalid-whole/interstital-bad-perc.json:52), which \
+    Prebid reads into an `ExtDevicePrebid` with `jsonutil.Unmarshal` \
+    (openrtb_ext/request_wrapper.go:940), once the request wrapper reads it with the serde code. \
+    Merge errors reach no one: every `MergeClone` caller replaces the text."""
+pin = "crates/openrtb-ext/tests/parity/shapes.rs::prebid_messages_carry_position_and_field"
+restore = """\
+    Glue under Rule B (d), as Prebid-authored text, in pbs-jsonutil, which this unit does not own \
+    (a shared change request): `unmarshal` and `unmarshal_valid` return a message that starts \
+    with `request.` without serde_json's ` at line L column C`, and `MergeCloneError` writes such \
+    a message without its field, as `tryExtractErrorMessage` does (`EncodingJson` likewise for \
+    `json.Unmarshal`, whose sites decode none of these types). It is due before \
+    ORTBEXT-SERDE-WRAPPER reads the request's extensions with the serde code, and that unit brings \
+    the restore pin against this crate's goldens."""
+rule_b = "d"
+restore_by = ["ORTBEXT-SERDE-WRAPPER"]
+note = """\
+    `stringOrStringArray`'s `value should be of type string or []string` reaches \
+    `jsonutil.Unmarshal`'s caller with jsoniter's field around it \
+    (`cannot unmarshal openrtb_ext.ImpExtGoldbach.CustomTargeting: ...`), which is \
+    `json.error-texts`; `json.Unmarshal` gives it bare, as it gives the others."""
+
+[[difference]]
+id = "json.string-or-array-null"
+category = "json"
+status = "decision-pending"
+title = "`stringOrStringArray` given null: Go reads `[\"\"]`, the port nil"
+go = """\
+    `stringOrStringArray.UnmarshalJSON` (the values of `ImpExtGoldbach.CustomTargeting`) first \
+    reads the bytes as a string with `jsonutil.UnmarshalValid`, which reads null as `\"\"` \
+    without an error, so null gives `[\"\"]`."""
+rust = """\
+    `StringOrStringArray`'s serde impl reads the string with `pbs_jsonutil::unmarshal_valid`, \
+    which rejects null (`json.null-document`), and then the array, which null leaves nil."""
+who = ["publisher", "bidder"]
+visible_in = """\
+    The `targetings` Prebid sends Goldbach (adapters/goldbach/goldbach.go:158-167) for a key a \
+    request's `imp.ext.goldbach.customTargeting` gives null: `[\"\"]` from Go, `null` from the \
+    port once the adapter reads its parameters with the serde code"""
+pin = "crates/openrtb-ext/tests/parity/shapes.rs::string_or_array_null_is_nil"
+restore = """\
+    Reading null as the string's zero value, as the restore of `json.null-document` would: glue \
+    under Rule B (a) if the user restores that entry, which this one follows."""
+default = "serde's result: nil (crates first)."
+decision = "D-DECODE"

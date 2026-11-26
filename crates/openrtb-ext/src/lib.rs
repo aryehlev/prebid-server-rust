@@ -8,6 +8,19 @@
 //! the crate root, as Go exports it from the one package (the `openrtb_ext` module names the same
 //! items, for paths spelled after the Go package).
 //!
+//! # JSON
+//!
+//! Every type has two JSON codes. The `GoJson` code (`pbs_gojson`) reproduces jsoniter and
+//! `encoding/json`, and is what the request wrapper and the callers use until they move to serde.
+//! The serde code (`Serialize`, `Deserialize` and `pbs_jsonutil::MergeClone`) is what typegen
+//! generates for the generated types; the types with Go JSON methods (`ExtSite`, `ExtDeviceInt`,
+//! `ExtImpAppnexusKeywords`, `PriceGranularity`, `StringOrStringArray`) implement it by hand
+//! after their Go methods, reading the members Go's jsonparser finds through small borrowed
+//! structs; the named string and map types delegate to what they hold, and `ImpExtEpom`, a
+//! struct without fields that typegen does not write, reads any object. Where the serde code
+//! differs from Go, `differences.toml` and the ledgers of pbs-jsonutil and pbs-openrtb name it;
+//! `tests/parity/shapes.rs` and `tests/parity/serde_goldens.rs` hold it to Go's goldens.
+//!
 //! # Differences from Go
 //!
 //! * Go's named string types `BidderName`, `BidType`, `TargetingKey`, `CookieStatus` and
@@ -16,7 +29,8 @@
 //!   (`ExtImpAppnexusKeywords` from an object, colliding names in [`read_deal_tiers_from_imp`],
 //!   several case-insensitive matches in
 //!   [`ExtAlternateBidderCodes::is_bidder_in_alternate_bidder_codes`]), Rust walks the keys in byte
-//!   order: one of the results Go can give, always the same one.
+//!   order: always the same result, and one Go can give, except that the keywords of an object with
+//!   three keys or more can come in an order Go's walk never gives (`json.keywords-object-order`).
 //! * Go's nil receivers and nil elements that would panic are handled without panicking (each
 //!   function documents what it does instead).
 //! * Copies own their data: where a Go `Clone` or `DeepCopy` shares a map, slice or pointer with
@@ -41,6 +55,7 @@ mod floors;
 mod generated;
 mod imp;
 mod imp_appnexus;
+mod imp_epom;
 mod imp_goldbach;
 mod imp_unnamed;
 mod multibid;
@@ -62,6 +77,7 @@ pub use device::*;
 pub use generated::*;
 pub use imp::*;
 pub use imp_appnexus::*;
+pub use imp_epom::*;
 pub use imp_goldbach::*;
 pub use imp_unnamed::*;
 pub use multibid::*;

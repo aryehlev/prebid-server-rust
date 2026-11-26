@@ -1,5 +1,7 @@
 {
   "crate": "pbs_openrtb_ext",
+  "serde": true,
+  "serde_bridge": "pbs_openrtb::gojson_bridge",
   "go_index": {
     "out": "testdata/go/ported_types_gen.go",
     "package": "main"
@@ -9,12 +11,14 @@
       "rust": "jsonutil::StringInt",
       "use": "pbs_gojson::jsonutil",
       "copy": true,
-      "eq": true
+      "eq": true,
+      "serde_bridge": "string_int"
     },
     "github.com/prebid/prebid-server/v4/util/jsonutil.IntString": {
       "rust": "jsonutil::IntString",
       "use": "pbs_gojson::jsonutil",
-      "eq": true
+      "eq": true,
+      "serde_bridge": "int_string"
     },
     "github.com/prebid/prebid-server/v4/openrtb_ext.stringOrStringArray": {
       "rust": "StringOrStringArray",
@@ -118,6 +122,11 @@
         "PriceGranularity": {
           "reason": "Has an UnmarshalJSON method (legacy string IDs or the custom model): hand-written with the unmarshaler.",
           "skip": true
+        },
+        "ImpExtEpom": {
+          "reason": "A struct without fields: serde's derive reads a unit struct from null only, where Go reads any object (and null) into it; hand-written with serde impls that read as Go does.",
+          "skip": true,
+          "implements": ["Copy", "Eq"]
         },
         "ExtDeviceInt": {
           "reason": "Has an UnmarshalJSON method (jsonparser-based validation): hand-written with the unmarshaler.",

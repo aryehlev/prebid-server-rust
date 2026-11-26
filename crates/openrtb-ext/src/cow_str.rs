@@ -3,7 +3,9 @@
 //! A `String` newtype cannot be built in a `const`, so these types hold a
 //! `Cow<'static, str>`: constants borrow their literal, decoded values own their text. They
 //! encode and decode as Go `string`s under their own Go type name (pbs-gojson's newtype
-//! semantics, implemented here by hand because the derive does not know `Cow`).
+//! semantics, implemented here by hand because the derive does not know `Cow`), and read, write
+//! and merge through serde as the `String` of a generated named string type does (a JSON string,
+//! a map key included; `MergeClone` as `String`'s: null makes it empty).
 
 /// Declares a Go named string type over `Cow<'static, str>`, with its pbs-gojson impls; the
 /// items after the header go into its inherent `impl` block. The invoking module must have
@@ -41,6 +43,9 @@ macro_rules! cow_string_type {
                 Encoder, GoEncode, GoKind, GoMapKey, GoType, JsonError, JsoniterDecode, StdDecode,
                 jsoniter::Iter, stdjson::StdDecoder,
             };
+            use pbs_jsonutil::{MergeClone, MergeCloneError};
+            use serde::{Deserialize, Deserializer, Serialize, Serializer};
+            use serde_json::value::RawValue;
 
             /// Runs `f` on the owned text of `cow`, keeping what `f` leaves in it.
             fn with_string<R, F: FnOnce(&mut String) -> R>(
@@ -92,6 +97,24 @@ macro_rules! cow_string_type {
             impl fmt::Display for $name {
                 fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
                     f.write_str(&self.0)
+                }
+            }
+
+            impl Serialize for $name {
+                fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+                    serializer.serialize_str(&self.0)
+                }
+            }
+
+            impl<'de> Deserialize<'de> for $name {
+                fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+                    String::deserialize(deserializer).map(Self::from)
+                }
+            }
+
+            impl MergeClone for $name {
+                fn merge_clone(&mut self, patch: &RawValue) -> Result<(), MergeCloneError> {
+                    with_string(&mut self.0, |s| s.merge_clone(patch))
                 }
             }
 

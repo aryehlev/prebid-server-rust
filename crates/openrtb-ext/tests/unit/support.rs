@@ -4,6 +4,7 @@ use std::{env, fmt::Debug, fs, path::PathBuf, process};
 
 use pbs_devtools::repo;
 use pbs_gojson::{JsoniterDecode, jsonutil};
+use serde::de::DeserializeOwned;
 
 /// A test result whose error is the failure message.
 pub(super) type TestResult<T = ()> = Result<T, String>;
@@ -26,6 +27,29 @@ pub(super) fn unmarshal_error<T: JsoniterDecode + ?Sized>(doc: &str, v: &mut T) 
     jsonutil::unmarshal_valid(doc.as_bytes(), v)
         .err()
         .map(|e| e.message.to_string_lossy())
+}
+
+/// `jsonutil.UnmarshalValid(doc, &v)` through the serde code (`pbs_jsonutil::unmarshal_valid`):
+/// the value, or the error's text.
+pub(super) fn serde_unmarshal<T: DeserializeOwned>(doc: &str) -> TestResult<T> {
+    pbs_jsonutil::unmarshal_valid(doc.as_bytes()).map_err(|e| e.to_string())
+}
+
+/// `text` without the position `serde_json` puts after an error inside the document
+/// (` at line 1 column 52`), which Go's text does not have (`json.prebid-message-context`).
+pub(super) fn without_position(text: &str) -> &str {
+    text.rsplit_once(" at line ")
+        .filter(|(_, position)| {
+            position
+                .split_once(" column ")
+                .is_some_and(|(line, column)| is_digits(line) && is_digits(column))
+        })
+        .map_or(text, |(message, _)| message)
+}
+
+/// Whether `text` is a run of decimal digits.
+fn is_digits(text: &str) -> bool {
+    !text.is_empty() && text.bytes().all(|b| b.is_ascii_digit())
 }
 
 /// The Go root: the upstream checkout whose static files the tests read (`$PBS_GO_ROOT`, else

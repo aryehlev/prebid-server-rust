@@ -20,25 +20,25 @@ use super::{
 };
 
 /// One encoding: its bytes, or its error text.
-type Encoded = Result<Vec<u8>, Vec<u8>>;
+pub(super) type Encoded = Result<Vec<u8>, Vec<u8>>;
 
 /// What Rust does with one document, in the order of a golden row: the error text of each
 /// decoder (empty on success), and the value each decoder leaves (also after an error)
 /// encoded with `jsonutil.Marshal`, `json.Marshal` and an `Encoder` without HTML escaping.
-struct Outcome {
+pub(super) struct Outcome {
     /// `jsonutil.Unmarshal`'s error text.
-    jsoniter_err: Vec<u8>,
+    pub(super) jsoniter_err: Vec<u8>,
     /// `json.Unmarshal`'s error text.
-    std_err: Vec<u8>,
+    pub(super) std_err: Vec<u8>,
     /// The `jsonutil.Unmarshal` value's encodings, then the `json.Unmarshal` value's.
-    encoded: [Encoded; 6],
+    pub(super) encoded: [Encoded; 6],
 }
 
 /// Runs one document through the Rust port of a Go type.
-type Runner = fn(&[u8]) -> Outcome;
+pub(super) type Runner = fn(&[u8]) -> Outcome;
 
 /// The runner of each ported type, by Go name.
-type Runners = BTreeMap<String, Runner>;
+pub(super) type Runners = BTreeMap<String, Runner>;
 
 /// `v` encoded with `jsonutil.Marshal`, `json.Marshal` and an `Encoder` without HTML escaping.
 fn encode<T: GoEncode>(v: &T) -> [Encoded; 3] {
@@ -73,7 +73,7 @@ fn outcome<T: Default + GoEncode + JsoniterDecode + StdDecode>(doc: &[u8]) -> Ou
 
 /// The runner of every ported type by Go name; fails unless the Go names are those of
 /// [`TYPES`], in order, and each names one Rust type.
-fn runners() -> TestResult<Runners> {
+pub(super) fn runners() -> TestResult<Runners> {
     let mut by_name = Runners::new();
     let mut names = Vec::new();
     macro_rules! runner {
@@ -96,7 +96,7 @@ fn runners() -> TestResult<Runners> {
 
 /// A golden encoding, resolved to what Rust must produce.
 #[derive(Clone)]
-enum Want {
+pub(super) enum Want {
     /// These bytes.
     Bytes(Vec<u8>),
     /// Bytes of this length and FNV-1a 64 hash, then a newline when `newline` is set.
@@ -107,7 +107,7 @@ enum Want {
 
 /// Resolves an encoding cell of a row whose document is `doc`; `earlier` are the row's
 /// encodings before it.
-fn want(cell: &[u8], doc: &[u8], earlier: &[Want]) -> TestResult<Want> {
+pub(super) fn want(cell: &[u8], doc: &[u8], earlier: &[Want]) -> TestResult<Want> {
     let bad = || format!("bad encoding cell {}", show(cell));
     let (&tag, rest) = cell.split_first().ok_or_else(bad)?;
     match tag {
@@ -153,7 +153,7 @@ fn want(cell: &[u8], doc: &[u8], earlier: &[Want]) -> TestResult<Want> {
     }
 }
 
-fn matches(want: &Want, got: &Encoded) -> bool {
+pub(super) fn matches(want: &Want, got: &Encoded) -> bool {
     match (want, got) {
         (Want::Bytes(want), Ok(got)) | (Want::Error(want), Err(got)) => want == got,
         (Want::Hash { len, fnv, newline }, Ok(got)) => {
@@ -217,7 +217,7 @@ fn regenerate(what: &str) -> String {
 }
 
 /// A corpus file of a `#file` row: its path and bytes, checked against the hash Go recorded.
-fn corpus_file(row: &[Vec<u8>]) -> TestResult<(String, Vec<u8>)> {
+pub(super) fn corpus_file(row: &[Vec<u8>]) -> TestResult<(String, Vec<u8>)> {
     let [_, path, hash] = row else {
         return Err(format!("bad #file row of {} fields", row.len()));
     };
@@ -231,7 +231,7 @@ fn corpus_file(row: &[Vec<u8>]) -> TestResult<(String, Vec<u8>)> {
 }
 
 /// The document of a row: `'` and its bytes, or `@file:offset:length` into a corpus file.
-fn document(field: &[u8], files: &[Vec<u8>]) -> TestResult<Vec<u8>> {
+pub(super) fn document(field: &[u8], files: &[Vec<u8>]) -> TestResult<Vec<u8>> {
     if let Some(inline) = field.strip_prefix(b"'") {
         return Ok(inline.to_vec());
     }
